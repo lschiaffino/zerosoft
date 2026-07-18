@@ -10,7 +10,7 @@
     "seed": "tsx scripts/seed.ts && tsx scripts/seed-crm.ts"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.0",
+    "@libsql/client": "^0.17.4",
     "geoip-lite": "^1.4.10",
     "gray-matter": "^4.0.3",
     "marked": "^14.1.4",
@@ -25,7 +25,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
     "@types/geoip-lite": "^1.4.4",
     "@types/node": "^20.17.10",
     "@types/qrcode": "^1.5.5",

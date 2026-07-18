@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
   try {
     const result =
       entity === 'contacts'
-        ? importContacts(user.id, rows as unknown as MappedContactRow[], mode)
-        : importCompanies(user.id, rows as unknown as MappedCompanyRow[], mode);
+        ? await importContacts(user.id, rows as unknown as MappedContactRow[], mode)
+        : await importCompanies(user.id, rows as unknown as MappedCompanyRow[], mode);
     return NextResponse.json(result);
   } catch {
     return crmError(500, 'import_failed');

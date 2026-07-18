@@ -14,14 +14,14 @@ const createSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return apiError(400, 'invalid_url', 'A valid "url" is required.');
 
-  const result = createLink(auth.user.id, parsed.data);
+  const result = await createLink(auth.user.id, parsed.data);
   if (!result.ok) {
     const messages: Record<string, string> = {
       invalid_url: 'The destination URL is not valid.',
@@ -48,11 +48,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
   const sp = req.nextUrl.searchParams;
-  const result = listLinks(auth.user.id, {
+  const result = await listLinks(auth.user.id, {
     archived: 'all',
     page: Number(sp.get('page') ?? '1') || 1,
     pageSize: Number(sp.get('pageSize') ?? '10') || 10,

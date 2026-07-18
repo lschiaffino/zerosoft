@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  return NextResponse.json({ rows: listLists(user.id) });
+  return NextResponse.json({ rows: await listLists(user.id) });
 }
 
 export async function POST(req: NextRequest) {
@@ -21,6 +21,6 @@ export async function POST(req: NextRequest) {
   const parsed = listCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const list = createList(user.id, parsed.data);
+  const list = await createList(user.id, parsed.data);
   return NextResponse.json(list, { status: 201 });
 }

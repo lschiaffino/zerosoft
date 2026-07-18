@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const parsed = activityUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const activity = updateActivity(user.id, params.id, parsed.data);
+  const activity = await updateActivity(user.id, params.id, parsed.data);
   if (!activity) return notFound();
   return NextResponse.json(activity);
 }
@@ -23,6 +23,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!deleteActivity(user.id, params.id)) return notFound();
+  if (!(await deleteActivity(user.id, params.id))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

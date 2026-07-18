@@ -37,7 +37,7 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   // Vista guardada activa: sus filtros sirven de default; los params explícitos ganan.
-  const views = listSavedViews(user.id, 'contacts');
+  const views = await listSavedViews(user.id, 'contacts');
   const activeView = views.find((v) => v.id === one(searchParams.view)) ?? null;
   const viewQuery = activeView ? parseCustom(activeView.query) : {};
 
@@ -51,7 +51,7 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
     : 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
 
-  const { rows, total } = listContacts(user.id, {
+  const { rows, total } = await listContacts(user.id, {
     q: q || undefined,
     lifecycle: lifecycle || undefined,
     leadStatus: leadStatus || undefined,

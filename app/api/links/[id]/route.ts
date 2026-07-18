@@ -21,9 +21,9 @@ function notFound() {
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const link = getUserLink(user.id, params.id);
+  const link = await getUserLink(user.id, params.id);
   if (!link) return notFound();
-  return NextResponse.json({ ...toLinkDto(link), todayClicks: todayClicksForLink(link.id) });
+  return NextResponse.json({ ...toLinkDto(link), todayClicks: await todayClicksForLink(link.id) });
 }
 
 const patchSchema = z.object({
@@ -40,7 +40,7 @@ const patchSchema = z.object({
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const link = getUserLink(user.id, params.id);
+  const link = await getUserLink(user.id, params.id);
   if (!link) return notFound();
 
   const body: unknown = await req.json().catch(() => null);
@@ -93,7 +93,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (p.slug !== undefined && p.slug !== link.slug) {
     const slug = p.slug.trim();
     if (!isValidSlug(slug)) return NextResponse.json({ error: 'invalid_slug' }, { status: 400 });
-    const taken = getDb().prepare('SELECT 1 AS x FROM links WHERE slug = ? AND id != ?').get(slug, link.id);
+    const taken = await getDb().prepare('SELECT 1 AS x FROM links WHERE slug = ? AND id != ?').get(slug, link.id);
     if (taken) return NextResponse.json({ error: 'slug_taken' }, { status: 409 });
     sets.push('slug = ?');
     args.push(slug);
@@ -101,20 +101,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   if (sets.length > 0) {
     sets.push(`updated_at = datetime('now')`);
-    getDb()
+    await getDb()
       .prepare(`UPDATE links SET ${sets.join(', ')} WHERE id = ?`)
       .run(...args, link.id);
   }
 
-  const updated = getUserLink(user.id, params.id)!;
+  const updated = (await getUserLink(user.id, params.id))!;
   return NextResponse.json(toLinkDto(updated));
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const link = getUserLink(user.id, params.id);
+  const link = await getUserLink(user.id, params.id);
   if (!link) return notFound();
-  getDb().prepare('DELETE FROM links WHERE id = ?').run(link.id);
+  await getDb().prepare('DELETE FROM links WHERE id = ?').run(link.id);
   return new NextResponse(null, { status: 204 });
 }

@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   if (!entity || !ENTITIES.includes(entity)) return crmError(400, 'invalid_input');
   if (format !== 'csv' && format !== 'json') return crmError(400, 'invalid_input');
 
-  const rows = exportRows(user.id, entity);
+  const rows = await exportRows(user.id, entity);
   const date = new Date().toISOString().slice(0, 10);
   const filename = `crm-${entity}-${date}.${format}`;
 

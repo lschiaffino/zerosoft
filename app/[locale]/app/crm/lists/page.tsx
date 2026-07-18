@@ -10,7 +10,7 @@ export default async function ListsPage({ params: { locale } }: { params: { loca
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const lists = listLists(user.id);
+  const lists = await listLists(user.id);
 
   const rows: ListRow[] = lists.map((l) => ({
     id: l.id,

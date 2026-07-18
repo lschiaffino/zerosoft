@@ -6,10 +6,10 @@ import { getUserByEmail, upsertUser, type UserRow } from './db';
 export const DEMO_MODE = process.env.DEMO_MODE === 'true';
 export const DEMO_EMAIL = 'demo@zerosoft.ai';
 
-function getDemoUser(): UserRow {
+async function getDemoUser(): Promise<UserRow> {
   return (
-    getUserByEmail(DEMO_EMAIL) ??
-    upsertUser({ id: 'demo', email: DEMO_EMAIL, name: 'Demo User', image: null })
+    (await getUserByEmail(DEMO_EMAIL)) ??
+    (await upsertUser({ id: 'demo', email: DEMO_EMAIL, name: 'Demo User', image: null }))
   );
 }
 
@@ -22,7 +22,7 @@ export async function getCurrentUser(): Promise<UserRow | null> {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   if (!email) return null;
-  return getUserByEmail(email) ?? null;
+  return (await getUserByEmail(email)) ?? null;
 }
 
 /**

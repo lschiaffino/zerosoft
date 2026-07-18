@@ -5,7 +5,7 @@
  */
 import { createHash } from 'crypto';
 import { nanoid } from 'nanoid';
-import { getDb, upsertUser } from '../lib/db';
+import { ensureMigrated, getClient, getDb, txDb, upsertUser } from '../lib/db';
 import { hashPassword } from '../lib/links';
 
 const USER_ID = 'demo';
@@ -119,33 +119,36 @@ function utc(daysAgo: number, h: number, m: number, s: number): string {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-function main() {
+async function main() {
   const db = getDb();
-  upsertUser({ id: USER_ID, email: EMAIL, name: 'Demo User', image: null });
+  await upsertUser({ id: USER_ID, email: EMAIL, name: 'Demo User', image: null });
 
   // Wipe previous demo data (clicks cascade from links).
-  db.prepare('DELETE FROM links WHERE user_id = ?').run(USER_ID);
-  db.prepare('DELETE FROM api_keys WHERE user_id = ?').run(USER_ID);
-
-  const insertLink = db.prepare(
-    `INSERT INTO links (id, user_id, slug, url, title, tags, password_hash, expires_at, max_clicks, archived, utm_source, utm_medium, utm_campaign, clicks, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, 0, ?, ?)`,
-  );
-  const insertClick = db.prepare(
-    'INSERT INTO clicks (link_id, ts, referrer, country, device, browser, os) VALUES (?, ?, ?, ?, ?, ?, ?)',
-  );
-  const syncCount = db.prepare(
-    'UPDATE links SET clicks = (SELECT COUNT(*) FROM clicks WHERE clicks.link_id = links.id) WHERE id = ?',
-  );
+  await db.prepare('DELETE FROM links WHERE user_id = ?').run(USER_ID);
+  await db.prepare('DELETE FROM api_keys WHERE user_id = ?').run(USER_ID);
 
   let totalClicks = 0;
 
-  const seedAll = db.transaction(() => {
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    const insertLink = tdb.prepare(
+      `INSERT INTO links (id, user_id, slug, url, title, tags, password_hash, expires_at, max_clicks, archived, utm_source, utm_medium, utm_campaign, clicks, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, 0, ?, ?)`,
+    );
+    const insertClick = tdb.prepare(
+      'INSERT INTO clicks (link_id, ts, referrer, country, device, browser, os) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    );
+    const syncCount = tdb.prepare(
+      'UPDATE links SET clicks = (SELECT COUNT(*) FROM clicks WHERE clicks.link_id = links.id) WHERE id = ?',
+    );
+
     for (const link of LINKS) {
       const id = crypto.randomUUID();
       const createdAt = utc(link.createdDaysAgo, 9, 30, 0);
       const expiresAt = link.expired ? new Date(Date.now() - 2 * 86_400_000).toISOString() : null;
-      insertLink.run(
+      await insertLink.run(
         id,
         USER_ID,
         link.slug,
@@ -175,7 +178,7 @@ function main() {
 
       for (let i = 0; i < target; i++) {
         const daysAgo = pickWeighted(dayWeights);
-        insertClick.run(
+        await insertClick.run(
           id,
           utc(daysAgo, Math.floor(rand() * 24), Math.floor(rand() * 60), Math.floor(rand() * 60)),
           pickWeighted(REFERRERS),
@@ -186,24 +189,27 @@ function main() {
         );
         totalClicks++;
       }
-      syncCount.run(id);
+      await syncCount.run(id);
     }
-  });
-  seedAll();
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
 
   // Demo API key — the full key is printed here, only its sha256 is stored.
   const demoKey = `zs_demo_${nanoid(32)}`;
-  db.prepare(
-    'INSERT INTO api_keys (id, user_id, name, prefix, key_hash) VALUES (?, ?, ?, ?, ?)',
-  ).run(
-    crypto.randomUUID(),
-    USER_ID,
-    'Demo key',
-    demoKey.slice(0, 10),
-    createHash('sha256').update(demoKey).digest('hex'),
-  );
+  await db
+    .prepare('INSERT INTO api_keys (id, user_id, name, prefix, key_hash) VALUES (?, ?, ?, ?, ?)')
+    .run(
+      crypto.randomUUID(),
+      USER_ID,
+      'Demo key',
+      demoKey.slice(0, 10),
+      createHash('sha256').update(demoKey).digest('hex'),
+    );
 
-  const linkCount = (db.prepare('SELECT COUNT(*) AS c FROM links WHERE user_id = ?').get(USER_ID) as { c: number }).c;
+  const linkCount = ((await db.prepare('SELECT COUNT(*) AS c FROM links WHERE user_id = ?').get(USER_ID)) as { c: number }).c;
   console.log(`\n0 — seed complete`);
   console.log(`    user:   ${EMAIL} (id=${USER_ID})`);
   console.log(`    links:  ${linkCount} (${totalClicks} clicks over the last 30 days)`);
@@ -211,4 +217,7 @@ function main() {
   console.log(`    api key (save it, shown once):\n\n      ${demoKey}\n`);
 }
 
-main();
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

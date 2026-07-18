@@ -12,13 +12,13 @@ function localeFrom(req: NextRequest): string {
   return cookie && LOCALES.has(cookie) ? cookie : 'en';
 }
 
-export function GET(req: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
   const { slug } = params;
   const locale = localeFrom(req);
   const gone = (reason: string) =>
     NextResponse.redirect(new URL(`/${locale}/gone?reason=${reason}`, req.url));
 
-  const link = getLinkBySlug(slug);
+  const link = await getLinkBySlug(slug);
   if (!link || link.archived === 1) return gone('notfound');
   if (isExpired(link)) return gone('expired');
   if (link.max_clicks !== null && link.clicks >= link.max_clicks) return gone('limit');
@@ -30,6 +30,6 @@ export function GET(req: NextRequest, { params }: { params: { slug: string } }) 
     }
   }
 
-  recordClick(link.id, contextFromHeaders(req.headers));
+  await recordClick(link.id, contextFromHeaders(req.headers));
   return NextResponse.redirect(link.url, 302);
 }

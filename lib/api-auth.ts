@@ -17,14 +17,14 @@ export function extractBearer(req: Request): string | null {
 }
 
 /** Looks up a raw API key; on success bumps last_used_at and returns the owner. */
-export function validateApiKey(rawKey: string): UserRow | null {
+export async function validateApiKey(rawKey: string): Promise<UserRow | null> {
   const db = getDb();
-  const row = db
+  const row = (await db
     .prepare('SELECT * FROM api_keys WHERE key_hash = ? AND revoked = 0')
-    .get(sha256(rawKey)) as ApiKeyRow | undefined;
+    .get(sha256(rawKey))) as ApiKeyRow | undefined;
   if (!row) return null;
-  db.prepare(`UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?`).run(row.id);
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(row.user_id) as UserRow;
+  await db.prepare(`UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?`).run(row.id);
+  return (await db.prepare('SELECT * FROM users WHERE id = ?').get(row.user_id)) as UserRow;
 }
 
 // In-memory sliding-window rate limiter: 100 req/min per key hash.
@@ -49,10 +49,10 @@ export function apiError(status: number, code: string, message: string): NextRes
 export type ApiAuth = { user: UserRow } | { res: NextResponse };
 
 /** Bearer auth + rate limit for /api/v1/* handlers. */
-export function requireApiUser(req: Request): ApiAuth {
+export async function requireApiUser(req: Request): Promise<ApiAuth> {
   const raw = extractBearer(req);
   if (!raw) return { res: apiError(401, 'invalid_key', 'Missing API key. Use Authorization: Bearer zs_…') };
-  const user = validateApiKey(raw);
+  const user = await validateApiKey(raw);
   if (!user) return { res: apiError(401, 'invalid_key', 'Invalid or revoked API key.') };
   if (!rateLimitOk(sha256(raw))) {
     return { res: apiError(429, 'rate_limited', 'Rate limit exceeded: 100 requests per minute.') };
@@ -71,30 +71,35 @@ export interface ApiKeyDto {
 }
 
 /** Generates `zs_<nanoid(32)>`, stores only its sha256. Full key is returned once. */
-export function createApiKey(userId: string, name: string): { id: string; key: string } {
+export async function createApiKey(
+  userId: string,
+  name: string,
+): Promise<{ id: string; key: string }> {
   const db = getDb();
   const key = `zs_${nanoid(32)}`;
   const id = crypto.randomUUID();
-  db.prepare('INSERT INTO api_keys (id, user_id, name, prefix, key_hash) VALUES (?, ?, ?, ?, ?)').run(
-    id,
-    userId,
-    name,
-    key.slice(0, 10),
-    sha256(key),
-  );
+  await db
+    .prepare('INSERT INTO api_keys (id, user_id, name, prefix, key_hash) VALUES (?, ?, ?, ?, ?)')
+    .run(
+      id,
+      userId,
+      name,
+      key.slice(0, 10),
+      sha256(key),
+    );
   return { id, key };
 }
 
-export function listApiKeys(userId: string): ApiKeyDto[] {
-  return getDb()
+export async function listApiKeys(userId: string): Promise<ApiKeyDto[]> {
+  return (await getDb()
     .prepare(
       'SELECT id, name, prefix, created_at, last_used_at FROM api_keys WHERE user_id = ? AND revoked = 0 ORDER BY created_at DESC',
     )
-    .all(userId) as ApiKeyDto[];
+    .all(userId)) as ApiKeyDto[];
 }
 
-export function revokeApiKey(userId: string, id: string): boolean {
-  const res = getDb()
+export async function revokeApiKey(userId: string, id: string): Promise<boolean> {
+  const res = await getDb()
     .prepare('UPDATE api_keys SET revoked = 1 WHERE id = ? AND user_id = ?')
     .run(id, userId);
   return res.changes > 0;

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const detail = getList(user.id, params.id);
+  const detail = await getList(user.id, params.id);
   if (!detail) return notFound();
   return NextResponse.json(detail);
 }
@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const parsed = listUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const list = updateList(user.id, params.id, parsed.data);
+  const list = await updateList(user.id, params.id, parsed.data);
   if (!list) return notFound();
   return NextResponse.json(list);
 }
@@ -31,6 +31,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!deleteList(user.id, params.id)) return notFound();
+  if (!(await deleteList(user.id, params.id))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

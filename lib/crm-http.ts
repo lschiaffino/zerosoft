@@ -55,12 +55,12 @@ export function sortParam<T extends string>(
 }
 
 /** Primer pipeline del usuario (position ASC) — default para listados de deals. */
-export function defaultPipelineId(userId: string): string | null {
-  const row = getDb()
+export async function defaultPipelineId(userId: string): Promise<string | null> {
+  const row = (await getDb()
     .prepare(
       'SELECT id FROM crm_pipelines WHERE user_id = ? ORDER BY position ASC, created_at ASC LIMIT 1',
     )
-    .get(userId) as { id: string } | undefined;
+    .get(userId)) as { id: string } | undefined;
   return row?.id ?? null;
 }
 

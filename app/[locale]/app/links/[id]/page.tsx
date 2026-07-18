@@ -23,12 +23,12 @@ export default async function LinkDetailPage({ params: { locale, id }, searchPar
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
 
-  const link = getUserLink(user.id, id);
+  const link = await getUserLink(user.id, id);
   if (!link) notFound();
 
   const rawRange = typeof searchParams.range === 'string' ? searchParams.range : undefined;
   const range: AnalyticsRange = rawRange === '7d' || rawRange === 'all' ? rawRange : '30d';
-  const a = getAnalytics(link.id, link.created_at, range);
+  const a = await getAnalytics(link.id, link.created_at, range);
 
   const today = a.byDay[a.byDay.length - 1]?.count ?? 0;
   const last7 = a.byDay.slice(-7).reduce((sum, d) => sum + d.count, 0);

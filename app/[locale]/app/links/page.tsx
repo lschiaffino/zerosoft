@@ -28,8 +28,8 @@ export default async function LinksPage({ params: { locale }, searchParams }: Li
   const sort = one(searchParams.sort) === 'clicks' ? 'clicks' : 'created';
   const page = Number(one(searchParams.page) ?? '1') || 1;
 
-  const result = listLinks(user.id, { q: q || undefined, tag: tag ?? undefined, archived, sort, page });
-  const tags = userTags(user.id);
+  const result = await listLinks(user.id, { q: q || undefined, tag: tag ?? undefined, archived, sort, page });
+  const tags = await userTags(user.id);
 
   const rows: TableRow[] = result.links.map((l) => ({
     id: l.id,

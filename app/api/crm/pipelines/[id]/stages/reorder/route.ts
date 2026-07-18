@@ -19,6 +19,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const parsed = reorderSchema.safeParse(body);
   if (!parsed.success) return crmError(400, 'invalid_input');
 
-  if (!reorderStages(user.id, params.id, parsed.data.stageIds)) return notFound();
+  if (!(await reorderStages(user.id, params.id, parsed.data.stageIds))) return notFound();
   return NextResponse.json({ ok: true });
 }

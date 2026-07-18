@@ -8,16 +8,16 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
-  const detail = getContact(auth.user.id, params.id);
+  const detail = await getContact(auth.user.id, params.id);
   if (!detail) return apiError(404, 'not_found', 'Contact not found.');
   return NextResponse.json(cleanRow(detail.contact));
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);
@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const contact = updateContact(auth.user.id, params.id, parsed.data);
+  const contact = await updateContact(auth.user.id, params.id, parsed.data);
   if (!contact) return apiError(404, 'not_found', 'Contact not found.');
   return NextResponse.json(cleanRow(contact));
 }

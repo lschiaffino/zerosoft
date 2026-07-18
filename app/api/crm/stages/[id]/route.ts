@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const parsed = stageUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const stage = updateStage(user.id, params.id, parsed.data);
+  const stage = await updateStage(user.id, params.id, parsed.data);
   if (!stage) return notFound();
   return NextResponse.json(stage);
 }
@@ -24,7 +24,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const result = deleteStage(user.id, params.id);
+  const result = await deleteStage(user.id, params.id);
   if (!result.ok) {
     if (result.reason === 'not_empty') return crmError(409, 'stage_has_deals');
     return notFound();

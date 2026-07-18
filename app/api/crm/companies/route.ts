@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
-  const { rows, total } = listCompanies(user.id, {
+  const { rows, total } = await listCompanies(user.id, {
     q: sp.get('q') ?? undefined,
     industry: sp.get('industry') ?? undefined,
     lifecycle: sp.get('lifecycle') ?? undefined,
@@ -35,6 +35,6 @@ export async function POST(req: NextRequest) {
   const parsed = companyCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const company = createCompany(user.id, parsed.data);
+  const company = await createCompany(user.id, parsed.data);
   return NextResponse.json(company, { status: 201 });
 }

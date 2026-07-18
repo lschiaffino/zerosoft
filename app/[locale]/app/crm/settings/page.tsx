@@ -16,8 +16,8 @@ export default async function CrmSettingsPage({
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const pipelines = listPipelinesWithStages(user.id);
-  const customFields = listCustomFields(user.id);
+  const pipelines = await listPipelinesWithStages(user.id);
+  const customFields = await listCustomFields(user.id);
 
   return (
     <div className="app-page">

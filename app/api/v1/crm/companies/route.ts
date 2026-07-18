@@ -8,12 +8,12 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
-  const { rows, total } = listCompanies(auth.user.id, {
+  const { rows, total } = await listCompanies(auth.user.id, {
     q: sp.get('q') ?? undefined,
     page,
     pageSize,
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);
@@ -32,6 +32,6 @@ export async function POST(req: NextRequest) {
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const company = createCompany(auth.user.id, parsed.data);
+  const company = await createCompany(auth.user.id, parsed.data);
   return NextResponse.json(cleanRow(company), { status: 201 });
 }

@@ -8,20 +8,20 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
-  const pipelineId = sp.get('pipelineId') ?? defaultPipelineId(auth.user.id);
+  const pipelineId = sp.get('pipelineId') ?? (await defaultPipelineId(auth.user.id));
   if (!pipelineId) return NextResponse.json({ deals: [], total: 0, page, pageSize });
 
-  const { rows, total } = listDeals(auth.user.id, { pipelineId, page, pageSize });
+  const { rows, total } = await listDeals(auth.user.id, { pipelineId, page, pageSize });
   return NextResponse.json({ deals: rows.map(cleanRow), total, page, pageSize });
 }
 
 export async function POST(req: NextRequest) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const result = createDeal(auth.user.id, parsed.data);
+  const result = await createDeal(auth.user.id, parsed.data);
   if (!result.ok) {
     return result.reason === 'invalid_stage'
       ? apiError(400, 'invalid_stage', 'The stage does not belong to that pipeline.')

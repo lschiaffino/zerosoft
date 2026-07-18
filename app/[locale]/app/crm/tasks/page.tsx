@@ -21,7 +21,7 @@ export default async function TasksPage({ params: { locale }, searchParams }: Ta
     ? (bucketParam as TaskBucket)
     : 'today';
 
-  const tasks = listTasks(user.id, bucket);
+  const tasks = await listTasks(user.id, bucket);
 
   const fmtDue = (iso: string): string =>
     new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(

@@ -9,6 +9,6 @@ export const dynamic = 'force-dynamic';
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!deleteSavedView(user.id, params.id)) return notFound();
+  if (!(await deleteSavedView(user.id, params.id))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

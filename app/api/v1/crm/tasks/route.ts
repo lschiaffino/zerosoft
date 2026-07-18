@@ -17,7 +17,7 @@ const BUCKETS: readonly TaskBucket[] = ['overdue', 'today', 'upcoming', 'done'];
 const taskCreateSchema = activityCreateSchema.omit({ type: true });
 
 export async function GET(req: NextRequest) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
   const sp = req.nextUrl.searchParams;
@@ -27,9 +27,9 @@ export async function GET(req: NextRequest) {
     if (!BUCKETS.includes(bucket as TaskBucket)) {
       return apiError(400, 'invalid_input', 'bucket must be one of: overdue, today, upcoming, done.');
     }
-    rows = listTasks(auth.user.id, bucket as TaskBucket);
+    rows = await listTasks(auth.user.id, bucket as TaskBucket);
   } else {
-    rows = listTimeline(auth.user.id, { type: 'task', limit: 500 });
+    rows = await listTimeline(auth.user.id, { type: 'task', limit: 500 });
   }
 
   const { page, pageSize } = pageParams(sp);
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);
@@ -52,6 +52,6 @@ export async function POST(req: NextRequest) {
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const task = createActivity(auth.user.id, { ...parsed.data, type: 'task' });
+  const task = await createActivity(auth.user.id, { ...parsed.data, type: 'task' });
   return NextResponse.json(cleanRow(task), { status: 201 });
 }

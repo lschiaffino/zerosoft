@@ -8,16 +8,16 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
-  const detail = getDeal(auth.user.id, params.id);
+  const detail = await getDeal(auth.user.id, params.id);
   if (!detail) return apiError(404, 'not_found', 'Deal not found.');
   return NextResponse.json(cleanRow(detail.deal));
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = requireApiUser(req);
+  const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);
@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const deal = updateDeal(auth.user.id, params.id, parsed.data);
+  const deal = await updateDeal(auth.user.id, params.id, parsed.data);
   if (!deal) return apiError(404, 'not_found', 'Deal not found.');
   return NextResponse.json(cleanRow(deal));
 }

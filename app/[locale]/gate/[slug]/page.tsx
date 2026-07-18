@@ -13,7 +13,7 @@ interface GatePageProps {
 
 export default async function GatePage({ params: { locale, slug } }: GatePageProps) {
   const t = await getTranslations({ locale, namespace: 'link' });
-  const link = getLinkBySlug(slug);
+  const link = await getLinkBySlug(slug);
 
   if (!link) redirect(`/${locale}/gone?reason=notfound`);
   if (!link.password_hash) redirect(`/${slug}`);

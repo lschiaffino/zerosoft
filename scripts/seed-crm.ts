@@ -3,7 +3,7 @@
  * Idempotent: wipes every crm_* row of the demo user and recreates the dataset.
  * Run with: npm run seed
  */
-import { getDb, upsertUser } from '../lib/db';
+import { ensureMigrated, getClient, txDb, upsertUser } from '../lib/db';
 
 const USER_ID = 'demo';
 const EMAIL = 'demo@zerosoft.ai';
@@ -224,69 +224,71 @@ const COMPETITORS = ['HubSpot', 'Salesforce', 'Pipedrive', 'Zoho', 'a spreadshee
 
 // ---------- Seed ----------
 
-function main() {
-  const db = getDb();
-  upsertUser({ id: USER_ID, email: EMAIL, name: 'Demo User', image: null });
-
-  const insertCompany = db.prepare(
-    `INSERT INTO crm_companies
-       (id, user_id, name, domain, industry, employees, phone, website, city, country,
-        lifecycle_stage, custom, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?)`,
-  );
-  const insertContact = db.prepare(
-    `INSERT INTO crm_contacts
-       (id, user_id, first_name, last_name, email, phone, job_title, website, city, country,
-        lifecycle_stage, lead_status, source, company_id, custom, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  const insertPipeline = db.prepare(
-    'INSERT INTO crm_pipelines (id, user_id, name, position, created_at) VALUES (?, ?, ?, ?, ?)',
-  );
-  const insertStage = db.prepare(
-    `INSERT INTO crm_stages (id, pipeline_id, name, probability, position, is_won, is_lost)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  );
-  const insertDeal = db.prepare(
-    `INSERT INTO crm_deals
-       (id, user_id, pipeline_id, stage_id, name, amount, currency, close_date, priority,
-        source, description, lost_reason, position, closed_at, custom, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  const insertDealContact = db.prepare(
-    'INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id) VALUES (?, ?)',
-  );
-  const insertActivity = db.prepare(
-    `INSERT INTO crm_activities
-       (id, user_id, type, subject, body, due_at, done, done_at, direction, outcome,
-        duration_min, contact_id, company_id, deal_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  const insertList = db.prepare(
-    'INSERT INTO crm_lists (id, user_id, name, entity, kind, filter, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-  );
-  const insertListMember = db.prepare(
-    'INSERT OR IGNORE INTO crm_list_members (list_id, contact_id) VALUES (?, ?)',
-  );
-  const insertCustomField = db.prepare(
-    `INSERT INTO crm_custom_fields (id, user_id, entity, name, label, type, options, position)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  const insertSavedView = db.prepare(
-    'INSERT INTO crm_saved_views (id, user_id, entity, name, query, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  );
+async function main() {
+  await upsertUser({ id: USER_ID, email: EMAIL, name: 'Demo User', image: null });
 
   const counters = { companies: 0, contacts: 0, deals: 0, won: 0, lost: 0, activities: 0 };
 
-  const seedAll = db.transaction(() => {
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    const insertCompany = tdb.prepare(
+      `INSERT INTO crm_companies
+         (id, user_id, name, domain, industry, employees, phone, website, city, country,
+          lifecycle_stage, custom, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?)`,
+    );
+    const insertContact = tdb.prepare(
+      `INSERT INTO crm_contacts
+         (id, user_id, first_name, last_name, email, phone, job_title, website, city, country,
+          lifecycle_stage, lead_status, source, company_id, custom, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const insertPipeline = tdb.prepare(
+      'INSERT INTO crm_pipelines (id, user_id, name, position, created_at) VALUES (?, ?, ?, ?, ?)',
+    );
+    const insertStage = tdb.prepare(
+      `INSERT INTO crm_stages (id, pipeline_id, name, probability, position, is_won, is_lost)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const insertDeal = tdb.prepare(
+      `INSERT INTO crm_deals
+         (id, user_id, pipeline_id, stage_id, name, amount, currency, close_date, priority,
+          source, description, lost_reason, position, closed_at, custom, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const insertDealContact = tdb.prepare(
+      'INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id) VALUES (?, ?)',
+    );
+    const insertActivity = tdb.prepare(
+      `INSERT INTO crm_activities
+         (id, user_id, type, subject, body, due_at, done, done_at, direction, outcome,
+          duration_min, contact_id, company_id, deal_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const insertList = tdb.prepare(
+      'INSERT INTO crm_lists (id, user_id, name, entity, kind, filter, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    );
+    const insertListMember = tdb.prepare(
+      'INSERT OR IGNORE INTO crm_list_members (list_id, contact_id) VALUES (?, ?)',
+    );
+    const insertCustomField = tdb.prepare(
+      `INSERT INTO crm_custom_fields (id, user_id, entity, name, label, type, options, position)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const insertSavedView = tdb.prepare(
+      'INSERT INTO crm_saved_views (id, user_id, entity, name, query, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    );
+
     // ---- Wipe previous demo data (single transaction with the re-seed) ----
-    db.prepare(
+    await tdb.prepare(
       'DELETE FROM crm_deal_contacts WHERE deal_id IN (SELECT id FROM crm_deals WHERE user_id = ?)',
     ).run(USER_ID);
-    db.prepare(
+    await tdb.prepare(
       'DELETE FROM crm_list_members WHERE list_id IN (SELECT id FROM crm_lists WHERE user_id = ?)',
     ).run(USER_ID);
-    db.prepare(
+    await tdb.prepare(
       'DELETE FROM crm_stages WHERE pipeline_id IN (SELECT id FROM crm_pipelines WHERE user_id = ?)',
     ).run(USER_ID);
     for (const table of [
@@ -300,7 +302,7 @@ function main() {
       'crm_saved_views',
       'crm_imports',
     ]) {
-      db.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(USER_ID);
+      await tdb.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(USER_ID);
     }
 
     // ---- Companies ----
@@ -311,7 +313,7 @@ function main() {
       const [city, country] = pickWeighted(LOCATIONS);
       const employees = Math.round(3 * Math.exp(rand() * Math.log(5000 / 3)));
       const createdAt = ts(60 + rand() * 120);
-      insertCompany.run(
+      await insertCompany.run(
         id,
         USER_ID,
         c.name,
@@ -359,7 +361,7 @@ function main() {
       // ~40% rellena el custom field team_size.
       const custom =
         rand() < 0.4 ? JSON.stringify({ team_size: pick(['1-10', '11-50', '51-200', '200+']) }) : '{}';
-      insertContact.run(
+      await insertContact.run(
         id,
         USER_ID,
         first,
@@ -387,25 +389,28 @@ function main() {
     const createdAtPipes = ts(150);
     const salesPipelineId = crypto.randomUUID();
     const partnersPipelineId = crypto.randomUUID();
-    insertPipeline.run(salesPipelineId, USER_ID, 'Sales', 0, createdAtPipes);
-    insertPipeline.run(partnersPipelineId, USER_ID, 'Partnerships', 1, createdAtPipes);
+    await insertPipeline.run(salesPipelineId, USER_ID, 'Sales', 0, createdAtPipes);
+    await insertPipeline.run(partnersPipelineId, USER_ID, 'Partnerships', 1, createdAtPipes);
 
     interface SeedStage {
       id: string;
       isWon: boolean;
       isLost: boolean;
     }
-    const makeStages = (pipelineId: string, defs: Array<[string, number, boolean, boolean]>) => {
+    const makeStages = async (
+      pipelineId: string,
+      defs: Array<[string, number, boolean, boolean]>,
+    ) => {
       const stages: SeedStage[] = [];
-      defs.forEach(([name, probability, isWon, isLost], position) => {
+      for (const [position, [name, probability, isWon, isLost]] of defs.entries()) {
         const id = crypto.randomUUID();
-        insertStage.run(id, pipelineId, name, probability, position, isWon ? 1 : 0, isLost ? 1 : 0);
+        await insertStage.run(id, pipelineId, name, probability, position, isWon ? 1 : 0, isLost ? 1 : 0);
         stages.push({ id, isWon, isLost });
-      });
+      }
       return stages;
     };
 
-    const salesStages = makeStages(salesPipelineId, [
+    const salesStages = await makeStages(salesPipelineId, [
       ['Discovery', 20, false, false],
       ['Qualified', 40, false, false],
       ['Proposal', 60, false, false],
@@ -413,7 +418,7 @@ function main() {
       ['Closed won', 100, true, false],
       ['Closed lost', 0, false, true],
     ]);
-    const partnerStages = makeStages(partnersPipelineId, [
+    const partnerStages = await makeStages(partnersPipelineId, [
       ['Exploration', 25, false, false],
       ['Alignment', 50, false, false],
       ['Agreement', 100, true, false],
@@ -492,7 +497,7 @@ function main() {
       const createdAt = ts(createdDaysAgo);
       // ~40% rellena el custom field competitor.
       const custom = rand() < 0.4 ? JSON.stringify({ competitor: pick(COMPETITORS) }) : '{}';
-      insertDeal.run(
+      await insertDeal.run(
         id,
         USER_ID,
         pipelineId,
@@ -513,9 +518,9 @@ function main() {
       );
 
       // 1–3 contactos por deal.
-      insertDealContact.run(id, primary.id);
+      await insertDealContact.run(id, primary.id);
       const extra = int(0, 2);
-      for (let e = 0; e < extra; e++) insertDealContact.run(id, pick(contacts).id);
+      for (let e = 0; e < extra; e++) await insertDealContact.run(id, pick(contacts).id);
 
       deals.push({ id, primaryContact: primary });
       counters.deals++;
@@ -600,7 +605,7 @@ function main() {
           break;
       }
 
-      insertActivity.run(
+      await insertActivity.run(
         crypto.randomUUID(),
         USER_ID,
         type,
@@ -623,7 +628,7 @@ function main() {
 
     // ---- Lists ----
     const listsCreatedAt = ts(30);
-    insertList.run(
+    await insertList.run(
       crypto.randomUUID(),
       USER_ID,
       'Active SQLs',
@@ -633,15 +638,15 @@ function main() {
       listsCreatedAt,
     );
     const newsletterId = crypto.randomUUID();
-    insertList.run(newsletterId, USER_ID, 'Q3 newsletter', 'contacts', 'static', '{}', listsCreatedAt);
-    for (let i = 0; i < 30; i++) insertListMember.run(newsletterId, pick(contacts).id);
+    await insertList.run(newsletterId, USER_ID, 'Q3 newsletter', 'contacts', 'static', '{}', listsCreatedAt);
+    for (let i = 0; i < 30; i++) await insertListMember.run(newsletterId, pick(contacts).id);
     const vipId = crypto.randomUUID();
-    insertList.run(vipId, USER_ID, 'VIP customers', 'contacts', 'static', '{}', listsCreatedAt);
+    await insertList.run(vipId, USER_ID, 'VIP customers', 'contacts', 'static', '{}', listsCreatedAt);
     const vipPicks = [...customers].sort(() => rand() - 0.5).slice(0, 12);
-    for (const contactId of vipPicks) insertListMember.run(vipId, contactId);
+    for (const contactId of vipPicks) await insertListMember.run(vipId, contactId);
 
     // ---- Custom fields ----
-    insertCustomField.run(
+    await insertCustomField.run(
       crypto.randomUUID(),
       USER_ID,
       'contacts',
@@ -651,7 +656,7 @@ function main() {
       JSON.stringify(['1-10', '11-50', '51-200', '200+']),
       0,
     );
-    insertCustomField.run(
+    await insertCustomField.run(
       crypto.randomUUID(),
       USER_ID,
       'deals',
@@ -663,7 +668,7 @@ function main() {
     );
 
     // ---- Saved views ----
-    insertSavedView.run(
+    await insertSavedView.run(
       crypto.randomUUID(),
       USER_ID,
       'contacts',
@@ -671,7 +676,7 @@ function main() {
       JSON.stringify({ lifecycle: 'sql', sort: 'name' }),
       listsCreatedAt,
     );
-    insertSavedView.run(
+    await insertSavedView.run(
       crypto.randomUUID(),
       USER_ID,
       'contacts',
@@ -679,8 +684,11 @@ function main() {
       JSON.stringify({ lifecycle: 'lead', sort: 'newest' }),
       listsCreatedAt,
     );
-  });
-  seedAll();
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
 
   console.log(`\n0 — crm seed complete`);
   console.log(`    user:       ${EMAIL} (id=${USER_ID})`);
@@ -692,4 +700,7 @@ function main() {
   console.log(`    lists:      3 · custom fields: 2 · saved views: 2\n`);
 }
 
-main();
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

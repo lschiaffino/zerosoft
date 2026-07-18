@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  const link = getUserLink(user.id, params.id);
+  const link = await getUserLink(user.id, params.id);
   if (!link) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   const target = shortUrl(link.slug);

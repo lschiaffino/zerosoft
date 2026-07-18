@@ -21,15 +21,15 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const detail = getDeal(user.id, id);
+  const detail = await getDeal(user.id, id);
   if (!detail) notFound();
   const { deal, stage, pipeline, contacts, company } = detail;
 
-  const timeline = listTimeline(user.id, { dealId: id, limit: 100 });
+  const timeline = await listTimeline(user.id, { dealId: id, limit: 100 });
 
-  const stages = getDb()
+  const stages = (await getDb()
     .prepare('SELECT * FROM crm_stages WHERE pipeline_id = ? ORDER BY position ASC')
-    .all(deal.pipeline_id) as CrmStageRow[];
+    .all(deal.pipeline_id)) as CrmStageRow[];
 
   const fmtAmount = (amount: number, currency: string): string =>
     new Intl.NumberFormat(locale, {
@@ -78,7 +78,7 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
       ],
     },
     { key: 'description', label: t('deals.form.description'), type: 'text', value: deal.description },
-    ...customPropFields(listCustomFields(user.id, 'deals'), custom, {
+    ...customPropFields(await listCustomFields(user.id, 'deals'), custom, {
       yes: t('common.yes'),
       no: t('common.no'),
     }),

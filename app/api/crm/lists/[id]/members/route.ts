@@ -18,8 +18,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const parsed = listMembersSchema.safeParse(body);
   if (!parsed.success) return crmError(400, 'invalid_input');
 
-  if (!getList(user.id, params.id)) return notFound();
-  const added = addListMembers(params.id, parsed.data.contactIds);
+  if (!(await getList(user.id, params.id))) return notFound();
+  const added = await addListMembers(params.id, parsed.data.contactIds);
   return NextResponse.json({ count: added });
 }
 
@@ -31,7 +31,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const parsed = removeSchema.safeParse(body);
   if (!parsed.success) return crmError(400, 'invalid_input');
 
-  if (!getList(user.id, params.id)) return notFound();
-  if (!removeListMember(params.id, parsed.data.contactId)) return notFound();
+  if (!(await getList(user.id, params.id))) return notFound();
+  if (!(await removeListMember(params.id, parsed.data.contactId))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

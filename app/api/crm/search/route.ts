@@ -12,5 +12,5 @@ export async function GET(req: NextRequest) {
 
   const q = req.nextUrl.searchParams.get('q')?.trim() ?? '';
   if (!q) return NextResponse.json({ contacts: [], companies: [], deals: [] });
-  return NextResponse.json(searchAll(user.id, q));
+  return NextResponse.json(await searchAll(user.id, q));
 }

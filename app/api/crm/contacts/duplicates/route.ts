@@ -9,5 +9,5 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  return NextResponse.json({ groups: findDuplicateContacts(user.id) });
+  return NextResponse.json({ groups: await findDuplicateContacts(user.id) });
 }

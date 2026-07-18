@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (entity && !(ENTITIES as readonly string[]).includes(entity)) {
     return crmError(400, 'invalid_input');
   }
-  return NextResponse.json({ rows: listCustomFields(user.id, entity ?? undefined) });
+  return NextResponse.json({ rows: await listCustomFields(user.id, entity ?? undefined) });
 }
 
 export async function POST(req: NextRequest) {
@@ -28,6 +28,6 @@ export async function POST(req: NextRequest) {
   const parsed = customFieldCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const field = createCustomField(user.id, parsed.data);
+  const field = await createCustomField(user.id, parsed.data);
   return NextResponse.json(field, { status: 201 });
 }

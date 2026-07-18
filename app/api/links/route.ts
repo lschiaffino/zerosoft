@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const archived = sp.get('archived');
   const sort = sp.get('sort');
-  const result = listLinks(user.id, {
+  const result = await listLinks(user.id, {
     q: sp.get('q') ?? undefined,
     tag: sp.get('tag') ?? undefined,
     archived: archived === '1' || archived === 'all' ? archived : '0',
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'invalid_url' }, { status: 400 });
 
-  const result = createLink(user.id, parsed.data);
+  const result = await createLink(user.id, parsed.data);
   if (!result.ok) {
     const status = result.code === 'slug_taken' ? 409 : 400;
     return NextResponse.json({ error: result.code }, { status });

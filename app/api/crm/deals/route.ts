@@ -26,13 +26,13 @@ export async function GET(req: NextRequest) {
   if (sp.get('board') === '1') {
     const pipelineId = sp.get('pipelineId');
     if (!pipelineId) return crmError(400, 'invalid_input');
-    return NextResponse.json({ rows: listDealsForBoard(user.id, pipelineId) });
+    return NextResponse.json({ rows: await listDealsForBoard(user.id, pipelineId) });
   }
 
-  const pipelineId = sp.get('pipelineId') ?? defaultPipelineId(user.id);
+  const pipelineId = sp.get('pipelineId') ?? (await defaultPipelineId(user.id));
   if (!pipelineId) return NextResponse.json({ rows: [], total: 0, page, pageSize });
 
-  const { rows, total } = listDeals(user.id, {
+  const { rows, total } = await listDeals(user.id, {
     pipelineId,
     q: sp.get('q') ?? undefined,
     stageId: sp.get('stageId') ?? undefined,
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   const parsed = dealCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const result = createDeal(user.id, parsed.data);
+  const result = await createDeal(user.id, parsed.data);
   if (!result.ok) {
     return crmError(400, result.reason === 'invalid_stage' ? 'invalid_stage' : 'invalid_input');
   }

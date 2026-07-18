@@ -18,13 +18,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const { stageId, beforeId, lostReason } = parsed.data;
 
-  const detail = getDeal(user.id, params.id);
+  const detail = await getDeal(user.id, params.id);
   if (!detail) return notFound();
 
   // El stage destino tiene que pertenecer al pipeline del deal.
-  const stage = getDb()
+  const stage = (await getDb()
     .prepare('SELECT * FROM crm_stages WHERE id = ? AND pipeline_id = ?')
-    .get(stageId, detail.deal.pipeline_id) as CrmStageRow | undefined;
+    .get(stageId, detail.deal.pipeline_id)) as CrmStageRow | undefined;
   if (!stage) return crmError(400, 'invalid_stage');
 
   // Cerrar como perdido exige motivo (en el payload o ya cargado en el deal).
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return crmError(400, 'missing_lost_reason');
   }
 
-  const result = moveDeal(user.id, params.id, stageId, beforeId ?? null, lostReason);
+  const result = await moveDeal(user.id, params.id, stageId, beforeId ?? null, lostReason);
   if (!result.ok) {
     return result.reason === 'not_found' ? notFound() : crmError(400, 'invalid_stage');
   }

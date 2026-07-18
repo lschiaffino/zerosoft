@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  return NextResponse.json({ rows: listPipelinesWithStages(user.id) });
+  return NextResponse.json({ rows: await listPipelinesWithStages(user.id) });
 }
 
 export async function POST(req: NextRequest) {
@@ -21,6 +21,6 @@ export async function POST(req: NextRequest) {
   const parsed = pipelineCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const pipeline = createPipeline(user.id, parsed.data.name);
+  const pipeline = await createPipeline(user.id, parsed.data.name);
   return NextResponse.json(pipeline, { status: 201 });
 }

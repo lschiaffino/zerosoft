@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
-  const { rows, total } = listContacts(user.id, {
+  const { rows, total } = await listContacts(user.id, {
     q: sp.get('q') ?? undefined,
     lifecycle: sp.get('lifecycle') ?? undefined,
     leadStatus: sp.get('leadStatus') ?? undefined,
@@ -37,6 +37,6 @@ export async function POST(req: NextRequest) {
   const parsed = contactCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const contact = createContact(user.id, parsed.data);
+  const contact = await createContact(user.id, parsed.data);
   return NextResponse.json(contact, { status: 201 });
 }

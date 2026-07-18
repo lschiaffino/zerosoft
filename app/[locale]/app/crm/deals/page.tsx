@@ -48,7 +48,7 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const pipelines = listPipelinesWithStages(user.id);
+  const pipelines = await listPipelinesWithStages(user.id);
   const pipelineParam = one(searchParams.pipeline);
   const pipeline = pipelines.find((p) => p.id === pipelineParam) ?? pipelines[0];
   const view = one(searchParams.view) === 'table' ? 'table' : 'board';
@@ -89,7 +89,7 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
       : 'newest';
     const page = Number(one(searchParams.page) ?? '1') || 1;
 
-    const { rows, total } = listDeals(user.id, {
+    const { rows, total } = await listDeals(user.id, {
       pipelineId: pipeline.id,
       q: q || undefined,
       stageId: stageId || undefined,
@@ -103,12 +103,12 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
     if (rows.length) {
       const ids = rows.map((r) => r.id);
       const ph = ids.map(() => '?').join(',');
-      const counts = getDb()
+      const counts = (await getDb()
         .prepare(
           `SELECT deal_id, COUNT(*) AS c FROM crm_deal_contacts
            WHERE deal_id IN (${ph}) GROUP BY deal_id`,
         )
-        .all(...ids) as Array<{ deal_id: string; c: number }>;
+        .all(...ids)) as Array<{ deal_id: string; c: number }>;
       for (const r of counts) contactCounts.set(r.deal_id, r.c);
     }
 
@@ -222,7 +222,7 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
         <DealsBoard
           key={pipeline.id}
           pipelineId={pipeline.id}
-          stages={listDealsForBoard(user.id, pipeline.id)}
+          stages={await listDealsForBoard(user.id, pipeline.id)}
           locale={locale}
           priorities={priorities}
           sources={sources}

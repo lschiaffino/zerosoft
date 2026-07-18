@@ -24,14 +24,14 @@ export async function GET(req: NextRequest) {
   const bucket = sp.get('bucket');
   if (bucket) {
     if (!BUCKETS.includes(bucket as TaskBucket)) return crmError(400, 'invalid_input');
-    return NextResponse.json({ rows: listTasks(user.id, bucket as TaskBucket) });
+    return NextResponse.json({ rows: await listTasks(user.id, bucket as TaskBucket) });
   }
 
   const type = sp.get('type');
   if (type && !(ACTIVITY_TYPES as readonly string[]).includes(type)) {
     return crmError(400, 'invalid_input');
   }
-  const rows = listTimeline(user.id, {
+  const rows = await listTimeline(user.id, {
     contactId: sp.get('contactId') ?? undefined,
     companyId: sp.get('companyId') ?? undefined,
     dealId: sp.get('dealId') ?? undefined,
@@ -48,6 +48,6 @@ export async function POST(req: NextRequest) {
   const parsed = activityCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const activity = createActivity(user.id, parsed.data);
+  const activity = await createActivity(user.id, parsed.data);
   return NextResponse.json(activity, { status: 201 });
 }

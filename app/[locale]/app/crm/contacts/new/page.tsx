@@ -25,12 +25,12 @@ export default async function NewContactPage({ params: { locale } }: { params: {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const companies = listCompanies(user.id, { pageSize: 100, sort: 'name' }).rows.map((c) => ({
+  const companies = (await listCompanies(user.id, { pageSize: 100, sort: 'name' })).rows.map((c) => ({
     id: c.id,
     name: c.name,
   }));
 
-  const customFields: CustomFieldDef[] = listCustomFields(user.id, 'contacts').map((f) => ({
+  const customFields: CustomFieldDef[] = (await listCustomFields(user.id, 'contacts')).map((f) => ({
     name: f.name,
     label: f.label,
     type: f.type,

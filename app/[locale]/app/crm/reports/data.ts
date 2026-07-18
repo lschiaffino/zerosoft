@@ -7,8 +7,8 @@
 import { getDb } from '@/lib/db';
 import type { CrmReports, FunnelStage } from '@/lib/crm';
 
-export function funnelForPipeline(userId: string, pipelineId: string): FunnelStage[] {
-  return getDb()
+export async function funnelForPipeline(userId: string, pipelineId: string): Promise<FunnelStage[]> {
+  return (await getDb()
     .prepare(
       `SELECT s.id, s.name, s.probability, s.is_won, s.is_lost,
          COUNT(d.id) AS count, COALESCE(SUM(d.amount), 0) AS amount
@@ -18,14 +18,14 @@ export function funnelForPipeline(userId: string, pipelineId: string): FunnelSta
        GROUP BY s.id
        ORDER BY s.position ASC`,
     )
-    .all(userId, pipelineId) as FunnelStage[];
+    .all(userId, pipelineId)) as FunnelStage[];
 }
 
-export function forecastForPipeline(
+export async function forecastForPipeline(
   userId: string,
   pipelineId: string,
-): CrmReports['forecastByStage'] {
-  return getDb()
+): Promise<CrmReports['forecastByStage']> {
+  return (await getDb()
     .prepare(
       `SELECT s.id, s.name, s.probability,
          COUNT(d.id) AS count,
@@ -37,5 +37,5 @@ export function forecastForPipeline(
        GROUP BY s.id
        ORDER BY s.position ASC`,
     )
-    .all(userId, pipelineId) as CrmReports['forecastByStage'];
+    .all(userId, pipelineId)) as CrmReports['forecastByStage'];
 }

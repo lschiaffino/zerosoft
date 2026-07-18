@@ -9,7 +9,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  if (!revokeApiKey(user.id, params.id)) {
+  if (!(await revokeApiKey(user.id, params.id))) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
   return new NextResponse(null, { status: 204 });

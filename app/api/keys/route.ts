@@ -11,7 +11,7 @@ const createSchema = z.object({ name: z.string().min(1).max(80) });
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  return NextResponse.json({ keys: listApiKeys(user.id) });
+  return NextResponse.json({ keys: await listApiKeys(user.id) });
 }
 
 export async function POST(req: NextRequest) {
@@ -23,6 +23,6 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'bad_request' }, { status: 400 });
 
   // The full key is returned only in this response; we store its sha256.
-  const { id, key } = createApiKey(user.id, parsed.data.name.trim());
+  const { id, key } = await createApiKey(user.id, parsed.data.name.trim());
   return NextResponse.json({ id, key }, { status: 201 });
 }

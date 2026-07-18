@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export default async function SettingsPage({ params: { locale } }: { params: { locale: string } }) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
-  const keys = listApiKeys(user.id);
+  const keys = await listApiKeys(user.id);
 
   return (
     <div className="app-page">

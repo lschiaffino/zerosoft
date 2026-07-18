@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const detail = getContact(user.id, params.id);
+  const detail = await getContact(user.id, params.id);
   if (!detail) return notFound();
   return NextResponse.json(detail);
 }
@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const parsed = contactUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const contact = updateContact(user.id, params.id, parsed.data);
+  const contact = await updateContact(user.id, params.id, parsed.data);
   if (!contact) return notFound();
   return NextResponse.json(contact);
 }
@@ -31,6 +31,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!deleteContact(user.id, params.id)) return notFound();
+  if (!(await deleteContact(user.id, params.id))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

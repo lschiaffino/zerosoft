@@ -19,14 +19,14 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const detail = getCompany(user.id, id);
+  const detail = await getCompany(user.id, id);
   if (!detail) notFound();
   const { company, contacts, deals } = detail;
 
-  const timeline = listTimeline(user.id, { companyId: id, limit: 100 });
+  const timeline = await listTimeline(user.id, { companyId: id, limit: 100 });
 
   // Nombres de stage para los deals relacionados.
-  const stageRows = getDb().prepare('SELECT id, name FROM crm_stages').all() as Array<{
+  const stageRows = (await getDb().prepare('SELECT id, name FROM crm_stages').all()) as Array<{
     id: string;
     name: string;
   }>;
@@ -64,7 +64,7 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
       value: company.lifecycle_stage,
       options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
     },
-    ...customPropFields(listCustomFields(user.id, 'companies'), custom, {
+    ...customPropFields(await listCustomFields(user.id, 'companies'), custom, {
       yes: t('common.yes'),
       no: t('common.no'),
     }),

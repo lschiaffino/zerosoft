@@ -20,12 +20,12 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user }) {
       if (!user.email) return false;
-      upsertUser({ email: user.email, name: user.name, image: user.image });
+      await upsertUser({ email: user.email, name: user.name, image: user.image });
       return true;
     },
     async jwt({ token, user }) {
       if (user?.email) {
-        const dbUser = getUserByEmail(user.email);
+        const dbUser = await getUserByEmail(user.email);
         if (dbUser) token.uid = dbUser.id;
       }
       return token;

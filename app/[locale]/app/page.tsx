@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function OverviewPage({ params: { locale } }: { params: { locale: string } }) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
-  const o = getUserOverview(user.id);
+  const o = await getUserOverview(user.id);
 
   const maxTop = Math.max(...o.topLinks.map((l) => l.clicks), 1);
 

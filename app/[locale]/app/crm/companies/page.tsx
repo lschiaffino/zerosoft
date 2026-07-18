@@ -31,7 +31,7 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
   const sort = sortParam === 'oldest' || sortParam === 'name' ? sortParam : 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
 
-  const { rows, total } = listCompanies(user.id, {
+  const { rows, total } = await listCompanies(user.id, {
     q: q || undefined,
     industry: industry || undefined,
     lifecycle: lifecycle || undefined,
@@ -45,7 +45,7 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
   if (rows.length) {
     const ids = rows.map((r) => r.id);
     const ph = ids.map(() => '?').join(',');
-    const counts = getDb()
+    const counts = (await getDb()
       .prepare(
         `SELECT c.company_id AS cid, COUNT(DISTINCT d.id) AS c
          FROM crm_deals d
@@ -54,18 +54,18 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
          WHERE c.company_id IN (${ph}) AND d.user_id = ?
          GROUP BY c.company_id`,
       )
-      .all(...ids, user.id) as Array<{ cid: string; c: number }>;
+      .all(...ids, user.id)) as Array<{ cid: string; c: number }>;
     for (const r of counts) dealCounts.set(r.cid, r.c);
   }
 
   // Industrias presentes para el filtro (select).
   const industries = (
-    getDb()
+    (await getDb()
       .prepare(
         `SELECT DISTINCT industry FROM crm_companies
          WHERE user_id = ? AND industry != '' ORDER BY industry COLLATE NOCASE`,
       )
-      .all(user.id) as Array<{ industry: string }>
+      .all(user.id)) as Array<{ industry: string }>
   ).map((r) => r.industry);
 
   const lifecycleLabel = (v: string): string =>

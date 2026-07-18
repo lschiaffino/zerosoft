@@ -16,8 +16,8 @@ export default async function CrmReportsPage({
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const reports = getCrmReports(user.id);
-  const pipelines = listPipelinesWithStages(user.id);
+  const reports = await getCrmReports(user.id);
+  const pipelines = await listPipelinesWithStages(user.id);
 
   // Pipeline seleccionado: el del query param si existe; si no, el default
   // (position ASC, mismo criterio que lib/crm). El funnel/forecast de
@@ -29,11 +29,11 @@ export default async function CrmReportsPage({
 
   const funnel =
     selectedId && selectedId !== defaultId
-      ? funnelForPipeline(user.id, selectedId)
+      ? await funnelForPipeline(user.id, selectedId)
       : reports.funnel;
   const forecastByStage =
     selectedId && selectedId !== defaultId
-      ? forecastForPipeline(user.id, selectedId)
+      ? await forecastForPipeline(user.id, selectedId)
       : reports.forecastByStage;
 
   return (

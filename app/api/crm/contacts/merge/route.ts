@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const { keepId, dropId } = parsed.data;
   if (keepId === dropId) return crmError(400, 'invalid_input');
 
-  const merged = mergeContacts(user.id, keepId, dropId);
+  const merged = await mergeContacts(user.id, keepId, dropId);
   if (!merged) return notFound();
   return NextResponse.json(merged);
 }

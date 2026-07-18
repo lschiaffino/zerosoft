@@ -1,6 +1,6 @@
 import geoip from 'geoip-lite';
 import UAParser from 'ua-parser-js';
-import { getDb } from './db';
+import { ensureMigrated, getClient, getDb, txDb } from './db';
 
 // ---------- Click capture ----------
 
@@ -42,23 +42,29 @@ export function contextFromHeaders(headers: Headers): ClickContext {
   };
 }
 
-export function recordClick(linkId: string, ctx: ClickContext): void {
-  const db = getDb();
-  const insert = db.prepare(
-    'INSERT INTO clicks (link_id, referrer, country, device, browser, os) VALUES (?, ?, ?, ?, ?, ?)',
-  );
-  const bump = db.prepare('UPDATE links SET clicks = clicks + 1 WHERE id = ?');
-  db.transaction(() => {
-    insert.run(linkId, ctx.referrer, ctx.country, ctx.device, ctx.browser, ctx.os);
-    bump.run(linkId);
-  })();
+export async function recordClick(linkId: string, ctx: ClickContext): Promise<void> {
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    await tdb
+      .prepare(
+        'INSERT INTO clicks (link_id, referrer, country, device, browser, os) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run(linkId, ctx.referrer, ctx.country, ctx.device, ctx.browser, ctx.os);
+    await tdb.prepare('UPDATE links SET clicks = clicks + 1 WHERE id = ?').run(linkId);
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
 }
 
-export function todayClicksForLink(linkId: string): number {
+export async function todayClicksForLink(linkId: string): Promise<number> {
   return (
-    getDb()
+    (await getDb()
       .prepare(`SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND date(ts) = date('now')`)
-      .get(linkId) as { c: number }
+      .get(linkId)) as { c: number }
   ).c;
 }
 
@@ -119,59 +125,65 @@ export function rangeStart(range: AnalyticsRange, createdAt: string): string {
 type BreakdownColumn = 'referrer' | 'country' | 'device' | 'browser' | 'os';
 
 /** Top N values of a clicks column, folding the rest into "other". */
-function breakdown(
+async function breakdown(
   linkId: string,
   column: BreakdownColumn,
   start: string,
   fallback: string,
   limit = 8,
-): BreakdownItem[] {
-  const rows = getDb()
+): Promise<BreakdownItem[]> {
+  const rows = (await getDb()
     .prepare(
       `SELECT COALESCE(${column}, ?) AS name, COUNT(*) AS c FROM clicks
        WHERE link_id = ? AND date(ts) >= ? GROUP BY ${column} ORDER BY c DESC`,
     )
-    .all(fallback, linkId, start) as Array<{ name: string; c: number }>;
+    .all(fallback, linkId, start)) as Array<{ name: string; c: number }>;
   const top = rows.slice(0, limit).map((r) => ({ name: r.name, count: r.c }));
   const rest = rows.slice(limit).reduce((sum, r) => sum + r.c, 0);
   if (rest > 0) top.push({ name: 'other', count: rest });
   return top;
 }
 
-function byDayFor(linkId: string, start: string, end: string): DayCount[] {
-  const rows = getDb()
+async function byDayFor(linkId: string, start: string, end: string): Promise<DayCount[]> {
+  const rows = (await getDb()
     .prepare(
       `SELECT date(ts) AS d, COUNT(*) AS c FROM clicks
        WHERE link_id = ? AND date(ts) >= ? GROUP BY date(ts)`,
     )
-    .all(linkId, start) as Array<{ d: string; c: number }>;
+    .all(linkId, start)) as Array<{ d: string; c: number }>;
   const map = new Map(rows.map((r) => [r.d, r.c]));
   return dayList(start, end).map((date) => ({ date, count: map.get(date) ?? 0 }));
 }
 
-export function getAnalytics(linkId: string, createdAt: string, range: AnalyticsRange): AnalyticsResult {
+export async function getAnalytics(
+  linkId: string,
+  createdAt: string,
+  range: AnalyticsRange,
+): Promise<AnalyticsResult> {
   const db = getDb();
   const end = todayUtc();
   const start = rangeStart(range, createdAt);
 
   const total = (
-    db.prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ?').get(linkId) as { c: number }
+    (await db.prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ?').get(linkId)) as {
+      c: number;
+    }
   ).c;
   const rangeTotal = (
-    db
+    (await db
       .prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND date(ts) >= ?')
-      .get(linkId, start) as { c: number }
+      .get(linkId, start)) as { c: number }
   ).c;
 
   return {
     total,
     rangeTotal,
-    byDay: byDayFor(linkId, start, end),
-    referrers: breakdown(linkId, 'referrer', start, 'direct'),
-    countries: breakdown(linkId, 'country', start, 'unknown'),
-    devices: breakdown(linkId, 'device', start, 'unknown'),
-    browsers: breakdown(linkId, 'browser', start, 'unknown'),
-    os: breakdown(linkId, 'os', start, 'unknown'),
+    byDay: await byDayFor(linkId, start, end),
+    referrers: await breakdown(linkId, 'referrer', start, 'direct'),
+    countries: await breakdown(linkId, 'country', start, 'unknown'),
+    devices: await breakdown(linkId, 'device', start, 'unknown'),
+    browsers: await breakdown(linkId, 'browser', start, 'unknown'),
+    os: await breakdown(linkId, 'os', start, 'unknown'),
   };
 }
 
@@ -196,52 +208,52 @@ export interface UserOverview {
   recent: OverviewLink[];
 }
 
-export function getUserOverview(userId: string): UserOverview {
+export async function getUserOverview(userId: string): Promise<UserOverview> {
   const db = getDb();
 
   const activeLinks = (
-    db
+    (await db
       .prepare('SELECT COUNT(*) AS c FROM links WHERE user_id = ? AND archived = 0')
-      .get(userId) as { c: number }
+      .get(userId)) as { c: number }
   ).c;
   const totalClicks = (
-    db
+    (await db
       .prepare('SELECT COALESCE(SUM(clicks), 0) AS c FROM links WHERE user_id = ?')
-      .get(userId) as { c: number }
+      .get(userId)) as { c: number }
   ).c;
   const clicksToday = (
-    db
+    (await db
       .prepare(
         `SELECT COUNT(*) AS c FROM clicks c JOIN links l ON c.link_id = l.id
          WHERE l.user_id = ? AND date(c.ts) = date('now')`,
       )
-      .get(userId) as { c: number }
+      .get(userId)) as { c: number }
   ).c;
   const topLink =
-    (db
+    ((await db
       .prepare(
         'SELECT slug, clicks FROM links WHERE user_id = ? AND clicks > 0 ORDER BY clicks DESC LIMIT 1',
       )
-      .get(userId) as { slug: string; clicks: number } | undefined) ?? null;
+      .get(userId)) as { slug: string; clicks: number } | undefined) ?? null;
 
   const end = todayUtc();
   const start = addDays(end, -29);
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT date(c.ts) AS d, COUNT(*) AS c FROM clicks c JOIN links l ON c.link_id = l.id
        WHERE l.user_id = ? AND date(c.ts) >= ? GROUP BY date(c.ts)`,
     )
-    .all(userId, start) as Array<{ d: string; c: number }>;
+    .all(userId, start)) as Array<{ d: string; c: number }>;
   const map = new Map(rows.map((r) => [r.d, r.c]));
   const byDay = dayList(start, end).map((date) => ({ date, count: map.get(date) ?? 0 }));
 
   const cols = 'id, slug, url, title, clicks, created_at';
-  const topLinks = db
+  const topLinks = (await db
     .prepare(`SELECT ${cols} FROM links WHERE user_id = ? ORDER BY clicks DESC LIMIT 5`)
-    .all(userId) as OverviewLink[];
-  const recent = db
+    .all(userId)) as OverviewLink[];
+  const recent = (await db
     .prepare(`SELECT ${cols} FROM links WHERE user_id = ? ORDER BY created_at DESC LIMIT 5`)
-    .all(userId) as OverviewLink[];
+    .all(userId)) as OverviewLink[];
 
   return { activeLinks, totalClicks, clicksToday, topLink, byDay, topLinks, recent };
 }

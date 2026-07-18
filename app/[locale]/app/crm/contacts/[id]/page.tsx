@@ -39,12 +39,12 @@ export default async function ContactDetailPage({
 }) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
-  const detail = getContact(user.id, id);
+  const detail = await getContact(user.id, id);
   if (!detail) notFound();
 
   const { contact, company, deals, lists } = detail;
-  const timeline = listTimeline(user.id, { contactId: id, limit: 100 });
-  const companies = listCompanies(user.id, { pageSize: 100, sort: 'name' }).rows;
+  const timeline = await listTimeline(user.id, { contactId: id, limit: 100 });
+  const companies = (await listCompanies(user.id, { pageSize: 100, sort: 'name' })).rows;
 
   const name = `${contact.first_name} ${contact.last_name}`.trim() || contact.email || '—';
 
@@ -91,7 +91,7 @@ export default async function ContactDetailPage({
       options: companies.map((c) => ({ value: c.id, label: c.name })),
       nullOption: true,
     },
-    ...customPropFields(listCustomFields(user.id, 'contacts'), custom, {
+    ...customPropFields(await listCustomFields(user.id, 'contacts'), custom, {
       yes: t('common.yes'),
       no: t('common.no'),
     }),

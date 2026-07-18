@@ -16,7 +16,7 @@ export default async function ListDetailPage({ params: { locale, id } }: ListDet
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const detail = getList(user.id, id);
+  const detail = await getList(user.id, id);
   if (!detail) notFound();
   const { list, members, memberCount } = detail;
 

@@ -43,7 +43,7 @@ export default async function CrmOverviewPage({
 }) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
-  const o = getCrmOverview(user.id);
+  const o = await getCrmOverview(user.id);
 
   const allZero =
     o.totalContacts === 0 &&

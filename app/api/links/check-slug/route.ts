@@ -14,5 +14,5 @@ export async function GET(req: NextRequest) {
   if (!slug) return NextResponse.json({ slug, valid: false, available: false });
 
   const valid = isValidSlug(slug);
-  return NextResponse.json({ slug, valid, available: valid && !slugExists(slug) });
+  return NextResponse.json({ slug, valid, available: valid && !(await slugExists(slug)) });
 }

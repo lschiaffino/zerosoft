@@ -8,15 +8,15 @@ import { isValidUrl, normalizeUrl, shortUrl } from './utils';
 
 const nanoSlug = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 7);
 
-export function slugExists(slug: string): boolean {
-  return !!getDb().prepare('SELECT 1 AS x FROM links WHERE slug = ?').get(slug);
+export async function slugExists(slug: string): Promise<boolean> {
+  return !!(await getDb().prepare('SELECT 1 AS x FROM links WHERE slug = ?').get(slug));
 }
 
 /** Random 7-char lowercase alphanumeric slug, regenerated on collision. */
-export function generateSlug(): string {
+export async function generateSlug(): Promise<string> {
   for (let i = 0; i < 20; i++) {
     const candidate = nanoSlug();
-    if (isValidSlug(candidate) && !slugExists(candidate)) return candidate;
+    if (isValidSlug(candidate) && !(await slugExists(candidate))) return candidate;
   }
   // Practically unreachable; fall back to a longer id.
   return customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 10)();
@@ -36,14 +36,16 @@ export function parseTags(json: string | null): string[] {
 
 // ---------- Reads ----------
 
-export function getLinkBySlug(slug: string): LinkRow | undefined {
-  return getDb().prepare('SELECT * FROM links WHERE slug = ?').get(slug) as LinkRow | undefined;
-}
-
-export function getUserLink(userId: string, id: string): LinkRow | undefined {
-  return getDb().prepare('SELECT * FROM links WHERE id = ? AND user_id = ?').get(id, userId) as
+export async function getLinkBySlug(slug: string): Promise<LinkRow | undefined> {
+  return (await getDb().prepare('SELECT * FROM links WHERE slug = ?').get(slug)) as
     | LinkRow
     | undefined;
+}
+
+export async function getUserLink(userId: string, id: string): Promise<LinkRow | undefined> {
+  return (await getDb()
+    .prepare('SELECT * FROM links WHERE id = ? AND user_id = ?')
+    .get(id, userId)) as LinkRow | undefined;
 }
 
 function escapeLike(s: string): string {
@@ -68,7 +70,10 @@ export interface ListLinksResult {
   pageSize: number;
 }
 
-export function listLinks(userId: string, params: ListLinksParams): ListLinksResult {
+export async function listLinks(
+  userId: string,
+  params: ListLinksParams,
+): Promise<ListLinksResult> {
   const db = getDb();
   const where: string[] = ['user_id = ?'];
   const args: Array<string | number> = [userId];
@@ -90,21 +95,25 @@ export function listLinks(userId: string, params: ListLinksParams): ListLinksRes
   const whereSql = where.join(' AND ');
   const pageSize = Math.min(Math.max(params.pageSize ?? 10, 1), 50);
   const total = (
-    db.prepare(`SELECT COUNT(*) AS c FROM links WHERE ${whereSql}`).get(...args) as { c: number }
+    (await db.prepare(`SELECT COUNT(*) AS c FROM links WHERE ${whereSql}`).get(...args)) as {
+      c: number;
+    }
   ).c;
   const pages = Math.max(Math.ceil(total / pageSize), 1);
   const page = Math.min(Math.max(params.page ?? 1, 1), pages);
   const order = params.sort === 'clicks' ? 'clicks DESC, created_at DESC' : 'created_at DESC, id';
-  const links = db
+  const links = (await db
     .prepare(`SELECT * FROM links WHERE ${whereSql} ORDER BY ${order} LIMIT ? OFFSET ?`)
-    .all(...args, pageSize, (page - 1) * pageSize) as LinkRow[];
+    .all(...args, pageSize, (page - 1) * pageSize)) as LinkRow[];
 
   return { links, total, page, pageSize };
 }
 
 /** All distinct tags used by a user's links (for filter chips). */
-export function userTags(userId: string): string[] {
-  const rows = getDb().prepare('SELECT tags FROM links WHERE user_id = ?').all(userId) as Array<{
+export async function userTags(userId: string): Promise<string[]> {
+  const rows = (await getDb()
+    .prepare('SELECT tags FROM links WHERE user_id = ?')
+    .all(userId)) as Array<{
     tags: string;
   }>;
   const set = new Set<string>();
@@ -250,7 +259,10 @@ export type CreateLinkResult =
   | { ok: false; code: CreateLinkError };
 
 /** Shared create logic for the session API and the public v1 API. */
-export function createLink(userId: string, input: CreateLinkInput): CreateLinkResult {
+export async function createLink(
+  userId: string,
+  input: CreateLinkInput,
+): Promise<CreateLinkResult> {
   const db = getDb();
 
   const normalized = normalizeUrl(input.url);
@@ -260,9 +272,9 @@ export function createLink(userId: string, input: CreateLinkInput): CreateLinkRe
   if (input.slug && input.slug.trim()) {
     slug = input.slug.trim();
     if (!isValidSlug(slug)) return { ok: false, code: 'invalid_slug' };
-    if (slugExists(slug)) return { ok: false, code: 'slug_taken' };
+    if (await slugExists(slug)) return { ok: false, code: 'slug_taken' };
   } else {
-    slug = generateSlug();
+    slug = await generateSlug();
   }
 
   const utm = applyUtm(normalized, {
@@ -284,23 +296,25 @@ export function createLink(userId: string, input: CreateLinkInput): CreateLinkRe
     .slice(0, 5);
 
   const id = crypto.randomUUID();
-  db.prepare(
-    `INSERT INTO links (id, user_id, slug, url, title, tags, password_hash, expires_at, max_clicks, utm_source, utm_medium, utm_campaign)
+  await db
+    .prepare(
+      `INSERT INTO links (id, user_id, slug, url, title, tags, password_hash, expires_at, max_clicks, utm_source, utm_medium, utm_campaign)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    userId,
-    slug,
-    utm.url,
-    input.title?.trim() || null,
-    JSON.stringify(tags),
-    input.password ? hashPassword(input.password) : null,
-    expiresAt,
-    input.maxClicks ?? null,
-    utm.source,
-    utm.medium,
-    utm.campaign,
-  );
+    )
+    .run(
+      id,
+      userId,
+      slug,
+      utm.url,
+      input.title?.trim() || null,
+      JSON.stringify(tags),
+      input.password ? hashPassword(input.password) : null,
+      expiresAt,
+      input.maxClicks ?? null,
+      utm.source,
+      utm.medium,
+      utm.campaign,
+    );
 
-  return { ok: true, link: getUserLink(userId, id)! };
+  return { ok: true, link: (await getUserLink(userId, id))! };
 }

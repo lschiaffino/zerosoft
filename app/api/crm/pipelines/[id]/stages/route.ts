@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const stage = createStage(user.id, params.id, parsed.data);
+  const stage = await createStage(user.id, params.id, parsed.data);
   if (!stage) return notFound();
   return NextResponse.json(stage, { status: 201 });
 }

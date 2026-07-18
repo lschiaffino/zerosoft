@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'bad_request' }, { status: 400 });
 
   const { slug, password } = parsed.data;
-  const link = getLinkBySlug(slug);
+  const link = await getLinkBySlug(slug);
   if (!link || !link.password_hash) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }

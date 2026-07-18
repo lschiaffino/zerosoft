@@ -4,7 +4,10 @@
  * paginación con clamp, ids crypto.randomUUID(), timestamps UTC.
  */
 import {
+  ensureMigrated,
+  getClient,
   getDb,
+  txDb,
   type CrmActivityRow,
   type CrmCompanyRow,
   type CrmContactRow,
@@ -14,6 +17,7 @@ import {
   type CrmPipelineRow,
   type CrmSavedViewRow,
   type CrmStageRow,
+  type Db,
 } from './db';
 
 // ---------- Constantes ----------
@@ -159,14 +163,14 @@ const CONTACT_ORDER: Record<NonNullable<ContactFilter['sort']>, string> = {
   email: "c.email COLLATE NOCASE ASC, c.id",
 };
 
-export function listContacts(
+export async function listContacts(
   userId: string,
   f: ContactFilter,
-): { rows: ContactListRow[]; total: number } {
+): Promise<{ rows: ContactListRow[]; total: number }> {
   const db = getDb();
   const { where, args } = buildContactWhere(userId, f);
   const total = (
-    db.prepare(`SELECT COUNT(*) AS c FROM crm_contacts c WHERE ${where}`).get(...args) as {
+    (await db.prepare(`SELECT COUNT(*) AS c FROM crm_contacts c WHERE ${where}`).get(...args)) as {
       c: number;
     }
   ).c;
@@ -174,7 +178,7 @@ export function listContacts(
   const pages = Math.max(Math.ceil(total / pageSize), 1);
   const page = Math.min(Math.max(f.page ?? 1, 1), pages);
   const order = CONTACT_ORDER[f.sort ?? 'newest'];
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT c.*, co.name AS company_name
        FROM crm_contacts c
@@ -183,7 +187,7 @@ export function listContacts(
        ORDER BY ${order}
        LIMIT ? OFFSET ?`,
     )
-    .all(...args, pageSize, (page - 1) * pageSize) as ContactListRow[];
+    .all(...args, pageSize, (page - 1) * pageSize)) as ContactListRow[];
   return { rows, total };
 }
 
@@ -196,18 +200,18 @@ export interface ContactDetail {
   lists: CrmListRow[];
 }
 
-export function getContact(userId: string, id: string): ContactDetail | null {
+export async function getContact(userId: string, id: string): Promise<ContactDetail | null> {
   const db = getDb();
-  const contact = db
+  const contact = (await db
     .prepare('SELECT * FROM crm_contacts WHERE id = ? AND user_id = ?')
-    .get(id, userId) as CrmContactRow | undefined;
+    .get(id, userId)) as CrmContactRow | undefined;
   if (!contact) return null;
   const company = contact.company_id
-    ? (db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(contact.company_id) as
+    ? ((await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(contact.company_id)) as
         | CrmCompanyRow
         | undefined) ?? null
     : null;
-  const deals = db
+  const deals = (await db
     .prepare(
       `SELECT d.*, s.name AS stage_name, p.name AS pipeline_name
        FROM crm_deals d
@@ -217,15 +221,15 @@ export function getContact(userId: string, id: string): ContactDetail | null {
        WHERE dc.contact_id = ? AND d.user_id = ?
        ORDER BY d.created_at DESC`,
     )
-    .all(id, userId) as ContactDealRow[];
-  const lists = db
+    .all(id, userId)) as ContactDealRow[];
+  const lists = (await db
     .prepare(
       `SELECT l.* FROM crm_lists l
        JOIN crm_list_members m ON m.list_id = l.id
        WHERE m.contact_id = ? AND l.user_id = ?
        ORDER BY l.name ASC`,
     )
-    .all(id, userId) as CrmListRow[];
+    .all(id, userId)) as CrmListRow[];
   return { contact, company, deals, lists };
 }
 
@@ -261,55 +265,60 @@ const CONTACT_COLS: Record<string, string> = {
   custom: 'custom',
 };
 
-export function createContact(userId: string, data: ContactInput): CrmContactRow {
-  const db = getDb();
+export async function createContact(
+  userId: string,
+  data: ContactInput,
+  db: Db = getDb(),
+): Promise<CrmContactRow> {
   const id = crypto.randomUUID();
-  db.prepare(
-    `INSERT INTO crm_contacts
+  await db
+    .prepare(
+      `INSERT INTO crm_contacts
        (id, user_id, first_name, last_name, email, phone, job_title, website, city, country,
         lifecycle_stage, lead_status, source, company_id, custom)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    userId,
-    data.firstName ?? '',
-    data.lastName ?? '',
-    data.email ?? '',
-    data.phone ?? '',
-    data.jobTitle ?? '',
-    data.website ?? '',
-    data.city ?? '',
-    data.country ?? '',
-    data.lifecycleStage ?? 'lead',
-    data.leadStatus ?? 'new',
-    data.source ?? '',
-    data.companyId ?? null,
-    JSON.stringify(data.custom ?? {}),
-  );
-  return db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id) as CrmContactRow;
+    )
+    .run(
+      id,
+      userId,
+      data.firstName ?? '',
+      data.lastName ?? '',
+      data.email ?? '',
+      data.phone ?? '',
+      data.jobTitle ?? '',
+      data.website ?? '',
+      data.city ?? '',
+      data.country ?? '',
+      data.lifecycleStage ?? 'lead',
+      data.leadStatus ?? 'new',
+      data.source ?? '',
+      data.companyId ?? null,
+      JSON.stringify(data.custom ?? {}),
+    );
+  return (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
 }
 
-export function updateContact(
+export async function updateContact(
   userId: string,
   id: string,
   data: ContactInput,
-): CrmContactRow | null {
-  const db = getDb();
-  const existing = db
+  db: Db = getDb(),
+): Promise<CrmContactRow | null> {
+  const existing = await db
     .prepare('SELECT id FROM crm_contacts WHERE id = ? AND user_id = ?')
     .get(id, userId);
   if (!existing) return null;
   const sets = toColumnValues(CONTACT_COLS, data as Record<string, unknown>);
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
-  db.prepare(
-    `UPDATE crm_contacts SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`,
-  ).run(...sets.map(([, v]) => v), now(), id);
-  return db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id) as CrmContactRow;
+  await db
+    .prepare(`UPDATE crm_contacts SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
+    .run(...sets.map(([, v]) => v), now(), id);
+  return (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
 }
 
-export function deleteContact(userId: string, id: string): boolean {
+export async function deleteContact(userId: string, id: string): Promise<boolean> {
   return (
-    getDb().prepare('DELETE FROM crm_contacts WHERE id = ? AND user_id = ?').run(id, userId)
+    (await getDb().prepare('DELETE FROM crm_contacts WHERE id = ? AND user_id = ?').run(id, userId))
       .changes > 0
   );
 }
@@ -320,9 +329,9 @@ export interface DuplicateGroup {
 }
 
 /** Grupos de contactos que comparten lower(email) (email no vacío, count > 1). */
-export function findDuplicateContacts(userId: string): DuplicateGroup[] {
+export async function findDuplicateContacts(userId: string): Promise<DuplicateGroup[]> {
   const db = getDb();
-  const groups = db
+  const groups = (await db
     .prepare(
       `SELECT lower(email) AS lemail, COUNT(*) AS c
        FROM crm_contacts
@@ -331,89 +340,95 @@ export function findDuplicateContacts(userId: string): DuplicateGroup[] {
        HAVING c > 1
        ORDER BY c DESC`,
     )
-    .all(userId) as Array<{ lemail: string; c: number }>;
-  return groups.map((g) => ({
-    email: g.lemail,
-    contacts: db
-      .prepare(
-        'SELECT * FROM crm_contacts WHERE user_id = ? AND lower(email) = ? ORDER BY created_at ASC',
-      )
-      .all(userId, g.lemail) as CrmContactRow[],
-  }));
+    .all(userId)) as Array<{ lemail: string; c: number }>;
+  return Promise.all(
+    groups.map(async (g) => ({
+      email: g.lemail,
+      contacts: (await db
+        .prepare(
+          'SELECT * FROM crm_contacts WHERE user_id = ? AND lower(email) = ? ORDER BY created_at ASC',
+        )
+        .all(userId, g.lemail)) as CrmContactRow[],
+    })),
+  );
 }
 
 /**
  * Merge: mueve todo lo del contacto `dropId` a `keepId` y borra `dropId`.
  * Transacción única. Devuelve el contacto conservado, o null si falta alguno.
  */
-export function mergeContacts(
+export async function mergeContacts(
   userId: string,
   keepId: string,
   dropId: string,
-): CrmContactRow | null {
+): Promise<CrmContactRow | null> {
   const db = getDb();
   if (keepId === dropId) return null;
-  const keep = db
+  const keep = (await db
     .prepare('SELECT * FROM crm_contacts WHERE id = ? AND user_id = ?')
-    .get(keepId, userId) as CrmContactRow | undefined;
-  const drop = db
+    .get(keepId, userId)) as CrmContactRow | undefined;
+  const drop = (await db
     .prepare('SELECT * FROM crm_contacts WHERE id = ? AND user_id = ?')
-    .get(dropId, userId) as CrmContactRow | undefined;
+    .get(dropId, userId)) as CrmContactRow | undefined;
   if (!keep || !drop) return null;
 
-  const tx = db.transaction(() => {
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
     if (!keep.company_id && drop.company_id) {
-      db.prepare('UPDATE crm_contacts SET company_id = ?, updated_at = ? WHERE id = ?').run(
-        drop.company_id,
-        now(),
-        keepId,
-      );
+      await tdb
+        .prepare('UPDATE crm_contacts SET company_id = ?, updated_at = ? WHERE id = ?')
+        .run(drop.company_id, now(), keepId);
     }
     // Deals: migra los vínculos; si el keep ya estaba en el deal, descarta el dupe.
-    db.prepare('UPDATE OR IGNORE crm_deal_contacts SET contact_id = ? WHERE contact_id = ?').run(
-      keepId,
-      dropId,
-    );
-    db.prepare('DELETE FROM crm_deal_contacts WHERE contact_id = ?').run(dropId);
+    await tdb
+      .prepare('UPDATE OR IGNORE crm_deal_contacts SET contact_id = ? WHERE contact_id = ?')
+      .run(keepId, dropId);
+    await tdb.prepare('DELETE FROM crm_deal_contacts WHERE contact_id = ?').run(dropId);
     // Activities.
-    db.prepare('UPDATE crm_activities SET contact_id = ?, updated_at = ? WHERE contact_id = ?').run(
-      keepId,
-      now(),
-      dropId,
-    );
+    await tdb
+      .prepare('UPDATE crm_activities SET contact_id = ?, updated_at = ? WHERE contact_id = ?')
+      .run(keepId, now(), dropId);
     // Listas estáticas.
-    db.prepare('UPDATE OR IGNORE crm_list_members SET contact_id = ? WHERE contact_id = ?').run(
-      keepId,
-      dropId,
-    );
-    db.prepare('DELETE FROM crm_list_members WHERE contact_id = ?').run(dropId);
+    await tdb
+      .prepare('UPDATE OR IGNORE crm_list_members SET contact_id = ? WHERE contact_id = ?')
+      .run(keepId, dropId);
+    await tdb.prepare('DELETE FROM crm_list_members WHERE contact_id = ?').run(dropId);
     // Borra el contacto descartado.
-    db.prepare('DELETE FROM crm_contacts WHERE id = ?').run(dropId);
-  });
-  tx();
-  return db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(keepId) as CrmContactRow;
+    await tdb.prepare('DELETE FROM crm_contacts WHERE id = ?').run(dropId);
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
+  return (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(keepId)) as CrmContactRow;
 }
 
-export function bulkUpdateContacts(
+export async function bulkUpdateContacts(
   userId: string,
   ids: string[],
   patch: { lifecycleStage?: string },
-): number {
+): Promise<number> {
   if (!ids.length || !patch.lifecycleStage) return 0;
   const ph = ids.map(() => '?').join(',');
-  return getDb()
-    .prepare(
-      `UPDATE crm_contacts SET lifecycle_stage = ?, updated_at = ? WHERE user_id = ? AND id IN (${ph})`,
-    )
-    .run(patch.lifecycleStage, now(), userId, ...ids).changes;
+  return (
+    await getDb()
+      .prepare(
+        `UPDATE crm_contacts SET lifecycle_stage = ?, updated_at = ? WHERE user_id = ? AND id IN (${ph})`,
+      )
+      .run(patch.lifecycleStage, now(), userId, ...ids)
+  ).changes;
 }
 
-export function bulkDeleteContacts(userId: string, ids: string[]): number {
+export async function bulkDeleteContacts(userId: string, ids: string[]): Promise<number> {
   if (!ids.length) return 0;
   const ph = ids.map(() => '?').join(',');
-  return getDb()
-    .prepare(`DELETE FROM crm_contacts WHERE user_id = ? AND id IN (${ph})`)
-    .run(userId, ...ids).changes;
+  return (
+    await getDb()
+      .prepare(`DELETE FROM crm_contacts WHERE user_id = ? AND id IN (${ph})`)
+      .run(userId, ...ids)
+  ).changes;
 }
 
 // ============================================================
@@ -431,10 +446,10 @@ export interface CompanyFilter {
 
 export type CompanyListRow = CrmCompanyRow & { contact_count: number };
 
-export function listCompanies(
+export async function listCompanies(
   userId: string,
   f: CompanyFilter,
-): { rows: CompanyListRow[]; total: number } {
+): Promise<{ rows: CompanyListRow[]; total: number }> {
   const db = getDb();
   const where: string[] = ['co.user_id = ?'];
   const args: Array<string | number> = [userId];
@@ -453,7 +468,9 @@ export function listCompanies(
   }
   const whereSql = where.join(' AND ');
   const total = (
-    db.prepare(`SELECT COUNT(*) AS c FROM crm_companies co WHERE ${whereSql}`).get(...args) as {
+    (await db.prepare(`SELECT COUNT(*) AS c FROM crm_companies co WHERE ${whereSql}`).get(
+      ...args,
+    )) as {
       c: number;
     }
   ).c;
@@ -466,7 +483,7 @@ export function listCompanies(
       : f.sort === 'name'
         ? 'co.name COLLATE NOCASE ASC, co.id'
         : 'co.created_at DESC, co.id';
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT co.*,
          (SELECT COUNT(*) FROM crm_contacts ct WHERE ct.company_id = co.id) AS contact_count
@@ -475,7 +492,7 @@ export function listCompanies(
        ORDER BY ${order}
        LIMIT ? OFFSET ?`,
     )
-    .all(...args, pageSize, (page - 1) * pageSize) as CompanyListRow[];
+    .all(...args, pageSize, (page - 1) * pageSize)) as CompanyListRow[];
   return { rows, total };
 }
 
@@ -485,19 +502,17 @@ export interface CompanyDetail {
   deals: CrmDealRow[];
 }
 
-export function getCompany(userId: string, id: string): CompanyDetail | null {
+export async function getCompany(userId: string, id: string): Promise<CompanyDetail | null> {
   const db = getDb();
-  const company = db
+  const company = (await db
     .prepare('SELECT * FROM crm_companies WHERE id = ? AND user_id = ?')
-    .get(id, userId) as CrmCompanyRow | undefined;
+    .get(id, userId)) as CrmCompanyRow | undefined;
   if (!company) return null;
-  const contacts = db
-    .prepare(
-      'SELECT * FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at DESC',
-    )
-    .all(id, userId) as CrmContactRow[];
+  const contacts = (await db
+    .prepare('SELECT * FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at DESC')
+    .all(id, userId)) as CrmContactRow[];
   // Deals de la empresa = deals vinculados a contactos de la empresa.
-  const deals = db
+  const deals = (await db
     .prepare(
       `SELECT DISTINCT d.* FROM crm_deals d
        JOIN crm_deal_contacts dc ON dc.deal_id = d.id
@@ -505,7 +520,7 @@ export function getCompany(userId: string, id: string): CompanyDetail | null {
        WHERE c.company_id = ? AND d.user_id = ?
        ORDER BY d.created_at DESC`,
     )
-    .all(id, userId) as CrmDealRow[];
+    .all(id, userId)) as CrmDealRow[];
   return { company, contacts, deals };
 }
 
@@ -535,51 +550,56 @@ const COMPANY_COLS: Record<string, string> = {
   custom: 'custom',
 };
 
-export function createCompany(userId: string, data: CompanyInput): CrmCompanyRow {
-  const db = getDb();
+export async function createCompany(
+  userId: string,
+  data: CompanyInput,
+  db: Db = getDb(),
+): Promise<CrmCompanyRow> {
   const id = crypto.randomUUID();
-  db.prepare(
-    `INSERT INTO crm_companies
+  await db
+    .prepare(
+      `INSERT INTO crm_companies
        (id, user_id, name, domain, industry, employees, phone, website, city, country, lifecycle_stage, custom)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    userId,
-    data.name ?? '',
-    data.domain ?? '',
-    data.industry ?? '',
-    data.employees ?? null,
-    data.phone ?? '',
-    data.website ?? '',
-    data.city ?? '',
-    data.country ?? '',
-    data.lifecycleStage ?? 'lead',
-    JSON.stringify(data.custom ?? {}),
-  );
-  return db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id) as CrmCompanyRow;
+    )
+    .run(
+      id,
+      userId,
+      data.name ?? '',
+      data.domain ?? '',
+      data.industry ?? '',
+      data.employees ?? null,
+      data.phone ?? '',
+      data.website ?? '',
+      data.city ?? '',
+      data.country ?? '',
+      data.lifecycleStage ?? 'lead',
+      JSON.stringify(data.custom ?? {}),
+    );
+  return (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
 }
 
-export function updateCompany(
+export async function updateCompany(
   userId: string,
   id: string,
   data: CompanyInput,
-): CrmCompanyRow | null {
-  const db = getDb();
-  const existing = db
+  db: Db = getDb(),
+): Promise<CrmCompanyRow | null> {
+  const existing = await db
     .prepare('SELECT id FROM crm_companies WHERE id = ? AND user_id = ?')
     .get(id, userId);
   if (!existing) return null;
   const sets = toColumnValues(COMPANY_COLS, data as Record<string, unknown>);
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
-  db.prepare(
-    `UPDATE crm_companies SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`,
-  ).run(...sets.map(([, v]) => v), now(), id);
-  return db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id) as CrmCompanyRow;
+  await db
+    .prepare(`UPDATE crm_companies SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
+    .run(...sets.map(([, v]) => v), now(), id);
+  return (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
 }
 
-export function deleteCompany(userId: string, id: string): boolean {
+export async function deleteCompany(userId: string, id: string): Promise<boolean> {
   return (
-    getDb().prepare('DELETE FROM crm_companies WHERE id = ? AND user_id = ?').run(id, userId)
+    (await getDb().prepare('DELETE FROM crm_companies WHERE id = ? AND user_id = ?').run(id, userId))
       .changes > 0
   );
 }
@@ -592,151 +612,161 @@ export interface PipelineWithStages extends CrmPipelineRow {
   stages: CrmStageRow[];
 }
 
-export function listPipelinesWithStages(userId: string): PipelineWithStages[] {
+export async function listPipelinesWithStages(userId: string): Promise<PipelineWithStages[]> {
   const db = getDb();
-  const pipelines = db
+  const pipelines = (await db
     .prepare('SELECT * FROM crm_pipelines WHERE user_id = ? ORDER BY position ASC, created_at ASC')
-    .all(userId) as CrmPipelineRow[];
+    .all(userId)) as CrmPipelineRow[];
   const stageStmt = db.prepare(
     'SELECT * FROM crm_stages WHERE pipeline_id = ? ORDER BY position ASC',
   );
-  return pipelines.map((p) => ({ ...p, stages: stageStmt.all(p.id) as CrmStageRow[] }));
+  return Promise.all(
+    pipelines.map(async (p) => ({ ...p, stages: (await stageStmt.all(p.id)) as CrmStageRow[] })),
+  );
 }
 
-function getOwnedPipeline(userId: string, id: string): CrmPipelineRow | null {
+async function getOwnedPipeline(userId: string, id: string): Promise<CrmPipelineRow | null> {
   return (
-    (getDb()
+    ((await getDb()
       .prepare('SELECT * FROM crm_pipelines WHERE id = ? AND user_id = ?')
-      .get(id, userId) as CrmPipelineRow | undefined) ?? null
+      .get(id, userId)) as CrmPipelineRow | undefined) ?? null
   );
 }
 
 /** Stage cuyo pipeline pertenece al usuario (las stages no tienen user_id propio). */
-function getOwnedStage(userId: string, id: string): CrmStageRow | null {
+async function getOwnedStage(userId: string, id: string): Promise<CrmStageRow | null> {
   return (
-    (getDb()
+    ((await getDb()
       .prepare(
         `SELECT s.* FROM crm_stages s
          JOIN crm_pipelines p ON p.id = s.pipeline_id
          WHERE s.id = ? AND p.user_id = ?`,
       )
-      .get(id, userId) as CrmStageRow | undefined) ?? null
+      .get(id, userId)) as CrmStageRow | undefined) ?? null
   );
 }
 
-export function createPipeline(userId: string, name: string): CrmPipelineRow {
+export async function createPipeline(userId: string, name: string): Promise<CrmPipelineRow> {
   const db = getDb();
   const id = crypto.randomUUID();
   const maxPos = (
-    db.prepare('SELECT COALESCE(MAX(position), -1) AS m FROM crm_pipelines WHERE user_id = ?').get(userId) as {
+    (await db
+      .prepare('SELECT COALESCE(MAX(position), -1) AS m FROM crm_pipelines WHERE user_id = ?')
+      .get(userId)) as {
       m: number;
     }
   ).m;
-  db.prepare('INSERT INTO crm_pipelines (id, user_id, name, position) VALUES (?, ?, ?, ?)').run(
-    id,
-    userId,
-    name,
-    maxPos + 1,
-  );
-  return db.prepare('SELECT * FROM crm_pipelines WHERE id = ?').get(id) as CrmPipelineRow;
+  await db
+    .prepare('INSERT INTO crm_pipelines (id, user_id, name, position) VALUES (?, ?, ?, ?)')
+    .run(id, userId, name, maxPos + 1);
+  return (await db.prepare('SELECT * FROM crm_pipelines WHERE id = ?').get(id)) as CrmPipelineRow;
 }
 
-export function renamePipeline(
+export async function renamePipeline(
   userId: string,
   id: string,
   name: string,
-): CrmPipelineRow | null {
+): Promise<CrmPipelineRow | null> {
   const db = getDb();
-  if (!getOwnedPipeline(userId, id)) return null;
-  db.prepare('UPDATE crm_pipelines SET name = ? WHERE id = ?').run(name, id);
-  return db.prepare('SELECT * FROM crm_pipelines WHERE id = ?').get(id) as CrmPipelineRow;
+  if (!(await getOwnedPipeline(userId, id))) return null;
+  await db.prepare('UPDATE crm_pipelines SET name = ? WHERE id = ?').run(name, id);
+  return (await db.prepare('SELECT * FROM crm_pipelines WHERE id = ?').get(id)) as CrmPipelineRow;
 }
 
 export type DeletePipelineResult = { ok: true } | { ok: false; reason: 'not_found' | 'not_empty' };
 
 /** Solo borra pipelines sin deals (las stages caen en cascada). */
-export function deletePipeline(userId: string, id: string): DeletePipelineResult {
+export async function deletePipeline(userId: string, id: string): Promise<DeletePipelineResult> {
   const db = getDb();
-  if (!getOwnedPipeline(userId, id)) return { ok: false, reason: 'not_found' };
+  if (!(await getOwnedPipeline(userId, id))) return { ok: false, reason: 'not_found' };
   const dealCount = (
-    db.prepare('SELECT COUNT(*) AS c FROM crm_deals WHERE pipeline_id = ? AND user_id = ?').get(
-      id,
-      userId,
-    ) as { c: number }
+    (await db
+      .prepare('SELECT COUNT(*) AS c FROM crm_deals WHERE pipeline_id = ? AND user_id = ?')
+      .get(id, userId)) as { c: number }
   ).c;
   if (dealCount > 0) return { ok: false, reason: 'not_empty' };
-  db.prepare('DELETE FROM crm_pipelines WHERE id = ?').run(id);
+  await db.prepare('DELETE FROM crm_pipelines WHERE id = ?').run(id);
   return { ok: true };
 }
 
-export function createStage(
+export async function createStage(
   userId: string,
   pipelineId: string,
   data: { name: string; probability?: number },
-): CrmStageRow | null {
+): Promise<CrmStageRow | null> {
   const db = getDb();
-  if (!getOwnedPipeline(userId, pipelineId)) return null;
+  if (!(await getOwnedPipeline(userId, pipelineId))) return null;
   const id = crypto.randomUUID();
   const maxPos = (
-    db
+    (await db
       .prepare('SELECT COALESCE(MAX(position), -1) AS m FROM crm_stages WHERE pipeline_id = ?')
-      .get(pipelineId) as { m: number }
+      .get(pipelineId)) as { m: number }
   ).m;
-  db.prepare(
-    'INSERT INTO crm_stages (id, pipeline_id, name, probability, position) VALUES (?, ?, ?, ?, ?)',
-  ).run(id, pipelineId, data.name, data.probability ?? 0, maxPos + 1);
-  return db.prepare('SELECT * FROM crm_stages WHERE id = ?').get(id) as CrmStageRow;
+  await db
+    .prepare(
+      'INSERT INTO crm_stages (id, pipeline_id, name, probability, position) VALUES (?, ?, ?, ?, ?)',
+    )
+    .run(id, pipelineId, data.name, data.probability ?? 0, maxPos + 1);
+  return (await db.prepare('SELECT * FROM crm_stages WHERE id = ?').get(id)) as CrmStageRow;
 }
 
-export function updateStage(
+export async function updateStage(
   userId: string,
   id: string,
   data: { name?: string; probability?: number; isWon?: boolean; isLost?: boolean },
-): CrmStageRow | null {
+): Promise<CrmStageRow | null> {
   const db = getDb();
-  if (!getOwnedStage(userId, id)) return null;
+  if (!(await getOwnedStage(userId, id))) return null;
   const sets: Array<[string, string | number]> = [];
   if (data.name !== undefined) sets.push(['name', data.name]);
   if (data.probability !== undefined) sets.push(['probability', data.probability]);
   if (data.isWon !== undefined) sets.push(['is_won', data.isWon ? 1 : 0]);
   if (data.isLost !== undefined) sets.push(['is_lost', data.isLost ? 1 : 0]);
   if (sets.length) {
-    db.prepare(`UPDATE crm_stages SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`).run(
-      ...sets.map(([, v]) => v),
-      id,
-    );
+    await db
+      .prepare(`UPDATE crm_stages SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
+      .run(...sets.map(([, v]) => v), id);
   }
-  return db.prepare('SELECT * FROM crm_stages WHERE id = ?').get(id) as CrmStageRow;
+  return (await db.prepare('SELECT * FROM crm_stages WHERE id = ?').get(id)) as CrmStageRow;
 }
 
 export type DeleteStageResult = { ok: true } | { ok: false; reason: 'not_found' | 'not_empty' };
 
 /** Solo borra stages sin deals. */
-export function deleteStage(userId: string, id: string): DeleteStageResult {
+export async function deleteStage(userId: string, id: string): Promise<DeleteStageResult> {
   const db = getDb();
-  if (!getOwnedStage(userId, id)) return { ok: false, reason: 'not_found' };
+  if (!(await getOwnedStage(userId, id))) return { ok: false, reason: 'not_found' };
   const dealCount = (
-    db.prepare('SELECT COUNT(*) AS c FROM crm_deals WHERE stage_id = ? AND user_id = ?').get(
-      id,
-      userId,
-    ) as { c: number }
+    (await db
+      .prepare('SELECT COUNT(*) AS c FROM crm_deals WHERE stage_id = ? AND user_id = ?')
+      .get(id, userId)) as { c: number }
   ).c;
   if (dealCount > 0) return { ok: false, reason: 'not_empty' };
-  db.prepare('DELETE FROM crm_stages WHERE id = ?').run(id);
+  await db.prepare('DELETE FROM crm_stages WHERE id = ?').run(id);
   return { ok: true };
 }
 
 /** Reordena stages: position = índice en el array recibido. */
-export function reorderStages(userId: string, pipelineId: string, stageIds: string[]): boolean {
+export async function reorderStages(
+  userId: string,
+  pipelineId: string,
+  stageIds: string[],
+): Promise<boolean> {
   const db = getDb();
-  if (!getOwnedPipeline(userId, pipelineId)) return false;
-  const stmt = db.prepare('UPDATE crm_stages SET position = ? WHERE id = ? AND pipeline_id = ?');
-  const tx = db.transaction(() => {
-    stageIds.forEach((stageId, i) => {
-      stmt.run(i, stageId, pipelineId);
-    });
-  });
-  tx();
+  if (!(await getOwnedPipeline(userId, pipelineId))) return false;
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    const stmt = tdb.prepare('UPDATE crm_stages SET position = ? WHERE id = ? AND pipeline_id = ?');
+    for (let i = 0; i < stageIds.length; i++) {
+      await stmt.run(i, stageIds[i], pipelineId);
+    }
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
   return true;
 }
 
@@ -763,10 +793,10 @@ const DEAL_ORDER: Record<NonNullable<DealFilter['sort']>, string> = {
   close_date: "d.close_date IS NULL, d.close_date ASC, d.id",
 };
 
-export function listDeals(
+export async function listDeals(
   userId: string,
   f: DealFilter,
-): { rows: DealListRow[]; total: number } {
+): Promise<{ rows: DealListRow[]; total: number }> {
   const db = getDb();
   const where: string[] = ['d.user_id = ?', 'd.pipeline_id = ?'];
   const args: Array<string | number> = [userId, f.pipelineId];
@@ -784,14 +814,14 @@ export function listDeals(
   }
   const whereSql = where.join(' AND ');
   const total = (
-    db.prepare(`SELECT COUNT(*) AS c FROM crm_deals d WHERE ${whereSql}`).get(...args) as {
+    (await db.prepare(`SELECT COUNT(*) AS c FROM crm_deals d WHERE ${whereSql}`).get(...args)) as {
       c: number;
     }
   ).c;
   const pageSize = Math.min(Math.max(f.pageSize ?? 25, 1), 100);
   const pages = Math.max(Math.ceil(total / pageSize), 1);
   const page = Math.min(Math.max(f.page ?? 1, 1), pages);
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT d.*, s.name AS stage_name
        FROM crm_deals d
@@ -800,7 +830,7 @@ export function listDeals(
        ORDER BY ${DEAL_ORDER[f.sort ?? 'newest']}
        LIMIT ? OFFSET ?`,
     )
-    .all(...args, pageSize, (page - 1) * pageSize) as DealListRow[];
+    .all(...args, pageSize, (page - 1) * pageSize)) as DealListRow[];
   return { rows, total };
 }
 
@@ -818,12 +848,15 @@ export interface BoardStage {
 }
 
 /** Columnas del kanban: stages ordenados con sus deals (orden position). */
-export function listDealsForBoard(userId: string, pipelineId: string): BoardStage[] {
+export async function listDealsForBoard(
+  userId: string,
+  pipelineId: string,
+): Promise<BoardStage[]> {
   const db = getDb();
-  const stages = db
+  const stages = (await db
     .prepare('SELECT * FROM crm_stages WHERE pipeline_id = ? ORDER BY position ASC')
-    .all(pipelineId) as CrmStageRow[];
-  const deals = db
+    .all(pipelineId)) as CrmStageRow[];
+  const deals = (await db
     .prepare(
       `SELECT d.*,
          c.id AS contact_id,
@@ -837,7 +870,7 @@ export function listDealsForBoard(userId: string, pipelineId: string): BoardStag
        WHERE d.user_id = ? AND d.pipeline_id = ?
        ORDER BY d.position ASC`,
     )
-    .all(userId, pipelineId) as BoardDeal[];
+    .all(userId, pipelineId)) as BoardDeal[];
   return stages.map((stage) => {
     const stageDeals = deals.filter((d) => d.stage_id === stage.id);
     return {
@@ -857,34 +890,34 @@ export interface DealDetail {
   company: CrmCompanyRow | null;
 }
 
-export function getDeal(userId: string, id: string): DealDetail | null {
+export async function getDeal(userId: string, id: string): Promise<DealDetail | null> {
   const db = getDb();
-  const deal = db
+  const deal = (await db
     .prepare('SELECT * FROM crm_deals WHERE id = ? AND user_id = ?')
-    .get(id, userId) as CrmDealRow | undefined;
+    .get(id, userId)) as CrmDealRow | undefined;
   if (!deal) return null;
   const stage =
-    (db.prepare('SELECT * FROM crm_stages WHERE id = ?').get(deal.stage_id) as
+    ((await db.prepare('SELECT * FROM crm_stages WHERE id = ?').get(deal.stage_id)) as
       | CrmStageRow
       | undefined) ?? null;
   const pipeline =
-    (db.prepare('SELECT * FROM crm_pipelines WHERE id = ?').get(deal.pipeline_id) as
+    ((await db.prepare('SELECT * FROM crm_pipelines WHERE id = ?').get(deal.pipeline_id)) as
       | CrmPipelineRow
       | undefined) ?? null;
-  const contacts = db
+  const contacts = (await db
     .prepare(
       `SELECT c.* FROM crm_contacts c
        JOIN crm_deal_contacts dc ON dc.contact_id = c.id
        WHERE dc.deal_id = ?
        ORDER BY dc.rowid ASC`,
     )
-    .all(id) as CrmContactRow[];
+    .all(id)) as CrmContactRow[];
   // Empresa del deal = la del contacto primario (primero vinculado).
   const company =
     contacts.length && contacts[0].company_id
-      ? (db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(contacts[0].company_id) as
-          | CrmCompanyRow
-          | undefined) ?? null
+      ? ((await db
+          .prepare('SELECT * FROM crm_companies WHERE id = ?')
+          .get(contacts[0].company_id)) as CrmCompanyRow | undefined) ?? null
       : null;
   return { deal, stage, pipeline, contacts, company };
 }
@@ -908,66 +941,80 @@ export type CreateDealResult =
   | { ok: true; deal: CrmDealRow }
   | { ok: false; reason: 'invalid_pipeline' | 'invalid_stage' };
 
-function stageInPipeline(stageId: string, pipelineId: string): CrmStageRow | null {
+async function stageInPipeline(stageId: string, pipelineId: string): Promise<CrmStageRow | null> {
   return (
-    (getDb()
+    ((await getDb()
       .prepare('SELECT * FROM crm_stages WHERE id = ? AND pipeline_id = ?')
-      .get(stageId, pipelineId) as CrmStageRow | undefined) ?? null
+      .get(stageId, pipelineId)) as CrmStageRow | undefined) ?? null
   );
 }
 
-function setDealContacts(dealId: string, contactIds: string[]): void {
-  const db = getDb();
-  db.prepare('DELETE FROM crm_deal_contacts WHERE deal_id = ?').run(dealId);
+async function setDealContacts(
+  dealId: string,
+  contactIds: string[],
+  db: Db = getDb(),
+): Promise<void> {
+  await db.prepare('DELETE FROM crm_deal_contacts WHERE deal_id = ?').run(dealId);
   const insert = db.prepare(
     'INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id) VALUES (?, ?)',
   );
-  for (const contactId of contactIds) insert.run(dealId, contactId);
+  for (const contactId of contactIds) await insert.run(dealId, contactId);
 }
 
-export function createDeal(userId: string, data: DealInput): CreateDealResult {
+export async function createDeal(userId: string, data: DealInput): Promise<CreateDealResult> {
   const db = getDb();
-  if (!data.pipelineId || !getOwnedPipeline(userId, data.pipelineId)) {
+  if (!data.pipelineId || !(await getOwnedPipeline(userId, data.pipelineId))) {
     return { ok: false, reason: 'invalid_pipeline' };
   }
-  if (!data.stageId || !stageInPipeline(data.stageId, data.pipelineId)) {
+  if (!data.stageId || !(await stageInPipeline(data.stageId, data.pipelineId))) {
     return { ok: false, reason: 'invalid_stage' };
   }
   const id = crypto.randomUUID();
   const maxPos = (
-    db
+    (await db
       .prepare('SELECT COALESCE(MAX(position), 0) AS m FROM crm_deals WHERE stage_id = ?')
-      .get(data.stageId) as { m: number }
+      .get(data.stageId)) as { m: number }
   ).m;
   const ts = now();
-  const tx = db.transaction(() => {
-    db.prepare(
-      `INSERT INTO crm_deals
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    await tdb
+      .prepare(
+        `INSERT INTO crm_deals
          (id, user_id, pipeline_id, stage_id, name, amount, currency, close_date, priority,
           source, description, lost_reason, position, custom, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      id,
-      userId,
-      data.pipelineId!,
-      data.stageId!,
-      data.name ?? '',
-      data.amount ?? 0,
-      data.currency ?? 'USD',
-      data.closeDate ?? null,
-      data.priority ?? 'medium',
-      data.source ?? '',
-      data.description ?? '',
-      data.lostReason ?? '',
-      maxPos + 1024,
-      JSON.stringify(data.custom ?? {}),
-      ts,
-      ts,
-    );
-    if (data.contactIds?.length) setDealContacts(id, data.contactIds);
-  });
-  tx();
-  return { ok: true, deal: db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id) as CrmDealRow };
+      )
+      .run(
+        id,
+        userId,
+        data.pipelineId!,
+        data.stageId!,
+        data.name ?? '',
+        data.amount ?? 0,
+        data.currency ?? 'USD',
+        data.closeDate ?? null,
+        data.priority ?? 'medium',
+        data.source ?? '',
+        data.description ?? '',
+        data.lostReason ?? '',
+        maxPos + 1024,
+        JSON.stringify(data.custom ?? {}),
+        ts,
+        ts,
+      );
+    if (data.contactIds?.length) await setDealContacts(id, data.contactIds, tdb);
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
+  return {
+    ok: true,
+    deal: (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow,
+  };
 }
 
 const DEAL_COLS: Record<string, string> = {
@@ -982,28 +1029,38 @@ const DEAL_COLS: Record<string, string> = {
   custom: 'custom',
 };
 
-export function updateDeal(userId: string, id: string, data: DealInput): CrmDealRow | null {
+export async function updateDeal(
+  userId: string,
+  id: string,
+  data: DealInput,
+): Promise<CrmDealRow | null> {
   const db = getDb();
-  const existing = db
+  const existing = await db
     .prepare('SELECT id FROM crm_deals WHERE id = ? AND user_id = ?')
     .get(id, userId);
   if (!existing) return null;
   const sets = toColumnValues(DEAL_COLS, data as Record<string, unknown>);
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
-  const tx = db.transaction(() => {
-    db.prepare(
-      `UPDATE crm_deals SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`,
-    ).run(...sets.map(([, v]) => v), now(), id);
-    if (data.contactIds) setDealContacts(id, data.contactIds);
-  });
-  tx();
-  return db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id) as CrmDealRow;
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    await tdb
+      .prepare(`UPDATE crm_deals SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
+      .run(...sets.map(([, v]) => v), now(), id);
+    if (data.contactIds) await setDealContacts(id, data.contactIds, tdb);
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
+  return (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow;
 }
 
-export function deleteDeal(userId: string, id: string): boolean {
+export async function deleteDeal(userId: string, id: string): Promise<boolean> {
   return (
-    getDb().prepare('DELETE FROM crm_deals WHERE id = ? AND user_id = ?').run(id, userId).changes >
-    0
+    (await getDb().prepare('DELETE FROM crm_deals WHERE id = ? AND user_id = ?').run(id, userId))
+      .changes > 0
   );
 }
 
@@ -1018,25 +1075,27 @@ export type MoveDealResult =
  *   stage is_lost → closed_at=now (lost_reason solo si vino lostReason);
  *   stage abierto → closed_at=NULL y lost_reason=''.
  */
-export function moveDeal(
+export async function moveDeal(
   userId: string,
   id: string,
   stageId: string,
   beforeId?: string | null,
   lostReason?: string,
-): MoveDealResult {
+): Promise<MoveDealResult> {
   const db = getDb();
-  const deal = db
+  const deal = (await db
     .prepare('SELECT * FROM crm_deals WHERE id = ? AND user_id = ?')
-    .get(id, userId) as CrmDealRow | undefined;
+    .get(id, userId)) as CrmDealRow | undefined;
   if (!deal) return { ok: false, reason: 'not_found' };
-  const stage = stageInPipeline(stageId, deal.pipeline_id);
+  const stage = await stageInPipeline(stageId, deal.pipeline_id);
   if (!stage) return { ok: false, reason: 'invalid_stage' };
 
   // Vecinos en el stage destino (sin el deal que se mueve), ordenados por position.
-  const siblings = db
-    .prepare('SELECT id, position FROM crm_deals WHERE stage_id = ? AND id != ? ORDER BY position ASC')
-    .all(stageId, id) as Array<{ id: string; position: number }>;
+  const siblings = (await db
+    .prepare(
+      'SELECT id, position FROM crm_deals WHERE stage_id = ? AND id != ? ORDER BY position ASC',
+    )
+    .all(stageId, id)) as Array<{ id: string; position: number }>;
 
   let position: number;
   const beforeIdx = beforeId ? siblings.findIndex((s) => s.id === beforeId) : -1;
@@ -1063,12 +1122,17 @@ export function moveDeal(
     newLostReason = '';
   }
 
-  db.prepare(
-    `UPDATE crm_deals
+  await db
+    .prepare(
+      `UPDATE crm_deals
      SET stage_id = ?, position = ?, closed_at = ?, lost_reason = ?, updated_at = ?
      WHERE id = ?`,
-  ).run(stageId, position, closedAt, newLostReason, ts, id);
-  return { ok: true, deal: db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id) as CrmDealRow };
+    )
+    .run(stageId, position, closedAt, newLostReason, ts, id);
+  return {
+    ok: true,
+    deal: (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow,
+  };
 }
 
 // ============================================================
@@ -1105,43 +1169,50 @@ const ACTIVITY_SELECT = `
   LEFT JOIN crm_deals d ON d.id = a.deal_id
 `;
 
-export function createActivity(userId: string, data: ActivityInput): CrmActivityRow {
+export async function createActivity(
+  userId: string,
+  data: ActivityInput,
+): Promise<CrmActivityRow> {
   const db = getDb();
   const id = crypto.randomUUID();
   const ts = now();
-  db.prepare(
-    `INSERT INTO crm_activities
+  await db
+    .prepare(
+      `INSERT INTO crm_activities
        (id, user_id, type, subject, body, due_at, direction, outcome, duration_min,
         contact_id, company_id, deal_id, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    userId,
-    data.type ?? 'note',
-    data.subject ?? '',
-    data.body ?? '',
-    data.dueAt ?? null,
-    data.direction ?? '',
-    data.outcome ?? '',
-    data.durationMin ?? null,
-    data.contactId ?? null,
-    data.companyId ?? null,
-    data.dealId ?? null,
-    ts,
-    ts,
-  );
-  return db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id) as CrmActivityRow;
+    )
+    .run(
+      id,
+      userId,
+      data.type ?? 'note',
+      data.subject ?? '',
+      data.body ?? '',
+      data.dueAt ?? null,
+      data.direction ?? '',
+      data.outcome ?? '',
+      data.durationMin ?? null,
+      data.contactId ?? null,
+      data.companyId ?? null,
+      data.dealId ?? null,
+      ts,
+      ts,
+    );
+  return (await db
+    .prepare('SELECT * FROM crm_activities WHERE id = ?')
+    .get(id)) as CrmActivityRow;
 }
 
-export function updateActivity(
+export async function updateActivity(
   userId: string,
   id: string,
   data: ActivityInput & { done?: boolean },
-): CrmActivityRow | null {
+): Promise<CrmActivityRow | null> {
   const db = getDb();
-  const existing = db
+  const existing = (await db
     .prepare('SELECT * FROM crm_activities WHERE id = ? AND user_id = ?')
-    .get(id, userId) as CrmActivityRow | undefined;
+    .get(id, userId)) as CrmActivityRow | undefined;
   if (!existing) return null;
 
   const sets: Array<[string, string | number | null]> = [];
@@ -1161,16 +1232,19 @@ export function updateActivity(
     sets.push(['done_at', data.done ? now() : null]);
   }
   sets.push(['updated_at', now()]);
-  db.prepare(
-    `UPDATE crm_activities SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`,
-  ).run(...sets.map(([, v]) => v), id);
-  return db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id) as CrmActivityRow;
+  await db
+    .prepare(`UPDATE crm_activities SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
+    .run(...sets.map(([, v]) => v), id);
+  return (await db
+    .prepare('SELECT * FROM crm_activities WHERE id = ?')
+    .get(id)) as CrmActivityRow;
 }
 
-export function deleteActivity(userId: string, id: string): boolean {
+export async function deleteActivity(userId: string, id: string): Promise<boolean> {
   return (
-    getDb().prepare('DELETE FROM crm_activities WHERE id = ? AND user_id = ?').run(id, userId)
-      .changes > 0
+    (await getDb()
+      .prepare('DELETE FROM crm_activities WHERE id = ? AND user_id = ?')
+      .run(id, userId)).changes > 0
   );
 }
 
@@ -1183,7 +1257,10 @@ export interface TimelineFilter {
 }
 
 /** Timeline de un registro (contacto, empresa o deal), más reciente primero. */
-export function listTimeline(userId: string, f: TimelineFilter): ActivityListRow[] {
+export async function listTimeline(
+  userId: string,
+  f: TimelineFilter,
+): Promise<ActivityListRow[]> {
   const db = getDb();
   const where: string[] = ['a.user_id = ?'];
   const args: Array<string | number> = [userId];
@@ -1204,19 +1281,19 @@ export function listTimeline(userId: string, f: TimelineFilter): ActivityListRow
     args.push(f.type);
   }
   const limit = Math.min(Math.max(f.limit ?? 200, 1), 500);
-  return db
+  return (await db
     .prepare(
       `${ACTIVITY_SELECT}
        WHERE ${where.join(' AND ')}
        ORDER BY COALESCE(a.due_at, a.created_at) DESC, a.created_at DESC
        LIMIT ?`,
     )
-    .all(...args, limit) as ActivityListRow[];
+    .all(...args, limit)) as ActivityListRow[];
 }
 
 export type TaskBucket = 'overdue' | 'today' | 'upcoming' | 'done';
 
-export function listTasks(userId: string, bucket: TaskBucket): ActivityListRow[] {
+export async function listTasks(userId: string, bucket: TaskBucket): Promise<ActivityListRow[]> {
   const db = getDb();
   const { start, end } = todayRange();
   let cond: string;
@@ -1242,13 +1319,13 @@ export function listTasks(userId: string, bucket: TaskBucket): ActivityListRow[]
     bucket === 'done'
       ? 'a.done_at DESC, a.updated_at DESC'
       : 'a.due_at IS NULL, a.due_at ASC, a.created_at DESC';
-  return db
+  return (await db
     .prepare(
       `${ACTIVITY_SELECT}
        WHERE a.user_id = ? AND a.type = 'task' AND ${cond}
        ORDER BY ${order}`,
     )
-    .all(...args) as ActivityListRow[];
+    .all(...args)) as ActivityListRow[];
 }
 
 // ============================================================
@@ -1273,12 +1350,12 @@ function parseListFilter(json: string): ListFilterJson {
   return out;
 }
 
-function countDynamicList(userId: string, filter: ListFilterJson): number {
+async function countDynamicList(userId: string, filter: ListFilterJson): Promise<number> {
   const { where, args } = buildContactWhere(userId, filter);
   return (
-    getDb()
+    (await getDb()
       .prepare(`SELECT COUNT(*) AS c FROM crm_contacts c WHERE ${where}`)
-      .get(...args) as { c: number }
+      .get(...args)) as { c: number }
   ).c;
 }
 
@@ -1286,21 +1363,21 @@ export interface ListWithCount extends CrmListRow {
   memberCount: number;
 }
 
-export function listLists(userId: string): ListWithCount[] {
+export async function listLists(userId: string): Promise<ListWithCount[]> {
   const db = getDb();
-  const lists = db
+  const lists = (await db
     .prepare('SELECT * FROM crm_lists WHERE user_id = ? ORDER BY created_at ASC')
-    .all(userId) as CrmListRow[];
-  const countStmt = db.prepare(
-    'SELECT COUNT(*) AS c FROM crm_list_members WHERE list_id = ?',
+    .all(userId)) as CrmListRow[];
+  const countStmt = db.prepare('SELECT COUNT(*) AS c FROM crm_list_members WHERE list_id = ?');
+  return Promise.all(
+    lists.map(async (list) => ({
+      ...list,
+      memberCount:
+        list.kind === 'dynamic'
+          ? await countDynamicList(userId, parseListFilter(list.filter))
+          : ((await countStmt.get(list.id)) as { c: number }).c,
+    })),
   );
-  return lists.map((list) => ({
-    ...list,
-    memberCount:
-      list.kind === 'dynamic'
-        ? countDynamicList(userId, parseListFilter(list.filter))
-        : (countStmt.get(list.id) as { c: number }).c,
-  }));
 }
 
 export interface ListDetail {
@@ -1309,16 +1386,16 @@ export interface ListDetail {
   memberCount: number;
 }
 
-export function getList(userId: string, id: string): ListDetail | null {
+export async function getList(userId: string, id: string): Promise<ListDetail | null> {
   const db = getDb();
-  const list = db
+  const list = (await db
     .prepare('SELECT * FROM crm_lists WHERE id = ? AND user_id = ?')
-    .get(id, userId) as CrmListRow | undefined;
+    .get(id, userId)) as CrmListRow | undefined;
   if (!list) return null;
   if (list.kind === 'dynamic') {
     // Evalúa el filtro con el mismo WHERE builder de listContacts.
     const { where, args } = buildContactWhere(userId, parseListFilter(list.filter));
-    const members = db
+    const members = (await db
       .prepare(
         `SELECT c.*, co.name AS company_name
          FROM crm_contacts c
@@ -1327,10 +1404,10 @@ export function getList(userId: string, id: string): ListDetail | null {
          ORDER BY ${CONTACT_ORDER.newest}
          LIMIT 500`,
       )
-      .all(...args) as ContactListRow[];
+      .all(...args)) as ContactListRow[];
     return { list, members, memberCount: members.length };
   }
-  const members = db
+  const members = (await db
     .prepare(
       `SELECT c.*, co.name AS company_name
        FROM crm_contacts c
@@ -1339,7 +1416,7 @@ export function getList(userId: string, id: string): ListDetail | null {
        WHERE m.list_id = ?
        ORDER BY c.created_at DESC`,
     )
-    .all(id) as ContactListRow[];
+    .all(id)) as ContactListRow[];
   return { list, members, memberCount: members.length };
 }
 
@@ -1350,25 +1427,29 @@ export interface ListInput {
   filter?: ListFilterJson;
 }
 
-export function createList(userId: string, data: ListInput): CrmListRow {
+export async function createList(userId: string, data: ListInput): Promise<CrmListRow> {
   const db = getDb();
   const id = crypto.randomUUID();
-  db.prepare(
-    'INSERT INTO crm_lists (id, user_id, name, entity, kind, filter) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(
-    id,
-    userId,
-    data.name ?? '',
-    data.entity ?? 'contacts',
-    data.kind ?? 'static',
-    JSON.stringify(data.filter ?? {}),
-  );
-  return db.prepare('SELECT * FROM crm_lists WHERE id = ?').get(id) as CrmListRow;
+  await db
+    .prepare('INSERT INTO crm_lists (id, user_id, name, entity, kind, filter) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(
+      id,
+      userId,
+      data.name ?? '',
+      data.entity ?? 'contacts',
+      data.kind ?? 'static',
+      JSON.stringify(data.filter ?? {}),
+    );
+  return (await db.prepare('SELECT * FROM crm_lists WHERE id = ?').get(id)) as CrmListRow;
 }
 
-export function updateList(userId: string, id: string, data: ListInput): CrmListRow | null {
+export async function updateList(
+  userId: string,
+  id: string,
+  data: ListInput,
+): Promise<CrmListRow | null> {
   const db = getDb();
-  const existing = db
+  const existing = await db
     .prepare('SELECT id FROM crm_lists WHERE id = ? AND user_id = ?')
     .get(id, userId);
   if (!existing) return null;
@@ -1378,39 +1459,43 @@ export function updateList(userId: string, id: string, data: ListInput): CrmList
   if (data.kind !== undefined) sets.push(['kind', data.kind]);
   if (data.filter !== undefined) sets.push(['filter', JSON.stringify(data.filter)]);
   if (sets.length) {
-    db.prepare(`UPDATE crm_lists SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`).run(
-      ...sets.map(([, v]) => v),
-      id,
-    );
+    await db
+      .prepare(`UPDATE crm_lists SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
+      .run(...sets.map(([, v]) => v), id);
   }
-  return db.prepare('SELECT * FROM crm_lists WHERE id = ?').get(id) as CrmListRow;
+  return (await db.prepare('SELECT * FROM crm_lists WHERE id = ?').get(id)) as CrmListRow;
 }
 
-export function deleteList(userId: string, id: string): boolean {
+export async function deleteList(userId: string, id: string): Promise<boolean> {
   return (
-    getDb().prepare('DELETE FROM crm_lists WHERE id = ? AND user_id = ?').run(id, userId).changes >
-    0
+    (await getDb().prepare('DELETE FROM crm_lists WHERE id = ? AND user_id = ?').run(id, userId))
+      .changes > 0
   );
 }
 
-export function addListMembers(listId: string, contactIds: string[]): number {
-  const db = getDb();
-  const insert = db.prepare(
-    'INSERT OR IGNORE INTO crm_list_members (list_id, contact_id) VALUES (?, ?)',
-  );
+export async function addListMembers(listId: string, contactIds: string[]): Promise<number> {
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
   let added = 0;
-  const tx = db.transaction(() => {
-    for (const contactId of contactIds) added += insert.run(listId, contactId).changes;
-  });
-  tx();
+  try {
+    const insert = tdb.prepare(
+      'INSERT OR IGNORE INTO crm_list_members (list_id, contact_id) VALUES (?, ?)',
+    );
+    for (const contactId of contactIds) added += (await insert.run(listId, contactId)).changes;
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
   return added;
 }
 
-export function removeListMember(listId: string, contactId: string): boolean {
+export async function removeListMember(listId: string, contactId: string): Promise<boolean> {
   return (
-    getDb()
+    (await getDb()
       .prepare('DELETE FROM crm_list_members WHERE list_id = ? AND contact_id = ?')
-      .run(listId, contactId).changes > 0
+      .run(listId, contactId)).changes > 0
   );
 }
 
@@ -1418,30 +1503,34 @@ export function removeListMember(listId: string, contactId: string): boolean {
 // SAVED VIEWS
 // ============================================================
 
-export function listSavedViews(userId: string, entity: string): CrmSavedViewRow[] {
-  return getDb()
+export async function listSavedViews(
+  userId: string,
+  entity: string,
+): Promise<CrmSavedViewRow[]> {
+  return (await getDb()
     .prepare(
       'SELECT * FROM crm_saved_views WHERE user_id = ? AND entity = ? ORDER BY created_at ASC',
     )
-    .all(userId, entity) as CrmSavedViewRow[];
+    .all(userId, entity)) as CrmSavedViewRow[];
 }
 
-export function createSavedView(
+export async function createSavedView(
   userId: string,
   data: { entity: string; name: string; query?: Record<string, unknown> },
-): CrmSavedViewRow {
+): Promise<CrmSavedViewRow> {
   const db = getDb();
   const id = crypto.randomUUID();
-  db.prepare(
-    'INSERT INTO crm_saved_views (id, user_id, entity, name, query) VALUES (?, ?, ?, ?, ?)',
-  ).run(id, userId, data.entity, data.name, JSON.stringify(data.query ?? {}));
-  return db.prepare('SELECT * FROM crm_saved_views WHERE id = ?').get(id) as CrmSavedViewRow;
+  await db
+    .prepare('INSERT INTO crm_saved_views (id, user_id, entity, name, query) VALUES (?, ?, ?, ?, ?)')
+    .run(id, userId, data.entity, data.name, JSON.stringify(data.query ?? {}));
+  return (await db.prepare('SELECT * FROM crm_saved_views WHERE id = ?').get(id)) as CrmSavedViewRow;
 }
 
-export function deleteSavedView(userId: string, id: string): boolean {
+export async function deleteSavedView(userId: string, id: string): Promise<boolean> {
   return (
-    getDb().prepare('DELETE FROM crm_saved_views WHERE id = ? AND user_id = ?').run(id, userId)
-      .changes > 0
+    (await getDb()
+      .prepare('DELETE FROM crm_saved_views WHERE id = ? AND user_id = ?')
+      .run(id, userId)).changes > 0
   );
 }
 
@@ -1449,18 +1538,21 @@ export function deleteSavedView(userId: string, id: string): boolean {
 // CUSTOM FIELDS
 // ============================================================
 
-export function listCustomFields(userId: string, entity?: string): CrmCustomFieldRow[] {
+export async function listCustomFields(
+  userId: string,
+  entity?: string,
+): Promise<CrmCustomFieldRow[]> {
   const db = getDb();
   if (entity) {
-    return db
+    return (await db
       .prepare(
         'SELECT * FROM crm_custom_fields WHERE user_id = ? AND entity = ? ORDER BY position ASC, label ASC',
       )
-      .all(userId, entity) as CrmCustomFieldRow[];
+      .all(userId, entity)) as CrmCustomFieldRow[];
   }
-  return db
+  return (await db
     .prepare('SELECT * FROM crm_custom_fields WHERE user_id = ? ORDER BY entity ASC, position ASC')
-    .all(userId) as CrmCustomFieldRow[];
+    .all(userId)) as CrmCustomFieldRow[];
 }
 
 export interface CustomFieldInput {
@@ -1472,32 +1564,39 @@ export interface CustomFieldInput {
   position?: number;
 }
 
-export function createCustomField(userId: string, data: CustomFieldInput): CrmCustomFieldRow {
+export async function createCustomField(
+  userId: string,
+  data: CustomFieldInput,
+): Promise<CrmCustomFieldRow> {
   const db = getDb();
   const id = crypto.randomUUID();
-  db.prepare(
-    `INSERT INTO crm_custom_fields (id, user_id, entity, name, label, type, options, position)
+  await db
+    .prepare(
+      `INSERT INTO crm_custom_fields (id, user_id, entity, name, label, type, options, position)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    userId,
-    data.entity ?? 'contacts',
-    data.name ?? '',
-    data.label ?? '',
-    data.type ?? 'text',
-    JSON.stringify(data.options ?? []),
-    data.position ?? 0,
-  );
-  return db.prepare('SELECT * FROM crm_custom_fields WHERE id = ?').get(id) as CrmCustomFieldRow;
+    )
+    .run(
+      id,
+      userId,
+      data.entity ?? 'contacts',
+      data.name ?? '',
+      data.label ?? '',
+      data.type ?? 'text',
+      JSON.stringify(data.options ?? []),
+      data.position ?? 0,
+    );
+  return (await db
+    .prepare('SELECT * FROM crm_custom_fields WHERE id = ?')
+    .get(id)) as CrmCustomFieldRow;
 }
 
-export function updateCustomField(
+export async function updateCustomField(
   userId: string,
   id: string,
   data: CustomFieldInput,
-): CrmCustomFieldRow | null {
+): Promise<CrmCustomFieldRow | null> {
   const db = getDb();
-  const existing = db
+  const existing = await db
     .prepare('SELECT id FROM crm_custom_fields WHERE id = ? AND user_id = ?')
     .get(id, userId);
   if (!existing) return null;
@@ -1509,18 +1608,22 @@ export function updateCustomField(
   if (data.options !== undefined) sets.push(['options', JSON.stringify(data.options)]);
   if (data.position !== undefined) sets.push(['position', data.position]);
   if (sets.length) {
-    db.prepare(
-      `UPDATE crm_custom_fields SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`,
-    ).run(...sets.map(([, v]) => v), id);
+    await db
+      .prepare(
+        `UPDATE crm_custom_fields SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`,
+      )
+      .run(...sets.map(([, v]) => v), id);
   }
-  return db.prepare('SELECT * FROM crm_custom_fields WHERE id = ?').get(id) as CrmCustomFieldRow;
+  return (await db
+    .prepare('SELECT * FROM crm_custom_fields WHERE id = ?')
+    .get(id)) as CrmCustomFieldRow;
 }
 
-export function deleteCustomField(userId: string, id: string): boolean {
+export async function deleteCustomField(userId: string, id: string): Promise<boolean> {
   return (
-    getDb()
+    (await getDb()
       .prepare('DELETE FROM crm_custom_fields WHERE id = ? AND user_id = ?')
-      .run(id, userId).changes > 0
+      .run(id, userId)).changes > 0
   );
 }
 
@@ -1566,15 +1669,16 @@ export interface ImportResult {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function recordImport(
+async function recordImport(
   userId: string,
   entity: string,
   result: ImportResult,
-): void {
-  getDb()
+  db: Db = getDb(),
+): Promise<void> {
+  await db
     .prepare(
       `INSERT INTO crm_imports (id, user_id, entity, total, created, updated, skipped, errors)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       crypto.randomUUID(),
@@ -1595,12 +1699,11 @@ function recordImport(
  * - email inválido → no se importa; queda en errors.
  * Todo en una transacción; graba el resumen en crm_imports.
  */
-export function importContacts(
+export async function importContacts(
   userId: string,
   rows: MappedContactRow[],
   mode: ImportMode,
-): ImportResult {
-  const db = getDb();
+): Promise<ImportResult> {
   const result: ImportResult = {
     total: rows.length,
     created: 0,
@@ -1608,107 +1711,118 @@ export function importContacts(
     skipped: 0,
     errors: [],
   };
-  const findByEmail = db.prepare(
-    'SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = lower(?) LIMIT 1',
-  );
-
-  const tx = db.transaction(() => {
-    rows.forEach((row, i) => {
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    const findByEmail = tdb.prepare(
+      'SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = lower(?) LIMIT 1',
+    );
+    for (const [i, row] of rows.entries()) {
       const email = (row.email ?? '').trim();
       if (email && !EMAIL_RE.test(email)) {
         result.errors.push(`Row ${i + 1}: invalid email "${email}"`);
-        return;
+        continue;
       }
-      const existing = email ? (findByEmail.get(userId, email) as { id: string } | undefined) : undefined;
-      if (existing) {
-        if (mode === 'skip') {
-          result.skipped++;
-        } else {
-          updateContact(userId, existing.id, { ...row, email });
-          result.updated++;
-        }
-        return;
-      }
-      createContact(userId, { ...row, email });
-      result.created++;
-    });
-    recordImport(userId, 'contacts', result);
-  });
-  tx();
-  return result;
-}
-
-/** Importa empresas con dedupe por lower(domain). Misma semántica que importContacts. */
-export function importCompanies(
-  userId: string,
-  rows: MappedCompanyRow[],
-  mode: ImportMode,
-): ImportResult {
-  const db = getDb();
-  const result: ImportResult = {
-    total: rows.length,
-    created: 0,
-    updated: 0,
-    skipped: 0,
-    errors: [],
-  };
-  const findByDomain = db.prepare(
-    `SELECT id FROM crm_companies WHERE user_id = ? AND domain != '' AND lower(domain) = lower(?) LIMIT 1`,
-  );
-
-  const tx = db.transaction(() => {
-    rows.forEach((row, i) => {
-      if (!(row.name ?? '').trim() && !(row.domain ?? '').trim()) {
-        result.errors.push(`Row ${i + 1}: missing name and domain`);
-        return;
-      }
-      const domain = (row.domain ?? '').trim();
-      const existing = domain
-        ? (findByDomain.get(userId, domain) as { id: string } | undefined)
+      const existing = email
+        ? ((await findByEmail.get(userId, email)) as { id: string } | undefined)
         : undefined;
       if (existing) {
         if (mode === 'skip') {
           result.skipped++;
         } else {
-          updateCompany(userId, existing.id, { ...row, domain });
+          await updateContact(userId, existing.id, { ...row, email }, tdb);
           result.updated++;
         }
-        return;
+        continue;
       }
-      createCompany(userId, { ...row, domain });
+      await createContact(userId, { ...row, email }, tdb);
       result.created++;
-    });
-    recordImport(userId, 'companies', result);
-  });
-  tx();
+    }
+    await recordImport(userId, 'contacts', result, tdb);
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
+  return result;
+}
+
+/** Importa empresas con dedupe por lower(domain). Misma semántica que importContacts. */
+export async function importCompanies(
+  userId: string,
+  rows: MappedCompanyRow[],
+  mode: ImportMode,
+): Promise<ImportResult> {
+  const result: ImportResult = {
+    total: rows.length,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+  };
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    const findByDomain = tdb.prepare(
+      `SELECT id FROM crm_companies WHERE user_id = ? AND domain != '' AND lower(domain) = lower(?) LIMIT 1`,
+    );
+    for (const [i, row] of rows.entries()) {
+      if (!(row.name ?? '').trim() && !(row.domain ?? '').trim()) {
+        result.errors.push(`Row ${i + 1}: missing name and domain`);
+        continue;
+      }
+      const domain = (row.domain ?? '').trim();
+      const existing = domain
+        ? ((await findByDomain.get(userId, domain)) as { id: string } | undefined)
+        : undefined;
+      if (existing) {
+        if (mode === 'skip') {
+          result.skipped++;
+        } else {
+          await updateCompany(userId, existing.id, { ...row, domain }, tdb);
+          result.updated++;
+        }
+        continue;
+      }
+      await createCompany(userId, { ...row, domain }, tdb);
+      result.created++;
+    }
+    await recordImport(userId, 'companies', result, tdb);
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
   return result;
 }
 
 export type ExportEntity = 'contacts' | 'companies' | 'deals' | 'activities';
 
 /** Todas las filas del usuario para export (sin auth extra: lo maneja la ruta). */
-export function exportRows(
+export async function exportRows(
   userId: string,
   entity: ExportEntity,
-): Array<CrmContactRow | CrmCompanyRow | CrmDealRow | CrmActivityRow> {
+): Promise<Array<CrmContactRow | CrmCompanyRow | CrmDealRow | CrmActivityRow>> {
   const db = getDb();
   switch (entity) {
     case 'contacts':
-      return db
+      return (await db
         .prepare('SELECT * FROM crm_contacts WHERE user_id = ? ORDER BY created_at DESC')
-        .all(userId) as CrmContactRow[];
+        .all(userId)) as CrmContactRow[];
     case 'companies':
-      return db
+      return (await db
         .prepare('SELECT * FROM crm_companies WHERE user_id = ? ORDER BY created_at DESC')
-        .all(userId) as CrmCompanyRow[];
+        .all(userId)) as CrmCompanyRow[];
     case 'deals':
-      return db
+      return (await db
         .prepare('SELECT * FROM crm_deals WHERE user_id = ? ORDER BY created_at DESC')
-        .all(userId) as CrmDealRow[];
+        .all(userId)) as CrmDealRow[];
     case 'activities':
-      return db
+      return (await db
         .prepare('SELECT * FROM crm_activities WHERE user_id = ? ORDER BY created_at DESC')
-        .all(userId) as CrmActivityRow[];
+        .all(userId)) as CrmActivityRow[];
   }
 }
 
@@ -1745,16 +1859,19 @@ export interface CrmOverview {
   upcomingTasks: ActivityListRow[];
 }
 
-function defaultPipelineId(userId: string): string | null {
-  const row = getDb()
+async function defaultPipelineId(userId: string): Promise<string | null> {
+  const row = (await getDb()
     .prepare('SELECT id FROM crm_pipelines WHERE user_id = ? ORDER BY position ASC LIMIT 1')
-    .get(userId) as { id: string } | undefined;
+    .get(userId)) as { id: string } | undefined;
   return row?.id ?? null;
 }
 
-function funnelForPipeline(userId: string, pipelineId: string | null): FunnelStage[] {
+async function funnelForPipeline(
+  userId: string,
+  pipelineId: string | null,
+): Promise<FunnelStage[]> {
   if (!pipelineId) return [];
-  return getDb()
+  return (await getDb()
     .prepare(
       `SELECT s.id, s.name, s.probability, s.is_won, s.is_lost,
          COUNT(d.id) AS count, COALESCE(SUM(d.amount), 0) AS amount
@@ -1764,11 +1881,11 @@ function funnelForPipeline(userId: string, pipelineId: string | null): FunnelSta
        GROUP BY s.id
        ORDER BY s.position ASC`,
     )
-    .all(userId, pipelineId) as FunnelStage[];
+    .all(userId, pipelineId)) as FunnelStage[];
 }
 
 /** Últimos 6 meses (incluido el actual) con conteo de deals won/lost por closed_at. */
-function wonLostByMonth(userId: string): WonLostMonth[] {
+async function wonLostByMonth(userId: string): Promise<WonLostMonth[]> {
   const db = getDb();
   const months: string[] = [];
   const d = new Date();
@@ -1778,7 +1895,7 @@ function wonLostByMonth(userId: string): WonLostMonth[] {
       `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, '0')}`,
     );
   }
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT substr(d.closed_at, 1, 7) AS month,
          SUM(CASE WHEN s.is_won = 1 THEN 1 ELSE 0 END) AS won,
@@ -1788,7 +1905,7 @@ function wonLostByMonth(userId: string): WonLostMonth[] {
        WHERE d.user_id = ? AND d.closed_at IS NOT NULL AND substr(d.closed_at, 1, 7) >= ?
        GROUP BY month`,
     )
-    .all(userId, months[0]) as Array<{ month: string; won: number; lost: number }>;
+    .all(userId, months[0])) as Array<{ month: string; won: number; lost: number }>;
   const map = new Map(rows.map((r) => [r.month, r]));
   return months.map((month) => ({
     month,
@@ -1797,64 +1914,64 @@ function wonLostByMonth(userId: string): WonLostMonth[] {
   }));
 }
 
-export function getCrmOverview(userId: string): CrmOverview {
+export async function getCrmOverview(userId: string): Promise<CrmOverview> {
   const db = getDb();
   const { start, end } = todayRange();
   const month = start.slice(0, 7);
 
   const totalContacts = (
-    db.prepare('SELECT COUNT(*) AS c FROM crm_contacts WHERE user_id = ?').get(userId) as {
+    (await db.prepare('SELECT COUNT(*) AS c FROM crm_contacts WHERE user_id = ?').get(userId)) as {
       c: number;
     }
   ).c;
 
-  const open = db
+  const open = (await db
     .prepare(
       'SELECT COUNT(*) AS c, COALESCE(SUM(amount), 0) AS a FROM crm_deals WHERE user_id = ? AND closed_at IS NULL',
     )
-    .get(userId) as { c: number; a: number };
+    .get(userId)) as { c: number; a: number };
 
   const forecastWeighted = (
-    db
+    (await db
       .prepare(
         `SELECT COALESCE(SUM(d.amount * s.probability / 100.0), 0) AS f
          FROM crm_deals d
          JOIN crm_stages s ON s.id = d.stage_id
          WHERE d.user_id = ? AND d.closed_at IS NULL`,
       )
-      .get(userId) as { f: number }
+      .get(userId)) as { f: number }
   ).f;
 
-  const wonThisMonth = db
+  const wonThisMonth = (await db
     .prepare(
       `SELECT COUNT(*) AS c, COALESCE(SUM(d.amount), 0) AS a
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
        WHERE d.user_id = ? AND s.is_won = 1 AND substr(d.closed_at, 1, 7) = ?`,
     )
-    .get(userId, month) as { c: number; a: number };
+    .get(userId, month)) as { c: number; a: number };
 
   const tasksDueToday = (
-    db
+    (await db
       .prepare(
         `SELECT COUNT(*) AS c FROM crm_activities
          WHERE user_id = ? AND type = 'task' AND done = 0 AND due_at >= ? AND due_at <= ?`,
       )
-      .get(userId, start, end) as { c: number }
+      .get(userId, start, end)) as { c: number }
   ).c;
 
-  const recentActivities = db
+  const recentActivities = (await db
     .prepare(`${ACTIVITY_SELECT} WHERE a.user_id = ? ORDER BY a.created_at DESC LIMIT 8`)
-    .all(userId) as ActivityListRow[];
+    .all(userId)) as ActivityListRow[];
 
-  const upcomingTasks = db
+  const upcomingTasks = (await db
     .prepare(
       `${ACTIVITY_SELECT}
        WHERE a.user_id = ? AND a.type = 'task' AND a.done = 0
        ORDER BY a.due_at IS NULL, a.due_at ASC, a.created_at DESC
        LIMIT 6`,
     )
-    .all(userId) as ActivityListRow[];
+    .all(userId)) as ActivityListRow[];
 
   return {
     totalContacts,
@@ -1863,8 +1980,8 @@ export function getCrmOverview(userId: string): CrmOverview {
     forecastWeighted,
     wonThisMonth: { count: wonThisMonth.c, amount: wonThisMonth.a },
     tasksDueToday,
-    funnel: funnelForPipeline(userId, defaultPipelineId(userId)),
-    wonLostByMonth: wonLostByMonth(userId),
+    funnel: await funnelForPipeline(userId, await defaultPipelineId(userId)),
+    wonLostByMonth: await wonLostByMonth(userId),
     recentActivities,
     upcomingTasks,
   };
@@ -1887,12 +2004,12 @@ export interface CrmReports {
   avgDaysToClose: number | null;
 }
 
-export function getCrmReports(userId: string): CrmReports {
+export async function getCrmReports(userId: string): Promise<CrmReports> {
   const db = getDb();
-  const pipelineId = defaultPipelineId(userId);
+  const pipelineId = await defaultPipelineId(userId);
 
   const forecastByStage = pipelineId
-    ? (db
+    ? ((await db
         .prepare(
           `SELECT s.id, s.name, s.probability,
              COUNT(d.id) AS count,
@@ -1904,10 +2021,10 @@ export function getCrmReports(userId: string): CrmReports {
            GROUP BY s.id
            ORDER BY s.position ASC`,
         )
-        .all(userId, pipelineId) as CrmReports['forecastByStage'])
+        .all(userId, pipelineId)) as CrmReports['forecastByStage'])
     : [];
 
-  const dealsBySource = db
+  const dealsBySource = (await db
     .prepare(
       `SELECT COALESCE(NULLIF(source, ''), 'other') AS source,
          COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount
@@ -1916,9 +2033,9 @@ export function getCrmReports(userId: string): CrmReports {
        GROUP BY source
        ORDER BY amount DESC`,
     )
-    .all(userId) as CrmReports['dealsBySource'];
+    .all(userId)) as CrmReports['dealsBySource'];
 
-  const contactsByLifecycle = db
+  const contactsByLifecycle = (await db
     .prepare(
       `SELECT lifecycle_stage AS lifecycle, COUNT(*) AS count
        FROM crm_contacts
@@ -1926,9 +2043,9 @@ export function getCrmReports(userId: string): CrmReports {
        GROUP BY lifecycle_stage
        ORDER BY count DESC`,
     )
-    .all(userId) as CrmReports['contactsByLifecycle'];
+    .all(userId)) as CrmReports['contactsByLifecycle'];
 
-  const activitiesByType = db
+  const activitiesByType = (await db
     .prepare(
       `SELECT type, COUNT(*) AS count
        FROM crm_activities
@@ -1936,21 +2053,21 @@ export function getCrmReports(userId: string): CrmReports {
        GROUP BY type
        ORDER BY count DESC`,
     )
-    .all(userId) as CrmReports['activitiesByType'];
+    .all(userId)) as CrmReports['activitiesByType'];
 
-  const avg = db
+  const avg = (await db
     .prepare(
       `SELECT AVG(julianday(d.closed_at) - julianday(d.created_at)) AS days
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
        WHERE d.user_id = ? AND s.is_won = 1 AND d.closed_at IS NOT NULL`,
     )
-    .get(userId) as { days: number | null };
+    .get(userId)) as { days: number | null };
 
   return {
-    funnel: funnelForPipeline(userId, pipelineId),
+    funnel: await funnelForPipeline(userId, pipelineId),
     forecastByStage,
-    wonLostByMonth: wonLostByMonth(userId),
+    wonLostByMonth: await wonLostByMonth(userId),
     dealsBySource,
     contactsByLifecycle,
     activitiesByType,
@@ -1969,32 +2086,32 @@ export interface SearchResults {
 }
 
 /** Búsqueda global: top 5 por entidad. */
-export function searchAll(userId: string, q: string): SearchResults {
+export async function searchAll(userId: string, q: string): Promise<SearchResults> {
   const db = getDb();
   const like = `%${escapeLike(q)}%`;
-  const contacts = db
+  const contacts = (await db
     .prepare(
       `SELECT * FROM crm_contacts
        WHERE user_id = ? AND (first_name LIKE ? ESCAPE '\\' OR last_name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\')
        ORDER BY created_at DESC
        LIMIT 5`,
     )
-    .all(userId, like, like, like) as CrmContactRow[];
-  const companies = db
+    .all(userId, like, like, like)) as CrmContactRow[];
+  const companies = (await db
     .prepare(
       `SELECT * FROM crm_companies
        WHERE user_id = ? AND (name LIKE ? ESCAPE '\\' OR domain LIKE ? ESCAPE '\\')
        ORDER BY created_at DESC
        LIMIT 5`,
     )
-    .all(userId, like, like) as CrmCompanyRow[];
-  const deals = db
+    .all(userId, like, like)) as CrmCompanyRow[];
+  const deals = (await db
     .prepare(
       `SELECT * FROM crm_deals
        WHERE user_id = ? AND name LIKE ? ESCAPE '\\'
        ORDER BY created_at DESC
        LIMIT 5`,
     )
-    .all(userId, like) as CrmDealRow[];
+    .all(userId, like)) as CrmDealRow[];
   return { contacts, companies, deals };
 }

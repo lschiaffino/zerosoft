@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (!entity || !(ENTITIES as readonly string[]).includes(entity)) {
     return crmError(400, 'invalid_input');
   }
-  return NextResponse.json({ rows: listSavedViews(user.id, entity) });
+  return NextResponse.json({ rows: await listSavedViews(user.id, entity) });
 }
 
 export async function POST(req: NextRequest) {
@@ -28,6 +28,6 @@ export async function POST(req: NextRequest) {
   const parsed = savedViewCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const view = createSavedView(user.id, parsed.data);
+  const view = await createSavedView(user.id, parsed.data);
   return NextResponse.json(view, { status: 201 });
 }

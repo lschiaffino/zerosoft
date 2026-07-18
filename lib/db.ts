@@ -1,24 +1,142 @@
-import Database from 'better-sqlite3';
+import {
+  createClient,
+  type Client,
+  type InValue,
+  type ResultSet,
+  type Transaction,
+} from '@libsql/client';
 import fs from 'fs';
 import path from 'path';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'zerosoftware.db');
 
-let _db: Database.Database | null = null;
+const DB_URL = process.env.TURSO_DATABASE_URL ?? `file:${DB_PATH}`;
+const IS_REMOTE = !DB_URL.startsWith('file:');
 
-export function getDb(): Database.Database {
+let _client: Client | null = null;
+
+/**
+ * Cliente libsql crudo (para transacciones interactivas).
+ * createClient no hace I/O al construir: es safe llamarlo de forma sync.
+ */
+export function getClient(): Client {
+  if (_client) return _client;
+  if (!IS_REMOTE) fs.mkdirSync(DATA_DIR, { recursive: true });
+  _client = createClient({
+    url: DB_URL,
+    authToken: IS_REMOTE ? process.env.TURSO_AUTH_TOKEN : undefined,
+  });
+  return _client;
+}
+
+let _migratePromise: Promise<void> | null = null;
+
+/**
+ * Corre el DDL una sola vez por proceso. Es lazy porque getDb() es sync pero
+ * migrar es async: cada statement del shim await-ea esta promesa antes de
+ * ejecutar, así ninguna query puede correr antes del CREATE TABLE.
+ * Idempotente; si falla, se resetea para permitir reintento.
+ */
+export function ensureMigrated(): Promise<void> {
+  if (!_migratePromise) {
+    const p = (async () => {
+      const client = getClient();
+      if (!IS_REMOTE) await client.execute('PRAGMA foreign_keys = ON');
+      await client.executeMultiple(DDL);
+    })();
+    _migratePromise = p;
+    p.catch(() => {
+      if (_migratePromise === p) _migratePromise = null;
+    });
+  }
+  return _migratePromise;
+}
+
+// ---------- Shim async con la forma de better-sqlite3 ----------
+
+export interface RunResult {
+  changes: number;
+  lastInsertRowid: number | undefined;
+}
+
+export interface Statement {
+  get(...args: InValue[]): Promise<unknown>;
+  all(...args: InValue[]): Promise<unknown[]>;
+  run(...args: InValue[]): Promise<RunResult>;
+}
+
+export interface Db {
+  prepare(sql: string): Statement;
+  exec(sql: string): Promise<void>;
+}
+
+interface Executor {
+  execute(stmt: { sql: string; args: InValue[] }): Promise<ResultSet>;
+}
+
+function toRunResult(res: ResultSet): RunResult {
+  return {
+    changes: Number(res.rowsAffected),
+    lastInsertRowid: res.lastInsertRowid == null ? undefined : Number(res.lastInsertRowid),
+  };
+}
+
+function makeStatement(executor: Executor, sql: string, ready: () => Promise<void>): Statement {
+  return {
+    async get(...args: InValue[]) {
+      await ready();
+      const res = await executor.execute({ sql, args });
+      // libsql devuelve rows[]; better-sqlite3 devuelve undefined si no hay fila.
+      return res.rows[0];
+    },
+    async all(...args: InValue[]) {
+      await ready();
+      const res = await executor.execute({ sql, args });
+      return res.rows;
+    },
+    async run(...args: InValue[]) {
+      await ready();
+      const res = await executor.execute({ sql, args });
+      return toRunResult(res);
+    },
+  };
+}
+
+let _db: Db | null = null;
+
+/** Singleton sync (createClient no hace I/O). Todas las operaciones son async. */
+export function getDb(): Db {
   if (_db) return _db;
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  _db = new Database(DB_PATH);
-  _db.pragma('journal_mode = WAL');
-  _db.pragma('foreign_keys = ON');
-  migrate(_db);
+  const client = getClient();
+  _db = {
+    prepare: (sql) => makeStatement(client, sql, ensureMigrated),
+    exec: async (sql) => {
+      await ensureMigrated();
+      await client.executeMultiple(sql);
+    },
+  };
   return _db;
 }
 
-function migrate(db: Database.Database) {
-  db.exec(`
+const NOOP_READY = (): Promise<void> => Promise.resolve();
+
+/**
+ * Db acotada a una transacción interactiva. No espera migración: los sitios
+ * que abren transacciones ya await-earon ensureMigrated() antes.
+ */
+export function txDb(tx: Transaction): Db {
+  return {
+    prepare: (sql) => makeStatement(tx, sql, NOOP_READY),
+    exec: async (sql) => {
+      await tx.executeMultiple(sql);
+    },
+  };
+}
+
+// ---------- DDL ----------
+
+const DDL = `
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
@@ -228,8 +346,7 @@ function migrate(db: Database.Database) {
       errors TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-  `);
-}
+  `;
 
 // ---------- Tipos ----------
 
@@ -422,20 +539,31 @@ export interface CrmImportRow {
 
 // ---------- Users ----------
 
-export function upsertUser(u: { email: string; name?: string | null; image?: string | null; id?: string }): UserRow {
+export async function upsertUser(u: {
+  email: string;
+  name?: string | null;
+  image?: string | null;
+  id?: string;
+}): Promise<UserRow> {
   const db = getDb();
-  const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(u.email) as UserRow | undefined;
+  const existing = (await db.prepare('SELECT * FROM users WHERE email = ?').get(u.email)) as
+    | UserRow
+    | undefined;
   if (existing) {
-    db.prepare('UPDATE users SET name = COALESCE(?, name), image = COALESCE(?, image) WHERE id = ?')
+    await db
+      .prepare('UPDATE users SET name = COALESCE(?, name), image = COALESCE(?, image) WHERE id = ?')
       .run(u.name ?? null, u.image ?? null, existing.id);
-    return db.prepare('SELECT * FROM users WHERE id = ?').get(existing.id) as UserRow;
+    return (await db.prepare('SELECT * FROM users WHERE id = ?').get(existing.id)) as UserRow;
   }
   const id = u.id ?? crypto.randomUUID();
-  db.prepare('INSERT INTO users (id, email, name, image) VALUES (?, ?, ?, ?)')
+  await db
+    .prepare('INSERT INTO users (id, email, name, image) VALUES (?, ?, ?, ?)')
     .run(id, u.email, u.name ?? null, u.image ?? null);
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow;
+  return (await db.prepare('SELECT * FROM users WHERE id = ?').get(id)) as UserRow;
 }
 
-export function getUserByEmail(email: string): UserRow | undefined {
-  return getDb().prepare('SELECT * FROM users WHERE email = ?').get(email) as UserRow | undefined;
+export async function getUserByEmail(email: string): Promise<UserRow | undefined> {
+  return (await getDb().prepare('SELECT * FROM users WHERE email = ?').get(email)) as
+    | UserRow
+    | undefined;
 }

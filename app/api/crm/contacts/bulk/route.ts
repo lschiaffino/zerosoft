@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
       return crmError(400, 'invalid_input');
     }
     return NextResponse.json({
-      count: bulkUpdateContacts(user.id, ids, { lifecycleStage: value }),
+      count: await bulkUpdateContacts(user.id, ids, { lifecycleStage: value }),
     });
   }
-  return NextResponse.json({ count: bulkDeleteContacts(user.id, ids) });
+  return NextResponse.json({ count: await bulkDeleteContacts(user.id, ids) });
 }
