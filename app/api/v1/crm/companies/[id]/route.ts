@@ -1,0 +1,32 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireApiUser, apiError } from '@/lib/api-auth';
+import { getCompany, updateCompany } from '@/lib/crm';
+import { companyUpdateSchema } from '@/lib/crm-schema';
+import { cleanRow, zodErrorCode } from '@/lib/crm-http';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = requireApiUser(req);
+  if ('res' in auth) return auth.res;
+
+  const detail = getCompany(auth.user.id, params.id);
+  if (!detail) return apiError(404, 'not_found', 'Company not found.');
+  return NextResponse.json(cleanRow(detail.company));
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = requireApiUser(req);
+  if ('res' in auth) return auth.res;
+
+  const body: unknown = await req.json().catch(() => null);
+  const parsed = companyUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
+  }
+
+  const company = updateCompany(auth.user.id, params.id, parsed.data);
+  if (!company) return apiError(404, 'not_found', 'Company not found.');
+  return NextResponse.json(cleanRow(company));
+}

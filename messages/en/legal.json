@@ -1,0 +1,278 @@
+{
+  "terms": {
+    "meta": {
+      "title": "Terms of Service",
+      "description": "The terms that govern the use of zerosoftware.ai and the Zerosoftware cloud. Written to be read."
+    },
+    "label": "Legal — 01",
+    "title": "Terms of Service",
+    "updated": "Last updated: July 1, 2026",
+    "intro": "These terms govern your use of zerosoftware.ai and the Zerosoftware cloud. They are written to be read, not to scare you. If anything is unclear, write to hola@zerosoftware.ai before accepting.",
+    "tocTitle": "Contents",
+    "sections": {
+      "s01": {
+        "h": "The short version",
+        "p": [
+          "We give software away. You can use it, host it and modify it under its open source license. If you use our cloud, you pay only the infrastructure it consumes, at cost. Do not use any of it to break the law or to hurt people. That is most of it — the rest is the same idea with more detail."
+        ]
+      },
+      "s02": {
+        "h": "Who we are",
+        "p": [
+          "Zerosoftware (\"we\", \"us\") operates zerosoftware.ai and the hosted versions of our products: Link, and — once released — Track, CRM and Cal. You can reach us at any time at hola@zerosoftware.ai."
+        ]
+      },
+      "s03": {
+        "h": "The software and its license",
+        "p": [
+          "All Zerosoftware products are open source. Each repository ships with its license (MIT or AGPL, as indicated in the repository itself). Your rights to download, run, modify and redistribute the code come from that license, not from these terms.",
+          "These terms do not restrict the license in any way, and the license does not grant you any rights over our hosted service, our domains or our brand."
+        ]
+      },
+      "s04": {
+        "h": "The hosted cloud",
+        "p": [
+          "If you create an account, we run the software for you. You pay exactly the infrastructure your usage consumes — compute, storage, bandwidth — plus taxes where applicable. Our margin on infrastructure is 0%. This is the whole business model: we sell convenience, never software.",
+          "We publish how the cost is calculated, and if the cloud gets cheaper, your bill gets cheaper."
+        ]
+      },
+      "s05": {
+        "h": "Accounts",
+        "p": [
+          "You sign in with Google OAuth. We never see or store your password. You are responsible for what happens under your account and for keeping your API keys secret. One account per human; bots are welcome through the API only."
+        ]
+      },
+      "s06": {
+        "h": "Acceptable use",
+        "ul": [
+          "No illegal content or activity, under any jurisdiction that applies to you or to us.",
+          "No spam, no phishing, and no using short links to disguise malicious destinations.",
+          "No attacks on the service: probing, scraping at abusive rates, or attempts to access other people's data.",
+          "No reselling access to the hosted service as if it were your own product."
+        ],
+        "p": [
+          "We may suspend accounts that break these rules. Where possible, we will warn you first and give you the chance to export your data."
+        ]
+      },
+      "s07": {
+        "h": "Your data",
+        "p": [
+          "Your content — links, analytics, contacts, events — is yours. You can export it at any time while your account is active, and for 30 days after you close it. We do not claim ownership over it, and we do not use it for anything except providing the service."
+        ]
+      },
+      "s08": {
+        "h": "Payment and cancellation",
+        "p": [
+          "The cloud is billed at cost, monthly in arrears, with no lock-in. Cancel whenever you want: the service runs until the end of the paid period, and your data stays exportable for 30 days after that.",
+          "Unpaid invoices, after notice, may suspend the account — never delete it without warning."
+        ]
+      },
+      "s09": {
+        "h": "Service levels",
+        "p": [
+          "The software is provided \"as is\" and the cloud \"as available\". We target high availability and publish our status at /status, but we do not promise uninterrupted service.",
+          "For a product whose price is zero, our warranty is simple: we will do our honest best, and you can always take the code and leave."
+        ]
+      },
+      "s10": {
+        "h": "Limitation of liability",
+        "p": [
+          "To the maximum extent permitted by law, Zerosoftware is not liable for indirect, incidental or consequential damages — lost profits, lost data, lost business — arising from the use or inability to use the software or the cloud.",
+          "Where liability cannot be excluded, it is limited to the amount you paid us in the 12 months before the claim — which, for the software itself, is and will always be zero."
+        ]
+      },
+      "s11": {
+        "h": "Changes to these terms",
+        "p": [
+          "If we change these terms, we will post the new version here with its date and, for material changes, notify account holders by email at least 15 days in advance. Continuing to use the service after that means you accept the new terms. The software's license never changes retroactively."
+        ]
+      },
+      "s12": {
+        "h": "Governing law and contact",
+        "p": [
+          "These terms are governed by the laws of Uruguay, without regard to conflict-of-law rules. Disputes go to the courts of Montevideo, Uruguay, unless mandatory consumer law gives you a better forum.",
+          "Questions about these terms: hola@zerosoftware.ai."
+        ]
+      }
+    }
+  },
+  "privacy": {
+    "meta": {
+      "title": "Privacy Policy",
+      "description": "What zerosoftware.ai collects, what it never collects, and why. We collect the minimum, keep it briefly, and never sell it."
+    },
+    "label": "Legal — 02",
+    "title": "Privacy Policy",
+    "updated": "Last updated: July 1, 2026",
+    "intro": "We collect the minimum, we keep it briefly, and we never sell it. This policy explains exactly what that means, in the same plain language we use everywhere else.",
+    "tocTitle": "Contents",
+    "sections": {
+      "s01": {
+        "h": "The short version",
+        "p": [
+          "We need your email and name to give you an account, and request headers to give you analytics. We do not use cookies for analytics, we do not fingerprint, we do not advertise, and we do not sell data — we could not afford the lawyers, and we do not want the money."
+        ]
+      },
+      "s02": {
+        "h": "What we collect",
+        "ul": [
+          "Account data: your name, email and profile picture, provided by Google when you sign in.",
+          "Usage data: the links, contacts, issues and events you create inside the products.",
+          "Analytics data: when someone clicks a short link, we record the timestamp, the referrer, the approximate country (resolved from the IP, which is then discarded), device type, browser and OS — all parsed from request headers.",
+          "Technical data: server logs with IP addresses, kept for at most 30 days for security and debugging.",
+          "Payment data: if you use the cloud, invoices and amounts. Card details are handled by the payment processor; we never see them."
+        ]
+      },
+      "s03": {
+        "h": "What we do not collect",
+        "ul": [
+          "No analytics cookies. None.",
+          "No device fingerprinting.",
+          "No cross-site tracking, no advertising identifiers, no data brokers.",
+          "No passwords: authentication is delegated to Google.",
+          "No contents of your emails — even with email sync, we store only the threads you explicitly attach."
+        ]
+      },
+      "s04": {
+        "h": "How click analytics work without cookies",
+        "p": [
+          "When a browser follows a short link, it tells us where it came from (the Referer header), what it is (the User-Agent header) and roughly where it is (the IP address, which we resolve to a country and immediately discard).",
+          "That is enough for honest statistics — clicks per day, per referrer, per country — without following anyone around the internet."
+        ]
+      },
+      "s05": {
+        "h": "How we use data",
+        "ul": [
+          "To provide the service: show your dashboard, count your clicks, send your invites.",
+          "To keep it secure: detect abuse, block attacks, debug errors.",
+          "To communicate with you: receipts, security notices, and product updates you can turn off.",
+          "Never to advertise, profile or sell."
+        ]
+      },
+      "s06": {
+        "h": "Legal bases (GDPR)",
+        "p": [
+          "If you are in the EEA or the UK: we process account and usage data to perform the contract with you; logs and analytics under our legitimate interest in running a secure, reliable service; and product communications with your consent, which you can withdraw at any time."
+        ]
+      },
+      "s07": {
+        "h": "Retention",
+        "ul": [
+          "Account and product data: kept while your account is active.",
+          "After account closure: exportable for 30 days, deleted from production within 60, and from backups within 90.",
+          "Click analytics: stored in aggregate form; raw IPs are never kept.",
+          "Server logs: 30 days."
+        ]
+      },
+      "s08": {
+        "h": "Where data lives",
+        "p": [
+          "The cloud runs on mainstream infrastructure providers, in the region shown at signup. If we ever change providers or regions, we will announce it in advance.",
+          "Self-hosted instances keep their data wherever you put it — we never see it."
+        ]
+      },
+      "s09": {
+        "h": "Sharing",
+        "p": [
+          "We do not sell data. We share it only with: the infrastructure providers that host the service (under data-processing agreements), the payment processor (to bill you), Google (to authenticate you), and authorities when the law genuinely compels us. That is the entire list."
+        ]
+      },
+      "s10": {
+        "h": "Your rights",
+        "p": [
+          "Wherever you live, we honor the GDPR set: access, rectification, erasure, portability, restriction and objection. Export tools are built into the product; for anything else, write to privacy@zerosoftware.ai and we will answer within 30 days.",
+          "EEA residents may also complain to their supervisory authority — though we would rather you complain to us first."
+        ]
+      },
+      "s11": {
+        "h": "Children",
+        "p": [
+          "The service is not directed at children under 16, and we do not knowingly collect their data. If you believe a child created an account, write to us and we will delete it."
+        ]
+      },
+      "s12": {
+        "h": "Changes and contact",
+        "p": [
+          "Changes to this policy will be posted here with a new date; material changes are announced by email 15 days in advance.",
+          "Privacy questions, requests and complaints: privacy@zerosoftware.ai."
+        ]
+      }
+    }
+  },
+  "security": {
+    "meta": {
+      "title": "Security",
+      "description": "How zerosoftware.ai protects the service: OAuth without passwords, scrypt, HTTPS, minimal data — and how to report a vulnerability."
+    },
+    "label": "Legal — 03",
+    "title": "Security",
+    "updated": "Last updated: July 1, 2026",
+    "intro": "Trust is earned with specifics, not badges. Here is exactly how we protect the service — and how to tell us when we got something wrong.",
+    "tocTitle": "Contents",
+    "sections": {
+      "s01": {
+        "h": "The short version",
+        "p": [
+          "Minimal data, no passwords to steal, modern cryptography, and an open codebase anyone can audit. Security through simplicity."
+        ]
+      },
+      "s02": {
+        "h": "Authentication",
+        "p": [
+          "There are no passwords in Zerosoftware. Accounts sign in with Google OAuth 2.0, and sessions use signed, httpOnly, SameSite cookies. Stealing a database of our password hashes is impossible, because it does not exist."
+        ]
+      },
+      "s03": {
+        "h": "API keys",
+        "p": [
+          "Programmatic access uses personal API keys (prefix zs_). Keys are generated with a cryptographically secure random source, stored only as hashes, shown to you exactly once, and revocable instantly from the dashboard.",
+          "Rate limiting — 100 requests per minute per key — contains abuse and accidents alike."
+        ]
+      },
+      "s04": {
+        "h": "Link passwords",
+        "p": [
+          "Password-protected short links hash their passwords with scrypt and per-link salts. We never store them in plain text and we cannot recover them — if you lose one, you simply set a new one."
+        ]
+      },
+      "s05": {
+        "h": "Transport and encryption",
+        "p": [
+          "All traffic runs over HTTPS with modern TLS. HSTS is enabled, insecure requests are redirected, and data at rest is encrypted by the infrastructure provider."
+        ]
+      },
+      "s06": {
+        "h": "Data minimization",
+        "p": [
+          "Our analytics are cookie-less and fingerprint-less by design: referrer, country and device are parsed from request headers, and the IP is discarded after geo-resolution. The best way to protect data is to never have it."
+        ]
+      },
+      "s07": {
+        "h": "Open source as an audit",
+        "p": [
+          "Every line of the products is public. You do not have to trust this page — you can read the code, run it yourself, and verify the claims. Reports from people who did exactly that are our favorite kind of email."
+        ]
+      },
+      "s08": {
+        "h": "Infrastructure",
+        "p": [
+          "The hosted cloud runs on providers with SOC 2-type certifications, in isolated environments with least-privilege access. Deploys are automated, reproducible and logged. Backups are encrypted and tested."
+        ]
+      },
+      "s09": {
+        "h": "Reporting a vulnerability",
+        "p": [
+          "Found something? Email security@zerosoftware.ai. If you can, encrypt with our PGP key — fingerprint 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 (full key published at zerosoftware.ai/pgp.txt; being rotated at launch, and the address always works).",
+          "We acknowledge reports within 48 hours and aim to triage within 5 business days."
+        ]
+      },
+      "s10": {
+        "h": "Responsible disclosure",
+        "p": [
+          "Give us a reasonable window to fix before publishing; do not access, modify or delete other people's data; do not degrade the service while testing.",
+          "In return: we will not pursue legal action against good-faith research, we will credit you (if you want) when the fix ships, and we will say thank you like we mean it."
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "tagline": "Software is dead",
+    "description": "We rebuild the tools you use every day and set them free: open source, free, forever. Self-host them or pay only the cloud, at cost."
+  },
+  "header": {
+    "products": "Products",
+    "blog": "Blog",
+    "docs": "Docs",
+    "signIn": "Sign in",
+    "dashboard": "Dashboard",
+    "signOut": "Sign out",
+    "join": "Join us"
+  },
+  "hero": {
+    "eyebrow": "zerosoftware.ai — v0.0.1",
+    "title1": "Software is",
+    "title2": "dead.",
+    "sub": "We rebuild the tools you use every day and set them free: open source, free, forever. If we run them for you, you only pay the cloud. At cost.",
+    "ctaPrimary": "See the arsenal",
+    "ctaSecondary": "Read the manifesto",
+    "scroll": "Scroll ↓"
+  },
+  "manifesto": {
+    "label": "0.01 — Manifesto",
+    "p1": "They charge you <strong>$30 to move cards</strong>. $50 to store contacts. $12 to shorten a link. Not for the software — out of habit.",
+    "p2": "But software is bits. And bits are free. <strong>They always were.</strong>",
+    "p3": "Zerosoftware exists to prove it: we rebuild the tools that move the world and set them free. No licenses. No lock-in. No fine print. Self-host it if you want. Or we run it for you and you pay exactly what the cloud costs. Not a penny more.",
+    "final": "Software is dead. We are what comes next."
+  },
+  "stats": {
+    "s1num": "$0",
+    "s1label": "The price of software. Always.",
+    "s2num": "0%",
+    "s2label": "Our margin on the cloud.",
+    "s3num": "100%",
+    "s3label": "Open source. Forever."
+  },
+  "products": {
+    "label": "0.02 — The arsenal",
+    "title": "All the software you use.",
+    "titleDim": "Zero software you pay for.",
+    "track": { "tag": "Project management", "desc": "The speed of Linear. The price of air.", "status": "In the works" },
+    "crm": { "tag": "Customers & sales", "desc": "Your entire pipeline, end to end. Zero per-seat licenses.", "status": "Available" },
+    "cal": { "tag": "Scheduling", "desc": "Your availability, one link, done. Without paying for the privilege.", "status": "In the works" },
+    "link": { "tag": "Short links", "desc": "Short links with real analytics. Yours forever.", "status": "Available" },
+    "more": { "title": "Everything else", "tag": "What's next", "desc": "Docs. Notes. Chat. Design. If the world uses it, we will set it free. This is just the beginning.", "status": "Always" }
+  },
+  "model": {
+    "label": "0.03 — The model",
+    "title": "Two ways to have it all.",
+    "titleDim": "Neither involves paying for software.",
+    "a": { "title": "Host it yourself", "desc": "All the code is open. Download it from GitHub, run it on your server, modify it, break it, make it yours. Because it is yours.", "price": "$0", "priceNote": "/ forever" },
+    "b": { "title": "We run it for you", "desc": "You get login, backups, updates and uptime. You pay exactly what the cloud costs. Not a cent more. Not a cent less.", "price": "At cost", "priceNote": "/ of the cloud" }
+  },
+  "end": {
+    "label": "0.04 — Join us",
+    "title1": "Welcome to",
+    "title2": "the new world.",
+    "sub": "We are building. Write to us and we will let you know when each piece is set free.",
+    "cta": "I want in →"
+  },
+  "auth": {
+    "title": "Enter the new world",
+    "sub": "One click. No passwords, no forms, no plans.",
+    "google": "Continue with Google",
+    "why": "Google login only. Nothing to hack, nothing to forget.",
+    "legal": "By signing in you agree to the <terms>Terms</terms> and <privacy>Privacy</privacy>."
+  },
+  "blog": {
+    "label": "0.05 — Blog",
+    "title": "Ideas from the new world.",
+    "titleDim": "Zero fluff.",
+    "readingTime": "min read",
+    "back": "← All posts",
+    "empty": "No posts yet. Come back soon."
+  },
+  "footer": {
+    "tagline": "Made of zeros.",
+    "copyright": "© 2026 zerosoftware.ai — Software is dead",
+    "colProduct": "Product",
+    "colResources": "Resources",
+    "colCompany": "Company",
+    "colLegal": "Legal",
+    "manifesto": "Manifesto",
+    "contact": "Contact",
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "security": "Security"
+  }
+}

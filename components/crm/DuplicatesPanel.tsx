@@ -1,0 +1,136 @@
+'use client';
+
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/navigation';
+
+interface DupContact {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  created_at: string;
+}
+
+interface DupGroup {
+  email: string;
+  contacts: DupContact[];
+}
+
+interface DuplicatesPanelProps {
+  contactId: string;
+}
+
+/**
+ * "Find duplicates" → grupos que comparten email e incluyen a este contacto.
+ * Merge: keepId = este contacto, dropId = el elegido (con confirm).
+ */
+export default function DuplicatesPanel({ contactId }: DuplicatesPanelProps) {
+  const t = useTranslations('crm');
+  const router = useRouter();
+  const [state, setState] = useState<'idle' | 'loading' | 'loaded'>('idle');
+  const [groups, setGroups] = useState<DupGroup[]>([]);
+  const [dropId, setDropId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [merged, setMerged] = useState(false);
+
+  async function find() {
+    setState('loading');
+    const res = await fetch('/api/crm/contacts/duplicates').catch(() => null);
+    if (!res || !res.ok) {
+      setState('idle');
+      return;
+    }
+    const data = (await res.json()) as { groups: DupGroup[] };
+    const mine = data.groups.filter((g) => g.contacts.some((c) => c.id === contactId));
+    setGroups(mine);
+    const firstOther = mine[0]?.contacts.find((c) => c.id !== contactId);
+    setDropId(firstOther?.id ?? null);
+    setState('loaded');
+  }
+
+  function displayName(c: DupContact): string {
+    return `${c.first_name} ${c.last_name}`.trim() || c.email || c.id;
+  }
+
+  async function merge() {
+    if (!dropId) return;
+    const keep = groups[0]?.contacts.find((c) => c.id === contactId);
+    const drop = groups[0]?.contacts.find((c) => c.id === dropId);
+    if (!keep || !drop) return;
+    if (!window.confirm(t('contacts.detail.mergeConfirm', { drop: drop.email, keep: keep.email }))) {
+      return;
+    }
+    setBusy(true);
+    const res = await fetch('/api/crm/contacts/merge', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ keepId: contactId, dropId }),
+    }).catch(() => null);
+    setBusy(false);
+    if (res && res.ok) {
+      setMerged(true);
+      setGroups([]);
+      router.refresh();
+    }
+  }
+
+  if (merged) {
+    return <p className="saved-note">{t('contacts.detail.merged')}</p>;
+  }
+
+  if (state === 'idle' || state === 'loading') {
+    return (
+      <button
+        type="button"
+        className="btn btn-ghost btn-small"
+        onClick={find}
+        disabled={state === 'loading'}
+      >
+        {t('contacts.detail.findDuplicates')}
+      </button>
+    );
+  }
+
+  if (groups.length === 0) {
+    return <p className="muted">{t('contacts.detail.noDuplicates')}</p>;
+  }
+
+  return (
+    <div className="dup-panel">
+      {groups.map((group) => (
+        <div key={group.email} className="dup-group">
+          <p className="muted dup-sub">
+            {t('contacts.detail.duplicatesSub')} <span className="mono">{group.email}</span>
+          </p>
+          <div className="dup-list">
+            {group.contacts.map((c) => (
+              <label key={c.id} className={`dup-row${c.id === contactId ? ' dup-keep' : ''}`}>
+                {c.id === contactId ? (
+                  <span className="badge">{t('contacts.detail.mergeKeep')}</span>
+                ) : (
+                  <input
+                    type="radio"
+                    name="dup-drop"
+                    checked={dropId === c.id}
+                    onChange={() => setDropId(c.id)}
+                  />
+                )}
+                <span className="dup-name">{displayName(c)}</span>
+                <span className="muted dup-email">{c.email}</span>
+              </label>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="btn btn-solid btn-small"
+            onClick={merge}
+            disabled={busy || !dropId}
+          >
+            {t('contacts.detail.merge')}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}

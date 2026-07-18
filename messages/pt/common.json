@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "tagline": "O software morreu",
+    "description": "Reconstruímos as ferramentas que você usa todos os dias e as libertamos: open source, grátis, para sempre. Hospede você mesmo ou pague apenas a nuvem, ao custo."
+  },
+  "header": {
+    "products": "Produtos",
+    "blog": "Blog",
+    "docs": "Docs",
+    "signIn": "Entrar",
+    "dashboard": "Dashboard",
+    "signOut": "Sair",
+    "join": "Junte-se"
+  },
+  "hero": {
+    "eyebrow": "zerosoftware.ai — v0.0.1",
+    "title1": "O software",
+    "title2": "morreu.",
+    "sub": "Reconstruímos as ferramentas que você usa todos os dias e as libertamos: open source, grátis, para sempre. Se as rodarmos para você, você paga apenas a nuvem. Ao custo.",
+    "ctaPrimary": "Ver o arsenal",
+    "ctaSecondary": "Ler o manifesto",
+    "scroll": "Role ↓"
+  },
+  "manifesto": {
+    "label": "0.01 — Manifesto",
+    "p1": "Cobram <strong>US$ 30 para mover cartões</strong>. US$ 50 para guardar contatos. US$ 12 para encurtar um link. Não pelo software — pelo hábito.",
+    "p2": "Mas software são bits. E bits são grátis. <strong>Sempre foram.</strong>",
+    "p3": "A Zerosoftware existe para provar: reconstruímos as ferramentas que movem o mundo e as libertamos. Sem licenças. Sem lock-in. Sem letras miúdas. Hospede você mesmo, se quiser. Ou nós rodamos para você e você paga exatamente o que a nuvem custa. Nem um centavo a mais.",
+    "final": "O software morreu. Nós somos o que vem a seguir."
+  },
+  "stats": {
+    "s1num": "$0",
+    "s1label": "O preço do software. Sempre.",
+    "s2num": "0%",
+    "s2label": "Nossa margem sobre a nuvem.",
+    "s3num": "100%",
+    "s3label": "Open source. Para sempre."
+  },
+  "products": {
+    "label": "0.02 — O arsenal",
+    "title": "Todo o software que você usa.",
+    "titleDim": "Zero software que você paga.",
+    "track": { "tag": "Gestão de projetos", "desc": "A velocidade do Linear. O preço do ar.", "status": "Em construção" },
+    "crm": { "tag": "Clientes e vendas", "desc": "Todo o seu pipeline, de ponta a ponta. Zero licenças por usuário.", "status": "Disponível" },
+    "cal": { "tag": "Agendamento", "desc": "Sua disponibilidade, um link, pronto. Sem pagar pelo privilégio.", "status": "Em construção" },
+    "link": { "tag": "Links curtos", "desc": "Links curtos com métricas reais. Seus para sempre.", "status": "Disponível" },
+    "more": { "title": "Todo o resto", "tag": "O que vem", "desc": "Documentos. Notas. Chat. Design. Se o mundo usa, vamos libertar. Isso é só o começo.", "status": "Sempre" }
+  },
+  "model": {
+    "label": "0.03 — O modelo",
+    "title": "Duas formas de ter tudo.",
+    "titleDim": "Nenhuma inclui pagar por software.",
+    "a": { "title": "Hospede você mesmo", "desc": "Todo o código é aberto. Baixe do GitHub, rode no seu servidor, modifique, quebre, faça seu. Porque é seu.", "price": "$0", "priceNote": "/ para sempre" },
+    "b": { "title": "Nós rodamos para você", "desc": "Você tem login, backups, atualizações e uptime. Paga exatamente o que a nuvem custa. Nem um centavo a mais. Nem um a menos.", "price": "Ao custo", "priceNote": "/ da nuvem" }
+  },
+  "end": {
+    "label": "0.04 — Junte-se",
+    "title1": "Bem-vindo",
+    "title2": "ao novo mundo.",
+    "sub": "Estamos construindo. Escreva para nós e avisaremos quando cada peça for libertada.",
+    "cta": "Quero entrar →"
+  },
+  "auth": {
+    "title": "Entre no novo mundo",
+    "sub": "Um clique. Sem senhas, sem formulários, sem planos.",
+    "google": "Continuar com Google",
+    "why": "Apenas login com Google. Nada para hackear, nada para esquecer.",
+    "legal": "Ao entrar, você aceita os <terms>Termos</terms> e a <privacy>Privacidade</privacy>."
+  },
+  "blog": {
+    "label": "0.05 — Blog",
+    "title": "Ideias do novo mundo.",
+    "titleDim": "Zero enrolação.",
+    "readingTime": "min de leitura",
+    "back": "← Todos os posts",
+    "empty": "Ainda não há posts. Volte em breve."
+  },
+  "footer": {
+    "tagline": "Feito de zeros.",
+    "copyright": "© 2026 zerosoftware.ai — O software morreu",
+    "colProduct": "Produto",
+    "colResources": "Recursos",
+    "colCompany": "Empresa",
+    "colLegal": "Legal",
+    "manifesto": "Manifesto",
+    "contact": "Contato",
+    "terms": "Termos",
+    "privacy": "Privacidade",
+    "security": "Segurança"
+  }
+}

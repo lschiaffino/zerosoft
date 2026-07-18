@@ -1,0 +1,57 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireApiUser, apiError } from '@/lib/api-auth';
+import {
+  createActivity,
+  listTasks,
+  listTimeline,
+  type ActivityListRow,
+  type TaskBucket,
+} from '@/lib/crm';
+import { activityCreateSchema } from '@/lib/crm-schema';
+import { cleanRow, pageParams, zodErrorCode } from '@/lib/crm-http';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const BUCKETS: readonly TaskBucket[] = ['overdue', 'today', 'upcoming', 'done'];
+const taskCreateSchema = activityCreateSchema.omit({ type: true });
+
+export async function GET(req: NextRequest) {
+  const auth = requireApiUser(req);
+  if ('res' in auth) return auth.res;
+
+  const sp = req.nextUrl.searchParams;
+  const bucket = sp.get('bucket');
+  let rows: ActivityListRow[];
+  if (bucket) {
+    if (!BUCKETS.includes(bucket as TaskBucket)) {
+      return apiError(400, 'invalid_input', 'bucket must be one of: overdue, today, upcoming, done.');
+    }
+    rows = listTasks(auth.user.id, bucket as TaskBucket);
+  } else {
+    rows = listTimeline(auth.user.id, { type: 'task', limit: 500 });
+  }
+
+  const { page, pageSize } = pageParams(sp);
+  const start = (page - 1) * pageSize;
+  return NextResponse.json({
+    tasks: rows.slice(start, start + pageSize).map(cleanRow),
+    total: rows.length,
+    page,
+    pageSize,
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const auth = requireApiUser(req);
+  if ('res' in auth) return auth.res;
+
+  const body: unknown = await req.json().catch(() => null);
+  const parsed = taskCreateSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
+  }
+
+  const task = createActivity(auth.user.id, { ...parsed.data, type: 'task' });
+  return NextResponse.json(cleanRow(task), { status: 201 });
+}

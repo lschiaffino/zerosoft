@@ -1,0 +1,37 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireApiUser, apiError } from '@/lib/api-auth';
+import { createCompany, listCompanies } from '@/lib/crm';
+import { companyCreateSchema } from '@/lib/crm-schema';
+import { cleanRow, pageParams, zodErrorCode } from '@/lib/crm-http';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: NextRequest) {
+  const auth = requireApiUser(req);
+  if ('res' in auth) return auth.res;
+
+  const sp = req.nextUrl.searchParams;
+  const { page, pageSize } = pageParams(sp);
+  const { rows, total } = listCompanies(auth.user.id, {
+    q: sp.get('q') ?? undefined,
+    page,
+    pageSize,
+  });
+
+  return NextResponse.json({ companies: rows.map(cleanRow), total, page, pageSize });
+}
+
+export async function POST(req: NextRequest) {
+  const auth = requireApiUser(req);
+  if ('res' in auth) return auth.res;
+
+  const body: unknown = await req.json().catch(() => null);
+  const parsed = companyCreateSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
+  }
+
+  const company = createCompany(auth.user.id, parsed.data);
+  return NextResponse.json(cleanRow(company), { status: 201 });
+}

@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "tagline": "El software murió",
+    "description": "Reconstruimos las herramientas que usás todos los días y las liberamos: open source, gratis, para siempre. Hostealas vos o pagá solo la nube, al costo."
+  },
+  "header": {
+    "products": "Productos",
+    "blog": "Blog",
+    "docs": "Docs",
+    "signIn": "Entrar",
+    "dashboard": "Dashboard",
+    "signOut": "Salir",
+    "join": "Sumate"
+  },
+  "hero": {
+    "eyebrow": "zerosoftware.ai — v0.0.1",
+    "title1": "El software",
+    "title2": "murió.",
+    "sub": "Reconstruimos las herramientas que usás todos los días y las liberamos: open source, gratis, para siempre. Si las corremos por vos, pagás solo la nube. Al costo.",
+    "ctaPrimary": "Ver el arsenal",
+    "ctaSecondary": "Leer el manifiesto",
+    "scroll": "Deslizá ↓"
+  },
+  "manifesto": {
+    "label": "0.01 — Manifiesto",
+    "p1": "Te cobran <strong>$30 por mover tarjetas</strong>. $50 por guardar contactos. $12 por acortar un link. No por el software — por la costumbre.",
+    "p2": "Pero el software son bits. Y los bits son gratis. <strong>Siempre fueron gratis.</strong>",
+    "p3": "Zerosoftware existe para probarlo: reconstruimos las herramientas que mueven al mundo y las liberamos. Sin licencias. Sin lock-in. Sin letra chica. Si querés, lo hosteás vos. Si no, lo corremos nosotros y pagás exactamente lo que cuesta la nube. Ni un peso más.",
+    "final": "El software murió. Nosotros somos lo que sigue."
+  },
+  "stats": {
+    "s1num": "$0",
+    "s1label": "El precio del software. Siempre.",
+    "s2num": "0%",
+    "s2label": "Nuestro margen sobre la nube.",
+    "s3num": "100%",
+    "s3label": "Open source. Para siempre."
+  },
+  "products": {
+    "label": "0.02 — El arsenal",
+    "title": "Todo el software que usás.",
+    "titleDim": "Cero software que pagues.",
+    "track": { "tag": "Gestión de proyectos", "desc": "La velocidad de Linear. El precio del aire.", "status": "En construcción" },
+    "crm": { "tag": "Clientes y ventas", "desc": "Tu pipeline completo, de punta a punta. Cero licencias por usuario.", "status": "Disponible" },
+    "cal": { "tag": "Agendamiento", "desc": "Tu disponibilidad, un link, listo. Sin pagar por el privilegio.", "status": "En construcción" },
+    "link": { "tag": "Links cortos", "desc": "Links cortos con métricas reales. Tuyos para siempre.", "status": "Disponible" },
+    "more": { "title": "Todo lo demás", "tag": "Lo que sigue", "desc": "Documentos. Notas. Chat. Diseño. Si el mundo lo usa, lo vamos a liberar. Esto recién empieza.", "status": "Siempre" }
+  },
+  "model": {
+    "label": "0.03 — El modelo",
+    "title": "Dos formas de tenerlo todo.",
+    "titleDim": "Ninguna incluye pagar software.",
+    "a": { "title": "Hostealo vos", "desc": "Todo el código es abierto. Descargalo de GitHub, corrélo en tu servidor, modificalo, rompelo, hacelo tuyo. Porque es tuyo.", "price": "$0", "priceNote": "/ para siempre" },
+    "b": { "title": "Lo corremos nosotros", "desc": "Te damos login, backups, actualizaciones y uptime. Pagás exactamente lo que la nube cuesta. Ni un centavo más. Ni un centavo menos.", "price": "Al costo", "priceNote": "/ de la nube" }
+  },
+  "end": {
+    "label": "0.04 — Sumate",
+    "title1": "Bienvenido",
+    "title2": "al nuevo mundo.",
+    "sub": "Estamos construyendo. Escribinos y te avisamos cuando cada pieza se libere.",
+    "cta": "Quiero entrar →"
+  },
+  "auth": {
+    "title": "Entrá al nuevo mundo",
+    "sub": "Un solo click. Sin contraseñas, sin formularios, sin planes.",
+    "google": "Continuar con Google",
+    "why": "Solo login con Google. Nada que hackear, nada que olvidar.",
+    "legal": "Al entrar aceptás los <terms>Términos</terms> y la <privacy>Privacidad</privacy>."
+  },
+  "blog": {
+    "label": "0.05 — Blog",
+    "title": "Ideas del nuevo mundo.",
+    "titleDim": "Cero humo.",
+    "readingTime": "min de lectura",
+    "back": "← Todos los posts",
+    "empty": "Todavía no hay posts. Volvé pronto."
+  },
+  "footer": {
+    "tagline": "Hecho de ceros.",
+    "copyright": "© 2026 zerosoftware.ai — El software murió",
+    "colProduct": "Producto",
+    "colResources": "Recursos",
+    "colCompany": "Empresa",
+    "colLegal": "Legal",
+    "manifesto": "Manifiesto",
+    "contact": "Contacto",
+    "terms": "Términos",
+    "privacy": "Privacidad",
+    "security": "Seguridad"
+  }
+}

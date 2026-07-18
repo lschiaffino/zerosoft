@@ -1,0 +1,497 @@
+{
+  "products": {
+    "meta": {
+      "title": "Productos — El arsenal",
+      "description": "Link, Track, CRM y Cal: las herramientas que hacen funcionar una empresa, reconstruidas y liberadas. Open source, o nube al costo."
+    },
+    "hero": {
+      "label": "0.02 — Productos",
+      "title1": "Todo lo que usás.",
+      "title2": "Cero de lo que pagás.",
+      "sub": "Cuatro herramientas mueven a la empresa moderna: links, proyectos, clientes y tiempo. Las reconstruimos a las cuatro a la vista de todos. Cuestan cero, son tuyas, y la primera ya está en el aire."
+    },
+    "compare": {
+      "label": "0.03 — La cuenta",
+      "todayTitle": "Hoy pagás",
+      "r1name": "Bitly",
+      "r1price": "$35 / mes",
+      "r2name": "Linear",
+      "r2price": "$8 / usuario / mes",
+      "r3name": "HubSpot",
+      "r3price": "$50 / usuario / mes",
+      "r4name": "Calendly",
+      "r4price": "$12 / mes",
+      "withTitle": "Con Zerosoftware",
+      "big": "$0",
+      "note": "Todos los meses, todos los años, para siempre. Si lo corremos por vos, pagás solo la nube que consumís. Al costo."
+    },
+    "roadmap": {
+      "label": "0.04 — Roadmap",
+      "title": "El plan, a la vista.",
+      "titleDim": "Cero secretos.",
+      "i1": { "when": "2026 · Q3", "name": "Link", "what": "Links cortos con métricas reales, códigos QR y API pública.", "state": "Liberado" },
+      "i2": { "when": "2026 · Q4", "name": "Track", "what": "Gestión de proyectos keyboard-first. Issues, ciclos, roadmaps.", "state": "En construcción" },
+      "i3": { "when": "2026 · Q3", "name": "CRM", "what": "Contactos, pipelines y reportes sin licencias por usuario.", "state": "Liberado" },
+      "i4": { "when": "2027 · Q2", "name": "Cal", "what": "Links de agendamiento con detección de zona horaria y round-robin.", "state": "Planeado" }
+    },
+    "cta": {
+      "label": "0.05 — Sumate",
+      "title1": "Dejá de pagar",
+      "title2": "por bits.",
+      "sub": "Link ya es gratis y está en el aire. El resto está en camino. Entrá ahora y no vuelvas a pagar por software.",
+      "button": "Usar Link →"
+    },
+    "link": {
+      "meta": {
+        "title": "Link — Links cortos, gratis para siempre",
+        "description": "Alias personalizados, métricas reales, códigos QR, contraseñas y una API pública. La alternativa a Bitly que cuesta cero."
+      },
+      "hero": {
+        "tag": "Links cortos y métricas",
+        "sub": "Todo eso por lo que Bitly cobra $35 al mes — alias personalizados, analytics de clicks, códigos QR, links que expiran y una API de verdad — reconstruido, abierto y liberado. Ya está en el aire."
+      },
+      "featuresTitle": "Todo lo que necesitás.",
+      "featuresTitleDim": "Nada de lo que pagás.",
+      "f1": { "t": "Alias personalizados", "d": "Elegí tu propio slug: zs.ai/launch se lee mejor que siete caracteres al azar. Marcalo, recordalo, compartilo." },
+      "f2": { "t": "Métricas reales", "d": "Clicks por día, referrer, país, dispositivo, navegador y SO. Sin cookies, sin fingerprinting, honestas." },
+      "f3": { "t": "Códigos QR", "d": "Cada link tiene su QR instantáneo en SVG o PNG. Imprimilo, proyectalo, publicalo." },
+      "f4": { "t": "Protección con contraseña", "d": "Bloqueá un link con contraseña. Solo entra la gente que vos elegís." },
+      "f5": { "t": "Expiración y límites", "d": "Definí una fecha de vencimiento o un máximo de clicks. El link se jubila solo." },
+      "f6": { "t": "Tags y búsqueda", "d": "Etiquetá links por campaña, cliente o canal. Encontrá todo en segundos." },
+      "f7": { "t": "Constructor UTM", "d": "Creá URLs de campaña sin planillas. Source, medium, campaign — listo." },
+      "f8": { "t": "API pública v1", "d": "Creá y medí links desde tu código con una API REST simple y keys personales." },
+      "f9": { "t": "Tus datos, exportables", "d": "Todo es tuyo. Exportalo, respaldalo, llevátelo a casa. Sin rehenes." },
+      "compare": {
+        "rival": "Bitly",
+        "price": "$35",
+        "per": "/ mes",
+        "team": "$4.200",
+        "zero": "$0",
+        "note": "Bitly Core cuesta $35 al mes — $420 al año, todos los años. Un equipo de 10 con precio por usuario supera fácil los $4.200 al año. Link cuesta $0. Para siempre."
+      },
+      "faq": {
+        "f1": { "q": "¿Es realmente gratis?", "a": "Sí. El código es open source y self-hostearlo no cuesta nada. Si lo corremos por vos, pagás solo la nube que consume — al costo, sin margen. El software nunca fue lo caro; lo era el modelo de negocio." },
+        "f2": { "q": "¿Puedo migrar mis links de Bitly?", "a": "Sí. Exportá tus links de Bitly como CSV e importalos: destinos, alias y tags pasan directo. Apuntá tu dominio corto viejo a nosotros y los links existentes siguen funcionando." },
+        "f3": { "q": "¿Qué pasa si Zerosoftware cierra?", "a": "Nada malo. El código es open source, así que cualquiera puede correrlo para siempre. Podés exportar cada link y cada click en cualquier momento, y self-hostear lleva un comando. Tus links nunca pueden ser rehenes." },
+        "f4": { "q": "¿Puedo self-hostearlo?", "a": "Esa es la idea. Cloná el repo, corrélo en cualquier servidor con Node y SQLite, apuntá tu dominio corto, listo. Sin license key, sin phone-home, sin tier enterprise." },
+        "f5": { "q": "¿Mis links expiran alguna vez?", "a": "Solo si vos se lo pedís. Los links nunca expiran por su cuenta y nunca quedan detrás de un paywall. La expiración es una feature que controlás vos, no una amenaza que usamos nosotros." }
+      },
+      "cta": {
+        "label": "Link — 0.05",
+        "title1": "Acortá algo.",
+        "title2": "Pagá nada.",
+        "sub": "Gratis, abierto, ya en el aire. Tu primer link corto está a diez segundos.",
+        "button": "Usar Link →"
+      }
+    },
+    "track": {
+      "meta": {
+        "title": "Track — Gestión de proyectos a cero",
+        "description": "Issues, ciclos y roadmaps con la velocidad de Linear, sin los $8 por cabeza. Keyboard-first, open source. En construcción."
+      },
+      "hero": {
+        "tag": "Gestión de proyectos",
+        "sub": "Issues, ciclos y roadmaps con la velocidad de Linear — sin los $8 por cabeza. Keyboard-first, tolerante a offline, open source. En construcción."
+      },
+      "featuresTitle": "Hecho para la velocidad.",
+      "featuresTitleDim": "Al precio del aire.",
+      "f1": { "t": "Keyboard-first", "d": "Cada acción tiene su atajo. Creá, asigná, etiquetá y cerrá issues sin tocar el mouse." },
+      "f2": { "t": "Ciclos", "d": "Trabajá en ciclos enfocados de una o dos semanas. Definí, entregá, revisá, repetí." },
+      "f3": { "t": "Roadmaps", "d": "Planeá trimestres, no sprints. Cada proyecto en una sola línea de tiempo que toda la empresa puede leer." },
+      "f4": { "t": "Sincronización instantánea", "d": "Los cambios aparecen en todos lados en tiempo real. Boards, listas y timelines siempre coinciden." },
+      "f5": { "t": "Inbox de triage", "d": "Los issues nuevos caen en triage. Aceptalos, fusionalos o rechazalos antes de que contaminen el backlog." },
+      "f6": { "t": "Labels y equipos", "d": "Estructurá el trabajo a tu manera: equipos, proyectos, labels y estados personalizados." },
+      "f7": { "t": "Estimaciones", "d": "Puntuá issues, medí velocidad, dejá de adivinar deadlines." },
+      "f8": { "t": "Integraciones Git", "d": "Cerrá issues desde commits y PRs. Branches con nombre de ticket, automáticamente." },
+      "f9": { "t": "API y webhooks", "d": "Todo lo que hace la UI, lo hace la API. Automatizá lo aburrido." },
+      "compare": {
+        "rival": "Linear",
+        "price": "$8",
+        "per": "/ usuario / mes",
+        "team": "$960",
+        "zero": "$0",
+        "note": "Linear Standard cuesta $8 por usuario por mes. Un equipo de 10 paga $960 al año, todos los años, para siempre. Track cuesta $0."
+      },
+      "faq": {
+        "f1": { "q": "¿Es realmente gratis?", "a": "Sí. Open source bajo una licencia pública, así que self-hostearlo no cuesta nada. Nuestra nube cuesta solo la infraestructura que consume — al costo, 0% de margen." },
+        "f2": { "q": "¿Puedo migrar desde Linear?", "a": "Sí. Importá tu workspace de Linear: issues, labels, ciclos e historial pasan vía CSV o el export de la API de Linear. Tu equipo conserva su memoria." },
+        "f3": { "q": "¿Qué pasa si Zerosoftware cierra?", "a": "Te quedás con todo. El código es abierto, tus datos se exportan limpios, y self-hostear lleva un comando. No hay lock-in que te encierre." },
+        "f4": { "q": "¿Puedo self-hostearlo?", "a": "Por supuesto. Es la forma por defecto de correr cada producto Zerosoftware: tu servidor, tus datos, tus reglas. La nube existe solo por comodidad." },
+        "f5": { "q": "¿Cuándo sale?", "a": "Track sale en Q4 2026. Escribinos a hola@zerosoftware.ai y te avisamos el día que abra — y solo ese día. Sin newsletter." }
+      },
+      "cta": {
+        "label": "Track — 0.05",
+        "title1": "Mové tarjetas.",
+        "title2": "No muevas nada más.",
+        "sub": "Track está en construcción. Dejanos tu email y entrás primero cuando salga.",
+        "button": "Avisame →"
+      }
+    },
+    "crm": {
+      "meta": {
+        "title": "CRM — Clientes sin la factura",
+        "description": "Contactos, pipelines, sincronización de email y reportes — el 80% de HubSpot que de verdad usás, al 0% del precio. Open source. Ya está vivo."
+      },
+      "hero": {
+        "tag": "Clientes y ventas",
+        "sub": "Contactos, pipelines, sincronización de email y reportes — el 80% de HubSpot que de verdad usás, al 0% del precio. Open source. Ya está vivo."
+      },
+      "featuresTitle": "Todo tu pipeline.",
+      "featuresTitleDim": "Cero por usuario.",
+      "f1": { "t": "Pipelines", "d": "Arrastrá deals por las etapas que definas. Un pipeline o diez — sin precio por pipeline." },
+      "f2": { "t": "Contactos y empresas", "d": "Cada persona, cada empresa, cada contacto en un solo lugar. Buscable en milisegundos." },
+      "f3": { "t": "Sincronización de email", "d": "Conectá Gmail y las conversaciones se adjuntan solas al contacto correcto. Automáticamente." },
+      "f4": { "t": "Actividades", "d": "Llamadas, reuniones, notas y tareas en una línea de tiempo por deal. Nada se cae." },
+      "f5": { "t": "Reportes", "d": "Valor del pipeline, conversión por etapa, forecast por mes. Los números que tu reunión del lunes necesita." },
+      "f6": { "t": "Importá de donde sea", "d": "CSV entra, CSV sale. Desde HubSpot, Pipedrive, o una planilla llamada final_final2." },
+      "f7": { "t": "Permisos", "d": "Los equipos ven lo que deben. Los admins ven todo. Los auditores duermen tranquilos." },
+      "f8": { "t": "Automatizaciones", "d": "Si un deal se frena 7 días, avisale al dueño. Reglas simples, cero consultores." },
+      "f9": { "t": "API y webhooks", "d": "Sincronizá tu facturación, tu producto, tu data warehouse. Son tus datos." },
+      "compare": {
+        "rival": "HubSpot",
+        "price": "$50",
+        "per": "/ usuario / mes",
+        "team": "$6.000",
+        "zero": "$0",
+        "note": "HubSpot Sales Hub Professional arranca cerca de $50 por usuario por mes. Diez vendedores: $6.000 al año — antes de los costos de onboarding. CRM cuesta $0."
+      },
+      "faq": {
+        "f1": { "q": "¿Es realmente gratis?", "a": "Sí. El código es open source y self-hostearlo no cuesta nada. La nube cuesta solo la infraestructura que consume, al costo. Vendemos comodidad, nunca software." },
+        "f2": { "q": "¿Puedo migrar desde HubSpot?", "a": "Sí. Exportá contactos, empresas y deals de HubSpot e importá los CSV. Pipelines y etapas mapean uno a uno, y las propiedades personalizadas vienen con ellos." },
+        "f3": { "q": "¿Qué pasa si Zerosoftware cierra?", "a": "Para vos, nada. El código es abierto, tus datos se exportan en cualquier momento, y la versión self-hosted sigue corriendo pase lo que pase con nosotros." },
+        "f4": { "q": "¿Puedo self-hostearlo?", "a": "Sí — es el punto del proyecto. Tus datos de clientes son probablemente lo más sensible que tenés; tenerlos en tu propio servidor es una feature, no una carga." },
+        "f5": { "q": "¿Cuándo sale?", "a": "Ya salió. Abrilo, importá tus contactos y cerrá tu primer deal hoy — por $0, obviamente." }
+      },
+      "cta": {
+        "label": "CRM — 0.05",
+        "title1": "Cerrá deals.",
+        "title2": "No tu billetera.",
+        "sub": "CRM ya está vivo. Abrilo, importá tu CSV y manejá tu pipeline hoy — por $0.",
+        "button": "Abrir CRM →"
+      }
+    },
+    "cal": {
+      "meta": {
+        "title": "Cal — Agendamiento, liberado",
+        "description": "Tu disponibilidad como un link. Detección de zona horaria, buffers, round-robin y recordatorios — sin $12 al mes. Open source. En construcción."
+      },
+      "hero": {
+        "tag": "Agendamiento",
+        "sub": "Tu disponibilidad como un link. La gente elige un horario, todos reciben la invitación, y nadie paga $12 al mes por el privilegio. En construcción."
+      },
+      "featuresTitle": "Un link. Listo.",
+      "featuresTitleDim": "Cero emails de ida y vuelta.",
+      "f1": { "t": "Páginas de reserva", "d": "Un link por tipo de reunión: 15, 30 o 60 minutos. Compartilo y no vuelvas a mandar horarios por email." },
+      "f2": { "t": "Detección de zona horaria", "d": "Tus invitados ven los horarios en su zona, vos en la tuya. Nadie hace cuentas." },
+      "f3": { "t": "Buffers y límites", "d": "Margen antes y después, máximo de reuniones por día, aviso mínimo. Tu calendario, defendido." },
+      "f4": { "t": "Round-robin", "d": "Repartí las reservas entre el equipo automáticamente. Justo por defecto." },
+      "f5": { "t": "Sincronización de calendario", "d": "Google Calendar de ida y vuelta. Bloques ocupados respetados, invitaciones escritas automáticamente." },
+      "f6": { "t": "Confirmaciones y recordatorios", "d": "Emails automáticos de reserva, recordatorio y cancelación. Las ausencias bajan." },
+      "f7": { "t": "Preguntas personalizadas", "d": "Preguntá lo que necesites antes de la llamada: agenda, teléfono, lo que sea." },
+      "f8": { "t": "Embebible en cualquier lado", "d": "Meté tu página de reservas en cualquier sitio con un snippet." },
+      "f9": { "t": "API y webhooks", "d": "Creá tipos de evento y leé reservas desde tus propias herramientas." },
+      "compare": {
+        "rival": "Calendly",
+        "price": "$12",
+        "per": "/ usuario / mes",
+        "team": "$1.440",
+        "zero": "$0",
+        "note": "Calendly Standard cuesta unos $12 por usuario por mes. Diez personas agendando: $1.440 al año, todos los años. Cal cuesta $0."
+      },
+      "faq": {
+        "f1": { "q": "¿Es realmente gratis?", "a": "Sí. Open source, así que self-hostearlo no cuesta nada. Si lo corremos nosotros, pagás solo la nube al costo. Agendar son bits y una API de calendario — nunca valió $12 al mes." },
+        "f2": { "q": "¿Puedo migrar desde Calendly?", "a": "Recrear tus tipos de evento lleva minutos — duraciones, buffers y preguntas se mapean directo. Tus links viejos pueden redirigir a los nuevos, así que nada se rompe." },
+        "f3": { "q": "¿Qué pasa si Zerosoftware cierra?", "a": "No te darías cuenta. Self-hosteá el mismo código en tu servidor, exportá tus reservas, y tus links siguen funcionando en tu dominio." },
+        "f4": { "q": "¿Puedo self-hostearlo?", "a": "Sí. Cloná, corré, conectá tu calendario, compartí tu link. Sin servidor de licencias, sin feature flags, sin tier premium escondiendo lo bueno." },
+        "f5": { "q": "¿Cuándo sale?", "a": "Cal sale en Q2 2027. Escribinos a hola@zerosoftware.ai y te avisamos en el momento en que abra." }
+      },
+      "cta": {
+        "label": "Cal — 0.05",
+        "title1": "Agendá tiempo.",
+        "title2": "No le cobres a nadie.",
+        "sub": "Cal llega en Q2 2027. Levantá la mano y te avisamos el día cero.",
+        "button": "Avisame →"
+      }
+    }
+  },
+  "product": {
+    "back": "← El arsenal",
+    "launch": "Usar {name} — es gratis",
+    "notify": "Avisame",
+    "manifesto": "Leer el manifiesto",
+    "browserUrl": "zerosoftware.ai/app",
+    "featuresLabel": "01 — Features",
+    "compareLabel": "02 — La cuenta",
+    "compareToday": "Hoy pagás",
+    "compareZero": "Con Zerosoftware",
+    "compareTeam": "Equipo de 10",
+    "compareYear": "/ año",
+    "modelLabel": "03 — Dos formas de tenerlo",
+    "model": {
+      "a": { "title": "Hostealo vos", "desc": "Descargá el código, corrélo en tu servidor, cambiá lo que quieras. Es tuyo bajo una licencia abierta — hoy, mañana, y si algún día desaparecemos.", "price": "$0", "priceNote": "/ para siempre" },
+      "b": { "title": "Lo corremos nosotros", "desc": "Login, backups, actualizaciones y uptime incluidos. Pagás exactamente lo que la nube nos cuesta. Ni un centavo más, nunca.", "price": "Al costo", "priceNote": "/ de la nube" }
+    },
+    "faqLabel": "04 — FAQ",
+    "faqTitle": "Preguntas justas.",
+    "faqTitleDim": "Cero letra chica."
+  },
+  "mockups": {
+    "link": {
+      "navLinks": "Links",
+      "navAnalytics": "Analytics",
+      "navQr": "Códigos QR",
+      "navSettings": "Ajustes",
+      "title": "Links",
+      "new": "+ Nuevo link",
+      "statClicks": "Clicks totales",
+      "statLinks": "Links activos",
+      "statTop": "Link top",
+      "chartLabel": "Clicks — últimos 14 días",
+      "thShort": "Link corto",
+      "thDest": "Destino",
+      "thClicks": "Clicks",
+      "r1short": "zs.ai/launch",
+      "r1dest": "zerosoftware.ai/blog/el-software-murio",
+      "r1clicks": "4.812",
+      "r2short": "zs.ai/github",
+      "r2dest": "github.com/zerosoftware",
+      "r2clicks": "3.204",
+      "r3short": "zs.ai/docs",
+      "r3dest": "zerosoftware.ai/docs",
+      "r3clicks": "2.118",
+      "r4short": "zs.ai/hola",
+      "r4dest": "mailto:hola@zerosoftware.ai",
+      "r4clicks": "1.346"
+    },
+    "track": {
+      "filter": "Filtrar issues…",
+      "new": "+ Nuevo issue",
+      "col_backlog": "Backlog",
+      "col_todo": "Por hacer",
+      "col_progress": "En curso",
+      "col_done": "Hecho",
+      "card_c1": "Modo offline para mobile",
+      "card_c2": "Wizard de importación desde Linear",
+      "card_c3": "Gráfico burndown del ciclo",
+      "card_c4": "Conflictos de atajos de teclado",
+      "card_c5": "Motor de sincronización en tiempo real",
+      "card_c6": "Estado vacío del inbox de triage",
+      "card_c7": "Timeline del roadmap de proyectos",
+      "label_bug": "Bug",
+      "label_feature": "Feature",
+      "label_design": "Diseño",
+      "label_core": "Core"
+    },
+    "crm": {
+      "title": "Contactos",
+      "new": "+ Agregar contacto",
+      "stage_lead": "Lead",
+      "stage_qualified": "Calificado",
+      "stage_proposal": "Propuesta",
+      "stage_won": "Ganado",
+      "val_lead": "$48k",
+      "val_qualified": "$96k",
+      "val_proposal": "$61k",
+      "val_won": "$132k",
+      "thName": "Nombre",
+      "thCompany": "Empresa",
+      "thValue": "Valor del deal",
+      "thStage": "Etapa",
+      "r1name": "Ana Duarte",
+      "r1company": "Norte Labs",
+      "r1value": "$24.000",
+      "r1stage": "Calificado",
+      "r2name": "Bruno Lima",
+      "r2company": "Estudio Cero",
+      "r2value": "$18.500",
+      "r2stage": "Propuesta",
+      "r3name": "Carla Méndez",
+      "r3company": "Andes Cloud",
+      "r3value": "$52.000",
+      "r3stage": "Ganado",
+      "r4name": "Diego Sanz",
+      "r4company": "Mono Studio",
+      "r4value": "$12.750",
+      "r4stage": "Lead"
+    },
+    "cal": {
+      "name": "Zerosoftware",
+      "meeting": "Reunión de 30 min",
+      "desc": "Una llamada corta de presentación. Elegí el horario que te quede mejor.",
+      "month": "Julio 2026",
+      "d1": "L",
+      "d2": "M",
+      "d3": "X",
+      "d4": "J",
+      "d5": "V",
+      "d6": "S",
+      "d7": "D",
+      "slotsLabel": "Jue 16 — horarios",
+      "confirm": "Confirmar",
+      "tz": "Horarios en tu zona"
+    }
+  },
+  "status": {
+    "meta": {
+      "title": "Status — Todos los sistemas operativos",
+      "description": "Salud en vivo de zerosoftware.ai: Link app, motor de redirects, API v1, dashboard y auth. Uptime e incidentes pasados, a la vista."
+    },
+    "label": "0.06 — Status",
+    "title": "Todos los sistemas operativos.",
+    "sub": "La salud de zerosoftware.ai en vivo y a la vista. Aburrido a propósito.",
+    "updated": "Verificado hace 60 segundos · Horarios en UTC",
+    "operational": "Operativo",
+    "componentsLabel": "01 — Componentes",
+    "uptimeValue": "100.00%",
+    "uptimeDays": "últimos 30 días",
+    "uptimeDay": "Día {day} — 100%",
+    "c1": "Link app",
+    "c2": "Motor de redirects",
+    "c3": "API v1",
+    "c4": "Dashboard",
+    "c5": "Auth",
+    "incidentsLabel": "02 — Incidentes pasados",
+    "incident": {
+      "title": "Latencia elevada en redirects",
+      "date": "28 jun 2026",
+      "body": "Durante 14 minutos, algunos redirects resolvieron más lento de lo normal por una mala configuración de caché durante un deploy. Volvimos atrás en minutos y la latencia volvió a la normalidad. Ningún link dejó de resolver y no se perdió ningún dato.",
+      "state": "Resuelto",
+      "duration": "14 min"
+    },
+    "none": "Ningún otro incidente en los últimos 90 días. Pensamos mantenerlo así de aburrido."
+  },
+  "docs": {
+    "meta": {
+      "title": "API Docs — Link",
+      "description": "La API REST de Link: creá links cortos, listalos y leé sus estadísticas con una API key personal. Simple, documentada, gratis."
+    },
+    "label": "0.05 — API",
+    "title": "La API de Link.",
+    "titleDim": "Cero fricción.",
+    "intro": "Link expone una API REST chica para que tu código pueda crear y medir links cortos. Las mismas reglas de todo lo que hacemos: simple, documentada, gratis.",
+    "baseLabel": "Base URL",
+    "codeBase": ["https://zerosoftware.ai/api/v1"],
+    "authTitle": "Autenticación",
+    "authP1": "Cada request necesita una API key, enviada como Bearer token:",
+    "codeAuth": ["Authorization: Bearer zs_live_9f3k..."],
+    "authP2": "Creá las keys en Dashboard → Settings → API keys. La key se muestra una sola vez — copiala y guardala como una contraseña.",
+    "authP3": "Cada key permite 100 requests por minuto. Si te pasás, recibís un 429 con un header Retry-After. ¿Necesitás más? Self-hosteá y ponete tu propio rate limit.",
+    "endpointsTitle": "Endpoints",
+    "createTitle": "Crear un link",
+    "createDesc": "Crea un link corto. slug es opcional — si lo omitís, generamos uno.",
+    "listTitle": "Listar links",
+    "listDesc": "Tus links, del más nuevo al más viejo. Paginá con page y pageSize (máx 100).",
+    "statsTitle": "Estadísticas de un link",
+    "statsDesc": "Totales de clicks y el detalle por día de un link.",
+    "request": "Request",
+    "response": "Respuesta",
+    "codeCreateReq": [
+      "curl -X POST https://zerosoftware.ai/api/v1/links \\",
+      "  -H \"Authorization: Bearer zs_live_9f3k...\" \\",
+      "  -H \"Content-Type: application/json\" \\",
+      "  -d '{",
+      "    \"url\": \"https://zerosoftware.ai/blog/el-software-murio\",",
+      "    \"slug\": \"manifiesto\",",
+      "    \"title\": \"El manifiesto\",",
+      "    \"tags\": [\"launch\", \"blog\"]",
+      "  }'"
+    ],
+    "codeCreateRes": [
+      "{",
+      "  \"id\": \"lnk_9f3ka2\",",
+      "  \"slug\": \"manifiesto\",",
+      "  \"short_url\": \"https://zs.ai/manifiesto\",",
+      "  \"url\": \"https://zerosoftware.ai/blog/el-software-murio\",",
+      "  \"title\": \"El manifiesto\",",
+      "  \"tags\": [\"launch\", \"blog\"],",
+      "  \"created_at\": \"2026-07-14T18:22:41Z\"",
+      "}"
+    ],
+    "codeListReq": [
+      "curl \"https://zerosoftware.ai/api/v1/links?page=1&pageSize=10\" \\",
+      "  -H \"Authorization: Bearer zs_live_9f3k...\""
+    ],
+    "codeListRes": [
+      "{",
+      "  \"links\": [",
+      "    {",
+      "      \"id\": \"lnk_9f3ka2\",",
+      "      \"slug\": \"manifiesto\",",
+      "      \"short_url\": \"https://zs.ai/manifiesto\",",
+      "      \"url\": \"https://zerosoftware.ai/blog/el-software-murio\",",
+      "      \"title\": \"El manifiesto\",",
+      "      \"tags\": [\"launch\", \"blog\"],",
+      "      \"created_at\": \"2026-07-14T18:22:41Z\"",
+      "    }",
+      "  ],",
+      "  \"total\": 48",
+      "}"
+    ],
+    "codeStatsReq": [
+      "curl \"https://zerosoftware.ai/api/v1/links/lnk_9f3ka2/stats\" \\",
+      "  -H \"Authorization: Bearer zs_live_9f3k...\""
+    ],
+    "codeStatsRes": [
+      "{",
+      "  \"slug\": \"manifiesto\",",
+      "  \"total\": 4812,",
+      "  \"byDay\": [",
+      "    { \"date\": \"2026-07-15\", \"count\": 412 },",
+      "    { \"date\": \"2026-07-16\", \"count\": 388 },",
+      "    { \"date\": \"2026-07-17\", \"count\": 441 }",
+      "  ]",
+      "}"
+    ],
+    "errorsTitle": "Errores",
+    "errorsP": "Los errores son siempre JSON con la misma forma:",
+    "codeError": ["{", "  \"error\": {", "    \"code\": \"slug_taken\",", "    \"message\": \"Ese slug ya está en uso.\"", "  }", "}"],
+    "thCode": "Código",
+    "thHttp": "HTTP",
+    "thMeaning": "Significado",
+    "e1code": "invalid_key",
+    "e1http": "401",
+    "e1desc": "La key falta, es incorrecta o fue revocada.",
+    "e2code": "invalid_url",
+    "e2http": "400",
+    "e2desc": "Falta el campo url o no es una URL http(s) válida.",
+    "e3code": "slug_taken",
+    "e3http": "400",
+    "e3desc": "Ese slug personalizado ya existe. Elegí otro.",
+    "e4code": "not_found",
+    "e4http": "404",
+    "e4desc": "Ningún link con ese id pertenece a tu cuenta.",
+    "e5code": "rate_limited",
+    "e5http": "429",
+    "e5desc": "Más de 100 requests en un minuto. Esperá el Retry-After.",
+    "notesTitle": "Bueno saberlo",
+    "n1": "Los slugs cumplen {pattern} — letras, números, guion y guion bajo, de 2 a 32 caracteres.",
+    "n2": "Los redirects son 302 públicos en la raíz — {example}. Sin intersticiales, sin ads, sin páginas de tracking.",
+    "n3": "Las métricas no usan cookies: referrer, país y dispositivo salen de los headers del request. No se guarda nada personal.",
+    "crmTitle": "La API de CRM",
+    "crmP": "El CRM viene con la misma API: mismas keys, mismo rate limit, mismas reglas. Contactos, empresas, deals y tareas — todo lo que hace el dashboard lo puede hacer tu código.",
+    "crmExample": "Crear un contacto",
+    "codeCrmReq": ["curl -X POST https://zerosoftware.ai/api/v1/crm/contacts \\", "  -H \"Authorization: Bearer zs_live_9f3k...\" \\", "  -H \"Content-Type: application/json\" \\", "  -d '{", "    \"first_name\": \"Ana\",", "    \"last_name\": \"Garcia\",", "    \"email\": \"ana@kallpa.co\",", "    \"lifecycle_stage\": \"sql\"", "  }'"],
+    "codeCrmRes": ["{", "  \"id\": \"b1f47ac2-…\",", "  \"first_name\": \"Ana\",", "  \"last_name\": \"Garcia\",", "  \"email\": \"ana@kallpa.co\",", "  \"lifecycle_stage\": \"sql\",", "  \"created_at\": \"2026-07-18 10:04:11\"", "}"],
+    "crmEndpoints": "Todos los endpoints de CRM",
+    "crmThMethod": "Método",
+    "crmThPath": "Endpoint",
+    "crmThWhat": "Qué hace",
+    "r1m": "GET", "r1p": "/api/v1/crm/contacts", "r1d": "Lista contactos. Filtros: q, page, pageSize (máx 100).",
+    "r2m": "POST", "r2p": "/api/v1/crm/contacts", "r2d": "Crea un contacto.",
+    "r3m": "GET", "r3p": "/api/v1/crm/contacts/:id", "r3d": "Lee un contacto.",
+    "r4m": "PATCH", "r4p": "/api/v1/crm/contacts/:id", "r4d": "Actualiza cualquier propiedad.",
+    "r5m": "GET", "r5p": "/api/v1/crm/companies", "r5d": "Lista empresas.",
+    "r6m": "POST", "r6p": "/api/v1/crm/companies", "r6d": "Crea una empresa.",
+    "r7m": "GET", "r7p": "/api/v1/crm/companies/:id", "r7d": "Lee una empresa.",
+    "r8m": "PATCH", "r8p": "/api/v1/crm/companies/:id", "r8d": "Actualiza cualquier propiedad.",
+    "r9m": "GET", "r9p": "/api/v1/crm/deals", "r9d": "Lista deals. Filtro: pipelineId.",
+    "r10m": "POST", "r10p": "/api/v1/crm/deals", "r10d": "Crea un deal en un stage del pipeline.",
+    "r11m": "GET", "r11p": "/api/v1/crm/deals/:id", "r11d": "Lee un deal.",
+    "r12m": "PATCH", "r12p": "/api/v1/crm/deals/:id", "r12d": "Actualiza monto, stage, fechas.",
+    "r13m": "GET", "r13p": "/api/v1/crm/tasks", "r13d": "Lista tareas. bucket: overdue, today, upcoming, done.",
+    "r14m": "POST", "r14p": "/api/v1/crm/tasks", "r14d": "Crea una tarea, opcionalmente ligada a un registro.",
+    "r15m": "PATCH", "r15p": "/api/v1/crm/tasks/:id", "r15d": "Edita o completa una tarea.",
+    "soonTitle": "Pronto",
+    "soonP": "Track y Cal van a salir con el mismo estilo de API — REST, JSON, aburrida en el mejor sentido. Estos docs crecen a medida que cada producto se libera."
+  }
+}
