@@ -27,8 +27,8 @@ export async function generateMetadata({ params: { locale } }: { params: { local
   const t = await getTranslations({ locale, namespace: 'common.meta' });
   return {
     title: {
-      default: 'Zerosoftware — ' + t('tagline'),
-      template: '%s — Zerosoftware',
+      default: 'Zerosoft — ' + t('tagline'),
+      template: '%s — Zerosoft',
     },
     description: t('description'),
     icons: {

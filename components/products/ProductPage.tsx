@@ -65,7 +65,7 @@ export default async function ProductPage({
               {t('product.launch', { name: cfg.name })}
             </Link>
           ) : (
-            <a className="btn btn-solid" href="mailto:hola@zerosoftware.ai">
+            <a className="btn btn-solid" href="mailto:hola@zerosoft.ai">
               {t('product.notify')}
             </a>
           )}
@@ -199,7 +199,7 @@ export default async function ProductPage({
               {t(`${p}.cta.button`)}
             </Link>
           ) : (
-            <a className="btn btn-invert" href="mailto:hola@zerosoftware.ai">
+            <a className="btn btn-invert" href="mailto:hola@zerosoft.ai">
               {t(`${p}.cta.button`)}
             </a>
           )}

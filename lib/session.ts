@@ -4,7 +4,7 @@ import { authOptions } from './auth';
 import { getUserByEmail, upsertUser, type UserRow } from './db';
 
 export const DEMO_MODE = process.env.DEMO_MODE === 'true';
-export const DEMO_EMAIL = 'demo@zerosoftware.ai';
+export const DEMO_EMAIL = 'demo@zerosoft.ai';
 
 function getDemoUser(): UserRow {
   return (

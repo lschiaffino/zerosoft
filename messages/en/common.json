@@ -13,7 +13,7 @@
     "join": "Join us"
   },
   "hero": {
-    "eyebrow": "zerosoftware.ai — v0.0.1",
+    "eyebrow": "zerosoft.ai — v0.0.1",
     "title1": "Software is",
     "title2": "dead.",
     "sub": "We rebuild the tools you use every day and set them free: open source, free, forever. If we run them for you, you only pay the cloud. At cost.",
@@ -25,7 +25,7 @@
     "label": "0.01 — Manifesto",
     "p1": "They charge you <strong>$30 to move cards</strong>. $50 to store contacts. $12 to shorten a link. Not for the software — out of habit.",
     "p2": "But software is bits. And bits are free. <strong>They always were.</strong>",
-    "p3": "Zerosoftware exists to prove it: we rebuild the tools that move the world and set them free. No licenses. No lock-in. No fine print. Self-host it if you want. Or we run it for you and you pay exactly what the cloud costs. Not a penny more.",
+    "p3": "Zerosoft exists to prove it: we rebuild the tools that move the world and set them free. No licenses. No lock-in. No fine print. Self-host it if you want. Or we run it for you and you pay exactly what the cloud costs. Not a penny more.",
     "final": "Software is dead. We are what comes next."
   },
   "stats": {
@@ -77,7 +77,7 @@
   },
   "footer": {
     "tagline": "Made of zeros.",
-    "copyright": "© 2026 zerosoftware.ai — Software is dead",
+    "copyright": "© 2026 zerosoft.ai — Software is dead",
     "colProduct": "Product",
     "colResources": "Resources",
     "colCompany": "Company",

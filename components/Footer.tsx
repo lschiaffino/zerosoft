@@ -13,9 +13,9 @@ export default async function Footer({ locale }: { locale: string }) {
 
       <div className="footer-grid">
         <div className="footer-brand">
-          <Link href="/" className="brand" aria-label="zerosoftware.ai">
+          <Link href="/" className="brand" aria-label="zerosoft.ai">
             <span className="brand-zero">0</span>
-            <span className="brand-name">zerosoftware.ai</span>
+            <span className="brand-name">zerosoft.ai</span>
           </Link>
           <p>{t('tagline')}</p>
         </div>
@@ -43,7 +43,7 @@ export default async function Footer({ locale }: { locale: string }) {
           <h4>{t('colCompany')}</h4>
           <ul>
             <li><Link href="/#manifiesto">{t('manifesto')}</Link></li>
-            <li><a href="mailto:hola@zerosoftware.ai">{t('contact')}</a></li>
+            <li><a href="mailto:hola@zerosoft.ai">{t('contact')}</a></li>
           </ul>
         </div>
 
@@ -58,7 +58,7 @@ export default async function Footer({ locale }: { locale: string }) {
       </div>
 
       <div className="footer-bottom">
-        <span>zerosoftware.ai</span>
+        <span>zerosoft.ai</span>
         <span className="footer-mid">{t('tagline')}</span>
         <span>{t('copyright')}</span>
       </div>

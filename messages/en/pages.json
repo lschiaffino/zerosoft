@@ -21,7 +21,7 @@
       "r3price": "$50 / user / month",
       "r4name": "Calendly",
       "r4price": "$12 / month",
-      "withTitle": "With Zerosoftware",
+      "withTitle": "With Zerosoft",
       "big": "$0",
       "note": "Every month, every year, forever. If we run it for you, you pay only the cloud it consumes. At cost."
     },
@@ -72,7 +72,7 @@
       "faq": {
         "f1": { "q": "Is it really free?", "a": "Yes. The code is open source and self-hosting costs nothing. If we host it for you, you pay only the cloud it consumes — at cost, no margin. Software was never the expensive part; the business model was." },
         "f2": { "q": "Can I migrate my links from Bitly?", "a": "Yes. Export your links from Bitly as CSV and import them: destinations, aliases and tags come over. Point your old short domain to us and existing links keep working." },
-        "f3": { "q": "What happens if Zerosoftware shuts down?", "a": "Nothing bad. The code is open source, so anyone can run it forever. You can export every link and every click at any time, and self-hosting takes one command. Your links can never be held hostage." },
+        "f3": { "q": "What happens if Zerosoft shuts down?", "a": "Nothing bad. The code is open source, so anyone can run it forever. You can export every link and every click at any time, and self-hosting takes one command. Your links can never be held hostage." },
         "f4": { "q": "Can I self-host it?", "a": "That is the point. Clone the repo, run it on any server with Node and SQLite, point your short domain, done. No license key, no phone-home, no enterprise tier." },
         "f5": { "q": "Do my links ever expire?", "a": "Only if you tell them to. Links never expire on their own and never get parked behind a paywall. Expiration is a feature you control, not a threat we use." }
       },
@@ -115,9 +115,9 @@
       "faq": {
         "f1": { "q": "Is it really free?", "a": "Yes. Open source under a public license, so self-hosting costs nothing. Our hosted cloud costs only the infrastructure it consumes — at cost, 0% margin." },
         "f2": { "q": "Can I migrate from Linear?", "a": "Yes. Import your Linear workspace: issues, labels, cycles and history come over via CSV or the Linear API export. Your team keeps its memory." },
-        "f3": { "q": "What happens if Zerosoftware shuts down?", "a": "You keep everything. The code is open, your data exports cleanly, and self-hosting takes one command. There is no lock-in to lock you in." },
-        "f4": { "q": "Can I self-host it?", "a": "Absolutely. That is the default way to run every Zerosoftware product: your server, your data, your rules. The cloud exists only for convenience." },
-        "f5": { "q": "When does it ship?", "a": "Track ships in Q4 2026. Write to hola@zerosoftware.ai and we will tell you the day it opens — and only that day. No newsletter." }
+        "f3": { "q": "What happens if Zerosoft shuts down?", "a": "You keep everything. The code is open, your data exports cleanly, and self-hosting takes one command. There is no lock-in to lock you in." },
+        "f4": { "q": "Can I self-host it?", "a": "Absolutely. That is the default way to run every Zerosoft product: your server, your data, your rules. The cloud exists only for convenience." },
+        "f5": { "q": "When does it ship?", "a": "Track ships in Q4 2026. Write to hola@zerosoft.ai and we will tell you the day it opens — and only that day. No newsletter." }
       },
       "cta": {
         "label": "Track — 0.05",
@@ -158,7 +158,7 @@
       "faq": {
         "f1": { "q": "Is it really free?", "a": "Yes. The code is open source and self-hosting costs nothing. The hosted cloud costs only the infrastructure it consumes, at cost. We sell convenience, never software." },
         "f2": { "q": "Can I migrate from HubSpot?", "a": "Yes. Export contacts, companies and deals from HubSpot and import the CSVs. Pipelines and stages map one to one, and custom properties come along." },
-        "f3": { "q": "What happens if Zerosoftware shuts down?", "a": "Nothing, for you. The code is open, your data is exportable at any moment, and the self-hosted version keeps running no matter what happens to us." },
+        "f3": { "q": "What happens if Zerosoft shuts down?", "a": "Nothing, for you. The code is open, your data is exportable at any moment, and the self-hosted version keeps running no matter what happens to us." },
         "f4": { "q": "Can I self-host it?", "a": "Yes — it is the point of the project. Your customer data is probably the most sensitive data you have; keeping it on your own server is a feature, not a chore." },
         "f5": { "q": "When does it ship?", "a": "It already did. CRM is live: open it, import your contacts and close your first deal today — for $0, obviously." }
       },
@@ -201,9 +201,9 @@
       "faq": {
         "f1": { "q": "Is it really free?", "a": "Yes. Open source, so self-hosting costs nothing. If we host it, you pay only the cloud at cost. Scheduling is bits and a calendar API — it was never worth $12 a month." },
         "f2": { "q": "Can I migrate from Calendly?", "a": "Recreating your event types takes minutes — durations, buffers and questions all map over. Your old booking links can redirect to your new ones, so nothing breaks." },
-        "f3": { "q": "What happens if Zerosoftware shuts down?", "a": "You would not notice. Self-host the same code on your server, export your bookings, and your links keep working on your domain." },
+        "f3": { "q": "What happens if Zerosoft shuts down?", "a": "You would not notice. Self-host the same code on your server, export your bookings, and your links keep working on your domain." },
         "f4": { "q": "Can I self-host it?", "a": "Yes. Clone, run, connect your calendar, share your link. No license server, no feature flags, no premium tier hiding the good parts." },
-        "f5": { "q": "When does it ship?", "a": "Cal ships in Q2 2027. Write to hola@zerosoftware.ai and we will let you know the moment it opens." }
+        "f5": { "q": "When does it ship?", "a": "Cal ships in Q2 2027. Write to hola@zerosoft.ai and we will let you know the moment it opens." }
       },
       "cta": {
         "label": "Cal — 0.05",
@@ -219,11 +219,11 @@
     "launch": "Launch {name} — it's free",
     "notify": "Notify me",
     "manifesto": "Read the manifesto",
-    "browserUrl": "zerosoftware.ai/app",
+    "browserUrl": "zerosoft.ai/app",
     "featuresLabel": "01 — Features",
     "compareLabel": "02 — The math",
     "compareToday": "Today you pay",
-    "compareZero": "With Zerosoftware",
+    "compareZero": "With Zerosoft",
     "compareTeam": "Team of 10",
     "compareYear": "/ year",
     "modelLabel": "03 — Two ways to have it",
@@ -251,16 +251,16 @@
       "thDest": "Destination",
       "thClicks": "Clicks",
       "r1short": "zs.ai/launch",
-      "r1dest": "zerosoftware.ai/blog/software-is-dead",
+      "r1dest": "zerosoft.ai/blog/software-is-dead",
       "r1clicks": "4,812",
       "r2short": "zs.ai/github",
-      "r2dest": "github.com/zerosoftware",
+      "r2dest": "github.com/zerosoft",
       "r2clicks": "3,204",
       "r3short": "zs.ai/docs",
-      "r3dest": "zerosoftware.ai/docs",
+      "r3dest": "zerosoft.ai/docs",
       "r3clicks": "2,118",
       "r4short": "zs.ai/hola",
-      "r4dest": "mailto:hola@zerosoftware.ai",
+      "r4dest": "mailto:hola@zerosoft.ai",
       "r4clicks": "1,346"
     },
     "track": {
@@ -315,7 +315,7 @@
       "r4stage": "Lead"
     },
     "cal": {
-      "name": "Zerosoftware",
+      "name": "Zerosoft",
       "meeting": "30 min meeting",
       "desc": "A quick intro call. Pick a time that works for you.",
       "month": "July 2026",
@@ -334,11 +334,11 @@
   "status": {
     "meta": {
       "title": "Status — All systems operational",
-      "description": "Live health of zerosoftware.ai: Link app, redirect engine, API v1, dashboard and auth. Uptime and past incidents, in the open."
+      "description": "Live health of zerosoft.ai: Link app, redirect engine, API v1, dashboard and auth. Uptime and past incidents, in the open."
     },
     "label": "0.06 — Status",
     "title": "All systems operational.",
-    "sub": "Live health of zerosoftware.ai, in the open. Boring on purpose.",
+    "sub": "Live health of zerosoft.ai, in the open. Boring on purpose.",
     "updated": "Checked 60 seconds ago · All times UTC",
     "operational": "Operational",
     "componentsLabel": "01 — Components",
@@ -370,7 +370,7 @@
     "titleDim": "Zero friction.",
     "intro": "Link exposes a small REST API so your code can create and measure short links. Same rules as everything we make: simple, documented, free.",
     "baseLabel": "Base URL",
-    "codeBase": ["https://zerosoftware.ai/api/v1"],
+    "codeBase": ["https://zerosoft.ai/api/v1"],
     "authTitle": "Authentication",
     "authP1": "Every request needs an API key, sent as a Bearer token:",
     "codeAuth": ["Authorization: Bearer zs_live_9f3k..."],
@@ -386,11 +386,11 @@
     "request": "Request",
     "response": "Response",
     "codeCreateReq": [
-      "curl -X POST https://zerosoftware.ai/api/v1/links \\",
+      "curl -X POST https://zerosoft.ai/api/v1/links \\",
       "  -H \"Authorization: Bearer zs_live_9f3k...\" \\",
       "  -H \"Content-Type: application/json\" \\",
       "  -d '{",
-      "    \"url\": \"https://zerosoftware.ai/blog/software-is-dead\",",
+      "    \"url\": \"https://zerosoft.ai/blog/software-is-dead\",",
       "    \"slug\": \"manifesto\",",
       "    \"title\": \"The manifesto\",",
       "    \"tags\": [\"launch\", \"blog\"]",
@@ -401,14 +401,14 @@
       "  \"id\": \"lnk_9f3ka2\",",
       "  \"slug\": \"manifesto\",",
       "  \"short_url\": \"https://zs.ai/manifesto\",",
-      "  \"url\": \"https://zerosoftware.ai/blog/software-is-dead\",",
+      "  \"url\": \"https://zerosoft.ai/blog/software-is-dead\",",
       "  \"title\": \"The manifesto\",",
       "  \"tags\": [\"launch\", \"blog\"],",
       "  \"created_at\": \"2026-07-14T18:22:41Z\"",
       "}"
     ],
     "codeListReq": [
-      "curl \"https://zerosoftware.ai/api/v1/links?page=1&pageSize=10\" \\",
+      "curl \"https://zerosoft.ai/api/v1/links?page=1&pageSize=10\" \\",
       "  -H \"Authorization: Bearer zs_live_9f3k...\""
     ],
     "codeListRes": [
@@ -418,7 +418,7 @@
       "      \"id\": \"lnk_9f3ka2\",",
       "      \"slug\": \"manifesto\",",
       "      \"short_url\": \"https://zs.ai/manifesto\",",
-      "      \"url\": \"https://zerosoftware.ai/blog/software-is-dead\",",
+      "      \"url\": \"https://zerosoft.ai/blog/software-is-dead\",",
       "      \"title\": \"The manifesto\",",
       "      \"tags\": [\"launch\", \"blog\"],",
       "      \"created_at\": \"2026-07-14T18:22:41Z\"",
@@ -428,7 +428,7 @@
       "}"
     ],
     "codeStatsReq": [
-      "curl \"https://zerosoftware.ai/api/v1/links/lnk_9f3ka2/stats\" \\",
+      "curl \"https://zerosoft.ai/api/v1/links/lnk_9f3ka2/stats\" \\",
       "  -H \"Authorization: Bearer zs_live_9f3k...\""
     ],
     "codeStatsRes": [
@@ -470,7 +470,7 @@
     "crmTitle": "The CRM API",
     "crmP": "The CRM ships with the same API: same keys, same rate limit, same rules. Contacts, companies, deals and tasks — everything the dashboard can do, your code can do.",
     "crmExample": "Create a contact",
-    "codeCrmReq": ["curl -X POST https://zerosoftware.ai/api/v1/crm/contacts \\", "  -H \"Authorization: Bearer zs_live_9f3k...\" \\", "  -H \"Content-Type: application/json\" \\", "  -d '{", "    \"first_name\": \"Ana\",", "    \"last_name\": \"Garcia\",", "    \"email\": \"ana@kallpa.co\",", "    \"lifecycle_stage\": \"sql\"", "  }'"],
+    "codeCrmReq": ["curl -X POST https://zerosoft.ai/api/v1/crm/contacts \\", "  -H \"Authorization: Bearer zs_live_9f3k...\" \\", "  -H \"Content-Type: application/json\" \\", "  -d '{", "    \"first_name\": \"Ana\",", "    \"last_name\": \"Garcia\",", "    \"email\": \"ana@kallpa.co\",", "    \"lifecycle_stage\": \"sql\"", "  }'"],
     "codeCrmRes": ["{", "  \"id\": \"b1f47ac2-…\",", "  \"first_name\": \"Ana\",", "  \"last_name\": \"Garcia\",", "  \"email\": \"ana@kallpa.co\",", "  \"lifecycle_stage\": \"sql\",", "  \"created_at\": \"2026-07-18 10:04:11\"", "}"],
     "crmEndpoints": "Every CRM endpoint",
     "crmThMethod": "Method",

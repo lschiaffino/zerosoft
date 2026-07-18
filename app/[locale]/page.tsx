@@ -154,7 +154,7 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
             {t('end.title2')}
           </h2>
           <p className="end-sub">{t('end.sub')}</p>
-          <a className="btn btn-invert" href="mailto:hola@zerosoftware.ai">
+          <a className="btn btn-invert" href="mailto:hola@zerosoft.ai">
             {t('end.cta')}
           </a>
         </div>

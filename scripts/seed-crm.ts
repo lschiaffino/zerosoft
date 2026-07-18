@@ -6,7 +6,7 @@
 import { getDb, upsertUser } from '../lib/db';
 
 const USER_ID = 'demo';
-const EMAIL = 'demo@zerosoftware.ai';
+const EMAIL = 'demo@zerosoft.ai';
 
 // Deterministic PRNG so re-seeds produce the same dataset (ids aside).
 function mulberry32(seed: number) {

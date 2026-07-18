@@ -1,4 +1,4 @@
-# zerosoftware.ai
+# zerosoft.ai
 
 **Software is dead.** We rebuild the tools you use every day and set them free: open source, free, forever. Self-host them, or let us run them and pay only the cloud they consume — at cost.
 
@@ -81,7 +81,7 @@ One SQLite file at `data/zerosoftware.db` (WAL mode). Backup = copy that file. T
 To self-host on any $5 VPS:
 
 ```bash
-git clone <repo> && cd zerosoftware.ai
+git clone <repo> && cd zerosoft.ai
 npm install && npm run build
 # set .env.local: NEXTAUTH_URL, NEXTAUTH_SECRET, Google credentials, SHORT_DOMAIN=your-domain
 npm start   # behind any reverse proxy with HTTPS

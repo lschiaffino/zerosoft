@@ -2,12 +2,12 @@
   "terms": {
     "meta": {
       "title": "Termos de Serviço",
-      "description": "Os termos que regem o uso do zerosoftware.ai e da nuvem da Zerosoftware. Escritos para serem lidos."
+      "description": "Os termos que regem o uso do zerosoft.ai e da nuvem da Zerosoft. Escritos para serem lidos."
     },
     "label": "Legal — 01",
     "title": "Termos de Serviço",
     "updated": "Última atualização: 1º de julho de 2026",
-    "intro": "Estes termos regem o seu uso do zerosoftware.ai e da nuvem da Zerosoftware. Foram escritos para serem lidos, não para assustar. Se algo não estiver claro, escreva para hola@zerosoftware.ai antes de aceitar.",
+    "intro": "Estes termos regem o seu uso do zerosoft.ai e da nuvem da Zerosoft. Foram escritos para serem lidos, não para assustar. Se algo não estiver claro, escreva para hola@zerosoft.ai antes de aceitar.",
     "tocTitle": "Conteúdo",
     "sections": {
       "s01": {
@@ -19,13 +19,13 @@
       "s02": {
         "h": "Quem somos",
         "p": [
-          "A Zerosoftware (\"nós\") opera o zerosoftware.ai e as versões hospedadas dos nossos produtos: Link, e — quando lançados — Track, CRM e Cal. Você pode falar conosco a qualquer momento em hola@zerosoftware.ai."
+          "A Zerosoft (\"nós\") opera o zerosoft.ai e as versões hospedadas dos nossos produtos: Link, e — quando lançados — Track, CRM e Cal. Você pode falar conosco a qualquer momento em hola@zerosoft.ai."
         ]
       },
       "s03": {
         "h": "O software e sua licença",
         "p": [
-          "Todos os produtos Zerosoftware são open source. Cada repositório traz a sua licença (MIT ou AGPL, conforme indicado no próprio repositório). Seus direitos de baixar, rodar, modificar e redistribuir o código vêm dessa licença, não destes termos.",
+          "Todos os produtos Zerosoft são open source. Cada repositório traz a sua licença (MIT ou AGPL, conforme indicado no próprio repositório). Seus direitos de baixar, rodar, modificar e redistribuir o código vêm dessa licença, não destes termos.",
           "Estes termos não restringem a licença de forma alguma, e a licença não concede a você nenhum direito sobre o nosso serviço hospedado, nossos domínios ou nossa marca."
         ]
       },
@@ -77,7 +77,7 @@
       "s10": {
         "h": "Limitação de responsabilidade",
         "p": [
-          "Na máxima extensão permitida por lei, a Zerosoftware não responde por danos indiretos, incidentais ou consequentes — lucros perdidos, dados perdidos, negócios perdidos — decorrentes do uso ou da impossibilidade de uso do software ou da nuvem.",
+          "Na máxima extensão permitida por lei, a Zerosoft não responde por danos indiretos, incidentais ou consequentes — lucros perdidos, dados perdidos, negócios perdidos — decorrentes do uso ou da impossibilidade de uso do software ou da nuvem.",
           "Onde a responsabilidade não puder ser excluída, ela se limita ao valor que você nos pagou nos 12 meses anteriores à reclamação — que, pelo software em si, é e será sempre zero."
         ]
       },
@@ -91,7 +91,7 @@
         "h": "Lei aplicável e contato",
         "p": [
           "Estes termos são regidos pelas leis do Uruguai, sem considerar suas normas de conflito de leis. As disputas vão aos tribunais de Montevidéu, Uruguai, salvo se a lei de defesa do consumidor lhe conceder um foro melhor.",
-          "Dúvidas sobre estes termos: hola@zerosoftware.ai."
+          "Dúvidas sobre estes termos: hola@zerosoft.ai."
         ]
       }
     }
@@ -99,7 +99,7 @@
   "privacy": {
     "meta": {
       "title": "Política de Privacidade",
-      "description": "O que o zerosoftware.ai coleta, o que ele nunca coleta, e por quê. Coletamos o mínimo, guardamos por pouco tempo, e nunca vendemos."
+      "description": "O que o zerosoft.ai coleta, o que ele nunca coleta, e por quê. Coletamos o mínimo, guardamos por pouco tempo, e nunca vendemos."
     },
     "label": "Legal — 02",
     "title": "Política de Privacidade",
@@ -180,7 +180,7 @@
       "s10": {
         "h": "Seus direitos",
         "p": [
-          "Onde quer que você viva, honramos o conjunto do GDPR: acesso, retificação, exclusão, portabilidade, restrição e objeção. As ferramentas de exportação estão integradas ao produto; para qualquer outra coisa, escreva para privacy@zerosoftware.ai e respondemos em até 30 dias.",
+          "Onde quer que você viva, honramos o conjunto do GDPR: acesso, retificação, exclusão, portabilidade, restrição e objeção. As ferramentas de exportação estão integradas ao produto; para qualquer outra coisa, escreva para privacy@zerosoft.ai e respondemos em até 30 dias.",
           "Residentes do EEE também podem reclamar à sua autoridade de controle — embora prefiramos que reclame primeiro para nós."
         ]
       },
@@ -194,7 +194,7 @@
         "h": "Mudanças e contato",
         "p": [
           "Mudanças nesta política serão publicadas aqui com uma nova data; mudanças relevantes são anunciadas por email com 15 dias de antecedência.",
-          "Dúvidas, pedidos e reclamações de privacidade: privacy@zerosoftware.ai."
+          "Dúvidas, pedidos e reclamações de privacidade: privacy@zerosoft.ai."
         ]
       }
     }
@@ -202,7 +202,7 @@
   "security": {
     "meta": {
       "title": "Segurança",
-      "description": "Como o zerosoftware.ai protege o serviço: OAuth sem senhas, scrypt, HTTPS, mínimos dados — e como reportar uma vulnerabilidade."
+      "description": "Como o zerosoft.ai protege o serviço: OAuth sem senhas, scrypt, HTTPS, mínimos dados — e como reportar uma vulnerabilidade."
     },
     "label": "Legal — 03",
     "title": "Segurança",
@@ -219,7 +219,7 @@
       "s02": {
         "h": "Autenticação",
         "p": [
-          "Não há senhas na Zerosoftware. As contas entram com Google OAuth 2.0, e as sessões usam cookies assinados, httpOnly e SameSite. Roubar um banco de dados com nossos hashes de senha é impossível, porque ele não existe."
+          "Não há senhas na Zerosoft. As contas entram com Google OAuth 2.0, e as sessões usam cookies assinados, httpOnly e SameSite. Roubar um banco de dados com nossos hashes de senha é impossível, porque ele não existe."
         ]
       },
       "s03": {
@@ -262,7 +262,7 @@
       "s09": {
         "h": "Reportar uma vulnerabilidade",
         "p": [
-          "Encontrou algo? Escreva para security@zerosoftware.ai. Se puder, cifre com a nossa chave PGP — fingerprint 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 (chave completa publicada em zerosoftware.ai/pgp.txt; em rotação durante o lançamento, e o endereço sempre funciona).",
+          "Encontrou algo? Escreva para security@zerosoft.ai. Se puder, cifre com a nossa chave PGP — fingerprint 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 (chave completa publicada em zerosoft.ai/pgp.txt; em rotação durante o lançamento, e o endereço sempre funciona).",
           "Confirmamos os relatórios em até 48 horas e buscamos triá-los em 5 dias úteis."
         ]
       },

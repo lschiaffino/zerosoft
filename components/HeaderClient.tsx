@@ -20,9 +20,9 @@ interface HeaderClientProps {
 export default function HeaderClient({ locale, user, labels }: HeaderClientProps) {
   return (
     <header className="site-header">
-      <Link href="/" className="brand" aria-label="zerosoftware.ai">
+      <Link href="/" className="brand" aria-label="zerosoft.ai">
         <span className="brand-zero">0</span>
-        <span className="brand-name">zerosoftware.ai</span>
+        <span className="brand-name">zerosoft.ai</span>
       </Link>
 
       <nav className="main-nav" aria-label="Principal">

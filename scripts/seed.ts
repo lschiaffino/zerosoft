@@ -9,7 +9,7 @@ import { getDb, upsertUser } from '../lib/db';
 import { hashPassword } from '../lib/links';
 
 const USER_ID = 'demo';
-const EMAIL = 'demo@zerosoftware.ai';
+const EMAIL = 'demo@zerosoft.ai';
 const GATE_PASSWORD = 'ceros';
 const TOTAL_CLICKS = 450;
 
@@ -87,30 +87,30 @@ interface SeedLink {
 }
 
 const LINKS: SeedLink[] = [
-  { slug: 'launch', url: 'https://github.com/zerosoftware/link/releases/tag/v1.0.0', title: 'v1.0 launch', tags: ['launch', 'product'], share: 0.25, createdDaysAgo: 45 },
+  { slug: 'launch', url: 'https://github.com/zerosoft/link/releases/tag/v1.0.0', title: 'v1.0 launch', tags: ['launch', 'product'], share: 0.25, createdDaysAgo: 45 },
   // NOTE: the brief's "docs"/"blog"/"demo" slugs collide with RESERVED_SLUGS and
   // "roadmap" hits a middleware matcher quirk (paths starting with "r" skip the
   // rewrite), so they were renamed to guide/updates/tryit/plan. middleware.ts and
   // lib/reserved.ts are off-limits.
-  { slug: 'guide', url: 'https://github.com/zerosoftware/link#readme', title: 'Documentation', tags: ['docs'], share: 0.12, createdDaysAgo: 40 },
-  { slug: 'gh', url: 'https://github.com/zerosoftware', title: 'GitHub org', share: 0.12, createdDaysAgo: 38 },
-  { slug: 'updates', url: 'https://zerosoftware.ai/en/blog', title: 'Blog', share: 0.08, createdDaysAgo: 35 },
+  { slug: 'guide', url: 'https://github.com/zerosoft/link#readme', title: 'Documentation', tags: ['docs'], share: 0.12, createdDaysAgo: 40 },
+  { slug: 'gh', url: 'https://github.com/zerosoft', title: 'GitHub org', share: 0.12, createdDaysAgo: 38 },
+  { slug: 'updates', url: 'https://zerosoft.ai/en/blog', title: 'Blog', share: 0.08, createdDaysAgo: 35 },
   { slug: 'video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'Launch video', tags: ['launch'], share: 0.08, createdDaysAgo: 30 },
-  { slug: 'plan', url: 'https://github.com/orgs/zerosoftware/projects/1', title: 'Public roadmap (old)', share: 0.06, createdDaysAgo: 28, archived: true },
-  { slug: 'pricing', url: 'https://zerosoftware.ai/#model', title: 'Pricing = $0', share: 0.07, createdDaysAgo: 25 },
-  { slug: 'twitter', url: 'https://twitter.com/zerosoftware', title: 'Twitter / X', share: 0.06, createdDaysAgo: 22 },
-  { slug: 'linkedin', url: 'https://www.linkedin.com/company/zerosoftware', title: 'LinkedIn', share: 0.05, createdDaysAgo: 18 },
+  { slug: 'plan', url: 'https://github.com/orgs/zerosoft/projects/1', title: 'Public roadmap (old)', share: 0.06, createdDaysAgo: 28, archived: true },
+  { slug: 'pricing', url: 'https://zerosoft.ai/#model', title: 'Pricing = $0', share: 0.07, createdDaysAgo: 25 },
+  { slug: 'twitter', url: 'https://twitter.com/zerosoft', title: 'Twitter / X', share: 0.06, createdDaysAgo: 22 },
+  { slug: 'linkedin', url: 'https://www.linkedin.com/company/zerosoft', title: 'LinkedIn', share: 0.05, createdDaysAgo: 18 },
   {
     slug: 'newsletter',
-    url: 'https://zerosoftware.ai/?utm_source=newsletter&utm_medium=email&utm_campaign=launch',
+    url: 'https://zerosoft.ai/?utm_source=newsletter&utm_medium=email&utm_campaign=launch',
     title: 'Newsletter #1',
     tags: ['newsletter', 'launch'],
     share: 0.05,
     createdDaysAgo: 15,
     utm: { source: 'newsletter', medium: 'email', campaign: 'launch' },
   },
-  { slug: 'tryit', url: 'https://zerosoftware.ai/en/app', title: 'Live demo (password: ceros)', share: 0.04, createdDaysAgo: 12, password: true },
-  { slug: 'zero', url: 'https://zerosoftware.ai/', title: 'Expired promo', share: 0.02, createdDaysAgo: 10, expired: true },
+  { slug: 'tryit', url: 'https://zerosoft.ai/en/app', title: 'Live demo (password: ceros)', share: 0.04, createdDaysAgo: 12, password: true },
+  { slug: 'zero', url: 'https://zerosoft.ai/', title: 'Expired promo', share: 0.02, createdDaysAgo: 10, expired: true },
 ];
 
 function utc(daysAgo: number, h: number, m: number, s: number): string {

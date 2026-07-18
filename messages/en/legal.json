@@ -2,12 +2,12 @@
   "terms": {
     "meta": {
       "title": "Terms of Service",
-      "description": "The terms that govern the use of zerosoftware.ai and the Zerosoftware cloud. Written to be read."
+      "description": "The terms that govern the use of zerosoft.ai and the Zerosoft cloud. Written to be read."
     },
     "label": "Legal — 01",
     "title": "Terms of Service",
     "updated": "Last updated: July 1, 2026",
-    "intro": "These terms govern your use of zerosoftware.ai and the Zerosoftware cloud. They are written to be read, not to scare you. If anything is unclear, write to hola@zerosoftware.ai before accepting.",
+    "intro": "These terms govern your use of zerosoft.ai and the Zerosoft cloud. They are written to be read, not to scare you. If anything is unclear, write to hola@zerosoft.ai before accepting.",
     "tocTitle": "Contents",
     "sections": {
       "s01": {
@@ -19,13 +19,13 @@
       "s02": {
         "h": "Who we are",
         "p": [
-          "Zerosoftware (\"we\", \"us\") operates zerosoftware.ai and the hosted versions of our products: Link, and — once released — Track, CRM and Cal. You can reach us at any time at hola@zerosoftware.ai."
+          "Zerosoft (\"we\", \"us\") operates zerosoft.ai and the hosted versions of our products: Link, and — once released — Track, CRM and Cal. You can reach us at any time at hola@zerosoft.ai."
         ]
       },
       "s03": {
         "h": "The software and its license",
         "p": [
-          "All Zerosoftware products are open source. Each repository ships with its license (MIT or AGPL, as indicated in the repository itself). Your rights to download, run, modify and redistribute the code come from that license, not from these terms.",
+          "All Zerosoft products are open source. Each repository ships with its license (MIT or AGPL, as indicated in the repository itself). Your rights to download, run, modify and redistribute the code come from that license, not from these terms.",
           "These terms do not restrict the license in any way, and the license does not grant you any rights over our hosted service, our domains or our brand."
         ]
       },
@@ -77,7 +77,7 @@
       "s10": {
         "h": "Limitation of liability",
         "p": [
-          "To the maximum extent permitted by law, Zerosoftware is not liable for indirect, incidental or consequential damages — lost profits, lost data, lost business — arising from the use or inability to use the software or the cloud.",
+          "To the maximum extent permitted by law, Zerosoft is not liable for indirect, incidental or consequential damages — lost profits, lost data, lost business — arising from the use or inability to use the software or the cloud.",
           "Where liability cannot be excluded, it is limited to the amount you paid us in the 12 months before the claim — which, for the software itself, is and will always be zero."
         ]
       },
@@ -91,7 +91,7 @@
         "h": "Governing law and contact",
         "p": [
           "These terms are governed by the laws of Uruguay, without regard to conflict-of-law rules. Disputes go to the courts of Montevideo, Uruguay, unless mandatory consumer law gives you a better forum.",
-          "Questions about these terms: hola@zerosoftware.ai."
+          "Questions about these terms: hola@zerosoft.ai."
         ]
       }
     }
@@ -99,7 +99,7 @@
   "privacy": {
     "meta": {
       "title": "Privacy Policy",
-      "description": "What zerosoftware.ai collects, what it never collects, and why. We collect the minimum, keep it briefly, and never sell it."
+      "description": "What zerosoft.ai collects, what it never collects, and why. We collect the minimum, keep it briefly, and never sell it."
     },
     "label": "Legal — 02",
     "title": "Privacy Policy",
@@ -180,7 +180,7 @@
       "s10": {
         "h": "Your rights",
         "p": [
-          "Wherever you live, we honor the GDPR set: access, rectification, erasure, portability, restriction and objection. Export tools are built into the product; for anything else, write to privacy@zerosoftware.ai and we will answer within 30 days.",
+          "Wherever you live, we honor the GDPR set: access, rectification, erasure, portability, restriction and objection. Export tools are built into the product; for anything else, write to privacy@zerosoft.ai and we will answer within 30 days.",
           "EEA residents may also complain to their supervisory authority — though we would rather you complain to us first."
         ]
       },
@@ -194,7 +194,7 @@
         "h": "Changes and contact",
         "p": [
           "Changes to this policy will be posted here with a new date; material changes are announced by email 15 days in advance.",
-          "Privacy questions, requests and complaints: privacy@zerosoftware.ai."
+          "Privacy questions, requests and complaints: privacy@zerosoft.ai."
         ]
       }
     }
@@ -202,7 +202,7 @@
   "security": {
     "meta": {
       "title": "Security",
-      "description": "How zerosoftware.ai protects the service: OAuth without passwords, scrypt, HTTPS, minimal data — and how to report a vulnerability."
+      "description": "How zerosoft.ai protects the service: OAuth without passwords, scrypt, HTTPS, minimal data — and how to report a vulnerability."
     },
     "label": "Legal — 03",
     "title": "Security",
@@ -219,7 +219,7 @@
       "s02": {
         "h": "Authentication",
         "p": [
-          "There are no passwords in Zerosoftware. Accounts sign in with Google OAuth 2.0, and sessions use signed, httpOnly, SameSite cookies. Stealing a database of our password hashes is impossible, because it does not exist."
+          "There are no passwords in Zerosoft. Accounts sign in with Google OAuth 2.0, and sessions use signed, httpOnly, SameSite cookies. Stealing a database of our password hashes is impossible, because it does not exist."
         ]
       },
       "s03": {
@@ -262,7 +262,7 @@
       "s09": {
         "h": "Reporting a vulnerability",
         "p": [
-          "Found something? Email security@zerosoftware.ai. If you can, encrypt with our PGP key — fingerprint 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 (full key published at zerosoftware.ai/pgp.txt; being rotated at launch, and the address always works).",
+          "Found something? Email security@zerosoft.ai. If you can, encrypt with our PGP key — fingerprint 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 (full key published at zerosoft.ai/pgp.txt; being rotated at launch, and the address always works).",
           "We acknowledge reports within 48 hours and aim to triage within 5 business days."
         ]
       },

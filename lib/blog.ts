@@ -50,7 +50,7 @@ function readPost(locale: string, slug: string): Post | null {
     title: data.title ?? slug,
     description: data.description ?? '',
     date: data.date ? String(data.date) : '2026-01-01',
-    author: data.author ?? 'Zerosoftware',
+    author: data.author ?? 'Zerosoft',
     tags: Array.isArray(data.tags) ? data.tags : [],
     readingTime: readingTimeMinutes(content),
     html,

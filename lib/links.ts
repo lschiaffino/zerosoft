@@ -183,7 +183,7 @@ export function verifyPassword(password: string, stored: string): boolean {
 // ---------- Password gate cookie (HMAC) ----------
 
 function gateSecret(): string {
-  return process.env.NEXTAUTH_SECRET ?? 'zerosoftware-gate-secret';
+  return process.env.NEXTAUTH_SECRET ?? 'zerosoft-gate-secret';
 }
 
 export const gateCookieName = (slug: string): string => `zs_gate_${slug}`;

@@ -13,7 +13,7 @@
     "join": "Sumate"
   },
   "hero": {
-    "eyebrow": "zerosoftware.ai — v0.0.1",
+    "eyebrow": "zerosoft.ai — v0.0.1",
     "title1": "El software",
     "title2": "murió.",
     "sub": "Reconstruimos las herramientas que usás todos los días y las liberamos: open source, gratis, para siempre. Si las corremos por vos, pagás solo la nube. Al costo.",
@@ -25,7 +25,7 @@
     "label": "0.01 — Manifiesto",
     "p1": "Te cobran <strong>$30 por mover tarjetas</strong>. $50 por guardar contactos. $12 por acortar un link. No por el software — por la costumbre.",
     "p2": "Pero el software son bits. Y los bits son gratis. <strong>Siempre fueron gratis.</strong>",
-    "p3": "Zerosoftware existe para probarlo: reconstruimos las herramientas que mueven al mundo y las liberamos. Sin licencias. Sin lock-in. Sin letra chica. Si querés, lo hosteás vos. Si no, lo corremos nosotros y pagás exactamente lo que cuesta la nube. Ni un peso más.",
+    "p3": "Zerosoft existe para probarlo: reconstruimos las herramientas que mueven al mundo y las liberamos. Sin licencias. Sin lock-in. Sin letra chica. Si querés, lo hosteás vos. Si no, lo corremos nosotros y pagás exactamente lo que cuesta la nube. Ni un peso más.",
     "final": "El software murió. Nosotros somos lo que sigue."
   },
   "stats": {
@@ -77,7 +77,7 @@
   },
   "footer": {
     "tagline": "Hecho de ceros.",
-    "copyright": "© 2026 zerosoftware.ai — El software murió",
+    "copyright": "© 2026 zerosoft.ai — El software murió",
     "colProduct": "Producto",
     "colResources": "Recursos",
     "colCompany": "Empresa",
