@@ -58,6 +58,8 @@ npm run build && npm start
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth. Create at [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) with authorized redirect URI `<NEXTAUTH_URL>/api/auth/callback/google`. |
 | `NEXTAUTH_SECRET` | Session signing. Generate with `openssl rand -base64 32`. |
 | `NEXTAUTH_URL` | Canonical app URL, e.g. `http://localhost:3000`. |
+| `TURSO_DATABASE_URL` | Optional. Unset → local SQLite file at `data/zerosoftware.db`. Set to `libsql://<db>.turso.io` → remote [Turso](https://turso.tech) database (what production uses). |
+| `TURSO_AUTH_TOKEN` | Auth token for the remote Turso database (`turso db tokens create <db>`). Ignored for local files. |
 | `DEMO_MODE` | `true` = everyone is the shared demo user, no login. **Never in production.** |
 | `SHORT_DOMAIN` | Public domain shown in short URLs, e.g. `zs.ai`. No trailing slash. |
 
@@ -76,9 +78,23 @@ Endpoints: `POST /api/v1/links`, `GET /api/v1/links`, `GET /api/v1/links/:id/sta
 
 ## Data and self-hosting
 
-One SQLite file at `data/zerosoftware.db` (WAL mode). Backup = copy that file. There is no other state.
+The app talks to a libSQL database. Locally it is a single SQLite file at `data/zerosoftware.db` — backup = copy that file, there is no other state. In production it is a remote [Turso](https://turso.tech) database selected purely by env vars (`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`), no code changes.
 
-To self-host on any $5 VPS:
+Production runs on Vercel + Turso at `https://zerosoft.ai`:
+
+```bash
+vercel link                                    # once
+vercel env add TURSO_DATABASE_URL production   # libsql://<db>.turso.io
+vercel env add TURSO_AUTH_TOKEN production
+vercel env add NEXTAUTH_URL production         # https://zerosoft.ai
+vercel env add NEXTAUTH_SECRET production
+vercel env add GOOGLE_CLIENT_ID production
+vercel env add GOOGLE_CLIENT_SECRET production
+vercel env add SHORT_DOMAIN production         # zerosoft.ai
+vercel --prod
+```
+
+To self-host on any $5 VPS instead:
 
 ```bash
 git clone <repo> && cd zerosoft.ai
