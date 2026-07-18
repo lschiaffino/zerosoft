@@ -1,6 +1,28 @@
-import geoip from 'geoip-lite';
 import UAParser from 'ua-parser-js';
 import { ensureMigrated, getClient, getDb, txDb } from './db';
+
+// geoip-lite preloads su .dat con fs al importarse: en Vercel el bundle no lo
+// incluye y rompe el módulo entero (ENOENT). Se carga lazy y a prueba de fallos —
+// en Vercel el país llega por header (x-vercel-ip-country) y nunca se requiere;
+// en self-host el archivo existe y funciona como antes.
+type GeoipLite = typeof import('geoip-lite');
+let _geoip: GeoipLite | null | undefined;
+
+function geoipCountry(ip: string): string | null {
+  if (_geoip === undefined) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      _geoip = require('geoip-lite') as GeoipLite;
+    } catch {
+      _geoip = null;
+    }
+  }
+  try {
+    return _geoip?.lookup(ip)?.country ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // ---------- Click capture ----------
 
@@ -27,7 +49,7 @@ export function contextFromHeaders(headers: Headers): ClickContext {
   let country = headers.get('cf-ipcountry') ?? headers.get('x-vercel-ip-country');
   if (!country) {
     const ip = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-    if (ip) country = geoip.lookup(ip)?.country ?? null;
+    if (ip) country = geoipCountry(ip);
   }
 
   const ua = new UAParser(headers.get('user-agent') ?? '').getResult();
