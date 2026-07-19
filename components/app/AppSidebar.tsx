@@ -23,6 +23,7 @@ export interface SidebarLabels {
   newTask: string;
   newLink: string;
   newDocPage: string;
+  newEventType: string;
   team: string;
   link: { overview: string; links: string; new: string; settings: string };
   crm: {
@@ -39,6 +40,12 @@ export interface SidebarLabels {
     overview: string;
     pages: string;
     new: string;
+  };
+  calendar: {
+    overview: string;
+    eventTypes: string;
+    availability: string;
+    settings: string;
   };
 }
 
@@ -60,8 +67,8 @@ const PRODUCTS = [
   { key: 'link', name: 'Link', href: '/app' },
   { key: 'crm', name: 'CRM', href: '/app/crm' },
   { key: 'docs', name: 'Docs', href: '/app/docs' },
+  { key: 'calendar', name: 'Cal', href: '/app/calendar' },
   { key: 'track', name: 'Track', href: null },
-  { key: 'cal', name: 'Cal', href: null },
 ] as const;
 
 /**
@@ -87,7 +94,9 @@ export default function AppSidebar({
     ? 'crm'
     : pathname.includes('/app/docs')
       ? 'docs'
-      : 'link';
+      : pathname.includes('/app/calendar')
+        ? 'calendar'
+        : 'link';
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -200,7 +209,17 @@ export default function AppSidebar({
     },
   ];
 
-  const nav = product === 'crm' ? crmNav : product === 'docs' ? docsNav : linkNav;
+  const calendarNav: Array<{ section?: string; items: Item[] }> = [
+    { items: [{ href: '/app/calendar', label: labels.calendar.overview, active: pathname === '/app/calendar', icon: 'overview' }] },
+    {
+      section: labels.records,
+      items: [
+        { href: '/app/calendar/event-types', label: labels.calendar.eventTypes, active: pathname.startsWith('/app/calendar/event-types'), icon: 'tasks' },
+      ],
+    },
+  ];
+
+  const nav = product === 'crm' ? crmNav : product === 'docs' ? docsNav : product === 'calendar' ? calendarNav : linkNav;
 
   const newItems: Item[] =
     product === 'crm'
@@ -212,7 +231,9 @@ export default function AppSidebar({
         ]
       : product === 'docs'
         ? [{ href: '/app/docs', label: labels.newDocPage, active: false, icon: 'docs' }]
-        : [{ href: '/app/links/new', label: labels.newLink, active: false, icon: 'newLink' }];
+        : product === 'calendar'
+          ? [{ href: '/app/calendar/event-types/new', label: labels.newEventType, active: false, icon: 'tasks' }]
+          : [{ href: '/app/links/new', label: labels.newLink, active: false, icon: 'newLink' }];
 
   const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
 

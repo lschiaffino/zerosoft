@@ -1,0 +1,87 @@
+{
+  "sidebar": {
+    "overview": "Resumen",
+    "eventTypes": "Tipos de evento",
+    "availability": "Disponibilidad",
+    "settings": "Configuración"
+  },
+  "common": {
+    "viewAll": "Ver todo",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "Guardado ✓",
+    "create": "Crear",
+    "cancel": "Cancelar",
+    "remove": "Eliminar",
+    "back": "← Volver"
+  },
+  "overview": {
+    "title": "Calendario",
+    "eventTypes": "Tipos de evento",
+    "bookingsThisWeek": "Reservas esta semana",
+    "timezone": "Zona horaria"
+  },
+  "eventTypes": {
+    "title": "Tipos de evento",
+    "newCta": "+ Nuevo tipo de evento",
+    "newTitle": "Nuevo tipo de evento",
+    "newSub": "Crea un link de reserva. Define duración, reglas y preguntas.",
+    "back": "← Todos los tipos de evento",
+    "minutes": "min",
+    "inactive": "Inactivo",
+    "emptyTitle": "0 tipos de evento",
+    "emptySub": "Crea tu primer tipo de evento y comparte tu link de reserva.",
+    "emptyCta": "Nuevo tipo de evento"
+  },
+  "form": {
+    "title": "Título",
+    "slug": "Slug de URL",
+    "durationMin": "Duración (min)",
+    "color": "Color",
+    "active": "Activo",
+    "location": "Ubicación",
+    "locationPlaceholder": "Zoom, Google Meet, teléfono…",
+    "description": "Descripción",
+    "bookingRules": "Reglas de reserva",
+    "bufferBefore": "Buffer antes (min)",
+    "bufferAfter": "Buffer después (min)",
+    "minNotice": "Antelación mín. (horas)",
+    "maxFuture": "Máx. futuro (días)",
+    "allowGuests": "Permitir invitados",
+    "customFields": "Preguntas personalizadas",
+    "addField": "Agregar pregunta",
+    "fieldLabel": "Etiqueta",
+    "fieldName": "Clave",
+    "fieldRequired": "Obligatoria",
+    "fieldTypeText": "Texto",
+    "fieldTypeNumber": "Número",
+    "fieldTypeBoolean": "Sí / No",
+    "noFields": "Aún no hay preguntas personalizadas."
+  },
+  "availability": {
+    "title": "Disponibilidad",
+    "addRule": "Agregar regla",
+    "empty": "Aún no hay reglas de disponibilidad.",
+    "day": {
+      "0": "Domingo",
+      "1": "Lunes",
+      "2": "Martes",
+      "3": "Miércoles",
+      "4": "Jueves",
+      "5": "Viernes",
+      "6": "Sábado"
+    }
+  },
+  "blockedSlots": {
+    "title": "Bloqueos",
+    "add": "Bloquear",
+    "reasonPlaceholder": "Motivo (opcional)",
+    "empty": "No hay bloqueos."
+  },
+  "errors": {
+    "invalid_slug": "Slug inválido. Usá solo letras minúsculas, números y guiones.",
+    "slug_taken": "Ese slug ya está en uso.",
+    "invalid_input": "Algunos campos son inválidos. Revisalos e intentá de nuevo.",
+    "generic": "Algo salió mal. Probá de nuevo."
+  }
+}

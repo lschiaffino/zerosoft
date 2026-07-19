@@ -7,6 +7,7 @@ import CommandSearch from '@/components/app/CommandSearch';
 import '@/styles/link.css';
 import '@/styles/crm.css';
 import '@/styles/docs.css';
+import '@/styles/calendar.css';
 import '@/styles/app.css';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,7 @@ export default async function AppLayout({
   const tLink = await getTranslations({ locale, namespace: 'link' });
   const tCrm = await getTranslations({ locale, namespace: 'crm' });
   const tDocs = await getTranslations({ locale, namespace: 'docs' });
+  const tCalendar = await getTranslations({ locale, namespace: 'calendar' });
   const tasksDue = await countDueTasks(user.id);
 
   return (
@@ -54,6 +56,7 @@ export default async function AppLayout({
           newTask: tSide('newTask'),
           newLink: tSide('newLink'),
           newDocPage: tSide('newDocPage'),
+          newEventType: tSide('newEventType'),
           team: tSide('team'),
           link: {
             overview: tLink('tabs.overview'),
@@ -75,6 +78,12 @@ export default async function AppLayout({
             overview: tDocs('sidebar.overview'),
             pages: tDocs('sidebar.pages'),
             new: tDocs('sidebar.new'),
+          },
+          calendar: {
+            overview: tCalendar('sidebar.overview'),
+            eventTypes: tCalendar('sidebar.eventTypes'),
+            availability: tCalendar('sidebar.availability'),
+            settings: tCalendar('sidebar.settings'),
           },
         }}
       />

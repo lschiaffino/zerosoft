@@ -518,6 +518,76 @@ const DDL = `
     );
     CREATE INDEX IF NOT EXISTS idx_docs_shares_page ON docs_shares(page_id);
     CREATE INDEX IF NOT EXISTS idx_docs_shares_target ON docs_shares(kind, target_id);
+
+    -- ---------- Calendar ----------
+
+    CREATE TABLE IF NOT EXISTS calendar_users (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      timezone TEXT NOT NULL DEFAULT 'UTC',
+      week_start INTEGER NOT NULL DEFAULT 1 CHECK (week_start BETWEEN 0 AND 6),
+      buffer_before_min INTEGER NOT NULL DEFAULT 0 CHECK (buffer_before_min >= 0),
+      buffer_after_min INTEGER NOT NULL DEFAULT 0 CHECK (buffer_after_min >= 0),
+      min_notice_hours INTEGER NOT NULL DEFAULT 0 CHECK (min_notice_hours >= 0),
+      max_booking_days INTEGER NOT NULL DEFAULT 30 CHECK (max_booking_days >= 1),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS calendar_event_types (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
+      slug TEXT NOT NULL,
+      title TEXT NOT NULL,
+      duration_min INTEGER NOT NULL CHECK (duration_min >= 1),
+      location TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      color TEXT NOT NULL DEFAULT '#000000',
+      active INTEGER NOT NULL DEFAULT 1,
+      booking_rules TEXT NOT NULL DEFAULT '{}',
+      fields TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_event_types_user_slug ON calendar_event_types(user_id, slug);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_event_types_team_slug ON calendar_event_types(team_id, slug) WHERE team_id IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_calendar_event_types_user ON calendar_event_types(user_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS calendar_availability (
+      id TEXT PRIMARY KEY,
+      event_type_id TEXT NOT NULL REFERENCES calendar_event_types(id) ON DELETE CASCADE,
+      day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_calendar_availability_event_type ON calendar_availability(event_type_id);
+
+    CREATE TABLE IF NOT EXISTS calendar_bookings (
+      id TEXT PRIMARY KEY,
+      event_type_id TEXT NOT NULL REFERENCES calendar_event_types(id) ON DELETE CASCADE,
+      invitee_email TEXT NOT NULL,
+      invitee_name TEXT NOT NULL DEFAULT '',
+      starts_at TEXT NOT NULL,
+      ends_at TEXT NOT NULL,
+      timezone TEXT NOT NULL DEFAULT 'UTC',
+      status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled', 'no_show')),
+      answers TEXT NOT NULL DEFAULT '{}',
+      cancel_reason TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_calendar_bookings_event_type ON calendar_bookings(event_type_id, starts_at);
+    CREATE INDEX IF NOT EXISTS idx_calendar_bookings_starts_at ON calendar_bookings(starts_at);
+
+    CREATE TABLE IF NOT EXISTS calendar_blocked_slots (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      starts_at TEXT NOT NULL,
+      ends_at TEXT NOT NULL,
+      reason TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_calendar_blocked_slots_user ON calendar_blocked_slots(user_id, starts_at);
   `;
 
 // ---------- Tipos ----------
@@ -836,6 +906,69 @@ export interface DocsShareRow {
   kind: 'public' | 'team' | 'user';
   target_id: string | null;
   created_at: string;
+}
+
+// ---------- Calendar ----------
+
+export interface CalendarUserRow {
+  id: string;
+  user_id: string;
+  timezone: string;
+  week_start: number;
+  buffer_before_min: number;
+  buffer_after_min: number;
+  min_notice_hours: number;
+  max_booking_days: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalendarEventTypeRow {
+  id: string;
+  user_id: string;
+  team_id: string | null;
+  slug: string;
+  title: string;
+  duration_min: number;
+  location: string;
+  description: string;
+  color: string;
+  active: 0 | 1;
+  booking_rules: string; // JSON CalendarBookingRules
+  fields: string; // JSON CalendarCustomField[]
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalendarAvailabilityRow {
+  id: string;
+  event_type_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+}
+
+export interface CalendarBookingRow {
+  id: string;
+  event_type_id: string;
+  invitee_email: string;
+  invitee_name: string;
+  starts_at: string;
+  ends_at: string;
+  timezone: string;
+  status: 'confirmed' | 'cancelled' | 'no_show';
+  answers: string; // JSON object
+  cancel_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalendarBlockedSlotRow {
+  id: string;
+  user_id: string;
+  starts_at: string;
+  ends_at: string;
+  reason: string | null;
 }
 
 // ---------- Users ----------

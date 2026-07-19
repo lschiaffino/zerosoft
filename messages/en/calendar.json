@@ -1,0 +1,87 @@
+{
+  "sidebar": {
+    "overview": "Overview",
+    "eventTypes": "Event types",
+    "availability": "Availability",
+    "settings": "Settings"
+  },
+  "common": {
+    "viewAll": "View all",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved ✓",
+    "create": "Create",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "back": "← Back"
+  },
+  "overview": {
+    "title": "Calendar",
+    "eventTypes": "Event types",
+    "bookingsThisWeek": "Bookings this week",
+    "timezone": "Timezone"
+  },
+  "eventTypes": {
+    "title": "Event types",
+    "newCta": "+ New event type",
+    "newTitle": "New event type",
+    "newSub": "Create a booking link. Set duration, rules and questions.",
+    "back": "← All event types",
+    "minutes": "min",
+    "inactive": "Inactive",
+    "emptyTitle": "0 event types",
+    "emptySub": "Create your first event type and share your booking link.",
+    "emptyCta": "New event type"
+  },
+  "form": {
+    "title": "Title",
+    "slug": "URL slug",
+    "durationMin": "Duration (min)",
+    "color": "Color",
+    "active": "Active",
+    "location": "Location",
+    "locationPlaceholder": "Zoom, Google Meet, phone…",
+    "description": "Description",
+    "bookingRules": "Booking rules",
+    "bufferBefore": "Buffer before (min)",
+    "bufferAfter": "Buffer after (min)",
+    "minNotice": "Min. notice (hours)",
+    "maxFuture": "Max. future (days)",
+    "allowGuests": "Allow guests",
+    "customFields": "Custom questions",
+    "addField": "Add question",
+    "fieldLabel": "Label",
+    "fieldName": "Key",
+    "fieldRequired": "Required",
+    "fieldTypeText": "Text",
+    "fieldTypeNumber": "Number",
+    "fieldTypeBoolean": "Yes / No",
+    "noFields": "No custom questions yet."
+  },
+  "availability": {
+    "title": "Availability",
+    "addRule": "Add rule",
+    "empty": "No availability rules yet.",
+    "day": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    }
+  },
+  "blockedSlots": {
+    "title": "Blocked slots",
+    "add": "Block",
+    "reasonPlaceholder": "Reason (optional)",
+    "empty": "No blocked slots."
+  },
+  "errors": {
+    "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",
+    "slug_taken": "That slug is already in use.",
+    "invalid_input": "Some fields are invalid. Check them and try again.",
+    "generic": "Something went wrong. Try again."
+  }
+}

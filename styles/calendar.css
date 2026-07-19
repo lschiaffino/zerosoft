@@ -1,0 +1,200 @@
+/* ============================================================
+   Calendar — estilos mínimos monocromáticos.
+   ============================================================ */
+
+/* Layout */
+.calendar-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.calendar-detail-col {
+  min-width: 0;
+}
+
+@media (max-width: 1023px) {
+  .calendar-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Event list */
+.calendar-event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calendar-event-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.calendar-event-row:hover {
+  background: #f5f5f5;
+}
+
+.calendar-event-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.calendar-event-dot-large {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.calendar-event-title {
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-event-slug {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+/* Forms */
+.calendar-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.calendar-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calendar-form .checkbox-field,
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.calendar-form .checkbox-field .prop-label,
+.checkbox-field span {
+  margin: 0;
+}
+
+.calendar-form textarea.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.calendar-form input[type='color'].input {
+  padding: 2px;
+  height: 38px;
+  cursor: pointer;
+}
+
+/* Rules & fields panels */
+.rules-panel,
+.fields-panel {
+  padding: 16px;
+}
+
+.custom-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.custom-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .custom-field-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Availability editor */
+.availability-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.availability-row {
+  display: grid;
+  grid-template-columns: 1fr auto 32px auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 480px) {
+  .availability-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .availability-row .muted {
+    display: none;
+  }
+}
+
+/* Blocked slots */
+.blocked-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: end;
+}
+
+.blocked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.blocked-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+@media (max-width: 640px) {
+  .blocked-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Empty inline helpers */
+.empty-inline {
+  text-align: center;
+  padding: 24px;
+}
