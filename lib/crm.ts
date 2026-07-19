@@ -1880,6 +1880,23 @@ export async function listTasks(userId: string, filter: TaskBucket | ListTasksFi
     .all(...args)) as ActivityListRow[];
 }
 
+/** Busca tareas por subject, body o entidad asociada. */
+export async function searchTasks(userId: string, q: string): Promise<ActivityListRow[]> {
+  const db = getDb();
+  const like = `%${escapeLike(q)}%`;
+  return (await db
+    .prepare(
+      `${ACTIVITY_SELECT}
+       WHERE a.user_id = ? AND a.type = 'task'
+         AND (a.subject LIKE ? ESCAPE '\\' OR a.body LIKE ? ESCAPE '\\'
+              OR c.first_name LIKE ? ESCAPE '\\' OR c.last_name LIKE ? ESCAPE '\\'
+              OR co.name LIKE ? ESCAPE '\\' OR d.name LIKE ? ESCAPE '\\')
+       ORDER BY a.updated_at DESC
+       LIMIT 10`,
+    )
+    .all(userId, like, like, like, like, like, like)) as ActivityListRow[];
+}
+
 /** Tareas abiertas vencidas o que vencen hoy (badge de la sidebar). */
 export async function countDueTasks(userId: string): Promise<number> {
   const { end } = todayRange();

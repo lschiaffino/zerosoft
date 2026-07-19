@@ -1,0 +1,347 @@
+/* ============================================
+   API DOCS — Two-column reference, monochrome.
+   ============================================ */
+
+.api-docs {
+  display: flex;
+  align-items: flex-start;
+  gap: 48px;
+  padding-top: 120px;
+  padding-bottom: 140px;
+}
+
+/* ---------- Sidebar ---------- */
+
+.api-docs-sidebar {
+  position: sticky;
+  top: 100px;
+  width: 260px;
+  flex-shrink: 0;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding-right: 16px;
+}
+
+.api-docs-nav-section {
+  margin-bottom: 22px;
+}
+
+.api-docs-nav-section-title {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+  color: var(--ink);
+  transition: color 0.2s;
+}
+
+.api-docs-nav-section-title:hover { color: var(--dim); }
+
+.api-docs-nav-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.api-docs-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: #6a6a6a;
+  padding: 5px 0;
+  transition: color 0.2s;
+}
+
+.api-docs-nav-link:hover { color: var(--ink); }
+
+.method-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink);
+  flex-shrink: 0;
+}
+
+/* ---------- Content ---------- */
+
+.api-docs-content {
+  flex: 1;
+  min-width: 0;
+  padding-right: 32px;
+}
+
+.api-docs-hero {
+  padding-top: 30px;
+  padding-bottom: 60px;
+}
+
+.api-docs-body {
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+}
+
+.api-docs-base { margin-bottom: -24px; }
+
+.api-docs-section h2 {
+  font-size: clamp(1.8rem, 3.2vw, 2.6rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  margin-bottom: 12px;
+}
+
+.api-docs-section > p {
+  max-width: 70ch;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: #4a4a4a;
+  margin-bottom: 32px;
+}
+
+/* ---------- Endpoint section ---------- */
+
+.endpoint-section {
+  border-top: 1px solid var(--line);
+  padding-top: 34px;
+  padding-bottom: 34px;
+}
+
+.endpoint-section-head {
+  margin-bottom: 16px;
+}
+
+.endpoint-section-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  margin-bottom: 10px;
+}
+
+.endpoint-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.method {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 6px;
+  padding: 5px 10px;
+  text-transform: uppercase;
+}
+
+.endpoint-path {
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  word-break: break-all;
+}
+
+.endpoint-desc {
+  max-width: 70ch;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: #4a4a4a;
+  margin-bottom: 22px;
+}
+
+/* ---------- Params table ---------- */
+
+.params-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 26px;
+}
+
+.params-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.params-table th {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  font-weight: 400;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.params-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: top;
+  color: #3a3a3a;
+}
+
+.params-table td code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: #f5f5f5;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+/* ---------- Code tabs ---------- */
+
+.code-tabs {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 28px;
+  background: #fafafa;
+}
+
+.code-tabs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.code-tabs-list {
+  display: flex;
+  gap: 4px;
+}
+
+.code-tab {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: #6a6a6a;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.code-tab:hover { color: var(--ink); }
+.code-tab.active { background: #f0f0f0; color: var(--ink); }
+
+.code-copy {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  color: var(--ink);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.code-copy:hover { background: #f0f0f0; border-color: #c8c8c8; }
+
+.code-block {
+  background: #0d0d0d;
+  color: #f4f4f4;
+  padding: 20px 22px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.code-block code {
+  font-family: inherit;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* ---------- JSON blocks ---------- */
+
+.json-block-wrap {
+  margin-bottom: 28px;
+}
+
+.json-block-wrap .code-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+  margin-bottom: 10px;
+}
+
+/* ---------- Hero reuse ---------- */
+
+.api-docs-hero .section-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 18px;
+}
+
+.api-docs-hero .doc-title {
+  font-size: clamp(2.8rem, 6vw, 4.8rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.api-docs-hero .doc-title .dim { color: var(--dim); }
+
+.api-docs-hero .doc-intro {
+  margin-top: 26px;
+  max-width: 56ch;
+  font-size: 1.06rem;
+  line-height: 1.65;
+  color: #4a4a4a;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 960px) {
+  .api-docs {
+    flex-direction: column;
+    gap: 32px;
+    padding-top: 110px;
+  }
+
+  .api-docs-sidebar {
+    position: relative;
+    top: auto;
+    width: 100%;
+    max-height: none;
+    padding: 0 32px;
+  }
+
+  .api-docs-nav {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .api-docs-content {
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .api-docs-nav { grid-template-columns: 1fr; }
+  .code-tabs-header { flex-wrap: wrap; }
+  .code-tabs-list { order: 2; width: 100%; }
+  .code-copy { order: 1; margin-left: auto; }
+}

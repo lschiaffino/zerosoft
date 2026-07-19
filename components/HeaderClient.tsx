@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { signIn, signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -24,11 +24,65 @@ const PRODUCTS = [
   { key: 'track', num: '02', href: '/products/track' },
   { key: 'crm', num: '03', href: '/products/crm' },
   { key: 'cal', num: '04', href: '/products/cal' },
+  { key: 'docs', num: '05', href: '/docs' },
 ] as const;
 
+const PRODUCT_NAMES: Record<(typeof PRODUCTS)[number]['key'], string> = {
+  link: 'Link',
+  track: 'Track',
+  crm: 'CRM',
+  cal: 'Cal',
+  docs: 'Docs',
+};
+
 export default function HeaderClient({ locale, user, labels }: HeaderClientProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tp = useTranslations('common.products');
+
+  const openDesktop = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setDesktopOpen(true);
+  };
+
+  const closeDesktop = () => {
+    closeTimer.current = setTimeout(() => {
+      setDesktopOpen(false);
+    }, 240);
+  };
+
+  const toggleMobile = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    setMobileOpen((v) => !v);
+  };
+
+  // Close mobile menu when clicking outside the dropdown.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.nav-dropdown')) setMobileOpen(false);
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [mobileOpen]);
+
+  const megaItems = (
+    <>
+      {PRODUCTS.map((p) => (
+        <Link key={p.key} href={p.href} className="mega-item">
+          <span className="mega-num">{p.num}</span>
+          <span className="mega-name">{PRODUCT_NAMES[p.key]}</span>
+          <span className="mega-tag">{tp(`${p.key}.tag`)}</span>
+          <span className="mega-status">{tp(`${p.key}.status`)}</span>
+        </Link>
+      ))}
+    </>
+  );
 
   return (
     <header className="site-header">
@@ -42,28 +96,34 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
 
         <div
           className="nav-dropdown"
-          onMouseEnter={() => setMenuOpen(true)}
-          onMouseLeave={() => setMenuOpen(false)}
+          onMouseEnter={openDesktop}
+          onMouseLeave={closeDesktop}
         >
-          <Link className="nav-link" href="/products">
+          {/* Desktop trigger: hover-activated */}
+          <Link className="nav-link nav-dropdown-trigger-desktop" href="/products">
             <span className="nav-num">01</span>
             {labels.products}
           </Link>
 
-          {menuOpen && (
-            <div className="mega-menu">
-              <div className="mega-menu-inner">
-                {PRODUCTS.map((p) => (
-                  <Link key={p.key} href={p.href} className="mega-item">
-                    <span className="mega-num">{p.num}</span>
-                    <span className="mega-name">
-                      {p.key === 'crm' ? 'CRM' : p.key === 'cal' ? 'Cal' : p.key === 'link' ? 'Link' : 'Track'}
-                    </span>
-                    <span className="mega-tag">{tp(`${p.key}.tag`)}</span>
-                    <span className="mega-status">{tp(`${p.key}.status`)}</span>
-                  </Link>
-                ))}
-              </div>
+          {/* Mobile trigger: click/touch-activated */}
+          <button
+            type="button"
+            className="nav-link nav-dropdown-trigger-mobile"
+            aria-expanded={mobileOpen}
+            onClick={toggleMobile}
+          >
+            <span className="nav-num">01</span>
+            {labels.products}
+          </button>
+
+          {desktopOpen && (
+            <div className="mega-menu mega-menu-desktop">
+              <div className="mega-menu-inner">{megaItems}</div>
+            </div>
+          )}
+          {mobileOpen && (
+            <div className="mega-menu mega-menu-mobile">
+              <div className="mega-menu-inner">{megaItems}</div>
             </div>
           )}
         </div>

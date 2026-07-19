@@ -30,12 +30,18 @@
     "newTask": "Nueva tarea",
     "newLink": "Nuevo link",
     "newDocPage": "Nueva página",
+    "newEventType": "Nuevo tipo de evento",
     "team": "Equipo",
-    "searchPlaceholder": "Buscá contactos, empresas, deals…",
-    "searchPlaceholderLinks": "Buscá links…",
+    "searchPlaceholder": "Buscá cualquier cosa…",
     "searchEmpty": "0 resultados. Probá otra cosa.",
     "searchLoading": "Buscando…",
-    "actions": "Acciones"
+    "actions": "Acciones",
+    "groupContacts": "Contactos",
+    "groupCompanies": "Empresas",
+    "groupDeals": "Deals",
+    "groupLinks": "Links",
+    "groupDocs": "Docs",
+    "groupTasks": "Tareas"
   },
   "hero": {
     "title1": "El software",

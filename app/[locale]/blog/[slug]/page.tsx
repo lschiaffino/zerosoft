@@ -1,18 +1,35 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import { Link } from '@/i18n/navigation';
 import { getPost, getAllSlugs } from '@/lib/blog';
 import { formatDate } from '@/lib/utils';
-import ZeroField from '@/components/ZeroField';
+import BlogCover from '@/components/BlogCover';
 
 export async function generateMetadata({
   params: { locale, slug },
 }: {
   params: { locale: string; slug: string };
-}) {
+}): Promise<Metadata> {
   const post = getPost(locale, slug);
   if (!post) return {};
-  return { title: post.title, description: post.description };
+  return {
+    title: post.title,
+    description: post.description,
+    openGraph: {
+      title: post.title,
+      description: post.description,
+      type: 'article',
+      url: `/${locale}/blog/${slug}`,
+      images: [`/api/og/blog/${slug}`],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: post.description,
+      images: [`/api/og/blog/${slug}`],
+    },
+  };
 }
 
 export function generateStaticParams() {
@@ -34,13 +51,7 @@ export default async function BlogPostPage({
     <main className="container" style={{ paddingTop: 100, paddingBottom: 140 }}>
       <article>
         <div className="blog-post-cover" aria-hidden="true">
-          <ZeroField
-            align="center"
-            sizeFactor={0.85}
-            color="255,255,255"
-            interactive={false}
-            alpha={0.22}
-          />
+          <BlogCover slug={post.slug} title={post.title} variant="hero" />
         </div>
         <header className="blog-post-header">
           <p className="blog-post-meta">

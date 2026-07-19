@@ -8,7 +8,7 @@ export default async function Footer({ locale }: { locale: string }) {
   return (
     <footer className="site-footer">
       <div className="footer-zero-band" aria-hidden="true">
-        <ZeroField align="center" sizeFactor={0.95} color="255,255,255" interactive={false} alpha={0.16} />
+        <ZeroField align="center" sizeFactor={0.52} color="255,255,255" interactive={false} alpha={0.16} />
       </div>
 
       <div className="footer-grid">
@@ -33,8 +33,8 @@ export default async function Footer({ locale }: { locale: string }) {
         <div className="footer-col">
           <h4>{t('colResources')}</h4>
           <ul>
+            <li><Link href="/docs">Docs</Link></li>
             <li><Link href="/blog">Blog</Link></li>
-            <li><Link href="/docs">API Docs</Link></li>
             <li><Link href="/status">Status</Link></li>
           </ul>
         </div>

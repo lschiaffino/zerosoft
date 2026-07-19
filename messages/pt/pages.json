@@ -29,10 +29,30 @@
       "label": "0.04 — Roadmap",
       "title": "O plano, em aberto.",
       "titleDim": "Zero segredos.",
-      "i1": { "when": "2026 · Q3", "name": "Link", "what": "Links curtos com métricas reais, QR codes e API pública.", "state": "Lançado" },
-      "i2": { "when": "2026 · Q4", "name": "Track", "what": "Gestão de projetos keyboard-first. Issues, ciclos, roadmaps.", "state": "Em construção" },
-      "i3": { "when": "2026 · Q3", "name": "CRM", "what": "Contatos, pipelines e relatórios sem licenças por usuário.", "state": "Lançado" },
-      "i4": { "when": "2027 · Q2", "name": "Cal", "what": "Links de agendamento com detecção de fuso e round-robin.", "state": "Planejado" }
+      "i1": {
+        "when": "2026 · Q3",
+        "name": "Link",
+        "what": "Links curtos com métricas reais, QR codes e API pública.",
+        "state": "Lançado"
+      },
+      "i2": {
+        "when": "2026 · Q4",
+        "name": "Track",
+        "what": "Gestão de projetos keyboard-first. Issues, ciclos, roadmaps.",
+        "state": "Em construção"
+      },
+      "i3": {
+        "when": "2026 · Q3",
+        "name": "CRM",
+        "what": "Contatos, pipelines e relatórios sem licenças por usuário.",
+        "state": "Lançado"
+      },
+      "i4": {
+        "when": "2027 · Q2",
+        "name": "Cal",
+        "what": "Links de agendamento com detecção de fuso e round-robin.",
+        "state": "Planejado"
+      }
     },
     "cta": {
       "label": "0.05 — Junte-se",
@@ -52,15 +72,42 @@
       },
       "featuresTitle": "Tudo o que você precisa.",
       "featuresTitleDim": "Nada pelo que você paga.",
-      "f1": { "t": "Aliases personalizados", "d": "Escolha seu próprio slug: zs.ai/launch lê melhor do que sete caracteres aleatórios. Marque, lembre, compartilhe." },
-      "f2": { "t": "Métricas reais", "d": "Cliques por dia, referrer, país, dispositivo, navegador e SO. Sem cookies, sem fingerprinting, honestas." },
-      "f3": { "t": "QR codes", "d": "Todo link tem um QR instantâneo em SVG ou PNG. Imprima, projete, publique." },
-      "f4": { "t": "Proteção por senha", "d": "Trave um link com senha. Só entra quem você escolher." },
-      "f5": { "t": "Expiração e limites", "d": "Defina uma data de expiração ou um máximo de cliques. O link se aposenta sozinho." },
-      "f6": { "t": "Tags e busca", "d": "Etiquete links por campanha, cliente ou canal. Encontre tudo em segundos." },
-      "f7": { "t": "Construtor UTM", "d": "Crie URLs de campanha sem planilha. Source, medium, campaign — pronto." },
-      "f8": { "t": "API pública v1", "d": "Crie e meça links a partir do seu código com uma API REST simples e chaves pessoais." },
-      "f9": { "t": "Seus dados, exportáveis", "d": "Tudo é seu. Exporte, faça backup, leve para casa. Sem reféns." },
+      "f1": {
+        "t": "Aliases personalizados",
+        "d": "Escolha seu próprio slug: zs.ai/launch lê melhor do que sete caracteres aleatórios. Marque, lembre, compartilhe."
+      },
+      "f2": {
+        "t": "Métricas reais",
+        "d": "Cliques por dia, referrer, país, dispositivo, navegador e SO. Sem cookies, sem fingerprinting, honestas."
+      },
+      "f3": {
+        "t": "QR codes",
+        "d": "Todo link tem um QR instantâneo em SVG ou PNG. Imprima, projete, publique."
+      },
+      "f4": {
+        "t": "Proteção por senha",
+        "d": "Trave um link com senha. Só entra quem você escolher."
+      },
+      "f5": {
+        "t": "Expiração e limites",
+        "d": "Defina uma data de expiração ou um máximo de cliques. O link se aposenta sozinho."
+      },
+      "f6": {
+        "t": "Tags e busca",
+        "d": "Etiquete links por campanha, cliente ou canal. Encontre tudo em segundos."
+      },
+      "f7": {
+        "t": "Construtor UTM",
+        "d": "Crie URLs de campanha sem planilha. Source, medium, campaign — pronto."
+      },
+      "f8": {
+        "t": "API pública v1",
+        "d": "Crie e meça links a partir do seu código com uma API REST simples e chaves pessoais."
+      },
+      "f9": {
+        "t": "Seus dados, exportáveis",
+        "d": "Tudo é seu. Exporte, faça backup, leve para casa. Sem reféns."
+      },
       "compare": {
         "rival": "Bitly",
         "price": "US$ 35",
@@ -70,11 +117,26 @@
         "note": "O Bitly Core custa US$ 35 por mês — US$ 420 por ano, todo ano. Um time de 10 com preço por assento passa fácil de US$ 4.200 por ano. O Link custa $0. Para sempre."
       },
       "faq": {
-        "f1": { "q": "É grátis de verdade?", "a": "Sim. O código é open source e self-hospedar não custa nada. Se rodarmos para você, você paga apenas a nuvem que ele consome — ao custo, sem margem. O software nunca foi a parte cara; era o modelo de negócio." },
-        "f2": { "q": "Posso migrar meus links do Bitly?", "a": "Sim. Exporte seus links do Bitly em CSV e importe: destinos, aliases e tags vêm junto. Aponte seu domínio curto antigo para nós e os links existentes continuam funcionando." },
-        "f3": { "q": "E se a Zerosoft fechar?", "a": "Nada de ruim. O código é open source, então qualquer um pode rodá-lo para sempre. Você pode exportar cada link e cada clique a qualquer momento, e self-hospedar leva um comando. Seus links nunca podem ser reféns." },
-        "f4": { "q": "Posso self-hospedar?", "a": "Essa é a ideia. Clone o repositório, rode em qualquer servidor com Node e SQLite, aponte seu domínio curto, pronto. Sem chave de licença, sem phone-home, sem tier enterprise." },
-        "f5": { "q": "Meus links expiram algum dia?", "a": "Só se você mandar. Links nunca expiram sozinhos e nunca ficam presos atrás de um paywall. Expiração é uma feature que você controla, não uma ameaça que usamos." }
+        "f1": {
+          "q": "É grátis de verdade?",
+          "a": "Sim. O código é open source e self-hospedar não custa nada. Se rodarmos para você, você paga apenas a nuvem que ele consome — ao custo, sem margem. O software nunca foi a parte cara; era o modelo de negócio."
+        },
+        "f2": {
+          "q": "Posso migrar meus links do Bitly?",
+          "a": "Sim. Exporte seus links do Bitly em CSV e importe: destinos, aliases e tags vêm junto. Aponte seu domínio curto antigo para nós e os links existentes continuam funcionando."
+        },
+        "f3": {
+          "q": "E se a Zerosoft fechar?",
+          "a": "Nada de ruim. O código é open source, então qualquer um pode rodá-lo para sempre. Você pode exportar cada link e cada clique a qualquer momento, e self-hospedar leva um comando. Seus links nunca podem ser reféns."
+        },
+        "f4": {
+          "q": "Posso self-hospedar?",
+          "a": "Essa é a ideia. Clone o repositório, rode em qualquer servidor com Node e SQLite, aponte seu domínio curto, pronto. Sem chave de licença, sem phone-home, sem tier enterprise."
+        },
+        "f5": {
+          "q": "Meus links expiram algum dia?",
+          "a": "Só se você mandar. Links nunca expiram sozinhos e nunca ficam presos atrás de um paywall. Expiração é uma feature que você controla, não uma ameaça que usamos."
+        }
       },
       "cta": {
         "label": "Link — 0.05",
@@ -95,15 +157,42 @@
       },
       "featuresTitle": "Feito para velocidade.",
       "featuresTitleDim": "Preço de ar.",
-      "f1": { "t": "Keyboard-first", "d": "Toda ação tem um atalho. Crie, atribua, etiquete e feche issues sem tocar no mouse." },
-      "f2": { "t": "Ciclos", "d": "Trabalhe em ciclos focados de uma ou duas semanas. Escopo, entrega, revisão, repita." },
-      "f3": { "t": "Roadmaps", "d": "Planeje trimestres, não sprints. Cada projeto numa única linha do tempo que a empresa inteira consegue ler." },
-      "f4": { "t": "Sincronização instantânea", "d": "Mudanças aparecem em todo lugar em tempo real. Boards, listas e timelines sempre concordam." },
-      "f5": { "t": "Inbox de triagem", "d": "Issues novos caem na triagem. Aceite, mescle ou recuse antes que contaminem o backlog." },
-      "f6": { "t": "Labels e times", "d": "Estruture o trabalho do seu jeito: times, projetos, labels e status personalizados." },
-      "f7": { "t": "Estimativas", "d": "Pontue issues, acompanhe a velocidade, pare de adivinhar prazos." },
-      "f8": { "t": "Integrações Git", "d": "Feche issues a partir de commits e PRs. Branches nomeadas pelos tickets, automaticamente." },
-      "f9": { "t": "API e webhooks", "d": "Tudo o que a UI faz, a API faz. Automatize as partes chatas." },
+      "f1": {
+        "t": "Keyboard-first",
+        "d": "Toda ação tem um atalho. Crie, atribua, etiquete e feche issues sem tocar no mouse."
+      },
+      "f2": {
+        "t": "Ciclos",
+        "d": "Trabalhe em ciclos focados de uma ou duas semanas. Escopo, entrega, revisão, repita."
+      },
+      "f3": {
+        "t": "Roadmaps",
+        "d": "Planeje trimestres, não sprints. Cada projeto numa única linha do tempo que a empresa inteira consegue ler."
+      },
+      "f4": {
+        "t": "Sincronização instantânea",
+        "d": "Mudanças aparecem em todo lugar em tempo real. Boards, listas e timelines sempre concordam."
+      },
+      "f5": {
+        "t": "Inbox de triagem",
+        "d": "Issues novos caem na triagem. Aceite, mescle ou recuse antes que contaminem o backlog."
+      },
+      "f6": {
+        "t": "Labels e times",
+        "d": "Estruture o trabalho do seu jeito: times, projetos, labels e status personalizados."
+      },
+      "f7": {
+        "t": "Estimativas",
+        "d": "Pontue issues, acompanhe a velocidade, pare de adivinhar prazos."
+      },
+      "f8": {
+        "t": "Integrações Git",
+        "d": "Feche issues a partir de commits e PRs. Branches nomeadas pelos tickets, automaticamente."
+      },
+      "f9": {
+        "t": "API e webhooks",
+        "d": "Tudo o que a UI faz, a API faz. Automatize as partes chatas."
+      },
       "compare": {
         "rival": "Linear",
         "price": "US$ 8",
@@ -113,11 +202,26 @@
         "note": "O Linear Standard custa US$ 8 por usuário por mês. Um time de 10 paga US$ 960 por ano, todo ano, para sempre. O Track custa $0."
       },
       "faq": {
-        "f1": { "q": "É grátis de verdade?", "a": "Sim. Open source sob licença pública, então self-hospedar não custa nada. Nossa nuvem custa apenas a infraestrutura que consome — ao custo, 0% de margem." },
-        "f2": { "q": "Posso migrar do Linear?", "a": "Sim. Importe seu workspace do Linear: issues, labels, ciclos e histórico vêm via CSV ou pelo export da API do Linear. Seu time mantém a memória." },
-        "f3": { "q": "E se a Zerosoft fechar?", "a": "Você fica com tudo. O código é aberto, seus dados exportam limpos, e self-hospedar leva um comando. Não há lock-in para te prender." },
-        "f4": { "q": "Posso self-hospedar?", "a": "Com certeza. É a forma padrão de rodar qualquer produto Zerosoft: seu servidor, seus dados, suas regras. A nuvem existe só por conveniência." },
-        "f5": { "q": "Quando sai?", "a": "O Track sai no Q4 2026. Escreva para hola@zerosoft.ai e avisamos no dia em que abrir — e só nesse dia. Sem newsletter." }
+        "f1": {
+          "q": "É grátis de verdade?",
+          "a": "Sim. Open source sob licença pública, então self-hospedar não custa nada. Nossa nuvem custa apenas a infraestrutura que consome — ao custo, 0% de margem."
+        },
+        "f2": {
+          "q": "Posso migrar do Linear?",
+          "a": "Sim. Importe seu workspace do Linear: issues, labels, ciclos e histórico vêm via CSV ou pelo export da API do Linear. Seu time mantém a memória."
+        },
+        "f3": {
+          "q": "E se a Zerosoft fechar?",
+          "a": "Você fica com tudo. O código é aberto, seus dados exportam limpos, e self-hospedar leva um comando. Não há lock-in para te prender."
+        },
+        "f4": {
+          "q": "Posso self-hospedar?",
+          "a": "Com certeza. É a forma padrão de rodar qualquer produto Zerosoft: seu servidor, seus dados, suas regras. A nuvem existe só por conveniência."
+        },
+        "f5": {
+          "q": "Quando sai?",
+          "a": "O Track sai no Q4 2026. Escreva para hola@zerosoft.ai e avisamos no dia em que abrir — e só nesse dia. Sem newsletter."
+        }
       },
       "cta": {
         "label": "Track — 0.05",
@@ -138,15 +242,42 @@
       },
       "featuresTitle": "Todo o seu pipeline.",
       "featuresTitleDim": "Zero por assento.",
-      "f1": { "t": "Pipelines", "d": "Arraste deals pelas etapas que você definir. Um pipeline ou dez — sem preço por pipeline." },
-      "f2": { "t": "Contatos e empresas", "d": "Cada pessoa, cada empresa, cada interação em um só lugar. Pesquisável em milissegundos." },
-      "f3": { "t": "Sincronização de email", "d": "Conecte o Gmail e as conversas se anexam sozinhas ao contato certo. Automaticamente." },
-      "f4": { "t": "Atividades", "d": "Ligações, reuniões, notas e tarefas numa linha do tempo por deal. Nada cai." },
-      "f5": { "t": "Relatórios", "d": "Valor do pipeline, conversão por etapa, forecast por mês. Os números que sua reunião de segunda precisa." },
-      "f6": { "t": "Importe de qualquer lugar", "d": "CSV entra, CSV sai. Do HubSpot, do Pipedrive, ou de uma planilha chamada final_final2." },
-      "f7": { "t": "Permissões", "d": "Os times veem o que devem. Os admins veem tudo. Os auditores dormem tranquilos." },
-      "f8": { "t": "Automações", "d": "Se um deal trava por 7 dias, cutuque o dono. Regras simples, zero consultores." },
-      "f9": { "t": "API e webhooks", "d": "Sincronize seu billing, seu produto, seu data warehouse. Os dados são seus." },
+      "f1": {
+        "t": "Pipelines",
+        "d": "Arraste deals pelas etapas que você definir. Um pipeline ou dez — sem preço por pipeline."
+      },
+      "f2": {
+        "t": "Contatos e empresas",
+        "d": "Cada pessoa, cada empresa, cada interação em um só lugar. Pesquisável em milissegundos."
+      },
+      "f3": {
+        "t": "Sincronização de email",
+        "d": "Conecte o Gmail e as conversas se anexam sozinhas ao contato certo. Automaticamente."
+      },
+      "f4": {
+        "t": "Atividades",
+        "d": "Ligações, reuniões, notas e tarefas numa linha do tempo por deal. Nada cai."
+      },
+      "f5": {
+        "t": "Relatórios",
+        "d": "Valor do pipeline, conversão por etapa, forecast por mês. Os números que sua reunião de segunda precisa."
+      },
+      "f6": {
+        "t": "Importe de qualquer lugar",
+        "d": "CSV entra, CSV sai. Do HubSpot, do Pipedrive, ou de uma planilha chamada final_final2."
+      },
+      "f7": {
+        "t": "Permissões",
+        "d": "Os times veem o que devem. Os admins veem tudo. Os auditores dormem tranquilos."
+      },
+      "f8": {
+        "t": "Automações",
+        "d": "Se um deal trava por 7 dias, cutuque o dono. Regras simples, zero consultores."
+      },
+      "f9": {
+        "t": "API e webhooks",
+        "d": "Sincronize seu billing, seu produto, seu data warehouse. Os dados são seus."
+      },
       "compare": {
         "rival": "HubSpot",
         "price": "US$ 50",
@@ -156,11 +287,26 @@
         "note": "O HubSpot Sales Hub Professional começa perto de US$ 50 por usuário por mês. Dez vendedores: US$ 6.000 por ano — antes das taxas de onboarding. O CRM custa $0."
       },
       "faq": {
-        "f1": { "q": "É grátis de verdade?", "a": "Sim. O código é open source e self-hospedar não custa nada. A nuvem custa apenas a infraestrutura que consome, ao custo. Vendemos conveniência, nunca software." },
-        "f2": { "q": "Posso migrar do HubSpot?", "a": "Sim. Exporte contatos, empresas e deals do HubSpot e importe os CSVs. Pipelines e etapas mapeiam um a um, e as propriedades personalizadas vêm junto." },
-        "f3": { "q": "E se a Zerosoft fechar?", "a": "Para você, nada. O código é aberto, seus dados são exportáveis a qualquer momento, e a versão self-hosted continua rodando aconteça o que acontecer conosco." },
-        "f4": { "q": "Posso self-hospedar?", "a": "Sim — é o ponto do projeto. Seus dados de clientes são provavelmente os mais sensíveis que você tem; mantê-los no seu próprio servidor é uma feature, não um fardo." },
-        "f5": { "q": "Quando sai?", "a": "Já saiu. Abra, importe seus contatos e feche seu primeiro deal hoje — por $0, obviamente." }
+        "f1": {
+          "q": "É grátis de verdade?",
+          "a": "Sim. O código é open source e self-hospedar não custa nada. A nuvem custa apenas a infraestrutura que consome, ao custo. Vendemos conveniência, nunca software."
+        },
+        "f2": {
+          "q": "Posso migrar do HubSpot?",
+          "a": "Sim. Exporte contatos, empresas e deals do HubSpot e importe os CSVs. Pipelines e etapas mapeiam um a um, e as propriedades personalizadas vêm junto."
+        },
+        "f3": {
+          "q": "E se a Zerosoft fechar?",
+          "a": "Para você, nada. O código é aberto, seus dados são exportáveis a qualquer momento, e a versão self-hosted continua rodando aconteça o que acontecer conosco."
+        },
+        "f4": {
+          "q": "Posso self-hospedar?",
+          "a": "Sim — é o ponto do projeto. Seus dados de clientes são provavelmente os mais sensíveis que você tem; mantê-los no seu próprio servidor é uma feature, não um fardo."
+        },
+        "f5": {
+          "q": "Quando sai?",
+          "a": "Já saiu. Abra, importe seus contatos e feche seu primeiro deal hoje — por $0, obviamente."
+        }
       },
       "cta": {
         "label": "CRM — 0.05",
@@ -181,15 +327,42 @@
       },
       "featuresTitle": "Um link. Pronto.",
       "featuresTitleDim": "Zero emails de vai e volta.",
-      "f1": { "t": "Páginas de reserva", "d": "Um link por tipo de reunião: 15, 30 ou 60 minutos. Compartilhe e nunca mais envie horários por email." },
-      "f2": { "t": "Detecção de fuso", "d": "Convidados veem os horários no fuso deles, você no seu. Ninguém faz conta." },
-      "f3": { "t": "Buffers e limites", "d": "Margem antes e depois, máximo de reuniões por dia, aviso mínimo. Sua agenda, defendida." },
-      "f4": { "t": "Round-robin", "d": "Distribua reservas pelo time automaticamente. Justo por padrão." },
-      "f5": { "t": "Sincronização de agenda", "d": "Google Calendar de ida e volta. Blocos ocupados respeitados, convites escritos automaticamente." },
-      "f6": { "t": "Confirmações e lembretes", "d": "Emails automáticos de reserva, lembrete e cancelamento. As ausências caem." },
-      "f7": { "t": "Perguntas personalizadas", "d": "Pergunte o que precisar antes da chamada: pauta, telefone, qualquer coisa." },
-      "f8": { "t": "Incorporável em qualquer lugar", "d": "Coloque sua página de reservas em qualquer site com um snippet." },
-      "f9": { "t": "API e webhooks", "d": "Crie tipos de evento e leia reservas a partir das suas próprias ferramentas." },
+      "f1": {
+        "t": "Páginas de reserva",
+        "d": "Um link por tipo de reunião: 15, 30 ou 60 minutos. Compartilhe e nunca mais envie horários por email."
+      },
+      "f2": {
+        "t": "Detecção de fuso",
+        "d": "Convidados veem os horários no fuso deles, você no seu. Ninguém faz conta."
+      },
+      "f3": {
+        "t": "Buffers e limites",
+        "d": "Margem antes e depois, máximo de reuniões por dia, aviso mínimo. Sua agenda, defendida."
+      },
+      "f4": {
+        "t": "Round-robin",
+        "d": "Distribua reservas pelo time automaticamente. Justo por padrão."
+      },
+      "f5": {
+        "t": "Sincronização de agenda",
+        "d": "Google Calendar de ida e volta. Blocos ocupados respeitados, convites escritos automaticamente."
+      },
+      "f6": {
+        "t": "Confirmações e lembretes",
+        "d": "Emails automáticos de reserva, lembrete e cancelamento. As ausências caem."
+      },
+      "f7": {
+        "t": "Perguntas personalizadas",
+        "d": "Pergunte o que precisar antes da chamada: pauta, telefone, qualquer coisa."
+      },
+      "f8": {
+        "t": "Incorporável em qualquer lugar",
+        "d": "Coloque sua página de reservas em qualquer site com um snippet."
+      },
+      "f9": {
+        "t": "API e webhooks",
+        "d": "Crie tipos de evento e leia reservas a partir das suas próprias ferramentas."
+      },
       "compare": {
         "rival": "Calendly",
         "price": "US$ 12",
@@ -199,11 +372,26 @@
         "note": "O Calendly Standard custa cerca de US$ 12 por usuário por mês. Dez pessoas agendando: US$ 1.440 por ano, todo ano. O Cal custa $0."
       },
       "faq": {
-        "f1": { "q": "É grátis de verdade?", "a": "Sim. Open source, então self-hospedar não custa nada. Se rodarmos para você, você paga apenas a nuvem ao custo. Agendar são bits e uma API de calendário — nunca valeu US$ 12 por mês." },
-        "f2": { "q": "Posso migrar do Calendly?", "a": "Recriar seus tipos de evento leva minutos — durações, buffers e perguntas mapeiam direto. Seus links antigos podem redirecionar para os novos, então nada quebra." },
-        "f3": { "q": "E se a Zerosoft fechar?", "a": "Você nem perceberia. Self-hospede o mesmo código no seu servidor, exporte suas reservas, e seus links continuam funcionando no seu domínio." },
-        "f4": { "q": "Posso self-hospedar?", "a": "Sim. Clone, rode, conecte sua agenda, compartilhe seu link. Sem servidor de licença, sem feature flags, sem tier premium escondendo as partes boas." },
-        "f5": { "q": "Quando sai?", "a": "O Cal sai no Q2 2027. Escreva para hola@zerosoft.ai e avisamos no momento em que abrir." }
+        "f1": {
+          "q": "É grátis de verdade?",
+          "a": "Sim. Open source, então self-hospedar não custa nada. Se rodarmos para você, você paga apenas a nuvem ao custo. Agendar são bits e uma API de calendário — nunca valeu US$ 12 por mês."
+        },
+        "f2": {
+          "q": "Posso migrar do Calendly?",
+          "a": "Recriar seus tipos de evento leva minutos — durações, buffers e perguntas mapeiam direto. Seus links antigos podem redirecionar para os novos, então nada quebra."
+        },
+        "f3": {
+          "q": "E se a Zerosoft fechar?",
+          "a": "Você nem perceberia. Self-hospede o mesmo código no seu servidor, exporte suas reservas, e seus links continuam funcionando no seu domínio."
+        },
+        "f4": {
+          "q": "Posso self-hospedar?",
+          "a": "Sim. Clone, rode, conecte sua agenda, compartilhe seu link. Sem servidor de licença, sem feature flags, sem tier premium escondendo as partes boas."
+        },
+        "f5": {
+          "q": "Quando sai?",
+          "a": "O Cal sai no Q2 2027. Escreva para hola@zerosoft.ai e avisamos no momento em que abrir."
+        }
       },
       "cta": {
         "label": "Cal — 0.05",
@@ -224,15 +412,42 @@
       },
       "featuresTitle": "Escreva juntos.",
       "featuresTitleDim": "Seja dono de tudo.",
-      "f1": { "t": "Editor de blocos", "d": "Parágrafos, títulos, listas, to-dos, citações, blocos de código e tabelas. Digite '/' e continue escrevendo." },
-      "f2": { "t": "Páginas aninhadas", "d": "Organize páginas em uma árvore. Arraste páginas para reordenar ou aninhá-las sob qualquer pai." },
-      "f3": { "t": "Menções a páginas", "d": "Digite [[ para vincular outra página. As menções permanecem conectadas mesmo que os títulos mudem." },
-      "f4": { "t": "Compartilhamento", "d": "Torne uma página pública, compartilhe com um time ou com um usuário. Você controla cada porta." },
-      "f5": { "t": "Sem cobrança por usuário", "d": "Convide toda a sua empresa. O preço não muda porque mais pessoas leem documentos." },
-      "f6": { "t": "Dados abertos", "d": "Cada página é armazenada como JSON limpo. Exporte, migre ou faça backup com um comando." },
-      "f7": { "t": "Busca rápida", "d": "Encontre páginas por título em milissegundos. A busca que você realmente precisa, não aquela que cobram extra." },
-      "f8": { "t": "Foco monocromático", "d": "Sem cores neon ou interface barulhenta. Apenas você, as palavras e a estrutura." },
-      "f9": { "t": "Self-hospedável", "d": "Seus documentos ficam no seu servidor se você quiser. Sem lock-in de fornecedor, nunca." },
+      "f1": {
+        "t": "Editor de blocos",
+        "d": "Parágrafos, títulos, listas, to-dos, citações, blocos de código e tabelas. Digite '/' e continue escrevendo."
+      },
+      "f2": {
+        "t": "Páginas aninhadas",
+        "d": "Organize páginas em uma árvore. Arraste páginas para reordenar ou aninhá-las sob qualquer pai."
+      },
+      "f3": {
+        "t": "Menções a páginas",
+        "d": "Digite [[ para vincular outra página. As menções permanecem conectadas mesmo que os títulos mudem."
+      },
+      "f4": {
+        "t": "Compartilhamento",
+        "d": "Torne uma página pública, compartilhe com um time ou com um usuário. Você controla cada porta."
+      },
+      "f5": {
+        "t": "Sem cobrança por usuário",
+        "d": "Convide toda a sua empresa. O preço não muda porque mais pessoas leem documentos."
+      },
+      "f6": {
+        "t": "Dados abertos",
+        "d": "Cada página é armazenada como JSON limpo. Exporte, migre ou faça backup com um comando."
+      },
+      "f7": {
+        "t": "Busca rápida",
+        "d": "Encontre páginas por título em milissegundos. A busca que você realmente precisa, não aquela que cobram extra."
+      },
+      "f8": {
+        "t": "Foco monocromático",
+        "d": "Sem cores neon ou interface barulhenta. Apenas você, as palavras e a estrutura."
+      },
+      "f9": {
+        "t": "Self-hospedável",
+        "d": "Seus documentos ficam no seu servidor se você quiser. Sem lock-in de fornecedor, nunca."
+      },
       "compare": {
         "rival": "Notion",
         "price": "US$ 10",
@@ -242,11 +457,26 @@
         "note": "O Notion Plus começa em cerca de US$ 10 por usuário por mês. Um time de dez paga US$ 1.200 por ano. O Docs custa $0."
       },
       "faq": {
-        "f1": { "q": "É grátis de verdade?", "a": "Sim. Open source e self-hospedável por $0. Se rodarmos para você, você paga apenas a nuvem ao custo. Sem taxas por usuário." },
-        "f2": { "q": "Posso migrar do Notion?", "a": "Exporte suas páginas do Notion como Markdown e cole-as no Docs. A importação automática completa está no roadmap." },
-        "f3": { "q": "E se a Zerosoft fechar?", "a": "Você fica com seus documentos. Exporte tudo como JSON ou Markdown, self-hospede o mesmo código e continue escrevendo." },
-        "f4": { "q": "Posso self-hospedar?", "a": "Sim. Seus documentos são seus. Rode o Docs no seu próprio servidor com Node e SQLite em minutos." },
-        "f5": { "q": "Quando sai?", "a": "O Docs já está disponível. Abra-o e escreva sua primeira página — por $0." }
+        "f1": {
+          "q": "É grátis de verdade?",
+          "a": "Sim. Open source e self-hospedável por $0. Se rodarmos para você, você paga apenas a nuvem ao custo. Sem taxas por usuário."
+        },
+        "f2": {
+          "q": "Posso migrar do Notion?",
+          "a": "Exporte suas páginas do Notion como Markdown e cole-as no Docs. A importação automática completa está no roadmap."
+        },
+        "f3": {
+          "q": "E se a Zerosoft fechar?",
+          "a": "Você fica com seus documentos. Exporte tudo como JSON ou Markdown, self-hospede o mesmo código e continue escrevendo."
+        },
+        "f4": {
+          "q": "Posso self-hospedar?",
+          "a": "Sim. Seus documentos são seus. Rode o Docs no seu próprio servidor com Node e SQLite em minutos."
+        },
+        "f5": {
+          "q": "Quando sai?",
+          "a": "O Docs já está disponível. Abra-o e escreva sua primeira página — por $0."
+        }
       },
       "cta": {
         "label": "Docs — 0.05",
@@ -271,8 +501,18 @@
     "compareYear": "/ ano",
     "modelLabel": "03 — Duas formas de ter",
     "model": {
-      "a": { "title": "Hospede você mesmo", "desc": "Baixe o código, rode no seu servidor, mude o que quiser. É seu sob uma licença aberta — hoje, amanhã, e se um dia desaparecermos.", "price": "$0", "priceNote": "/ para sempre" },
-      "b": { "title": "Nós rodamos para você", "desc": "Login, backups, atualizações e uptime incluídos. Você paga exatamente o que a nuvem nos custa. Nem um centavo a mais, nunca.", "price": "Ao custo", "priceNote": "/ da nuvem" }
+      "a": {
+        "title": "Hospede você mesmo",
+        "desc": "Baixe o código, rode no seu servidor, mude o que quiser. É seu sob uma licença aberta — hoje, amanhã, e se um dia desaparecermos.",
+        "price": "$0",
+        "priceNote": "/ para sempre"
+      },
+      "b": {
+        "title": "Nós rodamos para você",
+        "desc": "Login, backups, atualizações e uptime incluídos. Você paga exatamente o que a nuvem nos custa. Nem um centavo a mais, nunca.",
+        "price": "Ao custo",
+        "priceNote": "/ da nuvem"
+      }
     },
     "faqLabel": "04 — FAQ",
     "faqTitle": "Perguntas justas.",
@@ -414,136 +654,154 @@
   },
   "docs": {
     "meta": {
-      "title": "API Docs — Link",
-      "description": "A API REST do Link: crie links curtos, liste-os e leia suas estatísticas com uma API key pessoal. Simples, documentada, grátis."
+      "title": "API Docs — Zerosoft",
+      "description": "A API REST da Zerosoft: links, CRM, equipes e docs. Chaves pessoais, respostas JSON, zero fricção."
     },
     "label": "0.05 — API",
-    "title": "A API do Link.",
+    "title": "A API da Zerosoft.",
     "titleDim": "Zero fricção.",
-    "intro": "O Link expõe uma pequena API REST para que seu código possa criar e medir links curtos. As mesmas regras de tudo o que fazemos: simples, documentada, grátis.",
+    "intro": "Todos os produtos expõem o mesmo estilo de API: REST, JSON e chaves pessoais. Se o dashboard faz, seu código também faz.",
     "baseLabel": "Base URL",
-    "codeBase": ["https://zerosoft.ai/api/v1"],
     "authTitle": "Autenticação",
-    "authP1": "Toda requisição precisa de uma API key, enviada como Bearer token:",
-    "codeAuth": ["Authorization: Bearer zs_live_9f3k..."],
-    "authP2": "Crie chaves em Dashboard → Settings → API keys. A chave é exibida uma única vez — copie e guarde como uma senha.",
-    "authP3": "Cada chave permite 100 requisições por minuto. Passou disso, você recebe um 429 com um header Retry-After. Precisa de mais? Self-hospede e imponha seu próprio rate limit.",
-    "endpointsTitle": "Endpoints",
-    "createTitle": "Criar um link",
-    "createDesc": "Cria um link curto. slug é opcional — omita e geramos um.",
-    "listTitle": "Listar links",
-    "listDesc": "Seus links, do mais novo ao mais antigo. Paginação com page e pageSize (máx 100).",
-    "statsTitle": "Estatísticas de um link",
-    "statsDesc": "Totais de cliques e o detalhe por dia de um link.",
+    "authDesc": "Cada requisição precisa de uma API key, enviada como Bearer token. Para sessões de navegador, o fluxo OAuth do Google cria o cookie de sessão.",
+    "authNote": "Crie as chaves em Dashboard → Settings → API keys. A chave é exibida uma única vez — copie e guarde como uma senha. Cada chave permite 100 requisições por minuto.",
+    "linksTitle": "Links",
+    "linksDesc": "Criar, listar, atualizar e medir links curtos.",
+    "crmContactsTitle": "CRM — Contatos",
+    "crmContactsDesc": "Pessoas e leads.",
+    "crmCompaniesTitle": "CRM — Empresas",
+    "crmCompaniesDesc": "Organizações e contas.",
+    "crmDealsTitle": "CRM — Deals",
+    "crmDealsDesc": "Oportunidades e pipelines.",
+    "crmTasksTitle": "CRM — Tarefas",
+    "crmTasksDesc": "Atividades e acompanhamentos.",
+    "crmPipelinesTitle": "CRM — Pipelines e etapas",
+    "crmPipelinesDesc": "Pipelines de vendas e suas etapas.",
+    "teamsTitle": "Equipes",
+    "teamsDesc": "Convidar, aceitar e trocar de workspace.",
+    "docsTitle": "Docs",
+    "docsDesc": "Páginas e wikis.",
+    "authFlowTitle": "Login com Google",
+    "authFlowDesc": "Redirecione o usuário para iniciar o fluxo OAuth do Google. Após o sucesso ele retorna ao app com o cookie de sessão.",
+    "linksCreateTitle": "Criar um link",
+    "linksCreateDesc": "Cria um link curto. slug é opcional — se omitido, geramos um.",
+    "linksListTitle": "Listar links",
+    "linksListDesc": "Seus links, do mais novo ao mais antigo. Paginação com page e pageSize (máx 100).",
+    "linksDeleteTitle": "Excluir um link",
+    "linksDeleteDesc": "Arquive ou exclua um link por id.",
+    "linksPatchTitle": "Atualizar um link",
+    "linksPatchDesc": "Atualize qualquer campo editável de um link.",
+    "linksStatsTitle": "Estatísticas de um link",
+    "linksStatsDesc": "Totais de cliques e detalhe por dia de um link.",
+    "contactsListTitle": "Listar contatos",
+    "contactsListDesc": "Lista contatos. Filtros: q, page, pageSize (máx 100).",
+    "contactsCreateTitle": "Criar um contato",
+    "contactsCreateDesc": "Cria um contato novo.",
+    "contactsGetTitle": "Ler um contato",
+    "contactsGetDesc": "Lê um contato por id.",
+    "contactsPatchTitle": "Atualizar um contato",
+    "contactsPatchDesc": "Atualize qualquer propriedade de um contato.",
+    "companiesListTitle": "Listar empresas",
+    "companiesListDesc": "Lista empresas. Filtros: q, page, pageSize.",
+    "companiesCreateTitle": "Criar uma empresa",
+    "companiesCreateDesc": "Cria uma empresa nova.",
+    "companiesGetTitle": "Ler uma empresa",
+    "companiesGetDesc": "Lê uma empresa por id.",
+    "companiesPatchTitle": "Atualizar uma empresa",
+    "companiesPatchDesc": "Atualize qualquer propriedade de uma empresa.",
+    "dealsListTitle": "Listar deals",
+    "dealsListDesc": "Lista deals. Filtro: pipelineId.",
+    "dealsCreateTitle": "Criar um deal",
+    "dealsCreateDesc": "Cria um deal em uma etapa do pipeline.",
+    "dealsGetTitle": "Ler um deal",
+    "dealsGetDesc": "Lê um deal por id.",
+    "dealsPatchTitle": "Atualizar um deal",
+    "dealsPatchDesc": "Atualize valor, etapa ou datas.",
+    "tasksListTitle": "Listar tarefas",
+    "tasksListDesc": "Lista tarefas. bucket: overdue, today, upcoming, done.",
+    "tasksCreateTitle": "Criar uma tarefa",
+    "tasksCreateDesc": "Cria uma tarefa, opcionalmente ligada a um registro.",
+    "tasksPatchTitle": "Atualizar uma tarefa",
+    "tasksPatchDesc": "Edite ou conclua uma tarefa.",
+    "pipelinesListTitle": "Listar pipelines",
+    "pipelinesListDesc": "Lista pipelines com suas etapas.",
+    "pipelinesCreateTitle": "Criar um pipeline",
+    "pipelinesCreateDesc": "Cria um pipeline novo.",
+    "stagesListTitle": "Listar etapas",
+    "stagesListDesc": "Lista as etapas de um pipeline.",
+    "stagesCreateTitle": "Criar uma etapa",
+    "stagesCreateDesc": "Cria uma etapa dentro de um pipeline.",
+    "teamsInviteTitle": "Convidar para a equipe",
+    "teamsInviteDesc": "Convide um email para entrar em uma equipe.",
+    "teamsAcceptTitle": "Aceitar convite",
+    "teamsAcceptDesc": "Aceite um convite por token.",
+    "teamsSwitchTitle": "Trocar de equipe",
+    "teamsSwitchDesc": "Troque o workspace ativo. Use teamId: null para o workspace pessoal.",
+    "docsListTitle": "Listar páginas",
+    "docsListDesc": "Lista as páginas de docs.",
+    "docsCreateTitle": "Criar página",
+    "docsCreateDesc": "Cria uma página de docs nova.",
+    "docsGetTitle": "Ler página",
+    "docsGetDesc": "Lê uma página por id.",
+    "docsPatchTitle": "Atualizar página",
+    "docsPatchDesc": "Atualize título, conteúdo ou arquive uma página.",
+    "docsDeleteTitle": "Excluir página",
+    "docsDeleteDesc": "Exclua uma página por id.",
+    "paramLinkUrl": "URL de destino.",
+    "paramLinkSlug": "Slug curto personalizado.",
+    "paramLinkTitle": "Título legível.",
+    "paramLinkTags": "Array de strings de tags.",
+    "paramLinkId": "Id do link.",
+    "paramLinkArchived": "Flag de arquivo.",
+    "paramPage": "Número da página.",
+    "paramPageSize": "Items por página (máx 100).",
+    "paramSearch": "Query de busca.",
+    "paramFirstName": "Nome.",
+    "paramLastName": "Sobrenome.",
+    "paramEmail": "Endereço de email.",
+    "paramLifecycleStage": "Etapa do ciclo de vida (lead, sql, opportunity, customer).",
+    "paramId": "Id do registro.",
+    "paramCompanyName": "Nome da empresa.",
+    "paramCompanyDomain": "Nome de domínio.",
+    "paramCompanyIndustry": "Indústria.",
+    "paramDealName": "Nome do deal.",
+    "paramDealAmount": "Valor do deal.",
+    "paramDealCurrency": "Código da moeda.",
+    "paramStageId": "Id da etapa.",
+    "paramPipelineId": "Id do pipeline.",
+    "paramTaskBucket": "Bucket de filtro: overdue, today, upcoming, done.",
+    "paramTaskSubject": "Assunto da tarefa.",
+    "paramTaskDueAt": "Data de vencimento em formato ISO.",
+    "paramContactId": "Id do contato vinculado.",
+    "paramCompanyId": "Id da empresa vinculada.",
+    "paramDealId": "Id do deal vinculado.",
+    "paramTaskDone": "Marcar como concluída.",
+    "paramPipelineName": "Nome do pipeline.",
+    "paramStageName": "Nome da etapa.",
+    "paramStageProbability": "Probabilidade de ganhar (0-100).",
+    "paramTeamId": "Id da equipe.",
+    "paramInviteEmail": "Email para convidar.",
+    "paramInviteToken": "Token de convite.",
+    "paramTeamIdSwitch": "Id da equipe ou null para o workspace pessoal.",
+    "paramDocTitle": "Título da página.",
+    "paramDocParentId": "Id da página pai.",
+    "paramDocContent": "Blocos de conteúdo da página.",
+    "paramDocId": "Id da página.",
+    "paramDocArchived": "Flag de arquivo.",
+    "navLabel": "Endpoints da API",
+    "paramName": "Nome",
+    "paramType": "Tipo",
+    "paramRequired": "Obrigatório",
+    "paramDescription": "Descrição",
+    "requiredYes": "Sim",
+    "requiredNo": "Não",
     "request": "Requisição",
     "response": "Resposta",
-    "codeCreateReq": [
-      "curl -X POST https://zerosoft.ai/api/v1/links \\",
-      "  -H \"Authorization: Bearer zs_live_9f3k...\" \\",
-      "  -H \"Content-Type: application/json\" \\",
-      "  -d '{",
-      "    \"url\": \"https://zerosoft.ai/blog/o-software-morreu\",",
-      "    \"slug\": \"manifesto\",",
-      "    \"title\": \"O manifesto\",",
-      "    \"tags\": [\"launch\", \"blog\"]",
-      "  }'"
-    ],
-    "codeCreateRes": [
-      "{",
-      "  \"id\": \"lnk_9f3ka2\",",
-      "  \"slug\": \"manifesto\",",
-      "  \"short_url\": \"https://zs.ai/manifesto\",",
-      "  \"url\": \"https://zerosoft.ai/blog/o-software-morreu\",",
-      "  \"title\": \"O manifesto\",",
-      "  \"tags\": [\"launch\", \"blog\"],",
-      "  \"created_at\": \"2026-07-14T18:22:41Z\"",
-      "}"
-    ],
-    "codeListReq": [
-      "curl \"https://zerosoft.ai/api/v1/links?page=1&pageSize=10\" \\",
-      "  -H \"Authorization: Bearer zs_live_9f3k...\""
-    ],
-    "codeListRes": [
-      "{",
-      "  \"links\": [",
-      "    {",
-      "      \"id\": \"lnk_9f3ka2\",",
-      "      \"slug\": \"manifesto\",",
-      "      \"short_url\": \"https://zs.ai/manifesto\",",
-      "      \"url\": \"https://zerosoft.ai/blog/o-software-morreu\",",
-      "      \"title\": \"O manifesto\",",
-      "      \"tags\": [\"launch\", \"blog\"],",
-      "      \"created_at\": \"2026-07-14T18:22:41Z\"",
-      "    }",
-      "  ],",
-      "  \"total\": 48",
-      "}"
-    ],
-    "codeStatsReq": [
-      "curl \"https://zerosoft.ai/api/v1/links/lnk_9f3ka2/stats\" \\",
-      "  -H \"Authorization: Bearer zs_live_9f3k...\""
-    ],
-    "codeStatsRes": [
-      "{",
-      "  \"slug\": \"manifesto\",",
-      "  \"total\": 4812,",
-      "  \"byDay\": [",
-      "    { \"date\": \"2026-07-15\", \"count\": 412 },",
-      "    { \"date\": \"2026-07-16\", \"count\": 388 },",
-      "    { \"date\": \"2026-07-17\", \"count\": 441 }",
-      "  ]",
-      "}"
-    ],
-    "errorsTitle": "Erros",
-    "errorsP": "Os erros são sempre JSON com o mesmo formato:",
-    "codeError": ["{", "  \"error\": {", "    \"code\": \"slug_taken\",", "    \"message\": \"Esse slug já está em uso.\"", "  }", "}"],
-    "thCode": "Código",
-    "thHttp": "HTTP",
-    "thMeaning": "Significado",
-    "e1code": "invalid_key",
-    "e1http": "401",
-    "e1desc": "A chave está ausente, errada ou foi revogada.",
-    "e2code": "invalid_url",
-    "e2http": "400",
-    "e2desc": "O campo url está ausente ou não é uma URL http(s) válida.",
-    "e3code": "slug_taken",
-    "e3http": "400",
-    "e3desc": "Esse slug personalizado já existe. Escolha outro.",
-    "e4code": "not_found",
-    "e4http": "404",
-    "e4desc": "Nenhum link com esse id pertence à sua conta.",
-    "e5code": "rate_limited",
-    "e5http": "429",
-    "e5desc": "Mais de 100 requisições em um minuto. Aguarde o Retry-After.",
-    "notesTitle": "Bom saber",
-    "n1": "Os slugs seguem {pattern} — letras, números, hífen e underline, de 2 a 32 caracteres.",
-    "n2": "Os redirects são 302 públicos na raiz — {example}. Sem intersticiais, sem anúncios, sem páginas de tracking.",
-    "n3": "As métricas não usam cookies: referrer, país e dispositivo vêm dos headers da requisição. Nada pessoal é armazenado.",
-    "crmTitle": "A API de CRM",
-    "crmP": "O CRM vem com a mesma API: mesmas chaves, mesmo rate limit, mesmas regras. Contatos, empresas, deals e tarefas — tudo o que o dashboard faz, o seu código pode fazer.",
-    "crmExample": "Criar um contato",
-    "codeCrmReq": ["curl -X POST https://zerosoft.ai/api/v1/crm/contacts \\", "  -H \"Authorization: Bearer zs_live_9f3k...\" \\", "  -H \"Content-Type: application/json\" \\", "  -d '{", "    \"first_name\": \"Ana\",", "    \"last_name\": \"Garcia\",", "    \"email\": \"ana@kallpa.co\",", "    \"lifecycle_stage\": \"sql\"", "  }'"],
-    "codeCrmRes": ["{", "  \"id\": \"b1f47ac2-…\",", "  \"first_name\": \"Ana\",", "  \"last_name\": \"Garcia\",", "  \"email\": \"ana@kallpa.co\",", "  \"lifecycle_stage\": \"sql\",", "  \"created_at\": \"2026-07-18 10:04:11\"", "}"],
-    "crmEndpoints": "Todos os endpoints de CRM",
-    "crmThMethod": "Método",
-    "crmThPath": "Endpoint",
-    "crmThWhat": "O que faz",
-    "r1m": "GET", "r1p": "/api/v1/crm/contacts", "r1d": "Lista contatos. Filtros: q, page, pageSize (máx 100).",
-    "r2m": "POST", "r2p": "/api/v1/crm/contacts", "r2d": "Cria um contato.",
-    "r3m": "GET", "r3p": "/api/v1/crm/contacts/:id", "r3d": "Lê um contato.",
-    "r4m": "PATCH", "r4p": "/api/v1/crm/contacts/:id", "r4d": "Atualiza qualquer propriedade.",
-    "r5m": "GET", "r5p": "/api/v1/crm/companies", "r5d": "Lista empresas.",
-    "r6m": "POST", "r6p": "/api/v1/crm/companies", "r6d": "Cria uma empresa.",
-    "r7m": "GET", "r7p": "/api/v1/crm/companies/:id", "r7d": "Lê uma empresa.",
-    "r8m": "PATCH", "r8p": "/api/v1/crm/companies/:id", "r8d": "Atualiza qualquer propriedade.",
-    "r9m": "GET", "r9p": "/api/v1/crm/deals", "r9d": "Lista deals. Filtro: pipelineId.",
-    "r10m": "POST", "r10p": "/api/v1/crm/deals", "r10d": "Cria um deal num estágio do pipeline.",
-    "r11m": "GET", "r11p": "/api/v1/crm/deals/:id", "r11d": "Lê um deal.",
-    "r12m": "PATCH", "r12p": "/api/v1/crm/deals/:id", "r12d": "Atualiza valor, estágio, datas.",
-    "r13m": "GET", "r13p": "/api/v1/crm/tasks", "r13d": "Lista tarefas. bucket: overdue, today, upcoming, done.",
-    "r14m": "POST", "r14p": "/api/v1/crm/tasks", "r14d": "Cria uma tarefa, opcionalmente ligada a um registro.",
-    "r15m": "PATCH", "r15p": "/api/v1/crm/tasks/:id", "r15d": "Edita ou conclui uma tarefa.",
-    "soonTitle": "Em breve",
-    "soonP": "Track e Cal vão sair com o mesmo estilo de API — REST, JSON, chata no melhor sentido. Estes docs crescem conforme cada produto é libertado."
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "cURL": "cURL",
+    "js": "JavaScript",
+    "python": "Python",
+    "go": "Go"
   }
 }

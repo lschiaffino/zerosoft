@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { usePathname, useRouter } from '@/i18n/navigation';
+import { useRouter } from '@/i18n/navigation';
 
 interface ResultItem {
   group: string;
@@ -11,25 +11,33 @@ interface ResultItem {
   href: string;
 }
 
-interface CrmSearchResponse {
-  contacts?: Array<{ id: string; first_name: string; last_name: string; email: string }>;
-  companies?: Array<{ id: string; name: string; domain: string }>;
-  deals?: Array<{ id: string; name: string; amount: number; currency: string }>;
+interface SearchResponse {
+  q: string;
+  items: ResultItem[];
 }
 
-interface LinksResponse {
-  links?: Array<{ id: string; slug: string; url: string; title: string | null; clicks: number }>;
+function useGroupOrder() {
+  return useMemo(() => ['actions', 'contacts', 'companies', 'deals', 'links', 'docs', 'tasks'], []);
+}
+
+function useGroupLabel(t: (key: string) => string) {
+  return useCallback(
+    (group: string) => {
+      if (group === 'actions') return t('actions');
+      const key = `group${group.charAt(0).toUpperCase()}${group.slice(1)}`;
+      return t(key);
+    },
+    [t],
+  );
 }
 
 /**
  * Búsqueda global estilo ⌘K (Twenty/Linear). Se abre con ⌘K / Ctrl+K o con el
- * evento 'zs:open-search' (botón de la sidebar). En CRM pega contra
- * /api/crm/search; en Link contra /api/links?q=.
+ * evento 'zs:open-search' (botón de la sidebar). Busca en todos los productos
+ * usando la API unificada /api/search.
  */
 export default function CommandSearch() {
   const t = useTranslations('common.sidebar');
-  const tc = useTranslations('crm');
-  const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -37,21 +45,22 @@ export default function CommandSearch() {
   const [loading, setLoading] = useState(false);
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const product = pathname.includes('/app/crm') ? 'crm' : 'link';
+  const groupOrder = useGroupOrder();
+  const groupLabel = useGroupLabel(t);
 
-  // Acciones rápidas (estilo Linear): se muestran cuando no hay query.
+  // Acciones rápidas globales: se muestran cuando no hay query.
   const actionItems = useMemo<ResultItem[]>(() => {
-    const group = t('actions');
-    if (product === 'crm') {
-      return [
-        { group, label: t('newContact'), meta: '', href: '/app/crm/contacts/new' },
-        { group, label: t('newCompany'), meta: '', href: '/app/crm/companies/new' },
-        { group, label: t('newDeal'), meta: '', href: '/app/crm/deals/new' },
-        { group, label: t('newTask'), meta: '', href: '/app/crm/tasks' },
-      ];
-    }
-    return [{ group, label: t('newLink'), meta: '', href: '/app/links/new' }];
-  }, [product, t]);
+    const group = 'actions';
+    return [
+      { group, label: t('newContact'), meta: '', href: '/app/crm/contacts/new' },
+      { group, label: t('newCompany'), meta: '', href: '/app/crm/companies/new' },
+      { group, label: t('newDeal'), meta: '', href: '/app/crm/deals/new' },
+      { group, label: t('newTask'), meta: '', href: '/app/crm/tasks' },
+      { group, label: t('newLink'), meta: '', href: '/app/links/new' },
+      { group, label: t('newDocPage'), meta: '', href: '/app/docs/new' },
+      { group, label: t('newEventType'), meta: '', href: '/app/cal/event-types/new' },
+    ];
+  }, [t]);
 
   useEffect(() => {
     function onOpen() {
@@ -89,47 +98,12 @@ export default function CommandSearch() {
       }
       setLoading(true);
       try {
-        if (product === 'crm') {
-          const res = await fetch(`/api/crm/search?q=${encodeURIComponent(query)}`);
-          const data = (await res.json()) as CrmSearchResponse;
-          const out: ResultItem[] = [];
-          for (const c of data.contacts ?? []) {
-            out.push({
-              group: tc('tabs.contacts'),
-              label: `${c.first_name} ${c.last_name}`.trim() || c.email,
-              meta: c.email,
-              href: `/app/crm/contacts/${c.id}`,
-            });
-          }
-          for (const c of data.companies ?? []) {
-            out.push({
-              group: tc('tabs.companies'),
-              label: c.name,
-              meta: c.domain,
-              href: `/app/crm/companies/${c.id}`,
-            });
-          }
-          for (const d of data.deals ?? []) {
-            out.push({
-              group: tc('tabs.deals'),
-              label: d.name,
-              meta: `${d.currency} ${d.amount}`,
-              href: `/app/crm/deals/${d.id}`,
-            });
-          }
-          setItems(out);
-        } else {
-          const res = await fetch(`/api/links?q=${encodeURIComponent(query)}&pageSize=8`);
-          const data = (await res.json()) as LinksResponse;
-          setItems(
-            (data.links ?? []).map((l) => ({
-              group: 'Links',
-              label: l.title || l.slug,
-              meta: `/${l.slug} → ${l.url}`,
-              href: `/app/links/${l.id}`,
-            })),
-          );
-        }
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const data = (await res.json()) as SearchResponse;
+        const sorted = [...(data.items ?? [])].sort(
+          (a, b) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group),
+        );
+        setItems(sorted);
       } catch {
         setItems([]);
       } finally {
@@ -137,7 +111,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [product, tc, actionItems],
+    [actionItems],
   );
 
   useEffect(() => {
@@ -175,7 +149,7 @@ export default function CommandSearch() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={product === 'crm' ? t('searchPlaceholder') : t('searchPlaceholderLinks')}
+          placeholder={t('searchPlaceholder')}
           aria-label={t('search')}
         />
         <div className="cmdk-results">
@@ -188,7 +162,7 @@ export default function CommandSearch() {
               const header =
                 item.group !== lastGroup ? (
                   <p className="cmdk-group" key={`g-${item.group}`}>
-                    {item.group}
+                    {groupLabel(item.group)}
                   </p>
                 ) : null;
               lastGroup = item.group;
