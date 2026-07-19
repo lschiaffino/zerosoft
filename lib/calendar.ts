@@ -164,6 +164,13 @@ export async function getEventType(
   return row ? decorateEventType(row) : undefined;
 }
 
+export async function getEventTypeById(id: string): Promise<EventTypeWithRules | undefined> {
+  const row = (await getDb()
+    .prepare('SELECT * FROM calendar_event_types WHERE id = ?')
+    .get(id)) as CalendarEventTypeRow | undefined;
+  return row ? decorateEventType(row) : undefined;
+}
+
 export async function getEventTypeBySlug(slug: string): Promise<EventTypeWithRules | undefined> {
   const row = (await getDb()
     .prepare('SELECT * FROM calendar_event_types WHERE slug = ? AND active = 1')
@@ -434,6 +441,13 @@ export async function countBookingsThisWeek(userId: string): Promise<number> {
 }
 
 export async function createBooking(payload: BookingCreatePayload): Promise<CalendarBookingRow> {
+  const eventType = await getEventTypeById(payload.eventTypeId);
+  if (!eventType) throw new CalendarError('not_found', 404);
+
+  const start = new Date(payload.start);
+  if (Number.isNaN(start.getTime())) throw new CalendarError('invalid_input', 400);
+
+  const end = new Date(start.getTime() + eventType.duration_min * 60_000);
   const id = crypto.randomUUID();
   const ts = now();
   await getDb()
@@ -445,10 +459,10 @@ export async function createBooking(payload: BookingCreatePayload): Promise<Cale
     .run(
       id,
       payload.eventTypeId,
-      payload.inviteeEmail,
-      payload.inviteeName,
-      payload.startsAt,
-      payload.endsAt,
+      payload.email,
+      payload.name,
+      start.toISOString(),
+      end.toISOString(),
       payload.timezone ?? 'UTC',
       'confirmed',
       serializeJson(payload.answers, {}),
@@ -488,6 +502,243 @@ export async function updateBooking(
     .prepare(`UPDATE calendar_bookings SET ${sets.join(', ')} WHERE id = ?`)
     .run(...values);
   return (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(id)) as CalendarBookingRow;
+}
+
+export interface CalendarBookingRowWithEvent extends CalendarBookingRow {
+  event_type_title: string;
+  event_type_duration_min: number;
+}
+
+export async function listUserBookings(
+  userId: string,
+  opts: { status?: 'confirmed' | 'cancelled' | 'no_show'; from?: Date; to?: Date } = {},
+): Promise<CalendarBookingRowWithEvent[]> {
+  const conditions: string[] = ['e.user_id = ?'];
+  const values: (string | number)[] = [userId];
+
+  if (opts.status) {
+    conditions.push('b.status = ?');
+    values.push(opts.status);
+  }
+  if (opts.from) {
+    conditions.push('b.starts_at >= ?');
+    values.push(opts.from.toISOString());
+  }
+  if (opts.to) {
+    conditions.push('b.starts_at <= ?');
+    values.push(opts.to.toISOString());
+  }
+
+  const sql = `SELECT b.*, e.title as event_type_title, e.duration_min as event_type_duration_min
+               FROM calendar_bookings b
+               JOIN calendar_event_types e ON e.id = b.event_type_id
+               WHERE ${conditions.join(' AND ')}
+               ORDER BY b.starts_at DESC`;
+  return (await getDb().prepare(sql).all(...values)) as CalendarBookingRowWithEvent[];
+}
+
+// ---------- Availability engine ----------
+
+export interface TimeRange {
+  start: Date;
+  end: Date;
+}
+
+interface CalendarBookingRules {
+  bufferBeforeMin?: number;
+  bufferAfterMin?: number;
+  minNoticeHours?: number;
+  maxFutureDays?: number;
+  allowGuests?: boolean;
+}
+
+function iso(d: Date): string {
+  return d.toISOString();
+}
+
+function datePartsInTz(d: Date, tz: string): { year: number; month: number; day: number; hour: number; minute: number; second: number } {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(d);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hour: get('hour'),
+    minute: get('minute'),
+    second: get('second'),
+  };
+}
+
+function dayOfWeekInTz(d: Date, tz: string): number {
+  const p = datePartsInTz(d, tz);
+  return new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay();
+}
+
+function localToUtc(date: string, time: string, tz: string): Date {
+  const [y, m, d] = date.split('-').map(Number);
+  const [h = 0, min = 0, s = 0] = time.split(':').map(Number);
+  const desiredMs = Date.UTC(y, m - 1, d, h, min, s);
+  let utc = desiredMs;
+  for (let i = 0; i < 5; i++) {
+    const local = datePartsInTz(new Date(utc), tz);
+    const localMs = Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, local.second);
+    const diff = desiredMs - localMs;
+    if (diff === 0) break;
+    utc += diff;
+  }
+  return new Date(utc);
+}
+
+function parseDate(date: string): { year: number; month: number; day: number } | null {
+  const m = /^\d{4}-\d{2}-\d{2}$/.exec(date);
+  if (!m) return null;
+  const [y, mo, d] = date.split('-').map(Number);
+  return { year: y, month: mo, day: d };
+}
+
+function hasOverlap(range: TimeRange, ranges: TimeRange[]): boolean {
+  return ranges.some((r) => range.start < r.end && range.end > r.start);
+}
+
+function getBookingRules(eventType: EventTypeWithRules): Partial<CalendarBookingRules> {
+  return (eventType.bookingRulesParsed ?? {}) as Partial<CalendarBookingRules>;
+}
+
+export function applyBuffer(slot: TimeRange, eventType: EventTypeWithRules, calendarUser?: CalendarUserRow): TimeRange {
+  const rules = getBookingRules(eventType);
+  const before = rules.bufferBeforeMin ?? calendarUser?.buffer_before_min ?? 0;
+  const after = rules.bufferAfterMin ?? calendarUser?.buffer_after_min ?? 0;
+  return {
+    start: new Date(slot.start.getTime() - before * 60_000),
+    end: new Date(slot.end.getTime() + after * 60_000),
+  };
+}
+
+export async function listBookedRanges(
+  eventTypeId: string,
+  date: string,
+  timezone: string,
+): Promise<TimeRange[]> {
+  const parsed = parseDate(date);
+  if (!parsed) return [];
+  const dayStart = localToUtc(date, '00:00:00', timezone);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const rows = (await getDb()
+    .prepare(
+      `SELECT * FROM calendar_bookings
+       WHERE event_type_id = ? AND status = 'confirmed'
+         AND starts_at < ? AND ends_at > ?`,
+    )
+    .all(eventTypeId, iso(dayEnd), iso(dayStart))) as CalendarBookingRow[];
+
+  return rows.map((r) => ({ start: new Date(r.starts_at), end: new Date(r.ends_at) }));
+}
+
+export async function listBlockedRanges(
+  userId: string,
+  date: string,
+  timezone: string,
+): Promise<TimeRange[]> {
+  const parsed = parseDate(date);
+  if (!parsed) return [];
+  const dayStart = localToUtc(date, '00:00:00', timezone);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const rows = (await getDb()
+    .prepare(
+      `SELECT * FROM calendar_blocked_slots
+       WHERE user_id = ? AND starts_at < ? AND ends_at > ?`,
+    )
+    .all(userId, iso(dayEnd), iso(dayStart))) as CalendarBlockedSlotRow[];
+
+  return rows.map((r) => ({ start: new Date(r.starts_at), end: new Date(r.ends_at) }));
+}
+
+export async function getAvailableSlots(
+  eventTypeId: string,
+  timezone: string,
+  date: string,
+): Promise<TimeRange[]> {
+  const eventType = await getEventTypeById(eventTypeId);
+  if (!eventType || eventType.active !== 1) return [];
+
+  const parsed = parseDate(date);
+  if (!parsed) return [];
+
+  const calendarUser = await getCalendarUser(eventType.user_id);
+  const ownerTz = calendarUser?.timezone ?? 'UTC';
+
+  const rules = getBookingRules(eventType);
+  const minNoticeHours = rules.minNoticeHours ?? calendarUser?.min_notice_hours ?? 0;
+  const maxFutureDays = rules.maxFutureDays ?? calendarUser?.max_booking_days ?? 30;
+
+  const nowDate = new Date();
+  const minStart = new Date(nowDate.getTime() + minNoticeHours * 60 * 60 * 1000);
+
+  const todayParts = datePartsInTz(nowDate, timezone);
+  const maxDateMs = Date.UTC(todayParts.year, todayParts.month - 1, todayParts.day) + maxFutureDays * 24 * 60 * 60 * 1000;
+  const requestedMs = Date.UTC(parsed.year, parsed.month - 1, parsed.day);
+  if (requestedMs > maxDateMs) return [];
+
+  const availability = await listAvailability(eventTypeId);
+  const booked = await listBookedRanges(eventTypeId, date, timezone);
+  const blocked = await listBlockedRanges(eventType.user_id, date, timezone);
+
+  const dayStart = localToUtc(date, '00:00:00', timezone);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const rangeStart = new Date(dayStart.getTime() - 24 * 60 * 60 * 1000);
+  const rangeEnd = new Date(dayEnd.getTime() + 24 * 60 * 60 * 1000);
+
+  const slotDuration = eventType.duration_min * 60_000;
+  const slots: TimeRange[] = [];
+
+  let cursor = new Date(rangeStart);
+  while (cursor < rangeEnd) {
+    const parts = datePartsInTz(cursor, ownerTz);
+    const dateStr = `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+    const dow = dayOfWeekInTz(cursor, ownerTz);
+    const dayRules = availability.filter((r) => r.day_of_week === dow);
+
+    for (const rule of dayRules) {
+      const ruleStart = localToUtc(dateStr, rule.start_time, ownerTz);
+      const ruleEnd = localToUtc(dateStr, rule.end_time, ownerTz);
+      for (let t = ruleStart.getTime(); t + slotDuration <= ruleEnd.getTime(); t += slotDuration) {
+        const slot: TimeRange = { start: new Date(t), end: new Date(t + slotDuration) };
+        if (slot.start < dayStart || slot.end > dayEnd) continue;
+        if (slot.start < minStart) continue;
+        const buffered = applyBuffer(slot, eventType, calendarUser);
+        if (hasOverlap(buffered, [...booked, ...blocked])) continue;
+        slots.push(slot);
+      }
+    }
+
+    const nextParts = { ...parts, day: parts.day + 1 };
+    cursor = localToUtc(
+      `${nextParts.year}-${String(nextParts.month).padStart(2, '0')}-${String(nextParts.day).padStart(2, '0')}`,
+      '00:00:00',
+      ownerTz,
+    );
+  }
+
+  slots.sort((a, b) => a.start.getTime() - b.start.getTime());
+  const unique: TimeRange[] = [];
+  for (const s of slots) {
+    if (unique.length > 0 && unique[unique.length - 1].start.getTime() === s.start.getTime()) continue;
+    unique.push(s);
+  }
+  return unique;
 }
 
 // ---------- Errors ----------

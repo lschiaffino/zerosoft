@@ -2,6 +2,7 @@
   "sidebar": {
     "overview": "Visão geral",
     "eventTypes": "Tipos de evento",
+    "bookings": "Reservas",
     "availability": "Disponibilidade",
     "settings": "Configurações"
   },
@@ -13,7 +14,9 @@
     "create": "Criar",
     "cancel": "Cancelar",
     "remove": "Remover",
-    "back": "← Voltar"
+    "back": "← Voltar",
+    "view": "Ver",
+    "hide": "Ocultar"
   },
   "overview": {
     "title": "Agenda",
@@ -78,10 +81,38 @@
     "reasonPlaceholder": "Motivo (opcional)",
     "empty": "Nenhum bloqueio."
   },
+  "bookings": {
+    "title": "Reservas"
+  },
+  "booking": {
+    "timezone": "Fuso horário",
+    "slotsFor": "Horários disponíveis para",
+    "loadingSlots": "Carregando horários…",
+    "noSlots": "Nenhum horário disponível para este dia.",
+    "yourDetails": "Seus dados",
+    "name": "Nome",
+    "email": "E-mail",
+    "confirm": "Confirmar reserva",
+    "confirmedTitle": "Reserva confirmada",
+    "cancelConfirm": "Cancelar esta reserva?",
+    "filter": {
+      "upcoming": "Próximas",
+      "past": "Passadas",
+      "cancelled": "Canceladas"
+    },
+    "empty": "Nenhuma reserva encontrada.",
+    "status": {
+      "confirmed": "Confirmada",
+      "cancelled": "Cancelada",
+      "no_show": "Não compareceu"
+    },
+    "answers": "Respostas"
+  },
   "errors": {
     "invalid_slug": "Slug inválido. Use apenas letras minúsculas, números e hífens.",
     "slug_taken": "Esse slug já está em uso.",
     "invalid_input": "Alguns campos são inválidos. Verifique e tente novamente.",
+    "slot_unavailable": "Esse horário não está mais disponível. Escolha outro.",
     "generic": "Algo deu errado. Tente novamente."
   }
 }

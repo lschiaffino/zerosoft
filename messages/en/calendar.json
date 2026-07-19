@@ -2,6 +2,7 @@
   "sidebar": {
     "overview": "Overview",
     "eventTypes": "Event types",
+    "bookings": "Bookings",
     "availability": "Availability",
     "settings": "Settings"
   },
@@ -13,7 +14,9 @@
     "create": "Create",
     "cancel": "Cancel",
     "remove": "Remove",
-    "back": "← Back"
+    "back": "← Back",
+    "view": "View",
+    "hide": "Hide"
   },
   "overview": {
     "title": "Calendar",
@@ -78,10 +81,38 @@
     "reasonPlaceholder": "Reason (optional)",
     "empty": "No blocked slots."
   },
+  "bookings": {
+    "title": "Bookings"
+  },
+  "booking": {
+    "timezone": "Timezone",
+    "slotsFor": "Available slots for",
+    "loadingSlots": "Loading slots…",
+    "noSlots": "No available slots for this day.",
+    "yourDetails": "Your details",
+    "name": "Name",
+    "email": "Email",
+    "confirm": "Confirm booking",
+    "confirmedTitle": "Booking confirmed",
+    "cancelConfirm": "Cancel this booking?",
+    "filter": {
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "cancelled": "Cancelled"
+    },
+    "empty": "No bookings found.",
+    "status": {
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "no_show": "No show"
+    },
+    "answers": "Answers"
+  },
   "errors": {
     "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",
     "slug_taken": "That slug is already in use.",
     "invalid_input": "Some fields are invalid. Check them and try again.",
+    "slot_unavailable": "That slot is no longer available. Please pick another one.",
     "generic": "Something went wrong. Try again."
   }
 }

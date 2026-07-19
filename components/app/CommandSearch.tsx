@@ -58,7 +58,7 @@ export default function CommandSearch() {
       { group, label: t('newTask'), meta: '', href: '/app/crm/tasks' },
       { group, label: t('newLink'), meta: '', href: '/app/links/new' },
       { group, label: t('newDocPage'), meta: '', href: '/app/docs/new' },
-      { group, label: t('newEventType'), meta: '', href: '/app/cal/event-types/new' },
+      { group, label: t('newEventType'), meta: '', href: '/app/calendar/event-types/new' },
     ];
   }, [t]);
 

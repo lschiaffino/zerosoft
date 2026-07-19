@@ -110,10 +110,9 @@ export const blockedSlotUpdateSchema = blockedSlotCreateSchema.partial();
 
 export const bookingCreateSchema = z.object({
   eventTypeId: id,
-  inviteeEmail: email,
-  inviteeName: shortText,
-  startsAt: isoDate,
-  endsAt: isoDate,
+  email: email,
+  name: shortText,
+  start: isoDate,
   timezone: z.string().trim().max(64).optional(),
   answers: z.record(z.unknown()).optional(),
 });
