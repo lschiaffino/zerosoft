@@ -429,6 +429,30 @@ const DDL = `
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS crm_dashboards (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_crm_dashboards_user ON crm_dashboards(user_id, position);
+
+    CREATE TABLE IF NOT EXISTS crm_dashboard_widgets (
+      id TEXT PRIMARY KEY,
+      dashboard_id TEXT NOT NULL REFERENCES crm_dashboards(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      config TEXT NOT NULL DEFAULT '{}',
+      x INTEGER NOT NULL DEFAULT 0,
+      y INTEGER NOT NULL DEFAULT 0,
+      w INTEGER NOT NULL DEFAULT 4,
+      h INTEGER NOT NULL DEFAULT 3,
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_crm_dashboard_widgets_dash ON crm_dashboard_widgets(dashboard_id, position);
+
     CREATE TABLE IF NOT EXISTS crm_imports (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1114,6 +1138,28 @@ export interface CrmSavedReportRow {
   name: string;
   report_type: string;
   filters: string; // JSON object
+  created_at: string;
+}
+
+export interface CrmDashboardRow {
+  id: string;
+  user_id: string;
+  name: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmDashboardWidgetRow {
+  id: string;
+  dashboard_id: string;
+  type: string;
+  config: string; // JSON object
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  position: number;
   created_at: string;
 }
 

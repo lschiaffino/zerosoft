@@ -2557,7 +2557,7 @@ async function funnelForPipeline(
 }
 
 /** Últimos 6 meses (incluido el actual) con conteo de deals won/lost por closed_at. */
-async function wonLostByMonth(userId: string): Promise<WonLostMonth[]> {
+export async function wonLostByMonth(userId: string): Promise<WonLostMonth[]> {
   const db = getDb();
   const months: string[] = [];
   const d = new Date();

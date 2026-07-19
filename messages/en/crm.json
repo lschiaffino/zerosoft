@@ -7,6 +7,7 @@
     "tasks": "Tasks",
     "lists": "Lists",
     "reports": "Reports",
+    "dashboards": "Dashboards",
     "workflows": "Workflows",
     "settings": "Settings"
   },
@@ -606,6 +607,36 @@
     "contacts": "Contacts",
     "deals": "Deals",
     "activities": "Activities"
+  },
+  "dashboards": {
+    "title": "Dashboards",
+    "defaultName": "Main dashboard",
+    "newDashboard": "New dashboard",
+    "namePh": "Dashboard name",
+    "renameDashboard": "Rename dashboard",
+    "deleteDashboard": "Delete dashboard",
+    "confirmDeleteTitle": "Delete this dashboard?",
+    "confirmDelete": "\"{name}\" and its {count} widgets will be permanently deleted.",
+    "addWidget": "Add widget",
+    "emptyTitle": "This dashboard is empty",
+    "emptyDesc": "Add your first widget to start tracking what matters.",
+    "noDashboardsTitle": "No dashboards yet",
+    "noDashboardsDesc": "Create your first dashboard to build your own view of the pipeline.",
+    "loading": "Loading…",
+    "loadError": "Couldn't load this widget.",
+    "emptyData": "No data yet.",
+    "widgets": {
+      "kpi": "KPI",
+      "funnel": "Pipeline funnel",
+      "forecast": "Weighted forecast",
+      "timeseries": "Activity over time",
+      "wonlost": "Won vs lost",
+      "source": "Deals by source",
+      "owner": "By owner",
+      "leaderboard": "Activity leaderboard",
+      "tasks": "Open tasks",
+      "recent_activity": "Recent activity"
+    }
   },
   "settings": {
     "title": "Settings",

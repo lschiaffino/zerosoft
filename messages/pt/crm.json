@@ -7,6 +7,7 @@
     "tasks": "Tarefas",
     "lists": "Listas",
     "reports": "Relatórios",
+    "dashboards": "Painéis",
     "workflows": "Workflows",
     "settings": "Configurações"
   },
@@ -606,6 +607,36 @@
     "contacts": "Contatos",
     "deals": "Negócios",
     "activities": "Atividades"
+  },
+  "dashboards": {
+    "title": "Painéis",
+    "defaultName": "Painel principal",
+    "newDashboard": "Novo painel",
+    "namePh": "Nome do painel",
+    "renameDashboard": "Renomear painel",
+    "deleteDashboard": "Excluir painel",
+    "confirmDeleteTitle": "Excluir este painel?",
+    "confirmDelete": "\"{name}\" e seus {count} widgets serão excluídos permanentemente.",
+    "addWidget": "Adicionar widget",
+    "emptyTitle": "Este painel está vazio",
+    "emptyDesc": "Adicione seu primeiro widget para começar a acompanhar o que importa.",
+    "noDashboardsTitle": "Ainda não há painéis",
+    "noDashboardsDesc": "Crie seu primeiro painel para montar sua própria visão do pipeline.",
+    "loading": "Carregando…",
+    "loadError": "Não foi possível carregar este widget.",
+    "emptyData": "Sem dados ainda.",
+    "widgets": {
+      "kpi": "KPI",
+      "funnel": "Funil do pipeline",
+      "forecast": "Previsão ponderada",
+      "timeseries": "Atividade ao longo do tempo",
+      "wonlost": "Ganhos vs perdidos",
+      "source": "Negócios por origem",
+      "owner": "Por responsável",
+      "leaderboard": "Ranking de atividade",
+      "tasks": "Tarefas abertas",
+      "recent_activity": "Atividade recente"
+    }
   },
   "settings": {
     "title": "Configurações",

@@ -37,6 +37,7 @@ export interface SidebarLabels {
     tasks: string;
     lists: string;
     reports: string;
+    dashboards: string;
     workflows: string;
     settings: string;
   };
@@ -204,6 +205,7 @@ export default function AppSidebar({
     {
       section: labels.insights,
       items: [
+        { href: '/app/crm/dashboards', label: labels.crm.dashboards, active: pathname.startsWith('/app/crm/dashboards'), icon: 'reports' },
         { href: '/app/crm/reports', label: labels.crm.reports, active: pathname.startsWith('/app/crm/reports'), icon: 'reports' },
       ],
     },
