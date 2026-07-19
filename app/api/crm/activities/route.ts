@@ -24,7 +24,13 @@ export async function GET(req: NextRequest) {
   const bucket = sp.get('bucket');
   if (bucket) {
     if (!BUCKETS.includes(bucket as TaskBucket)) return crmError(400, 'invalid_input');
-    return NextResponse.json({ rows: await listTasks(user.id, bucket as TaskBucket) });
+    return NextResponse.json({
+      rows: await listTasks(user.id, {
+        bucket: bucket as TaskBucket,
+        projectId: sp.get('projectId') ?? undefined,
+        ownerId: sp.get('ownerId') ?? undefined,
+      }),
+    });
   }
 
   const type = sp.get('type');

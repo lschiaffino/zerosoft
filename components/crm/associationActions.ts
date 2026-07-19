@@ -2,7 +2,7 @@
 
 import { getCurrentUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
-import { updateContact, updateDeal } from '@/lib/crm';
+import { updateActivity, updateContact, updateDeal } from '@/lib/crm';
 
 export async function setContactCompany(contactId: string, companyId: string | null) {
   const user = await getCurrentUser();
@@ -77,5 +77,26 @@ export async function removeCompanyFromDeal(dealId: string, companyId: string) {
     { removeContactIds: removeIds },
     user.actingUser?.email ?? user.email,
   );
+  if (!updated) throw new Error('not_found');
+}
+
+export async function setTaskContact(taskId: string, contactId: string | null) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('unauthorized');
+  const updated = await updateActivity(user.id, taskId, { contactId });
+  if (!updated) throw new Error('not_found');
+}
+
+export async function setTaskCompany(taskId: string, companyId: string | null) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('unauthorized');
+  const updated = await updateActivity(user.id, taskId, { companyId });
+  if (!updated) throw new Error('not_found');
+}
+
+export async function setTaskDeal(taskId: string, dealId: string | null) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('unauthorized');
+  const updated = await updateActivity(user.id, taskId, { dealId });
   if (!updated) throw new Error('not_found');
 }

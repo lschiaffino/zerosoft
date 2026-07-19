@@ -4,24 +4,41 @@ import { getCrmReports, listPipelinesWithStages, PRIORITIES, SOURCES } from '@/l
 import { listMembers } from '@/lib/teams';
 import {
   defaultBucket,
+  reportActivityLeaderboard,
   reportByOwner,
+  reportConversionRate,
+  reportFunnel,
+  reportForecast,
   reportKpis,
+  reportOwnerPerformance,
   reportRange,
+  reportSourcePerformance,
   reportTimeseries,
+  type FunnelReportStage,
+  type ForecastReportStage,
   type ReportBucket,
   type ReportFilters,
   type ReportRangeLabel,
 } from '@/lib/crm-reports';
 import ReportsView from '@/components/crm/ReportsView';
-import { forecastForPipeline, funnelForPipeline } from './data';
 
 export const dynamic = 'force-dynamic';
 
 const RANGE_LABELS: ReportRangeLabel[] = ['7d', '30d', '90d', 'quarter', '12m'];
 const BUCKETS: ReportBucket[] = ['day', 'week', 'month', 'quarter'];
+const REPORT_TYPES = ['overview', 'funnel', 'forecast', 'source', 'owner', 'activity', 'conversion'] as const;
+type ReportType = (typeof REPORT_TYPES)[number];
 
 function one(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : undefined;
+}
+
+function toFunnelReportStages(stages: Array<{ id: string; name: string; probability: number; is_won: 0 | 1; is_lost: 0 | 1; count: number; amount: number }>): FunnelReportStage[] {
+  return stages.map((stage, i) => {
+    const prev = i > 0 ? stages[i - 1] : null;
+    const conversionRate = prev && prev.count > 0 ? Math.round((stage.count / prev.count) * 100) : null;
+    return { ...stage, conversionRate };
+  });
 }
 
 export default async function CrmReportsPage({
@@ -55,6 +72,10 @@ export default async function CrmReportsPage({
     ownerId: one(searchParams.owner),
   };
 
+  const reportType: ReportType = REPORT_TYPES.includes(one(searchParams.report) as ReportType)
+    ? (one(searchParams.report) as ReportType)
+    : 'overview';
+
   const reports = await getCrmReports(user.id);
   const pipelines = await listPipelinesWithStages(user.id);
 
@@ -63,13 +84,14 @@ export default async function CrmReportsPage({
     ? filters.pipelineId!
     : defaultId;
 
-  const funnel =
+  const funnel: FunnelReportStage[] =
     selectedPipelineId && selectedPipelineId !== defaultId
-      ? await funnelForPipeline(user.id, selectedPipelineId)
-      : reports.funnel;
-  const forecastByStage =
+      ? await reportFunnel(user.id, selectedPipelineId)
+      : toFunnelReportStages(reports.funnel);
+
+  const forecastByStage: ForecastReportStage[] =
     selectedPipelineId && selectedPipelineId !== defaultId
-      ? await forecastForPipeline(user.id, selectedPipelineId)
+      ? await reportForecast(user.id, selectedPipelineId)
       : reports.forecastByStage;
 
   const teamMembers = user.team?.id
@@ -81,6 +103,13 @@ export default async function CrmReportsPage({
     reportKpis(user.id, range, filters),
     reportTimeseries(user.id, range, bucket, filters),
     reportByOwner(user.id, range, filters, owners),
+  ]);
+
+  const [sourcePerformance, ownerPerformance, activityLeaderboard, conversionRate] = await Promise.all([
+    reportSourcePerformance(user.id, range, filters),
+    reportOwnerPerformance(user.id, range, filters, owners),
+    reportActivityLeaderboard(user.id, range, owners),
+    reportConversionRate(user.id, range, filters),
   ]);
 
   return (
@@ -98,12 +127,17 @@ export default async function CrmReportsPage({
         range={rangeLabel}
         bucket={bucket}
         filters={filters}
+        reportType={reportType}
         kpis={kpis}
         timeseries={timeseries}
         byOwner={byOwner}
         owners={owners}
         sources={SOURCES.map((v) => ({ value: v, label: t(`enums.source.${v}`) }))}
         priorities={PRIORITIES.map((v) => ({ value: v, label: t(`enums.priority.${v}`) }))}
+        sourcePerformance={sourcePerformance}
+        ownerPerformance={ownerPerformance}
+        activityLeaderboard={activityLeaderboard}
+        conversionRate={conversionRate}
       />
     </div>
   );

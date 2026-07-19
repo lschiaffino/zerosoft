@@ -17,8 +17,11 @@ import {
   type CrmListRow,
   type CrmPipelineRow,
   type CrmPropertyEventRow,
+  type CrmSavedReportRow,
   type CrmSavedViewRow,
   type CrmStageRow,
+  type CrmTaskProjectRow,
+  type CrmTaskFileRow,
   type Db,
 } from './db';
 
@@ -1431,23 +1434,33 @@ export interface ActivityInput {
   contactId?: string | null;
   companyId?: string | null;
   dealId?: string | null;
+  projectId?: string | null;
+  ownerId?: string | null;
 }
 
 export type ActivityListRow = CrmActivityRow & {
   contact_name: string | null;
   company_name: string | null;
   deal_name: string | null;
+  owner_name: string | null;
+  project_name: string | null;
+  project_color: string | null;
 };
 
 const ACTIVITY_SELECT = `
   SELECT a.*,
     NULLIF(trim(c.first_name || ' ' || c.last_name), '') AS contact_name,
     co.name AS company_name,
-    d.name AS deal_name
+    d.name AS deal_name,
+    u.name AS owner_name,
+    p.name AS project_name,
+    p.color AS project_color
   FROM crm_activities a
   LEFT JOIN crm_contacts c ON c.id = a.contact_id
   LEFT JOIN crm_companies co ON co.id = a.company_id
   LEFT JOIN crm_deals d ON d.id = a.deal_id
+  LEFT JOIN users u ON u.id = a.owner_id
+  LEFT JOIN crm_task_projects p ON p.id = a.project_id
 `;
 
 export async function createActivity(
@@ -1460,13 +1473,14 @@ export async function createActivity(
   await db
     .prepare(
       `INSERT INTO crm_activities
-       (id, user_id, type, subject, body, due_at, direction, outcome, duration_min,
-        contact_id, company_id, deal_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, user_id, owner_id, type, subject, body, due_at, direction, outcome, duration_min,
+        contact_id, company_id, deal_id, project_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
       userId,
+      data.ownerId ?? null,
       data.type ?? 'note',
       data.subject ?? '',
       data.body ?? '',
@@ -1477,6 +1491,7 @@ export async function createActivity(
       data.contactId ?? null,
       data.companyId ?? null,
       data.dealId ?? null,
+      data.projectId ?? null,
       ts,
       ts,
     );
@@ -1507,6 +1522,8 @@ export async function updateActivity(
   if (data.contactId !== undefined) sets.push(['contact_id', data.contactId]);
   if (data.companyId !== undefined) sets.push(['company_id', data.companyId]);
   if (data.dealId !== undefined) sets.push(['deal_id', data.dealId]);
+  if (data.projectId !== undefined) sets.push(['project_id', data.projectId]);
+  if (data.ownerId !== undefined) sets.push(['owner_id', data.ownerId]);
   if (data.done !== undefined) {
     sets.push(['done', data.done ? 1 : 0]);
     // done → done_at=now; undone → done_at NULL.
@@ -1527,6 +1544,136 @@ export async function deleteActivity(userId: string, id: string): Promise<boolea
     (await getDb()
       .prepare('DELETE FROM crm_activities WHERE id = ? AND user_id = ?')
       .run(id, userId)).changes > 0
+  );
+}
+
+export async function getActivity(userId: string, id: string): Promise<ActivityListRow | null> {
+  return (await getDb()
+    .prepare(
+      `${ACTIVITY_SELECT}
+       WHERE a.id = ? AND a.user_id = ?`,
+    )
+    .get(id, userId)) as ActivityListRow | undefined ?? null;
+}
+
+// ============================================================
+// TASK PROJECTS
+// ============================================================
+
+export interface TaskProjectInput {
+  name?: string;
+  color?: string;
+  archived?: boolean;
+}
+
+export async function listTaskProjects(userId: string, includeArchived = false): Promise<CrmTaskProjectRow[]> {
+  const db = getDb();
+  if (includeArchived) {
+    return (await db
+      .prepare(
+        'SELECT * FROM crm_task_projects WHERE user_id = ? ORDER BY archived ASC, name ASC',
+      )
+      .all(userId)) as CrmTaskProjectRow[];
+  }
+  return (await db
+    .prepare(
+      'SELECT * FROM crm_task_projects WHERE user_id = ? AND archived = 0 ORDER BY name ASC',
+    )
+    .all(userId)) as CrmTaskProjectRow[];
+}
+
+export async function getTaskProject(userId: string, id: string): Promise<CrmTaskProjectRow | null> {
+  return (
+    ((await getDb()
+      .prepare('SELECT * FROM crm_task_projects WHERE id = ? AND user_id = ?')
+      .get(id, userId)) as CrmTaskProjectRow | undefined) ?? null
+  );
+}
+
+export async function createTaskProject(userId: string, data: TaskProjectInput): Promise<CrmTaskProjectRow> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const ts = now();
+  await db
+    .prepare(
+      `INSERT INTO crm_task_projects (id, user_id, name, color, archived, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      id,
+      userId,
+      data.name ?? 'Project',
+      data.color ?? '#666666',
+      data.archived ? 1 : 0,
+      ts,
+      ts,
+    );
+  return (await db.prepare('SELECT * FROM crm_task_projects WHERE id = ?').get(id)) as CrmTaskProjectRow;
+}
+
+export async function updateTaskProject(
+  userId: string,
+  id: string,
+  data: TaskProjectInput,
+): Promise<CrmTaskProjectRow | null> {
+  const db = getDb();
+  const existing = await getTaskProject(userId, id);
+  if (!existing) return null;
+  const sets: Array<[string, string | number]> = [];
+  if (data.name !== undefined) sets.push(['name', data.name]);
+  if (data.color !== undefined) sets.push(['color', data.color]);
+  if (data.archived !== undefined) sets.push(['archived', data.archived ? 1 : 0]);
+  if (sets.length) {
+    sets.push(['updated_at', now()]);
+    await db
+      .prepare(
+        `UPDATE crm_task_projects SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`,
+      )
+      .run(...sets.map(([, v]) => v), id);
+  }
+  return (await db.prepare('SELECT * FROM crm_task_projects WHERE id = ?').get(id)) as CrmTaskProjectRow;
+}
+
+export async function deleteTaskProject(userId: string, id: string): Promise<boolean> {
+  const db = getDb();
+  const project = await getTaskProject(userId, id);
+  if (!project) return false;
+  await db.prepare('UPDATE crm_activities SET project_id = NULL, updated_at = ? WHERE project_id = ?').run(now(), id);
+  return (await db.prepare('DELETE FROM crm_task_projects WHERE id = ? AND user_id = ?').run(id, userId)).changes > 0;
+}
+
+// ============================================================
+// TASK FILES
+// ============================================================
+
+export async function listTaskFiles(activityId: string): Promise<CrmTaskFileRow[]> {
+  return (await getDb()
+    .prepare(
+      'SELECT * FROM crm_task_files WHERE activity_id = ? ORDER BY created_at DESC',
+    )
+    .all(activityId)) as CrmTaskFileRow[];
+}
+
+export async function createTaskFile(
+  activityId: string,
+  data: { filename: string; contentType: string; size: number; url: string },
+): Promise<CrmTaskFileRow> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  await db
+    .prepare(
+      `INSERT INTO crm_task_files (id, activity_id, filename, content_type, size, url)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run(id, activityId, data.filename, data.contentType, data.size, data.url);
+  return (await db.prepare('SELECT * FROM crm_task_files WHERE id = ?').get(id)) as CrmTaskFileRow;
+}
+
+export async function deleteTaskFile(activityId: string, fileId: string): Promise<boolean> {
+  return (
+    (await getDb()
+      .prepare('DELETE FROM crm_task_files WHERE id = ? AND activity_id = ?')
+      .run(fileId, activityId)).changes > 0
   );
 }
 
@@ -1683,12 +1830,19 @@ export async function nextTaskFor(
 
 export type TaskBucket = 'overdue' | 'today' | 'upcoming' | 'done';
 
-export async function listTasks(userId: string, bucket: TaskBucket): Promise<ActivityListRow[]> {
+export interface ListTasksFilter {
+  bucket: TaskBucket;
+  projectId?: string;
+  ownerId?: string;
+}
+
+export async function listTasks(userId: string, filter: TaskBucket | ListTasksFilter): Promise<ActivityListRow[]> {
   const db = getDb();
   const { start, end } = todayRange();
+  const f: ListTasksFilter = typeof filter === 'string' ? { bucket: filter } : filter;
   let cond: string;
   const args: Array<string | number> = [userId];
-  switch (bucket) {
+  switch (f.bucket) {
     case 'overdue':
       cond = 'a.done = 0 AND a.due_at IS NOT NULL AND a.due_at < ?';
       args.push(start);
@@ -1705,8 +1859,16 @@ export async function listTasks(userId: string, bucket: TaskBucket): Promise<Act
       cond = 'a.done = 1';
       break;
   }
+  if (f.projectId) {
+    cond += ' AND a.project_id = ?';
+    args.push(f.projectId);
+  }
+  if (f.ownerId) {
+    cond += ' AND a.owner_id = ?';
+    args.push(f.ownerId);
+  }
   const order =
-    bucket === 'done'
+    f.bucket === 'done'
       ? 'a.done_at DESC, a.updated_at DESC'
       : 'a.due_at IS NULL, a.due_at ASC, a.created_at DESC';
   return (await db
@@ -1932,6 +2094,40 @@ export async function deleteSavedView(userId: string, id: string): Promise<boole
   return (
     (await getDb()
       .prepare('DELETE FROM crm_saved_views WHERE id = ? AND user_id = ?')
+      .run(id, userId)).changes > 0
+  );
+}
+
+// ============================================================
+// SAVED REPORTS
+// ============================================================
+
+export async function listSavedReports(userId: string): Promise<CrmSavedReportRow[]> {
+  return (await getDb()
+    .prepare(
+      'SELECT * FROM crm_saved_reports WHERE user_id = ? ORDER BY created_at DESC',
+    )
+    .all(userId)) as CrmSavedReportRow[];
+}
+
+export async function createSavedReport(
+  userId: string,
+  data: { name: string; reportType: string; filters?: Record<string, unknown> },
+): Promise<CrmSavedReportRow> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  await db
+    .prepare(
+      'INSERT INTO crm_saved_reports (id, user_id, name, report_type, filters) VALUES (?, ?, ?, ?, ?)',
+    )
+    .run(id, userId, data.name, data.reportType, JSON.stringify(data.filters ?? {}));
+  return (await db.prepare('SELECT * FROM crm_saved_reports WHERE id = ?').get(id)) as CrmSavedReportRow;
+}
+
+export async function deleteSavedReport(userId: string, id: string): Promise<boolean> {
+  return (
+    (await getDb()
+      .prepare('DELETE FROM crm_saved_reports WHERE id = ? AND user_id = ?')
       .run(id, userId)).changes > 0
   );
 }

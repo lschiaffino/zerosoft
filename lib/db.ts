@@ -51,6 +51,9 @@ export function ensureMigrated(): Promise<void> {
       // (falla con "duplicate column" si ya existe; se ignora).
       for (const alter of [
         'ALTER TABLE crm_activities ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE crm_activities ADD COLUMN project_id TEXT',
+        'ALTER TABLE crm_activities ADD COLUMN owner_id TEXT',
+        'CREATE INDEX IF NOT EXISTS idx_crm_activities_project ON crm_activities(user_id, project_id, done)',
         'ALTER TABLE integrations ADD COLUMN last_sync_at TEXT',
         'ALTER TABLE users ADD COLUMN active_team_id TEXT',
         'ALTER TABLE crm_contacts ADD COLUMN owner_id TEXT',
@@ -330,6 +333,28 @@ const DDL = `
     CREATE INDEX IF NOT EXISTS idx_crm_activities_user ON crm_activities(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_crm_activities_due ON crm_activities(user_id, done, due_at);
 
+    CREATE TABLE IF NOT EXISTS crm_task_projects (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#666666',
+      archived INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_crm_task_projects_user ON crm_task_projects(user_id, archived, name);
+
+    CREATE TABLE IF NOT EXISTS crm_task_files (
+      id TEXT PRIMARY KEY,
+      activity_id TEXT NOT NULL REFERENCES crm_activities(id) ON DELETE CASCADE,
+      filename TEXT NOT NULL,
+      content_type TEXT NOT NULL DEFAULT '',
+      size INTEGER NOT NULL DEFAULT 0,
+      url TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_crm_task_files_activity ON crm_task_files(activity_id, created_at DESC);
+
     -- Audit trail: una fila por cada cambio de propiedad de contact/company/deal.
     CREATE TABLE IF NOT EXISTS crm_property_events (
       id TEXT PRIMARY KEY,
@@ -377,6 +402,15 @@ const DDL = `
       entity TEXT NOT NULL,
       name TEXT NOT NULL,
       query TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS crm_saved_reports (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      report_type TEXT NOT NULL,
+      filters TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -597,6 +631,7 @@ export interface CrmDealRow {
 export interface CrmActivityRow {
   id: string;
   user_id: string;
+  owner_id: string | null;
   type: 'note' | 'task' | 'call' | 'meeting' | 'email';
   subject: string;
   body: string;
@@ -610,8 +645,29 @@ export interface CrmActivityRow {
   contact_id: string | null;
   company_id: string | null;
   deal_id: string | null;
+  project_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface CrmTaskProjectRow {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  archived: 0 | 1;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmTaskFileRow {
+  id: string;
+  activity_id: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  url: string;
+  created_at: string;
 }
 
 export interface CrmPropertyEventRow {
@@ -653,6 +709,15 @@ export interface CrmSavedViewRow {
   entity: string;
   name: string;
   query: string; // JSON object
+  created_at: string;
+}
+
+export interface CrmSavedReportRow {
+  id: string;
+  user_id: string;
+  name: string;
+  report_type: string;
+  filters: string; // JSON object
   created_at: string;
 }
 

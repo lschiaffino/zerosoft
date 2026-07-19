@@ -406,12 +406,49 @@
     "dueLabel": "Due",
     "noDue": "No date",
     "empty": "0 tasks here. Nothing to do but watch the zeros.",
+    "filterOwner": "Owner",
+    "filterProject": "Project",
     "form": {
       "subject": "Subject",
+      "type": "Type",
       "dueAt": "Due date",
       "contact": "Contact",
+      "company": "Company",
       "deal": "Deal",
-      "body": "Notes"
+      "body": "Notes",
+      "project": "Project",
+      "owner": "Owner"
+    },
+    "detail": {
+      "back": "← All tasks",
+      "properties": "Properties",
+      "aboutSection": "About this task",
+      "ownershipSection": "Ownership",
+      "files": "Attachments",
+      "activity": "Activity",
+      "created": "Created",
+      "updated": "Updated",
+      "contact": "Contact",
+      "company": "Company",
+      "deal": "Deal",
+      "noContact": "No contact associated.",
+      "noCompany": "No company associated.",
+      "noDeal": "No deal associated.",
+      "noFiles": "No attachments yet.",
+      "upload": "Upload file",
+      "uploading": "Uploading…",
+      "untitled": "Untitled task",
+      "deleteTitle": "Delete this task",
+      "deleteDesc": "This deletes the task and its attachments. This can't be undone.",
+      "deleteButton": "Delete forever"
+    },
+    "projects": {
+      "manage": "Manage projects",
+      "namePlaceholder": "Project name",
+      "color": "Color",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "empty": "No projects yet."
     }
   },
   "lists": {
@@ -445,6 +482,15 @@
   },
   "reports": {
     "title": "Reports",
+    "tabs": {
+      "overview": "Overview",
+      "funnel": "Funnel",
+      "forecast": "Forecast",
+      "source": "Sources",
+      "owner": "Owners",
+      "activity": "Activity",
+      "conversion": "Conversion"
+    },
     "funnel": "Pipeline funnel",
     "forecastByStage": "Weighted forecast by stage",
     "wonLost": "Won vs lost — last 6 months",
@@ -469,7 +515,22 @@
       "activities": "Activities"
     },
     "activityOverTime": "Activity over time",
-    "byOwner": "By owner"
+    "byOwner": "By owner",
+    "savedReports": "Saved reports",
+    "saveReport": "Save report",
+    "reportName": "Report name",
+    "loadReport": "Load",
+    "noSavedReports": "No saved reports yet.",
+    "deleteReport": "Delete report",
+    "wonDeals": "Won deals",
+    "lostDeals": "Lost deals",
+    "winRate": "Win rate",
+    "completedActivities": "Completed activities",
+    "conversionRate": "Conversion rate",
+    "createdDeals": "Created deals",
+    "contacts": "Contacts",
+    "deals": "Deals",
+    "activities": "Activities"
   },
   "settings": {
     "title": "Settings",

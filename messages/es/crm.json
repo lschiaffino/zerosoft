@@ -406,12 +406,49 @@
     "dueLabel": "Vence",
     "noDue": "Sin fecha",
     "empty": "0 tareas acá. No queda nada más que mirar los ceros.",
+    "filterOwner": "Responsable",
+    "filterProject": "Proyecto",
     "form": {
       "subject": "Asunto",
+      "type": "Tipo",
       "dueAt": "Fecha de vencimiento",
       "contact": "Contacto",
+      "company": "Empresa",
       "deal": "Deal",
-      "body": "Notas"
+      "body": "Notas",
+      "project": "Proyecto",
+      "owner": "Responsable"
+    },
+    "detail": {
+      "back": "← Todas las tareas",
+      "properties": "Propiedades",
+      "aboutSection": "Sobre esta tarea",
+      "ownershipSection": "Asignación",
+      "files": "Adjuntos",
+      "activity": "Actividad",
+      "created": "Creada",
+      "updated": "Actualizada",
+      "contact": "Contacto",
+      "company": "Empresa",
+      "deal": "Deal",
+      "noContact": "Sin contacto asociado.",
+      "noCompany": "Sin empresa asociada.",
+      "noDeal": "Sin deal asociado.",
+      "noFiles": "Sin adjuntos todavía.",
+      "upload": "Subir archivo",
+      "uploading": "Subiendo…",
+      "untitled": "Tarea sin título",
+      "deleteTitle": "Eliminar esta tarea",
+      "deleteDesc": "Elimina la tarea y sus adjuntos. No se puede deshacer.",
+      "deleteButton": "Eliminar para siempre"
+    },
+    "projects": {
+      "manage": "Administrar proyectos",
+      "namePlaceholder": "Nombre del proyecto",
+      "color": "Color",
+      "archive": "Archivar",
+      "unarchive": "Restaurar",
+      "empty": "Todavía no hay proyectos."
     }
   },
   "lists": {
@@ -445,6 +482,15 @@
   },
   "reports": {
     "title": "Reportes",
+    "tabs": {
+      "overview": "Resumen",
+      "funnel": "Embudo",
+      "forecast": "Forecast",
+      "source": "Orígenes",
+      "owner": "Responsables",
+      "activity": "Actividad",
+      "conversion": "Conversión"
+    },
     "funnel": "Embudo del pipeline",
     "forecastByStage": "Forecast ponderado por etapa",
     "wonLost": "Ganados vs perdidos — últimos 6 meses",
@@ -469,7 +515,22 @@
       "activities": "Actividades"
     },
     "activityOverTime": "Actividad en el tiempo",
-    "byOwner": "Por responsable"
+    "byOwner": "Por responsable",
+    "savedReports": "Reportes guardados",
+    "saveReport": "Guardar reporte",
+    "reportName": "Nombre del reporte",
+    "loadReport": "Cargar",
+    "noSavedReports": "Todavía no hay reportes guardados.",
+    "deleteReport": "Eliminar reporte",
+    "wonDeals": "Deals ganados",
+    "lostDeals": "Deals perdidos",
+    "winRate": "Win rate",
+    "completedActivities": "Actividades completadas",
+    "conversionRate": "Tasa de conversión",
+    "createdDeals": "Deals creados",
+    "contacts": "Contactos",
+    "deals": "Deals",
+    "activities": "Actividades"
   },
   "settings": {
     "title": "Ajustes",

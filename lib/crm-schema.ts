@@ -164,12 +164,22 @@ export const activityCreateSchema = z.object({
   contactId: id.nullish(),
   companyId: id.nullish(),
   dealId: id.nullish(),
+  projectId: id.nullish(),
+  ownerId: id.nullish(),
 });
 
 export const activityUpdateSchema = activityCreateSchema.partial().extend({
   done: z.boolean().optional(),
   pinned: z.boolean().optional(),
 });
+
+export const taskProjectCreateSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  color: z.string().trim().max(20).optional(),
+  archived: z.boolean().optional(),
+});
+
+export const taskProjectUpdateSchema = taskProjectCreateSchema.partial();
 
 // ---------- Lists ----------
 
@@ -199,6 +209,24 @@ export const savedViewCreateSchema = z.object({
   entity: z.enum(['contacts', 'companies', 'deals', 'tasks']),
   name,
   query: z.record(z.unknown()).optional(),
+});
+
+// ---------- Saved reports ----------
+
+export const REPORT_TYPES = [
+  'overview',
+  'funnel',
+  'forecast',
+  'source',
+  'owner',
+  'activity',
+  'conversion',
+] as const;
+
+export const savedReportCreateSchema = z.object({
+  name,
+  reportType: z.enum(REPORT_TYPES),
+  filters: z.record(z.unknown()).optional(),
 });
 
 // ---------- Custom fields ----------
@@ -274,6 +302,8 @@ export type DealUpdatePayload = z.infer<typeof dealUpdateSchema>;
 export type DealMovePayload = z.infer<typeof dealMoveSchema>;
 export type ActivityCreatePayload = z.infer<typeof activityCreateSchema>;
 export type ActivityUpdatePayload = z.infer<typeof activityUpdateSchema>;
+export type TaskProjectCreatePayload = z.infer<typeof taskProjectCreateSchema>;
+export type TaskProjectUpdatePayload = z.infer<typeof taskProjectUpdateSchema>;
 export type ListCreatePayload = z.infer<typeof listCreateSchema>;
 export type ListUpdatePayload = z.infer<typeof listUpdateSchema>;
 export type ListMembersPayload = z.infer<typeof listMembersSchema>;

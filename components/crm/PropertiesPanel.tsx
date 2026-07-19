@@ -9,7 +9,7 @@ export interface PropField {
    *  Con prefijo `custom.<name>` patchea dentro del objeto custom. */
   key: string;
   label: string;
-  type: 'text' | 'select' | 'number' | 'date';
+  type: 'text' | 'select' | 'number' | 'date' | 'textarea';
   /** Valor actual ('' si está vacío). */
   value: string;
   /** Opciones para type=select. */
@@ -62,10 +62,14 @@ export default function PropertiesPanel({
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(!compactKeys || compactKeys.length === 0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (editingKey && inputRef.current) inputRef.current.focus();
-  }, [editingKey]);
+    if (!editingKey) return;
+    const field = fields.find((f) => f.key === editingKey);
+    if (field?.type === 'textarea') textareaRef.current?.focus();
+    else inputRef.current?.focus();
+  }, [editingKey, fields]);
 
   useEffect(() => {
     if (!savedKey) return;
@@ -147,6 +151,18 @@ export default function PropertiesPanel({
                   </option>
                 ))}
               </select>
+            ) : field.type === 'textarea' ? (
+              <textarea
+                ref={textareaRef}
+                className="textarea"
+                value={draft}
+                rows={4}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') cancel();
+                }}
+                onBlur={() => save(field, draft.trim())}
+              />
             ) : (
               <input
                 ref={inputRef}

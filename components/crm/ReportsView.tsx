@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -8,13 +9,19 @@ import {
   PRIORITIES,
   SOURCES,
 } from '@/lib/crm-constants';
-import { type CrmReports, type FunnelStage } from '@/lib/crm';
+import { type CrmReports } from '@/lib/crm';
 import {
+  type ActivityLeaderboard,
+  type ConversionRate,
+  type FunnelReportStage,
+  type ForecastReportStage,
   type Kpis,
   type OwnerMetric,
+  type OwnerPerformance,
   type ReportBucket,
   type ReportFilters,
   type ReportRangeLabel,
+  type SourcePerformance,
   type TimeseriesPoint,
 } from '@/lib/crm-reports';
 import { formatNumber } from '@/lib/utils';
@@ -22,24 +29,31 @@ import PipelineSelect from './PipelineSelect';
 
 interface ReportsViewProps {
   reports: CrmReports;
-  funnel: FunnelStage[];
-  forecastByStage: CrmReports['forecastByStage'];
+  funnel: FunnelReportStage[];
+  forecastByStage: ForecastReportStage[];
   pipelines: Array<{ id: string; name: string }>;
   selectedPipelineId: string | null;
   locale: string;
   range: ReportRangeLabel;
   bucket: ReportBucket;
   filters: ReportFilters;
+  reportType: ReportType;
   kpis: Kpis;
   timeseries: TimeseriesPoint[];
   byOwner: OwnerMetric[];
   owners: Array<{ id: string; email: string; name: string | null }>;
   sources: Array<{ value: string; label: string }>;
   priorities: Array<{ value: string; label: string }>;
+  sourcePerformance: SourcePerformance[];
+  ownerPerformance: OwnerPerformance[];
+  activityLeaderboard: ActivityLeaderboard[];
+  conversionRate: ConversionRate;
 }
 
 const RANGES: ReportRangeLabel[] = ['7d', '30d', '90d', 'quarter', '12m'];
 const BUCKETS: ReportBucket[] = ['day', 'week', 'month', 'quarter'];
+const REPORT_TYPES: ReportType[] = ['overview', 'funnel', 'forecast', 'source', 'owner', 'activity', 'conversion'];
+type ReportType = 'overview' | 'funnel' | 'forecast' | 'source' | 'owner' | 'activity' | 'conversion';
 
 function niceCeil(max: number): number {
   if (max <= 1) return 1;
@@ -429,6 +443,160 @@ function BucketSelector({ bucket }: { bucket: ReportBucket }) {
   );
 }
 
+function ReportTypeTabs({ reportType }: { reportType: ReportType }) {
+  const t = useTranslations('crm');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function set(type: ReportType) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('report', type);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  return (
+    <div className="report-type-tabs">
+      {REPORT_TYPES.map((type) => (
+        <button
+          key={type}
+          type="button"
+          className={`report-type-tab${type === reportType ? ' active' : ''}`}
+          onClick={() => set(type)}
+        >
+          {t(`reports.tabs.${type}`)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface SavedReport {
+  id: string;
+  name: string;
+  report_type: string;
+  filters: string;
+}
+
+function SavedReportsBar({
+  reportType,
+  filters,
+}: {
+  reportType: ReportType;
+  filters: ReportFilters;
+}) {
+  const t = useTranslations('crm');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [rows, setRows] = useState<SavedReport[]>([]);
+  const [name, setName] = useState('');
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  async function load() {
+    const res = await fetch(`/api/crm/reports?reportType=${reportType}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setRows(data.rows as SavedReport[]);
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportType]);
+
+  async function save() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setStatus('saving');
+    const res = await fetch('/api/crm/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: trimmed,
+        reportType,
+        filters: {
+          pipelineId: filters.pipelineId,
+          source: filters.source,
+          priority: filters.priority,
+          ownerId: filters.ownerId,
+        },
+      }),
+    });
+    if (res.ok) {
+      setName('');
+      setStatus('saved');
+      await load();
+      setTimeout(() => setStatus('idle'), 1500);
+    } else {
+      setStatus('idle');
+    }
+  }
+
+  async function deleteReport(id: string) {
+    const res = await fetch(`/api/crm/reports?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.ok) await load();
+  }
+
+  function loadReport(row: SavedReport) {
+    const params = new URLSearchParams();
+    params.set('range', searchParams.get('range') ?? '30d');
+    params.set('bucket', searchParams.get('bucket') ?? 'week');
+    params.set('report', row.report_type);
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(row.filters);
+    } catch {
+      parsed = {};
+    }
+    const f = parsed as Record<string, string | undefined>;
+    if (f.pipelineId) params.set('pipeline', f.pipelineId);
+    if (f.source) params.set('source', f.source);
+    if (f.priority) params.set('priority', f.priority);
+    if (f.ownerId) params.set('owner', f.ownerId);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  return (
+    <div className="saved-reports-bar">
+      <div className="saved-reports-save">
+        <input
+          className="input"
+          type="text"
+          placeholder={t('reports.reportName')}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && save()}
+        />
+        <button type="button" className="btn btn-sm" onClick={save} disabled={status === 'saving' || !name.trim()}>
+          {status === 'saving' ? t('common.saving') : t('reports.saveReport')}
+        </button>
+        {status === 'saved' && <span className="saved-ok">{t('common.saved')}</span>}
+      </div>
+      {rows.length > 0 && (
+        <div className="saved-reports-list">
+          <span className="saved-reports-label">{t('reports.savedReports')}</span>
+          {rows.map((row) => (
+            <span key={row.id} className="saved-report-chip">
+              <button type="button" className="saved-report-name" onClick={() => loadReport(row)}>
+                {row.name}
+              </button>
+              <button
+                type="button"
+                className="saved-report-del"
+                aria-label={t('reports.deleteReport')}
+                onClick={() => deleteReport(row.id)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ReportsView({
   reports,
   funnel,
@@ -439,18 +607,23 @@ export default function ReportsView({
   range,
   bucket,
   filters,
+  reportType,
   kpis,
   timeseries,
   byOwner,
   owners,
   sources,
   priorities,
+  sourcePerformance,
+  ownerPerformance,
+  activityLeaderboard,
+  conversionRate,
 }: ReportsViewProps) {
   const t = useTranslations('crm');
 
   const funnelMax = Math.max(...funnel.map((s) => s.count), 1);
   const forecastTotal = forecastByStage.reduce((s, f) => s + f.forecast, 0);
-  const forecastMax = Math.max(...forecastByStage.map((f) => f.forecast, 1));
+  const forecastMax = Math.max(...forecastByStage.map((f) => f.forecast), 1);
 
   const sourceLabel = (n: string) =>
     (SOURCES as readonly string[]).includes(n) ? t(`enums.source.${n}`) : n;
@@ -463,6 +636,9 @@ export default function ReportsView({
 
   return (
     <div className="reports">
+      <ReportTypeTabs reportType={reportType} />
+      <SavedReportsBar reportType={reportType} filters={filters} />
+
       <div className="report-controls">
         <RangeSelector range={range} />
         <BucketSelector bucket={bucket} />
@@ -495,72 +671,253 @@ export default function ReportsView({
         />
       </div>
 
-      <div className="kpi-grid">
-        <KpiCard
-          label={t('reports.kpi.newContacts')}
-          value={kpis.newContacts}
-          delta={kpis.newContactsDelta}
-          locale={locale}
-        />
-        <KpiCard
-          label={t('reports.kpi.newDeals')}
-          value={kpis.newDeals}
-          delta={kpis.newDealsDelta}
-          locale={locale}
-        />
-        <KpiCard
-          label={t('reports.kpi.wonAmount')}
-          value={kpis.wonAmount}
-          delta={kpis.wonAmountDelta}
-          money
-          locale={locale}
-        />
-        <KpiCard
-          label={t('reports.kpi.activities')}
-          value={kpis.activities}
-          delta={kpis.activitiesDelta}
-          locale={locale}
-        />
-      </div>
+      {reportType === 'overview' && (
+        <>
+          <div className="kpi-grid">
+            <KpiCard
+              label={t('reports.kpi.newContacts')}
+              value={kpis.newContacts}
+              delta={kpis.newContactsDelta}
+              locale={locale}
+            />
+            <KpiCard
+              label={t('reports.kpi.newDeals')}
+              value={kpis.newDeals}
+              delta={kpis.newDealsDelta}
+              locale={locale}
+            />
+            <KpiCard
+              label={t('reports.kpi.wonAmount')}
+              value={kpis.wonAmount}
+              delta={kpis.wonAmountDelta}
+              money
+              locale={locale}
+            />
+            <KpiCard
+              label={t('reports.kpi.activities')}
+              value={kpis.activities}
+              delta={kpis.activitiesDelta}
+              locale={locale}
+            />
+          </div>
 
-      <section className="panel chart-panel">
-        <div className="panel-head">
-          <p className="section-label">{t('reports.activityOverTime')}</p>
-        </div>
-        <TimeseriesChart data={timeseries} locale={locale} />
-      </section>
+          <section className="panel chart-panel">
+            <div className="panel-head">
+              <p className="section-label">{t('reports.activityOverTime')}</p>
+            </div>
+            <TimeseriesChart data={timeseries} locale={locale} />
+          </section>
 
-      <section className="panel">
-        <p className="section-label">{t('reports.byOwner')}</p>
-        {byOwner.length === 0 ? (
-          <p className="muted breakdown-empty">{t('reports.empty')}</p>
-        ) : (
-          <table className="table owner-table">
-            <thead>
-              <tr>
-                <th>{t('contacts.form.owner')}</th>
-                <th className="th-num">{t('contacts.title')}</th>
-                <th className="th-num">{t('deals.title')}</th>
-                <th className="th-num">{t('reports.kpi.wonAmount')}</th>
-                <th className="th-num">{t('reports.activities')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {byOwner.map((o) => (
-                <tr key={o.id}>
-                  <td>{o.name ?? o.email}</td>
-                  <td className="mono td-num">{formatNumber(o.contacts, locale)}</td>
-                  <td className="mono td-num">{formatNumber(o.deals, locale)}</td>
-                  <td className="mono td-num">{formatMoney(o.wonAmount, locale)}</td>
-                  <td className="mono td-num">{formatNumber(o.activities, locale)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+          <section className="panel">
+            <p className="section-label">{t('reports.byOwner')}</p>
+            {byOwner.length === 0 ? (
+              <p className="muted breakdown-empty">{t('reports.empty')}</p>
+            ) : (
+              <table className="table owner-table">
+                <thead>
+                  <tr>
+                    <th>{t('contacts.form.owner')}</th>
+                    <th className="th-num">{t('contacts.title')}</th>
+                    <th className="th-num">{t('deals.title')}</th>
+                    <th className="th-num">{t('reports.kpi.wonAmount')}</th>
+                    <th className="th-num">{t('reports.activities')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byOwner.map((o) => (
+                    <tr key={o.id}>
+                      <td>{o.name ?? o.email}</td>
+                      <td className="mono td-num">{formatNumber(o.contacts, locale)}</td>
+                      <td className="mono td-num">{formatNumber(o.deals, locale)}</td>
+                      <td className="mono td-num">{formatMoney(o.wonAmount, locale)}</td>
+                      <td className="mono td-num">{formatNumber(o.activities, locale)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
 
-      <div className="overview-grid">
+          <div className="overview-grid">
+            <section className="panel">
+              <div className="panel-head">
+                <p className="section-label">{t('reports.funnel')}</p>
+                {pipelines.length > 1 && (
+                  <PipelineSelect
+                    pipelines={pipelines}
+                    selectedId={selectedPipelineId}
+                    label={t('reports.pipeline')}
+                  />
+                )}
+              </div>
+              {funnel.length === 0 ? (
+                <p className="muted breakdown-empty">{t('reports.empty')}</p>
+              ) : (
+                <div className="breakdown">
+                  {funnel.map((stage) => (
+                    <div className="funnel-row" key={stage.id}>
+                      <span className="breakdown-name" title={stage.name}>
+                        {stage.name}
+                      </span>
+                      <span
+                        className="breakdown-track"
+                        title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale)}`}
+                      >
+                        <span
+                          className="breakdown-bar"
+                          style={{ width: `${Math.max((stage.count / funnelMax) * 100, 2)}%` }}
+                        />
+                      </span>
+                      <span className="funnel-stats mono">
+                        {formatNumber(stage.count, locale)}
+                        <span className="funnel-sep">·</span>
+                        {formatMoney(stage.amount, locale)}
+                        {stage.conversionRate !== null && (
+                          <span className="funnel-conv" title={t('reports.vsPrev')}>
+                            {stage.conversionRate}%
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="panel">
+              <div className="panel-head">
+                <p className="section-label">{t('reports.forecastByStage')}</p>
+                {pipelines.length > 1 && (
+                  <span className="muted panel-more">
+                    {pipelines.find((p) => p.id === selectedPipelineId)?.name}
+                  </span>
+                )}
+              </div>
+              <div className="report-total">
+                <span className="stat-num">{formatMoney(forecastTotal, locale)}</span>
+                <span className="stat-label">
+                  {t('reports.total')} · {t('reports.forecast')}
+                </span>
+              </div>
+              {forecastByStage.length === 0 ? (
+                <p className="muted breakdown-empty">{t('reports.empty')}</p>
+              ) : (
+                <div className="breakdown">
+                  {forecastByStage.map((stage) => (
+                    <div className="funnel-row" key={stage.id}>
+                      <span className="breakdown-name" title={stage.name}>
+                        {stage.name}
+                      </span>
+                      <span
+                        className="breakdown-track"
+                        title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale)} × ${stage.probability}%`}
+                      >
+                        <span
+                          className="breakdown-bar"
+                          style={{ width: `${Math.max((stage.forecast / forecastMax) * 100, 2)}%` }}
+                        />
+                      </span>
+                      <span className="funnel-stats mono">
+                        {formatMoney(stage.forecast, locale)}
+                        <span className="funnel-sep">·</span>
+                        {stage.probability}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+
+          <section className="panel chart-panel">
+            <div className="panel-head">
+              <p className="section-label">{t('reports.wonLost')}</p>
+              <div className="chart-legend">
+                <span className="chart-legend-item">
+                  <span className="chart-swatch" aria-hidden /> {t('overview.won')}
+                </span>
+                <span className="chart-legend-item">
+                  <span className="chart-swatch outline" aria-hidden /> {t('overview.lost')}
+                </span>
+              </div>
+            </div>
+            <WonLostChart
+              data={reports.wonLostByMonth}
+              locale={locale}
+              labels={{
+                won: t('overview.won'),
+                lost: t('overview.lost'),
+                empty: t('reports.empty'),
+              }}
+            />
+          </section>
+
+          <div className="breakdown-grid">
+            <section className="panel">
+              <p className="section-label">{t('reports.dealsBySource')}</p>
+              <ProporBars
+                items={reports.dealsBySource.map((d) => ({ name: d.source, count: d.count }))}
+                emptyLabel={t('reports.empty')}
+                labelFor={sourceLabel}
+                titleFor={(item) => {
+                  const row = reports.dealsBySource.find((d) => d.source === item.name);
+                  return row ? formatMoney(row.amount, locale) : '';
+                }}
+                locale={locale}
+              />
+            </section>
+            <section className="panel">
+              <p className="section-label">{t('reports.contactsByLifecycle')}</p>
+              <ProporBars
+                items={reports.contactsByLifecycle.map((c) => ({ name: c.lifecycle, count: c.count }))}
+                emptyLabel={t('reports.empty')}
+                labelFor={lifecycleLabel}
+                locale={locale}
+              />
+            </section>
+            <section className="panel">
+              <p className="section-label">{t('reports.activitiesByType')}</p>
+              <ProporBars
+                items={reports.activitiesByType.map((a) => ({ name: a.type, count: a.count }))}
+                emptyLabel={t('reports.empty')}
+                labelFor={activityLabel}
+                locale={locale}
+              />
+            </section>
+            <section className="panel">
+              <p className="section-label">{t('reports.dealsByPriority')}</p>
+              <ProporBars
+                items={reports.dealsByPriority.map((p) => ({ name: p.priority, count: p.count }))}
+                emptyLabel={t('reports.empty')}
+                labelFor={priorityLabel}
+                titleFor={(item) => {
+                  const row = reports.dealsByPriority.find((p) => p.priority === item.name);
+                  return row ? formatMoney(row.amount, locale) : '';
+                }}
+                locale={locale}
+              />
+            </section>
+            <section className="panel">
+              <p className="section-label">{t('reports.lostReasons')}</p>
+              <ProporBars
+                items={reports.lostReasons.map((r) => ({ name: r.reason, count: r.count }))}
+                emptyLabel={t('reports.empty')}
+                labelFor={(n) => n}
+                locale={locale}
+              />
+            </section>
+          </div>
+
+          <div className="panel stat-card report-avg">
+            <span className="stat-num">
+              {reports.avgDaysToClose === null ? '—' : formatNumber(reports.avgDaysToClose, locale)}
+            </span>
+            <span className="stat-label">{t('reports.avgDaysToClose')}</span>
+          </div>
+        </>
+      )}
+
+      {reportType === 'funnel' && (
         <section className="panel">
           <div className="panel-head">
             <p className="section-label">{t('reports.funnel')}</p>
@@ -576,41 +933,38 @@ export default function ReportsView({
             <p className="muted breakdown-empty">{t('reports.empty')}</p>
           ) : (
             <div className="breakdown">
-              {funnel.map((stage, i) => {
-                const prev = i > 0 ? funnel[i - 1] : null;
-                const conv =
-                  prev && prev.count > 0 ? Math.round((stage.count / prev.count) * 100) : null;
-                return (
-                  <div className="funnel-row" key={stage.id}>
-                    <span className="breakdown-name" title={stage.name}>
-                      {stage.name}
-                    </span>
+              {funnel.map((stage) => (
+                <div className="funnel-row" key={stage.id}>
+                  <span className="breakdown-name" title={stage.name}>
+                    {stage.name}
+                  </span>
+                  <span
+                    className="breakdown-track"
+                    title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale)}`}
+                  >
                     <span
-                      className="breakdown-track"
-                      title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale)}`}
-                    >
-                      <span
-                        className="breakdown-bar"
-                        style={{ width: `${Math.max((stage.count / funnelMax) * 100, 2)}%` }}
-                      />
-                    </span>
-                    <span className="funnel-stats mono">
-                      {formatNumber(stage.count, locale)}
-                      <span className="funnel-sep">·</span>
-                      {formatMoney(stage.amount, locale)}
-                      {conv !== null && (
-                        <span className="funnel-conv" title={t('reports.vsPrev')}>
-                          {conv}%
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                );
-              })}
+                      className="breakdown-bar"
+                      style={{ width: `${Math.max((stage.count / funnelMax) * 100, 2)}%` }}
+                    />
+                  </span>
+                  <span className="funnel-stats mono">
+                    {formatNumber(stage.count, locale)}
+                    <span className="funnel-sep">·</span>
+                    {formatMoney(stage.amount, locale)}
+                    {stage.conversionRate !== null && (
+                      <span className="funnel-conv" title={t('reports.vsPrev')}>
+                        {stage.conversionRate}%
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </section>
+      )}
 
+      {reportType === 'forecast' && (
         <section className="panel">
           <div className="panel-head">
             <p className="section-label">{t('reports.forecastByStage')}</p>
@@ -648,99 +1002,140 @@ export default function ReportsView({
                     {formatMoney(stage.forecast, locale)}
                     <span className="funnel-sep">·</span>
                     {stage.probability}%
+                    <span className="funnel-sep">·</span>
+                    {formatNumber(stage.count, locale)}
                   </span>
                 </div>
               ))}
             </div>
           )}
         </section>
-      </div>
+      )}
 
-      <section className="panel chart-panel">
-        <div className="panel-head">
-          <p className="section-label">{t('reports.wonLost')}</p>
-          <div className="chart-legend">
-            <span className="chart-legend-item">
-              <span className="chart-swatch" aria-hidden /> {t('overview.won')}
-            </span>
-            <span className="chart-legend-item">
-              <span className="chart-swatch outline" aria-hidden /> {t('overview.lost')}
-            </span>
-          </div>
-        </div>
-        <WonLostChart
-          data={reports.wonLostByMonth}
-          locale={locale}
-          labels={{
-            won: t('overview.won'),
-            lost: t('overview.lost'),
-            empty: t('reports.empty'),
-          }}
-        />
-      </section>
-
-      <div className="breakdown-grid">
+      {reportType === 'source' && (
         <section className="panel">
           <p className="section-label">{t('reports.dealsBySource')}</p>
           <ProporBars
-            items={reports.dealsBySource.map((d) => ({ name: d.source, count: d.count }))}
+            items={sourcePerformance.map((s) => ({ name: s.source, count: s.deals }))}
             emptyLabel={t('reports.empty')}
             labelFor={sourceLabel}
             titleFor={(item) => {
-              const row = reports.dealsBySource.find((d) => d.source === item.name);
+              const row = sourcePerformance.find((s) => s.source === item.name);
               return row ? formatMoney(row.amount, locale) : '';
             }}
             locale={locale}
           />
+          {sourcePerformance.length > 0 && (
+            <table className="table performance-table">
+              <thead>
+                <tr>
+                  <th>{t('deals.form.source')}</th>
+                  <th className="th-num">{t('reports.contacts')}</th>
+                  <th className="th-num">{t('reports.deals')}</th>
+                  <th className="th-num">{t('reports.amount')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sourcePerformance.map((s) => (
+                  <tr key={s.source}>
+                    <td>{sourceLabel(s.source)}</td>
+                    <td className="mono td-num">{formatNumber(s.contacts, locale)}</td>
+                    <td className="mono td-num">{formatNumber(s.deals, locale)}</td>
+                    <td className="mono td-num">{formatMoney(s.amount, locale)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </section>
-        <section className="panel">
-          <p className="section-label">{t('reports.contactsByLifecycle')}</p>
-          <ProporBars
-            items={reports.contactsByLifecycle.map((c) => ({ name: c.lifecycle, count: c.count }))}
-            emptyLabel={t('reports.empty')}
-            labelFor={lifecycleLabel}
-            locale={locale}
-          />
-        </section>
-        <section className="panel">
-          <p className="section-label">{t('reports.activitiesByType')}</p>
-          <ProporBars
-            items={reports.activitiesByType.map((a) => ({ name: a.type, count: a.count }))}
-            emptyLabel={t('reports.empty')}
-            labelFor={activityLabel}
-            locale={locale}
-          />
-        </section>
-        <section className="panel">
-          <p className="section-label">{t('reports.dealsByPriority')}</p>
-          <ProporBars
-            items={reports.dealsByPriority.map((p) => ({ name: p.priority, count: p.count }))}
-            emptyLabel={t('reports.empty')}
-            labelFor={priorityLabel}
-            titleFor={(item) => {
-              const row = reports.dealsByPriority.find((p) => p.priority === item.name);
-              return row ? formatMoney(row.amount, locale) : '';
-            }}
-            locale={locale}
-          />
-        </section>
-        <section className="panel">
-          <p className="section-label">{t('reports.lostReasons')}</p>
-          <ProporBars
-            items={reports.lostReasons.map((r) => ({ name: r.reason, count: r.count }))}
-            emptyLabel={t('reports.empty')}
-            labelFor={(n) => n}
-            locale={locale}
-          />
-        </section>
-      </div>
+      )}
 
-      <div className="panel stat-card report-avg">
-        <span className="stat-num">
-          {reports.avgDaysToClose === null ? '—' : formatNumber(reports.avgDaysToClose, locale)}
-        </span>
-        <span className="stat-label">{t('reports.avgDaysToClose')}</span>
-      </div>
+      {reportType === 'owner' && (
+        <section className="panel">
+          <p className="section-label">{t('reports.byOwner')}</p>
+          {ownerPerformance.length === 0 ? (
+            <p className="muted breakdown-empty">{t('reports.empty')}</p>
+          ) : (
+            <table className="table performance-table">
+              <thead>
+                <tr>
+                  <th>{t('contacts.form.owner')}</th>
+                  <th className="th-num">{t('reports.contacts')}</th>
+                  <th className="th-num">{t('reports.deals')}</th>
+                  <th className="th-num">{t('reports.wonDeals')}</th>
+                  <th className="th-num">{t('reports.lostDeals')}</th>
+                  <th className="th-num">{t('reports.winRate')}</th>
+                  <th className="th-num">{t('reports.kpi.wonAmount')}</th>
+                  <th className="th-num">{t('reports.completedActivities')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ownerPerformance.map((o) => (
+                  <tr key={o.id}>
+                    <td>{o.name ?? o.email}</td>
+                    <td className="mono td-num">{formatNumber(o.contacts, locale)}</td>
+                    <td className="mono td-num">{formatNumber(o.deals, locale)}</td>
+                    <td className="mono td-num">{formatNumber(o.wonDeals, locale)}</td>
+                    <td className="mono td-num">{formatNumber(o.lostDeals, locale)}</td>
+                    <td className="mono td-num">{o.winRate}%</td>
+                    <td className="mono td-num">{formatMoney(o.wonAmount, locale)}</td>
+                    <td className="mono td-num">{formatNumber(o.activities, locale)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
+
+      {reportType === 'activity' && (
+        <section className="panel">
+          <p className="section-label">{t('reports.completedActivities')}</p>
+          {activityLeaderboard.length === 0 ? (
+            <p className="muted breakdown-empty">{t('reports.empty')}</p>
+          ) : (
+            <table className="table performance-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{t('contacts.form.owner')}</th>
+                  <th className="th-num">{t('reports.completedActivities')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activityLeaderboard.map((o, i) => (
+                  <tr key={o.id}>
+                    <td className="mono">{i + 1}</td>
+                    <td>{o.name ?? o.email}</td>
+                    <td className="mono td-num">{formatNumber(o.completed, locale)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
+
+      {reportType === 'conversion' && (
+        <>
+          <div className="kpi-grid">
+            <div className="panel stat-card">
+              <span className="stat-num">{formatNumber(conversionRate.created, locale)}</span>
+              <span className="stat-label">{t('reports.createdDeals')}</span>
+            </div>
+            <div className="panel stat-card">
+              <span className="stat-num">{formatNumber(conversionRate.won, locale)}</span>
+              <span className="stat-label">{t('reports.wonDeals')}</span>
+            </div>
+            <KpiCard
+              label={t('reports.conversionRate')}
+              value={conversionRate.rate}
+              delta={conversionRate.delta}
+              locale={locale}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

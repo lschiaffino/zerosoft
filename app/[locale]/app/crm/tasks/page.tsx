@@ -1,8 +1,10 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { listTasks, type TaskBucket } from '@/lib/crm';
+import { listTasks, listTaskProjects, type TaskBucket } from '@/lib/crm';
+import { listMembers } from '@/lib/teams';
 import { relDate } from '@/lib/utils';
 import TasksView, { type TaskRow } from '@/components/crm/TasksView';
+import TaskProjectsManager from '@/components/crm/TaskProjectsManager';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,13 +23,22 @@ export default async function TasksPage({ params: { locale }, searchParams }: Ta
   const bucket: TaskBucket = (BUCKETS as readonly string[]).includes(bucketParam)
     ? (bucketParam as TaskBucket)
     : 'today';
+  const ownerId = typeof searchParams.owner === 'string' ? searchParams.owner : undefined;
+  const projectId = typeof searchParams.project === 'string' ? searchParams.project : undefined;
 
-  const tasks = await listTasks(user.id, bucket);
+  const teamMembers = user.team?.id
+    ? await listMembers(user.team.id)
+    : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
+
+  const projects = await listTaskProjects(user.id, true);
+  const tasks = await listTasks(user.id, { bucket, ownerId, projectId });
 
   const fmtDue = (iso: string): string =>
     new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(
       new Date(`${iso.replace(' ', 'T')}Z`),
     );
+
+  const ownerMap = new Map(teamMembers.map((m) => [m.user_id, m.name ?? m.email]));
 
   const rows: TaskRow[] = tasks.map((a) => {
     let record: TaskRow['record'] = null;
@@ -41,20 +52,43 @@ export default async function TasksPage({ params: { locale }, searchParams }: Ta
     return {
       id: a.id,
       subject: a.subject,
+      type: a.type,
       due: a.due_at ? fmtDue(a.due_at) : null,
       dueRel: a.due_at ? relDate(a.due_at, locale) : null,
       overdue: bucket === 'overdue',
       done: a.done === 1,
+      pinned: a.pinned === 1,
       record,
+      ownerId: a.owner_id ?? undefined,
+      ownerName: a.owner_id ? ownerMap.get(a.owner_id) ?? '—' : '—',
+      projectId: a.project_id ?? undefined,
+      projectName: a.project_name ?? undefined,
+      projectColor: a.project_color ?? undefined,
     };
   });
+
+  const memberOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
+  const projectOptions = projects.map((p) => ({
+    value: p.id,
+    label: p.name,
+    color: p.color,
+    archived: p.archived === 1,
+  }));
 
   return (
     <div className="app-page">
       <div className="page-head">
         <h1 className="app-title">{t('tasks.title')}</h1>
       </div>
-      <TasksView bucket={bucket} rows={rows} />
+      <TaskProjectsManager projects={projectOptions} />
+      <TasksView
+        bucket={bucket}
+        rows={rows}
+        members={memberOptions}
+        projects={projectOptions}
+        ownerId={ownerId}
+        projectId={projectId}
+      />
     </div>
   );
 }

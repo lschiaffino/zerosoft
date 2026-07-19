@@ -406,12 +406,49 @@
     "dueLabel": "Vence",
     "noDue": "Sem data",
     "empty": "0 tarefas aqui. Só resta olhar os zeros.",
+    "filterOwner": "Responsável",
+    "filterProject": "Projeto",
     "form": {
       "subject": "Assunto",
+      "type": "Tipo",
       "dueAt": "Data de vencimento",
       "contact": "Contato",
+      "company": "Empresa",
       "deal": "Negócio",
-      "body": "Notas"
+      "body": "Notas",
+      "project": "Projeto",
+      "owner": "Responsável"
+    },
+    "detail": {
+      "back": "← Todas as tarefas",
+      "properties": "Propriedades",
+      "aboutSection": "Sobre esta tarefa",
+      "ownershipSection": "Atribuição",
+      "files": "Anexos",
+      "activity": "Atividade",
+      "created": "Criada",
+      "updated": "Atualizada",
+      "contact": "Contato",
+      "company": "Empresa",
+      "deal": "Negócio",
+      "noContact": "Nenhum contato associado.",
+      "noCompany": "Nenhuma empresa associada.",
+      "noDeal": "Nenhum negócio associado.",
+      "noFiles": "Nenhum anexo ainda.",
+      "upload": "Enviar arquivo",
+      "uploading": "Enviando…",
+      "untitled": "Tarefa sem título",
+      "deleteTitle": "Excluir esta tarefa",
+      "deleteDesc": "Exclui a tarefa e seus anexos. Isso não pode ser desfeito.",
+      "deleteButton": "Excluir para sempre"
+    },
+    "projects": {
+      "manage": "Gerenciar projetos",
+      "namePlaceholder": "Nome do projeto",
+      "color": "Cor",
+      "archive": "Arquivar",
+      "unarchive": "Restaurar",
+      "empty": "Nenhum projeto ainda."
     }
   },
   "lists": {
@@ -445,6 +482,15 @@
   },
   "reports": {
     "title": "Relatórios",
+    "tabs": {
+      "overview": "Visão geral",
+      "funnel": "Funil",
+      "forecast": "Previsão",
+      "source": "Origens",
+      "owner": "Responsáveis",
+      "activity": "Atividade",
+      "conversion": "Conversão"
+    },
     "funnel": "Funil do pipeline",
     "forecastByStage": "Previsão ponderada por estágio",
     "wonLost": "Ganhos vs perdidos — últimos 6 meses",
@@ -464,12 +510,27 @@
     "total": "Total",
     "kpi": {
       "newContacts": "Novos contatos",
-      "newDeals": "Novos deals",
+      "newDeals": "Novos negócios",
       "wonAmount": "Valor ganho",
       "activities": "Atividades"
     },
     "activityOverTime": "Atividade ao longo do tempo",
-    "byOwner": "Por responsável"
+    "byOwner": "Por responsável",
+    "savedReports": "Relatórios salvos",
+    "saveReport": "Salvar relatório",
+    "reportName": "Nome do relatório",
+    "loadReport": "Carregar",
+    "noSavedReports": "Nenhum relatório salvo ainda.",
+    "deleteReport": "Excluir relatório",
+    "wonDeals": "Negócios ganhos",
+    "lostDeals": "Negócios perdidos",
+    "winRate": "Taxa de conversão",
+    "completedActivities": "Atividades concluídas",
+    "conversionRate": "Taxa de conversão",
+    "createdDeals": "Negócios criados",
+    "contacts": "Contatos",
+    "deals": "Negócios",
+    "activities": "Atividades"
   },
   "settings": {
     "title": "Configurações",
