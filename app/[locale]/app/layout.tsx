@@ -95,6 +95,13 @@ export default async function AppLayout({
             issues: tTrack('sidebar.issues'),
             cycles: tTrack('sidebar.cycles'),
             settings: tTrack('sidebar.settings'),
+            inbox: tTrack('sidebar.inbox'),
+          },
+          notifications: {
+            title: tTrack('notifications.title'),
+            markRead: tTrack('notifications.markRead'),
+            markAllRead: tTrack('notifications.markAllRead'),
+            empty: tTrack('notifications.empty'),
           },
         }}
       />

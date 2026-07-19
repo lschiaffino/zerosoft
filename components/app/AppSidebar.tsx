@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { signOut } from 'next-auth/react';
 import { Link, usePathname } from '@/i18n/navigation';
 import Icon, { type IconName } from './icons';
+import NotificationBell from './NotificationBell';
 
 export interface SidebarLabels {
   search: string;
@@ -55,6 +56,13 @@ export interface SidebarLabels {
     issues: string;
     cycles: string;
     settings: string;
+    inbox: string;
+  };
+  notifications: {
+    title: string;
+    markRead: string;
+    markAllRead: string;
+    empty: string;
   };
 }
 
@@ -111,7 +119,15 @@ export default function AppSidebar({
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  const bellLabels = {
+    title: labels.notifications.title,
+    markRead: labels.notifications.markRead,
+    markAllRead: labels.notifications.markAllRead,
+    empty: labels.notifications.empty,
+  };
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -237,7 +253,19 @@ export default function AppSidebar({
       section: labels.records,
       items: [
         { href: '/app/track/projects', label: labels.track.projects, active: pathname.startsWith('/app/track/projects'), icon: 'lists' },
-        { href: '/app/track/issues', label: labels.track.issues, active: pathname.startsWith('/app/track/issues'), icon: 'tasks' },
+        { href: '/app/track/issues', label: labels.track.issues, active: pathname.startsWith('/app/track/issues') && !pathname.startsWith('/app/track/inbox'), icon: 'tasks' },
+      ],
+    },
+    {
+      section: labels.activity,
+      items: [
+        {
+          href: '/app/track/inbox',
+          label: labels.track.inbox,
+          active: pathname.startsWith('/app/track/inbox'),
+          icon: 'inbox',
+          badge: unreadCount > 0 ? unreadCount : undefined,
+        },
       ],
     },
   ];
@@ -301,6 +329,7 @@ export default function AppSidebar({
             </div>
           )}
         </div>
+        <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />
         <button type="button" className="side-close" onClick={() => setDrawerOpen(false)}>
           ✕
         </button>
@@ -423,9 +452,12 @@ export default function AppSidebar({
           <span>{current.name}</span>
           <span className="caret">▾</span>
         </button>
-        <button type="button" className="side-close" onClick={openSearch} aria-label={labels.search}>
-          ⌘K
-        </button>
+        <div className="app-topbar-right">
+          <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />
+          <button type="button" className="side-close" onClick={openSearch} aria-label={labels.search}>
+            ⌘K
+          </button>
+        </div>
       </div>
       {drawerOpen && <div className="side-backdrop" onClick={() => setDrawerOpen(false)} />}
       {aside}

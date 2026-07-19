@@ -4,7 +4,8 @@
     "projects": "Proyectos",
     "issues": "Issues",
     "cycles": "Ciclos",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "inbox": "Bandeja"
   },
   "common": {
     "viewAll": "Ver todo",
@@ -131,7 +132,11 @@
     "commented": "{user} comentó",
     "from": "de",
     "to": "a",
-    "unassigned": "Sin asignar"
+    "unassigned": "Sin asignar",
+    "mentionedYou": "{actor} te mencionó en {identifier}",
+    "assignedYou": "{actor} te asignó {identifier}",
+    "commentedOn": "{actor} comentó en {identifier}",
+    "changedStatus": "{actor} cambió el estado de {identifier}"
   },
   "relations": {
     "title": "Relaciones",
@@ -204,6 +209,22 @@
     "next": "Siguiente",
     "today": "Hoy",
     "unscheduled": "Sin fecha"
+  },
+  "inbox": {
+    "title": "Bandeja de entrada",
+    "all": "Todas",
+    "mentions": "Menciones",
+    "assigned": "Asignadas",
+    "updates": "Actualizaciones",
+    "empty": "No hay notificaciones.",
+    "markAllRead": "Marcar todas como leídas",
+    "loadMore": "Cargar más"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "markRead": "Marcar como leída",
+    "markAllRead": "Marcar todas como leídas",
+    "empty": "No hay notificaciones"
   },
   "errors": {
     "invalid_slug": "Slug inválido. Usá letras minúsculas, números y guiones.",

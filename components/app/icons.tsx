@@ -13,7 +13,9 @@ export type IconName =
   | 'newLink'
   | 'search'
   | 'docs'
-  | 'back';
+  | 'back'
+  | 'bell'
+  | 'inbox';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -92,6 +94,18 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   back: <path d="M19 12H5M11 6l-6 6 6 6" />,
+  bell: (
+    <>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </>
+  ),
+  inbox: (
+    <>
+      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+    </>
+  ),
 };
 
 export default function Icon({ name }: { name: IconName }) {

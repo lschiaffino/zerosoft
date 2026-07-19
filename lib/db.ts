@@ -703,6 +703,23 @@ const DDL = `
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_track_issue_activities_issue ON track_issue_activities(issue_id, created_at DESC);
+
+    -- ---------- Notifications ----------
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT,
+      href TEXT,
+      read_at TEXT,
+      source_type TEXT,
+      source_id TEXT,
+      meta TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read_at, created_at DESC);
   `;
 
 // ---------- Tipos ----------
@@ -1205,6 +1222,20 @@ export interface TrackIssueActivityRow {
   created_at: string;
 }
 
+export interface NotificationRow {
+  id: string;
+  user_id: string;
+  type: 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation';
+  title: string;
+  body: string | null;
+  href: string | null;
+  read_at: string | null;
+  source_type: string;
+  source_id: string;
+  meta: string;
+  created_at: string;
+}
+
 // ---------- Users ----------
 
 export async function upsertUser(u: {
@@ -1234,4 +1265,8 @@ export async function getUserByEmail(email: string): Promise<UserRow | undefined
   return (await getDb().prepare('SELECT * FROM users WHERE email = ?').get(email)) as
     | UserRow
     | undefined;
+}
+
+export async function getUserById(id: string): Promise<UserRow | undefined> {
+  return (await getDb().prepare('SELECT * FROM users WHERE id = ?').get(id)) as UserRow | undefined;
 }

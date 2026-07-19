@@ -4,7 +4,7 @@
  * Nota: el módulo `lib/track.ts` ya existe para el tracking de clicks de
  * links, por lo que este feature vive en `lib/track-data.ts`.
  */
-import { getDb, getClient, txDb } from './db';
+import { getDb, getClient, txDb, getUserById } from './db';
 import type {
   TrackCycleRow,
   TrackIssueActivityRow,
@@ -17,6 +17,11 @@ import type {
   TrackStatusRow,
   UserRow,
 } from './db';
+import {
+  createIssueAssignedNotification,
+  createIssueCommentNotifications,
+  createIssueStatusChangedNotifications,
+} from './notifications';
 import type {
   CommentCreatePayload,
   CycleCreatePayload,
@@ -745,7 +750,24 @@ export async function createIssue(
     await createIssueActivity(id, creatorId, 'subtask_added', { parentId: payload.parentId });
   }
 
-  return (await getIssue(id)) as TrackIssueWithStatus;
+  const created = (await getIssue(id)) as TrackIssueWithStatus;
+
+  if (payload.assigneeId && payload.assigneeId !== creatorId) {
+    const [project, creator] = await Promise.all([
+      getProject(projectId),
+      getUserById(creatorId),
+    ]);
+    if (project && creator) {
+      await createIssueAssignedNotification({
+        issue: created,
+        projectName: project.name,
+        actor: creator,
+        assigneeId: payload.assigneeId,
+      });
+    }
+  }
+
+  return created;
 }
 
 export async function updateIssue(
@@ -761,6 +783,11 @@ export async function updateIssue(
   const args: Array<string | number | null> = [];
   const activities: Array<{ type: TrackIssueActivityRow['type']; meta: Record<string, unknown> }> = [];
 
+  let newAssigneeId: string | null | undefined = undefined;
+  let statusChanged = false;
+  let oldStatusName = existing.status_name ?? '';
+  let newStatusName = existing.status_name ?? '';
+
   if (payload.title !== undefined && payload.title.trim() !== existing.title) {
     fields.push('title = ?');
     args.push(payload.title.trim());
@@ -775,6 +802,9 @@ export async function updateIssue(
     fields.push('status_id = ?');
     args.push(payload.statusId ?? null);
     const newStatus = payload.statusId ? await getStatus(payload.statusId) : null;
+    statusChanged = true;
+    oldStatusName = existing.status_name ?? '';
+    newStatusName = newStatus?.name ?? '';
     activities.push({
       type: 'status_change',
       meta: {
@@ -805,6 +835,7 @@ export async function updateIssue(
       type: 'assignee_change',
       meta: { from: existing.assignee_id ?? '', to: payload.assigneeId ?? '' },
     });
+    newAssigneeId = payload.assigneeId ?? null;
   }
   if (payload.cycleId !== undefined && payload.cycleId !== existing.cycle_id) {
     fields.push('cycle_id = ?');
@@ -840,6 +871,30 @@ export async function updateIssue(
     if (actorId) {
       for (const activity of activities) {
         await createIssueActivity(id, actorId, activity.type, activity.meta);
+      }
+
+      const [actor, project] = await Promise.all([
+        getUserById(actorId),
+        getProject(existing.project_id),
+      ]);
+      if (actor && project) {
+        if (newAssigneeId) {
+          await createIssueAssignedNotification({
+            issue: existing,
+            projectName: project.name,
+            actor,
+            assigneeId: newAssigneeId,
+          });
+        }
+        if (statusChanged) {
+          await createIssueStatusChangedNotifications({
+            issue: existing,
+            projectName: project.name,
+            actor,
+            oldStatus: oldStatusName,
+            newStatus: newStatusName,
+          });
+        }
       }
     }
   }
@@ -1104,7 +1159,7 @@ export async function createIssueComment(
 
   await createIssueActivity(issueId, userId, 'comment', { commentId: id, body: payload.body.trim() });
 
-  return (await db
+  const comment = (await db
     .prepare(
       `SELECT c.*, u.name AS user_name, u.email AS user_email
        FROM track_issue_comments c
@@ -1112,6 +1167,25 @@ export async function createIssueComment(
        WHERE c.id = ?`,
     )
     .get(id)) as TrackCommentWithAuthor;
+
+  // Notify mentions, assignee and creator.
+  const [issue, project, actor] = await Promise.all([
+    getIssue(issueId),
+    db.prepare('SELECT name FROM track_projects WHERE id = (SELECT project_id FROM track_issues WHERE id = ?)').get(issueId) as Promise<{ name: string } | undefined>,
+    getUserById(userId),
+  ]);
+  if (issue && project && actor) {
+    const members = await listProjectMembers(issue.project_id, userId);
+    await createIssueCommentNotifications({
+      issue,
+      projectName: project.name,
+      actor,
+      body: payload.body.trim(),
+      members,
+    });
+  }
+
+  return comment;
 }
 
 export async function deleteIssueComment(id: string): Promise<boolean> {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { relDate } from '@/lib/utils';
 import type { TrackIssueActivityWithAuthor, ProjectMember } from '@/lib/track-data';
@@ -58,6 +58,34 @@ function userName(activity: TrackIssueActivityWithAuthor): string {
   return activity.user_name ?? activity.user_email ?? '?';
 }
 
+// Matches @email@domain.com and @Some Name (up to 3 capitalized words).
+const MENTION_RE = /@[\w.-]+(?:@[\w.-]+\.\w{2,})?|@[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,2}/g;
+
+function MentionText({ text }: { text: string }) {
+  const parts = text.split(MENTION_RE);
+  const matches = text.match(MENTION_RE) ?? [];
+  return (
+    <>
+      {parts.map((part, i) => (
+        <span key={i}>
+          {part}
+          {matches[i] && <span className="track-mention">{matches[i]}</span>}
+        </span>
+      ))}
+    </>
+  );
+}
+
+function getMentionState(text: string, cursor: number): { active: boolean; query: string; start: number } {
+  const before = text.slice(0, cursor);
+  const atIndex = before.lastIndexOf('@');
+  if (atIndex === -1) return { active: false, query: '', start: 0 };
+  const afterAt = before.slice(atIndex + 1);
+  // Stop mention if there's a space after the @ before the cursor.
+  if (/\s/.test(afterAt)) return { active: false, query: '', start: 0 };
+  return { active: true, query: afterAt, start: atIndex };
+}
+
 export default function IssueActivityTimeline({
   issueId,
   locale,
@@ -68,11 +96,27 @@ export default function IssueActivityTimeline({
 }: IssueActivityTimelineProps) {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const sorted = useMemo(
     () => [...activities].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
     [activities],
   );
+
+  const mentionMembers = useMemo(() => {
+    const q = mentionQuery.toLowerCase();
+    return members.filter(
+      (m) =>
+        m.email.toLowerCase().includes(q) || m.name?.toLowerCase().includes(q),
+    );
+  }, [members, mentionQuery]);
+
+  useEffect(() => {
+    if (mentionIndex >= mentionMembers.length) setMentionIndex(0);
+  }, [mentionMembers.length, mentionIndex]);
 
   async function submitComment(e: React.FormEvent) {
     e.preventDefault();
@@ -87,6 +131,7 @@ export default function IssueActivityTimeline({
       });
       if (res.ok) {
         setComment('');
+        setShowMentions(false);
         onChange?.();
       }
     } finally {
@@ -94,10 +139,56 @@ export default function IssueActivityTimeline({
     }
   }
 
+  function insertMention(member: ProjectMember) {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const cursor = textarea.selectionStart;
+    const state = getMentionState(comment, cursor);
+    const mentionText = `@${member.email}`;
+    const newText = comment.slice(0, state.start) + mentionText + ' ' + comment.slice(cursor);
+    setComment(newText);
+    setShowMentions(false);
+    setMentionQuery('');
+    setMentionIndex(0);
+    setTimeout(() => {
+      textarea.focus();
+      const pos = state.start + mentionText.length + 1;
+      textarea.setSelectionRange(pos, pos);
+    }, 0);
+  }
+
+  function handleInput(e: React.FormEvent<HTMLTextAreaElement>) {
+    const target = e.currentTarget;
+    setComment(target.value);
+    const cursor = target.selectionStart;
+    const state = getMentionState(target.value, cursor);
+    if (state.active) {
+      setShowMentions(true);
+      setMentionQuery(state.query);
+    } else {
+      setShowMentions(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (!showMentions || mentionMembers.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setMentionIndex((i) => (i + 1) % mentionMembers.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setMentionIndex((i) => (i - 1 + mentionMembers.length) % mentionMembers.length);
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      insertMention(mentionMembers[mentionIndex]);
+    } else if (e.key === 'Escape') {
+      setShowMentions(false);
+    }
+  }
+
   function renderActivity(activity: TrackIssueActivityWithAuthor) {
     const meta = parseMeta(activity.meta);
     const name = userName(activity);
-    const time = relDate(activity.created_at, locale);
 
     switch (activity.type) {
       case 'created':
@@ -219,7 +310,11 @@ export default function IssueActivityTimeline({
         return (
           <span>
             {labels.commented.replace('{user}', name)}
-            {body && <span className="track-activity-comment">“{body}”</span>}
+            {body && (
+              <span className="track-activity-comment">
+                “<MentionText text={body} />”
+              </span>
+            )}
           </span>
         );
       }
@@ -231,12 +326,31 @@ export default function IssueActivityTimeline({
   return (
     <div className="track-activity">
       <form className="track-activity-composer" onSubmit={submitComment}>
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder={labels.addComment}
-          rows={3}
-        />
+        <div className="track-activity-composer-input">
+          <textarea
+            ref={textareaRef}
+            value={comment}
+            onInput={handleInput}
+            onKeyDown={handleKeyDown}
+            placeholder={labels.addComment}
+            rows={3}
+          />
+          {showMentions && mentionMembers.length > 0 && (
+            <div className="track-mention-dropdown">
+              {mentionMembers.map((m, i) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={`track-mention-option${i === mentionIndex ? ' active' : ''}`}
+                  onClick={() => insertMention(m)}
+                >
+                  <span>{m.name ?? m.email}</span>
+                  <span>{m.email}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button type="submit" className="btn btn-solid" disabled={submitting || !comment.trim()}>
           {labels.submitComment}
         </button>

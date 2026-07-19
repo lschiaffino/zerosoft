@@ -4,7 +4,8 @@
     "projects": "Projects",
     "issues": "Issues",
     "cycles": "Cycles",
-    "settings": "Settings"
+    "settings": "Settings",
+    "inbox": "Inbox"
   },
   "common": {
     "viewAll": "View all",
@@ -131,7 +132,11 @@
     "commented": "{user} commented",
     "from": "from",
     "to": "to",
-    "unassigned": "Unassigned"
+    "unassigned": "Unassigned",
+    "mentionedYou": "{actor} mentioned you in {identifier}",
+    "assignedYou": "{actor} assigned you {identifier}",
+    "commentedOn": "{actor} commented on {identifier}",
+    "changedStatus": "{actor} changed status of {identifier}"
   },
   "relations": {
     "title": "Relations",
@@ -204,6 +209,22 @@
     "next": "Next",
     "today": "Today",
     "unscheduled": "Unscheduled"
+  },
+  "inbox": {
+    "title": "Inbox",
+    "all": "All",
+    "mentions": "Mentions",
+    "assigned": "Assigned",
+    "updates": "Updates",
+    "empty": "No notifications.",
+    "markAllRead": "Mark all read",
+    "loadMore": "Load more"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markRead": "Mark read",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications"
   },
   "errors": {
     "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",
