@@ -79,6 +79,14 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE crm_emails ADD COLUMN body_text TEXT',
         'ALTER TABLE docs_pages ADD COLUMN cover_url TEXT',
         'ALTER TABLE users ADD COLUMN seeded_at TEXT',
+        // Calendar F3: branding, single-use links, round-robin y host asignado.
+        'ALTER TABLE calendar_event_types ADD COLUMN brand_color TEXT',
+        'ALTER TABLE calendar_event_types ADD COLUMN welcome_message TEXT NOT NULL DEFAULT \'\'',
+        'ALTER TABLE calendar_event_types ADD COLUMN logo_url TEXT',
+        'ALTER TABLE calendar_event_types ADD COLUMN single_use INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE calendar_event_types ADD COLUMN used_at TEXT',
+        'ALTER TABLE calendar_event_types ADD COLUMN rr_cursor INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE calendar_bookings ADD COLUMN host_user_id TEXT',
       ]) {
         try {
           await client.execute(alter);
@@ -659,6 +667,12 @@ const DDL = `
       active INTEGER NOT NULL DEFAULT 1,
       booking_rules TEXT NOT NULL DEFAULT '{}',
       fields TEXT NOT NULL DEFAULT '[]',
+      brand_color TEXT,
+      welcome_message TEXT NOT NULL DEFAULT '',
+      logo_url TEXT,
+      single_use INTEGER NOT NULL DEFAULT 0,
+      used_at TEXT,
+      rr_cursor INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -686,11 +700,34 @@ const DDL = `
       status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled', 'no_show')),
       answers TEXT NOT NULL DEFAULT '{}',
       cancel_reason TEXT,
+      host_user_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_calendar_bookings_event_type ON calendar_bookings(event_type_id, starts_at);
     CREATE INDEX IF NOT EXISTS idx_calendar_bookings_starts_at ON calendar_bookings(starts_at);
+
+    -- Pool de hosts para eventos de equipo (round-robin por position + rr_cursor).
+    CREATE TABLE IF NOT EXISTS calendar_event_hosts (
+      id TEXT PRIMARY KEY,
+      event_type_id TEXT NOT NULL REFERENCES calendar_event_types(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (event_type_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_calendar_event_hosts_event ON calendar_event_hosts(event_type_id, position);
+
+    -- Recordatorios programados de bookings (ej. 24h antes).
+    CREATE TABLE IF NOT EXISTS calendar_reminders (
+      id TEXT PRIMARY KEY,
+      booking_id TEXT NOT NULL REFERENCES calendar_bookings(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'reminder_24h' CHECK (kind IN ('reminder_24h')),
+      send_at TEXT NOT NULL,
+      sent_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_calendar_reminders_due ON calendar_reminders(sent_at, send_at);
 
     CREATE TABLE IF NOT EXISTS calendar_blocked_slots (
       id TEXT PRIMARY KEY,
@@ -1351,6 +1388,12 @@ export interface CalendarEventTypeRow {
   active: 0 | 1;
   booking_rules: string; // JSON CalendarBookingRules
   fields: string; // JSON CalendarCustomField[]
+  brand_color: string | null;
+  welcome_message: string;
+  logo_url: string | null;
+  single_use: 0 | 1;
+  used_at: string | null;
+  rr_cursor: number;
   created_at: string;
   updated_at: string;
 }
@@ -1374,8 +1417,26 @@ export interface CalendarBookingRow {
   status: 'confirmed' | 'cancelled' | 'no_show';
   answers: string; // JSON object
   cancel_reason: string | null;
+  host_user_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface CalendarEventHostRow {
+  id: string;
+  event_type_id: string;
+  user_id: string;
+  position: number;
+  created_at: string;
+}
+
+export interface CalendarReminderRow {
+  id: string;
+  booking_id: string;
+  kind: 'reminder_24h';
+  send_at: string;
+  sent_at: string | null;
+  created_at: string;
 }
 
 export interface CalendarBlockedSlotRow {

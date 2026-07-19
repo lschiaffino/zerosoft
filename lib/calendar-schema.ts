@@ -62,6 +62,12 @@ export const calendarConfigUpdateSchema = z.object({
 
 // ---------- Event types ----------
 
+const logoUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .regex(/^(https:\/\/|http:\/\/|\/)/, { message: 'invalid_input' });
+
 export const eventTypeCreateSchema = z.object({
   slug,
   title: shortText,
@@ -73,6 +79,14 @@ export const eventTypeCreateSchema = z.object({
   bookingRules,
   fields: z.array(customField).max(20).optional(),
   teamId: id.nullish(),
+  // F3: branding del booking page.
+  brandColor: hexColor.nullish(),
+  welcomeMessage: longText.optional(),
+  logoUrl: logoUrl.nullish(),
+  // F3: link de un solo uso.
+  singleUse: z.boolean().optional(),
+  // F3: pool de hosts (round-robin) — user_ids del team.
+  hostIds: z.array(id).max(50).optional(),
 });
 
 export const eventTypeUpdateSchema = eventTypeCreateSchema.partial();

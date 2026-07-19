@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
-import { getEventType, listAvailability } from '@/lib/calendar';
+import { getEventType, listAvailability, listEventHosts } from '@/lib/calendar';
+import { listMembers } from '@/lib/teams';
 import EventTypeForm from '@/components/calendar/EventTypeForm';
 import AvailabilityEditor from '@/components/calendar/AvailabilityEditor';
 
@@ -18,6 +19,11 @@ export default async function EventTypeDetailPage({
   const eventType = await getEventType(user.id, id);
   if (!eventType) notFound();
   const availability = await listAvailability(id);
+
+  // Pool de hosts: members del team del event type o del team activo.
+  const hostTeamId = eventType.team_id ?? user.team?.id ?? null;
+  const teamMembers = hostTeamId ? await listMembers(hostTeamId) : undefined;
+  const hosts = await listEventHosts(id);
 
   return (
     <div className="app-page">
@@ -45,7 +51,12 @@ export default async function EventTypeDetailPage({
 
       <div className="calendar-detail-grid">
         <div className="calendar-detail-col">
-          <EventTypeForm initial={eventType} />
+          <EventTypeForm
+            initial={eventType}
+            teamMembers={teamMembers}
+            teamId={hostTeamId}
+            initialHostIds={hosts.map((h) => h.user_id)}
+          />
         </div>
         <div className="calendar-detail-col">
           <AvailabilityEditor eventTypeId={id} initialRules={availability} />

@@ -121,6 +121,11 @@ export default function BookingsList({ bookings, locale }: Props) {
 
               {expanded === b.id && (
                 <div className="booking-card-detail">
+                  {b.host_email && (
+                    <p className="muted">
+                      {t('booking.host')}: {b.host_name ?? b.host_email}
+                    </p>
+                  )}
                   {b.answers && b.answers !== '{}' && (
                     <div className="booking-answers">
                       <p className="prop-label">{t('booking.answers')}</p>

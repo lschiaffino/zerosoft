@@ -123,6 +123,18 @@
   gap: 10px;
 }
 
+/* Hosts (round-robin) */
+.hosts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hosts-help {
+  font-size: 13px;
+  margin: -4px 0 12px;
+}
+
 .custom-field-row {
   display: grid;
   grid-template-columns: 1fr 1fr auto auto auto;
@@ -225,6 +237,36 @@
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.booking-logo {
+  display: block;
+  max-width: 120px;
+  max-height: 40px;
+  width: auto;
+  height: auto;
+  margin-bottom: 20px;
+}
+
+.booking-welcome {
+  color: var(--ink);
+  line-height: 1.55;
+  margin: -4px 0 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.booking-expired {
+  text-align: center;
+  padding: 48px 32px;
+}
+
+.booking-expired .calendar-event-dot-large {
+  margin: 0 auto 16px;
+}
+
+.booking-expired .booking-title {
+  margin-bottom: 8px;
 }
 
 .booking-title {

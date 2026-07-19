@@ -12,8 +12,20 @@ interface CustomFieldDef {
   required: boolean;
 }
 
+interface TeamMemberOption {
+  user_id: string;
+  email: string;
+  name: string | null;
+}
+
 interface EventTypeFormProps {
   initial?: EventTypeWithRules | null;
+  /** Members del team activo (para el pool de hosts). Vacío/undefined = sin team. */
+  teamMembers?: TeamMemberOption[];
+  /** Team al que se asocia el event type cuando hay hosts. */
+  teamId?: string | null;
+  /** Hosts actualmente en el pool (edicón). */
+  initialHostIds?: string[];
 }
 
 const ERROR_CODES = ['invalid_slug', 'slug_taken', 'invalid_input', 'generic'] as const;
@@ -38,7 +50,7 @@ function parseFields(initial: EventTypeWithRules | null | undefined): CustomFiel
     }));
 }
 
-export default function EventTypeForm({ initial }: EventTypeFormProps) {
+export default function EventTypeForm({ initial, teamMembers, teamId, initialHostIds }: EventTypeFormProps) {
   const t = useTranslations('calendar');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -56,8 +68,13 @@ export default function EventTypeForm({ initial }: EventTypeFormProps) {
     minNoticeHours: (initial?.bookingRulesParsed?.minNoticeHours as number) ?? 0,
     maxFutureDays: (initial?.bookingRulesParsed?.maxFutureDays as number) ?? 30,
     allowGuests: (initial?.bookingRulesParsed?.allowGuests as boolean) ?? false,
+    brandColor: initial?.brand_color ?? '#000000',
+    welcomeMessage: initial?.welcome_message ?? '',
+    logoUrl: initial?.logo_url ?? '',
+    singleUse: initial?.single_use === 1,
   });
   const [fields, setFields] = useState<CustomFieldDef[]>(parseFields(initial));
+  const [hostIds, setHostIds] = useState<string[]>(initialHostIds ?? []);
 
   function set<K extends keyof typeof values>(key: K) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -82,10 +99,21 @@ export default function EventTypeForm({ initial }: EventTypeFormProps) {
     setFields((prev) => [...prev, emptyField()]);
   }
 
+  function toggleHost(userId: string) {
+    setHostIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+
+    // Orden del pool = orden de la lista de members (estable para round-robin).
+    const orderedHostIds = teamMembers
+      ? teamMembers.filter((m) => hostIds.includes(m.user_id)).map((m) => m.user_id)
+      : undefined;
 
     const payload = {
       slug: values.slug,
@@ -110,6 +138,12 @@ export default function EventTypeForm({ initial }: EventTypeFormProps) {
           type: f.type,
           required: f.required,
         })),
+      brandColor: values.brandColor || undefined,
+      welcomeMessage: values.welcomeMessage.trim() || undefined,
+      logoUrl: values.logoUrl.trim() || undefined,
+      singleUse: values.singleUse,
+      hostIds: orderedHostIds,
+      teamId: orderedHostIds && orderedHostIds.length > 0 ? (teamId ?? undefined) : undefined,
     };
 
     const url = initial ? `/api/calendar/event-types/${initial.id}` : '/api/calendar/event-types';
@@ -190,6 +224,57 @@ export default function EventTypeForm({ initial }: EventTypeFormProps) {
       </label>
 
       <section className="panel rules-panel">
+        <p className="section-label">{t('form.branding')}</p>
+        <div className="form-grid form-grid-3">
+          <label className="field">
+            <span className="prop-label">{t('form.brandColor')}</span>
+            <input className="input" type="color" value={values.brandColor} onChange={set('brandColor')} />
+          </label>
+          <label className="field">
+            <span className="prop-label">{t('form.logoUrl')}</span>
+            <input
+              className="input mono"
+              value={values.logoUrl}
+              onChange={set('logoUrl')}
+              placeholder="https://…"
+            />
+          </label>
+        </div>
+        <label className="field">
+          <span className="prop-label">{t('form.welcomeMessage')}</span>
+          <textarea
+            className="input textarea"
+            rows={2}
+            value={values.welcomeMessage}
+            onChange={set('welcomeMessage')}
+            placeholder={t('form.welcomeMessagePlaceholder')}
+          />
+        </label>
+      </section>
+
+      {teamMembers && teamMembers.length > 0 && (
+        <section className="panel rules-panel">
+          <p className="section-label">{t('form.hosts')}</p>
+          <p className="muted hosts-help">{t('form.hostsHelp')}</p>
+          <div className="hosts-list">
+            {teamMembers.map((m) => (
+              <label key={m.user_id} className="checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={hostIds.includes(m.user_id)}
+                  onChange={() => toggleHost(m.user_id)}
+                />
+                <span>
+                  {m.name ?? m.email}
+                  {m.name && <span className="muted"> · {m.email}</span>}
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="panel rules-panel">
         <p className="section-label">{t('form.bookingRules')}</p>
         <div className="form-grid form-grid-3">
           <label className="field">
@@ -236,7 +321,14 @@ export default function EventTypeForm({ initial }: EventTypeFormProps) {
             <input type="checkbox" checked={values.allowGuests} onChange={set('allowGuests')} />
             <span className="prop-label">{t('form.allowGuests')}</span>
           </label>
+          <label className="field checkbox-field">
+            <input type="checkbox" checked={values.singleUse} onChange={set('singleUse')} />
+            <span className="prop-label">{t('form.singleUse')}</span>
+          </label>
         </div>
+        {values.singleUse && initial?.used_at && (
+          <p className="muted hosts-help">{t('form.singleUseUsed')}</p>
+        )}
       </section>
 
       <section className="panel fields-panel">

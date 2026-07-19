@@ -9,6 +9,8 @@ import {
   type CalendarAvailabilityRow,
   type CalendarBookingRow,
   type CalendarBlockedSlotRow,
+  type CalendarEventHostRow,
+  type CalendarReminderRow,
 } from './db';
 import type {
   CalendarConfigUpdatePayload,
@@ -209,8 +211,9 @@ export async function createEventType(
   await getDb()
     .prepare(
       `INSERT INTO calendar_event_types
-       (id, user_id, team_id, slug, title, duration_min, location, description, color, active, booking_rules, fields, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, user_id, team_id, slug, title, duration_min, location, description, color, active, booking_rules, fields,
+        brand_color, welcome_message, logo_url, single_use, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -225,9 +228,14 @@ export async function createEventType(
       active,
       bookingRules,
       fields,
+      payload.brandColor ?? null,
+      payload.welcomeMessage ?? '',
+      payload.logoUrl ?? null,
+      booleanToInt(payload.singleUse) ?? 0,
       ts,
       ts,
     );
+  if (payload.hostIds) await setEventHosts(id, payload.hostIds);
   const row = (await getDb().prepare('SELECT * FROM calendar_event_types WHERE id = ?').get(id)) as CalendarEventTypeRow;
   return decorateEventType(row);
 }
@@ -286,15 +294,34 @@ export async function updateEventType(
     sets.push('team_id = ?');
     values.push(payload.teamId ?? null);
   }
-  if (sets.length === 0) return existing;
+  if (payload.brandColor !== undefined) {
+    sets.push('brand_color = ?');
+    values.push(payload.brandColor ?? null);
+  }
+  if (payload.welcomeMessage !== undefined) {
+    sets.push('welcome_message = ?');
+    values.push(payload.welcomeMessage);
+  }
+  if (payload.logoUrl !== undefined) {
+    sets.push('logo_url = ?');
+    values.push(payload.logoUrl ?? null);
+  }
+  if (payload.singleUse !== undefined) {
+    sets.push('single_use = ?');
+    values.push(booleanToInt(payload.singleUse)!);
+  }
+  if (sets.length === 0 && payload.hostIds === undefined) return existing;
 
-  sets.push('updated_at = ?');
-  values.push(now());
-  values.push(id);
+  if (sets.length > 0) {
+    sets.push('updated_at = ?');
+    values.push(now());
+    values.push(id);
 
-  await getDb()
-    .prepare(`UPDATE calendar_event_types SET ${sets.join(', ')} WHERE id = ?`)
-    .run(...values);
+    await getDb()
+      .prepare(`UPDATE calendar_event_types SET ${sets.join(', ')} WHERE id = ?`)
+      .run(...values);
+  }
+  if (payload.hostIds) await setEventHosts(id, payload.hostIds);
   return getEventType(userId, id);
 }
 
@@ -303,6 +330,61 @@ export async function deleteEventType(userId: string, id: string): Promise<boole
   if (!existing) return false;
   await getDb().prepare('DELETE FROM calendar_event_types WHERE id = ?').run(id);
   return true;
+}
+
+// ---------- Hosts (team scheduling / round-robin) ----------
+
+export interface EventHostWithUser extends CalendarEventHostRow {
+  email: string;
+  name: string | null;
+}
+
+export async function listEventHosts(eventTypeId: string): Promise<EventHostWithUser[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT h.*, u.email, u.name
+       FROM calendar_event_hosts h JOIN users u ON u.id = h.user_id
+       WHERE h.event_type_id = ? ORDER BY h.position ASC, h.created_at ASC`,
+    )
+    .all(eventTypeId)) as EventHostWithUser[];
+}
+
+/** Reemplaza el pool de hosts; el orden del array define el orden round-robin. */
+export async function setEventHosts(eventTypeId: string, userIds: string[]): Promise<void> {
+  const db = getDb();
+  await db.prepare('DELETE FROM calendar_event_hosts WHERE event_type_id = ?').run(eventTypeId);
+  const ins = db.prepare(
+    `INSERT INTO calendar_event_hosts (id, event_type_id, user_id, position)
+     VALUES (?, ?, ?, ?)`,
+  );
+  const seen = new Set<string>();
+  let position = 0;
+  for (const userId of userIds) {
+    if (seen.has(userId)) continue;
+    seen.add(userId);
+    await ins.run(crypto.randomUUID(), eventTypeId, userId, position);
+    position += 1;
+  }
+  // Si el pool cambia, el cursor puede quedar fuera de rango: se normaliza.
+  await db
+    .prepare('UPDATE calendar_event_types SET rr_cursor = 0 WHERE id = ? AND rr_cursor >= ?')
+    .run(eventTypeId, Math.max(position, 1));
+}
+
+/**
+ * Asigna el próximo host del pool en orden round-robin (cursor persistente en
+ * calendar_event_types.rr_cursor) y avanza el cursor. Devuelve null si el
+ * evento no tiene hosts. Simplificación: el check de slot no es atómico con el
+ * avance del cursor, así que dos bookings concurrentes pueden repetir host.
+ */
+async function assignRoundRobinHost(eventType: CalendarEventTypeRow): Promise<string | null> {
+  const hosts = await listEventHosts(eventType.id);
+  if (hosts.length === 0) return null;
+  const host = hosts[eventType.rr_cursor % hosts.length];
+  await getDb()
+    .prepare('UPDATE calendar_event_types SET rr_cursor = rr_cursor + 1 WHERE id = ?')
+    .run(eventType.id);
+  return host.user_id;
 }
 
 // ---------- Availability ----------
@@ -443,18 +525,20 @@ export async function countBookingsThisWeek(userId: string): Promise<number> {
 export async function createBooking(payload: BookingCreatePayload): Promise<CalendarBookingRow> {
   const eventType = await getEventTypeById(payload.eventTypeId);
   if (!eventType) throw new CalendarError('not_found', 404);
+  if (eventType.single_use === 1 && eventType.used_at) throw new CalendarError('link_expired', 410);
 
   const start = new Date(payload.start);
   if (Number.isNaN(start.getTime())) throw new CalendarError('invalid_input', 400);
 
   const end = new Date(start.getTime() + eventType.duration_min * 60_000);
+  const hostUserId = await assignRoundRobinHost(eventType);
   const id = crypto.randomUUID();
   const ts = now();
   await getDb()
     .prepare(
       `INSERT INTO calendar_bookings
-       (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, timezone, status, answers, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, timezone, status, answers, host_user_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -466,9 +550,17 @@ export async function createBooking(payload: BookingCreatePayload): Promise<Cale
       payload.timezone ?? 'UTC',
       'confirmed',
       serializeJson(payload.answers, {}),
+      hostUserId,
       ts,
       ts,
     );
+  // Link de un solo uso: queda consumido al confirmarse el booking.
+  if (eventType.single_use === 1) {
+    await getDb()
+      .prepare('UPDATE calendar_event_types SET used_at = ? WHERE id = ? AND used_at IS NULL')
+      .run(ts, eventType.id);
+  }
+  await scheduleBookingReminder(id, start);
   return (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(id)) as CalendarBookingRow;
 }
 
@@ -501,12 +593,67 @@ export async function updateBooking(
   await getDb()
     .prepare(`UPDATE calendar_bookings SET ${sets.join(', ')} WHERE id = ?`)
     .run(...values);
+  // Al cancelar, se descartan los recordatorios pendientes del booking.
+  if (payload.status === 'cancelled') {
+    await getDb()
+      .prepare('DELETE FROM calendar_reminders WHERE booking_id = ? AND sent_at IS NULL')
+      .run(id);
+  }
   return (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(id)) as CalendarBookingRow;
+}
+
+// ---------- Reminders ----------
+
+const REMINDER_24H_MS = 24 * 60 * 60 * 1000;
+
+/** Programa el recordatorio 24h antes del booking (si ya pasó, queda due). */
+async function scheduleBookingReminder(bookingId: string, start: Date): Promise<void> {
+  const sendAt = new Date(start.getTime() - REMINDER_24H_MS);
+  await getDb()
+    .prepare(
+      `INSERT INTO calendar_reminders (id, booking_id, kind, send_at)
+       VALUES (?, ?, 'reminder_24h', ?)`,
+    )
+    .run(crypto.randomUUID(), bookingId, sendAt.toISOString());
+}
+
+export interface DueReminderRow extends CalendarReminderRow {
+  invitee_email: string;
+  invitee_name: string;
+  starts_at: string;
+  ends_at: string;
+  timezone: string;
+  event_title: string;
+  event_location: string;
+}
+
+/** Recordatorios vencidos de bookings que siguen confirmados. */
+export async function listDueReminders(limit = 50): Promise<DueReminderRow[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT r.*, b.invitee_email, b.invitee_name, b.starts_at, b.ends_at, b.timezone,
+              e.title AS event_title, e.location AS event_location
+       FROM calendar_reminders r
+       JOIN calendar_bookings b ON b.id = r.booking_id
+       JOIN calendar_event_types e ON e.id = b.event_type_id
+       WHERE r.sent_at IS NULL AND r.send_at <= ? AND b.status = 'confirmed'
+       ORDER BY r.send_at ASC
+       LIMIT ?`,
+    )
+    .all(new Date().toISOString(), limit)) as DueReminderRow[];
+}
+
+export async function markReminderSent(id: string): Promise<void> {
+  await getDb()
+    .prepare('UPDATE calendar_reminders SET sent_at = ? WHERE id = ?')
+    .run(new Date().toISOString(), id);
 }
 
 export interface CalendarBookingRowWithEvent extends CalendarBookingRow {
   event_type_title: string;
   event_type_duration_min: number;
+  host_email: string | null;
+  host_name: string | null;
 }
 
 export async function listUserBookings(
@@ -529,9 +676,11 @@ export async function listUserBookings(
     values.push(opts.to.toISOString());
   }
 
-  const sql = `SELECT b.*, e.title as event_type_title, e.duration_min as event_type_duration_min
+  const sql = `SELECT b.*, e.title as event_type_title, e.duration_min as event_type_duration_min,
+                      h.email as host_email, h.name as host_name
                FROM calendar_bookings b
                JOIN calendar_event_types e ON e.id = b.event_type_id
+               LEFT JOIN users h ON h.id = b.host_user_id
                WHERE ${conditions.join(' AND ')}
                ORDER BY b.starts_at DESC`;
   return (await getDb().prepare(sql).all(...values)) as CalendarBookingRowWithEvent[];
@@ -672,6 +821,7 @@ export async function getAvailableSlots(
 ): Promise<TimeRange[]> {
   const eventType = await getEventTypeById(eventTypeId);
   if (!eventType || eventType.active !== 1) return [];
+  if (eventType.single_use === 1 && eventType.used_at) return [];
 
   const parsed = parseDate(date);
   if (!parsed) return [];

@@ -59,7 +59,16 @@
     "fieldTypeText": "Texto",
     "fieldTypeNumber": "Número",
     "fieldTypeBoolean": "Sí / No",
-    "noFields": "Aún no hay preguntas personalizadas."
+    "noFields": "Aún no hay preguntas personalizadas.",
+    "branding": "Marca",
+    "brandColor": "Color de marca",
+    "logoUrl": "URL del logo",
+    "welcomeMessage": "Mensaje de bienvenida",
+    "welcomeMessagePlaceholder": "Se muestra arriba en tu página de reserva",
+    "hosts": "Anfitriones (round-robin)",
+    "hostsHelp": "Las reservas rotan entre los miembros seleccionados.",
+    "singleUse": "Link de un solo uso",
+    "singleUseUsed": "Este link ya fue usado."
   },
   "availability": {
     "title": "Disponibilidad",
@@ -106,13 +115,17 @@
       "cancelled": "Cancelada",
       "no_show": "No asistió"
     },
-    "answers": "Respuestas"
+    "answers": "Respuestas",
+    "host": "Anfitrión",
+    "expiredTitle": "Link expirado",
+    "expiredSub": "Este link de reserva de un solo uso ya fue utilizado."
   },
   "errors": {
     "invalid_slug": "Slug inválido. Usá solo letras minúsculas, números y guiones.",
     "slug_taken": "Ese slug ya está en uso.",
     "invalid_input": "Algunos campos son inválidos. Revisalos e intentá de nuevo.",
     "slot_unavailable": "Ese horario ya no está disponible. Elegí otro.",
+    "link_expired": "Este link de reserva expiró.",
     "generic": "Algo salió mal. Probá de nuevo."
   }
 }

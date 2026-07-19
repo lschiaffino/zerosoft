@@ -59,7 +59,16 @@
     "fieldTypeText": "Text",
     "fieldTypeNumber": "Number",
     "fieldTypeBoolean": "Yes / No",
-    "noFields": "No custom questions yet."
+    "noFields": "No custom questions yet.",
+    "branding": "Branding",
+    "brandColor": "Brand color",
+    "logoUrl": "Logo URL",
+    "welcomeMessage": "Welcome message",
+    "welcomeMessagePlaceholder": "Shown at the top of your booking page",
+    "hosts": "Hosts (round-robin)",
+    "hostsHelp": "Bookings rotate through the selected team members.",
+    "singleUse": "Single-use link",
+    "singleUseUsed": "This link has already been used."
   },
   "availability": {
     "title": "Availability",
@@ -106,13 +115,17 @@
       "cancelled": "Cancelled",
       "no_show": "No show"
     },
-    "answers": "Answers"
+    "answers": "Answers",
+    "host": "Host",
+    "expiredTitle": "Link expired",
+    "expiredSub": "This single-use booking link has already been used."
   },
   "errors": {
     "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",
     "slug_taken": "That slug is already in use.",
     "invalid_input": "Some fields are invalid. Check them and try again.",
     "slot_unavailable": "That slot is no longer available. Please pick another one.",
+    "link_expired": "This booking link has expired.",
     "generic": "Something went wrong. Try again."
   }
 }

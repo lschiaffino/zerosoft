@@ -7,7 +7,8 @@ import {
 } from '@/lib/calendar';
 import { bookingCreateSchema } from '@/lib/calendar-schema';
 import { invalidBody, crmError } from '@/lib/crm-http';
-import { sendBookingConfirmation } from '@/lib/email';
+import { sendBookingConfirmation, sendHostBookingNotification } from '@/lib/email';
+import { getUserById } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
   try {
     const eventType = await getEventTypeById(eventTypeId);
     if (!eventType || eventType.active !== 1) return crmError(404, 'not_found');
+    if (eventType.single_use === 1 && eventType.used_at) return crmError(410, 'link_expired');
 
     const startDate = new Date(start);
     if (Number.isNaN(startDate.getTime())) return crmError(400, 'invalid_input');
@@ -51,7 +53,25 @@ export async function POST(req: NextRequest) {
       end: matching.end,
       timezone: guestTz,
       location: eventType.location,
+      brandColor: eventType.brand_color,
+      logoUrl: eventType.logo_url,
     });
+
+    // Aviso al host: el asignado por round-robin o, si no hay pool, el owner.
+    const host = await getUserById(booking.host_user_id ?? eventType.user_id);
+    if (host) {
+      await sendHostBookingNotification({
+        to: host.email,
+        hostName: host.name ?? host.email,
+        guestName: name,
+        guestEmail: email,
+        eventTitle: eventType.title,
+        start: matching.start,
+        end: matching.end,
+        timezone: guestTz,
+        location: eventType.location,
+      });
+    }
 
     return NextResponse.json(booking, { status: 201 });
   } catch (err) {

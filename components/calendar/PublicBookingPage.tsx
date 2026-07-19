@@ -123,6 +123,16 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1 }: 
   const fields = useMemo(() => parseFields(eventType), [eventType]);
   const rules = useMemo(() => getRules(eventType), [eventType]);
 
+  // Branding: brand_color validado (hex), cae al color del evento.
+  const brandColor = useMemo(() => {
+    const c = eventType.brand_color;
+    return c && /^#[0-9A-Fa-f]{6}$/.test(c) ? c : eventType.color;
+  }, [eventType]);
+  const logoUrl = useMemo(() => {
+    const url = eventType.logo_url;
+    return url && /^(https?:\/\/|\/)/.test(url) ? url : null;
+  }, [eventType]);
+
   const [timezone, setTimezone] = useState('UTC');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -258,10 +268,14 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1 }: 
   return (
     <div className="booking-page">
       <div className="booking-card">
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt="" className="booking-logo" />
+        )}
         <header className="booking-header">
           <span
             className="calendar-event-dot-large"
-            style={{ backgroundColor: eventType.color }}
+            style={{ backgroundColor: brandColor }}
             aria-hidden
           />
           <div>
@@ -274,6 +288,10 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1 }: 
             </p>
           </div>
         </header>
+
+        {eventType.welcome_message && (
+          <p className="booking-welcome">{eventType.welcome_message}</p>
+        )}
 
         {eventType.description && (
           <p className="booking-description">{eventType.description}</p>
