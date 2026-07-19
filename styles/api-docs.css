@@ -6,8 +6,9 @@
   display: flex;
   align-items: flex-start;
   gap: 48px;
-  padding-top: 120px;
-  padding-bottom: 140px;
+  padding: 120px 32px 140px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 /* ---------- Sidebar ---------- */
@@ -71,7 +72,6 @@
 .api-docs-content {
   flex: 1;
   min-width: 0;
-  padding-right: 32px;
 }
 
 .api-docs-hero {
@@ -83,6 +83,7 @@
   display: flex;
   flex-direction: column;
   gap: 64px;
+  max-width: 800px;
 }
 
 .api-docs-base { margin-bottom: -24px; }
@@ -317,7 +318,7 @@
   .api-docs {
     flex-direction: column;
     gap: 32px;
-    padding-top: 110px;
+    padding: 110px 20px 100px;
   }
 
   .api-docs-sidebar {
@@ -325,17 +326,12 @@
     top: auto;
     width: 100%;
     max-height: none;
-    padding: 0 32px;
   }
 
   .api-docs-nav {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 24px;
-  }
-
-  .api-docs-content {
-    padding-right: 0;
   }
 }
 

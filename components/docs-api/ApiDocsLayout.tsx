@@ -41,7 +41,7 @@ export default function ApiDocsLayout() {
       </aside>
 
       <div className="api-docs-content">
-        <section className="api-docs-hero container">
+        <section className="api-docs-hero">
           <p className="section-label">{t('label')}</p>
           <h1 className="doc-title">
             {t('title')}
@@ -51,7 +51,7 @@ export default function ApiDocsLayout() {
           <p className="doc-intro">{t('intro')}</p>
         </section>
 
-        <div className="api-docs-body container">
+        <div className="api-docs-body">
           <section className="api-docs-base">
             <p className="code-label">{t('baseLabel')}</p>
             <pre className="code-block">
