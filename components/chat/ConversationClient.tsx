@@ -5,6 +5,7 @@ import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type {
   ChatAgent,
+  ChatAttachment,
   ChatCannedResponseRow,
   ChatConversationWithVisitor,
   ChatConversationListRow,
@@ -61,6 +62,19 @@ function slaLabel(
   return { label: t('sla.dueIn', { minutes: mins }), className: 'chat-sla-due' };
 }
 
+function formatBytes(n: number): string {
+  if (!n) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(n) / Math.log(1024));
+  return `${(n / 1024 ** i).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
+function attachmentType(mime: string): ChatAttachment['type'] {
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('audio/')) return 'audio';
+  return 'file';
+}
+
 export default function ConversationClient({
   conversationId,
   initialConversation,
@@ -79,7 +93,11 @@ export default function ConversationClient({
   const [listRows, setListRows] = useState<ChatConversationListRow[]>([]);
   const [canned, setCanned] = useState<ChatCannedResponseRow[]>([]);
   const [cannedIndex, setCannedIndex] = useState(0);
+  const [visitorTyping, setVisitorTyping] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
+  const typingSentAt = useRef<number>(0);
 
   async function fetchMessages() {
     try {
@@ -118,11 +136,48 @@ export default function ConversationClient({
     }
   }
 
+  async function markRead() {
+    try {
+      const res = await fetch(`/api/chat/conversations/${conversationId}/read`, { method: 'POST' });
+      if (!res.ok) return;
+      const data = (await res.json()) as { messages: ChatMessageWithUser[] };
+      setMessages(data.messages);
+    } catch {
+      // ignore
+    }
+  }
+
+  async function fetchTyping() {
+    try {
+      const res = await fetch(`/api/chat/conversations/${conversationId}/typing`);
+      if (!res.ok) return;
+      const data = (await res.json()) as { typing: Array<{ sender_type: 'visitor' | 'user' }> };
+      setVisitorTyping(data.typing.some((t) => t.sender_type === 'visitor'));
+    } catch {
+      // ignore
+    }
+  }
+
+  async function sendTyping() {
+    const now = Date.now();
+    if (now - typingSentAt.current < 2000) return;
+    typingSentAt.current = now;
+    try {
+      await fetch(`/api/chat/conversations/${conversationId}/typing`, { method: 'POST' });
+    } catch {
+      // ignore
+    }
+  }
+
   useEffect(() => {
     fetchMessages();
     fetchList();
     fetchCanned();
-    const interval = setInterval(fetchMessages, 3000);
+    markRead();
+    const interval = setInterval(() => {
+      fetchMessages();
+      fetchTyping();
+    }, 3000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
@@ -144,18 +199,35 @@ export default function ConversationClient({
 
   async function sendReply() {
     const body = reply.trim();
-    if (!body || sending) return;
+    if ((!body && !selectedFile) || sending) return;
     setSending(true);
     try {
-      const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body }),
-      });
-      if (res.ok) {
-        setReply('');
-        await fetchMessages();
-        await fetchList();
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        if (body) formData.append('body', body);
+        const res = await fetch(`/api/chat/conversations/${conversationId}/attachments`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (res.ok) {
+          setReply('');
+          setSelectedFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          await fetchMessages();
+          await fetchList();
+        }
+      } else {
+        const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body }),
+        });
+        if (res.ok) {
+          setReply('');
+          await fetchMessages();
+          await fetchList();
+        }
       }
     } finally {
       setSending(false);
@@ -219,6 +291,16 @@ export default function ConversationClient({
       e.preventDefault();
       sendReply();
     }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+  }
+
+  function clearSelectedFile() {
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   return (
@@ -310,6 +392,14 @@ export default function ConversationClient({
               {messages.map((m) => {
                 const isVisitor = m.sender_type === 'visitor';
                 const name = senderName(m, visitor, currentUser, t);
+                const attachments: ChatAttachment[] = (() => {
+                  try {
+                    const parsed = JSON.parse(m.attachments);
+                    return Array.isArray(parsed) ? parsed : [];
+                  } catch {
+                    return [];
+                  }
+                })();
                 return (
                   <li
                     key={m.id}
@@ -324,7 +414,52 @@ export default function ConversationClient({
                         </span>
                       </div>
                       <div className="chat-message-bubble">
-                        <p>{m.body}</p>
+                        {m.body ? <p>{m.body}</p> : null}
+                        {attachments.length > 0 && (
+                          <div className="chat-message-attachments">
+                            {attachments.map((a, idx) => {
+                              const type = attachmentType(a.mime);
+                              if (type === 'image') {
+                                return (
+                                  <a
+                                    key={idx}
+                                    href={a.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="chat-attachment-thumb"
+                                  >
+                                    <img src={a.url} alt={a.name} />
+                                  </a>
+                                );
+                              }
+                              if (type === 'audio') {
+                                return (
+                                  <div key={idx} className="chat-attachment-audio">
+                                    <audio src={a.url} controls preload="metadata" />
+                                  </div>
+                                );
+                              }
+                              return (
+                                <a
+                                  key={idx}
+                                  href={a.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="chat-attachment-file"
+                                >
+                                  <span>📎</span>
+                                  <span>{a.name}</span>
+                                  <span className="chat-attachment-size">({formatBytes(a.size)})</span>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {!isVisitor && m.read_at && (
+                          <span className="chat-read-receipt" title={formatDateTime(m.read_at, locale)}>
+                            {t('read.read')}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </li>
@@ -335,10 +470,35 @@ export default function ConversationClient({
           )}
         </div>
 
+        {visitorTyping && (
+          <div className="chat-typing-indicator">
+            <span className="chat-typing-dots"><span /><span /><span /></span>
+            {t('typing.visitorTyping')}
+          </div>
+        )}
+
+        {selectedFile && (
+          <div className="chat-attachment-preview">
+            <span>📎 {selectedFile.name} ({formatBytes(selectedFile.size)})</span>
+            <button type="button" onClick={clearSelectedFile} aria-label="Remove file">×</button>
+          </div>
+        )}
+
         <div className="chat-composer">
-          <button type="button" className="chat-composer-attach" disabled title="Attachments coming soon">
+          <button
+            type="button"
+            className="chat-composer-attach"
+            onClick={() => fileInputRef.current?.click()}
+            title={t('attachments.upload')}
+          >
             ⊕
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="chat-composer-file-input"
+            onChange={handleFileChange}
+          />
           <div className="chat-composer-field">
             <textarea
               className="textarea chat-composer-input"
@@ -347,6 +507,7 @@ export default function ConversationClient({
               onChange={(e) => {
                 setReply(e.target.value);
                 setCannedIndex(0);
+                sendTyping();
               }}
               onKeyDown={handleComposerKeyDown}
               rows={1}
@@ -372,7 +533,7 @@ export default function ConversationClient({
             type="button"
             className="btn btn-solid btn-small chat-composer-send"
             onClick={sendReply}
-            disabled={sending || !reply.trim()}
+            disabled={sending || (!reply.trim() && !selectedFile)}
           >
             {sending ? t('common.loading') : t('conversation.send')}
           </button>

@@ -549,6 +549,135 @@
   flex-shrink: 0;
 }
 
+.chat-composer-file-input {
+  display: none;
+}
+
+.chat-attachment-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--line);
+  background: #fafafa;
+  font-size: 12px;
+}
+
+.chat-attachment-preview button {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px;
+}
+
+/* ---------- Message attachments ---------- */
+
+.chat-message-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.375rem;
+}
+
+.chat-attachment-thumb {
+  display: block;
+  max-width: 200px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.chat-attachment-thumb img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+}
+
+.chat-attachment-audio {
+  max-width: 260px;
+}
+
+.chat-attachment-audio audio {
+  width: 100%;
+  display: block;
+}
+
+.chat-attachment-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.625rem;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 12px;
+  max-width: 320px;
+}
+
+.chat-attachment-file:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.chat-attachment-size {
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+/* ---------- Read receipts ---------- */
+
+.chat-read-receipt {
+  display: block;
+  font-size: 10px;
+  opacity: 0.7;
+  text-align: right;
+  margin-top: 4px;
+}
+
+/* ---------- Typing indicator ---------- */
+
+.chat-typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 1rem;
+  font-size: 12px;
+  color: var(--dim);
+  background: #fafafa;
+  border-top: 1px solid var(--line);
+}
+
+.chat-typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.chat-typing-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: zs-chat-typing-bounce 1.2s infinite ease-in-out;
+}
+
+.chat-typing-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-typing-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes zs-chat-typing-bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-4px); }
+}
+
 /* ---------- Visitor panel ---------- */
 
 .chat-visitor-panel {

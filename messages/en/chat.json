@@ -134,6 +134,22 @@
     "empty": "No canned responses yet.",
     "placeholder": "Type your saved message here…"
   },
+  "attachments": {
+    "image": "Image",
+    "audio": "Audio",
+    "file": "File",
+    "upload": "Attach file",
+    "dragDrop": "Drag and drop a file here",
+    "maxSize": "Max 10 MB"
+  },
+  "typing": {
+    "visitorTyping": "Visitor is typing…",
+    "agentTyping": "Agent is typing…"
+  },
+  "read": {
+    "read": "Read",
+    "at": "Read at {{time}}"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",

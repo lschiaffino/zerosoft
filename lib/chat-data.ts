@@ -5,6 +5,7 @@ import type {
   ChatConversationRow,
   ChatMessageRow,
   ChatSlaPolicyRow,
+  ChatTypingRow,
   ChatVisitorRow,
   ChatWidgetRow,
   CrmContactRow,
@@ -1067,11 +1068,20 @@ export async function deleteCannedResponse(id: string): Promise<boolean> {
 
 // ---------- Messages ----------
 
+export type ChatAttachmentType = 'image' | 'audio' | 'file';
+
 export interface ChatAttachment {
   name: string;
   url: string;
   size: number;
   mime: string;
+  type: ChatAttachmentType;
+}
+
+export function chatAttachmentType(mime: string): ChatAttachmentType {
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('audio/')) return 'audio';
+  return 'file';
 }
 
 export interface MessageCreatePayload {
@@ -1132,6 +1142,73 @@ export async function createChatMessage(
   await markConversationUpdated(conversationId);
 
   return (await db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id)) as ChatMessageRow;
+}
+
+export async function markMessagesRead(
+  conversationId: string,
+  readerType: 'visitor' | 'user',
+): Promise<void> {
+  const db = getDb();
+  const opposite = readerType === 'visitor' ? 'user' : 'visitor';
+  await db
+    .prepare(
+      `UPDATE chat_messages
+       SET read_at = COALESCE(read_at, ?)
+       WHERE conversation_id = ? AND sender_type = ? AND read_at IS NULL`,
+    )
+    .run(nowIso(), conversationId, opposite);
+}
+
+// ---------- Typing indicators ----------
+
+export async function setTyping(
+  conversationId: string,
+  senderType: 'visitor' | 'user',
+  userId?: string | null,
+  expiresInSeconds = 5,
+): Promise<void> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+  await db
+    .prepare(
+      `INSERT INTO chat_typing (id, conversation_id, sender_type, user_id, expires_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (conversation_id, sender_type, user_id)
+       DO UPDATE SET expires_at = excluded.expires_at`,
+    )
+    .run(id, conversationId, senderType, userId ?? null, expiresAt);
+}
+
+export async function listTyping(conversationId: string): Promise<ChatTypingRow[]> {
+  const db = getDb();
+  const now = nowIso();
+  return (await db
+    .prepare(
+      `SELECT * FROM chat_typing
+       WHERE conversation_id = ? AND expires_at > ?
+       ORDER BY expires_at DESC`,
+    )
+    .all(conversationId, now)) as ChatTypingRow[];
+}
+
+export async function clearTyping(
+  conversationId: string,
+  senderType: 'visitor' | 'user',
+  userId?: string | null,
+): Promise<void> {
+  const db = getDb();
+  if (userId !== undefined) {
+    await db
+      .prepare(
+        'DELETE FROM chat_typing WHERE conversation_id = ? AND sender_type = ? AND user_id = ?',
+      )
+      .run(conversationId, senderType, userId ?? null);
+  } else {
+    await db
+      .prepare('DELETE FROM chat_typing WHERE conversation_id = ? AND sender_type = ?')
+      .run(conversationId, senderType);
+  }
 }
 
 // ---------- Public visitor helpers ----------

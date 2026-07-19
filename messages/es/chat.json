@@ -134,6 +134,22 @@
     "empty": "Aún no hay respuestas prediseñadas.",
     "placeholder": "Escribe aquí tu mensaje guardado…"
   },
+  "attachments": {
+    "image": "Imagen",
+    "audio": "Audio",
+    "file": "Archivo",
+    "upload": "Adjuntar archivo",
+    "dragDrop": "Arrastra y suelta un archivo aquí",
+    "maxSize": "Máx. 10 MB"
+  },
+  "typing": {
+    "visitorTyping": "El visitante está escribiendo…",
+    "agentTyping": "El agente está escribiendo…"
+  },
+  "read": {
+    "read": "Leído",
+    "at": "Leído a las {{time}}"
+  },
   "common": {
     "save": "Guardar",
     "cancel": "Cancelar",

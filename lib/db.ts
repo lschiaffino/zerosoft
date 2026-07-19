@@ -70,6 +70,7 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE chat_conversations ADD COLUMN first_response_at TEXT',
         'ALTER TABLE chat_conversations ADD COLUMN resolved_at TEXT',
         'ALTER TABLE chat_conversations ADD COLUMN sla_breach_at TEXT',
+        'ALTER TABLE chat_messages ADD COLUMN read_at TEXT',
       ]) {
         try {
           await client.execute(alter);
@@ -764,9 +765,20 @@ const DDL = `
       user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       body TEXT NOT NULL,
       attachments TEXT NOT NULL DEFAULT '[]',
+      read_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(conversation_id, created_at ASC);
+
+    CREATE TABLE IF NOT EXISTS chat_typing (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+      sender_type TEXT NOT NULL CHECK (sender_type IN ('visitor', 'user')),
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      expires_at TEXT NOT NULL,
+      UNIQUE (conversation_id, sender_type, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_typing_conversation ON chat_typing(conversation_id, expires_at);
 
     CREATE TABLE IF NOT EXISTS chat_assignment_rules (
       id TEXT PRIMARY KEY,
@@ -1373,7 +1385,16 @@ export interface ChatMessageRow {
   user_id: string | null;
   body: string;
   attachments: string; // JSON ChatAttachment[]
+  read_at: string | null;
   created_at: string;
+}
+
+export interface ChatTypingRow {
+  id: string;
+  conversation_id: string;
+  sender_type: 'visitor' | 'user';
+  user_id: string | null;
+  expires_at: string;
 }
 
 export interface ChatAssignmentRuleRow {

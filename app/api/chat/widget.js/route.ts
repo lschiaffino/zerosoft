@@ -25,6 +25,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var FIELDS = ${JSON.stringify(fields)};
   var ORIGIN = ${JSON.stringify(origin)};
   var STORAGE_KEY = 'zs_chat_visitor_' + WIDGET_ID;
+  var MAX_FILE_SIZE = 10 * 1024 * 1024;
 
   function uuid() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -59,11 +60,29 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     return el;
   }
 
+  function formatBytes(n) {
+    if (!n) return '0 B';
+    var units = ['B', 'KB', 'MB', 'GB'];
+    var i = Math.floor(Math.log(n) / Math.log(1024));
+    return (n / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (m) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
+    });
+  }
+
   var visitorId = getVisitorId();
   var open = false;
   var conversationId = null;
   var lastMessageId = null;
   var pollTimer = null;
+  var typingTimer = null;
+  var lastTypingAt = 0;
+  var selectedFile = null;
+  var uploading = false;
+  var messageReadMap = {};
 
   var root = dom('div', {
     id: 'zs-chat-root',
@@ -104,13 +123,48 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
 
   var messages = dom('div', { style: 'flex:1;overflow-y:auto;padding:16px;background:#f8f8f8;' });
 
-  var inputWrap = dom('div', { style: 'padding:12px;border-top:1px solid rgba(0,0,0,0.06);background:#fff;display:flex;gap:8px;' });
+  var typingIndicator = dom('div', {
+    style:
+      'display:none;align-items:center;gap:6px;padding:8px 16px;font-size:12px;color:#666;background:#fff;border-top:1px solid rgba(0,0,0,0.04);',
+  });
+  typingIndicator.innerHTML =
+    '<span class="zs-chat-typing-dots"><span></span><span></span><span></span></span> Agent is typing…';
+
+  var previewWrap = dom('div', {
+    style:
+      'display:none;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid rgba(0,0,0,0.06);background:#fff;',
+  });
+  var previewBody = dom('div', { style: 'flex:1;min-width:0;font-size:12px;color:#444;' }, []);
+  var previewRemove = dom('button', {
+    type: 'button',
+    style:
+      'background:none;border:none;color:#888;cursor:pointer;font-size:16px;line-height:1;padding:4px;',
+    'aria-label': 'Remove file',
+  }, ['×']);
+  previewWrap.appendChild(previewBody);
+  previewWrap.appendChild(previewRemove);
+
+  var inputWrap = dom('div', { style: 'padding:12px;border-top:1px solid rgba(0,0,0,0.06);background:#fff;display:flex;gap:8px;align-items:center;' });
+  var attachBtn = dom('button', {
+    type: 'button',
+    style:
+      'background:none;border:none;color:#666;cursor:pointer;font-size:18px;line-height:1;padding:4px;',
+    'aria-label': 'Attach file',
+    title: 'Attach file',
+  }, ['⊕']);
+  var fileInput = dom('input', { type: 'file', style: 'display:none;' });
   var input = dom('input', {
     type: 'text',
     placeholder: 'Type a message…',
     style: 'flex:1;border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:8px 10px;outline:none;',
   });
-  var send = dom('button', { style: 'background:' + COLOR + ';color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:500;', 'aria-label': 'Send' }, ['Send']);
+  var send = dom('button', {
+    type: 'button',
+    style: 'background:' + COLOR + ';color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:500;',
+    'aria-label': 'Send',
+  }, ['Send']);
+  inputWrap.appendChild(attachBtn);
+  inputWrap.appendChild(fileInput);
   inputWrap.appendChild(input);
   inputWrap.appendChild(send);
 
@@ -119,11 +173,32 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   box.appendChild(header);
   box.appendChild(formWrap);
   box.appendChild(messages);
+  box.appendChild(typingIndicator);
+  box.appendChild(previewWrap);
   box.appendChild(inputWrap);
   root.appendChild(btn);
   root.appendChild(box);
 
-  function appendMessage(text, from, createdAt) {
+  function renderAttachment(a) {
+    if (a.type === 'image') {
+      return dom('a', { href: a.url, target: '_blank', rel: 'noopener noreferrer', style: 'display:block;max-width:200px;' }, [
+        dom('img', { src: a.url, alt: a.name, style: 'max-width:100%;max-height:160px;border-radius:8px;display:block;' }),
+      ]);
+    }
+    if (a.type === 'audio') {
+      return dom('audio', { src: a.url, controls: true, preload: 'metadata', style: 'max-width:220px;display:block;' });
+    }
+    return dom('a', {
+      href: a.url,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      style:
+        'display:flex;align-items:center;gap:6px;padding:8px 10px;background:rgba(0,0,0,0.04);border-radius:8px;color:#111;text-decoration:none;font-size:12px;max-width:240px;',
+    }, ['📎 ' + escapeHtml(a.name) + ' (' + formatBytes(a.size) + ')']);
+  }
+
+  function appendMessage(m) {
+    var from = m.sender_type || 'visitor';
     var isVisitor = from === 'visitor';
     var wrap = dom('div', { style: 'display:flex;justify-content:' + (isVisitor ? 'flex-end' : 'flex-start') + ';margin-bottom:10px;' });
     var bubble = dom('div', {
@@ -133,14 +208,34 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         ';color:' +
         (isVisitor ? '#fff' : '#111') +
         ';box-shadow:0 1px 2px rgba(0,0,0,0.05);',
-    }, [text]);
+    });
+
+    if (m.body) {
+      var p = dom('p', { style: 'margin:0 0 4px;white-space:pre-wrap;word-break:break-word;' }, [m.body]);
+      bubble.appendChild(p);
+    }
+    var attachments = Array.isArray(m.attachments) ? m.attachments : [];
+    attachments.forEach(function (a) {
+      var el = renderAttachment(a);
+      el.style.marginTop = '6px';
+      bubble.appendChild(el);
+    });
+
+    if (isVisitor && m.read_at) {
+      var readLabel = dom('div', {
+        style: 'font-size:10px;opacity:0.8;text-align:right;margin-top:4px;',
+      }, ['Read']);
+      bubble.appendChild(readLabel);
+      if (m.id) messageReadMap[m.id] = true;
+    }
+
     wrap.appendChild(bubble);
     messages.appendChild(wrap);
     messages.scrollTop = messages.scrollHeight;
   }
 
   function showWelcome() {
-    appendMessage(WELCOME, 'agent');
+    appendMessage({ body: WELCOME, sender_type: 'agent' });
   }
 
   function buildForm() {
@@ -165,6 +260,27 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     return { inputs: inputs, submit: submit };
   }
 
+  function updatePreview() {
+    if (!selectedFile) {
+      previewWrap.style.display = 'none';
+      previewBody.innerHTML = '';
+      fileInput.value = '';
+      return;
+    }
+    previewWrap.style.display = 'flex';
+    previewBody.innerHTML = '';
+    previewBody.appendChild(document.createTextNode('📎 ' + selectedFile.name + ' (' + formatBytes(selectedFile.size) + ')'));
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      var warn = dom('span', { style: 'color:#b00020;display:block;margin-top:2px;' }, ['File too large (max 10 MB)']);
+      previewBody.appendChild(warn);
+    }
+  }
+
+  function clearPreview() {
+    selectedFile = null;
+    updatePreview();
+  }
+
   function loadMessages() {
     api('/api/chat/messages?widgetId=' + encodeURIComponent(WIDGET_ID) + '&visitorId=' + encodeURIComponent(visitorId), { method: 'GET' })
       .then(function (r) { return r.json(); })
@@ -175,9 +291,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         if (!conversationId) showWelcome();
         else {
           data.messages.forEach(function (m) {
-            appendMessage(m.body, m.sender_type, m.created_at);
+            appendMessage(m);
             if (m.id) lastMessageId = m.id;
           });
+          markRead();
         }
       })
       .catch(function () {});
@@ -201,23 +318,84 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
           });
         }
         newMessages.forEach(function (m) {
-          appendMessage(m.body, m.sender_type, m.created_at);
+          appendMessage(m);
           lastMessageId = m.id;
         });
+        markRead();
+        pollTyping();
+      })
+      .catch(function () {});
+  }
+
+  function markRead() {
+    if (!conversationId) return;
+    api('/api/chat/read', {
+      method: 'POST',
+      body: JSON.stringify({ widgetId: WIDGET_ID, visitorId: visitorId, conversationId: conversationId }),
+    }).catch(function () {});
+  }
+
+  function sendTyping() {
+    if (!conversationId) return;
+    var now = Date.now();
+    if (now - lastTypingAt < 2000) return;
+    lastTypingAt = now;
+    api('/api/chat/typing', {
+      method: 'POST',
+      body: JSON.stringify({ widgetId: WIDGET_ID, visitorId: visitorId, conversationId: conversationId }),
+    }).catch(function () {});
+  }
+
+  function pollTyping() {
+    if (!conversationId) return;
+    api('/api/chat/typing?widgetId=' + encodeURIComponent(WIDGET_ID) + '&visitorId=' + encodeURIComponent(visitorId) + '&conversationId=' + encodeURIComponent(conversationId), { method: 'GET' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var typing = (data.typing || []).filter(function (t) { return t.sender_type === 'user'; });
+        typingIndicator.style.display = typing.length > 0 ? 'flex' : 'none';
       })
       .catch(function () {});
   }
 
   function sendMessage(body) {
+    if (selectedFile) {
+      sendFile(selectedFile, body);
+      return;
+    }
+    if (!body) return;
     var payload = { widgetId: WIDGET_ID, visitorId: visitorId, body: body };
     api('/api/chat/messages', { method: 'POST', body: JSON.stringify(payload) })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.conversation) conversationId = data.conversation.id;
-        appendMessage(body, 'visitor');
+        appendMessage({ body: body, sender_type: 'visitor' });
         if (data.message && data.message.id) lastMessageId = data.message.id;
       })
       .catch(function () {});
+  }
+
+  function sendFile(file, text) {
+    if (uploading) return;
+    uploading = true;
+    var formData = new FormData();
+    formData.append('widgetId', WIDGET_ID);
+    formData.append('visitorId', visitorId);
+    formData.append('file', file);
+    if (text) formData.append('body', text);
+
+    api('/api/chat/messages/upload', { method: 'POST', body: formData })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        uploading = false;
+        clearPreview();
+        if (data.conversation) conversationId = data.conversation.id;
+        var attachments = Array.isArray(data.message.attachments) ? data.message.attachments : [];
+        appendMessage({ body: data.message.body || '', sender_type: 'visitor', attachments: attachments });
+        if (data.message && data.message.id) lastMessageId = data.message.id;
+      })
+      .catch(function () {
+        uploading = false;
+      });
   }
 
   function openChat() {
@@ -247,13 +425,20 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   closeBtn.addEventListener('click', closeChat);
   send.addEventListener('click', function () {
     var v = input.value.trim();
-    if (!v) return;
+    if (!v && !selectedFile) return;
     input.value = '';
     sendMessage(v);
   });
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') send.click();
   });
+  input.addEventListener('input', sendTyping);
+  attachBtn.addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () {
+    selectedFile = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    updatePreview();
+  });
+  previewRemove.addEventListener('click', clearPreview);
 
   var form = buildForm();
   if (form) {

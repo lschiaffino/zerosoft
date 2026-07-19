@@ -134,6 +134,22 @@
     "empty": "Ainda não há respostas prontas.",
     "placeholder": "Digite aqui sua mensagem salva…"
   },
+  "attachments": {
+    "image": "Imagem",
+    "audio": "Áudio",
+    "file": "Arquivo",
+    "upload": "Anexar arquivo",
+    "dragDrop": "Arraste e solte um arquivo aqui",
+    "maxSize": "Máx. 10 MB"
+  },
+  "typing": {
+    "visitorTyping": "O visitante está digitando…",
+    "agentTyping": "O agente está digitando…"
+  },
+  "read": {
+    "read": "Lido",
+    "at": "Lido às {{time}}"
+  },
   "common": {
     "save": "Salvar",
     "cancel": "Cancelar",
