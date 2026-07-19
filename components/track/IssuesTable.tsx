@@ -24,6 +24,7 @@ interface IssuesTableProps {
     labels: string;
     noAssignee: string;
     empty: string;
+    hasSubtasks: string;
   };
   sort?: SortField;
   sortDir?: 'asc' | 'desc';
@@ -121,6 +122,11 @@ export default function IssuesTable({
                 <td>
                   <Link href={`/${locale}/app/track/issues/${issue.id}`}>
                     <span className="track-issue-title">{issue.title || '—'}</span>
+                    {issue.child_count > 0 && (
+                      <span className="track-subtask-indicator" title={labels.hasSubtasks}>
+                        ⊞ {issue.child_count}
+                      </span>
+                    )}
                   </Link>
                 </td>
                 <td>

@@ -24,6 +24,7 @@ interface IssuePropertiesPanelProps {
     none: string;
   };
   priorities: Array<{ value: string; label: string }>;
+  onChange?: () => void;
 }
 
 const LABEL_COLORS = ['#000000', '#333333', '#666666', '#999999', '#bbbbbb'];
@@ -59,6 +60,7 @@ export default function IssuePropertiesPanel({
   members,
   labels,
   priorities,
+  onChange,
 }: IssuePropertiesPanelProps) {
   const [localIssue, setLocalIssue] = useState(issue);
   const [labelInput, setLabelInput] = useState('');
@@ -77,6 +79,7 @@ export default function IssuePropertiesPanel({
   const update = async (patch: Record<string, unknown>, optimistic?: Partial<TrackIssueWithStatus>) => {
     setLocalIssue((prev) => ({ ...prev, ...applyOptimistic(patch), ...optimistic }));
     await patchIssue(localIssue.id, patch);
+    onChange?.();
   };
 
   const setStatus = (statusId: string) => {

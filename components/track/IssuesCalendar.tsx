@@ -127,6 +127,7 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
                     >
                       <span className="track-identifier">{issue.identifier}</span>
                       <span className="track-calendar-issue-title">{issue.title}</span>
+                      {issue.child_count > 0 && <span className="track-subtask-indicator">⊞ {issue.child_count}</span>}
                     </Link>
                   ))}
                   {dayIssues.length > 3 && (
@@ -151,6 +152,7 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
               >
                 <span className="track-identifier">{issue.identifier}</span>
                 <span className="track-calendar-issue-title">{issue.title}</span>
+                {issue.child_count > 0 && <span className="track-subtask-indicator">⊞ {issue.child_count}</span>}
                 <span className="track-calendar-issue-assignee">
                   {issue.assignee_name ?? labels.noAssignee}
                 </span>

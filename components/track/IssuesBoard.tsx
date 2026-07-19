@@ -54,6 +54,11 @@ export default function IssuesBoard({ issues, statuses, locale, onStatusChange, 
                   <p className="track-board-card-title">{issue.title || '—'}</p>
                   <div className="track-board-card-meta">
                     <span>{issue.assignee_name ?? labels.noAssignee}</span>
+                    {issue.child_count > 0 && (
+                      <span className="track-subtask-indicator" title="Has subtasks">
+                        ⊞ {issue.child_count}
+                      </span>
+                    )}
                     {issue.cycle_name && <span className="track-board-cycle">{issue.cycle_name}</span>}
                     {issue.due_date && <span className="track-board-due">{formatDate(issue.due_date, locale)}</span>}
                   </div>

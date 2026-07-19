@@ -681,6 +681,28 @@ const DDL = `
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_track_issue_views_project ON track_issue_views(project_id, user_id);
+
+    CREATE TABLE IF NOT EXISTS track_issue_attachments (
+      id TEXT PRIMARY KEY,
+      issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      filename TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      url TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_track_issue_attachments_issue ON track_issue_attachments(issue_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS track_issue_activities (
+      id TEXT PRIMARY KEY,
+      issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      type TEXT NOT NULL CHECK (type IN ('comment', 'status_change', 'assignee_change', 'priority_change', 'cycle_change', 'due_date_change', 'estimate_change', 'title_change', 'description_change', 'relation_added', 'relation_removed', 'attachment_added', 'subtask_added', 'created', 'closed', 'reopened')),
+      meta TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_track_issue_activities_issue ON track_issue_activities(issue_id, created_at DESC);
   `;
 
 // ---------- Tipos ----------
@@ -1144,6 +1166,42 @@ export interface TrackIssueRelationRow {
   issue_id: string;
   related_issue_id: string;
   type: 'blocks' | 'related' | 'duplicates';
+  created_at: string;
+}
+
+export interface TrackIssueAttachmentRow {
+  id: string;
+  issue_id: string;
+  user_id: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  url: string;
+  created_at: string;
+}
+
+export interface TrackIssueActivityRow {
+  id: string;
+  issue_id: string;
+  user_id: string;
+  type:
+    | 'comment'
+    | 'status_change'
+    | 'assignee_change'
+    | 'priority_change'
+    | 'cycle_change'
+    | 'due_date_change'
+    | 'estimate_change'
+    | 'title_change'
+    | 'description_change'
+    | 'relation_added'
+    | 'relation_removed'
+    | 'attachment_added'
+    | 'subtask_added'
+    | 'created'
+    | 'closed'
+    | 'reopened';
+  meta: string;
   created_at: string;
 }
 

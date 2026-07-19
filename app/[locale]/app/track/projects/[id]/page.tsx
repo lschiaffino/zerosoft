@@ -67,6 +67,7 @@ export default async function ProjectPage({
           created: t('issues.created'),
           dueDate: t('issues.dueDate'),
           labels: t('issues.labels'),
+          hasSubtasks: t('subtasks.hasSubtasks'),
         },
         board: {
           empty: t('project.noIssues'),

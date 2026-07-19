@@ -8,6 +8,7 @@ import type { IssueLabel } from '@/lib/track-schema';
 interface IssueFormProps {
   locale: string;
   projectId: string;
+  parentId?: string;
   statuses: TrackStatusRow[];
   cycles: TrackCycleRow[];
   labels: {
@@ -31,7 +32,7 @@ interface IssueFormProps {
 
 const LABEL_COLORS = ['#000000', '#333333', '#666666', '#999999', '#bbbbbb'];
 
-export default function IssueForm({ locale, projectId, statuses, cycles, labels, priorities }: IssueFormProps) {
+export default function IssueForm({ locale, projectId, parentId, statuses, cycles, labels, priorities }: IssueFormProps) {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -63,6 +64,7 @@ export default function IssueForm({ locale, projectId, statuses, cycles, labels,
           estimate: estimate ? Number(estimate) : undefined,
           dueDate: dueDate || undefined,
           labels: issueLabels.length ? issueLabels : undefined,
+          parentId: parentId || undefined,
         }),
       });
 

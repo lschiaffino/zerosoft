@@ -97,6 +97,59 @@
       "properties": "Propiedades"
     }
   },
+  "subtasks": {
+    "title": "Subtareas",
+    "add": "Agregar subtarea",
+    "empty": "Todavía no hay subtareas.",
+    "hasSubtasks": "Tiene subtareas"
+  },
+  "attachments": {
+    "title": "Adjuntos",
+    "upload": "Subir archivo",
+    "drop": "Soltar un archivo aquí",
+    "empty": "Todavía no hay adjuntos.",
+    "delete": "Eliminar",
+    "size": "Tamaño"
+  },
+  "activity": {
+    "title": "Actividad",
+    "created": "{user} creó este issue",
+    "statusChange": "{user} cambió el estado de {from} a {to}",
+    "assigneeChange": "{user} cambió el asignado de {from} a {to}",
+    "priorityChange": "{user} cambió la prioridad de {from} a {to}",
+    "cycleChange": "{user} cambió el ciclo de {from} a {to}",
+    "dueDateChange": "{user} cambió la fecha de vencimiento de {from} a {to}",
+    "estimateChange": "{user} cambió la estimación de {from} a {to}",
+    "titleChange": "{user} cambió el título de {from} a {to}",
+    "descriptionChange": "{user} editó la descripción",
+    "relationAdded": "{user} agregó relación con",
+    "relationRemoved": "{user} eliminó una relación",
+    "attachmentAdded": "{user} agregó el adjunto {filename}",
+    "subtaskAdded": "{user} agregó esto como subtarea",
+    "closed": "{user} cerró este issue",
+    "reopened": "{user} reabrió este issue",
+    "commented": "{user} comentó",
+    "from": "de",
+    "to": "a",
+    "unassigned": "Sin asignar"
+  },
+  "relations": {
+    "title": "Relaciones",
+    "outgoing": "Salientes",
+    "incoming": "Entrantes",
+    "blocks": "bloquea",
+    "blockedBy": "bloqueado por",
+    "related": "relacionado con",
+    "duplicates": "duplica",
+    "duplicatedBy": "duplicado por",
+    "empty": "Todavía no hay relaciones.",
+    "selectIssue": "ID o identificador del issue",
+    "selectType": "Tipo"
+  },
+  "actions": {
+    "close": "Cerrar issue",
+    "reopen": "Reabrir issue"
+  },
   "cycles": {
     "title": "Ciclos",
     "form": {

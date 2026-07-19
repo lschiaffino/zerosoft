@@ -97,6 +97,59 @@
       "properties": "Properties"
     }
   },
+  "subtasks": {
+    "title": "Subtasks",
+    "add": "Add subtask",
+    "empty": "No subtasks yet.",
+    "hasSubtasks": "Has subtasks"
+  },
+  "attachments": {
+    "title": "Attachments",
+    "upload": "Upload file",
+    "drop": "Drop a file here",
+    "empty": "No attachments yet.",
+    "delete": "Delete",
+    "size": "Size"
+  },
+  "activity": {
+    "title": "Activity",
+    "created": "{user} created this issue",
+    "statusChange": "{user} changed status from {from} to {to}",
+    "assigneeChange": "{user} changed assignee from {from} to {to}",
+    "priorityChange": "{user} changed priority from {from} to {to}",
+    "cycleChange": "{user} changed cycle from {from} to {to}",
+    "dueDateChange": "{user} changed due date from {from} to {to}",
+    "estimateChange": "{user} changed estimate from {from} to {to}",
+    "titleChange": "{user} changed title from {from} to {to}",
+    "descriptionChange": "{user} edited description",
+    "relationAdded": "{user} added relation to",
+    "relationRemoved": "{user} removed relation",
+    "attachmentAdded": "{user} added attachment {filename}",
+    "subtaskAdded": "{user} added this as a subtask",
+    "closed": "{user} closed this issue",
+    "reopened": "{user} reopened this issue",
+    "commented": "{user} commented",
+    "from": "from",
+    "to": "to",
+    "unassigned": "Unassigned"
+  },
+  "relations": {
+    "title": "Relations",
+    "outgoing": "Outgoing",
+    "incoming": "Incoming",
+    "blocks": "blocks",
+    "blockedBy": "blocked by",
+    "related": "related to",
+    "duplicates": "duplicates",
+    "duplicatedBy": "duplicated by",
+    "empty": "No relations yet.",
+    "selectIssue": "Issue ID or identifier",
+    "selectType": "Type"
+  },
+  "actions": {
+    "close": "Close issue",
+    "reopen": "Reopen issue"
+  },
   "cycles": {
     "title": "Cycles",
     "form": {

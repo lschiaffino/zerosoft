@@ -7,7 +7,10 @@
 import { getDb, getClient, txDb } from './db';
 import type {
   TrackCycleRow,
+  TrackIssueActivityRow,
+  TrackIssueAttachmentRow,
   TrackIssueCommentRow,
+  TrackIssueRelationRow,
   TrackIssueRow,
   TrackIssueViewRow,
   TrackProjectRow,
@@ -38,6 +41,7 @@ export interface TrackIssueWithStatus extends TrackIssueRow {
   assignee_name: string | null;
   assignee_email: string | null;
   cycle_name: string | null;
+  child_count: number;
 }
 
 export interface TrackProjectWithStats extends TrackProjectRow {
@@ -47,6 +51,28 @@ export interface TrackProjectWithStats extends TrackProjectRow {
 export interface TrackCommentWithAuthor extends TrackIssueCommentRow {
   user_name: string | null;
   user_email: string;
+}
+
+export interface TrackIssueAttachmentWithAuthor extends TrackIssueAttachmentRow {
+  user_name: string | null;
+  user_email: string;
+}
+
+export interface TrackIssueActivityWithAuthor extends TrackIssueActivityRow {
+  user_name: string | null;
+  user_email: string;
+}
+
+export interface TrackIssueRelationWithTarget extends TrackIssueRelationRow {
+  identifier: string;
+  title: string;
+  direction: 'outgoing' | 'incoming';
+}
+
+export interface IssueParentSummary {
+  id: string;
+  identifier: string;
+  title: string;
 }
 
 export interface ListIssuesResult {
@@ -480,7 +506,8 @@ function issueSelect(extraWhere = ''): string {
       s.category AS status_category,
       u.name AS assignee_name,
       u.email AS assignee_email,
-      c.name AS cycle_name
+      c.name AS cycle_name,
+      (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count
     FROM track_issues i
     LEFT JOIN track_statuses s ON s.id = i.status_id
     LEFT JOIN users u ON u.id = i.assignee_id
@@ -713,12 +740,18 @@ export async function createIssue(
       now,
     );
 
+  await createIssueActivity(id, creatorId, 'created', {});
+  if (payload.parentId) {
+    await createIssueActivity(id, creatorId, 'subtask_added', { parentId: payload.parentId });
+  }
+
   return (await getIssue(id)) as TrackIssueWithStatus;
 }
 
 export async function updateIssue(
   id: string,
   payload: IssueUpdatePayload,
+  actorId?: string,
 ): Promise<TrackIssueWithStatus | undefined> {
   const db = getDb();
   const existing = await getIssue(id);
@@ -726,44 +759,74 @@ export async function updateIssue(
 
   const fields: string[] = [];
   const args: Array<string | number | null> = [];
+  const activities: Array<{ type: TrackIssueActivityRow['type']; meta: Record<string, unknown> }> = [];
 
-  if (payload.title !== undefined) {
+  if (payload.title !== undefined && payload.title.trim() !== existing.title) {
     fields.push('title = ?');
     args.push(payload.title.trim());
+    activities.push({ type: 'title_change', meta: { from: existing.title, to: payload.title.trim() } });
   }
-  if (payload.description !== undefined) {
+  if (payload.description !== undefined && blocksToJson(payload.description) !== existing.description) {
     fields.push('description = ?');
     args.push(blocksToJson(payload.description));
+    activities.push({ type: 'description_change', meta: {} });
   }
-  if (payload.statusId !== undefined) {
+  if (payload.statusId !== undefined && payload.statusId !== existing.status_id) {
     fields.push('status_id = ?');
     args.push(payload.statusId ?? null);
+    const newStatus = payload.statusId ? await getStatus(payload.statusId) : null;
+    activities.push({
+      type: 'status_change',
+      meta: {
+        from: existing.status_name ?? '',
+        to: newStatus?.name ?? '',
+        fromCategory: existing.status_category ?? '',
+        toCategory: newStatus?.category ?? '',
+      },
+    });
+    if (newStatus && (newStatus.category === 'done' || newStatus.category === 'cancelled')) {
+      activities.push({ type: 'closed', meta: { status: newStatus.name, category: newStatus.category } });
+    } else if (
+      existing.status_category &&
+      (existing.status_category === 'done' || existing.status_category === 'cancelled')
+    ) {
+      activities.push({ type: 'reopened', meta: { status: newStatus?.name ?? '' } });
+    }
   }
-  if (payload.priority !== undefined) {
+  if (payload.priority !== undefined && payload.priority !== existing.priority) {
     fields.push('priority = ?');
     args.push(payload.priority);
+    activities.push({ type: 'priority_change', meta: { from: existing.priority, to: payload.priority } });
   }
-  if (payload.assigneeId !== undefined) {
+  if (payload.assigneeId !== undefined && payload.assigneeId !== existing.assignee_id) {
     fields.push('assignee_id = ?');
     args.push(payload.assigneeId ?? null);
+    activities.push({
+      type: 'assignee_change',
+      meta: { from: existing.assignee_id ?? '', to: payload.assigneeId ?? '' },
+    });
   }
-  if (payload.cycleId !== undefined) {
+  if (payload.cycleId !== undefined && payload.cycleId !== existing.cycle_id) {
     fields.push('cycle_id = ?');
     args.push(payload.cycleId ?? null);
+    const newCycle = payload.cycleId ? await getCycle(payload.cycleId) : null;
+    activities.push({ type: 'cycle_change', meta: { from: existing.cycle_name ?? '', to: newCycle?.name ?? '' } });
   }
-  if (payload.estimate !== undefined) {
+  if (payload.estimate !== undefined && payload.estimate !== existing.estimate) {
     fields.push('estimate = ?');
     args.push(payload.estimate ?? null);
+    activities.push({ type: 'estimate_change', meta: { from: existing.estimate ?? '', to: payload.estimate ?? '' } });
   }
-  if (payload.parentId !== undefined) {
+  if (payload.parentId !== undefined && payload.parentId !== existing.parent_id) {
     fields.push('parent_id = ?');
     args.push(payload.parentId ?? null);
   }
-  if (payload.dueDate !== undefined) {
+  if (payload.dueDate !== undefined && payload.dueDate !== existing.due_date) {
     fields.push('due_date = ?');
     args.push(payload.dueDate ?? null);
+    activities.push({ type: 'due_date_change', meta: { from: existing.due_date ?? '', to: payload.dueDate ?? '' } });
   }
-  if (payload.labels !== undefined) {
+  if (payload.labels !== undefined && labelsToJson(payload.labels) !== existing.labels) {
     fields.push('labels = ?');
     args.push(labelsToJson(payload.labels));
   }
@@ -773,14 +836,62 @@ export async function updateIssue(
     args.push(nowIso());
     args.push(id);
     await db.prepare(`UPDATE track_issues SET ${fields.join(', ')} WHERE id = ?`).run(...args);
+
+    if (actorId) {
+      for (const activity of activities) {
+        await createIssueActivity(id, actorId, activity.type, activity.meta);
+      }
+    }
   }
 
   return getIssue(id);
 }
 
 export async function deleteIssue(id: string): Promise<boolean> {
-  const res = await getDb().prepare('DELETE FROM track_issues WHERE id = ?').run(id);
+  const db = getDb();
+  // Eliminar descendientes en cascada (las filas hijas se borran por FK).
+  const children = (await db
+    .prepare('SELECT id FROM track_issues WHERE parent_id = ?')
+    .all(id)) as Array<{ id: string }>;
+  for (const child of children) {
+    await db.prepare('DELETE FROM track_issues WHERE id = ?').run(child.id);
+  }
+  const res = await db.prepare('DELETE FROM track_issues WHERE id = ?').run(id);
   return res.changes > 0;
+}
+
+export async function listIssueChildren(issueId: string): Promise<TrackIssueWithStatus[]> {
+  return (await getDb().prepare(`${issueSelect('WHERE i.parent_id = ?')} ORDER BY i.created_at ASC`).all(issueId)) as TrackIssueWithStatus[];
+}
+
+export async function getIssueParentChain(issueId: string): Promise<IssueParentSummary[]> {
+  const chain: IssueParentSummary[] = [];
+  const db = getDb();
+  let currentId: string | null = issueId;
+  const seen = new Set<string>();
+  while (currentId && !seen.has(currentId)) {
+    seen.add(currentId);
+    const row = (await db
+      .prepare(
+        `SELECT p.id, p.parent_id, p.identifier, p.title
+         FROM track_issues p
+         WHERE p.id = ?`,
+      )
+      .get(currentId)) as { id: string; parent_id: string | null; identifier: string; title: string } | undefined;
+    if (!row) break;
+    if (row.parent_id) {
+      const parent = (await db
+        .prepare('SELECT id, identifier, title FROM track_issues WHERE id = ?')
+        .get(row.parent_id)) as IssueParentSummary | undefined;
+      if (parent) {
+        chain.unshift(parent);
+        currentId = row.parent_id;
+        continue;
+      }
+    }
+    break;
+  }
+  return chain;
 }
 
 export interface ProjectMember {
@@ -991,6 +1102,8 @@ export async function createIssueComment(
     )
     .run(id, issueId, userId, payload.body.trim(), nowIso());
 
+  await createIssueActivity(issueId, userId, 'comment', { commentId: id, body: payload.body.trim() });
+
   return (await db
     .prepare(
       `SELECT c.*, u.name AS user_name, u.email AS user_email
@@ -1008,23 +1121,29 @@ export async function deleteIssueComment(id: string): Promise<boolean> {
 
 // ---------- Relations ----------
 
-export async function listIssueRelations(issueId: string): Promise<unknown[]> {
+export async function listIssueRelations(issueId: string): Promise<TrackIssueRelationWithTarget[]> {
   return (await getDb()
     .prepare(
-      `SELECT r.*, i.identifier, i.title
+      `SELECT r.*, i.identifier, i.title, 'outgoing' AS direction
        FROM track_issue_relations r
        JOIN track_issues i ON i.id = r.related_issue_id
        WHERE r.issue_id = ?
-       ORDER BY r.created_at DESC`,
+       UNION ALL
+       SELECT r.*, i.identifier, i.title, 'incoming' AS direction
+       FROM track_issue_relations r
+       JOIN track_issues i ON i.id = r.issue_id
+       WHERE r.related_issue_id = ?
+       ORDER BY created_at DESC`,
     )
-    .all(issueId)) as unknown[];
+    .all(issueId, issueId)) as TrackIssueRelationWithTarget[];
 }
 
 export async function createIssueRelation(
   issueId: string,
+  userId: string,
   relatedIssueId: string,
   type: 'blocks' | 'related' | 'duplicates' = 'related',
-): Promise<unknown> {
+): Promise<TrackIssueRelationWithTarget[]> {
   const db = getDb();
   const id = crypto.randomUUID();
   await db
@@ -1032,12 +1151,132 @@ export async function createIssueRelation(
       'INSERT INTO track_issue_relations (id, issue_id, related_issue_id, type) VALUES (?, ?, ?, ?)',
     )
     .run(id, issueId, relatedIssueId, type);
+  const related = (await db.prepare('SELECT identifier, title FROM track_issues WHERE id = ?').get(relatedIssueId)) as
+    | { identifier: string; title: string }
+    | undefined;
+  await createIssueActivity(issueId, userId, 'relation_added', {
+    relatedIssueId,
+    type,
+    identifier: related?.identifier ?? '',
+    title: related?.title ?? '',
+  });
   return listIssueRelations(issueId);
 }
 
-export async function deleteIssueRelation(id: string): Promise<boolean> {
-  const res = await getDb().prepare('DELETE FROM track_issue_relations WHERE id = ?').run(id);
+export async function deleteIssueRelation(id: string, issueId: string, userId: string): Promise<boolean> {
+  const db = getDb();
+  const row = (await db
+    .prepare('SELECT issue_id, related_issue_id, type FROM track_issue_relations WHERE id = ?')
+    .get(id)) as { issue_id: string; related_issue_id: string; type: string } | undefined;
+  if (!row) return false;
+  const otherIssueId = row.issue_id === issueId ? row.related_issue_id : row.issue_id;
+  const related = (await db.prepare('SELECT identifier, title FROM track_issues WHERE id = ?').get(otherIssueId)) as
+    | { identifier: string; title: string }
+    | undefined;
+  const res = await db.prepare('DELETE FROM track_issue_relations WHERE id = ?').run(id);
+  const actorIssueId = row.issue_id === issueId ? issueId : row.issue_id;
+  await createIssueActivity(actorIssueId, userId, 'relation_removed', {
+    relatedIssueId: otherIssueId,
+    type: row.type,
+    identifier: related?.identifier ?? '',
+    title: related?.title ?? '',
+  });
   return res.changes > 0;
+}
+
+// ---------- Attachments ----------
+
+export async function listIssueAttachments(issueId: string): Promise<TrackIssueAttachmentWithAuthor[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT a.*, u.name AS user_name, u.email AS user_email
+       FROM track_issue_attachments a
+       JOIN users u ON u.id = a.user_id
+       WHERE a.issue_id = ?
+       ORDER BY a.created_at DESC`,
+    )
+    .all(issueId)) as TrackIssueAttachmentWithAuthor[];
+}
+
+export interface AttachmentCreatePayload {
+  filename: string;
+  contentType: string;
+  size: number;
+  url: string;
+}
+
+export async function createIssueAttachment(
+  issueId: string,
+  userId: string,
+  payload: AttachmentCreatePayload,
+): Promise<TrackIssueAttachmentWithAuthor> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const now = nowIso();
+  await db
+    .prepare(
+      'INSERT INTO track_issue_attachments (id, issue_id, user_id, filename, content_type, size, url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(id, issueId, userId, payload.filename, payload.contentType, payload.size, payload.url, now);
+
+  await createIssueActivity(issueId, userId, 'attachment_added', { attachmentId: id, filename: payload.filename });
+
+  return (await db
+    .prepare(
+      `SELECT a.*, u.name AS user_name, u.email AS user_email
+       FROM track_issue_attachments a
+       JOIN users u ON u.id = a.user_id
+       WHERE a.id = ?`,
+    )
+    .get(id)) as TrackIssueAttachmentWithAuthor;
+}
+
+export async function deleteIssueAttachment(id: string): Promise<boolean> {
+  const res = await getDb().prepare('DELETE FROM track_issue_attachments WHERE id = ?').run(id);
+  return res.changes > 0;
+}
+
+// ---------- Activity ----------
+
+export async function listIssueActivities(issueId: string): Promise<TrackIssueActivityWithAuthor[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT a.*, u.name AS user_name, u.email AS user_email
+       FROM track_issue_activities a
+       JOIN users u ON u.id = a.user_id
+       WHERE a.issue_id = ?
+       UNION ALL
+       SELECT c.id, c.issue_id, c.user_id, 'comment' AS type,
+         json_object('commentId', c.id, 'body', c.body) AS meta,
+         c.created_at, u.name AS user_name, u.email AS user_email
+       FROM track_issue_comments c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.issue_id = ?
+         AND c.id NOT IN (
+           SELECT json_extract(meta, '$.commentId')
+           FROM track_issue_activities
+           WHERE issue_id = ? AND type = 'comment'
+         )
+       ORDER BY created_at ASC`,
+    )
+    .all(issueId, issueId, issueId)) as TrackIssueActivityWithAuthor[];
+}
+
+export async function createIssueActivity(
+  issueId: string,
+  userId: string,
+  type: TrackIssueActivityRow['type'],
+  meta: Record<string, unknown>,
+): Promise<TrackIssueActivityRow> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const now = nowIso();
+  await db
+    .prepare(
+      'INSERT INTO track_issue_activities (id, issue_id, user_id, type, meta, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .run(id, issueId, userId, type, JSON.stringify(meta), now);
+  return (await db.prepare('SELECT * FROM track_issue_activities WHERE id = ?').get(id)) as TrackIssueActivityRow;
 }
 
 // ---------- Bloques de descripción ----------

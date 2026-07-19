@@ -8,8 +8,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function NewIssuePage({
   params: { locale, id },
+  searchParams,
 }: {
   params: { locale: string; id: string };
+  searchParams?: { parentId?: string };
 }) {
   const user = await requireUser(locale);
   const project = await getProject(id);
@@ -29,6 +31,7 @@ export default async function NewIssuePage({
       <IssueForm
         locale={locale}
         projectId={id}
+        parentId={searchParams?.parentId}
         statuses={statuses}
         cycles={cycles}
         labels={{

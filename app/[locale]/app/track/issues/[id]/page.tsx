@@ -1,11 +1,19 @@
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
-import { formatDate } from '@/lib/utils';
-import { getIssue, listIssueComments, listProjectMembers, listCycles, listStatuses } from '@/lib/track-data';
-import StatusBadge from '@/components/track/StatusBadge';
-import IssuePropertiesPanel from '@/components/track/IssuePropertiesPanel';
+import {
+  getIssue,
+  getProject,
+  listCycles,
+  listIssueActivities,
+  listIssueAttachments,
+  listIssueChildren,
+  listIssueRelations,
+  listProjectMembers,
+  listStatuses,
+  getIssueParentChain,
+} from '@/lib/track-data';
+import IssueDetailClient from '@/components/track/IssueDetailClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,118 +26,114 @@ export default async function IssueDetailPage({
   const issue = await getIssue(id);
   if (!issue) notFound();
 
-  const project = issue.project_id;
-  const [comments, statuses, cycles, members] = await Promise.all([
-    listIssueComments(id),
-    listStatuses(project),
-    listCycles(project),
-    listProjectMembers(project, user.id),
+  const projectId = issue.project_id;
+  const [project, statuses, cycles, members, children, parentChain, attachments, relations, activities] = await Promise.all([
+    getProject(projectId),
+    listStatuses(projectId),
+    listCycles(projectId),
+    listProjectMembers(projectId, user.id),
+    listIssueChildren(id),
+    getIssueParentChain(id),
+    listIssueAttachments(id),
+    listIssueRelations(id),
+    listIssueActivities(id),
   ]);
 
   const t = await getTranslations({ locale, namespace: 'track' });
 
-  let descriptionText = '';
-  try {
-    const parsed = JSON.parse(issue.description);
-    if (Array.isArray(parsed)) {
-      descriptionText = parsed.map((b: { text?: string }) => b.text ?? '').join('\n');
-    }
-  } catch {
-    descriptionText = issue.description;
-  }
-
-  let issueLabels: Array<{ id: string; name: string; color: string }> = [];
-  try {
-    const parsed = JSON.parse(issue.labels);
-    if (Array.isArray(parsed)) issueLabels = parsed;
-  } catch {
-    issueLabels = [];
-  }
-
   return (
-    <div className="app-page track-detail">
-      <div className="track-detail-head">
-        <div className="track-detail-meta">
-          <Link href={`/${locale}/app/track/projects/${issue.project_id}`}>
-            ← {t('issues.back')}
-          </Link>
-        </div>
-        <h1>
-          <span className="track-identifier">{issue.identifier}</span>{' '}
-          {issue.title || t('issues.title')}
-        </h1>
-        <div className="track-detail-meta">
-          <StatusBadge name={issue.status_name} color={issue.status_color} />
-          <span>{t(`priorities.${issue.priority}`)}</span>
-          <span>{formatDate(issue.created_at, locale)}</span>
-        </div>
-      </div>
-
-      <div className="track-detail-grid">
-        <div className="track-detail-main">
-          {descriptionText ? (
-            <section className="panel">
-              <p className="section-label">{t('issues.form.description')}</p>
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.6 }}>
-                {descriptionText}
-              </div>
-            </section>
-          ) : null}
-
-          <section className="panel">
-            <p className="section-label">{t('issues.detail.comments')}</p>
-            {comments.length === 0 ? (
-              <p className="muted">{t('issues.detail.noComments')}</p>
-            ) : (
-              <div className="track-comments">
-                {comments.map((c) => (
-                  <div key={c.id} className="track-comment">
-                    <div className="track-comment-head">
-                      <span className="track-comment-author">
-                        {c.user_name ?? c.user_email}
-                      </span>
-                      <span className="track-comment-date">
-                        {formatDate(c.created_at, locale)}
-                      </span>
-                    </div>
-                    <p className="track-comment-body">{c.body}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-
-        <aside className="track-detail-side">
-          <section className="panel">
-            <p className="section-label">{t('issues.detail.properties')}</p>
-            <IssuePropertiesPanel
-              issue={issue}
-              statuses={statuses}
-              cycles={cycles}
-              members={members}
-              locale={locale}
-              labels={{
-                status: t('issues.status'),
-                priority: t('issues.priority'),
-                assignee: t('issues.assignee'),
-                cycle: t('issues.cycle'),
-                estimate: t('issues.estimate'),
-                dueDate: t('issues.dueDate'),
-                labels: t('issues.labels'),
-                noAssignee: t('issues.noAssignee'),
-                none: '—',
-              }}
-              priorities={[
-                { value: 'urgent', label: t('priorities.urgent') },
-                { value: 'high', label: t('priorities.high') },
-                { value: 'medium', label: t('priorities.medium') },
-                { value: 'low', label: t('priorities.low') },
-              ]}
-            />
-          </section>
-        </aside>
-      </div>
-    </div>
+    <IssueDetailClient
+      locale={locale}
+      userId={user.id}
+      initialIssue={issue}
+      initialProjectName={project?.name ?? projectId}
+      initialStatuses={statuses}
+      initialCycles={cycles}
+      initialMembers={members}
+      initialChildren={children}
+      initialParentChain={parentChain}
+      initialAttachments={attachments}
+      initialActivities={activities}
+      initialRelations={relations}
+      labels={{
+        back: t('issues.back'),
+        description: t('issues.form.description'),
+        properties: {
+          status: t('issues.status'),
+          priority: t('issues.priority'),
+          assignee: t('issues.assignee'),
+          cycle: t('issues.cycle'),
+          estimate: t('issues.estimate'),
+          dueDate: t('issues.dueDate'),
+          labels: t('issues.labels'),
+          noAssignee: t('issues.noAssignee'),
+          none: '—',
+        },
+        priorities: [
+          { value: 'urgent', label: t('priorities.urgent') },
+          { value: 'high', label: t('priorities.high') },
+          { value: 'medium', label: t('priorities.medium') },
+          { value: 'low', label: t('priorities.low') },
+        ],
+        subtasks: {
+          title: t('subtasks.title'),
+          add: t('subtasks.add'),
+          empty: t('subtasks.empty'),
+          hasSubtasks: t('subtasks.hasSubtasks'),
+        },
+        attachments: {
+          title: t('attachments.title'),
+          upload: t('attachments.upload'),
+          drop: t('attachments.drop'),
+          empty: t('attachments.empty'),
+          delete: t('attachments.delete'),
+          size: t('attachments.size'),
+        },
+        activity: {
+          title: t('activity.title'),
+          created: t('activity.created'),
+          statusChange: t('activity.statusChange'),
+          assigneeChange: t('activity.assigneeChange'),
+          priorityChange: t('activity.priorityChange'),
+          cycleChange: t('activity.cycleChange'),
+          dueDateChange: t('activity.dueDateChange'),
+          estimateChange: t('activity.estimateChange'),
+          titleChange: t('activity.titleChange'),
+          descriptionChange: t('activity.descriptionChange'),
+          relationAdded: t('activity.relationAdded'),
+          relationRemoved: t('activity.relationRemoved'),
+          attachmentAdded: t('activity.attachmentAdded'),
+          subtaskAdded: t('activity.subtaskAdded'),
+          closed: t('activity.closed'),
+          reopened: t('activity.reopened'),
+          commented: t('activity.commented'),
+          from: t('activity.from'),
+          to: t('activity.to'),
+          unassigned: t('activity.unassigned'),
+          addComment: t('issues.detail.addComment'),
+          submitComment: t('common.create'),
+          empty: t('issues.detail.noComments'),
+        },
+        relations: {
+          title: t('relations.title'),
+          outgoing: t('relations.outgoing'),
+          incoming: t('relations.incoming'),
+          blocks: t('relations.blocks'),
+          blockedBy: t('relations.blockedBy'),
+          related: t('relations.related'),
+          duplicates: t('relations.duplicates'),
+          duplicatedBy: t('relations.duplicatedBy'),
+          add: t('common.create'),
+          remove: t('common.remove'),
+          empty: t('relations.empty') ?? 'No relations yet.',
+          selectIssue: t('relations.selectIssue') ?? 'Issue ID or identifier',
+          selectType: t('relations.selectType') ?? 'Type',
+        },
+        actions: {
+          close: t('actions.close'),
+          reopen: t('actions.reopen'),
+        },
+      }}
+    />
   );
 }

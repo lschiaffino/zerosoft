@@ -1062,3 +1062,370 @@
     min-height: 70px;
   }
 }
+
+/* ---------- Breadcrumb ---------- */
+
+.track-breadcrumb {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+  flex-wrap: wrap;
+}
+
+.track-breadcrumb a {
+  color: var(--dim);
+  text-decoration: none;
+}
+
+.track-breadcrumb a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.track-breadcrumb-sep {
+  color: var(--line);
+}
+
+.track-breadcrumb-current {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ---------- Detail actions ---------- */
+
+.track-detail-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+
+.track-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.track-section-header .section-label {
+  margin: 0;
+}
+
+/* ---------- Subtasks ---------- */
+
+.track-subtask-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.track-subtask {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.track-subtask a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.track-subtask-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.track-subtask-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--dim);
+  flex-shrink: 0;
+}
+
+.track-subtask-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+/* ---------- Attachments ---------- */
+
+.track-attachment-upload {
+  display: inline-flex;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+.track-attachment-upload input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.track-attachment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.track-attachment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.track-attachment-name {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-attachment-name:hover {
+  text-decoration: underline;
+}
+
+.track-attachment-meta {
+  color: var(--dim);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.track-attachment-delete {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.track-attachment-delete:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ---------- Relations ---------- */
+
+.track-relation-group {
+  margin-bottom: 14px;
+}
+
+.track-relation-heading {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+.track-relation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.track-relation {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.track-relation-type {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.track-relation a {
+  color: var(--ink);
+  text-decoration: none;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-relation a:hover {
+  text-decoration: underline;
+}
+
+.track-relation-delete {
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  color: var(--dim);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.track-relation-delete:hover {
+  color: var(--ink);
+}
+
+.track-relation-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.track-relation-form input,
+.track-relation-form select {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+/* ---------- Activity timeline ---------- */
+
+.track-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.track-activity-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.track-activity-composer textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.track-activity-composer textarea:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+
+.track-activity-list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-left: 14px;
+}
+
+.track-activity-list::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--line);
+}
+
+.track-activity-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.track-activity-item::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--bg);
+}
+
+.track-activity-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.track-activity-text {
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.track-activity-comment {
+  display: block;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafafa;
+  color: var(--ink);
+  font-style: italic;
+}
+
+.track-activity-time {
+  color: var(--dim);
+  font-size: 11px;
+  font-family: var(--mono);
+}
+
+.track-activity-link {
+  color: var(--ink);
+  text-decoration: underline;
+  font-weight: 500;
+}

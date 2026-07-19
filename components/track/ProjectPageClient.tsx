@@ -68,6 +68,7 @@ export interface PageLabels {
     created: string;
     dueDate: string;
     labels: string;
+    hasSubtasks: string;
   };
   board: {
     empty: string;

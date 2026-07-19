@@ -97,6 +97,59 @@
       "properties": "Propriedades"
     }
   },
+  "subtasks": {
+    "title": "Subtarefas",
+    "add": "Adicionar subtarefa",
+    "empty": "Ainda não há subtarefas.",
+    "hasSubtasks": "Tem subtarefas"
+  },
+  "attachments": {
+    "title": "Anexos",
+    "upload": "Enviar arquivo",
+    "drop": "Solte um arquivo aqui",
+    "empty": "Ainda não há anexos.",
+    "delete": "Excluir",
+    "size": "Tamanho"
+  },
+  "activity": {
+    "title": "Atividade",
+    "created": "{user} criou este issue",
+    "statusChange": "{user} alterou o status de {from} para {to}",
+    "assigneeChange": "{user} alterou o responsável de {from} para {to}",
+    "priorityChange": "{user} alterou a prioridade de {from} para {to}",
+    "cycleChange": "{user} alterou o ciclo de {from} para {to}",
+    "dueDateChange": "{user} alterou a data de vencimento de {from} para {to}",
+    "estimateChange": "{user} alterou a estimativa de {from} para {to}",
+    "titleChange": "{user} alterou o título de {from} para {to}",
+    "descriptionChange": "{user} editou a descrição",
+    "relationAdded": "{user} adicionou relação com",
+    "relationRemoved": "{user} removeu uma relação",
+    "attachmentAdded": "{user} adicionou o anexo {filename}",
+    "subtaskAdded": "{user} adicionou isto como subtarefa",
+    "closed": "{user} fechou este issue",
+    "reopened": "{user} reabriu este issue",
+    "commented": "{user} comentou",
+    "from": "de",
+    "to": "para",
+    "unassigned": "Não atribuído"
+  },
+  "relations": {
+    "title": "Relações",
+    "outgoing": "Saídas",
+    "incoming": "Entrantes",
+    "blocks": "bloqueia",
+    "blockedBy": "bloqueado por",
+    "related": "relacionado a",
+    "duplicates": "duplica",
+    "duplicatedBy": "duplicado por",
+    "empty": "Ainda não há relações.",
+    "selectIssue": "ID ou identificador do issue",
+    "selectType": "Tipo"
+  },
+  "actions": {
+    "close": "Fechar issue",
+    "reopen": "Reabrir issue"
+  },
   "cycles": {
     "title": "Ciclos",
     "form": {

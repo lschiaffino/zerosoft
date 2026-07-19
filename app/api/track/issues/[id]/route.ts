@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const parsed = issueUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const updated = await updateIssue(params.id, parsed.data);
+  const updated = await updateIssue(params.id, parsed.data, user.id);
   return NextResponse.json(updated);
 }
 

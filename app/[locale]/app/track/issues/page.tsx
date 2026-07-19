@@ -37,6 +37,7 @@ export default async function IssuesPage({
           labels: t('issues.labels'),
           noAssignee: t('issues.noAssignee'),
           empty: t('issues.empty'),
+          hasSubtasks: t('subtasks.hasSubtasks'),
         }}
       />
     </div>
