@@ -29,6 +29,7 @@
     "newDeal": "Nuevo deal",
     "newTask": "Nueva tarea",
     "newLink": "Nuevo link",
+    "newDocPage": "Nueva página",
     "team": "Equipo",
     "searchPlaceholder": "Buscá contactos, empresas, deals…",
     "searchPlaceholderLinks": "Buscá links…",
@@ -67,6 +68,7 @@
     "crm": { "tag": "Clientes y ventas", "desc": "Tu pipeline completo, de punta a punta. Cero licencias por usuario.", "status": "Disponible" },
     "cal": { "tag": "Agendamiento", "desc": "Tu disponibilidad, un link, listo. Sin pagar por el privilegio.", "status": "En construcción" },
     "link": { "tag": "Links cortos", "desc": "Links cortos con métricas reales. Tuyos para siempre.", "status": "Disponible" },
+    "docs": { "tag": "Docs y wiki", "desc": "Notas y documentos que son tuyos. Sin cobro por usuario.", "status": "Disponible" },
     "more": { "title": "Todo lo demás", "tag": "Lo que sigue", "desc": "Documentos. Notas. Chat. Diseño. Si el mundo lo usa, lo vamos a liberar. Esto recién empieza.", "status": "Siempre" }
   },
   "model": {

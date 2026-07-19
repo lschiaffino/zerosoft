@@ -9,7 +9,7 @@ export interface SidebarLabels {
   search: string;
   new: string;
   backToSite: string;
-  docs: string;
+  docsSite: string;
   soon: string;
   signOut: string;
   records: string;
@@ -22,6 +22,7 @@ export interface SidebarLabels {
   newDeal: string;
   newTask: string;
   newLink: string;
+  newDocPage: string;
   team: string;
   link: { overview: string; links: string; new: string; settings: string };
   crm: {
@@ -33,6 +34,11 @@ export interface SidebarLabels {
     lists: string;
     reports: string;
     settings: string;
+  };
+  docs: {
+    overview: string;
+    pages: string;
+    new: string;
   };
 }
 
@@ -53,6 +59,7 @@ interface Item {
 const PRODUCTS = [
   { key: 'link', name: 'Link', href: '/app' },
   { key: 'crm', name: 'CRM', href: '/app/crm' },
+  { key: 'docs', name: 'Docs', href: '/app/docs' },
   { key: 'track', name: 'Track', href: null },
   { key: 'cal', name: 'Cal', href: null },
 ] as const;
@@ -76,7 +83,11 @@ export default function AppSidebar({
   teamName?: string | null;
 }) {
   const pathname = usePathname();
-  const product = pathname.includes('/app/crm') ? 'crm' : 'link';
+  const product = pathname.includes('/app/crm')
+    ? 'crm'
+    : pathname.includes('/app/docs')
+      ? 'docs'
+      : 'link';
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -179,7 +190,17 @@ export default function AppSidebar({
     },
   ];
 
-  const nav = product === 'crm' ? crmNav : linkNav;
+  const docsNav: Array<{ section?: string; items: Item[] }> = [
+    { items: [{ href: '/app/docs', label: labels.docs.overview, active: pathname === '/app/docs', icon: 'overview' }] },
+    {
+      section: labels.workspace,
+      items: [
+        { href: '/app/docs/pages', label: labels.docs.pages, active: pathname.startsWith('/app/docs/'), icon: 'docs' },
+      ],
+    },
+  ];
+
+  const nav = product === 'crm' ? crmNav : product === 'docs' ? docsNav : linkNav;
 
   const newItems: Item[] =
     product === 'crm'
@@ -189,7 +210,9 @@ export default function AppSidebar({
           { href: '/app/crm/deals/new', label: labels.newDeal, active: false, icon: 'deals' },
           { href: '/app/crm/tasks', label: labels.newTask, active: false, icon: 'tasks' },
         ]
-      : [{ href: '/app/links/new', label: labels.newLink, active: false, icon: 'newLink' }];
+      : product === 'docs'
+        ? [{ href: '/app/docs', label: labels.newDocPage, active: false, icon: 'docs' }]
+        : [{ href: '/app/links/new', label: labels.newLink, active: false, icon: 'newLink' }];
 
   const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
 
@@ -295,9 +318,9 @@ export default function AppSidebar({
           <Icon name="back" />
           {labels.backToSite}
         </Link>
-        <Link href="/docs" className="side-link" title={labels.docs}>
+        <Link href="/docs" className="side-link" title={labels.docsSite}>
           <Icon name="docs" />
-          {labels.docs}
+          {labels.docsSite}
         </Link>
         <div className="side-user">
           {user.image ? (

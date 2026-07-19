@@ -1,0 +1,576 @@
+/* ============================================
+   DOCS — wiki / documents MVP
+   Blanco, negro y ceros. Consistente con CRM/Links.
+   ============================================ */
+
+/* ---------- Layout ---------- */
+
+.docs-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.docs-main {
+  min-width: 0;
+}
+
+.docs-editor-wrap {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 1023px) {
+  .docs-layout {
+    grid-template-columns: 1fr;
+  }
+  .docs-editor-wrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Landing ---------- */
+
+.docs-landing .docs-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.docs-list-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.docs-list-row:last-child { border-bottom: none; }
+
+.docs-list-row:hover .docs-list-title { text-decoration: underline; text-underline-offset: 3px; }
+
+.docs-list-icon { font-size: 14px; }
+
+.docs-list-title { font-size: 14px; }
+
+.docs-list-date { font-size: 11px; color: var(--dim); }
+
+/* ---------- Sidebar ---------- */
+
+.docs-sidebar {
+  position: sticky;
+  top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.docs-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.docs-sidebar-title {
+  font-family: var(--mono);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.docs-sidebar-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.docs-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.docs-tree-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.docs-tree-link:hover { background: #f5f5f5; }
+
+.docs-tree-link.active {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.docs-tree-icon { font-size: 13px; }
+
+.docs-tree-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.docs-tree-add {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--dim);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.docs-tree-link:hover .docs-tree-add { opacity: 1; }
+
+.docs-tree-drop-root {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--dim);
+  text-align: center;
+}
+
+/* ---------- Editor ---------- */
+
+.docs-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 720px;
+}
+
+.docs-page-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.docs-icon-wrap {
+  flex-shrink: 0;
+}
+
+.docs-icon {
+  width: 42px;
+  height: 42px;
+  text-align: center;
+  font-size: 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  outline: none;
+}
+
+.docs-icon:focus { border-color: var(--ink); }
+
+.docs-title {
+  flex: 1;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  padding: 4px 0;
+}
+
+.docs-title::placeholder { color: #b8b8b8; }
+
+.docs-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.docs-block-outer {
+  position: relative;
+}
+
+.docs-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.docs-editable {
+  flex: 1;
+  min-height: 28px;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink);
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.docs-editable:empty::before {
+  content: attr(data-placeholder);
+  color: var(--dim);
+  pointer-events: none;
+}
+
+.docs-editable:focus { outline: none; }
+
+.docs-heading,
+.docs-h1,
+.docs-h2,
+.docs-h3 { font-weight: 500; line-height: 1.25; }
+
+.docs-h1 { font-size: 1.9rem; }
+.docs-h2 { font-size: 1.5rem; }
+.docs-h3 { font-size: 1.2rem; }
+
+.docs-bulleted_list_item,
+.docs-numbered_list_item,
+.docs-todo {
+  position: relative;
+  padding-left: 22px;
+}
+
+.docs-bulleted_list_item::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--dim);
+}
+
+.docs-numbered_list_item::before {
+  content: attr(data-index) '.';
+  position: absolute;
+  left: 0;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.docs-command-item.sel { background: #f0f0f0; }
+
+.docs-todo { padding-left: 0; }
+
+.docs-check {
+  margin-top: 6px;
+  margin-right: 10px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ink);
+}
+
+.docs-quote {
+  border-left: 2px solid var(--ink);
+  padding-left: 18px;
+  font-style: italic;
+  color: #4a4a4a;
+}
+
+.docs-code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: #f4f4f4;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  width: 100%;
+  white-space: pre-wrap;
+}
+
+.docs-code-lang {
+  margin-bottom: 6px;
+  width: 100%;
+}
+
+.docs-lang-input {
+  width: 120px;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  outline: none;
+  background: var(--bg);
+}
+
+.docs-lang-input:focus { border-color: var(--ink); }
+
+.docs-divider {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 18px 0;
+}
+
+/* ---------- Table ---------- */
+
+.docs-table-wrap {
+  width: 100%;
+}
+
+.docs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.docs-table td {
+  border: 1px solid var(--line);
+  padding: 0;
+}
+
+.docs-table-cell {
+  width: 100%;
+  border: none;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  background: transparent;
+}
+
+.docs-table-add {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.docs-table-add:hover { border-color: var(--ink); }
+
+/* ---------- Command menu ---------- */
+
+.docs-command-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 220px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+}
+
+.docs-command-item {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.docs-command-item:hover { background: #f5f5f5; }
+
+.docs-command-empty {
+  padding: 10px;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+/* ---------- Mention popover ---------- */
+
+.docs-mention-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 240px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.docs-mention-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.docs-mention-item:hover { background: #f5f5f5; }
+
+.docs-mention-icon { font-size: 13px; }
+
+.docs-mention-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.docs-mention-empty {
+  padding: 10px;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+/* ---------- Editor footer ---------- */
+
+.docs-editor-foot {
+  padding-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ---------- Share panel ---------- */
+
+.docs-share {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.docs-share-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.docs-share-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.docs-share-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.docs-share-kind {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.docs-share-target {
+  flex: 1;
+  font-size: 11px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.docs-share-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.docs-share-form select,
+.docs-share-form input {
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: none;
+  background: var(--bg);
+}
+
+.docs-share-form select:focus,
+.docs-share-form input:focus { border-color: var(--ink); }
+
+.docs-share-url {
+  font-size: 11px;
+  color: var(--dim);
+  word-break: break-all;
+}
+
+/* ---------- Product mockup ---------- */
+
+.mk-docs {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  min-height: 320px;
+}
+
+.mk-docs .mk-doc {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mk-docs .mk-doc-icon { font-size: 24px; }
+
+.mk-docs .mk-doc-title {
+  font-size: 1.3rem;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.mk-docs .mk-doc-line {
+  height: 10px;
+  background: #e8e8e8;
+  border-radius: 4px;
+}
+
+.mk-docs .mk-doc-h {
+  height: 1px;
+  background: #e8e8e8;
+  margin: 8px 0;
+}
+
+.mk-docs .mk-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #4a4a4a;
+}

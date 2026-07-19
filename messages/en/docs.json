@@ -1,0 +1,31 @@
+{
+  "landing": {
+    "title": "Docs",
+    "subtitle": "Notes, wikis and documents. Zero lock-in.",
+    "newPage": "New page",
+    "latest": "Latest pages",
+    "emptyTitle": "No pages yet",
+    "emptySub": "Create your first page and start writing."
+  },
+  "sidebar": {
+    "overview": "Overview",
+    "pages": "Pages",
+    "new": "New page",
+    "newPage": "New page",
+    "newSubpage": "New subpage",
+    "empty": "No pages"
+  },
+  "editor": {
+    "untitled": "Untitled page",
+    "placeholder": "Type '/' for commands",
+    "saved": "Saved",
+    "saving": "Saving…"
+  },
+  "share": {
+    "title": "Share",
+    "public": "Public on the web",
+    "team": "Team",
+    "user": "User",
+    "share": "Share"
+  }
+}

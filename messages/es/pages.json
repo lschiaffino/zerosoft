@@ -212,6 +212,49 @@
         "sub": "Cal llega en Q2 2027. Levantá la mano y te avisamos el día cero.",
         "button": "Avisame →"
       }
+    },
+    "docs": {
+      "meta": {
+        "title": "Docs — Notas y wikis, liberados",
+        "description": "Un wiki estilo Notion para tu equipo: páginas anidadas, editor de bloques, menciones y compartir. Open source. Disponible ahora."
+      },
+      "hero": {
+        "tag": "Docs y wiki",
+        "sub": "Un espacio de trabajo estilo Notion para notas y documentos: páginas anidadas, editor de bloques, menciones a páginas y compartir. Open source. Disponible ahora."
+      },
+      "featuresTitle": "Escribí juntos.",
+      "featuresTitleDim": "Sé dueño de todo.",
+      "f1": { "t": "Editor de bloques", "d": "Párrafos, títulos, listas, to-dos, citas, bloques de código y tablas. Escribí '/' y seguí escribiendo." },
+      "f2": { "t": "Páginas anidadas", "d": "Organizá páginas en un árbol. Arrastrá páginas para reordenarlas o anidarlas bajo cualquier padre." },
+      "f3": { "t": "Menciones a páginas", "d": "Escribí [[ para vincular otra página. Las menciones se mantienen conectadas aunque cambien los títulos." },
+      "f4": { "t": "Compartir", "d": "Hacé una página pública, compartila con un equipo o con un usuario. Vos controlás cada puerta." },
+      "f5": { "t": "Sin cobro por usuario", "d": "Invitá a toda tu empresa. El precio no cambia porque más gente lea documentos." },
+      "f6": { "t": "Datos abiertos", "d": "Cada página se guarda como JSON limpio. Exportá, migrá o hacé backup con un comando." },
+      "f7": { "t": "Búsqueda rápida", "d": "Encontrá páginas por título en milisegundos. La búsqueda que realmente necesitás, no la que te cobran extra." },
+      "f8": { "t": "Enfoque monocromático", "d": "Sin colores de neón ni interfaz ruidosa. Solo vos, las palabras y la estructura." },
+      "f9": { "t": "Self-hosteable", "d": "Tus documentos se quedan en tu servidor si querés. Sin lock-in de vendor, nunca." },
+      "compare": {
+        "rival": "Notion",
+        "price": "$10",
+        "per": "/ usuario / mes",
+        "team": "$1.200",
+        "zero": "$0",
+        "note": "Notion Plus arranca en unos $10 por usuario por mes. Un equipo de diez paga $1.200 al año. Docs cuesta $0."
+      },
+      "faq": {
+        "f1": { "q": "¿Es realmente gratis?", "a": "Sí. Open source y self-hosteable por $0. Si lo corremos nosotros, pagás solo la nube al costo. Sin cargos por usuario." },
+        "f2": { "q": "¿Puedo migrar desde Notion?", "a": "Exportá tus páginas de Notion como Markdown y pegalas en Docs. La importación automática completa está en el roadmap." },
+        "f3": { "q": "¿Qué pasa si Zerosoft cierra?", "a": "Te quedás con tus documentos. Exportá todo como JSON o Markdown, self-hosteá el mismo código y seguí escribiendo." },
+        "f4": { "q": "¿Puedo self-hostearlo?", "a": "Sí. Tus documentos son tuyos. Corré Docs en tu propio servidor con Node y SQLite en minutos." },
+        "f5": { "q": "¿Cuándo sale?", "a": "Docs ya está disponible. Abrilo y escribí tu primera página — por $0." }
+      },
+      "cta": {
+        "label": "Docs — 0.05",
+        "title1": "Anotalo.",
+        "title2": "No pagues nada.",
+        "sub": "Docs ya está disponible. Empezá tu wiki de equipo hoy — por $0.",
+        "button": "Abrir Docs →"
+      }
     }
   },
   "product": {
@@ -329,6 +372,15 @@
       "slotsLabel": "Jue 16 — horarios",
       "confirm": "Confirmar",
       "tz": "Horarios en tu zona"
+    },
+    "docs": {
+      "navHome": "Inicio",
+      "navPages": "Páginas",
+      "navShared": "Compartidos",
+      "title": "Wiki de producto",
+      "item1": "Notas que son tuyas",
+      "item2": "Páginas anidadas y menciones",
+      "item3": "Compartí con tu equipo"
     }
   },
   "status": {

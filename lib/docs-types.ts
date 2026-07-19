@@ -1,0 +1,87 @@
+/**
+ * Tipos y helpers puros de Docs (sin dependencia de DB/fs).
+ * Usado por componentes cliente.
+ */
+
+export type DocsBlockType =
+  | 'paragraph'
+  | 'heading'
+  | 'bulleted_list_item'
+  | 'numbered_list_item'
+  | 'todo'
+  | 'quote'
+  | 'code'
+  | 'divider'
+  | 'table';
+
+export interface DocsBlock {
+  id: string;
+  type: DocsBlockType;
+  content: string;
+  level?: 1 | 2 | 3;
+  checked?: boolean;
+  language?: string;
+  rows?: string[][];
+}
+
+export interface DocsPage {
+  id: string;
+  user_id: string;
+  parent_id: string | null;
+  title: string;
+  icon: string | null;
+  content: DocsBlock[];
+  is_public: boolean;
+  archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocsPageShare {
+  id: string;
+  page_id: string;
+  kind: 'public' | 'team' | 'user';
+  target_id: string | null;
+  created_at: string;
+}
+
+export function buildPageTree(pages: DocsPage[]): DocsPage[] {
+  const map = new Map<string, DocsPage & { children: DocsPage[] }>();
+  const roots: DocsPage[] = [];
+
+  for (const page of pages) {
+    map.set(page.id, { ...page, children: [] });
+  }
+
+  for (const page of pages) {
+    const node = map.get(page.id)!;
+    if (page.parent_id && map.has(page.parent_id)) {
+      map.get(page.parent_id)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
+}
+
+export function flattenPageTree(
+  tree: DocsPage[],
+  depth = 0,
+): Array<DocsPage & { depth: number }> {
+  const out: Array<DocsPage & { depth: number }> = [];
+  for (const node of tree) {
+    const { children, ...page } = node as DocsPage & { children: DocsPage[] };
+    out.push({ ...page, depth });
+    if (children?.length) out.push(...flattenPageTree(children, depth + 1));
+  }
+  return out;
+}
+
+export function stringifyBlocks(blocks: DocsBlock[]): string {
+  return JSON.stringify(blocks);
+}
+
+export function defaultBlocks(): DocsBlock[] {
+  return [{ id: crypto.randomUUID(), type: 'paragraph', content: '' }];
+}

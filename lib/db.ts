@@ -490,6 +490,34 @@ const DDL = `
       expires_at TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_team_invites_team ON team_invites(team_id, status);
+
+    -- ---------- Docs ----------
+
+    CREATE TABLE IF NOT EXISTS docs_pages (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      parent_id TEXT REFERENCES docs_pages(id) ON DELETE CASCADE,
+      title TEXT NOT NULL DEFAULT '',
+      icon TEXT,
+      content TEXT NOT NULL DEFAULT '[]',
+      is_public INTEGER NOT NULL DEFAULT 0,
+      archived INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_docs_pages_user ON docs_pages(user_id, archived, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_docs_pages_parent ON docs_pages(parent_id, user_id);
+    CREATE INDEX IF NOT EXISTS idx_docs_pages_title ON docs_pages(user_id, title);
+
+    CREATE TABLE IF NOT EXISTS docs_shares (
+      id TEXT PRIMARY KEY,
+      page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('public', 'team', 'user')),
+      target_id TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_docs_shares_page ON docs_shares(page_id);
+    CREATE INDEX IF NOT EXISTS idx_docs_shares_target ON docs_shares(kind, target_id);
   `;
 
 // ---------- Tipos ----------
@@ -785,6 +813,29 @@ export interface TeamInviteRow {
   invited_by: string;
   created_at: string;
   expires_at: string | null;
+}
+
+// ---------- Docs ----------
+
+export interface DocsPageRow {
+  id: string;
+  user_id: string;
+  parent_id: string | null;
+  title: string;
+  icon: string | null;
+  content: string; // JSON DocsBlock[]
+  is_public: 0 | 1;
+  archived: 0 | 1;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocsShareRow {
+  id: string;
+  page_id: string;
+  kind: 'public' | 'team' | 'user';
+  target_id: string | null;
+  created_at: string;
 }
 
 // ---------- Users ----------

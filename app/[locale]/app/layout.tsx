@@ -6,6 +6,7 @@ import AppSidebar from '@/components/app/AppSidebar';
 import CommandSearch from '@/components/app/CommandSearch';
 import '@/styles/link.css';
 import '@/styles/crm.css';
+import '@/styles/docs.css';
 import '@/styles/app.css';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,7 @@ export default async function AppLayout({
   const tSide = await getTranslations({ locale, namespace: 'common.sidebar' });
   const tLink = await getTranslations({ locale, namespace: 'link' });
   const tCrm = await getTranslations({ locale, namespace: 'crm' });
+  const tDocs = await getTranslations({ locale, namespace: 'docs' });
   const tasksDue = await countDueTasks(user.id);
 
   return (
@@ -38,7 +40,7 @@ export default async function AppLayout({
           search: tSide('search'),
           new: tSide('new'),
           backToSite: tSide('backToSite'),
-          docs: tSide('docs'),
+          docsSite: tSide('docs'),
           soon: tSide('soon'),
           signOut: tSide('signOut'),
           records: tSide('records'),
@@ -51,6 +53,7 @@ export default async function AppLayout({
           newDeal: tSide('newDeal'),
           newTask: tSide('newTask'),
           newLink: tSide('newLink'),
+          newDocPage: tSide('newDocPage'),
           team: tSide('team'),
           link: {
             overview: tLink('tabs.overview'),
@@ -67,6 +70,11 @@ export default async function AppLayout({
             lists: tCrm('tabs.lists'),
             reports: tCrm('tabs.reports'),
             settings: tCrm('tabs.settings'),
+          },
+          docs: {
+            overview: tDocs('sidebar.overview'),
+            pages: tDocs('sidebar.pages'),
+            new: tDocs('sidebar.new'),
           },
         }}
       />

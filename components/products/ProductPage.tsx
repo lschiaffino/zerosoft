@@ -6,12 +6,14 @@ import LinkMockup from './mockups/LinkMockup';
 import TrackMockup from './mockups/TrackMockup';
 import CrmMockup from './mockups/CrmMockup';
 import CalMockup from './mockups/CalMockup';
+import DocsMockup from './mockups/DocsMockup';
 
 export const PRODUCT_CONFIG = {
   link: { num: '04', name: 'Link', available: true, launch: '/app' },
   track: { num: '01', name: 'Track', available: false, launch: '/app' },
   crm: { num: '02', name: 'CRM', available: true, launch: '/app/crm' },
   cal: { num: '03', name: 'Cal', available: false, launch: '/app' },
+  docs: { num: '05', name: 'Docs', available: true, launch: '/app/docs' },
 } as const;
 
 export type ProductKey = keyof typeof PRODUCT_CONFIG;
@@ -23,6 +25,7 @@ const MOCKUPS = {
   track: TrackMockup,
   crm: CrmMockup,
   cal: CalMockup,
+  docs: DocsMockup,
 } as const;
 
 const FEATURE_IDS = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9'] as const;

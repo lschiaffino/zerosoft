@@ -212,6 +212,49 @@
         "sub": "Cal arrives in Q2 2027. Raise your hand and we will ping you on day zero.",
         "button": "Notify me →"
       }
+    },
+    "docs": {
+      "meta": {
+        "title": "Docs — Notes and wikis, set free",
+        "description": "A Notion-style wiki for your team: nested pages, block editor, mentions and sharing. Open source. Live now."
+      },
+      "hero": {
+        "tag": "Docs & wiki",
+        "sub": "A Notion-style workspace for notes and documents: nested pages, block editor, page mentions and sharing. Open source. Live now."
+      },
+      "featuresTitle": "Write together.",
+      "featuresTitleDim": "Own everything.",
+      "f1": { "t": "Block editor", "d": "Paragraphs, headings, lists, to-dos, quotes, code blocks and tables. Type '/' and keep writing." },
+      "f2": { "t": "Nested pages", "d": "Organize pages into a tree. Drag pages to reorder or nest them under any parent." },
+      "f3": { "t": "Page mentions", "d": "Type [[ to link another page. Mentions stay connected even when titles change." },
+      "f4": { "t": "Sharing", "d": "Make a page public, share with a team, or share with a single user. You control every door." },
+      "f5": { "t": "No per-seat pricing", "d": "Invite your whole company. The price does not change because more people read docs." },
+      "f6": { "t": "Open data", "d": "Every page is stored as clean JSON. Export, migrate or back up with one command." },
+      "f7": { "t": "Fast search", "d": "Find pages by title in milliseconds. The search you actually need, not the one you pay extra for." },
+      "f8": { "t": "Monochrome focus", "d": "No neon colors or noisy UI. Just you, the words and the structure." },
+      "f9": { "t": "Self-hostable", "d": "Your documents stay on your server if you want them to. No vendor lock-in, ever." },
+      "compare": {
+        "rival": "Notion",
+        "price": "$10",
+        "per": "/ user / month",
+        "team": "$1,200",
+        "zero": "$0",
+        "note": "Notion Plus starts around $10 per user per month. A team of ten pays $1,200 a year. Docs costs $0."
+      },
+      "faq": {
+        "f1": { "q": "Is it really free?", "a": "Yes. Open source and self-hostable for $0. If we host it, you pay only the cloud at cost. No per-user fees." },
+        "f2": { "q": "Can I import from Notion?", "a": "Export your Notion pages as Markdown and paste them into Docs. Full automated import is on the roadmap." },
+        "f3": { "q": "What happens if Zerosoft shuts down?", "a": "You keep your docs. Export everything as JSON or Markdown, self-host the same code, and keep writing." },
+        "f4": { "q": "Can I self-host it?", "a": "Yes. Your documents are yours. Run Docs on your own server with Node and SQLite in minutes." },
+        "f5": { "q": "When does it ship?", "a": "Docs is live now. Open it and write your first page — for $0." }
+      },
+      "cta": {
+        "label": "Docs — 0.05",
+        "title1": "Write it down.",
+        "title2": "Pay nothing.",
+        "sub": "Docs is live. Start your team wiki today — for $0.",
+        "button": "Launch Docs →"
+      }
     }
   },
   "product": {
@@ -329,6 +372,15 @@
       "slotsLabel": "Thu 16 — times",
       "confirm": "Confirm",
       "tz": "Times in your timezone"
+    },
+    "docs": {
+      "navHome": "Home",
+      "navPages": "Pages",
+      "navShared": "Shared",
+      "title": "Product wiki",
+      "item1": "Notes that belong to you",
+      "item2": "Nested pages and mentions",
+      "item3": "Share with your team"
     }
   },
   "status": {
