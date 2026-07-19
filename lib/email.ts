@@ -52,6 +52,19 @@ function sendMock(opts: SendOptions): { ok: true; provider: string } {
   return { ok: true, provider };
 }
 
+export async function sendEmail(opts: {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}): Promise<{ ok: boolean; provider?: string; id?: string; error?: string }> {
+  const resend = await sendResend(opts);
+  if (resend.ok) return { ok: true, provider: 'resend', id: resend.id };
+
+  const mock = sendMock(opts);
+  return { ok: true, provider: mock.provider };
+}
+
 export async function sendBookingConfirmation(opts: {
   to: string;
   eventTitle: string;
@@ -82,9 +95,6 @@ ${opts.location ? `Location: ${opts.location}` : ''}
 See you then.
 `;
 
-  const resend = await sendResend({ to: opts.to, subject, text });
-  if (resend.ok) return { ok: true, provider: 'resend' };
-
-  const mock = sendMock({ to: opts.to, subject, text });
-  return { ok: true, provider: mock.provider };
+  const sent = await sendEmail({ to: opts.to, subject, text });
+  return { ok: sent.ok, provider: sent.provider, error: sent.error };
 }

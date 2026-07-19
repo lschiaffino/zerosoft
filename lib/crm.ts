@@ -74,6 +74,24 @@ function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
+/** Dispara workflows habilitados para un evento. Import dinámico evita dependencia circular. */
+async function fireEvent(
+  userId: string,
+  event: {
+    type: import('./crm-workflows').TriggerType;
+    entity: 'contact' | 'company' | 'deal' | 'task' | 'email';
+    entityId: string;
+    payload?: Record<string, unknown>;
+  },
+): Promise<void> {
+  try {
+    const mod = await import('./crm-workflows');
+    await mod.runWorkflowsForEvent(userId, event);
+  } catch {
+    /* no debe bloquear la operación principal */
+  }
+}
+
 /** Parsea la columna custom (JSON object) sin romper ante datos corruptos. */
 export function parseCustom(json: string | null): Record<string, unknown> {
   if (!json) return {};
@@ -448,7 +466,9 @@ export async function createContact(
       companyId,
       JSON.stringify(data.custom ?? {}),
     );
-  return (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
+  const contact = (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
+  await fireEvent(userId, { type: 'contact_created', entity: 'contact', entityId: id });
+  return contact;
 }
 
 export async function updateContact(
@@ -474,7 +494,9 @@ export async function updateContact(
     .prepare(`UPDATE crm_contacts SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
     .run(...sets.map(([, v]) => v), now(), id);
   await logPropertyEvents(userId, 'contact', id, existing as unknown as Record<string, unknown>, sets, actorEmail, db);
-  return (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
+  const contact = (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
+  await fireEvent(userId, { type: 'contact_updated', entity: 'contact', entityId: id });
+  return contact;
 }
 
 export async function deleteContact(userId: string, id: string): Promise<boolean> {
@@ -1267,10 +1289,9 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
     await tx.rollback();
     throw e;
   }
-  return {
-    ok: true,
-    deal: (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow,
-  };
+  const deal = (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow;
+  await fireEvent(userId, { type: 'deal_created', entity: 'deal', entityId: id });
+  return { ok: true, deal };
 }
 
 const DEAL_COLS: Record<string, string> = {
@@ -1325,7 +1346,9 @@ export async function updateDeal(
     throw e;
   }
   await logPropertyEvents(userId, 'deal', id, existing as unknown as Record<string, unknown>, sets, actorEmail);
-  return (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow;
+  const deal = (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow;
+  await fireEvent(userId, { type: 'deal_updated', entity: 'deal', entityId: id });
+  return deal;
 }
 
 export async function deleteDeal(userId: string, id: string): Promise<boolean> {
@@ -1404,6 +1427,7 @@ export async function moveDeal(
      WHERE id = ?`,
     )
     .run(stageId, position, closedAt, newLostReason, ts, id);
+  const oldStageId = deal.stage_id;
   if (oldStageName !== stage.name) {
     await db
       .prepare(
@@ -1413,10 +1437,25 @@ export async function moveDeal(
       )
       .run(crypto.randomUUID(), userId, 'deal', id, 'stage', oldStageName, stage.name, actorEmail);
   }
-  return {
-    ok: true,
-    deal: (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow,
-  };
+
+  const movedDeal = (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow;
+
+  if (oldStageId !== stageId) {
+    await fireEvent(userId, {
+      type: 'deal_stage_changed',
+      entity: 'deal',
+      entityId: id,
+      payload: { oldStageId, newStageId: stageId },
+    });
+    if (stage.is_won) {
+      await fireEvent(userId, { type: 'deal_won', entity: 'deal', entityId: id });
+    }
+    if (stage.is_lost) {
+      await fireEvent(userId, { type: 'deal_lost', entity: 'deal', entityId: id });
+    }
+  }
+
+  return { ok: true, deal: movedDeal };
 }
 
 // ============================================================
@@ -1495,9 +1534,13 @@ export async function createActivity(
       ts,
       ts,
     );
-  return (await db
+  const activity = (await db
     .prepare('SELECT * FROM crm_activities WHERE id = ?')
     .get(id)) as CrmActivityRow;
+  if (activity.type === 'task' && activity.due_at) {
+    await fireEvent(userId, { type: 'task_due', entity: 'task', entityId: id });
+  }
+  return activity;
 }
 
 export async function updateActivity(
@@ -1534,9 +1577,13 @@ export async function updateActivity(
   await db
     .prepare(`UPDATE crm_activities SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
     .run(...sets.map(([, v]) => v), id);
-  return (await db
+  const activity = (await db
     .prepare('SELECT * FROM crm_activities WHERE id = ?')
     .get(id)) as CrmActivityRow;
+  if (activity.type === 'task' && activity.due_at) {
+    await fireEvent(userId, { type: 'task_due', entity: 'task', entityId: id });
+  }
+  return activity;
 }
 
 export async function deleteActivity(userId: string, id: string): Promise<boolean> {

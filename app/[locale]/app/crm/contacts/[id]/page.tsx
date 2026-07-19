@@ -245,6 +245,7 @@ export default async function ContactDetailPage({
               items={timelineItems}
               emptyLabel={t('contacts.detail.emptyTimeline')}
               locale={locale}
+              defaultEmail={contact.email}
             />
           </section>
         </div>

@@ -37,6 +37,7 @@ export interface SidebarLabels {
     tasks: string;
     lists: string;
     reports: string;
+    workflows: string;
     settings: string;
   };
   docs: {
@@ -209,6 +210,7 @@ export default function AppSidebar({
     {
       section: labels.workspace,
       items: [
+        { href: '/app/crm/workflows', label: labels.crm.workflows, active: pathname.startsWith('/app/crm/workflows'), icon: 'workflows' },
         { href: '/app/crm/settings', label: labels.crm.settings, active: pathname.startsWith('/app/crm/settings'), icon: 'settings' },
       ],
     },

@@ -32,6 +32,8 @@ interface TimelineProps {
   items: TimelineItem[];
   emptyLabel: string;
   locale: string;
+  /** Email precargado en el composer cuando type === email. */
+  defaultEmail?: string;
 }
 
 const TYPES = ['note', 'task', 'call', 'meeting', 'email'] as const;
@@ -42,7 +44,7 @@ const SUBMIT_KEYS: Record<ActivityType, string> = {
   task: 'common.addTask',
   call: 'common.logCall',
   meeting: 'common.logMeeting',
-  email: 'common.logEmail',
+  email: 'common.sendEmail',
 };
 
 function formatWhen(iso: string, locale: string): string {
@@ -68,7 +70,14 @@ function formatDay(iso: string, locale: string): string {
  * selector de tipo + lista filtrable con done toggle y delete.
  * El padre (server) pasa los items; tras cada mutación router.refresh().
  */
-export default function Timeline({ recordType, recordId, items, emptyLabel, locale }: TimelineProps) {
+export default function Timeline({
+  recordType,
+  recordId,
+  items,
+  emptyLabel,
+  locale,
+  defaultEmail = '',
+}: TimelineProps) {
   const t = useTranslations('crm');
   const router = useRouter();
 
@@ -76,10 +85,12 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
   const [type, setType] = useState<ActivityType>('note');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [emailTo, setEmailTo] = useState(defaultEmail);
   const [dueAt, setDueAt] = useState('');
   const [direction, setDirection] = useState('');
   const [durationMin, setDurationMin] = useState('');
   const [posting, setPosting] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   // Lista
   const [filter, setFilter] = useState<ActivityType | 'all'>('all');
@@ -95,6 +106,34 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setEmailError(null);
+    if (type === 'email') {
+      if (!emailTo.trim() || (!subject.trim() && !body.trim())) return;
+      setPosting(true);
+      const res = await fetch('/api/crm/emails', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          recordType,
+          recordId,
+          to: emailTo.trim(),
+          subject: subject.trim(),
+          body: body.trim(),
+        }),
+      }).catch(() => null);
+      setPosting(false);
+      if (res && res.ok) {
+        setSubject('');
+        setBody('');
+        setEmailTo(defaultEmail);
+        router.refresh();
+      } else {
+        const data = await res?.json().catch(() => ({}));
+        setEmailError(data.error ? t(`errors.${data.error}` as const) : t('errors.generic'));
+      }
+      return;
+    }
+
     if (!subject.trim() && !body.trim()) return;
     setPosting(true);
     const payload: Record<string, unknown> = {
@@ -104,7 +143,7 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
       [`${recordType}Id`]: recordId,
     };
     if (type === 'task' && dueAt) payload.dueAt = dueAt;
-    if ((type === 'call' || type === 'email') && direction) payload.direction = direction;
+    if (type === 'call' && direction) payload.direction = direction;
     if (type === 'meeting' && durationMin) payload.durationMin = Number(durationMin);
     await fetch('/api/crm/activities', {
       method: 'POST',
@@ -185,20 +224,30 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
             </button>
           ))}
         </div>
+        {type === 'email' && (
+          <input
+            className="input"
+            type="email"
+            value={emailTo}
+            onChange={(e) => setEmailTo(e.target.value)}
+            placeholder={t('common.to')}
+            required
+          />
+        )}
         <input
           className="input"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          placeholder={t('tasks.form.subject')}
+          placeholder={type === 'email' ? t('common.subject') : t('tasks.form.subject')}
           maxLength={500}
         />
         <textarea
           className="textarea"
-          rows={3}
+          rows={type === 'email' ? 6 : 3}
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder={t('tasks.form.body')}
-          maxLength={5000}
+          placeholder={type === 'email' ? t('common.body') : t('tasks.form.body')}
+          maxLength={type === 'email' ? 20000 : 5000}
         />
         <div className="tl-composer-actions">
           <div className="tl-composer-extras">
@@ -211,7 +260,7 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
                 aria-label={t('tasks.form.dueAt')}
               />
             )}
-            {(type === 'call' || type === 'email') && (
+            {type === 'call' && (
               <select
                 className="filter-select"
                 value={direction}
@@ -238,11 +287,12 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
           <button
             type="submit"
             className="btn btn-solid btn-small"
-            disabled={posting || (!subject.trim() && !body.trim())}
+            disabled={posting || (!subject.trim() && !body.trim()) || (type === 'email' && !emailTo.trim())}
           >
             {posting ? t('common.creating') : t(SUBMIT_KEYS[type])}
           </button>
         </div>
+        {emailError && <p className="form-error">{emailError}</p>}
       </form>
 
       <div className="filter-chips tl-filters">
@@ -315,6 +365,9 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
                   <div className="tl-head">
                     <span className="tl-type">{t(`enums.activityType.${item.type}`)}</span>
                     {item.external ? <span className="badge">Gmail</span> : null}
+                    {!item.external && item.type === 'email' && item.direction === 'outbound' ? (
+                      <span className="badge">{t('common.sent')}</span>
+                    ) : null}
                     {item.pinned ? <span className="badge">{t('common.pinned')}</span> : null}
                     <span className="tl-subject">{item.subject || '—'}</span>
                     <span className="tl-date">

@@ -71,6 +71,9 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE chat_conversations ADD COLUMN resolved_at TEXT',
         'ALTER TABLE chat_conversations ADD COLUMN sla_breach_at TEXT',
         'ALTER TABLE chat_messages ADD COLUMN read_at TEXT',
+        'ALTER TABLE crm_emails ADD COLUMN source TEXT NOT NULL DEFAULT \'gmail\'',
+        'ALTER TABLE crm_emails ADD COLUMN body_html TEXT',
+        'ALTER TABLE crm_emails ADD COLUMN body_text TEXT',
       ]) {
         try {
           await client.execute(alter);
@@ -456,16 +459,58 @@ const DDL = `
       contact_id TEXT NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
       gmail_id TEXT NOT NULL,
       thread_id TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL DEFAULT 'gmail',
       direction TEXT NOT NULL DEFAULT 'in',
       from_email TEXT NOT NULL DEFAULT '',
       to_emails TEXT NOT NULL DEFAULT '',
       subject TEXT NOT NULL DEFAULT '',
       snippet TEXT NOT NULL DEFAULT '',
+      body_html TEXT,
+      body_text TEXT,
       sent_at TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE (user_id, gmail_id)
     );
     CREATE INDEX IF NOT EXISTS idx_crm_emails_contact ON crm_emails(user_id, contact_id, sent_at DESC);
+
+    CREATE TABLE IF NOT EXISTS crm_workflows (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_crm_workflows_user ON crm_workflows(user_id, enabled, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS crm_workflow_triggers (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL REFERENCES crm_workflows(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      config TEXT NOT NULL DEFAULT '{}',
+      position INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS crm_workflow_actions (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL REFERENCES crm_workflows(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      config TEXT NOT NULL DEFAULT '{}',
+      position INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS crm_workflow_runs (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL REFERENCES crm_workflows(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      trigger_entity TEXT NOT NULL DEFAULT '',
+      trigger_entity_id TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      output TEXT NOT NULL DEFAULT '{}',
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      finished_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_crm_workflow_runs_wf ON crm_workflow_runs(workflow_id, started_at DESC);
 
     -- ---------- Teams (workspace compartido del owner) ----------
 
@@ -1097,13 +1142,53 @@ export interface CrmEmailRow {
   contact_id: string;
   gmail_id: string;
   thread_id: string;
+  source: 'gmail' | 'zerosoft';
   direction: 'in' | 'out';
   from_email: string;
   to_emails: string;
   subject: string;
   snippet: string;
+  body_html: string | null;
+  body_text: string | null;
   sent_at: string;
   created_at: string;
+}
+
+export interface CrmWorkflowRow {
+  id: string;
+  user_id: string;
+  name: string;
+  enabled: 0 | 1;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmWorkflowTriggerRow {
+  id: string;
+  workflow_id: string;
+  type: string;
+  config: string; // JSON
+  position: number;
+}
+
+export interface CrmWorkflowActionRow {
+  id: string;
+  workflow_id: string;
+  type: string;
+  config: string; // JSON
+  position: number;
+}
+
+export interface CrmWorkflowRunRow {
+  id: string;
+  workflow_id: string;
+  user_id: string;
+  trigger_entity: string;
+  trigger_entity_id: string;
+  status: 'pending' | 'running' | 'done' | 'failed';
+  output: string; // JSON
+  started_at: string;
+  finished_at: string | null;
 }
 
 export interface TeamRow {

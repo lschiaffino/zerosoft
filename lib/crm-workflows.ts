@@ -1,0 +1,875 @@
+/**
+ * CRM Workflows — motor de automatizaciones con triggers y acciones.
+ * Server-only.
+ */
+import { createNotification } from './notifications';
+import { sendEmail } from './email';
+import {
+  createActivity,
+  getContact,
+  getDeal,
+  getCompany,
+  addListMembers,
+  updateContact,
+  updateCompany,
+  updateDeal,
+  type ActivityType,
+} from './crm';
+import {
+  ensureMigrated,
+  getClient,
+  getDb,
+  txDb,
+  type CrmWorkflowRow,
+  type CrmWorkflowTriggerRow,
+  type CrmWorkflowActionRow,
+  type CrmWorkflowRunRow,
+  type CrmEmailRow,
+  type Db,
+} from './db';
+
+// ---------- Tipos públicos ----------
+
+export const TRIGGER_TYPES = [
+  'contact_created',
+  'contact_updated',
+  'deal_created',
+  'deal_updated',
+  'deal_stage_changed',
+  'deal_won',
+  'deal_lost',
+  'task_due',
+  'email_received',
+  'manual',
+] as const;
+export type TriggerType = (typeof TRIGGER_TYPES)[number];
+
+export const ACTION_TYPES = [
+  'send_email',
+  'create_task',
+  'create_activity',
+  'update_field',
+  'add_to_list',
+  'webhook',
+  'notify_user',
+] as const;
+export type ActionType = (typeof ACTION_TYPES)[number];
+
+export interface WorkflowTriggerInput {
+  id?: string;
+  type: TriggerType;
+  config?: Record<string, unknown>;
+  position?: number;
+}
+
+export interface WorkflowActionInput {
+  id?: string;
+  type: ActionType;
+  config?: Record<string, unknown>;
+  position?: number;
+}
+
+export interface WorkflowInput {
+  name: string;
+  enabled?: boolean;
+  triggers: WorkflowTriggerInput[];
+  actions: WorkflowActionInput[];
+}
+
+export interface WorkflowTrigger {
+  id: string;
+  type: TriggerType;
+  config: Record<string, unknown>;
+  position: number;
+}
+
+export interface WorkflowAction {
+  id: string;
+  type: ActionType;
+  config: Record<string, unknown>;
+  position: number;
+}
+
+export interface Workflow {
+  id: string;
+  user_id: string;
+  name: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+  triggers: WorkflowTrigger[];
+  actions: WorkflowAction[];
+}
+
+export interface WorkflowEvent {
+  type: TriggerType;
+  entity: 'contact' | 'company' | 'deal' | 'task' | 'email';
+  entityId: string;
+  payload?: Record<string, unknown>;
+}
+
+// ---------- Helpers ----------
+
+function now(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
+function parseJsonObject(json: string | null): Record<string, unknown> {
+  if (!json) return {};
+  try {
+    const value: unknown = JSON.parse(json);
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function safeString(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  return String(v);
+}
+
+function toDbBool(v: boolean): 0 | 1 {
+  return v ? 1 : 0;
+}
+
+function rowToWorkflow(row: CrmWorkflowRow): Workflow {
+  return {
+    ...row,
+    enabled: row.enabled === 1,
+    triggers: [],
+    actions: [],
+  };
+}
+
+// ---------- Data layer ----------
+
+export async function listWorkflows(userId: string): Promise<Workflow[]> {
+  const db = getDb();
+  const rows = (await db
+    .prepare('SELECT * FROM crm_workflows WHERE user_id = ? ORDER BY updated_at DESC')
+    .all(userId)) as CrmWorkflowRow[];
+
+  const triggerRows = (await db
+    .prepare(
+      `SELECT * FROM crm_workflow_triggers
+       WHERE workflow_id IN (SELECT id FROM crm_workflows WHERE user_id = ?)
+       ORDER BY workflow_id, position ASC`,
+    )
+    .all(userId)) as CrmWorkflowTriggerRow[];
+
+  const actionRows = (await db
+    .prepare(
+      `SELECT * FROM crm_workflow_actions
+       WHERE workflow_id IN (SELECT id FROM crm_workflows WHERE user_id = ?)
+       ORDER BY workflow_id, position ASC`,
+    )
+    .all(userId)) as CrmWorkflowActionRow[];
+
+  const triggersByWorkflow = new Map<string, WorkflowTrigger[]>();
+  const actionsByWorkflow = new Map<string, WorkflowAction[]>();
+
+  for (const t of triggerRows) {
+    const list = triggersByWorkflow.get(t.workflow_id) ?? [];
+    list.push({ id: t.id, type: t.type as TriggerType, config: parseJsonObject(t.config), position: t.position });
+    triggersByWorkflow.set(t.workflow_id, list);
+  }
+  for (const a of actionRows) {
+    const list = actionsByWorkflow.get(a.workflow_id) ?? [];
+    list.push({ id: a.id, type: a.type as ActionType, config: parseJsonObject(a.config), position: a.position });
+    actionsByWorkflow.set(a.workflow_id, list);
+  }
+
+  return rows.map((row) => ({
+    ...rowToWorkflow(row),
+    triggers: triggersByWorkflow.get(row.id) ?? [],
+    actions: actionsByWorkflow.get(row.id) ?? [],
+  }));
+}
+
+export async function getWorkflow(userId: string, id: string): Promise<Workflow | null> {
+  const db = getDb();
+  const row = (await db
+    .prepare('SELECT * FROM crm_workflows WHERE id = ? AND user_id = ?')
+    .get(id, userId)) as CrmWorkflowRow | undefined;
+  if (!row) return null;
+
+  const triggerRows = (await db
+    .prepare('SELECT * FROM crm_workflow_triggers WHERE workflow_id = ? ORDER BY position ASC')
+    .all(id)) as CrmWorkflowTriggerRow[];
+  const actionRows = (await db
+    .prepare('SELECT * FROM crm_workflow_actions WHERE workflow_id = ? ORDER BY position ASC')
+    .all(id)) as CrmWorkflowActionRow[];
+
+  return {
+    ...rowToWorkflow(row),
+    triggers: triggerRows.map((t) => ({
+      id: t.id,
+      type: t.type as TriggerType,
+      config: parseJsonObject(t.config),
+      position: t.position,
+    })),
+    actions: actionRows.map((a) => ({
+      id: a.id,
+      type: a.type as ActionType,
+      config: parseJsonObject(a.config),
+      position: a.position,
+    })),
+  };
+}
+
+export async function createWorkflow(userId: string, data: WorkflowInput): Promise<Workflow> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const ts = now();
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    await tdb
+      .prepare(
+        'INSERT INTO crm_workflows (id, user_id, name, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run(id, userId, data.name, toDbBool(data.enabled ?? true), ts, ts);
+
+    const insTrigger = tdb.prepare(
+      'INSERT INTO crm_workflow_triggers (id, workflow_id, type, config, position) VALUES (?, ?, ?, ?, ?)',
+    );
+    for (const [i, t] of data.triggers.entries()) {
+      await insTrigger.run(
+        crypto.randomUUID(),
+        id,
+        t.type,
+        JSON.stringify(t.config ?? {}),
+        t.position ?? i,
+      );
+    }
+
+    const insAction = tdb.prepare(
+      'INSERT INTO crm_workflow_actions (id, workflow_id, type, config, position) VALUES (?, ?, ?, ?, ?)',
+    );
+    for (const [i, a] of data.actions.entries()) {
+      await insAction.run(
+        crypto.randomUUID(),
+        id,
+        a.type,
+        JSON.stringify(a.config ?? {}),
+        a.position ?? i,
+      );
+    }
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
+  return (await getWorkflow(userId, id))!;
+}
+
+export async function updateWorkflow(
+  userId: string,
+  id: string,
+  data: Partial<WorkflowInput>,
+): Promise<Workflow | null> {
+  const db = getDb();
+  const existing = (await db
+    .prepare('SELECT id FROM crm_workflows WHERE id = ? AND user_id = ?')
+    .get(id, userId)) as { id: string } | undefined;
+  if (!existing) return null;
+
+  await ensureMigrated();
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    if (data.name !== undefined || data.enabled !== undefined) {
+      const sets: Array<[string, string | number]> = [];
+      if (data.name !== undefined) sets.push(['name', data.name]);
+      if (data.enabled !== undefined) sets.push(['enabled', toDbBool(data.enabled)]);
+      sets.push(['updated_at', now()]);
+      await tdb
+        .prepare(`UPDATE crm_workflows SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
+        .run(...sets.map(([, v]) => v), id);
+    }
+
+    if (data.triggers) {
+      await tdb.prepare('DELETE FROM crm_workflow_triggers WHERE workflow_id = ?').run(id);
+      const insTrigger = tdb.prepare(
+        'INSERT INTO crm_workflow_triggers (id, workflow_id, type, config, position) VALUES (?, ?, ?, ?, ?)',
+      );
+      for (const [i, t] of data.triggers.entries()) {
+        await insTrigger.run(
+          crypto.randomUUID(),
+          id,
+          t.type,
+          JSON.stringify(t.config ?? {}),
+          t.position ?? i,
+        );
+      }
+    }
+
+    if (data.actions) {
+      await tdb.prepare('DELETE FROM crm_workflow_actions WHERE workflow_id = ?').run(id);
+      const insAction = tdb.prepare(
+        'INSERT INTO crm_workflow_actions (id, workflow_id, type, config, position) VALUES (?, ?, ?, ?, ?)',
+      );
+      for (const [i, a] of data.actions.entries()) {
+        await insAction.run(
+          crypto.randomUUID(),
+          id,
+          a.type,
+          JSON.stringify(a.config ?? {}),
+          a.position ?? i,
+        );
+      }
+    }
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
+  return getWorkflow(userId, id);
+}
+
+export async function deleteWorkflow(userId: string, id: string): Promise<boolean> {
+  return (
+    (await getDb().prepare('DELETE FROM crm_workflows WHERE id = ? AND user_id = ?').run(id, userId))
+      .changes > 0
+  );
+}
+
+export async function toggleWorkflow(
+  userId: string,
+  id: string,
+  enabled: boolean,
+): Promise<Workflow | null> {
+  const db = getDb();
+  const existing = (await db
+    .prepare('SELECT id FROM crm_workflows WHERE id = ? AND user_id = ?')
+    .get(id, userId)) as { id: string } | undefined;
+  if (!existing) return null;
+  await db
+    .prepare('UPDATE crm_workflows SET enabled = ?, updated_at = ? WHERE id = ?')
+    .run(toDbBool(enabled), now(), id);
+  return getWorkflow(userId, id);
+}
+
+export async function listWorkflowRuns(
+  userId: string,
+  workflowId?: string,
+  limit = 50,
+): Promise<CrmWorkflowRunRow[]> {
+  const db = getDb();
+  const where = workflowId ? 'WHERE r.user_id = ? AND r.workflow_id = ?' : 'WHERE r.user_id = ?';
+  const args: Array<string | number> = workflowId ? [userId, workflowId] : [userId];
+  return (await db
+    .prepare(
+      `SELECT r.* FROM crm_workflow_runs r
+       ${where}
+       ORDER BY r.started_at DESC
+       LIMIT ?`,
+    )
+    .all(...args, Math.min(Math.max(limit, 1), 200))) as CrmWorkflowRunRow[];
+}
+
+// ---------- Contexto y utilidades de acciones ----------
+
+interface ActionContext {
+  contact?: { id: string; first_name: string; last_name: string; email: string; company_id: string | null } | null;
+  company?: { id: string; name: string } | null;
+  deal?: { id: string; name: string; amount: number; currency: string } | null;
+}
+
+async function loadContext(userId: string, event: WorkflowEvent): Promise<ActionContext> {
+  const ctx: ActionContext = {};
+  if (event.entity === 'contact') {
+    ctx.contact = (await getDb()
+      .prepare('SELECT id, first_name, last_name, email, company_id FROM crm_contacts WHERE id = ? AND user_id = ?')
+      .get(event.entityId, userId)) as ActionContext['contact'];
+    if (ctx.contact?.company_id) {
+      ctx.company = (await getDb()
+        .prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?')
+        .get(ctx.contact.company_id, userId)) as ActionContext['company'];
+    }
+  } else if (event.entity === 'company') {
+    ctx.company = (await getDb()
+      .prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?')
+      .get(event.entityId, userId)) as ActionContext['company'];
+    ctx.contact = (await getDb()
+      .prepare(
+        'SELECT id, first_name, last_name, email, company_id FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 1',
+      )
+      .get(event.entityId, userId)) as ActionContext['contact'];
+  } else if (event.entity === 'deal') {
+    ctx.deal = (await getDb()
+      .prepare('SELECT id, name, amount, currency FROM crm_deals WHERE id = ? AND user_id = ?')
+      .get(event.entityId, userId)) as ActionContext['deal'];
+    ctx.contact = (await getDb()
+      .prepare(
+        `SELECT c.id, c.first_name, c.last_name, c.email, c.company_id
+         FROM crm_contacts c
+         JOIN crm_deal_contacts dc ON dc.contact_id = c.id
+         WHERE dc.deal_id = ? AND c.user_id = ?
+         ORDER BY dc.rowid ASC LIMIT 1`,
+      )
+      .get(event.entityId, userId)) as ActionContext['contact'];
+    if (ctx.contact?.company_id) {
+      ctx.company = (await getDb()
+        .prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?')
+        .get(ctx.contact.company_id, userId)) as ActionContext['company'];
+    }
+  } else if (event.entity === 'task') {
+    const task = (await getDb()
+      .prepare('SELECT contact_id, company_id, deal_id FROM crm_activities WHERE id = ? AND user_id = ? AND type = \'task\'')
+      .get(event.entityId, userId)) as { contact_id: string | null; company_id: string | null; deal_id: string | null } | undefined;
+    if (task?.contact_id) {
+      ctx.contact = (await getDb()
+        .prepare('SELECT id, first_name, last_name, email, company_id FROM crm_contacts WHERE id = ? AND user_id = ?')
+        .get(task.contact_id, userId)) as ActionContext['contact'];
+    }
+    if (task?.company_id) {
+      ctx.company = (await getDb()
+        .prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?')
+        .get(task.company_id, userId)) as ActionContext['company'];
+    }
+    if (task?.deal_id) {
+      ctx.deal = (await getDb()
+        .prepare('SELECT id, name, amount, currency FROM crm_deals WHERE id = ? AND user_id = ?')
+        .get(task.deal_id, userId)) as ActionContext['deal'];
+    }
+  } else if (event.entity === 'email') {
+    const email = (await getDb()
+      .prepare('SELECT contact_id FROM crm_emails WHERE id = ? AND user_id = ?')
+      .get(event.entityId, userId)) as { contact_id: string } | undefined;
+    if (email?.contact_id) {
+      ctx.contact = (await getDb()
+        .prepare('SELECT id, first_name, last_name, email, company_id FROM crm_contacts WHERE id = ? AND user_id = ?')
+        .get(email.contact_id, userId)) as ActionContext['contact'];
+      if (ctx.contact?.company_id) {
+        ctx.company = (await getDb()
+          .prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?')
+          .get(ctx.contact.company_id, userId)) as ActionContext['company'];
+      }
+    }
+  }
+  return ctx;
+}
+
+function renderTemplate(template: string, ctx: ActionContext): string {
+  const contact = ctx.contact ?? { first_name: '', last_name: '', email: '' };
+  const company = ctx.company ?? { name: '' };
+  const deal = ctx.deal ?? { name: '', amount: 0, currency: 'USD' };
+  const fullName = `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.email || '';
+
+  const vars: Record<string, string> = {
+    'contact.firstName': contact.first_name ?? '',
+    'contact.lastName': contact.last_name ?? '',
+    'contact.fullName': fullName,
+    'contact.email': contact.email ?? '',
+    'company.name': company.name ?? '',
+    'deal.name': deal.name ?? '',
+    'deal.amount': String(deal.amount ?? 0),
+    'deal.currency': deal.currency ?? 'USD',
+  };
+
+  return template.replace(/\{\{(\s*[\w.]+\s*)\}\}/g, (_match, key: string) => {
+    return vars[key.trim()] ?? '';
+  });
+}
+
+async function resolveContactIdForEvent(userId: string, event: WorkflowEvent): Promise<string | null> {
+  if (event.entity === 'contact') return event.entityId;
+  if (event.entity === 'deal') {
+    const row = (await getDb()
+      .prepare(
+        'SELECT contact_id FROM crm_deal_contacts WHERE deal_id = ? ORDER BY rowid ASC LIMIT 1',
+      )
+      .get(event.entityId)) as { contact_id: string } | undefined;
+    return row?.contact_id ?? null;
+  }
+  if (event.entity === 'company') {
+    const row = (await getDb()
+      .prepare(
+        'SELECT id FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 1',
+      )
+      .get(event.entityId, userId)) as { id: string } | undefined;
+    return row?.id ?? null;
+  }
+  if (event.entity === 'task') {
+    const row = (await getDb()
+      .prepare('SELECT contact_id FROM crm_activities WHERE id = ? AND user_id = ?')
+      .get(event.entityId, userId)) as { contact_id: string | null } | undefined;
+    return row?.contact_id ?? null;
+  }
+  if (event.entity === 'email') {
+    const row = (await getDb()
+      .prepare('SELECT contact_id FROM crm_emails WHERE id = ? AND user_id = ?')
+      .get(event.entityId, userId)) as { contact_id: string } | undefined;
+    return row?.contact_id ?? null;
+  }
+  return null;
+}
+
+// ---------- Ejecución de acciones ----------
+
+interface ActionResult {
+  ok: boolean;
+  type: ActionType;
+  result?: unknown;
+  error?: string;
+}
+
+async function executeAction(
+  userId: string,
+  workflowId: string,
+  action: WorkflowAction,
+  event: WorkflowEvent,
+  ctx: ActionContext,
+): Promise<ActionResult> {
+  const cfg = action.config;
+  try {
+    switch (action.type) {
+      case 'send_email': {
+        const toRaw = safeString(cfg.to);
+        const subjectTemplate = safeString(cfg.subject);
+        const bodyTemplate = safeString(cfg.body);
+        let toEmail = toRaw;
+        if (toRaw === 'contact') {
+          toEmail = ctx.contact?.email ?? '';
+        } else if (toRaw && !toRaw.includes('@')) {
+          // Se asume que es un campo del contexto, por simplicidad no se soporta.
+          toEmail = '';
+        }
+        if (!toEmail) {
+          return { ok: false, type: action.type, error: 'missing_recipient' };
+        }
+        const subject = renderTemplate(subjectTemplate, ctx);
+        const text = renderTemplate(bodyTemplate, ctx);
+        const res = await sendEmail({ to: toEmail, subject, text });
+        return { ok: res.ok, type: action.type, result: res, error: res.error };
+      }
+      case 'create_task': {
+        const subject = safeString(cfg.subject);
+        const dueInDays = typeof cfg.dueInDays === 'number' ? cfg.dueInDays : 1;
+        const dueAt = new Date();
+        dueAt.setDate(dueAt.getDate() + dueInDays);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const dueAtStr = `${dueAt.getUTCFullYear()}-${pad(dueAt.getUTCMonth() + 1)}-${pad(dueAt.getUTCDate())} 00:00:00`;
+        const task = await createActivity(userId, {
+          type: 'task',
+          subject,
+          body: '',
+          dueAt: dueAtStr,
+          ownerId: typeof cfg.ownerId === 'string' ? cfg.ownerId : undefined,
+          contactId: event.entity === 'contact' ? event.entityId : ctx.contact?.id ?? null,
+          companyId: event.entity === 'company' ? event.entityId : ctx.contact?.company_id ?? null,
+          dealId: event.entity === 'deal' ? event.entityId : null,
+        });
+        return { ok: true, type: action.type, result: { activityId: task.id } };
+      }
+      case 'create_activity': {
+        const type = safeString(cfg.type) as ActivityType;
+        const subject = safeString(cfg.subject);
+        const body = safeString(cfg.body);
+        const activity = await createActivity(userId, {
+          type: type || 'note',
+          subject,
+          body,
+          contactId: event.entity === 'contact' ? event.entityId : ctx.contact?.id ?? null,
+          companyId: event.entity === 'company' ? event.entityId : ctx.contact?.company_id ?? null,
+          dealId: event.entity === 'deal' ? event.entityId : null,
+        });
+        return { ok: true, type: action.type, result: { activityId: activity.id } };
+      }
+      case 'update_field': {
+        const entity = safeString(cfg.entity) as 'contact' | 'company' | 'deal';
+        const field = safeString(cfg.field);
+        const value = cfg.value;
+        if (!field) return { ok: false, type: action.type, error: 'missing_field' };
+        const targetId =
+          entity === event.entity
+            ? event.entityId
+            : entity === 'contact'
+              ? ctx.contact?.id
+              : entity === 'company'
+                ? ctx.company?.id
+                : entity === 'deal'
+                  ? ctx.deal?.id
+                  : undefined;
+        if (!targetId) return { ok: false, type: action.type, error: 'missing_target' };
+
+        if (field.startsWith('custom.')) {
+          const customKey = field.slice(7);
+          const row = (await getDb()
+            .prepare(`SELECT custom FROM crm_${entity}s WHERE id = ? AND user_id = ?`)
+            .get(targetId, userId)) as { custom: string } | undefined;
+          const custom = parseJsonObject(row?.custom ?? '{}');
+          custom[customKey] = value;
+          const updater =
+            entity === 'contact'
+              ? updateContact
+              : entity === 'company'
+                ? updateCompany
+                : updateDeal;
+          await updater(userId, targetId, { custom }, undefined, '');
+        } else {
+          const payload: Record<string, unknown> = { [field]: value };
+          const updater =
+            entity === 'contact'
+              ? updateContact
+              : entity === 'company'
+                ? updateCompany
+                : updateDeal;
+          await updater(userId, targetId, payload, undefined, '');
+        }
+        return { ok: true, type: action.type, result: { entity, field, value } };
+      }
+      case 'add_to_list': {
+        const listId = safeString(cfg.listId);
+        if (!listId) return { ok: false, type: action.type, error: 'missing_list' };
+        const contactId = await resolveContactIdForEvent(userId, event);
+        if (!contactId) return { ok: false, type: action.type, error: 'missing_contact' };
+        const added = await addListMembers(listId, [contactId]);
+        return { ok: true, type: action.type, result: { added } };
+      }
+      case 'webhook': {
+        const url = safeString(cfg.url);
+        const method = safeString(cfg.method) || 'POST';
+        const headers =
+          cfg.headers && typeof cfg.headers === 'object'
+            ? (cfg.headers as Record<string, string>)
+            : { 'content-type': 'application/json' };
+        if (!url) return { ok: false, type: action.type, error: 'missing_url' };
+        const res = await fetch(url, {
+          method,
+          headers,
+          body: JSON.stringify({ event, context: ctx }),
+        });
+        return { ok: res.ok, type: action.type, result: { status: res.status } };
+      }
+      case 'notify_user': {
+        const message = safeString(cfg.message);
+        await createNotification({
+          userId,
+          type: 'assigned',
+          title: 'Workflow notification',
+          body: renderTemplate(message, ctx),
+          sourceType: 'workflow',
+          sourceId: workflowId,
+          href: `/app/crm/workflows/${workflowId}`,
+        });
+        return { ok: true, type: action.type };
+      }
+      default:
+        return { ok: false, type: action.type, error: 'unknown_action' };
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      type: action.type,
+      error: err instanceof Error ? err.message : 'action_error',
+    };
+  }
+}
+
+// ---------- Matching de triggers ----------
+
+function triggerMatches(trigger: WorkflowTrigger, event: WorkflowEvent): boolean {
+  if (trigger.type !== event.type) return false;
+  if (event.type === 'deal_stage_changed') {
+    const cfg = trigger.config;
+    const from = safeString(cfg.fromStageId);
+    const to = safeString(cfg.toStageId);
+    const oldStage = safeString(event.payload?.oldStageId);
+    const newStage = safeString(event.payload?.newStageId);
+    if (from && from !== oldStage) return false;
+    if (to && to !== newStage) return false;
+  }
+  return true;
+}
+
+// ---------- Runner ----------
+
+async function runSingleWorkflow(
+  userId: string,
+  workflow: Workflow,
+  event: WorkflowEvent,
+): Promise<void> {
+  const runId = crypto.randomUUID();
+  const db = getDb();
+  await db
+    .prepare(
+      `INSERT INTO crm_workflow_runs
+       (id, workflow_id, user_id, trigger_entity, trigger_entity_id, status, output, started_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(runId, workflow.id, userId, event.entity, event.entityId, 'running', '{}', now());
+
+  const ctx = await loadContext(userId, event);
+  const results: ActionResult[] = [];
+  let failed = false;
+
+  for (const action of workflow.actions.sort((a, b) => a.position - b.position)) {
+    const result = await executeAction(userId, workflow.id, action, event, ctx);
+    results.push(result);
+    if (!result.ok) failed = true;
+  }
+
+  const output = {
+    event,
+    results,
+  };
+
+  await db
+    .prepare(
+      `UPDATE crm_workflow_runs SET status = ?, output = ?, finished_at = ? WHERE id = ?`,
+    )
+    .run(failed ? 'failed' : 'done', JSON.stringify(output), now(), runId);
+}
+
+export async function runWorkflowsForEvent(userId: string, event: WorkflowEvent): Promise<void> {
+  const db = getDb();
+  const rows = (await db
+    .prepare('SELECT * FROM crm_workflows WHERE user_id = ? AND enabled = 1')
+    .all(userId)) as CrmWorkflowRow[];
+  if (!rows.length) return;
+
+  const triggerRows = (await db
+    .prepare(
+      `SELECT * FROM crm_workflow_triggers WHERE workflow_id IN (${rows.map(() => '?').join(',')})`,
+    )
+    .all(...rows.map((r) => r.id))) as CrmWorkflowTriggerRow[];
+
+  const triggerGroups = new Map<string, WorkflowTrigger[]>();
+  for (const t of triggerRows) {
+    const list = triggerGroups.get(t.workflow_id) ?? [];
+    list.push({
+      id: t.id,
+      type: t.type as TriggerType,
+      config: parseJsonObject(t.config),
+      position: t.position,
+    });
+    triggerGroups.set(t.workflow_id, list);
+  }
+
+  const workflows: Workflow[] = rows.map((row) => ({
+    ...rowToWorkflow(row),
+    triggers: triggerGroups.get(row.id) ?? [],
+    actions: [],
+  }));
+
+  const actionRows = (await db
+    .prepare(
+      `SELECT * FROM crm_workflow_actions WHERE workflow_id IN (${rows.map(() => '?').join(',')}) ORDER BY position ASC`,
+    )
+    .all(...rows.map((r) => r.id))) as CrmWorkflowActionRow[];
+
+  const actionGroups = new Map<string, WorkflowAction[]>();
+  for (const a of actionRows) {
+    const list = actionGroups.get(a.workflow_id) ?? [];
+    list.push({
+      id: a.id,
+      type: a.type as ActionType,
+      config: parseJsonObject(a.config),
+      position: a.position,
+    });
+    actionGroups.set(a.workflow_id, list);
+  }
+  for (const wf of workflows) {
+    wf.actions = actionGroups.get(wf.id) ?? [];
+  }
+
+  const matching = workflows.filter((wf) =>
+    wf.triggers.some((t) => triggerMatches(t, event)),
+  );
+
+  await Promise.all(matching.map((wf) => runSingleWorkflow(userId, wf, event).catch(() => null)));
+}
+
+// ---------- Emails transaccionales desde el CRM ----------
+
+export interface SendCrmEmailInput {
+  recordType: 'contact' | 'company' | 'deal';
+  recordId: string;
+  to: string;
+  subject: string;
+  body: string;
+  fromEmail: string;
+}
+
+async function resolveContactIdForEmail(
+  userId: string,
+  recordType: 'contact' | 'company' | 'deal',
+  recordId: string,
+): Promise<string | null> {
+  if (recordType === 'contact') return recordId;
+  if (recordType === 'deal') {
+    const row = (await getDb()
+      .prepare(
+        'SELECT contact_id FROM crm_deal_contacts WHERE deal_id = ? ORDER BY rowid ASC LIMIT 1',
+      )
+      .get(recordId)) as { contact_id: string } | undefined;
+    return row?.contact_id ?? null;
+  }
+  // company
+  const row = (await getDb()
+    .prepare(
+      'SELECT id FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 1',
+    )
+    .get(recordId, userId)) as { id: string } | undefined;
+  return row?.id ?? null;
+}
+
+export async function sendCrmEmailAndSave(
+  userId: string,
+  input: SendCrmEmailInput,
+): Promise<{ ok: boolean; email?: CrmEmailRow; activity?: { id: string }; error?: string }> {
+  const { recordType, recordId, to, subject, body, fromEmail } = input;
+  if (!to) return { ok: false, error: 'missing_recipient' };
+
+  const contactId = await resolveContactIdForEmail(userId, recordType, recordId);
+  if (!contactId) return { ok: false, error: 'missing_contact' };
+
+  const sent = await sendEmail({ to, subject, text: body });
+  if (!sent.ok) return { ok: false, error: sent.error ?? 'send_failed' };
+
+  const emailId = crypto.randomUUID();
+  const ts = now();
+  const db = getDb();
+  await db
+    .prepare(
+      `INSERT INTO crm_emails
+       (id, user_id, contact_id, gmail_id, thread_id, source, direction, from_email, to_emails,
+        subject, snippet, body_text, sent_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      emailId,
+      userId,
+      contactId,
+      emailId,
+      '',
+      'zerosoft',
+      'out',
+      fromEmail,
+      to,
+      subject,
+      body.slice(0, 500),
+      body,
+      ts,
+      ts,
+    );
+
+  const activity = await createActivity(userId, {
+    type: 'email',
+    subject,
+    body,
+    direction: 'outbound',
+    contactId,
+  });
+
+  const email = (await db.prepare('SELECT * FROM crm_emails WHERE id = ?').get(emailId)) as CrmEmailRow;
+  return { ok: true, email, activity: { id: activity.id } };
+}

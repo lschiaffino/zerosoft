@@ -80,6 +80,7 @@ export default async function AppLayout({
             tasks: tCrm('tabs.tasks'),
             lists: tCrm('tabs.lists'),
             reports: tCrm('tabs.reports'),
+            workflows: tCrm('tabs.workflows'),
             settings: tCrm('tabs.settings'),
           },
           docs: {

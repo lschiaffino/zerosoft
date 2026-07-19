@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
+import { runWorkflowsForEvent } from '@/lib/crm-workflows';
 import {
   getIntegration,
   getValidAccessToken,
@@ -70,8 +71,9 @@ export async function POST() {
       const direction = meta.from.toLowerCase().includes(contact.email.toLowerCase())
         ? 'in'
         : 'out';
+      const emailId = crypto.randomUUID();
       const res = await insert.run(
-        crypto.randomUUID(),
+        emailId,
         user!.id,
         contact.id,
         meta.id,
@@ -83,7 +85,15 @@ export async function POST() {
         meta.snippet,
         meta.internalDate,
       );
-      synced += res.changes;
+      if (res.changes) {
+        synced += res.changes;
+        await runWorkflowsForEvent(user!.id, {
+          type: 'email_received',
+          entity: 'email',
+          entityId: emailId,
+          payload: { contactId: contact.id, gmailId: meta.id, direction },
+        });
+      }
     }
   }
 
