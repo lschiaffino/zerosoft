@@ -33,11 +33,13 @@ export const docPageCreateSchema = z.object({
   title: shortText.optional(),
   parent_id: id.nullish(),
   icon: shortText.nullish(),
+  cover_url: shortText.nullish(),
 });
 
 export const docPageUpdateSchema = z.object({
   title: shortText.optional(),
   icon: shortText.nullish(),
+  cover_url: shortText.nullish(),
   content: z.array(docsBlockSchema).optional(),
   parent_id: id.nullish(),
   is_public: z.boolean().optional(),

@@ -8,9 +8,11 @@ import SharePanel from './SharePanel';
 
 export default function DocsEditorClient({
   page,
+  ancestors,
   shares,
 }: {
   page: DocsPage;
+  ancestors: DocsPage[];
   shares: DocsPageShare[];
 }) {
   const router = useRouter();
@@ -59,9 +61,31 @@ export default function DocsEditorClient({
     [page.id, router],
   );
 
+  const duplicatePage = useCallback(async () => {
+    const res = await fetch(`/api/docs/pages/${page.id}/duplicate`, { method: 'POST' });
+    if (!res.ok) return;
+    const duplicated = (await res.json()) as DocsPage;
+    router.push(`/app/docs/${duplicated.id}`);
+  }, [page.id, router]);
+
+  const deletePage = useCallback(async () => {
+    const ok = confirm('Are you sure you want to move this page to trash?');
+    if (!ok) return;
+    const res = await fetch(`/api/docs/pages/${page.id}`, { method: 'DELETE' });
+    if (!res.ok) return;
+    router.push('/app/docs');
+  }, [page.id, router]);
+
   return (
     <div className="docs-editor-wrap">
-      <DocsEditor page={page} onSave={savePage} saving={saving} />
+      <DocsEditor
+        page={page}
+        ancestors={ancestors}
+        onSave={savePage}
+        saving={saving}
+        onDuplicate={duplicatePage}
+        onDelete={deletePage}
+      />
       <SharePanel
         page={page}
         shares={localShares}

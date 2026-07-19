@@ -74,6 +74,7 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE crm_emails ADD COLUMN source TEXT NOT NULL DEFAULT \'gmail\'',
         'ALTER TABLE crm_emails ADD COLUMN body_html TEXT',
         'ALTER TABLE crm_emails ADD COLUMN body_text TEXT',
+        'ALTER TABLE docs_pages ADD COLUMN cover_url TEXT',
       ]) {
         try {
           await client.execute(alter);
@@ -552,6 +553,7 @@ const DDL = `
       parent_id TEXT REFERENCES docs_pages(id) ON DELETE CASCADE,
       title TEXT NOT NULL DEFAULT '',
       icon TEXT,
+      cover_url TEXT,
       content TEXT NOT NULL DEFAULT '[]',
       is_public INTEGER NOT NULL DEFAULT 0,
       archived INTEGER NOT NULL DEFAULT 0,
@@ -1225,6 +1227,7 @@ export interface DocsPageRow {
   parent_id: string | null;
   title: string;
   icon: string | null;
+  cover_url: string | null;
   content: string; // JSON DocsBlock[]
   is_public: 0 | 1;
   archived: 0 | 1;

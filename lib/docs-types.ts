@@ -30,6 +30,7 @@ export interface DocsPage {
   parent_id: string | null;
   title: string;
   icon: string | null;
+  cover_url: string | null;
   content: DocsBlock[];
   is_public: boolean;
   archived: boolean;

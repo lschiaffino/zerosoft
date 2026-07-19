@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
-import { getDocPage, listDocPages, listDocShares } from '@/lib/docs';
+import { getDocPage, getDocPageAncestors, listDocPages, listDocShares } from '@/lib/docs';
 import { createDocPageAction, moveDocPageAction } from '@/lib/docs-actions';
 import DocsSidebar from '@/components/docs/DocsSidebar';
 import DocsEditorClient from '@/components/docs/DocsEditorClient';
@@ -18,6 +18,7 @@ export default async function DocsPageEditor({
   const page = await getDocPage(user.id, id);
   if (!page) notFound();
   const allPages = await listDocPages(user.id, { archived: false });
+  const ancestors = await getDocPageAncestors(user.id, id);
   const shares = await listDocShares(id);
   const t = await getTranslations({ locale, namespace: 'docs' });
 
@@ -35,7 +36,7 @@ export default async function DocsPageEditor({
         }}
       />
       <div className="docs-main">
-        <DocsEditorClient page={page} shares={shares} />
+        <DocsEditorClient page={page} ancestors={ancestors} shares={shares} />
       </div>
     </div>
   );

@@ -32,6 +32,7 @@ function toPage(row: DocsPageRow): DocsPage {
     parent_id: row.parent_id,
     title: row.title,
     icon: row.icon,
+    cover_url: row.cover_url,
     content: parseBlocks(row.content),
     is_public: row.is_public === 1,
     archived: row.archived === 1,
@@ -125,6 +126,7 @@ export interface CreateDocPageInput {
   title?: string;
   parent_id?: string | null;
   icon?: string | null;
+  cover_url?: string | null;
   content?: DocsBlock[];
 }
 
@@ -137,14 +139,15 @@ export async function createDocPage(
   const title = (input.title ?? '').trim();
   const parentId = input.parent_id ?? null;
   const icon = input.icon ?? null;
+  const coverUrl = input.cover_url ?? null;
   const content = stringifyBlocks(input.content ?? defaultBlocks());
 
   await getDb()
     .prepare(
-      `INSERT INTO docs_pages (id, user_id, parent_id, title, icon, content, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO docs_pages (id, user_id, parent_id, title, icon, cover_url, content, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, ownerId, parentId, title, icon, content, now, now);
+    .run(id, ownerId, parentId, title, icon, coverUrl, content, now, now);
 
   const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(id)) as DocsPageRow;
   return toPage(row);
@@ -153,6 +156,7 @@ export async function createDocPage(
 export interface UpdateDocPageInput {
   title?: string;
   icon?: string | null;
+  cover_url?: string | null;
   content?: DocsBlock[];
   parent_id?: string | null;
   is_public?: boolean;
@@ -179,6 +183,10 @@ export async function updateDocPage(
   if (input.icon !== undefined) {
     updates.push('icon = ?');
     args.push(input.icon);
+  }
+  if (input.cover_url !== undefined) {
+    updates.push('cover_url = ?');
+    args.push(input.cover_url);
   }
   if (input.content !== undefined) {
     updates.push('content = ?');
@@ -209,6 +217,81 @@ export async function updateDocPage(
 
   const updated = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as DocsPageRow;
   return toPage(updated);
+}
+
+/** Recupera la cadena de ancestros de una página (más cercano primero). */
+export async function getDocPageAncestors(
+  ownerId: string,
+  pageId: string,
+): Promise<DocsPage[]> {
+  const ancestors: DocsPage[] = [];
+  let currentId: string | null = pageId;
+  const seen = new Set<string>();
+  while (currentId) {
+    const row = (await getDb()
+      .prepare('SELECT * FROM docs_pages WHERE id = ? AND user_id = ?')
+      .get(currentId, ownerId)) as DocsPageRow | undefined;
+    if (!row || seen.has(row.id)) break;
+    seen.add(row.id);
+    ancestors.unshift(toPage(row));
+    currentId = row.parent_id;
+  }
+  return ancestors;
+}
+
+/** Duplica una página y todos sus descendientes. */
+export async function duplicateDocPage(
+  ownerId: string,
+  pageId: string,
+): Promise<DocsPage | null> {
+  const source = (await getDb()
+    .prepare('SELECT * FROM docs_pages WHERE id = ? AND user_id = ?')
+    .get(pageId, ownerId)) as DocsPageRow | undefined;
+  if (!source) return null;
+
+  const idMap = new Map<string, string>();
+
+  async function clone(currentId: string, newParentId: string | null): Promise<void> {
+    const row = (await getDb()
+      .prepare('SELECT * FROM docs_pages WHERE id = ? AND user_id = ?')
+      .get(currentId, ownerId)) as DocsPageRow | undefined;
+    if (!row) return;
+
+    const newId = crypto.randomUUID();
+    idMap.set(currentId, newId);
+    const now = new Date().toISOString();
+    await getDb()
+      .prepare(
+        `INSERT INTO docs_pages
+         (id, user_id, parent_id, title, icon, cover_url, content, is_public, archived, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        newId,
+        ownerId,
+        newParentId,
+        `${row.title || 'Untitled'} (Copy)`,
+        row.icon,
+        row.cover_url,
+        row.content,
+        0,
+        0,
+        now,
+        now,
+      );
+
+    const children = (await getDb()
+      .prepare('SELECT id FROM docs_pages WHERE parent_id = ? AND user_id = ?')
+      .all(currentId, ownerId)) as Array<{ id: string }>;
+    for (const child of children) {
+      await clone(child.id, newId);
+    }
+  }
+
+  await clone(pageId, source.parent_id);
+  const newRootId = idMap.get(pageId);
+  if (!newRootId) return null;
+  return getDocPage(ownerId, newRootId);
 }
 
 /** Lista IDs descendientes de un árbol de páginas (incluye la raíz). */
