@@ -2,12 +2,31 @@ import type { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import { upsertUser, getUserByEmail } from './db';
 
+function googleRedirectUri(): string | undefined {
+  // Forzar el redirect_uri exacto que Google espera. En Vercel el dominio
+  // detectado por NextAuth a veces es el interno (*.vercel.app) en lugar del
+  // custom domain, lo que genera redirect_uri_mismatch.
+  const base =
+    process.env.NEXTAUTH_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+  if (!base) return undefined;
+  return `${base.replace(/\/$/, '')}/api/auth/callback/google`;
+}
+
 const providers = [];
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  const redirectUri = googleRedirectUri();
   providers.push(
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      ...(redirectUri
+        ? {
+            authorization: {
+              params: { redirect_uri: redirectUri },
+            },
+          }
+        : {}),
     })
   );
 }

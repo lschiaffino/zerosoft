@@ -978,13 +978,13 @@ section { padding-top: 150px; padding-bottom: 150px; }
 
   .hero {
     /* Banda superior reservada para el cero: el contenido nunca se monta encima */
-    padding-top: 34vh;
-    padding-top: 34svh;
+    padding-top: 42vh;
+    padding-top: 42svh;
   }
   .hero .zero-field {
     bottom: auto;
-    height: calc(34vh + 10px);
-    height: calc(34svh + 10px);
+    height: calc(42vh + 10px);
+    height: calc(42svh + 10px);
   }
   .hero-content { padding: 0 20px 9vh; }
   .scroll-hint { display: none; }
