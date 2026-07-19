@@ -2,11 +2,19 @@
 
 import { signIn } from 'next-auth/react';
 
-export default function GoogleButton({ label, locale }: { label: string; locale: string }) {
+export default function GoogleButton({
+  label,
+  locale,
+  callbackUrl,
+}: {
+  label: string;
+  locale: string;
+  callbackUrl?: string;
+}) {
   return (
     <button
       className="btn-google"
-      onClick={() => signIn('google', { callbackUrl: `/${locale}/app` })}
+      onClick={() => signIn('google', { callbackUrl: callbackUrl ?? `/${locale}/app` })}
     >
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <path

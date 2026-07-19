@@ -49,6 +49,7 @@ export function ensureMigrated(): Promise<void> {
       for (const alter of [
         'ALTER TABLE crm_activities ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0',
         'ALTER TABLE integrations ADD COLUMN last_sync_at TEXT',
+        'ALTER TABLE users ADD COLUMN active_team_id TEXT',
       ]) {
         try {
           await client.execute(alter);
@@ -392,6 +393,38 @@ const DDL = `
       UNIQUE (user_id, gmail_id)
     );
     CREATE INDEX IF NOT EXISTS idx_crm_emails_contact ON crm_emails(user_id, contact_id, sent_at DESC);
+
+    -- ---------- Teams (workspace compartido del owner) ----------
+
+    CREATE TABLE IF NOT EXISTS teams (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_teams_owner ON teams(owner_id);
+
+    CREATE TABLE IF NOT EXISTS team_members (
+      team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT 'member',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (team_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id);
+
+    CREATE TABLE IF NOT EXISTS team_invites (
+      id TEXT PRIMARY KEY,
+      team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      email TEXT NOT NULL DEFAULT '',
+      token TEXT NOT NULL UNIQUE,
+      role TEXT NOT NULL DEFAULT 'member',
+      status TEXT NOT NULL DEFAULT 'pending',
+      invited_by TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_team_invites_team ON team_invites(team_id, status);
   `;
 
 // ---------- Tipos ----------
@@ -401,6 +434,7 @@ export interface UserRow {
   email: string;
   name: string | null;
   image: string | null;
+  active_team_id?: string | null;
   created_at: string;
 }
 
@@ -610,6 +644,32 @@ export interface CrmEmailRow {
   snippet: string;
   sent_at: string;
   created_at: string;
+}
+
+export interface TeamRow {
+  id: string;
+  name: string;
+  owner_id: string;
+  created_at: string;
+}
+
+export interface TeamMemberRow {
+  team_id: string;
+  user_id: string;
+  role: 'owner' | 'member';
+  created_at: string;
+}
+
+export interface TeamInviteRow {
+  id: string;
+  team_id: string;
+  email: string;
+  token: string;
+  role: 'owner' | 'member';
+  status: 'pending' | 'accepted' | 'revoked';
+  invited_by: string;
+  created_at: string;
+  expires_at: string | null;
 }
 
 // ---------- Users ----------

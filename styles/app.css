@@ -416,6 +416,19 @@ a.side-signout { display: block; text-decoration: none; }
 
 /* Sidebar: badge de tareas vencidas/hoy */
 .side-link { display: flex; align-items: center; gap: 8px; }
+
+/* Sidebar: team activo (workspace ajeno) */
+.side-team {
+  margin: -8px 0 0;
+  padding: 0 10px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .side-badge {
   margin-left: auto;
   min-width: 18px;
@@ -500,6 +513,7 @@ a.side-signout { display: block; text-decoration: none; }
   .app-frame.sidebar-collapsed .side-foot .side-link,
   .app-frame.sidebar-collapsed .side-user-meta,
   .app-frame.sidebar-collapsed .side-signout,
+  .app-frame.sidebar-collapsed .side-team,
   .app-frame.sidebar-collapsed .side-zero { display: none; }
   .app-frame.sidebar-collapsed .side-user { padding: 4px 0; }
 }

@@ -21,6 +21,7 @@ export interface SidebarLabels {
   newDeal: string;
   newTask: string;
   newLink: string;
+  team: string;
   link: { overview: string; links: string; new: string; settings: string };
   crm: {
     overview: string;
@@ -64,11 +65,13 @@ export default function AppSidebar({
   user,
   demo,
   tasksDue = 0,
+  teamName = null,
 }: {
   labels: SidebarLabels;
   user: SideUser;
   demo: boolean;
   tasksDue?: number;
+  teamName?: string | null;
 }) {
   const pathname = usePathname();
   const product = pathname.includes('/app/crm') ? 'crm' : 'link';
@@ -241,6 +244,12 @@ export default function AppSidebar({
         <span>{labels.search}</span>
         <kbd>⌘K</kbd>
       </button>
+
+      {teamName && (
+        <p className="side-team mono" title={`${labels.team}: ${teamName}`}>
+          {labels.team}: {teamName}
+        </p>
+      )}
 
       <div className="side-new">
         <button

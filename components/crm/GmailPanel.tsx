@@ -11,10 +11,12 @@ interface GmailPanelProps {
   lastSync: string | null;
   /** Valor de ?gmail= tras el callback OAuth (connected | denied | error). */
   notice: string | null;
+  /** Redirect URI a registrar en Google Cloud Console. */
+  redirectUri: string;
 }
 
 /** Panel de integración Gmail en CRM settings: connect / sync now / disconnect. */
-export default function GmailPanel({ connected, email, lastSync, notice }: GmailPanelProps) {
+export default function GmailPanel({ connected, email, lastSync, notice, redirectUri }: GmailPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [busy, setBusy] = useState<'sync' | 'disconnect' | null>(null);
@@ -83,10 +85,15 @@ export default function GmailPanel({ connected, email, lastSync, notice }: Gmail
           {error && <p className="form-error">{error}</p>}
         </>
       ) : (
-        // eslint-disable-next-line @next/next/no-html-link-for-pages
-        <a className="btn btn-solid btn-small" href="/api/integrations/gmail/start">
-          {t('settings.gmailConnect')}
-        </a>
+        <>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a className="btn btn-solid btn-small" href="/api/integrations/gmail/start">
+            {t('settings.gmailConnect')}
+          </a>
+          <p className="muted gmail-hint">
+            {t('settings.gmailRedirectHint')} <code>{redirectUri}</code>
+          </p>
+        </>
       )}
     </div>
   );

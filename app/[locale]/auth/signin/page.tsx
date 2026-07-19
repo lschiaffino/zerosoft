@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/session';
 import ZeroField from '@/components/ZeroField';
-import GoogleButton from './GoogleButton';
+import GoogleButton from '@/components/auth/GoogleButton';
 
 export const dynamic = 'force-dynamic';
 

@@ -28,7 +28,12 @@ export default async function AppLayout({
       <AppSidebar
         demo={DEMO_MODE}
         tasksDue={tasksDue}
-        user={{ name: user.name, email: user.email, image: user.image }}
+        user={{
+          name: user.actingUser?.name ?? user.name,
+          email: user.actingUser?.email ?? user.email,
+          image: user.actingUser?.image ?? user.image,
+        }}
+        teamName={user.actingUser && user.team ? user.team.name : null}
         labels={{
           search: tSide('search'),
           new: tSide('new'),
@@ -46,6 +51,7 @@ export default async function AppLayout({
           newDeal: tSide('newDeal'),
           newTask: tSide('newTask'),
           newLink: tSide('newLink'),
+          team: tSide('team'),
           link: {
             overview: tLink('tabs.overview'),
             links: tLink('tabs.links'),
