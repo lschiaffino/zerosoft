@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { listChatWidgets } from '@/lib/chat-data';
+import PeopleClient from '@/components/chat/PeopleClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,18 +10,16 @@ export default async function ChatPeoplePage({
 }: {
   params: { locale: string };
 }) {
-  await requireUser(locale);
+  const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
+  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
 
   return (
     <div className="app-page">
       <div className="page-head">
-        <h1 className="app-title">{t('sidebar.people')}</h1>
+        <h1 className="app-title">{t('people.title')}</h1>
       </div>
-      <section className="panel empty-inline">
-        <p className="empty-zeros mono" aria-hidden>0 0 0</p>
-        <p className="muted">{t('common.empty')}</p>
-      </section>
+      <PeopleClient widgetIds={widgets.map((w) => w.id)} />
     </div>
   );
 }

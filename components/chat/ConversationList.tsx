@@ -24,6 +24,15 @@ function preview(c: ChatConversationListRow): string {
   return c.id.slice(0, 8);
 }
 
+function slaStatus(c: ChatConversationListRow, t: (k: string, v?: Record<string, string | number>) => string) {
+  if (c.resolved_at) return { label: t('sla.resolved'), className: 'chat-sla-resolved' };
+  const deadline = new Date(c.created_at).getTime() + 60 * 60 * 1000;
+  const now = Date.now();
+  if (now > deadline) return { label: t('sla.breached'), className: 'chat-sla-breached' };
+  const mins = Math.ceil((deadline - now) / 60_000);
+  return { label: t('sla.dueIn', { minutes: mins }), className: 'chat-sla-due' };
+}
+
 export default function ConversationList({
   conversations,
   currentId,
@@ -67,6 +76,14 @@ export default function ConversationList({
                     {t(`conversation.${c.status}`)}
                   </span>
                   <span className="chat-priority mono">{t(`priorities.${c.priority}`)}</span>
+                  {(() => {
+                    const sla = slaStatus(c, t);
+                    return (
+                      <span className={`chat-sla-badge ${sla.className}`}>
+                        {sla.label}
+                      </span>
+                    );
+                  })()}
                   <span className="chat-row-assignee mono muted">
                     {c.assigned_name || c.assigned_email
                       ? c.assigned_name || c.assigned_email

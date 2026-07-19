@@ -5,6 +5,7 @@ import {
   getChatConversation,
   getChatWidget,
   listChatMessagesWithUsers,
+  recordFirstResponse,
 } from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
@@ -55,6 +56,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       ? (body.attachments as Parameters<typeof createChatMessage>[2]['attachments'])
       : undefined,
   });
+
+  await recordFirstResponse(params.id);
 
   return NextResponse.json(message, { status: 201 });
 }

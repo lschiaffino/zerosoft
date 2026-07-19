@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type {
   ChatAgent,
+  ChatCannedResponseRow,
   ChatConversationWithVisitor,
-  ChatMessageWithUser,
   ChatConversationListRow,
+  ChatMessageWithUser,
   ConversationUpdatePayload,
 } from '@/lib/chat-data';
 import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
@@ -48,6 +49,18 @@ function senderName(
   return m.user_name || m.user_email || t('conversation.you');
 }
 
+function slaLabel(
+  c: ChatConversationWithVisitor,
+  t: (k: string, v?: Record<string, string | number>) => string,
+) {
+  if (c.resolved_at) return { label: t('sla.resolved'), className: 'chat-sla-resolved' };
+  const deadline = new Date(c.created_at).getTime() + 60 * 60 * 1000;
+  const now = Date.now();
+  if (now > deadline) return { label: t('sla.breached'), className: 'chat-sla-breached' };
+  const mins = Math.ceil((deadline - now) / 60_000);
+  return { label: t('sla.dueIn', { minutes: mins }), className: 'chat-sla-due' };
+}
+
 export default function ConversationClient({
   conversationId,
   initialConversation,
@@ -64,6 +77,8 @@ export default function ConversationClient({
   const [sending, setSending] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [listRows, setListRows] = useState<ChatConversationListRow[]>([]);
+  const [canned, setCanned] = useState<ChatCannedResponseRow[]>([]);
+  const [cannedIndex, setCannedIndex] = useState(0);
   const threadEndRef = useRef<HTMLDivElement>(null);
 
   async function fetchMessages() {
@@ -92,9 +107,21 @@ export default function ConversationClient({
     }
   }
 
+  async function fetchCanned() {
+    try {
+      const res = await fetch(`/api/chat/widgets/${conversation.widget_id}/canned`);
+      if (!res.ok) return;
+      const data = (await res.json()) as { responses: ChatCannedResponseRow[] };
+      setCanned(data.responses);
+    } catch {
+      // ignore
+    }
+  }
+
   useEffect(() => {
     fetchMessages();
     fetchList();
+    fetchCanned();
     const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,13 +162,6 @@ export default function ConversationClient({
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendReply();
-    }
-  }
-
   function toggleStatus() {
     const next = conversation.status === 'closed' ? 'open' : 'closed';
     updateConversation({ status: next });
@@ -149,6 +169,57 @@ export default function ConversationClient({
 
   const visitor = conversation.visitor;
   const isClosed = conversation.status === 'closed';
+
+  const pickerQuery = useMemo(() => {
+    const match = reply.match(/\/([^\s]*)$/);
+    return match ? match[1].toLowerCase() : null;
+  }, [reply]);
+
+  const pickerMatches = useMemo(() => {
+    if (pickerQuery === null) return [];
+    return canned.filter(
+      (r) =>
+        r.shortcut.toLowerCase().includes(pickerQuery) ||
+        r.title.toLowerCase().includes(pickerQuery),
+    );
+  }, [pickerQuery, canned]);
+
+  const pickerOpen = pickerMatches.length > 0;
+
+  function insertCanned(response: ChatCannedResponseRow) {
+    const before = reply.slice(0, reply.lastIndexOf('/'));
+    setReply((before + response.body).trimStart() + ' ');
+    setCannedIndex(0);
+  }
+
+  function handleComposerKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (pickerOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setCannedIndex((i) => (i + 1) % pickerMatches.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setCannedIndex((i) => (i - 1 + pickerMatches.length) % pickerMatches.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        insertCanned(pickerMatches[cannedIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setReply((prev) => prev.replace(/\/[^\s]*$/, ''));
+        setCannedIndex(0);
+        return;
+      }
+    }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendReply();
+    }
+  }
 
   return (
     <div className="chat-conversation-layout">
@@ -179,6 +250,10 @@ export default function ConversationClient({
               <span className={`chat-status chat-status-${conversation.status}`}>
                 {t(`conversation.${conversation.status}`)}
               </span>
+              {(() => {
+                const sla = slaLabel(conversation, t);
+                return <span className={`chat-sla-badge ${sla.className}`}>{sla.label}</span>;
+              })()}
             </div>
           </div>
 
@@ -264,14 +339,35 @@ export default function ConversationClient({
           <button type="button" className="chat-composer-attach" disabled title="Attachments coming soon">
             ⊕
           </button>
-          <textarea
-            className="textarea chat-composer-input"
-            placeholder={t('conversation.reply')}
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-            onKeyDown={handleKeyDown}
-            rows={1}
-          />
+          <div className="chat-composer-field">
+            <textarea
+              className="textarea chat-composer-input"
+              placeholder={t('conversation.reply')}
+              value={reply}
+              onChange={(e) => {
+                setReply(e.target.value);
+                setCannedIndex(0);
+              }}
+              onKeyDown={handleComposerKeyDown}
+              rows={1}
+            />
+            {pickerOpen && (
+              <ul className="chat-canned-picker">
+                {pickerMatches.map((r, i) => (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      className={`chat-canned-picker-item${i === cannedIndex ? ' active' : ''}`}
+                      onClick={() => insertCanned(r)}
+                    >
+                      <span className="chat-canned-picker-shortcut mono">{r.shortcut}</span>
+                      <span className="chat-canned-picker-title">{r.title}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <button
             type="button"
             className="btn btn-solid btn-small chat-composer-send"

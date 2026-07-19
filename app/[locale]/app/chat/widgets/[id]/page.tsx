@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getChatWidget, listChatConversations } from '@/lib/chat-data';
 import { formatNumber } from '@/lib/utils';
@@ -31,6 +32,18 @@ export default async function EditWidgetPage({
           <p className="app-sub muted">{widget.name}</p>
         </div>
       </div>
+
+      <nav className="chat-widget-nav">
+        <Link href={`/app/chat/widgets/${widget.id}`} className="chat-widget-nav-link active">
+          {t('widgetForm.editTitle')}
+        </Link>
+        <Link href={`/app/chat/widgets/${widget.id}/rules`} className="chat-widget-nav-link">
+          {t('rules.title')}
+        </Link>
+        <Link href={`/app/chat/widgets/${widget.id}/canned`} className="chat-widget-nav-link">
+          {t('canned.title')}
+        </Link>
+      </nav>
 
       <div className="stat-cards">
         <div className="panel stat-card">

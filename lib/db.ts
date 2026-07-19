@@ -65,6 +65,11 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE links ADD COLUMN og_image TEXT',
         'ALTER TABLE track_issues ADD COLUMN due_date TEXT',
         'ALTER TABLE track_issues ADD COLUMN labels TEXT NOT NULL DEFAULT \'[]\'',
+        'ALTER TABLE chat_visitors ADD COLUMN notes TEXT',
+        'ALTER TABLE chat_visitors ADD COLUMN metadata TEXT NOT NULL DEFAULT \'{}\'',
+        'ALTER TABLE chat_conversations ADD COLUMN first_response_at TEXT',
+        'ALTER TABLE chat_conversations ADD COLUMN resolved_at TEXT',
+        'ALTER TABLE chat_conversations ADD COLUMN sla_breach_at TEXT',
       ]) {
         try {
           await client.execute(alter);
@@ -727,10 +732,13 @@ const DDL = `
       external_id TEXT NOT NULL,
       email TEXT,
       name TEXT,
+      notes TEXT,
+      metadata TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE (widget_id, external_id)
     );
     CREATE INDEX IF NOT EXISTS idx_chat_visitors_widget ON chat_visitors(widget_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_visitors_search ON chat_visitors(widget_id, email, name);
 
     CREATE TABLE IF NOT EXISTS chat_conversations (
       id TEXT PRIMARY KEY,
@@ -740,6 +748,9 @@ const DDL = `
       assigned_to TEXT REFERENCES users(id) ON DELETE SET NULL,
       priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
       subject TEXT,
+      first_response_at TEXT,
+      resolved_at TEXT,
+      sla_breach_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -756,6 +767,45 @@ const DDL = `
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(conversation_id, created_at ASC);
+
+    CREATE TABLE IF NOT EXISTS chat_assignment_rules (
+      id TEXT PRIMARY KEY,
+      widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      match_type TEXT NOT NULL CHECK (match_type IN ('all', 'keyword', 'time', 'round_robin')),
+      match_value TEXT,
+      assign_to TEXT REFERENCES users(id) ON DELETE SET NULL,
+      position INTEGER NOT NULL DEFAULT 0,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_rules_widget ON chat_assignment_rules(widget_id, position);
+
+    CREATE TABLE IF NOT EXISTS chat_sla_policies (
+      id TEXT PRIMARY KEY,
+      widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      first_response_minutes INTEGER NOT NULL DEFAULT 60,
+      resolution_minutes INTEGER,
+      priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_sla_widget ON chat_sla_policies(widget_id, priority, active);
+
+    CREATE TABLE IF NOT EXISTS chat_canned_responses (
+      id TEXT PRIMARY KEY,
+      widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+      shortcut TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (widget_id, shortcut)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_canned_widget_shortcut ON chat_canned_responses(widget_id, shortcut);
 
     -- ---------- Notifications ----------
 
@@ -1296,6 +1346,8 @@ export interface ChatVisitorRow {
   external_id: string;
   email: string | null;
   name: string | null;
+  notes: string | null;
+  metadata: string; // JSON object
   created_at: string;
 }
 
@@ -1307,6 +1359,9 @@ export interface ChatConversationRow {
   assigned_to: string | null;
   priority: 'low' | 'normal' | 'high' | 'urgent';
   subject: string | null;
+  first_response_at: string | null;
+  resolved_at: string | null;
+  sla_breach_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1319,6 +1374,41 @@ export interface ChatMessageRow {
   body: string;
   attachments: string; // JSON ChatAttachment[]
   created_at: string;
+}
+
+export interface ChatAssignmentRuleRow {
+  id: string;
+  widget_id: string;
+  name: string;
+  match_type: 'all' | 'keyword' | 'time' | 'round_robin';
+  match_value: string | null;
+  assign_to: string | null;
+  position: number;
+  active: 0 | 1;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatSlaPolicyRow {
+  id: string;
+  widget_id: string;
+  name: string;
+  first_response_minutes: number;
+  resolution_minutes: number | null;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  active: 0 | 1;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatCannedResponseRow {
+  id: string;
+  widget_id: string;
+  shortcut: string;
+  title: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface NotificationRow {

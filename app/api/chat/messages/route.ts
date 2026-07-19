@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import {
+  applyAssignmentRules,
   createChatConversation,
   createChatMessage,
   getChatWidget,
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
+  listChatAgents,
 } from '@/lib/chat-data';
 import { createNotification } from '@/lib/notifications';
 
@@ -52,7 +54,7 @@ export async function POST(req: Request) {
     name: typeof body.name === 'string' ? body.name : null,
   });
 
-  let conversation = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))?.conversation;
+  let conversation = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))?.conversation ?? null;
   if (!conversation) {
     const subject = typeof body.subject === 'string' && body.subject.trim() ? body.subject.trim() : null;
     conversation = await createChatConversation(widgetId, visitor.id, subject ?? undefined);
@@ -64,6 +66,13 @@ export async function POST(req: Request) {
 
   const finalBody = messageBody || JSON.stringify(body.fields);
   const message = await createChatMessage(conversation.id, 'visitor', { body: finalBody });
+
+  // Auto-assign via assignment rules before notifying.
+  const agents = await listChatAgents(widget.user_id, widget.team_id);
+  const assignedTo = await applyAssignmentRules(widget.id, conversation.id, finalBody, agents);
+  if (assignedTo) {
+    conversation = { ...conversation, assigned_to: assignedTo };
+  }
 
   // Notify widget owner and assigned agent.
   const recipients = new Set<string>();

@@ -1,12 +1,17 @@
 import { getDb, getUserById } from './db';
 import type {
+  ChatAssignmentRuleRow,
+  ChatCannedResponseRow,
   ChatConversationRow,
   ChatMessageRow,
+  ChatSlaPolicyRow,
   ChatVisitorRow,
   ChatWidgetRow,
   CrmContactRow,
   UserRow,
 } from './db';
+
+export type { ChatAssignmentRuleRow, ChatCannedResponseRow, ChatSlaPolicyRow } from './db';
 
 // ---------- Helpers ----------
 
@@ -161,6 +166,29 @@ export interface VisitorPayload {
   name?: string | null;
 }
 
+export interface VisitorUpdatePayload {
+  name?: string | null;
+  email?: string | null;
+  notes?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface VisitorListOptions {
+  q?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ChatVisitorListRow extends ChatVisitorRow {
+  last_conversation_at: string | null;
+  conversation_count: number;
+}
+
+export interface ChatVisitorWithStats extends ChatVisitorRow {
+  conversations: Array<ChatConversationRow & { message_count: number }>;
+  total_messages: number;
+}
+
 export async function getOrCreateChatVisitor(
   widgetId: string,
   externalId: string,
@@ -231,6 +259,125 @@ export async function getChatVisitorCrmContact(
   return (await getDb()
     .prepare('SELECT * FROM crm_contacts WHERE user_id = ? AND email = ? COLLATE NOCASE')
     .get(ownerUserId, email.trim().toLowerCase())) as CrmContactRow | undefined;
+}
+
+export async function listChatVisitors(
+  widgetIds: string[],
+  options: VisitorListOptions = {},
+): Promise<ChatVisitorListRow[]> {
+  if (widgetIds.length === 0) return [];
+  const db = getDb();
+  const where: string[] = [`v.widget_id IN ${inClause(widgetIds.length)}`];
+  const args: Array<string | number> = [...widgetIds];
+
+  if (options.q) {
+    where.push('(v.email LIKE ? OR v.name LIKE ?)');
+    const like = `%${escapeLike(options.q)}%`;
+    args.push(like, like);
+  }
+
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+  const offset = Math.max(options.offset ?? 0, 0);
+
+  return (await db
+    .prepare(
+      `SELECT v.*,
+        MAX(c.updated_at) AS last_conversation_at,
+        COUNT(c.id) AS conversation_count
+       FROM chat_visitors v
+       LEFT JOIN chat_conversations c ON c.visitor_id = v.id
+       WHERE ${where.join(' AND ')}
+       GROUP BY v.id
+       ORDER BY last_conversation_at DESC NULLS LAST, v.created_at DESC
+       LIMIT ? OFFSET ?`,
+    )
+    .all(...args, limit, offset)) as ChatVisitorListRow[];
+}
+
+export async function countChatVisitors(
+  widgetIds: string[],
+  options: VisitorListOptions = {},
+): Promise<number> {
+  if (widgetIds.length === 0) return 0;
+  const db = getDb();
+  const where: string[] = [`widget_id IN ${inClause(widgetIds.length)}`];
+  const args: Array<string | number> = [...widgetIds];
+
+  if (options.q) {
+    where.push('(email LIKE ? OR name LIKE ?)');
+    const like = `%${escapeLike(options.q)}%`;
+    args.push(like, like);
+  }
+
+  const row = (await db
+    .prepare(`SELECT COUNT(*) AS c FROM chat_visitors WHERE ${where.join(' AND ')}`)
+    .get(...args)) as { c: number } | undefined;
+  return row?.c ?? 0;
+}
+
+export async function getChatVisitor(id: string): Promise<ChatVisitorRow | undefined> {
+  return (await getDb().prepare('SELECT * FROM chat_visitors WHERE id = ?').get(id)) as
+    | ChatVisitorRow
+    | undefined;
+}
+
+export async function getChatVisitorWithStats(id: string): Promise<ChatVisitorWithStats | undefined> {
+  const db = getDb();
+  const visitor = await getChatVisitor(id);
+  if (!visitor) return undefined;
+
+  const conversations = (await db
+    .prepare(
+      `SELECT c.*, COUNT(m.id) AS message_count
+       FROM chat_conversations c
+       LEFT JOIN chat_messages m ON m.conversation_id = c.id
+       WHERE c.visitor_id = ?
+       GROUP BY c.id
+       ORDER BY c.updated_at DESC`,
+    )
+    .all(id)) as Array<ChatConversationRow & { message_count: number }>;
+
+  const totalMessages = conversations.reduce((sum, c) => sum + (c.message_count ?? 0), 0);
+
+  return { ...visitor, conversations, total_messages: totalMessages };
+}
+
+export async function updateChatVisitor(
+  id: string,
+  payload: VisitorUpdatePayload,
+): Promise<ChatVisitorRow | undefined> {
+  const db = getDb();
+  const existing = await getChatVisitor(id);
+  if (!existing) return undefined;
+
+  const fields: string[] = [];
+  const args: Array<string | number | null> = [];
+
+  if (payload.name !== undefined) {
+    fields.push('name = ?');
+    args.push(payload.name ?? null);
+  }
+  if (payload.email !== undefined) {
+    fields.push('email = ?');
+    args.push(payload.email ? payload.email.trim().toLowerCase() : null);
+  }
+  if (payload.notes !== undefined) {
+    fields.push('notes = ?');
+    args.push(payload.notes ?? null);
+  }
+  if (payload.metadata !== undefined) {
+    fields.push('metadata = ?');
+    args.push(JSON.stringify(payload.metadata ?? {}));
+  }
+
+  if (fields.length > 0) {
+    fields.push('updated_at = ?');
+    args.push(nowIso());
+    args.push(id);
+    await db.prepare(`UPDATE chat_visitors SET ${fields.join(', ')} WHERE id = ?`).run(...args);
+  }
+
+  return getChatVisitor(id);
 }
 
 // ---------- Conversations ----------
@@ -372,7 +519,8 @@ export async function getChatConversationWithVisitor(
         c.id, c.widget_id, c.visitor_id, c.status, c.assigned_to, c.priority, c.subject,
         c.created_at, c.updated_at,
         v.id AS v_id, v.widget_id AS v_widget_id, v.external_id AS v_external_id,
-        v.email AS v_email, v.name AS v_name, v.created_at AS v_created_at,
+        v.email AS v_email, v.name AS v_name, v.notes AS v_notes, v.metadata AS v_metadata,
+        v.created_at AS v_created_at,
         w.name AS widget_name, w.user_id AS widget_user_id, w.team_id AS widget_team_id, w.color AS widget_color,
         u.name AS assigned_name, u.email AS assigned_email, u.image AS assigned_image,
         co.id AS co_id, co.user_id AS co_user_id, co.owner_id AS co_owner_id,
@@ -399,6 +547,8 @@ export async function getChatConversationWithVisitor(
     external_id: row.v_external_id as string,
     email: (row.v_email as string | null) ?? null,
     name: (row.v_name as string | null) ?? null,
+    notes: (row.v_notes as string | null) ?? null,
+    metadata: (row.v_metadata as string) ?? '{}',
     created_at: row.v_created_at as string,
   };
 
@@ -433,6 +583,9 @@ export async function getChatConversationWithVisitor(
     assigned_to: (row.assigned_to as string | null) ?? null,
     priority: row.priority as ChatConversationRow['priority'],
     subject: (row.subject as string | null) ?? null,
+    first_response_at: (row.first_response_at as string | null) ?? null,
+    resolved_at: (row.resolved_at as string | null) ?? null,
+    sla_breach_at: (row.sla_breach_at as string | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
     visitor,
@@ -548,6 +701,368 @@ export async function listChatAgents(
     )
     .all(teamId)) as ChatAgent[];
   return rows;
+}
+
+// ---------- Assignment rules ----------
+
+export interface AssignmentRulePayload {
+  name: string;
+  matchType: 'all' | 'keyword' | 'time' | 'round_robin';
+  matchValue?: string | null;
+  assignTo?: string | null;
+  position?: number;
+  active?: boolean;
+}
+
+export async function listAssignmentRules(widgetId: string): Promise<ChatAssignmentRuleRow[]> {
+  return (await getDb()
+    .prepare(
+      'SELECT * FROM chat_assignment_rules WHERE widget_id = ? ORDER BY position ASC, created_at ASC',
+    )
+    .all(widgetId)) as ChatAssignmentRuleRow[];
+}
+
+export async function getAssignmentRule(id: string): Promise<ChatAssignmentRuleRow | undefined> {
+  return (await getDb().prepare('SELECT * FROM chat_assignment_rules WHERE id = ?').get(id)) as
+    | ChatAssignmentRuleRow
+    | undefined;
+}
+
+export async function createAssignmentRule(
+  widgetId: string,
+  payload: AssignmentRulePayload,
+): Promise<ChatAssignmentRuleRow> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const now = nowIso();
+  const max = (await db
+    .prepare('SELECT MAX(position) AS p FROM chat_assignment_rules WHERE widget_id = ?')
+    .get(widgetId)) as { p: number | null } | undefined;
+  const position = payload.position ?? ((max?.p ?? -1) + 1);
+
+  await db
+    .prepare(
+      'INSERT INTO chat_assignment_rules (id, widget_id, name, match_type, match_value, assign_to, position, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(
+      id,
+      widgetId,
+      payload.name.trim(),
+      payload.matchType,
+      payload.matchValue?.trim() ?? null,
+      payload.assignTo ?? null,
+      position,
+      payload.active === false ? 0 : 1,
+      now,
+      now,
+    );
+
+  return (await db.prepare('SELECT * FROM chat_assignment_rules WHERE id = ?').get(id)) as ChatAssignmentRuleRow;
+}
+
+export async function updateAssignmentRule(
+  id: string,
+  payload: Partial<AssignmentRulePayload>,
+): Promise<ChatAssignmentRuleRow | undefined> {
+  const db = getDb();
+  const existing = await getAssignmentRule(id);
+  if (!existing) return undefined;
+
+  const fields: string[] = [];
+  const args: Array<string | number | null> = [];
+
+  if (payload.name !== undefined) {
+    fields.push('name = ?');
+    args.push(payload.name.trim());
+  }
+  if (payload.matchType !== undefined) {
+    fields.push('match_type = ?');
+    args.push(payload.matchType);
+  }
+  if (payload.matchValue !== undefined) {
+    fields.push('match_value = ?');
+    args.push(payload.matchValue?.trim() ?? null);
+  }
+  if (payload.assignTo !== undefined) {
+    fields.push('assign_to = ?');
+    args.push(payload.assignTo ?? null);
+  }
+  if (payload.position !== undefined) {
+    fields.push('position = ?');
+    args.push(payload.position);
+  }
+  if (payload.active !== undefined) {
+    fields.push('active = ?');
+    args.push(payload.active ? 1 : 0);
+  }
+
+  if (fields.length > 0) {
+    fields.push('updated_at = ?');
+    args.push(nowIso());
+    args.push(id);
+    await db.prepare(`UPDATE chat_assignment_rules SET ${fields.join(', ')} WHERE id = ?`).run(...args);
+  }
+
+  return getAssignmentRule(id);
+}
+
+export async function deleteAssignmentRule(id: string): Promise<boolean> {
+  const res = await getDb().prepare('DELETE FROM chat_assignment_rules WHERE id = ?').run(id);
+  return res.changes > 0;
+}
+
+export async function reorderAssignmentRules(
+  widgetId: string,
+  orderedIds: string[],
+): Promise<void> {
+  const db = getDb();
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      db.prepare('UPDATE chat_assignment_rules SET position = ?, updated_at = ? WHERE id = ? AND widget_id = ?').run(
+        index,
+        nowIso(),
+        id,
+        widgetId,
+      ),
+    ),
+  );
+}
+
+function matchesKeyword(body: string, value: string | null): boolean {
+  if (!value) return false;
+  return body.toLowerCase().includes(value.toLowerCase());
+}
+
+function matchesTimeRange(value: string | null): boolean {
+  if (!value) return false;
+  const [start, end] = value.split('-');
+  if (!start || !end) return false;
+  const now = new Date();
+  const current = now.getHours() * 60 + now.getMinutes();
+  const parse = (s: string) => {
+    const [h, m] = s.trim().split(':').map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  };
+  const s = parse(start);
+  const e = parse(end);
+  if (s == null || e == null) return false;
+  if (s <= e) return current >= s && current <= e;
+  return current >= s || current <= e;
+}
+
+export async function applyAssignmentRules(
+  widgetId: string,
+  conversationId: string,
+  messageBody: string,
+  teamMembers: ChatAgent[],
+): Promise<string | null> {
+  const db = getDb();
+  const rules = await listAssignmentRules(widgetId);
+  const activeRules = rules.filter((r) => r.active === 1);
+
+  for (const rule of activeRules) {
+    let matched = false;
+    switch (rule.match_type) {
+      case 'all':
+        matched = true;
+        break;
+      case 'keyword':
+        matched = matchesKeyword(messageBody, rule.match_value);
+        break;
+      case 'time':
+        matched = matchesTimeRange(rule.match_value);
+        break;
+      case 'round_robin':
+        matched = true;
+        break;
+    }
+    if (!matched) continue;
+
+    let assignTo: string | null = rule.assign_to;
+
+    if (rule.match_type === 'round_robin' && teamMembers.length > 0) {
+      const rows = (await db
+        .prepare(
+          `SELECT assigned_to, COUNT(*) AS c
+           FROM chat_conversations
+           WHERE widget_id = ? AND assigned_to IS NOT NULL
+           GROUP BY assigned_to`,
+        )
+        .all(widgetId)) as Array<{ assigned_to: string; c: number }>;
+      const counts = new Map(rows.map((r) => [r.assigned_to, r.c]));
+      const sorted = [...teamMembers].sort((a, b) => {
+        const ca = counts.get(a.id) ?? 0;
+        const cb = counts.get(b.id) ?? 0;
+        return ca - cb;
+      });
+      assignTo = sorted[0]?.id ?? null;
+    }
+
+    if (assignTo) {
+      await db
+        .prepare('UPDATE chat_conversations SET assigned_to = ?, updated_at = ? WHERE id = ?')
+        .run(assignTo, nowIso(), conversationId);
+      return assignTo;
+    }
+  }
+
+  return null;
+}
+
+// ---------- SLA ----------
+
+export interface SlaStatus {
+  firstResponseDeadline: Date | null;
+  resolutionDeadline: Date | null;
+  breached: boolean;
+  resolved: boolean;
+  dueInMinutes: number | null;
+}
+
+function addMinutes(iso: string, minutes: number): Date {
+  const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
+  d.setMinutes(d.getMinutes() + minutes);
+  return d;
+}
+
+export async function getChatSlaStatus(conversation: ChatConversationRow): Promise<SlaStatus> {
+  const now = new Date();
+  const resolved = conversation.resolved_at != null;
+
+  const policy = (await getDb()
+    .prepare(
+      'SELECT * FROM chat_sla_policies WHERE widget_id = ? AND priority = ? AND active = 1 LIMIT 1',
+    )
+    .get(conversation.widget_id, conversation.priority)) as ChatSlaPolicyRow | undefined;
+
+  const firstResponseMinutes = policy?.first_response_minutes ?? 60;
+  const resolutionMinutes = policy?.resolution_minutes ?? null;
+
+  const firstResponseDeadline = conversation.first_response_at
+    ? null
+    : addMinutes(conversation.created_at, firstResponseMinutes);
+  const resolutionDeadline = resolved
+    ? null
+    : resolutionMinutes != null
+      ? addMinutes(conversation.created_at, resolutionMinutes)
+      : null;
+
+  let breached = false;
+  if (resolved && conversation.resolved_at) {
+    if (resolutionDeadline && new Date(conversation.resolved_at) > resolutionDeadline) {
+      breached = true;
+    }
+  } else {
+    if (firstResponseDeadline && now > firstResponseDeadline) {
+      breached = true;
+    }
+    if (resolutionDeadline && now > resolutionDeadline) {
+      breached = true;
+    }
+  }
+
+  const dueInMinutes = firstResponseDeadline
+    ? Math.max(0, Math.ceil((firstResponseDeadline.getTime() - now.getTime()) / 60_000))
+    : null;
+
+  return {
+    firstResponseDeadline,
+    resolutionDeadline,
+    breached,
+    resolved,
+    dueInMinutes,
+  };
+}
+
+export async function recordFirstResponse(conversationId: string): Promise<void> {
+  const db = getDb();
+  await db
+    .prepare(
+      "UPDATE chat_conversations SET first_response_at = COALESCE(first_response_at, ?), updated_at = ? WHERE id = ?",
+    )
+    .run(nowIso(), nowIso(), conversationId);
+}
+
+export async function recordResolved(conversationId: string): Promise<void> {
+  const db = getDb();
+  await db
+    .prepare("UPDATE chat_conversations SET resolved_at = ?, updated_at = ? WHERE id = ?")
+    .run(nowIso(), nowIso(), conversationId);
+}
+
+// ---------- Canned responses ----------
+
+export interface CannedResponsePayload {
+  shortcut: string;
+  title: string;
+  body: string;
+}
+
+export async function listCannedResponses(widgetId: string): Promise<ChatCannedResponseRow[]> {
+  return (await getDb()
+    .prepare('SELECT * FROM chat_canned_responses WHERE widget_id = ? ORDER BY shortcut ASC')
+    .all(widgetId)) as ChatCannedResponseRow[];
+}
+
+export async function getCannedResponse(id: string): Promise<ChatCannedResponseRow | undefined> {
+  return (await getDb().prepare('SELECT * FROM chat_canned_responses WHERE id = ?').get(id)) as
+    | ChatCannedResponseRow
+    | undefined;
+}
+
+export async function createCannedResponse(
+  widgetId: string,
+  payload: CannedResponsePayload,
+): Promise<ChatCannedResponseRow> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const now = nowIso();
+  await db
+    .prepare(
+      'INSERT INTO chat_canned_responses (id, widget_id, shortcut, title, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(id, widgetId, payload.shortcut.trim(), payload.title.trim(), payload.body, now, now);
+  return (await db.prepare('SELECT * FROM chat_canned_responses WHERE id = ?').get(id)) as ChatCannedResponseRow;
+}
+
+export async function updateCannedResponse(
+  id: string,
+  payload: Partial<CannedResponsePayload>,
+): Promise<ChatCannedResponseRow | undefined> {
+  const db = getDb();
+  const existing = await getCannedResponse(id);
+  if (!existing) return undefined;
+
+  const fields: string[] = [];
+  const args: Array<string | number | null> = [];
+
+  if (payload.shortcut !== undefined) {
+    fields.push('shortcut = ?');
+    args.push(payload.shortcut.trim());
+  }
+  if (payload.title !== undefined) {
+    fields.push('title = ?');
+    args.push(payload.title.trim());
+  }
+  if (payload.body !== undefined) {
+    fields.push('body = ?');
+    args.push(payload.body);
+  }
+
+  if (fields.length > 0) {
+    fields.push('updated_at = ?');
+    args.push(nowIso());
+    args.push(id);
+    await db.prepare(`UPDATE chat_canned_responses SET ${fields.join(', ')} WHERE id = ?`).run(...args);
+  }
+
+  return getCannedResponse(id);
+}
+
+export async function deleteCannedResponse(id: string): Promise<boolean> {
+  const res = await getDb().prepare('DELETE FROM chat_canned_responses WHERE id = ?').run(id);
+  return res.changes > 0;
 }
 
 // ---------- Messages ----------

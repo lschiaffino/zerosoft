@@ -93,10 +93,52 @@
     "high": "Alta",
     "urgent": "Urgente"
   },
+  "people": {
+    "title": "Personas",
+    "search": "Buscar personas…",
+    "empty": "Ninguna persona coincide con tu búsqueda.",
+    "conversations_one": "{{count}} conversación",
+    "conversations_other": "{{count}} conversaciones",
+    "notes": "Notas",
+    "editNotes": "Editar notas",
+    "lastSeen": "Última vez"
+  },
+  "rules": {
+    "title": "Reglas de asignación",
+    "add": "Agregar regla",
+    "matchAll": "Todas",
+    "matchKeyword": "Palabra clave",
+    "matchTime": "Rango horario",
+    "roundRobin": "Round-robin",
+    "assignTo": "Asignar a",
+    "active": "Activa",
+    "inactive": "Inactiva",
+    "empty": "Aún no hay reglas de asignación.",
+    "matchType": "Tipo de coincidencia",
+    "keyword": "Palabra clave",
+    "timeRange": "Rango horario"
+  },
+  "sla": {
+    "title": "SLA",
+    "firstResponse": "Primera respuesta",
+    "resolution": "Resolución",
+    "breached": "Incumplido",
+    "dueIn": "Responder en {{minutes}}m",
+    "resolved": "Resuelto"
+  },
+  "canned": {
+    "title": "Respuestas prediseñadas",
+    "add": "Agregar respuesta",
+    "shortcut": "Atajo",
+    "body": "Cuerpo",
+    "empty": "Aún no hay respuestas prediseñadas.",
+    "placeholder": "Escribe aquí tu mensaje guardado…"
+  },
   "common": {
     "save": "Guardar",
     "cancel": "Cancelar",
     "delete": "Eliminar",
+    "edit": "Editar",
     "loading": "Cargando…",
     "empty": "Aún no hay nada aquí."
   },

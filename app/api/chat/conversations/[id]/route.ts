@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { getChatConversation, getChatWidget, updateChatConversation } from '@/lib/chat-data';
+import {
+  getChatConversation,
+  getChatWidget,
+  recordResolved,
+  updateChatConversation,
+} from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,5 +66,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   });
 
   if (!updated) return NextResponse.json({ error: 'generic' }, { status: 500 });
+
+  if (updated.status === 'closed') {
+    await recordResolved(params.id);
+  }
+
   return NextResponse.json(updated);
 }

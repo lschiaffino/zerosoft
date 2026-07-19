@@ -93,10 +93,52 @@
     "high": "High",
     "urgent": "Urgent"
   },
+  "people": {
+    "title": "People",
+    "search": "Search people…",
+    "empty": "No people match your search.",
+    "conversations_one": "{{count}} conversation",
+    "conversations_other": "{{count}} conversations",
+    "notes": "Notes",
+    "editNotes": "Edit notes",
+    "lastSeen": "Last seen"
+  },
+  "rules": {
+    "title": "Assignment rules",
+    "add": "Add rule",
+    "matchAll": "Catch-all",
+    "matchKeyword": "Keyword",
+    "matchTime": "Time range",
+    "roundRobin": "Round-robin",
+    "assignTo": "Assign to",
+    "active": "Active",
+    "inactive": "Inactive",
+    "empty": "No assignment rules yet.",
+    "matchType": "Match type",
+    "keyword": "Keyword",
+    "timeRange": "Time range"
+  },
+  "sla": {
+    "title": "SLA",
+    "firstResponse": "First response",
+    "resolution": "Resolution",
+    "breached": "Breached",
+    "dueIn": "Reply in {{minutes}}m",
+    "resolved": "Resolved"
+  },
+  "canned": {
+    "title": "Canned responses",
+    "add": "Add response",
+    "shortcut": "Shortcut",
+    "body": "Body",
+    "empty": "No canned responses yet.",
+    "placeholder": "Type your saved message here…"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
+    "edit": "Edit",
     "loading": "Loading…",
     "empty": "Nothing here yet."
   },
