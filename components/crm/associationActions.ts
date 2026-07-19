@@ -168,3 +168,27 @@ export async function associateContactToDeal(dealId: string, contactId: string) 
 export async function removeContactFromDeal(dealId: string, contactId: string) {
   return removeDealContact(dealId, contactId);
 }
+
+export async function associateContactToTask(taskId: string, contactId: string) {
+  return setTaskContact(taskId, contactId);
+}
+
+export async function removeContactFromTask(taskId: string) {
+  return setTaskContact(taskId, null);
+}
+
+export async function associateCompanyToTask(taskId: string, companyId: string) {
+  return setTaskCompany(taskId, companyId);
+}
+
+export async function removeCompanyFromTask(taskId: string) {
+  return setTaskCompany(taskId, null);
+}
+
+export async function associateDealToTask(taskId: string, dealId: string) {
+  return setTaskDeal(taskId, dealId);
+}
+
+export async function removeDealFromTask(taskId: string) {
+  return setTaskDeal(taskId, null);
+}

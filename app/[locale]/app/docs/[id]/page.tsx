@@ -26,8 +26,8 @@ export default async function DocsPageEditor({
       <DocsSidebar
         pages={allPages}
         currentId={id}
-        createAction={(parentId) => createDocPageAction(user.id, locale, parentId)}
-        moveAction={(pageId, parentId) => moveDocPageAction(user.id, pageId, parentId)}
+        createAction={createDocPageAction.bind(null, user.id, locale)}
+        moveAction={moveDocPageAction.bind(null, user.id)}
         labels={{
           newPage: t('sidebar.newPage'),
           newSubpage: t('sidebar.newSubpage'),

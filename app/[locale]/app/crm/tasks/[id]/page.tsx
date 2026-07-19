@@ -11,7 +11,14 @@ import DangerDelete from '@/components/crm/DangerDelete';
 import TaskFiles from '@/components/crm/TaskFiles';
 import TaskDonePin from '@/components/crm/TaskDonePin';
 import { ACTIVITY_TYPES } from '@/lib/crm-constants';
-import { setTaskCompany, setTaskContact, setTaskDeal } from '@/components/crm/associationActions';
+import {
+  associateContactToTask,
+  removeContactFromTask,
+  associateCompanyToTask,
+  removeCompanyFromTask,
+  associateDealToTask,
+  removeDealFromTask,
+} from '@/components/crm/associationActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -183,12 +190,8 @@ export default async function TaskDetailPage({ params: { locale, id } }: TaskDet
                   : []
               }
               options={contacts.map((c) => ({ id: c.id, value: `${c.first_name} ${c.last_name}`.trim() || c.email }))}
-              onAssociate={async (contactId) => {
-                await setTaskContact(task.id, contactId);
-              }}
-              onRemove={async () => {
-                await setTaskContact(task.id, null);
-              }}
+              onAssociate={associateContactToTask.bind(null, task.id)}
+              onRemove={removeContactFromTask.bind(null, task.id)}
               addLabel={t('assoc.pickContact')}
               emptyLabel={t('tasks.detail.noContact')}
             />
@@ -209,12 +212,8 @@ export default async function TaskDetailPage({ params: { locale, id } }: TaskDet
                   : []
               }
               options={companies.map((c) => ({ id: c.id, value: c.name }))}
-              onAssociate={async (companyId) => {
-                await setTaskCompany(task.id, companyId);
-              }}
-              onRemove={async () => {
-                await setTaskCompany(task.id, null);
-              }}
+              onAssociate={associateCompanyToTask.bind(null, task.id)}
+              onRemove={removeCompanyFromTask.bind(null, task.id)}
               addLabel={t('assoc.pickCompany')}
               emptyLabel={t('tasks.detail.noCompany')}
             />
@@ -235,12 +234,8 @@ export default async function TaskDetailPage({ params: { locale, id } }: TaskDet
                   : []
               }
               options={deals.map((d) => ({ id: d.id, value: d.name }))}
-              onAssociate={async (dealId) => {
-                await setTaskDeal(task.id, dealId);
-              }}
-              onRemove={async () => {
-                await setTaskDeal(task.id, null);
-              }}
+              onAssociate={associateDealToTask.bind(null, task.id)}
+              onRemove={removeDealFromTask.bind(null, task.id)}
               addLabel={t('assoc.pickDeal')}
               emptyLabel={t('tasks.detail.noDeal')}
             />
