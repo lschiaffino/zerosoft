@@ -1,0 +1,156 @@
+/* Chat product styles */
+
+.chat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chat-form .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 1rem;
+}
+
+.chat-form .form-grid .field:has(input[type='color']) {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-form input[type='color'] {
+  min-height: 40px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.chat-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .chat-edit-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chat-edit-form .panel,
+.chat-edit-side .panel {
+  margin-bottom: 1.5rem;
+}
+
+.chat-widget-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chat-widget-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+}
+
+.chat-widget-card-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.chat-widget-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chat-widget-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-widget-id {
+  font-size: 12px;
+}
+
+.chat-widget-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.chat-embed-code {
+  background: var(--bg-muted, #f5f5f5);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.chat-conversation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.chat-conversation-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.chat-status {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.chat-status-open {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.chat-status-closed {
+  background: rgba(0, 0, 0, 0.04);
+  color: #666;
+}
+
+.chat-status-snoozed {
+  background: rgba(245, 166, 35, 0.12);
+  color: #a36a00;
+}
+
+.chat-subject {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Admin inbox placeholder */
+.chat-inbox-empty {
+  padding: 2rem;
+  text-align: center;
+}

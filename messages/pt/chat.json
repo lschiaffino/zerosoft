@@ -1,0 +1,73 @@
+{
+  "sidebar": {
+    "overview": "Visão geral",
+    "inbox": "Caixa de entrada",
+    "people": "Pessoas",
+    "settings": "Configurações"
+  },
+  "overview": {
+    "title": "Chat",
+    "subtitle": "Converse com visitantes. Um widget por vez.",
+    "widgets": "Widgets",
+    "conversations": "Conversas",
+    "noWidgets": "Nenhum widget ainda.",
+    "newWidget": "Novo widget",
+    "recentConversations": "Conversas recentes",
+    "unreadMessages": "Mensagens não lidas"
+  },
+  "widgetForm": {
+    "name": "Nome",
+    "color": "Cor",
+    "position": "Posição",
+    "positionBottomRight": "Inferior direito",
+    "positionBottomLeft": "Inferior esquerdo",
+    "welcomeMessage": "Mensagem de boas-vindas",
+    "fields": "Campos",
+    "addField": "Adicionar campo",
+    "fieldName": "Nome do campo",
+    "fieldRequired": "Obrigatório",
+    "fieldType": "Tipo",
+    "save": "Salvar widget",
+    "create": "Criar widget",
+    "newTitle": "Novo widget",
+    "newSub": "Configure a aparência do widget e o que ele pergunta.",
+    "editTitle": "Editar widget",
+    "preview": "Pré-visualização"
+  },
+  "embed": {
+    "title": "Código de incorporação",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "instructions": "Cole esta tag script antes do fechamento </body>."
+  },
+  "conversation": {
+    "open": "Aberta",
+    "closed": "Fechada",
+    "snoozed": "Adiada",
+    "assigned": "Atribuída",
+    "unassigned": "Não atribuída",
+    "reply": "Responder",
+    "send": "Enviar",
+    "messages": "Mensagens",
+    "noMessages": "Ainda não há mensagens.",
+    "priority": "Prioridade",
+    "priorities": {
+      "low": "Baixa",
+      "normal": "Normal",
+      "high": "Alta",
+      "urgent": "Urgente"
+    }
+  },
+  "common": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "loading": "Carregando…",
+    "empty": "Nada aqui ainda."
+  },
+  "errors": {
+    "generic": "Algo deu errado. Tente novamente.",
+    "invalid_input": "Alguns campos são inválidos. Verifique e tente novamente.",
+    "missing_name": "O nome é obrigatório."
+  }
+}

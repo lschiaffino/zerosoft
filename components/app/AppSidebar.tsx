@@ -26,6 +26,7 @@ export interface SidebarLabels {
   newDocPage: string;
   newEventType: string;
   newProject: string;
+  newWidget: string;
   team: string;
   link: { overview: string; links: string; new: string; settings: string };
   crm: {
@@ -58,6 +59,12 @@ export interface SidebarLabels {
     settings: string;
     inbox: string;
   };
+  chat: {
+    overview: string;
+    inbox: string;
+    people: string;
+    settings: string;
+  };
   notifications: {
     title: string;
     markRead: string;
@@ -86,6 +93,7 @@ const PRODUCTS = [
   { key: 'docs', name: 'Docs', href: '/app/docs' },
   { key: 'calendar', name: 'Cal', href: '/app/calendar' },
   { key: 'track', name: 'Track', href: '/app/track' },
+  { key: 'chat', name: 'Chat', href: '/app/chat' },
 ] as const;
 
 /**
@@ -115,7 +123,9 @@ export default function AppSidebar({
         ? 'calendar'
         : pathname.includes('/app/track')
           ? 'track'
-          : 'link';
+          : pathname.includes('/app/chat')
+            ? 'chat'
+            : 'link';
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -270,6 +280,23 @@ export default function AppSidebar({
     },
   ];
 
+  const chatNav: Array<{ section?: string; items: Item[] }> = [
+    { items: [{ href: '/app/chat', label: labels.chat.overview, active: pathname === '/app/chat', icon: 'overview' }] },
+    {
+      section: labels.records,
+      items: [
+        { href: '/app/chat/inbox', label: labels.chat.inbox, active: pathname.startsWith('/app/chat/inbox'), icon: 'inbox' },
+        { href: '/app/chat/people', label: labels.chat.people, active: pathname.startsWith('/app/chat/people'), icon: 'contacts' },
+      ],
+    },
+    {
+      section: labels.workspace,
+      items: [
+        { href: '/app/chat/settings', label: labels.chat.settings, active: pathname.startsWith('/app/chat/settings'), icon: 'settings' },
+      ],
+    },
+  ];
+
   const nav =
     product === 'crm'
       ? crmNav
@@ -279,7 +306,9 @@ export default function AppSidebar({
           ? calendarNav
           : product === 'track'
             ? trackNav
-            : linkNav;
+            : product === 'chat'
+              ? chatNav
+              : linkNav;
 
   const newItems: Item[] =
     product === 'crm'
@@ -295,7 +324,9 @@ export default function AppSidebar({
           ? [{ href: '/app/calendar/event-types/new', label: labels.newEventType, active: false, icon: 'tasks' }]
           : product === 'track'
             ? [{ href: '/app/track/projects/new', label: labels.newProject, active: false, icon: 'lists' }]
-            : [{ href: '/app/links/new', label: labels.newLink, active: false, icon: 'newLink' }];
+            : product === 'chat'
+              ? [{ href: '/app/chat/widgets/new', label: labels.newWidget, active: false, icon: 'chat' }]
+              : [{ href: '/app/links/new', label: labels.newLink, active: false, icon: 'newLink' }];
 
   const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
 

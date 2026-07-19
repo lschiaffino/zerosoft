@@ -1,0 +1,73 @@
+{
+  "sidebar": {
+    "overview": "Resumen",
+    "inbox": "Bandeja",
+    "people": "Personas",
+    "settings": "Ajustes"
+  },
+  "overview": {
+    "title": "Chat",
+    "subtitle": "Habla con visitantes. Un widget a la vez.",
+    "widgets": "Widgets",
+    "conversations": "Conversaciones",
+    "noWidgets": "Aún no hay widgets.",
+    "newWidget": "Nuevo widget",
+    "recentConversations": "Conversaciones recientes",
+    "unreadMessages": "Mensajes sin leer"
+  },
+  "widgetForm": {
+    "name": "Nombre",
+    "color": "Color",
+    "position": "Posición",
+    "positionBottomRight": "Abajo a la derecha",
+    "positionBottomLeft": "Abajo a la izquierda",
+    "welcomeMessage": "Mensaje de bienvenida",
+    "fields": "Campos",
+    "addField": "Agregar campo",
+    "fieldName": "Nombre del campo",
+    "fieldRequired": "Obligatorio",
+    "fieldType": "Tipo",
+    "save": "Guardar widget",
+    "create": "Crear widget",
+    "newTitle": "Nuevo widget",
+    "newSub": "Configura cómo se ve el widget y qué pregunta.",
+    "editTitle": "Editar widget",
+    "preview": "Vista previa"
+  },
+  "embed": {
+    "title": "Código para embeber",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "instructions": "Pega este script antes del cierre </body>."
+  },
+  "conversation": {
+    "open": "Abierta",
+    "closed": "Cerrada",
+    "snoozed": "Pospuesta",
+    "assigned": "Asignada",
+    "unassigned": "Sin asignar",
+    "reply": "Responder",
+    "send": "Enviar",
+    "messages": "Mensajes",
+    "noMessages": "Aún no hay mensajes.",
+    "priority": "Prioridad",
+    "priorities": {
+      "low": "Baja",
+      "normal": "Normal",
+      "high": "Alta",
+      "urgent": "Urgente"
+    }
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "loading": "Cargando…",
+    "empty": "Aún no hay nada aquí."
+  },
+  "errors": {
+    "generic": "Algo salió mal. Inténtalo de nuevo.",
+    "invalid_input": "Algunos campos son inválidos. Revísalos e intenta de nuevo.",
+    "missing_name": "El nombre es obligatorio."
+  }
+}

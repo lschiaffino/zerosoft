@@ -1,0 +1,73 @@
+{
+  "sidebar": {
+    "overview": "Overview",
+    "inbox": "Inbox",
+    "people": "People",
+    "settings": "Settings"
+  },
+  "overview": {
+    "title": "Chat",
+    "subtitle": "Talk to visitors. One widget at a time.",
+    "widgets": "Widgets",
+    "conversations": "Conversations",
+    "noWidgets": "No widgets yet.",
+    "newWidget": "New widget",
+    "recentConversations": "Recent conversations",
+    "unreadMessages": "Unread messages"
+  },
+  "widgetForm": {
+    "name": "Name",
+    "color": "Color",
+    "position": "Position",
+    "positionBottomRight": "Bottom right",
+    "positionBottomLeft": "Bottom left",
+    "welcomeMessage": "Welcome message",
+    "fields": "Fields",
+    "addField": "Add field",
+    "fieldName": "Field name",
+    "fieldRequired": "Required",
+    "fieldType": "Type",
+    "save": "Save widget",
+    "create": "Create widget",
+    "newTitle": "New widget",
+    "newSub": "Configure how the widget looks and what it asks.",
+    "editTitle": "Edit widget",
+    "preview": "Preview"
+  },
+  "embed": {
+    "title": "Embed code",
+    "copy": "Copy",
+    "copied": "Copied",
+    "instructions": "Paste this script tag before the closing </body> tag."
+  },
+  "conversation": {
+    "open": "Open",
+    "closed": "Closed",
+    "snoozed": "Snoozed",
+    "assigned": "Assigned",
+    "unassigned": "Unassigned",
+    "reply": "Reply",
+    "send": "Send",
+    "messages": "Messages",
+    "noMessages": "No messages yet.",
+    "priority": "Priority",
+    "priorities": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "urgent": "Urgent"
+    }
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "loading": "Loading…",
+    "empty": "Nothing here yet."
+  },
+  "errors": {
+    "generic": "Something went wrong. Try again.",
+    "invalid_input": "Some fields are invalid. Check them and try again.",
+    "missing_name": "Name is required."
+  }
+}

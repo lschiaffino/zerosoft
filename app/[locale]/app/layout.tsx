@@ -9,6 +9,7 @@ import '@/styles/crm.css';
 import '@/styles/docs.css';
 import '@/styles/calendar.css';
 import '@/styles/track.css';
+import '@/styles/chat.css';
 import '@/styles/app.css';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,7 @@ export default async function AppLayout({
   const tDocs = await getTranslations({ locale, namespace: 'docs' });
   const tCalendar = await getTranslations({ locale, namespace: 'calendar' });
   const tTrack = await getTranslations({ locale, namespace: 'track' });
+  const tChat = await getTranslations({ locale, namespace: 'chat' });
   const tasksDue = await countDueTasks(user.id);
 
   return (
@@ -60,6 +62,7 @@ export default async function AppLayout({
           newDocPage: tSide('newDocPage'),
           newEventType: tSide('newEventType'),
           newProject: tSide('newProject'),
+          newWidget: tSide('newWidget'),
           team: tSide('team'),
           link: {
             overview: tLink('tabs.overview'),
@@ -96,6 +99,12 @@ export default async function AppLayout({
             cycles: tTrack('sidebar.cycles'),
             settings: tTrack('sidebar.settings'),
             inbox: tTrack('sidebar.inbox'),
+          },
+          chat: {
+            overview: tChat('sidebar.overview'),
+            inbox: tChat('sidebar.inbox'),
+            people: tChat('sidebar.people'),
+            settings: tChat('sidebar.settings'),
           },
           notifications: {
             title: tTrack('notifications.title'),

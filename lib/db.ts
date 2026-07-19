@@ -704,6 +704,59 @@ const DDL = `
     );
     CREATE INDEX IF NOT EXISTS idx_track_issue_activities_issue ON track_issue_activities(issue_id, created_at DESC);
 
+    -- ---------- Chat ----------
+
+    CREATE TABLE IF NOT EXISTS chat_widgets (
+      id TEXT PRIMARY KEY,
+      team_id TEXT REFERENCES teams(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#000000',
+      position TEXT NOT NULL DEFAULT 'bottom-right' CHECK (position IN ('bottom-right', 'bottom-left')),
+      welcome_message TEXT,
+      fields TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_widgets_user ON chat_widgets(user_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_widgets_team ON chat_widgets(team_id);
+
+    CREATE TABLE IF NOT EXISTS chat_visitors (
+      id TEXT PRIMARY KEY,
+      widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+      external_id TEXT NOT NULL,
+      email TEXT,
+      name TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (widget_id, external_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_visitors_widget ON chat_visitors(widget_id);
+
+    CREATE TABLE IF NOT EXISTS chat_conversations (
+      id TEXT PRIMARY KEY,
+      widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+      visitor_id TEXT NOT NULL REFERENCES chat_visitors(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed', 'snoozed')),
+      assigned_to TEXT REFERENCES users(id) ON DELETE SET NULL,
+      priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+      subject TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_conversations_widget ON chat_conversations(widget_id, status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_chat_conversations_visitor ON chat_conversations(visitor_id);
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+      sender_type TEXT NOT NULL CHECK (sender_type IN ('visitor', 'user', 'system')),
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      body TEXT NOT NULL,
+      attachments TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(conversation_id, created_at ASC);
+
     -- ---------- Notifications ----------
 
     CREATE TABLE IF NOT EXISTS notifications (
@@ -1219,6 +1272,52 @@ export interface TrackIssueActivityRow {
     | 'closed'
     | 'reopened';
   meta: string;
+  created_at: string;
+}
+
+// ---------- Chat ----------
+
+export interface ChatWidgetRow {
+  id: string;
+  team_id: string | null;
+  user_id: string;
+  name: string;
+  color: string;
+  position: 'bottom-right' | 'bottom-left';
+  welcome_message: string | null;
+  fields: string; // JSON ChatFieldDef[]
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatVisitorRow {
+  id: string;
+  widget_id: string;
+  external_id: string;
+  email: string | null;
+  name: string | null;
+  created_at: string;
+}
+
+export interface ChatConversationRow {
+  id: string;
+  widget_id: string;
+  visitor_id: string;
+  status: 'open' | 'closed' | 'snoozed';
+  assigned_to: string | null;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  subject: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessageRow {
+  id: string;
+  conversation_id: string;
+  sender_type: 'visitor' | 'user' | 'system';
+  user_id: string | null;
+  body: string;
+  attachments: string; // JSON ChatAttachment[]
   created_at: string;
 }
 
