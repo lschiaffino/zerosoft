@@ -14,7 +14,6 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
       <section className="hero" id="hero">
         <ZeroField align="right" sizeFactor={0.92} />
         <div className="hero-content">
-          <p className="eyebrow">{t('hero.eyebrow')}</p>
           <h1>
             {t('hero.title1')}
             <br />
