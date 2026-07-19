@@ -21,7 +21,7 @@ export default async function EditWidgetPage({
     notFound();
   }
 
-  const conversations = await listChatConversations(widget.id);
+  const conversations = await listChatConversations([widget.id]);
 
   return (
     <div className="app-page">

@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { listChatWidgets, listChatConversations } from '@/lib/chat-data';
+import { listChatWidgets, listChatConversations, countChatConversations } from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
+
+function parseWidgetIds(param: string | null, ownedIds: string[]): string[] {
+  if (!param) return ownedIds;
+  const requested = param
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const set = new Set(requested.length > 0 ? requested : ownedIds);
+  return ownedIds.filter((id) => set.has(id));
+}
 
 export async function GET(req: Request) {
   const user = await getCurrentUser();
@@ -10,20 +20,31 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
-  const widgetIds = widgets.map((w) => w.id);
-  if (widgetIds.length === 0) return NextResponse.json({ conversations: [] });
+  const ownedIds = widgets.map((w) => w.id);
+  const widgetIds = parseWidgetIds(searchParams.get('widgetIds'), ownedIds);
 
-  const widgetId = searchParams.get('widgetId');
-  if (widgetId && !widgetIds.includes(widgetId)) {
-    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (widgetIds.length === 0) {
+    return NextResponse.json({ rows: [], total: 0 });
   }
 
-  const targetWidgetId = widgetId ?? widgetIds[0];
-  const conversations = await listChatConversations(targetWidgetId, {
-    status: searchParams.get('status') ?? undefined,
-    assigned: searchParams.get('assigned') ?? undefined,
-    q: searchParams.get('q') ?? undefined,
-  });
+  const status = searchParams.get('status') ?? undefined;
+  const assignedTo = searchParams.get('assignedTo') ?? undefined;
+  const q = searchParams.get('q') ?? undefined;
+  const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '50', 10), 1), 200);
+  const offset = Math.max(parseInt(searchParams.get('offset') ?? '0', 10), 0);
 
-  return NextResponse.json({ conversations });
+  const options = {
+    status,
+    assignedTo: assignedTo as 'unassigned' | string | undefined,
+    q,
+    limit,
+    offset,
+  };
+
+  const [rows, total] = await Promise.all([
+    listChatConversations(widgetIds, options),
+    countChatConversations(widgetIds, options),
+  ]);
+
+  return NextResponse.json({ rows, total });
 }

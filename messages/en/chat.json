@@ -40,23 +40,58 @@
     "copied": "Copied",
     "instructions": "Paste this script tag before the closing </body> tag."
   },
+  "inbox": {
+    "title": "Inbox",
+    "filters": {
+      "all": "All",
+      "open": "Open",
+      "closed": "Closed",
+      "unassigned": "Unassigned",
+      "mine": "Mine"
+    },
+    "search": "Search visitors or subjects…",
+    "empty": "No conversations match your filters.",
+    "loadMore": "Load more"
+  },
   "conversation": {
     "open": "Open",
     "closed": "Closed",
     "snoozed": "Snoozed",
     "assigned": "Assigned",
     "unassigned": "Unassigned",
+    "assignedTo": "Assigned to",
+    "subject": "Subject",
+    "priority": "Priority",
+    "close": "Close",
+    "reopen": "Reopen",
     "reply": "Reply",
     "send": "Send",
     "messages": "Messages",
     "noMessages": "No messages yet.",
-    "priority": "Priority",
+    "visitor": "Visitor",
+    "you": "You",
+    "system": "System",
     "priorities": {
       "low": "Low",
       "normal": "Normal",
       "high": "High",
       "urgent": "Urgent"
     }
+  },
+  "visitorPanel": {
+    "title": "Visitor",
+    "email": "Email",
+    "name": "Name",
+    "firstSeen": "First seen",
+    "widget": "Widget",
+    "crmContact": "CRM contact",
+    "notes": "Notes"
+  },
+  "priorities": {
+    "low": "Low",
+    "normal": "Normal",
+    "high": "High",
+    "urgent": "Urgent"
   },
   "common": {
     "save": "Save",

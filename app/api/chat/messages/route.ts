@@ -6,6 +6,7 @@ import {
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
 } from '@/lib/chat-data';
+import { createNotification } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,30 @@ export async function POST(req: Request) {
 
   const finalBody = messageBody || JSON.stringify(body.fields);
   const message = await createChatMessage(conversation.id, 'visitor', { body: finalBody });
+
+  // Notify widget owner and assigned agent.
+  const recipients = new Set<string>();
+  recipients.add(widget.user_id);
+  if (conversation.assigned_to && conversation.assigned_to !== widget.user_id) {
+    recipients.add(conversation.assigned_to);
+  }
+
+  const senderName = visitor.name || visitor.email || visitor.external_id;
+  const title = `New message from ${senderName}`;
+  const href = `/app/chat/inbox/${conversation.id}`;
+
+  for (const userId of recipients) {
+    await createNotification({
+      userId,
+      type: 'chat_message',
+      title,
+      body: message.body.slice(0, 140),
+      href,
+      sourceType: 'chat_conversation',
+      sourceId: conversation.id,
+      meta: { visitorName: visitor.name, visitorEmail: visitor.email },
+    });
+  }
 
   return NextResponse.json({ message, conversation, visitor }, { status: 201 });
 }

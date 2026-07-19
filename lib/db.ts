@@ -1324,7 +1324,7 @@ export interface ChatMessageRow {
 export interface NotificationRow {
   id: string;
   user_id: string;
-  type: 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation';
+  type: 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation' | 'chat_message';
   title: string;
   body: string | null;
   href: string | null;

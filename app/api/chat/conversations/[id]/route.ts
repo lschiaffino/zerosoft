@@ -44,7 +44,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       body.status === 'open' || body.status === 'closed' || body.status === 'snoozed'
         ? body.status
         : undefined,
-    assignedTo: typeof body.assignedTo === 'string' ? body.assignedTo : body.assignedTo === null ? null : undefined,
+    assignedTo:
+      body.assignedTo === null
+        ? null
+        : typeof body.assignedTo === 'string'
+          ? body.assignedTo
+          : undefined,
     priority:
       body.priority === 'low' ||
       body.priority === 'normal' ||

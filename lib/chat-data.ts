@@ -1,9 +1,11 @@
-import { getDb } from './db';
+import { getDb, getUserById } from './db';
 import type {
   ChatConversationRow,
   ChatMessageRow,
   ChatVisitorRow,
   ChatWidgetRow,
+  CrmContactRow,
+  UserRow,
 } from './db';
 
 // ---------- Helpers ----------
@@ -22,6 +24,14 @@ function parseJson<T>(value: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
+function inClause(count: number): string {
+  return `(${Array.from({ length: count }, () => '?').join(', ')})`;
 }
 
 // ---------- Widgets ----------
@@ -196,12 +206,41 @@ export async function getChatVisitorByExternalId(
     .get(widgetId, externalId)) as ChatVisitorRow | undefined;
 }
 
+export async function searchChatVisitors(
+  widgetIds: string[],
+  q: string,
+): Promise<ChatVisitorRow[]> {
+  if (widgetIds.length === 0 || !q.trim()) return [];
+  const like = `%${escapeLike(q.trim())}%`;
+  return (await getDb()
+    .prepare(
+      `SELECT * FROM chat_visitors
+       WHERE widget_id IN ${inClause(widgetIds.length)}
+         AND (email LIKE ? OR name LIKE ? OR external_id LIKE ?)
+       ORDER BY created_at DESC
+       LIMIT 50`,
+    )
+    .all(...widgetIds, like, like, like)) as ChatVisitorRow[];
+}
+
+export async function getChatVisitorCrmContact(
+  ownerUserId: string,
+  email: string | null,
+): Promise<CrmContactRow | undefined> {
+  if (!email) return undefined;
+  return (await getDb()
+    .prepare('SELECT * FROM crm_contacts WHERE user_id = ? AND email = ? COLLATE NOCASE')
+    .get(ownerUserId, email.trim().toLowerCase())) as CrmContactRow | undefined;
+}
+
 // ---------- Conversations ----------
 
-export interface ConversationFilters {
+export interface ConversationListOptions {
   status?: string;
-  assigned?: string;
+  assignedTo?: string | 'unassigned';
   q?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface ConversationUpdatePayload {
@@ -211,42 +250,201 @@ export interface ConversationUpdatePayload {
   subject?: string;
 }
 
+export interface ChatConversationListRow extends ChatConversationRow {
+  visitor_email: string | null;
+  visitor_name: string | null;
+  visitor_external_id: string;
+  last_message_body: string | null;
+  assigned_name: string | null;
+  assigned_email: string | null;
+}
+
+export interface ChatConversationWithVisitor extends ChatConversationRow {
+  visitor: ChatVisitorRow;
+  widget_name: string;
+  widget_user_id: string;
+  widget_team_id: string | null;
+  widget_color: string;
+  assigned_name: string | null;
+  assigned_email: string | null;
+  assigned_image: string | null;
+  crm_contact: CrmContactRow | null;
+}
+
 export async function listChatConversations(
-  widgetId: string,
-  filters: ConversationFilters = {},
-): Promise<ChatConversationRow[]> {
+  widgetIds: string[],
+  options: ConversationListOptions = {},
+): Promise<ChatConversationListRow[]> {
+  if (widgetIds.length === 0) return [];
   const db = getDb();
-  const where: string[] = ['widget_id = ?'];
-  const args: Array<string | number> = [widgetId];
+  const where: string[] = [`c.widget_id IN ${inClause(widgetIds.length)}`];
+  const args: Array<string | number> = [...widgetIds];
 
-  if (filters.status) {
-    where.push('status = ?');
-    args.push(filters.status);
+  if (options.status) {
+    where.push('c.status = ?');
+    args.push(options.status);
   }
-  if (filters.assigned === 'me') {
-    where.push('assigned_to IS NOT NULL');
-  } else if (filters.assigned === 'unassigned') {
-    where.push('assigned_to IS NULL');
-  } else if (filters.assigned) {
-    where.push('assigned_to = ?');
-    args.push(filters.assigned);
+  if (options.assignedTo === 'unassigned') {
+    where.push('c.assigned_to IS NULL');
+  } else if (options.assignedTo) {
+    where.push('c.assigned_to = ?');
+    args.push(options.assignedTo);
   }
-  if (filters.q) {
-    where.push('subject LIKE ?');
-    args.push(`%${filters.q}%`);
+  if (options.q) {
+    where.push('(c.subject LIKE ? OR v.name LIKE ? OR v.email LIKE ?)');
+    const like = `%${escapeLike(options.q)}%`;
+    args.push(like, like, like);
   }
 
-  return (await db
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+  const offset = Math.max(options.offset ?? 0, 0);
+
+  const rows = (await db
     .prepare(
-      `SELECT * FROM chat_conversations WHERE ${where.join(' AND ')} ORDER BY updated_at DESC`,
+      `SELECT c.*,
+        v.email AS visitor_email,
+        v.name AS visitor_name,
+        v.external_id AS visitor_external_id,
+        u.name AS assigned_name,
+        u.email AS assigned_email,
+        (SELECT body FROM chat_messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_message_body
+       FROM chat_conversations c
+       JOIN chat_visitors v ON v.id = c.visitor_id
+       LEFT JOIN users u ON u.id = c.assigned_to
+       WHERE ${where.join(' AND ')}
+       ORDER BY c.updated_at DESC
+       LIMIT ? OFFSET ?`,
     )
-    .all(...args)) as ChatConversationRow[];
+    .all(...args, limit, offset)) as ChatConversationListRow[];
+
+  return rows;
+}
+
+export async function countChatConversations(
+  widgetIds: string[],
+  options: ConversationListOptions = {},
+): Promise<number> {
+  if (widgetIds.length === 0) return 0;
+  const db = getDb();
+  const where: string[] = [`c.widget_id IN ${inClause(widgetIds.length)}`];
+  const args: Array<string | number> = [...widgetIds];
+
+  if (options.status) {
+    where.push('c.status = ?');
+    args.push(options.status);
+  }
+  if (options.assignedTo === 'unassigned') {
+    where.push('c.assigned_to IS NULL');
+  } else if (options.assignedTo) {
+    where.push('c.assigned_to = ?');
+    args.push(options.assignedTo);
+  }
+  if (options.q) {
+    where.push('(c.subject LIKE ? OR v.name LIKE ? OR v.email LIKE ?)');
+    const like = `%${escapeLike(options.q)}%`;
+    args.push(like, like, like);
+  }
+
+  const row = (await db
+    .prepare(
+      `SELECT COUNT(*) AS c
+       FROM chat_conversations c
+       JOIN chat_visitors v ON v.id = c.visitor_id
+       WHERE ${where.join(' AND ')}`,
+    )
+    .get(...args)) as { c: number } | undefined;
+  return row?.c ?? 0;
 }
 
 export async function getChatConversation(id: string): Promise<ChatConversationRow | undefined> {
   return (await getDb().prepare('SELECT * FROM chat_conversations WHERE id = ?').get(id)) as
     | ChatConversationRow
     | undefined;
+}
+
+export async function getChatConversationWithVisitor(
+  id: string,
+): Promise<ChatConversationWithVisitor | undefined> {
+  const db = getDb();
+  const row = (await db
+    .prepare(
+      `SELECT
+        c.id, c.widget_id, c.visitor_id, c.status, c.assigned_to, c.priority, c.subject,
+        c.created_at, c.updated_at,
+        v.id AS v_id, v.widget_id AS v_widget_id, v.external_id AS v_external_id,
+        v.email AS v_email, v.name AS v_name, v.created_at AS v_created_at,
+        w.name AS widget_name, w.user_id AS widget_user_id, w.team_id AS widget_team_id, w.color AS widget_color,
+        u.name AS assigned_name, u.email AS assigned_email, u.image AS assigned_image,
+        co.id AS co_id, co.user_id AS co_user_id, co.owner_id AS co_owner_id,
+        co.first_name AS co_first_name, co.last_name AS co_last_name,
+        co.email AS co_email, co.phone AS co_phone, co.job_title AS co_job_title,
+        co.website AS co_website, co.city AS co_city, co.country AS co_country,
+        co.lifecycle_stage AS co_lifecycle_stage, co.lead_status AS co_lead_status,
+        co.source AS co_source, co.company_id AS co_company_id, co.custom AS co_custom,
+        co.created_at AS co_created_at, co.updated_at AS co_updated_at
+       FROM chat_conversations c
+       JOIN chat_visitors v ON v.id = c.visitor_id
+       JOIN chat_widgets w ON w.id = c.widget_id
+       LEFT JOIN users u ON u.id = c.assigned_to
+       LEFT JOIN crm_contacts co ON co.user_id = w.user_id AND co.email = v.email
+       WHERE c.id = ?`,
+    )
+    .get(id)) as Record<string, unknown> | undefined;
+
+  if (!row) return undefined;
+
+  const visitor: ChatVisitorRow = {
+    id: row.v_id as string,
+    widget_id: row.v_widget_id as string,
+    external_id: row.v_external_id as string,
+    email: (row.v_email as string | null) ?? null,
+    name: (row.v_name as string | null) ?? null,
+    created_at: row.v_created_at as string,
+  };
+
+  const crmContact: CrmContactRow | null = row.co_id
+    ? {
+        id: row.co_id as string,
+        user_id: row.co_user_id as string,
+        owner_id: (row.co_owner_id as string | null) ?? null,
+        first_name: row.co_first_name as string,
+        last_name: row.co_last_name as string,
+        email: row.co_email as string,
+        phone: row.co_phone as string,
+        job_title: row.co_job_title as string,
+        website: row.co_website as string,
+        city: row.co_city as string,
+        country: row.co_country as string,
+        lifecycle_stage: row.co_lifecycle_stage as string,
+        lead_status: row.co_lead_status as string,
+        source: row.co_source as string,
+        company_id: (row.co_company_id as string | null) ?? null,
+        custom: row.co_custom as string,
+        created_at: row.co_created_at as string,
+        updated_at: row.co_updated_at as string,
+      }
+    : null;
+
+  return {
+    id: row.id as string,
+    widget_id: row.widget_id as string,
+    visitor_id: row.visitor_id as string,
+    status: row.status as ChatConversationRow['status'],
+    assigned_to: (row.assigned_to as string | null) ?? null,
+    priority: row.priority as ChatConversationRow['priority'],
+    subject: (row.subject as string | null) ?? null,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+    visitor,
+    widget_name: row.widget_name as string,
+    widget_user_id: row.widget_user_id as string,
+    widget_team_id: (row.widget_team_id as string | null) ?? null,
+    widget_color: row.widget_color as string,
+    assigned_name: (row.assigned_name as string | null) ?? null,
+    assigned_email: (row.assigned_email as string | null) ?? null,
+    assigned_image: (row.assigned_image as string | null) ?? null,
+    crm_contact: crmContact,
+  };
 }
 
 export async function getOpenConversationByVisitor(
@@ -318,6 +516,40 @@ export async function touchChatConversation(id: string): Promise<void> {
   await getDb().prepare('UPDATE chat_conversations SET updated_at = ? WHERE id = ?').run(nowIso(), id);
 }
 
+export async function markConversationUpdated(id: string): Promise<void> {
+  await touchChatConversation(id);
+}
+
+// ---------- Agents ----------
+
+export interface ChatAgent {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+}
+
+export async function listChatAgents(
+  userId: string,
+  teamId?: string | null,
+): Promise<ChatAgent[]> {
+  const db = getDb();
+  if (!teamId) {
+    const u = await getUserById(userId);
+    return u ? [{ id: u.id, email: u.email, name: u.name, image: u.image }] : [];
+  }
+  const rows = (await db
+    .prepare(
+      `SELECT u.id, u.email, u.name, u.image
+       FROM team_members m
+       JOIN users u ON u.id = m.user_id
+       WHERE m.team_id = ?
+       ORDER BY m.role = 'owner' DESC, m.created_at ASC`,
+    )
+    .all(teamId)) as ChatAgent[];
+  return rows;
+}
+
 // ---------- Messages ----------
 
 export interface ChatAttachment {
@@ -333,12 +565,32 @@ export interface MessageCreatePayload {
   attachments?: ChatAttachment[];
 }
 
+export interface ChatMessageWithUser extends ChatMessageRow {
+  user_name: string | null;
+  user_email: string | null;
+  user_image: string | null;
+}
+
 export async function listChatMessages(conversationId: string): Promise<ChatMessageRow[]> {
   return (await getDb()
     .prepare(
       'SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC',
     )
     .all(conversationId)) as ChatMessageRow[];
+}
+
+export async function listChatMessagesWithUsers(
+  conversationId: string,
+): Promise<ChatMessageWithUser[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT m.*, u.name AS user_name, u.email AS user_email, u.image AS user_image
+       FROM chat_messages m
+       LEFT JOIN users u ON u.id = m.user_id
+       WHERE m.conversation_id = ?
+       ORDER BY m.created_at ASC`,
+    )
+    .all(conversationId)) as ChatMessageWithUser[];
 }
 
 export async function createChatMessage(
@@ -362,7 +614,7 @@ export async function createChatMessage(
       nowIso(),
     );
 
-  await touchChatConversation(conversationId);
+  await markConversationUpdated(conversationId);
 
   return (await db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id)) as ChatMessageRow;
 }

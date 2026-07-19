@@ -17,7 +17,7 @@ export default async function ChatOverviewPage({
   const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
 
   const recentConversations = await Promise.all(
-    widgets.slice(0, 5).map((w) => listChatConversations(w.id, { status: 'open' })),
+    widgets.slice(0, 5).map((w) => listChatConversations([w.id], { status: 'open' })),
   );
   const openConversations = recentConversations.flat();
 

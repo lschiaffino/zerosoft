@@ -40,23 +40,58 @@
     "copied": "Copiado",
     "instructions": "Pega este script antes del cierre </body>."
   },
+  "inbox": {
+    "title": "Bandeja",
+    "filters": {
+      "all": "Todas",
+      "open": "Abiertas",
+      "closed": "Cerradas",
+      "unassigned": "Sin asignar",
+      "mine": "Mías"
+    },
+    "search": "Buscar visitantes o asuntos…",
+    "empty": "Ninguna conversación coincide con tus filtros.",
+    "loadMore": "Cargar más"
+  },
   "conversation": {
     "open": "Abierta",
     "closed": "Cerrada",
     "snoozed": "Pospuesta",
     "assigned": "Asignada",
     "unassigned": "Sin asignar",
+    "assignedTo": "Asignada a",
+    "subject": "Asunto",
+    "priority": "Prioridad",
+    "close": "Cerrar",
+    "reopen": "Reabrir",
     "reply": "Responder",
     "send": "Enviar",
     "messages": "Mensajes",
     "noMessages": "Aún no hay mensajes.",
-    "priority": "Prioridad",
+    "visitor": "Visitante",
+    "you": "Tú",
+    "system": "Sistema",
     "priorities": {
       "low": "Baja",
       "normal": "Normal",
       "high": "Alta",
       "urgent": "Urgente"
     }
+  },
+  "visitorPanel": {
+    "title": "Visitante",
+    "email": "Email",
+    "name": "Nombre",
+    "firstSeen": "Visto primero",
+    "widget": "Widget",
+    "crmContact": "Contacto CRM",
+    "notes": "Notas"
+  },
+  "priorities": {
+    "low": "Baja",
+    "normal": "Normal",
+    "high": "Alta",
+    "urgent": "Urgente"
   },
   "common": {
     "save": "Guardar",
