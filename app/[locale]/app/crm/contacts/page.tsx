@@ -65,6 +65,7 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
     id: c.id,
     name: `${c.first_name} ${c.last_name}`.trim() || c.email || '—',
     email: c.email,
+    phone: c.phone,
     companyName: c.company_name,
     companyId: c.company_id,
     lifecycle: c.lifecycle_stage,

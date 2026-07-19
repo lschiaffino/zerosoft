@@ -8,6 +8,8 @@ export interface CompanyRow {
   name: string;
   domain: string;
   industry: string;
+  phone: string;
+  location: string;
   contacts: number;
   deals: number;
   lifecycle: string;
@@ -30,6 +32,8 @@ export default function CompaniesTable({ rows }: CompaniesTableProps) {
             <th>{t('companies.table.name')}</th>
             <th>{t('companies.table.domain')}</th>
             <th>{t('companies.table.industry')}</th>
+            <th>{t('companies.table.phone')}</th>
+            <th>{t('companies.table.location')}</th>
             <th className="th-num">{t('companies.table.contacts')}</th>
             <th className="th-num">{t('deals.title')}</th>
             <th>{t('companies.table.lifecycle')}</th>
@@ -46,6 +50,8 @@ export default function CompaniesTable({ rows }: CompaniesTableProps) {
               </td>
               <td className="muted cell-email">{row.domain || '—'}</td>
               <td className="muted">{row.industry || '—'}</td>
+              <td className="muted cell-sub">{row.phone || '—'}</td>
+              <td className="muted cell-sub">{row.location || '—'}</td>
               <td className="mono td-num">{row.contacts}</td>
               <td className="mono td-num">{row.deals}</td>
               <td>

@@ -11,34 +11,6 @@
   min-height: calc(100svh - 76px);
 }
 
-.app-tabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 48px;
-  overflow-x: auto;
-}
-
-.app-tab {
-  font-family: var(--mono);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--dim);
-  padding: 14px 22px;
-  border-bottom: 1px solid transparent;
-  margin-bottom: -1px;
-  transition: color 0.25s, border-color 0.25s;
-  white-space: nowrap;
-}
-
-.app-tab:hover { color: var(--ink); }
-
-.app-tab.active {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-}
-
 .app-page { display: flex; flex-direction: column; gap: 28px; }
 .app-page.narrow { max-width: 720px; }
 

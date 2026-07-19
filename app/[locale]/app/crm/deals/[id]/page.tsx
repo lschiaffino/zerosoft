@@ -129,13 +129,15 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
         </div>
       </header>
 
-      <div className="detail-grid">
-        <section className="panel">
-          <h2 className="section-label">{t('deals.detail.properties')}</h2>
-          <PropertiesPanel endpoint={`/api/crm/deals/${deal.id}`} fields={fields} custom={custom} />
-        </section>
+      <div className="detail-grid-3">
+        <div className="detail-col">
+          <section className="panel">
+            <h2 className="section-label">{t('deals.detail.properties')}</h2>
+            <PropertiesPanel endpoint={`/api/crm/deals/${deal.id}`} fields={fields} custom={custom} />
+          </section>
+        </div>
 
-        <div className="app-page" style={{ gap: 20 }}>
+        <div className="detail-col">
           <section className="panel">
             <h2 className="section-label">{t('deals.table.stage')}</h2>
             <DealStagePanel
@@ -143,14 +145,6 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
               stages={stages.map((s) => ({ id: s.id, name: s.name, is_won: s.is_won, is_lost: s.is_lost }))}
               currentStageId={deal.stage_id}
             />
-          </section>
-
-          <section className="panel">
-            <div className="panel-head">
-              <h2 className="section-label">{t('deals.detail.contacts')}</h2>
-              <span className="panel-more">{contacts.length}</span>
-            </div>
-            <DealContacts dealId={deal.id} contacts={contactChips} />
           </section>
 
           <section className="panel">
@@ -164,19 +158,29 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
             />
           </section>
         </div>
-      </div>
 
-      <section className="panel danger-panel">
-        <h2 className="section-label">{t('deals.detail.dangerZone')}</h2>
-        <DangerDelete
-          endpoint={`/api/crm/deals/${deal.id}`}
-          confirmToken={deal.name}
-          redirectTo="/app/crm/deals"
-          title={t('deals.detail.deleteTitle')}
-          desc={t('deals.detail.deleteDesc')}
-          buttonLabel={t('deals.detail.deleteButton')}
-        />
-      </section>
+        <div className="detail-col detail-col-side">
+          <section className="panel">
+            <div className="panel-head">
+              <h2 className="section-label">{t('deals.detail.contacts')}</h2>
+              <span className="panel-more">{contacts.length}</span>
+            </div>
+            <DealContacts dealId={deal.id} contacts={contactChips} />
+          </section>
+
+          <section className="panel danger-panel">
+            <h2 className="section-label">{t('deals.detail.dangerZone')}</h2>
+            <DangerDelete
+              endpoint={`/api/crm/deals/${deal.id}`}
+              confirmToken={deal.name}
+              redirectTo="/app/crm/deals"
+              title={t('deals.detail.deleteTitle')}
+              desc={t('deals.detail.deleteDesc')}
+              buttonLabel={t('deals.detail.deleteButton')}
+            />
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

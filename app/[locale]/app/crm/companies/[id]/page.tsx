@@ -112,73 +112,15 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
         </div>
       </header>
 
-      <div className="detail-grid">
-        <section className="panel">
-          <h2 className="section-label">{t('companies.detail.properties')}</h2>
-          <PropertiesPanel endpoint={`/api/crm/companies/${company.id}`} fields={fields} custom={custom} />
-        </section>
-
-        <div className="app-page" style={{ gap: 20 }}>
+      <div className="detail-grid-3">
+        <div className="detail-col">
           <section className="panel">
-            <div className="panel-head">
-              <h2 className="section-label">{t('companies.detail.contacts')}</h2>
-              <span className="panel-more">{contacts.length}</span>
-            </div>
-            {contacts.length === 0 ? (
-              <p className="muted">{t('companies.detail.noContacts')}</p>
-            ) : (
-              <div className="table-wrap">
-                <table className="table">
-                  <tbody>
-                    {contacts.map((c) => (
-                      <tr key={c.id}>
-                        <td>
-                          <Link href={`/app/crm/contacts/${c.id}`} className="cell-name">
-                            {[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email}
-                          </Link>
-                        </td>
-                        <td className="muted cell-email">{c.email || '—'}</td>
-                        <td>
-                          <span className={`badge stage-${c.lifecycle_stage}`}>
-                            {lifecycleLabel(c.lifecycle_stage)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <h2 className="section-label">{t('companies.detail.properties')}</h2>
+            <PropertiesPanel endpoint={`/api/crm/companies/${company.id}`} fields={fields} custom={custom} />
           </section>
+        </div>
 
-          <section className="panel">
-            <div className="panel-head">
-              <h2 className="section-label">{t('companies.detail.deals')}</h2>
-              <span className="panel-more">{deals.length}</span>
-            </div>
-            {deals.length === 0 ? (
-              <p className="muted">{t('companies.detail.noDeals')}</p>
-            ) : (
-              <div className="table-wrap">
-                <table className="table">
-                  <tbody>
-                    {deals.map((d) => (
-                      <tr key={d.id}>
-                        <td>
-                          <Link href={`/app/crm/deals/${d.id}`} className="cell-name">
-                            {d.name}
-                          </Link>
-                        </td>
-                        <td className="cell-amount">{fmtAmount(d.amount, d.currency)}</td>
-                        <td className="muted">{stageName.get(d.stage_id) ?? '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
+        <div className="detail-col">
           <section className="panel">
             <h2 className="section-label">{t('companies.detail.timeline')}</h2>
             <Timeline
@@ -190,19 +132,69 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
             />
           </section>
         </div>
-      </div>
 
-      <section className="panel danger-panel">
-        <h2 className="section-label">{t('companies.detail.dangerZone')}</h2>
-        <DangerDelete
-          endpoint={`/api/crm/companies/${company.id}`}
-          confirmToken={confirmValue}
-          redirectTo="/app/crm/companies"
-          title={t('companies.detail.deleteTitle')}
-          desc={t('companies.detail.deleteDesc')}
-          buttonLabel={t('companies.detail.deleteButton')}
-        />
-      </section>
+        <div className="detail-col detail-col-side">
+          <section className="panel">
+            <div className="panel-head">
+              <h2 className="section-label">{t('companies.detail.contacts')}</h2>
+              <span className="panel-more">{contacts.length}</span>
+            </div>
+            {contacts.length === 0 ? (
+              <p className="muted">{t('companies.detail.noContacts')}</p>
+            ) : (
+              <ul className="recent-list">
+                {contacts.map((c) => (
+                  <li key={c.id}>
+                    <Link href={`/app/crm/contacts/${c.id}`} className="recent-row crm-row">
+                      <span className="recent-name">
+                        {[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email}
+                      </span>
+                      <span className="muted recent-meta">{c.email || '—'}</span>
+                      <span className={`badge stage-${c.lifecycle_stage}`}>
+                        {lifecycleLabel(c.lifecycle_stage)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel-head">
+              <h2 className="section-label">{t('companies.detail.deals')}</h2>
+              <span className="panel-more">{deals.length}</span>
+            </div>
+            {deals.length === 0 ? (
+              <p className="muted">{t('companies.detail.noDeals')}</p>
+            ) : (
+              <ul className="recent-list">
+                {deals.map((d) => (
+                  <li key={d.id}>
+                    <Link href={`/app/crm/deals/${d.id}`} className="recent-row crm-row">
+                      <span className="recent-name">{d.name}</span>
+                      <span className="muted recent-meta">{stageName.get(d.stage_id) ?? '—'}</span>
+                      <span className="mono recent-date">{fmtAmount(d.amount, d.currency)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="panel danger-panel">
+            <h2 className="section-label">{t('companies.detail.dangerZone')}</h2>
+            <DangerDelete
+              endpoint={`/api/crm/companies/${company.id}`}
+              confirmToken={confirmValue}
+              redirectTo="/app/crm/companies"
+              title={t('companies.detail.deleteTitle')}
+              desc={t('companies.detail.deleteDesc')}
+              buttonLabel={t('companies.detail.deleteButton')}
+            />
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

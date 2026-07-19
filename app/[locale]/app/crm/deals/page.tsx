@@ -112,19 +112,27 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
       for (const r of counts) contactCounts.set(r.deal_id, r.c);
     }
 
-    const tableRows: DealRow[] = rows.map((d) => ({
-      id: d.id,
-      name: d.name,
-      amount: formatAmount(d.amount, d.currency, locale),
-      stage: d.stage_name ?? '—',
-      priority: d.priority,
-      priorityLabel: (PRIORITIES as readonly string[]).includes(d.priority)
-        ? t(`enums.priority.${d.priority}`)
-        : d.priority,
-      closeDate: formatCloseDate(d.close_date, locale),
-      contacts: contactCounts.get(d.id) ?? 0,
-      created: formatDate(d.created_at, locale),
-    }));
+    const dayMs = 86_400_000;
+    const tableRows: DealRow[] = rows.map((d) => {
+      const start = new Date(d.created_at.replace(' ', 'T') + 'Z').getTime();
+      const stop = d.closed_at
+        ? new Date(d.closed_at.replace(' ', 'T') + 'Z').getTime()
+        : Date.now();
+      return {
+        id: d.id,
+        name: d.name,
+        amount: formatAmount(d.amount, d.currency, locale),
+        stage: d.stage_name ?? '—',
+        priority: d.priority,
+        priorityLabel: (PRIORITIES as readonly string[]).includes(d.priority)
+          ? t(`enums.priority.${d.priority}`)
+          : d.priority,
+        closeDate: formatCloseDate(d.close_date, locale),
+        age: Math.max(0, Math.floor((stop - start) / dayMs)),
+        contacts: contactCounts.get(d.id) ?? 0,
+        created: formatDate(d.created_at, locale),
+      };
+    });
 
     const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
     const currentPage = Math.min(Math.max(page, 1), pages);

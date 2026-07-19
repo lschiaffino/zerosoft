@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
-import AppShell from '@/components/AppShell';
+import { DEMO_MODE, requireUser } from '@/lib/session';
+import AppSidebar from '@/components/app/AppSidebar';
+import CommandSearch from '@/components/app/CommandSearch';
 import '@/styles/link.css';
 import '@/styles/crm.css';
+import '@/styles/app.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,16 +16,33 @@ export default async function AppLayout({
   children: ReactNode;
   params: { locale: string };
 }) {
-  await requireUser(locale);
+  const user = await requireUser(locale);
+  const tSide = await getTranslations({ locale, namespace: 'common.sidebar' });
   const tLink = await getTranslations({ locale, namespace: 'link' });
   const tCrm = await getTranslations({ locale, namespace: 'crm' });
 
   return (
-    <main className="app-shell container">
-      <AppShell
+    <div className="app-frame">
+      <AppSidebar
+        demo={DEMO_MODE}
+        user={{ name: user.name, email: user.email, image: user.image }}
         labels={{
-          switcherLink: tCrm('switcher.link'),
-          switcherCrm: tCrm('switcher.crm'),
+          search: tSide('search'),
+          new: tSide('new'),
+          backToSite: tSide('backToSite'),
+          docs: tSide('docs'),
+          soon: tSide('soon'),
+          signOut: tSide('signOut'),
+          records: tSide('records'),
+          activity: tSide('activity'),
+          insights: tSide('insights'),
+          linksSection: tSide('linksSection'),
+          workspace: tSide('workspace'),
+          newContact: tSide('newContact'),
+          newCompany: tSide('newCompany'),
+          newDeal: tSide('newDeal'),
+          newTask: tSide('newTask'),
+          newLink: tSide('newLink'),
           link: {
             overview: tLink('tabs.overview'),
             links: tLink('tabs.links'),
@@ -42,7 +61,8 @@ export default async function AppLayout({
           },
         }}
       />
-      {children}
-    </main>
+      <main className="app-content">{children}</main>
+      <CommandSearch />
+    </div>
   );
 }

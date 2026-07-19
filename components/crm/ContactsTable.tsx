@@ -8,6 +8,7 @@ export interface ContactRow {
   id: string;
   name: string;
   email: string;
+  phone: string;
   companyName: string | null;
   companyId: string | null;
   lifecycle: string;
@@ -76,6 +77,7 @@ export default function ContactsTable({ rows, lifecycles }: ContactsTableProps) 
               </th>
               <th>{t('contacts.table.name')}</th>
               <th>{t('contacts.table.email')}</th>
+              <th>{t('contacts.table.phone')}</th>
               <th>{t('contacts.table.company')}</th>
               <th>{t('contacts.table.lifecycle')}</th>
               <th>{t('contacts.table.leadStatus')}</th>
@@ -108,6 +110,7 @@ export default function ContactsTable({ rows, lifecycles }: ContactsTableProps) 
                     <span className="muted">—</span>
                   )}
                 </td>
+                <td className="muted cell-sub">{row.phone || '—'}</td>
                 <td>
                   {row.companyName && row.companyId ? (
                     <Link href={`/app/crm/companies/${row.companyId}`} className="cell-sub">

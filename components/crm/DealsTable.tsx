@@ -11,6 +11,7 @@ export interface DealRow {
   priority: string;
   priorityLabel: string;
   closeDate: string;
+  age: number;
   contacts: number;
   created: string;
 }
@@ -32,6 +33,7 @@ export default function DealsTable({ rows }: DealsTableProps) {
             <th>{t('deals.table.stage')}</th>
             <th>{t('deals.table.priority')}</th>
             <th>{t('deals.table.closeDate')}</th>
+            <th className="th-num">{t('deals.table.age')}</th>
             <th className="th-num">{t('deals.table.contacts')}</th>
             <th>{t('deals.table.created')}</th>
           </tr>
@@ -50,6 +52,7 @@ export default function DealsTable({ rows }: DealsTableProps) {
                 <span className={`badge prio-${row.priority}`}>{row.priorityLabel}</span>
               </td>
               <td className="mono muted cell-date">{row.closeDate || '—'}</td>
+              <td className="mono muted td-num">{row.age}d</td>
               <td className="mono td-num">{row.contacts}</td>
               <td className="mono muted cell-date">{row.created}</td>
             </tr>

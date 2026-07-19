@@ -78,6 +78,8 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
     name: c.name,
     domain: c.domain,
     industry: c.industry,
+    phone: c.phone,
+    location: [c.city, c.country].filter(Boolean).join(', '),
     contacts: c.contact_count,
     deals: dealCounts.get(c.id) ?? 0,
     lifecycle: c.lifecycle_stage,

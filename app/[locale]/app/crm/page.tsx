@@ -191,6 +191,35 @@ export default async function CrmOverviewPage({
           )}
         </section>
       </div>
+
+      <section className="panel">
+        <div className="panel-head">
+          <p className="section-label">{t('overview.closingThisMonth')}</p>
+          <Link href="/app/crm/deals" className="mono panel-more">
+            {t('common.viewAll')} →
+          </Link>
+        </div>
+        {o.closingThisMonth.length === 0 ? (
+          <p className="muted">{t('overview.noClosing')}</p>
+        ) : (
+          <ul className="recent-list">
+            {o.closingThisMonth.map((d) => (
+              <li key={d.id}>
+                <Link href={`/app/crm/deals/${d.id}`} className="recent-row crm-row">
+                  <span className="recent-name">{d.name}</span>
+                  <span className="muted recent-meta">{d.stage_name ?? ''}</span>
+                  <span className="mono recent-date">
+                    {money(d.amount, locale)}
+                    {d.close_date
+                      ? ` · ${formatDate(`${d.close_date.slice(0, 10)}T00:00:00Z`, locale)}`
+                      : ''}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

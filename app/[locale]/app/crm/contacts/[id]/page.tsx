@@ -130,42 +130,28 @@ export default async function ContactDetailPage({
         </div>
       </header>
 
-      <div className="detail-grid">
+      <div className="detail-grid-3">
         <div className="detail-col">
           <section className="panel">
             <p className="section-label">{t('contacts.detail.properties')}</p>
             <PropertiesPanel endpoint={`/api/crm/contacts/${contact.id}`} fields={fields} custom={custom} />
           </section>
+        </div>
 
+        <div className="detail-col">
           <section className="panel">
-            <p className="section-label">{t('contacts.detail.lists')}</p>
-            {lists.length === 0 ? (
-              <p className="muted">{t('contacts.detail.noLists')}</p>
-            ) : (
-              <div className="filter-chips">
-                {lists.map((l) => (
-                  <Link key={l.id} href={`/app/crm/lists/${l.id}`} className="chip">
-                    {l.name}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="panel danger-panel">
-            <p className="section-label">{t('contacts.detail.dangerZone')}</p>
-            <DangerDelete
-              endpoint={`/api/crm/contacts/${contact.id}`}
-              confirmToken={contact.email || name}
-              redirectTo="/app/crm/contacts"
-              title={t('contacts.detail.deleteTitle')}
-              desc={t('contacts.detail.deleteDesc')}
-              buttonLabel={t('contacts.detail.deleteButton')}
+            <p className="section-label">{t('contacts.detail.timeline')}</p>
+            <Timeline
+              recordType="contact"
+              recordId={contact.id}
+              items={timeline}
+              emptyLabel={t('contacts.detail.emptyTimeline')}
+              locale={locale}
             />
           </section>
         </div>
 
-        <div className="detail-col">
+        <div className="detail-col detail-col-side">
           <section className="panel">
             <p className="section-label">{t('contacts.detail.deals')}</p>
             {deals.length === 0 ? (
@@ -191,18 +177,34 @@ export default async function ContactDetailPage({
           </section>
 
           <section className="panel">
+            <p className="section-label">{t('contacts.detail.lists')}</p>
+            {lists.length === 0 ? (
+              <p className="muted">{t('contacts.detail.noLists')}</p>
+            ) : (
+              <div className="filter-chips">
+                {lists.map((l) => (
+                  <Link key={l.id} href={`/app/crm/lists/${l.id}`} className="chip">
+                    {l.name}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="panel">
             <p className="section-label">{t('contacts.detail.duplicates')}</p>
             <DuplicatesPanel contactId={contact.id} />
           </section>
 
-          <section className="panel">
-            <p className="section-label">{t('contacts.detail.timeline')}</p>
-            <Timeline
-              recordType="contact"
-              recordId={contact.id}
-              items={timeline}
-              emptyLabel={t('contacts.detail.emptyTimeline')}
-              locale={locale}
+          <section className="panel danger-panel">
+            <p className="section-label">{t('contacts.detail.dangerZone')}</p>
+            <DangerDelete
+              endpoint={`/api/crm/contacts/${contact.id}`}
+              confirmToken={contact.email || name}
+              redirectTo="/app/crm/contacts"
+              title={t('contacts.detail.deleteTitle')}
+              desc={t('contacts.detail.deleteDesc')}
+              buttonLabel={t('contacts.detail.deleteButton')}
             />
           </section>
         </div>

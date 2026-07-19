@@ -12,6 +12,28 @@
     "signOut": "Salir",
     "join": "Sumate"
   },
+  "sidebar": {
+    "search": "Buscar",
+    "new": "Nuevo",
+    "backToSite": "← Volver al sitio",
+    "docs": "Docs",
+    "soon": "pronto",
+    "signOut": "Salir",
+    "records": "Registros",
+    "activity": "Actividad",
+    "insights": "Métricas",
+    "linksSection": "Links",
+    "workspace": "Espacio",
+    "newContact": "Nuevo contacto",
+    "newCompany": "Nueva empresa",
+    "newDeal": "Nuevo deal",
+    "newTask": "Nueva tarea",
+    "newLink": "Nuevo link",
+    "searchPlaceholder": "Buscá contactos, empresas, deals…",
+    "searchPlaceholderLinks": "Buscá links…",
+    "searchEmpty": "0 resultados. Probá otra cosa.",
+    "searchLoading": "Buscando…"
+  },
   "hero": {
     "eyebrow": "zerosoft.ai — v0.0.1",
     "title1": "El software",

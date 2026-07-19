@@ -1846,6 +1846,15 @@ export interface WonLostMonth {
   lost: number;
 }
 
+export interface ClosingDealRow {
+  id: string;
+  name: string;
+  amount: number;
+  currency: string;
+  close_date: string | null;
+  stage_name: string | null;
+}
+
 export interface CrmOverview {
   totalContacts: number;
   openDealsCount: number;
@@ -1857,6 +1866,7 @@ export interface CrmOverview {
   wonLostByMonth: WonLostMonth[];
   recentActivities: ActivityListRow[];
   upcomingTasks: ActivityListRow[];
+  closingThisMonth: ClosingDealRow[];
 }
 
 async function defaultPipelineId(userId: string): Promise<string | null> {
@@ -1973,6 +1983,17 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
     )
     .all(userId)) as ActivityListRow[];
 
+  const closingThisMonth = (await db
+    .prepare(
+      `SELECT d.id, d.name, d.amount, d.currency, d.close_date, s.name AS stage_name
+       FROM crm_deals d
+       LEFT JOIN crm_stages s ON s.id = d.stage_id
+       WHERE d.user_id = ? AND d.closed_at IS NULL AND substr(d.close_date, 1, 7) = ?
+       ORDER BY d.close_date ASC
+       LIMIT 8`,
+    )
+    .all(userId, month)) as ClosingDealRow[];
+
   return {
     totalContacts,
     openDealsCount: open.c,
@@ -1980,6 +2001,7 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
     forecastWeighted,
     wonThisMonth: { count: wonThisMonth.c, amount: wonThisMonth.a },
     tasksDueToday,
+    closingThisMonth,
     funnel: await funnelForPipeline(userId, await defaultPipelineId(userId)),
     wonLostByMonth: await wonLostByMonth(userId),
     recentActivities,
