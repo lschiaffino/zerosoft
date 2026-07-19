@@ -2641,6 +2641,7 @@ export interface CrmReports {
   dealsByPriority: Array<{ priority: string; count: number; amount: number }>;
   lostReasons: Array<{ reason: string; count: number }>;
   avgDaysToClose: number | null;
+  tasksByStatus: Array<{ status: 'done' | 'pending'; count: number }>;
 }
 
 export async function getCrmReports(userId: string): Promise<CrmReports> {
@@ -2724,6 +2725,16 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
     )
     .all(userId)) as CrmReports['lostReasons'];
 
+  const tasksByStatus = (await db
+    .prepare(
+      `SELECT CASE WHEN done = 1 THEN 'done' ELSE 'pending' END AS status,
+         COUNT(*) AS count
+       FROM crm_activities
+       WHERE user_id = ? AND type = 'task'
+       GROUP BY status`,
+    )
+    .all(userId)) as CrmReports['tasksByStatus'];
+
   return {
     funnel: await funnelForPipeline(userId, pipelineId),
     forecastByStage,
@@ -2734,6 +2745,7 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
     dealsByPriority,
     lostReasons,
     avgDaysToClose: avg.days === null ? null : Math.round(avg.days * 10) / 10,
+    tasksByStatus,
   };
 }
 

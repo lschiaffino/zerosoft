@@ -76,6 +76,7 @@
     "crm": { "tag": "Clientes e vendas", "desc": "Todo o seu pipeline, de ponta a ponta. Zero licenças por usuário.", "status": "Disponível" },
     "cal": { "tag": "Agendamento", "desc": "Sua disponibilidade, um link, pronto. Sem pagar pelo privilégio.", "status": "Em construção" },
     "link": { "tag": "Links curtos", "desc": "Links curtos com métricas reais. Seus para sempre.", "status": "Disponível" },
+    "chat": { "tag": "Chat com clientes", "desc": "Uma caixa de entrada para todas as conversas. Widgets, pessoas e canais.", "status": "Disponível" },
     "docs": { "tag": "Docs e wiki", "desc": "Notas e documentos que são seus. Sem cobrança por usuário.", "status": "Disponível" },
     "more": { "title": "Todo o resto", "tag": "O que vem", "desc": "Documentos. Notas. Chat. Design. Se o mundo usa, vamos libertar. Isso é só o começo.", "status": "Sempre" }
   },

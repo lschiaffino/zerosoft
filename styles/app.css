@@ -8,9 +8,17 @@
   min-height: 100vh;
 }
 
+.app-main-scroll {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+}
+
 .app-content {
   min-width: 0;
-  padding: 28px 32px 64px;
+  flex: 1;
+  padding: 0 32px 64px;
 }
 
 .app-topbar {
@@ -34,6 +42,133 @@
   font-family: var(--mono);
   font-size: 13px;
   font-weight: 500;
+  user-select: none;
+}
+
+/* ---------- App topbar (inside main content) ---------- */
+
+.app-topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.app-topbar-product {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-topbar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.app-topbar-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.app-topbar-sep {
+  color: var(--line);
+  flex-shrink: 0;
+}
+
+.app-topbar-page {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-topbar-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.app-topbar-search:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.app-topbar-search svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- App footer ---------- */
+
+.app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 32px;
+  border-top: 1px solid var(--line);
+  margin-top: auto;
+}
+
+.app-footer-product,
+.app-footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.app-footer-product a,
+.app-footer-legal a {
+  color: var(--dim);
+  transition: color 0.2s;
+}
+
+.app-footer-product a:hover,
+.app-footer-legal a:hover {
+  color: var(--ink);
+}
+
+.app-footer-zero {
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--line);
   user-select: none;
 }
 
@@ -378,6 +513,10 @@ a.side-signout { display: block; text-decoration: none; }
     grid-template-columns: 1fr;
   }
 
+  .app-topbar-inner {
+    display: none;
+  }
+
   .app-topbar {
     display: flex;
     align-items: center;
@@ -411,7 +550,9 @@ a.side-signout { display: block; text-decoration: none; }
     z-index: 70;
   }
 
-  .app-content { padding: 20px 16px 56px; }
+  .app-content { padding: 0 16px 56px; }
+  .app-topbar-inner { padding: 14px 16px; }
+  .app-footer { padding: 20px 16px; }
 }
 
 .side-close {
@@ -472,29 +613,35 @@ a.side-signout { display: block; text-decoration: none; }
 .side-handle {
   display: none;
   position: absolute;
-  right: 0;
+  right: -13px;
   top: 50%;
   transform: translateY(-50%);
-  width: 12px;
-  height: 72px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   margin: 0;
   border: 1px solid var(--line);
-  border-right: none;
-  border-radius: 8px 0 0 8px;
+  border-radius: 50%;
   background: var(--bg);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1;
   color: var(--dim);
   cursor: pointer;
   align-items: center;
   justify-content: center;
   z-index: 5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.2s;
 }
 .side-handle:hover {
   border-color: var(--ink);
   color: var(--ink);
+  background: #fafafa;
+  transform: translateY(-50%) scale(1.08);
+}
+.side-handle:active {
+  transform: translateY(-50%) scale(0.96);
 }
 
 @media (min-width: 1024px) {

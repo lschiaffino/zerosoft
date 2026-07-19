@@ -3,6 +3,8 @@ import { getTranslations } from 'next-intl/server';
 import { DEMO_MODE, requireUser } from '@/lib/session';
 import { countDueTasks } from '@/lib/crm';
 import AppSidebar from '@/components/app/AppSidebar';
+import AppTopbar from '@/components/app/AppTopbar';
+import AppFooter from '@/components/app/AppFooter';
 import CommandSearch from '@/components/app/CommandSearch';
 import '@/styles/link.css';
 import '@/styles/crm.css';
@@ -114,7 +116,11 @@ export default async function AppLayout({
           },
         }}
       />
-      <main className="app-content">{children}</main>
+      <div className="app-main-scroll">
+        <AppTopbar searchLabel={tSide('search')} />
+        <main className="app-content">{children}</main>
+        <AppFooter backToSite={tSide('backToSite')} />
+      </div>
       <CommandSearch />
     </div>
   );

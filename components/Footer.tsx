@@ -27,6 +27,7 @@ export default async function Footer({ locale }: { locale: string }) {
             <li><Link href="/products/track">Track</Link></li>
             <li><Link href="/products/crm">CRM</Link></li>
             <li><Link href="/products/cal">Cal</Link></li>
+            <li><Link href="/app/chat">Chat</Link></li>
           </ul>
         </div>
 

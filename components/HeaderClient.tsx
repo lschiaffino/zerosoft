@@ -24,7 +24,8 @@ const PRODUCTS = [
   { key: 'track', num: '02', href: '/products/track' },
   { key: 'crm', num: '03', href: '/products/crm' },
   { key: 'cal', num: '04', href: '/products/cal' },
-  { key: 'docs', num: '05', href: '/docs' },
+  { key: 'chat', num: '05', href: '/app/chat' },
+  { key: 'docs', num: '06', href: '/docs' },
 ] as const;
 
 const PRODUCT_NAMES: Record<(typeof PRODUCTS)[number]['key'], string> = {
@@ -32,6 +33,7 @@ const PRODUCT_NAMES: Record<(typeof PRODUCTS)[number]['key'], string> = {
   track: 'Track',
   crm: 'CRM',
   cal: 'Cal',
+  chat: 'Chat',
   docs: 'Docs',
 };
 
@@ -39,6 +41,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   const [desktopOpen, setDesktopOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const tp = useTranslations('common.products');
 
   const openDesktop = () => {
@@ -60,16 +63,19 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
     setMobileOpen((v) => !v);
   };
 
-  // Close mobile menu when clicking outside the dropdown.
+  // Close menus when clicking outside the dropdown.
   useEffect(() => {
-    if (!mobileOpen) return;
+    if (!desktopOpen && !mobileOpen) return;
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.nav-dropdown')) setMobileOpen(false);
+      if (!target.closest('.nav-dropdown')) {
+        setDesktopOpen(false);
+        setMobileOpen(false);
+      }
     };
     document.addEventListener('click', onDocClick);
     return () => document.removeEventListener('click', onDocClick);
-  }, [mobileOpen]);
+  }, [desktopOpen, mobileOpen]);
 
   const megaItems = (
     <>
@@ -95,7 +101,8 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <LocaleSwitcher locale={locale} />
 
         <div
-          className="nav-dropdown"
+          ref={dropdownRef}
+          className={`nav-dropdown${desktopOpen ? ' open' : ''}${mobileOpen ? ' mobile-open' : ''}`}
           onMouseEnter={openDesktop}
           onMouseLeave={closeDesktop}
         >
@@ -116,16 +123,12 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
             {labels.products}
           </button>
 
-          {desktopOpen && (
-            <div className="mega-menu mega-menu-desktop">
-              <div className="mega-menu-inner">{megaItems}</div>
-            </div>
-          )}
-          {mobileOpen && (
-            <div className="mega-menu mega-menu-mobile">
-              <div className="mega-menu-inner">{megaItems}</div>
-            </div>
-          )}
+          <div className="mega-menu mega-menu-desktop">
+            <div className="mega-menu-inner">{megaItems}</div>
+          </div>
+          <div className="mega-menu mega-menu-mobile">
+            <div className="mega-menu-inner">{megaItems}</div>
+          </div>
         </div>
 
         <Link className="nav-link" href="/blog">

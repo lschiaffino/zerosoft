@@ -76,6 +76,7 @@
     "crm": { "tag": "Customers & sales", "desc": "Your entire pipeline, end to end. Zero per-seat licenses.", "status": "Available" },
     "cal": { "tag": "Scheduling", "desc": "Your availability, one link, done. Without paying for the privilege.", "status": "In the works" },
     "link": { "tag": "Short links", "desc": "Short links with real analytics. Yours forever.", "status": "Available" },
+    "chat": { "tag": "Customer chat", "desc": "One inbox for every conversation. Widgets, people and channels.", "status": "Available" },
     "docs": { "tag": "Docs & wiki", "desc": "Notes and documents that belong to you. No per-seat pricing.", "status": "Available" },
     "more": { "title": "Everything else", "tag": "What's next", "desc": "Docs. Notes. Chat. Design. If the world uses it, we will set it free. This is just the beginning.", "status": "Always" }
   },

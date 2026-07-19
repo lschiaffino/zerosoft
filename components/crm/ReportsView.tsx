@@ -906,6 +906,15 @@ export default function ReportsView({
                 locale={locale}
               />
             </section>
+            <section className="panel">
+              <p className="section-label">{t('reports.tasksByStatus')}</p>
+              <ProporBars
+                items={reports.tasksByStatus.map((r) => ({ name: r.status, count: r.count }))}
+                emptyLabel={t('reports.empty')}
+                labelFor={(n) => (n === 'done' ? t('reports.tasksDone') : t('reports.tasksPending'))}
+                locale={locale}
+              />
+            </section>
           </div>
 
           <div className="panel stat-card report-avg">

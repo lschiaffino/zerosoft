@@ -428,7 +428,7 @@
 .track-filter-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0;
   align-items: flex-end;
 }
 
@@ -451,13 +451,47 @@
 .track-filter-toggle,
 .track-filter-clear,
 .track-filter-save {
-  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 7px 14px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-right: none;
+  border-radius: 0;
   background: var(--bg);
-  color: var(--ink);
-  font-size: 13px;
+  color: var(--dim);
   cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.track-filter-group > .track-filter-toggle:first-child,
+.track-filter-group > .track-filter-clear:first-child,
+.track-filter-group > .track-filter-save:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.track-filter-group > .track-filter-toggle:last-child,
+.track-filter-group > .track-filter-clear:last-child,
+.track-filter-group > .track-filter-save:last-child {
+  border-right: 1px solid var(--line);
+  border-radius: 0 8px 8px 0;
+}
+
+.track-filter-toggle:hover,
+.track-filter-clear:hover:not(:disabled),
+.track-filter-save:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: #fafafa;
+}
+
+.track-filter-toggle.active,
+.track-filter-clear.active,
+.track-filter-save.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
 }
 
 .track-filter-clear:disabled {
