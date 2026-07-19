@@ -330,6 +330,8 @@ nav.main-nav a:hover { opacity: 1; }
 }
 
 @media (max-width: 860px) {
+  .hero .zero-field-fallback span { font-size: min(48vh, 72vw); }
+
   .mega-menu-desktop { display: none; }
   .mega-menu-mobile {
     position: absolute;
@@ -428,6 +430,21 @@ nav.main-nav a:hover { opacity: 1; }
   align-items: flex-end;
   overflow: hidden;
   cursor: crosshair;
+}
+
+/* El cero queda a la derecha; esta máscara lo desvanece bajo la zona de texto. */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    rgba(255, 255, 255, 0.92) 42%,
+    rgba(255, 255, 255, 0) 68%
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
 .hero-content {

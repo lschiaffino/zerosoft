@@ -55,7 +55,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   const closeDesktop = () => {
     closeTimer.current = setTimeout(() => {
       setDesktopOpen(false);
-    }, 240);
+    }, 350);
   };
 
   const toggleMobile = (e: React.MouseEvent | React.TouchEvent) => {
@@ -123,10 +123,18 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
             {labels.products}
           </button>
 
-          <div className="mega-menu mega-menu-desktop">
+          <div
+            className="mega-menu mega-menu-desktop"
+            onMouseEnter={openDesktop}
+            onMouseLeave={closeDesktop}
+          >
             <div className="mega-menu-inner">{megaItems}</div>
           </div>
-          <div className="mega-menu mega-menu-mobile">
+          <div
+            className="mega-menu mega-menu-mobile"
+            onMouseEnter={openDesktop}
+            onMouseLeave={closeDesktop}
+          >
             <div className="mega-menu-inner">{megaItems}</div>
           </div>
         </div>

@@ -68,9 +68,13 @@ export default function ZeroField({
       function glyphCenter() {
         if (align === 'center') return { x: W * 0.5, y: H * 0.5 };
         if (align === 'top') return { x: W * 0.5, y: H * 0.42 };
-        if (!isMobile()) return { x: W * 0.67, y: H * 0.5 };
+        if (!isMobile()) {
+          // Desktop right: empujado hacia la derecha y ligeramente más abajo
+          // para no tapar el header ni el texto del hero.
+          return { x: W * 0.78, y: H * 0.58 };
+        }
         // Mobile: el canvas es una banda superior del hero → glifo centrado en ella.
-        return { x: W * 0.5, y: H * 0.55 };
+        return { x: W * 0.5, y: H * 0.5 };
       }
 
       function buildParticles() {
@@ -82,7 +86,7 @@ export default function ZeroField({
 
         // En mobile la banda es horizontal (W > H), así que usamos H como
         // dimensión dominante para que el cero no se estire ni quede chico.
-        const size = Math.min(W, H) * (isMobile() ? sizeFactor * 0.95 : sizeFactor);
+        const size = Math.min(W, H) * (isMobile() ? sizeFactor * 0.75 : sizeFactor);
         const { x: cx, y: cy } = glyphCenter();
 
         octx.fillStyle = '#000';
