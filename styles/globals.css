@@ -270,10 +270,9 @@ nav.main-nav a:hover { opacity: 1; }
 
 .mega-menu-inner {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
-  max-width: 1280px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .mega-item {
