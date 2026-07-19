@@ -55,8 +55,9 @@ export default function ZeroField({
     function glyphCenter() {
       if (align === 'center') return { x: W * 0.5, y: H * 0.5 };
       if (align === 'top') return { x: W * 0.5, y: H * 0.42 };
-      if (W > 900) return { x: W * 0.67, y: H * 0.44 };
-      return { x: W * 0.5, y: H * 0.34 };
+      if (W > 860) return { x: W * 0.67, y: H * 0.44 };
+      // Mobile: el canvas es una banda superior del hero → glifo centrado en ella.
+      return { x: W * 0.5, y: H * 0.5 };
     }
 
     function buildParticles() {
@@ -66,7 +67,7 @@ export default function ZeroField({
       const octx = off.getContext('2d', { willReadFrequently: true });
       if (!octx) return;
 
-      const size = Math.min(W, H) * (W > 900 ? sizeFactor : sizeFactor * 0.68);
+      const size = Math.min(W, H) * (W > 860 ? sizeFactor : sizeFactor * 0.72);
       const { x: cx, y: cy } = glyphCenter();
 
       octx.fillStyle = '#000';
