@@ -10,7 +10,7 @@ interface InboxClientProps {
   currentUserId: string;
 }
 
-type FilterTab = 'all' | 'open' | 'closed' | 'unassigned' | 'mine';
+type FilterTab = 'all' | 'open' | 'pending' | 'snoozed' | 'resolved' | 'unassigned' | 'mine';
 
 const PAGE_SIZE = 25;
 
@@ -18,7 +18,7 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
   const t = useTranslations('chat');
   const locale = useLocale();
 
-  const [tab, setTab] = useState<FilterTab>('all');
+  const [tab, setTab] = useState<FilterTab>('open');
   const [q, setQ] = useState('');
   const [rows, setRows] = useState<ChatConversationListRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -29,8 +29,9 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
     const base: Record<string, string> = {};
     if (widgetIds.length > 0) base.widgetIds = widgetIds.join(',');
     if (q.trim()) base.q = q.trim();
-    if (tab === 'open') base.status = 'open';
-    if (tab === 'closed') base.status = 'closed';
+    if (tab === 'open' || tab === 'pending' || tab === 'snoozed' || tab === 'resolved') {
+      base.status = tab;
+    }
     if (tab === 'unassigned') base.assignedTo = 'unassigned';
     if (tab === 'mine') base.assignedTo = currentUserId;
     return base;
@@ -64,9 +65,11 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
   }, [filters]);
 
   const tabs: { key: FilterTab; label: string }[] = [
-    { key: 'all', label: t('inbox.filters.all') },
     { key: 'open', label: t('inbox.filters.open') },
-    { key: 'closed', label: t('inbox.filters.closed') },
+    { key: 'pending', label: t('inbox.filters.pending') },
+    { key: 'snoozed', label: t('inbox.filters.snoozed') },
+    { key: 'resolved', label: t('inbox.filters.resolved') },
+    { key: 'all', label: t('inbox.filters.all') },
     { key: 'unassigned', label: t('inbox.filters.unassigned') },
     { key: 'mine', label: t('inbox.filters.mine') },
   ];

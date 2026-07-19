@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { deleteChatWidget, getChatWidget, updateChatWidget } from '@/lib/chat-data';
+import { widgetUpdateSchema } from '@/lib/chat-schema';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,24 +26,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const widget = await getChatWidget(params.id);
   if (!canAccess(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-  let body: Record<string, unknown>;
+  let raw: unknown;
   try {
-    body = (await req.json()) as Record<string, unknown>;
+    raw = await req.json();
   } catch {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
-  const updated = await updateChatWidget(params.id, {
-    name: typeof body.name === 'string' ? body.name : undefined,
-    color: typeof body.color === 'string' ? body.color : undefined,
-    position:
-      body.position === 'bottom-left' || body.position === 'bottom-right'
-        ? body.position
-        : undefined,
-    welcomeMessage: typeof body.welcomeMessage === 'string' ? body.welcomeMessage : undefined,
-    fields: Array.isArray(body.fields) ? (body.fields as Parameters<typeof updateChatWidget>[1]['fields']) : undefined,
-  });
+  const parsed = widgetUpdateSchema.safeParse(raw);
+  if (!parsed.success) {
+    const nameIssue = parsed.error.issues.some((i) => i.path[0] === 'name');
+    return NextResponse.json({ error: nameIssue ? 'missing_name' : 'invalid_input' }, { status: 400 });
+  }
 
+  const updated = await updateChatWidget(params.id, parsed.data);
   if (!updated) return NextResponse.json({ error: 'generic' }, { status: 500 });
   return NextResponse.json(updated);
 }

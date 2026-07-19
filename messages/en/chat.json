@@ -32,7 +32,16 @@
     "newTitle": "New widget",
     "newSub": "Configure how the widget looks and what it asks.",
     "editTitle": "Edit widget",
-    "preview": "Preview"
+    "preview": "Preview",
+    "days": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    }
   },
   "embed": {
     "title": "Embed code",
@@ -45,7 +54,9 @@
     "filters": {
       "all": "All",
       "open": "Open",
-      "closed": "Closed",
+      "pending": "Pending",
+      "snoozed": "Snoozed",
+      "resolved": "Resolved",
       "unassigned": "Unassigned",
       "mine": "Mine"
     },
@@ -55,13 +66,24 @@
   },
   "conversation": {
     "open": "Open",
-    "closed": "Closed",
+    "pending": "Pending",
     "snoozed": "Snoozed",
+    "resolved": "Resolved",
     "assigned": "Assigned",
     "unassigned": "Unassigned",
     "assignedTo": "Assigned to",
     "subject": "Subject",
     "priority": "Priority",
+    "statusLabel": "Status",
+    "snoozeUntil": "Snoozed until",
+    "snooze": {
+      "1h": "1 hour",
+      "4h": "4 hours",
+      "24h": "24 hours",
+      "3d": "3 days",
+      "7d": "1 week"
+    },
+    "resolve": "Resolve",
     "close": "Close",
     "reopen": "Reopen",
     "reply": "Reply",
@@ -71,9 +93,11 @@
     "visitor": "Visitor",
     "you": "You",
     "system": "System",
+    "bot": "Bot",
+    "botBadge": "BOT",
     "priorities": {
       "low": "Low",
-      "normal": "Normal",
+      "medium": "Medium",
       "high": "High",
       "urgent": "Urgent"
     }
@@ -85,11 +109,12 @@
     "firstSeen": "First seen",
     "widget": "Widget",
     "crmContact": "CRM contact",
-    "notes": "Notes"
+    "notes": "Notes",
+    "csat": "CSAT"
   },
   "priorities": {
     "low": "Low",
-    "normal": "Normal",
+    "medium": "Medium",
     "high": "High",
     "urgent": "Urgent"
   },
@@ -123,8 +148,42 @@
     "firstResponse": "First response",
     "resolution": "Resolution",
     "breached": "Breached",
+    "breachedFirst": "First reply SLA",
+    "breachedResolution": "Resolution SLA",
     "dueIn": "Reply in {{minutes}}m",
     "resolved": "Resolved"
+  },
+  "settings": {
+    "title": "Chat settings",
+    "subtitle": "SLA and satisfaction across all widgets.",
+    "avgFirstResponse": "Avg first response",
+    "withinSla": "Within first-response SLA",
+    "avgResolution": "Avg resolution time",
+    "resolvedCount": "Resolved conversations"
+  },
+  "csat": {
+    "title": "CSAT",
+    "average": "Average score",
+    "responses": "Responses",
+    "note": "Visitors are asked to rate their experience (1–5) when a conversation is resolved."
+  },
+  "bot": {
+    "title": "AI bot",
+    "enabled": "Bot enabled",
+    "disabled": "Bot is off. Visitors only talk to humans.",
+    "greeting": "Greeting",
+    "greetingPlaceholder": "Hi! I'm the assistant. Let me help you…",
+    "source": "Knowledge source",
+    "sourceCanned": "Canned responses",
+    "sourceDocs": "Docs pages",
+    "hint": "The bot replies once per conversation, only if nobody has answered yet. It scores visitor keywords against the source (title matches weigh double); without a match it sends just the greeting."
+  },
+  "officeHours": {
+    "title": "Office hours",
+    "enabled": "Set office hours",
+    "disabled": "No office hours: the widget is always online.",
+    "timezone": "Timezone",
+    "hint": "Outside these hours the widget shows an away message with the expected response time."
   },
   "canned": {
     "title": "Canned responses",

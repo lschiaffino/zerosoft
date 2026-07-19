@@ -46,21 +46,18 @@ function senderName(
 ): string {
   if (m.sender_type === 'visitor') return visitor.name || visitor.email || visitor.external_id;
   if (m.sender_type === 'system') return t('conversation.system');
+  if (m.sender_type === 'bot') return t('conversation.bot');
   if (m.user_id === currentUser.id) return t('conversation.you');
   return m.user_name || m.user_email || t('conversation.you');
 }
 
-function slaLabel(
-  c: ChatConversationWithVisitor,
-  t: (k: string, v?: Record<string, string | number>) => string,
-) {
-  if (c.resolved_at) return { label: t('sla.resolved'), className: 'chat-sla-resolved' };
-  const deadline = new Date(c.created_at).getTime() + 60 * 60 * 1000;
-  const now = Date.now();
-  if (now > deadline) return { label: t('sla.breached'), className: 'chat-sla-breached' };
-  const mins = Math.ceil((deadline - now) / 60_000);
-  return { label: t('sla.dueIn', { minutes: mins }), className: 'chat-sla-due' };
-}
+const SNOOZE_OPTIONS = [
+  { value: 60 * 60 * 1000, key: '1h' },
+  { value: 4 * 60 * 60 * 1000, key: '4h' },
+  { value: 24 * 60 * 60 * 1000, key: '24h' },
+  { value: 3 * 24 * 60 * 60 * 1000, key: '3d' },
+  { value: 7 * 24 * 60 * 60 * 1000, key: '7d' },
+] as const;
 
 function formatBytes(n: number): string {
   if (!n) return '0 B';
@@ -234,13 +231,26 @@ export default function ConversationClient({
     }
   }
 
-  function toggleStatus() {
-    const next = conversation.status === 'closed' ? 'open' : 'closed';
+  function toggleResolved() {
+    const next = conversation.status === 'resolved' ? 'open' : 'resolved';
     updateConversation({ status: next });
   }
 
+  function changeStatus(status: string) {
+    if (status === 'snoozed') {
+      // Default 24h; el picker de duración permite ajustar.
+      updateConversation({ status: 'snoozed', snoozedUntil: snoozeUntilFor(24 * 60 * 60 * 1000) });
+      return;
+    }
+    updateConversation({ status: status as ConversationUpdatePayload['status'] });
+  }
+
+  function snoozeUntilFor(ms: number): string {
+    return new Date(Date.now() + ms).toISOString();
+  }
+
   const visitor = conversation.visitor;
-  const isClosed = conversation.status === 'closed';
+  const isResolved = conversation.status === 'resolved';
 
   const pickerQuery = useMemo(() => {
     const match = reply.match(/\/([^\s]*)$/);
@@ -332,14 +342,63 @@ export default function ConversationClient({
               <span className={`chat-status chat-status-${conversation.status}`}>
                 {t(`conversation.${conversation.status}`)}
               </span>
-              {(() => {
-                const sla = slaLabel(conversation, t);
-                return <span className={`chat-sla-badge ${sla.className}`}>{sla.label}</span>;
-              })()}
+              {conversation.sla_breached === 1 ? (
+                <span className="chat-sla-badge chat-sla-breached">
+                  {conversation.sla_breach_kind === 'resolution'
+                    ? t('sla.breachedResolution')
+                    : t('sla.breachedFirst')}
+                </span>
+              ) : conversation.resolved_at ? (
+                <span className="chat-sla-badge chat-sla-resolved">{t('sla.resolved')}</span>
+              ) : conversation.sla_due_in_minutes != null ? (
+                <span className="chat-sla-badge chat-sla-due">
+                  {t('sla.dueIn', { minutes: conversation.sla_due_in_minutes })}
+                </span>
+              ) : null}
             </div>
           </div>
 
           <div className="chat-conversation-header-actions">
+            <div className="chat-header-field">
+              <label className="mono muted">{t('conversation.statusLabel')}</label>
+              <select
+                className="select chat-header-select"
+                value={conversation.status}
+                onChange={(e) => changeStatus(e.target.value)}
+              >
+                {(['open', 'pending', 'snoozed', 'resolved'] as const).map((s) => (
+                  <option key={s} value={s}>{t(`conversation.${s}`)}</option>
+                ))}
+              </select>
+            </div>
+
+            {conversation.status === 'snoozed' && (
+              <div className="chat-header-field">
+                <label className="mono muted">{t('conversation.snoozeUntil')}</label>
+                <select
+                  className="select chat-header-select"
+                  value=""
+                  onChange={(e) => {
+                    const ms = Number(e.target.value);
+                    if (ms > 0) {
+                      updateConversation({ status: 'snoozed', snoozedUntil: snoozeUntilFor(ms) });
+                    }
+                  }}
+                >
+                  <option value="">
+                    {conversation.snoozed_until
+                      ? formatDateTime(conversation.snoozed_until, locale)
+                      : '—'}
+                  </option>
+                  {SNOOZE_OPTIONS.map((opt) => (
+                    <option key={opt.key} value={opt.value}>
+                      {t(`conversation.snooze.${opt.key}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="chat-header-field">
               <label className="mono muted">{t('conversation.priority')}</label>
               <select
@@ -349,7 +408,7 @@ export default function ConversationClient({
                   updateConversation({ priority: e.target.value as ConversationUpdatePayload['priority'] })
                 }
               >
-                {(['low', 'normal', 'high', 'urgent'] as const).map((p) => (
+                {(['low', 'medium', 'high', 'urgent'] as const).map((p) => (
                   <option key={p} value={p}>{t(`priorities.${p}`)}</option>
                 ))}
               </select>
@@ -373,10 +432,10 @@ export default function ConversationClient({
 
             <button
               type="button"
-              className={`btn btn-small${isClosed ? '' : ' btn-ghost'}`}
-              onClick={toggleStatus}
+              className={`btn btn-small${isResolved ? '' : ' btn-ghost'}`}
+              onClick={toggleResolved}
             >
-              {isClosed ? t('conversation.reopen') : t('conversation.close')}
+              {isResolved ? t('conversation.reopen') : t('conversation.resolve')}
             </button>
           </div>
         </header>
@@ -403,12 +462,15 @@ export default function ConversationClient({
                 return (
                   <li
                     key={m.id}
-                    className={`chat-message${isVisitor ? ' visitor' : ' agent'}`}
+                    className={`chat-message${isVisitor ? ' visitor' : ' agent'}${m.sender_type === 'bot' ? ' bot' : ''}`}
                   >
                     <span className="chat-message-avatar">{initials(name, m.user_email)}</span>
                     <div className="chat-message-body">
                       <div className="chat-message-meta">
                         <span className="chat-message-name">{name}</span>
+                        {m.sender_type === 'bot' && (
+                          <span className="chat-bot-badge mono">{t('conversation.botBadge')}</span>
+                        )}
                         <span className="chat-message-time mono muted" title={formatDateTime(m.created_at, locale)}>
                           {formatTimeAgo(m.created_at, locale)}
                         </span>
@@ -540,7 +602,7 @@ export default function ConversationClient({
         </div>
       </div>
 
-      <VisitorPanel conversation={conversation} onToggleStatus={toggleStatus} />
+      <VisitorPanel conversation={conversation} onToggleResolved={toggleResolved} />
     </div>
   );
 }

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { ChatWidgetRow } from '@/lib/db';
+import type { OfficeHoursConfig, OfficeHoursDay } from '@/lib/chat-data';
 
 export interface WidgetFormField {
   id: string;
@@ -40,6 +41,51 @@ function parseFields(initial: ChatWidgetRow | null | undefined): WidgetFormField
   }
 }
 
+function defaultDays(): OfficeHoursDay[] {
+  // Índice 0 = domingo … 6 = sábado (Date.getDay). Lun–vie 9–18 por defecto.
+  return Array.from({ length: 7 }, (_, i) => ({
+    enabled: i >= 1 && i <= 5,
+    start: '09:00',
+    end: '18:00',
+  }));
+}
+
+function guessTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+function parseOfficeHours(initial: ChatWidgetRow | null | undefined): {
+  enabled: boolean;
+  timezone: string;
+  days: OfficeHoursDay[];
+} {
+  const fallback = { enabled: false, timezone: guessTimezone(), days: defaultDays() };
+  if (!initial?.office_hours) return fallback;
+  try {
+    const parsed = JSON.parse(initial.office_hours) as Partial<OfficeHoursConfig>;
+    if (typeof parsed.timezone !== 'string' || !Array.isArray(parsed.days) || parsed.days.length !== 7) {
+      return fallback;
+    }
+    return {
+      enabled: true,
+      timezone: parsed.timezone,
+      days: parsed.days.map((d) => ({
+        enabled: d?.enabled === true,
+        start: typeof d?.start === 'string' ? d.start : '09:00',
+        end: typeof d?.end === 'string' ? d.end : '18:00',
+      })),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
 export default function WidgetForm({ initial }: WidgetFormProps) {
   const t = useTranslations('chat');
   const router = useRouter();
@@ -50,12 +96,26 @@ export default function WidgetForm({ initial }: WidgetFormProps) {
     color: initial?.color ?? '#000000',
     position: initial?.position ?? 'bottom-right',
     welcomeMessage: initial?.welcome_message ?? '',
+    botEnabled: initial?.bot_enabled === 1,
+    botGreeting: initial?.bot_greeting ?? '',
+    botSource: initial?.bot_source ?? 'canned',
   });
   const [fields, setFields] = useState<WidgetFormField[]>(parseFields(initial));
+  const [office, setOffice] = useState(parseOfficeHours(initial));
+
+  const timezones = useMemo(() => {
+    try {
+      return Intl.supportedValuesOf('timeZone');
+    } catch {
+      return ['UTC'];
+    }
+  }, []);
 
   function set<K extends keyof typeof values>(key: K) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      setValues((prev) => ({ ...prev, [key]: e.target.value }));
+      const value =
+        e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
+      setValues((prev) => ({ ...prev, [key]: value }));
     };
   }
 
@@ -71,6 +131,13 @@ export default function WidgetForm({ initial }: WidgetFormProps) {
     setFields((prev) => [...prev, emptyField()]);
   }
 
+  function updateDay(index: number, patch: Partial<OfficeHoursDay>) {
+    setOffice((prev) => ({
+      ...prev,
+      days: prev.days.map((d, i) => (i === index ? { ...d, ...patch } : d)),
+    }));
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -84,6 +151,12 @@ export default function WidgetForm({ initial }: WidgetFormProps) {
       fields: fields
         .filter((f) => f.name.trim())
         .map((f) => ({ id: f.id, name: f.name.trim(), required: f.required, type: f.type })),
+      botEnabled: values.botEnabled,
+      botGreeting: values.botGreeting.trim() || undefined,
+      botSource: values.botSource as 'canned' | 'docs',
+      officeHours: office.enabled
+        ? { timezone: office.timezone.trim() || 'UTC', days: office.days }
+        : null,
     };
 
     const url = initial ? `/api/chat/widgets/${initial.id}` : '/api/chat/widgets';
@@ -179,6 +252,104 @@ export default function WidgetForm({ initial }: WidgetFormProps) {
               </div>
             ))}
           </div>
+        )}
+      </section>
+
+      <section className="panel fields-panel">
+        <div className="panel-head">
+          <p className="section-label">{t('bot.title')}</p>
+          <label className="checkbox-field">
+            <input type="checkbox" checked={values.botEnabled} onChange={set('botEnabled')} />
+            <span>{t('bot.enabled')}</span>
+          </label>
+        </div>
+        {values.botEnabled ? (
+          <div className="chat-bot-config">
+            <label className="field">
+              <span className="prop-label">{t('bot.greeting')}</span>
+              <textarea
+                className="input textarea"
+                rows={2}
+                placeholder={t('bot.greetingPlaceholder')}
+                value={values.botGreeting}
+                onChange={set('botGreeting')}
+              />
+            </label>
+            <label className="field">
+              <span className="prop-label">{t('bot.source')}</span>
+              <select className="select" value={values.botSource} onChange={set('botSource')}>
+                <option value="canned">{t('bot.sourceCanned')}</option>
+                <option value="docs">{t('bot.sourceDocs')}</option>
+              </select>
+            </label>
+            <p className="muted chat-bot-hint">{t('bot.hint')}</p>
+          </div>
+        ) : (
+          <p className="muted">{t('bot.disabled')}</p>
+        )}
+      </section>
+
+      <section className="panel fields-panel">
+        <div className="panel-head">
+          <p className="section-label">{t('officeHours.title')}</p>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={office.enabled}
+              onChange={(e) => setOffice((prev) => ({ ...prev, enabled: e.target.checked }))}
+            />
+            <span>{t('officeHours.enabled')}</span>
+          </label>
+        </div>
+        {office.enabled ? (
+          <div className="chat-office-config">
+            <label className="field">
+              <span className="prop-label">{t('officeHours.timezone')}</span>
+              <input
+                className="input"
+                list="zs-timezones"
+                value={office.timezone}
+                onChange={(e) => setOffice((prev) => ({ ...prev, timezone: e.target.value }))}
+              />
+              <datalist id="zs-timezones">
+                {timezones.map((tz) => (
+                  <option key={tz} value={tz} />
+                ))}
+              </datalist>
+            </label>
+            <div className="chat-office-days">
+              {office.days.map((d, i) => (
+                <div key={i} className="chat-office-day">
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={d.enabled}
+                      onChange={(e) => updateDay(i, { enabled: e.target.checked })}
+                    />
+                    <span>{t(`widgetForm.days.${DAY_KEYS[i]}`)}</span>
+                  </label>
+                  <input
+                    type="time"
+                    className="input"
+                    value={d.start}
+                    disabled={!d.enabled}
+                    onChange={(e) => updateDay(i, { start: e.target.value })}
+                  />
+                  <span className="muted">–</span>
+                  <input
+                    type="time"
+                    className="input"
+                    value={d.end}
+                    disabled={!d.enabled}
+                    onChange={(e) => updateDay(i, { end: e.target.value })}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="muted chat-bot-hint">{t('officeHours.hint')}</p>
+          </div>
+        ) : (
+          <p className="muted">{t('officeHours.disabled')}</p>
         )}
       </section>
 

@@ -6,6 +6,8 @@ import {
   getChatWidget,
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
+  maybeRunChatBot,
+  updateChatConversation,
 } from '@/lib/chat-data';
 import { saveChatFile } from '@/lib/chat-upload';
 
@@ -45,6 +47,11 @@ export async function POST(req: Request) {
     conversation = await createChatConversation(widgetId, visitor.id);
   }
 
+  // Un mensaje del visitante despierta una conversación snoozed.
+  if (conversation.status === 'snoozed') {
+    conversation = (await updateChatConversation(conversation.id, { status: 'open' })) ?? conversation;
+  }
+
   const caption = typeof form.get('body') === 'string' ? (form.get('body') as string).trim() : '';
   const buffer = Buffer.from(await file.arrayBuffer());
   const filename = (file as File).name || 'upload';
@@ -64,5 +71,8 @@ export async function POST(req: Request) {
     ],
   });
 
-  return NextResponse.json({ message, conversation, visitor }, { status: 201 });
+  // Bot: responde al primer mensaje si nadie contestó todavía.
+  const botMessage = await maybeRunChatBot(widget, conversation, caption || filename);
+
+  return NextResponse.json({ message, conversation, visitor, bot: botMessage }, { status: 201 });
 }

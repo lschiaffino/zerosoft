@@ -4,9 +4,12 @@ import {
   createChatConversation,
   createChatMessage,
   getChatWidget,
+  getOfficeHoursState,
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
   listChatAgents,
+  maybeRunChatBot,
+  updateChatConversation,
 } from '@/lib/chat-data';
 import { createNotification } from '@/lib/notifications';
 
@@ -24,11 +27,12 @@ export async function GET(req: Request) {
   if (!widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   const result = await getVisitorConversationWithMessages(widgetId, visitorId);
+  const office = getOfficeHoursState(widget);
   if (!result) {
-    return NextResponse.json({ visitor: null, conversation: null, messages: [] });
+    return NextResponse.json({ visitor: null, conversation: null, messages: [], csat: null, office });
   }
 
-  return NextResponse.json(result);
+  return NextResponse.json({ ...result, office });
 }
 
 export async function POST(req: Request) {
@@ -64,6 +68,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
+  // Un mensaje del visitante despierta una conversación snoozed.
+  if (conversation.status === 'snoozed') {
+    conversation = (await updateChatConversation(conversation.id, { status: 'open' })) ?? conversation;
+  }
+
   const finalBody = messageBody || JSON.stringify(body.fields);
   const message = await createChatMessage(conversation.id, 'visitor', { body: finalBody });
 
@@ -73,6 +82,9 @@ export async function POST(req: Request) {
   if (assignedTo) {
     conversation = { ...conversation, assigned_to: assignedTo };
   }
+
+  // Bot: responde al primer mensaje si nadie contestó todavía.
+  const botMessage = await maybeRunChatBot(widget, conversation, finalBody);
 
   // Notify widget owner and assigned agent.
   const recipients = new Set<string>();
@@ -98,5 +110,5 @@ export async function POST(req: Request) {
     });
   }
 
-  return NextResponse.json({ message, conversation, visitor }, { status: 201 });
+  return NextResponse.json({ message, conversation, visitor, bot: botMessage }, { status: 201 });
 }

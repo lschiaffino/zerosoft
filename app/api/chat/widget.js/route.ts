@@ -123,6 +123,32 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
 
   var messages = dom('div', { style: 'flex:1;overflow-y:auto;padding:16px;background:#f8f8f8;' });
 
+  var awayBanner = dom('div', {
+    style:
+      'display:none;padding:10px 16px;background:#f5f5f5;color:#444;font-size:12px;border-bottom:1px solid rgba(0,0,0,0.06);',
+  });
+
+  var csatWrap = dom('div', {
+    style: 'display:none;padding:14px 16px;background:#fff;border-top:1px solid rgba(0,0,0,0.06);',
+  });
+  var csatQuestion = dom('p', { style: 'margin:0 0 8px;font-size:13px;font-weight:600;color:#111;' }, ['How would you rate your experience?']);
+  var csatStars = dom('div', { style: 'display:flex;gap:4px;margin-bottom:8px;' });
+  var csatComment = dom('textarea', {
+    placeholder: 'Anything to add? (optional)',
+    rows: '2',
+    style:
+      'width:100%;box-sizing:border-box;border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:6px 8px;font-size:12px;margin-bottom:8px;resize:none;font-family:inherit;',
+  });
+  var csatSend = dom('button', {
+    type: 'button',
+    style:
+      'background:' + COLOR + ';color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:500;opacity:0.4;',
+  }, ['Send feedback']);
+  csatWrap.appendChild(csatQuestion);
+  csatWrap.appendChild(csatStars);
+  csatWrap.appendChild(csatComment);
+  csatWrap.appendChild(csatSend);
+
   var typingIndicator = dom('div', {
     style:
       'display:none;align-items:center;gap:6px;padding:8px 16px;font-size:12px;color:#666;background:#fff;border-top:1px solid rgba(0,0,0,0.04);',
@@ -172,7 +198,9 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
 
   box.appendChild(header);
   box.appendChild(formWrap);
+  box.appendChild(awayBanner);
   box.appendChild(messages);
+  box.appendChild(csatWrap);
   box.appendChild(typingIndicator);
   box.appendChild(previewWrap);
   box.appendChild(inputWrap);
@@ -238,6 +266,111 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     appendMessage({ body: WELCOME, sender_type: 'agent' });
   }
 
+  function updateAway(office) {
+    if (!office || !office.enabled || office.open) {
+      awayBanner.style.display = 'none';
+      return;
+    }
+    var msg = "We're away right now.";
+    if (office.nextOpenAt) {
+      try {
+        msg +=
+          ' Back ' +
+          new Date(office.nextOpenAt).toLocaleString([], {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }) +
+          '.';
+      } catch (e) {}
+    }
+    awayBanner.textContent = msg;
+    awayBanner.style.display = 'block';
+  }
+
+  var csatScore = 0;
+  var csatConversationId = null;
+  var csatSubmitted = false;
+
+  function renderStars() {
+    csatStars.innerHTML = '';
+    for (var i = 1; i <= 5; i++) {
+      (function (n) {
+        var star = dom(
+          'button',
+          {
+            type: 'button',
+            'aria-label': n + ' stars',
+            style:
+              'background:none;border:none;cursor:pointer;font-size:20px;padding:0 2px;line-height:1;color:' +
+              (n <= csatScore ? COLOR : '#bbb') +
+              ';',
+          },
+          [n <= csatScore ? '★' : '☆'],
+        );
+        star.addEventListener('click', function () {
+          csatScore = n;
+          csatSend.style.opacity = '1';
+          renderStars();
+        });
+        csatStars.appendChild(star);
+      })(i);
+    }
+  }
+  renderStars();
+
+  function resetCsat(conversationId) {
+    csatConversationId = conversationId;
+    csatScore = 0;
+    csatSubmitted = false;
+    csatComment.value = '';
+    csatSend.style.opacity = '0.4';
+    csatQuestion.textContent = 'How would you rate your experience?';
+    csatStars.style.display = 'flex';
+    csatComment.style.display = 'block';
+    csatSend.style.display = 'inline-block';
+    renderStars();
+    csatWrap.style.display = 'block';
+  }
+
+  function updateCsat(csat) {
+    if (csatSubmitted) return;
+    if (!csat || !csat.conversationId) {
+      csatWrap.style.display = 'none';
+      csatConversationId = null;
+      return;
+    }
+    if (csat.conversationId !== csatConversationId) resetCsat(csat.conversationId);
+  }
+
+  csatSend.addEventListener('click', function () {
+    if (!csatScore || !csatConversationId) return;
+    api('/api/chat/csat', {
+      method: 'POST',
+      body: JSON.stringify({
+        widgetId: WIDGET_ID,
+        visitorId: visitorId,
+        conversationId: csatConversationId,
+        score: csatScore,
+        comment: csatComment.value.trim() || undefined,
+      }),
+    })
+      .then(function (r) {
+        return r.ok ? r.json() : null;
+      })
+      .then(function (data) {
+        if (!data) return;
+        csatSubmitted = true;
+        csatStars.style.display = 'none';
+        csatComment.style.display = 'none';
+        csatSend.style.display = 'none';
+        csatQuestion.textContent = 'Thanks for your feedback!';
+      })
+      .catch(function () {});
+  });
+
   function buildForm() {
     if (!FIELDS.length) return null;
     formWrap.innerHTML = '';
@@ -285,7 +418,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     api('/api/chat/messages?widgetId=' + encodeURIComponent(WIDGET_ID) + '&visitorId=' + encodeURIComponent(visitorId), { method: 'GET' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (!data || !data.visitor) return;
+        if (!data) return;
+        updateAway(data.office);
+        updateCsat(data.csat);
+        if (!data.visitor) return;
         conversationId = data.conversation ? data.conversation.id : null;
         messages.innerHTML = '';
         if (!conversationId) showWelcome();
@@ -306,6 +442,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data || !data.messages) return;
+        updateAway(data.office);
+        updateCsat(data.csat);
         var newMessages = data.messages;
         if (lastMessageId) {
           var seen = false;
@@ -370,6 +508,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         if (data.conversation) conversationId = data.conversation.id;
         appendMessage({ body: body, sender_type: 'visitor' });
         if (data.message && data.message.id) lastMessageId = data.message.id;
+        if (data.bot) {
+          appendMessage(data.bot);
+          if (data.bot.id) lastMessageId = data.bot.id;
+        }
       })
       .catch(function () {});
   }
@@ -392,6 +534,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         var attachments = Array.isArray(data.message.attachments) ? data.message.attachments : [];
         appendMessage({ body: data.message.body || '', sender_type: 'visitor', attachments: attachments });
         if (data.message && data.message.id) lastMessageId = data.message.id;
+        if (data.bot) {
+          appendMessage(data.bot);
+          if (data.bot.id) lastMessageId = data.bot.id;
+        }
       })
       .catch(function () {
         uploading = false;

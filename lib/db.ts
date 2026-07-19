@@ -87,6 +87,14 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE calendar_event_types ADD COLUMN used_at TEXT',
         'ALTER TABLE calendar_event_types ADD COLUMN rr_cursor INTEGER NOT NULL DEFAULT 0',
         'ALTER TABLE calendar_bookings ADD COLUMN host_user_id TEXT',
+        // Chat F4: bot, office hours, snooze y CSAT.
+        'ALTER TABLE chat_widgets ADD COLUMN bot_enabled INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE chat_widgets ADD COLUMN bot_greeting TEXT',
+        'ALTER TABLE chat_widgets ADD COLUMN bot_source TEXT NOT NULL DEFAULT \'canned\'',
+        'ALTER TABLE chat_widgets ADD COLUMN office_hours TEXT',
+        'ALTER TABLE chat_conversations ADD COLUMN snoozed_until TEXT',
+        'ALTER TABLE chat_conversations ADD COLUMN csat_score INTEGER',
+        'ALTER TABLE chat_conversations ADD COLUMN csat_comment TEXT',
       ]) {
         try {
           await client.execute(alter);
@@ -122,6 +130,110 @@ export function ensureMigrated(): Promise<void> {
           ALTER TABLE track_issue_views_new RENAME TO track_issue_views;
           CREATE INDEX IF NOT EXISTS idx_track_issue_views_project ON track_issue_views(project_id, user_id);
         `);
+      }
+      // Chat F4: los CHECK de status/priority/sender_type no admiten ALTER.
+      // Si la tabla existe con el CHECK viejo, se reconstruye (una sola vez;
+      // el DDL nuevo ya incluye los valores nuevos, así el guard es
+      // idempotente). foreign_keys se apaga durante el rebuild: con FK ON el
+      // DROP TABLE dispara un DELETE implícito que cascadearía a los hijos
+      // (chat_messages / chat_typing).
+      const chatTables = await client.execute(
+        "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name IN ('chat_conversations', 'chat_messages', 'chat_sla_policies')",
+      );
+      const chatSql = new Map(
+        chatTables.rows.map((r) => [String(r.name), String(r.sql ?? '')]),
+      );
+      const needsConversations = (chatSql.get('chat_conversations') ?? '') !== '' && !chatSql.get('chat_conversations')!.includes("'pending'");
+      const needsMessages = (chatSql.get('chat_messages') ?? '') !== '' && !chatSql.get('chat_messages')!.includes("'bot'");
+      const needsSla = (chatSql.get('chat_sla_policies') ?? '') !== '' && !chatSql.get('chat_sla_policies')!.includes("'medium'");
+      if (needsConversations || needsMessages || needsSla) {
+        try {
+          await client.execute('PRAGMA foreign_keys = OFF');
+        } catch {
+          /* remoto puede no soportarlo */
+        }
+        try {
+          if (needsConversations) {
+            await client.executeMultiple(`
+              CREATE TABLE chat_conversations_new (
+                id TEXT PRIMARY KEY,
+                widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+                visitor_id TEXT NOT NULL REFERENCES chat_visitors(id) ON DELETE CASCADE,
+                status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'pending', 'resolved', 'snoozed')),
+                assigned_to TEXT REFERENCES users(id) ON DELETE SET NULL,
+                priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+                subject TEXT,
+                first_response_at TEXT,
+                resolved_at TEXT,
+                sla_breach_at TEXT,
+                snoozed_until TEXT,
+                csat_score INTEGER,
+                csat_comment TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+              );
+              INSERT INTO chat_conversations_new (id, widget_id, visitor_id, status, assigned_to, priority, subject, first_response_at, resolved_at, sla_breach_at, snoozed_until, csat_score, csat_comment, created_at, updated_at)
+                SELECT id, widget_id, visitor_id,
+                  CASE WHEN status = 'closed' THEN 'resolved' ELSE status END,
+                  assigned_to,
+                  CASE WHEN priority = 'normal' THEN 'medium' ELSE priority END,
+                  subject, first_response_at, resolved_at, sla_breach_at, snoozed_until, csat_score, csat_comment, created_at, updated_at
+                FROM chat_conversations;
+              DROP TABLE chat_conversations;
+              ALTER TABLE chat_conversations_new RENAME TO chat_conversations;
+              CREATE INDEX IF NOT EXISTS idx_chat_conversations_widget ON chat_conversations(widget_id, status, updated_at DESC);
+              CREATE INDEX IF NOT EXISTS idx_chat_conversations_visitor ON chat_conversations(visitor_id);
+            `);
+          }
+          if (needsMessages) {
+            await client.executeMultiple(`
+              CREATE TABLE chat_messages_new (
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+                sender_type TEXT NOT NULL CHECK (sender_type IN ('visitor', 'user', 'system', 'bot')),
+                user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+                body TEXT NOT NULL,
+                attachments TEXT NOT NULL DEFAULT '[]',
+                read_at TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+              );
+              INSERT INTO chat_messages_new (id, conversation_id, sender_type, user_id, body, attachments, read_at, created_at)
+                SELECT id, conversation_id, sender_type, user_id, body, attachments, read_at, created_at FROM chat_messages;
+              DROP TABLE chat_messages;
+              ALTER TABLE chat_messages_new RENAME TO chat_messages;
+              CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(conversation_id, created_at ASC);
+            `);
+          }
+          if (needsSla) {
+            await client.executeMultiple(`
+              CREATE TABLE chat_sla_policies_new (
+                id TEXT PRIMARY KEY,
+                widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                first_response_minutes INTEGER NOT NULL DEFAULT 60,
+                resolution_minutes INTEGER,
+                priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+              );
+              INSERT INTO chat_sla_policies_new (id, widget_id, name, first_response_minutes, resolution_minutes, priority, active, created_at, updated_at)
+                SELECT id, widget_id, name, first_response_minutes, resolution_minutes,
+                  CASE WHEN priority = 'normal' THEN 'medium' ELSE priority END,
+                  active, created_at, updated_at
+                FROM chat_sla_policies;
+              DROP TABLE chat_sla_policies;
+              ALTER TABLE chat_sla_policies_new RENAME TO chat_sla_policies;
+              CREATE INDEX IF NOT EXISTS idx_chat_sla_widget ON chat_sla_policies(widget_id, priority, active);
+            `);
+          }
+        } finally {
+          try {
+            await client.execute('PRAGMA foreign_keys = ON');
+          } catch {
+            /* remoto puede no soportarlo */
+          }
+        }
       }
     })();
     _migratePromise = p;
@@ -862,6 +974,10 @@ const DDL = `
       position TEXT NOT NULL DEFAULT 'bottom-right' CHECK (position IN ('bottom-right', 'bottom-left')),
       welcome_message TEXT,
       fields TEXT NOT NULL DEFAULT '[]',
+      bot_enabled INTEGER NOT NULL DEFAULT 0,
+      bot_greeting TEXT,
+      bot_source TEXT NOT NULL DEFAULT 'canned' CHECK (bot_source IN ('canned', 'docs')),
+      office_hours TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -886,13 +1002,16 @@ const DDL = `
       id TEXT PRIMARY KEY,
       widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
       visitor_id TEXT NOT NULL REFERENCES chat_visitors(id) ON DELETE CASCADE,
-      status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed', 'snoozed')),
+      status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'pending', 'resolved', 'snoozed')),
       assigned_to TEXT REFERENCES users(id) ON DELETE SET NULL,
-      priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+      priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
       subject TEXT,
       first_response_at TEXT,
       resolved_at TEXT,
       sla_breach_at TEXT,
+      snoozed_until TEXT,
+      csat_score INTEGER,
+      csat_comment TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -902,7 +1021,7 @@ const DDL = `
     CREATE TABLE IF NOT EXISTS chat_messages (
       id TEXT PRIMARY KEY,
       conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
-      sender_type TEXT NOT NULL CHECK (sender_type IN ('visitor', 'user', 'system')),
+      sender_type TEXT NOT NULL CHECK (sender_type IN ('visitor', 'user', 'system', 'bot')),
       user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       body TEXT NOT NULL,
       attachments TEXT NOT NULL DEFAULT '[]',
@@ -941,7 +1060,7 @@ const DDL = `
       name TEXT NOT NULL,
       first_response_minutes INTEGER NOT NULL DEFAULT 60,
       resolution_minutes INTEGER,
-      priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+      priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -1578,6 +1697,10 @@ export interface ChatWidgetRow {
   position: 'bottom-right' | 'bottom-left';
   welcome_message: string | null;
   fields: string; // JSON ChatFieldDef[]
+  bot_enabled: 0 | 1;
+  bot_greeting: string | null;
+  bot_source: 'canned' | 'docs';
+  office_hours: string | null; // JSON OfficeHoursConfig
   created_at: string;
   updated_at: string;
 }
@@ -1597,13 +1720,16 @@ export interface ChatConversationRow {
   id: string;
   widget_id: string;
   visitor_id: string;
-  status: 'open' | 'closed' | 'snoozed';
+  status: 'open' | 'pending' | 'resolved' | 'snoozed';
   assigned_to: string | null;
-  priority: 'low' | 'normal' | 'high' | 'urgent';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
   subject: string | null;
   first_response_at: string | null;
   resolved_at: string | null;
   sla_breach_at: string | null;
+  snoozed_until: string | null;
+  csat_score: number | null;
+  csat_comment: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1611,7 +1737,7 @@ export interface ChatConversationRow {
 export interface ChatMessageRow {
   id: string;
   conversation_id: string;
-  sender_type: 'visitor' | 'user' | 'system';
+  sender_type: 'visitor' | 'user' | 'system' | 'bot';
   user_id: string | null;
   body: string;
   attachments: string; // JSON ChatAttachment[]
@@ -1646,7 +1772,7 @@ export interface ChatSlaPolicyRow {
   name: string;
   first_response_minutes: number;
   resolution_minutes: number | null;
-  priority: 'low' | 'normal' | 'high' | 'urgent';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
   active: 0 | 1;
   created_at: string;
   updated_at: string;

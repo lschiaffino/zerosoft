@@ -287,7 +287,51 @@
 
 .chat-status-open { background: rgba(0, 0, 0, 0.1); }
 .chat-status-closed { background: rgba(0, 0, 0, 0.04); color: #666; }
+.chat-status-pending { background: rgba(0, 0, 0, 0.06); color: #444; }
+.chat-status-resolved { background: rgba(0, 0, 0, 0.04); color: #666; }
 .chat-status-snoozed { background: rgba(0, 0, 0, 0.04); color: #a36a00; }
+
+.chat-priority-high,
+.chat-priority-urgent {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.chat-priority-urgent {
+  background: var(--ink);
+  color: var(--bg);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.chat-row-snoozed {
+  font-size: 11px;
+}
+
+.chat-assignee-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
+  font-size: 8px;
+  font-weight: 600;
+  margin-right: 4px;
+  vertical-align: -3px;
+}
+
+.chat-bot-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--dim);
+}
 
 .chat-subject {
   flex: 1;
@@ -1394,4 +1438,48 @@
     align-items: flex-start;
     gap: 0.5rem;
   }
+}
+
+/* ---------- Bot & office hours config ---------- */
+
+.chat-bot-config,
+.chat-office-config {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chat-bot-hint {
+  font-size: 12px;
+  max-width: 60ch;
+}
+
+.chat-office-days {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.chat-office-day {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-office-day .checkbox-field {
+  min-width: 90px;
+}
+
+.chat-office-day input[type='time'] {
+  width: auto;
+  padding: 4px 8px;
+}
+
+.chat-office-day input[type='time']:disabled {
+  opacity: 0.4;
+}
+
+.chat-settings-note {
+  padding: 0 1rem 1rem;
+  font-size: 12px;
 }

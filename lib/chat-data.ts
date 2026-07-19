@@ -40,6 +40,13 @@ function inClause(count: number): string {
   return `(${Array.from({ length: count }, () => '?').join(', ')})`;
 }
 
+// Timestamps: la app escribe ISO 8601 ('T'), pero filas viejas pueden venir del
+// default SQLite datetime('now') ('YYYY-MM-DD HH:MM:SS', UTC). Normaliza ambos.
+function parseTs(ts: string): number {
+  const iso = ts.includes('T') ? ts : ts.replace(' ', 'T') + 'Z';
+  return new Date(iso).getTime();
+}
+
 // ---------- Widgets ----------
 
 export interface ChatFieldDef {
@@ -49,12 +56,28 @@ export interface ChatFieldDef {
   type: 'text' | 'email' | 'number';
 }
 
+// Office hours: days[i] con i = Date.getDay() (0 = domingo … 6 = sábado).
+export interface OfficeHoursDay {
+  enabled: boolean;
+  start: string; // 'HH:MM'
+  end: string; // 'HH:MM'
+}
+
+export interface OfficeHoursConfig {
+  timezone: string; // IANA, ej. 'America/Argentina/Buenos_Aires'
+  days: OfficeHoursDay[];
+}
+
 export interface WidgetCreatePayload {
   name: string;
   color?: string;
   position?: 'bottom-right' | 'bottom-left';
   welcomeMessage?: string;
   fields?: ChatFieldDef[];
+  botEnabled?: boolean;
+  botGreeting?: string;
+  botSource?: 'canned' | 'docs';
+  officeHours?: OfficeHoursConfig | null;
 }
 
 export interface WidgetUpdatePayload {
@@ -63,6 +86,10 @@ export interface WidgetUpdatePayload {
   position?: 'bottom-right' | 'bottom-left';
   welcomeMessage?: string;
   fields?: ChatFieldDef[];
+  botEnabled?: boolean;
+  botGreeting?: string;
+  botSource?: 'canned' | 'docs';
+  officeHours?: OfficeHoursConfig | null;
 }
 
 export async function listChatWidgets(
@@ -96,7 +123,7 @@ export async function createChatWidget(
   const now = nowIso();
   await db
     .prepare(
-      'INSERT INTO chat_widgets (id, team_id, user_id, name, color, position, welcome_message, fields, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO chat_widgets (id, team_id, user_id, name, color, position, welcome_message, fields, bot_enabled, bot_greeting, bot_source, office_hours, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
@@ -107,6 +134,10 @@ export async function createChatWidget(
       payload.position ?? 'bottom-right',
       payload.welcomeMessage?.trim() ?? null,
       jsonStringify(payload.fields),
+      payload.botEnabled ? 1 : 0,
+      payload.botGreeting?.trim() ?? null,
+      payload.botSource ?? 'canned',
+      payload.officeHours ? JSON.stringify(payload.officeHours) : null,
       now,
       now,
     );
@@ -144,6 +175,22 @@ export async function updateChatWidget(
     fields.push('fields = ?');
     args.push(jsonStringify(payload.fields));
   }
+  if (payload.botEnabled !== undefined) {
+    fields.push('bot_enabled = ?');
+    args.push(payload.botEnabled ? 1 : 0);
+  }
+  if (payload.botGreeting !== undefined) {
+    fields.push('bot_greeting = ?');
+    args.push(payload.botGreeting.trim() || null);
+  }
+  if (payload.botSource !== undefined) {
+    fields.push('bot_source = ?');
+    args.push(payload.botSource);
+  }
+  if (payload.officeHours !== undefined) {
+    fields.push('office_hours = ?');
+    args.push(payload.officeHours ? JSON.stringify(payload.officeHours) : null);
+  }
 
   if (fields.length > 0) {
     fields.push('updated_at = ?');
@@ -158,6 +205,153 @@ export async function updateChatWidget(
 export async function deleteChatWidget(id: string): Promise<boolean> {
   const res = await getDb().prepare('DELETE FROM chat_widgets WHERE id = ?').run(id);
   return res.changes > 0;
+}
+
+// ---------- Office hours ----------
+
+export function parseOfficeHours(raw: string | null): OfficeHoursConfig | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<OfficeHoursConfig> | null;
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (typeof parsed.timezone !== 'string' || !parsed.timezone) return null;
+    if (!Array.isArray(parsed.days) || parsed.days.length !== 7) return null;
+    const days = parsed.days.map((d) => ({
+      enabled: d?.enabled === true,
+      start: typeof d?.start === 'string' ? d.start : '09:00',
+      end: typeof d?.end === 'string' ? d.end : '18:00',
+    }));
+    return { timezone: parsed.timezone, days };
+  } catch {
+    return null;
+  }
+}
+
+function timeToMinutes(s: string): number | null {
+  const m = s.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+interface LocalParts {
+  y: number;
+  m: number;
+  d: number;
+  day: number; // 0 = domingo
+  minutes: number;
+}
+
+// Componentes de fecha/hora locales en una zona IANA. null si la zona es inválida.
+function localParts(timeZone: string, date: Date): LocalParts | null {
+  try {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const map: Record<string, string> = {};
+    for (const p of dtf.formatToParts(date)) {
+      if (p.type !== 'literal') map[p.type] = p.value;
+    }
+    const day = WEEKDAYS.indexOf(map.weekday ?? '');
+    if (day < 0) return null;
+    const hour = Number(map.hour) % 24;
+    return {
+      y: Number(map.year),
+      m: Number(map.month),
+      d: Number(map.day),
+      day,
+      minutes: hour * 60 + Number(map.minute),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Offset (ms) de la zona respecto a UTC en un instante dado. null si zona inválida.
+function tzOffsetMs(timeZone: string, date: Date): number | null {
+  const parts = localParts(timeZone, date);
+  if (!parts) return null;
+  const asUtc = Date.UTC(parts.y, parts.m - 1, parts.d, Math.floor(parts.minutes / 60), parts.minutes % 60);
+  return asUtc - date.getTime();
+}
+
+export function isWithinOfficeHours(config: OfficeHoursConfig, now = new Date()): boolean {
+  const local = localParts(config.timezone, now);
+  if (!local) return true; // zona inválida: no bloquear al visitante
+  const day = config.days[local.day];
+  if (!day?.enabled) return false;
+  const start = timeToMinutes(day.start);
+  const end = timeToMinutes(day.end);
+  if (start == null || end == null) return true;
+  if (start <= end) return local.minutes >= start && local.minutes < end;
+  return local.minutes >= start || local.minutes < end; // rango que cruza medianoche
+}
+
+// Próximo instante UTC de apertura (busca hasta 8 días adelante). null si no hay.
+export function nextOfficeOpen(config: OfficeHoursConfig, now = new Date()): Date | null {
+  const local = localParts(config.timezone, now);
+  if (!local) return null;
+  for (let ahead = 0; ahead <= 8; ahead++) {
+    // Aritmética de días sobre la FECHA LOCAL en espacio UTC.
+    const date = new Date(Date.UTC(local.y, local.m - 1, local.d + ahead));
+    const cfg = config.days[date.getUTCDay()];
+    if (!cfg?.enabled) continue;
+    const start = timeToMinutes(cfg.start);
+    if (start == null) continue;
+    if (ahead === 0 && local.minutes >= start) continue; // hoy ya abrió
+    let guess = Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      Math.floor(start / 60),
+      start % 60,
+    );
+    const off1 = tzOffsetMs(config.timezone, new Date(guess));
+    if (off1 == null) return null;
+    guess -= off1;
+    // Segunda pasada por si el offset cambia entre la estimación y el instante (DST).
+    const off2 = tzOffsetMs(config.timezone, new Date(guess));
+    if (off2 != null && off2 !== off1) {
+      guess =
+        Date.UTC(
+          date.getUTCFullYear(),
+          date.getUTCMonth(),
+          date.getUTCDate(),
+          Math.floor(start / 60),
+          start % 60,
+        ) - off2;
+    }
+    const openAt = new Date(guess);
+    if (openAt.getTime() > now.getTime()) return openAt;
+  }
+  return null;
+}
+
+export interface OfficeHoursState {
+  enabled: boolean;
+  open: boolean;
+  nextOpenAt: string | null;
+}
+
+export function getOfficeHoursState(widget: ChatWidgetRow, now = new Date()): OfficeHoursState {
+  const config = parseOfficeHours(widget.office_hours);
+  if (!config || !config.days.some((d) => d.enabled)) {
+    return { enabled: false, open: true, nextOpenAt: null };
+  }
+  const open = isWithinOfficeHours(config, now);
+  return {
+    enabled: true,
+    open,
+    nextOpenAt: open ? null : (nextOfficeOpen(config, now)?.toISOString() ?? null),
+  };
 }
 
 // ---------- Visitors ----------
@@ -392,13 +586,88 @@ export interface ConversationListOptions {
 }
 
 export interface ConversationUpdatePayload {
-  status?: 'open' | 'closed' | 'snoozed';
+  status?: 'open' | 'pending' | 'resolved' | 'snoozed';
   assignedTo?: string | null;
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
   subject?: string;
+  snoozedUntil?: string | null;
 }
 
-export interface ChatConversationListRow extends ChatConversationRow {
+// ---------- SLA (campos computados) ----------
+
+export type SlaBreachKind = 'first_response' | 'resolution';
+
+export interface SlaComputedFields {
+  sla_breached: 0 | 1;
+  sla_breach_kind: SlaBreachKind | null;
+  sla_due_in_minutes: number | null;
+}
+
+type SlaInput = Pick<
+  ChatConversationRow,
+  'widget_id' | 'priority' | 'created_at' | 'first_response_at' | 'resolved_at'
+>;
+
+async function loadActiveSlaPolicies(widgetIds: string[]): Promise<Map<string, ChatSlaPolicyRow>> {
+  if (widgetIds.length === 0) return new Map();
+  const rows = (await getDb()
+    .prepare(
+      `SELECT * FROM chat_sla_policies WHERE widget_id IN ${inClause(widgetIds.length)} AND active = 1`,
+    )
+    .all(...widgetIds)) as ChatSlaPolicyRow[];
+  return new Map(rows.map((r) => [`${r.widget_id}:${r.priority}`, r]));
+}
+
+// Badge de SLA derivado de la policy activa del widget+priority
+// (default: primera respuesta en 60 min, sin resolution SLA).
+export function computeSlaFields(
+  c: SlaInput,
+  policies: Map<string, ChatSlaPolicyRow>,
+  now = new Date(),
+): SlaComputedFields {
+  const policy = policies.get(`${c.widget_id}:${c.priority}`);
+  const firstMinutes = policy?.first_response_minutes ?? 60;
+  const resolutionMinutes = policy?.resolution_minutes ?? null;
+  const created = parseTs(c.created_at);
+  const firstDue = created + firstMinutes * 60_000;
+  const resDue = resolutionMinutes != null ? created + resolutionMinutes * 60_000 : null;
+  const nowMs = now.getTime();
+
+  if (c.resolved_at) {
+    const resolvedMs = parseTs(c.resolved_at);
+    if (resDue != null && resolvedMs > resDue) {
+      return { sla_breached: 1, sla_breach_kind: 'resolution', sla_due_in_minutes: null };
+    }
+    return { sla_breached: 0, sla_breach_kind: null, sla_due_in_minutes: null };
+  }
+  if (!c.first_response_at && nowMs > firstDue) {
+    return { sla_breached: 1, sla_breach_kind: 'first_response', sla_due_in_minutes: null };
+  }
+  if (resDue != null && nowMs > resDue) {
+    return { sla_breached: 1, sla_breach_kind: 'resolution', sla_due_in_minutes: null };
+  }
+  const dueIn = !c.first_response_at
+    ? Math.max(0, Math.ceil((firstDue - nowMs) / 60_000))
+    : resDue != null
+      ? Math.max(0, Math.ceil((resDue - nowMs) / 60_000))
+      : null;
+  return { sla_breached: 0, sla_breach_kind: null, sla_due_in_minutes: dueIn };
+}
+
+// Reabre conversaciones cuyo snooze ya venció (lazy un-snooze al listar).
+export async function reopenExpiredSnoozes(widgetIds: string[]): Promise<void> {
+  if (widgetIds.length === 0) return;
+  await getDb()
+    .prepare(
+      `UPDATE chat_conversations
+       SET status = 'open', snoozed_until = NULL, updated_at = ?
+       WHERE status = 'snoozed' AND snoozed_until IS NOT NULL AND snoozed_until <= ?
+         AND widget_id IN ${inClause(widgetIds.length)}`,
+    )
+    .run(nowIso(), nowIso(), ...widgetIds);
+}
+
+export interface ChatConversationListRow extends ChatConversationRow, SlaComputedFields {
   visitor_email: string | null;
   visitor_name: string | null;
   visitor_external_id: string;
@@ -407,7 +676,7 @@ export interface ChatConversationListRow extends ChatConversationRow {
   assigned_email: string | null;
 }
 
-export interface ChatConversationWithVisitor extends ChatConversationRow {
+export interface ChatConversationWithVisitor extends ChatConversationRow, SlaComputedFields {
   visitor: ChatVisitorRow;
   widget_name: string;
   widget_user_id: string;
@@ -425,6 +694,7 @@ export async function listChatConversations(
 ): Promise<ChatConversationListRow[]> {
   if (widgetIds.length === 0) return [];
   const db = getDb();
+  await reopenExpiredSnoozes(widgetIds);
   const where: string[] = [`c.widget_id IN ${inClause(widgetIds.length)}`];
   const args: Array<string | number> = [...widgetIds];
 
@@ -463,9 +733,13 @@ export async function listChatConversations(
        ORDER BY c.updated_at DESC
        LIMIT ? OFFSET ?`,
     )
-    .all(...args, limit, offset)) as ChatConversationListRow[];
+    .all(...args, limit, offset)) as Array<
+    Omit<ChatConversationListRow, keyof SlaComputedFields>
+  >;
 
-  return rows;
+  const policies = await loadActiveSlaPolicies(widgetIds);
+  const now = new Date();
+  return rows.map((row) => ({ ...row, ...computeSlaFields(row, policies, now) }));
 }
 
 export async function countChatConversations(
@@ -518,6 +792,8 @@ export async function getChatConversationWithVisitor(
     .prepare(
       `SELECT
         c.id, c.widget_id, c.visitor_id, c.status, c.assigned_to, c.priority, c.subject,
+        c.first_response_at, c.resolved_at, c.sla_breach_at, c.snoozed_until,
+        c.csat_score, c.csat_comment,
         c.created_at, c.updated_at,
         v.id AS v_id, v.widget_id AS v_widget_id, v.external_id AS v_external_id,
         v.email AS v_email, v.name AS v_name, v.notes AS v_notes, v.metadata AS v_metadata,
@@ -576,6 +852,18 @@ export async function getChatConversationWithVisitor(
       }
     : null;
 
+  const policies = await loadActiveSlaPolicies([row.widget_id as string]);
+  const sla = computeSlaFields(
+    {
+      widget_id: row.widget_id as string,
+      priority: row.priority as ChatConversationRow['priority'],
+      created_at: row.created_at as string,
+      first_response_at: (row.first_response_at as string | null) ?? null,
+      resolved_at: (row.resolved_at as string | null) ?? null,
+    },
+    policies,
+  );
+
   return {
     id: row.id as string,
     widget_id: row.widget_id as string,
@@ -587,8 +875,12 @@ export async function getChatConversationWithVisitor(
     first_response_at: (row.first_response_at as string | null) ?? null,
     resolved_at: (row.resolved_at as string | null) ?? null,
     sla_breach_at: (row.sla_breach_at as string | null) ?? null,
+    snoozed_until: (row.snoozed_until as string | null) ?? null,
+    csat_score: (row.csat_score as number | null) ?? null,
+    csat_comment: (row.csat_comment as string | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
+    ...sla,
     visitor,
     widget_name: row.widget_name as string,
     widget_user_id: row.widget_user_id as string,
@@ -605,11 +897,13 @@ export async function getOpenConversationByVisitor(
   widgetId: string,
   visitorId: string,
 ): Promise<ChatConversationRow | undefined> {
+  // open/pending/snoozed siguen siendo la "misma" conversación para el
+  // visitante; resolved cierra y la próxima conversación es nueva.
   return (await getDb()
     .prepare(
-      'SELECT * FROM chat_conversations WHERE widget_id = ? AND visitor_id = ? AND status = ? ORDER BY created_at DESC LIMIT 1',
+      "SELECT * FROM chat_conversations WHERE widget_id = ? AND visitor_id = ? AND status IN ('open', 'pending', 'snoozed') ORDER BY created_at DESC LIMIT 1",
     )
-    .get(widgetId, visitorId, 'open')) as ChatConversationRow | undefined;
+    .get(widgetId, visitorId)) as ChatConversationRow | undefined;
 }
 
 export async function createChatConversation(
@@ -624,7 +918,7 @@ export async function createChatConversation(
     .prepare(
       'INSERT INTO chat_conversations (id, widget_id, visitor_id, status, priority, subject, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     )
-    .run(id, widgetId, visitorId, 'open', 'normal', subject?.trim() ?? null, now, now);
+    .run(id, widgetId, visitorId, 'open', 'medium', subject?.trim() ?? null, now, now);
   return (await db.prepare('SELECT * FROM chat_conversations WHERE id = ?').get(id)) as ChatConversationRow;
 }
 
@@ -642,6 +936,21 @@ export async function updateChatConversation(
   if (payload.status !== undefined) {
     fields.push('status = ?');
     args.push(payload.status);
+    if (payload.status === 'resolved') {
+      // Conserva el resolved_at original si se re-resuelve.
+      fields.push("resolved_at = COALESCE(resolved_at, ?)");
+      args.push(nowIso());
+      fields.push('snoozed_until = NULL');
+    } else if (payload.status === 'snoozed') {
+      const until =
+        payload.snoozedUntil ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      fields.push('snoozed_until = ?');
+      args.push(until);
+      fields.push('resolved_at = NULL');
+    } else {
+      fields.push('snoozed_until = NULL');
+      fields.push('resolved_at = NULL');
+    }
   }
   if (payload.assignedTo !== undefined) {
     fields.push('assigned_to = ?');
@@ -859,6 +1168,11 @@ export async function applyAssignmentRules(
   teamMembers: ChatAgent[],
 ): Promise<string | null> {
   const db = getDb();
+  // No pisar una asignación existente (manual o previa): las reglas solo
+  // auto-asignan conversaciones sin dueño.
+  const current = await getChatConversation(conversationId);
+  if (current?.assigned_to) return current.assigned_to;
+
   const rules = await listAssignmentRules(widgetId);
   const activeRules = rules.filter((r) => r.active === 1);
 
@@ -1066,6 +1380,132 @@ export async function deleteCannedResponse(id: string): Promise<boolean> {
   return res.changes > 0;
 }
 
+// ---------- Bot (Chatbase-lite) ----------
+
+/**
+ * Bot por keyword matching. Heurística:
+ * - Se tokeniza el mensaje del visitante (minúsculas, alfanumérico, ≥3
+ *   caracteres, tokens únicos).
+ * - Cada candidato (canned response o página de docs) suma 2 puntos por
+ *   token presente en su título/shortcut y 1 punto por token en su cuerpo.
+ * - Gana el candidato con mayor score (>0). Sin match, se manda solo el
+ *   greeting (si está configurado); sin greeting ni match, el bot calla.
+ * - Solo responde una vez por conversación: si ya contestó un humano o el
+ *   bot, no vuelve a hablar.
+ * No hay llamadas a AI externas: todo es matching local.
+ */
+export interface BotReply {
+  body: string;
+  matchedTitle: string | null;
+}
+
+function tokenize(text: string): string[] {
+  const tokens = text
+    .toLowerCase()
+    .split(/[^a-z0-9áéíóúñü]+/i)
+    .filter((w) => w.length >= 3);
+  return [...new Set(tokens)];
+}
+
+function scoreCandidate(tokens: string[], title: string, body: string): number {
+  const hayTitle = title.toLowerCase();
+  const hayBody = body.toLowerCase();
+  let score = 0;
+  for (const token of tokens) {
+    if (hayTitle.includes(token)) score += 2;
+    else if (hayBody.includes(token)) score += 1;
+  }
+  return score;
+}
+
+// Extrae texto plano de docs_pages.content (JSON DocsBlock[]) de forma tolerante.
+function extractDocsText(content: string): string {
+  try {
+    const parsed = JSON.parse(content) as unknown;
+    const texts: string[] = [];
+    const walk = (value: unknown): void => {
+      if (texts.join(' ').length > 2000) return;
+      if (typeof value === 'string') {
+        texts.push(value);
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach(walk);
+        return;
+      }
+      if (value && typeof value === 'object') {
+        for (const [key, val] of Object.entries(value)) {
+          if (key === 'text' || key === 'content' || key === 'children') walk(val);
+        }
+      }
+    };
+    walk(parsed);
+    return texts.join(' ').replace(/\s+/g, ' ').trim();
+  } catch {
+    return content.slice(0, 2000);
+  }
+}
+
+export async function findBotReply(
+  widget: ChatWidgetRow,
+  messageBody: string,
+): Promise<BotReply | null> {
+  if (widget.bot_enabled !== 1) return null;
+  const greeting = widget.bot_greeting?.trim() || null;
+  const tokens = tokenize(messageBody);
+  let best: { score: number; text: string; title: string } | null = null;
+
+  if (widget.bot_source === 'docs') {
+    const pages = (await getDb()
+      .prepare(
+        'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT 100',
+      )
+      .all(widget.user_id)) as Array<{ title: string; content: string }>;
+    for (const page of pages) {
+      const text = extractDocsText(page.content);
+      const score = scoreCandidate(tokens, page.title, text);
+      if (score > 0 && (!best || score > best.score)) {
+        best = {
+          score,
+          text: `${page.title}: ${text.slice(0, 280)}`.trim(),
+          title: page.title,
+        };
+      }
+    }
+  } else {
+    const canned = await listCannedResponses(widget.id);
+    for (const response of canned) {
+      const score = scoreCandidate(tokens, `${response.shortcut} ${response.title}`, response.body);
+      if (score > 0 && (!best || score > best.score)) {
+        best = { score, text: response.body, title: response.title };
+      }
+    }
+  }
+
+  const parts: string[] = [];
+  if (greeting) parts.push(greeting);
+  if (best) parts.push(best.text);
+  if (parts.length === 0) return null;
+  return { body: parts.join('\n\n'), matchedTitle: best?.title ?? null };
+}
+
+export async function maybeRunChatBot(
+  widget: ChatWidgetRow,
+  conversation: ChatConversationRow,
+  messageBody: string,
+): Promise<ChatMessageRow | null> {
+  if (widget.bot_enabled !== 1) return null;
+  const replied = (await getDb()
+    .prepare(
+      "SELECT COUNT(*) AS c FROM chat_messages WHERE conversation_id = ? AND sender_type IN ('user', 'bot')",
+    )
+    .get(conversation.id)) as { c: number } | undefined;
+  if ((replied?.c ?? 0) > 0) return null;
+  const reply = await findBotReply(widget, messageBody);
+  if (!reply) return null;
+  return createChatMessage(conversation.id, 'bot', { body: reply.body });
+}
+
 // ---------- Messages ----------
 
 export type ChatAttachmentType = 'image' | 'audio' | 'file';
@@ -1120,7 +1560,7 @@ export async function listChatMessagesWithUsers(
 
 export async function createChatMessage(
   conversationId: string,
-  senderType: 'visitor' | 'user' | 'system',
+  senderType: 'visitor' | 'user' | 'system' | 'bot',
   payload: MessageCreatePayload,
 ): Promise<ChatMessageRow> {
   const db = getDb();
@@ -1149,14 +1589,24 @@ export async function markMessagesRead(
   readerType: 'visitor' | 'user',
 ): Promise<void> {
   const db = getDb();
-  const opposite = readerType === 'visitor' ? 'user' : 'visitor';
+  if (readerType === 'visitor') {
+    // El visitante marca como leídos los mensajes del agente y del bot.
+    await db
+      .prepare(
+        `UPDATE chat_messages
+         SET read_at = COALESCE(read_at, ?)
+         WHERE conversation_id = ? AND sender_type IN ('user', 'bot') AND read_at IS NULL`,
+      )
+      .run(nowIso(), conversationId);
+    return;
+  }
   await db
     .prepare(
       `UPDATE chat_messages
        SET read_at = COALESCE(read_at, ?)
-       WHERE conversation_id = ? AND sender_type = ? AND read_at IS NULL`,
+       WHERE conversation_id = ? AND sender_type = 'visitor' AND read_at IS NULL`,
     )
-    .run(nowIso(), conversationId, opposite);
+    .run(nowIso(), conversationId);
 }
 
 // ---------- Typing indicators ----------
@@ -1217,6 +1667,19 @@ export interface VisitorConversationWithMessages {
   visitor: ChatVisitorRow;
   conversation: ChatConversationRow | null;
   messages: ChatMessageRow[];
+  csat: { conversationId: string; score: number | null } | null;
+}
+
+// Última conversación resuelta del visitante que todavía no tiene CSAT.
+export async function getPendingCsatConversation(
+  widgetId: string,
+  visitorId: string,
+): Promise<ChatConversationRow | undefined> {
+  return (await getDb()
+    .prepare(
+      "SELECT * FROM chat_conversations WHERE widget_id = ? AND visitor_id = ? AND status = 'resolved' AND csat_score IS NULL ORDER BY resolved_at DESC LIMIT 1",
+    )
+    .get(widgetId, visitorId)) as ChatConversationRow | undefined;
 }
 
 export async function getVisitorConversationWithMessages(
@@ -1228,6 +1691,122 @@ export async function getVisitorConversationWithMessages(
 
   const conversation = await getOpenConversationByVisitor(widgetId, visitor.id);
   const messages = conversation ? await listChatMessages(conversation.id) : [];
+  const pendingCsat = await getPendingCsatConversation(widgetId, visitor.id);
 
-  return { visitor, conversation: conversation ?? null, messages };
+  return {
+    visitor,
+    conversation: conversation ?? null,
+    messages,
+    csat: pendingCsat ? { conversationId: pendingCsat.id, score: null } : null,
+  };
+}
+
+// ---------- CSAT ----------
+
+// Valida que la conversación pertenece al visitor+widget (ruta pública).
+export async function getConversationForCsat(
+  widgetId: string,
+  externalId: string,
+  conversationId: string,
+): Promise<ChatConversationRow | undefined> {
+  return (await getDb()
+    .prepare(
+      `SELECT c.* FROM chat_conversations c
+       JOIN chat_visitors v ON v.id = c.visitor_id
+       WHERE c.id = ? AND c.widget_id = ? AND v.external_id = ?`,
+    )
+    .get(conversationId, widgetId, externalId)) as ChatConversationRow | undefined;
+}
+
+export async function submitConversationCsat(
+  conversationId: string,
+  score: number,
+  comment?: string,
+): Promise<ChatConversationRow | undefined> {
+  const db = getDb();
+  // Solo la primera respuesta cuenta (idempotente ante doble submit).
+  await db
+    .prepare(
+      'UPDATE chat_conversations SET csat_score = ?, csat_comment = ?, updated_at = ? WHERE id = ? AND csat_score IS NULL',
+    )
+    .run(score, comment ?? null, nowIso(), conversationId);
+  return getChatConversation(conversationId);
+}
+
+// ---------- Report (settings) ----------
+
+export interface ChatReport {
+  avgFirstResponseMinutes: number | null;
+  firstResponseCount: number;
+  firstResponseWithinSlaPercent: number | null;
+  avgResolutionMinutes: number | null;
+  resolvedCount: number;
+  csatAverage: number | null;
+  csatCount: number;
+}
+
+export async function getChatReport(widgetIds: string[]): Promise<ChatReport> {
+  const empty: ChatReport = {
+    avgFirstResponseMinutes: null,
+    firstResponseCount: 0,
+    firstResponseWithinSlaPercent: null,
+    avgResolutionMinutes: null,
+    resolvedCount: 0,
+    csatAverage: null,
+    csatCount: 0,
+  };
+  if (widgetIds.length === 0) return empty;
+  const db = getDb();
+  const rows = (await db
+    .prepare(
+      `SELECT widget_id, priority, created_at, first_response_at, resolved_at, csat_score
+       FROM chat_conversations
+       WHERE widget_id IN ${inClause(widgetIds.length)}
+       ORDER BY created_at DESC
+       LIMIT 1000`,
+    )
+    .all(...widgetIds)) as Array<{
+    widget_id: string;
+    priority: ChatConversationRow['priority'];
+    created_at: string;
+    first_response_at: string | null;
+    resolved_at: string | null;
+    csat_score: number | null;
+  }>;
+
+  const policies = await loadActiveSlaPolicies(widgetIds);
+
+  const firstResponseMinutes: number[] = [];
+  let withinSla = 0;
+  const resolutionMinutes: number[] = [];
+  const csatScores: number[] = [];
+
+  for (const row of rows) {
+    const created = parseTs(row.created_at);
+    if (row.first_response_at) {
+      const mins = (parseTs(row.first_response_at) - created) / 60_000;
+      firstResponseMinutes.push(mins);
+      const policy = policies.get(`${row.widget_id}:${row.priority}`);
+      const allowed = policy?.first_response_minutes ?? 60;
+      if (mins <= allowed) withinSla += 1;
+    }
+    if (row.resolved_at) {
+      resolutionMinutes.push((parseTs(row.resolved_at) - created) / 60_000);
+    }
+    if (row.csat_score != null) csatScores.push(row.csat_score);
+  }
+
+  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+
+  return {
+    avgFirstResponseMinutes: avg(firstResponseMinutes),
+    firstResponseCount: firstResponseMinutes.length,
+    firstResponseWithinSlaPercent: firstResponseMinutes.length
+      ? Math.round((withinSla / firstResponseMinutes.length) * 100)
+      : null,
+    avgResolutionMinutes: avg(resolutionMinutes),
+    resolvedCount: resolutionMinutes.length,
+    csatAverage: avg(csatScores),
+    csatCount: csatScores.length,
+  };
 }

@@ -32,7 +32,16 @@
     "newTitle": "Nuevo widget",
     "newSub": "Configura cómo se ve el widget y qué pregunta.",
     "editTitle": "Editar widget",
-    "preview": "Vista previa"
+    "preview": "Vista previa",
+    "days": {
+      "sun": "Dom",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mié",
+      "thu": "Jue",
+      "fri": "Vie",
+      "sat": "Sáb"
+    }
   },
   "embed": {
     "title": "Código para embeber",
@@ -45,7 +54,9 @@
     "filters": {
       "all": "Todas",
       "open": "Abiertas",
-      "closed": "Cerradas",
+      "pending": "Pendientes",
+      "snoozed": "Pospuestas",
+      "resolved": "Resueltas",
       "unassigned": "Sin asignar",
       "mine": "Mías"
     },
@@ -55,13 +66,24 @@
   },
   "conversation": {
     "open": "Abierta",
-    "closed": "Cerrada",
+    "pending": "Pendiente",
     "snoozed": "Pospuesta",
+    "resolved": "Resuelta",
     "assigned": "Asignada",
     "unassigned": "Sin asignar",
     "assignedTo": "Asignada a",
     "subject": "Asunto",
     "priority": "Prioridad",
+    "statusLabel": "Estado",
+    "snoozeUntil": "Pospuesta hasta",
+    "snooze": {
+      "1h": "1 hora",
+      "4h": "4 horas",
+      "24h": "24 horas",
+      "3d": "3 días",
+      "7d": "1 semana"
+    },
+    "resolve": "Resolver",
     "close": "Cerrar",
     "reopen": "Reabrir",
     "reply": "Responder",
@@ -71,9 +93,11 @@
     "visitor": "Visitante",
     "you": "Tú",
     "system": "Sistema",
+    "bot": "Bot",
+    "botBadge": "BOT",
     "priorities": {
       "low": "Baja",
-      "normal": "Normal",
+      "medium": "Media",
       "high": "Alta",
       "urgent": "Urgente"
     }
@@ -85,11 +109,12 @@
     "firstSeen": "Visto primero",
     "widget": "Widget",
     "crmContact": "Contacto CRM",
-    "notes": "Notas"
+    "notes": "Notas",
+    "csat": "CSAT"
   },
   "priorities": {
     "low": "Baja",
-    "normal": "Normal",
+    "medium": "Media",
     "high": "Alta",
     "urgent": "Urgente"
   },
@@ -123,8 +148,42 @@
     "firstResponse": "Primera respuesta",
     "resolution": "Resolución",
     "breached": "Incumplido",
+    "breachedFirst": "SLA de 1ª respuesta",
+    "breachedResolution": "SLA de resolución",
     "dueIn": "Responder en {{minutes}}m",
     "resolved": "Resuelto"
+  },
+  "settings": {
+    "title": "Ajustes de chat",
+    "subtitle": "SLA y satisfacción de todos los widgets.",
+    "avgFirstResponse": "Primera respuesta prom.",
+    "withinSla": "Dentro del SLA de 1ª respuesta",
+    "avgResolution": "Resolución prom.",
+    "resolvedCount": "Conversaciones resueltas"
+  },
+  "csat": {
+    "title": "CSAT",
+    "average": "Score promedio",
+    "responses": "Respuestas",
+    "note": "Se le pide al visitante una calificación (1–5) al resolver una conversación."
+  },
+  "bot": {
+    "title": "Bot de AI",
+    "enabled": "Bot activado",
+    "disabled": "El bot está apagado. Los visitantes solo hablan con humanos.",
+    "greeting": "Saludo",
+    "greetingPlaceholder": "¡Hola! Soy el asistente. ¿En qué te ayudo?…",
+    "source": "Fuente de conocimiento",
+    "sourceCanned": "Respuestas prediseñadas",
+    "sourceDocs": "Páginas de docs",
+    "hint": "El bot responde una vez por conversación, solo si nadie contestó todavía. Puntúa las keywords del visitante contra la fuente (el título pesa doble); sin match manda solo el saludo."
+  },
+  "officeHours": {
+    "title": "Horario de atención",
+    "enabled": "Configurar horario",
+    "disabled": "Sin horario: el widget está siempre en línea.",
+    "timezone": "Zona horaria",
+    "hint": "Fuera de este horario el widget muestra un mensaje de ausencia con el tiempo de respuesta esperado."
   },
   "canned": {
     "title": "Respuestas prediseñadas",

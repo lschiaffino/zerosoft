@@ -3,7 +3,7 @@
 import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type { ChatConversationListRow } from '@/lib/chat-data';
-import { formatTimeAgo } from '@/lib/datetime';
+import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
 
 interface ConversationListProps {
   conversations: ChatConversationListRow[];
@@ -22,15 +22,6 @@ function preview(c: ChatConversationListRow): string {
   if (c.subject) return c.subject;
   if (c.last_message_body) return c.last_message_body;
   return c.id.slice(0, 8);
-}
-
-function slaStatus(c: ChatConversationListRow, t: (k: string, v?: Record<string, string | number>) => string) {
-  if (c.resolved_at) return { label: t('sla.resolved'), className: 'chat-sla-resolved' };
-  const deadline = new Date(c.created_at).getTime() + 60 * 60 * 1000;
-  const now = Date.now();
-  if (now > deadline) return { label: t('sla.breached'), className: 'chat-sla-breached' };
-  const mins = Math.ceil((deadline - now) / 60_000);
-  return { label: t('sla.dueIn', { minutes: mins }), className: 'chat-sla-due' };
 }
 
 export default function ConversationList({
@@ -55,6 +46,7 @@ export default function ConversationList({
       {conversations.map((c) => {
         const active = c.id === currentId;
         const unread = c.status === 'open';
+        const assignee = c.assigned_name || c.assigned_email;
         return (
           <li key={c.id}>
             <Link
@@ -75,19 +67,43 @@ export default function ConversationList({
                   <span className={`chat-status chat-status-${c.status}`}>
                     {t(`conversation.${c.status}`)}
                   </span>
-                  <span className="chat-priority mono">{t(`priorities.${c.priority}`)}</span>
-                  {(() => {
-                    const sla = slaStatus(c, t);
-                    return (
-                      <span className={`chat-sla-badge ${sla.className}`}>
-                        {sla.label}
-                      </span>
-                    );
-                  })()}
+                  {c.priority !== 'medium' && (
+                    <span className={`chat-priority chat-priority-${c.priority} mono`}>
+                      {t(`priorities.${c.priority}`)}
+                    </span>
+                  )}
+                  {c.sla_breached === 1 ? (
+                    <span className="chat-sla-badge chat-sla-breached">
+                      {c.sla_breach_kind === 'resolution'
+                        ? t('sla.breachedResolution')
+                        : t('sla.breachedFirst')}
+                    </span>
+                  ) : c.resolved_at ? (
+                    <span className="chat-sla-badge chat-sla-resolved">{t('sla.resolved')}</span>
+                  ) : c.sla_due_in_minutes != null ? (
+                    <span className="chat-sla-badge chat-sla-due">
+                      {t('sla.dueIn', { minutes: c.sla_due_in_minutes })}
+                    </span>
+                  ) : null}
+                  {c.status === 'snoozed' && c.snoozed_until && (
+                    <span
+                      className="chat-row-snoozed mono muted"
+                      title={formatDateTime(c.snoozed_until, locale)}
+                    >
+                      {formatTimeAgo(c.snoozed_until, locale)}
+                    </span>
+                  )}
                   <span className="chat-row-assignee mono muted">
-                    {c.assigned_name || c.assigned_email
-                      ? c.assigned_name || c.assigned_email
-                      : t('conversation.unassigned')}
+                    {assignee ? (
+                      <>
+                        <span className="chat-assignee-avatar" aria-hidden>
+                          {initials(c.assigned_name, c.assigned_email)}
+                        </span>
+                        {assignee}
+                      </>
+                    ) : (
+                      t('conversation.unassigned')
+                    )}
                   </span>
                 </div>
               </div>

@@ -8,7 +8,7 @@ import { formatDateTime } from '@/lib/datetime';
 
 interface VisitorPanelProps {
   conversation: ChatConversationWithVisitor;
-  onToggleStatus: () => void;
+  onToggleResolved: () => void;
 }
 
 function initials(name: string | null, email: string | null): string {
@@ -18,14 +18,14 @@ function initials(name: string | null, email: string | null): string {
   return base.slice(0, 2).toUpperCase();
 }
 
-export default function VisitorPanel({ conversation, onToggleStatus }: VisitorPanelProps) {
+export default function VisitorPanel({ conversation, onToggleResolved }: VisitorPanelProps) {
   const t = useTranslations('chat');
   const locale = useLocale();
   const [collapsed, setCollapsed] = useState(false);
 
   const visitor = conversation.visitor;
   const contact = conversation.crm_contact;
-  const isClosed = conversation.status === 'closed';
+  const isResolved = conversation.status === 'resolved';
 
   return (
     <aside className={`chat-visitor-panel${collapsed ? ' collapsed' : ''}`}>
@@ -109,6 +109,18 @@ export default function VisitorPanel({ conversation, onToggleStatus }: VisitorPa
               {t(`conversation.${conversation.status}`)}
             </span>
           </div>
+          {conversation.status === 'snoozed' && conversation.snoozed_until && (
+            <div className="chat-visitor-prop-row">
+              <span className="mono muted">{t('conversation.snoozeUntil')}</span>
+              <span className="mono">{formatDateTime(conversation.snoozed_until, locale)}</span>
+            </div>
+          )}
+          {conversation.csat_score != null && (
+            <div className="chat-visitor-prop-row">
+              <span className="mono muted">{t('visitorPanel.csat')}</span>
+              <span className="mono">{'★'.repeat(conversation.csat_score)}</span>
+            </div>
+          )}
           <div className="chat-visitor-prop-row">
             <span className="mono muted">{t('visitorPanel.firstSeen')}</span>
             <span className="mono">{formatDateTime(conversation.created_at, locale)}</span>
@@ -117,10 +129,10 @@ export default function VisitorPanel({ conversation, onToggleStatus }: VisitorPa
 
         <button
           type="button"
-          className={`btn btn-small${isClosed ? '' : ' btn-ghost'}`}
-          onClick={onToggleStatus}
+          className={`btn btn-small${isResolved ? '' : ' btn-ghost'}`}
+          onClick={onToggleResolved}
         >
-          {isClosed ? t('conversation.reopen') : t('conversation.close')}
+          {isResolved ? t('conversation.reopen') : t('conversation.resolve')}
         </button>
       </div>
     </aside>
