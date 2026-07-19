@@ -5,7 +5,12 @@ import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
 import { getCompany, LIFECYCLE_STAGES, listCustomFields, listExternalEmailItems, listTimeline, mergeTimelineWithEmails, nextTaskFor, parseCustom } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
-import AssociateContact from '@/components/crm/AssociateContact';
+import AssociationPanel from '@/components/crm/AssociationPanel';
+import {
+  addCompanyToDeal,
+  removeCompanyFromDeal,
+  setContactCompany,
+} from '@/components/crm/associationActions';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
@@ -59,6 +64,11 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
     id: c.id,
     name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
   }));
+
+  // Deals del usuario para el selector de asociación.
+  const allDeals = (await getDb()
+    .prepare('SELECT id, name FROM crm_deals WHERE user_id = ? ORDER BY created_at DESC LIMIT 200')
+    .all(user.id)) as Array<{ id: string; name: string }>;
 
   const lifecycleLabel = (v: string): string =>
     (LIFECYCLE_STAGES as readonly string[]).includes(v) ? t(`enums.lifecycle.${v}`) : v;
@@ -192,59 +202,54 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
 
         <div className="detail-col detail-col-side">
           <section className="panel">
-            <div className="panel-head">
-              <h2 className="section-label">{t('companies.detail.contacts')}</h2>
-              <span className="panel-more">{contacts.length}</span>
-            </div>
-            {contacts.length === 0 ? (
-              <p className="muted">{t('companies.detail.noContacts')}</p>
-            ) : (
-              <ul className="recent-list">
-                {contacts.map((c) => (
-                  <li key={c.id}>
-                    <Link href={`/app/crm/contacts/${c.id}`} className="recent-row crm-row">
-                      <span className="recent-name">
-                        {[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email}
-                      </span>
-                      <span className="muted recent-meta">{c.email || '—'}</span>
-                      <span className={`badge stage-${c.lifecycle_stage}`}>
-                        {lifecycleLabel(c.lifecycle_stage)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <AssociationPanel
+              title={t('companies.detail.contacts')}
+              count={contacts.length}
+              records={contacts.map((c) => ({
+                id: c.id,
+                name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
+                href: `/app/crm/contacts/${c.id}`,
+                meta: c.email || undefined,
+              }))}
+              options={allContacts
+                .filter((c) => !contacts.some((cc) => cc.id === c.id))
+                .map((c) => ({ id: c.id, value: c.name }))}
+              onAssociate={async (contactId) => {
+                await setContactCompany(contactId, company.id);
+              }}
+              onRemove={async (contactId) => {
+                await setContactCompany(contactId, null);
+              }}
+              addLabel={t('assoc.pickContact')}
+              emptyLabel={t('companies.detail.noContacts')}
+            />
             <Link href={`/app/crm/contacts/new?companyId=${company.id}`} className="kb-add">
               {t('companies.detail.newContact')}
             </Link>
-            <AssociateContact
-              companyId={company.id}
-              contacts={allContacts}
-              excludeIds={contacts.map((c) => c.id)}
-            />
           </section>
 
           <section className="panel">
-            <div className="panel-head">
-              <h2 className="section-label">{t('companies.detail.deals')}</h2>
-              <span className="panel-more">{deals.length}</span>
-            </div>
-            {deals.length === 0 ? (
-              <p className="muted">{t('companies.detail.noDeals')}</p>
-            ) : (
-              <ul className="recent-list">
-                {deals.map((d) => (
-                  <li key={d.id}>
-                    <Link href={`/app/crm/deals/${d.id}`} className="recent-row crm-row">
-                      <span className="recent-name">{d.name}</span>
-                      <span className="muted recent-meta">{stageName.get(d.stage_id) ?? '—'}</span>
-                      <span className="mono recent-date">{fmtAmount(d.amount, d.currency)}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <AssociationPanel
+              title={t('companies.detail.deals')}
+              count={deals.length}
+              records={deals.map((d) => ({
+                id: d.id,
+                name: d.name,
+                href: `/app/crm/deals/${d.id}`,
+                meta: `${stageName.get(d.stage_id) ?? '—'} · ${fmtAmount(d.amount, d.currency)}`,
+              }))}
+              options={allDeals
+                .filter((d) => !deals.some((dd) => dd.id === d.id))
+                .map((d) => ({ id: d.id, value: d.name }))}
+              onAssociate={async (dealId) => {
+                await addCompanyToDeal(dealId, company.id);
+              }}
+              onRemove={async (dealId) => {
+                await removeCompanyFromDeal(dealId, company.id);
+              }}
+              addLabel={t('assoc.pickDeal')}
+              emptyLabel={t('companies.detail.noDeals')}
+            />
             <Link href="/app/crm/deals/new" className="kb-add">
               {t('companies.detail.newDeal')}
             </Link>

@@ -1327,6 +1327,28 @@ tr:hover .cell-quick { opacity: 0.8; }
 .assoc-panel .form-actions { display: flex; gap: 8px; }
 .assoc-panel p { margin: 0; font-size: 12px; }
 
+/* Panel genérico de asociación (chips + selector) */
+.association-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.association-panel .chip-meta {
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+.association-panel .chip-contact > a + .chip-meta::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--dim);
+}
+
+.association-panel .filter-select { width: 100%; max-width: 280px; }
+.association-panel .panel-head { width: 100%; }
+
 /* Panel de integración Gmail (settings) */
 .gmail-panel { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .gmail-panel p { margin: 0; font-size: 12px; }

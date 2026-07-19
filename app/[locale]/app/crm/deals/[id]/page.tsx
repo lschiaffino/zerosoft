@@ -5,7 +5,13 @@ import { requireUser } from '@/lib/session';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { getDeal, listCustomFields, listTimeline, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
-import DealContacts from '@/components/crm/DealContacts';
+import AssociationPanel from '@/components/crm/AssociationPanel';
+import {
+  addCompanyToDeal,
+  addDealContact,
+  removeCompanyFromDeal,
+  removeDealContact,
+} from '@/components/crm/associationActions';
 import DealStagePanel from '@/components/crm/DealStagePanel';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
@@ -37,6 +43,27 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
   const stages = (await getDb()
     .prepare('SELECT * FROM crm_stages WHERE pipeline_id = ? ORDER BY position ASC')
     .all(deal.pipeline_id)) as CrmStageRow[];
+
+  const allContacts = (
+    (await getDb()
+      .prepare(
+        `SELECT id, first_name, last_name, email FROM crm_contacts
+         WHERE user_id = ? ORDER BY created_at DESC LIMIT 200`,
+      )
+      .all(user.id)) as Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+    }>
+  ).map((c) => ({
+    id: c.id,
+    name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
+  }));
+
+  const allCompanies = (await getDb()
+    .prepare('SELECT id, name, domain FROM crm_companies WHERE user_id = ? ORDER BY name ASC LIMIT 200')
+    .all(user.id)) as Array<{ id: string; name: string; domain: string }>;
 
   const fmtAmount = (amount: number, currency: string): string =>
     new Intl.NumberFormat(locale, {
@@ -103,6 +130,8 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
     name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
     email: c.email,
   }));
+
+  const associatedContactIds = new Set(contacts.map((c) => c.id));
 
   const historyFields: Record<string, string> = {
     name: t('deals.form.name'),
@@ -196,11 +225,56 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
 
         <div className="detail-col detail-col-side">
           <section className="panel">
-            <div className="panel-head">
-              <h2 className="section-label">{t('deals.detail.contacts')}</h2>
-              <span className="panel-more">{contacts.length}</span>
-            </div>
-            <DealContacts dealId={deal.id} contacts={contactChips} />
+            <AssociationPanel
+              title={t('deals.detail.company')}
+              records={
+                company
+                  ? [
+                      {
+                        id: company.id,
+                        name: company.name,
+                        href: `/app/crm/companies/${company.id}`,
+                        meta: company.domain || undefined,
+                      },
+                    ]
+                  : []
+              }
+              options={allCompanies
+                .filter((c) => c.id !== company?.id)
+                .map((c) => ({ id: c.id, value: c.name }))}
+              onAssociate={async (companyId) => {
+                await addCompanyToDeal(deal.id, companyId);
+              }}
+              onRemove={async (companyId) => {
+                await removeCompanyFromDeal(deal.id, companyId);
+              }}
+              addLabel={t('assoc.pickCompany')}
+              emptyLabel={t('deals.detail.noCompany')}
+            />
+          </section>
+
+          <section className="panel">
+            <AssociationPanel
+              title={t('deals.detail.contacts')}
+              count={contacts.length}
+              records={contactChips.map((c) => ({
+                id: c.id,
+                name: c.name,
+                href: `/app/crm/contacts/${c.id}`,
+                meta: c.email || undefined,
+              }))}
+              options={allContacts
+                .filter((c) => !associatedContactIds.has(c.id))
+                .map((c) => ({ id: c.id, value: c.name }))}
+              onAssociate={async (contactId) => {
+                await addDealContact(deal.id, contactId);
+              }}
+              onRemove={async (contactId) => {
+                await removeDealContact(deal.id, contactId);
+              }}
+              addLabel={t('assoc.pickContact')}
+              emptyLabel={t('deals.detail.noContacts')}
+            />
           </section>
 
           <HistoryPanel

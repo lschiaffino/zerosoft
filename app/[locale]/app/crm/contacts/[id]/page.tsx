@@ -23,9 +23,14 @@ import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPane
 import Timeline from '@/components/crm/Timeline';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import ContactAddDeal from '@/components/crm/ContactAddDeal';
-import AssociateDeal from '@/components/crm/AssociateDeal';
+import AssociationPanel from '@/components/crm/AssociationPanel';
 import CompanyQuickCreate from '@/components/crm/CompanyQuickCreate';
 import DuplicatesPanel from '@/components/crm/DuplicatesPanel';
+import {
+  addDealContact,
+  removeDealContact,
+  setContactCompany,
+} from '@/components/crm/associationActions';
 import DangerDelete from '@/components/crm/DangerDelete';
 import { listMembers } from '@/lib/teams';
 import HistoryPanel from '@/components/crm/HistoryPanel';
@@ -217,46 +222,57 @@ export default async function ContactDetailPage({
 
         <div className="detail-col detail-col-side">
           <section className="panel">
-            <p className="section-label">{t('contacts.detail.company')}</p>
-            {company ? (
-              <ul className="recent-list">
-                <li>
-                  <Link href={`/app/crm/companies/${company.id}`} className="recent-row crm-row">
-                    <span className="recent-name">{company.name}</span>
-                    <span className="muted recent-meta">{company.domain || '—'}</span>
-                  </Link>
-                </li>
-              </ul>
-            ) : (
-              <>
-                <p className="muted">{t('contacts.detail.noCompany')}</p>
-                <CompanyQuickCreate contactId={contact.id} />
-              </>
-            )}
+            <AssociationPanel
+              title={t('contacts.detail.company')}
+              records={
+                company
+                  ? [
+                      {
+                        id: company.id,
+                        name: company.name,
+                        href: `/app/crm/companies/${company.id}`,
+                        meta: company.domain || undefined,
+                      },
+                    ]
+                  : []
+              }
+              options={companies
+                .filter((c) => c.id !== company?.id)
+                .map((c) => ({ id: c.id, value: c.name }))}
+              onAssociate={async (id) => {
+                await setContactCompany(contact.id, id);
+              }}
+              onRemove={async () => {
+                await setContactCompany(contact.id, null);
+              }}
+              addLabel={t('contacts.detail.associateCompany')}
+              emptyLabel={t('contacts.detail.noCompany')}
+            />
+            <CompanyQuickCreate contactId={contact.id} />
           </section>
 
           <section className="panel">
-            <p className="section-label">{t('contacts.detail.deals')}</p>
-            {deals.length === 0 ? (
-              <p className="muted">{t('contacts.detail.noDeals')}</p>
-            ) : (
-              <ul className="recent-list">
-                {deals.map((d) => (
-                  <li key={d.id}>
-                    <Link href={`/app/crm/deals/${d.id}`} className="recent-row crm-row">
-                      <span className="recent-name">{d.name}</span>
-                      <span className="muted recent-meta">
-                        {d.stage_name ?? ''}
-                        {d.closed_at ? ` · ${t('deals.detail.closedAt')}` : ''}
-                      </span>
-                      <span className="mono recent-date">
-                        {money(d.amount, d.currency, locale)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <AssociationPanel
+              title={t('contacts.detail.deals')}
+              count={deals.length}
+              records={deals.map((d) => ({
+                id: d.id,
+                name: d.name,
+                href: `/app/crm/deals/${d.id}`,
+                meta: `${d.stage_name ?? ''}${d.closed_at ? ` · ${t('deals.detail.closedAt')}` : ''} · ${money(d.amount, d.currency, locale)}`,
+              }))}
+              options={allDeals
+                .filter((d) => !deals.some((dd) => dd.id === d.id))
+                .map((d) => ({ id: d.id, value: d.name }))}
+              onAssociate={async (id) => {
+                await addDealContact(id, contact.id);
+              }}
+              onRemove={async (id) => {
+                await removeDealContact(id, contact.id);
+              }}
+              addLabel={t('assoc.pickDeal')}
+              emptyLabel={t('contacts.detail.noDeals')}
+            />
             {defaultPipeline && firstOpenStage && (
               <ContactAddDeal
                 pipelineId={defaultPipeline.id}
@@ -266,11 +282,6 @@ export default async function ContactDetailPage({
                 sources={sourceOpts}
               />
             )}
-            <AssociateDeal
-              contactId={contact.id}
-              deals={allDeals}
-              excludeIds={deals.map((d) => d.id)}
-            />
           </section>
 
           <section className="panel">

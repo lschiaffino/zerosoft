@@ -1112,6 +1112,7 @@ export interface DealInput {
   custom?: Record<string, unknown>;
   contactIds?: string[];
   addContactIds?: string[];
+  removeContactIds?: string[];
 }
 
 export type CreateDealResult =
@@ -1229,6 +1230,12 @@ export async function updateDeal(
       .prepare(`UPDATE crm_deals SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
       .run(...sets.map(([, v]) => v), now(), id);
     if (data.contactIds) await setDealContacts(id, data.contactIds, tdb);
+    if (data.removeContactIds?.length) {
+      const ph = data.removeContactIds.map(() => '?').join(',');
+      await tdb
+        .prepare(`DELETE FROM crm_deal_contacts WHERE deal_id = ? AND contact_id IN (${ph})`)
+        .run(id, ...data.removeContactIds);
+    }
     if (data.addContactIds?.length) {
       const ins = tdb.prepare(
         'INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id) VALUES (?, ?)',

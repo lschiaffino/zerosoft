@@ -142,6 +142,7 @@ export const dealUpdateSchema = dealCreateSchema
   .extend({
     lostReason: shortText.optional(),
     addContactIds: z.array(id).max(50).optional(),
+    removeContactIds: z.array(id).max(50).optional(),
   });
 
 export const dealMoveSchema = z.object({

@@ -56,8 +56,10 @@
     "associating": "Associating…",
     "pickDeal": "Select a deal…",
     "pickContact": "Select a contact…",
+    "pickCompany": "Select a company…",
     "noOptions": "Nothing available to associate.",
-    "failed": "Something went wrong. Try again."
+    "failed": "Something went wrong. Try again.",
+    "remove": "Remove"
   },
   "enums": {
     "lifecycle": {
@@ -192,6 +194,7 @@
       "company": "Company",
       "noCompany": "No company associated.",
       "newCompany": "+ New company",
+      "associateCompany": "Associate company…",
       "associateDeal": "+ Associate deal"
     },
     "form": {
@@ -259,6 +262,7 @@
       "noDeals": "No deals yet.",
       "emptyTimeline": "No activity yet. Add a note or log a call.",
       "associateContact": "+ Associate contact",
+      "associateDeal": "+ Associate deal",
       "newContact": "+ New contact",
       "newDeal": "+ New deal"
     },
@@ -351,9 +355,12 @@
       "back": "← Pipeline",
       "properties": "Properties",
       "contacts": "Contacts",
+      "company": "Company",
       "timeline": "Timeline",
       "lostReason": "Lost reason",
       "closedAt": "Closed",
+      "noCompany": "No company associated.",
+      "noContacts": "No contacts associated.",
       "dangerZone": "Danger zone",
       "deleteTitle": "Delete this deal",
       "deleteDesc": "This deletes the deal. Contacts and activities are kept.",

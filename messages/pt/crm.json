@@ -56,8 +56,10 @@
     "associating": "Associando…",
     "pickDeal": "Selecione um negócio…",
     "pickContact": "Selecione um contato…",
+    "pickCompany": "Selecione uma empresa…",
     "noOptions": "Nada disponível para associar.",
-    "failed": "Algo deu errado. Tente novamente."
+    "failed": "Algo deu errado. Tente novamente.",
+    "remove": "Remover"
   },
   "enums": {
     "lifecycle": {
@@ -192,6 +194,7 @@
       "company": "Empresa",
       "noCompany": "Nenhuma empresa associada.",
       "newCompany": "+ Nova empresa",
+      "associateCompany": "Associar empresa…",
       "associateDeal": "+ Associar negócio"
     },
     "form": {
@@ -259,6 +262,7 @@
       "noDeals": "Nenhum negócio ainda.",
       "emptyTimeline": "Sem atividade ainda. Adicione uma nota ou registre uma ligação.",
       "associateContact": "+ Associar contato",
+      "associateDeal": "+ Associar negócio",
       "newContact": "+ Novo contato",
       "newDeal": "+ Novo negócio"
     },
@@ -351,9 +355,12 @@
       "back": "← Pipeline",
       "properties": "Propriedades",
       "contacts": "Contatos",
+      "company": "Empresa",
       "timeline": "Linha do tempo",
       "lostReason": "Motivo da perda",
       "closedAt": "Fechado",
+      "noCompany": "Nenhuma empresa associada.",
+      "noContacts": "Nenhum contato associado.",
       "dangerZone": "Zona de perigo",
       "deleteTitle": "Excluir este negócio",
       "deleteDesc": "Exclui o negócio. Contatos e atividades são mantidos.",
