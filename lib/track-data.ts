@@ -9,8 +9,10 @@ import type {
   TrackCycleRow,
   TrackIssueCommentRow,
   TrackIssueRow,
+  TrackIssueViewRow,
   TrackProjectRow,
   TrackStatusRow,
+  UserRow,
 } from './db';
 import type {
   CommentCreatePayload,
@@ -18,6 +20,8 @@ import type {
   CycleUpdatePayload,
   IssueCreatePayload,
   IssueUpdatePayload,
+  IssueViewCreatePayload,
+  IssueViewUpdatePayload,
   ProjectCreatePayload,
   ProjectUpdatePayload,
   StatusCreatePayload,
@@ -58,10 +62,14 @@ export interface ListProjectsOptions {
 }
 
 export interface ListIssuesOptions {
-  statusId?: string;
-  cycleId?: string;
-  assigneeId?: string;
+  statusId?: string | string[];
+  priority?: string | string[];
+  assigneeId?: string | string[];
+  cycleId?: string | string[];
+  labelIds?: string | string[];
   q?: string;
+  dueAfter?: string;
+  dueBefore?: string;
   sort?: 'newest' | 'oldest' | 'priority' | 'identifier';
   page?: number;
   pageSize?: number;
@@ -69,6 +77,22 @@ export interface ListIssuesOptions {
 
 export interface ListAllIssuesOptions extends ListIssuesOptions {
   projectId?: string;
+}
+
+// ---------- Saved views ----------
+
+export interface TrackIssueView {
+  id: string;
+  project_id: string;
+  user_id: string;
+  name: string;
+  view_type: 'list' | 'board' | 'calendar';
+  filters: Record<string, unknown>;
+  sort: 'newest' | 'oldest' | 'priority' | 'identifier';
+  columns: string[] | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // ---------- Helpers ----------
@@ -91,6 +115,22 @@ function blocksToJson(value: unknown): string {
   if (value == null) return '[]';
   if (typeof value === 'string') return value;
   return JSON.stringify(value);
+}
+
+function labelsToJson(value: unknown): string {
+  if (value == null) return '[]';
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
+}
+
+function toArray<T>(value: T | T[] | undefined): T[] | undefined {
+  if (value === undefined) return undefined;
+  if (Array.isArray(value)) return value.length ? value : undefined;
+  return value ? [value] : undefined;
+}
+
+function inClause(count: number): string {
+  return `(${Array.from({ length: count }, () => '?').join(', ')})`;
 }
 
 async function nextIdentifier(projectId: string): Promise<string> {
@@ -460,22 +500,45 @@ export async function listIssues(
   const where: string[] = ['i.project_id = ?'];
   const args: Array<string | number> = [projectId];
 
-  if (options.statusId) {
-    where.push('i.status_id = ?');
-    args.push(options.statusId);
+  const statusIds = toArray(options.statusId);
+  if (statusIds) {
+    where.push(`i.status_id IN ${inClause(statusIds.length)}`);
+    args.push(...statusIds);
   }
-  if (options.cycleId) {
-    where.push('i.cycle_id = ?');
-    args.push(options.cycleId);
+  const priorities = toArray(options.priority);
+  if (priorities) {
+    where.push(`i.priority IN ${inClause(priorities.length)}`);
+    args.push(...priorities);
   }
-  if (options.assigneeId) {
-    where.push('i.assignee_id = ?');
-    args.push(options.assigneeId);
+  const assigneeIds = toArray(options.assigneeId);
+  if (assigneeIds) {
+    where.push(`i.assignee_id IN ${inClause(assigneeIds.length)}`);
+    args.push(...assigneeIds);
+  }
+  const cycleIds = toArray(options.cycleId);
+  if (cycleIds) {
+    where.push(`i.cycle_id IN ${inClause(cycleIds.length)}`);
+    args.push(...cycleIds);
+  }
+  if (options.dueAfter) {
+    where.push('i.due_date >= ?');
+    args.push(options.dueAfter);
+  }
+  if (options.dueBefore) {
+    where.push('i.due_date <= ?');
+    args.push(options.dueBefore);
   }
   if (options.q) {
     where.push('(i.title LIKE ? OR i.identifier LIKE ?)');
     const like = `%${options.q}%`;
     args.push(like, like);
+  }
+
+  const labelIds = toArray(options.labelIds);
+  if (labelIds) {
+    const placeholders = labelIds.map(() => 'i.labels LIKE ?').join(' OR ');
+    where.push(`(${placeholders})`);
+    args.push(...labelIds.map((id) => `%"id":"${id}"%`));
   }
 
   const whereSql = where.join(' AND ');
@@ -523,22 +586,46 @@ export async function listAllIssues(
     where.push('i.project_id = ?');
     args.push(options.projectId);
   }
-  if (options.statusId) {
-    where.push('i.status_id = ?');
-    args.push(options.statusId);
+
+  const statusIds = toArray(options.statusId);
+  if (statusIds) {
+    where.push(`i.status_id IN ${inClause(statusIds.length)}`);
+    args.push(...statusIds);
   }
-  if (options.cycleId) {
-    where.push('i.cycle_id = ?');
-    args.push(options.cycleId);
+  const priorities = toArray(options.priority);
+  if (priorities) {
+    where.push(`i.priority IN ${inClause(priorities.length)}`);
+    args.push(...priorities);
   }
-  if (options.assigneeId) {
-    where.push('i.assignee_id = ?');
-    args.push(options.assigneeId);
+  const assigneeIds = toArray(options.assigneeId);
+  if (assigneeIds) {
+    where.push(`i.assignee_id IN ${inClause(assigneeIds.length)}`);
+    args.push(...assigneeIds);
+  }
+  const cycleIds = toArray(options.cycleId);
+  if (cycleIds) {
+    where.push(`i.cycle_id IN ${inClause(cycleIds.length)}`);
+    args.push(...cycleIds);
+  }
+  if (options.dueAfter) {
+    where.push('i.due_date >= ?');
+    args.push(options.dueAfter);
+  }
+  if (options.dueBefore) {
+    where.push('i.due_date <= ?');
+    args.push(options.dueBefore);
   }
   if (options.q) {
     where.push('(i.title LIKE ? OR i.identifier LIKE ?)');
     const like = `%${options.q}%`;
     args.push(like, like);
+  }
+
+  const labelIds = toArray(options.labelIds);
+  if (labelIds) {
+    const placeholders = labelIds.map(() => 'i.labels LIKE ?').join(' OR ');
+    where.push(`(${placeholders})`);
+    args.push(...labelIds.map((id) => `%"id":"${id}"%`));
   }
 
   const whereSql = where.join(' AND ');
@@ -605,7 +692,7 @@ export async function createIssue(
 
   await db
     .prepare(
-      'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, due_date, labels, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
@@ -620,6 +707,8 @@ export async function createIssue(
       payload.cycleId ?? null,
       payload.estimate ?? null,
       payload.parentId ?? null,
+      payload.dueDate ?? null,
+      labelsToJson(payload.labels),
       now,
       now,
     );
@@ -670,6 +759,14 @@ export async function updateIssue(
     fields.push('parent_id = ?');
     args.push(payload.parentId ?? null);
   }
+  if (payload.dueDate !== undefined) {
+    fields.push('due_date = ?');
+    args.push(payload.dueDate ?? null);
+  }
+  if (payload.labels !== undefined) {
+    fields.push('labels = ?');
+    args.push(labelsToJson(payload.labels));
+  }
 
   if (fields.length > 0) {
     fields.push('updated_at = ?');
@@ -684,6 +781,187 @@ export async function updateIssue(
 export async function deleteIssue(id: string): Promise<boolean> {
   const res = await getDb().prepare('DELETE FROM track_issues WHERE id = ?').run(id);
   return res.changes > 0;
+}
+
+export interface ProjectMember {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+}
+
+export async function listProjectMembers(projectId: string, userId: string): Promise<ProjectMember[]> {
+  const db = getDb();
+  const project = (await db.prepare('SELECT team_id FROM track_projects WHERE id = ?').get(projectId)) as
+    | { team_id: string | null }
+    | undefined;
+  if (!project) return [];
+
+  if (project.team_id) {
+    return (await db
+      .prepare(
+        `SELECT u.id, u.email, u.name, m.role
+         FROM team_members m
+         JOIN users u ON u.id = m.user_id
+         WHERE m.team_id = ?
+         ORDER BY m.role = 'owner' DESC, u.name ASC, u.email ASC`,
+      )
+      .all(project.team_id)) as ProjectMember[];
+  }
+
+  const owner = (await db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(userId)) as
+    | UserRow
+    | undefined;
+  if (!owner) return [];
+  return [{ id: owner.id, email: owner.email, name: owner.name, role: 'owner' }];
+}
+
+// ---------- Saved views ----------
+
+function rowToView(row: TrackIssueViewRow): TrackIssueView {
+  return {
+    ...row,
+    sort: row.sort as TrackIssueView['sort'],
+    filters: parseJson(row.filters, {}),
+    columns: row.columns ? parseJson<string[]>(row.columns, []) : null,
+    is_default: row.is_default === 1,
+  };
+}
+
+function parseJson<T>(value: string, fallback: T): T {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function listIssueViews(projectId: string, userId: string): Promise<TrackIssueView[]> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT * FROM track_issue_views
+       WHERE project_id = ? AND user_id = ?
+       ORDER BY is_default DESC, name ASC`,
+    )
+    .all(projectId, userId)) as TrackIssueViewRow[];
+  return rows.map(rowToView);
+}
+
+export async function getIssueView(id: string): Promise<TrackIssueView | undefined> {
+  const row = (await getDb().prepare('SELECT * FROM track_issue_views WHERE id = ?').get(id)) as
+    | TrackIssueViewRow
+    | undefined;
+  return row ? rowToView(row) : undefined;
+}
+
+export async function createIssueView(
+  projectId: string,
+  userId: string,
+  payload: IssueViewCreatePayload,
+): Promise<TrackIssueView> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const now = nowIso();
+  await db
+    .prepare(
+      `INSERT INTO track_issue_views
+       (id, project_id, user_id, name, view_type, filters, sort, columns, is_default, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      id,
+      projectId,
+      userId,
+      payload.name.trim(),
+      payload.viewType,
+      JSON.stringify(payload.filters ?? {}),
+      payload.sort,
+      payload.columns ? JSON.stringify(payload.columns) : null,
+      0,
+      now,
+      now,
+    );
+  return (await getIssueView(id)) as TrackIssueView;
+}
+
+export async function updateIssueView(
+  id: string,
+  payload: IssueViewUpdatePayload,
+): Promise<TrackIssueView | undefined> {
+  const db = getDb();
+  const existing = await getIssueView(id);
+  if (!existing) return undefined;
+
+  const fields: string[] = [];
+  const args: Array<string | number | null> = [];
+
+  if (payload.name !== undefined) {
+    fields.push('name = ?');
+    args.push(payload.name.trim());
+  }
+  if (payload.viewType !== undefined) {
+    fields.push('view_type = ?');
+    args.push(payload.viewType);
+  }
+  if (payload.filters !== undefined) {
+    fields.push('filters = ?');
+    args.push(JSON.stringify(payload.filters));
+  }
+  if (payload.sort !== undefined) {
+    fields.push('sort = ?');
+    args.push(payload.sort);
+  }
+  if (payload.columns !== undefined) {
+    fields.push('columns = ?');
+    args.push(payload.columns ? JSON.stringify(payload.columns) : null);
+  }
+
+  if (fields.length > 0) {
+    fields.push('updated_at = ?');
+    args.push(nowIso());
+    args.push(id);
+    await db.prepare(`UPDATE track_issue_views SET ${fields.join(', ')} WHERE id = ?`).run(...args);
+  }
+
+  return getIssueView(id);
+}
+
+export async function deleteIssueView(id: string): Promise<boolean> {
+  const res = await getDb().prepare('DELETE FROM track_issue_views WHERE id = ?').run(id);
+  return res.changes > 0;
+}
+
+export async function setDefaultIssueView(
+  projectId: string,
+  userId: string,
+  viewId: string,
+): Promise<TrackIssueView | undefined> {
+  const db = getDb();
+  const existing = await getIssueView(viewId);
+  if (!existing || existing.project_id !== projectId || existing.user_id !== userId) {
+    return undefined;
+  }
+
+  const client = getClient();
+  const tx = await client.transaction();
+  const tdb = txDb(tx);
+
+  try {
+    await tdb
+      .prepare(
+        'UPDATE track_issue_views SET is_default = 0 WHERE project_id = ? AND user_id = ?',
+      )
+      .run(projectId, userId);
+    await tdb
+      .prepare('UPDATE track_issue_views SET is_default = 1 WHERE id = ?')
+      .run(viewId);
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
+
+  return getIssueView(viewId);
 }
 
 // ---------- Comments ----------

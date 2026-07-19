@@ -84,8 +84,12 @@
       "priority": "Prioridad",
       "assignee": "Asignado",
       "cycle": "Ciclo",
-      "estimate": "Estimación (puntos)"
+      "estimate": "Estimación (puntos)",
+      "dueDate": "Fecha de vencimiento",
+      "labels": "Etiquetas"
     },
+    "dueDate": "Fecha de vencimiento",
+    "labels": "Etiquetas",
     "detail": {
       "comments": "Comentarios",
       "addComment": "Agregar comentario",
@@ -115,6 +119,38 @@
     "high": "Alta",
     "medium": "Media",
     "low": "Baja"
+  },
+  "views": {
+    "list": "Lista",
+    "board": "Tablero",
+    "calendar": "Calendario"
+  },
+  "filters": {
+    "status": "Estado",
+    "priority": "Prioridad",
+    "assignee": "Asignado",
+    "cycle": "Ciclo",
+    "labels": "Etiquetas",
+    "dueDate": "Fecha de vencimiento",
+    "search": "Buscar issues…",
+    "clear": "Limpiar"
+  },
+  "savedViews": {
+    "title": "Vistas guardadas",
+    "save": "Guardar vista",
+    "saveAs": "Guardar vista como",
+    "name": "Nombre",
+    "namePlaceholder": "p.ej. Bugs de alta prioridad",
+    "default": "Predeterminada",
+    "rename": "Renombrar",
+    "delete": "Eliminar",
+    "empty": "No hay vistas guardadas"
+  },
+  "calendar": {
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "today": "Hoy",
+    "unscheduled": "Sin fecha"
   },
   "errors": {
     "invalid_slug": "Slug inválido. Usá letras minúsculas, números y guiones.",

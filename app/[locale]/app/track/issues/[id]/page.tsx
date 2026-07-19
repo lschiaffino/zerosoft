@@ -3,8 +3,9 @@ import { Link } from '@/i18n/navigation';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
 import { formatDate } from '@/lib/utils';
-import { getIssue, listIssueComments } from '@/lib/track-data';
+import { getIssue, listIssueComments, listProjectMembers, listCycles, listStatuses } from '@/lib/track-data';
 import StatusBadge from '@/components/track/StatusBadge';
+import IssuePropertiesPanel from '@/components/track/IssuePropertiesPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +18,15 @@ export default async function IssueDetailPage({
   const issue = await getIssue(id);
   if (!issue) notFound();
 
+  const project = issue.project_id;
+  const [comments, statuses, cycles, members] = await Promise.all([
+    listIssueComments(id),
+    listStatuses(project),
+    listCycles(project),
+    listProjectMembers(project, user.id),
+  ]);
+
   const t = await getTranslations({ locale, namespace: 'track' });
-  const comments = await listIssueComments(id);
 
   let descriptionText = '';
   try {
@@ -28,6 +36,14 @@ export default async function IssueDetailPage({
     }
   } catch {
     descriptionText = issue.description;
+  }
+
+  let issueLabels: Array<{ id: string; name: string; color: string }> = [];
+  try {
+    const parsed = JSON.parse(issue.labels);
+    if (Array.isArray(parsed)) issueLabels = parsed;
+  } catch {
+    issueLabels = [];
   }
 
   return (
@@ -87,24 +103,30 @@ export default async function IssueDetailPage({
         <aside className="track-detail-side">
           <section className="panel">
             <p className="section-label">{t('issues.detail.properties')}</p>
-            <div className="track-properties">
-              <div className="track-property">
-                <label>{t('issues.assignee')}</label>
-                <span>{issue.assignee_name ?? issue.assignee_email ?? t('issues.noAssignee')}</span>
-              </div>
-              <div className="track-property">
-                <label>{t('issues.cycle')}</label>
-                <span>{issue.cycle_name ?? '—'}</span>
-              </div>
-              <div className="track-property">
-                <label>{t('issues.estimate')}</label>
-                <span>{issue.estimate ?? '—'}</span>
-              </div>
-              <div className="track-property">
-                <label>{t('issues.status')}</label>
-                <span>{issue.status_name ?? '—'}</span>
-              </div>
-            </div>
+            <IssuePropertiesPanel
+              issue={issue}
+              statuses={statuses}
+              cycles={cycles}
+              members={members}
+              locale={locale}
+              labels={{
+                status: t('issues.status'),
+                priority: t('issues.priority'),
+                assignee: t('issues.assignee'),
+                cycle: t('issues.cycle'),
+                estimate: t('issues.estimate'),
+                dueDate: t('issues.dueDate'),
+                labels: t('issues.labels'),
+                noAssignee: t('issues.noAssignee'),
+                none: '—',
+              }}
+              priorities={[
+                { value: 'urgent', label: t('priorities.urgent') },
+                { value: 'high', label: t('priorities.high') },
+                { value: 'medium', label: t('priorities.medium') },
+                { value: 'low', label: t('priorities.low') },
+              ]}
+            />
           </section>
         </aside>
       </div>

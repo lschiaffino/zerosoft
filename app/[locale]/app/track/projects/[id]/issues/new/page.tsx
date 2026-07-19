@@ -40,6 +40,8 @@ export default async function NewIssuePage({
           assignee: t('issues.form.assignee'),
           cycle: t('issues.form.cycle'),
           estimate: t('issues.form.estimate'),
+          dueDate: t('issues.form.dueDate'),
+          labels: t('issues.form.labels'),
           create: t('common.create'),
           saving: t('common.saving'),
           cancel: t('common.cancel'),

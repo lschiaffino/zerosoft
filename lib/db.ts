@@ -63,6 +63,8 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE links ADD COLUMN og_title TEXT',
         'ALTER TABLE links ADD COLUMN og_description TEXT',
         'ALTER TABLE links ADD COLUMN og_image TEXT',
+        'ALTER TABLE track_issues ADD COLUMN due_date TEXT',
+        'ALTER TABLE track_issues ADD COLUMN labels TEXT NOT NULL DEFAULT \'[]\'',
       ]) {
         try {
           await client.execute(alter);
@@ -664,6 +666,21 @@ const DDL = `
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE (issue_id, related_issue_id)
     );
+
+    CREATE TABLE IF NOT EXISTS track_issue_views (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      view_type TEXT NOT NULL CHECK (view_type IN ('list', 'board', 'calendar')),
+      filters TEXT NOT NULL DEFAULT '{}',
+      sort TEXT NOT NULL DEFAULT 'newest',
+      columns TEXT,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_track_issue_views_project ON track_issue_views(project_id, user_id);
   `;
 
 // ---------- Tipos ----------
@@ -1094,6 +1111,22 @@ export interface TrackIssueRow {
   cycle_id: string | null;
   estimate: number | null;
   parent_id: string | null;
+  due_date: string | null;
+  labels: string; // JSON TrackLabel[]
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackIssueViewRow {
+  id: string;
+  project_id: string;
+  user_id: string;
+  name: string;
+  view_type: 'list' | 'board' | 'calendar';
+  filters: string; // JSON IssueFilters
+  sort: string;
+  columns: string | null; // JSON string[]
+  is_default: 0 | 1;
   created_at: string;
   updated_at: string;
 }

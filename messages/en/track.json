@@ -84,8 +84,12 @@
       "priority": "Priority",
       "assignee": "Assignee",
       "cycle": "Cycle",
-      "estimate": "Estimate (points)"
+      "estimate": "Estimate (points)",
+      "dueDate": "Due date",
+      "labels": "Labels"
     },
+    "dueDate": "Due date",
+    "labels": "Labels",
     "detail": {
       "comments": "Comments",
       "addComment": "Add comment",
@@ -115,6 +119,38 @@
     "high": "High",
     "medium": "Medium",
     "low": "Low"
+  },
+  "views": {
+    "list": "List",
+    "board": "Board",
+    "calendar": "Calendar"
+  },
+  "filters": {
+    "status": "Status",
+    "priority": "Priority",
+    "assignee": "Assignee",
+    "cycle": "Cycle",
+    "labels": "Labels",
+    "dueDate": "Due date",
+    "search": "Search issues…",
+    "clear": "Clear"
+  },
+  "savedViews": {
+    "title": "Saved views",
+    "save": "Save view",
+    "saveAs": "Save view as",
+    "name": "Name",
+    "namePlaceholder": "e.g. High priority bugs",
+    "default": "Default",
+    "rename": "Rename",
+    "delete": "Delete",
+    "empty": "No saved views"
+  },
+  "calendar": {
+    "prev": "Previous",
+    "next": "Next",
+    "today": "Today",
+    "unscheduled": "Unscheduled"
   },
   "errors": {
     "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",

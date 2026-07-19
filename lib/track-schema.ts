@@ -14,6 +14,7 @@ const slug = z
   .max(64)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, { message: 'invalid_slug' });
 const color = z.string().trim().max(20).optional();
+const hexColor = z.string().trim().max(20);
 const isoDate = z
   .string()
   .trim()
@@ -73,6 +74,12 @@ export const cycleUpdateSchema = z.object({
 
 // ---------- Issues ----------
 
+export const issueLabelSchema = z.object({
+  id: id,
+  name: z.string().trim().min(1).max(50),
+  color: hexColor,
+});
+
 export const issueCreateSchema = z.object({
   title: shortText.optional(),
   description: z.unknown().optional(),
@@ -82,6 +89,8 @@ export const issueCreateSchema = z.object({
   cycleId: id.nullish(),
   estimate: z.number().int().min(0).nullish(),
   parentId: id.nullish(),
+  dueDate: isoDate.nullish(),
+  labels: z.array(issueLabelSchema).max(10).optional(),
 });
 
 export const issueUpdateSchema = issueCreateSchema.partial().extend({
@@ -101,6 +110,26 @@ export const relationCreateSchema = z.object({
   type: relationType.optional(),
 });
 
+// ---------- Views ----------
+
+export const viewTypeSchema = z.enum(['list', 'board', 'calendar']);
+
+export const issueViewCreateSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  viewType: viewTypeSchema,
+  filters: z.record(z.unknown()).default({}),
+  sort: z.enum(['newest', 'oldest', 'priority', 'identifier']).default('newest'),
+  columns: z.array(z.string()).max(20).optional(),
+});
+
+export const issueViewUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  viewType: viewTypeSchema.optional(),
+  filters: z.record(z.unknown()).optional(),
+  sort: z.enum(['newest', 'oldest', 'priority', 'identifier']).optional(),
+  columns: z.array(z.string()).max(20).optional(),
+});
+
 // ---------- Tipos inferidos ----------
 
 export type ProjectCreatePayload = z.infer<typeof projectCreateSchema>;
@@ -114,3 +143,6 @@ export type IssueCreatePayload = z.infer<typeof issueCreateSchema>;
 export type IssueUpdatePayload = z.infer<typeof issueUpdateSchema>;
 export type CommentCreatePayload = z.infer<typeof commentCreateSchema>;
 export type RelationCreatePayload = z.infer<typeof relationCreateSchema>;
+export type IssueViewCreatePayload = z.infer<typeof issueViewCreateSchema>;
+export type IssueViewUpdatePayload = z.infer<typeof issueViewUpdateSchema>;
+export type IssueLabel = z.infer<typeof issueLabelSchema>;

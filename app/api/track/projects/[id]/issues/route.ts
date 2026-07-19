@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { createIssue, getProject, listIssues } from '@/lib/track-data';
 import { issueCreateSchema } from '@/lib/track-schema';
-import { invalidBody, notFound, pageParams, sortParam, unauthorized } from '@/lib/track-http';
+import { invalidBody, notFound, pageParams, sortParam, stringArrayParam, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,10 +26,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
   const result = await listIssues(params.id, {
-    statusId: sp.get('statusId') ?? undefined,
-    cycleId: sp.get('cycleId') ?? undefined,
-    assigneeId: sp.get('assigneeId') ?? undefined,
+    statusId: stringArrayParam(sp, 'statusId'),
+    priority: stringArrayParam(sp, 'priority'),
+    assigneeId: stringArrayParam(sp, 'assigneeId'),
+    cycleId: stringArrayParam(sp, 'cycleId'),
+    labelIds: stringArrayParam(sp, 'labelIds'),
     q: sp.get('q') ?? undefined,
+    dueAfter: sp.get('dueAfter') ?? undefined,
+    dueBefore: sp.get('dueBefore') ?? undefined,
     sort: sortParam(sp, SORTS),
     page,
     pageSize,

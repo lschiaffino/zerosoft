@@ -51,3 +51,18 @@ export function sortParam<T extends string>(
   const v = sp.get('sort');
   return allowed.includes(v as T) ? (v as T) : undefined;
 }
+
+export function stringArrayParam(sp: URLSearchParams, name: string): string[] | undefined {
+  const all = sp.getAll(name);
+  if (all.length > 0) {
+    const out = all.flatMap((v) => v.split(',').map((s) => s.trim()).filter(Boolean));
+    return out.length ? out : undefined;
+  }
+  const single = sp.get(name);
+  if (!single) return undefined;
+  const out = single
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return out.length ? out : undefined;
+}

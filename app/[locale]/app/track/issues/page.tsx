@@ -33,6 +33,8 @@ export default async function IssuesPage({
           assignee: t('issues.assignee'),
           cycle: t('issues.cycle'),
           created: t('issues.created'),
+          dueDate: t('issues.dueDate'),
+          labels: t('issues.labels'),
           noAssignee: t('issues.noAssignee'),
           empty: t('issues.empty'),
         }}

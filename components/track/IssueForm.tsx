@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import type { TrackStatusRow, TrackCycleRow } from '@/lib/db';
+import type { IssueLabel } from '@/lib/track-schema';
 
 interface IssueFormProps {
   locale: string;
@@ -18,6 +19,8 @@ interface IssueFormProps {
     assignee: string;
     cycle: string;
     estimate: string;
+    dueDate: string;
+    labels: string;
     create: string;
     saving: string;
     cancel: string;
@@ -25,6 +28,8 @@ interface IssueFormProps {
   };
   priorities: Array<{ value: string; label: string }>;
 }
+
+const LABEL_COLORS = ['#000000', '#333333', '#666666', '#999999', '#bbbbbb'];
 
 export default function IssueForm({ locale, projectId, statuses, cycles, labels, priorities }: IssueFormProps) {
   const router = useRouter();
@@ -34,6 +39,9 @@ export default function IssueForm({ locale, projectId, statuses, cycles, labels,
   const [priority, setPriority] = useState('medium');
   const [cycleId, setCycleId] = useState('');
   const [estimate, setEstimate] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [issueLabels, setIssueLabels] = useState<IssueLabel[]>([]);
+  const [labelInput, setLabelInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +61,8 @@ export default function IssueForm({ locale, projectId, statuses, cycles, labels,
           priority,
           cycleId: cycleId || undefined,
           estimate: estimate ? Number(estimate) : undefined,
+          dueDate: dueDate || undefined,
+          labels: issueLabels.length ? issueLabels : undefined,
         }),
       });
 
@@ -141,6 +151,72 @@ export default function IssueForm({ locale, projectId, statuses, cycles, labels,
           value={estimate}
           onChange={(e) => setEstimate(e.target.value)}
         />
+      </div>
+
+      <div className="track-form-row">
+        <label htmlFor="dueDate">{labels.dueDate}</label>
+        <input
+          id="dueDate"
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+        />
+      </div>
+
+      <div className="track-form-row">
+        <label htmlFor="labels">{labels.labels}</label>
+        <div className="track-label-input">
+          {issueLabels.map((l, idx) => (
+            <span
+              key={l.id}
+              className="track-label-chip"
+              style={{ background: l.color, color: '#fff' }}
+            >
+              {l.name}
+              <button
+                type="button"
+                onClick={() => setIssueLabels((prev) => prev.filter((_, i) => i !== idx))}
+                aria-label="remove"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          <input
+            id="labels"
+            type="text"
+            value={labelInput}
+            onChange={(e) => setLabelInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const name = labelInput.trim();
+                if (!name || issueLabels.length >= 10) return;
+                const color = LABEL_COLORS[issueLabels.length % LABEL_COLORS.length];
+                setIssueLabels((prev) => [...prev, { id: crypto.randomUUID(), name, color }]);
+                setLabelInput('');
+              }
+            }}
+            placeholder="Type and press Enter"
+          />
+        </div>
+        <div className="track-label-colors">
+          {LABEL_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className="track-label-color"
+              style={{ background: c }}
+              onClick={() => {
+                const name = labelInput.trim();
+                if (!name || issueLabels.length >= 10) return;
+                setIssueLabels((prev) => [...prev, { id: crypto.randomUUID(), name, color: c }]);
+                setLabelInput('');
+              }}
+              aria-label={`color ${c}`}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="track-form-actions">

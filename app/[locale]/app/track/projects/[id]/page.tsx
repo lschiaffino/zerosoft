@@ -1,9 +1,8 @@
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
-import { getProject, listIssues, listStatuses, listCycles } from '@/lib/track-data';
-import IssuesTable from '@/components/track/IssuesTable';
+import { getProject } from '@/lib/track-data';
+import ProjectPageClient from '@/components/track/ProjectPageClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,38 +16,48 @@ export default async function ProjectPage({
   if (!project || project.team_id !== (user.team?.id ?? null)) notFound();
 
   const t = await getTranslations({ locale, namespace: 'track' });
-  const statuses = await listStatuses(id);
-  const cycles = await listCycles(id);
-  const { rows: issues } = await listIssues(id, { pageSize: 50 });
 
   return (
-    <div className="app-page track-page">
-      <div className="track-page-header">
-        <div>
-          <h1>
-            <span style={{ marginRight: 10 }}>{project.icon || '◆'}</span>
-            {project.name}
-          </h1>
-          {project.description ? <p>{project.description}</p> : null}
-        </div>
-        <div className="track-form-actions">
-          <Link href={`/${locale}/app/track/projects/${id}/issues/new`} className="btn btn-solid">
-            {t('project.newIssue')}
-          </Link>
-        </div>
-      </div>
-
-      <div className="track-toolbar">
-        <div className="track-tabs">
-          <span className="track-tab active">{t('project.issues')}</span>
-          <span className="track-tab">{t('project.cycles')} ({cycles.length})</span>
-        </div>
-      </div>
-
-      <IssuesTable
-        issues={issues}
-        locale={locale}
-        labels={{
+    <ProjectPageClient
+      locale={locale}
+      projectId={id}
+      userId={user.id}
+      labels={{
+        newIssue: t('project.newIssue'),
+        issues: t('project.issues'),
+        cycles: t('project.cycles'),
+        noIssues: t('project.noIssues'),
+        noAssignee: t('issues.noAssignee'),
+        loading: t('common.loading'),
+        viewSwitcher: {
+          list: t('views.list'),
+          board: t('views.board'),
+          calendar: t('views.calendar'),
+        },
+        filters: {
+          status: t('filters.status'),
+          priority: t('filters.priority'),
+          assignee: t('filters.assignee'),
+          cycle: t('filters.cycle'),
+          labels: t('filters.labels'),
+          dueDate: t('filters.dueDate'),
+          search: t('filters.search'),
+          clear: t('filters.clear'),
+          saveView: t('savedViews.save'),
+        },
+        savedViews: {
+          title: t('savedViews.title'),
+          empty: t('savedViews.empty'),
+          default: t('savedViews.default'),
+          rename: t('savedViews.rename'),
+          delete: t('savedViews.delete'),
+          saveDialogTitle: t('savedViews.saveAs'),
+          saveDialogName: t('savedViews.name'),
+          saveDialogPlaceholder: t('savedViews.namePlaceholder'),
+          save: t('common.save'),
+          cancel: t('common.cancel'),
+        },
+        table: {
           identifier: t('issues.identifier'),
           title: t('issues.title'),
           status: t('issues.status'),
@@ -56,28 +65,25 @@ export default async function ProjectPage({
           assignee: t('issues.assignee'),
           cycle: t('issues.cycle'),
           created: t('issues.created'),
-          noAssignee: t('issues.noAssignee'),
+          dueDate: t('issues.dueDate'),
+          labels: t('issues.labels'),
+        },
+        board: {
           empty: t('project.noIssues'),
-        }}
-      />
-
-      {cycles.length > 0 && (
-        <section className="panel" style={{ marginTop: 32 }}>
-          <p className="section-label">{t('project.cycles')}</p>
-          <ul className="recent-list">
-            {cycles.map((c) => (
-              <li key={c.id}>
-                <div className="recent-row">
-                  <span className="recent-name">{c.name}</span>
-                  <span className="mono recent-date">
-                    {c.start_at.slice(0, 10)} → {c.end_at.slice(0, 10)}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
+        },
+        calendar: {
+          prev: t('calendar.prev'),
+          next: t('calendar.next'),
+          today: t('calendar.today'),
+          unscheduled: t('calendar.unscheduled'),
+        },
+        priorities: [
+          { value: 'urgent', label: t('priorities.urgent') },
+          { value: 'high', label: t('priorities.high') },
+          { value: 'medium', label: t('priorities.medium') },
+          { value: 'low', label: t('priorities.low') },
+        ],
+      }}
+    />
   );
 }
