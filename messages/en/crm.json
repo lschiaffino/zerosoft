@@ -42,6 +42,7 @@
     "pageOf": "{page} / {pages}",
     "all": "All",
     "none": "None",
+    "columns": "Columns",
     "optional": "optional",
     "results": "{count} results",
     "durationMin": "Duration (min)",
@@ -206,6 +207,7 @@
       "leadStatus": "Lead status",
       "source": "Source",
       "company": "Company",
+      "owner": "Owner",
       "noCompany": "No company"
     }
   },
@@ -269,7 +271,8 @@
       "website": "Website",
       "city": "City",
       "country": "Country",
-      "lifecycle": "Lifecycle stage"
+      "lifecycle": "Lifecycle stage",
+      "owner": "Owner"
     }
   },
   "deals": {
@@ -341,7 +344,8 @@
       "source": "Source",
       "description": "Description",
       "contacts": "Contacts",
-      "stage": "Stage"
+      "stage": "Stage",
+      "owner": "Owner"
     },
     "detail": {
       "back": "← Pipeline",
@@ -403,6 +407,10 @@
     "emptyMembers": "No members yet.",
     "deleteConfirm": "Delete this list? Contacts are kept."
   },
+  "history": {
+    "title": "History",
+    "empty": "No changes recorded yet."
+  },
   "reports": {
     "title": "Reports",
     "funnel": "Pipeline funnel",
@@ -421,7 +429,15 @@
     "pipeline": "Pipeline",
     "empty": "No data yet.",
     "vsPrev": "vs. previous stage",
-    "total": "Total"
+    "total": "Total",
+    "kpi": {
+      "newContacts": "New contacts",
+      "newDeals": "New deals",
+      "wonAmount": "Won amount",
+      "activities": "Activities"
+    },
+    "activityOverTime": "Activity over time",
+    "byOwner": "By owner"
   },
   "settings": {
     "title": "Settings",

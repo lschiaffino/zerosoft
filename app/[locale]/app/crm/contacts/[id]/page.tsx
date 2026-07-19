@@ -27,6 +27,8 @@ import AssociateDeal from '@/components/crm/AssociateDeal';
 import CompanyQuickCreate from '@/components/crm/CompanyQuickCreate';
 import DuplicatesPanel from '@/components/crm/DuplicatesPanel';
 import DangerDelete from '@/components/crm/DangerDelete';
+import { listMembers } from '@/lib/teams';
+import HistoryPanel from '@/components/crm/HistoryPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +55,9 @@ export default async function ContactDetailPage({
   if (!detail) notFound();
 
   const { contact, company, deals, lists } = detail;
+
+  const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
+  const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
   const timeline = await listTimeline(user.id, { contactId: id, limit: 100 });
   const emailItems = await listExternalEmailItems(user.id, { contactId: id, limit: 50 });
   const timelineItems = mergeTimelineWithEmails(timeline, emailItems);
@@ -72,6 +77,29 @@ export default async function ContactDetailPage({
   const sourceOpts = SOURCES.map((value) => ({ value, label: t(`enums.source.${value}`) }));
 
   const name = `${contact.first_name} ${contact.last_name}`.trim() || contact.email || '—';
+
+  const historyFields: Record<string, string> = {
+    first_name: t('contacts.form.firstName'),
+    last_name: t('contacts.form.lastName'),
+    email: t('contacts.form.email'),
+    phone: t('contacts.form.phone'),
+    job_title: t('contacts.form.jobTitle'),
+    website: t('contacts.form.website'),
+    city: t('contacts.form.city'),
+    country: t('contacts.form.country'),
+    lifecycle_stage: t('contacts.form.lifecycle'),
+    lead_status: t('contacts.form.leadStatus'),
+    source: t('contacts.form.source'),
+    company_id: t('contacts.form.company'),
+    owner_id: t('contacts.form.owner'),
+  };
+  const historyValues: Record<string, Record<string, string>> = {
+    lifecycle_stage: Object.fromEntries(
+      LIFECYCLE_STAGES.map((v) => [v, t(`enums.lifecycle.${v}`)]),
+    ),
+    lead_status: Object.fromEntries(LEAD_STATUSES.map((v) => [v, t(`enums.leadStatus.${v}`)])),
+    source: Object.fromEntries(SOURCES.map((v) => [v, t(`enums.source.${v}`)])),
+  };
 
   const custom = parseCustom(contact.custom);
   const fields: PropField[] = [
@@ -115,6 +143,13 @@ export default async function ContactDetailPage({
       value: contact.company_id ?? '',
       options: companies.map((c) => ({ value: c.id, label: c.name })),
       nullOption: true,
+    },
+    {
+      key: 'ownerId',
+      label: t('contacts.form.owner'),
+      type: 'select',
+      value: contact.owner_id ?? user.id,
+      options: ownerOptions,
     },
     ...customPropFields(await listCustomFields(user.id, 'contacts'), custom, {
       yes: t('common.yes'),
@@ -257,6 +292,19 @@ export default async function ContactDetailPage({
             <p className="section-label">{t('contacts.detail.duplicates')}</p>
             <DuplicatesPanel contactId={contact.id} />
           </section>
+
+          <HistoryPanel
+            entity="contact"
+            entityId={contact.id}
+            locale={locale}
+            labels={{
+              title: t('history.title'),
+              empty: t('history.empty'),
+              fields: historyFields,
+              values: historyValues,
+            }}
+            key={contact.updated_at}
+          />
 
           <section className="panel danger-panel">
             <p className="section-label">{t('contacts.detail.dangerZone')}</p>

@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return crmError(400, 'missing_lost_reason');
   }
 
-  const result = await moveDeal(user.id, params.id, stageId, beforeId ?? null, lostReason);
+  const result = await moveDeal(user.id, params.id, stageId, beforeId ?? null, lostReason, user.actingUser?.email ?? user.email);
   if (!result.ok) {
     return result.reason === 'not_found' ? notFound() : crmError(400, 'invalid_stage');
   }

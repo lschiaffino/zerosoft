@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { signOut } from 'next-auth/react';
 import { Link, usePathname } from '@/i18n/navigation';
+import Icon, { type IconName } from './icons';
 
 export interface SidebarLabels {
   search: string;
@@ -45,6 +46,7 @@ interface Item {
   href: string;
   label: string;
   active: boolean;
+  icon: IconName;
   badge?: number;
 }
 
@@ -119,14 +121,14 @@ export default function AppSidebar({
   }
 
   const crmNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/crm', label: labels.crm.overview, active: pathname === '/app/crm' }] },
+    { items: [{ href: '/app/crm', label: labels.crm.overview, active: pathname === '/app/crm', icon: 'overview' }] },
     {
       section: labels.records,
       items: [
-        { href: '/app/crm/contacts', label: labels.crm.contacts, active: pathname.startsWith('/app/crm/contacts') },
-        { href: '/app/crm/companies', label: labels.crm.companies, active: pathname.startsWith('/app/crm/companies') },
-        { href: '/app/crm/deals', label: labels.crm.deals, active: pathname.startsWith('/app/crm/deals') },
-        { href: '/app/crm/lists', label: labels.crm.lists, active: pathname.startsWith('/app/crm/lists') },
+        { href: '/app/crm/contacts', label: labels.crm.contacts, active: pathname.startsWith('/app/crm/contacts'), icon: 'contacts' },
+        { href: '/app/crm/companies', label: labels.crm.companies, active: pathname.startsWith('/app/crm/companies'), icon: 'companies' },
+        { href: '/app/crm/deals', label: labels.crm.deals, active: pathname.startsWith('/app/crm/deals'), icon: 'deals' },
+        { href: '/app/crm/lists', label: labels.crm.lists, active: pathname.startsWith('/app/crm/lists'), icon: 'lists' },
       ],
     },
     {
@@ -136,6 +138,7 @@ export default function AppSidebar({
           href: '/app/crm/tasks',
           label: labels.crm.tasks,
           active: pathname.startsWith('/app/crm/tasks'),
+          icon: 'tasks',
           badge: tasksDue > 0 ? tasksDue : undefined,
         },
       ],
@@ -143,19 +146,19 @@ export default function AppSidebar({
     {
       section: labels.insights,
       items: [
-        { href: '/app/crm/reports', label: labels.crm.reports, active: pathname.startsWith('/app/crm/reports') },
+        { href: '/app/crm/reports', label: labels.crm.reports, active: pathname.startsWith('/app/crm/reports'), icon: 'reports' },
       ],
     },
     {
       section: labels.workspace,
       items: [
-        { href: '/app/crm/settings', label: labels.crm.settings, active: pathname.startsWith('/app/crm/settings') },
+        { href: '/app/crm/settings', label: labels.crm.settings, active: pathname.startsWith('/app/crm/settings'), icon: 'settings' },
       ],
     },
   ];
 
   const linkNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app', label: labels.link.overview, active: pathname === '/app' }] },
+    { items: [{ href: '/app', label: labels.link.overview, active: pathname === '/app', icon: 'overview' }] },
     {
       section: labels.linksSection,
       items: [
@@ -163,14 +166,15 @@ export default function AppSidebar({
           href: '/app/links',
           label: labels.link.links,
           active: pathname.startsWith('/app/links') && !pathname.startsWith('/app/links/new'),
+          icon: 'links',
         },
-        { href: '/app/links/new', label: labels.link.new, active: pathname.startsWith('/app/links/new') },
+        { href: '/app/links/new', label: labels.link.new, active: pathname.startsWith('/app/links/new'), icon: 'newLink' },
       ],
     },
     {
       section: labels.workspace,
       items: [
-        { href: '/app/settings', label: labels.link.settings, active: pathname.startsWith('/app/settings') },
+        { href: '/app/settings', label: labels.link.settings, active: pathname.startsWith('/app/settings'), icon: 'settings' },
       ],
     },
   ];
@@ -180,12 +184,12 @@ export default function AppSidebar({
   const newItems: Item[] =
     product === 'crm'
       ? [
-          { href: '/app/crm/contacts/new', label: labels.newContact, active: false },
-          { href: '/app/crm/companies/new', label: labels.newCompany, active: false },
-          { href: '/app/crm/deals/new', label: labels.newDeal, active: false },
-          { href: '/app/crm/tasks', label: labels.newTask, active: false },
+          { href: '/app/crm/contacts/new', label: labels.newContact, active: false, icon: 'contacts' },
+          { href: '/app/crm/companies/new', label: labels.newCompany, active: false, icon: 'companies' },
+          { href: '/app/crm/deals/new', label: labels.newDeal, active: false, icon: 'deals' },
+          { href: '/app/crm/tasks', label: labels.newTask, active: false, icon: 'tasks' },
         ]
-      : [{ href: '/app/links/new', label: labels.newLink, active: false }];
+      : [{ href: '/app/links/new', label: labels.newLink, active: false, icon: 'newLink' }];
 
   const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
 
@@ -285,9 +289,9 @@ export default function AppSidebar({
                 href={item.href}
                 className={`side-link${item.active ? ' active' : ''}`}
                 aria-current={item.active ? 'page' : undefined}
-                data-initial={item.label.trim().charAt(0).toUpperCase()}
                 title={item.label}
               >
+                <Icon name={item.icon} />
                 {item.label}
                 {item.badge ? <span className="side-badge mono">{item.badge}</span> : null}
               </Link>
@@ -297,10 +301,12 @@ export default function AppSidebar({
       </nav>
 
       <div className="side-foot">
-        <Link href="/" className="side-link">
+        <Link href="/" className="side-link" title={labels.backToSite}>
+          <Icon name="back" />
           {labels.backToSite}
         </Link>
-        <Link href="/docs" className="side-link">
+        <Link href="/docs" className="side-link" title={labels.docs}>
+          <Icon name="docs" />
           {labels.docs}
         </Link>
         <div className="side-user">

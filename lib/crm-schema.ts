@@ -9,7 +9,7 @@ import {
   LEAD_STATUSES,
   PRIORITIES,
   SOURCES,
-} from './crm';
+} from './crm-constants';
 
 // ---------- Primitivas compartidas ----------
 
@@ -58,6 +58,7 @@ export const contactCreateSchema = z.object({
   leadStatus: leadStatus.optional(),
   source: source.optional(),
   companyId: id.nullish(),
+  ownerId: id.nullish(),
   custom: custom.optional(),
 });
 
@@ -89,6 +90,7 @@ export const companyCreateSchema = z.object({
   city: shortText.optional(),
   country: shortText.optional(),
   lifecycleStage: lifecycleStage.optional(),
+  ownerId: id.nullish(),
   custom: custom.optional(),
 });
 
@@ -130,6 +132,7 @@ export const dealCreateSchema = z.object({
   source: source.optional(),
   description: longText.optional(),
   contactIds: z.array(id).max(50).optional(),
+  ownerId: id.nullish(),
   custom: custom.optional(),
 });
 

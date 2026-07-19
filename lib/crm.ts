@@ -16,6 +16,7 @@ import {
   type CrmEmailRow,
   type CrmListRow,
   type CrmPipelineRow,
+  type CrmPropertyEventRow,
   type CrmSavedViewRow,
   type CrmStageRow,
   type Db,
@@ -23,33 +24,31 @@ import {
 
 // ---------- Constantes ----------
 
-export const LIFECYCLE_STAGES = [
-  'subscriber',
-  'lead',
-  'mql',
-  'sql',
-  'opportunity',
-  'customer',
-  'evangelist',
-] as const;
-export const LEAD_STATUSES = [
-  'new',
-  'open',
-  'in_progress',
-  'open_deal',
-  'unqualified',
-  'connected',
-  'bad_timing',
-] as const;
-export const SOURCES = ['organic', 'referral', 'ads', 'social', 'email', 'event', 'other'] as const;
-export const ACTIVITY_TYPES = ['note', 'task', 'call', 'meeting', 'email'] as const;
-export const PRIORITIES = ['low', 'medium', 'high'] as const;
+import {
+  ACTIVITY_TYPES,
+  LIFECYCLE_STAGES,
+  LEAD_STATUSES,
+  PRIORITIES,
+  SOURCES,
+  type ActivityType,
+  type LeadStatus,
+  type LifecycleStage,
+  type Priority,
+  type Source,
+} from './crm-constants';
 
-export type LifecycleStage = (typeof LIFECYCLE_STAGES)[number];
-export type LeadStatus = (typeof LEAD_STATUSES)[number];
-export type Source = (typeof SOURCES)[number];
-export type ActivityType = (typeof ACTIVITY_TYPES)[number];
-export type Priority = (typeof PRIORITIES)[number];
+export {
+  ACTIVITY_TYPES,
+  LIFECYCLE_STAGES,
+  LEAD_STATUSES,
+  PRIORITIES,
+  SOURCES,
+  type ActivityType,
+  type LeadStatus,
+  type LifecycleStage,
+  type Priority,
+  type Source,
+};
 
 // ---------- Helpers ----------
 
@@ -106,6 +105,88 @@ function toColumnValues(
     else out.push([col, v as string | number | null]);
   }
   return out;
+}
+
+/** Normaliza cualquier valor de BD a string para comparar en el audit. */
+function normValue(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  return String(v);
+}
+
+/**
+ * Inserta una fila de audit por cada propiedad de `sets` que cambió
+ * respecto de `before` (la fila completa pre-UPDATE). La columna `custom`
+ * se compara clave por clave para evitar loguear el blob JSON entero.
+ */
+async function logPropertyEvents(
+  userId: string,
+  entity: 'contact' | 'company' | 'deal',
+  entityId: string,
+  before: Record<string, unknown>,
+  sets: Array<[string, string | number | null]>,
+  actorEmail: string,
+  db: Db = getDb(),
+): Promise<void> {
+  const ins = db.prepare(
+    `INSERT INTO crm_property_events
+       (id, user_id, entity, entity_id, field, old_value, new_value, actor_email)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  for (const [col, value] of sets) {
+    if (col === 'custom') {
+      const oldCustom = parseCustom(normValue(before[col]));
+      const newCustom = parseCustom(normValue(value));
+      const keys = new Set([...Object.keys(oldCustom), ...Object.keys(newCustom)]);
+      for (const k of keys) {
+        const oldV = normValue(oldCustom[k]);
+        const newV = normValue(newCustom[k]);
+        if (oldV !== newV) {
+          await ins.run(
+            crypto.randomUUID(),
+            userId,
+            entity,
+            entityId,
+            `custom.${k}`,
+            oldV,
+            newV,
+            actorEmail,
+          );
+        }
+      }
+      continue;
+    }
+    const oldV = normValue(before[col]);
+    const newV = normValue(value);
+    if (oldV !== newV) {
+      await ins.run(crypto.randomUUID(), userId, entity, entityId, col, oldV, newV, actorEmail);
+    }
+  }
+}
+
+export async function listPropertyEvents(
+  userId: string,
+  entity: 'contact' | 'company' | 'deal',
+  entityId: string,
+  limit = 50,
+): Promise<(CrmPropertyEventRow & { new_company_name: string | null; old_company_name: string | null })[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT e.*,
+        nco.name AS new_company_name,
+        oco.name AS old_company_name
+       FROM crm_property_events e
+       LEFT JOIN crm_companies nco
+         ON e.field = 'company_id' AND nco.id = e.new_value
+       LEFT JOIN crm_companies oco
+         ON e.field = 'company_id' AND oco.id = e.old_value
+       WHERE e.user_id = ? AND e.entity = ? AND e.entity_id = ?
+       ORDER BY e.created_at DESC, e.rowid DESC
+       LIMIT ?`,
+    )
+    .all(userId, entity, entityId, limit)) as (CrmPropertyEventRow & {
+    new_company_name: string | null;
+    old_company_name: string | null;
+  })[];
 }
 
 // ============================================================
@@ -249,6 +330,7 @@ export interface ContactInput {
   leadStatus?: string;
   source?: string;
   companyId?: string | null;
+  ownerId?: string | null;
   custom?: Record<string, unknown>;
 }
 
@@ -265,6 +347,7 @@ const CONTACT_COLS: Record<string, string> = {
   leadStatus: 'lead_status',
   source: 'source',
   companyId: 'company_id',
+  ownerId: 'owner_id',
   custom: 'custom',
 };
 
@@ -317,13 +400,14 @@ export async function createContact(
   await db
     .prepare(
       `INSERT INTO crm_contacts
-       (id, user_id, first_name, last_name, email, phone, job_title, website, city, country,
+       (id, user_id, owner_id, first_name, last_name, email, phone, job_title, website, city, country,
         lifecycle_stage, lead_status, source, company_id, custom)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
       userId,
+      data.ownerId ?? userId,
       data.firstName ?? '',
       data.lastName ?? '',
       data.email ?? '',
@@ -346,10 +430,11 @@ export async function updateContact(
   id: string,
   data: ContactInput,
   db: Db = getDb(),
+  actorEmail = '',
 ): Promise<CrmContactRow | null> {
   const existing = (await db
-    .prepare('SELECT id, company_id FROM crm_contacts WHERE id = ? AND user_id = ?')
-    .get(id, userId)) as { id: string; company_id: string | null } | undefined;
+    .prepare('SELECT * FROM crm_contacts WHERE id = ? AND user_id = ?')
+    .get(id, userId)) as CrmContactRow | undefined;
   if (!existing) return null;
   const sets = toColumnValues(CONTACT_COLS, data as Record<string, unknown>);
   // Auto-link: si cambia el email, no vino companyId explícito y el contacto
@@ -362,6 +447,7 @@ export async function updateContact(
   await db
     .prepare(`UPDATE crm_contacts SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
     .run(...sets.map(([, v]) => v), now(), id);
+  await logPropertyEvents(userId, 'contact', id, existing as unknown as Record<string, unknown>, sets, actorEmail, db);
   return (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
 }
 
@@ -611,6 +697,7 @@ export interface CompanyInput {
   city?: string;
   country?: string;
   lifecycleStage?: string;
+  ownerId?: string | null;
   custom?: Record<string, unknown>;
 }
 
@@ -624,6 +711,7 @@ const COMPANY_COLS: Record<string, string> = {
   city: 'city',
   country: 'country',
   lifecycleStage: 'lifecycle_stage',
+  ownerId: 'owner_id',
   custom: 'custom',
 };
 
@@ -636,12 +724,13 @@ export async function createCompany(
   await db
     .prepare(
       `INSERT INTO crm_companies
-       (id, user_id, name, domain, industry, employees, phone, website, city, country, lifecycle_stage, custom)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, user_id, owner_id, name, domain, industry, employees, phone, website, city, country, lifecycle_stage, custom)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
       userId,
+      data.ownerId ?? userId,
       data.name ?? '',
       data.domain ?? '',
       data.industry ?? '',
@@ -661,16 +750,18 @@ export async function updateCompany(
   id: string,
   data: CompanyInput,
   db: Db = getDb(),
+  actorEmail = '',
 ): Promise<CrmCompanyRow | null> {
-  const existing = await db
-    .prepare('SELECT id FROM crm_companies WHERE id = ? AND user_id = ?')
-    .get(id, userId);
+  const existing = (await db
+    .prepare('SELECT * FROM crm_companies WHERE id = ? AND user_id = ?')
+    .get(id, userId)) as CrmCompanyRow | undefined;
   if (!existing) return null;
   const sets = toColumnValues(COMPANY_COLS, data as Record<string, unknown>);
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
   await db
     .prepare(`UPDATE crm_companies SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
     .run(...sets.map(([, v]) => v), now(), id);
+  await logPropertyEvents(userId, 'company', id, existing as unknown as Record<string, unknown>, sets, actorEmail, db);
   return (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
 }
 
@@ -1017,6 +1108,7 @@ export interface DealInput {
   source?: string;
   description?: string;
   lostReason?: string;
+  ownerId?: string | null;
   custom?: Record<string, unknown>;
   contactIds?: string[];
   addContactIds?: string[];
@@ -1068,13 +1160,14 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
     await tdb
       .prepare(
         `INSERT INTO crm_deals
-         (id, user_id, pipeline_id, stage_id, name, amount, currency, close_date, priority,
+         (id, user_id, owner_id, pipeline_id, stage_id, name, amount, currency, close_date, priority,
           source, description, lost_reason, position, custom, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
         userId,
+        data.ownerId ?? userId,
         data.pipelineId!,
         data.stageId!,
         data.name ?? '',
@@ -1111,6 +1204,7 @@ const DEAL_COLS: Record<string, string> = {
   source: 'source',
   description: 'description',
   lostReason: 'lost_reason',
+  ownerId: 'owner_id',
   custom: 'custom',
 };
 
@@ -1118,11 +1212,12 @@ export async function updateDeal(
   userId: string,
   id: string,
   data: DealInput,
+  actorEmail = '',
 ): Promise<CrmDealRow | null> {
   const db = getDb();
-  const existing = await db
-    .prepare('SELECT id FROM crm_deals WHERE id = ? AND user_id = ?')
-    .get(id, userId);
+  const existing = (await db
+    .prepare('SELECT * FROM crm_deals WHERE id = ? AND user_id = ?')
+    .get(id, userId)) as CrmDealRow | undefined;
   if (!existing) return null;
   const sets = toColumnValues(DEAL_COLS, data as Record<string, unknown>);
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
@@ -1145,6 +1240,7 @@ export async function updateDeal(
     await tx.rollback();
     throw e;
   }
+  await logPropertyEvents(userId, 'deal', id, existing as unknown as Record<string, unknown>, sets, actorEmail);
   return (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow;
 }
 
@@ -1172,6 +1268,7 @@ export async function moveDeal(
   stageId: string,
   beforeId?: string | null,
   lostReason?: string,
+  actorEmail = '',
 ): Promise<MoveDealResult> {
   const db = getDb();
   const deal = (await db
@@ -1213,6 +1310,9 @@ export async function moveDeal(
     newLostReason = '';
   }
 
+  const oldStageName = deal.stage_id
+    ? (((await db.prepare('SELECT name FROM crm_stages WHERE id = ?').get(deal.stage_id)) as { name: string } | undefined)?.name ?? '')
+    : '';
   await db
     .prepare(
       `UPDATE crm_deals
@@ -1220,6 +1320,15 @@ export async function moveDeal(
      WHERE id = ?`,
     )
     .run(stageId, position, closedAt, newLostReason, ts, id);
+  if (oldStageName !== stage.name) {
+    await db
+      .prepare(
+        `INSERT INTO crm_property_events
+         (id, user_id, entity, entity_id, field, old_value, new_value, actor_email)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(crypto.randomUUID(), userId, 'deal', id, 'stage', oldStageName, stage.name, actorEmail);
+  }
   return {
     ok: true,
     deal: (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow,

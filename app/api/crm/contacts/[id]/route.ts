@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const parsed = contactUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const contact = await updateContact(user.id, params.id, parsed.data);
+  const contact = await updateContact(user.id, params.id, parsed.data, undefined, user.actingUser?.email ?? user.email);
   if (!contact) return notFound();
   return NextResponse.json(contact);
 }

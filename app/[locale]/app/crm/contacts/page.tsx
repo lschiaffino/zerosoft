@@ -5,6 +5,7 @@ import {
   LEAD_STATUSES,
   LIFECYCLE_STAGES,
   SOURCES,
+  listCompanies,
   listContacts,
   listSavedViews,
   parseCustom,
@@ -60,6 +61,11 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
     page,
   });
   const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
+
+  const companies = (await listCompanies(user.id, { pageSize: 200, sort: 'name' })).rows.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
 
   const tableRows: ContactRow[] = rows.map((c) => ({
     id: c.id,
@@ -121,7 +127,14 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
         </div>
       ) : (
         <>
-          <ContactsTable rows={tableRows} lifecycles={[...LIFECYCLE_STAGES]} sort={sort} />
+          <ContactsTable
+            rows={tableRows}
+            lifecycles={[...LIFECYCLE_STAGES]}
+            leadStatuses={[...LEAD_STATUSES]}
+            sources={[...SOURCES]}
+            sort={sort}
+            companies={companies}
+          />
           {pages > 1 && (
             <nav className="pager mono">
               {page > 1 ? (

@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const deal = await updateDeal(auth.user.id, params.id, parsed.data);
+  const deal = await updateDeal(auth.user.id, params.id, parsed.data, auth.user.email);
   if (!deal) return apiError(404, 'not_found', 'Deal not found.');
   return NextResponse.json(cleanRow(deal));
 }

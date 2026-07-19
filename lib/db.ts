@@ -42,7 +42,10 @@ export function ensureMigrated(): Promise<void> {
   if (!_migratePromise) {
     const p = (async () => {
       const client = getClient();
-      if (!IS_REMOTE) await client.execute('PRAGMA foreign_keys = ON');
+      if (!IS_REMOTE) {
+        await client.execute('PRAGMA foreign_keys = ON');
+        await client.execute('PRAGMA busy_timeout = 5000');
+      }
       await client.executeMultiple(DDL);
       // Columnas añadidas después del DDL inicial: ALTER idempotente
       // (falla con "duplicate column" si ya existe; se ignora).
@@ -50,6 +53,9 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE crm_activities ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0',
         'ALTER TABLE integrations ADD COLUMN last_sync_at TEXT',
         'ALTER TABLE users ADD COLUMN active_team_id TEXT',
+        'ALTER TABLE crm_contacts ADD COLUMN owner_id TEXT',
+        'ALTER TABLE crm_companies ADD COLUMN owner_id TEXT',
+        'ALTER TABLE crm_deals ADD COLUMN owner_id TEXT',
       ]) {
         try {
           await client.execute(alter);
@@ -207,6 +213,7 @@ const DDL = `
     CREATE TABLE IF NOT EXISTS crm_contacts (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      owner_id TEXT,
       first_name TEXT NOT NULL DEFAULT '',
       last_name TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL DEFAULT '',
@@ -229,6 +236,7 @@ const DDL = `
     CREATE TABLE IF NOT EXISTS crm_companies (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      owner_id TEXT,
       name TEXT NOT NULL DEFAULT '',
       domain TEXT NOT NULL DEFAULT '',
       industry TEXT NOT NULL DEFAULT '',
@@ -266,6 +274,7 @@ const DDL = `
     CREATE TABLE IF NOT EXISTS crm_deals (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      owner_id TEXT,
       pipeline_id TEXT NOT NULL,
       stage_id TEXT NOT NULL,
       name TEXT NOT NULL DEFAULT '',
@@ -312,6 +321,20 @@ const DDL = `
     );
     CREATE INDEX IF NOT EXISTS idx_crm_activities_user ON crm_activities(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_crm_activities_due ON crm_activities(user_id, done, due_at);
+
+    -- Audit trail: una fila por cada cambio de propiedad de contact/company/deal.
+    CREATE TABLE IF NOT EXISTS crm_property_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      entity TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      field TEXT NOT NULL,
+      old_value TEXT NOT NULL DEFAULT '',
+      new_value TEXT NOT NULL DEFAULT '',
+      actor_email TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_crm_prop_events ON crm_property_events(user_id, entity, entity_id, created_at DESC);
 
     CREATE TABLE IF NOT EXISTS crm_lists (
       id TEXT PRIMARY KEY,
@@ -484,6 +507,7 @@ export interface ApiKeyRow {
 export interface CrmContactRow {
   id: string;
   user_id: string;
+  owner_id: string | null;
   first_name: string;
   last_name: string;
   email: string;
@@ -504,6 +528,7 @@ export interface CrmContactRow {
 export interface CrmCompanyRow {
   id: string;
   user_id: string;
+  owner_id: string | null;
   name: string;
   domain: string;
   industry: string;
@@ -539,6 +564,7 @@ export interface CrmStageRow {
 export interface CrmDealRow {
   id: string;
   user_id: string;
+  owner_id: string | null;
   pipeline_id: string;
   stage_id: string;
   name: string;
@@ -574,6 +600,18 @@ export interface CrmActivityRow {
   deal_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface CrmPropertyEventRow {
+  id: string;
+  user_id: string;
+  entity: string;
+  entity_id: string;
+  field: string;
+  old_value: string;
+  new_value: string;
+  actor_email: string;
+  created_at: string;
 }
 
 export interface CrmListRow {

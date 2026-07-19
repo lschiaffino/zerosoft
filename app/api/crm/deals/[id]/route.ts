@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const parsed = dealUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const deal = await updateDeal(user.id, params.id, parsed.data);
+  const deal = await updateDeal(user.id, params.id, parsed.data, user.actingUser?.email ?? user.email);
   if (!deal) return notFound();
   return NextResponse.json(deal);
 }

@@ -11,6 +11,8 @@ import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
+import HistoryPanel from '@/components/crm/HistoryPanel';
+import { listMembers } from '@/lib/teams';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +27,9 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
   const detail = await getDeal(user.id, id);
   if (!detail) notFound();
   const { deal, stage, pipeline, contacts, company } = detail;
+
+  const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
+  const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
   const timeline = await listTimeline(user.id, { dealId: id, limit: 100 });
   const nextTask = await nextTaskFor(user.id, { dealId: id });
@@ -80,6 +85,13 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
       ],
     },
     { key: 'description', label: t('deals.form.description'), type: 'text', value: deal.description },
+    {
+      key: 'ownerId',
+      label: t('deals.form.owner'),
+      type: 'select',
+      value: deal.owner_id ?? user.id,
+      options: ownerOptions,
+    },
     ...customPropFields(await listCustomFields(user.id, 'deals'), custom, {
       yes: t('common.yes'),
       no: t('common.no'),
@@ -91,6 +103,23 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
     name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
     email: c.email,
   }));
+
+  const historyFields: Record<string, string> = {
+    name: t('deals.form.name'),
+    amount: t('deals.form.amount'),
+    currency: t('deals.form.currency'),
+    close_date: t('deals.form.closeDate'),
+    priority: t('deals.form.priority'),
+    source: t('deals.form.source'),
+    description: t('deals.form.description'),
+    lost_reason: t('deals.detail.lostReason'),
+    stage: t('deals.form.stage'),
+    owner_id: t('deals.form.owner'),
+  };
+  const historyValues: Record<string, Record<string, string>> = {
+    priority: Object.fromEntries(PRIORITIES.map((v) => [v, t(`enums.priority.${v}`)])),
+    source: Object.fromEntries(SOURCES.map((v) => [v, t(`enums.source.${v}`)])),
+  };
 
   return (
     <div className="app-page">
@@ -173,6 +202,19 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
             </div>
             <DealContacts dealId={deal.id} contacts={contactChips} />
           </section>
+
+          <HistoryPanel
+            entity="deal"
+            entityId={deal.id}
+            locale={locale}
+            labels={{
+              title: t('history.title'),
+              empty: t('history.empty'),
+              fields: historyFields,
+              values: historyValues,
+            }}
+            key={deal.updated_at}
+          />
 
           <section className="panel danger-panel">
             <h2 className="section-label">{t('deals.detail.dangerZone')}</h2>

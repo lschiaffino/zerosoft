@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
+import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
 
 export interface CompanyRow {
   id: string;
@@ -26,7 +27,19 @@ interface CompaniesTableProps {
   lifecycles: string[];
 }
 
-/** Tabla de empresas con selección múltiple, bulk bar y edición inline. */
+const COLS = [
+  { id: 'name', labelKey: 'companies.table.name', defaultVisible: true },
+  { id: 'domain', labelKey: 'companies.table.domain', defaultVisible: true },
+  { id: 'industry', labelKey: 'companies.table.industry', defaultVisible: true },
+  { id: 'phone', labelKey: 'companies.table.phone', defaultVisible: false },
+  { id: 'location', labelKey: 'companies.table.location', defaultVisible: true },
+  { id: 'contacts', labelKey: 'companies.table.contacts', defaultVisible: true },
+  { id: 'deals', labelKey: 'deals.title', defaultVisible: true },
+  { id: 'lifecycle', labelKey: 'companies.table.lifecycle', defaultVisible: true },
+  { id: 'created', labelKey: 'companies.table.created', defaultVisible: false },
+];
+
+/** Tabla de empresas con selección múltiple, bulk bar, selector de columnas y edición inline. */
 export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -34,6 +47,10 @@ export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTabl
   const [busy, setBusy] = useState(false);
   const [bulkLifecycle, setBulkLifecycle] = useState(lifecycles[0] ?? 'lead');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [visible, toggleVisible] = useColumnVisibility(
+    COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
+    'zs-companies-columns',
+  );
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
 
@@ -65,8 +82,19 @@ export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTabl
     router.refresh();
   }
 
+  const lifecycleOpts = lifecycles.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) }));
+
   return (
     <>
+      <div className="table-toolbar">
+        <ColumnToggle
+          columns={COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible }))}
+          visible={visible}
+          onToggle={toggleVisible}
+          label={t('common.columns')}
+        />
+      </div>
+
       <div className="table-wrap">
         <table className="table crm-table">
           <thead>
@@ -79,24 +107,25 @@ export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTabl
                   aria-label={t('common.all')}
                 />
               </th>
-              <th>
-                <SortTh label={t('companies.table.name')} asc="name" desc="name_desc" current={sort} />
-              </th>
-              <th>{t('companies.table.domain')}</th>
-              <th>{t('companies.table.industry')}</th>
-              <th>{t('companies.table.phone')}</th>
-              <th>{t('companies.table.location')}</th>
-              <th className="th-num">{t('companies.table.contacts')}</th>
-              <th className="th-num">{t('deals.title')}</th>
-              <th>{t('companies.table.lifecycle')}</th>
-              <th>
-                <SortTh
-                  label={t('companies.table.created')}
-                  asc="oldest"
-                  desc="newest"
-                  current={sort}
-                />
-              </th>
+              {visible.has('name') && (
+                <th>
+                  <SortTh label={t('companies.table.name')} asc="name" desc="name_desc" current={sort} />
+                </th>
+              )}
+              {visible.has('domain') && <th>{t('companies.table.domain')}</th>}
+              {visible.has('industry') && <th>{t('companies.table.industry')}</th>}
+              {visible.has('phone') && <th>{t('companies.table.phone')}</th>}
+              {visible.has('location') && <th>{t('companies.table.location')}</th>}
+              {visible.has('contacts') && (
+                <th className="th-num">{t('companies.table.contacts')}</th>
+              )}
+              {visible.has('deals') && <th className="th-num">{t('deals.title')}</th>}
+              {visible.has('lifecycle') && <th>{t('companies.table.lifecycle')}</th>}
+              {visible.has('created') && (
+                <th>
+                  <SortTh label={t('companies.table.created')} asc="oldest" desc="newest" current={sort} />
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -110,51 +139,68 @@ export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTabl
                     aria-label={row.name}
                   />
                 </td>
-                <td>
-                  <Link href={`/app/crm/companies/${row.id}`} className="cell-name">
-                    {row.name}
-                  </Link>
-                </td>
-                <td>
-                  <InlineEditCell
-                    endpoint={`/api/crm/companies/${row.id}`}
-                    field="domain"
-                    value={row.domain}
-                    className="cell-email muted"
-                  />
-                </td>
-                <td>
-                  <InlineEditCell
-                    endpoint={`/api/crm/companies/${row.id}`}
-                    field="industry"
-                    value={row.industry}
-                    className="muted"
-                  />
-                </td>
-                <td className="cell-sub">
-                  <InlineEditCell
-                    endpoint={`/api/crm/companies/${row.id}`}
-                    field="phone"
-                    value={row.phone}
-                    className="muted"
-                  />
-                  {row.phone ? (
-                    <a
-                      href={`tel:${row.phone}`}
-                      className="cell-quick"
-                      title={t('enums.activityType.call')}
-                    >
-                      ☎
-                    </a>
-                  ) : null}
-                </td>
-                <td className="muted cell-sub">{row.location || '—'}</td>
-                <td className="mono td-num">{row.contacts}</td>
-                <td className="mono td-num">{row.deals}</td>
-                <td>
-                  <span className={`badge stage-${row.lifecycle}`}>{row.lifecycleLabel}</span>
-                </td>
-                <td className="mono muted cell-date">{row.created}</td>
+                {visible.has('name') && (
+                  <td>
+                    <Link href={`/app/crm/companies/${row.id}`} className="cell-name">
+                      {row.name}
+                    </Link>
+                  </td>
+                )}
+                {visible.has('domain') && (
+                  <td>
+                    <InlineEditCell
+                      endpoint={`/api/crm/companies/${row.id}`}
+                      field="domain"
+                      value={row.domain}
+                      className="cell-email muted"
+                    />
+                  </td>
+                )}
+                {visible.has('industry') && (
+                  <td>
+                    <InlineEditCell
+                      endpoint={`/api/crm/companies/${row.id}`}
+                      field="industry"
+                      value={row.industry}
+                      className="muted"
+                    />
+                  </td>
+                )}
+                {visible.has('phone') && (
+                  <td className="cell-sub">
+                    <InlineEditCell
+                      endpoint={`/api/crm/companies/${row.id}`}
+                      field="phone"
+                      value={row.phone}
+                      className="muted"
+                    />
+                    {row.phone ? (
+                      <a
+                        href={`tel:${row.phone}`}
+                        className="cell-quick"
+                        title={t('enums.activityType.call')}
+                      >
+                        ☎
+                      </a>
+                    ) : null}
+                  </td>
+                )}
+                {visible.has('location') && <td className="muted cell-sub">{row.location || '—'}</td>}
+                {visible.has('contacts') && <td className="mono td-num">{row.contacts}</td>}
+                {visible.has('deals') && <td className="mono td-num">{row.deals}</td>}
+                {visible.has('lifecycle') && (
+                  <td>
+                    <InlineEditCell
+                      endpoint={`/api/crm/companies/${row.id}`}
+                      field="lifecycleStage"
+                      value={row.lifecycle}
+                      type="select"
+                      options={lifecycleOpts}
+                      className={`badge stage-${row.lifecycle}`}
+                    />
+                  </td>
+                )}
+                {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
               </tr>
             ))}
           </tbody>

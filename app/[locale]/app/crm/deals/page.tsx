@@ -142,12 +142,17 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
         id: d.id,
         name: d.name,
         amount: formatAmount(d.amount, d.currency, locale),
+        amountValue: d.amount,
+        currency: d.currency,
+        stageId: d.stage_id,
         stage: d.stage_name ?? '—',
         priority: d.priority,
         priorityLabel: (PRIORITIES as readonly string[]).includes(d.priority)
           ? t(`enums.priority.${d.priority}`)
           : d.priority,
+        source: d.source,
         closeDate: formatCloseDate(d.close_date, locale),
+        closeDateIso: d.close_date ?? '',
         age: Math.max(0, Math.floor((stop - start) / dayMs)),
         contacts: contactCounts.get(d.id) ?? 0,
         created: formatDate(d.created_at, locale),
@@ -182,7 +187,18 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
           </div>
         ) : (
           <>
-            <DealsTable rows={tableRows} sort={sort} />
+            <DealsTable
+              rows={tableRows}
+              sort={sort}
+              stages={pipeline.stages.map((s) => ({
+                id: s.id,
+                name: s.name,
+                is_won: s.is_won,
+                is_lost: s.is_lost,
+              }))}
+              priorities={priorities}
+              sources={sources}
+            />
             {pages > 1 && (
               <nav className="pager mono">
                 {currentPage > 1 ? (

@@ -1,27 +1,46 @@
+'use client';
+
 import { useTranslations } from 'next-intl';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   ACTIVITY_TYPES,
   LIFECYCLE_STAGES,
   PRIORITIES,
   SOURCES,
-  type CrmReports,
-  type FunnelStage,
-} from '@/lib/crm';
+} from '@/lib/crm-constants';
+import { type CrmReports, type FunnelStage } from '@/lib/crm';
+import {
+  type Kpis,
+  type OwnerMetric,
+  type ReportBucket,
+  type ReportFilters,
+  type ReportRangeLabel,
+  type TimeseriesPoint,
+} from '@/lib/crm-reports';
 import { formatNumber } from '@/lib/utils';
 import PipelineSelect from './PipelineSelect';
 
 interface ReportsViewProps {
   reports: CrmReports;
-  /** Funnel del pipeline seleccionado (default o el de ?pipeline=). */
   funnel: FunnelStage[];
-  /** Forecast por stage del pipeline seleccionado. */
   forecastByStage: CrmReports['forecastByStage'];
   pipelines: Array<{ id: string; name: string }>;
   selectedPipelineId: string | null;
   locale: string;
+  range: ReportRangeLabel;
+  bucket: ReportBucket;
+  filters: ReportFilters;
+  kpis: Kpis;
+  timeseries: TimeseriesPoint[];
+  byOwner: OwnerMetric[];
+  owners: Array<{ id: string; email: string; name: string | null }>;
+  sources: Array<{ value: string; label: string }>;
+  priorities: Array<{ value: string; label: string }>;
 }
 
-/** Rounds up to a "nice" ceiling (1/2/5 × 10^n) so grid labels look clean. */
+const RANGES: ReportRangeLabel[] = ['7d', '30d', '90d', 'quarter', '12m'];
+const BUCKETS: ReportBucket[] = ['day', 'week', 'month', 'quarter'];
+
 function niceCeil(max: number): number {
   if (max <= 1) return 1;
   const pow = Math.pow(10, Math.floor(Math.log10(max)));
@@ -40,11 +59,27 @@ function formatMoney(n: number, locale: string): string {
 
 function monthLabel(month: string, locale: string): string {
   const [y, m] = month.split('-').map(Number);
-  // timeZone UTC: sin esto, la medianoche UTC del día 1 cae en el mes anterior
-  // en zonas UTC-n y el label se corre un mes.
   return new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(
     new Date(Date.UTC(y, m - 1, 1)),
   );
+}
+
+function bucketLabel(bucket: string, locale: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) {
+    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(
+      new Date(`${bucket}T00:00:00Z`),
+    );
+  }
+  if (/^\d{4}-W\d{2}$/.test(bucket)) {
+    return bucket;
+  }
+  if (/^\d{4}-\d{2}$/.test(bucket)) {
+    return monthLabel(bucket, locale);
+  }
+  if (/^\d{4}-Q\d$/.test(bucket)) {
+    return bucket;
+  }
+  return bucket;
 }
 
 interface BarItem {
@@ -52,7 +87,6 @@ interface BarItem {
   count: number;
 }
 
-/** Barras proporcionales horizontales (mismo markup que BreakdownBars de Link). */
 function ProporBars({
   items,
   emptyLabel,
@@ -88,7 +122,6 @@ function ProporBars({
   );
 }
 
-/** Barras agrupadas won (sólida) / lost (outline) por mes, estilo LinkChart. */
 function WonLostChart({
   data,
   locale,
@@ -178,6 +211,224 @@ function WonLostChart({
   );
 }
 
+function TimeseriesChart({
+  data,
+  locale,
+}: {
+  data: TimeseriesPoint[];
+  locale: string;
+}) {
+  const W = 760;
+  const H = 240;
+  const pad = { t: 18, r: 14, b: 36, l: 52 };
+  const iw = W - pad.l - pad.r;
+  const ih = H - pad.t - pad.b;
+  const baseline = pad.t + ih;
+
+  const maxCount = niceCeil(Math.max(...data.map((d) => Math.max(d.contacts, d.deals)), 1));
+  const maxAmount = niceCeil(Math.max(...data.map((d) => d.wonAmount), 1));
+  const hasData = data.some((d) => d.contacts > 0 || d.deals > 0 || d.wonAmount > 0);
+  const stepX = data.length > 0 ? iw / data.length : iw;
+  const bw = Math.min(10, stepX / 5);
+
+  return (
+    <>
+      <svg
+        className="link-chart"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label="activity over time"
+        preserveAspectRatio="none"
+      >
+        {[0, 1, 2, 3, 4].map((k) => {
+          const value = (maxCount * k) / 4;
+          const y = pad.t + ih - (value / maxCount) * ih;
+          return (
+            <g key={k}>
+              <line className="chart-grid" x1={pad.l} x2={pad.l + iw} y1={y} y2={y} />
+              <text className="chart-ylabel" x={pad.l - 8} y={y + 4} textAnchor="end">
+                {formatNumber(value, locale)}
+              </text>
+            </g>
+          );
+        })}
+        {hasData &&
+          data.map((d, i) => {
+            const cx = pad.l + stepX * (i + 0.5);
+            const contactsH = (d.contacts / maxCount) * ih;
+            const dealsH = (d.deals / maxCount) * ih;
+            const amountH = (d.wonAmount / maxAmount) * ih;
+            return (
+              <g key={d.bucket}>
+                <rect
+                  className="chart-bar"
+                  x={cx - bw - bw - 2}
+                  y={baseline - contactsH}
+                  width={bw}
+                  height={contactsH}
+                >
+                  <title>{`${bucketLabel(d.bucket, locale)} · contacts: ${d.contacts}`}</title>
+                </rect>
+                <rect
+                  className="chart-bar-lost"
+                  x={cx - bw / 2}
+                  y={baseline - dealsH}
+                  width={bw}
+                  height={dealsH}
+                >
+                  <title>{`${bucketLabel(d.bucket, locale)} · deals: ${d.deals}`}</title>
+                </rect>
+                <rect
+                  className="chart-bar-amount"
+                  x={cx + bw / 2 + 2}
+                  y={baseline - amountH}
+                  width={bw}
+                  height={amountH}
+                >
+                  <title>{`${bucketLabel(d.bucket, locale)} · won: ${formatMoney(d.wonAmount, locale)}`}</title>
+                </rect>
+              </g>
+            );
+          })}
+        {data.map((d, i) => (
+          <text
+            key={d.bucket}
+            className="chart-xlabel"
+            x={pad.l + stepX * (i + 0.5)}
+            y={H - 8}
+            textAnchor="middle"
+          >
+            {bucketLabel(d.bucket, locale)}
+          </text>
+        ))}
+      </svg>
+      {!hasData && <p className="muted breakdown-empty">No data for this period.</p>}
+    </>
+  );
+}
+
+function Delta({ value }: { value: number }) {
+  const positive = value >= 0;
+  return (
+    <span className={`stat-delta ${positive ? 'up' : 'down'}`}>
+      {positive ? '▲' : '▼'} {Math.abs(value)}%
+    </span>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  delta,
+  money = false,
+  locale,
+}: {
+  label: string;
+  value: number;
+  delta: number;
+  money?: boolean;
+  locale: string;
+}) {
+  return (
+    <div className="panel stat-card">
+      <span className="stat-num">{money ? formatMoney(value, locale) : formatNumber(value, locale)}</span>
+      <span className="stat-label">{label}</span>
+      <Delta value={delta} />
+    </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  options,
+  param,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  param: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function set(v: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (v) params.set(param, v);
+    else params.delete(param);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  return (
+    <label className="report-filter">
+      <span>{label}</span>
+      <select className="filter-select" value={value} onChange={(e) => set(e.target.value)}>
+        <option value="">{label}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function RangeSelector({ range }: { range: ReportRangeLabel }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function setRange(r: ReportRangeLabel) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('range', r);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  return (
+    <div className="report-tabs">
+      {RANGES.map((r) => (
+        <button
+          key={r}
+          type="button"
+          className={`report-tab${r === range ? ' active' : ''}`}
+          onClick={() => setRange(r)}
+        >
+          {r}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BucketSelector({ bucket }: { bucket: ReportBucket }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function setBucket(b: ReportBucket) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('bucket', b);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  return (
+    <div className="report-tabs">
+      {BUCKETS.map((b) => (
+        <button
+          key={b}
+          type="button"
+          className={`report-tab${b === bucket ? ' active' : ''}`}
+          onClick={() => setBucket(b)}
+        >
+          {b}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function ReportsView({
   reports,
   funnel,
@@ -185,12 +436,21 @@ export default function ReportsView({
   pipelines,
   selectedPipelineId,
   locale,
+  range,
+  bucket,
+  filters,
+  kpis,
+  timeseries,
+  byOwner,
+  owners,
+  sources,
+  priorities,
 }: ReportsViewProps) {
   const t = useTranslations('crm');
 
   const funnelMax = Math.max(...funnel.map((s) => s.count), 1);
   const forecastTotal = forecastByStage.reduce((s, f) => s + f.forecast, 0);
-  const forecastMax = Math.max(...forecastByStage.map((f) => f.forecast), 1);
+  const forecastMax = Math.max(...forecastByStage.map((f) => f.forecast, 1));
 
   const sourceLabel = (n: string) =>
     (SOURCES as readonly string[]).includes(n) ? t(`enums.source.${n}`) : n;
@@ -203,8 +463,104 @@ export default function ReportsView({
 
   return (
     <div className="reports">
+      <div className="report-controls">
+        <RangeSelector range={range} />
+        <BucketSelector bucket={bucket} />
+      </div>
+
+      <div className="report-filters">
+        <FilterSelect
+          label={t('reports.pipeline')}
+          value={selectedPipelineId ?? ''}
+          options={pipelines.map((p) => ({ value: p.id, label: p.name }))}
+          param="pipeline"
+        />
+        <FilterSelect
+          label={t('deals.form.source')}
+          value={filters.source ?? ''}
+          options={sources}
+          param="source"
+        />
+        <FilterSelect
+          label={t('deals.form.priority')}
+          value={filters.priority ?? ''}
+          options={priorities}
+          param="priority"
+        />
+        <FilterSelect
+          label={t('contacts.form.owner')}
+          value={filters.ownerId ?? ''}
+          options={owners.map((o) => ({ value: o.id, label: o.name ?? o.email }))}
+          param="owner"
+        />
+      </div>
+
+      <div className="kpi-grid">
+        <KpiCard
+          label={t('reports.kpi.newContacts')}
+          value={kpis.newContacts}
+          delta={kpis.newContactsDelta}
+          locale={locale}
+        />
+        <KpiCard
+          label={t('reports.kpi.newDeals')}
+          value={kpis.newDeals}
+          delta={kpis.newDealsDelta}
+          locale={locale}
+        />
+        <KpiCard
+          label={t('reports.kpi.wonAmount')}
+          value={kpis.wonAmount}
+          delta={kpis.wonAmountDelta}
+          money
+          locale={locale}
+        />
+        <KpiCard
+          label={t('reports.kpi.activities')}
+          value={kpis.activities}
+          delta={kpis.activitiesDelta}
+          locale={locale}
+        />
+      </div>
+
+      <section className="panel chart-panel">
+        <div className="panel-head">
+          <p className="section-label">{t('reports.activityOverTime')}</p>
+        </div>
+        <TimeseriesChart data={timeseries} locale={locale} />
+      </section>
+
+      <section className="panel">
+        <p className="section-label">{t('reports.byOwner')}</p>
+        {byOwner.length === 0 ? (
+          <p className="muted breakdown-empty">{t('reports.empty')}</p>
+        ) : (
+          <table className="table owner-table">
+            <thead>
+              <tr>
+                <th>{t('contacts.form.owner')}</th>
+                <th className="th-num">{t('contacts.title')}</th>
+                <th className="th-num">{t('deals.title')}</th>
+                <th className="th-num">{t('reports.kpi.wonAmount')}</th>
+                <th className="th-num">{t('reports.activities')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byOwner.map((o) => (
+                <tr key={o.id}>
+                  <td>{o.name ?? o.email}</td>
+                  <td className="mono td-num">{formatNumber(o.contacts, locale)}</td>
+                  <td className="mono td-num">{formatNumber(o.deals, locale)}</td>
+                  <td className="mono td-num">{formatMoney(o.wonAmount, locale)}</td>
+                  <td className="mono td-num">{formatNumber(o.activities, locale)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
       <div className="overview-grid">
-        {/* ---------- Funnel ---------- */}
         <section className="panel">
           <div className="panel-head">
             <p className="section-label">{t('reports.funnel')}</p>
@@ -255,7 +611,6 @@ export default function ReportsView({
           )}
         </section>
 
-        {/* ---------- Forecast ponderado ---------- */}
         <section className="panel">
           <div className="panel-head">
             <p className="section-label">{t('reports.forecastByStage')}</p>
@@ -301,7 +656,6 @@ export default function ReportsView({
         </section>
       </div>
 
-      {/* ---------- Won vs Lost (6 meses) ---------- */}
       <section className="panel chart-panel">
         <div className="panel-head">
           <p className="section-label">{t('reports.wonLost')}</p>
@@ -325,7 +679,6 @@ export default function ReportsView({
         />
       </section>
 
-      {/* ---------- Breakdowns ---------- */}
       <div className="breakdown-grid">
         <section className="panel">
           <p className="section-label">{t('reports.dealsBySource')}</p>
@@ -382,12 +735,9 @@ export default function ReportsView({
         </section>
       </div>
 
-      {/* ---------- Avg days to close ---------- */}
       <div className="panel stat-card report-avg">
         <span className="stat-num">
-          {reports.avgDaysToClose === null
-            ? '—'
-            : formatNumber(reports.avgDaysToClose, locale)}
+          {reports.avgDaysToClose === null ? '—' : formatNumber(reports.avgDaysToClose, locale)}
         </span>
         <span className="stat-label">{t('reports.avgDaysToClose')}</span>
       </div>

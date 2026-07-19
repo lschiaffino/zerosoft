@@ -42,6 +42,7 @@
     "pageOf": "{page} / {pages}",
     "all": "Todos",
     "none": "Ninguno",
+    "columns": "Columnas",
     "optional": "opcional",
     "results": "{count} resultados",
     "durationMin": "Duración (min)",
@@ -206,6 +207,7 @@
       "leadStatus": "Estado del lead",
       "source": "Origen",
       "company": "Empresa",
+      "owner": "Responsable",
       "noCompany": "Sin empresa"
     }
   },
@@ -269,7 +271,8 @@
       "website": "Sitio web",
       "city": "Ciudad",
       "country": "País",
-      "lifecycle": "Etapa del lifecycle"
+      "lifecycle": "Etapa del lifecycle",
+      "owner": "Responsable"
     }
   },
   "deals": {
@@ -341,7 +344,8 @@
       "source": "Origen",
       "description": "Descripción",
       "contacts": "Contactos",
-      "stage": "Etapa"
+      "stage": "Etapa",
+      "owner": "Responsable"
     },
     "detail": {
       "back": "← Pipeline",
@@ -403,6 +407,10 @@
     "emptyMembers": "Sin miembros todavía.",
     "deleteConfirm": "¿Eliminar esta lista? Los contactos se conservan."
   },
+  "history": {
+    "title": "Historial",
+    "empty": "Todavía no hay cambios registrados."
+  },
   "reports": {
     "title": "Reportes",
     "funnel": "Embudo del pipeline",
@@ -421,7 +429,15 @@
     "pipeline": "Pipeline",
     "empty": "Sin datos todavía.",
     "vsPrev": "vs. etapa anterior",
-    "total": "Total"
+    "total": "Total",
+    "kpi": {
+      "newContacts": "Nuevos contactos",
+      "newDeals": "Nuevos deals",
+      "wonAmount": "Monto ganado",
+      "activities": "Actividades"
+    },
+    "activityOverTime": "Actividad en el tiempo",
+    "byOwner": "Por responsable"
   },
   "settings": {
     "title": "Ajustes",

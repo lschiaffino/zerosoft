@@ -10,6 +10,8 @@ import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
+import HistoryPanel from '@/components/crm/HistoryPanel';
+import { listMembers } from '@/lib/teams';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +26,9 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
   const detail = await getCompany(user.id, id);
   if (!detail) notFound();
   const { company, contacts, deals } = detail;
+
+  const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
+  const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
   const timeline = await listTimeline(user.id, { companyId: id, limit: 100 });
   const emailItems = await listExternalEmailItems(user.id, { companyId: id, limit: 50 });
@@ -87,6 +92,13 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
       value: company.lifecycle_stage,
       options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
     },
+    {
+      key: 'ownerId',
+      label: t('companies.form.owner'),
+      type: 'select',
+      value: company.owner_id ?? user.id,
+      options: ownerOptions,
+    },
     ...customPropFields(await listCustomFields(user.id, 'companies'), custom, {
       yes: t('common.yes'),
       no: t('common.no'),
@@ -94,6 +106,24 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
   ];
 
   const confirmValue = company.domain || company.name;
+
+  const historyFields: Record<string, string> = {
+    name: t('companies.form.name'),
+    domain: t('companies.form.domain'),
+    industry: t('companies.form.industry'),
+    employees: t('companies.form.employees'),
+    phone: t('companies.form.phone'),
+    website: t('companies.form.website'),
+    city: t('companies.form.city'),
+    country: t('companies.form.country'),
+    lifecycle_stage: t('companies.form.lifecycle'),
+    owner_id: t('companies.form.owner'),
+  };
+  const historyValues: Record<string, Record<string, string>> = {
+    lifecycle_stage: Object.fromEntries(
+      LIFECYCLE_STAGES.map((v) => [v, t(`enums.lifecycle.${v}`)]),
+    ),
+  };
 
   return (
     <div className="app-page">
@@ -219,6 +249,19 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
               {t('companies.detail.newDeal')}
             </Link>
           </section>
+
+          <HistoryPanel
+            entity="company"
+            entityId={company.id}
+            locale={locale}
+            labels={{
+              title: t('history.title'),
+              empty: t('history.empty'),
+              fields: historyFields,
+              values: historyValues,
+            }}
+            key={company.updated_at}
+          />
 
           <section className="panel danger-panel">
             <h2 className="section-label">{t('companies.detail.dangerZone')}</h2>
