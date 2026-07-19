@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { getDb } from '@/lib/db';
 import {
   LEAD_STATUSES,
   LIFECYCLE_STAGES,
@@ -10,8 +11,10 @@ import {
   getContact,
   listCompanies,
   listCustomFields,
+  listExternalEmailItems,
   listPipelinesWithStages,
   listTimeline,
+  mergeTimelineWithEmails,
   nextTaskFor,
   parseCustom,
 } from '@/lib/crm';
@@ -20,6 +23,8 @@ import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPane
 import Timeline from '@/components/crm/Timeline';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import ContactAddDeal from '@/components/crm/ContactAddDeal';
+import AssociateDeal from '@/components/crm/AssociateDeal';
+import CompanyQuickCreate from '@/components/crm/CompanyQuickCreate';
 import DuplicatesPanel from '@/components/crm/DuplicatesPanel';
 import DangerDelete from '@/components/crm/DangerDelete';
 
@@ -49,8 +54,14 @@ export default async function ContactDetailPage({
 
   const { contact, company, deals, lists } = detail;
   const timeline = await listTimeline(user.id, { contactId: id, limit: 100 });
+  const emailItems = await listExternalEmailItems(user.id, { contactId: id, limit: 50 });
+  const timelineItems = mergeTimelineWithEmails(timeline, emailItems);
   const nextTask = await nextTaskFor(user.id, { contactId: id });
   const companies = (await listCompanies(user.id, { pageSize: 100, sort: 'name' })).rows;
+  // Deals del usuario para el selector de asociación (id + nombre alcanzan).
+  const allDeals = (await getDb()
+    .prepare('SELECT id, name FROM crm_deals WHERE user_id = ? ORDER BY created_at DESC LIMIT 200')
+    .all(user.id)) as Array<{ id: string; name: string }>;
 
   // Pipeline default + primer stage abierto (para crear deals desde el detalle).
   const pipelines = await listPipelinesWithStages(user.id);
@@ -162,7 +173,7 @@ export default async function ContactDetailPage({
             <Timeline
               recordType="contact"
               recordId={contact.id}
-              items={timeline}
+              items={timelineItems}
               emptyLabel={t('contacts.detail.emptyTimeline')}
               locale={locale}
             />
@@ -170,6 +181,25 @@ export default async function ContactDetailPage({
         </div>
 
         <div className="detail-col detail-col-side">
+          <section className="panel">
+            <p className="section-label">{t('contacts.detail.company')}</p>
+            {company ? (
+              <ul className="recent-list">
+                <li>
+                  <Link href={`/app/crm/companies/${company.id}`} className="recent-row crm-row">
+                    <span className="recent-name">{company.name}</span>
+                    <span className="muted recent-meta">{company.domain || '—'}</span>
+                  </Link>
+                </li>
+              </ul>
+            ) : (
+              <>
+                <p className="muted">{t('contacts.detail.noCompany')}</p>
+                <CompanyQuickCreate contactId={contact.id} />
+              </>
+            )}
+          </section>
+
           <section className="panel">
             <p className="section-label">{t('contacts.detail.deals')}</p>
             {deals.length === 0 ? (
@@ -201,6 +231,11 @@ export default async function ContactDetailPage({
                 sources={sourceOpts}
               />
             )}
+            <AssociateDeal
+              contactId={contact.id}
+              deals={allDeals}
+              excludeIds={deals.map((d) => d.id)}
+            />
           </section>
 
           <section className="panel">

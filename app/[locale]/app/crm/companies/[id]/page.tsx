@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
-import { getCompany, LIFECYCLE_STAGES, listCustomFields, listTimeline, nextTaskFor, parseCustom } from '@/lib/crm';
+import { getCompany, LIFECYCLE_STAGES, listCustomFields, listExternalEmailItems, listTimeline, mergeTimelineWithEmails, nextTaskFor, parseCustom } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
+import AssociateContact from '@/components/crm/AssociateContact';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
@@ -25,6 +26,8 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
   const { company, contacts, deals } = detail;
 
   const timeline = await listTimeline(user.id, { companyId: id, limit: 100 });
+  const emailItems = await listExternalEmailItems(user.id, { companyId: id, limit: 50 });
+  const timelineItems = mergeTimelineWithEmails(timeline, emailItems);
   const nextTask = await nextTaskFor(user.id, { companyId: id });
 
   // Nombres de stage para los deals relacionados.
@@ -33,6 +36,24 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
     name: string;
   }>;
   const stageName = new Map(stageRows.map((s) => [s.id, s.name]));
+
+  // Contacts del usuario para el selector de asociación (id + nombre alcanzan).
+  const allContacts = (
+    (await getDb()
+      .prepare(
+        `SELECT id, first_name, last_name, email FROM crm_contacts
+         WHERE user_id = ? ORDER BY created_at DESC LIMIT 200`,
+      )
+      .all(user.id)) as Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+    }>
+  ).map((c) => ({
+    id: c.id,
+    name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
+  }));
 
   const lifecycleLabel = (v: string): string =>
     (LIFECYCLE_STAGES as readonly string[]).includes(v) ? t(`enums.lifecycle.${v}`) : v;
@@ -132,7 +153,7 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
             <Timeline
               recordType="company"
               recordId={company.id}
-              items={timeline}
+              items={timelineItems}
               emptyLabel={t('companies.detail.emptyTimeline')}
               locale={locale}
             />
@@ -164,6 +185,14 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
                 ))}
               </ul>
             )}
+            <Link href={`/app/crm/contacts/new?companyId=${company.id}`} className="kb-add">
+              {t('companies.detail.newContact')}
+            </Link>
+            <AssociateContact
+              companyId={company.id}
+              contacts={allContacts}
+              excludeIds={contacts.map((c) => c.id)}
+            />
           </section>
 
           <section className="panel">
@@ -186,6 +215,9 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
                 ))}
               </ul>
             )}
+            <Link href="/app/crm/deals/new" className="kb-add">
+              {t('companies.detail.newDeal')}
+            </Link>
           </section>
 
           <section className="panel danger-panel">

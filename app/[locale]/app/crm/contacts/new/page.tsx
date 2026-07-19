@@ -21,7 +21,13 @@ function parseOptions(json: string): string[] {
   }
 }
 
-export default async function NewContactPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function NewContactPage({
+  params: { locale },
+  searchParams,
+}: {
+  params: { locale: string };
+  searchParams: { companyId?: string };
+}) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
@@ -37,6 +43,11 @@ export default async function NewContactPage({ params: { locale } }: { params: {
     options: parseOptions(f.options),
   }));
 
+  const defaultCompanyId =
+    searchParams.companyId && companies.some((c) => c.id === searchParams.companyId)
+      ? searchParams.companyId
+      : undefined;
+
   return (
     <div className="app-page narrow">
       <Link href="/app/crm/contacts" className="mono back-link">
@@ -49,6 +60,7 @@ export default async function NewContactPage({ params: { locale } }: { params: {
         lifecycles={[...LIFECYCLE_STAGES]}
         leadStatuses={[...LEAD_STATUSES]}
         sources={[...SOURCES]}
+        defaultCompanyId={defaultCompanyId}
       />
     </div>
   );

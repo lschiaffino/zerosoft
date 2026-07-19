@@ -50,6 +50,14 @@
     "pinned": "Pinned",
     "nextTask": "Next task"
   },
+  "assoc": {
+    "associate": "Associate",
+    "associating": "Associating…",
+    "pickDeal": "Select a deal…",
+    "pickContact": "Select a contact…",
+    "noOptions": "Nothing available to associate.",
+    "failed": "Something went wrong. Try again."
+  },
   "enums": {
     "lifecycle": {
       "subscriber": "Subscriber",
@@ -179,7 +187,11 @@
       "deleteButton": "Delete forever",
       "noDeals": "No deals yet.",
       "noLists": "Not in any list.",
-      "emptyTimeline": "No activity yet. Add a note or log a call."
+      "emptyTimeline": "No activity yet. Add a note or log a call.",
+      "company": "Company",
+      "noCompany": "No company associated.",
+      "newCompany": "+ New company",
+      "associateDeal": "+ Associate deal"
     },
     "form": {
       "firstName": "First name",
@@ -243,7 +255,10 @@
       "deleteButton": "Delete forever",
       "noContacts": "No contacts yet.",
       "noDeals": "No deals yet.",
-      "emptyTimeline": "No activity yet. Add a note or log a call."
+      "emptyTimeline": "No activity yet. Add a note or log a call.",
+      "associateContact": "+ Associate contact",
+      "newContact": "+ New contact",
+      "newDeal": "+ New deal"
     },
     "form": {
       "name": "Name",
@@ -263,6 +278,8 @@
     "tableView": "Table",
     "addDeal": "+ Add deal",
     "pipelineLabel": "Pipeline",
+    "newCta": "+ New deal",
+    "newTitle": "New deal",
     "moveTo": "Move to…",
     "won": "Won",
     "lost": "Lost",
@@ -435,6 +452,19 @@
     "importExport": "Import / Export",
     "importCta": "Import CSV",
     "exportCta": "Export CSV",
+    "integrations": "Integrations",
+    "gmailDesc": "Connect Gmail to see the email history of each contact right in the timeline.",
+    "gmailConnect": "Connect Gmail",
+    "gmailConnectedAs": "Connected as {email}",
+    "gmailSyncNow": "Sync now",
+    "gmailSyncing": "Syncing…",
+    "gmailSynced": "Synced {count} new emails across {contacts} contacts.",
+    "gmailDisconnect": "Disconnect",
+    "gmailLastSync": "Last sync: {date}",
+    "gmailConnected": "Gmail connected ✓ Run a sync to import emails.",
+    "gmailError": "Could not connect Gmail. Try again.",
+    "gmailDenied": "Access denied. Gmail was not connected.",
+    "gmailSyncFailed": "Sync failed. Reconnect and try again.",
     "exportDesc": "Download all your {entity} as CSV.",
     "exportTagline": "Your data is yours. Take it home.",
     "confirmDelete": "Are you sure?",

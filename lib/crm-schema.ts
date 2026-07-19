@@ -136,7 +136,10 @@ export const dealCreateSchema = z.object({
 export const dealUpdateSchema = dealCreateSchema
   .partial()
   .omit({ pipelineId: true, stageId: true })
-  .extend({ lostReason: shortText.optional() });
+  .extend({
+    lostReason: shortText.optional(),
+    addContactIds: z.array(id).max(50).optional(),
+  });
 
 export const dealMoveSchema = z.object({
   stageId: id,

@@ -230,18 +230,23 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
     <div className="app-page">
       <div className="page-head">
         <h1 className="app-title">{t('deals.title')}</h1>
-        <div className="kb-view-toggle">
-          <Link
-            href={{ pathname: '/app/crm/deals', query: viewQuery(pipeline.id, 'board') }}
-            className={`kb-view-btn${view === 'board' ? ' active' : ''}`}
-          >
-            {t('deals.board')}
-          </Link>
-          <Link
-            href={{ pathname: '/app/crm/deals', query: viewQuery(pipeline.id, 'table') }}
-            className={`kb-view-btn${view === 'table' ? ' active' : ''}`}
-          >
-            {t('deals.tableView')}
+        <div className="page-head-actions">
+          <div className="kb-view-toggle">
+            <Link
+              href={{ pathname: '/app/crm/deals', query: viewQuery(pipeline.id, 'board') }}
+              className={`kb-view-btn${view === 'board' ? ' active' : ''}`}
+            >
+              {t('deals.board')}
+            </Link>
+            <Link
+              href={{ pathname: '/app/crm/deals', query: viewQuery(pipeline.id, 'table') }}
+              className={`kb-view-btn${view === 'table' ? ' active' : ''}`}
+            >
+              {t('deals.tableView')}
+            </Link>
+          </div>
+          <Link href="/app/crm/deals/new" className="btn btn-solid btn-small">
+            {t('deals.newCta')}
           </Link>
         </div>
       </div>

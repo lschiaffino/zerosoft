@@ -93,6 +93,28 @@ export default function AppSidebar({
     setDrawerOpen(false);
   }, [pathname]);
 
+  // Sidebar colapsable (solo desktop ≥1024px; persiste en localStorage).
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const v = window.localStorage.getItem('zs-side-collapsed') === '1';
+    setCollapsed(v);
+    rootRef.current
+      ?.closest('.app-frame')
+      ?.classList.toggle('sidebar-collapsed', v);
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      window.localStorage.setItem('zs-side-collapsed', next ? '1' : '0');
+      rootRef.current
+        ?.closest('.app-frame')
+        ?.classList.toggle('sidebar-collapsed', next);
+      return next;
+    });
+  }
+
   const crmNav: Array<{ section?: string; items: Item[] }> = [
     { items: [{ href: '/app/crm', label: labels.crm.overview, active: pathname === '/app/crm' }] },
     {
@@ -157,7 +179,7 @@ export default function AppSidebar({
       ? [
           { href: '/app/crm/contacts/new', label: labels.newContact, active: false },
           { href: '/app/crm/companies/new', label: labels.newCompany, active: false },
-          { href: '/app/crm/deals', label: labels.newDeal, active: false },
+          { href: '/app/crm/deals/new', label: labels.newDeal, active: false },
           { href: '/app/crm/tasks', label: labels.newTask, active: false },
         ]
       : [{ href: '/app/links/new', label: labels.newLink, active: false }];
@@ -200,6 +222,16 @@ export default function AppSidebar({
             </div>
           )}
         </div>
+        <button
+          type="button"
+          className="side-collapse"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-pressed={collapsed}
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
+          {collapsed ? '»' : '«'}
+        </button>
         <button type="button" className="side-close" onClick={() => setDrawerOpen(false)}>
           ✕
         </button>
@@ -244,6 +276,8 @@ export default function AppSidebar({
                 href={item.href}
                 className={`side-link${item.active ? ' active' : ''}`}
                 aria-current={item.active ? 'page' : undefined}
+                data-initial={item.label.trim().charAt(0).toUpperCase()}
+                title={item.label}
               >
                 {item.label}
                 {item.badge ? <span className="side-badge mono">{item.badge}</span> : null}
@@ -273,7 +307,7 @@ export default function AppSidebar({
           </div>
         </div>
         {demo ? (
-          <Link href="/" className="side-signout" style={{ textDecoration: 'none', display: 'block' }}>
+          <Link href="/" className="side-signout">
             {labels.signOut}
           </Link>
         ) : (

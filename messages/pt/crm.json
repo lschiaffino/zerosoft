@@ -50,6 +50,14 @@
     "pinned": "Fixado",
     "nextTask": "Próxima tarefa"
   },
+  "assoc": {
+    "associate": "Associar",
+    "associating": "Associando…",
+    "pickDeal": "Selecione um negócio…",
+    "pickContact": "Selecione um contato…",
+    "noOptions": "Nada disponível para associar.",
+    "failed": "Algo deu errado. Tente novamente."
+  },
   "enums": {
     "lifecycle": {
       "subscriber": "Assinante",
@@ -179,7 +187,11 @@
       "deleteButton": "Excluir para sempre",
       "noDeals": "Nenhum negócio ainda.",
       "noLists": "Não está em nenhuma lista.",
-      "emptyTimeline": "Nenhuma atividade ainda. Adicione uma nota ou registre uma ligação."
+      "emptyTimeline": "Nenhuma atividade ainda. Adicione uma nota ou registre uma ligação.",
+      "company": "Empresa",
+      "noCompany": "Nenhuma empresa associada.",
+      "newCompany": "+ Nova empresa",
+      "associateDeal": "+ Associar negócio"
     },
     "form": {
       "firstName": "Nome",
@@ -243,7 +255,10 @@
       "deleteButton": "Excluir para sempre",
       "noContacts": "Nenhum contato ainda.",
       "noDeals": "Nenhum negócio ainda.",
-      "emptyTimeline": "Sem atividade ainda. Adicione uma nota ou registre uma ligação."
+      "emptyTimeline": "Sem atividade ainda. Adicione uma nota ou registre uma ligação.",
+      "associateContact": "+ Associar contato",
+      "newContact": "+ Novo contato",
+      "newDeal": "+ Novo negócio"
     },
     "form": {
       "name": "Nome",
@@ -263,6 +278,8 @@
     "tableView": "Tabela",
     "addDeal": "+ Adicionar negócio",
     "pipelineLabel": "Pipeline",
+    "newCta": "+ Novo negócio",
+    "newTitle": "Novo negócio",
     "moveTo": "Mover para…",
     "won": "Ganho",
     "lost": "Perdido",
@@ -435,6 +452,19 @@
     "importExport": "Importar / Exportar",
     "importCta": "Importar CSV",
     "exportCta": "Exportar CSV",
+    "integrations": "Integrações",
+    "gmailDesc": "Conecte o Gmail para ver o histórico de e-mails de cada contato na timeline.",
+    "gmailConnect": "Conectar Gmail",
+    "gmailConnectedAs": "Conectado como {email}",
+    "gmailSyncNow": "Sincronizar agora",
+    "gmailSyncing": "Sincronizando…",
+    "gmailSynced": "{count} novos e-mails sincronizados em {contacts} contatos.",
+    "gmailDisconnect": "Desconectar",
+    "gmailLastSync": "Última sincronização: {date}",
+    "gmailConnected": "Gmail conectado ✓ Execute uma sincronização para importar os e-mails.",
+    "gmailError": "Não foi possível conectar o Gmail. Tente novamente.",
+    "gmailDenied": "Acesso negado. O Gmail não foi conectado.",
+    "gmailSyncFailed": "Falha na sincronização. Reconecte e tente novamente.",
     "exportDesc": "Baixe todos os seus {entity} em CSV.",
     "exportTagline": "Seus dados são seus. Leve-os para casa.",
     "confirmDelete": "Tem certeza?",

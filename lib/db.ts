@@ -46,7 +46,10 @@ export function ensureMigrated(): Promise<void> {
       await client.executeMultiple(DDL);
       // Columnas añadidas después del DDL inicial: ALTER idempotente
       // (falla con "duplicate column" si ya existe; se ignora).
-      for (const alter of ['ALTER TABLE crm_activities ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0']) {
+      for (const alter of [
+        'ALTER TABLE crm_activities ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE integrations ADD COLUMN last_sync_at TEXT',
+      ]) {
         try {
           await client.execute(alter);
         } catch {
@@ -356,6 +359,39 @@ const DDL = `
       errors TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    -- ---------- Integraciones (Gmail, etc.) ----------
+
+    CREATE TABLE IF NOT EXISTS integrations (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      email TEXT NOT NULL DEFAULT '',
+      access_token TEXT NOT NULL DEFAULT '',
+      refresh_token TEXT NOT NULL DEFAULT '',
+      expires_at INTEGER NOT NULL DEFAULT 0,
+      scope TEXT NOT NULL DEFAULT '',
+      last_sync_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, provider)
+    );
+
+    CREATE TABLE IF NOT EXISTS crm_emails (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      contact_id TEXT NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
+      gmail_id TEXT NOT NULL,
+      thread_id TEXT NOT NULL DEFAULT '',
+      direction TEXT NOT NULL DEFAULT 'in',
+      from_email TEXT NOT NULL DEFAULT '',
+      to_emails TEXT NOT NULL DEFAULT '',
+      subject TEXT NOT NULL DEFAULT '',
+      snippet TEXT NOT NULL DEFAULT '',
+      sent_at TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (user_id, gmail_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_crm_emails_contact ON crm_emails(user_id, contact_id, sent_at DESC);
   `;
 
 // ---------- Tipos ----------
@@ -545,6 +581,34 @@ export interface CrmImportRow {
   updated: number;
   skipped: number;
   errors: string; // JSON string[]
+  created_at: string;
+}
+
+export interface IntegrationRow {
+  user_id: string;
+  provider: string;
+  email: string;
+  access_token: string;
+  refresh_token: string;
+  expires_at: number; // epoch ms
+  scope: string;
+  last_sync_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmEmailRow {
+  id: string;
+  user_id: string;
+  contact_id: string;
+  gmail_id: string;
+  thread_id: string;
+  direction: 'in' | 'out';
+  from_email: string;
+  to_emails: string;
+  subject: string;
+  snippet: string;
+  sent_at: string;
   created_at: string;
 }
 

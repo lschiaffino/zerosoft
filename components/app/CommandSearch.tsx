@@ -46,7 +46,7 @@ export default function CommandSearch() {
       return [
         { group, label: t('newContact'), meta: '', href: '/app/crm/contacts/new' },
         { group, label: t('newCompany'), meta: '', href: '/app/crm/companies/new' },
-        { group, label: t('newDeal'), meta: '', href: '/app/crm/deals' },
+        { group, label: t('newDeal'), meta: '', href: '/app/crm/deals/new' },
         { group, label: t('newTask'), meta: '', href: '/app/crm/tasks' },
       ];
     }

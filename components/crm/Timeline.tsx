@@ -21,6 +21,9 @@ export interface TimelineItem {
   company_name?: string | null;
   deal_name?: string | null;
   created_at: string;
+  /** Email sincronizado desde Gmail: read-only, sin acciones, badge "Gmail". */
+  external?: boolean;
+  from_email?: string;
 }
 
 interface TimelineProps {
@@ -311,6 +314,7 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
                 <>
                   <div className="tl-head">
                     <span className="tl-type">{t(`enums.activityType.${item.type}`)}</span>
+                    {item.external ? <span className="badge">Gmail</span> : null}
                     {item.pinned ? <span className="badge">{t('common.pinned')}</span> : null}
                     <span className="tl-subject">{item.subject || '—'}</span>
                     <span className="tl-date">
@@ -327,52 +331,59 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
                     {item.direction && <span>{t(`enums.direction.${item.direction}`)}</span>}
                     {item.duration_min != null && <span>{item.duration_min} min</span>}
                     {item.outcome && <span>{item.outcome}</span>}
-                    {item.type === 'task' && (
+                    {item.external && item.from_email && (
+                      <span className="tl-from">{item.from_email}</span>
+                    )}
+                    {!item.external && item.type === 'task' && (
                       <button type="button" className="icon-btn" onClick={() => toggleDone(item)}>
                         {item.done ? t('tasks.reopen') : t('tasks.complete')}
                       </button>
                     )}
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      onClick={() => togglePin(item)}
-                      title={item.pinned ? t('common.unpin') : t('common.pin')}
-                      aria-label={item.pinned ? t('common.unpin') : t('common.pin')}
-                    >
-                      {item.pinned ? '◆' : '◇'}
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      onClick={() => startEdit(item)}
-                      title={t('common.edit')}
-                      aria-label={t('common.edit')}
-                    >
-                      ✎
-                    </button>
-                    {confirmId === item.id ? (
+                    {!item.external && (
                       <>
                         <button
                           type="button"
-                          className="icon-btn danger"
-                          onClick={() => remove(item.id)}
+                          className="icon-btn"
+                          onClick={() => togglePin(item)}
+                          title={item.pinned ? t('common.unpin') : t('common.pin')}
+                          aria-label={item.pinned ? t('common.unpin') : t('common.pin')}
                         >
-                          {t('common.yes')}
+                          {item.pinned ? '◆' : '◇'}
                         </button>
-                        <button type="button" className="icon-btn" onClick={() => setConfirmId(null)}>
-                          {t('common.no')}
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          onClick={() => startEdit(item)}
+                          title={t('common.edit')}
+                          aria-label={t('common.edit')}
+                        >
+                          ✎
                         </button>
+                        {confirmId === item.id ? (
+                          <>
+                            <button
+                              type="button"
+                              className="icon-btn danger"
+                              onClick={() => remove(item.id)}
+                            >
+                              {t('common.yes')}
+                            </button>
+                            <button type="button" className="icon-btn" onClick={() => setConfirmId(null)}>
+                              {t('common.no')}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className="icon-btn danger"
+                            onClick={() => setConfirmId(item.id)}
+                            title={t('common.delete')}
+                            aria-label={t('common.delete')}
+                          >
+                            ✕
+                          </button>
+                        )}
                       </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="icon-btn danger"
-                        onClick={() => setConfirmId(item.id)}
-                        title={t('common.delete')}
-                        aria-label={t('common.delete')}
-                      >
-                        ✕
-                      </button>
                     )}
                   </div>
                 </>

@@ -17,6 +17,8 @@ interface ContactFormProps {
   lifecycles: string[];
   leadStatuses: string[];
   sources: string[];
+  /** Company preseleccionada (p.ej. ?companyId= desde el detalle de company). */
+  defaultCompanyId?: string;
 }
 
 const ERROR_CODES = ['invalid_email', 'missing_name', 'invalid_input'] as const;
@@ -28,6 +30,7 @@ export default function ContactForm({
   lifecycles,
   leadStatuses,
   sources,
+  defaultCompanyId,
 }: ContactFormProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -43,7 +46,7 @@ export default function ContactForm({
     lifecycleStage: 'lead',
     leadStatus: 'new',
     source: '',
-    companyId: '',
+    companyId: defaultCompanyId ?? '',
   });
   const [custom, setCustom] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);

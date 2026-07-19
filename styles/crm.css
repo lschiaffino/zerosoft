@@ -1309,3 +1309,33 @@ tr:hover .cell-quick { opacity: 0.8; }
 
 /* Tasks: fecha relativa junto al badge */
 .task-rel { font-size: 11px; }
+
+/* Acciones agrupadas en page-head (toggle + CTA) */
+.page-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Panel inline de asociación (deal/contact/company quick-create) */
+.assoc-panel {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.assoc-panel .input, .assoc-panel .select { padding: 8px 10px; font-size: 12px; }
+.assoc-panel .form-actions { display: flex; gap: 8px; }
+.assoc-panel p { margin: 0; font-size: 12px; }
+
+/* Panel de integración Gmail (settings) */
+.gmail-panel { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.gmail-panel p { margin: 0; font-size: 12px; }
+.gmail-status { display: flex; align-items: center; gap: 8px; }
+
+/* Timeline: remitente de email externo */
+.tl-from {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

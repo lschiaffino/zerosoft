@@ -13,6 +13,7 @@ import {
   type CrmContactRow,
   type CrmCustomFieldRow,
   type CrmDealRow,
+  type CrmEmailRow,
   type CrmListRow,
   type CrmPipelineRow,
   type CrmSavedViewRow,
@@ -1018,6 +1019,7 @@ export interface DealInput {
   lostReason?: string;
   custom?: Record<string, unknown>;
   contactIds?: string[];
+  addContactIds?: string[];
 }
 
 export type CreateDealResult =
@@ -1132,6 +1134,12 @@ export async function updateDeal(
       .prepare(`UPDATE crm_deals SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
       .run(...sets.map(([, v]) => v), now(), id);
     if (data.contactIds) await setDealContacts(id, data.contactIds, tdb);
+    if (data.addContactIds?.length) {
+      const ins = tdb.prepare(
+        'INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id) VALUES (?, ?)',
+      );
+      for (const contactId of data.addContactIds) await ins.run(id, contactId);
+    }
     await tx.commit();
   } catch (e) {
     await tx.rollback();
@@ -1373,6 +1381,84 @@ export async function listTimeline(
        LIMIT ?`,
     )
     .all(...args, limit)) as ActivityListRow[];
+}
+
+// ---------- Emails externos (Gmail sync) ----------
+
+/** Item de timeline generado desde un email sincronizado (read-only, external). */
+export interface ExternalEmailItem {
+  id: string;
+  type: 'email';
+  subject: string;
+  body: string;
+  due_at: null;
+  done: 0;
+  pinned: 0;
+  direction: string;
+  outcome: string;
+  duration_min: null;
+  created_at: string;
+  external: true;
+  from_email: string;
+}
+
+/**
+ * Emails sincronizados de un contacto (o de todos los contactos de una company),
+ * mapeados a la forma de TimelineItem. Más recientes primero.
+ */
+export async function listExternalEmailItems(
+  userId: string,
+  f: { contactId?: string; companyId?: string; limit?: number },
+): Promise<ExternalEmailItem[]> {
+  const db = getDb();
+  const limit = Math.min(Math.max(f.limit ?? 50, 1), 200);
+  let rows: CrmEmailRow[];
+  if (f.contactId) {
+    rows = (await db
+      .prepare(
+        `SELECT * FROM crm_emails WHERE user_id = ? AND contact_id = ?
+         ORDER BY sent_at DESC LIMIT ?`,
+      )
+      .all(userId, f.contactId, limit)) as CrmEmailRow[];
+  } else if (f.companyId) {
+    rows = (await db
+      .prepare(
+        `SELECT e.* FROM crm_emails e
+         JOIN crm_contacts c ON c.id = e.contact_id
+         WHERE e.user_id = ? AND c.company_id = ?
+         ORDER BY e.sent_at DESC LIMIT ?`,
+      )
+      .all(userId, f.companyId, limit)) as CrmEmailRow[];
+  } else {
+    return [];
+  }
+  return rows.map((e) => ({
+    id: `gmail-${e.id}`,
+    type: 'email' as const,
+    subject: e.subject || '(no subject)',
+    body: e.snippet,
+    due_at: null,
+    done: 0 as const,
+    pinned: 0 as const,
+    direction: e.direction === 'out' ? 'outbound' : 'inbound',
+    outcome: '',
+    duration_min: null,
+    created_at: e.sent_at,
+    external: true as const,
+    from_email: e.from_email,
+  }));
+}
+
+/** Merge timeline de actividades + emails externos: pinned primero, luego fecha desc. */
+export function mergeTimelineWithEmails<T extends { pinned: 0 | 1; due_at: string | null; created_at: string }>(
+  activities: T[],
+  emails: ExternalEmailItem[],
+): Array<T | ExternalEmailItem> {
+  const key = (iso: string): string => (iso.includes('T') ? iso : iso.replace(' ', 'T'));
+  return [...activities, ...emails].sort((a, b) => {
+    if (a.pinned !== b.pinned) return b.pinned - a.pinned;
+    return key(b.due_at ?? b.created_at).localeCompare(key(a.due_at ?? a.created_at));
+  });
 }
 
 /** Próxima tarea abierta de un registro (la de vencimiento más cercano; sin fecha al final). */
