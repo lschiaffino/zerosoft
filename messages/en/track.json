@@ -1,0 +1,128 @@
+{
+  "sidebar": {
+    "overview": "Overview",
+    "projects": "Projects",
+    "issues": "Issues",
+    "cycles": "Cycles",
+    "settings": "Settings"
+  },
+  "common": {
+    "viewAll": "View all",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved ✓",
+    "create": "Create",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "back": "← Back",
+    "view": "View",
+    "hide": "Hide",
+    "search": "Search",
+    "noResults": "No results",
+    "loading": "Loading…"
+  },
+  "overview": {
+    "title": "Track",
+    "subtitle": "Projects, cycles and issues. Zero friction.",
+    "emptyTitle": "0 projects",
+    "emptySub": "Create your first project and start shipping.",
+    "emptyCta": "New project",
+    "projects": "Projects",
+    "recentIssues": "Recent issues"
+  },
+  "projects": {
+    "title": "Projects",
+    "newCta": "+ New project",
+    "newTitle": "New project",
+    "newSub": "Name it. Slug it. Ship it.",
+    "back": "← All projects",
+    "empty": "No projects yet.",
+    "openIssues": "open",
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "Acme Mobile App",
+      "slug": "Slug",
+      "slugPlaceholder": "acme-mobile",
+      "description": "Description",
+      "icon": "Icon",
+      "color": "Color"
+    }
+  },
+  "project": {
+    "title": "Project",
+    "issues": "Issues",
+    "cycles": "Cycles",
+    "statuses": "Statuses",
+    "newIssue": "New issue",
+    "newCycle": "New cycle",
+    "noIssues": "No issues yet.",
+    "noCycles": "No cycles yet.",
+    "activeCycle": "Active cycle",
+    "pastCycles": "Past cycles"
+  },
+  "issues": {
+    "title": "Issues",
+    "newCta": "+ New issue",
+    "newTitle": "New issue",
+    "newSub": "Create an issue in this project.",
+    "back": "← Back to project",
+    "empty": "No issues match.",
+    "identifier": "ID",
+    "title": "Title",
+    "status": "Status",
+    "priority": "Priority",
+    "assignee": "Assignee",
+    "cycle": "Cycle",
+    "estimate": "Estimate",
+    "created": "Created",
+    "noAssignee": "Unassigned",
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "Fix login redirect",
+      "description": "Description",
+      "status": "Status",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "cycle": "Cycle",
+      "estimate": "Estimate (points)"
+    },
+    "detail": {
+      "comments": "Comments",
+      "addComment": "Add comment",
+      "noComments": "No comments yet.",
+      "properties": "Properties"
+    }
+  },
+  "cycles": {
+    "title": "Cycles",
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "Sprint 1",
+      "startAt": "Start",
+      "endAt": "End"
+    }
+  },
+  "statuses": {
+    "title": "Statuses",
+    "backlog": "Backlog",
+    "todo": "Todo",
+    "inProgress": "In progress",
+    "done": "Done",
+    "cancelled": "Cancelled"
+  },
+  "priorities": {
+    "urgent": "Urgent",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low"
+  },
+  "errors": {
+    "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",
+    "slug_taken": "That slug is already in use.",
+    "invalid_date": "Invalid date format.",
+    "missing_name": "Name is required.",
+    "missing_title": "Title is required.",
+    "invalid_input": "Some fields are invalid. Check them and try again.",
+    "generic": "Something went wrong. Try again."
+  }
+}

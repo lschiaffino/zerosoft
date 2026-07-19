@@ -8,6 +8,7 @@ import '@/styles/link.css';
 import '@/styles/crm.css';
 import '@/styles/docs.css';
 import '@/styles/calendar.css';
+import '@/styles/track.css';
 import '@/styles/app.css';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,7 @@ export default async function AppLayout({
   const tCrm = await getTranslations({ locale, namespace: 'crm' });
   const tDocs = await getTranslations({ locale, namespace: 'docs' });
   const tCalendar = await getTranslations({ locale, namespace: 'calendar' });
+  const tTrack = await getTranslations({ locale, namespace: 'track' });
   const tasksDue = await countDueTasks(user.id);
 
   return (
@@ -57,6 +59,7 @@ export default async function AppLayout({
           newLink: tSide('newLink'),
           newDocPage: tSide('newDocPage'),
           newEventType: tSide('newEventType'),
+          newProject: tSide('newProject'),
           team: tSide('team'),
           link: {
             overview: tLink('tabs.overview'),
@@ -85,6 +88,13 @@ export default async function AppLayout({
             bookings: tCalendar('sidebar.bookings'),
             availability: tCalendar('sidebar.availability'),
             settings: tCalendar('sidebar.settings'),
+          },
+          track: {
+            overview: tTrack('sidebar.overview'),
+            projects: tTrack('sidebar.projects'),
+            issues: tTrack('sidebar.issues'),
+            cycles: tTrack('sidebar.cycles'),
+            settings: tTrack('sidebar.settings'),
           },
         }}
       />

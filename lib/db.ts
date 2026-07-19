@@ -588,6 +588,82 @@ const DDL = `
       reason TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_calendar_blocked_slots_user ON calendar_blocked_slots(user_id, starts_at);
+
+    -- ---------- Track ----------
+
+    CREATE TABLE IF NOT EXISTS track_projects (
+      id TEXT PRIMARY KEY,
+      team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL DEFAULT '',
+      icon TEXT,
+      color TEXT NOT NULL DEFAULT '#000000',
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_track_projects_team ON track_projects(team_id, status, name);
+
+    CREATE TABLE IF NOT EXISTS track_statuses (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#666666',
+      position INTEGER NOT NULL DEFAULT 0,
+      category TEXT NOT NULL DEFAULT 'todo' CHECK (category IN ('backlog', 'todo', 'in_progress', 'done', 'cancelled')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_track_statuses_project ON track_statuses(project_id, position);
+
+    CREATE TABLE IF NOT EXISTS track_cycles (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      start_at TEXT NOT NULL,
+      end_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_track_cycles_project ON track_cycles(project_id, start_at);
+
+    CREATE TABLE IF NOT EXISTS track_issues (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+      identifier TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '[]',
+      status_id TEXT REFERENCES track_statuses(id) ON DELETE SET NULL,
+      priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('urgent', 'high', 'medium', 'low')),
+      assignee_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      cycle_id TEXT REFERENCES track_cycles(id) ON DELETE SET NULL,
+      estimate INTEGER CHECK (estimate >= 0),
+      parent_id TEXT REFERENCES track_issues(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (project_id, identifier)
+    );
+    CREATE INDEX IF NOT EXISTS idx_track_issues_project ON track_issues(project_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_track_issues_status ON track_issues(status_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_track_issues_assignee ON track_issues(assignee_id, status_id);
+
+    CREATE TABLE IF NOT EXISTS track_issue_comments (
+      id TEXT PRIMARY KEY,
+      issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      body TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_track_issue_comments_issue ON track_issue_comments(issue_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS track_issue_relations (
+      id TEXT PRIMARY KEY,
+      issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+      related_issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+      type TEXT NOT NULL DEFAULT 'related' CHECK (type IN ('blocks', 'related', 'duplicates')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (issue_id, related_issue_id)
+    );
   `;
 
 // ---------- Tipos ----------
@@ -969,6 +1045,73 @@ export interface CalendarBlockedSlotRow {
   starts_at: string;
   ends_at: string;
   reason: string | null;
+}
+
+// ---------- Track ----------
+
+export interface TrackProjectRow {
+  id: string;
+  team_id: string | null;
+  name: string;
+  slug: string;
+  description: string;
+  icon: string | null;
+  color: string;
+  status: 'active' | 'archived';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackStatusRow {
+  id: string;
+  project_id: string;
+  name: string;
+  color: string;
+  position: number;
+  category: 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled';
+  created_at: string;
+}
+
+export interface TrackCycleRow {
+  id: string;
+  project_id: string;
+  name: string;
+  start_at: string;
+  end_at: string;
+  created_at: string;
+}
+
+export interface TrackIssueRow {
+  id: string;
+  project_id: string;
+  identifier: string;
+  title: string;
+  description: string; // JSON TrackBlock[]
+  status_id: string | null;
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+  assignee_id: string | null;
+  creator_id: string;
+  cycle_id: string | null;
+  estimate: number | null;
+  parent_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackIssueCommentRow {
+  id: string;
+  issue_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+}
+
+export interface TrackIssueRelationRow {
+  id: string;
+  issue_id: string;
+  related_issue_id: string;
+  type: 'blocks' | 'related' | 'duplicates';
+  created_at: string;
 }
 
 // ---------- Users ----------

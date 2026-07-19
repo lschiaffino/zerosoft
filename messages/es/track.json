@@ -1,0 +1,128 @@
+{
+  "sidebar": {
+    "overview": "Resumen",
+    "projects": "Proyectos",
+    "issues": "Issues",
+    "cycles": "Ciclos",
+    "settings": "Ajustes"
+  },
+  "common": {
+    "viewAll": "Ver todo",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "Guardado ✓",
+    "create": "Crear",
+    "cancel": "Cancelar",
+    "remove": "Eliminar",
+    "back": "← Volver",
+    "view": "Ver",
+    "hide": "Ocultar",
+    "search": "Buscar",
+    "noResults": "Sin resultados",
+    "loading": "Cargando…"
+  },
+  "overview": {
+    "title": "Track",
+    "subtitle": "Proyectos, ciclos e issues. Sin fricción.",
+    "emptyTitle": "0 proyectos",
+    "emptySub": "Crea tu primer proyecto y empieza a shippear.",
+    "emptyCta": "Nuevo proyecto",
+    "projects": "Proyectos",
+    "recentIssues": "Issues recientes"
+  },
+  "projects": {
+    "title": "Proyectos",
+    "newCta": "+ Nuevo proyecto",
+    "newTitle": "Nuevo proyecto",
+    "newSub": "Nombralo. Sluggealo. Shipealo.",
+    "back": "← Todos los proyectos",
+    "empty": "Todavía no hay proyectos.",
+    "openIssues": "abiertos",
+    "form": {
+      "name": "Nombre",
+      "namePlaceholder": "Acme Mobile App",
+      "slug": "Slug",
+      "slugPlaceholder": "acme-mobile",
+      "description": "Descripción",
+      "icon": "Icono",
+      "color": "Color"
+    }
+  },
+  "project": {
+    "title": "Proyecto",
+    "issues": "Issues",
+    "cycles": "Ciclos",
+    "statuses": "Estados",
+    "newIssue": "Nuevo issue",
+    "newCycle": "Nuevo ciclo",
+    "noIssues": "Todavía no hay issues.",
+    "noCycles": "Todavía no hay ciclos.",
+    "activeCycle": "Ciclo activo",
+    "pastCycles": "Ciclos anteriores"
+  },
+  "issues": {
+    "title": "Issues",
+    "newCta": "+ Nuevo issue",
+    "newTitle": "Nuevo issue",
+    "newSub": "Crea un issue en este proyecto.",
+    "back": "← Volver al proyecto",
+    "empty": "Ningún issue coincide.",
+    "identifier": "ID",
+    "title": "Título",
+    "status": "Estado",
+    "priority": "Prioridad",
+    "assignee": "Asignado",
+    "cycle": "Ciclo",
+    "estimate": "Estimación",
+    "created": "Creado",
+    "noAssignee": "Sin asignar",
+    "form": {
+      "title": "Título",
+      "titlePlaceholder": "Arreglar redirect de login",
+      "description": "Descripción",
+      "status": "Estado",
+      "priority": "Prioridad",
+      "assignee": "Asignado",
+      "cycle": "Ciclo",
+      "estimate": "Estimación (puntos)"
+    },
+    "detail": {
+      "comments": "Comentarios",
+      "addComment": "Agregar comentario",
+      "noComments": "Todavía no hay comentarios.",
+      "properties": "Propiedades"
+    }
+  },
+  "cycles": {
+    "title": "Ciclos",
+    "form": {
+      "name": "Nombre",
+      "namePlaceholder": "Sprint 1",
+      "startAt": "Inicio",
+      "endAt": "Fin"
+    }
+  },
+  "statuses": {
+    "title": "Estados",
+    "backlog": "Backlog",
+    "todo": "Por hacer",
+    "inProgress": "En progreso",
+    "done": "Hecho",
+    "cancelled": "Cancelado"
+  },
+  "priorities": {
+    "urgent": "Urgente",
+    "high": "Alta",
+    "medium": "Media",
+    "low": "Baja"
+  },
+  "errors": {
+    "invalid_slug": "Slug inválido. Usá letras minúsculas, números y guiones.",
+    "slug_taken": "Ese slug ya está en uso.",
+    "invalid_date": "Formato de fecha inválido.",
+    "missing_name": "El nombre es obligatorio.",
+    "missing_title": "El título es obligatorio.",
+    "invalid_input": "Algunos campos son inválidos. Revisalos e intentá de nuevo.",
+    "generic": "Algo salió mal. Intentá de nuevo."
+  }
+}
