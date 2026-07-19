@@ -27,9 +27,10 @@ import AssociationPanel from '@/components/crm/AssociationPanel';
 import CompanyQuickCreate from '@/components/crm/CompanyQuickCreate';
 import DuplicatesPanel from '@/components/crm/DuplicatesPanel';
 import {
-  addDealContact,
-  removeDealContact,
-  setContactCompany,
+  associateCompanyToContact,
+  removeCompanyFromContact,
+  associateDealToContact,
+  removeDealFromContact,
 } from '@/components/crm/associationActions';
 import DangerDelete from '@/components/crm/DangerDelete';
 import { listMembers } from '@/lib/teams';
@@ -269,12 +270,8 @@ export default async function ContactDetailPage({
               options={companies
                 .filter((c) => c.id !== company?.id)
                 .map((c) => ({ id: c.id, value: c.name }))}
-              onAssociate={async (id) => {
-                await setContactCompany(contact.id, id);
-              }}
-              onRemove={async () => {
-                await setContactCompany(contact.id, null);
-              }}
+              onAssociate={associateCompanyToContact.bind(null, contact.id)}
+              onRemove={removeCompanyFromContact.bind(null, contact.id)}
               addLabel={t('contacts.detail.associateCompany')}
               emptyLabel={t('contacts.detail.noCompany')}
             />
@@ -294,12 +291,8 @@ export default async function ContactDetailPage({
               options={allDeals
                 .filter((d) => !deals.some((dd) => dd.id === d.id))
                 .map((d) => ({ id: d.id, value: d.name }))}
-              onAssociate={async (id) => {
-                await addDealContact(id, contact.id);
-              }}
-              onRemove={async (id) => {
-                await removeDealContact(id, contact.id);
-              }}
+              onAssociate={associateDealToContact.bind(null, contact.id)}
+              onRemove={removeDealFromContact.bind(null, contact.id)}
               addLabel={t('assoc.pickDeal')}
               emptyLabel={t('contacts.detail.noDeals')}
             />

@@ -7,10 +7,10 @@ import { getDeal, listCustomFields, listTimeline, nextTaskFor, parseCustom, PRIO
 import DangerDelete from '@/components/crm/DangerDelete';
 import AssociationPanel from '@/components/crm/AssociationPanel';
 import {
-  addCompanyToDeal,
-  addDealContact,
-  removeCompanyFromDeal,
-  removeDealContact,
+  associateCompanyToDeal,
+  removeCompanyFromDealByDeal,
+  associateContactToDeal,
+  removeContactFromDeal,
 } from '@/components/crm/associationActions';
 import DealStagePanel from '@/components/crm/DealStagePanel';
 import { customPropFields } from '@/components/crm/customPropFields';
@@ -262,12 +262,8 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
               options={allCompanies
                 .filter((c) => c.id !== company?.id)
                 .map((c) => ({ id: c.id, value: c.name }))}
-              onAssociate={async (companyId) => {
-                await addCompanyToDeal(deal.id, companyId);
-              }}
-              onRemove={async (companyId) => {
-                await removeCompanyFromDeal(deal.id, companyId);
-              }}
+              onAssociate={associateCompanyToDeal.bind(null, deal.id)}
+              onRemove={removeCompanyFromDealByDeal.bind(null, deal.id)}
               addLabel={t('assoc.pickCompany')}
               emptyLabel={t('deals.detail.noCompany')}
             />
@@ -286,12 +282,8 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
               options={allContacts
                 .filter((c) => !associatedContactIds.has(c.id))
                 .map((c) => ({ id: c.id, value: c.name }))}
-              onAssociate={async (contactId) => {
-                await addDealContact(deal.id, contactId);
-              }}
-              onRemove={async (contactId) => {
-                await removeDealContact(deal.id, contactId);
-              }}
+              onAssociate={associateContactToDeal.bind(null, deal.id)}
+              onRemove={removeContactFromDeal.bind(null, deal.id)}
               addLabel={t('assoc.pickContact')}
               emptyLabel={t('deals.detail.noContacts')}
             />

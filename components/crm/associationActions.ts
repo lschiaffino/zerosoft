@@ -100,3 +100,71 @@ export async function setTaskDeal(taskId: string, dealId: string | null) {
   const updated = await updateActivity(user.id, taskId, { dealId });
   if (!updated) throw new Error('not_found');
 }
+
+// ---------- Wrappers para asociar desde el record padre (.bind-friendly) ----------
+// Las pages server no pueden pasar funciones inline a Client Components; pasan
+// server actions con .bind(null, recordId) para pre-llenar el id del padre.
+
+export async function associateCompanyToContact(contactId: string, companyId: string) {
+  return setContactCompany(contactId, companyId);
+}
+
+export async function removeCompanyFromContact(contactId: string) {
+  return setContactCompany(contactId, null);
+}
+
+export async function associateDealToContact(contactId: string, dealId: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('unauthorized');
+  const updated = await updateDeal(
+    user.id,
+    dealId,
+    { addContactIds: [contactId] },
+    user.actingUser?.email ?? user.email,
+  );
+  if (!updated) throw new Error('not_found');
+}
+
+export async function removeDealFromContact(contactId: string, dealId: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('unauthorized');
+  const updated = await updateDeal(
+    user.id,
+    dealId,
+    { removeContactIds: [contactId] },
+    user.actingUser?.email ?? user.email,
+  );
+  if (!updated) throw new Error('not_found');
+}
+
+export async function associateContactToCompany(companyId: string, contactId: string) {
+  return setContactCompany(contactId, companyId);
+}
+
+export async function removeContactFromCompany(companyId: string, contactId: string) {
+  return setContactCompany(contactId, null);
+}
+
+export async function associateDealToCompany(companyId: string, dealId: string) {
+  return addCompanyToDeal(dealId, companyId);
+}
+
+export async function removeDealFromCompany(companyId: string, dealId: string) {
+  return removeCompanyFromDeal(dealId, companyId);
+}
+
+export async function associateCompanyToDeal(dealId: string, companyId: string) {
+  return addCompanyToDeal(dealId, companyId);
+}
+
+export async function removeCompanyFromDealByDeal(dealId: string, companyId: string) {
+  return removeCompanyFromDeal(dealId, companyId);
+}
+
+export async function associateContactToDeal(dealId: string, contactId: string) {
+  return addDealContact(dealId, contactId);
+}
+
+export async function removeContactFromDeal(dealId: string, contactId: string) {
+  return removeDealContact(dealId, contactId);
+}

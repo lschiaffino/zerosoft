@@ -7,9 +7,10 @@ import { getCompany, LIFECYCLE_STAGES, listCustomFields, listExternalEmailItems,
 import DangerDelete from '@/components/crm/DangerDelete';
 import AssociationPanel from '@/components/crm/AssociationPanel';
 import {
-  addCompanyToDeal,
-  removeCompanyFromDeal,
-  setContactCompany,
+  associateContactToCompany,
+  removeContactFromCompany,
+  associateDealToCompany,
+  removeDealFromCompany,
 } from '@/components/crm/associationActions';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
@@ -235,12 +236,8 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
               options={allContacts
                 .filter((c) => !contacts.some((cc) => cc.id === c.id))
                 .map((c) => ({ id: c.id, value: c.name }))}
-              onAssociate={async (contactId) => {
-                await setContactCompany(contactId, company.id);
-              }}
-              onRemove={async (contactId) => {
-                await setContactCompany(contactId, null);
-              }}
+              onAssociate={associateContactToCompany.bind(null, company.id)}
+              onRemove={removeContactFromCompany.bind(null, company.id)}
               addLabel={t('assoc.pickContact')}
               emptyLabel={t('companies.detail.noContacts')}
             />
@@ -262,12 +259,8 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
               options={allDeals
                 .filter((d) => !deals.some((dd) => dd.id === d.id))
                 .map((d) => ({ id: d.id, value: d.name }))}
-              onAssociate={async (dealId) => {
-                await addCompanyToDeal(dealId, company.id);
-              }}
-              onRemove={async (dealId) => {
-                await removeCompanyFromDeal(dealId, company.id);
-              }}
+              onAssociate={associateDealToCompany.bind(null, company.id)}
+              onRemove={removeDealFromCompany.bind(null, company.id)}
               addLabel={t('assoc.pickDeal')}
               emptyLabel={t('companies.detail.noDeals')}
             />
