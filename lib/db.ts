@@ -44,6 +44,15 @@ export function ensureMigrated(): Promise<void> {
       const client = getClient();
       if (!IS_REMOTE) await client.execute('PRAGMA foreign_keys = ON');
       await client.executeMultiple(DDL);
+      // Columnas añadidas después del DDL inicial: ALTER idempotente
+      // (falla con "duplicate column" si ya existe; se ignora).
+      for (const alter of ['ALTER TABLE crm_activities ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0']) {
+        try {
+          await client.execute(alter);
+        } catch {
+          /* la columna ya existe */
+        }
+      }
     })();
     _migratePromise = p;
     p.catch(() => {
@@ -287,6 +296,7 @@ const DDL = `
       due_at TEXT,
       done INTEGER NOT NULL DEFAULT 0,
       done_at TEXT,
+      pinned INTEGER NOT NULL DEFAULT 0,
       direction TEXT NOT NULL DEFAULT '',
       outcome TEXT NOT NULL DEFAULT '',
       duration_min INTEGER,
@@ -485,6 +495,7 @@ export interface CrmActivityRow {
   due_at: string | null;
   done: 0 | 1;
   done_at: string | null;
+  pinned: 0 | 1;
   direction: string;
   outcome: string;
   duration_min: number | null;

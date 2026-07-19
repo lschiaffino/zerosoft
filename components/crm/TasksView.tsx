@@ -8,6 +8,7 @@ export interface TaskRow {
   id: string;
   subject: string;
   due: string | null;
+  dueRel: string | null;
   overdue: boolean;
   done: boolean;
   record: { href: string; name: string } | null;
@@ -195,6 +196,7 @@ export default function TasksView({ bucket, rows }: TasksViewProps) {
                 ) : (
                   <span className="muted">{t('tasks.noDue')}</span>
                 )}
+                {row.dueRel && <span className="muted task-rel">{row.dueRel}</span>}
                 {row.record?.name && (
                   <Link href={row.record.href} className="cell-email muted">
                     {row.record.name}

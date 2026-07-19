@@ -362,6 +362,19 @@ export default function DealsBoard({ pipelineId, stages, locale, priorities, sou
                         </span>
                       )}
                       {deal.close_date && <span className="badge">{fmtClose(deal.close_date)}</span>}
+                      {!closed && typeof deal.age_days === 'number' && (
+                        <span className="badge" title={t('deals.ageDays', { days: deal.age_days })}>
+                          {deal.age_days}d
+                        </span>
+                      )}
+                      {!closed && (deal.idle_days ?? 0) > 14 && (
+                        <span
+                          className="badge badge-rotting"
+                          title={t('deals.rotting', { days: deal.idle_days ?? 0 })}
+                        >
+                          ⚠ {deal.idle_days}d
+                        </span>
+                      )}
                     </div>
                     <select
                       className="filter-select kb-move"

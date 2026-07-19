@@ -411,3 +411,16 @@
     gap: 8px;
   }
 }
+
+/* Sidebar: badge de tareas vencidas/hoy */
+.side-link { display: flex; align-items: center; gap: 8px; }
+.side-badge {
+  margin-left: auto;
+  min-width: 18px;
+  text-align: center;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.6;
+}

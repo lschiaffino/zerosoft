@@ -44,6 +44,7 @@ interface Item {
   href: string;
   label: string;
   active: boolean;
+  badge?: number;
 }
 
 const PRODUCTS = [
@@ -62,10 +63,12 @@ export default function AppSidebar({
   labels,
   user,
   demo,
+  tasksDue = 0,
 }: {
   labels: SidebarLabels;
   user: SideUser;
   demo: boolean;
+  tasksDue?: number;
 }) {
   const pathname = usePathname();
   const product = pathname.includes('/app/crm') ? 'crm' : 'link';
@@ -104,7 +107,12 @@ export default function AppSidebar({
     {
       section: labels.activity,
       items: [
-        { href: '/app/crm/tasks', label: labels.crm.tasks, active: pathname.startsWith('/app/crm/tasks') },
+        {
+          href: '/app/crm/tasks',
+          label: labels.crm.tasks,
+          active: pathname.startsWith('/app/crm/tasks'),
+          badge: tasksDue > 0 ? tasksDue : undefined,
+        },
       ],
     },
     {
@@ -238,6 +246,7 @@ export default function AppSidebar({
                 aria-current={item.active ? 'page' : undefined}
               >
                 {item.label}
+                {item.badge ? <span className="side-badge mono">{item.badge}</span> : null}
               </Link>
             ))}
           </div>

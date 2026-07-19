@@ -161,6 +161,7 @@ export const activityCreateSchema = z.object({
 
 export const activityUpdateSchema = activityCreateSchema.partial().extend({
   done: z.boolean().optional(),
+  pinned: z.boolean().optional(),
 });
 
 // ---------- Lists ----------

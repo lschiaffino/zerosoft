@@ -32,7 +32,8 @@
     "searchPlaceholder": "Search contacts, companies, deals…",
     "searchPlaceholderLinks": "Search links…",
     "searchEmpty": "0 results. Try something else.",
-    "searchLoading": "Searching…"
+    "searchLoading": "Searching…",
+    "actions": "Actions"
   },
   "hero": {
     "title1": "Software is",

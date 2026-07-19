@@ -44,7 +44,11 @@
     "none": "Nenhum",
     "optional": "opcional",
     "results": "{count} resultados",
-    "durationMin": "Duração (min)"
+    "durationMin": "Duração (min)",
+    "pin": "Fixar",
+    "unpin": "Desafixar",
+    "pinned": "Fixado",
+    "nextTask": "Próxima tarefa"
   },
   "enums": {
     "lifecycle": {
@@ -122,7 +126,9 @@
     "sortNewest": "Mais recentes",
     "sortOldest": "Mais antigos",
     "sortName": "Nome",
+    "sortNameDesc": "Nome (Z–A)",
     "sortEmail": "E-mail",
+    "sortEmailDesc": "E-mail (Z–A)",
     "table": {
       "searchPlaceholder": "Busque por nome ou e-mail…",
       "name": "Nome",
@@ -200,6 +206,15 @@
     "sortNewest": "Mais recentes",
     "sortOldest": "Mais antigas",
     "sortName": "Nome",
+    "sortNameDesc": "Nome (Z–A)",
+    "bulk": {
+      "selected": "{count} selecionadas",
+      "setLifecycle": "Definir ciclo de vida",
+      "apply": "Aplicar",
+      "delete": "Excluir",
+      "clear": "Limpar",
+      "confirmDelete": "Excluir {count} empresas?"
+    },
     "table": {
       "searchPlaceholder": "Busque por nome ou domínio…",
       "name": "Nome",
@@ -273,10 +288,19 @@
       "confirm": "Marcar como perdido"
     },
     "emptyStage": "Sem negócios",
+    "totals": {
+      "open": "Negócios abertos",
+      "openAmount": "Valor aberto",
+      "forecast": "Previsão ponderada"
+    },
+    "ageDays": "{days}d de idade",
+    "rotting": "Sem atividade em {days} dias",
     "sortNewest": "Mais recentes",
     "sortOldest": "Mais antigos",
     "sortAmount": "Valor",
+    "sortAmountAsc": "Valor (menor primeiro)",
     "sortCloseDate": "Data de fechamento",
+    "sortCloseDesc": "Data de fechamento (última)",
     "table": {
       "searchPlaceholder": "Busque um negócio…",
       "name": "Negócio",
@@ -370,6 +394,8 @@
     "dealsBySource": "Negócios por origem",
     "contactsByLifecycle": "Contatos por ciclo de vida",
     "activitiesByType": "Atividades por tipo",
+    "dealsByPriority": "Negócios por prioridade",
+    "lostReasons": "Motivos de perda",
     "avgDaysToClose": "Dias médios até o fechamento",
     "days": "{count} dias",
     "count": "Quantidade",

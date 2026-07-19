@@ -28,7 +28,10 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
   const industry = one(searchParams.industry) ?? '';
   const lifecycle = one(searchParams.lifecycle) ?? '';
   const sortParam = one(searchParams.sort);
-  const sort = sortParam === 'oldest' || sortParam === 'name' ? sortParam : 'newest';
+  const sort =
+    sortParam === 'oldest' || sortParam === 'name' || sortParam === 'name_desc'
+      ? sortParam
+      : 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
 
   const { rows, total } = await listCompanies(user.id, {
@@ -128,7 +131,7 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
         </div>
       ) : (
         <>
-          <CompaniesTable rows={tableRows} />
+          <CompaniesTable rows={tableRows} sort={sort} lifecycles={[...LIFECYCLE_STAGES]} />
           {pages > 1 && (
             <nav className="pager mono">
               {currentPage > 1 ? (

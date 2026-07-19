@@ -44,7 +44,11 @@
     "none": "Ninguno",
     "optional": "opcional",
     "results": "{count} resultados",
-    "durationMin": "Duración (min)"
+    "durationMin": "Duración (min)",
+    "pin": "Fijar",
+    "unpin": "Desfijar",
+    "pinned": "Fijado",
+    "nextTask": "Próxima tarea"
   },
   "enums": {
     "lifecycle": {
@@ -122,7 +126,9 @@
     "sortNewest": "Más nuevos",
     "sortOldest": "Más viejos",
     "sortName": "Nombre",
+    "sortNameDesc": "Nombre (Z–A)",
     "sortEmail": "Email",
+    "sortEmailDesc": "Email (Z–A)",
     "table": {
       "searchPlaceholder": "Buscá por nombre o email…",
       "name": "Nombre",
@@ -200,6 +206,15 @@
     "sortNewest": "Más nuevas",
     "sortOldest": "Más viejas",
     "sortName": "Nombre",
+    "sortNameDesc": "Nombre (Z–A)",
+    "bulk": {
+      "selected": "{count} seleccionadas",
+      "setLifecycle": "Cambiar lifecycle",
+      "apply": "Aplicar",
+      "delete": "Eliminar",
+      "clear": "Limpiar",
+      "confirmDelete": "¿Eliminar {count} empresas?"
+    },
     "table": {
       "searchPlaceholder": "Buscá por nombre o dominio…",
       "name": "Nombre",
@@ -273,10 +288,19 @@
       "confirm": "Marcar como perdido"
     },
     "emptyStage": "Sin deals",
+    "totals": {
+      "open": "Deals abiertos",
+      "openAmount": "Monto abierto",
+      "forecast": "Forecast ponderado"
+    },
+    "ageDays": "{days}d de antigüedad",
+    "rotting": "Sin actividad en {days} días",
     "sortNewest": "Más nuevos",
     "sortOldest": "Más viejos",
     "sortAmount": "Monto",
+    "sortAmountAsc": "Monto (menor primero)",
     "sortCloseDate": "Fecha de cierre",
+    "sortCloseDesc": "Fecha de cierre (última)",
     "table": {
       "searchPlaceholder": "Buscá un deal…",
       "name": "Deal",
@@ -370,6 +394,8 @@
     "dealsBySource": "Deals por origen",
     "contactsByLifecycle": "Contactos por lifecycle",
     "activitiesByType": "Actividades por tipo",
+    "dealsByPriority": "Deals por prioridad",
+    "lostReasons": "Motivos de pérdida",
     "avgDaysToClose": "Días promedio al cierre",
     "days": "{count} días",
     "count": "Cantidad",

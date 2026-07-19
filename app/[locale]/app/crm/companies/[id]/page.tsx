@@ -3,11 +3,12 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
-import { getCompany, LIFECYCLE_STAGES, listCustomFields, listTimeline, parseCustom } from '@/lib/crm';
+import { getCompany, LIFECYCLE_STAGES, listCustomFields, listTimeline, nextTaskFor, parseCustom } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import NextTaskBanner from '@/components/crm/NextTaskBanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
   const { company, contacts, deals } = detail;
 
   const timeline = await listTimeline(user.id, { companyId: id, limit: 100 });
+  const nextTask = await nextTaskFor(user.id, { companyId: id });
 
   // Nombres de stage para los deals relacionados.
   const stageRows = (await getDb().prepare('SELECT id, name FROM crm_stages').all()) as Array<{
@@ -123,6 +125,10 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
         <div className="detail-col">
           <section className="panel">
             <h2 className="section-label">{t('companies.detail.timeline')}</h2>
+            <NextTaskBanner
+              task={nextTask ? { id: nextTask.id, subject: nextTask.subject, due_at: nextTask.due_at } : null}
+              locale={locale}
+            />
             <Timeline
               recordType="company"
               recordId={company.id}

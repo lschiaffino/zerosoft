@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
+import SortTh from './SortTh';
+import InlineEditCell from './InlineEditCell';
 
 export interface ContactRow {
   id: string;
@@ -20,10 +22,11 @@ export interface ContactRow {
 interface ContactsTableProps {
   rows: ContactRow[];
   lifecycles: string[];
+  sort: string;
 }
 
 /** Tabla de contactos con selección múltiple y bulk bar (set_lifecycle / delete). */
-export default function ContactsTable({ rows, lifecycles }: ContactsTableProps) {
+export default function ContactsTable({ rows, lifecycles, sort }: ContactsTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -75,14 +78,25 @@ export default function ContactsTable({ rows, lifecycles }: ContactsTableProps) 
                   aria-label={t('common.all')}
                 />
               </th>
-              <th>{t('contacts.table.name')}</th>
-              <th>{t('contacts.table.email')}</th>
+              <th>
+                <SortTh label={t('contacts.table.name')} asc="name" desc="name_desc" current={sort} />
+              </th>
+              <th>
+                <SortTh
+                  label={t('contacts.table.email')}
+                  asc="email"
+                  desc="email_desc"
+                  current={sort}
+                />
+              </th>
               <th>{t('contacts.table.phone')}</th>
               <th>{t('contacts.table.company')}</th>
               <th>{t('contacts.table.lifecycle')}</th>
               <th>{t('contacts.table.leadStatus')}</th>
               <th>{t('contacts.table.source')}</th>
-              <th>{t('contacts.table.created')}</th>
+              <th>
+                <SortTh label={t('contacts.table.created')} asc="oldest" desc="newest" current={sort} />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -102,15 +116,40 @@ export default function ContactsTable({ rows, lifecycles }: ContactsTableProps) 
                   </Link>
                 </td>
                 <td>
+                  <InlineEditCell
+                    endpoint={`/api/crm/contacts/${row.id}`}
+                    field="email"
+                    value={row.email}
+                    inputType="email"
+                    className="cell-email muted"
+                  />
                   {row.email ? (
-                    <a href={`mailto:${row.email}`} className="cell-email muted">
-                      {row.email}
+                    <a
+                      href={`mailto:${row.email}`}
+                      className="cell-quick"
+                      title={t('enums.activityType.email')}
+                    >
+                      ✉
                     </a>
-                  ) : (
-                    <span className="muted">—</span>
-                  )}
+                  ) : null}
                 </td>
-                <td className="muted cell-sub">{row.phone || '—'}</td>
+                <td className="cell-sub">
+                  <InlineEditCell
+                    endpoint={`/api/crm/contacts/${row.id}`}
+                    field="phone"
+                    value={row.phone}
+                    className="muted"
+                  />
+                  {row.phone ? (
+                    <a
+                      href={`tel:${row.phone}`}
+                      className="cell-quick"
+                      title={t('enums.activityType.call')}
+                    >
+                      ☎
+                    </a>
+                  ) : null}
+                </td>
                 <td>
                   {row.companyName && row.companyId ? (
                     <Link href={`/app/crm/companies/${row.companyId}`} className="cell-sub">

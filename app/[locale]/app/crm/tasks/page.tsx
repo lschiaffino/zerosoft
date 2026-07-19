@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { listTasks, type TaskBucket } from '@/lib/crm';
+import { relDate } from '@/lib/utils';
 import TasksView, { type TaskRow } from '@/components/crm/TasksView';
 
 export const dynamic = 'force-dynamic';
@@ -41,6 +42,7 @@ export default async function TasksPage({ params: { locale }, searchParams }: Ta
       id: a.id,
       subject: a.subject,
       due: a.due_at ? fmtDue(a.due_at) : null,
+      dueRel: a.due_at ? relDate(a.due_at, locale) : null,
       overdue: bucket === 'overdue',
       done: a.done === 1,
       record,

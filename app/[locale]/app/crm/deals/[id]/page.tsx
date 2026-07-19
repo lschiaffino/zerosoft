@@ -3,13 +3,14 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb, type CrmStageRow } from '@/lib/db';
-import { getDeal, listCustomFields, listTimeline, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
+import { getDeal, listCustomFields, listTimeline, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
 import DealContacts from '@/components/crm/DealContacts';
 import DealStagePanel from '@/components/crm/DealStagePanel';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import NextTaskBanner from '@/components/crm/NextTaskBanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,7 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
   const { deal, stage, pipeline, contacts, company } = detail;
 
   const timeline = await listTimeline(user.id, { dealId: id, limit: 100 });
+  const nextTask = await nextTaskFor(user.id, { dealId: id });
 
   const stages = (await getDb()
     .prepare('SELECT * FROM crm_stages WHERE pipeline_id = ? ORDER BY position ASC')
@@ -149,6 +151,10 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
 
           <section className="panel">
             <h2 className="section-label">{t('deals.detail.timeline')}</h2>
+            <NextTaskBanner
+              task={nextTask ? { id: nextTask.id, subject: nextTask.subject, due_at: nextTask.due_at } : null}
+              locale={locale}
+            />
             <Timeline
               recordType="deal"
               recordId={deal.id}

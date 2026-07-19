@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 
@@ -39,6 +39,20 @@ export default function CommandSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const product = pathname.includes('/app/crm') ? 'crm' : 'link';
 
+  // Acciones rápidas (estilo Linear): se muestran cuando no hay query.
+  const actionItems = useMemo<ResultItem[]>(() => {
+    const group = t('actions');
+    if (product === 'crm') {
+      return [
+        { group, label: t('newContact'), meta: '', href: '/app/crm/contacts/new' },
+        { group, label: t('newCompany'), meta: '', href: '/app/crm/companies/new' },
+        { group, label: t('newDeal'), meta: '', href: '/app/crm/deals' },
+        { group, label: t('newTask'), meta: '', href: '/app/crm/tasks' },
+      ];
+    }
+    return [{ group, label: t('newLink'), meta: '', href: '/app/links/new' }];
+  }, [product, t]);
+
   useEffect(() => {
     function onOpen() {
       setOpen(true);
@@ -60,16 +74,16 @@ export default function CommandSearch() {
   useEffect(() => {
     if (open) {
       setQ('');
-      setItems([]);
+      setItems(actionItems);
       setSel(0);
       setTimeout(() => inputRef.current?.focus(), 30);
     }
-  }, [open]);
+  }, [open, actionItems]);
 
   const search = useCallback(
     async (query: string) => {
       if (!query.trim()) {
-        setItems([]);
+        setItems(actionItems);
         setLoading(false);
         return;
       }
@@ -123,7 +137,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [product, tc],
+    [product, tc, actionItems],
   );
 
   useEffect(() => {

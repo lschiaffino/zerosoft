@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { DEMO_MODE, requireUser } from '@/lib/session';
+import { countDueTasks } from '@/lib/crm';
 import AppSidebar from '@/components/app/AppSidebar';
 import CommandSearch from '@/components/app/CommandSearch';
 import '@/styles/link.css';
@@ -20,11 +21,13 @@ export default async function AppLayout({
   const tSide = await getTranslations({ locale, namespace: 'common.sidebar' });
   const tLink = await getTranslations({ locale, namespace: 'link' });
   const tCrm = await getTranslations({ locale, namespace: 'crm' });
+  const tasksDue = await countDueTasks(user.id);
 
   return (
     <div className="app-frame">
       <AppSidebar
         demo={DEMO_MODE}
+        tasksDue={tasksDue}
         user={{ name: user.name, email: user.email, image: user.image }}
         labels={{
           search: tSide('search'),

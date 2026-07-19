@@ -8,7 +8,7 @@ interface CompanyFiltersProps {
   q: string;
   industry: string;
   lifecycle: string;
-  sort: 'newest' | 'oldest' | 'name';
+  sort: 'newest' | 'oldest' | 'name' | 'name_desc';
   industries: string[];
   lifecycles: Array<{ value: string; label: string }>;
 }
@@ -104,6 +104,7 @@ export default function CompanyFilters({
             <option value="newest">{t('companies.sortNewest')}</option>
             <option value="oldest">{t('companies.sortOldest')}</option>
             <option value="name">{t('companies.sortName')}</option>
+            <option value="name_desc">{t('companies.sortNameDesc')}</option>
           </select>
         </div>
       </div>

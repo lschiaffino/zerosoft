@@ -13,6 +13,7 @@ export interface TimelineItem {
   body: string;
   due_at: string | null;
   done: 0 | 1;
+  pinned: 0 | 1;
   direction: string;
   outcome: string;
   duration_min: number | null;
@@ -82,6 +83,11 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
+  // Edición inline (subject + body)
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState('');
+  const [editBody, setEditBody] = useState('');
+
   const filtered = filter === 'all' ? items : items.filter((i) => i.type === filter);
 
   async function submit(e: React.FormEvent) {
@@ -120,6 +126,37 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
     }).catch(() => null);
     setBusyId(null);
     router.refresh();
+  }
+
+  async function togglePin(item: TimelineItem) {
+    setBusyId(item.id);
+    await fetch(`/api/crm/activities/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pinned: !item.pinned }),
+    }).catch(() => null);
+    setBusyId(null);
+    router.refresh();
+  }
+
+  function startEdit(item: TimelineItem) {
+    setEditingId(item.id);
+    setEditSubject(item.subject);
+    setEditBody(item.body);
+  }
+
+  async function saveEdit(item: TimelineItem) {
+    setBusyId(item.id);
+    const res = await fetch(`/api/crm/activities/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ subject: editSubject.trim(), body: editBody.trim() }),
+    }).catch(() => null);
+    setBusyId(null);
+    if (res && res.ok) {
+      setEditingId(null);
+      router.refresh();
+    }
   }
 
   async function remove(id: string) {
@@ -232,56 +269,114 @@ export default function Timeline({ recordType, recordId, items, emptyLabel, loca
           {filtered.map((item) => (
             <div
               key={item.id}
-              className={`tl-item${item.done ? ' tl-done' : ''}${busyId === item.id ? ' row-busy' : ''}`}
+              className={`tl-item${item.done ? ' tl-done' : ''}${item.pinned ? ' tl-pinned' : ''}${busyId === item.id ? ' row-busy' : ''}`}
             >
               <span className={`tl-dot ${item.type}`} aria-hidden />
-              <div className="tl-head">
-                <span className="tl-type">{t(`enums.activityType.${item.type}`)}</span>
-                <span className="tl-subject">{item.subject || '—'}</span>
-                <span className="tl-date">
-                  {formatWhen(item.due_at ?? item.created_at, locale)}
-                </span>
-              </div>
-              {item.body && <p className="tl-body">{item.body}</p>}
-              <div className="tl-meta">
-                {item.type === 'task' && item.due_at && (
-                  <span>
-                    {t('tasks.dueLabel')} {formatDay(item.due_at, locale)}
-                  </span>
-                )}
-                {item.direction && <span>{t(`enums.direction.${item.direction}`)}</span>}
-                {item.duration_min != null && <span>{item.duration_min} min</span>}
-                {item.outcome && <span>{item.outcome}</span>}
-                {item.type === 'task' && (
-                  <button type="button" className="icon-btn" onClick={() => toggleDone(item)}>
-                    {item.done ? t('tasks.reopen') : t('tasks.complete')}
-                  </button>
-                )}
-                {confirmId === item.id ? (
-                  <>
+              {editingId === item.id ? (
+                <div className="tl-edit">
+                  <input
+                    className="input"
+                    value={editSubject}
+                    onChange={(e) => setEditSubject(e.target.value)}
+                    placeholder={t('tasks.form.subject')}
+                    maxLength={500}
+                  />
+                  <textarea
+                    className="textarea"
+                    rows={3}
+                    value={editBody}
+                    onChange={(e) => setEditBody(e.target.value)}
+                    placeholder={t('tasks.form.body')}
+                    maxLength={5000}
+                  />
+                  <div className="form-actions">
                     <button
                       type="button"
-                      className="icon-btn danger"
-                      onClick={() => remove(item.id)}
+                      className="btn btn-solid btn-small"
+                      disabled={busyId === item.id}
+                      onClick={() => saveEdit(item)}
                     >
-                      {t('common.yes')}
+                      {t('common.save')}
                     </button>
-                    <button type="button" className="icon-btn" onClick={() => setConfirmId(null)}>
-                      {t('common.no')}
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small"
+                      onClick={() => setEditingId(null)}
+                    >
+                      {t('common.cancel')}
                     </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="icon-btn danger"
-                    onClick={() => setConfirmId(item.id)}
-                    title={t('common.delete')}
-                    aria-label={t('common.delete')}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="tl-head">
+                    <span className="tl-type">{t(`enums.activityType.${item.type}`)}</span>
+                    {item.pinned ? <span className="badge">{t('common.pinned')}</span> : null}
+                    <span className="tl-subject">{item.subject || '—'}</span>
+                    <span className="tl-date">
+                      {formatWhen(item.due_at ?? item.created_at, locale)}
+                    </span>
+                  </div>
+                  {item.body && <p className="tl-body">{item.body}</p>}
+                  <div className="tl-meta">
+                    {item.type === 'task' && item.due_at && (
+                      <span>
+                        {t('tasks.dueLabel')} {formatDay(item.due_at, locale)}
+                      </span>
+                    )}
+                    {item.direction && <span>{t(`enums.direction.${item.direction}`)}</span>}
+                    {item.duration_min != null && <span>{item.duration_min} min</span>}
+                    {item.outcome && <span>{item.outcome}</span>}
+                    {item.type === 'task' && (
+                      <button type="button" className="icon-btn" onClick={() => toggleDone(item)}>
+                        {item.done ? t('tasks.reopen') : t('tasks.complete')}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      onClick={() => togglePin(item)}
+                      title={item.pinned ? t('common.unpin') : t('common.pin')}
+                      aria-label={item.pinned ? t('common.unpin') : t('common.pin')}
+                    >
+                      {item.pinned ? '◆' : '◇'}
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      onClick={() => startEdit(item)}
+                      title={t('common.edit')}
+                      aria-label={t('common.edit')}
+                    >
+                      ✎
+                    </button>
+                    {confirmId === item.id ? (
+                      <>
+                        <button
+                          type="button"
+                          className="icon-btn danger"
+                          onClick={() => remove(item.id)}
+                        >
+                          {t('common.yes')}
+                        </button>
+                        <button type="button" className="icon-btn" onClick={() => setConfirmId(null)}>
+                          {t('common.no')}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="icon-btn danger"
+                        onClick={() => setConfirmId(item.id)}
+                        title={t('common.delete')}
+                        aria-label={t('common.delete')}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>

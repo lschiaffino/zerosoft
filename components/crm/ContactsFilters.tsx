@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 
-export type ContactSort = 'newest' | 'oldest' | 'name' | 'email';
+export type ContactSort = 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc';
 
 interface SavedView {
   id: string;
@@ -165,7 +165,9 @@ export default function ContactsFilters({
             <option value="newest">{t('contacts.sortNewest')}</option>
             <option value="oldest">{t('contacts.sortOldest')}</option>
             <option value="name">{t('contacts.sortName')}</option>
+            <option value="name_desc">{t('contacts.sortNameDesc')}</option>
             <option value="email">{t('contacts.sortEmail')}</option>
+            <option value="email_desc">{t('contacts.sortEmailDesc')}</option>
           </select>
         </div>
       </div>

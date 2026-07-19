@@ -44,7 +44,11 @@
     "none": "None",
     "optional": "optional",
     "results": "{count} results",
-    "durationMin": "Duration (min)"
+    "durationMin": "Duration (min)",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "pinned": "Pinned",
+    "nextTask": "Next task"
   },
   "enums": {
     "lifecycle": {
@@ -122,7 +126,9 @@
     "sortNewest": "Newest",
     "sortOldest": "Oldest",
     "sortName": "Name",
+    "sortNameDesc": "Name (Z–A)",
     "sortEmail": "Email",
+    "sortEmailDesc": "Email (Z–A)",
     "table": {
       "searchPlaceholder": "Search name or email…",
       "name": "Name",
@@ -200,6 +206,15 @@
     "sortNewest": "Newest",
     "sortOldest": "Oldest",
     "sortName": "Name",
+    "sortNameDesc": "Name (Z–A)",
+    "bulk": {
+      "selected": "{count} selected",
+      "setLifecycle": "Set lifecycle",
+      "apply": "Apply",
+      "delete": "Delete",
+      "clear": "Clear",
+      "confirmDelete": "Delete {count} companies?"
+    },
     "table": {
       "searchPlaceholder": "Search name or domain…",
       "name": "Name",
@@ -273,10 +288,19 @@
       "confirm": "Mark as lost"
     },
     "emptyStage": "No deals",
+    "totals": {
+      "open": "Open deals",
+      "openAmount": "Open amount",
+      "forecast": "Weighted forecast"
+    },
+    "ageDays": "{days}d old",
+    "rotting": "No activity in {days} days",
     "sortNewest": "Newest",
     "sortOldest": "Oldest",
     "sortAmount": "Amount",
+    "sortAmountAsc": "Amount (low first)",
     "sortCloseDate": "Close date",
+    "sortCloseDesc": "Close date (latest)",
     "table": {
       "searchPlaceholder": "Search deal…",
       "name": "Deal",
@@ -370,6 +394,8 @@
     "dealsBySource": "Deals by source",
     "contactsByLifecycle": "Contacts by lifecycle",
     "activitiesByType": "Activities by type",
+    "dealsByPriority": "Deals by priority",
+    "lostReasons": "Lost reasons",
     "avgDaysToClose": "Avg. days to close",
     "days": "{count} days",
     "count": "Count",

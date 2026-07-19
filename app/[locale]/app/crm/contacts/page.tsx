@@ -17,7 +17,7 @@ import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
-const SORTS: readonly ContactSort[] = ['newest', 'oldest', 'name', 'email'];
+const SORTS: readonly ContactSort[] = ['newest', 'oldest', 'name', 'name_desc', 'email', 'email_desc'];
 
 interface ContactsPageProps {
   params: { locale: string };
@@ -121,7 +121,7 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
         </div>
       ) : (
         <>
-          <ContactsTable rows={tableRows} lifecycles={[...LIFECYCLE_STAGES]} />
+          <ContactsTable rows={tableRows} lifecycles={[...LIFECYCLE_STAGES]} sort={sort} />
           {pages > 1 && (
             <nav className="pager mono">
               {page > 1 ? (

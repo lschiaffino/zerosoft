@@ -15,6 +15,8 @@ interface DealFormProps {
   stageId: string;
   priorities: Array<{ value: string; label: string }>;
   sources: Array<{ value: string; label: string }>;
+  /** Si viene, el deal se crea ya vinculado a este contacto (sin selector). */
+  fixedContactId?: string;
   onDone: () => void;
   onCancel: () => void;
 }
@@ -25,6 +27,7 @@ export default function DealForm({
   stageId,
   priorities,
   sources,
+  fixedContactId,
   onDone,
   onCancel,
 }: DealFormProps) {
@@ -38,10 +41,11 @@ export default function DealForm({
   const [closeDate, setCloseDate] = useState('');
   const [priority, setPriority] = useState('medium');
   const [source, setSource] = useState('');
-  const [contactId, setContactId] = useState('');
+  const [contactId, setContactId] = useState(fixedContactId ?? '');
   const [contacts, setContacts] = useState<ContactOption[]>([]);
 
   useEffect(() => {
+    if (fixedContactId) return;
     let cancelled = false;
     fetch('/api/crm/contacts?pageSize=100')
       .then((r) => (r.ok ? r.json() : { rows: [] }))
@@ -58,7 +62,7 @@ export default function DealForm({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fixedContactId]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -158,19 +162,21 @@ export default function DealForm({
           ))}
         </select>
       </div>
-      <select
-        className="select"
-        value={contactId}
-        onChange={(e) => setContactId(e.target.value)}
-        aria-label={t('deals.form.contacts')}
-      >
-        <option value="">{t('deals.form.contacts')}</option>
-        {contacts.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+      {!fixedContactId && (
+        <select
+          className="select"
+          value={contactId}
+          onChange={(e) => setContactId(e.target.value)}
+          aria-label={t('deals.form.contacts')}
+        >
+          <option value="">{t('deals.form.contacts')}</option>
+          {contacts.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
       {error && <p className="form-error">{error}</p>}
       <div className="form-actions">
         <button type="submit" className="btn btn-solid btn-small" disabled={busy}>

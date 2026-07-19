@@ -2,6 +2,7 @@ import { useTranslations } from 'next-intl';
 import {
   ACTIVITY_TYPES,
   LIFECYCLE_STAGES,
+  PRIORITIES,
   SOURCES,
   type CrmReports,
   type FunnelStage,
@@ -197,6 +198,8 @@ export default function ReportsView({
     (LIFECYCLE_STAGES as readonly string[]).includes(n) ? t(`enums.lifecycle.${n}`) : n;
   const activityLabel = (n: string) =>
     (ACTIVITY_TYPES as readonly string[]).includes(n) ? t(`enums.activityType.${n}`) : n;
+  const priorityLabel = (n: string) =>
+    (PRIORITIES as readonly string[]).includes(n) ? t(`enums.priority.${n}`) : n;
 
   return (
     <div className="reports">
@@ -352,6 +355,28 @@ export default function ReportsView({
             items={reports.activitiesByType.map((a) => ({ name: a.type, count: a.count }))}
             emptyLabel={t('reports.empty')}
             labelFor={activityLabel}
+            locale={locale}
+          />
+        </section>
+        <section className="panel">
+          <p className="section-label">{t('reports.dealsByPriority')}</p>
+          <ProporBars
+            items={reports.dealsByPriority.map((p) => ({ name: p.priority, count: p.count }))}
+            emptyLabel={t('reports.empty')}
+            labelFor={priorityLabel}
+            titleFor={(item) => {
+              const row = reports.dealsByPriority.find((p) => p.priority === item.name);
+              return row ? formatMoney(row.amount, locale) : '';
+            }}
+            locale={locale}
+          />
+        </section>
+        <section className="panel">
+          <p className="section-label">{t('reports.lostReasons')}</p>
+          <ProporBars
+            items={reports.lostReasons.map((r) => ({ name: r.reason, count: r.count }))}
+            emptyLabel={t('reports.empty')}
+            labelFor={(n) => n}
             locale={locale}
           />
         </section>

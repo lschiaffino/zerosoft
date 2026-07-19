@@ -8,6 +8,7 @@ import {
   listPipelinesWithStages,
   PRIORITIES,
   SOURCES,
+  type BoardStage,
 } from '@/lib/crm';
 import { formatDate } from '@/lib/utils';
 import DealsBoard from '@/components/crm/DealsBoard';
@@ -17,7 +18,7 @@ import DealsTable, { type DealRow } from '@/components/crm/DealsTable';
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
-const DEAL_SORTS = ['newest', 'oldest', 'amount', 'close_date'] as const;
+const DEAL_SORTS = ['newest', 'oldest', 'amount', 'amount_asc', 'close_date', 'close_date_desc'] as const;
 type DealSort = (typeof DEAL_SORTS)[number];
 
 interface DealsPageProps {
@@ -42,6 +43,25 @@ function formatCloseDate(cd: string | null, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(
     new Date(`${cd.slice(0, 10)}T00:00:00Z`),
   );
+}
+
+/** Anota cada deal del board con age_days (desde created_at) e idle_days (desde última actividad o update). */
+function withAges(stages: BoardStage[]): BoardStage[] {
+  const nowMs = Date.now();
+  const dayMs = 86_400_000;
+  const ts = (s: string | null | undefined): number =>
+    s ? new Date(s.replace(' ', 'T') + 'Z').getTime() : 0;
+  return stages.map((col) => ({
+    ...col,
+    deals: col.deals.map((d) => ({
+      ...d,
+      age_days: Math.max(0, Math.floor((nowMs - ts(d.created_at)) / dayMs)),
+      idle_days: Math.max(
+        0,
+        Math.floor((nowMs - (ts(d.last_activity_at) || ts(d.updated_at))) / dayMs),
+      ),
+    })),
+  }));
 }
 
 export default async function DealsPage({ params: { locale }, searchParams }: DealsPageProps) {
@@ -162,7 +182,7 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
           </div>
         ) : (
           <>
-            <DealsTable rows={tableRows} />
+            <DealsTable rows={tableRows} sort={sort} />
             {pages > 1 && (
               <nav className="pager mono">
                 {currentPage > 1 ? (
@@ -193,6 +213,18 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
       </>
     );
   }
+
+  // ---------- Vista board (con totales del pipeline) ----------
+  const boardStages =
+    view === 'board' ? withAges(await listDealsForBoard(user.id, pipeline.id)) : null;
+  const openStages = boardStages?.filter((c) => !c.stage.is_won && !c.stage.is_lost) ?? [];
+  const totals = boardStages
+    ? {
+        openCount: openStages.reduce((s, c) => s + c.count, 0),
+        openAmount: openStages.reduce((s, c) => s + c.amount, 0),
+        forecast: openStages.reduce((s, c) => s + (c.amount * c.stage.probability) / 100, 0),
+      }
+    : null;
 
   return (
     <div className="app-page">
@@ -226,15 +258,30 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
         ))}
       </div>
 
-      {view === 'board' ? (
-        <DealsBoard
-          key={pipeline.id}
-          pipelineId={pipeline.id}
-          stages={await listDealsForBoard(user.id, pipeline.id)}
-          locale={locale}
-          priorities={priorities}
-          sources={sources}
-        />
+      {view === 'board' && boardStages && totals ? (
+        <>
+          <div className="kb-totals mono">
+            <span>
+              {t('deals.totals.open')}: <strong>{totals.openCount}</strong>
+            </span>
+            <span>
+              {t('deals.totals.openAmount')}:{' '}
+              <strong>{formatAmount(totals.openAmount, 'USD', locale)}</strong>
+            </span>
+            <span>
+              {t('deals.totals.forecast')}:{' '}
+              <strong>{formatAmount(totals.forecast, 'USD', locale)}</strong>
+            </span>
+          </div>
+          <DealsBoard
+            key={pipeline.id}
+            pipelineId={pipeline.id}
+            stages={boardStages}
+            locale={locale}
+            priorities={priorities}
+            sources={sources}
+          />
+        </>
       ) : (
         tableContent
       )}

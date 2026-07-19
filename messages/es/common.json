@@ -32,7 +32,8 @@
     "searchPlaceholder": "Buscá contactos, empresas, deals…",
     "searchPlaceholderLinks": "Buscá links…",
     "searchEmpty": "0 resultados. Probá otra cosa.",
-    "searchLoading": "Buscando…"
+    "searchLoading": "Buscando…",
+    "actions": "Acciones"
   },
   "hero": {
     "title1": "El software",

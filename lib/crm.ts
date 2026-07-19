@@ -117,7 +117,7 @@ export interface ContactFilter {
   leadStatus?: string;
   source?: string;
   companyId?: string;
-  sort?: 'newest' | 'oldest' | 'name' | 'email';
+  sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc';
   page?: number;
   pageSize?: number;
 }
@@ -160,7 +160,9 @@ const CONTACT_ORDER: Record<NonNullable<ContactFilter['sort']>, string> = {
   newest: 'c.created_at DESC, c.id',
   oldest: 'c.created_at ASC, c.id',
   name: "c.first_name COLLATE NOCASE ASC, c.last_name COLLATE NOCASE ASC, c.id",
+  name_desc: "c.first_name COLLATE NOCASE DESC, c.last_name COLLATE NOCASE DESC, c.id",
   email: "c.email COLLATE NOCASE ASC, c.id",
+  email_desc: "c.email COLLATE NOCASE DESC, c.id",
 };
 
 export async function listContacts(
@@ -265,12 +267,52 @@ const CONTACT_COLS: Record<string, string> = {
   custom: 'custom',
 };
 
+/** Dominios de email gratuito: nunca se auto-vinculan a una empresa. */
+const FREE_EMAIL_DOMAINS = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+  'msn.com',
+  'yahoo.com',
+  'yahoo.es',
+  'yahoo.com.br',
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  'aol.com',
+  'proton.me',
+  'protonmail.com',
+  'gmx.com',
+  'zoho.com',
+  'yandex.com',
+]);
+
+/** Dominio lowercase de un email ('' si no tiene). */
+function domainOf(email: string): string {
+  const at = email.lastIndexOf('@');
+  return at < 0 ? '' : email.slice(at + 1).trim().toLowerCase();
+}
+
+/** Id de la empresa del usuario con ese dominio (null si no hay / es freemail). */
+async function findCompanyByDomain(userId: string, domain: string, db: Db): Promise<string | null> {
+  if (!domain || FREE_EMAIL_DOMAINS.has(domain)) return null;
+  const row = (await db
+    .prepare('SELECT id FROM crm_companies WHERE user_id = ? AND lower(domain) = ?')
+    .get(userId, domain)) as { id: string } | undefined;
+  return row?.id ?? null;
+}
+
 export async function createContact(
   userId: string,
   data: ContactInput,
   db: Db = getDb(),
 ): Promise<CrmContactRow> {
   const id = crypto.randomUUID();
+  // Auto-link: si no vino empresa explícita, intentamos por dominio del email.
+  const companyId =
+    data.companyId ?? (await findCompanyByDomain(userId, domainOf(data.email ?? ''), db));
   await db
     .prepare(
       `INSERT INTO crm_contacts
@@ -292,7 +334,7 @@ export async function createContact(
       data.lifecycleStage ?? 'lead',
       data.leadStatus ?? 'new',
       data.source ?? '',
-      data.companyId ?? null,
+      companyId,
       JSON.stringify(data.custom ?? {}),
     );
   return (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
@@ -304,11 +346,17 @@ export async function updateContact(
   data: ContactInput,
   db: Db = getDb(),
 ): Promise<CrmContactRow | null> {
-  const existing = await db
-    .prepare('SELECT id FROM crm_contacts WHERE id = ? AND user_id = ?')
-    .get(id, userId);
+  const existing = (await db
+    .prepare('SELECT id, company_id FROM crm_contacts WHERE id = ? AND user_id = ?')
+    .get(id, userId)) as { id: string; company_id: string | null } | undefined;
   if (!existing) return null;
   const sets = toColumnValues(CONTACT_COLS, data as Record<string, unknown>);
+  // Auto-link: si cambia el email, no vino companyId explícito y el contacto
+  // no tiene empresa, intentamos vincular por dominio del email nuevo.
+  if (data.email !== undefined && data.companyId === undefined && !existing.company_id) {
+    const linked = await findCompanyByDomain(userId, domainOf(data.email), db);
+    if (linked) sets.push(['company_id', linked]);
+  }
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
   await db
     .prepare(`UPDATE crm_contacts SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
@@ -435,11 +483,37 @@ export async function bulkDeleteContacts(userId: string, ids: string[]): Promise
 // COMPANIES
 // ============================================================
 
+export async function bulkUpdateCompanies(
+  userId: string,
+  ids: string[],
+  patch: { lifecycleStage?: string },
+): Promise<number> {
+  if (!ids.length || !patch.lifecycleStage) return 0;
+  const ph = ids.map(() => '?').join(',');
+  return (
+    await getDb()
+      .prepare(
+        `UPDATE crm_companies SET lifecycle_stage = ?, updated_at = ? WHERE user_id = ? AND id IN (${ph})`,
+      )
+      .run(patch.lifecycleStage, now(), userId, ...ids)
+  ).changes;
+}
+
+export async function bulkDeleteCompanies(userId: string, ids: string[]): Promise<number> {
+  if (!ids.length) return 0;
+  const ph = ids.map(() => '?').join(',');
+  return (
+    await getDb()
+      .prepare(`DELETE FROM crm_companies WHERE user_id = ? AND id IN (${ph})`)
+      .run(userId, ...ids)
+  ).changes;
+}
+
 export interface CompanyFilter {
   q?: string;
   industry?: string;
   lifecycle?: string;
-  sort?: 'newest' | 'oldest' | 'name';
+  sort?: 'newest' | 'oldest' | 'name' | 'name_desc';
   page?: number;
   pageSize?: number;
 }
@@ -482,7 +556,9 @@ export async function listCompanies(
       ? 'co.created_at ASC, co.id'
       : f.sort === 'name'
         ? 'co.name COLLATE NOCASE ASC, co.id'
-        : 'co.created_at DESC, co.id';
+        : f.sort === 'name_desc'
+          ? 'co.name COLLATE NOCASE DESC, co.id'
+          : 'co.created_at DESC, co.id';
   const rows = (await db
     .prepare(
       `SELECT co.*,
@@ -779,7 +855,7 @@ export interface DealFilter {
   q?: string;
   stageId?: string;
   priority?: string;
-  sort?: 'newest' | 'oldest' | 'amount' | 'close_date';
+  sort?: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc';
   page?: number;
   pageSize?: number;
 }
@@ -790,7 +866,9 @@ const DEAL_ORDER: Record<NonNullable<DealFilter['sort']>, string> = {
   newest: 'd.created_at DESC, d.id',
   oldest: 'd.created_at ASC, d.id',
   amount: 'd.amount DESC, d.id',
+  amount_asc: 'd.amount ASC, d.id',
   close_date: "d.close_date IS NULL, d.close_date ASC, d.id",
+  close_date_desc: "d.close_date IS NULL, d.close_date DESC, d.id",
 };
 
 export async function listDeals(
@@ -838,6 +916,10 @@ export interface BoardDeal extends CrmDealRow {
   contact_id: string | null;
   contact_name: string | null;
   company_name: string | null;
+  last_activity_at: string | null;
+  /** Calculados en la page (días desde created_at / última actividad). */
+  age_days?: number;
+  idle_days?: number;
 }
 
 export interface BoardStage {
@@ -861,7 +943,8 @@ export async function listDealsForBoard(
       `SELECT d.*,
          c.id AS contact_id,
          NULLIF(trim(c.first_name || ' ' || c.last_name), '') AS contact_name,
-         co.name AS company_name
+         co.name AS company_name,
+         (SELECT MAX(a.created_at) FROM crm_activities a WHERE a.deal_id = d.id) AS last_activity_at
        FROM crm_deals d
        LEFT JOIN crm_contacts c ON c.id = (
          SELECT dc.contact_id FROM crm_deal_contacts dc WHERE dc.deal_id = d.id ORDER BY dc.rowid LIMIT 1
@@ -1207,7 +1290,7 @@ export async function createActivity(
 export async function updateActivity(
   userId: string,
   id: string,
-  data: ActivityInput & { done?: boolean },
+  data: ActivityInput & { done?: boolean; pinned?: boolean },
 ): Promise<CrmActivityRow | null> {
   const db = getDb();
   const existing = (await db
@@ -1231,6 +1314,7 @@ export async function updateActivity(
     // done → done_at=now; undone → done_at NULL.
     sets.push(['done_at', data.done ? now() : null]);
   }
+  if (data.pinned !== undefined) sets.push(['pinned', data.pinned ? 1 : 0]);
   sets.push(['updated_at', now()]);
   await db
     .prepare(`UPDATE crm_activities SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
@@ -1285,10 +1369,40 @@ export async function listTimeline(
     .prepare(
       `${ACTIVITY_SELECT}
        WHERE ${where.join(' AND ')}
-       ORDER BY COALESCE(a.due_at, a.created_at) DESC, a.created_at DESC
+       ORDER BY a.pinned DESC, COALESCE(a.due_at, a.created_at) DESC, a.created_at DESC
        LIMIT ?`,
     )
     .all(...args, limit)) as ActivityListRow[];
+}
+
+/** Próxima tarea abierta de un registro (la de vencimiento más cercano; sin fecha al final). */
+export async function nextTaskFor(
+  userId: string,
+  f: { contactId?: string; companyId?: string; dealId?: string },
+): Promise<ActivityListRow | null> {
+  const where: string[] = ["a.user_id = ?", "a.type = 'task'", 'a.done = 0'];
+  const args: Array<string | number> = [userId];
+  if (f.contactId) {
+    where.push('a.contact_id = ?');
+    args.push(f.contactId);
+  }
+  if (f.companyId) {
+    where.push('a.company_id = ?');
+    args.push(f.companyId);
+  }
+  if (f.dealId) {
+    where.push('a.deal_id = ?');
+    args.push(f.dealId);
+  }
+  const row = (await getDb()
+    .prepare(
+      `${ACTIVITY_SELECT}
+       WHERE ${where.join(' AND ')}
+       ORDER BY a.due_at IS NULL, a.due_at ASC, a.created_at ASC
+       LIMIT 1`,
+    )
+    .get(...args)) as ActivityListRow | undefined;
+  return row ?? null;
 }
 
 export type TaskBucket = 'overdue' | 'today' | 'upcoming' | 'done';
@@ -1326,6 +1440,18 @@ export async function listTasks(userId: string, bucket: TaskBucket): Promise<Act
        ORDER BY ${order}`,
     )
     .all(...args)) as ActivityListRow[];
+}
+
+/** Tareas abiertas vencidas o que vencen hoy (badge de la sidebar). */
+export async function countDueTasks(userId: string): Promise<number> {
+  const { end } = todayRange();
+  const row = (await getDb()
+    .prepare(
+      `SELECT COUNT(*) AS c FROM crm_activities
+       WHERE user_id = ? AND type = 'task' AND done = 0 AND due_at IS NOT NULL AND due_at <= ?`,
+    )
+    .get(userId, end)) as { c: number };
+  return row.c;
 }
 
 // ============================================================
@@ -2023,6 +2149,8 @@ export interface CrmReports {
   dealsBySource: Array<{ source: string; count: number; amount: number }>;
   contactsByLifecycle: Array<{ lifecycle: string; count: number }>;
   activitiesByType: Array<{ type: string; count: number }>;
+  dealsByPriority: Array<{ priority: string; count: number; amount: number }>;
+  lostReasons: Array<{ reason: string; count: number }>;
   avgDaysToClose: number | null;
 }
 
@@ -2086,6 +2214,27 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
     )
     .get(userId)) as { days: number | null };
 
+  const dealsByPriority = (await db
+    .prepare(
+      `SELECT priority, COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount
+       FROM crm_deals
+       WHERE user_id = ?
+       GROUP BY priority
+       ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 3 END`,
+    )
+    .all(userId)) as CrmReports['dealsByPriority'];
+
+  const lostReasons = (await db
+    .prepare(
+      `SELECT COALESCE(NULLIF(d.lost_reason, ''), 'other') AS reason, COUNT(*) AS count
+       FROM crm_deals d
+       JOIN crm_stages s ON s.id = d.stage_id
+       WHERE d.user_id = ? AND s.is_lost = 1
+       GROUP BY d.lost_reason
+       ORDER BY count DESC`,
+    )
+    .all(userId)) as CrmReports['lostReasons'];
+
   return {
     funnel: await funnelForPipeline(userId, pipelineId),
     forecastByStage,
@@ -2093,6 +2242,8 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
     dealsBySource,
     contactsByLifecycle,
     activitiesByType,
+    dealsByPriority,
+    lostReasons,
     avgDaysToClose: avg.days === null ? null : Math.round(avg.days * 10) / 10,
   };
 }

@@ -9,7 +9,7 @@ interface DealsFiltersProps {
   q: string;
   stageId: string;
   priority: string;
-  sort: 'newest' | 'oldest' | 'amount' | 'close_date';
+  sort: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc';
   stages: Array<{ id: string; name: string }>;
   priorities: Array<{ value: string; label: string }>;
 }
@@ -105,7 +105,9 @@ export default function DealsFilters({
             <option value="newest">{t('deals.sortNewest')}</option>
             <option value="oldest">{t('deals.sortOldest')}</option>
             <option value="amount">{t('deals.sortAmount')}</option>
+            <option value="amount_asc">{t('deals.sortAmountAsc')}</option>
             <option value="close_date">{t('deals.sortCloseDate')}</option>
+            <option value="close_date_desc">{t('deals.sortCloseDesc')}</option>
           </select>
         </div>
       </div>

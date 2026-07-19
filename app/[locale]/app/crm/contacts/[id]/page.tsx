@@ -5,16 +5,21 @@ import { requireUser } from '@/lib/session';
 import {
   LEAD_STATUSES,
   LIFECYCLE_STAGES,
+  PRIORITIES,
   SOURCES,
   getContact,
   listCompanies,
   listCustomFields,
+  listPipelinesWithStages,
   listTimeline,
+  nextTaskFor,
   parseCustom,
 } from '@/lib/crm';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import NextTaskBanner from '@/components/crm/NextTaskBanner';
+import ContactAddDeal from '@/components/crm/ContactAddDeal';
 import DuplicatesPanel from '@/components/crm/DuplicatesPanel';
 import DangerDelete from '@/components/crm/DangerDelete';
 
@@ -44,7 +49,16 @@ export default async function ContactDetailPage({
 
   const { contact, company, deals, lists } = detail;
   const timeline = await listTimeline(user.id, { contactId: id, limit: 100 });
+  const nextTask = await nextTaskFor(user.id, { contactId: id });
   const companies = (await listCompanies(user.id, { pageSize: 100, sort: 'name' })).rows;
+
+  // Pipeline default + primer stage abierto (para crear deals desde el detalle).
+  const pipelines = await listPipelinesWithStages(user.id);
+  const defaultPipeline = pipelines[0];
+  const firstOpenStage =
+    defaultPipeline?.stages.find((s) => !s.is_won && !s.is_lost) ?? defaultPipeline?.stages[0];
+  const priorities = PRIORITIES.map((value) => ({ value, label: t(`enums.priority.${value}`) }));
+  const sourceOpts = SOURCES.map((value) => ({ value, label: t(`enums.source.${value}`) }));
 
   const name = `${contact.first_name} ${contact.last_name}`.trim() || contact.email || '—';
 
@@ -141,6 +155,10 @@ export default async function ContactDetailPage({
         <div className="detail-col">
           <section className="panel">
             <p className="section-label">{t('contacts.detail.timeline')}</p>
+            <NextTaskBanner
+              task={nextTask ? { id: nextTask.id, subject: nextTask.subject, due_at: nextTask.due_at } : null}
+              locale={locale}
+            />
             <Timeline
               recordType="contact"
               recordId={contact.id}
@@ -173,6 +191,15 @@ export default async function ContactDetailPage({
                   </li>
                 ))}
               </ul>
+            )}
+            {defaultPipeline && firstOpenStage && (
+              <ContactAddDeal
+                pipelineId={defaultPipeline.id}
+                stageId={firstOpenStage.id}
+                contactId={contact.id}
+                priorities={priorities}
+                sources={sourceOpts}
+              />
             )}
           </section>
 
