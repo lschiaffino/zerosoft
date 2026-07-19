@@ -15,6 +15,7 @@ import SaveViewDialog from './SaveViewDialog';
 import IssuesTable from './IssuesTable';
 import IssuesBoard from './IssuesBoard';
 import IssuesCalendar from './IssuesCalendar';
+import IssuesGantt from './IssuesGantt';
 
 interface ProjectPageClientProps {
   locale: string;
@@ -34,6 +35,7 @@ export interface PageLabels {
     list: string;
     board: string;
     calendar: string;
+    gantt: string;
   };
   filters: {
     status: string;
@@ -74,6 +76,12 @@ export interface PageLabels {
     empty: string;
   };
   calendar: {
+    prev: string;
+    next: string;
+    today: string;
+    unscheduled: string;
+  };
+  gantt: {
     prev: string;
     next: string;
     today: string;
@@ -396,6 +404,20 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
               next: labels.calendar.next,
               today: labels.calendar.today,
               unscheduled: labels.calendar.unscheduled,
+              noAssignee: labels.noAssignee,
+            }}
+          />
+        )}
+        {view === 'gantt' && (
+          <IssuesGantt
+            issues={issues}
+            statuses={statuses}
+            locale={locale}
+            labels={{
+              prev: labels.gantt.prev,
+              next: labels.gantt.next,
+              today: labels.gantt.today,
+              unscheduled: labels.gantt.unscheduled,
               noAssignee: labels.noAssignee,
             }}
           />

@@ -89,6 +89,7 @@ export const issueCreateSchema = z.object({
   cycleId: id.nullish(),
   estimate: z.number().int().min(0).nullish(),
   parentId: id.nullish(),
+  startDate: isoDate.nullish(),
   dueDate: isoDate.nullish(),
   labels: z.array(issueLabelSchema).max(10).optional(),
 });
@@ -112,7 +113,7 @@ export const relationCreateSchema = z.object({
 
 // ---------- Views ----------
 
-export const viewTypeSchema = z.enum(['list', 'board', 'calendar']);
+export const viewTypeSchema = z.enum(['list', 'board', 'calendar', 'gantt']);
 
 export const issueViewCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),

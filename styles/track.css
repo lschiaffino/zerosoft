@@ -913,6 +913,250 @@
   font-size: 11px;
 }
 
+/* ---------- Gantt ---------- */
+
+.track-gantt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.track-gantt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.track-gantt-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.track-gantt-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.track-gantt-nav button {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.track-gantt-body {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.track-gantt-side {
+  flex: 0 0 260px;
+  border-right: 1px solid var(--line);
+  min-width: 0;
+}
+
+.track-gantt-side-head {
+  height: 40px;
+  background: #fafafa;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-gantt-side-row {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.track-gantt-side-row ~ .track-gantt-side-row {
+  border-top: 1px solid var(--line);
+}
+
+.track-gantt-indent {
+  flex: none;
+  color: var(--dim);
+  font-size: 10px;
+  text-align: right;
+}
+
+.track-gantt-side-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-gantt-scroll {
+  flex: 1;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.track-gantt-canvas {
+  position: relative;
+  min-width: 720px;
+}
+
+.track-gantt-months {
+  position: relative;
+  z-index: 1;
+  height: 22px;
+  background: #fafafa;
+}
+
+.track-gantt-month {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-left: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.track-gantt-weekrow {
+  position: relative;
+  z-index: 1;
+  height: 18px;
+  background: #fafafa;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-gantt-week {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+  border-left: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.track-gantt-row {
+  position: relative;
+  height: 36px;
+}
+
+.track-gantt-row ~ .track-gantt-row {
+  border-top: 1px solid var(--line);
+}
+
+.track-gantt-bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 16px;
+  min-width: 6px;
+  border-radius: 999px;
+  background: var(--ink);
+  z-index: 2;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.track-gantt-bar:hover {
+  opacity: 0.75;
+}
+
+.track-gantt-gridline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.track-gantt-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ink);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.track-gantt-unscheduled {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+.track-gantt-unscheduled-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.track-gantt-unscheduled-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.track-gantt-issue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 12px;
+  text-decoration: none;
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.track-gantt-issue-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-gantt-issue-assignee {
+  margin-left: auto;
+  color: var(--dim);
+  font-size: 11px;
+}
+
+@media (max-width: 767px) {
+  .track-gantt-side {
+    flex-basis: 170px;
+  }
+
+  .track-gantt-canvas {
+    min-width: 560px;
+  }
+}
+
 /* ---------- Saved views ---------- */
 
 .track-saved-views {

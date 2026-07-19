@@ -117,7 +117,7 @@ export interface TrackIssueView {
   project_id: string;
   user_id: string;
   name: string;
-  view_type: 'list' | 'board' | 'calendar';
+  view_type: 'list' | 'board' | 'calendar' | 'gantt';
   filters: Record<string, unknown>;
   sort: 'newest' | 'oldest' | 'priority' | 'identifier';
   columns: string[] | null;
@@ -724,7 +724,7 @@ export async function createIssue(
 
   await db
     .prepare(
-      'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, due_date, labels, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, start_date, due_date, labels, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
@@ -739,6 +739,7 @@ export async function createIssue(
       payload.cycleId ?? null,
       payload.estimate ?? null,
       payload.parentId ?? null,
+      payload.startDate ?? null,
       payload.dueDate ?? null,
       labelsToJson(payload.labels),
       now,
@@ -856,6 +857,12 @@ export async function updateIssue(
     fields.push('due_date = ?');
     args.push(payload.dueDate ?? null);
     activities.push({ type: 'due_date_change', meta: { from: existing.due_date ?? '', to: payload.dueDate ?? '' } });
+  }
+  // Sin activity type dedicado en el CHECK de track_issue_activity: se
+  // actualiza la columna sin registrar actividad (igual que parent_id).
+  if (payload.startDate !== undefined && payload.startDate !== existing.start_date) {
+    fields.push('start_date = ?');
+    args.push(payload.startDate ?? null);
   }
   if (payload.labels !== undefined && labelsToJson(payload.labels) !== existing.labels) {
     fields.push('labels = ?');

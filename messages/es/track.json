@@ -181,7 +181,8 @@
   "views": {
     "list": "Lista",
     "board": "Tablero",
-    "calendar": "Calendario"
+    "calendar": "Calendario",
+    "gantt": "Cronograma"
   },
   "filters": {
     "status": "Estado",
@@ -205,6 +206,12 @@
     "empty": "No hay vistas guardadas"
   },
   "calendar": {
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "today": "Hoy",
+    "unscheduled": "Sin fecha"
+  },
+  "gantt": {
     "prev": "Anterior",
     "next": "Siguiente",
     "today": "Hoy",

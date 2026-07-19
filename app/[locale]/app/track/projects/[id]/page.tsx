@@ -33,6 +33,7 @@ export default async function ProjectPage({
           list: t('views.list'),
           board: t('views.board'),
           calendar: t('views.calendar'),
+          gantt: t('views.gantt'),
         },
         filters: {
           status: t('filters.status'),
@@ -77,6 +78,12 @@ export default async function ProjectPage({
           next: t('calendar.next'),
           today: t('calendar.today'),
           unscheduled: t('calendar.unscheduled'),
+        },
+        gantt: {
+          prev: t('gantt.prev'),
+          next: t('gantt.next'),
+          today: t('gantt.today'),
+          unscheduled: t('gantt.unscheduled'),
         },
         priorities: [
           { value: 'urgent', label: t('priorities.urgent') },

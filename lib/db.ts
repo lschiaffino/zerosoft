@@ -66,6 +66,7 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE links ADD COLUMN og_description TEXT',
         'ALTER TABLE links ADD COLUMN og_image TEXT',
         'ALTER TABLE track_issues ADD COLUMN due_date TEXT',
+        'ALTER TABLE track_issues ADD COLUMN start_date TEXT',
         'ALTER TABLE track_issues ADD COLUMN labels TEXT NOT NULL DEFAULT \'[]\'',
         'ALTER TABLE chat_visitors ADD COLUMN notes TEXT',
         'ALTER TABLE chat_visitors ADD COLUMN metadata TEXT NOT NULL DEFAULT \'{}\'',
@@ -84,6 +85,35 @@ export function ensureMigrated(): Promise<void> {
         } catch {
           /* la columna ya existe */
         }
+      }
+      // El CHECK de track_issue_views.view_type no admite ALTER: si la tabla
+      // existe y no reconoce 'gantt', se reconstruye (una sola vez; el nuevo
+      // DDL ya incluye 'gantt', así que el guard la hace idempotente).
+      const viewsTable = await client.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'track_issue_views'",
+      );
+      const viewsSql = viewsTable.rows.length > 0 ? String(viewsTable.rows[0].sql ?? '') : '';
+      if (viewsSql && !viewsSql.includes("'gantt'")) {
+        await client.executeMultiple(`
+          CREATE TABLE track_issue_views_new (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
+            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            view_type TEXT NOT NULL CHECK (view_type IN ('list', 'board', 'calendar', 'gantt')),
+            filters TEXT NOT NULL DEFAULT '{}',
+            sort TEXT NOT NULL DEFAULT 'newest',
+            columns TEXT,
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          INSERT INTO track_issue_views_new (id, project_id, user_id, name, view_type, filters, sort, columns, is_default, created_at, updated_at)
+            SELECT id, project_id, user_id, name, view_type, filters, sort, columns, is_default, created_at, updated_at FROM track_issue_views;
+          DROP TABLE track_issue_views;
+          ALTER TABLE track_issue_views_new RENAME TO track_issue_views;
+          CREATE INDEX IF NOT EXISTS idx_track_issue_views_project ON track_issue_views(project_id, user_id);
+        `);
       }
     })();
     _migratePromise = p;
@@ -752,7 +782,7 @@ const DDL = `
       project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
-      view_type TEXT NOT NULL CHECK (view_type IN ('list', 'board', 'calendar')),
+      view_type TEXT NOT NULL CHECK (view_type IN ('list', 'board', 'calendar', 'gantt')),
       filters TEXT NOT NULL DEFAULT '{}',
       sort TEXT NOT NULL DEFAULT 'newest',
       columns TEXT,
@@ -1403,6 +1433,7 @@ export interface TrackIssueRow {
   cycle_id: string | null;
   estimate: number | null;
   parent_id: string | null;
+  start_date: string | null;
   due_date: string | null;
   labels: string; // JSON TrackLabel[]
   created_at: string;
@@ -1414,7 +1445,7 @@ export interface TrackIssueViewRow {
   project_id: string;
   user_id: string;
   name: string;
-  view_type: 'list' | 'board' | 'calendar';
+  view_type: 'list' | 'board' | 'calendar' | 'gantt';
   filters: string; // JSON IssueFilters
   sort: string;
   columns: string | null; // JSON string[]

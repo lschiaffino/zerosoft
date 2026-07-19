@@ -181,7 +181,8 @@
   "views": {
     "list": "List",
     "board": "Board",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "gantt": "Gantt"
   },
   "filters": {
     "status": "Status",
@@ -205,6 +206,12 @@
     "empty": "No saved views"
   },
   "calendar": {
+    "prev": "Previous",
+    "next": "Next",
+    "today": "Today",
+    "unscheduled": "Unscheduled"
+  },
+  "gantt": {
     "prev": "Previous",
     "next": "Next",
     "today": "Today",
