@@ -49,7 +49,8 @@
     "pin": "Fijar",
     "unpin": "Desfijar",
     "pinned": "Fijado",
-    "nextTask": "Próxima tarea"
+    "nextTask": "Próxima tarea",
+    "clear": "Limpiar filtros"
   },
   "assoc": {
     "associate": "Asociar",
@@ -134,6 +135,9 @@
     "filterLeadStatus": "Estado del lead",
     "filterSource": "Origen",
     "filterCompany": "Empresa",
+    "filterOwner": "Responsable",
+    "filterCreatedFrom": "Creado desde",
+    "filterCreatedTo": "Creado hasta",
     "sortNewest": "Más nuevos",
     "sortOldest": "Más viejos",
     "sortName": "Nombre",
@@ -195,7 +199,12 @@
       "noCompany": "Sin empresa asociada.",
       "newCompany": "+ Nueva empresa",
       "associateCompany": "Asociar empresa…",
-      "associateDeal": "+ Asociar deal"
+      "associateDeal": "+ Asociar deal",
+      "aboutSection": "Sobre este contacto",
+      "lifecycleSection": "Lifecycle",
+      "ownershipSection": "Asignación",
+      "customFieldsSection": "Campos personalizados",
+      "viewAllProperties": "Ver todas las propiedades"
     },
     "form": {
       "firstName": "Nombre",
@@ -220,6 +229,9 @@
     "searchPlaceholder": "Buscá por nombre o dominio…",
     "filterIndustry": "Industria",
     "filterLifecycle": "Lifecycle",
+    "filterOwner": "Responsable",
+    "filterCreatedFrom": "Creada desde",
+    "filterCreatedTo": "Creada hasta",
     "sortNewest": "Más nuevas",
     "sortOldest": "Más viejas",
     "sortName": "Nombre",
@@ -264,7 +276,12 @@
       "associateContact": "+ Asociar contacto",
       "associateDeal": "+ Asociar deal",
       "newContact": "+ Nuevo contacto",
-      "newDeal": "+ Nuevo deal"
+      "newDeal": "+ Nuevo deal",
+      "aboutSection": "Sobre esta empresa",
+      "lifecycleSection": "Lifecycle",
+      "ownershipSection": "Asignación",
+      "customFieldsSection": "Campos personalizados",
+      "viewAllProperties": "Ver todas las propiedades"
     },
     "form": {
       "name": "Nombre",
@@ -325,6 +342,10 @@
     "sortAmountAsc": "Monto (menor primero)",
     "sortCloseDate": "Fecha de cierre",
     "sortCloseDesc": "Fecha de cierre (última)",
+    "filterSource": "Origen",
+    "filterOwner": "Responsable",
+    "filterCreatedFrom": "Creado desde",
+    "filterCreatedTo": "Creado hasta",
     "table": {
       "searchPlaceholder": "Buscá un deal…",
       "name": "Deal",
@@ -365,7 +386,11 @@
       "deleteTitle": "Eliminar este deal",
       "deleteDesc": "Elimina el deal. Los contactos y actividades se conservan.",
       "deleteButton": "Eliminar para siempre",
-      "emptyTimeline": "Sin actividad todavía. Agregá una nota o registrá una llamada."
+      "emptyTimeline": "Sin actividad todavía. Agregá una nota o registrá una llamada.",
+      "aboutSection": "Sobre este deal",
+      "ownershipSection": "Asignación",
+      "customFieldsSection": "Campos personalizados",
+      "viewAllProperties": "Ver todas las propiedades"
     }
   },
   "tasks": {

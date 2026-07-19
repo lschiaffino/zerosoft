@@ -12,7 +12,7 @@ import {
   setContactCompany,
 } from '@/components/crm/associationActions';
 import { customPropFields } from '@/components/crm/customPropFields';
-import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
+import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import HistoryPanel from '@/components/crm/HistoryPanel';
@@ -81,6 +81,11 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
     }).format(amount);
 
   const custom = parseCustom(company.custom);
+  const customFieldDefs = await listCustomFields(user.id, 'companies');
+  const customFields = customPropFields(customFieldDefs, custom, {
+    yes: t('common.yes'),
+    no: t('common.no'),
+  });
   const fields: PropField[] = [
     { key: 'name', label: t('companies.form.name'), type: 'text', value: company.name },
     { key: 'domain', label: t('companies.form.domain'), type: 'text', value: company.domain },
@@ -109,10 +114,19 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
       value: company.owner_id ?? user.id,
       options: ownerOptions,
     },
-    ...customPropFields(await listCustomFields(user.id, 'companies'), custom, {
-      yes: t('common.yes'),
-      no: t('common.no'),
-    }),
+    ...customFields,
+  ];
+
+  const sections: PropSection[] = [
+    {
+      title: t('companies.detail.aboutSection'),
+      keys: ['name', 'domain', 'industry', 'employees', 'phone', 'website', 'city', 'country'],
+    },
+    { title: t('companies.detail.lifecycleSection'), keys: ['lifecycleStage'] },
+    { title: t('companies.detail.ownershipSection'), keys: ['ownerId'] },
+    ...(customFields.length
+      ? [{ title: t('companies.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
+      : []),
   ];
 
   const confirmValue = company.domain || company.name;
@@ -177,9 +191,16 @@ export default async function CompanyDetailPage({ params: { locale, id } }: Comp
 
       <div className="detail-grid-3">
         <div className="detail-col">
-          <section className="panel">
+          <section className="panel" id="properties">
             <h2 className="section-label">{t('companies.detail.properties')}</h2>
-            <PropertiesPanel endpoint={`/api/crm/companies/${company.id}`} fields={fields} custom={custom} />
+            <PropertiesPanel
+              endpoint={`/api/crm/companies/${company.id}`}
+              fields={fields}
+              custom={custom}
+              sections={sections}
+              compactKeys={['name', 'domain', 'industry', 'lifecycleStage', 'ownerId']}
+              viewAllLabel={t('companies.detail.viewAllProperties')}
+            />
           </section>
         </div>
 

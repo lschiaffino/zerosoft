@@ -8,7 +8,7 @@ export default async function Footer({ locale }: { locale: string }) {
   return (
     <footer className="site-footer">
       <div className="footer-zero-band" aria-hidden="true">
-        <ZeroField align="center" sizeFactor={1.7} color="255,255,255" interactive={false} alpha={0.16} />
+        <ZeroField align="center" sizeFactor={0.95} color="255,255,255" interactive={false} alpha={0.16} />
       </div>
 
       <div className="footer-grid">

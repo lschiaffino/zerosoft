@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
 import {
+  listCustomFields,
   listDeals,
   listDealsForBoard,
   listPipelinesWithStages,
@@ -10,6 +11,7 @@ import {
   SOURCES,
   type BoardStage,
 } from '@/lib/crm';
+import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
 import DealsBoard from '@/components/crm/DealsBoard';
 import DealsFilters from '@/components/crm/DealsFilters';
@@ -28,6 +30,18 @@ interface DealsPageProps {
 
 function one(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : undefined;
+}
+
+function parseCustomFilter(
+  searchParams: Record<string, string | string[] | undefined>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (key.startsWith('custom_') && typeof value === 'string' && value) {
+      out[key.slice(7)] = value;
+    }
+  }
+  return out;
 }
 
 function formatAmount(amount: number, currency: string, locale: string): string {
@@ -95,6 +109,26 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
   const viewQuery = (p: string, v: 'board' | 'table'): Record<string, string> =>
     v === 'table' ? { pipeline: p, view: 'table' } : { pipeline: p };
 
+  const teamMembers = user.team?.id
+    ? await listMembers(user.team.id)
+    : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
+  const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
+
+  const customFieldDefs = await listCustomFields(user.id, 'deals');
+  const customFields = customFieldDefs
+    .filter((cf) => cf.type === 'select')
+    .map((cf) => {
+      let options: string[] = [];
+      try {
+        const parsed: unknown = JSON.parse(cf.options);
+        if (Array.isArray(parsed)) options = parsed.filter((o): o is string => typeof o === 'string');
+      } catch {
+        options = [];
+      }
+      return { name: cf.name, label: cf.label, options };
+    })
+    .filter((cf) => cf.options.length > 0);
+
   // ---------- Vista tabla (server-side con searchParams) ----------
   let tableContent: React.ReactNode = null;
   if (view === 'table') {
@@ -103,6 +137,12 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
     const stageId = pipeline.stages.some((s) => s.id === stageParam) ? stageParam : '';
     const priorityParam = one(searchParams.priority) ?? '';
     const priority = (PRIORITIES as readonly string[]).includes(priorityParam) ? priorityParam : '';
+    const sourceParam = one(searchParams.source) ?? '';
+    const source = (SOURCES as readonly string[]).includes(sourceParam) ? sourceParam : '';
+    const owner = one(searchParams.owner) ?? '';
+    const createdFrom = one(searchParams.createdFrom) ?? '';
+    const createdTo = one(searchParams.createdTo) ?? '';
+    const custom = parseCustomFilter(searchParams);
     const sortParam = one(searchParams.sort);
     const sort: DealSort = (DEAL_SORTS as readonly string[]).includes(sortParam ?? '')
       ? (sortParam as DealSort)
@@ -114,6 +154,11 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
       q: q || undefined,
       stageId: stageId || undefined,
       priority: priority || undefined,
+      source: source || undefined,
+      owner: owner || undefined,
+      createdFrom: createdFrom || undefined,
+      createdTo: createdTo || undefined,
+      custom: Object.keys(custom).length ? custom : undefined,
       sort,
       page,
       pageSize: PAGE_SIZE,
@@ -165,6 +210,13 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
     if (q) query.q = q;
     if (stageId) query.stageId = stageId;
     if (priority) query.priority = priority;
+    if (source) query.source = source;
+    if (owner) query.owner = owner;
+    if (createdFrom) query.createdFrom = createdFrom;
+    if (createdTo) query.createdTo = createdTo;
+    Object.entries(custom).forEach(([k, v]) => {
+      if (v) query[`custom_${k}`] = v;
+    });
     if (sort !== 'newest') query.sort = sort;
 
     tableContent = (
@@ -174,9 +226,17 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
           q={q}
           stageId={stageId}
           priority={priority}
+          source={source}
+          owner={owner}
+          createdFrom={createdFrom}
+          createdTo={createdTo}
+          custom={custom}
           sort={sort}
           stages={pipeline.stages.map((s) => ({ id: s.id, name: s.name }))}
           priorities={priorities}
+          sources={sources}
+          owners={owners}
+          customFields={customFields}
         />
         {tableRows.length === 0 ? (
           <div className="empty-state">
@@ -198,6 +258,7 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
               }))}
               priorities={priorities}
               sources={sources}
+              locale={locale}
             />
             {pages > 1 && (
               <nav className="pager mono">

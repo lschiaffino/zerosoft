@@ -35,6 +35,10 @@ const patchSchema = z.object({
   archived: z.boolean().optional(),
   password: z.string().max(100).optional(), // '' clears, string sets
   slug: z.string().max(32).optional(),
+  redirectType: z.union([z.literal(301), z.literal(302)]).optional(),
+  ogTitle: z.string().max(200).nullable().optional(),
+  ogDescription: z.string().max(500).nullable().optional(),
+  ogImage: z.string().max(500).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -97,6 +101,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (taken) return NextResponse.json({ error: 'slug_taken' }, { status: 409 });
     sets.push('slug = ?');
     args.push(slug);
+  }
+  if (p.redirectType !== undefined) {
+    sets.push('redirect_type = ?');
+    args.push(p.redirectType === 301 ? 301 : 302);
+  }
+  if (p.ogTitle !== undefined) {
+    sets.push('og_title = ?');
+    args.push(p.ogTitle?.trim() || null);
+  }
+  if (p.ogDescription !== undefined) {
+    sets.push('og_description = ?');
+    args.push(p.ogDescription?.trim() || null);
+  }
+  if (p.ogImage !== undefined) {
+    sets.push('og_image = ?');
+    args.push(p.ogImage?.trim() || null);
   }
 
   if (sets.length > 0) {

@@ -6,6 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
 import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
+import RecordPreview from './RecordPreview';
 
 export interface ContactRow {
   id: string;
@@ -32,6 +33,7 @@ interface ContactsTableProps {
   sources: string[];
   sort: string;
   companies?: Option[];
+  locale: string;
 }
 
 const COLS = [
@@ -45,7 +47,7 @@ const COLS = [
   { id: 'created', labelKey: 'contacts.table.created', defaultVisible: true },
 ];
 
-/** Tabla de contactos con selección múltiple, bulk bar, selector de columnas y edición inline. */
+/** Tabla de contactos con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
 export default function ContactsTable({
   rows,
   lifecycles,
@@ -53,6 +55,7 @@ export default function ContactsTable({
   sources,
   sort,
   companies = [],
+  locale,
 }: ContactsTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -64,6 +67,7 @@ export default function ContactsTable({
     COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
     'zs-contacts-columns',
   );
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
 
@@ -117,6 +121,7 @@ export default function ContactsTable({
               <th className="cell-check">
                 <input
                   type="checkbox"
+                  className="row-check"
                   checked={allSelected}
                   onChange={toggleAll}
                   aria-label={t('common.all')}
@@ -142,6 +147,7 @@ export default function ContactsTable({
                   <SortTh label={t('contacts.table.created')} asc="oldest" desc="newest" current={sort} />
                 </th>
               )}
+              <th className="cell-actions-head">{t('contacts.table.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -150,6 +156,7 @@ export default function ContactsTable({
                 <td className="cell-check">
                   <input
                     type="checkbox"
+                    className="row-check"
                     checked={selected.has(row.id)}
                     onChange={() => toggleOne(row.id)}
                     aria-label={row.name}
@@ -259,6 +266,17 @@ export default function ContactsTable({
                   </td>
                 )}
                 {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
+                <td className="cell-actions">
+                  <button
+                    type="button"
+                    className="icon-btn preview-btn"
+                    onClick={() => setPreviewId(row.id)}
+                    title={t('common.viewAll')}
+                    aria-label={t('common.viewAll')}
+                  >
+                    👁
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -335,6 +353,10 @@ export default function ContactsTable({
             {t('contacts.bulk.clear')}
           </button>
         </div>
+      )}
+
+      {previewId && (
+        <RecordPreview type="contact" id={previewId} locale={locale} onClose={() => setPreviewId(null)} />
       )}
     </>
   );

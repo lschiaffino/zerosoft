@@ -11,33 +11,51 @@ interface SavedView {
   name: string;
 }
 
+interface CustomFieldOption {
+  name: string;
+  label: string;
+  options: string[];
+}
+
 interface ContactsFiltersProps {
   q: string;
   lifecycle: string;
   leadStatus: string;
   source: string;
+  owner: string;
+  createdFrom: string;
+  createdTo: string;
+  custom: Record<string, string>;
   sort: ContactSort;
   lifecycles: string[];
   leadStatuses: string[];
   sources: string[];
+  owners: Array<{ value: string; label: string }>;
+  customFields: CustomFieldOption[];
   views: SavedView[];
   activeViewId: string | null;
 }
 
 /**
  * Barra de filtros del listado de contactos: búsqueda, selects de
- * lifecycle/lead status/origen, sort y vistas guardadas (todo server-side
- * via query params; guardar/borrar vistas va por API + refresh).
+ * lifecycle/lead status/origen/owner/fecha/custom y sort; todo server-side
+ * via query params; guardar/borrar vistas va por API + refresh.
  */
 export default function ContactsFilters({
   q,
   lifecycle,
   leadStatus,
   source,
+  owner,
+  createdFrom,
+  createdTo,
+  custom,
   sort,
   lifecycles,
   leadStatuses,
   sources,
+  owners,
+  customFields,
   views,
   activeViewId,
 }: ContactsFiltersProps) {
@@ -55,6 +73,9 @@ export default function ContactsFilters({
       lifecycle: lifecycle || undefined,
       leadStatus: leadStatus || undefined,
       source: source || undefined,
+      owner: owner || undefined,
+      createdFrom: createdFrom || undefined,
+      createdTo: createdTo || undefined,
       sort: sort !== 'newest' ? sort : undefined,
       view: activeViewId ?? undefined,
       ...patch,
@@ -62,8 +83,19 @@ export default function ContactsFilters({
     for (const [key, value] of Object.entries(current)) {
       if (value) params.set(key, value);
     }
+    for (const [name, value] of Object.entries(custom)) {
+      if (value) params.set(`custom_${name}`, value);
+      else params.delete(`custom_${name}`);
+    }
+    for (const [name, value] of Object.entries(patch)) {
+      if (name.startsWith('custom_') && !value) params.delete(name);
+    }
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname);
+  }
+
+  function setCustom(name: string, value: string) {
+    go({ [`custom_${name}`]: value || undefined });
   }
 
   async function saveView(e: React.FormEvent) {
@@ -76,7 +108,13 @@ export default function ContactsFilters({
     if (lifecycle) query.lifecycle = lifecycle;
     if (leadStatus) query.leadStatus = leadStatus;
     if (source) query.source = source;
+    if (owner) query.owner = owner;
+    if (createdFrom) query.createdFrom = createdFrom;
+    if (createdTo) query.createdTo = createdTo;
     if (sort !== 'newest') query.sort = sort;
+    Object.entries(custom).forEach(([k, v]) => {
+      if (v) query[`custom_${k}`] = v;
+    });
     await fetch('/api/crm/views', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -95,6 +133,17 @@ export default function ContactsFilters({
     }
     router.refresh();
   }
+
+  const activeFilters = [
+    q,
+    lifecycle,
+    leadStatus,
+    source,
+    owner,
+    createdFrom,
+    createdTo,
+    ...Object.values(custom),
+  ].filter(Boolean).length;
 
   return (
     <div className="filter-bar">
@@ -116,9 +165,9 @@ export default function ContactsFilters({
       </form>
 
       <div className="filter-row">
-        <div className="filter-right">
+        <div className="filter-chips">
           <select
-            className="filter-select"
+            className="filter-select filter-btn"
             value={lifecycle}
             onChange={(e) => go({ lifecycle: e.target.value || undefined, view: undefined })}
             aria-label={t('contacts.filterLifecycle')}
@@ -131,7 +180,7 @@ export default function ContactsFilters({
             ))}
           </select>
           <select
-            className="filter-select"
+            className="filter-select filter-btn"
             value={leadStatus}
             onChange={(e) => go({ leadStatus: e.target.value || undefined, view: undefined })}
             aria-label={t('contacts.filterLeadStatus')}
@@ -144,7 +193,7 @@ export default function ContactsFilters({
             ))}
           </select>
           <select
-            className="filter-select"
+            className="filter-select filter-btn"
             value={source}
             onChange={(e) => go({ source: e.target.value || undefined, view: undefined })}
             aria-label={t('contacts.filterSource')}
@@ -157,7 +206,58 @@ export default function ContactsFilters({
             ))}
           </select>
           <select
-            className="filter-select"
+            className="filter-select filter-btn"
+            value={owner}
+            onChange={(e) => go({ owner: e.target.value || undefined, view: undefined })}
+            aria-label={t('contacts.filterOwner')}
+          >
+            <option value="">{t('contacts.filterOwner')}</option>
+            {owners.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <div className="filter-date-group">
+            <input
+              className="input filter-date"
+              type="date"
+              value={createdFrom}
+              onChange={(e) => go({ createdFrom: e.target.value || undefined, view: undefined })}
+              aria-label={t('contacts.filterCreatedFrom')}
+              placeholder={t('contacts.filterCreatedFrom')}
+            />
+            <span className="filter-date-sep">—</span>
+            <input
+              className="input filter-date"
+              type="date"
+              value={createdTo}
+              onChange={(e) => go({ createdTo: e.target.value || undefined, view: undefined })}
+              aria-label={t('contacts.filterCreatedTo')}
+              placeholder={t('contacts.filterCreatedTo')}
+            />
+          </div>
+          {customFields.map((cf) => (
+            <select
+              key={cf.name}
+              className="filter-select filter-btn"
+              value={custom[cf.name] ?? ''}
+              onChange={(e) => setCustom(cf.name, e.target.value)}
+              aria-label={cf.label}
+            >
+              <option value="">{cf.label}</option>
+              {cf.options.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          ))}
+        </div>
+
+        <div className="filter-right">
+          <select
+            className="filter-select filter-sort"
             value={sort}
             onChange={(e) => go({ sort: e.target.value === 'newest' ? undefined : e.target.value })}
             aria-label="sort"
@@ -169,6 +269,26 @@ export default function ContactsFilters({
             <option value="email">{t('contacts.sortEmail')}</option>
             <option value="email_desc">{t('contacts.sortEmailDesc')}</option>
           </select>
+          {activeFilters > 0 && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-small filter-clear"
+              onClick={() =>
+                go({
+                  q: undefined,
+                  lifecycle: undefined,
+                  leadStatus: undefined,
+                  source: undefined,
+                  owner: undefined,
+                  createdFrom: undefined,
+                  createdTo: undefined,
+                  view: undefined,
+                })
+              }
+            >
+              {t('common.clear')}
+            </button>
+          )}
         </div>
       </div>
 

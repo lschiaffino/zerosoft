@@ -199,6 +199,10 @@ export interface ContactFilter {
   leadStatus?: string;
   source?: string;
   companyId?: string;
+  owner?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  custom?: Record<string, string>;
   sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc';
   page?: number;
   pageSize?: number;
@@ -234,6 +238,25 @@ function buildContactWhere(
   if (f.companyId) {
     where.push('c.company_id = ?');
     args.push(f.companyId);
+  }
+  if (f.owner) {
+    where.push('c.owner_id = ?');
+    args.push(f.owner);
+  }
+  if (f.createdFrom) {
+    where.push('c.created_at >= ?');
+    args.push(`${f.createdFrom} 00:00:00`);
+  }
+  if (f.createdTo) {
+    where.push('c.created_at <= ?');
+    args.push(`${f.createdTo} 23:59:59`);
+  }
+  if (f.custom) {
+    for (const [name, value] of Object.entries(f.custom)) {
+      if (!value) continue;
+      where.push(`json_extract(c.custom, '$.${name}') = ?`);
+      args.push(value);
+    }
   }
   return { where: where.join(' AND '), args };
 }
@@ -600,6 +623,10 @@ export interface CompanyFilter {
   q?: string;
   industry?: string;
   lifecycle?: string;
+  owner?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  custom?: Record<string, string>;
   sort?: 'newest' | 'oldest' | 'name' | 'name_desc';
   page?: number;
   pageSize?: number;
@@ -626,6 +653,25 @@ export async function listCompanies(
   if (f.lifecycle) {
     where.push('co.lifecycle_stage = ?');
     args.push(f.lifecycle);
+  }
+  if (f.owner) {
+    where.push('co.owner_id = ?');
+    args.push(f.owner);
+  }
+  if (f.createdFrom) {
+    where.push('co.created_at >= ?');
+    args.push(`${f.createdFrom} 00:00:00`);
+  }
+  if (f.createdTo) {
+    where.push('co.created_at <= ?');
+    args.push(`${f.createdTo} 23:59:59`);
+  }
+  if (f.custom) {
+    for (const [name, value] of Object.entries(f.custom)) {
+      if (!value) continue;
+      where.push(`json_extract(co.custom, '$.${name}') = ?`);
+      args.push(value);
+    }
   }
   const whereSql = where.join(' AND ');
   const total = (
@@ -947,6 +993,11 @@ export interface DealFilter {
   q?: string;
   stageId?: string;
   priority?: string;
+  source?: string;
+  owner?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  custom?: Record<string, string>;
   sort?: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc';
   page?: number;
   pageSize?: number;
@@ -981,6 +1032,29 @@ export async function listDeals(
   if (f.priority) {
     where.push('d.priority = ?');
     args.push(f.priority);
+  }
+  if (f.source) {
+    where.push('d.source = ?');
+    args.push(f.source);
+  }
+  if (f.owner) {
+    where.push('d.owner_id = ?');
+    args.push(f.owner);
+  }
+  if (f.createdFrom) {
+    where.push('d.created_at >= ?');
+    args.push(`${f.createdFrom} 00:00:00`);
+  }
+  if (f.createdTo) {
+    where.push('d.created_at <= ?');
+    args.push(`${f.createdTo} 23:59:59`);
+  }
+  if (f.custom) {
+    for (const [name, value] of Object.entries(f.custom)) {
+      if (!value) continue;
+      where.push(`json_extract(d.custom, '$.${name}') = ?`);
+      args.push(value);
+    }
   }
   const whereSql = where.join(' AND ');
   const total = (

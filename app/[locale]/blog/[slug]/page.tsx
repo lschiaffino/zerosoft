@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { getPost, getAllSlugs } from '@/lib/blog';
 import { formatDate } from '@/lib/utils';
+import ZeroField from '@/components/ZeroField';
 
 export async function generateMetadata({
   params: { locale, slug },
@@ -32,6 +33,15 @@ export default async function BlogPostPage({
   return (
     <main className="container" style={{ paddingTop: 100, paddingBottom: 140 }}>
       <article>
+        <div className="blog-post-cover" aria-hidden="true">
+          <ZeroField
+            align="center"
+            sizeFactor={0.85}
+            color="255,255,255"
+            interactive={false}
+            alpha={0.22}
+          />
+        </div>
         <header className="blog-post-header">
           <p className="blog-post-meta">
             <Link href="/blog" style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}>

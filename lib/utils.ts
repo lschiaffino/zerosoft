@@ -14,6 +14,16 @@ export function formatDate(iso: string, locale: string = 'en'): string {
   }).format(new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z'));
 }
 
+export function formatDateTime(iso: string, locale: string = 'en'): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z'));
+}
+
 export function shortDomain(): string {
   return process.env.SHORT_DOMAIN ?? 'localhost:3000';
 }

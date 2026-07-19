@@ -31,5 +31,5 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
   }
 
   await recordClick(link.id, contextFromHeaders(req.headers));
-  return NextResponse.redirect(link.url, 302);
+  return NextResponse.redirect(link.url, link.redirect_type === 301 ? 301 : 302);
 }

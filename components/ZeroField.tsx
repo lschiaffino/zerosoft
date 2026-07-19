@@ -57,7 +57,7 @@ export default function ZeroField({
     function glyphCenter() {
       if (align === 'center') return { x: W * 0.5, y: H * 0.5 };
       if (align === 'top') return { x: W * 0.5, y: H * 0.42 };
-      if (!isMobile) return { x: W * 0.67, y: H * 0.44 };
+      if (!isMobile) return { x: W * 0.67, y: H * 0.5 };
       // Mobile: el canvas es una banda superior del hero → glifo centrado en ella.
       return { x: W * 0.5, y: H * 0.55 };
     }

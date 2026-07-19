@@ -8,7 +8,7 @@ const intlMiddleware = createMiddleware(routing);
 // Mantener sincronizada con lib/reserved.ts
 const RESERVED = new Set([
   'en', 'es', 'pt',
-  'app', 'api', 'auth', 'r',
+  'app', 'api', 'auth', 'r', 's',
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto',
@@ -29,6 +29,6 @@ export default function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Todo excepto: api/, r/ (handler de redirects), internos de Next y archivos estáticos.
-  matcher: ['/((?!api/|r/|_next/|_vercel/|.*\\..*).*)'],
+  // Todo excepto: api/, r/ (handler de redirects), s/ (social preview), internos de Next y archivos estáticos.
+  matcher: ['/((?!api/|r/|s/|_next/|_vercel/|.*\\..*).*)'],
 };

@@ -7,10 +7,12 @@ import {
   SOURCES,
   listCompanies,
   listContacts,
+  listCustomFields,
   listSavedViews,
   parseCustom,
   type ContactFilter,
 } from '@/lib/crm';
+import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
 import ContactsFilters, { type ContactSort } from '@/components/crm/ContactsFilters';
 import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
@@ -33,6 +35,26 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v ? v : undefined;
 }
 
+function parseCustomFilter(
+  searchParams: Record<string, string | string[] | undefined>,
+  viewQuery: Record<string, unknown>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (key.startsWith('custom_') && typeof value === 'string' && value) {
+      out[key.slice(7)] = value;
+    }
+  }
+  if (!Object.keys(out).length) {
+    for (const [key, value] of Object.entries(viewQuery)) {
+      if (key.startsWith('custom_') && typeof value === 'string' && value) {
+        out[key.slice(7)] = value;
+      }
+    }
+  }
+  return out;
+}
+
 export default async function ContactsPage({ params: { locale }, searchParams }: ContactsPageProps) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
@@ -46,6 +68,10 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
   const lifecycle = one(searchParams.lifecycle) ?? str(viewQuery.lifecycle) ?? '';
   const leadStatus = one(searchParams.leadStatus) ?? str(viewQuery.leadStatus) ?? '';
   const source = one(searchParams.source) ?? str(viewQuery.source) ?? '';
+  const owner = one(searchParams.owner) ?? str(viewQuery.owner) ?? '';
+  const createdFrom = one(searchParams.createdFrom) ?? str(viewQuery.createdFrom) ?? '';
+  const createdTo = one(searchParams.createdTo) ?? str(viewQuery.createdTo) ?? '';
+  const custom = parseCustomFilter(searchParams, viewQuery);
   const sortParam = one(searchParams.sort) ?? str(viewQuery.sort) ?? 'newest';
   const sort: ContactSort = SORTS.includes(sortParam as ContactSort)
     ? (sortParam as ContactSort)
@@ -57,6 +83,10 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
     lifecycle: lifecycle || undefined,
     leadStatus: leadStatus || undefined,
     source: source || undefined,
+    owner: owner || undefined,
+    createdFrom: createdFrom || undefined,
+    createdTo: createdTo || undefined,
+    custom: Object.keys(custom).length ? custom : undefined,
     sort: sort as ContactFilter['sort'],
     page,
   });
@@ -66,6 +96,26 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
     value: c.id,
     label: c.name,
   }));
+
+  const teamMembers = user.team?.id
+    ? await listMembers(user.team.id)
+    : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
+  const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
+
+  const customFieldDefs = await listCustomFields(user.id, 'contacts');
+  const customFields = customFieldDefs
+    .filter((cf) => cf.type === 'select')
+    .map((cf) => {
+      let options: string[] = [];
+      try {
+        const parsed: unknown = JSON.parse(cf.options);
+        if (Array.isArray(parsed)) options = parsed.filter((o): o is string => typeof o === 'string');
+      } catch {
+        options = [];
+      }
+      return { name: cf.name, label: cf.label, options };
+    })
+    .filter((cf) => cf.options.length > 0);
 
   const tableRows: ContactRow[] = rows.map((c) => ({
     id: c.id,
@@ -85,10 +135,24 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
   if (lifecycle) query.lifecycle = lifecycle;
   if (leadStatus) query.leadStatus = leadStatus;
   if (source) query.source = source;
+  if (owner) query.owner = owner;
+  if (createdFrom) query.createdFrom = createdFrom;
+  if (createdTo) query.createdTo = createdTo;
+  Object.entries(custom).forEach(([k, v]) => {
+    if (v) query[`custom_${k}`] = v;
+  });
   if (sort !== 'newest') query.sort = sort;
   if (activeView) query.view = activeView.id;
 
-  const hasFilters = !!q || !!lifecycle || !!leadStatus || !!source;
+  const hasFilters =
+    !!q ||
+    !!lifecycle ||
+    !!leadStatus ||
+    !!source ||
+    !!owner ||
+    !!createdFrom ||
+    !!createdTo ||
+    Object.keys(custom).length > 0;
 
   return (
     <div className="app-page">
@@ -104,10 +168,16 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
         lifecycle={lifecycle}
         leadStatus={leadStatus}
         source={source}
+        owner={owner}
+        createdFrom={createdFrom}
+        createdTo={createdTo}
+        custom={custom}
         sort={sort}
         lifecycles={[...LIFECYCLE_STAGES]}
         leadStatuses={[...LEAD_STATUSES]}
         sources={[...SOURCES]}
+        owners={owners}
+        customFields={customFields}
         views={views.map((v) => ({ id: v.id, name: v.name }))}
         activeViewId={activeView?.id ?? null}
       />
@@ -134,6 +204,7 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
             sources={[...SOURCES]}
             sort={sort}
             companies={companies}
+            locale={locale}
           />
           {pages > 1 && (
             <nav className="pager mono">

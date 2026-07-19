@@ -18,9 +18,13 @@ const createSchema = z.object({
   expiresAt: z.string().optional(),
   maxClicks: z.number().int().positive().optional(),
   password: z.string().min(1).max(100).optional(),
+  redirectType: z.union([z.literal(301), z.literal(302)]).optional(),
   utmSource: z.string().max(100).optional(),
   utmMedium: z.string().max(100).optional(),
   utmCampaign: z.string().max(100).optional(),
+  ogTitle: z.string().max(200).optional(),
+  ogDescription: z.string().max(500).optional(),
+  ogImage: z.string().max(500).optional(),
 });
 
 export async function GET(req: NextRequest) {

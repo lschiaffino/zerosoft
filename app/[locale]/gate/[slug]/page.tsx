@@ -3,12 +3,29 @@ import { redirect } from 'next/navigation';
 import ZeroField from '@/components/ZeroField';
 import GateForm from '@/components/link/GateForm';
 import { getLinkBySlug } from '@/lib/links';
-import { shortDomain } from '@/lib/utils';
+import { shortDomain, shortUrl } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
 interface GatePageProps {
   params: { locale: string; slug: string };
+}
+
+export async function generateMetadata({ params: { slug } }: GatePageProps) {
+  const link = await getLinkBySlug(slug);
+  if (!link) return {};
+  return {
+    title: link.og_title?.trim() || link.title?.trim() || `${slug} — zerosoft.ai`,
+    description: link.og_description?.trim() || link.url,
+    openGraph: link.og_image?.trim()
+      ? {
+          title: link.og_title?.trim() || link.title?.trim() || `${slug} — zerosoft.ai`,
+          description: link.og_description?.trim() || link.url,
+          images: [link.og_image.trim()],
+          url: shortUrl(slug),
+        }
+      : undefined,
+  };
 }
 
 export default async function GatePage({ params: { locale, slug } }: GatePageProps) {

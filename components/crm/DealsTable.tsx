@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
 import InlineStageCell from './InlineStageCell';
 import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
+import RecordPreview from './RecordPreview';
 
 export interface DealRow {
   id: string;
@@ -43,6 +45,7 @@ interface DealsTableProps {
   stages: StageOption[];
   priorities: Option[];
   sources: Option[];
+  locale: string;
 }
 
 const COLS = [
@@ -57,12 +60,13 @@ const COLS = [
   { id: 'created', labelKey: 'deals.table.created', defaultVisible: true },
 ];
 
-export default function DealsTable({ rows, sort, stages, priorities, sources }: DealsTableProps) {
+export default function DealsTable({ rows, sort, stages, priorities, sources, locale }: DealsTableProps) {
   const t = useTranslations('crm');
   const [visible, toggleVisible] = useColumnVisibility(
     COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
     'zs-deals-columns',
   );
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   return (
     <>
@@ -105,6 +109,7 @@ export default function DealsTable({ rows, sort, stages, priorities, sources }: 
                   <SortTh label={t('deals.table.created')} asc="oldest" desc="newest" current={sort} />
                 </th>
               )}
+              <th className="cell-actions-head">{t('deals.table.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -172,11 +177,26 @@ export default function DealsTable({ rows, sort, stages, priorities, sources }: 
                 {visible.has('age') && <td className="mono muted td-num">{row.age}d</td>}
                 {visible.has('contacts') && <td className="mono td-num">{row.contacts}</td>}
                 {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
+                <td className="cell-actions">
+                  <button
+                    type="button"
+                    className="icon-btn preview-btn"
+                    onClick={() => setPreviewId(row.id)}
+                    title={t('common.viewAll')}
+                    aria-label={t('common.viewAll')}
+                  >
+                    👁
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {previewId && (
+        <RecordPreview type="deal" id={previewId} locale={locale} onClose={() => setPreviewId(null)} />
+      )}
     </>
   );
 }

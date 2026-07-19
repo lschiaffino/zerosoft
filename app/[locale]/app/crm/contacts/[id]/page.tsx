@@ -19,7 +19,7 @@ import {
   parseCustom,
 } from '@/lib/crm';
 import { customPropFields } from '@/components/crm/customPropFields';
-import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
+import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import ContactAddDeal from '@/components/crm/ContactAddDeal';
@@ -107,6 +107,11 @@ export default async function ContactDetailPage({
   };
 
   const custom = parseCustom(contact.custom);
+  const customFieldDefs = await listCustomFields(user.id, 'contacts');
+  const customFields = customPropFields(customFieldDefs, custom, {
+    yes: t('common.yes'),
+    no: t('common.no'),
+  });
   const fields: PropField[] = [
     { key: 'firstName', label: t('contacts.form.firstName'), type: 'text', value: contact.first_name },
     { key: 'lastName', label: t('contacts.form.lastName'), type: 'text', value: contact.last_name },
@@ -156,10 +161,19 @@ export default async function ContactDetailPage({
       value: contact.owner_id ?? user.id,
       options: ownerOptions,
     },
-    ...customPropFields(await listCustomFields(user.id, 'contacts'), custom, {
-      yes: t('common.yes'),
-      no: t('common.no'),
-    }),
+    ...customFields,
+  ];
+
+  const sections: PropSection[] = [
+    {
+      title: t('contacts.detail.aboutSection'),
+      keys: ['firstName', 'lastName', 'email', 'phone', 'jobTitle', 'website', 'city', 'country'],
+    },
+    { title: t('contacts.detail.lifecycleSection'), keys: ['lifecycleStage', 'leadStatus', 'source'] },
+    { title: t('contacts.detail.ownershipSection'), keys: ['ownerId', 'companyId'] },
+    ...(customFields.length
+      ? [{ title: t('contacts.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
+      : []),
   ];
 
   return (
@@ -197,9 +211,24 @@ export default async function ContactDetailPage({
 
       <div className="detail-grid-3">
         <div className="detail-col">
-          <section className="panel">
+          <section className="panel" id="properties">
             <p className="section-label">{t('contacts.detail.properties')}</p>
-            <PropertiesPanel endpoint={`/api/crm/contacts/${contact.id}`} fields={fields} custom={custom} />
+            <PropertiesPanel
+              endpoint={`/api/crm/contacts/${contact.id}`}
+              fields={fields}
+              custom={custom}
+              sections={sections}
+              compactKeys={[
+                'firstName',
+                'lastName',
+                'email',
+                'phone',
+                'lifecycleStage',
+                'leadStatus',
+                'companyId',
+              ]}
+              viewAllLabel={t('contacts.detail.viewAllProperties')}
+            />
           </section>
         </div>
 

@@ -146,10 +146,12 @@ export interface LinkDto {
   title: string | null;
   tags: string[];
   archived: boolean;
+  redirect_type: 301 | 302;
   expires_at: string | null;
   max_clicks: number | null;
   has_password: boolean;
   utm: { source: string | null; medium: string | null; campaign: string | null };
+  og: { title: string | null; description: string | null; image: string | null };
   clicks: number;
   created_at: string;
   updated_at: string;
@@ -164,10 +166,12 @@ export function toLinkDto(link: LinkRow): LinkDto {
     title: link.title,
     tags: parseTags(link.tags),
     archived: link.archived === 1,
+    redirect_type: link.redirect_type === 301 ? 301 : 302,
     expires_at: link.expires_at,
     max_clicks: link.max_clicks,
     has_password: !!link.password_hash,
     utm: { source: link.utm_source, medium: link.utm_medium, campaign: link.utm_campaign },
+    og: { title: link.og_title, description: link.og_description, image: link.og_image },
     clicks: link.clicks,
     created_at: link.created_at,
     updated_at: link.updated_at,
@@ -247,9 +251,13 @@ export interface CreateLinkInput {
   expiresAt?: string | null;
   maxClicks?: number | null;
   password?: string;
+  redirectType?: 301 | 302;
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
 }
 
 export type CreateLinkError = 'invalid_url' | 'invalid_slug' | 'slug_taken' | 'invalid_date';
@@ -296,10 +304,11 @@ export async function createLink(
     .slice(0, 5);
 
   const id = crypto.randomUUID();
+  const redirectType = input.redirectType === 301 ? 301 : 302;
   await db
     .prepare(
-      `INSERT INTO links (id, user_id, slug, url, title, tags, password_hash, expires_at, max_clicks, utm_source, utm_medium, utm_campaign)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO links (id, user_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -311,10 +320,78 @@ export async function createLink(
       input.password ? hashPassword(input.password) : null,
       expiresAt,
       input.maxClicks ?? null,
+      redirectType,
       utm.source,
       utm.medium,
       utm.campaign,
+      input.ogTitle?.trim() || null,
+      input.ogDescription?.trim() || null,
+      input.ogImage?.trim() || null,
     );
 
   return { ok: true, link: (await getUserLink(userId, id))! };
+}
+
+// ---------- Bulk create ----------
+
+export interface BulkCreateInput {
+  urls: string[];
+  tag?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+}
+
+export interface BulkResultItem {
+  url: string;
+  short_url: string;
+  status: 'created' | 'error';
+  error?: string;
+}
+
+/** Creates many links in one call. Returns per-line results preserving order. */
+export async function createLinksBulk(
+  userId: string,
+  input: BulkCreateInput,
+): Promise<BulkResultItem[]> {
+  const commonTag = input.tag?.trim();
+  const results: BulkResultItem[] = [];
+
+  for (const raw of input.urls) {
+    const url = raw.trim();
+    if (!url) {
+      results.push({ url, short_url: '', status: 'error', error: 'empty' });
+      continue;
+    }
+    const result = await createLink(userId, {
+      url,
+      tags: commonTag ? [commonTag] : undefined,
+      utmSource: input.utmSource,
+      utmMedium: input.utmMedium,
+      utmCampaign: input.utmCampaign,
+    });
+    if (result.ok) {
+      results.push({ url, short_url: shortUrl(result.link.slug), status: 'created' });
+    } else {
+      results.push({ url, short_url: '', status: 'error', error: result.code });
+    }
+  }
+
+  return results;
+}
+
+export function bulkResultsToCsv(rows: BulkResultItem[]): string {
+  const lines = ['original_url,short_url,status'];
+  for (const row of rows) {
+    lines.push(
+      [csvCell(row.url), csvCell(row.short_url), csvCell(row.error ?? row.status)].join(','),
+    );
+  }
+  return lines.join('\n');
+}
+
+function csvCell(value: string): string {
+  const escaped = value.replace(/"/g, '""');
+  if (/[",\n\r]/.test(escaped)) return `"${escaped}"`;
+  return escaped;
 }

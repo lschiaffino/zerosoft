@@ -3,8 +3,13 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getUserLink, linkStatus, toLinkDto } from '@/lib/links';
-import { getAnalytics, type AnalyticsRange } from '@/lib/track';
-import { formatDate, formatNumber, shortUrl } from '@/lib/utils';
+import {
+  getAnalytics,
+  getClickCountries,
+  listClicks,
+  type AnalyticsRange,
+} from '@/lib/track';
+import { formatDate, formatDateTime, formatNumber, shortUrl } from '@/lib/utils';
 import CopyButton from '@/components/link/CopyButton';
 import LinkChart from '@/components/link/LinkChart';
 import BreakdownBars from '@/components/link/BreakdownBars';
@@ -28,7 +33,18 @@ export default async function LinkDetailPage({ params: { locale, id }, searchPar
 
   const rawRange = typeof searchParams.range === 'string' ? searchParams.range : undefined;
   const range: AnalyticsRange = rawRange === '7d' || rawRange === 'all' ? rawRange : '30d';
+  const country = typeof searchParams.country === 'string' ? searchParams.country : undefined;
+  const clickPage = Math.max(Number(searchParams.page ?? '1') || 1, 1);
+  const clickPageSize = Math.min(Math.max(Number(searchParams.pageSize ?? '25') || 25, 1), 100);
+
   const a = await getAnalytics(link.id, link.created_at, range);
+  const clickResult = await listClicks(link.id, link.created_at, {
+    range,
+    country,
+    page: clickPage,
+    pageSize: clickPageSize,
+  });
+  const countries = await getClickCountries(link.id);
 
   const today = a.byDay[a.byDay.length - 1]?.count ?? 0;
   const last7 = a.byDay.slice(-7).reduce((sum, d) => sum + d.count, 0);
@@ -157,6 +173,142 @@ export default async function LinkDetailPage({ params: { locale, id }, searchPar
           <QrSection id={link.id} slug={link.slug} />
         </section>
       </div>
+
+      <section className="panel" id="clicks">
+        <div className="panel-head">
+          <p className="section-label">{t('detail.clickLogTitle')}</p>
+          <div className="click-log-controls">
+            <div className="range-switch mono">
+              {ranges.map((r) =>
+                r.value === range ? (
+                  <span key={r.value} className="range-btn active">
+                    {r.label}
+                  </span>
+                ) : (
+                  <Link
+                    key={r.value}
+                    href={{
+                      pathname: `/app/links/${link.id}`,
+                      query: { range: r.value, country, page: String(clickPage) },
+                    }}
+                    className="range-btn"
+                  >
+                    {r.label}
+                  </Link>
+                ),
+              )}
+            </div>
+            <a
+              href={`/api/links/${link.id}/export.csv?range=${range}${country ? `&country=${encodeURIComponent(country)}` : ''}`}
+              className="btn btn-small"
+            >
+              {t('detail.exportCsv')}
+            </a>
+          </div>
+        </div>
+
+        {countries.length > 0 && (
+          <form className="click-filter-row" method="get" action={`/app/links/${link.id}`}>
+            <input type="hidden" name="range" value={range} />
+            <label className="mono" htmlFor="country-filter">
+              {t('detail.countryFilter')}
+            </label>
+            <select
+              id="country-filter"
+              name="country"
+              className="input mono filter-select"
+              defaultValue={country ?? ''}
+            >
+              <option value="">{t('detail.allCountries')}</option>
+              {countries.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <button type="submit" className="btn btn-small">
+              {t('detail.applyFilter')}
+            </button>
+            {country && (
+              <Link
+                href={{ pathname: `/app/links/${link.id}`, query: { range } }}
+                className="btn btn-small btn-ghost"
+              >
+                {t('detail.clearFilter')}
+              </Link>
+            )}
+          </form>
+        )}
+
+        {clickResult.clicks.length === 0 ? (
+          <p className="muted">{t('detail.noClicks')}</p>
+        ) : (
+          <>
+            <div className="table-wrap">
+              <table className="links-table click-log-table">
+                <thead>
+                  <tr>
+                    <th>{t('detail.colTimestamp')}</th>
+                    <th>{t('detail.colCountry')}</th>
+                    <th>{t('detail.colReferrer')}</th>
+                    <th>{t('detail.colDevice')}</th>
+                    <th>{t('detail.colBrowser')}</th>
+                    <th>{t('detail.colOs')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clickResult.clicks.map((c) => (
+                    <tr key={c.id}>
+                      <td className="cell-date mono">{formatDateTime(c.ts, locale)}</td>
+                      <td>{c.country ?? '—'}</td>
+                      <td className="cell-url mono">{c.referrer ?? '—'}</td>
+                      <td>{c.device ?? '—'}</td>
+                      <td>{c.browser ?? '—'}</td>
+                      <td>{c.os ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {clickResult.total > clickResult.pageSize && (
+              <nav className="pager mono">
+                {clickResult.page > 1 ? (
+                  <Link
+                    href={{
+                      pathname: `/app/links/${link.id}`,
+                      query: { range, ...(country ? { country } : {}), page: String(clickResult.page - 1) },
+                    }}
+                    className="pager-btn"
+                  >
+                    {t('table.pagePrev')}
+                  </Link>
+                ) : (
+                  <span className="pager-btn disabled">{t('table.pagePrev')}</span>
+                )}
+                <span className="pager-info">
+                  {t('table.pageOf', {
+                    page: clickResult.page,
+                    pages: Math.ceil(clickResult.total / clickResult.pageSize),
+                  })}
+                </span>
+                {clickResult.page < Math.ceil(clickResult.total / clickResult.pageSize) ? (
+                  <Link
+                    href={{
+                      pathname: `/app/links/${link.id}`,
+                      query: { range, ...(country ? { country } : {}), page: String(clickResult.page + 1) },
+                    }}
+                    className="pager-btn"
+                  >
+                    {t('table.pageNext')}
+                  </Link>
+                ) : (
+                  <span className="pager-btn disabled">{t('table.pageNext')}</span>
+                )}
+              </nav>
+            )}
+          </>
+        )}
+      </section>
 
       <section className="panel" id="edit">
         <p className="section-label">{t('detail.editTitle')}</p>

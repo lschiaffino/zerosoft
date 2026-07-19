@@ -25,7 +25,7 @@ export default async function ProductsPage({ params: { locale } }: { params: { l
     <main>
       {/* HERO */}
       <section className="page-hero page-hero--fade products-hero">
-        <ZeroField align="right" sizeFactor={0.8} alpha={0.5} />
+        <ZeroField align="right" sizeFactor={0.92} />
         <div className="container">
           <p className="section-label">{t('hero.label')}</p>
           <h1 className="page-hero-title">

@@ -56,6 +56,10 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE crm_contacts ADD COLUMN owner_id TEXT',
         'ALTER TABLE crm_companies ADD COLUMN owner_id TEXT',
         'ALTER TABLE crm_deals ADD COLUMN owner_id TEXT',
+        'ALTER TABLE links ADD COLUMN redirect_type INTEGER NOT NULL DEFAULT 302',
+        'ALTER TABLE links ADD COLUMN og_title TEXT',
+        'ALTER TABLE links ADD COLUMN og_description TEXT',
+        'ALTER TABLE links ADD COLUMN og_image TEXT',
       ]) {
         try {
           await client.execute(alter);
@@ -175,9 +179,13 @@ const DDL = `
       expires_at TEXT,
       max_clicks INTEGER,
       archived INTEGER NOT NULL DEFAULT 0,
+      redirect_type INTEGER NOT NULL DEFAULT 302,
       utm_source TEXT,
       utm_medium TEXT,
       utm_campaign TEXT,
+      og_title TEXT,
+      og_description TEXT,
+      og_image TEXT,
       clicks INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -472,9 +480,13 @@ export interface LinkRow {
   expires_at: string | null;
   max_clicks: number | null;
   archived: 0 | 1;
+  redirect_type: number;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
+  og_title: string | null;
+  og_description: string | null;
+  og_image: string | null;
   clicks: number;
   created_at: string;
   updated_at: string;

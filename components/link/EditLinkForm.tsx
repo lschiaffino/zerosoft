@@ -30,6 +30,10 @@ export default function EditLinkForm({ link }: EditLinkFormProps) {
   const [maxClicks, setMaxClicks] = useState(link.max_clicks?.toString() ?? '');
   const [password, setPassword] = useState('');
   const [clearPassword, setClearPassword] = useState(false);
+  const [redirectType, setRedirectType] = useState<301 | 302>(link.redirect_type);
+  const [ogTitle, setOgTitle] = useState(link.og.title ?? '');
+  const [ogDescription, setOgDescription] = useState(link.og.description ?? '');
+  const [ogImage, setOgImage] = useState(link.og.image ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +54,10 @@ export default function EditLinkForm({ link }: EditLinkFormProps) {
       tags,
       expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
       maxClicks: maxClicks ? Number(maxClicks) : null,
+      redirectType,
+      ogTitle: ogTitle.trim() || null,
+      ogDescription: ogDescription.trim() || null,
+      ogImage: ogImage.trim() || null,
     };
     if (slug.trim() && slug.trim() !== link.slug) payload.slug = slug.trim();
     if (clearPassword) payload.password = '';
@@ -122,6 +130,21 @@ export default function EditLinkForm({ link }: EditLinkFormProps) {
         <TagsInput tags={tags} onChange={setTags} />
       </div>
 
+      <div className="field">
+        <label className="label" htmlFor="el-redirect">
+          {t('detail.redirectTypeLabel')}
+        </label>
+        <select
+          id="el-redirect"
+          className="input mono"
+          value={redirectType}
+          onChange={(e) => setRedirectType(Number(e.target.value) as 301 | 302)}
+        >
+          <option value={302}>{t('detail.redirect302')}</option>
+          <option value={301}>{t('detail.redirect301')}</option>
+        </select>
+      </div>
+
       <div className="edit-grid">
         <div className="field">
           <label className="label" htmlFor="el-exp">{t('detail.expiresLabel')}</label>
@@ -169,6 +192,51 @@ export default function EditLinkForm({ link }: EditLinkFormProps) {
             {t('detail.passwordClear')}
           </label>
         )}
+      </div>
+
+      <div className="field">
+        <span className="label">{t('detail.ogTitle')}</span>
+        <div className="og-grid">
+          <div className="field">
+            <label className="label" htmlFor="el-og-title">
+              {t('detail.ogTitleLabel')}
+            </label>
+            <input
+              id="el-og-title"
+              className="input"
+              type="text"
+              value={ogTitle}
+              onChange={(e) => setOgTitle(e.target.value)}
+              placeholder={t('detail.ogTitlePlaceholder')}
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="el-og-desc">
+              {t('detail.ogDescriptionLabel')}
+            </label>
+            <input
+              id="el-og-desc"
+              className="input"
+              type="text"
+              value={ogDescription}
+              onChange={(e) => setOgDescription(e.target.value)}
+              placeholder={t('detail.ogDescriptionPlaceholder')}
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="el-og-img">
+              {t('detail.ogImageLabel')}
+            </label>
+            <input
+              id="el-og-img"
+              className="input mono"
+              type="text"
+              value={ogImage}
+              onChange={(e) => setOgImage(e.target.value)}
+              placeholder={t('detail.ogImagePlaceholder')}
+            />
+          </div>
+        </div>
       </div>
 
       {error && <p className="form-error mono">{error}</p>}

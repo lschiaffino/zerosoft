@@ -6,6 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
 import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
+import RecordPreview from './RecordPreview';
 
 export interface CompanyRow {
   id: string;
@@ -25,6 +26,7 @@ interface CompaniesTableProps {
   rows: CompanyRow[];
   sort: string;
   lifecycles: string[];
+  locale: string;
 }
 
 const COLS = [
@@ -39,8 +41,8 @@ const COLS = [
   { id: 'created', labelKey: 'companies.table.created', defaultVisible: false },
 ];
 
-/** Tabla de empresas con selección múltiple, bulk bar, selector de columnas y edición inline. */
-export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTableProps) {
+/** Tabla de empresas con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
+export default function CompaniesTable({ rows, sort, lifecycles, locale }: CompaniesTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -51,6 +53,7 @@ export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTabl
     COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
     'zs-companies-columns',
   );
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
 
@@ -102,6 +105,7 @@ export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTabl
               <th className="cell-check">
                 <input
                   type="checkbox"
+                  className="row-check"
                   checked={allSelected}
                   onChange={toggleAll}
                   aria-label={t('common.all')}
@@ -126,6 +130,7 @@ export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTabl
                   <SortTh label={t('companies.table.created')} asc="oldest" desc="newest" current={sort} />
                 </th>
               )}
+              <th className="cell-actions-head">{t('companies.table.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -134,6 +139,7 @@ export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTabl
                 <td className="cell-check">
                   <input
                     type="checkbox"
+                    className="row-check"
                     checked={selected.has(row.id)}
                     onChange={() => toggleOne(row.id)}
                     aria-label={row.name}
@@ -201,6 +207,17 @@ export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTabl
                   </td>
                 )}
                 {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
+                <td className="cell-actions">
+                  <button
+                    type="button"
+                    className="icon-btn preview-btn"
+                    onClick={() => setPreviewId(row.id)}
+                    title={t('common.viewAll')}
+                    aria-label={t('common.viewAll')}
+                  >
+                    👁
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -277,6 +294,10 @@ export default function CompaniesTable({ rows, sort, lifecycles }: CompaniesTabl
             {t('companies.bulk.clear')}
           </button>
         </div>
+      )}
+
+      {previewId && (
+        <RecordPreview type="company" id={previewId} locale={locale} onClose={() => setPreviewId(null)} />
       )}
     </>
   );

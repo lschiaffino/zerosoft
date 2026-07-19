@@ -14,7 +14,7 @@ import {
 } from '@/components/crm/associationActions';
 import DealStagePanel from '@/components/crm/DealStagePanel';
 import { customPropFields } from '@/components/crm/customPropFields';
-import PropertiesPanel, { type PropField } from '@/components/crm/PropertiesPanel';
+import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import HistoryPanel from '@/components/crm/HistoryPanel';
@@ -82,6 +82,11 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
     : deal.priority;
 
   const custom = parseCustom(deal.custom);
+  const customFieldDefs = await listCustomFields(user.id, 'deals');
+  const customFields = customPropFields(customFieldDefs, custom, {
+    yes: t('common.yes'),
+    no: t('common.no'),
+  });
   const fields: PropField[] = [
     { key: 'name', label: t('deals.form.name'), type: 'text', value: deal.name },
     { key: 'amount', label: t('deals.form.amount'), type: 'number', value: String(deal.amount) },
@@ -119,10 +124,18 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
       value: deal.owner_id ?? user.id,
       options: ownerOptions,
     },
-    ...customPropFields(await listCustomFields(user.id, 'deals'), custom, {
-      yes: t('common.yes'),
-      no: t('common.no'),
-    }),
+    ...customFields,
+  ];
+
+  const sections: PropSection[] = [
+    {
+      title: t('deals.detail.aboutSection'),
+      keys: ['name', 'amount', 'currency', 'closeDate', 'priority', 'source', 'description'],
+    },
+    { title: t('deals.detail.ownershipSection'), keys: ['ownerId'] },
+    ...(customFields.length
+      ? [{ title: t('deals.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
+      : []),
   ];
 
   const contactChips = contacts.map((c) => ({
@@ -191,9 +204,16 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
 
       <div className="detail-grid-3">
         <div className="detail-col">
-          <section className="panel">
+          <section className="panel" id="properties">
             <h2 className="section-label">{t('deals.detail.properties')}</h2>
-            <PropertiesPanel endpoint={`/api/crm/deals/${deal.id}`} fields={fields} custom={custom} />
+            <PropertiesPanel
+              endpoint={`/api/crm/deals/${deal.id}`}
+              fields={fields}
+              custom={custom}
+              sections={sections}
+              compactKeys={['name', 'amount', 'priority', 'closeDate', 'ownerId']}
+              viewAllLabel={t('deals.detail.viewAllProperties')}
+            />
           </section>
         </div>
 

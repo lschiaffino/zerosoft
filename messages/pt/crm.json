@@ -49,7 +49,8 @@
     "pin": "Fixar",
     "unpin": "Desafixar",
     "pinned": "Fixado",
-    "nextTask": "Próxima tarefa"
+    "nextTask": "Próxima tarefa",
+    "clear": "Limpar filtros"
   },
   "assoc": {
     "associate": "Associar",
@@ -134,6 +135,9 @@
     "filterLeadStatus": "Status do lead",
     "filterSource": "Origem",
     "filterCompany": "Empresa",
+    "filterOwner": "Responsável",
+    "filterCreatedFrom": "Criado desde",
+    "filterCreatedTo": "Criado até",
     "sortNewest": "Mais recentes",
     "sortOldest": "Mais antigos",
     "sortName": "Nome",
@@ -195,7 +199,12 @@
       "noCompany": "Nenhuma empresa associada.",
       "newCompany": "+ Nova empresa",
       "associateCompany": "Associar empresa…",
-      "associateDeal": "+ Associar negócio"
+      "associateDeal": "+ Associar negócio",
+      "aboutSection": "Sobre este contato",
+      "lifecycleSection": "Ciclo de vida",
+      "ownershipSection": "Atribuição",
+      "customFieldsSection": "Campos personalizados",
+      "viewAllProperties": "Ver todas as propriedades"
     },
     "form": {
       "firstName": "Nome",
@@ -220,6 +229,9 @@
     "searchPlaceholder": "Busque por nome ou domínio…",
     "filterIndustry": "Setor",
     "filterLifecycle": "Ciclo de vida",
+    "filterOwner": "Responsável",
+    "filterCreatedFrom": "Criada desde",
+    "filterCreatedTo": "Criada até",
     "sortNewest": "Mais recentes",
     "sortOldest": "Mais antigas",
     "sortName": "Nome",
@@ -264,7 +276,12 @@
       "associateContact": "+ Associar contato",
       "associateDeal": "+ Associar negócio",
       "newContact": "+ Novo contato",
-      "newDeal": "+ Novo negócio"
+      "newDeal": "+ Novo negócio",
+      "aboutSection": "Sobre esta empresa",
+      "lifecycleSection": "Ciclo de vida",
+      "ownershipSection": "Atribuição",
+      "customFieldsSection": "Campos personalizados",
+      "viewAllProperties": "Ver todas as propriedades"
     },
     "form": {
       "name": "Nome",
@@ -325,6 +342,10 @@
     "sortAmountAsc": "Valor (menor primeiro)",
     "sortCloseDate": "Data de fechamento",
     "sortCloseDesc": "Data de fechamento (última)",
+    "filterSource": "Origem",
+    "filterOwner": "Responsável",
+    "filterCreatedFrom": "Criado desde",
+    "filterCreatedTo": "Criado até",
     "table": {
       "searchPlaceholder": "Busque um negócio…",
       "name": "Negócio",
@@ -365,7 +386,11 @@
       "deleteTitle": "Excluir este negócio",
       "deleteDesc": "Exclui o negócio. Contatos e atividades são mantidos.",
       "deleteButton": "Excluir para sempre",
-      "emptyTimeline": "Sem atividade ainda. Adicione uma nota ou registre uma ligação."
+      "emptyTimeline": "Sem atividade ainda. Adicione uma nota ou registre uma ligação.",
+      "aboutSection": "Sobre este negócio",
+      "ownershipSection": "Atribuição",
+      "customFieldsSection": "Campos personalizados",
+      "viewAllProperties": "Ver todas as propriedades"
     }
   },
   "tasks": {

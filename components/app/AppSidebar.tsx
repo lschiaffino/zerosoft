@@ -229,16 +229,6 @@ export default function AppSidebar({
             </div>
           )}
         </div>
-        <button
-          type="button"
-          className="side-collapse"
-          onClick={toggleCollapsed}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-pressed={collapsed}
-          title={collapsed ? 'Expand' : 'Collapse'}
-        >
-          {collapsed ? '»' : '«'}
-        </button>
         <button type="button" className="side-close" onClick={() => setDrawerOpen(false)}>
           ✕
         </button>
@@ -334,17 +324,31 @@ export default function AppSidebar({
           0
         </div>
       </div>
+
+      <button
+        type="button"
+        className="side-handle"
+        onClick={toggleCollapsed}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-pressed={collapsed}
+        title={collapsed ? 'Expand' : 'Collapse'}
+      >
+        {collapsed ? '›' : '‹'}
+      </button>
     </aside>
   );
 
   return (
     <>
       <div className="app-topbar">
-        <button type="button" className="side-close" onClick={() => setDrawerOpen(true)} aria-label="menu">
-          ☰
-        </button>
+        <div className="app-topbar-left">
+          <button type="button" className="side-close" onClick={() => setDrawerOpen(true)} aria-label="menu">
+            ☰
+          </button>
+          <span className="brand-zero" aria-hidden="true">0</span>
+        </div>
         <button type="button" className="side-product" onClick={() => setDrawerOpen(true)}>
-          <span>0 {current.name}</span>
+          <span>{current.name}</span>
           <span className="caret">▾</span>
         </button>
         <button type="button" className="side-close" onClick={openSearch} aria-label={labels.search}>

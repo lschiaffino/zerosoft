@@ -4,23 +4,41 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 
+interface CustomFieldOption {
+  name: string;
+  label: string;
+  options: string[];
+}
+
 interface CompanyFiltersProps {
   q: string;
   industry: string;
   lifecycle: string;
+  owner: string;
+  createdFrom: string;
+  createdTo: string;
+  custom: Record<string, string>;
   sort: 'newest' | 'oldest' | 'name' | 'name_desc';
   industries: string[];
   lifecycles: Array<{ value: string; label: string }>;
+  owners: Array<{ value: string; label: string }>;
+  customFields: CustomFieldOption[];
 }
 
-/** Búsqueda + filtros de industria/lifecycle + sort (todo server-side vía query params). */
+/** Búsqueda + filtros de industria/lifecycle/owner/fecha/custom + sort (todo server-side vía query params). */
 export default function CompanyFilters({
   q,
   industry,
   lifecycle,
+  owner,
+  createdFrom,
+  createdTo,
+  custom,
   sort,
   industries,
   lifecycles,
+  owners,
+  customFields,
 }: CompanyFiltersProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -33,15 +51,32 @@ export default function CompanyFilters({
       q: q || undefined,
       industry: industry || undefined,
       lifecycle: lifecycle || undefined,
+      owner: owner || undefined,
+      createdFrom: createdFrom || undefined,
+      createdTo: createdTo || undefined,
       sort: sort !== 'newest' ? sort : undefined,
       ...patch,
     };
     for (const [key, value] of Object.entries(current)) {
       if (value) params.set(key, value);
     }
+    for (const [name, value] of Object.entries(custom)) {
+      if (value) params.set(`custom_${name}`, value);
+    }
+    for (const [name, value] of Object.entries(patch)) {
+      if (name.startsWith('custom_') && !value) params.delete(name);
+    }
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }
+
+  function setCustom(name: string, value: string) {
+    go({ [`custom_${name}`]: value || undefined });
+  }
+
+  const activeFilters = [q, industry, lifecycle, owner, createdFrom, createdTo, ...Object.values(custom)].filter(
+    Boolean,
+  ).length;
 
   return (
     <div className="filter-bar">
@@ -65,7 +100,7 @@ export default function CompanyFilters({
       <div className="filter-row">
         <div className="filter-chips">
           <select
-            className="filter-select"
+            className="filter-select filter-btn"
             value={industry}
             onChange={(e) => go({ industry: e.target.value || undefined })}
             aria-label={t('companies.filterIndustry')}
@@ -78,7 +113,7 @@ export default function CompanyFilters({
             ))}
           </select>
           <select
-            className="filter-select"
+            className="filter-select filter-btn"
             value={lifecycle}
             onChange={(e) => go({ lifecycle: e.target.value || undefined })}
             aria-label={t('companies.filterLifecycle')}
@@ -90,11 +125,59 @@ export default function CompanyFilters({
               </option>
             ))}
           </select>
+          <select
+            className="filter-select filter-btn"
+            value={owner}
+            onChange={(e) => go({ owner: e.target.value || undefined })}
+            aria-label={t('companies.filterOwner')}
+          >
+            <option value="">{t('companies.filterOwner')}</option>
+            {owners.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <div className="filter-date-group">
+            <input
+              className="input filter-date"
+              type="date"
+              value={createdFrom}
+              onChange={(e) => go({ createdFrom: e.target.value || undefined })}
+              aria-label={t('companies.filterCreatedFrom')}
+              placeholder={t('companies.filterCreatedFrom')}
+            />
+            <span className="filter-date-sep">—</span>
+            <input
+              className="input filter-date"
+              type="date"
+              value={createdTo}
+              onChange={(e) => go({ createdTo: e.target.value || undefined })}
+              aria-label={t('companies.filterCreatedTo')}
+              placeholder={t('companies.filterCreatedTo')}
+            />
+          </div>
+          {customFields.map((cf) => (
+            <select
+              key={cf.name}
+              className="filter-select filter-btn"
+              value={custom[cf.name] ?? ''}
+              onChange={(e) => setCustom(cf.name, e.target.value)}
+              aria-label={cf.label}
+            >
+              <option value="">{cf.label}</option>
+              {cf.options.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          ))}
         </div>
 
         <div className="filter-right">
           <select
-            className="select filter-sort"
+            className="filter-select filter-sort"
             value={sort}
             onChange={(e) =>
               go({ sort: e.target.value === 'newest' ? undefined : e.target.value })
@@ -106,6 +189,24 @@ export default function CompanyFilters({
             <option value="name">{t('companies.sortName')}</option>
             <option value="name_desc">{t('companies.sortNameDesc')}</option>
           </select>
+          {activeFilters > 0 && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-small filter-clear"
+              onClick={() =>
+                go({
+                  q: undefined,
+                  industry: undefined,
+                  lifecycle: undefined,
+                  owner: undefined,
+                  createdFrom: undefined,
+                  createdTo: undefined,
+                })
+              }
+            >
+              {t('common.clear')}
+            </button>
+          )}
         </div>
       </div>
     </div>

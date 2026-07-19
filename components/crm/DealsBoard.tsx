@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { BoardDeal, BoardStage } from '@/lib/crm';
 import DealForm from './DealForm';
+import RecordPreview from './RecordPreview';
 
 /** Códigos de error de la API con traducción en crm.errors.*. */
 const KNOWN_ERRORS = new Set([
@@ -86,6 +87,7 @@ export default function DealsBoard({ pipelineId, stages, locale, priorities, sou
   const [lostReasonKey, setLostReasonKey] = useState('');
   const [lostText, setLostText] = useState('');
   const [lostError, setLostError] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const dragRef = useRef<DragState | null>(null);
   const suppressClickRef = useRef(false);
@@ -341,7 +343,7 @@ export default function DealsBoard({ pipelineId, stages, locale, priorities, sou
                         suppressClickRef.current = false;
                         return;
                       }
-                      router.push(`/app/crm/deals/${deal.id}`);
+                      setPreviewId(deal.id);
                     }}
                   >
                     <Link
@@ -482,6 +484,10 @@ export default function DealsBoard({ pipelineId, stages, locale, priorities, sou
             </div>
           </div>
         </div>
+      )}
+
+      {previewId && (
+        <RecordPreview type="deal" id={previewId} locale={locale} onClose={() => setPreviewId(null)} />
       )}
     </div>
   );

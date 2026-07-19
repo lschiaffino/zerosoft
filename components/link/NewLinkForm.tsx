@@ -36,10 +36,14 @@ export default function NewLinkForm({ domain }: { domain: string }) {
   const [utmSource, setUtmSource] = useState('');
   const [utmMedium, setUtmMedium] = useState('');
   const [utmCampaign, setUtmCampaign] = useState('');
+  const [redirectType, setRedirectType] = useState<301 | 302>(302);
   const [advanced, setAdvanced] = useState(false);
   const [expiresAt, setExpiresAt] = useState('');
   const [maxClicks, setMaxClicks] = useState('');
   const [password, setPassword] = useState('');
+  const [ogTitle, setOgTitle] = useState('');
+  const [ogDescription, setOgDescription] = useState('');
+  const [ogImage, setOgImage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -95,7 +99,7 @@ export default function NewLinkForm({ domain }: { domain: string }) {
 
     setSubmitting(true);
     try {
-      const payload: Record<string, unknown> = { url: url.trim(), tags };
+      const payload: Record<string, unknown> = { url: url.trim(), tags, redirectType };
       if (slug.trim()) payload.slug = slug.trim();
       if (title.trim()) payload.title = title.trim();
       if (utmSource.trim()) payload.utmSource = utmSource.trim();
@@ -104,6 +108,9 @@ export default function NewLinkForm({ domain }: { domain: string }) {
       if (expiresAt) payload.expiresAt = new Date(expiresAt).toISOString();
       if (maxClicks) payload.maxClicks = Number(maxClicks);
       if (password) payload.password = password;
+      if (ogTitle.trim()) payload.ogTitle = ogTitle.trim();
+      if (ogDescription.trim()) payload.ogDescription = ogDescription.trim();
+      if (ogImage.trim()) payload.ogImage = ogImage.trim();
 
       const res = await fetch('/api/links', {
         method: 'POST',
@@ -212,6 +219,21 @@ export default function NewLinkForm({ domain }: { domain: string }) {
         )}
       </div>
 
+      <div className="field">
+        <label className="label" htmlFor="nl-redirect">
+          {t('new.redirectTypeLabel')}
+        </label>
+        <select
+          id="nl-redirect"
+          className="input mono"
+          value={redirectType}
+          onChange={(e) => setRedirectType(Number(e.target.value) as 301 | 302)}
+        >
+          <option value={302}>{t('new.redirect302')}</option>
+          <option value={301}>{t('new.redirect301')}</option>
+        </select>
+      </div>
+
       <button
         type="button"
         className="advanced-toggle mono"
@@ -254,6 +276,59 @@ export default function NewLinkForm({ domain }: { domain: string }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
+            />
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        className="advanced-toggle mono"
+        onClick={() => setAdvanced((v) => !v)}
+        aria-expanded={advanced}
+      >
+        {advanced ? '−' : '+'} {t('new.ogTitle')}
+      </button>
+
+      {advanced && (
+        <div className="advanced-grid">
+          <div className="field">
+            <label className="label" htmlFor="nl-og-title">
+              {t('new.ogTitleLabel')}
+            </label>
+            <input
+              id="nl-og-title"
+              className="input"
+              type="text"
+              value={ogTitle}
+              onChange={(e) => setOgTitle(e.target.value)}
+              placeholder={t('new.ogTitlePlaceholder')}
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="nl-og-desc">
+              {t('new.ogDescriptionLabel')}
+            </label>
+            <input
+              id="nl-og-desc"
+              className="input"
+              type="text"
+              value={ogDescription}
+              onChange={(e) => setOgDescription(e.target.value)}
+              placeholder={t('new.ogDescriptionPlaceholder')}
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="nl-og-img">
+              {t('new.ogImageLabel')}
+            </label>
+            <input
+              id="nl-og-img"
+              className="input mono"
+              type="text"
+              value={ogImage}
+              onChange={(e) => setOgImage(e.target.value)}
+              placeholder={t('new.ogImagePlaceholder')}
             />
           </div>
         </div>

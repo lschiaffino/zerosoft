@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { getAllPosts } from '@/lib/blog';
 import { formatDate } from '@/lib/utils';
 import Reveal from '@/components/Reveal';
+import ZeroField from '@/components/ZeroField';
 
 export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
   const t = await getTranslations({ locale, namespace: 'common.blog' });
@@ -31,7 +32,13 @@ export default async function BlogIndexPage({ params: { locale } }: { params: { 
             <Reveal key={post.slug}>
               <Link href={`/blog/${post.slug}`} className="blog-card">
                 <div className="blog-card-cover" aria-hidden="true">
-                  <span>{'0'.repeat(48)}</span>
+                  <ZeroField
+                    align="center"
+                    sizeFactor={0.9}
+                    color="255,255,255"
+                    interactive={false}
+                    alpha={0.25}
+                  />
                 </div>
                 <div className="blog-card-body">
                   <p className="blog-card-meta">

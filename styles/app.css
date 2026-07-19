@@ -17,6 +17,26 @@
   display: none;
 }
 
+.app-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-topbar .brand-zero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  user-select: none;
+}
+
 /* ---------- Sidebar ---------- */
 
 .side {
@@ -79,7 +99,7 @@
   padding: 8px 10px;
   border-radius: 7px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ink);
@@ -108,7 +128,7 @@
   background: var(--bg);
   color: var(--dim);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -135,7 +155,7 @@
   background: var(--ink);
   color: var(--bg);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
@@ -157,18 +177,20 @@
   margin-top: 14px;
   padding: 0 10px 6px;
   font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.18em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--dim);
 }
 
 .side-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 7px 10px;
   border-radius: 8px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.03em;
   color: var(--ink);
   text-decoration: none;
@@ -242,7 +264,7 @@
   padding: 7px 10px;
   text-align: left;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.04em;
   color: var(--dim);
   cursor: pointer;
@@ -415,7 +437,16 @@ a.side-signout { display: block; text-decoration: none; }
 }
 
 /* Sidebar: badge de tareas vencidas/hoy */
-.side-link { display: flex; align-items: center; gap: 8px; }
+.side-badge {
+  margin-left: auto;
+  min-width: 18px;
+  text-align: center;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.6;
+}
 
 /* Sidebar: íconos */
 .side-link svg { flex-shrink: 0; opacity: 0.75; }
@@ -433,34 +464,41 @@ a.side-signout { display: block; text-decoration: none; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.side-badge {
-  margin-left: auto;
-  min-width: 18px;
-  text-align: center;
-  padding: 0 5px;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  font-size: 10px;
-  line-height: 1.6;
-}
 
 /* ---------- Sidebar colapsable (desktop) ---------- */
 
-.side-collapse {
+.side-collapse { display: none; }
+
+.side-handle {
   display: none;
-  background: none;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 72px;
+  padding: 0;
+  margin: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  background: var(--bg);
   font-family: var(--mono);
-  font-size: 12px;
-  padding: 6px 10px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--dim);
   cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+.side-handle:hover {
+  border-color: var(--ink);
   color: var(--ink);
 }
-.side-collapse:hover { border-color: var(--ink); }
 
 @media (min-width: 1024px) {
-  .side-collapse { display: block; }
+  .side-handle { display: flex; }
 
   .app-frame { transition: grid-template-columns 0.2s ease; }
 

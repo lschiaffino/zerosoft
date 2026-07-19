@@ -20,11 +20,22 @@ export interface PropField {
   boolean?: boolean;
 }
 
+export interface PropSection {
+  title: string;
+  keys: string[];
+}
+
 interface PropertiesPanelProps {
   endpoint: string;
   fields: PropField[];
   /** Objeto custom actual del registro (necesario para mergear campos `custom.*`). */
   custom?: Record<string, unknown>;
+  /** Secciones para agrupar propiedades. Si no se pasan se renderiza una lista plana. */
+  sections?: PropSection[];
+  /** Claves a mostrar en modo compacto. Requiere `viewAllLabel` para expandir. */
+  compactKeys?: string[];
+  /** Label del botón "Ver todas las propiedades". Si se pasa, activa modo compacto. */
+  viewAllLabel?: string;
 }
 
 const ERROR_CODES = ['invalid_email', 'missing_name', 'invalid_input', 'not_found'] as const;
@@ -34,7 +45,14 @@ const ERROR_CODES = ['invalid_email', 'missing_name', 'invalid_input', 'not_foun
  * PATCH al endpoint y "Saved ✓" transitorio. Genérico: sirve para
  * contacts, companies y deals cambiando endpoint + fields.
  */
-export default function PropertiesPanel({ endpoint, fields, custom }: PropertiesPanelProps) {
+export default function PropertiesPanel({
+  endpoint,
+  fields,
+  custom,
+  sections,
+  compactKeys,
+  viewAllLabel,
+}: PropertiesPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -42,6 +60,7 @@ export default function PropertiesPanel({ endpoint, fields, custom }: Properties
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(!compactKeys || compactKeys.length === 0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -102,77 +121,136 @@ export default function PropertiesPanel({ endpoint, fields, custom }: Properties
     );
   }
 
+  function FieldRow({ field }: { field: PropField }) {
+    const editing = editingKey === field.key;
+    const display =
+      field.type === 'select'
+        ? (field.options?.find((o) => o.value === field.value)?.label ?? field.value)
+        : field.value;
+    return (
+      <div key={field.key} className="prop-row">
+        <dt className="prop-label">{field.label}</dt>
+        <dd className="prop-value">
+          {editing ? (
+            field.type === 'select' ? (
+              <select
+                className="filter-select"
+                value={draft}
+                onChange={(e) => save(field, e.target.value)}
+                onBlur={cancel}
+                autoFocus
+              >
+                {field.nullOption && <option value="">—</option>}
+                {field.options?.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                ref={inputRef}
+                className="input"
+                type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') save(field, draft.trim());
+                  if (e.key === 'Escape') cancel();
+                }}
+                onBlur={() => save(field, draft.trim())}
+              />
+            )
+          ) : (
+            <button
+              type="button"
+              className={`prop-value prop-btn${field.value ? '' : ' empty'}`}
+              onClick={() => startEdit(field)}
+            >
+              {display || '—'}
+            </button>
+          )}
+          {savedKey === field.key && <span className="saved-note"> {t('common.saved')}</span>}
+          {savingKey === field.key && <span className="saved-note"> {t('common.saving')}</span>}
+        </dd>
+        {!editing && (
+          <button
+            type="button"
+            className="icon-btn prop-edit"
+            onClick={() => startEdit(field)}
+            title={t('common.edit')}
+            aria-label={t('common.edit')}
+          >
+            ✎
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  function Section({ title, fieldKeys }: { title: string; fieldKeys: string[] }) {
+    const sectionFields = fieldKeys
+      .map((k) => fields.find((f) => f.key === k))
+      .filter(Boolean) as PropField[];
+    if (!sectionFields.length) return null;
+    return (
+      <div className="prop-section">
+        <h3 className="prop-section-title">{title}</h3>
+        <div className="prop-table">
+          {sectionFields.map((field) => (
+            <FieldRow key={field.key} field={field} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const visibleKeys = expanded ? fields.map((f) => f.key) : compactKeys;
+  const visibleFields = visibleKeys
+    ? (visibleKeys.map((k) => fields.find((f) => f.key === k)).filter(Boolean) as PropField[])
+    : fields;
+
+  if (sections && sections.length > 0) {
+    const keysToShow = new Set(visibleFields.map((f) => f.key));
+    return (
+      <div>
+        {sections.map((s) => (
+          <Section
+            key={s.title}
+            title={s.title}
+            fieldKeys={s.keys.filter((k) => keysToShow.has(k))}
+          />
+        ))}
+        {viewAllLabel && compactKeys && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-small prop-view-all"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? t('common.close') : viewAllLabel}
+          </button>
+        )}
+        {error && <p className="form-error">{error}</p>}
+      </div>
+    );
+  }
+
   return (
     <div>
       <dl className="prop-table">
-        {fields.map((field) => {
-          const editing = editingKey === field.key;
-          // En selects se muestra el label de la opción, no el valor crudo.
-          const display =
-            field.type === 'select'
-              ? (field.options?.find((o) => o.value === field.value)?.label ?? field.value)
-              : field.value;
-          return (
-            <div key={field.key} className="prop-row">
-              <dt className="prop-label">{field.label}</dt>
-              <dd className="prop-value">
-                {editing ? (
-                  field.type === 'select' ? (
-                    <select
-                      className="filter-select"
-                      value={draft}
-                      onChange={(e) => save(field, e.target.value)}
-                      onBlur={cancel}
-                      autoFocus
-                    >
-                      {field.nullOption && <option value="">—</option>}
-                      {field.options?.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      ref={inputRef}
-                      className="input"
-                      type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') save(field, draft.trim());
-                        if (e.key === 'Escape') cancel();
-                      }}
-                      onBlur={() => save(field, draft.trim())}
-                    />
-                  )
-                ) : (
-                  <button
-                    type="button"
-                    className={`prop-value prop-btn${field.value ? '' : ' empty'}`}
-                    onClick={() => startEdit(field)}
-                  >
-                    {display || '—'}
-                  </button>
-                )}
-                {savedKey === field.key && <span className="saved-note"> {t('common.saved')}</span>}
-                {savingKey === field.key && <span className="saved-note"> {t('common.saving')}</span>}
-              </dd>
-              {!editing && (
-                <button
-                  type="button"
-                  className="icon-btn prop-edit"
-                  onClick={() => startEdit(field)}
-                  title={t('common.edit')}
-                  aria-label={t('common.edit')}
-                >
-                  ✎
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {visibleFields.map((field) => (
+          <FieldRow key={field.key} field={field} />
+        ))}
       </dl>
+      {viewAllLabel && compactKeys && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-small prop-view-all"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? t('common.close') : viewAllLabel}
+        </button>
+      )}
       {error && <p className="form-error">{error}</p>}
     </div>
   );

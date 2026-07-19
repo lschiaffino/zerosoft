@@ -1,5 +1,5 @@
 import UAParser from 'ua-parser-js';
-import { ensureMigrated, getClient, getDb, txDb } from './db';
+import { ensureMigrated, getClient, getDb, txDb, type ClickRow } from './db';
 
 // geoip-lite preloads su .dat con fs al importarse: en Vercel el bundle no lo
 // incluye y rompe el módulo entero (ENOENT). Se carga lazy y a prueba de fallos —
@@ -88,6 +88,106 @@ export async function todayClicksForLink(linkId: string): Promise<number> {
       .prepare(`SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND date(ts) = date('now')`)
       .get(linkId)) as { c: number }
   ).c;
+}
+
+// ---------- Click log ----------
+
+export interface ListClicksParams {
+  range: AnalyticsRange;
+  country?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ListClicksResult {
+  clicks: ClickRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function listClicks(
+  linkId: string,
+  createdAt: string,
+  params: ListClicksParams,
+): Promise<ListClicksResult> {
+  const db = getDb();
+  const start = rangeStart(params.range, createdAt);
+
+  const where: string[] = ['link_id = ? AND date(ts) >= ?'];
+  const args: Array<string | number> = [linkId, start];
+
+  if (params.country) {
+    where.push('country = ?');
+    args.push(params.country);
+  }
+
+  const whereSql = where.join(' AND ');
+  const pageSize = Math.min(Math.max(params.pageSize ?? 25, 1), 100);
+  const total = (
+    (await db.prepare(`SELECT COUNT(*) AS c FROM clicks WHERE ${whereSql}`).get(...args)) as {
+      c: number;
+    }
+  ).c;
+  const pages = Math.max(Math.ceil(total / pageSize), 1);
+  const page = Math.min(Math.max(params.page ?? 1, 1), pages);
+
+  const clicks = (await db
+    .prepare(`SELECT * FROM clicks WHERE ${whereSql} ORDER BY ts DESC LIMIT ? OFFSET ?`)
+    .all(...args, pageSize, (page - 1) * pageSize)) as ClickRow[];
+
+  return { clicks, total, page, pageSize };
+}
+
+/** All individual clicks for the given range/country, ordered newest first. */
+export async function exportClicks(
+  linkId: string,
+  createdAt: string,
+  params: Pick<ListClicksParams, 'range' | 'country'>,
+): Promise<ClickRow[]> {
+  const start = rangeStart(params.range, createdAt);
+  const where: string[] = ['link_id = ? AND date(ts) >= ?'];
+  const args: Array<string | number> = [linkId, start];
+
+  if (params.country) {
+    where.push('country = ?');
+    args.push(params.country);
+  }
+
+  return (await getDb()
+    .prepare(`SELECT * FROM clicks WHERE ${where.join(' AND ')} ORDER BY ts DESC`)
+    .all(...args)) as ClickRow[];
+}
+
+export function clicksToCsv(clicks: ClickRow[]): string {
+  const lines = ['timestamp,country,referrer,device,browser,os'];
+  for (const c of clicks) {
+    lines.push(
+      [
+        csvCell(c.ts),
+        csvCell(c.country ?? ''),
+        csvCell(c.referrer ?? ''),
+        csvCell(c.device ?? ''),
+        csvCell(c.browser ?? ''),
+        csvCell(c.os ?? ''),
+      ].join(','),
+    );
+  }
+  return lines.join('\n');
+}
+
+/** All distinct countries recorded for a link, useful for click-log filters. */
+export async function getClickCountries(linkId: string): Promise<string[]> {
+  const rows = (await getDb()
+    .prepare('SELECT DISTINCT country FROM clicks WHERE link_id = ? ORDER BY country')
+    .all(linkId)) as Array<{ country: string | null }>;
+  return rows.map((r) => r.country).filter((c): c is string => !!c);
+}
+
+function csvCell(value: string): string {
+  const escaped = value.replace(/"/g, '""');
+  if (/[",\n\r]/.test(escaped)) return `"${escaped}"`;
+  return escaped;
 }
 
 // ---------- Date helpers ----------
