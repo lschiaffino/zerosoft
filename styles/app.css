@@ -754,13 +754,20 @@ a.side-signout { display: block; text-decoration: none; }
 }
 
 .column-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 6px 12px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: transparent;
+  background: var(--bg);
   color: var(--text);
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
 }
 
 .column-toggle-btn:hover {

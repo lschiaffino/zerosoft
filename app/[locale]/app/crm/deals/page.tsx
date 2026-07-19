@@ -16,6 +16,7 @@ import { formatDate } from '@/lib/utils';
 import DealsBoard from '@/components/crm/DealsBoard';
 import DealsFilters from '@/components/crm/DealsFilters';
 import DealsTable, { type DealRow } from '@/components/crm/DealsTable';
+import { AddPipelineChip } from '@/components/crm/AddPipelineStage';
 
 export const dynamic = 'force-dynamic';
 
@@ -338,6 +339,7 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
             {p.name}
           </Link>
         ))}
+        <AddPipelineChip />
       </div>
 
       {view === 'board' && boardStages && totals ? (

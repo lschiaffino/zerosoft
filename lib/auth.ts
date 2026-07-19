@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import { upsertUser, getUserByEmail } from './db';
+import { seedUserIfNeeded } from './seed';
 
 function googleRedirectUri(): string | undefined {
   // Forzar el redirect_uri exacto que Google espera. En Vercel el dominio
@@ -39,7 +40,8 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user }) {
       if (!user.email) return false;
-      await upsertUser({ email: user.email, name: user.name, image: user.image });
+      const dbUser = await upsertUser({ email: user.email, name: user.name, image: user.image });
+      await seedUserIfNeeded(dbUser.id);
       return true;
     },
     async jwt({ token, user }) {

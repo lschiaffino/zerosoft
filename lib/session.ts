@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { authOptions } from './auth';
 import { getUserByEmail, upsertUser, type TeamRow, type UserRow } from './db';
 import { resolveWorkspace } from './teams';
+import { seedUserIfNeeded } from './seed';
 
 export const DEMO_MODE = process.env.DEMO_MODE === 'true';
 export const DEMO_EMAIL = 'demo@zerosoft.ai';
@@ -18,10 +19,11 @@ export interface SessionUser extends UserRow {
 }
 
 async function getDemoUser(): Promise<UserRow> {
-  return (
+  const demo =
     (await getUserByEmail(DEMO_EMAIL)) ??
-    (await upsertUser({ id: 'demo', email: DEMO_EMAIL, name: 'Demo User', image: null }))
-  );
+    (await upsertUser({ id: 'demo', email: DEMO_EMAIL, name: 'Demo User', image: null }));
+  await seedUserIfNeeded(demo.id);
+  return demo;
 }
 
 /**

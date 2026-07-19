@@ -45,6 +45,8 @@ export function ensureMigrated(): Promise<void> {
       if (!IS_REMOTE) {
         await client.execute('PRAGMA foreign_keys = ON');
         await client.execute('PRAGMA busy_timeout = 5000');
+        // WAL: lectores concurrentes durante el build estático de Next.
+        await client.execute('PRAGMA journal_mode = WAL');
       }
       await client.executeMultiple(DDL);
       // Columnas añadidas después del DDL inicial: ALTER idempotente
@@ -75,6 +77,7 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE crm_emails ADD COLUMN body_html TEXT',
         'ALTER TABLE crm_emails ADD COLUMN body_text TEXT',
         'ALTER TABLE docs_pages ADD COLUMN cover_url TEXT',
+        'ALTER TABLE users ADD COLUMN seeded_at TEXT',
       ]) {
         try {
           await client.execute(alter);
@@ -892,6 +895,7 @@ export interface UserRow {
   name: string | null;
   image: string | null;
   active_team_id?: string | null;
+  seeded_at?: string | null;
   created_at: string;
 }
 

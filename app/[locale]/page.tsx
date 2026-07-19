@@ -142,6 +142,14 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
         </div>
       </section>
 
+      {/* MARQUEE DE CEROS */}
+      <div className="zero-marquee" aria-hidden="true">
+        <div className="zero-track">
+          <span>0000000000000000000000000000000000000000000000000000000000000000</span>
+          <span>0000000000000000000000000000000000000000000000000000000000000000</span>
+        </div>
+      </div>
+
       {/* CIERRE */}
       <section className="end" id="sumate">
         <span className="end-zero" aria-hidden="true">0</span>

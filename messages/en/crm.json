@@ -398,7 +398,12 @@
       "ownershipSection": "Ownership",
       "customFieldsSection": "Custom fields",
       "viewAllProperties": "View all properties"
-    }
+    },
+    "addPipeline": "+ Add pipeline",
+    "pipelineNamePlaceholder": "Pipeline name",
+    "addStage": "+ Add stage",
+    "stageNamePlaceholder": "Stage name",
+    "addStageConfirm": "Add stage"
   },
   "tasks": {
     "title": "Tasks",

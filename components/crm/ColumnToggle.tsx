@@ -79,6 +79,19 @@ export default function ColumnToggle({ columns, visible, onToggle, label }: Colu
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden="true"
+        >
+          <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
+          <line x1="6" y1="2.5" x2="6" y2="13.5" />
+          <line x1="10.5" y1="2.5" x2="10.5" y2="13.5" />
+        </svg>
         {label}
       </button>
       {open && (

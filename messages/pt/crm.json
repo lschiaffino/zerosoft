@@ -398,7 +398,12 @@
       "ownershipSection": "Atribuição",
       "customFieldsSection": "Campos personalizados",
       "viewAllProperties": "Ver todas as propriedades"
-    }
+    },
+    "addPipeline": "+ Adicionar pipeline",
+    "pipelineNamePlaceholder": "Nome do pipeline",
+    "addStage": "+ Adicionar etapa",
+    "stageNamePlaceholder": "Nome da etapa",
+    "addStageConfirm": "Adicionar etapa"
   },
   "tasks": {
     "title": "Tarefas",

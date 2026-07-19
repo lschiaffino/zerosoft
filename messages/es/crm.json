@@ -398,7 +398,12 @@
       "ownershipSection": "Asignación",
       "customFieldsSection": "Campos personalizados",
       "viewAllProperties": "Ver todas las propiedades"
-    }
+    },
+    "addPipeline": "+ Agregar pipeline",
+    "pipelineNamePlaceholder": "Nombre del pipeline",
+    "addStage": "+ Agregar stage",
+    "stageNamePlaceholder": "Nombre del stage",
+    "addStageConfirm": "Agregar stage"
   },
   "tasks": {
     "title": "Tareas",

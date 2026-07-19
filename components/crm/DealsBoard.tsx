@@ -6,6 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import type { BoardDeal, BoardStage } from '@/lib/crm';
 import DealForm from './DealForm';
 import RecordPreview from './RecordPreview';
+import { AddStageColumn } from './AddPipelineStage';
 
 /** Códigos de error de la API con traducción en crm.errors.*. */
 const KNOWN_ERRORS = new Set([
@@ -427,6 +428,7 @@ export default function DealsBoard({ pipelineId, stages, locale, priorities, sou
             </div>
           );
         })}
+        <AddStageColumn pipelineId={pipelineId} />
       </div>
 
       {pendingMove?.kind === 'lost' && (
