@@ -217,7 +217,8 @@
     "prev": "Anterior",
     "next": "Siguiente",
     "today": "Hoy",
-    "unscheduled": "Sin fecha"
+    "unscheduled": "Sin fecha",
+    "updateError": "No se pudieron actualizar las fechas. Inténtalo de nuevo."
   },
   "inbox": {
     "title": "Bandeja de entrada",

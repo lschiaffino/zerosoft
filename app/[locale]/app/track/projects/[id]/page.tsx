@@ -87,6 +87,7 @@ export default async function ProjectPage({
           next: t('gantt.next'),
           today: t('gantt.today'),
           unscheduled: t('gantt.unscheduled'),
+          updateError: t('gantt.updateError'),
         },
         priorities: [
           { value: 'urgent', label: t('priorities.urgent') },

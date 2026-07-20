@@ -217,7 +217,8 @@
     "prev": "Anterior",
     "next": "Próximo",
     "today": "Hoje",
-    "unscheduled": "Sem data"
+    "unscheduled": "Sem data",
+    "updateError": "Não foi possível atualizar as datas. Tente novamente."
   },
   "inbox": {
     "title": "Caixa de entrada",

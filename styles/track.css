@@ -1085,12 +1085,70 @@
   border-radius: 999px;
   background: var(--ink);
   z-index: 2;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   transition: opacity 120ms ease;
 }
 
 .track-gantt-bar:hover {
   opacity: 0.75;
+}
+
+.track-gantt-bar.dragging {
+  cursor: grabbing;
+  opacity: 0.9;
+  z-index: 3;
+}
+
+.track-gantt-handle {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 10px;
+  cursor: ew-resize;
+  z-index: 3;
+}
+
+.track-gantt-handle-start {
+  left: -3px;
+}
+
+.track-gantt-handle-end {
+  right: -3px;
+}
+
+.track-gantt-handle::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 50%;
+  width: 3px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: transparent;
+}
+
+.track-gantt-bar:hover .track-gantt-handle::after,
+.track-gantt-bar.dragging .track-gantt-handle::after {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.track-gantt-dragtip {
+  position: absolute;
+  top: -4px;
+  transform: translateY(-100%);
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink);
+  white-space: nowrap;
+  z-index: 4;
+  pointer-events: none;
 }
 
 .track-gantt-gridline {

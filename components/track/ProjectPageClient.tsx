@@ -89,6 +89,7 @@ export interface PageLabels {
     next: string;
     today: string;
     unscheduled: string;
+    updateError: string;
   };
   priorities: Array<{ value: string; label: string }>;
 }
@@ -339,6 +340,25 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
     );
   };
 
+  const handleDatesChange = async (issueId: string, startDate: string, dueDate: string) => {
+    const snapshot = issues;
+    // Optimista: la barra se queda donde el usuario la soltó.
+    setIssues((prev) =>
+      prev.map((i) => (i.id === issueId ? { ...i, start_date: startDate, due_date: dueDate } : i)),
+    );
+    try {
+      await api(`/api/track/issues/${issueId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDate, dueDate }),
+      });
+    } catch (err) {
+      // Revert y que el Gantt muestre el error.
+      setIssues(snapshot);
+      throw err;
+    }
+  };
+
   if (loading || !project) {
     return (
       <div className="app-page track-page">
@@ -439,12 +459,14 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
             issues={issues}
             statuses={statuses}
             locale={locale}
+            onDatesChange={handleDatesChange}
             labels={{
               prev: labels.gantt.prev,
               next: labels.gantt.next,
               today: labels.gantt.today,
               unscheduled: labels.gantt.unscheduled,
               noAssignee: labels.noAssignee,
+              updateError: labels.gantt.updateError,
             }}
           />
         )}

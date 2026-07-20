@@ -217,7 +217,8 @@
     "prev": "Previous",
     "next": "Next",
     "today": "Today",
-    "unscheduled": "Unscheduled"
+    "unscheduled": "Unscheduled",
+    "updateError": "Couldn't update the dates. Try again."
   },
   "inbox": {
     "title": "Inbox",

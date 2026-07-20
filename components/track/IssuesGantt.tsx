@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { Link } from '@/i18n/navigation';
 import type { TrackStatusRow } from '@/lib/db';
 import type { TrackIssueWithStatus } from '@/lib/track-data';
@@ -9,12 +9,14 @@ interface IssuesGanttProps {
   issues: TrackIssueWithStatus[];
   statuses: TrackStatusRow[];
   locale: string;
+  onDatesChange: (issueId: string, startDate: string, dueDate: string) => Promise<void>;
   labels: {
     prev: string;
     next: string;
     today: string;
     unscheduled: string;
     noAssignee: string;
+    updateError: string;
   };
 }
 
@@ -25,8 +27,33 @@ interface GanttRow {
   end: Date;
 }
 
+type DragMode = 'move' | 'start' | 'end';
+
+/** Estado del drag de una barra. Las fechas se manejan como índices de día
+ *  relativos a windowStart (enteros → snap a día, inmune a DST). */
+interface BarDrag {
+  pointerId: number;
+  issueId: string;
+  mode: DragMode;
+  startX: number;
+  dayPx: number;
+  origStartIdx: number;
+  origEndIdx: number;
+  curStartIdx: number;
+  curEndIdx: number;
+  dragging: boolean;
+}
+
+/** Preview en vivo: índices de día de la barra arrastrada. */
+interface DragPreview {
+  issueId: string;
+  startIdx: number;
+  endIdx: number;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const INK = '#000000';
+const DRAG_THRESHOLD = 6; // px antes de activar el drag (permite clicks que navegan)
 
 /** Date-only parse: usa los primeros 10 chars (YYYY-MM-DD) como fecha local. */
 function dayOf(iso: string): Date | null {
@@ -42,6 +69,17 @@ function addDays(d: Date, n: number): Date {
 function todayLocal(): Date {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+/** YYYY-MM-DD en hora local (formato aceptado por la API). */
+function ymd(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function clampIdx(v: number, lo: number, hi: number): number {
+  if (lo > hi) return lo;
+  return Math.min(Math.max(v, lo), hi);
 }
 
 /**
@@ -73,8 +111,13 @@ function buildRows(issues: TrackIssueWithStatus[]): GanttRow[] {
   return rows;
 }
 
-export default function IssuesGantt({ issues, statuses, locale, labels }: IssuesGanttProps) {
+export default function IssuesGantt({ issues, statuses, locale, onDatesChange, labels }: IssuesGanttProps) {
   const [shiftWeeks, setShiftWeeks] = useState(0);
+  const [preview, setPreview] = useState<DragPreview | null>(null);
+  const [dragError, setDragError] = useState<string | null>(null);
+
+  const dragRef = useRef<BarDrag | null>(null);
+  const suppressClickRef = useRef(false);
 
   const { rows, unscheduled } = useMemo(() => {
     const scheduled: TrackIssueWithStatus[] = [];
@@ -103,6 +146,7 @@ export default function IssuesGantt({ issues, statuses, locale, labels }: Issues
   const windowEnd = addDays(baseRange.end, shiftWeeks * 7);
   const totalDays = Math.max(1, Math.round((windowEnd.getTime() - windowStart.getTime()) / DAY_MS) + 1);
   const pctOf = (d: Date) => ((d.getTime() - windowStart.getTime()) / DAY_MS / totalDays) * 100;
+  const idxOf = (d: Date) => Math.round((d.getTime() - windowStart.getTime()) / DAY_MS);
 
   const fmtDay = (d: Date) => d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -139,6 +183,105 @@ export default function IssuesGantt({ issues, statuses, locale, labels }: Issues
   const statusColor = (issue: TrackIssueWithStatus) =>
     issue.status_color ?? statuses.find((s) => s.id === issue.status_id)?.color ?? INK;
 
+  // ---------- Drag & drop de barras (pointer events, sin deps) ----------
+
+  /** Índices resultantes de mover el pointer deltaPx, con clamp al rango visible. */
+  function dragIndices(d: BarDrag, deltaPx: number): { startIdx: number; endIdx: number } {
+    const delta = Math.round(deltaPx / d.dayPx);
+    const lastIdx = totalDays - 1;
+    if (d.mode === 'move') {
+      const duration = d.origEndIdx - d.origStartIdx;
+      const startIdx = clampIdx(d.origStartIdx + delta, 0, lastIdx - duration);
+      return { startIdx, endIdx: startIdx + duration };
+    }
+    if (d.mode === 'start') {
+      // El inicio nunca supera al fin (clamp → duración mínima 1 día de ancho).
+      return { startIdx: clampIdx(d.origStartIdx + delta, 0, d.origEndIdx), endIdx: d.origEndIdx };
+    }
+    return { startIdx: d.origStartIdx, endIdx: clampIdx(d.origEndIdx + delta, d.origStartIdx, lastIdx) };
+  }
+
+  function handleBarPointerDown(
+    e: ReactPointerEvent<HTMLAnchorElement>,
+    issue: TrackIssueWithStatus,
+    start: Date,
+    end: Date,
+  ) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const barEl = e.currentTarget;
+    try {
+      barEl.setPointerCapture(e.pointerId);
+    } catch {
+      return;
+    }
+    const canvasEl = barEl.closest('.track-gantt-canvas');
+    const width = canvasEl?.getBoundingClientRect().width ?? 0;
+    if (!(width > 0)) return;
+    const target = e.target as HTMLElement;
+    const mode: DragMode = target.closest('.track-gantt-handle-start')
+      ? 'start'
+      : target.closest('.track-gantt-handle-end')
+        ? 'end'
+        : 'move';
+    const origStartIdx = idxOf(start);
+    const origEndIdx = idxOf(end);
+    dragRef.current = {
+      pointerId: e.pointerId,
+      issueId: issue.id,
+      mode,
+      startX: e.clientX,
+      dayPx: width / totalDays,
+      origStartIdx,
+      origEndIdx,
+      curStartIdx: origStartIdx,
+      curEndIdx: origEndIdx,
+      dragging: false,
+    };
+    setDragError(null);
+  }
+
+  function handleBarPointerMove(e: ReactPointerEvent<HTMLAnchorElement>) {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    if (!d.dragging) {
+      if (Math.abs(e.clientX - d.startX) < DRAG_THRESHOLD) return;
+      d.dragging = true;
+    }
+    const { startIdx, endIdx } = dragIndices(d, e.clientX - d.startX);
+    if (startIdx === d.curStartIdx && endIdx === d.curEndIdx) return;
+    d.curStartIdx = startIdx;
+    d.curEndIdx = endIdx;
+    setPreview({ issueId: d.issueId, startIdx, endIdx });
+  }
+
+  function handleBarPointerUp(e: ReactPointerEvent<HTMLAnchorElement>) {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    dragRef.current = null;
+    if (!d.dragging) return;
+    // El click posterior al drag no debe navegar.
+    suppressClickRef.current = true;
+    setPreview(null);
+    if (d.curStartIdx === d.origStartIdx && d.curEndIdx === d.origEndIdx) return;
+    const startDate = ymd(addDays(windowStart, d.curStartIdx));
+    const dueDate = ymd(addDays(windowStart, d.curEndIdx));
+    void onDatesChange(d.issueId, startDate, dueDate).catch(() => setDragError(labels.updateError));
+  }
+
+  function handleBarPointerCancel(e: ReactPointerEvent<HTMLAnchorElement>) {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    dragRef.current = null;
+    setPreview(null);
+  }
+
+  function handleBarClick(e: ReactMouseEvent<HTMLAnchorElement>) {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      e.preventDefault();
+    }
+  }
+
   return (
     <div className="track-gantt">
       <div className="track-gantt-header">
@@ -157,6 +300,12 @@ export default function IssuesGantt({ issues, statuses, locale, labels }: Issues
           </button>
         </div>
       </div>
+
+      {dragError && (
+        <p className="form-error" role="alert" style={{ margin: '8px 0 0' }}>
+          {dragError}
+        </p>
+      )}
 
       <div className="track-gantt-body">
         <div className="track-gantt-side">
@@ -192,22 +341,39 @@ export default function IssuesGantt({ issues, statuses, locale, labels }: Issues
             </div>
 
             {rows.map(({ issue, start, end }) => {
-              const left = pctOf(start);
-              const right = pctOf(addDays(end, 1));
+              const p = preview && preview.issueId === issue.id ? preview : null;
+              const rs = p ? addDays(windowStart, p.startIdx) : start;
+              const re = p ? addDays(windowStart, p.endIdx) : end;
+              const left = Math.max(0, pctOf(rs));
+              const right = Math.min(100, pctOf(addDays(re, 1)));
               const visible = right > 0 && left < 100;
               return (
                 <div className="track-gantt-row" key={issue.id}>
                   {visible && (
                     <Link
                       href={`/${locale}/app/track/issues/${issue.id}`}
-                      className="track-gantt-bar"
+                      className={`track-gantt-bar${p ? ' dragging' : ''}`}
+                      draggable={false}
                       style={{
                         left: `${left}%`,
                         width: `${Math.max(0, right - left)}%`,
                         background: statusColor(issue),
                       }}
-                      title={`${issue.identifier} · ${issue.title}\n${fmtDay(start)} → ${fmtDay(end)}\n${issue.priority} · ${issue.assignee_name ?? labels.noAssignee}`}
-                    />
+                      title={`${issue.identifier} · ${issue.title}\n${fmtDay(rs)} → ${fmtDay(re)}\n${issue.priority} · ${issue.assignee_name ?? labels.noAssignee}`}
+                      onPointerDown={(e) => handleBarPointerDown(e, issue, start, end)}
+                      onPointerMove={handleBarPointerMove}
+                      onPointerUp={handleBarPointerUp}
+                      onPointerCancel={handleBarPointerCancel}
+                      onClick={handleBarClick}
+                    >
+                      <span className="track-gantt-handle track-gantt-handle-start" aria-hidden />
+                      <span className="track-gantt-handle track-gantt-handle-end" aria-hidden />
+                    </Link>
+                  )}
+                  {p && visible && (
+                    <span className="track-gantt-dragtip" style={{ left: `${left}%` }} aria-hidden>
+                      {fmtDay(rs)} → {fmtDay(re)}
+                    </span>
                   )}
                 </div>
               );
