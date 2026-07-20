@@ -43,6 +43,9 @@ export default async function EditWidgetPage({
         <Link href={`/app/chat/widgets/${widget.id}/canned`} className="chat-widget-nav-link">
           {t('canned.title')}
         </Link>
+        <Link href={`/app/chat/widgets/${widget.id}/sla`} className="chat-widget-nav-link">
+          {t('sla.policies')}
+        </Link>
       </nav>
 
       <div className="stat-cards">

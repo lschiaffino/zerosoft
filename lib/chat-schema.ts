@@ -81,3 +81,18 @@ export const csatSubmitSchema = z.object({
   score: z.number().int().min(1).max(5),
   comment: longText.optional(),
 });
+
+// ---------- SLA policies ----------
+
+// Minutos positivos con tope de 30 días (43200).
+const slaMinutes = z.number().int().min(1).max(43_200);
+
+export const slaPolicySchema = z.object({
+  priority: chatPrioritySchema,
+  firstResponseMinutes: slaMinutes,
+  resolutionMinutes: slaMinutes.nullable(),
+});
+
+export const slaPoliciesUpdateSchema = z.object({
+  policies: z.array(slaPolicySchema).min(1).max(4),
+});

@@ -595,6 +595,13 @@ export interface ConversationUpdatePayload {
 
 // ---------- SLA (campos computados) ----------
 
+export const CHAT_SLA_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
+export type ChatSlaPriority = (typeof CHAT_SLA_PRIORITIES)[number];
+
+// Default aplicado cuando un widget no tiene policy activa para una
+// prioridad: primera respuesta en 60 min, sin SLA de resolución.
+export const DEFAULT_SLA_FIRST_RESPONSE_MINUTES = 60;
+
 export type SlaBreachKind = 'first_response' | 'resolution';
 
 export interface SlaComputedFields {
@@ -618,15 +625,14 @@ async function loadActiveSlaPolicies(widgetIds: string[]): Promise<Map<string, C
   return new Map(rows.map((r) => [`${r.widget_id}:${r.priority}`, r]));
 }
 
-// Badge de SLA derivado de la policy activa del widget+priority
-// (default: primera respuesta en 60 min, sin resolution SLA).
+// Badge de SLA derivado de la policy activa del widget+priority.
 export function computeSlaFields(
   c: SlaInput,
   policies: Map<string, ChatSlaPolicyRow>,
   now = new Date(),
 ): SlaComputedFields {
   const policy = policies.get(`${c.widget_id}:${c.priority}`);
-  const firstMinutes = policy?.first_response_minutes ?? 60;
+  const firstMinutes = policy?.first_response_minutes ?? DEFAULT_SLA_FIRST_RESPONSE_MINUTES;
   const resolutionMinutes = policy?.resolution_minutes ?? null;
   const created = parseTs(c.created_at);
   const firstDue = created + firstMinutes * 60_000;
@@ -1251,7 +1257,7 @@ export async function getChatSlaStatus(conversation: ChatConversationRow): Promi
     )
     .get(conversation.widget_id, conversation.priority)) as ChatSlaPolicyRow | undefined;
 
-  const firstResponseMinutes = policy?.first_response_minutes ?? 60;
+  const firstResponseMinutes = policy?.first_response_minutes ?? DEFAULT_SLA_FIRST_RESPONSE_MINUTES;
   const resolutionMinutes = policy?.resolution_minutes ?? null;
 
   const firstResponseDeadline = conversation.first_response_at
@@ -1304,6 +1310,64 @@ export async function recordResolved(conversationId: string): Promise<void> {
   await db
     .prepare("UPDATE chat_conversations SET resolved_at = ?, updated_at = ? WHERE id = ?")
     .run(nowIso(), nowIso(), conversationId);
+}
+
+// ---------- SLA policies (CRUD) ----------
+
+export interface SlaPolicyPayload {
+  priority: ChatSlaPriority;
+  firstResponseMinutes: number;
+  resolutionMinutes: number | null;
+}
+
+export async function listSlaPolicies(widgetId: string): Promise<ChatSlaPolicyRow[]> {
+  return (await getDb()
+    .prepare('SELECT * FROM chat_sla_policies WHERE widget_id = ? ORDER BY priority ASC')
+    .all(widgetId)) as ChatSlaPolicyRow[];
+}
+
+// Upsert por (widget_id, priority): la tabla no tiene UNIQUE en ese par,
+// así que se actualiza la fila existente (si hay) o se inserta una nueva.
+export async function upsertSlaPolicy(
+  widgetId: string,
+  payload: SlaPolicyPayload,
+): Promise<ChatSlaPolicyRow> {
+  const db = getDb();
+  const now = nowIso();
+  const name = `SLA ${payload.priority}`;
+  const existing = (await db
+    .prepare(
+      'SELECT id FROM chat_sla_policies WHERE widget_id = ? AND priority = ? ORDER BY created_at ASC LIMIT 1',
+    )
+    .get(widgetId, payload.priority)) as { id: string } | undefined;
+
+  if (existing) {
+    await db
+      .prepare(
+        'UPDATE chat_sla_policies SET name = ?, first_response_minutes = ?, resolution_minutes = ?, active = 1, updated_at = ? WHERE id = ?',
+      )
+      .run(name, payload.firstResponseMinutes, payload.resolutionMinutes, now, existing.id);
+    return (await db
+      .prepare('SELECT * FROM chat_sla_policies WHERE id = ?')
+      .get(existing.id)) as ChatSlaPolicyRow;
+  }
+
+  const id = crypto.randomUUID();
+  await db
+    .prepare(
+      'INSERT INTO chat_sla_policies (id, widget_id, name, first_response_minutes, resolution_minutes, priority, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)',
+    )
+    .run(
+      id,
+      widgetId,
+      name,
+      payload.firstResponseMinutes,
+      payload.resolutionMinutes,
+      payload.priority,
+      now,
+      now,
+    );
+  return (await db.prepare('SELECT * FROM chat_sla_policies WHERE id = ?').get(id)) as ChatSlaPolicyRow;
 }
 
 // ---------- Canned responses ----------

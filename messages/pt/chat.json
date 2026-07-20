@@ -155,7 +155,14 @@
     "breachedFirst": "SLA de 1ª resposta",
     "breachedResolution": "SLA de resolução",
     "dueIn": "Responder em {{minutes}}m",
-    "resolved": "Resolvido"
+    "resolved": "Resolvido",
+    "policies": "Políticas de SLA",
+    "priority": "Prioridade",
+    "firstResponseMinutes": "Primeira resposta (min)",
+    "resolutionMinutes": "Resolução (min)",
+    "default": "Padrão",
+    "saved": "Salvo.",
+    "policiesNote": "Metas por prioridade para este widget. Sem política, a primeira resposta usa 60 min por padrão e não há meta de resolução. Deixe a resolução vazia para não definir meta."
   },
   "settings": {
     "title": "Configurações de chat",
