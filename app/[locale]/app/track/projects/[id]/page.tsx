@@ -29,6 +29,9 @@ export default async function ProjectPage({
         noIssues: t('project.noIssues'),
         noAssignee: t('issues.noAssignee'),
         loading: t('common.loading'),
+        loadMore: t('project.loadMore'),
+        // Raw ICU template; the client substitutes {shown}/{total} at render time.
+        showing: t.raw('project.showing') as string,
         viewSwitcher: {
           list: t('views.list'),
           board: t('views.board'),

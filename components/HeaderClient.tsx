@@ -63,6 +63,26 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
     setMobileOpen((v) => !v);
   };
 
+  // Esc closes whichever menu is open and returns focus to its trigger.
+  const onDropdownKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape' || (!desktopOpen && !mobileOpen)) return;
+    e.stopPropagation();
+    const triggerSelector = mobileOpen
+      ? '.nav-dropdown-trigger-mobile'
+      : '.nav-dropdown-trigger-desktop';
+    setDesktopOpen(false);
+    setMobileOpen(false);
+    const trigger = dropdownRef.current?.querySelector<HTMLElement>(triggerSelector);
+    trigger?.focus();
+  };
+
+  // Keyboard mirror of onMouseLeave: close when focus leaves the dropdown.
+  const onDropdownBlur = (e: React.FocusEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+      setDesktopOpen(false);
+    }
+  };
+
   // Close menus when clicking outside the dropdown.
   useEffect(() => {
     if (!desktopOpen && !mobileOpen) return;
@@ -105,9 +125,18 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
           className={`nav-dropdown${desktopOpen ? ' open' : ''}${mobileOpen ? ' mobile-open' : ''}`}
           onMouseEnter={openDesktop}
           onMouseLeave={closeDesktop}
+          onKeyDown={onDropdownKeyDown}
+          onBlur={onDropdownBlur}
         >
           {/* Desktop trigger: hover-activated */}
-          <Link className="nav-link nav-dropdown-trigger-desktop" href="/products">
+          <Link
+            className="nav-link nav-dropdown-trigger-desktop"
+            href="/products"
+            aria-expanded={desktopOpen}
+            aria-haspopup="true"
+            aria-controls="mega-menu-desktop"
+            onFocus={openDesktop}
+          >
             <span className="nav-num">01</span>
             {labels.products}
           </Link>
@@ -117,6 +146,8 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
             type="button"
             className="nav-link nav-dropdown-trigger-mobile"
             aria-expanded={mobileOpen}
+            aria-haspopup="true"
+            aria-controls="mega-menu-mobile"
             onClick={toggleMobile}
           >
             <span className="nav-num">01</span>
@@ -124,6 +155,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
           </button>
 
           <div
+            id="mega-menu-desktop"
             className="mega-menu mega-menu-desktop"
             onMouseEnter={openDesktop}
             onMouseLeave={closeDesktop}
@@ -131,6 +163,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
             <div className="mega-menu-inner">{megaItems}</div>
           </div>
           <div
+            id="mega-menu-mobile"
             className="mega-menu mega-menu-mobile"
             onMouseEnter={openDesktop}
             onMouseLeave={closeDesktop}

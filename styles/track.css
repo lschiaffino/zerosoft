@@ -156,6 +156,17 @@
   margin-bottom: 16px;
 }
 
+.track-pagination {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.track-pagination-count {
+  font-size: 12px;
+}
+
 .track-tabs {
   display: flex;
   gap: 8px;

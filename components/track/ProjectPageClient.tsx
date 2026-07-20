@@ -31,6 +31,9 @@ export interface PageLabels {
   noIssues: string;
   noAssignee: string;
   loading: string;
+  loadMore: string;
+  /** Raw ICU template with {shown} and {total} placeholders. */
+  showing: string;
   viewSwitcher: {
     list: string;
     board: string;
@@ -93,6 +96,9 @@ export interface PageLabels {
 const SORTS = ['newest', 'oldest', 'priority', 'identifier'] as const;
 type SortValue = (typeof SORTS)[number];
 
+// Matches the server-side cap in lib/track-data.ts (listIssues clamps pageSize to 100).
+const ISSUES_PAGE_SIZE = 100;
+
 function parseLabels(raw: string): IssueLabel[] {
   try {
     const parsed = JSON.parse(raw);
@@ -153,6 +159,9 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [views, setViews] = useState<TrackIssueView[]>([]);
   const [issues, setIssues] = useState<TrackIssueWithStatus[]>([]);
+  const [issuesTotal, setIssuesTotal] = useState(0);
+  const [issuesPage, setIssuesPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [view, setView] = useState<ViewType>(() => (searchParams.get('view') as ViewType) ?? 'list');
@@ -167,14 +176,29 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
     return Array.from(map.values());
   }, [issues]);
 
-  const fetchIssues = useCallback(async () => {
-    const sp = filtersToParams(filters, sort);
-    sp.set('pageSize', '200');
-    const data = await api<{ rows: TrackIssueWithStatus[]; total: number }>(
-      `/api/track/projects/${projectId}/issues?${sp.toString()}`,
-    );
-    setIssues(data.rows);
-  }, [projectId, filters, sort]);
+  const fetchIssues = useCallback(
+    async (page: number, append: boolean) => {
+      const sp = filtersToParams(filters, sort);
+      sp.set('pageSize', String(ISSUES_PAGE_SIZE));
+      sp.set('page', String(page));
+      const data = await api<{ rows: TrackIssueWithStatus[]; total: number }>(
+        `/api/track/projects/${projectId}/issues?${sp.toString()}`,
+      );
+      setIssues((prev) => (append ? [...prev, ...data.rows] : data.rows));
+      setIssuesTotal(data.total);
+      setIssuesPage(page);
+    },
+    [projectId, filters, sort],
+  );
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      await fetchIssues(issuesPage + 1, true);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -188,8 +212,8 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
           api<{ rows: ProjectMember[] }>(`/api/track/projects/${projectId}/members`).then((r) => r.rows),
           api<{ rows: TrackIssueView[] }>(`/api/track/projects/${projectId}/views`).then((r) => r.rows),
           api<{ rows: TrackIssueWithStatus[]; total: number }>(
-            `/api/track/projects/${projectId}/issues?pageSize=200`,
-          ).then((r) => r.rows),
+            `/api/track/projects/${projectId}/issues?pageSize=${ISSUES_PAGE_SIZE}&page=1`,
+          ),
         ]);
         if (!mounted) return;
         setProject(p);
@@ -197,7 +221,9 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
         setCycles(c);
         setMembers(m);
         setViews(v);
-        setIssues(i);
+        setIssues(i.rows);
+        setIssuesTotal(i.total);
+        setIssuesPage(1);
 
         // Apply default view if present and no URL state
         const hasUrlState =
@@ -228,7 +254,7 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
 
   useEffect(() => {
     if (loading) return;
-    fetchIssues();
+    fetchIssues(1, false);
   }, [filters, sort, fetchIssues, loading]);
 
   useEffect(() => {
@@ -423,6 +449,26 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
           />
         )}
       </div>
+
+      {issuesTotal > 0 && (
+        <div className="track-pagination">
+          <p className="muted mono track-pagination-count" role="status">
+            {labels.showing
+              .replace('{shown}', String(issues.length))
+              .replace('{total}', String(issuesTotal))}
+          </p>
+          {issues.length < issuesTotal && (
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+            >
+              {loadingMore ? labels.loading : labels.loadMore}
+            </button>
+          )}
+        </div>
+      )}
 
       {cycles.length > 0 && (
         <section className="panel" style={{ marginTop: 32 }}>

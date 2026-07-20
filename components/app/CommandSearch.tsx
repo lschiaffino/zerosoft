@@ -45,6 +45,7 @@ export default function CommandSearch() {
   const [loading, setLoading] = useState(false);
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const prevFocusRef = useRef<HTMLElement | null>(null);
   const groupOrder = useGroupOrder();
   const groupLabel = useGroupLabel(t);
 
@@ -82,10 +83,15 @@ export default function CommandSearch() {
 
   useEffect(() => {
     if (open) {
+      // Remember the trigger to restore focus when the palette closes.
+      prevFocusRef.current = document.activeElement as HTMLElement | null;
       setQ('');
       setItems(actionItems);
       setSel(0);
       setTimeout(() => inputRef.current?.focus(), 30);
+    } else {
+      prevFocusRef.current?.focus();
+      prevFocusRef.current = null;
     }
   }, [open, actionItems]);
 
@@ -124,17 +130,26 @@ export default function CommandSearch() {
     router.push(item.href);
   }
 
+  // Attached to the dialog container so Esc/arrows work wherever focus sits
+  // inside the palette (input or a result button).
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') setOpen(false);
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setOpen(false);
+    } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSel((s) => Math.min(s + 1, items.length - 1));
-    }
-    if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSel((s) => Math.max(s - 1, 0));
+    } else if (e.key === 'Enter' && items[sel]) {
+      e.preventDefault();
+      go(items[sel]);
+    } else if (e.key === 'Tab') {
+      // Focus trap: the input is the only tabbable element while open.
+      e.preventDefault();
+      inputRef.current?.focus();
     }
-    if (e.key === 'Enter' && items[sel]) go(items[sel]);
   }
 
   if (!open) return null;
@@ -142,17 +157,28 @@ export default function CommandSearch() {
   let lastGroup = '';
   return (
     <div className="cmdk-backdrop" onMouseDown={() => setOpen(false)}>
-      <div className="cmdk" onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className="cmdk"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('search')}
+        onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={onKeyDown}
+      >
         <input
           ref={inputRef}
           className="cmdk-input"
+          role="combobox"
+          aria-expanded="true"
+          aria-controls="cmdk-listbox"
+          aria-activedescendant={items[sel] ? `cmdk-option-${sel}` : undefined}
+          aria-autocomplete="list"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          onKeyDown={onKeyDown}
           placeholder={t('searchPlaceholder')}
           aria-label={t('search')}
         />
-        <div className="cmdk-results">
+        <div className="cmdk-results" role="listbox" id="cmdk-listbox" aria-label={t('search')}>
           {loading && <p className="cmdk-state">{t('searchLoading')}</p>}
           {!loading && q.trim() && items.length === 0 && (
             <p className="cmdk-state">{t('searchEmpty')}</p>
@@ -161,16 +187,20 @@ export default function CommandSearch() {
             items.map((item, i) => {
               const header =
                 item.group !== lastGroup ? (
-                  <p className="cmdk-group" key={`g-${item.group}`}>
+                  <p className="cmdk-group" key={`g-${item.group}`} role="presentation">
                     {groupLabel(item.group)}
                   </p>
                 ) : null;
               lastGroup = item.group;
               return (
-                <div key={`${item.href}-${i}`}>
+                <div key={`${item.href}-${i}`} role="presentation">
                   {header}
                   <button
                     type="button"
+                    role="option"
+                    id={`cmdk-option-${i}`}
+                    aria-selected={i === sel}
+                    tabIndex={-1}
                     className={`cmdk-item${i === sel ? ' sel' : ''}`}
                     onMouseEnter={() => setSel(i)}
                     onClick={() => go(item)}

@@ -253,14 +253,16 @@ nav.main-nav a:hover { opacity: 1; }
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.08);
   z-index: 20;
   opacity: 0;
+  visibility: hidden;
   transform: translateY(-8px);
   pointer-events: none;
-  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease), visibility 0.25s var(--ease);
 }
 
 .nav-dropdown.open .mega-menu-desktop,
 .nav-dropdown.mobile-open .mega-menu-mobile {
   opacity: 1;
+  visibility: visible;
   transform: translateY(0);
   pointer-events: auto;
 }

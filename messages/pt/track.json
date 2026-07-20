@@ -59,7 +59,9 @@
     "noIssues": "Ainda não há issues.",
     "noCycles": "Ainda não há ciclos.",
     "activeCycle": "Ciclo ativo",
-    "pastCycles": "Ciclos anteriores"
+    "pastCycles": "Ciclos anteriores",
+    "loadMore": "Carregar mais",
+    "showing": "Mostrando {shown} de {total}"
   },
   "issues": {
     "title": "Issues",

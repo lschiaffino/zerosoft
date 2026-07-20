@@ -29,6 +29,7 @@ export default function BookMeetingMenu({ eventTypes, name, email, locale }: Boo
   const [loaded, setLoaded] = useState(eventTypes !== undefined);
   const [copied, setCopied] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -37,6 +38,20 @@ export default function BookMeetingMenu({ eventTypes, name, email, locale }: Boo
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
+
+  // Esc closes the popover and returns focus to the trigger.
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
 
   // Fetch lazy cuando el server no proveyó la lista (p.ej. RecordPreview).
   useEffect(() => {
@@ -97,14 +112,16 @@ export default function BookMeetingMenu({ eventTypes, name, email, locale }: Boo
     <div className="book-meeting" ref={ref}>
       <button
         type="button"
+        ref={triggerRef}
         className="btn btn-ghost btn-small"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        aria-haspopup="dialog"
       >
         {t('meetings.book')}
       </button>
       {open && (
-        <div className="book-meeting-menu" role="menu">
+        <div className="book-meeting-menu">
           {items.length === 0 ? (
             <p className="book-meeting-empty muted">
               {loaded ? t('meetings.empty') : t('common.saving')}

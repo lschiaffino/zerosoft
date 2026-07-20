@@ -148,6 +148,7 @@ export default function FilterBuilder({ fields, initial, baseQuery }: FilterBuil
           className={`btn btn-ghost btn-small${open ? ' filter-builder-open' : ''}`}
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
+          aria-controls="filter-builder-body"
         >
           {t('filters.advanced')}
           {activeCount > 0 && <span className="filter-builder-count mono">{activeCount}</span>}
@@ -160,7 +161,7 @@ export default function FilterBuilder({ fields, initial, baseQuery }: FilterBuil
       </div>
 
       {open && (
-        <div className="filter-builder-body">
+        <div className="filter-builder-body" id="filter-builder-body">
           {rows.length === 0 ? (
             <p className="muted filter-builder-empty">{t('filters.empty')}</p>
           ) : (

@@ -1,23 +1,35 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import ProductPage, {
-  PRODUCT_KEYS,
-  type ProductKey,
-} from '@/components/products/ProductPage';
+import ProductPage from '@/components/products/ProductPage';
+import { PRODUCT_KEYS, isProductKey } from '@/lib/products';
 import '@/styles/pages.css';
-
-function isProduct(value: string): value is ProductKey {
-  return (PRODUCT_KEYS as string[]).includes(value);
-}
 
 export async function generateMetadata({
   params: { locale, product },
 }: {
   params: { locale: string; product: string };
 }) {
-  if (!isProduct(product)) return {};
+  if (!isProductKey(product)) return {};
   const t = await getTranslations({ locale, namespace: `pages.products.${product}.meta` });
-  return { title: t('title'), description: t('description') };
+  const title = t('title');
+  const description = t('description');
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      url: `/${locale}/products/${product}`,
+      images: [`/api/og/product/${product}`],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`/api/og/product/${product}`],
+    },
+  };
 }
 
 export function generateStaticParams() {
@@ -30,6 +42,6 @@ export default async function Page({
   params: { locale: string; product: string };
 }) {
   setRequestLocale(locale);
-  if (!isProduct(product)) notFound();
+  if (!isProductKey(product)) notFound();
   return <ProductPage locale={locale} product={product} />;
 }

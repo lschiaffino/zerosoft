@@ -41,6 +41,7 @@ export default function EmojiPicker({ value, onChange, children }: EmojiPickerPr
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const wrapRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -48,7 +49,12 @@ export default function EmojiPicker({ value, onChange, children }: EmojiPickerPr
       if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setOpen(false);
+        // Focus was auto-moved into the popover search; give it back to the trigger.
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener('click', onClick);
     document.addEventListener('keydown', onKey);
@@ -71,9 +77,12 @@ export default function EmojiPicker({ value, onChange, children }: EmojiPickerPr
     <div ref={wrapRef} className="emoji-picker-wrap">
       <button
         type="button"
+        ref={triggerRef}
         className="emoji-picker-trigger"
         onClick={() => setOpen((v) => !v)}
         aria-label={t('emoji.pick')}
+        aria-expanded={open}
+        aria-haspopup="dialog"
       >
         {children}
       </button>

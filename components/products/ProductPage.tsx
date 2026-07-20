@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
+import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import Reveal from '@/components/Reveal';
 import BrowserFrame from './BrowserFrame';
 import LinkMockup from './mockups/LinkMockup';
@@ -7,18 +8,6 @@ import TrackMockup from './mockups/TrackMockup';
 import CrmMockup from './mockups/CrmMockup';
 import CalMockup from './mockups/CalMockup';
 import DocsMockup from './mockups/DocsMockup';
-
-export const PRODUCT_CONFIG = {
-  link: { num: '04', name: 'Link', available: true, launch: '/app' },
-  track: { num: '01', name: 'Track', available: false, launch: '/app' },
-  crm: { num: '02', name: 'CRM', available: true, launch: '/app/crm' },
-  cal: { num: '03', name: 'Cal', available: false, launch: '/app' },
-  docs: { num: '05', name: 'Docs', available: true, launch: '/app/docs' },
-} as const;
-
-export type ProductKey = keyof typeof PRODUCT_CONFIG;
-
-export const PRODUCT_KEYS = Object.keys(PRODUCT_CONFIG) as ProductKey[];
 
 const MOCKUPS = {
   link: LinkMockup,
