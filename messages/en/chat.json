@@ -27,6 +27,8 @@
     "fieldName": "Field name",
     "fieldRequired": "Required",
     "fieldType": "Type",
+    "fieldTypeText": "Text",
+    "fieldTypeNumber": "Number",
     "save": "Save widget",
     "create": "Create widget",
     "newTitle": "New widget",
@@ -62,7 +64,8 @@
     },
     "search": "Search visitors or subjects…",
     "empty": "No conversations match your filters.",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "unread": "Unread"
   },
   "conversation": {
     "open": "Open",
@@ -141,7 +144,8 @@
     "empty": "No assignment rules yet.",
     "matchType": "Match type",
     "keyword": "Keyword",
-    "timeRange": "Time range"
+    "timeRange": "Time range",
+    "keywordPlaceholder": "refund, pricing…"
   },
   "sla": {
     "title": "SLA",
@@ -198,6 +202,7 @@
     "audio": "Audio",
     "file": "File",
     "upload": "Attach file",
+    "remove": "Remove file",
     "dragDrop": "Drag and drop a file here",
     "maxSize": "Max 10 MB"
   },

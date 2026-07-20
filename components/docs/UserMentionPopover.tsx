@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DocsMentionableUser } from '@/lib/docs-types';
 
 interface UserMentionPopoverProps {
@@ -11,6 +12,7 @@ interface UserMentionPopoverProps {
 
 /** Popover de @menciones: lista miembros del workspace y filtra por nombre/email. */
 export default function UserMentionPopover({ query, onSelect, onClose }: UserMentionPopoverProps) {
+  const t = useTranslations('docs');
   const [members, setMembers] = useState<DocsMentionableUser[] | null>(null);
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export default function UserMentionPopover({ query, onSelect, onClose }: UserMen
       {filtered === null ? (
         <div className="docs-mention-empty">…</div>
       ) : filtered.length === 0 ? (
-        <div className="docs-mention-empty">No members</div>
+        <div className="docs-mention-empty">{t('mentions.noMembers')}</div>
       ) : (
         filtered.map((member) => (
           <button

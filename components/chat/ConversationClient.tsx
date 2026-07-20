@@ -542,7 +542,7 @@ export default function ConversationClient({
         {selectedFile && (
           <div className="chat-attachment-preview">
             <span>📎 {selectedFile.name} ({formatBytes(selectedFile.size)})</span>
-            <button type="button" onClick={clearSelectedFile} aria-label="Remove file">×</button>
+            <button type="button" onClick={clearSelectedFile} aria-label={t('attachments.remove')}>×</button>
           </div>
         )}
 

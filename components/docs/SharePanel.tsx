@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DocsPage, DocsPageShare } from '@/lib/docs-types';
 
 interface SharePanelProps {
@@ -12,6 +13,7 @@ interface SharePanelProps {
 }
 
 export default function SharePanel({ page, shares, onUpdate, onShare, onUnshare }: SharePanelProps) {
+  const t = useTranslations('docs');
   const [kind, setKind] = useState<'public' | 'team' | 'user'>('team');
   const [targetId, setTargetId] = useState('');
 
@@ -19,7 +21,7 @@ export default function SharePanel({ page, shares, onUpdate, onShare, onUnshare 
 
   return (
     <div className="docs-share panel">
-      <p className="section-label">Share</p>
+      <p className="section-label">{t('share.title')}</p>
 
       <label className="docs-share-row">
         <input
@@ -27,7 +29,7 @@ export default function SharePanel({ page, shares, onUpdate, onShare, onUnshare 
           checked={page.is_public}
           onChange={(e) => onUpdate({ is_public: e.target.checked })}
         />
-        <span>Public on the web</span>
+        <span>{t('share.public')}</span>
       </label>
 
       <div className="docs-share-list">
@@ -44,15 +46,15 @@ export default function SharePanel({ page, shares, onUpdate, onShare, onUnshare 
 
       <div className="docs-share-form">
         <select value={kind} onChange={(e) => setKind(e.target.value as 'public' | 'team' | 'user')}>
-          <option value="team">Team</option>
-          <option value="user">User</option>
+          <option value="team">{t('share.team')}</option>
+          <option value="user">{t('share.user')}</option>
         </select>
         {kind !== 'public' && (
           <input
             className="input"
             value={targetId}
             onChange={(e) => setTargetId(e.target.value)}
-            placeholder={kind === 'team' ? 'Team ID' : 'User ID'}
+            placeholder={kind === 'team' ? t('share.teamId') : t('share.userId')}
           />
         )}
         <button
@@ -63,7 +65,7 @@ export default function SharePanel({ page, shares, onUpdate, onShare, onUnshare 
             setTargetId('');
           }}
         >
-          Share
+          {t('share.share')}
         </button>
       </div>
 

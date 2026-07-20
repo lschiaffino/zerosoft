@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import { usePathname } from '@/i18n/navigation';
 import { buildPageTree, flattenPageTree, type DocsPage } from '@/lib/docs-types';
 
@@ -23,6 +24,7 @@ export default function DocsSidebar({
   moveAction,
   labels,
 }: DocsSidebarProps) {
+  const t = useTranslations('docs');
   const pathname = usePathname();
   const tree = useMemo(() => buildPageTree(pages), [pages]);
   const flat = useMemo(() => flattenPageTree(tree), [tree]);
@@ -87,7 +89,7 @@ export default function DocsSidebar({
                 onDrop={(e) => handleDrop(e, page.id)}
               >
                 <span className="docs-tree-icon">{page.icon ?? '📄'}</span>
-                <span className="docs-tree-title">{page.title || 'Untitled'}</span>
+                <span className="docs-tree-title">{page.title || t('untitled')}</span>
                 <button
                   type="button"
                   className="docs-tree-add"
@@ -112,7 +114,7 @@ export default function DocsSidebar({
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => handleDrop(e, null)}
         >
-          Drop here to make top-level
+          {t('sidebar.dropTopLevel')}
         </div>
       )}
     </div>

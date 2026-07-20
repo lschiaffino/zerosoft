@@ -625,6 +625,8 @@
     "loading": "Cargando…",
     "loadError": "No se pudo cargar este widget.",
     "emptyData": "Sin datos todavía.",
+    "chartActivity": "Actividad a lo largo del tiempo",
+    "chartWonLost": "Ganados vs perdidos",
     "widgets": {
       "kpi": "KPI",
       "funnel": "Embudo del pipeline",

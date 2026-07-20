@@ -625,6 +625,8 @@
     "loading": "Loading…",
     "loadError": "Couldn't load this widget.",
     "emptyData": "No data yet.",
+    "chartActivity": "Activity over time",
+    "chartWonLost": "Won vs lost",
     "widgets": {
       "kpi": "KPI",
       "funnel": "Pipeline funnel",

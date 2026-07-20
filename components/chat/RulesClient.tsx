@@ -175,7 +175,7 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
 
           <div className="chat-rule-form-row">
             <label className="field">
-              <span className="prop-label">{t('rules.matchType') || 'Match type'}</span>
+              <span className="prop-label">{t('rules.matchType')}</span>
               <select
                 className="select"
                 value={form.matchType}
@@ -211,19 +211,19 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
 
           {form.matchType === 'keyword' && (
             <label className="field">
-              <span className="prop-label">{t('rules.keyword') || 'Keyword'}</span>
+              <span className="prop-label">{t('rules.keyword')}</span>
               <input
                 className="input"
                 value={form.matchValue}
                 onChange={(e) => setForm((f) => ({ ...f, matchValue: e.target.value }))}
-                placeholder="refund, pricing…"
+                placeholder={t('rules.keywordPlaceholder')}
               />
             </label>
           )}
 
           {form.matchType === 'time' && (
             <label className="field">
-              <span className="prop-label">{t('rules.timeRange') || 'Time range'}</span>
+              <span className="prop-label">{t('rules.timeRange')}</span>
               <input
                 className="input"
                 value={form.matchValue}
@@ -305,7 +305,7 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
                   ↓
                 </button>
                 <button type="button" className="btn btn-small" onClick={() => startEdit(rule)}>
-                  {t('common.edit') || 'Edit'}
+                  {t('common.edit')}
                 </button>
                 <button
                   type="button"

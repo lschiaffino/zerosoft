@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface EmojiPickerProps {
   value: string;
@@ -8,34 +9,35 @@ interface EmojiPickerProps {
   children: React.ReactNode;
 }
 
-const EMOJI_CATEGORIES: { name: string; emojis: string[] }[] = [
+const EMOJI_CATEGORIES: { key: string; emojis: string[] }[] = [
   {
-    name: 'Recent',
+    key: 'recent',
     emojis: ['📄', '✅', '📌', '💡', '🔥', '🚀', '📊', '📁', '📝', '⚙️'],
   },
   {
-    name: 'Smileys',
+    key: 'smileys',
     emojis: ['😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥸', '🤩', '🥳'],
   },
   {
-    name: 'Objects',
+    key: 'objects',
     emojis: ['💼', '📁', '📂', '🗂️', '📅', '📆', '🗒️', '📋', '📌', '📍', '✂️', '🖊️', '🖋️', '✒️', '📝', '✏️', '🔍', '🔎', '🔐', '🔒', '🔓', '🔑', '🗝️', '💡', '🔦', '🔋', '🔌', '💻', '🖥️', '🖨️'],
   },
   {
-    name: 'Symbols',
+    key: 'symbols',
     emojis: ['✅', '❌', '⭕', '❗', '❓', '‼️', '⁉️', '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '⭐', '🌟', '💫', '✨', '⚡', '🔥'],
   },
   {
-    name: 'Nature',
+    key: 'nature',
     emojis: ['🌱', '🌿', '☘️', '🍀', '🍁', '🍂', '🍃', '🌵', '🌴', '🌲', '🌳', '🌷', '🌹', '🌺', '🌸', '🌼', '🌻', '🌞', '🌝', '🌛', '🌜', '⭐', '🌟', '☁️', '⛅', '🌧️', '⛈️', '❄️', '🔥', '💧'],
   },
   {
-    name: 'Food',
+    key: 'food',
     emojis: ['☕', '🍵', '🥤', '🍺', '🍷', '🍕', '🍔', '🍟', '🌭', '🍿', '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚', '🍳', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🌮', '🌯', '🥗', '🥙', '🥪', '🍣'],
   },
 ];
 
 export default function EmojiPicker({ value, onChange, children }: EmojiPickerProps) {
+  const t = useTranslations('docs');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -71,7 +73,7 @@ export default function EmojiPicker({ value, onChange, children }: EmojiPickerPr
         type="button"
         className="emoji-picker-trigger"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Pick icon"
+        aria-label={t('emoji.pick')}
       >
         {children}
       </button>
@@ -80,15 +82,15 @@ export default function EmojiPicker({ value, onChange, children }: EmojiPickerPr
           <input
             className="emoji-picker-search"
             type="text"
-            placeholder="Search icons…"
+            placeholder={t('emoji.search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
           />
           <div className="emoji-picker-body">
             {filtered.map((cat) => (
-              <div key={cat.name} className="emoji-picker-category">
-                <span className="emoji-picker-cat-name">{cat.name}</span>
+              <div key={cat.key} className="emoji-picker-category">
+                <span className="emoji-picker-cat-name">{t(`emoji.categories.${cat.key}`)}</span>
                 <div className="emoji-picker-grid">
                   {cat.emojis.map((emoji) => (
                     <button
@@ -108,7 +110,7 @@ export default function EmojiPicker({ value, onChange, children }: EmojiPickerPr
               </div>
             ))}
             {filtered.length === 0 && (
-              <div className="emoji-picker-empty">No icons found</div>
+              <div className="emoji-picker-empty">{t('emoji.empty')}</div>
             )}
           </div>
         </div>

@@ -173,7 +173,7 @@ export default function CannedClient({ widgetId }: CannedClientProps) {
               <p className="chat-canned-body">{r.body}</p>
               <div className="chat-canned-actions">
                 <button type="button" className="btn btn-small" onClick={() => startEdit(r)}>
-                  {t('common.edit') || 'Edit'}
+                  {t('common.edit')}
                 </button>
                 <button type="button" className="btn btn-ghost btn-small" onClick={() => remove(r.id)}>
                   {t('common.delete')}

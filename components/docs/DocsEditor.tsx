@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import {
   defaultBlocks,
@@ -28,23 +29,22 @@ interface DocsEditorProps {
 
 const BLOCK_COMMANDS: {
   key: string;
-  label: string;
   type: DocsBlockType;
   level?: 1 | 2 | 3;
   shortcut?: string;
 }[] = [
-  { key: 'p', label: 'Text', type: 'paragraph', shortcut: 'plain text' },
-  { key: 'h1', label: 'Heading 1', type: 'heading', level: 1, shortcut: '# heading' },
-  { key: 'h2', label: 'Heading 2', type: 'heading', level: 2, shortcut: '## heading' },
-  { key: 'h3', label: 'Heading 3', type: 'heading', level: 3, shortcut: '### heading' },
-  { key: 'bulleted', label: 'Bulleted list', type: 'bulleted_list_item', shortcut: '- list' },
-  { key: 'numbered', label: 'Numbered list', type: 'numbered_list_item', shortcut: '1. list' },
-  { key: 'todo', label: 'To-do', type: 'todo', shortcut: '[ ] todo' },
-  { key: 'quote', label: 'Quote', type: 'quote', shortcut: '> quote' },
-  { key: 'code', label: 'Code', type: 'code', shortcut: '``` code' },
-  { key: 'divider', label: 'Divider', type: 'divider' },
-  { key: 'table', label: 'Table', type: 'table' },
-  { key: 'database', label: 'Database', type: 'database' },
+  { key: 'p', type: 'paragraph', shortcut: 'plain text' },
+  { key: 'h1', type: 'heading', level: 1, shortcut: '# heading' },
+  { key: 'h2', type: 'heading', level: 2, shortcut: '## heading' },
+  { key: 'h3', type: 'heading', level: 3, shortcut: '### heading' },
+  { key: 'bulleted', type: 'bulleted_list_item', shortcut: '- list' },
+  { key: 'numbered', type: 'numbered_list_item', shortcut: '1. list' },
+  { key: 'todo', type: 'todo', shortcut: '[ ] todo' },
+  { key: 'quote', type: 'quote', shortcut: '> quote' },
+  { key: 'code', type: 'code', shortcut: '``` code' },
+  { key: 'divider', type: 'divider' },
+  { key: 'table', type: 'table' },
+  { key: 'database', type: 'database' },
 ];
 
 const BLOCK_ICONS: Record<DocsBlockType, string> = {
@@ -69,6 +69,7 @@ export default function DocsEditor({
   onDelete,
   onAddComment,
 }: DocsEditorProps) {
+  const t = useTranslations('docs');
   const [blocks, setBlocks] = useState<DocsBlock[]>(
     page.content.length ? page.content : defaultBlocks(),
   );
@@ -221,15 +222,21 @@ export default function DocsEditor({
     [triggerSave],
   );
 
+  const filteredCommands = useMemo(
+    () =>
+      BLOCK_COMMANDS.map((c) => ({ ...c, label: t(`editor.commands.${c.key}`) })).filter((c) =>
+        cmdQuery === '' ? true : c.label.toLowerCase().includes(cmdQuery.toLowerCase()),
+      ),
+    [t, cmdQuery],
+  );
+
   const handleKeyDown = useCallback(
     (index: number, e: React.KeyboardEvent<HTMLElement>) => {
       const block = blocks[index];
       if (!block) return;
 
       if (cmdOpen) {
-        const filtered = BLOCK_COMMANDS.filter((c) =>
-          cmdQuery === '' ? true : c.label.toLowerCase().includes(cmdQuery.toLowerCase()),
-        );
+        const filtered = filteredCommands;
         if (e.key === 'Escape') {
           setCmdOpen(false);
           setCmdQuery('');
@@ -268,7 +275,7 @@ export default function DocsEditor({
         return;
       }
     },
-    [blocks, cmdOpen, cmdQuery, cmdSel, convertBlock, insertBlock, removeBlock],
+    [blocks, cmdOpen, filteredCommands, cmdSel, convertBlock, insertBlock, removeBlock],
   );
 
   const handleInput = useCallback(
@@ -320,7 +327,7 @@ export default function DocsEditor({
       setBlocks((prev) => {
         const block = prev[index];
         if (!block) return prev;
-        const newContent = block.content.replace(/\[\[([^\]]*)$/, `[${selected.title || 'Untitled'}] `);
+        const newContent = block.content.replace(/\[\[([^\]]*)$/, `[${selected.title || t('untitled')}] `);
         const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
         triggerSave(next);
         return next;
@@ -328,7 +335,7 @@ export default function DocsEditor({
       setMention(null);
       setFocusIndex(index);
     },
-    [mention, triggerSave],
+    [mention, triggerSave, t],
   );
 
   const onSelectUserMention = useCallback(
@@ -354,10 +361,6 @@ export default function DocsEditor({
       }).catch(() => {});
     },
     [page.id, triggerSave, userMention],
-  );
-
-  const filteredCommands = BLOCK_COMMANDS.filter((c) =>
-    cmdQuery === '' ? true : c.label.toLowerCase().includes(cmdQuery.toLowerCase()),
   );
 
   const copyLink = () => {
@@ -405,13 +408,13 @@ export default function DocsEditor({
                 <span className="docs-breadcrumb-slash">/</span>
                 <Link href={`/app/docs/${a.id}`} className="docs-breadcrumb-link">
                   <span className="docs-breadcrumb-icon">{a.icon ?? '📄'}</span>
-                  <span className="docs-breadcrumb-title">{a.title || 'Untitled'}</span>
+                  <span className="docs-breadcrumb-title">{a.title || t('untitled')}</span>
                 </Link>
               </span>
             ))}
             <span className="docs-breadcrumb-segment">
               <span className="docs-breadcrumb-slash">/</span>
-              <span className="docs-breadcrumb-current">{title || 'Untitled'}</span>
+              <span className="docs-breadcrumb-current">{title || t('untitled')}</span>
             </span>
           </nav>
         )}
@@ -422,25 +425,25 @@ export default function DocsEditor({
               type="button"
               className="docs-action-btn"
               onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Page options"
+              aria-label={t('editor.pageOptions')}
             >
               ···
             </button>
             {menuOpen && (
               <div className="docs-page-menu">
                 <button type="button" className="docs-page-menu-item" onClick={copyLink}>
-                  Copy link
+                  {t('editor.copyLink')}
                 </button>
                 <button type="button" className="docs-page-menu-item" onClick={copyContents}>
-                  Copy page contents
+                  {t('editor.copyContents')}
                 </button>
                 {onDuplicate && (
                   <button type="button" className="docs-page-menu-item" onClick={onDuplicate}>
-                    Duplicate
+                    {t('editor.duplicate')}
                   </button>
                 )}
                 <button type="button" className="docs-page-menu-item" onClick={archivePage}>
-                  Archive
+                  {t('editor.archive')}
                 </button>
                 <hr className="docs-page-menu-divider" />
                 <button
@@ -451,7 +454,7 @@ export default function DocsEditor({
                     setMenuOpen(false);
                   }}
                 >
-                  Small text
+                  {t('editor.smallText')}
                   <span className={`docs-toggle${smallText ? ' on' : ''}`} />
                 </button>
                 <button
@@ -462,7 +465,7 @@ export default function DocsEditor({
                     setMenuOpen(false);
                   }}
                 >
-                  Full width
+                  {t('editor.fullWidth')}
                   <span className={`docs-toggle${fullWidth ? ' on' : ''}`} />
                 </button>
                 <hr className="docs-page-menu-divider" />
@@ -472,7 +475,7 @@ export default function DocsEditor({
                     className="docs-page-menu-item docs-page-menu-danger"
                     onClick={onDelete}
                   >
-                    Move to trash
+                    {t('editor.moveToTrash')}
                   </button>
                 )}
               </div>
@@ -485,19 +488,19 @@ export default function DocsEditor({
         <div className="docs-cover">
           <img src={coverUrl} alt="" className="docs-cover-img" />
           <button type="button" className="docs-cover-remove" onClick={removeCover}>
-            Remove cover
+            {t('editor.removeCover')}
           </button>
         </div>
       ) : (
         <div className="docs-cover-placeholder">
           <button type="button" className="docs-cover-add" onClick={() => setCoverOpen(true)}>
-            Add cover
+            {t('editor.addCover')}
           </button>
           {coverOpen && (
             <div className="docs-cover-popover" ref={coverRef}>
               <input
                 type="text"
-                placeholder="Paste image URL…"
+                placeholder={t('editor.coverUrlPlaceholder')}
                 className="docs-cover-input"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') addCover((e.target as HTMLInputElement).value);
@@ -516,7 +519,7 @@ export default function DocsEditor({
                     className="docs-cover-preset"
                     style={{ backgroundImage: `url(${url})` }}
                     onClick={() => addCover(url)}
-                    aria-label="Cover preset"
+                    aria-label={t('editor.coverPreset')}
                   />
                 ))}
               </div>
@@ -539,20 +542,20 @@ export default function DocsEditor({
             setTitle(e.target.value);
             triggerSave(undefined, e.target.value);
           }}
-          placeholder="Untitled page"
-          aria-label="Page title"
+          placeholder={t('editor.untitled')}
+          aria-label={t('editor.pageTitle')}
         />
       </div>
 
       <div className="docs-page-meta">
         <button type="button" className="docs-meta-btn">
-          Add icon
+          {t('editor.addIcon')}
         </button>
         <button type="button" className="docs-meta-btn" onClick={() => setCoverOpen(true)}>
-          Add cover
+          {t('editor.addCover')}
         </button>
         <button type="button" className="docs-meta-btn" onClick={() => onAddComment?.()}>
-          Add comment
+          {t('editor.addComment')}
         </button>
       </div>
 
@@ -574,7 +577,7 @@ export default function DocsEditor({
               />
               {cmdOpen && focusIndex === index && (
                 <div className="docs-command-menu">
-                  <div className="docs-command-title">Basic blocks</div>
+                  <div className="docs-command-title">{t('editor.basicBlocks')}</div>
                   {filteredCommands.map((cmd, i) => (
                     <button
                       key={cmd.key}
@@ -590,7 +593,7 @@ export default function DocsEditor({
                     </button>
                   ))}
                   {filteredCommands.length === 0 && (
-                    <div className="docs-command-empty">No commands</div>
+                    <div className="docs-command-empty">{t('editor.noCommands')}</div>
                   )}
                 </div>
               )}
@@ -614,7 +617,7 @@ export default function DocsEditor({
       </div>
 
       <div className="docs-editor-foot">
-        <span className="docs-save-status">{saving ? 'Saving…' : 'Saved'}</span>
+        <span className="docs-save-status">{saving ? t('editor.saving') : t('editor.saved')}</span>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 {
+  "untitled": "Untitled",
   "landing": {
     "title": "Docs",
     "subtitle": "Notes, wikis and documents. Zero lock-in.",
@@ -13,20 +14,86 @@
     "new": "New page",
     "newPage": "New page",
     "newSubpage": "New subpage",
-    "empty": "No pages"
+    "empty": "No pages",
+    "dropTopLevel": "Drop here to make top-level"
   },
   "editor": {
     "untitled": "Untitled page",
     "placeholder": "Type '/' for commands",
     "saved": "Saved",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "pageOptions": "Page options",
+    "copyLink": "Copy link",
+    "copyContents": "Copy page contents",
+    "duplicate": "Duplicate",
+    "archive": "Archive",
+    "smallText": "Small text",
+    "fullWidth": "Full width",
+    "moveToTrash": "Move to trash",
+    "confirmTrash": "Are you sure you want to move this page to trash?",
+    "addCover": "Add cover",
+    "removeCover": "Remove cover",
+    "coverUrlPlaceholder": "Paste image URL…",
+    "coverPreset": "Cover preset",
+    "pageTitle": "Page title",
+    "addIcon": "Add icon",
+    "addComment": "Add comment",
+    "basicBlocks": "Basic blocks",
+    "noCommands": "No commands",
+    "headingPlaceholder": "Heading",
+    "quotePlaceholder": "Empty quote",
+    "languagePlaceholder": "language",
+    "addRow": "+ row",
+    "addColumn": "+ column",
+    "commands": {
+      "p": "Text",
+      "h1": "Heading 1",
+      "h2": "Heading 2",
+      "h3": "Heading 3",
+      "bulleted": "Bulleted list",
+      "numbered": "Numbered list",
+      "todo": "To-do",
+      "quote": "Quote",
+      "code": "Code",
+      "divider": "Divider",
+      "table": "Table",
+      "database": "Database"
+    }
+  },
+  "database": {
+    "columnName": "Column {n}",
+    "removeColumn": "Remove column",
+    "removeRow": "Remove row",
+    "typeText": "text",
+    "typeNumber": "number",
+    "typeSelect": "select",
+    "typeDate": "date"
+  },
+  "mentions": {
+    "noPages": "No pages",
+    "noMembers": "No members"
+  },
+  "emoji": {
+    "pick": "Pick icon",
+    "search": "Search icons…",
+    "empty": "No icons found",
+    "categories": {
+      "recent": "Recent",
+      "smileys": "Smileys",
+      "objects": "Objects",
+      "symbols": "Symbols",
+      "nature": "Nature",
+      "food": "Food"
+    }
   },
   "share": {
     "title": "Share",
     "public": "Public on the web",
     "team": "Team",
     "user": "User",
-    "share": "Share"
+    "share": "Share",
+    "teamId": "Team ID",
+    "userId": "User ID"
   },
   "templates": {
     "title": "Start from a template",

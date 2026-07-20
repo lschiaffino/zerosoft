@@ -2,6 +2,7 @@
 
 import type { DocsBlock, DocsDatabaseColumn } from '@/lib/docs-types';
 import { defaultDatabaseColumns } from '@/lib/docs-types';
+import { useTranslations } from 'next-intl';
 
 interface DocsDatabaseBlockProps {
   block: DocsBlock;
@@ -13,6 +14,13 @@ interface DocsDatabaseBlockProps {
 
 const COLUMN_TYPES: DocsDatabaseColumn['type'][] = ['text', 'number', 'select', 'date'];
 
+const COLUMN_TYPE_LABEL_KEYS = {
+  text: 'typeText',
+  number: 'typeNumber',
+  select: 'typeSelect',
+  date: 'typeDate',
+} as const;
+
 /** Database lite: tabla con columnas tipadas (text/number/select/date). */
 export default function DocsDatabaseBlock({
   block,
@@ -21,6 +29,7 @@ export default function DocsDatabaseBlock({
   onKeyDown,
   onFocus,
 }: DocsDatabaseBlockProps) {
+  const t = useTranslations('docs');
   const columns = block.columns?.length ? block.columns : defaultDatabaseColumns();
   const rows = block.rows ?? [];
 
@@ -34,7 +43,7 @@ export default function DocsDatabaseBlock({
     onChange(index, {
       columns: [
         ...columns,
-        { id: crypto.randomUUID(), name: `Column ${columns.length + 1}`, type: 'text' },
+        { id: crypto.randomUUID(), name: t('database.columnName', { n: columns.length + 1 }), type: 'text' },
       ],
       rows: rows.map((r) => [...r, '']),
     });
@@ -118,9 +127,9 @@ export default function DocsDatabaseBlock({
                       })
                     }
                   >
-                    {COLUMN_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
+                    {COLUMN_TYPES.map((ct) => (
+                      <option key={ct} value={ct}>
+                        {t(`database.${COLUMN_TYPE_LABEL_KEYS[ct]}`)}
                       </option>
                     ))}
                   </select>
@@ -129,7 +138,7 @@ export default function DocsDatabaseBlock({
                       type="button"
                       className="docs-db-remove"
                       onClick={() => removeColumn(colIdx)}
-                      aria-label="Remove column"
+                      aria-label={t('database.removeColumn')}
                     >
                       ×
                     </button>
@@ -167,7 +176,7 @@ export default function DocsDatabaseBlock({
                   type="button"
                   className="docs-db-remove"
                   onClick={() => removeRow(rowIdx)}
-                  aria-label="Remove row"
+                  aria-label={t('database.removeRow')}
                 >
                   ×
                 </button>
@@ -178,10 +187,10 @@ export default function DocsDatabaseBlock({
       </table>
       <div className="docs-db-actions">
         <button type="button" className="docs-table-add" onClick={addRow}>
-          + row
+          {t('editor.addRow')}
         </button>
         <button type="button" className="docs-table-add" onClick={addColumn}>
-          + column
+          {t('editor.addColumn')}
         </button>
       </div>
     </div>

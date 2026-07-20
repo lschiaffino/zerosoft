@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DocsPage } from '@/lib/docs-types';
 
 interface MentionPopoverProps {
@@ -10,6 +11,7 @@ interface MentionPopoverProps {
 }
 
 export default function MentionPopover({ query, onSelect, onClose }: MentionPopoverProps) {
+  const t = useTranslations('docs');
   const [pages, setPages] = useState<DocsPage[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +43,7 @@ export default function MentionPopover({ query, onSelect, onClose }: MentionPopo
       {loading ? (
         <div className="docs-mention-empty">…</div>
       ) : pages.length === 0 ? (
-        <div className="docs-mention-empty">No pages</div>
+        <div className="docs-mention-empty">{t('mentions.noPages')}</div>
       ) : (
         pages.map((page) => (
           <button
@@ -51,7 +53,7 @@ export default function MentionPopover({ query, onSelect, onClose }: MentionPopo
             onClick={() => onSelect(page)}
           >
             <span className="docs-mention-icon">{page.icon ?? '📄'}</span>
-            <span className="docs-mention-title">{page.title || 'Untitled'}</span>
+            <span className="docs-mention-title">{page.title || t('untitled')}</span>
           </button>
         ))
       )}

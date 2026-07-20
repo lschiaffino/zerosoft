@@ -45,7 +45,7 @@ export default function WidgetList({ widgets }: WidgetListProps) {
           </div>
           <div className="chat-widget-card-actions">
             <Link href={`/app/chat/widgets/${w.id}`} className="btn btn-small">
-              {t('common.edit') || 'Edit'}
+              {t('common.edit')}
             </Link>
             <button
               type="button"

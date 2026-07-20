@@ -27,6 +27,8 @@
     "fieldName": "Nome do campo",
     "fieldRequired": "Obrigatório",
     "fieldType": "Tipo",
+    "fieldTypeText": "Texto",
+    "fieldTypeNumber": "Número",
     "save": "Salvar widget",
     "create": "Criar widget",
     "newTitle": "Novo widget",
@@ -62,7 +64,8 @@
     },
     "search": "Buscar visitantes ou assuntos…",
     "empty": "Nenhuma conversa corresponde aos seus filtros.",
-    "loadMore": "Carregar mais"
+    "loadMore": "Carregar mais",
+    "unread": "Não lida"
   },
   "conversation": {
     "open": "Aberta",
@@ -141,7 +144,8 @@
     "empty": "Ainda não há regras de atribuição.",
     "matchType": "Tipo de correspondência",
     "keyword": "Palavra-chave",
-    "timeRange": "Intervalo de tempo"
+    "timeRange": "Intervalo de tempo",
+    "keywordPlaceholder": "reembolso, preços…"
   },
   "sla": {
     "title": "SLA",
@@ -198,6 +202,7 @@
     "audio": "Áudio",
     "file": "Arquivo",
     "upload": "Anexar arquivo",
+    "remove": "Remover arquivo",
     "dragDrop": "Arraste e solte um arquivo aqui",
     "maxSize": "Máx. 10 MB"
   },

@@ -107,7 +107,7 @@ export default function ConversationList({
                   </span>
                 </div>
               </div>
-              {unread && !active && <span className="chat-unread-dot" aria-label="Unread" />}
+              {unread && !active && <span className="chat-unread-dot" aria-label={t('inbox.unread')} />}
             </Link>
           </li>
         );

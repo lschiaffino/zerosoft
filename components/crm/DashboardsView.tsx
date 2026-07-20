@@ -153,7 +153,7 @@ function TimeseriesChart({
 }: {
   data: WidgetDataMap['timeseries']['timeseries'];
   locale: string;
-  labels: { contacts: string; deals: string };
+  labels: { contacts: string; deals: string; ariaLabel: string };
 }) {
   const W = 560;
   const H = 190;
@@ -173,7 +173,7 @@ function TimeseriesChart({
         className="link-chart"
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label="activity over time"
+        aria-label={labels.ariaLabel}
         preserveAspectRatio="none"
       >
         {[0, 1, 2, 3].map((k) => {
@@ -244,7 +244,7 @@ function WonLostChart({
 }: {
   data: WidgetDataMap['wonlost']['wonLost'];
   locale: string;
-  labels: { won: string; lost: string };
+  labels: { won: string; lost: string; ariaLabel: string };
 }) {
   const W = 560;
   const H = 190;
@@ -263,7 +263,7 @@ function WonLostChart({
         className="link-chart"
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label="won vs lost chart"
+        aria-label={labels.ariaLabel}
         preserveAspectRatio="none"
       >
         {[0, 1, 2, 3].map((k) => {
@@ -843,7 +843,11 @@ export default function DashboardsView({
           <TimeseriesChart
             data={timeseries}
             locale={locale}
-            labels={{ contacts: tCrm('reports.contacts'), deals: tCrm('reports.deals') }}
+            labels={{
+              contacts: tCrm('reports.contacts'),
+              deals: tCrm('reports.deals'),
+              ariaLabel: t('chartActivity'),
+            }}
           />
         );
       }
@@ -853,7 +857,11 @@ export default function DashboardsView({
           <WonLostChart
             data={wonLost}
             locale={locale}
-            labels={{ won: tCrm('reports.wonDeals'), lost: tCrm('reports.lostDeals') }}
+            labels={{
+              won: tCrm('reports.wonDeals'),
+              lost: tCrm('reports.lostDeals'),
+              ariaLabel: t('chartWonLost'),
+            }}
           />
         );
       }

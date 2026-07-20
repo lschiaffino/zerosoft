@@ -1,4 +1,5 @@
 {
+  "untitled": "Sem título",
   "landing": {
     "title": "Docs",
     "subtitle": "Notas, wikis e documentos. Zero lock-in.",
@@ -13,20 +14,86 @@
     "new": "Nova página",
     "newPage": "Nova página",
     "newSubpage": "Nova subpágina",
-    "empty": "Sem páginas"
+    "empty": "Sem páginas",
+    "dropTopLevel": "Solte aqui para mover ao nível raiz"
   },
   "editor": {
     "untitled": "Página sem título",
     "placeholder": "Digite '/' para comandos",
     "saved": "Salvo",
-    "saving": "Salvando…"
+    "saving": "Salvando…",
+    "pageOptions": "Opções da página",
+    "copyLink": "Copiar link",
+    "copyContents": "Copiar conteúdo da página",
+    "duplicate": "Duplicar",
+    "archive": "Arquivar",
+    "smallText": "Texto pequeno",
+    "fullWidth": "Largura total",
+    "moveToTrash": "Mover para a lixeira",
+    "confirmTrash": "Tem certeza de que deseja mover esta página para a lixeira?",
+    "addCover": "Adicionar capa",
+    "removeCover": "Remover capa",
+    "coverUrlPlaceholder": "Cole a URL da imagem…",
+    "coverPreset": "Capa predefinida",
+    "pageTitle": "Título da página",
+    "addIcon": "Adicionar ícone",
+    "addComment": "Adicionar comentário",
+    "basicBlocks": "Blocos básicos",
+    "noCommands": "Sem comandos",
+    "headingPlaceholder": "Cabeçalho",
+    "quotePlaceholder": "Citação vazia",
+    "languagePlaceholder": "linguagem",
+    "addRow": "+ linha",
+    "addColumn": "+ coluna",
+    "commands": {
+      "p": "Texto",
+      "h1": "Cabeçalho 1",
+      "h2": "Cabeçalho 2",
+      "h3": "Cabeçalho 3",
+      "bulleted": "Lista com marcadores",
+      "numbered": "Lista numerada",
+      "todo": "Tarefa",
+      "quote": "Citação",
+      "code": "Código",
+      "divider": "Divisor",
+      "table": "Tabela",
+      "database": "Banco de dados"
+    }
+  },
+  "database": {
+    "columnName": "Coluna {n}",
+    "removeColumn": "Remover coluna",
+    "removeRow": "Remover linha",
+    "typeText": "texto",
+    "typeNumber": "número",
+    "typeSelect": "seleção",
+    "typeDate": "data"
+  },
+  "mentions": {
+    "noPages": "Sem páginas",
+    "noMembers": "Sem membros"
+  },
+  "emoji": {
+    "pick": "Escolher ícone",
+    "search": "Buscar ícones…",
+    "empty": "Nenhum ícone encontrado",
+    "categories": {
+      "recent": "Recentes",
+      "smileys": "Sorrisos",
+      "objects": "Objetos",
+      "symbols": "Símbolos",
+      "nature": "Natureza",
+      "food": "Comida"
+    }
   },
   "share": {
     "title": "Compartilhar",
     "public": "Público na web",
     "team": "Equipe",
     "user": "Usuário",
-    "share": "Compartilhar"
+    "share": "Compartilhar",
+    "teamId": "ID da equipe",
+    "userId": "ID do usuário"
   },
   "templates": {
     "title": "Começar de um modelo",

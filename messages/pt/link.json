@@ -235,6 +235,8 @@
     "invalid_date": "Essa data não parece válida.",
     "not_found": "Não encontrado.",
     "unauthorized": "Não autorizado.",
+    "empty": "Pelo menos uma URL é obrigatória.",
+    "too_many": "URLs demais. Máximo de 200 por lote.",
     "generic": "Algo deu errado. Tente de novo."
   }
 }

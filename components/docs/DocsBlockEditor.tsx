@@ -1,6 +1,7 @@
 'use client';
 
 import { forwardRef, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DocsBlock, DocsBlockType } from '@/lib/docs-types';
 import DocsDatabaseBlock from './DocsDatabaseBlock';
 
@@ -14,22 +15,23 @@ interface DocsBlockEditorProps {
   focused: boolean;
 }
 
-function renderPlaceholder(type: DocsBlockType): string {
-  switch (type) {
-    case 'heading':
-      return 'Heading';
-    case 'quote':
-      return 'Empty quote';
-    case 'code':
-      return "// code";
-    default:
-      return "Type '/' for commands";
-  }
-}
-
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
   ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused }, ref) => {
+    const t = useTranslations('docs');
     const innerRef = useRef<HTMLDivElement | null>(null);
+
+    const renderPlaceholder = (type: DocsBlockType): string => {
+      switch (type) {
+        case 'heading':
+          return t('editor.headingPlaceholder');
+        case 'quote':
+          return t('editor.quotePlaceholder');
+        case 'code':
+          return '// code';
+        default:
+          return t('editor.placeholder');
+      }
+    };
 
     useEffect(() => {
       const el = innerRef.current;
@@ -92,7 +94,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
               onChange(index, { rows });
             }}
           >
-            + row
+            {t('editor.addRow')}
           </button>
         </div>
       );
@@ -115,7 +117,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
             <input
               className="docs-lang-input"
               value={block.language ?? ''}
-              placeholder="language"
+              placeholder={t('editor.languagePlaceholder')}
               onChange={(e) => onChange(index, { language: e.target.value })}
             />
           </div>

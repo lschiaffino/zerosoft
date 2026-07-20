@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DocsPage } from '@/lib/docs-types';
 
 interface DocsTrashListProps {
@@ -14,6 +15,7 @@ interface DocsTrashListProps {
 }
 
 export default function DocsTrashList({ pages, labels }: DocsTrashListProps) {
+  const t = useTranslations('docs');
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -47,7 +49,7 @@ export default function DocsTrashList({ pages, labels }: DocsTrashListProps) {
       {pages.map((page) => (
         <li key={page.id} className="docs-trash-row">
           <span className="docs-list-icon">{page.icon ?? '📄'}</span>
-          <span className="docs-list-title">{page.title || 'Untitled'}</span>
+          <span className="docs-list-title">{page.title || t('untitled')}</span>
           <span className="docs-list-date mono">{page.updated_at.slice(0, 10)}</span>
           <span className="docs-trash-actions">
             <button

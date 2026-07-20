@@ -27,6 +27,8 @@
     "fieldName": "Nombre del campo",
     "fieldRequired": "Obligatorio",
     "fieldType": "Tipo",
+    "fieldTypeText": "Texto",
+    "fieldTypeNumber": "Número",
     "save": "Guardar widget",
     "create": "Crear widget",
     "newTitle": "Nuevo widget",
@@ -62,7 +64,8 @@
     },
     "search": "Buscar visitantes o asuntos…",
     "empty": "Ninguna conversación coincide con tus filtros.",
-    "loadMore": "Cargar más"
+    "loadMore": "Cargar más",
+    "unread": "No leída"
   },
   "conversation": {
     "open": "Abierta",
@@ -141,7 +144,8 @@
     "empty": "Aún no hay reglas de asignación.",
     "matchType": "Tipo de coincidencia",
     "keyword": "Palabra clave",
-    "timeRange": "Rango horario"
+    "timeRange": "Rango horario",
+    "keywordPlaceholder": "reembolso, precios…"
   },
   "sla": {
     "title": "SLA",
@@ -198,6 +202,7 @@
     "audio": "Audio",
     "file": "Archivo",
     "upload": "Adjuntar archivo",
+    "remove": "Quitar archivo",
     "dragDrop": "Arrastra y suelta un archivo aquí",
     "maxSize": "Máx. 10 MB"
   },

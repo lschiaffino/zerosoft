@@ -234,9 +234,9 @@ export default function WidgetForm({ initial }: WidgetFormProps) {
                   value={f.type}
                   onChange={(e) => updateField(i, { type: e.target.value as WidgetFormField['type'] })}
                 >
-                  <option value="text">Text</option>
+                  <option value="text">{t('widgetForm.fieldTypeText')}</option>
                   <option value="email">Email</option>
-                  <option value="number">Number</option>
+                  <option value="number">{t('widgetForm.fieldTypeNumber')}</option>
                 </select>
                 <label className="checkbox-field">
                   <input

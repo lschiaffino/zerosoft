@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { type DocsComment, type DocsPage, type DocsPageShare } from '@/lib/docs-types';
 import DocsEditor from './DocsEditor';
 import SharePanel from './SharePanel';
@@ -34,6 +35,7 @@ export default function DocsEditorClient({
   commentsLabels: CommentsLabels;
 }) {
   const router = useRouter();
+  const t = useTranslations('docs');
   const [saving, setSaving] = useState(false);
   const [localShares, setLocalShares] = useState(shares);
   const [commentFocus, setCommentFocus] = useState(0);
@@ -88,12 +90,12 @@ export default function DocsEditorClient({
   }, [page.id, router]);
 
   const deletePage = useCallback(async () => {
-    const ok = confirm('Are you sure you want to move this page to trash?');
+    const ok = confirm(t('editor.confirmTrash'));
     if (!ok) return;
     const res = await fetch(`/api/docs/pages/${page.id}`, { method: 'DELETE' });
     if (!res.ok) return;
     router.push('/app/docs');
-  }, [page.id, router]);
+  }, [page.id, router, t]);
 
   return (
     <div className="docs-editor-wrap">
