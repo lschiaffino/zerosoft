@@ -38,7 +38,9 @@ export default function ZeroField({
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasError, setHasError] = useState(false);
-  const [ssr, setSsr] = useState(typeof window === 'undefined');
+  // Empieza en true para que el primer render del cliente coincida con el SSR
+  // (ambos muestran el fallback). El efecto lo baja a false tras montar.
+  const [ssr, setSsr] = useState(true);
 
   useEffect(() => {
     setSsr(false);

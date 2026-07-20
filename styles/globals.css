@@ -275,6 +275,10 @@ nav.main-nav a:hover { opacity: 1; }
   width: 100vw;
 }
 
+/* En desktop el menú mobile no se usa: sin display:none quedaría en flujo
+   dentro del nav y empujaría el trigger fuera de pantalla. */
+.mega-menu-mobile { display: none; }
+
 .mega-menu-inner {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -340,6 +344,7 @@ nav.main-nav a:hover { opacity: 1; }
 
   .mega-menu-desktop { display: none; }
   .mega-menu-mobile {
+    display: block;
     position: absolute;
     top: calc(100% + 10px);
     left: 0;
