@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { type DocsComment, type DocsPage, type DocsPageShare } from '@/lib/docs-types';
 import DocsEditor from './DocsEditor';
@@ -17,6 +17,9 @@ interface CommentsLabels {
   unresolve: string;
   delete: string;
   resolved: string;
+  blockThread: string;
+  showAll: string;
+  blockTag: string;
 }
 
 export default function DocsEditorClient({
@@ -39,6 +42,32 @@ export default function DocsEditorClient({
   const [saving, setSaving] = useState(false);
   const [localShares, setLocalShares] = useState(shares);
   const [commentFocus, setCommentFocus] = useState(0);
+  // Espejo local de los comentarios (el panel notifica cambios) para los
+  // badges por bloque; blockFilter ancla el panel al hilo de un bloque.
+  const [allComments, setAllComments] = useState<DocsComment[]>(comments);
+  const [blockFilter, setBlockFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAllComments(comments);
+  }, [comments]);
+
+  const commentCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const c of allComments) {
+      if (c.block_id) counts[c.block_id] = (counts[c.block_id] ?? 0) + 1;
+    }
+    return counts;
+  }, [allComments]);
+
+  const handleBlockComment = useCallback((blockId: string) => {
+    setBlockFilter(blockId);
+    setCommentFocus((n) => n + 1);
+  }, []);
+
+  const handlePageComment = useCallback(() => {
+    setBlockFilter(null);
+    setCommentFocus((n) => n + 1);
+  }, []);
 
   const savePage = useCallback(
     async (patch: Partial<DocsPage>) => {
@@ -106,7 +135,9 @@ export default function DocsEditorClient({
         saving={saving}
         onDuplicate={duplicatePage}
         onDelete={deletePage}
-        onAddComment={() => setCommentFocus((n) => n + 1)}
+        onAddComment={handlePageComment}
+        commentCounts={commentCounts}
+        onBlockComment={handleBlockComment}
       />
       <div className="docs-side">
         <SharePanel
@@ -122,6 +153,9 @@ export default function DocsEditorClient({
           currentUserId={currentUserId}
           initialComments={comments}
           focusSignal={commentFocus}
+          blockFilter={blockFilter}
+          onClearBlockFilter={() => setBlockFilter(null)}
+          onCommentsChange={setAllComments}
           labels={commentsLabels}
         />
       </div>

@@ -12,6 +12,9 @@ interface CommentsPanelLabels {
   unresolve: string;
   delete: string;
   resolved: string;
+  blockThread: string;
+  showAll: string;
+  blockTag: string;
 }
 
 interface CommentsPanelProps {
@@ -21,6 +24,11 @@ interface CommentsPanelProps {
   initialComments: DocsComment[];
   /** Cambia para enfocar el composer (botón "Add comment" del header). */
   focusSignal: number;
+  /** Si está seteado, el panel muestra solo el hilo de ese bloque y publica con block_id. */
+  blockFilter: string | null;
+  onClearBlockFilter: () => void;
+  /** Notifica al padre cada cambio de la lista (para badges por bloque). */
+  onCommentsChange?: (comments: DocsComment[]) => void;
   labels: CommentsPanelLabels;
 }
 
@@ -44,6 +52,9 @@ export default function CommentsPanel({
   currentUserId,
   initialComments,
   focusSignal,
+  blockFilter,
+  onClearBlockFilter,
+  onCommentsChange,
   labels,
 }: CommentsPanelProps) {
   const [comments, setComments] = useState<DocsComment[]>(initialComments);
@@ -56,10 +67,15 @@ export default function CommentsPanel({
   }, [initialComments]);
 
   useEffect(() => {
+    onCommentsChange?.(comments);
+  }, [comments, onCommentsChange]);
+
+  useEffect(() => {
     if (focusSignal > 0) composerRef.current?.focus();
   }, [focusSignal]);
 
   const canModerate = currentUserId === pageOwnerId;
+  const visible = blockFilter ? comments.filter((c) => c.block_id === blockFilter) : comments;
 
   const addComment = async () => {
     const trimmed = body.trim();
@@ -69,7 +85,7 @@ export default function CommentsPanel({
       const res = await fetch(`/api/docs/pages/${pageId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: trimmed }),
+        body: JSON.stringify({ body: trimmed, block_id: blockFilter ?? null }),
       });
       if (!res.ok) return;
       const comment = (await res.json()) as DocsComment;
@@ -103,11 +119,24 @@ export default function CommentsPanel({
     <div className="docs-comments panel">
       <p className="section-label">{labels.title}</p>
 
+      {blockFilter && (
+        <div className="docs-comments-filter">
+          <span className="docs-comments-filter-label mono">{labels.blockThread}</span>
+          <button
+            type="button"
+            className="docs-comment-action"
+            onClick={onClearBlockFilter}
+          >
+            {labels.showAll}
+          </button>
+        </div>
+      )}
+
       <div className="docs-comments-list">
-        {comments.length === 0 ? (
+        {visible.length === 0 ? (
           <p className="docs-comments-empty">{labels.empty}</p>
         ) : (
-          comments.map((comment) => (
+          visible.map((comment) => (
             <div
               key={comment.id}
               className={`docs-comment${comment.resolved ? ' resolved' : ''}`}
@@ -118,6 +147,9 @@ export default function CommentsPanel({
                   <span className="docs-comment-author">
                     {comment.user_name ?? comment.user_email}
                   </span>
+                  {comment.block_id && (
+                    <span className="docs-comment-block-tag mono">{labels.blockTag}</span>
+                  )}
                   {comment.resolved && (
                     <span className="docs-comment-resolved">{labels.resolved}</span>
                   )}

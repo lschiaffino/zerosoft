@@ -67,7 +67,11 @@
     "typeText": "texto",
     "typeNumber": "número",
     "typeSelect": "seleção",
-    "typeDate": "data"
+    "typeDate": "data",
+    "view": "Visualização",
+    "viewTable": "Tabela",
+    "viewGallery": "Galeria",
+    "emptyGallery": "Ainda não há linhas — adicione-as na visualização em tabela."
   },
   "mentions": {
     "noPages": "Sem páginas",
@@ -113,6 +117,10 @@
     "resolve": "Resolver",
     "unresolve": "Reabrir",
     "delete": "Excluir",
-    "resolved": "Resolvido"
+    "resolved": "Resolvido",
+    "commentBlock": "Comentar este bloco",
+    "blockThread": "Conversa do bloco",
+    "showAll": "Ver todos",
+    "blockTag": "Bloco"
   }
 }

@@ -67,7 +67,11 @@
     "typeText": "text",
     "typeNumber": "number",
     "typeSelect": "select",
-    "typeDate": "date"
+    "typeDate": "date",
+    "view": "View",
+    "viewTable": "Table",
+    "viewGallery": "Gallery",
+    "emptyGallery": "No rows yet — add them in table view."
   },
   "mentions": {
     "noPages": "No pages",
@@ -113,6 +117,10 @@
     "resolve": "Resolve",
     "unresolve": "Reopen",
     "delete": "Delete",
-    "resolved": "Resolved"
+    "resolved": "Resolved",
+    "commentBlock": "Comment on this block",
+    "blockThread": "Block thread",
+    "showAll": "Show all",
+    "blockTag": "Block"
   }
 }

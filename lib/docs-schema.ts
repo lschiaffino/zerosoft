@@ -36,6 +36,7 @@ const docsBlockSchema = z.object({
   language: z.string().max(40).optional(),
   rows: z.array(z.array(longText)).optional(),
   columns: z.array(docsDatabaseColumnSchema).max(30).optional(),
+  view: z.enum(['table', 'gallery']).optional(),
 });
 
 export const docPageCreateSchema = z.object({

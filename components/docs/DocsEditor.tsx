@@ -25,6 +25,10 @@ interface DocsEditorProps {
   onDuplicate?: () => void;
   onDelete?: () => void;
   onAddComment?: () => void;
+  /** Cantidad de comentarios por block_id (para el badge). */
+  commentCounts?: Record<string, number>;
+  /** Abre el panel de comentarios anclado al bloque. */
+  onBlockComment?: (blockId: string) => void;
 }
 
 const BLOCK_COMMANDS: {
@@ -68,6 +72,8 @@ export default function DocsEditor({
   onDuplicate,
   onDelete,
   onAddComment,
+  commentCounts,
+  onBlockComment,
 }: DocsEditorProps) {
   const t = useTranslations('docs');
   const [blocks, setBlocks] = useState<DocsBlock[]>(
@@ -563,8 +569,35 @@ export default function DocsEditor({
         {blocks.map((block, index) => {
           if (block.type === 'numbered_list_item') numberedIndex++;
           else numberedIndex = 0;
+          const commentCount = commentCounts?.[block.id] ?? 0;
           return (
             <div key={block.id} className="docs-block-outer">
+              {onBlockComment && (
+                <button
+                  type="button"
+                  className={`docs-block-comment${commentCount > 0 ? ' has-comments' : ''}`}
+                  onClick={() => onBlockComment(block.id)}
+                  aria-label={t('comments.commentBlock')}
+                  title={t('comments.commentBlock')}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  {commentCount > 0 && (
+                    <span className="docs-block-comment-count mono">{commentCount}</span>
+                  )}
+                </button>
+              )}
               <DocsBlockEditor
                 block={block}
                 index={index}

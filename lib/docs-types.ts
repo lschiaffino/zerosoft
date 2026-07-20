@@ -17,6 +17,8 @@ export type DocsBlockType =
 
 export type DocsDatabaseColumnType = 'text' | 'number' | 'select' | 'date';
 
+export type DocsDatabaseView = 'table' | 'gallery';
+
 export interface DocsDatabaseColumn {
   id: string;
   name: string;
@@ -33,6 +35,7 @@ export interface DocsBlock {
   language?: string;
   rows?: string[][];
   columns?: DocsDatabaseColumn[];
+  view?: DocsDatabaseView;
 }
 
 export interface DocsPage {

@@ -52,6 +52,9 @@ export default async function DocsPageEditor({
             unresolve: t('comments.unresolve'),
             delete: t('comments.delete'),
             resolved: t('comments.resolved'),
+            blockThread: t('comments.blockThread'),
+            showAll: t('comments.showAll'),
+            blockTag: t('comments.blockTag'),
           }}
         />
       </div>
