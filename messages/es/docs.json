@@ -27,5 +27,25 @@
     "team": "Equipo",
     "user": "Usuario",
     "share": "Compartir"
+  },
+  "templates": {
+    "title": "Empezar desde una plantilla",
+    "untitled": "Sin título"
+  },
+  "trash": {
+    "title": "Papelera",
+    "restore": "Restaurar",
+    "deleteForever": "Eliminar para siempre",
+    "confirmDelete": "¿Eliminar esta página para siempre? No se puede deshacer."
+  },
+  "comments": {
+    "title": "Comentarios",
+    "empty": "Todavía no hay comentarios",
+    "placeholder": "Agregá un comentario…",
+    "add": "Comentar",
+    "resolve": "Resolver",
+    "unresolve": "Reabrir",
+    "delete": "Eliminar",
+    "resolved": "Resuelto"
   }
 }

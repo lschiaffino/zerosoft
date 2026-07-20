@@ -990,3 +990,330 @@
   .docs-breadcrumb-title,
   .docs-breadcrumb-current { max-width: 100px; }
 }
+
+/* ---------- F5: templates, trash, comments, @mentions ---------- */
+
+/* Columna derecha del editor (share + comments apilados). */
+.docs-side {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* ---------- Templates ---------- */
+
+.docs-templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.docs-templates form { margin: 0; }
+
+.docs-template-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s var(--ease);
+}
+
+.docs-template-card:hover { border-color: var(--ink); }
+
+.docs-template-icon { font-size: 20px; }
+
+.docs-template-name { font-size: 13px; font-weight: 500; color: var(--ink); }
+
+.docs-template-desc { font-size: 12px; color: var(--dim); line-height: 1.4; }
+
+/* ---------- Trash ---------- */
+
+.docs-trash-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.docs-trash-row:last-child { border-bottom: none; }
+
+.docs-trash-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.docs-trash-delete { color: #c0392b; }
+
+/* ---------- Comments panel ---------- */
+
+.docs-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.docs-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.docs-comments-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.docs-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.docs-comment.resolved { opacity: 0.55; }
+
+.docs-comment-avatar {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  object-fit: cover;
+}
+
+.docs-comment-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.docs-comment-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.docs-comment-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.docs-comment-author {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.docs-comment-resolved {
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+.docs-comment-date {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--dim);
+  flex-shrink: 0;
+}
+
+.docs-comment-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.docs-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.docs-comment-action {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.docs-comment-action:hover { color: var(--ink); }
+
+.docs-comment-action-danger:hover { color: #c0392b; }
+
+.docs-comment-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.docs-comment-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.docs-comment-input:focus { border-color: var(--ink); }
+
+/* ---------- @user mention popover ---------- */
+
+.docs-mention-avatar {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* ---------- Database block (lite) ---------- */
+
+.docs-db-table th {
+  border: 1px solid var(--line);
+  padding: 0;
+  vertical-align: top;
+  background: #fafafa;
+}
+
+.docs-db-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+}
+
+.docs-db-name {
+  flex: 1;
+  min-width: 60px;
+  border: none;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  outline: none;
+  padding: 4px 2px;
+}
+
+.docs-db-type {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  padding: 2px 3px;
+  outline: none;
+}
+
+.docs-db-remove {
+  border: none;
+  background: none;
+  color: var(--dim);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.docs-db-remove:hover { color: var(--ink); background: #f0f0f0; }
+
+.docs-db-options {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  font-size: 11px;
+  color: var(--dim);
+  padding: 4px 8px;
+  outline: none;
+}
+
+.docs-db-options:focus { color: var(--ink); }
+
+.docs-db-row-head {
+  width: 30px;
+  border: 1px solid var(--line);
+  background: #fafafa;
+}
+
+.docs-db-row-actions {
+  border: 1px solid var(--line);
+  text-align: center;
+  vertical-align: middle;
+  width: 30px;
+}
+
+.docs-db-cell-select {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  outline: none;
+  color: var(--ink);
+}
+
+.docs-db-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.docs-db-wrap input[type='date'],
+.docs-db-wrap input[type='number'] {
+  font-family: var(--mono);
+  font-size: 12px;
+}

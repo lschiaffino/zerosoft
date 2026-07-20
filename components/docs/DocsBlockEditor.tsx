@@ -2,6 +2,7 @@
 
 import { forwardRef, useEffect, useRef } from 'react';
 import type { DocsBlock, DocsBlockType } from '@/lib/docs-types';
+import DocsDatabaseBlock from './DocsDatabaseBlock';
 
 interface DocsBlockEditorProps {
   block: DocsBlock;
@@ -32,13 +33,28 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
 
     useEffect(() => {
       const el = innerRef.current;
+      // Solo sincroniza cuando el contenido cambió por fuera del tipeo
+      // (ej. insertar una mención): mientras se escribe, textContent ya
+      // coincide con block.content y no se toca el DOM ni el caret.
       if (el && el.textContent !== block.content) {
         el.textContent = block.content;
       }
-    }, [block.id]);
+    }, [block.id, block.content]);
 
     if (block.type === 'divider') {
       return <hr className="docs-divider" data-index={index} />;
+    }
+
+    if (block.type === 'database') {
+      return (
+        <DocsDatabaseBlock
+          block={block}
+          index={index}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          onFocus={onFocus}
+        />
+      );
     }
 
     if (block.type === 'table') {

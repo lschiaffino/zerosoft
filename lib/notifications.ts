@@ -205,6 +205,32 @@ export async function createIssueStatusChangedNotifications(args: {
   }
 }
 
+// ---------- Docs notification helpers ----------
+
+export async function createDocsMentionNotification(args: {
+  pageId: string;
+  pageTitle: string;
+  actor: Actor;
+  mentionedUserId: string;
+}): Promise<void> {
+  const { pageId, pageTitle, actor, mentionedUserId } = args;
+  if (mentionedUserId === actor.id) return;
+
+  await createNotification({
+    userId: mentionedUserId,
+    type: 'mention',
+    title: `${actorName(actor)} mentioned you in ${pageTitle || 'Untitled'}`,
+    href: `/app/docs/${pageId}`,
+    sourceType: 'docs_page',
+    sourceId: pageId,
+    meta: {
+      pageTitle,
+      actorName: actorName(actor),
+      actorId: actor.id,
+    },
+  });
+}
+
 // Mention parsing: @email@domain.com and @Some Name (up to 3 capitalized words).
 const EMAIL_MENTION_RE = /@[\w.-]+@[\w.-]+\.\w{2,}/g;
 const NAME_MENTION_RE = /@[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,2}/g;

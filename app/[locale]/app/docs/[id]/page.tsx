@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
-import { getDocPage, getDocPageAncestors, listDocPages, listDocShares } from '@/lib/docs';
+import { getDocPage, getDocPageAncestors, listDocComments, listDocPages, listDocShares } from '@/lib/docs';
 import { createDocPageAction, moveDocPageAction } from '@/lib/docs-actions';
 import DocsSidebar from '@/components/docs/DocsSidebar';
 import DocsEditorClient from '@/components/docs/DocsEditorClient';
@@ -20,6 +20,7 @@ export default async function DocsPageEditor({
   const allPages = await listDocPages(user.id, { archived: false });
   const ancestors = await getDocPageAncestors(user.id, id);
   const shares = await listDocShares(id);
+  const comments = await listDocComments(id);
   const t = await getTranslations({ locale, namespace: 'docs' });
 
   return (
@@ -36,7 +37,23 @@ export default async function DocsPageEditor({
         }}
       />
       <div className="docs-main">
-        <DocsEditorClient page={page} ancestors={ancestors} shares={shares} />
+        <DocsEditorClient
+          page={page}
+          ancestors={ancestors}
+          shares={shares}
+          comments={comments}
+          currentUserId={user.actingUser?.id ?? user.id}
+          commentsLabels={{
+            title: t('comments.title'),
+            empty: t('comments.empty'),
+            placeholder: t('comments.placeholder'),
+            add: t('comments.add'),
+            resolve: t('comments.resolve'),
+            unresolve: t('comments.unresolve'),
+            delete: t('comments.delete'),
+            resolved: t('comments.resolved'),
+          }}
+        />
       </div>
     </div>
   );

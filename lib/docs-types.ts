@@ -12,7 +12,17 @@ export type DocsBlockType =
   | 'quote'
   | 'code'
   | 'divider'
-  | 'table';
+  | 'table'
+  | 'database';
+
+export type DocsDatabaseColumnType = 'text' | 'number' | 'select' | 'date';
+
+export interface DocsDatabaseColumn {
+  id: string;
+  name: string;
+  type: DocsDatabaseColumnType;
+  options?: string[];
+}
 
 export interface DocsBlock {
   id: string;
@@ -22,6 +32,7 @@ export interface DocsBlock {
   checked?: boolean;
   language?: string;
   rows?: string[][];
+  columns?: DocsDatabaseColumn[];
 }
 
 export interface DocsPage {
@@ -44,6 +55,26 @@ export interface DocsPageShare {
   kind: 'public' | 'team' | 'user';
   target_id: string | null;
   created_at: string;
+}
+
+export interface DocsComment {
+  id: string;
+  page_id: string;
+  user_id: string;
+  block_id: string | null;
+  body: string;
+  resolved: boolean;
+  created_at: string;
+  user_name: string | null;
+  user_email: string;
+  user_image: string | null;
+}
+
+/** Miembro mencionable del workspace (para el popover de @). */
+export interface DocsMentionableUser {
+  id: string;
+  name: string | null;
+  email: string;
 }
 
 export function buildPageTree(pages: DocsPage[]): DocsPage[] {
@@ -85,4 +116,17 @@ export function stringifyBlocks(blocks: DocsBlock[]): string {
 
 export function defaultBlocks(): DocsBlock[] {
   return [{ id: crypto.randomUUID(), type: 'paragraph', content: '' }];
+}
+
+export function defaultDatabaseColumns(): DocsDatabaseColumn[] {
+  return [
+    { id: crypto.randomUUID(), name: 'Name', type: 'text' },
+    {
+      id: crypto.randomUUID(),
+      name: 'Status',
+      type: 'select',
+      options: ['Todo', 'Doing', 'Done'],
+    },
+    { id: crypto.randomUUID(), name: 'Due', type: 'date' },
+  ];
 }

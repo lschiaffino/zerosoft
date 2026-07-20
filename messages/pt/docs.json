@@ -27,5 +27,25 @@
     "team": "Equipe",
     "user": "Usuário",
     "share": "Compartilhar"
+  },
+  "templates": {
+    "title": "Começar de um modelo",
+    "untitled": "Sem título"
+  },
+  "trash": {
+    "title": "Lixeira",
+    "restore": "Restaurar",
+    "deleteForever": "Excluir para sempre",
+    "confirmDelete": "Excluir esta página para sempre? Esta ação não pode ser desfeita."
+  },
+  "comments": {
+    "title": "Comentários",
+    "empty": "Ainda não há comentários",
+    "placeholder": "Adicione um comentário…",
+    "add": "Comentar",
+    "resolve": "Resolver",
+    "unresolve": "Reabrir",
+    "delete": "Excluir",
+    "resolved": "Resolvido"
   }
 }

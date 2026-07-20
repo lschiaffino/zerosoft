@@ -27,5 +27,25 @@
     "team": "Team",
     "user": "User",
     "share": "Share"
+  },
+  "templates": {
+    "title": "Start from a template",
+    "untitled": "Untitled"
+  },
+  "trash": {
+    "title": "Trash",
+    "restore": "Restore",
+    "deleteForever": "Delete forever",
+    "confirmDelete": "Delete this page forever? This cannot be undone."
+  },
+  "comments": {
+    "title": "Comments",
+    "empty": "No comments yet",
+    "placeholder": "Add a comment…",
+    "add": "Comment",
+    "resolve": "Resolve",
+    "unresolve": "Reopen",
+    "delete": "Delete",
+    "resolved": "Resolved"
   }
 }

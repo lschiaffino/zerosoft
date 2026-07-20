@@ -751,6 +751,18 @@ const DDL = `
     CREATE INDEX IF NOT EXISTS idx_docs_shares_page ON docs_shares(page_id);
     CREATE INDEX IF NOT EXISTS idx_docs_shares_target ON docs_shares(kind, target_id);
 
+    -- Comentarios de página (block_id nullable → comentario a nivel página).
+    CREATE TABLE IF NOT EXISTS docs_comments (
+      id TEXT PRIMARY KEY,
+      page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      block_id TEXT,
+      body TEXT NOT NULL DEFAULT '',
+      resolved INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_docs_comments_page ON docs_comments(page_id, resolved, created_at ASC);
+
     -- ---------- Calendar ----------
 
     CREATE TABLE IF NOT EXISTS calendar_users (
@@ -1476,6 +1488,16 @@ export interface DocsShareRow {
   page_id: string;
   kind: 'public' | 'team' | 'user';
   target_id: string | null;
+  created_at: string;
+}
+
+export interface DocsCommentRow {
+  id: string;
+  page_id: string;
+  user_id: string;
+  block_id: string | null;
+  body: string;
+  resolved: 0 | 1;
   created_at: string;
 }
 

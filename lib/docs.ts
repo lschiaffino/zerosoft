@@ -1,15 +1,16 @@
-import { getDb, type DocsPageRow, type DocsShareRow, type TeamRow, type UserRow } from './db';
+import { getDb, type DocsCommentRow, type DocsPageRow, type DocsShareRow, type TeamRow, type UserRow } from './db';
 import { isMember } from './teams';
 import {
   type DocsBlock,
   type DocsBlockType,
+  type DocsComment,
   type DocsPage,
   type DocsPageShare,
   defaultBlocks,
   stringifyBlocks,
 } from './docs-types';
 
-export type { DocsBlock, DocsBlockType, DocsPage, DocsPageShare };
+export type { DocsBlock, DocsBlockType, DocsComment, DocsPage, DocsPageShare };
 export { defaultBlocks, stringifyBlocks } from './docs-types';
 
 // ---------- Helpers JSON ----------
@@ -377,6 +378,92 @@ export async function deleteDocShare(
   const res = await getDb()
     .prepare('DELETE FROM docs_shares WHERE id = ? AND page_id = ?')
     .run(shareId, pageId);
+  return res.changes > 0;
+}
+
+// ---------- Comments ----------
+
+type DocsCommentJoinedRow = DocsCommentRow & {
+  user_name: string | null;
+  user_email: string;
+  user_image: string | null;
+};
+
+function toComment(row: DocsCommentJoinedRow): DocsComment {
+  return {
+    id: row.id,
+    page_id: row.page_id,
+    user_id: row.user_id,
+    block_id: row.block_id,
+    body: row.body,
+    resolved: row.resolved === 1,
+    created_at: row.created_at,
+    user_name: row.user_name,
+    user_email: row.user_email,
+    user_image: row.user_image,
+  };
+}
+
+/** Fila cruda de una página (sin chequeo de owner) para permisos canRead/canEdit. */
+export async function getDocPageRow(pageId: string): Promise<DocsPageRow | null> {
+  const row = (await getDb()
+    .prepare('SELECT * FROM docs_pages WHERE id = ?')
+    .get(pageId)) as DocsPageRow | undefined;
+  return row ?? null;
+}
+
+export async function getDocComment(commentId: string): Promise<DocsComment | null> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT c.*, u.name AS user_name, u.email AS user_email, u.image AS user_image
+       FROM docs_comments c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.id = ?`,
+    )
+    .get(commentId)) as DocsCommentJoinedRow | undefined;
+  return row ? toComment(row) : null;
+}
+
+export async function listDocComments(pageId: string): Promise<DocsComment[]> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT c.*, u.name AS user_name, u.email AS user_email, u.image AS user_image
+       FROM docs_comments c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.page_id = ?
+       ORDER BY c.resolved ASC, c.created_at ASC`,
+    )
+    .all(pageId)) as DocsCommentJoinedRow[];
+  return rows.map(toComment);
+}
+
+export async function createDocComment(
+  pageId: string,
+  userId: string,
+  input: { body: string; block_id?: string | null },
+): Promise<DocsComment> {
+  const id = crypto.randomUUID();
+  await getDb()
+    .prepare(
+      `INSERT INTO docs_comments (id, page_id, user_id, block_id, body, resolved, created_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?)`,
+    )
+    .run(id, pageId, userId, input.block_id ?? null, input.body.trim(), new Date().toISOString());
+  return (await getDocComment(id))!;
+}
+
+export async function setDocCommentResolved(
+  commentId: string,
+  resolved: boolean,
+): Promise<DocsComment | null> {
+  await getDb()
+    .prepare('UPDATE docs_comments SET resolved = ? WHERE id = ?')
+    .run(resolved ? 1 : 0, commentId);
+  return getDocComment(commentId);
+}
+
+export async function deleteDocComment(commentId: string): Promise<boolean> {
+  const res = await getDb().prepare('DELETE FROM docs_comments WHERE id = ?').run(commentId);
   return res.changes > 0;
 }
 

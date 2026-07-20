@@ -17,7 +17,15 @@ const docsBlockType = z.enum([
   'code',
   'divider',
   'table',
+  'database',
 ]);
+
+const docsDatabaseColumnSchema = z.object({
+  id: z.string().min(1).max(64),
+  name: shortText,
+  type: z.enum(['text', 'number', 'select', 'date']),
+  options: z.array(shortText).max(30).optional(),
+});
 
 const docsBlockSchema = z.object({
   id: z.string().min(1).max(64),
@@ -27,6 +35,7 @@ const docsBlockSchema = z.object({
   checked: z.boolean().optional(),
   language: z.string().max(40).optional(),
   rows: z.array(z.array(longText)).optional(),
+  columns: z.array(docsDatabaseColumnSchema).max(30).optional(),
 });
 
 export const docPageCreateSchema = z.object({
@@ -49,4 +58,17 @@ export const docPageUpdateSchema = z.object({
 export const docShareCreateSchema = z.object({
   kind: z.enum(['public', 'team', 'user']),
   target_id: id.nullish(),
+});
+
+export const docCommentCreateSchema = z.object({
+  body: z.string().trim().min(1).max(5000),
+  block_id: id.nullish(),
+});
+
+export const docCommentUpdateSchema = z.object({
+  resolved: z.boolean(),
+});
+
+export const docMentionCreateSchema = z.object({
+  user_id: id,
 });

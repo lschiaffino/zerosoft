@@ -2,22 +2,41 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
-import { type DocsPage, type DocsPageShare } from '@/lib/docs-types';
+import { type DocsComment, type DocsPage, type DocsPageShare } from '@/lib/docs-types';
 import DocsEditor from './DocsEditor';
 import SharePanel from './SharePanel';
+import CommentsPanel from './CommentsPanel';
+
+interface CommentsLabels {
+  title: string;
+  empty: string;
+  placeholder: string;
+  add: string;
+  resolve: string;
+  unresolve: string;
+  delete: string;
+  resolved: string;
+}
 
 export default function DocsEditorClient({
   page,
   ancestors,
   shares,
+  comments,
+  currentUserId,
+  commentsLabels,
 }: {
   page: DocsPage;
   ancestors: DocsPage[];
   shares: DocsPageShare[];
+  comments: DocsComment[];
+  currentUserId: string;
+  commentsLabels: CommentsLabels;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [localShares, setLocalShares] = useState(shares);
+  const [commentFocus, setCommentFocus] = useState(0);
 
   const savePage = useCallback(
     async (patch: Partial<DocsPage>) => {
@@ -85,14 +104,25 @@ export default function DocsEditorClient({
         saving={saving}
         onDuplicate={duplicatePage}
         onDelete={deletePage}
+        onAddComment={() => setCommentFocus((n) => n + 1)}
       />
-      <SharePanel
-        page={page}
-        shares={localShares}
-        onUpdate={savePage}
-        onShare={handleShare}
-        onUnshare={handleUnshare}
-      />
+      <div className="docs-side">
+        <SharePanel
+          page={page}
+          shares={localShares}
+          onUpdate={savePage}
+          onShare={handleShare}
+          onUnshare={handleUnshare}
+        />
+        <CommentsPanel
+          pageId={page.id}
+          pageOwnerId={page.user_id}
+          currentUserId={currentUserId}
+          initialComments={comments}
+          focusSignal={commentFocus}
+          labels={commentsLabels}
+        />
+      </div>
     </div>
   );
 }

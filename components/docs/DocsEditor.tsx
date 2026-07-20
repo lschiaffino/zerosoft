@@ -4,13 +4,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import {
   defaultBlocks,
+  defaultDatabaseColumns,
   type DocsBlock,
   type DocsBlockType,
+  type DocsMentionableUser,
   type DocsPage,
   stringifyBlocks,
 } from '@/lib/docs-types';
 import DocsBlockEditor from './DocsBlockEditor';
 import MentionPopover from './MentionPopover';
+import UserMentionPopover from './UserMentionPopover';
 import EmojiPicker from './EmojiPicker';
 
 interface DocsEditorProps {
@@ -20,6 +23,7 @@ interface DocsEditorProps {
   saving?: boolean;
   onDuplicate?: () => void;
   onDelete?: () => void;
+  onAddComment?: () => void;
 }
 
 const BLOCK_COMMANDS: {
@@ -40,6 +44,7 @@ const BLOCK_COMMANDS: {
   { key: 'code', label: 'Code', type: 'code', shortcut: '``` code' },
   { key: 'divider', label: 'Divider', type: 'divider' },
   { key: 'table', label: 'Table', type: 'table' },
+  { key: 'database', label: 'Database', type: 'database' },
 ];
 
 const BLOCK_ICONS: Record<DocsBlockType, string> = {
@@ -52,6 +57,7 @@ const BLOCK_ICONS: Record<DocsBlockType, string> = {
   code: '</>',
   divider: '—',
   table: '▦',
+  database: '▤',
 };
 
 export default function DocsEditor({
@@ -61,6 +67,7 @@ export default function DocsEditor({
   saving,
   onDuplicate,
   onDelete,
+  onAddComment,
 }: DocsEditorProps) {
   const [blocks, setBlocks] = useState<DocsBlock[]>(
     page.content.length ? page.content : defaultBlocks(),
@@ -75,6 +82,7 @@ export default function DocsEditor({
   const [cmdQuery, setCmdQuery] = useState('');
   const [cmdSel, setCmdSel] = useState(0);
   const [mention, setMention] = useState<{ index: number; query: string } | null>(null);
+  const [userMention, setUserMention] = useState<{ index: number; query: string } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -168,6 +176,7 @@ export default function DocsEditor({
       setCmdOpen(false);
       setCmdQuery('');
       setMention(null);
+      setUserMention(null);
       setFocusIndex(index + 1);
     },
     [triggerSave],
@@ -189,7 +198,18 @@ export default function DocsEditor({
   const convertBlock = useCallback(
     (index: number, type: DocsBlockType, level?: 1 | 2 | 3) => {
       setBlocks((prev) => {
-        const next = prev.map((b, i) => (i === index ? { ...b, type, level, content: '' } : b));
+        const next = prev.map((b, i) => {
+          if (i !== index) return b;
+          const converted: DocsBlock = { ...b, type, level, content: '' };
+          // Database: inicializa columnas tipadas y una fila vacía.
+          if (type === 'database' && !converted.columns?.length) {
+            converted.columns = defaultDatabaseColumns();
+            converted.rows = converted.rows?.length
+              ? converted.rows
+              : [new Array(converted.columns.length).fill('')];
+          }
+          return converted;
+        });
         triggerSave(next);
         return next;
       });
@@ -269,8 +289,17 @@ export default function DocsEditor({
       const mentionMatch = text.match(/\[\[([^\]]*)$/);
       if (mentionMatch) {
         setMention({ index, query: mentionMatch[1] ?? '' });
+        setUserMention(null);
+        return;
+      }
+      setMention(null);
+
+      // @mención: '@' al inicio o tras un espacio, query sin espacios al final.
+      const userMatch = text.match(/(?:^|\s)@([^\s@]*)$/);
+      if (userMatch) {
+        setUserMention({ index, query: userMatch[1] ?? '' });
       } else {
-        setMention(null);
+        setUserMention(null);
       }
     },
     [blocks],
@@ -300,6 +329,31 @@ export default function DocsEditor({
       setFocusIndex(index);
     },
     [mention, triggerSave],
+  );
+
+  const onSelectUserMention = useCallback(
+    (selected: DocsMentionableUser) => {
+      if (!userMention) return;
+      const index = userMention.index;
+      const name = selected.name ?? selected.email;
+      setBlocks((prev) => {
+        const block = prev[index];
+        if (!block) return prev;
+        const newContent = block.content.replace(/@([^\s@]*)$/, `@${name} `);
+        const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
+        triggerSave(next);
+        return next;
+      });
+      setUserMention(null);
+      setFocusIndex(index);
+      // Notificación al mencionado (fire-and-forget; el server valida membresía).
+      fetch(`/api/docs/pages/${page.id}/mentions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: selected.id }),
+      }).catch(() => {});
+    },
+    [page.id, triggerSave, userMention],
   );
 
   const filteredCommands = BLOCK_COMMANDS.filter((c) =>
@@ -497,7 +551,7 @@ export default function DocsEditor({
         <button type="button" className="docs-meta-btn" onClick={() => setCoverOpen(true)}>
           Add cover
         </button>
-        <button type="button" className="docs-meta-btn">
+        <button type="button" className="docs-meta-btn" onClick={() => onAddComment?.()}>
           Add comment
         </button>
       </div>
@@ -545,6 +599,13 @@ export default function DocsEditor({
                   query={mention.query}
                   onSelect={onSelectMention}
                   onClose={() => setMention(null)}
+                />
+              )}
+              {userMention && focusIndex === index && (
+                <UserMentionPopover
+                  query={userMention.query}
+                  onSelect={onSelectUserMention}
+                  onClose={() => setUserMention(null)}
                 />
               )}
             </div>
