@@ -93,6 +93,7 @@ export default async function AppLayout({
             overview: tCalendar('sidebar.overview'),
             eventTypes: tCalendar('sidebar.eventTypes'),
             bookings: tCalendar('sidebar.bookings'),
+            routing: tCalendar('sidebar.routing'),
             availability: tCalendar('sidebar.availability'),
             settings: tCalendar('sidebar.settings'),
           },

@@ -1,0 +1,139 @@
+'use client';
+
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/navigation';
+
+interface PublicField {
+  name: string;
+  label: string;
+  type: 'text' | 'select' | 'boolean';
+  options: string[];
+  required: boolean;
+}
+
+interface PublicRoutingFormProps {
+  locale: string;
+  form: {
+    slug: string;
+    title: string;
+    description: string;
+    fields: PublicField[];
+  };
+}
+
+/**
+ * Formulario público de routing: hace las preguntas, evalúa las reglas vía
+ * POST /api/calendar/routing/<slug>/route y redirige al booking page del
+ * event type destino. Las respuestas de campos llamados `name`/`email` se
+ * llevan como query params (?name=&email=) para pre-llenar el booking.
+ */
+export default function PublicRoutingForm({ form }: PublicRoutingFormProps) {
+  const t = useTranslations('calendar');
+  const router = useRouter();
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function updateAnswer(name: string, value: unknown) {
+    setAnswers((prev) => ({ ...prev, [name]: value }));
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+
+    const res = await fetch(`/api/calendar/routing/${form.slug}/route`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ answers }),
+    }).catch(() => null);
+
+    if (res && res.status === 200) {
+      const data = (await res.json()) as { eventTypeSlug: string };
+      const qs = new URLSearchParams();
+      const name = answers.name;
+      const email = answers.email;
+      if (typeof name === 'string' && name.trim()) qs.set('name', name.trim());
+      if (typeof email === 'string' && email.trim()) qs.set('email', email.trim());
+      const suffix = qs.toString();
+      router.push(`/book/${data.eventTypeSlug}${suffix ? `?${suffix}` : ''}`);
+      return;
+    }
+
+    setBusy(false);
+    const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
+    setError(data?.error === 'no_route' ? t('routing.noRoute') : t('errors.generic'));
+  }
+
+  return (
+    <div className="booking-page">
+      <div className="booking-card">
+        <header className="booking-header">
+          <span className="calendar-event-dot-large" style={{ backgroundColor: '#000000' }} aria-hidden />
+          <div>
+            <h1 className="booking-title">{form.title}</h1>
+          </div>
+        </header>
+
+        {form.description && <p className="booking-description">{form.description}</p>}
+
+        <form className="booking-form" onSubmit={submit}>
+          {form.fields.map((field) => (
+            <label key={field.name} className="field">
+              <span className="prop-label">
+                {field.label}
+                {field.required && <span className="muted"> *</span>}
+              </span>
+              {field.type === 'boolean' ? (
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={answers[field.name] === true}
+                    onChange={(e) => updateAnswer(field.name, e.target.checked)}
+                    required={field.required}
+                  />
+                  <span>{field.label}</span>
+                </label>
+              ) : field.type === 'select' ? (
+                <select
+                  className="select"
+                  value={String(answers[field.name] ?? '')}
+                  onChange={(e) => updateAnswer(field.name, e.target.value)}
+                  required={field.required}
+                >
+                  <option value="" disabled>
+                    —
+                  </option>
+                  {field.options.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="input"
+                  type={field.name === 'email' ? 'email' : 'text'}
+                  value={String(answers[field.name] ?? '')}
+                  onChange={(e) => updateAnswer(field.name, e.target.value)}
+                  required={field.required}
+                />
+              )}
+            </label>
+          ))}
+
+          {error && <p className="form-error">{error}</p>}
+
+          <div className="booking-actions">
+            <span />
+            <button type="submit" className="btn btn-solid btn-small" disabled={busy}>
+              {busy ? t('common.saving') : t('routing.submit')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

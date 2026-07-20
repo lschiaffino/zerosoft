@@ -50,6 +50,7 @@ export interface SidebarLabels {
     overview: string;
     eventTypes: string;
     bookings: string;
+    routing: string;
     availability: string;
     settings: string;
   };
@@ -256,6 +257,7 @@ export default function AppSidebar({
       section: labels.records,
       items: [
         { href: '/app/calendar/event-types', label: labels.calendar.eventTypes, active: pathname.startsWith('/app/calendar/event-types'), icon: 'tasks' },
+        { href: '/app/calendar/routing', label: labels.calendar.routing, active: pathname.startsWith('/app/calendar/routing'), icon: 'lists' },
         { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: pathname.startsWith('/app/calendar/bookings'), icon: 'contacts' },
       ],
     },

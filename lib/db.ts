@@ -862,6 +862,47 @@ const DDL = `
     );
     CREATE INDEX IF NOT EXISTS idx_calendar_blocked_slots_user ON calendar_blocked_slots(user_id, starts_at);
 
+    -- Routing forms: formulario público que deriva al event type correcto
+    -- según las respuestas (paridad Calendly Routing Forms).
+    CREATE TABLE IF NOT EXISTS calendar_routing_forms (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      slug TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      active INTEGER NOT NULL DEFAULT 1,
+      default_event_type_id TEXT REFERENCES calendar_event_types(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_routing_forms_user_slug ON calendar_routing_forms(user_id, slug);
+    CREATE INDEX IF NOT EXISTS idx_calendar_routing_forms_user ON calendar_routing_forms(user_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS calendar_routing_fields (
+      id TEXT PRIMARY KEY,
+      form_id TEXT NOT NULL REFERENCES calendar_routing_forms(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      label TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'text' CHECK (type IN ('text', 'select', 'boolean')),
+      options TEXT NOT NULL DEFAULT '[]',
+      required INTEGER NOT NULL DEFAULT 0,
+      position INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_calendar_routing_fields_form ON calendar_routing_fields(form_id, position);
+
+    -- Reglas evaluadas en orden (position): la primera que matchea define el
+    -- event type destino; si ninguna matchea, se usa default_event_type_id.
+    CREATE TABLE IF NOT EXISTS calendar_routing_rules (
+      id TEXT PRIMARY KEY,
+      form_id TEXT NOT NULL REFERENCES calendar_routing_forms(id) ON DELETE CASCADE,
+      field_id TEXT NOT NULL REFERENCES calendar_routing_fields(id) ON DELETE CASCADE,
+      operator TEXT NOT NULL CHECK (operator IN ('is', 'is_not', 'contains', 'truthy')),
+      value TEXT NOT NULL DEFAULT '',
+      event_type_id TEXT NOT NULL REFERENCES calendar_event_types(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_calendar_routing_rules_form ON calendar_routing_rules(form_id, position);
+
     -- ---------- Track ----------
 
     CREATE TABLE IF NOT EXISTS track_projects (
@@ -1586,6 +1627,39 @@ export interface CalendarBlockedSlotRow {
   starts_at: string;
   ends_at: string;
   reason: string | null;
+}
+
+export interface CalendarRoutingFormRow {
+  id: string;
+  user_id: string;
+  slug: string;
+  title: string;
+  description: string;
+  active: 0 | 1;
+  default_event_type_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalendarRoutingFieldRow {
+  id: string;
+  form_id: string;
+  name: string;
+  label: string;
+  type: 'text' | 'select' | 'boolean';
+  options: string; // JSON string[] (opciones del tipo select)
+  required: 0 | 1;
+  position: number;
+}
+
+export interface CalendarRoutingRuleRow {
+  id: string;
+  form_id: string;
+  field_id: string;
+  operator: 'is' | 'is_not' | 'contains' | 'truthy';
+  value: string;
+  event_type_id: string;
+  position: number;
 }
 
 // ---------- Track ----------

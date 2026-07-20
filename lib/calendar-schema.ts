@@ -136,6 +136,50 @@ export const bookingUpdateSchema = z.object({
   cancelReason: longText.nullish(),
 });
 
+// ---------- Routing forms ----------
+
+export const routingFormCreateSchema = z.object({
+  slug,
+  title: shortText,
+  description: longText.optional(),
+  active: z.boolean().optional(),
+  defaultEventTypeId: id.nullish(),
+});
+
+export const routingFormUpdateSchema = routingFormCreateSchema.partial();
+
+const routingFieldName = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z][a-z0-9_]*$/, { message: 'invalid_input' });
+
+export const routingFieldCreateSchema = z.object({
+  name: routingFieldName,
+  label: shortText,
+  type: z.enum(['text', 'select', 'boolean']),
+  options: z.array(shortText).max(50).optional(),
+  required: z.boolean().optional(),
+  position: z.number().int().min(0).optional(),
+});
+
+export const routingFieldUpdateSchema = routingFieldCreateSchema.partial();
+
+export const routingRuleCreateSchema = z.object({
+  fieldId: id,
+  operator: z.enum(['is', 'is_not', 'contains', 'truthy']),
+  value: z.string().trim().max(200).optional(),
+  eventTypeId: id,
+  position: z.number().int().min(0).optional(),
+});
+
+export const routingRuleUpdateSchema = routingRuleCreateSchema.partial();
+
+export const routingEvaluateSchema = z.object({
+  answers: z.record(z.unknown()),
+});
+
 // ---------- Tipos inferidos ----------
 
 export type CalendarConfigUpdatePayload = z.infer<typeof calendarConfigUpdateSchema>;
@@ -147,3 +191,9 @@ export type BlockedSlotCreatePayload = z.infer<typeof blockedSlotCreateSchema>;
 export type BlockedSlotUpdatePayload = z.infer<typeof blockedSlotUpdateSchema>;
 export type BookingCreatePayload = z.infer<typeof bookingCreateSchema>;
 export type BookingUpdatePayload = z.infer<typeof bookingUpdateSchema>;
+export type RoutingFormCreatePayload = z.infer<typeof routingFormCreateSchema>;
+export type RoutingFormUpdatePayload = z.infer<typeof routingFormUpdateSchema>;
+export type RoutingFieldCreatePayload = z.infer<typeof routingFieldCreateSchema>;
+export type RoutingFieldUpdatePayload = z.infer<typeof routingFieldUpdateSchema>;
+export type RoutingRuleCreatePayload = z.infer<typeof routingRuleCreateSchema>;
+export type RoutingRuleUpdatePayload = z.infer<typeof routingRuleUpdateSchema>;
