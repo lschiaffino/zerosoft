@@ -779,6 +779,57 @@
     "invalid_input": "Some fields are invalid. Check them and try again.",
     "generic": "Something went wrong. Try again."
   },
+  "filters": {
+    "advanced": "Advanced filters",
+    "addRule": "+ Add filter",
+    "apply": "Apply filters",
+    "clearAll": "Clear all",
+    "empty": "No filters yet. Add one to narrow this list.",
+    "property": "Property",
+    "operator": "Operator",
+    "value": "Value",
+    "valueTo": "To",
+    "removeRule": "Remove filter",
+    "and": "AND",
+    "op": {
+      "contains": "contains",
+      "equals": "equals",
+      "starts": "starts with",
+      "eq": "=",
+      "neq": "≠",
+      "gt": ">",
+      "lt": "<",
+      "is": "is",
+      "isnot": "is not",
+      "before": "before",
+      "after": "after",
+      "between": "between"
+    },
+    "field": {
+      "name": "Name",
+      "email": "Email",
+      "company": "Company",
+      "lifecycle": "Lifecycle stage",
+      "leadStatus": "Lead status",
+      "owner": "Owner",
+      "source": "Source",
+      "created": "Created date",
+      "domain": "Domain",
+      "industry": "Industry",
+      "amount": "Amount",
+      "stage": "Stage",
+      "priority": "Priority",
+      "closeDate": "Close date"
+    }
+  },
+  "meetings": {
+    "book": "Book meeting",
+    "copyLink": "Copy link",
+    "copied": "Copied ✓",
+    "open": "Open",
+    "empty": "No active event types. Create one in Calendar first.",
+    "duration": "{min} min"
+  },
   "invite": {
     "title": "Join {team}",
     "sub": "{email} invited you to collaborate in their CRM workspace.",

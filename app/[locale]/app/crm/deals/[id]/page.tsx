@@ -13,6 +13,8 @@ import {
   removeContactFromDeal,
 } from '@/components/crm/associationActions';
 import DealStagePanel from '@/components/crm/DealStagePanel';
+import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
+import { listEventTypes } from '@/lib/calendar';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
@@ -144,6 +146,14 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
     email: c.email,
   }));
 
+  // Pre-fill del booking con el primer contacto asociado (si hay).
+  const primaryContact = contacts[0];
+  const meetingTypes = (await listEventTypes(user.id, { activeOnly: true })).map((et) => ({
+    slug: et.slug,
+    title: et.title,
+    durationMin: et.duration_min,
+  }));
+
   const associatedContactIds = new Set(contacts.map((c) => c.id));
 
   const historyFields: Record<string, string> = {
@@ -199,6 +209,18 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
               {t('deals.detail.lostReason')}: {deal.lost_reason}
             </span>
           )}
+        </div>
+        <div className="detail-actions">
+          <BookMeetingMenu
+            eventTypes={meetingTypes}
+            name={
+              primaryContact
+                ? [primaryContact.first_name, primaryContact.last_name].filter(Boolean).join(' ') || undefined
+                : undefined
+            }
+            email={primaryContact?.email || undefined}
+            locale={locale}
+          />
         </div>
       </header>
 

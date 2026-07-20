@@ -18,6 +18,8 @@ interface CompanyFiltersProps {
   createdFrom: string;
   createdTo: string;
   custom: Record<string, string>;
+  /** Query param `filters` crudo (advanced filter builder); se preserva al navegar. */
+  advanced?: string;
   sort: 'newest' | 'oldest' | 'name' | 'name_desc';
   industries: string[];
   lifecycles: Array<{ value: string; label: string }>;
@@ -34,6 +36,7 @@ export default function CompanyFilters({
   createdFrom,
   createdTo,
   custom,
+  advanced,
   sort,
   industries,
   lifecycles,
@@ -54,6 +57,7 @@ export default function CompanyFilters({
       owner: owner || undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
+      filters: advanced || undefined,
       sort: sort !== 'newest' ? sort : undefined,
       ...patch,
     };

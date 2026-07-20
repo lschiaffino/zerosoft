@@ -74,6 +74,142 @@ function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
+// ============================================================
+// ADVANCED FILTER BUILDER (query param `filters`, JSON FilterRule[])
+// ============================================================
+
+/**
+ * Regla del constructor de filtros avanzados. Claves cortas para una URL compacta.
+ * `f` = campo (los custom usan `custom:<name>`), `o` = operador, `v`/`v2` = valores.
+ */
+export interface FilterRule {
+  f: string;
+  o: string;
+  v?: string;
+  v2?: string;
+}
+
+export type FilterFieldType = 'text' | 'number' | 'select' | 'date' | 'boolean';
+
+interface AdvancedFieldDef {
+  /** Expresión SQL ya aliaseada; sale solo de nuestros mapas internos (nunca del usuario). */
+  expr: string;
+  type: FilterFieldType;
+}
+
+const TEXT_OPS = new Set(['contains', 'equals', 'starts']);
+const NUMBER_OPS = new Set(['eq', 'neq', 'gt', 'lt']);
+const SELECT_OPS = new Set(['is', 'isnot']);
+const DATE_OPS = new Set(['before', 'after', 'between']);
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** Nombres de custom fields admitidos en el JSON path (evita inyección en el path). */
+const CUSTOM_NAME = /^[A-Za-z0-9_\-]{1,100}$/;
+
+/** Parsea y valida el query param `filters` (JSON). Devuelve [] ante cualquier corrupción. */
+export function parseFilterRules(raw: string | undefined): FilterRule[] {
+  if (!raw) return [];
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!Array.isArray(value)) return [];
+    const out: FilterRule[] = [];
+    for (const item of value.slice(0, 20)) {
+      if (typeof item !== 'object' || item === null) continue;
+      const r = item as Record<string, unknown>;
+      if (typeof r.f !== 'string' || typeof r.o !== 'string' || !r.f || !r.o) continue;
+      out.push({
+        f: r.f.slice(0, 120),
+        o: r.o.slice(0, 20),
+        v: typeof r.v === 'string' ? r.v.slice(0, 500) : undefined,
+        v2: typeof r.v2 === 'string' ? r.v2.slice(0, 500) : undefined,
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/** Expresión SQL para una regla sobre custom field, según su tipo declarado. */
+function customExpr(alias: 'c' | 'co' | 'd', name: string, type: FilterFieldType): string {
+  const base = `json_extract(${alias}.custom, '$.${name}')`;
+  return type === 'number' ? `CAST(${base} AS REAL)` : base;
+}
+
+/**
+ * Traduce una regla a una condición WHERE parametrizada.
+ * Devuelve null si la regla es inválida o está incompleta (se ignora, no rompe la query).
+ */
+function buildRuleCondition(
+  alias: 'c' | 'co' | 'd',
+  fields: Record<string, AdvancedFieldDef>,
+  rule: FilterRule,
+  customTypes?: Record<string, FilterFieldType>,
+): { sql: string; args: Array<string | number> } | null {
+  let def = fields[rule.f];
+  if (!def && rule.f.startsWith('custom:')) {
+    const name = rule.f.slice(7);
+    if (!CUSTOM_NAME.test(name)) return null;
+    const type = customTypes?.[name] ?? 'text';
+    def = { expr: customExpr(alias, name, type), type };
+  }
+  if (!def) return null;
+
+  const v = (rule.v ?? '').trim();
+  const { expr, type } = def;
+
+  if (type === 'text') {
+    if (!v || !TEXT_OPS.has(rule.o)) return null;
+    if (rule.o === 'contains') {
+      return { sql: `${expr} LIKE ? ESCAPE '\\'`, args: [`%${escapeLike(v)}%`] };
+    }
+    if (rule.o === 'equals') return { sql: `${expr} = ?`, args: [v] };
+    return { sql: `${expr} LIKE ? ESCAPE '\\'`, args: [`${escapeLike(v)}%`] };
+  }
+
+  if (type === 'number') {
+    if (!NUMBER_OPS.has(rule.o)) return null;
+    const n = Number(v);
+    if (!v || Number.isNaN(n)) return null;
+    const op = rule.o === 'eq' ? '=' : rule.o === 'neq' ? '!=' : rule.o === 'gt' ? '>' : '<';
+    return { sql: `${expr} ${op} ?`, args: [n] };
+  }
+
+  if (type === 'select' || type === 'boolean') {
+    if (!v || !SELECT_OPS.has(rule.o)) return null;
+    // Boolean custom: se guarda como JSON true/false → json_extract da 1/0 (integer).
+    const arg: string | number = type === 'boolean' ? Number(v === '1' || v === 'true') : v;
+    if (rule.o === 'is') return { sql: `${expr} = ?`, args: [arg] };
+    return { sql: `(${expr} IS NULL OR ${expr} != ?)`, args: [arg] };
+  }
+
+  // date
+  if (!DATE_OPS.has(rule.o) || !ISO_DATE.test(v)) return null;
+  if (rule.o === 'before') return { sql: `date(${expr}) < date(?)`, args: [v] };
+  if (rule.o === 'after') return { sql: `date(${expr}) > date(?)`, args: [v] };
+  const v2 = (rule.v2 ?? '').trim();
+  if (!ISO_DATE.test(v2)) return null;
+  return { sql: `date(${expr}) BETWEEN date(?) AND date(?)`, args: [v, v2] };
+}
+
+/** Agrega las reglas avanzadas al WHERE (AND). Futuro: combinar grupos con OR. */
+function appendAdvancedFilters(
+  where: string[],
+  args: Array<string | number>,
+  alias: 'c' | 'co' | 'd',
+  fields: Record<string, AdvancedFieldDef>,
+  rules: FilterRule[] | undefined,
+  customTypes?: Record<string, FilterFieldType>,
+): void {
+  if (!rules?.length) return;
+  for (const rule of rules) {
+    const cond = buildRuleCondition(alias, fields, rule, customTypes);
+    if (!cond) continue;
+    where.push(cond.sql);
+    args.push(...cond.args);
+  }
+}
+
 /** Dispara workflows habilitados para un evento. Import dinámico evita dependencia circular. */
 async function fireEvent(
   userId: string,
@@ -224,12 +360,26 @@ export interface ContactFilter {
   createdFrom?: string;
   createdTo?: string;
   custom?: Record<string, string>;
+  filters?: FilterRule[];
+  /** Tipos de los custom fields (para operadores correctos en reglas `custom:*`). */
+  customTypes?: Record<string, FilterFieldType>;
   sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc';
   page?: number;
   pageSize?: number;
 }
 
 export type ContactListRow = CrmContactRow & { company_name: string | null };
+
+const CONTACT_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
+  name: { expr: "trim(c.first_name || ' ' || c.last_name)", type: 'text' },
+  email: { expr: 'c.email', type: 'text' },
+  company: { expr: 'c.company_id', type: 'select' },
+  lifecycle: { expr: 'c.lifecycle_stage', type: 'select' },
+  leadStatus: { expr: 'c.lead_status', type: 'select' },
+  owner: { expr: 'c.owner_id', type: 'select' },
+  source: { expr: 'c.source', type: 'select' },
+  created: { expr: 'c.created_at', type: 'date' },
+};
 
 function buildContactWhere(
   userId: string,
@@ -279,6 +429,7 @@ function buildContactWhere(
       args.push(value);
     }
   }
+  appendAdvancedFilters(where, args, 'c', CONTACT_ADV_FIELDS, f.filters, f.customTypes);
   return { where: where.join(' AND '), args };
 }
 
@@ -652,12 +803,23 @@ export interface CompanyFilter {
   createdFrom?: string;
   createdTo?: string;
   custom?: Record<string, string>;
+  filters?: FilterRule[];
+  customTypes?: Record<string, FilterFieldType>;
   sort?: 'newest' | 'oldest' | 'name' | 'name_desc';
   page?: number;
   pageSize?: number;
 }
 
 export type CompanyListRow = CrmCompanyRow & { contact_count: number };
+
+const COMPANY_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
+  name: { expr: 'co.name', type: 'text' },
+  domain: { expr: 'co.domain', type: 'text' },
+  industry: { expr: 'co.industry', type: 'select' },
+  lifecycle: { expr: 'co.lifecycle_stage', type: 'select' },
+  owner: { expr: 'co.owner_id', type: 'select' },
+  created: { expr: 'co.created_at', type: 'date' },
+};
 
 export async function listCompanies(
   userId: string,
@@ -698,6 +860,7 @@ export async function listCompanies(
       args.push(value);
     }
   }
+  appendAdvancedFilters(where, args, 'co', COMPANY_ADV_FIELDS, f.filters, f.customTypes);
   const whereSql = where.join(' AND ');
   const total = (
     (await db.prepare(`SELECT COUNT(*) AS c FROM crm_companies co WHERE ${whereSql}`).get(
@@ -1023,12 +1186,25 @@ export interface DealFilter {
   createdFrom?: string;
   createdTo?: string;
   custom?: Record<string, string>;
+  filters?: FilterRule[];
+  customTypes?: Record<string, FilterFieldType>;
   sort?: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc';
   page?: number;
   pageSize?: number;
 }
 
 export type DealListRow = CrmDealRow & { stage_name: string | null };
+
+const DEAL_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
+  name: { expr: 'd.name', type: 'text' },
+  amount: { expr: 'd.amount', type: 'number' },
+  stage: { expr: 'd.stage_id', type: 'select' },
+  priority: { expr: 'd.priority', type: 'select' },
+  source: { expr: 'd.source', type: 'select' },
+  owner: { expr: 'd.owner_id', type: 'select' },
+  closeDate: { expr: 'd.close_date', type: 'date' },
+  created: { expr: 'd.created_at', type: 'date' },
+};
 
 const DEAL_ORDER: Record<NonNullable<DealFilter['sort']>, string> = {
   newest: 'd.created_at DESC, d.id',
@@ -1081,6 +1257,7 @@ export async function listDeals(
       args.push(value);
     }
   }
+  appendAdvancedFilters(where, args, 'd', DEAL_ADV_FIELDS, f.filters, f.customTypes);
   const whereSql = where.join(' AND ');
   const total = (
     (await db.prepare(`SELECT COUNT(*) AS c FROM crm_deals d WHERE ${whereSql}`).get(...args)) as {

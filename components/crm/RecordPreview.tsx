@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
 
 export type PreviewType = 'contact' | 'company' | 'deal';
 
@@ -196,6 +197,19 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
   }, [onClose]);
 
   const detailHref = `/app/crm/${type}s/${id}`;
+
+  // Pre-fill del booking: contacto directo, o primer contacto del deal.
+  let prefillName: string | undefined;
+  let prefillEmail: string | undefined;
+  if (payload && isContactPayload(type, payload)) {
+    const c = payload.contact;
+    prefillName = `${c.first_name} ${c.last_name}`.trim() || undefined;
+    prefillEmail = c.email || undefined;
+  } else if (payload && isDealPayload(type, payload) && payload.contacts.length > 0) {
+    const c = payload.contacts[0];
+    prefillName = `${c.first_name} ${c.last_name}`.trim() || undefined;
+    prefillEmail = c.email || undefined;
+  }
 
   function renderHeader() {
     if (!payload) return null;
@@ -518,6 +532,7 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
                 <Link href={detailHref} className="btn btn-solid btn-small">
                   {t('common.viewAll')}
                 </Link>
+                <BookMeetingMenu name={prefillName} email={prefillEmail} locale={locale} />
               </div>
               {renderAssociations()}
               {renderProperties()}

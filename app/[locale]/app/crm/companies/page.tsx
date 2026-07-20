@@ -2,11 +2,12 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
-import { LIFECYCLE_STAGES, listCompanies, listCustomFields } from '@/lib/crm';
+import { LIFECYCLE_STAGES, listCompanies, listCustomFields, parseFilterRules, type FilterFieldType } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
 import CompanyFilters from '@/components/crm/CompanyFilters';
 import CompaniesTable, { type CompanyRow } from '@/components/crm/CompaniesTable';
+import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,13 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
       ? sortParam
       : 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
+  const rawFilters = one(searchParams.filters) ?? '';
+  const advancedRules = parseFilterRules(rawFilters);
+
+  const customFieldDefs = await listCustomFields(user.id, 'companies');
+  const customTypes: Record<string, FilterFieldType> = Object.fromEntries(
+    customFieldDefs.map((cf) => [cf.name, cf.type]),
+  );
 
   const { rows, total } = await listCompanies(user.id, {
     q: q || undefined,
@@ -59,6 +67,8 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
     custom: Object.keys(custom).length ? custom : undefined,
+    filters: advancedRules.length ? advancedRules : undefined,
+    customTypes,
     sort,
     page,
     pageSize: PAGE_SIZE,
@@ -102,7 +112,6 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
-  const customFieldDefs = await listCustomFields(user.id, 'companies');
   const customFields = customFieldDefs
     .filter((cf) => cf.type === 'select')
     .map((cf) => {
@@ -116,6 +125,53 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
       return { name: cf.name, label: cf.label, options };
     })
     .filter((cf) => cf.options.length > 0);
+
+  // Campos del constructor avanzado: estándar + custom fields de la entidad.
+  const builderFields: FilterBuilderField[] = [
+    { key: 'name', label: t('filters.field.name'), type: 'text' },
+    { key: 'domain', label: t('filters.field.domain'), type: 'text' },
+    {
+      key: 'industry',
+      label: t('filters.field.industry'),
+      type: 'select',
+      options: industries.map((ind) => ({ value: ind, label: ind })),
+    },
+    { key: 'lifecycle', label: t('filters.field.lifecycle'), type: 'select', options: lifecycles },
+    { key: 'owner', label: t('filters.field.owner'), type: 'select', options: owners },
+    { key: 'created', label: t('filters.field.created'), type: 'date' },
+    ...customFieldDefs.map((cf): FilterBuilderField => {
+      if (cf.type === 'boolean') {
+        return {
+          key: `custom:${cf.name}`,
+          label: cf.label,
+          type: 'select',
+          options: [
+            { value: '1', label: t('common.yes') },
+            { value: '0', label: t('common.no') },
+          ],
+        };
+      }
+      if (cf.type === 'select') {
+        let options: Array<{ value: string; label: string }> = [];
+        try {
+          const parsed: unknown = JSON.parse(cf.options);
+          if (Array.isArray(parsed)) {
+            options = parsed
+              .filter((o): o is string => typeof o === 'string')
+              .map((o) => ({ value: o, label: o }));
+          }
+        } catch {
+          options = [];
+        }
+        return { key: `custom:${cf.name}`, label: cf.label, type: 'select', options };
+      }
+      return {
+        key: `custom:${cf.name}`,
+        label: cf.label,
+        type: cf.type === 'number' ? 'number' : cf.type === 'date' ? 'date' : 'text',
+      };
+    }),
+  ];
 
   const tableRows: CompanyRow[] = rows.map((c) => ({
     id: c.id,
@@ -143,6 +199,7 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
   Object.entries(custom).forEach(([k, v]) => {
     if (v) query[`custom_${k}`] = v;
   });
+  if (rawFilters) query.filters = rawFilters;
   if (sort !== 'newest') query.sort = sort;
 
   const hasFilters =
@@ -171,12 +228,15 @@ export default async function CompaniesPage({ params: { locale }, searchParams }
         createdFrom={createdFrom}
         createdTo={createdTo}
         custom={custom}
+        advanced={rawFilters || undefined}
         sort={sort}
         industries={industries}
         lifecycles={lifecycles}
         owners={owners}
         customFields={customFields}
       />
+
+      <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
 
       {tableRows.length === 0 ? (
         <div className="empty-state">

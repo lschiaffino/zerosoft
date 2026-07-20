@@ -10,12 +10,15 @@ import {
   listCustomFields,
   listSavedViews,
   parseCustom,
+  parseFilterRules,
   type ContactFilter,
+  type FilterFieldType,
 } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
 import ContactsFilters, { type ContactSort } from '@/components/crm/ContactsFilters';
 import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
+import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,11 +75,18 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
   const createdFrom = one(searchParams.createdFrom) ?? str(viewQuery.createdFrom) ?? '';
   const createdTo = one(searchParams.createdTo) ?? str(viewQuery.createdTo) ?? '';
   const custom = parseCustomFilter(searchParams, viewQuery);
+  const rawFilters = one(searchParams.filters) ?? str(viewQuery.filters) ?? '';
+  const advancedRules = parseFilterRules(rawFilters);
   const sortParam = one(searchParams.sort) ?? str(viewQuery.sort) ?? 'newest';
   const sort: ContactSort = SORTS.includes(sortParam as ContactSort)
     ? (sortParam as ContactSort)
     : 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
+
+  const customFieldDefs = await listCustomFields(user.id, 'contacts');
+  const customTypes: Record<string, FilterFieldType> = Object.fromEntries(
+    customFieldDefs.map((cf) => [cf.name, cf.type]),
+  );
 
   const { rows, total } = await listContacts(user.id, {
     q: q || undefined,
@@ -87,6 +97,8 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
     custom: Object.keys(custom).length ? custom : undefined,
+    filters: advancedRules.length ? advancedRules : undefined,
+    customTypes,
     sort: sort as ContactFilter['sort'],
     page,
   });
@@ -102,7 +114,6 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
-  const customFieldDefs = await listCustomFields(user.id, 'contacts');
   const customFields = customFieldDefs
     .filter((cf) => cf.type === 'select')
     .map((cf) => {
@@ -116,6 +127,65 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
       return { name: cf.name, label: cf.label, options };
     })
     .filter((cf) => cf.options.length > 0);
+
+  // Campos del constructor avanzado: estándar + custom fields de la entidad.
+  const builderFields: FilterBuilderField[] = [
+    { key: 'name', label: t('filters.field.name'), type: 'text' },
+    { key: 'email', label: t('filters.field.email'), type: 'text' },
+    { key: 'company', label: t('filters.field.company'), type: 'select', options: companies },
+    {
+      key: 'lifecycle',
+      label: t('filters.field.lifecycle'),
+      type: 'select',
+      options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+    },
+    {
+      key: 'leadStatus',
+      label: t('filters.field.leadStatus'),
+      type: 'select',
+      options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+    },
+    { key: 'owner', label: t('filters.field.owner'), type: 'select', options: owners },
+    {
+      key: 'source',
+      label: t('filters.field.source'),
+      type: 'select',
+      options: SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
+    },
+    { key: 'created', label: t('filters.field.created'), type: 'date' },
+    ...customFieldDefs.map((cf): FilterBuilderField => {
+      if (cf.type === 'boolean') {
+        return {
+          key: `custom:${cf.name}`,
+          label: cf.label,
+          type: 'select',
+          options: [
+            { value: '1', label: t('common.yes') },
+            { value: '0', label: t('common.no') },
+          ],
+        };
+      }
+      if (cf.type === 'select') {
+        let options: Array<{ value: string; label: string }> = [];
+        try {
+          const parsed: unknown = JSON.parse(cf.options);
+          if (Array.isArray(parsed)) {
+            options = parsed
+              .filter((o): o is string => typeof o === 'string')
+              .map((o) => ({ value: o, label: o }));
+          }
+        } catch {
+          options = [];
+        }
+        return { key: `custom:${cf.name}`, label: cf.label, type: 'select', options };
+      }
+      return {
+        key: `custom:${cf.name}`,
+        label: cf.label,
+        type: cf.type === 'number' ? 'number' : cf.type === 'date' ? 'date' : 'text',
+      };
+    }),
+  ];
 
   const tableRows: ContactRow[] = rows.map((c) => ({
     id: c.id,
@@ -141,6 +211,7 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
   Object.entries(custom).forEach(([k, v]) => {
     if (v) query[`custom_${k}`] = v;
   });
+  if (rawFilters) query.filters = rawFilters;
   if (sort !== 'newest') query.sort = sort;
   if (activeView) query.view = activeView.id;
 
@@ -172,6 +243,7 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
         createdFrom={createdFrom}
         createdTo={createdTo}
         custom={custom}
+        advanced={rawFilters || undefined}
         sort={sort}
         lifecycles={[...LIFECYCLE_STAGES]}
         leadStatuses={[...LEAD_STATUSES]}
@@ -181,6 +253,8 @@ export default async function ContactsPage({ params: { locale }, searchParams }:
         views={views.map((v) => ({ id: v.id, name: v.name }))}
         activeViewId={activeView?.id ?? null}
       />
+
+      <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
 
       {tableRows.length === 0 ? (
         <div className="empty-state">

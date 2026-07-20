@@ -33,6 +33,8 @@ import {
   removeDealFromContact,
 } from '@/components/crm/associationActions';
 import DangerDelete from '@/components/crm/DangerDelete';
+import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
+import { listEventTypes } from '@/lib/calendar';
 import { listMembers } from '@/lib/teams';
 import HistoryPanel from '@/components/crm/HistoryPanel';
 
@@ -83,6 +85,11 @@ export default async function ContactDetailPage({
   const sourceOpts = SOURCES.map((value) => ({ value, label: t(`enums.source.${value}`) }));
 
   const name = `${contact.first_name} ${contact.last_name}`.trim() || contact.email || '—';
+  const meetingTypes = (await listEventTypes(user.id, { activeOnly: true })).map((et) => ({
+    slug: et.slug,
+    title: et.title,
+    durationMin: et.duration_min,
+  }));
 
   const historyFields: Record<string, string> = {
     first_name: t('contacts.form.firstName'),
@@ -207,6 +214,14 @@ export default async function ContactDetailPage({
             </a>
           )}
           {contact.job_title && <span className="detail-meta-item muted">{contact.job_title}</span>}
+        </div>
+        <div className="detail-actions">
+          <BookMeetingMenu
+            eventTypes={meetingTypes}
+            name={`${contact.first_name} ${contact.last_name}`.trim() || undefined}
+            email={contact.email || undefined}
+            locale={locale}
+          />
         </div>
       </header>
 

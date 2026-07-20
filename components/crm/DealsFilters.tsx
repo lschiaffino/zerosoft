@@ -20,6 +20,8 @@ interface DealsFiltersProps {
   createdFrom: string;
   createdTo: string;
   custom: Record<string, string>;
+  /** Query param `filters` crudo (advanced filter builder); se preserva al navegar. */
+  advanced?: string;
   sort: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc';
   stages: Array<{ id: string; name: string }>;
   priorities: Array<{ value: string; label: string }>;
@@ -39,6 +41,7 @@ export default function DealsFilters({
   createdFrom,
   createdTo,
   custom,
+  advanced,
   sort,
   stages,
   priorities,
@@ -63,6 +66,7 @@ export default function DealsFilters({
       owner: owner || undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
+      filters: advanced || undefined,
       sort: sort !== 'newest' ? sort : undefined,
       ...patch,
     };

@@ -26,6 +26,8 @@ interface ContactsFiltersProps {
   createdFrom: string;
   createdTo: string;
   custom: Record<string, string>;
+  /** Query param `filters` crudo (advanced filter builder); se preserva al navegar. */
+  advanced?: string;
   sort: ContactSort;
   lifecycles: string[];
   leadStatuses: string[];
@@ -50,6 +52,7 @@ export default function ContactsFilters({
   createdFrom,
   createdTo,
   custom,
+  advanced,
   sort,
   lifecycles,
   leadStatuses,
@@ -76,6 +79,7 @@ export default function ContactsFilters({
       owner: owner || undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
+      filters: advanced || undefined,
       sort: sort !== 'newest' ? sort : undefined,
       view: activeViewId ?? undefined,
       ...patch,
@@ -111,6 +115,7 @@ export default function ContactsFilters({
     if (owner) query.owner = owner;
     if (createdFrom) query.createdFrom = createdFrom;
     if (createdTo) query.createdTo = createdTo;
+    if (advanced) query.filters = advanced;
     if (sort !== 'newest') query.sort = sort;
     Object.entries(custom).forEach(([k, v]) => {
       if (v) query[`custom_${k}`] = v;

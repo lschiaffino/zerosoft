@@ -7,11 +7,17 @@ export const dynamic = 'force-dynamic';
 
 export default async function BookPage({
   params: { slug, locale },
+  searchParams,
 }: {
   params: { slug: string; locale: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const eventType = await getEventTypeBySlug(slug);
   if (!eventType) notFound();
+
+  // Pre-fill opcional del invitado (links generados desde el CRM).
+  const prefillName = typeof searchParams.name === 'string' ? searchParams.name.slice(0, 200) : '';
+  const prefillEmail = typeof searchParams.email === 'string' ? searchParams.email.slice(0, 200) : '';
 
   // Link de un solo uso ya consumido: no se permite reservar de nuevo.
   if (eventType.single_use === 1 && eventType.used_at) {
@@ -38,6 +44,8 @@ export default async function BookPage({
       eventType={eventType}
       locale={locale}
       weekStart={calendarUser?.week_start ?? 1}
+      prefillName={prefillName}
+      prefillEmail={prefillEmail}
     />
   );
 }

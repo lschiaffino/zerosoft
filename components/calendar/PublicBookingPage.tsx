@@ -8,6 +8,9 @@ interface Props {
   eventType: EventTypeWithRules;
   locale: string;
   weekStart?: number;
+  /** Pre-fill de los campos del invitado (p.ej. desde ?name=&email=). */
+  prefillName?: string;
+  prefillEmail?: string;
 }
 
 interface Slot {
@@ -118,7 +121,7 @@ function formatSlotRange(iso: string, timezone: string, locale: string): string 
   }).format(new Date(iso));
 }
 
-export default function PublicBookingPage({ eventType, locale, weekStart = 1 }: Props) {
+export default function PublicBookingPage({ eventType, locale, weekStart = 1, prefillName = '', prefillEmail = '' }: Props) {
   const t = useTranslations('calendar');
   const fields = useMemo(() => parseFields(eventType), [eventType]);
   const rules = useMemo(() => getRules(eventType), [eventType]);
@@ -140,8 +143,8 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1 }: 
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [step, setStep] = useState<Step>('date');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [name, setName] = useState(prefillName);
+  const [email, setEmail] = useState(prefillEmail);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

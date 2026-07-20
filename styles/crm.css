@@ -2180,3 +2180,139 @@ tr:hover .preview-btn { opacity: 1; }
   .dash-widget-head { cursor: default; }
   .dash-name-input { min-width: 0; flex: 1; }
 }
+
+/* === Book meeting (popover estilo HubSpot Meetings) === */
+
+.detail-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.book-meeting { position: relative; display: inline-block; }
+
+.book-meeting-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 70;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: 10px;
+  padding: 6px;
+  min-width: 260px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 14px 34px rgba(13, 13, 13, 0.12);
+}
+
+.book-meeting-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
+.book-meeting-item:hover { background: #fafafa; }
+
+.book-meeting-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.book-meeting-item-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.book-meeting-item-meta { font-size: 11px; white-space: nowrap; }
+
+.book-meeting-item-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.book-meeting-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  margin: 0;
+}
+
+/* === Advanced filter builder === */
+
+.filter-builder {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-builder-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-builder-open {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.filter-builder-count {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  font-size: 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+}
+
+.filter-builder-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-builder-empty { font-size: 12px; margin: 0; }
+
+.filter-builder-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-builder-row-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-builder-and {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  margin-left: 4px;
+}
+
+.filter-builder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-builder-prop { min-width: 170px; }
+.filter-builder-op { min-width: 130px; }
+.filter-builder-value { flex: 1; min-width: 150px; }
+
+.filter-builder-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}

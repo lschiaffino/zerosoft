@@ -7,15 +7,18 @@ import {
   listDeals,
   listDealsForBoard,
   listPipelinesWithStages,
+  parseFilterRules,
   PRIORITIES,
   SOURCES,
   type BoardStage,
+  type FilterFieldType,
 } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
 import DealsBoard from '@/components/crm/DealsBoard';
 import DealsFilters from '@/components/crm/DealsFilters';
 import DealsTable, { type DealRow } from '@/components/crm/DealsTable';
+import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 import { AddPipelineChip } from '@/components/crm/AddPipelineStage';
 
 export const dynamic = 'force-dynamic';
@@ -130,6 +133,59 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
     })
     .filter((cf) => cf.options.length > 0);
 
+  const customTypes: Record<string, FilterFieldType> = Object.fromEntries(
+    customFieldDefs.map((cf) => [cf.name, cf.type]),
+  );
+
+  // Campos del constructor avanzado: estándar + custom fields de la entidad.
+  const builderFields: FilterBuilderField[] = [
+    { key: 'name', label: t('filters.field.name'), type: 'text' },
+    { key: 'amount', label: t('filters.field.amount'), type: 'number' },
+    {
+      key: 'stage',
+      label: t('filters.field.stage'),
+      type: 'select',
+      options: pipeline.stages.map((s) => ({ value: s.id, label: s.name })),
+    },
+    { key: 'priority', label: t('filters.field.priority'), type: 'select', options: priorities },
+    { key: 'source', label: t('filters.field.source'), type: 'select', options: sources },
+    { key: 'owner', label: t('filters.field.owner'), type: 'select', options: owners },
+    { key: 'closeDate', label: t('filters.field.closeDate'), type: 'date' },
+    { key: 'created', label: t('filters.field.created'), type: 'date' },
+    ...customFieldDefs.map((cf): FilterBuilderField => {
+      if (cf.type === 'boolean') {
+        return {
+          key: `custom:${cf.name}`,
+          label: cf.label,
+          type: 'select',
+          options: [
+            { value: '1', label: t('common.yes') },
+            { value: '0', label: t('common.no') },
+          ],
+        };
+      }
+      if (cf.type === 'select') {
+        let options: Array<{ value: string; label: string }> = [];
+        try {
+          const parsed: unknown = JSON.parse(cf.options);
+          if (Array.isArray(parsed)) {
+            options = parsed
+              .filter((o): o is string => typeof o === 'string')
+              .map((o) => ({ value: o, label: o }));
+          }
+        } catch {
+          options = [];
+        }
+        return { key: `custom:${cf.name}`, label: cf.label, type: 'select', options };
+      }
+      return {
+        key: `custom:${cf.name}`,
+        label: cf.label,
+        type: cf.type === 'number' ? 'number' : cf.type === 'date' ? 'date' : 'text',
+      };
+    }),
+  ];
+
   // ---------- Vista tabla (server-side con searchParams) ----------
   let tableContent: React.ReactNode = null;
   if (view === 'table') {
@@ -144,6 +200,8 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
     const createdFrom = one(searchParams.createdFrom) ?? '';
     const createdTo = one(searchParams.createdTo) ?? '';
     const custom = parseCustomFilter(searchParams);
+    const rawFilters = one(searchParams.filters) ?? '';
+    const advancedRules = parseFilterRules(rawFilters);
     const sortParam = one(searchParams.sort);
     const sort: DealSort = (DEAL_SORTS as readonly string[]).includes(sortParam ?? '')
       ? (sortParam as DealSort)
@@ -160,6 +218,8 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
       custom: Object.keys(custom).length ? custom : undefined,
+      filters: advancedRules.length ? advancedRules : undefined,
+      customTypes,
       sort,
       page,
       pageSize: PAGE_SIZE,
@@ -218,6 +278,7 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
     Object.entries(custom).forEach(([k, v]) => {
       if (v) query[`custom_${k}`] = v;
     });
+    if (rawFilters) query.filters = rawFilters;
     if (sort !== 'newest') query.sort = sort;
 
     tableContent = (
@@ -232,6 +293,7 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
           createdFrom={createdFrom}
           createdTo={createdTo}
           custom={custom}
+          advanced={rawFilters || undefined}
           sort={sort}
           stages={pipeline.stages.map((s) => ({ id: s.id, name: s.name }))}
           priorities={priorities}
@@ -239,6 +301,7 @@ export default async function DealsPage({ params: { locale }, searchParams }: De
           owners={owners}
           customFields={customFields}
         />
+        <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
         {tableRows.length === 0 ? (
           <div className="empty-state">
             <p className="empty-zeros mono" aria-hidden>

@@ -779,6 +779,57 @@
     "invalid_input": "Hay campos inválidos. Revisalos y probá de nuevo.",
     "generic": "Algo salió mal. Probá de nuevo."
   },
+  "filters": {
+    "advanced": "Filtros avanzados",
+    "addRule": "+ Agregar filtro",
+    "apply": "Aplicar filtros",
+    "clearAll": "Limpiar todo",
+    "empty": "Todavía no hay filtros. Agregá uno para acotar la lista.",
+    "property": "Propiedad",
+    "operator": "Operador",
+    "value": "Valor",
+    "valueTo": "Hasta",
+    "removeRule": "Quitar filtro",
+    "and": "Y",
+    "op": {
+      "contains": "contiene",
+      "equals": "es igual a",
+      "starts": "empieza con",
+      "eq": "=",
+      "neq": "≠",
+      "gt": ">",
+      "lt": "<",
+      "is": "es",
+      "isnot": "no es",
+      "before": "antes de",
+      "after": "después de",
+      "between": "entre"
+    },
+    "field": {
+      "name": "Nombre",
+      "email": "Email",
+      "company": "Empresa",
+      "lifecycle": "Etapa del ciclo de vida",
+      "leadStatus": "Estado del lead",
+      "owner": "Responsable",
+      "source": "Origen",
+      "created": "Fecha de creación",
+      "domain": "Dominio",
+      "industry": "Industria",
+      "amount": "Monto",
+      "stage": "Etapa",
+      "priority": "Prioridad",
+      "closeDate": "Fecha de cierre"
+    }
+  },
+  "meetings": {
+    "book": "Agendar reunión",
+    "copyLink": "Copiar link",
+    "copied": "Copiado ✓",
+    "open": "Abrir",
+    "empty": "No hay tipos de evento activos. Creá uno en Calendar primero.",
+    "duration": "{min} min"
+  },
   "invite": {
     "title": "Unite a {team}",
     "sub": "{email} te invitó a colaborar en su workspace del CRM.",
