@@ -485,6 +485,91 @@
         "sub": "Docs is live. Start your team wiki today — for $0.",
         "button": "Launch Docs →"
       }
+    },
+    "chat": {
+      "meta": {
+        "title": "Chat — Customer support, set free",
+        "description": "An Intercom-style support desk: webchat widget, shared inbox, ticket states and priority, SLAs, AI bot, office hours and CSAT. Open source. Live now."
+      },
+      "hero": {
+        "tag": "Customer chat",
+        "sub": "An Intercom-style support desk: webchat widget, shared inbox, ticket states and priority, SLAs, an AI bot, office hours and CSAT. Open source. Live now."
+      },
+      "featuresTitle": "Talk to your customers.",
+      "featuresTitleDim": "Keep every conversation.",
+      "f1": {
+        "t": "Webchat widget",
+        "d": "One script tag puts a fast, monochrome chat widget on any site. Identify visitors and greet them by name."
+      },
+      "f2": {
+        "t": "Shared inbox",
+        "d": "Every conversation lands in one inbox the whole team works: assign, reply, snooze, resolve. No forwarding, no BCC."
+      },
+      "f3": {
+        "t": "States & priority",
+        "d": "Open, pending, resolved — with priorities from low to urgent that bubble the important ones up. Nothing slips."
+      },
+      "f4": {
+        "t": "SLA timers",
+        "d": "Set first-response and resolution targets and see what is about to breach before it does. Support with a clock."
+      },
+      "f5": {
+        "t": "AI bot",
+        "d": "The bot answers the repetitive questions first, from your canned responses or docs pages, and hands off to a human with the full thread."
+      },
+      "f6": {
+        "t": "Office hours & CSAT",
+        "d": "Show an away message with your expected response time when you're off, and measure satisfaction (1–5) when a conversation is resolved."
+      },
+      "f7": {
+        "t": "Assignment rules & canned responses",
+        "d": "Route conversations to the right teammate automatically and answer in two keystrokes with saved replies."
+      },
+      "f8": {
+        "t": "People & visitors",
+        "d": "Every visitor, lead and customer in one place: who they are, what they saw, what they asked."
+      },
+      "f9": {
+        "t": "No per-seat pricing",
+        "d": "Support is a team sport. Open source, self-hostable, exportable — invite everyone, the price stays $0."
+      },
+      "compare": {
+        "rival": "Intercom",
+        "price": "$29",
+        "per": "/ seat / month",
+        "team": "$3,480",
+        "zero": "$0",
+        "note": "Intercom starts around $29 per seat per month. A team of ten pays $3,480 a year. Chat costs $0."
+      },
+      "faq": {
+        "f1": {
+          "q": "Is it really free?",
+          "a": "Yes. Open source and self-hostable for $0. If we host it, you pay only the cloud at cost. No per-seat fees, no per-resolution fees."
+        },
+        "f2": {
+          "q": "How do I add the widget to my site?",
+          "a": "Create a widget, paste one script tag before the closing body tag, and you are live. It works with any stack that serves HTML."
+        },
+        "f3": {
+          "q": "Does the AI bot replace my team?",
+          "a": "No. It answers the repetitive questions from your canned responses or docs pages; your team keeps the conversations that need a human. You can turn it off entirely."
+        },
+        "f4": {
+          "q": "What happens if Zerosoft shuts down?",
+          "a": "You keep your conversations. Export everything, self-host the same code, and your support history stays yours."
+        },
+        "f5": {
+          "q": "When does it ship?",
+          "a": "Chat is live now. Create your first widget and answer customers today — for $0."
+        }
+      },
+      "cta": {
+        "label": "Chat — 0.06",
+        "title1": "Answer everyone.",
+        "title2": "Pay nothing.",
+        "sub": "Chat is live. Put the widget on your site today — for $0.",
+        "button": "Launch Chat →"
+      }
     }
   },
   "product": {
@@ -621,6 +706,26 @@
       "item1": "Notes that belong to you",
       "item2": "Nested pages and mentions",
       "item3": "Share with your team"
+    },
+    "chat": {
+      "listTitle": "Inbox",
+      "r1name": "Mara",
+      "r1msg": "Do you ship to Brazil?",
+      "r1time": "2m",
+      "r2name": "Tomás",
+      "r2msg": "The invoice link is broken",
+      "r2time": "1h",
+      "r3name": "Ana",
+      "r3msg": "Thanks, that worked!",
+      "r3time": "3h",
+      "badgeOpen": "Open",
+      "badgeHigh": "High",
+      "m1": "Hi! Do you ship to Brazil?",
+      "botTag": "AI bot",
+      "m2": "Hi Mara! Yes — we ship worldwide in 3–5 business days.",
+      "m3": "Perfect. And can I pay with Pix?",
+      "m4": "Yes, Pix works at checkout. I'll send the link now.",
+      "replyHint": "Write a reply…"
     }
   },
   "status": {

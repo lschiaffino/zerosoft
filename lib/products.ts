@@ -1,5 +1,5 @@
 /**
- * Static catalog of the five products. Kept in lib/ (no React imports) so both
+ * Static catalog of the six products. Kept in lib/ (no React imports) so both
  * the product pages and the /api/og/product route can share it.
  */
 export const PRODUCT_CONFIG = {
@@ -8,6 +8,7 @@ export const PRODUCT_CONFIG = {
   crm: { num: '02', name: 'CRM', available: true, launch: '/app/crm' },
   cal: { num: '03', name: 'Cal', available: false, launch: '/app' },
   docs: { num: '05', name: 'Docs', available: true, launch: '/app/docs' },
+  chat: { num: '06', name: 'Chat', available: true, launch: '/app/chat' },
 } as const;
 
 export type ProductKey = keyof typeof PRODUCT_CONFIG;

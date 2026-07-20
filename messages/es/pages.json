@@ -485,6 +485,91 @@
         "sub": "Docs ya está disponible. Empezá tu wiki de equipo hoy — por $0.",
         "button": "Abrir Docs →"
       }
+    },
+    "chat": {
+      "meta": {
+        "title": "Chat — Soporte al cliente, liberado",
+        "description": "Una mesa de soporte estilo Intercom: widget webchat, bandeja compartida, estados y prioridad, SLAs, bot de AI, horario de atención y CSAT. Open source. Disponible ahora."
+      },
+      "hero": {
+        "tag": "Chat con clientes",
+        "sub": "Una mesa de soporte estilo Intercom: widget webchat, bandeja compartida, estados y prioridad de tickets, SLAs, un bot de AI, horario de atención y CSAT. Open source. Disponible ahora."
+      },
+      "featuresTitle": "Hablá con tus clientes.",
+      "featuresTitleDim": "Quedate con cada conversación.",
+      "f1": {
+        "t": "Widget webchat",
+        "d": "Un script tag pone un widget de chat rápido y monocromo en cualquier sitio. Identificá visitantes y saludalos por su nombre."
+      },
+      "f2": {
+        "t": "Bandeja compartida",
+        "d": "Cada conversación cae en una sola bandeja que trabaja todo el equipo: asigná, respondé, posponé, resolvé. Sin forwards, sin BCC."
+      },
+      "f3": {
+        "t": "Estados y prioridad",
+        "d": "Abiertas, pendientes, resueltas — con prioridades de baja a urgente que suben lo importante. Nada se pierde."
+      },
+      "f4": {
+        "t": "SLAs",
+        "d": "Definí objetivos de primera respuesta y resolución, y mirá lo que está por vencer antes de que venza. Soporte con reloj."
+      },
+      "f5": {
+        "t": "Bot de AI",
+        "d": "El bot responde primero las preguntas repetitivas, desde tus respuestas prediseñadas o páginas de docs, y deriva a un humano con el hilo completo."
+      },
+      "f6": {
+        "t": "Horario de atención y CSAT",
+        "d": "Mostrá un mensaje de ausencia con el tiempo de respuesta esperado cuando no estás, y medí la satisfacción (1–5) al resolver cada conversación."
+      },
+      "f7": {
+        "t": "Reglas de asignación y respuestas prediseñadas",
+        "d": "Enviá cada conversación a la persona correcta automáticamente y respondé en dos teclas con mensajes guardados."
+      },
+      "f8": {
+        "t": "Personas y visitantes",
+        "d": "Cada visitante, lead y cliente en un solo lugar: quiénes son, qué vieron, qué preguntaron."
+      },
+      "f9": {
+        "t": "Sin precio por asiento",
+        "d": "El soporte se juega en equipo. Open source, self-hosteable, exportable — invitá a todos, el precio sigue en $0."
+      },
+      "compare": {
+        "rival": "Intercom",
+        "price": "$29",
+        "per": "/ asiento / mes",
+        "team": "$3.480",
+        "zero": "$0",
+        "note": "Intercom arranca en unos $29 por asiento por mes. Un equipo de diez paga $3.480 al año. Chat cuesta $0."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Es realmente gratis?",
+          "a": "Sí. Open source y self-hosteable por $0. Si lo corremos nosotros, pagás solo la nube al costo. Sin cargos por asiento ni por resolución."
+        },
+        "f2": {
+          "q": "¿Cómo agrego el widget a mi sitio?",
+          "a": "Creá un widget, pegá un script tag antes del cierre del body y listo. Funciona con cualquier stack que sirva HTML."
+        },
+        "f3": {
+          "q": "¿El bot de AI reemplaza a mi equipo?",
+          "a": "No. Responde las preguntas repetitivas desde tus respuestas prediseñadas o páginas de docs; tu equipo se queda con las conversaciones que necesitan un humano. Podés apagarlo por completo."
+        },
+        "f4": {
+          "q": "¿Qué pasa si Zerosoft cierra?",
+          "a": "Te quedás con tus conversaciones. Exportá todo, self-hosteá el mismo código y tu historial de soporte sigue siendo tuyo."
+        },
+        "f5": {
+          "q": "¿Cuándo sale?",
+          "a": "Chat ya está disponible. Creá tu primer widget y respondé clientes hoy — por $0."
+        }
+      },
+      "cta": {
+        "label": "Chat — 0.06",
+        "title1": "Respondé a todos.",
+        "title2": "No pagues nada.",
+        "sub": "Chat ya está disponible. Poné el widget en tu sitio hoy — por $0.",
+        "button": "Abrir Chat →"
+      }
     }
   },
   "product": {
@@ -621,6 +706,26 @@
       "item1": "Notas que son tuyas",
       "item2": "Páginas anidadas y menciones",
       "item3": "Compartí con tu equipo"
+    },
+    "chat": {
+      "listTitle": "Bandeja",
+      "r1name": "Mara",
+      "r1msg": "¿Hacen envíos a Brasil?",
+      "r1time": "2m",
+      "r2name": "Tomás",
+      "r2msg": "El link de la factura no anda",
+      "r2time": "1h",
+      "r3name": "Ana",
+      "r3msg": "¡Gracias, funcionó!",
+      "r3time": "3h",
+      "badgeOpen": "Abierta",
+      "badgeHigh": "Alta",
+      "m1": "¡Hola! ¿Hacen envíos a Brasil?",
+      "botTag": "Bot de AI",
+      "m2": "¡Hola Mara! Sí — enviamos a todo el mundo en 3–5 días hábiles.",
+      "m3": "Perfecto. ¿Y puedo pagar con Pix?",
+      "m4": "Sí, Pix funciona en el checkout. Ya te paso el link.",
+      "replyHint": "Escribí una respuesta…"
     }
   },
   "status": {

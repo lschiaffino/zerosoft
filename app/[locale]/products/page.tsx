@@ -10,9 +10,9 @@ export async function generateMetadata({ params: { locale } }: { params: { local
   return { title: t('meta.title'), description: t('meta.description') };
 }
 
-const CARDS = ['track', 'crm', 'cal', 'link', 'docs'] as const;
-const NAMES = { track: 'Track', crm: 'CRM', cal: 'Cal', link: 'Link', docs: 'Docs' } as const;
-const NUMS = { track: '01', crm: '02', cal: '03', link: '04', docs: '05' } as const;
+const CARDS = ['track', 'crm', 'cal', 'link', 'docs', 'chat'] as const;
+const NAMES = { track: 'Track', crm: 'CRM', cal: 'Cal', link: 'Link', docs: 'Docs', chat: 'Chat' } as const;
+const NUMS = { track: '01', crm: '02', cal: '03', link: '04', docs: '05', chat: '06' } as const;
 const ROADMAP = ['i1', 'i2', 'i3', 'i4'] as const;
 const COMPARE_ROWS = ['r1', 'r2', 'r3', 'r4'] as const;
 

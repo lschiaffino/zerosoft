@@ -85,14 +85,14 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
         </Reveal>
 
         <div className="product-grid">
-          {(['track', 'crm', 'cal', 'link', 'docs'] as const).map((key, i) => (
+          {(['track', 'crm', 'cal', 'link', 'docs', 'chat'] as const).map((key, i) => (
             <Reveal as="article" className="card" key={key}>
               <Link href={`/products/${key}`} style={{ display: 'contents' }}>
                 <div className="card-top">
                   <span className="card-num">0{i + 1}</span>
                   <span className="card-status">{t(`products.${key}.status`)}</span>
                 </div>
-                <h3>{key === 'crm' ? 'CRM' : key === 'cal' ? 'Cal' : key === 'link' ? 'Link' : key === 'docs' ? 'Docs' : 'Track'}</h3>
+                <h3>{key === 'crm' ? 'CRM' : key === 'cal' ? 'Cal' : key === 'link' ? 'Link' : key === 'docs' ? 'Docs' : key === 'chat' ? 'Chat' : 'Track'}</h3>
                 <p className="card-tag">{t(`products.${key}.tag`)}</p>
                 <p className="card-desc">{t(`products.${key}.desc`)}</p>
                 <span className="card-arrow" aria-hidden="true">→</span>
@@ -102,7 +102,7 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
 
           <Reveal as="article" className="card card-wide">
             <div className="card-top">
-              <span className="card-num">06</span>
+              <span className="card-num">07</span>
               <span className="card-status">{t('products.more.status')}</span>
             </div>
             <h3>{t('products.more.title')}</h3>

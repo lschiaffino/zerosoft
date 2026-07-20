@@ -242,6 +242,51 @@
 
 .pv-cal i.on { background: var(--ink); border-color: var(--ink); }
 
+.pv-chat {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 10px;
+  max-width: 300px;
+}
+
+.pv-chat-list {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.pv-chat-row { display: flex; align-items: center; gap: 5px; }
+
+.pv-chat-row i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink);
+  display: block;
+  flex-shrink: 0;
+}
+
+.pv-chat-row span { height: 4px; border-radius: 2px; background: #dcdcdc; display: block; }
+
+.pv-chat-thread {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.pv-chat-b { height: 12px; border-radius: 999px; background: #ececec; display: block; }
+
+.pv-chat-b.us { background: var(--ink); margin-left: auto; }
+
 /* ---------- Compare panel (inverted) ---------- */
 
 .compare {
@@ -954,6 +999,167 @@
   line-height: 1.6;
   color: #b0b0b0;
   text-align: center;
+}
+
+/* ---------- Mockup: Chat inbox ---------- */
+
+.mk-chat {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 540px;
+}
+
+.mk-chat-list {
+  border-right: 1px solid var(--line);
+  background: #fbfbfb;
+  padding: 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mk-chat-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 6px;
+  margin-bottom: 12px;
+}
+
+.mk-chat-list-head h4 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+
+.mk-chat-count {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.mk-chat-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 8px;
+  border-radius: 8px;
+}
+
+.mk-chat-row.active { background: #efefef; }
+
+.mk-chat-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mk-chat-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.mk-chat-name { font-size: 12.5px; font-weight: 500; }
+
+.mk-chat-time {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: #b0b0b0;
+  flex-shrink: 0;
+}
+
+.mk-chat-snippet {
+  font-size: 11.5px;
+  color: #6a6a6a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mk-chat-main {
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mk-chat-conv-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mk-chat-conv-head .mk-chat-name { font-size: 15px; font-weight: 600; }
+
+.mk-badge-urgent { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+
+.mk-chat-thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 0;
+}
+
+.mk-msg {
+  max-width: 72%;
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.mk-msg-them { background: #f0f0f0; border-bottom-left-radius: 4px; align-self: flex-start; }
+
+.mk-msg-us {
+  background: var(--ink);
+  color: var(--bg);
+  border-bottom-right-radius: 4px;
+  align-self: flex-end;
+}
+
+.mk-msg-bot {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 4px;
+  align-self: flex-start;
+}
+
+.mk-msg-tag {
+  display: block;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  margin-bottom: 5px;
+}
+
+.mk-chat-reply {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 10px 16px;
+}
+
+.mk-chat-reply-hint { font-size: 12px; color: #b0b0b0; }
+
+.mk-chat-send {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
 }
 
 /* ---------- Features grid ---------- */

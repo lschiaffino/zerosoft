@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey } from '@/lib/products';
 import Reveal from '@/components/Reveal';
 import BrowserFrame from './BrowserFrame';
 import LinkMockup from './mockups/LinkMockup';
@@ -8,6 +8,7 @@ import TrackMockup from './mockups/TrackMockup';
 import CrmMockup from './mockups/CrmMockup';
 import CalMockup from './mockups/CalMockup';
 import DocsMockup from './mockups/DocsMockup';
+import ChatMockup from './mockups/ChatMockup';
 
 const MOCKUPS = {
   link: LinkMockup,
@@ -15,6 +16,7 @@ const MOCKUPS = {
   crm: CrmMockup,
   cal: CalMockup,
   docs: DocsMockup,
+  chat: ChatMockup,
 } as const;
 
 const FEATURE_IDS = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9'] as const;
@@ -38,6 +40,7 @@ export default async function ProductPage({
   const cfg = PRODUCT_CONFIG[product];
   const Mockup = MOCKUPS[product];
   const p = `products.${product}`;
+  const total = String(PRODUCT_KEYS.length).padStart(2, '0');
 
   return (
     <main>
@@ -47,7 +50,7 @@ export default async function ProductPage({
           {t('product.back')}
         </Link>
         <p className="pd-num">
-          {cfg.num} / 04 — {t(`${p}.hero.tag`)}
+          {cfg.num} / {total} — {t(`${p}.hero.tag`)}
         </p>
         <h1 className="pd-title">{cfg.name}</h1>
         <p className="pd-sub">{t(`${p}.hero.sub`)}</p>

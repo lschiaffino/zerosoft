@@ -62,6 +62,32 @@ export default function MiniVisual({ product }: { product: string }) {
     );
   }
 
+  if (product === 'chat') {
+    const rows = ['62%', '48%', '70%'];
+    const bubbles: { w: string; us: boolean }[] = [
+      { w: '58%', us: false },
+      { w: '74%', us: true },
+      { w: '46%', us: false },
+    ];
+    return (
+      <div className="pv pv-chat" aria-hidden="true">
+        <div className="pv-chat-list">
+          {rows.map((w, i) => (
+            <div className="pv-chat-row" key={i}>
+              <i />
+              <span style={{ width: w }} />
+            </div>
+          ))}
+        </div>
+        <div className="pv-chat-thread">
+          {bubbles.map((b, i) => (
+            <span className={`pv-chat-b${b.us ? ' us' : ''}`} style={{ width: b.w }} key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // cal: a month grid with a few "available" days filled
   const on = new Set([3, 8, 10, 15, 17, 22, 27]);
   return (

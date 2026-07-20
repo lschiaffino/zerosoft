@@ -5,6 +5,8 @@
  * plus the product name and the zerosoft.ai wordmark.
  */
 
+import { PRODUCT_KEYS } from './products';
+
 function hash(str: string): number {
   let h = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -86,7 +88,8 @@ export function generateProductOGSVG(product: string, name: string, num: string)
 
   // 4. Brand mark top-left, product num + name bottom-left, domain bottom-right.
   const wordmark = `<text x="64" y="96" fill="#ffffff" opacity="0.9" font-family="${fontFamily}" font-size="40" font-weight="700">0</text>`;
-  const productNum = `<text x="64" y="${height - 196}" fill="#ffffff" opacity="0.45" font-family="${fontFamily}" font-size="24" font-weight="500">${escapeXml(num)} / 05</text>`;
+  const total = String(PRODUCT_KEYS.length).padStart(2, '0');
+  const productNum = `<text x="64" y="${height - 196}" fill="#ffffff" opacity="0.45" font-family="${fontFamily}" font-size="24" font-weight="500">${escapeXml(num)} / ${total}</text>`;
   const productName = `<text x="64" y="${height - 104}" fill="#ffffff" font-family="${fontFamily}" font-size="96" font-weight="700">${escapeXml(name)}</text>`;
   const tagline = `<text x="${width - 64}" y="${height - 84}" text-anchor="end" fill="#ffffff" opacity="0.55" font-family="${fontFamily}" font-size="26" font-weight="500">zerosoft.ai</text>`;
 

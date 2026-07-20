@@ -24,7 +24,7 @@ const PRODUCTS = [
   { key: 'track', num: '02', href: '/products/track' },
   { key: 'crm', num: '03', href: '/products/crm' },
   { key: 'cal', num: '04', href: '/products/cal' },
-  { key: 'chat', num: '05', href: '/app/chat' },
+  { key: 'chat', num: '05', href: '/products/chat' },
   { key: 'docs', num: '06', href: '/docs' },
 ] as const;
 

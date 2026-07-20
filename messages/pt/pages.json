@@ -485,6 +485,91 @@
         "sub": "O Docs já está disponível. Comece a wiki do seu time hoje — por $0.",
         "button": "Abrir o Docs →"
       }
+    },
+    "chat": {
+      "meta": {
+        "title": "Chat — Suporte ao cliente, liberto",
+        "description": "Uma central de suporte estilo Intercom: widget de webchat, caixa de entrada compartilhada, estados e prioridade, SLAs, bot de IA, horário de atendimento e CSAT. Open source. Disponível agora."
+      },
+      "hero": {
+        "tag": "Chat com clientes",
+        "sub": "Uma central de suporte estilo Intercom: widget de webchat, caixa de entrada compartilhada, estados e prioridade de tickets, SLAs, um bot de IA, horário de atendimento e CSAT. Open source. Disponível agora."
+      },
+      "featuresTitle": "Converse com seus clientes.",
+      "featuresTitleDim": "Fique com cada conversa.",
+      "f1": {
+        "t": "Widget de webchat",
+        "d": "Uma tag de script coloca um widget de chat rápido e monocromático em qualquer site. Identifique visitantes e os cumprimente pelo nome."
+      },
+      "f2": {
+        "t": "Caixa de entrada compartilhada",
+        "d": "Toda conversa cai em uma única caixa de entrada que o time inteiro trabalha: atribua, responda, adie, resolva. Sem encaminhar, sem BCC."
+      },
+      "f3": {
+        "t": "Estados e prioridade",
+        "d": "Abertas, pendentes, resolvidas — com prioridades de baixa a urgente que trazem o importante para cima. Nada se perde."
+      },
+      "f4": {
+        "t": "SLAs",
+        "d": "Defina metas de primeira resposta e resolução e veja o que está prestes a estourar antes que estoure. Suporte com relógio."
+      },
+      "f5": {
+        "t": "Bot de IA",
+        "d": "O bot responde primeiro às perguntas repetitivas, a partir das suas respostas prontas ou páginas de docs, e passa para um humano com o histórico completo."
+      },
+      "f6": {
+        "t": "Horário de atendimento e CSAT",
+        "d": "Mostre uma mensagem de ausência com o tempo de resposta esperado quando você está fora e meça a satisfação (1–5) ao resolver cada conversa."
+      },
+      "f7": {
+        "t": "Regras de atribuição e respostas prontas",
+        "d": "Encaminhe cada conversa para a pessoa certa automaticamente e responda em duas teclas com mensagens salvas."
+      },
+      "f8": {
+        "t": "Pessoas e visitantes",
+        "d": "Cada visitante, lead e cliente em um só lugar: quem são, o que viram, o que perguntaram."
+      },
+      "f9": {
+        "t": "Sem cobrança por usuário",
+        "d": "Suporte é um esporte de time. Open source, self-hospedável, exportável — convide todo mundo, o preço continua $0."
+      },
+      "compare": {
+        "rival": "Intercom",
+        "price": "US$ 29",
+        "per": "/ usuário / mês",
+        "team": "US$ 3.480",
+        "zero": "$0",
+        "note": "O Intercom começa em cerca de US$ 29 por usuário por mês. Um time de dez paga US$ 3.480 por ano. O Chat custa $0."
+      },
+      "faq": {
+        "f1": {
+          "q": "É grátis de verdade?",
+          "a": "Sim. Open source e self-hospedável por $0. Se rodarmos para você, você paga apenas a nuvem ao custo. Sem taxas por usuário nem por resolução."
+        },
+        "f2": {
+          "q": "Como adiciono o widget ao meu site?",
+          "a": "Crie um widget, cole uma tag de script antes do fechamento do body e pronto. Funciona com qualquer stack que sirva HTML."
+        },
+        "f3": {
+          "q": "O bot de IA substitui meu time?",
+          "a": "Não. Ele responde às perguntas repetitivas a partir das suas respostas prontas ou páginas de docs; seu time fica com as conversas que precisam de um humano. Você pode desligá-lo por completo."
+        },
+        "f4": {
+          "q": "E se a Zerosoft fechar?",
+          "a": "Você fica com suas conversas. Exporte tudo, self-hospede o mesmo código e seu histórico de suporte continua seu."
+        },
+        "f5": {
+          "q": "Quando sai?",
+          "a": "O Chat já está disponível. Crie seu primeiro widget e responda clientes hoje — por $0."
+        }
+      },
+      "cta": {
+        "label": "Chat — 0.06",
+        "title1": "Responda a todos.",
+        "title2": "Não pague nada.",
+        "sub": "O Chat já está disponível. Coloque o widget no seu site hoje — por $0.",
+        "button": "Abrir o Chat →"
+      }
     }
   },
   "product": {
@@ -621,6 +706,26 @@
       "item1": "Notas que são suas",
       "item2": "Páginas aninhadas e menções",
       "item3": "Compartilhe com seu time"
+    },
+    "chat": {
+      "listTitle": "Caixa de entrada",
+      "r1name": "Mara",
+      "r1msg": "Vocês enviam para o Brasil?",
+      "r1time": "2m",
+      "r2name": "Tomás",
+      "r2msg": "O link da fatura está quebrado",
+      "r2time": "1h",
+      "r3name": "Ana",
+      "r3msg": "Obrigado, funcionou!",
+      "r3time": "3h",
+      "badgeOpen": "Aberta",
+      "badgeHigh": "Alta",
+      "m1": "Olá! Vocês enviam para o Brasil?",
+      "botTag": "Bot de IA",
+      "m2": "Olá, Mara! Sim — enviamos para todo o mundo em 3–5 dias úteis.",
+      "m3": "Perfeito. E posso pagar com Pix?",
+      "m4": "Sim, Pix funciona no checkout. Já envio o link.",
+      "replyHint": "Escreva uma resposta…"
     }
   },
   "status": {
