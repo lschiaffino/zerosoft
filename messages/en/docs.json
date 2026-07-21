@@ -45,6 +45,16 @@
     "languagePlaceholder": "language",
     "addRow": "+ row",
     "addColumn": "+ column",
+    "blockMenu": {
+      "turnInto": "Turn into",
+      "duplicate": "Duplicate",
+      "delete": "Delete",
+      "comment": "Comment",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "insertBelow": "Insert below",
+      "dragHandle": "Block options — drag to reorder"
+    },
     "commands": {
       "p": "Text",
       "h1": "Heading 1",

@@ -45,6 +45,16 @@
     "languagePlaceholder": "linguagem",
     "addRow": "+ linha",
     "addColumn": "+ coluna",
+    "blockMenu": {
+      "turnInto": "Transformar em",
+      "duplicate": "Duplicar",
+      "delete": "Excluir",
+      "comment": "Comentar",
+      "moveUp": "Mover para cima",
+      "moveDown": "Mover para baixo",
+      "insertBelow": "Inserir abaixo",
+      "dragHandle": "Opções do bloco — arraste para reordenar"
+    },
     "commands": {
       "p": "Texto",
       "h1": "Cabeçalho 1",

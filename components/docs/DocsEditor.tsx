@@ -1,6 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import {
@@ -82,6 +91,22 @@ const BLOCK_ICONS: Record<DocsBlockType, string> = {
 
 const LIST_TYPES: DocsBlockType[] = ['bulleted_list_item', 'numbered_list_item', 'todo'];
 
+/** px antes de activar el drag del bloque (permite click normal en el grip). */
+const DRAG_THRESHOLD = 6;
+
+/** Estado del drag de reordenamiento de bloques (pointer events, sin deps). */
+interface BlockDragState {
+  pointerId: number;
+  index: number;
+  startX: number;
+  startY: number;
+  dragging: boolean;
+  ghostEl: HTMLElement | null;
+  offsetY: number;
+  /** Posición de inserción (antes del bloque en ese índice; = length para el final). */
+  dropIndex: number;
+}
+
 /** Bloques cuyo contenido es texto editable en línea (no divider/table/database). */
 function isTextBlockType(type: DocsBlockType): boolean {
   return type !== 'divider' && type !== 'table' && type !== 'database';
@@ -140,12 +165,25 @@ export default function DocsEditor({
   const pendingCaret = useRef<{ index: number; offset: number } | null>(null);
   /** Último índice enfocado conocido, para no re-mover el caret en cada render. */
   const prevFocus = useRef<number>(-1);
+  /** Índice del bloque con menú contextual abierto (click en el grip ⋮⋮). */
+  const [blockMenu, setBlockMenu] = useState<number | null>(null);
+  const [turnIntoOpen, setTurnIntoOpen] = useState(false);
+  /** Índice del bloque que se está arrastrando (para atenuarlo). */
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  /** Top (px, relativo a .docs-blocks) de la línea indicadora de drop; null si no hay drag. */
+  const [dropLine, setDropLine] = useState<number | null>(null);
+  const dragRef = useRef<BlockDragState | null>(null);
+  /** El click posterior a un drag no debe abrir el menú. */
+  const suppressGripClick = useRef(false);
+  const blocksWrapRef = useRef<HTMLDivElement | null>(null);
+  const blockMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setBlocks(page.content.length ? page.content : defaultBlocks());
     setTitle(page.title);
     setIcon(page.icon ?? '📄');
     setCoverUrl(page.cover_url ?? '');
+    setBlockMenu(null);
   }, [page.id]);
 
   // Sincroniza el título (contentEditable) solo cuando cambió por fuera del tipeo.
@@ -204,6 +242,39 @@ export default function DocsEditor({
     document.addEventListener('click', onClick);
     return () => document.removeEventListener('click', onClick);
   }, [coverOpen]);
+
+  // Menú contextual de bloque: cierra con Esc o click afuera (el click en otro
+  // grip lo maneja el propio grip, que togglea).
+  useEffect(() => {
+    if (blockMenu === null) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.docs-block-grip')) return;
+      if (blockMenuRef.current?.contains(target)) return;
+      setBlockMenu(null);
+      setTurnIntoOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setBlockMenu(null);
+        setTurnIntoOpen(false);
+      }
+    };
+    document.addEventListener('click', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [blockMenu]);
+
+  // Limpieza del DOM de drag si el componente se desmonta a mitad de un drag.
+  useEffect(() => {
+    return () => {
+      dragRef.current?.ghostEl?.remove();
+      dragRef.current = null;
+    };
+  }, []);
 
   const triggerSave = useCallback(
     (
@@ -272,6 +343,195 @@ export default function DocsEditor({
     },
     [triggerSave],
   );
+
+  /** Intercambia el bloque con su vecino (dir = -1 arriba, +1 abajo). */
+  const moveBlock = useCallback(
+    (index: number, dir: -1 | 1) => {
+      setBlocks((prev) => {
+        const target = index + dir;
+        if (index < 0 || index >= prev.length || target < 0 || target >= prev.length) return prev;
+        const next = [...prev];
+        [next[index], next[target]] = [next[target], next[index]];
+        triggerSave(next);
+        return next;
+      });
+    },
+    [triggerSave],
+  );
+
+  /** Duplica el bloque (id nuevo, filas/columnas copiadas) justo debajo. */
+  const duplicateBlock = useCallback(
+    (index: number) => {
+      setBlocks((prev) => {
+        const src = prev[index];
+        if (!src) return prev;
+        const copy: DocsBlock = {
+          ...src,
+          id: crypto.randomUUID(),
+          rows: src.rows?.map((r) => [...r]),
+          columns: src.columns?.map((c) => ({ ...c })),
+        };
+        const next = [...prev.slice(0, index + 1), copy, ...prev.slice(index + 1)];
+        triggerSave(next);
+        return next;
+      });
+    },
+    [triggerSave],
+  );
+
+  // ---------- Drag & drop de bloques (pointer events, patrón del DealsBoard) ----------
+
+  const cleanupDrag = useCallback((d: BlockDragState | null) => {
+    d?.ghostEl?.remove();
+    setDragIndex(null);
+    setDropLine(null);
+  }, []);
+
+  const handleGripPointerDown = useCallback((e: ReactPointerEvent<HTMLElement>, index: number) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const gripEl = e.currentTarget;
+    try {
+      gripEl.setPointerCapture(e.pointerId);
+    } catch {
+      return;
+    }
+    dragRef.current = {
+      pointerId: e.pointerId,
+      index,
+      startX: e.clientX,
+      startY: e.clientY,
+      dragging: false,
+      ghostEl: null,
+      offsetY: 0,
+      dropIndex: index,
+    };
+  }, []);
+
+  const startBlockDrag = useCallback(
+    (d: BlockDragState, e: ReactPointerEvent<HTMLElement>) => {
+      const container = blocksWrapRef.current;
+      const outer = container?.querySelectorAll<HTMLElement>(':scope > .docs-block-outer')[
+        d.index
+      ];
+      if (!container || !outer) return;
+      d.dragging = true;
+      setBlockMenu(null);
+      setTurnIntoOpen(false);
+      const rect = outer.getBoundingClientRect();
+      d.offsetY = e.clientY - rect.top;
+      const ghost = outer.cloneNode(true) as HTMLElement;
+      ghost.classList.add('docs-drag-ghost');
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.left = `${rect.left}px`;
+      ghost.style.top = `${rect.top}px`;
+      document.body.appendChild(ghost);
+      d.ghostEl = ghost;
+      d.dropIndex = d.index;
+      setDragIndex(d.index);
+    },
+    [],
+  );
+
+  const updateBlockDrag = useCallback((d: BlockDragState, e: ReactPointerEvent<HTMLElement>) => {
+    if (d.ghostEl) {
+      d.ghostEl.style.top = `${e.clientY - d.offsetY}px`;
+    }
+    const container = blocksWrapRef.current;
+    if (!container) return;
+    const outers = Array.from(
+      container.querySelectorAll<HTMLElement>(':scope > .docs-block-outer'),
+    );
+    if (!outers.length) return;
+    // dropIndex = primer bloque cuyo centro vertical esté por debajo del pointer.
+    let dropIndex = outers.length;
+    for (let i = 0; i < outers.length; i++) {
+      const r = outers[i].getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) {
+        dropIndex = i;
+        break;
+      }
+    }
+    d.dropIndex = dropIndex;
+    const top =
+      dropIndex < outers.length
+        ? outers[dropIndex].offsetTop - 4
+        : outers[outers.length - 1].offsetTop + outers[outers.length - 1].offsetHeight + 2;
+    setDropLine(top);
+  }, []);
+
+  const handleGripPointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      const d = dragRef.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      if (!d.dragging) {
+        if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < DRAG_THRESHOLD) return;
+        startBlockDrag(d, e);
+        if (!d.dragging) return; // no se encontró el bloque: abortar
+      }
+      updateBlockDrag(d, e);
+    },
+    [startBlockDrag, updateBlockDrag],
+  );
+
+  const finishBlockDrag = useCallback(
+    (d: BlockDragState) => {
+      const from = d.index;
+      const dropIndex = d.dropIndex;
+      // Mismo lugar (antes de sí mismo o del que le seguía): no-op.
+      if (dropIndex === from || dropIndex === from + 1) return;
+      setBlocks((prev) => {
+        if (from < 0 || from >= prev.length) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(from, 1);
+        let insertAt = dropIndex > from ? dropIndex - 1 : dropIndex;
+        insertAt = Math.max(0, Math.min(insertAt, next.length));
+        next.splice(insertAt, 0, moved);
+        triggerSave(next);
+        return next;
+      });
+    },
+    [triggerSave],
+  );
+
+  const handleGripPointerUp = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      const d = dragRef.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      if (d.dragging) {
+        // El click posterior al drag no debe abrir el menú contextual.
+        suppressGripClick.current = true;
+        finishBlockDrag(d);
+      }
+      cleanupDrag(d);
+      dragRef.current = null;
+    },
+    [cleanupDrag, finishBlockDrag],
+  );
+
+  const handleGripPointerCancel = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      const d = dragRef.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      cleanupDrag(d);
+      dragRef.current = null;
+    },
+    [cleanupDrag],
+  );
+
+  /** Click simple en el grip (sin drag): toggle del menú contextual del bloque. */
+  const handleGripClick = useCallback((index: number) => {
+    if (suppressGripClick.current) {
+      suppressGripClick.current = false;
+      return;
+    }
+    setTurnIntoOpen(false);
+    setBlockMenu((prev) => (prev === index ? null : index));
+  }, []);
+
+  const closeBlockMenu = useCallback(() => {
+    setBlockMenu(null);
+    setTurnIntoOpen(false);
+  }, []);
 
   /**
    * Convierte el bloque a otro tipo SIN borrar el contenido (salvo que se pase
@@ -947,49 +1207,175 @@ export default function DocsEditor({
         </button>
       </div>
 
-      <div className="docs-blocks">
+      <div className="docs-blocks" ref={blocksWrapRef}>
         {blocks.map((block, index) => {
           if (block.type === 'numbered_list_item') numberedIndex++;
           else numberedIndex = 0;
           const commentCount = commentCounts?.[block.id] ?? 0;
           return (
-            <div key={block.id} className="docs-block-outer">
-              {onBlockComment && (
+            <Fragment key={block.id}>
+              <div
+                className={`docs-block-outer${dragIndex === index ? ' dragging' : ''}${blockMenu === index ? ' menu-open' : ''}`}
+              >
                 <button
                   type="button"
-                  className={`docs-block-comment${commentCount > 0 ? ' has-comments' : ''}`}
-                  onClick={() => onBlockComment(block.id)}
-                  aria-label={t('comments.commentBlock')}
-                  title={t('comments.commentBlock')}
+                  className="docs-block-grip"
+                  aria-label={t('editor.blockMenu.dragHandle')}
+                  title={t('editor.blockMenu.dragHandle')}
+                  data-no-drag
+                  onPointerDown={(e) => handleGripPointerDown(e, index)}
+                  onPointerMove={handleGripPointerMove}
+                  onPointerUp={handleGripPointerUp}
+                  onPointerCancel={handleGripPointerCancel}
+                  onClick={() => handleGripClick(index)}
                 >
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden>
+                    <circle cx="2" cy="2" r="1.2" />
+                    <circle cx="8" cy="2" r="1.2" />
+                    <circle cx="2" cy="7" r="1.2" />
+                    <circle cx="8" cy="7" r="1.2" />
+                    <circle cx="2" cy="12" r="1.2" />
+                    <circle cx="8" cy="12" r="1.2" />
                   </svg>
-                  {commentCount > 0 && (
-                    <span className="docs-block-comment-count mono">{commentCount}</span>
-                  )}
                 </button>
-              )}
-              <DocsBlockEditor
-                block={block}
-                index={index}
-                listIndex={numberedIndex || undefined}
-                onChange={handleBlockChange}
-                onKeyDown={handleKeyDown}
-                onFocus={handleFocus}
-                focused={focusIndex === index}
-                ref={(el) => { blockRefs.current[index] = el; }}
-              />
+                {blockMenu === index && (
+                  <div className="docs-block-menu" ref={blockMenuRef} data-no-drag>
+                    <div className="docs-bmenu-turninto">
+                      <button
+                        type="button"
+                        className="docs-bmenu-item"
+                        onClick={() => setTurnIntoOpen((v) => !v)}
+                      >
+                        {t('editor.blockMenu.turnInto')}
+                        <span className="docs-bmenu-caret" aria-hidden>
+                          ›
+                        </span>
+                      </button>
+                      {turnIntoOpen && (
+                        <div className="docs-bmenu-sub">
+                          {BLOCK_COMMANDS.map((cmd) => (
+                            <button
+                              key={cmd.key}
+                              type="button"
+                              className="docs-bmenu-item"
+                              onClick={() => {
+                                closeBlockMenu();
+                                convertBlock(index, cmd.type, cmd.level);
+                              }}
+                            >
+                              <span className="docs-command-icon">{BLOCK_ICONS[cmd.type]}</span>
+                              <span className="docs-command-label">
+                                {t(`editor.commands.${cmd.key}`)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="docs-bmenu-item"
+                      onClick={() => {
+                        closeBlockMenu();
+                        duplicateBlock(index);
+                      }}
+                    >
+                      {t('editor.blockMenu.duplicate')}
+                    </button>
+                    <button
+                      type="button"
+                      className="docs-bmenu-item"
+                      onClick={() => {
+                        closeBlockMenu();
+                        insertBlock(index, 'paragraph');
+                      }}
+                    >
+                      {t('editor.blockMenu.insertBelow')}
+                    </button>
+                    {onBlockComment && (
+                      <button
+                        type="button"
+                        className="docs-bmenu-item"
+                        onClick={() => {
+                          closeBlockMenu();
+                          onBlockComment(block.id);
+                        }}
+                      >
+                        {t('editor.blockMenu.comment')}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="docs-bmenu-item"
+                      disabled={index === 0}
+                      onClick={() => {
+                        closeBlockMenu();
+                        moveBlock(index, -1);
+                      }}
+                    >
+                      {t('editor.blockMenu.moveUp')}
+                    </button>
+                    <button
+                      type="button"
+                      className="docs-bmenu-item"
+                      disabled={index === blocks.length - 1}
+                      onClick={() => {
+                        closeBlockMenu();
+                        moveBlock(index, 1);
+                      }}
+                    >
+                      {t('editor.blockMenu.moveDown')}
+                    </button>
+                    <hr className="docs-bmenu-divider" />
+                    <button
+                      type="button"
+                      className="docs-bmenu-item docs-bmenu-danger"
+                      disabled={blocks.length <= 1}
+                      onClick={() => {
+                        closeBlockMenu();
+                        removeBlock(index);
+                      }}
+                    >
+                      {t('editor.blockMenu.delete')}
+                    </button>
+                  </div>
+                )}
+                {onBlockComment && (
+                  <button
+                    type="button"
+                    className={`docs-block-comment${commentCount > 0 ? ' has-comments' : ''}`}
+                    onClick={() => onBlockComment(block.id)}
+                    aria-label={t('comments.commentBlock')}
+                    title={t('comments.commentBlock')}
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    {commentCount > 0 && (
+                      <span className="docs-block-comment-count mono">{commentCount}</span>
+                    )}
+                  </button>
+                )}
+                <DocsBlockEditor
+                  block={block}
+                  index={index}
+                  listIndex={numberedIndex || undefined}
+                  onChange={handleBlockChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={handleFocus}
+                  focused={focusIndex === index}
+                  ref={(el) => { blockRefs.current[index] = el; }}
+                />
               {cmdOpen && focusIndex === index && (
                 <div className="docs-command-menu">
                   <div className="docs-command-title">{t('editor.basicBlocks')}</div>
@@ -1026,9 +1412,26 @@ export default function DocsEditor({
                   onClose={() => setUserMention(null)}
                 />
               )}
-            </div>
+              </div>
+              <div className="docs-gap">
+                <button
+                  type="button"
+                  className="docs-gap-add"
+                  aria-label={t('editor.blockMenu.insertBelow')}
+                  title={t('editor.blockMenu.insertBelow')}
+                  data-no-drag
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => insertBlock(index, 'paragraph')}
+                >
+                  +
+                </button>
+              </div>
+            </Fragment>
           );
         })}
+        {dropLine !== null && (
+          <div className="docs-drop-line" style={{ top: dropLine }} aria-hidden />
+        )}
       </div>
 
       <div className="docs-editor-foot">

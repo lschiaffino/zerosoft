@@ -45,6 +45,16 @@
     "languagePlaceholder": "lenguaje",
     "addRow": "+ fila",
     "addColumn": "+ columna",
+    "blockMenu": {
+      "turnInto": "Convertir en",
+      "duplicate": "Duplicar",
+      "delete": "Eliminar",
+      "comment": "Comentar",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "insertBelow": "Insertar debajo",
+      "dragHandle": "Opciones del bloque — arrastrá para reordenar"
+    },
     "commands": {
       "p": "Texto",
       "h1": "Encabezado 1",
