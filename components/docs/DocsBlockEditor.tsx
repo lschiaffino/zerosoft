@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useEffect, useRef } from 'react';
+import { forwardRef, useLayoutEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import type { DocsBlock, DocsBlockType } from '@/lib/docs-types';
 import DocsDatabaseBlock from './DocsDatabaseBlock';
@@ -33,13 +33,27 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
       }
     };
 
-    useEffect(() => {
+    useLayoutEffect(() => {
       const el = innerRef.current;
+      if (!el) return;
       // Solo sincroniza cuando el contenido cambió por fuera del tipeo
       // (ej. insertar una mención): mientras se escribe, textContent ya
       // coincide con block.content y no se toca el DOM ni el caret.
-      if (el && el.textContent !== block.content) {
+      // useLayoutEffect: corre antes que el efecto de foco del padre, así el
+      // caret pendiente (split/merge) se aplica sobre el DOM ya actualizado.
+      if (el.textContent !== block.content) {
         el.textContent = block.content;
+      }
+      // Un '\n' final no renderiza una línea vacía visible en contentEditable
+      // (y el browser arrastra el caret antes del '\n'): se agrega un <br>
+      // centinela. textContent ignora el <br>, así que el modelo sigue limpio.
+      const needBr = block.content.endsWith('\n');
+      const lastEl = el.lastElementChild;
+      const hasBr = lastEl?.tagName === 'BR';
+      if (needBr && !hasBr) {
+        el.appendChild(document.createElement('br'));
+      } else if (!needBr && hasBr) {
+        lastEl.remove();
       }
     }, [block.id, block.content]);
 

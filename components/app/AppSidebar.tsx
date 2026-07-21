@@ -243,12 +243,6 @@ export default function AppSidebar({
 
   const docsNav: Array<{ section?: string; items: Item[] }> = [
     { items: [{ href: '/app/docs', label: labels.docs.overview, active: pathname === '/app/docs', icon: 'overview' }] },
-    {
-      section: labels.workspace,
-      items: [
-        { href: '/app/docs/pages', label: labels.docs.pages, active: pathname.startsWith('/app/docs/'), icon: 'docs' },
-      ],
-    },
   ];
 
   const calendarNav: Array<{ section?: string; items: Item[] }> = [

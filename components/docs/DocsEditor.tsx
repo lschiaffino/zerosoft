@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import {
@@ -10,8 +10,8 @@ import {
   type DocsBlockType,
   type DocsMentionableUser,
   type DocsPage,
-  stringifyBlocks,
 } from '@/lib/docs-types';
+import { getCaretOffset, setCaretOffset } from '@/lib/docs-caret';
 import DocsBlockEditor from './DocsBlockEditor';
 import MentionPopover from './MentionPopover';
 import UserMentionPopover from './UserMentionPopover';
@@ -51,6 +51,22 @@ const BLOCK_COMMANDS: {
   { key: 'database', type: 'database' },
 ];
 
+/** Keywords extra para matchear el menú `/` (el label traducido no alcanza: "To-do" ≠ "todo"). */
+const COMMAND_KEYWORDS: Record<string, string[]> = {
+  p: ['text', 'plain', 'paragraph', 'p'],
+  h1: ['h1', 'heading', 'heading 1', 'title', '#'],
+  h2: ['h2', 'heading', 'heading 2', 'subtitle', '##'],
+  h3: ['h3', 'heading', 'heading 3', '###'],
+  bulleted: ['bullet', 'bulleted', 'list', 'ul', 'unordered', '-'],
+  numbered: ['numbered', 'list', 'ol', 'ordered', '1.', 'number'],
+  todo: ['todo', 'to-do', 'task', 'check', 'checkbox', 'checklist', '[]', '[ ]'],
+  quote: ['quote', 'blockquote', 'citation', '>'],
+  code: ['code', 'snippet', 'pre', '```'],
+  divider: ['divider', 'hr', 'line', 'separator', '---'],
+  table: ['table', 'grid'],
+  database: ['database', 'db', 'table', 'grid', 'view', 'data'],
+};
+
 const BLOCK_ICONS: Record<DocsBlockType, string> = {
   paragraph: 'T',
   heading: 'H',
@@ -63,6 +79,25 @@ const BLOCK_ICONS: Record<DocsBlockType, string> = {
   table: '▦',
   database: '▤',
 };
+
+const LIST_TYPES: DocsBlockType[] = ['bulleted_list_item', 'numbered_list_item', 'todo'];
+
+/** Bloques cuyo contenido es texto editable en línea (no divider/table/database). */
+function isTextBlockType(type: DocsBlockType): boolean {
+  return type !== 'divider' && type !== 'table' && type !== 'database';
+}
+
+/** Atajos markdown al inicio de un párrafo: "# ", "- ", "1. ", "[] ", "> ". */
+function matchMarkdownPrefix(text: string): { type: DocsBlockType; level?: 1 | 2 | 3 } | null {
+  if (text === '#') return { type: 'heading', level: 1 };
+  if (text === '##') return { type: 'heading', level: 2 };
+  if (text === '###') return { type: 'heading', level: 3 };
+  if (text === '-' || text === '*') return { type: 'bulleted_list_item' };
+  if (/^\d+\.$/.test(text)) return { type: 'numbered_list_item' };
+  if (text === '[]' || text === '[ ]') return { type: 'todo' };
+  if (text === '>') return { type: 'quote' };
+  return null;
+}
 
 export default function DocsEditor({
   page,
@@ -85,17 +120,26 @@ export default function DocsEditor({
   const [smallText, setSmallText] = useState(false);
   const [fullWidth, setFullWidth] = useState(false);
   const [focusIndex, setFocusIndex] = useState<number>(0);
+  /** Fuerza una corrida del efecto de foco aunque focusIndex/blocks no cambien de referencia. */
+  const [focusTick, setFocusTick] = useState(0);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState('');
   const [cmdSel, setCmdSel] = useState(0);
+  /** Rango del `/query` tipeado: se borra al aplicar un comando sin tocar el resto del texto. */
+  const [slash, setSlash] = useState<{ index: number; start: number; end: number } | null>(null);
   const [mention, setMention] = useState<{ index: number; query: string } | null>(null);
   const [userMention, setUserMention] = useState<{ index: number; query: string } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const titleRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const coverRef = useRef<HTMLDivElement>(null);
+  /** Caret pendiente de aplicar después del próximo render (split/merge/conversión). */
+  const pendingCaret = useRef<{ index: number; offset: number } | null>(null);
+  /** Último índice enfocado conocido, para no re-mover el caret en cada render. */
+  const prevFocus = useRef<number>(-1);
 
   useEffect(() => {
     setBlocks(page.content.length ? page.content : defaultBlocks());
@@ -104,18 +148,44 @@ export default function DocsEditor({
     setCoverUrl(page.cover_url ?? '');
   }, [page.id]);
 
+  // Sincroniza el título (contentEditable) solo cuando cambió por fuera del tipeo.
   useEffect(() => {
-    const el = blockRefs.current[focusIndex];
-    if (el) {
-      el.focus();
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      range.collapse(false);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
+    const el = titleRef.current;
+    if (el && el.textContent !== title) {
+      el.textContent = title;
     }
-  }, [focusIndex, blocks.length]);
+  }, [title]);
+
+  // Foco/caret: si hay un caret pendiente (split, merge, markdown, slash) se
+  // aplica después de que los hijos sincronizaron textContent; si no, solo se
+  // mueve el caret al final cuando el foco cambió de bloque de verdad (no al
+  // tipear, no al hacer click dentro del bloque ya enfocado).
+  useLayoutEffect(() => {
+    const pending = pendingCaret.current;
+    if (pending) {
+      pendingCaret.current = null;
+      const el = blockRefs.current[pending.index];
+      if (el) {
+        el.focus();
+        setCaretOffset(el, pending.offset);
+      }
+      prevFocus.current = pending.index;
+      return;
+    }
+    if (prevFocus.current !== focusIndex) {
+      prevFocus.current = focusIndex;
+      const el = blockRefs.current[focusIndex];
+      if (el) {
+        el.focus();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    }
+  }, [focusIndex, blocks, focusTick]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -182,6 +252,7 @@ export default function DocsEditor({
       });
       setCmdOpen(false);
       setCmdQuery('');
+      setSlash(null);
       setMention(null);
       setUserMention(null);
       setFocusIndex(index + 1);
@@ -202,12 +273,22 @@ export default function DocsEditor({
     [triggerSave],
   );
 
+  /**
+   * Convierte el bloque a otro tipo SIN borrar el contenido (salvo que se pase
+   * `content` explícito, ej. el texto ya limpio del `/query` o del atajo md).
+   */
   const convertBlock = useCallback(
-    (index: number, type: DocsBlockType, level?: 1 | 2 | 3) => {
+    (index: number, type: DocsBlockType, level?: 1 | 2 | 3, content?: string, caretOffset = 0) => {
       setBlocks((prev) => {
         const next = prev.map((b, i) => {
           if (i !== index) return b;
-          const converted: DocsBlock = { ...b, type, level, content: '' };
+          const converted: DocsBlock = {
+            ...b,
+            type,
+            level,
+            content: content !== undefined ? content : b.content,
+          };
+          if (type === 'todo') converted.checked = converted.checked ?? false;
           // Database: inicializa columnas tipadas y una fila vacía.
           if (type === 'database' && !converted.columns?.length) {
             converted.columns = defaultDatabaseColumns();
@@ -223,17 +304,216 @@ export default function DocsEditor({
       setCmdOpen(false);
       setCmdQuery('');
       setCmdSel(0);
+      setSlash(null);
+      pendingCaret.current = { index, offset: caretOffset };
       setFocusIndex(index);
+      setFocusTick((v) => v + 1);
     },
     [triggerSave],
   );
 
-  const filteredCommands = useMemo(
-    () =>
-      BLOCK_COMMANDS.map((c) => ({ ...c, label: t(`editor.commands.${c.key}`) })).filter((c) =>
-        cmdQuery === '' ? true : c.label.toLowerCase().includes(cmdQuery.toLowerCase()),
-      ),
-    [t, cmdQuery],
+  /** Aplica un comando del menú `/`: borra solo el `/query` tipeado y convierte/inserta. */
+  const applyCommand = useCallback(
+    (index: number, cmd: { type: DocsBlockType; level?: 1 | 2 | 3 }) => {
+      const block = blocks[index];
+      if (!block) return;
+      const s = slash && slash.index === index ? slash : null;
+      const stripped = s ? block.content.slice(0, s.start) + block.content.slice(s.end) : block.content;
+      const caret = s ? s.start : block.content.length;
+
+      if (cmd.type === 'divider') {
+        // El divider no tiene texto: se inserta debajo + un párrafo para seguir escribiendo.
+        const dividerBlock: DocsBlock = { id: crypto.randomUUID(), type: 'divider', content: '' };
+        const paraBlock: DocsBlock = { id: crypto.randomUUID(), type: 'paragraph', content: '' };
+        setBlocks((prev) => {
+          const next = prev.map((b, i) => (i === index ? { ...b, content: stripped } : b));
+          next.splice(index + 1, 0, dividerBlock, paraBlock);
+          triggerSave(next);
+          return next;
+        });
+        setCmdOpen(false);
+        setCmdQuery('');
+        setCmdSel(0);
+        setSlash(null);
+        pendingCaret.current = { index: index + 2, offset: 0 };
+        setFocusIndex(index + 2);
+        setFocusTick((v) => v + 1);
+        return;
+      }
+
+      convertBlock(index, cmd.type, cmd.level, stripped, caret);
+    },
+    [blocks, slash, convertBlock, triggerSave],
+  );
+
+  const filteredCommands = useMemo(() => {
+    const q = cmdQuery.trim().toLowerCase();
+    const qn = q.replace(/[^a-z0-9]/g, '');
+    return BLOCK_COMMANDS.map((c) => ({ ...c, label: t(`editor.commands.${c.key}`) })).filter(
+      (c) => {
+        if (!q) return true;
+        const label = c.label.toLowerCase();
+        if (label.includes(q)) return true;
+        // Label normalizado ("to-do" → "todo") para que "/todo" matchee "To-do".
+        if (qn && label.replace(/[^a-z0-9]/g, '').includes(qn)) return true;
+        return (COMMAND_KEYWORDS[c.key] ?? []).some((k) => {
+          const kl = k.toLowerCase();
+          return kl.includes(q) || (qn !== '' && kl.replace(/[^a-z0-9]/g, '').includes(qn));
+        });
+      },
+    );
+  }, [t, cmdQuery]);
+
+  /** Enter en párrafo/heading/listas/todo: split en el caret o continuación de lista. */
+  const splitBlock = useCallback(
+    (index: number, caret: number) => {
+      const block = blocks[index];
+      if (!block) return;
+
+      // Item vacío + Enter: sale de la lista convirtiéndolo en párrafo.
+      if (LIST_TYPES.includes(block.type) && block.content === '') {
+        convertBlock(index, 'paragraph', undefined, '', 0);
+        return;
+      }
+
+      const before = block.content.slice(0, caret);
+      const after = block.content.slice(caret);
+      const isList = LIST_TYPES.includes(block.type);
+      // Listas/todo continúan el mismo tipo; heading/paragraph crean un párrafo.
+      const newType: DocsBlockType = isList ? block.type : 'paragraph';
+      const newBlock: DocsBlock = { id: crypto.randomUUID(), type: newType, content: after };
+      if (newType === 'todo') newBlock.checked = false;
+
+      setBlocks((prev) => {
+        const next = [...prev];
+        next[index] = { ...next[index], content: before };
+        next.splice(index + 1, 0, newBlock);
+        triggerSave(next);
+        return next;
+      });
+      pendingCaret.current = { index: index + 1, offset: 0 };
+      setFocusIndex(index + 1);
+      setFocusTick((v) => v + 1);
+    },
+    [blocks, convertBlock, triggerSave],
+  );
+
+  /** Inserta un '\n' dentro del bloque en la posición del caret (texto plano). */
+  const insertSoftNewline = useCallback(
+    (index: number, caret: number) => {
+      const block = blocks[index];
+      if (!block) return;
+      const next = block.content.slice(0, caret) + '\n' + block.content.slice(caret);
+      updateBlock(index, { content: next });
+      pendingCaret.current = { index, offset: caret + 1 };
+      setFocusTick((v) => v + 1);
+    },
+    [blocks, updateBlock],
+  );
+
+  /** Enter dentro de code/quote: newline interno; sale con línea vacía o Cmd/Ctrl+Enter. */
+  const enterInCodeQuote = useCallback(
+    (index: number, caret: number, exit: boolean) => {
+      const block = blocks[index];
+      if (!block) return;
+      const before = block.content.slice(0, caret);
+      const after = block.content.slice(caret);
+
+      // Cmd/Ctrl+Enter: sale del bloque; el texto tras el caret va a un párrafo nuevo.
+      if (exit) {
+        const paraBlock: DocsBlock = { id: crypto.randomUUID(), type: 'paragraph', content: after };
+        setBlocks((prev) => {
+          const next = [...prev];
+          next[index] = { ...next[index], content: before };
+          next.splice(index + 1, 0, paraBlock);
+          triggerSave(next);
+          return next;
+        });
+        pendingCaret.current = { index: index + 1, offset: 0 };
+        setFocusIndex(index + 1);
+        setFocusTick((v) => v + 1);
+        return;
+      }
+
+      // Enter en la última línea vacía (caret al final y línea sin contenido): sale.
+      if (caret === block.content.length && (before === '' || before.endsWith('\n'))) {
+        const trimmed = before.replace(/\n$/, '');
+        if (trimmed === '') {
+          convertBlock(index, 'paragraph', undefined, '', 0);
+          return;
+        }
+        const paraBlock: DocsBlock = { id: crypto.randomUUID(), type: 'paragraph', content: '' };
+        setBlocks((prev) => {
+          const next = [...prev];
+          next[index] = { ...next[index], content: trimmed };
+          next.splice(index + 1, 0, paraBlock);
+          triggerSave(next);
+          return next;
+        });
+        pendingCaret.current = { index: index + 1, offset: 0 };
+        setFocusIndex(index + 1);
+        setFocusTick((v) => v + 1);
+        return;
+      }
+
+      // Caso normal: newline dentro del mismo bloque.
+      insertSoftNewline(index, caret);
+    },
+    [blocks, convertBlock, insertSoftNewline, triggerSave],
+  );
+
+  /** Backspace con caret al inicio: fusiona con el bloque anterior (o borra divider). */
+  const mergeWithPrevious = useCallback(
+    (index: number) => {
+      const block = blocks[index];
+      if (!block) return false;
+
+      if (index === 0) {
+        // Primer bloque: Backspace al inicio solo baja el tipo a párrafo.
+        if (block.type !== 'paragraph' && isTextBlockType(block.type)) {
+          convertBlock(index, 'paragraph', undefined, block.content, 0);
+          return true;
+        }
+        return false;
+      }
+
+      const prev = blocks[index - 1];
+
+      if (prev.type === 'divider') {
+        setBlocks((all) => {
+          const next = all.filter((_, i) => i !== index - 1);
+          triggerSave(next);
+          return next;
+        });
+        pendingCaret.current = { index: index - 1, offset: 0 };
+        setFocusIndex(index - 1);
+        setFocusTick((v) => v + 1);
+        return true;
+      }
+
+      if (isTextBlockType(prev.type) && isTextBlockType(block.type)) {
+        const join = prev.content.length;
+        setBlocks((all) => {
+          const next = [...all];
+          next[index - 1] = { ...next[index - 1], content: prev.content + block.content };
+          next.splice(index, 1);
+          triggerSave(next);
+          return next;
+        });
+        pendingCaret.current = { index: index - 1, offset: join };
+        setFocusIndex(index - 1);
+        setFocusTick((v) => v + 1);
+        return true;
+      }
+
+      // Anterior es table/database: solo se borra el bloque si está vacío.
+      if (block.content === '') {
+        removeBlock(index);
+        return true;
+      }
+      return false;
+    },
+    [blocks, convertBlock, removeBlock, triggerSave],
   );
 
   const handleKeyDown = useCallback(
@@ -241,47 +521,100 @@ export default function DocsEditor({
       const block = blocks[index];
       if (!block) return;
 
-      if (cmdOpen) {
+      if (cmdOpen && slash?.index === index) {
         const filtered = filteredCommands;
         if (e.key === 'Escape') {
           setCmdOpen(false);
           setCmdQuery('');
           setCmdSel(0);
+          setSlash(null);
           e.preventDefault();
           return;
         }
         if (e.key === 'Enter') {
           e.preventDefault();
           const match = filtered[cmdSel];
-          if (match) convertBlock(index, match.type, match.level);
+          if (match) applyCommand(index, match);
           return;
         }
         if (e.key === 'ArrowDown') {
           e.preventDefault();
-          setCmdSel((s) => (s + 1) % filtered.length);
+          if (filtered.length) setCmdSel((s) => (s + 1) % filtered.length);
           return;
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault();
-          setCmdSel((s) => (s - 1 + filtered.length) % filtered.length);
+          if (filtered.length) setCmdSel((s) => (s - 1 + filtered.length) % filtered.length);
           return;
         }
         return;
       }
 
-      if (e.key === 'Enter' && !e.shiftKey) {
+      const el = e.currentTarget as HTMLElement;
+      const isEditable = el.isContentEditable;
+      const caret = isEditable ? getCaretOffset(el) : 0;
+      const collapsed = window.getSelection()?.isCollapsed ?? true;
+
+      // Markdown: "# ", "## ", "### ", "- ", "* ", "1. ", "[] ", "[ ] ", "> ".
+      if (e.key === ' ' && isEditable && collapsed && block.type === 'paragraph') {
+        const before = block.content.slice(0, caret);
+        const md = matchMarkdownPrefix(before);
+        if (md) {
+          e.preventDefault();
+          convertBlock(index, md.type, md.level, block.content.slice(before.length), 0);
+          return;
+        }
+      }
+
+      if (e.key === 'Enter') {
+        // Shift+Enter: salto de línea suave dentro del bloque de texto.
+        if (e.shiftKey) {
+          if (isEditable && isTextBlockType(block.type)) {
+            e.preventDefault();
+            insertSoftNewline(index, caret);
+          }
+          return;
+        }
         e.preventDefault();
-        insertBlock(index, 'paragraph');
+        if (block.type === 'code' || block.type === 'quote') {
+          enterInCodeQuote(index, caret, e.metaKey || e.ctrlKey);
+        } else if (isEditable && isTextBlockType(block.type)) {
+          splitBlock(index, caret);
+        } else {
+          // table/database: Enter crea un párrafo debajo.
+          insertBlock(index, 'paragraph');
+        }
         return;
       }
 
-      if (e.key === 'Backspace' && block.content === '') {
-        e.preventDefault();
-        removeBlock(index);
-        return;
+      if (e.key === 'Backspace') {
+        // Caret al inicio: fusionar con el bloque anterior.
+        if (isEditable && collapsed && caret === 0) {
+          if (mergeWithPrevious(index)) e.preventDefault();
+          return;
+        }
+        if (!isEditable && block.content === '') {
+          e.preventDefault();
+          removeBlock(index);
+          return;
+        }
       }
     },
-    [blocks, cmdOpen, filteredCommands, cmdSel, convertBlock, insertBlock, removeBlock],
+    [
+      blocks,
+      cmdOpen,
+      slash,
+      filteredCommands,
+      cmdSel,
+      applyCommand,
+      convertBlock,
+      splitBlock,
+      enterInCodeQuote,
+      insertSoftNewline,
+      mergeWithPrevious,
+      insertBlock,
+      removeBlock,
+    ],
   );
 
   const handleInput = useCallback(
@@ -289,11 +622,27 @@ export default function DocsEditor({
       const block = blocks[index];
       if (!block) return;
 
-      if (text.startsWith('/')) {
+      // "```" en un párrafo convierte a bloque de código (al cerrar el 3er backtick).
+      if (block.type === 'paragraph' && text === '```') {
+        convertBlock(index, 'code', undefined, '', 0);
+        return;
+      }
+
+      // Menú `/`: se dispara con '/' al inicio o tras un espacio, query sin espacios.
+      // No aplica dentro de bloques de código.
+      const el = blockRefs.current[index];
+      const caret = el ? getCaretOffset(el) : text.length;
+      const beforeCaret = text.slice(0, caret);
+      const slashMatch = block.type !== 'code' ? beforeCaret.match(/(?:^|\s)\/([^\s/]*)$/) : null;
+      if (slashMatch) {
+        const query = slashMatch[1] ?? '';
+        const start = caret - query.length - 1;
+        setSlash({ index, start, end: caret });
         setCmdOpen(true);
-        setCmdQuery(text.slice(1));
+        setCmdQuery(query);
         setCmdSel(0);
       } else {
+        setSlash(null);
         setCmdOpen(false);
         setCmdQuery('');
         setCmdSel(0);
@@ -315,7 +664,7 @@ export default function DocsEditor({
         setUserMention(null);
       }
     },
-    [blocks],
+    [blocks, convertBlock],
   );
 
   const handleBlockChange = useCallback(
@@ -326,22 +675,36 @@ export default function DocsEditor({
     [handleInput, updateBlock],
   );
 
+  /** El click del usuario ya posiciona el caret: no hay que re-moverlo en el efecto. */
+  const handleFocus = useCallback((index: number) => {
+    prevFocus.current = index;
+    setFocusIndex(index);
+  }, []);
+
   const onSelectMention = useCallback(
     (selected: DocsPage) => {
       if (!mention) return;
       const index = mention.index;
+      const block = blocks[index];
+      if (!block) {
+        setMention(null);
+        return;
+      }
+      const newContent = block.content.replace(
+        /\[\[([^\]]*)$/,
+        `[${selected.title || t('untitled')}] `,
+      );
       setBlocks((prev) => {
-        const block = prev[index];
-        if (!block) return prev;
-        const newContent = block.content.replace(/\[\[([^\]]*)$/, `[${selected.title || t('untitled')}] `);
         const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
         triggerSave(next);
         return next;
       });
       setMention(null);
+      pendingCaret.current = { index, offset: newContent.length };
       setFocusIndex(index);
+      setFocusTick((v) => v + 1);
     },
-    [mention, triggerSave, t],
+    [blocks, mention, triggerSave, t],
   );
 
   const onSelectUserMention = useCallback(
@@ -349,16 +712,21 @@ export default function DocsEditor({
       if (!userMention) return;
       const index = userMention.index;
       const name = selected.name ?? selected.email;
+      const block = blocks[index];
+      if (!block) {
+        setUserMention(null);
+        return;
+      }
+      const newContent = block.content.replace(/@([^\s@]*)$/, `@${name} `);
       setBlocks((prev) => {
-        const block = prev[index];
-        if (!block) return prev;
-        const newContent = block.content.replace(/@([^\s@]*)$/, `@${name} `);
         const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
         triggerSave(next);
         return next;
       });
       setUserMention(null);
+      pendingCaret.current = { index, offset: newContent.length };
       setFocusIndex(index);
+      setFocusTick((v) => v + 1);
       // Notificación al mencionado (fire-and-forget; el server valida membresía).
       fetch(`/api/docs/pages/${page.id}/mentions`, {
         method: 'POST',
@@ -366,7 +734,7 @@ export default function DocsEditor({
         body: JSON.stringify({ user_id: selected.id }),
       }).catch(() => {});
     },
-    [page.id, triggerSave, userMention],
+    [blocks, page.id, triggerSave, userMention],
   );
 
   const copyLink = () => {
@@ -541,15 +909,29 @@ export default function DocsEditor({
         }}>
           <span className="docs-icon">{icon}</span>
         </EmojiPicker>
-        <input
+        <div
+          ref={titleRef}
           className="docs-title"
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            triggerSave(undefined, e.target.value);
-          }}
-          placeholder={t('editor.untitled')}
+          contentEditable
+          suppressContentEditableWarning
+          role="textbox"
+          aria-multiline="true"
           aria-label={t('editor.pageTitle')}
+          data-placeholder={t('editor.untitled')}
+          onInput={(e) => {
+            const next = e.currentTarget.textContent ?? '';
+            setTitle(next);
+            triggerSave(undefined, next);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              // Enter en el título NO inserta newline: pasa el foco al primer bloque.
+              e.preventDefault();
+              pendingCaret.current = { index: 0, offset: 0 };
+              setFocusIndex(0);
+              setFocusTick((v) => v + 1);
+            }
+          }}
         />
       </div>
 
@@ -604,7 +986,7 @@ export default function DocsEditor({
                 listIndex={numberedIndex || undefined}
                 onChange={handleBlockChange}
                 onKeyDown={handleKeyDown}
-                onFocus={setFocusIndex}
+                onFocus={handleFocus}
                 focused={focusIndex === index}
                 ref={(el) => { blockRefs.current[index] = el; }}
               />
@@ -616,7 +998,7 @@ export default function DocsEditor({
                       key={cmd.key}
                       type="button"
                       className={`docs-command-item${i === cmdSel ? ' sel' : ''}`}
-                      onClick={() => convertBlock(index, cmd.type, cmd.level)}
+                      onClick={() => applyCommand(index, cmd)}
                     >
                       <span className="docs-command-icon">{BLOCK_ICONS[cmd.type]}</span>
                       <span className="docs-command-label">{cmd.label}</span>

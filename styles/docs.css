@@ -199,6 +199,19 @@
 
 .docs-title::placeholder { color: #b8b8b8; }
 
+/* Título contentEditable (multilinea, placeholder como los bloques) */
+.docs-title[contenteditable] {
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
+}
+
+.docs-title[contenteditable]:empty::before {
+  content: attr(data-placeholder);
+  color: #b8b8b8;
+  pointer-events: none;
+}
+
 .docs-blocks {
   display: flex;
   flex-direction: column;

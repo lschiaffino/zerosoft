@@ -27,7 +27,6 @@ const PRODUCT_LINKS: Record<string, Array<{ href: string; label: string }>> = {
   ],
   docs: [
     { href: '/app/docs', label: 'Overview' },
-    { href: '/app/docs/pages', label: 'Pages' },
     { href: '/docs', label: 'Docs site' },
   ],
   calendar: [
