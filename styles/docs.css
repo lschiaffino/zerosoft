@@ -1656,3 +1656,115 @@
   padding: 6px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
 }
+
+/* ---------- Fase C: rich text en línea (bold/italic/underline/strike/code/link) ---------- */
+
+.docs-editable strong { font-weight: 600; }
+.docs-editable em { font-style: italic; }
+.docs-editable u { text-decoration: underline; text-underline-offset: 2px; }
+.docs-editable s { text-decoration: line-through; }
+.docs-editable u s,
+.docs-editable s u { text-decoration: underline line-through; text-underline-offset: 2px; }
+
+.docs-editable code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: #f4f4f4;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.08em 0.3em;
+}
+
+.docs-editable a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--dim);
+  cursor: pointer;
+}
+
+.docs-editable a:hover { text-decoration-color: var(--ink); }
+
+/* Toolbar flotante de formato (se posiciona con top/left fijos desde JS). */
+.docs-format-toolbar {
+  position: fixed;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  z-index: 70;
+}
+
+.docs-format-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.docs-format-btn:hover { background: #f0f0f0; }
+.docs-format-btn.active { background: var(--ink); color: var(--bg); }
+.docs-format-btn-mono { font-family: var(--mono); font-size: 10px; letter-spacing: -0.5px; }
+
+.docs-format-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+  margin: 0 3px;
+}
+
+/* Popover de link (misma posición que la toolbar). */
+.docs-link-popover {
+  position: fixed;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  z-index: 70;
+}
+
+.docs-link-input {
+  width: 240px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+}
+
+.docs-link-input:focus { border-color: var(--ink); }
+
+.docs-link-btn {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.docs-link-btn:hover { background: #f0f0f0; }
+.docs-link-btn.primary { background: var(--ink); border-color: var(--ink); color: var(--bg); }

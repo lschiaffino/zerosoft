@@ -45,6 +45,17 @@
     "languagePlaceholder": "linguagem",
     "addRow": "+ linha",
     "addColumn": "+ coluna",
+    "format": {
+      "bold": "Negrito",
+      "italic": "Itálico",
+      "underline": "Sublinhado",
+      "strikethrough": "Tachado",
+      "code": "Código inline",
+      "link": "Link",
+      "linkPlaceholder": "Cole um link…",
+      "addLink": "Adicionar link",
+      "removeLink": "Remover link"
+    },
     "blockMenu": {
       "turnInto": "Transformar em",
       "duplicate": "Duplicar",

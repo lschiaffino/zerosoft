@@ -45,6 +45,17 @@
     "languagePlaceholder": "lenguaje",
     "addRow": "+ fila",
     "addColumn": "+ columna",
+    "format": {
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "underline": "Subrayado",
+      "strikethrough": "Tachado",
+      "code": "Código en línea",
+      "link": "Enlace",
+      "linkPlaceholder": "Pegá un enlace…",
+      "addLink": "Agregar enlace",
+      "removeLink": "Quitar enlace"
+    },
     "blockMenu": {
       "turnInto": "Convertir en",
       "duplicate": "Duplicar",

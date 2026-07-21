@@ -3,6 +3,13 @@
 import { forwardRef, useLayoutEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import type { DocsBlock, DocsBlockType } from '@/lib/docs-types';
+import {
+  escapeHtml,
+  htmlToFlatText,
+  insertHtmlAtSelection,
+  sanitizeHtml,
+  serializeEditable,
+} from '@/lib/docs-richtext';
 import DocsDatabaseBlock from './DocsDatabaseBlock';
 
 interface DocsBlockEditorProps {
@@ -36,22 +43,26 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
     useLayoutEffect(() => {
       const el = innerRef.current;
       if (!el) return;
-      // Solo sincroniza cuando el contenido cambió por fuera del tipeo
-      // (ej. insertar una mención): mientras se escribe, textContent ya
-      // coincide con block.content y no se toca el DOM ni el caret.
+      // Sync anti-clobber: solo reescribe el DOM cuando el contenido cambió por
+      // fuera del tipeo (split/merge/markdown/formato). Se compara el DOM
+      // serializado al subset HTML-lite con el modelo: mientras se escribe ya
+      // coincide y no se toca ni el DOM ni el caret.
       // useLayoutEffect: corre antes que el efecto de foco del padre, así el
-      // caret pendiente (split/merge) se aplica sobre el DOM ya actualizado.
-      if (el.textContent !== block.content) {
-        el.textContent = block.content;
+      // caret/selección pendiente se aplica sobre el DOM ya actualizado.
+      if (serializeEditable(el) !== block.content) {
+        el.innerHTML = block.content;
       }
       // Un '\n' final no renderiza una línea vacía visible en contentEditable
       // (y el browser arrastra el caret antes del '\n'): se agrega un <br>
-      // centinela. textContent ignora el <br>, así que el modelo sigue limpio.
+      // centinela. El serializador ignora los <br data-sentinel>, así que el
+      // modelo sigue limpio.
       const needBr = block.content.endsWith('\n');
       const lastEl = el.lastElementChild;
       const hasBr = lastEl?.tagName === 'BR';
       if (needBr && !hasBr) {
-        el.appendChild(document.createElement('br'));
+        const br = document.createElement('br');
+        br.setAttribute('data-sentinel', '');
+        el.appendChild(br);
       } else if (!needBr && hasBr) {
         lastEl.remove();
       }
@@ -149,7 +160,28 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           contentEditable
           suppressContentEditableWarning
           data-placeholder={renderPlaceholder(block.type)}
-          onInput={(e) => onChange(index, { content: e.currentTarget.textContent ?? '' })}
+          onInput={(e) => onChange(index, { content: serializeEditable(e.currentTarget) })}
+          onPaste={(e) => {
+            // Paste saneado: solo entra el subset HTML-lite (o texto escapado
+            // en bloques de código); nada de spans/estilos/scripts de la web.
+            e.preventDefault();
+            const el = innerRef.current;
+            if (!el) return;
+            const cd = e.clipboardData;
+            const html = cd.getData('text/html');
+            let insert: string;
+            if (block.type === 'code') {
+              const text = html ? htmlToFlatText(html) : cd.getData('text/plain');
+              insert = escapeHtml(text);
+            } else if (html) {
+              insert = sanitizeHtml(html).replace(/\n+$/g, '');
+            } else {
+              insert = escapeHtml(cd.getData('text/plain'));
+            }
+            if (!insert) return;
+            insertHtmlAtSelection(el, insert);
+            onChange(index, { content: serializeEditable(el) });
+          }}
           onKeyDown={(e) => onKeyDown(index, e)}
           onFocus={() => onFocus(index)}
         />

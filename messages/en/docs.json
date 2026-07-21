@@ -45,6 +45,17 @@
     "languagePlaceholder": "language",
     "addRow": "+ row",
     "addColumn": "+ column",
+    "format": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "strikethrough": "Strikethrough",
+      "code": "Inline code",
+      "link": "Link",
+      "linkPlaceholder": "Paste a link…",
+      "addLink": "Add link",
+      "removeLink": "Remove link"
+    },
     "blockMenu": {
       "turnInto": "Turn into",
       "duplicate": "Duplicate",

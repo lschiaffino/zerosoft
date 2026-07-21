@@ -11,6 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useTranslations } from 'next-intl';
+import { createPortal } from 'react-dom';
 import { Link } from '@/i18n/navigation';
 import {
   defaultBlocks,
@@ -20,7 +21,21 @@ import {
   type DocsMentionableUser,
   type DocsPage,
 } from '@/lib/docs-types';
-import { getCaretOffset, setCaretOffset } from '@/lib/docs-caret';
+import { getCaretOffset, getSelectionOffsets, setCaretOffset, setSelectionOffsets } from '@/lib/docs-caret';
+import {
+  escapeHtml,
+  getLinkAt,
+  htmlToFlatText,
+  insertTextAtOffset,
+  isRangeFullyMarked,
+  removeHtmlRange,
+  splitHtmlAt,
+  toggleMark,
+  unwrapLink,
+  upgradeToHtml,
+  wrapLink,
+  type DocsMarkTag,
+} from '@/lib/docs-richtext';
 import DocsBlockEditor from './DocsBlockEditor';
 import MentionPopover from './MentionPopover';
 import UserMentionPopover from './UserMentionPopover';
@@ -112,6 +127,18 @@ function isTextBlockType(type: DocsBlockType): boolean {
   return type !== 'divider' && type !== 'table' && type !== 'database';
 }
 
+/**
+ * Contenido cargado de la DB → modelo HTML-lite: el texto plano viejo se
+ * escapa y lo que ya trae tags del subset se sanitiza (una sola vez por carga).
+ * En SSR no hay DOM: se deja tal cual (el primer render cliente lo normaliza).
+ */
+function upgradeBlocks(list: DocsBlock[]): DocsBlock[] {
+  if (typeof window === 'undefined') return list;
+  return list.map((b) =>
+    isTextBlockType(b.type) && b.content ? { ...b, content: upgradeToHtml(b.content) } : b,
+  );
+}
+
 /** Atajos markdown al inicio de un párrafo: "# ", "- ", "1. ", "[] ", "> ". */
 function matchMarkdownPrefix(text: string): { type: DocsBlockType; level?: 1 | 2 | 3 } | null {
   if (text === '#') return { type: 'heading', level: 1 };
@@ -136,8 +163,8 @@ export default function DocsEditor({
   onBlockComment,
 }: DocsEditorProps) {
   const t = useTranslations('docs');
-  const [blocks, setBlocks] = useState<DocsBlock[]>(
-    page.content.length ? page.content : defaultBlocks(),
+  const [blocks, setBlocks] = useState<DocsBlock[]>(() =>
+    upgradeBlocks(page.content.length ? page.content : defaultBlocks()),
   );
   const [title, setTitle] = useState(page.title);
   const [icon, setIcon] = useState(page.icon ?? '📄');
@@ -177,13 +204,39 @@ export default function DocsEditor({
   const suppressGripClick = useRef(false);
   const blocksWrapRef = useRef<HTMLDivElement | null>(null);
   const blockMenuRef = useRef<HTMLDivElement | null>(null);
+  /** Selección pendiente de restaurar tras aplicar formato (toggle de marca). */
+  const pendingSelection = useRef<{ index: number; start: number; end: number } | null>(null);
+  /** Toolbar flotante de formato: selección no colapsada dentro de un bloque. */
+  const [toolbar, setToolbar] = useState<{
+    index: number;
+    start: number;
+    end: number;
+    top: number;
+    left: number;
+  } | null>(null);
+  /** Popover de link: offsets de texto plano ya capturados + href de prefill. */
+  const [linkDialog, setLinkDialog] = useState<{
+    index: number;
+    start: number;
+    end: number;
+    href: string;
+    top: number;
+    left: number;
+  } | null>(null);
+  const linkPopoverRef = useRef<HTMLDivElement | null>(null);
+  const linkInputRef = useRef<HTMLInputElement | null>(null);
+  /** Espejo del estado para el listener de selectionchange (sin re-suscribir). */
+  const linkDialogRef = useRef(linkDialog);
+  linkDialogRef.current = linkDialog;
 
   useEffect(() => {
-    setBlocks(page.content.length ? page.content : defaultBlocks());
+    setBlocks(upgradeBlocks(page.content.length ? page.content : defaultBlocks()));
     setTitle(page.title);
     setIcon(page.icon ?? '📄');
     setCoverUrl(page.cover_url ?? '');
     setBlockMenu(null);
+    setToolbar(null);
+    setLinkDialog(null);
   }, [page.id]);
 
   // Sincroniza el título (contentEditable) solo cuando cambió por fuera del tipeo.
@@ -194,11 +247,23 @@ export default function DocsEditor({
     }
   }, [title]);
 
-  // Foco/caret: si hay un caret pendiente (split, merge, markdown, slash) se
-  // aplica después de que los hijos sincronizaron textContent; si no, solo se
+  // Foco/caret: si hay una selección pendiente (formato aplicado por toolbar o
+  // atajo) se restaura después de que los hijos sincronizaron innerHTML; si hay
+  // un caret pendiente (split, merge, markdown, slash) igual; si no, solo se
   // mueve el caret al final cuando el foco cambió de bloque de verdad (no al
   // tipear, no al hacer click dentro del bloque ya enfocado).
   useLayoutEffect(() => {
+    const pendingSel = pendingSelection.current;
+    if (pendingSel) {
+      pendingSelection.current = null;
+      const el = blockRefs.current[pendingSel.index];
+      if (el) {
+        el.focus();
+        setSelectionOffsets(el, pendingSel.start, pendingSel.end);
+      }
+      prevFocus.current = pendingSel.index;
+      return;
+    }
     const pending = pendingCaret.current;
     if (pending) {
       pendingCaret.current = null;
@@ -267,6 +332,63 @@ export default function DocsEditor({
       document.removeEventListener('keydown', onKey);
     };
   }, [blockMenu]);
+
+  // Toolbar flotante de formato: aparece con selección no colapsada dentro de
+  // un bloque de texto (nunca en código) y sigue la posición del rango.
+  useEffect(() => {
+    const update = () => {
+      if (linkDialogRef.current) return; // el popover de link tiene el foco
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        setToolbar(null);
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const node = range.commonAncestorContainer;
+      const host = (node.nodeType === Node.ELEMENT_NODE
+        ? (node as Element)
+        : node.parentElement
+      )?.closest('.docs-editable');
+      if (!host || !blocksWrapRef.current?.contains(host)) {
+        setToolbar(null);
+        return;
+      }
+      if (host.classList.contains('docs-code')) {
+        setToolbar(null);
+        return;
+      }
+      const indexAttr = host.closest('.docs-block')?.getAttribute('data-index');
+      const offsets = getSelectionOffsets(host as HTMLElement);
+      if (indexAttr == null || !offsets || offsets.end <= offsets.start) {
+        setToolbar(null);
+        return;
+      }
+      const rect = range.getBoundingClientRect();
+      const center = rect.left + rect.width / 2;
+      const left = Math.max(110, Math.min(window.innerWidth - 110, center));
+      const top = rect.top > 64 ? rect.top - 46 : rect.bottom + 8;
+      setToolbar({ index: Number(indexAttr), start: offsets.start, end: offsets.end, top, left });
+    };
+    document.addEventListener('selectionchange', update);
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      document.removeEventListener('selectionchange', update);
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
+  // Popover de link: cierra con click afuera.
+  useEffect(() => {
+    if (!linkDialog) return;
+    const onDown = (e: MouseEvent) => {
+      if (linkPopoverRef.current?.contains(e.target as Node)) return;
+      setLinkDialog(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [linkDialog]);
 
   // Limpieza del DOM de drag si el componente se desmonta a mitad de un drag.
   useEffect(() => {
@@ -533,6 +655,80 @@ export default function DocsEditor({
     setTurnIntoOpen(false);
   }, []);
 
+  // ---------- Formato en línea (fase C): toolbar flotante + atajos ----------
+
+  /** Toggle de una marca sobre el rango de texto plano [start, end) del bloque. */
+  const applyMark = useCallback(
+    (index: number, start: number, end: number, tag: DocsMarkTag) => {
+      const block = blocks[index];
+      if (!block || block.type === 'code') return;
+      const next = toggleMark(block.content, tag, start, end);
+      if (next === block.content) return;
+      updateBlock(index, { content: next });
+      pendingSelection.current = { index, start, end };
+      prevFocus.current = index;
+      setFocusIndex(index);
+      setFocusTick((v) => v + 1);
+    },
+    [blocks, updateBlock],
+  );
+
+  /** Abre el popover de link con la selección actual del bloque enfocado. */
+  const openLinkDialog = useCallback(
+    (index: number) => {
+      const block = blocks[index];
+      const el = blockRefs.current[index];
+      if (!block || !el || block.type === 'code') return;
+      const offsets = getSelectionOffsets(el);
+      if (!offsets) return;
+      const link = getLinkAt(block.content, offsets.start, offsets.end);
+      const start = link?.start ?? offsets.start;
+      const end = link?.end ?? offsets.end;
+      if (end <= start) return; // nada seleccionado y caret fuera de un link
+      const sel = window.getSelection();
+      const rect = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).getBoundingClientRect() : null;
+      const left = rect
+        ? Math.max(140, Math.min(window.innerWidth - 140, rect.left + rect.width / 2))
+        : window.innerWidth / 2;
+      const top = rect ? (rect.top > 76 ? rect.top - 52 : rect.bottom + 8) : 120;
+      setToolbar(null);
+      setLinkDialog({ index, start, end, href: link?.href ?? '', top, left });
+    },
+    [blocks],
+  );
+
+  /** Aplica el href del popover al rango capturado (wrapLink sanea el scheme). */
+  const applyLink = useCallback(
+    (dialog: NonNullable<typeof linkDialog>, rawHref: string) => {
+      const block = blocks[dialog.index];
+      setLinkDialog(null);
+      if (!block) return;
+      let href = rawHref.trim();
+      if (href && !/^(https?:\/\/|mailto:|tel:|\/|#)/i.test(href)) href = `https://${href}`;
+      const next = href ? wrapLink(block.content, dialog.start, dialog.end, href) : block.content;
+      if (next !== block.content) updateBlock(dialog.index, { content: next });
+      pendingCaret.current = { index: dialog.index, offset: dialog.end };
+      setFocusIndex(dialog.index);
+      setFocusTick((v) => v + 1);
+    },
+    [blocks, updateBlock],
+  );
+
+  /** Quita el link del rango capturado conservando texto y demás marcas. */
+  const removeLink = useCallback(
+    (dialog: NonNullable<typeof linkDialog>) => {
+      const block = blocks[dialog.index];
+      setLinkDialog(null);
+      if (!block) return;
+      const next = unwrapLink(block.content, dialog.start, dialog.end);
+      if (next !== block.content) updateBlock(dialog.index, { content: next });
+      pendingCaret.current = { index: dialog.index, offset: dialog.end };
+      setFocusIndex(dialog.index);
+      setFocusTick((v) => v + 1);
+    },
+    [blocks, updateBlock],
+  );
+
   /**
    * Convierte el bloque a otro tipo SIN borrar el contenido (salvo que se pase
    * `content` explícito, ej. el texto ya limpio del `/query` o del atajo md).
@@ -549,6 +745,8 @@ export default function DocsEditor({
             content: content !== undefined ? content : b.content,
           };
           if (type === 'todo') converted.checked = converted.checked ?? false;
+          // Code es texto plano (pre-wrap): sin marcas en línea dentro.
+          if (type === 'code') converted.content = escapeHtml(htmlToFlatText(converted.content));
           // Database: inicializa columnas tipadas y una fila vacía.
           if (type === 'database' && !converted.columns?.length) {
             converted.columns = defaultDatabaseColumns();
@@ -578,8 +776,8 @@ export default function DocsEditor({
       const block = blocks[index];
       if (!block) return;
       const s = slash && slash.index === index ? slash : null;
-      const stripped = s ? block.content.slice(0, s.start) + block.content.slice(s.end) : block.content;
-      const caret = s ? s.start : block.content.length;
+      const stripped = s ? removeHtmlRange(block.content, s.start, s.end) : block.content;
+      const caret = s ? s.start : htmlToFlatText(block.content).length;
 
       if (cmd.type === 'divider') {
         // El divider no tiene texto: se inserta debajo + un párrafo para seguir escribiendo.
@@ -636,8 +834,7 @@ export default function DocsEditor({
         return;
       }
 
-      const before = block.content.slice(0, caret);
-      const after = block.content.slice(caret);
+      const [before, after] = splitHtmlAt(block.content, caret);
       const isList = LIST_TYPES.includes(block.type);
       // Listas/todo continúan el mismo tipo; heading/paragraph crean un párrafo.
       const newType: DocsBlockType = isList ? block.type : 'paragraph';
@@ -658,12 +855,12 @@ export default function DocsEditor({
     [blocks, convertBlock, triggerSave],
   );
 
-  /** Inserta un '\n' dentro del bloque en la posición del caret (texto plano). */
+  /** Inserta un '\n' dentro del bloque en la posición del caret (offset plano). */
   const insertSoftNewline = useCallback(
     (index: number, caret: number) => {
       const block = blocks[index];
       if (!block) return;
-      const next = block.content.slice(0, caret) + '\n' + block.content.slice(caret);
+      const next = insertTextAtOffset(block.content, caret, '\n');
       updateBlock(index, { content: next });
       pendingCaret.current = { index, offset: caret + 1 };
       setFocusTick((v) => v + 1);
@@ -676,8 +873,8 @@ export default function DocsEditor({
     (index: number, caret: number, exit: boolean) => {
       const block = blocks[index];
       if (!block) return;
-      const before = block.content.slice(0, caret);
-      const after = block.content.slice(caret);
+      const flat = htmlToFlatText(block.content);
+      const [before, after] = splitHtmlAt(block.content, caret);
 
       // Cmd/Ctrl+Enter: sale del bloque; el texto tras el caret va a un párrafo nuevo.
       if (exit) {
@@ -696,12 +893,14 @@ export default function DocsEditor({
       }
 
       // Enter en la última línea vacía (caret al final y línea sin contenido): sale.
-      if (caret === block.content.length && (before === '' || before.endsWith('\n'))) {
-        const trimmed = before.replace(/\n$/, '');
-        if (trimmed === '') {
+      if (caret === flat.length && (flat === '' || flat.endsWith('\n'))) {
+        const trimmedFlat = flat.replace(/\n$/, '');
+        if (trimmedFlat === '') {
           convertBlock(index, 'paragraph', undefined, '', 0);
           return;
         }
+        // Quita solo el '\n' final (puede vivir dentro de una marca en quotes).
+        const trimmed = removeHtmlRange(block.content, trimmedFlat.length, flat.length);
         const paraBlock: DocsBlock = { id: crypto.randomUUID(), type: 'paragraph', content: '' };
         setBlocks((prev) => {
           const next = [...prev];
@@ -752,7 +951,9 @@ export default function DocsEditor({
       }
 
       if (isTextBlockType(prev.type) && isTextBlockType(block.type)) {
-        const join = prev.content.length;
+        // Concatenar dos fragmentos HTML-lite saneados es seguro (pueden quedar
+        // tags adyacentes iguales: válido, se renderiza igual).
+        const join = htmlToFlatText(prev.content).length;
         setBlocks((all) => {
           const next = [...all];
           next[index - 1] = { ...next[index - 1], content: prev.content + block.content };
@@ -815,13 +1016,36 @@ export default function DocsEditor({
       const caret = isEditable ? getCaretOffset(el) : 0;
       const collapsed = window.getSelection()?.isCollapsed ?? true;
 
+      // Formato en línea: Cmd/Ctrl+B/I/U (toggle) y Cmd/Ctrl+K (link). El
+      // browser aplicaría <b>/<i> con execCommand: se previene y se usa el
+      // modelo HTML-lite. Nunca dentro de bloques de código.
+      const meta = e.metaKey || e.ctrlKey;
+      if (meta && isEditable && block.type !== 'code' && isTextBlockType(block.type)) {
+        const key = e.key.toLowerCase();
+        if (key === 'b' || key === 'i' || key === 'u') {
+          // preventDefault aun con selección colapsada: si no, el browser
+          // activa bold/italic por execCommand e inyecta <b>/<i> al tipear.
+          e.preventDefault();
+          const offsets = getSelectionOffsets(el);
+          if (offsets && offsets.end > offsets.start) {
+            applyMark(index, offsets.start, offsets.end, key === 'b' ? 'strong' : key === 'i' ? 'em' : 'u');
+          }
+          return;
+        }
+        if (key === 'k') {
+          e.preventDefault();
+          openLinkDialog(index);
+          return;
+        }
+      }
+
       // Markdown: "# ", "## ", "### ", "- ", "* ", "1. ", "[] ", "[ ] ", "> ".
       if (e.key === ' ' && isEditable && collapsed && block.type === 'paragraph') {
-        const before = block.content.slice(0, caret);
-        const md = matchMarkdownPrefix(before);
+        const flatBefore = htmlToFlatText(block.content).slice(0, caret);
+        const md = matchMarkdownPrefix(flatBefore);
         if (md) {
           e.preventDefault();
-          convertBlock(index, md.type, md.level, block.content.slice(before.length), 0);
+          convertBlock(index, md.type, md.level, splitHtmlAt(block.content, flatBefore.length)[1], 0);
           return;
         }
       }
@@ -874,6 +1098,8 @@ export default function DocsEditor({
       mergeWithPrevious,
       insertBlock,
       removeBlock,
+      applyMark,
+      openLinkDialog,
     ],
   );
 
@@ -888,11 +1114,15 @@ export default function DocsEditor({
         return;
       }
 
+      // Los disparadores (/, [[, @) se detectan sobre el TEXTO PLANO: el
+      // contenido del modelo es HTML-lite y los offsets ignoran los tags.
+      const flat = htmlToFlatText(text);
+
       // Menú `/`: se dispara con '/' al inicio o tras un espacio, query sin espacios.
       // No aplica dentro de bloques de código.
       const el = blockRefs.current[index];
-      const caret = el ? getCaretOffset(el) : text.length;
-      const beforeCaret = text.slice(0, caret);
+      const caret = el ? getCaretOffset(el) : flat.length;
+      const beforeCaret = flat.slice(0, caret);
       const slashMatch = block.type !== 'code' ? beforeCaret.match(/(?:^|\s)\/([^\s/]*)$/) : null;
       if (slashMatch) {
         const query = slashMatch[1] ?? '';
@@ -908,7 +1138,7 @@ export default function DocsEditor({
         setCmdSel(0);
       }
 
-      const mentionMatch = text.match(/\[\[([^\]]*)$/);
+      const mentionMatch = flat.match(/\[\[([^\]]*)$/);
       if (mentionMatch) {
         setMention({ index, query: mentionMatch[1] ?? '' });
         setUserMention(null);
@@ -917,7 +1147,7 @@ export default function DocsEditor({
       setMention(null);
 
       // @mención: '@' al inicio o tras un espacio, query sin espacios al final.
-      const userMatch = text.match(/(?:^|\s)@([^\s@]*)$/);
+      const userMatch = flat.match(/(?:^|\s)@([^\s@]*)$/);
       if (userMatch) {
         setUserMention({ index, query: userMatch[1] ?? '' });
       } else {
@@ -950,17 +1180,22 @@ export default function DocsEditor({
         setMention(null);
         return;
       }
-      const newContent = block.content.replace(
-        /\[\[([^\]]*)$/,
-        `[${selected.title || t('untitled')}] `,
-      );
+      // El `[[query` está al final del texto plano: se borra ese rango y se
+      // agrega el título como texto escapado (fuera de cualquier marca).
+      const flat = htmlToFlatText(block.content);
+      const m = flat.match(/\[\[([^\]]*)$/);
+      const insert = `[${selected.title || t('untitled')}] `;
+      const start = m ? flat.length - m[0].length : flat.length;
+      const newContent = m
+        ? removeHtmlRange(block.content, start, flat.length) + escapeHtml(insert)
+        : block.content;
       setBlocks((prev) => {
         const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
         triggerSave(next);
         return next;
       });
       setMention(null);
-      pendingCaret.current = { index, offset: newContent.length };
+      pendingCaret.current = { index, offset: start + insert.length };
       setFocusIndex(index);
       setFocusTick((v) => v + 1);
     },
@@ -977,14 +1212,20 @@ export default function DocsEditor({
         setUserMention(null);
         return;
       }
-      const newContent = block.content.replace(/@([^\s@]*)$/, `@${name} `);
+      const flat = htmlToFlatText(block.content);
+      const m = flat.match(/(?:^|\s)@([^\s@]*)$/);
+      const insert = `@${name} `;
+      const start = m ? flat.length - m[0].length + (m[0].startsWith('@') ? 0 : 1) : flat.length;
+      const newContent = m
+        ? removeHtmlRange(block.content, start, flat.length) + escapeHtml(insert)
+        : block.content;
       setBlocks((prev) => {
         const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
         triggerSave(next);
         return next;
       });
       setUserMention(null);
-      pendingCaret.current = { index, offset: newContent.length };
+      pendingCaret.current = { index, offset: start + insert.length };
       setFocusIndex(index);
       setFocusTick((v) => v + 1);
       // Notificación al mencionado (fire-and-forget; el server valida membresía).
@@ -1004,7 +1245,7 @@ export default function DocsEditor({
   };
 
   const copyContents = () => {
-    const text = blocks.map((b) => b.content).join('\n');
+    const text = blocks.map((b) => htmlToFlatText(b.content)).join('\n');
     navigator.clipboard.writeText(text);
     setMenuOpen(false);
   };
@@ -1026,6 +1267,33 @@ export default function DocsEditor({
   };
 
   const ancestorChain = ancestors.filter((a) => a.id !== page.id);
+
+  // Estado activo de la toolbar sobre el contenido actual (offsets de texto plano).
+  const toolbarBlock = toolbar ? blocks[toolbar.index] : null;
+  const markActive = (tag: DocsMarkTag): boolean =>
+    toolbar && toolbarBlock
+      ? isRangeFullyMarked(toolbarBlock.content, tag, toolbar.start, toolbar.end)
+      : false;
+  const linkActive =
+    toolbar && toolbarBlock
+      ? getLinkAt(toolbarBlock.content, toolbar.start, toolbar.end) !== null
+      : false;
+
+  /** Abre el popover de link desde la toolbar (expande al <a> que cubre la selección). */
+  const openLinkFromToolbar = () => {
+    if (!toolbar) return;
+    const block = blocks[toolbar.index];
+    const link = block ? getLinkAt(block.content, toolbar.start, toolbar.end) : null;
+    setLinkDialog({
+      index: toolbar.index,
+      start: link?.start ?? toolbar.start,
+      end: link?.end ?? toolbar.end,
+      href: link?.href ?? '',
+      top: toolbar.top,
+      left: toolbar.left,
+    });
+    setToolbar(null);
+  };
 
   let numberedIndex = 0;
 
@@ -1433,6 +1701,139 @@ export default function DocsEditor({
           <div className="docs-drop-line" style={{ top: dropLine }} aria-hidden />
         )}
       </div>
+
+      {toolbar &&
+        !linkDialog &&
+        // Portal a body: un ancestro con transform (sidebar/reveal) rompería
+        // el position: fixed relativo al viewport.
+        createPortal(
+        <div
+          className="docs-format-toolbar"
+          style={{ top: toolbar.top, left: toolbar.left }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <button
+            type="button"
+            className={`docs-format-btn${markActive('strong') ? ' active' : ''}`}
+            title={t('editor.format.bold')}
+            aria-label={t('editor.format.bold')}
+            onClick={() => applyMark(toolbar.index, toolbar.start, toolbar.end, 'strong')}
+          >
+            <strong>B</strong>
+          </button>
+          <button
+            type="button"
+            className={`docs-format-btn${markActive('em') ? ' active' : ''}`}
+            title={t('editor.format.italic')}
+            aria-label={t('editor.format.italic')}
+            onClick={() => applyMark(toolbar.index, toolbar.start, toolbar.end, 'em')}
+          >
+            <em>I</em>
+          </button>
+          <button
+            type="button"
+            className={`docs-format-btn${markActive('u') ? ' active' : ''}`}
+            title={t('editor.format.underline')}
+            aria-label={t('editor.format.underline')}
+            onClick={() => applyMark(toolbar.index, toolbar.start, toolbar.end, 'u')}
+          >
+            <u>U</u>
+          </button>
+          <button
+            type="button"
+            className={`docs-format-btn${markActive('s') ? ' active' : ''}`}
+            title={t('editor.format.strikethrough')}
+            aria-label={t('editor.format.strikethrough')}
+            onClick={() => applyMark(toolbar.index, toolbar.start, toolbar.end, 's')}
+          >
+            <s>S</s>
+          </button>
+          <button
+            type="button"
+            className={`docs-format-btn docs-format-btn-mono${markActive('code') ? ' active' : ''}`}
+            title={t('editor.format.code')}
+            aria-label={t('editor.format.code')}
+            onClick={() => applyMark(toolbar.index, toolbar.start, toolbar.end, 'code')}
+          >
+            {'</>'}
+          </button>
+          <span className="docs-format-sep" aria-hidden />
+          <button
+            type="button"
+            className={`docs-format-btn${linkActive ? ' active' : ''}`}
+            title={t('editor.format.link')}
+            aria-label={t('editor.format.link')}
+            onClick={openLinkFromToolbar}
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+          </button>
+        </div>,
+        document.body,
+      )}
+
+      {linkDialog &&
+        createPortal(
+        <div
+          ref={linkPopoverRef}
+          className="docs-link-popover"
+          style={{ top: linkDialog.top, left: linkDialog.left }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <input
+            key={`${linkDialog.index}:${linkDialog.start}:${linkDialog.end}`}
+            ref={linkInputRef}
+            type="text"
+            className="docs-link-input"
+            defaultValue={linkDialog.href}
+            placeholder={t('editor.format.linkPlaceholder')}
+            autoFocus
+            onMouseDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                applyLink(linkDialog, (e.target as HTMLInputElement).value);
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                const d = linkDialog;
+                setLinkDialog(null);
+                pendingSelection.current = { index: d.index, start: d.start, end: d.end };
+                setFocusIndex(d.index);
+                setFocusTick((v) => v + 1);
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="docs-link-btn primary"
+            onClick={() => applyLink(linkDialog, linkInputRef.current?.value ?? '')}
+          >
+            {t('editor.format.addLink')}
+          </button>
+          {linkDialog.href && (
+            <button
+              type="button"
+              className="docs-link-btn"
+              onClick={() => removeLink(linkDialog)}
+            >
+              {t('editor.format.removeLink')}
+            </button>
+          )}
+        </div>,
+        document.body,
+      )}
 
       <div className="docs-editor-foot">
         <span className="docs-save-status">{saving ? t('editor.saving') : t('editor.saved')}</span>
