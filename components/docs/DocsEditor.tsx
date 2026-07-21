@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useTranslations } from 'next-intl';
@@ -21,7 +22,13 @@ import {
   type DocsMentionableUser,
   type DocsPage,
 } from '@/lib/docs-types';
-import { getCaretOffset, getSelectionOffsets, setCaretOffset, setSelectionOffsets } from '@/lib/docs-caret';
+import {
+  getCaretOffset,
+  getCaretViewportRect,
+  getSelectionOffsets,
+  setCaretOffset,
+  setSelectionOffsets,
+} from '@/lib/docs-caret';
 import {
   escapeHtml,
   getLinkAt,
@@ -151,6 +158,46 @@ function matchMarkdownPrefix(text: string): { type: DocsBlockType; level?: 1 | 2
   return null;
 }
 
+/** Rect del caret (coordenadas de viewport) donde se abrió un trigger (/, [[, @). */
+interface CaretMenuPos {
+  left: number;
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Estilo fijo (viewport) para un menú anclado al caret, estilo Notion: borde
+ * izquierdo en la x del caret, debajo de la línea; si no entra, se ancla por
+ * `bottom` arriba del caret (así el borde visible queda pegado al caret sin
+ * importar la altura real). Siempre dentro del viewport (mobile incluido):
+ * `left` y `maxHeight` se clampean a los márgenes disponibles.
+ */
+function caretMenuStyle(pos: CaretMenuPos, width: number, maxHeight: number): CSSProperties {
+  if (typeof window === 'undefined') return { display: 'none' };
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const w = Math.min(width, vw - 16);
+  const left = Math.max(8, Math.min(pos.left, vw - w - 8));
+  const spaceBelow = vh - pos.bottom - 8;
+  const spaceAbove = pos.top - 8;
+  if (spaceBelow >= maxHeight || spaceBelow >= spaceAbove) {
+    return {
+      position: 'fixed',
+      left,
+      top: pos.bottom + 6,
+      width: w,
+      maxHeight: Math.max(120, spaceBelow - 6),
+    };
+  }
+  return {
+    position: 'fixed',
+    left,
+    bottom: vh - pos.top + 6,
+    width: w,
+    maxHeight: Math.max(120, spaceAbove - 6),
+  };
+}
+
 export default function DocsEditor({
   page,
   ancestors,
@@ -179,8 +226,22 @@ export default function DocsEditor({
   const [cmdSel, setCmdSel] = useState(0);
   /** Rango del `/query` tipeado: se borra al aplicar un comando sin tocar el resto del texto. */
   const [slash, setSlash] = useState<{ index: number; start: number; end: number } | null>(null);
-  const [mention, setMention] = useState<{ index: number; query: string } | null>(null);
-  const [userMention, setUserMention] = useState<{ index: number; query: string } | null>(null);
+  /** Trigger `[[` activo: rango plano [start, end) del `[[query` + query actual. */
+  const [mention, setMention] = useState<{
+    index: number;
+    query: string;
+    start: number;
+    end: number;
+  } | null>(null);
+  /** Trigger `@` activo: rango plano [start, end) del `@query` + query actual. */
+  const [userMention, setUserMention] = useState<{
+    index: number;
+    query: string;
+    start: number;
+    end: number;
+  } | null>(null);
+  /** Rect del caret donde se abrió el trigger activo (ancla de los menús flotantes). */
+  const [caretMenuPos, setCaretMenuPos] = useState<CaretMenuPos | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -389,6 +450,43 @@ export default function DocsEditor({
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [linkDialog]);
+
+  /** Rect del caret actual; si el browser no da rect (bloque vacío), el del bloque. */
+  const readCaretMenuPos = useCallback((index: number): CaretMenuPos | null => {
+    const rect = getCaretViewportRect();
+    if (rect) return rect;
+    const el = blockRefs.current[index];
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { left: b.left, top: b.top, bottom: b.bottom };
+  }, []);
+
+  // Menús anclados al caret (/, [[, @): siguen al caret al scrollear o
+  // redimensionar mientras el foco sigue en un bloque editable.
+  const anyCaretMenuOpen = cmdOpen || mention !== null || userMention !== null;
+  useEffect(() => {
+    if (!anyCaretMenuOpen) return;
+    const update = () => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || !active.classList.contains('docs-editable')) return;
+      const rect = getCaretViewportRect();
+      if (rect) setCaretMenuPos(rect);
+    };
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [anyCaretMenuOpen]);
+
+  // El item seleccionado del menú `/` queda visible dentro del scroll.
+  useEffect(() => {
+    if (!cmdOpen) return;
+    document
+      .querySelector('.docs-command-menu .docs-command-item.sel')
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [cmdOpen, cmdSel]);
 
   // Limpieza del DOM de drag si el componente se desmonta a mitad de un drag.
   useEffect(() => {
@@ -763,6 +861,8 @@ export default function DocsEditor({
       setCmdQuery('');
       setCmdSel(0);
       setSlash(null);
+      setMention(null);
+      setUserMention(null);
       pendingCaret.current = { index, offset: caretOffset };
       setFocusIndex(index);
       setFocusTick((v) => v + 1);
@@ -1078,6 +1178,10 @@ export default function DocsEditor({
           return;
         }
         if (!isEditable && block.content === '') {
+          // Backspace dentro de una celda de tabla/database edita el texto de
+          // la celda: NUNCA borra el bloque entero.
+          const target = e.target as HTMLElement;
+          if (target.closest('input, textarea, select')) return;
           e.preventDefault();
           removeBlock(index);
           return;
@@ -1114,47 +1218,63 @@ export default function DocsEditor({
         return;
       }
 
-      // Los disparadores (/, [[, @) se detectan sobre el TEXTO PLANO: el
-      // contenido del modelo es HTML-lite y los offsets ignoran los tags.
+      // Los disparadores (/, [[, @) se detectan sobre el TEXTO PLANO ANTES DEL
+      // CARET: funcionan en cualquier posición del bloque (no solo al final)
+      // y el menú se ancla al caret. El contenido del modelo es HTML-lite y
+      // los offsets ignoran los tags. Ninguno aplica dentro de code.
       const flat = htmlToFlatText(text);
-
-      // Menú `/`: se dispara con '/' al inicio o tras un espacio, query sin espacios.
-      // No aplica dentro de bloques de código.
       const el = blockRefs.current[index];
       const caret = el ? getCaretOffset(el) : flat.length;
       const beforeCaret = flat.slice(0, caret);
-      const slashMatch = block.type !== 'code' ? beforeCaret.match(/(?:^|\s)\/([^\s/]*)$/) : null;
-      if (slashMatch) {
-        const query = slashMatch[1] ?? '';
-        const start = caret - query.length - 1;
-        setSlash({ index, start, end: caret });
-        setCmdOpen(true);
-        setCmdQuery(query);
-        setCmdSel(0);
-      } else {
+      const isCode = block.type === 'code';
+
+      const closeSlash = () => {
         setSlash(null);
         setCmdOpen(false);
         setCmdQuery('');
         setCmdSel(0);
-      }
+      };
 
-      const mentionMatch = flat.match(/\[\[([^\]]*)$/);
+      // `[[query`: la query no cruza '[' ni ']' (otro '[[' reinicia el trigger).
+      const mentionMatch = !isCode ? beforeCaret.match(/\[\[([^\][]*)$/) : null;
       if (mentionMatch) {
-        setMention({ index, query: mentionMatch[1] ?? '' });
+        const query = mentionMatch[1] ?? '';
+        setMention({ index, query, start: caret - mentionMatch[0].length, end: caret });
         setUserMention(null);
+        closeSlash();
+        const pos = readCaretMenuPos(index);
+        if (pos) setCaretMenuPos(pos);
         return;
       }
       setMention(null);
 
-      // @mención: '@' al inicio o tras un espacio, query sin espacios al final.
-      const userMatch = flat.match(/(?:^|\s)@([^\s@]*)$/);
+      // @mención: '@' al inicio o tras un espacio, query sin espacios.
+      const userMatch = !isCode ? beforeCaret.match(/(?:^|\s)@([^\s@]*)$/) : null;
       if (userMatch) {
-        setUserMention({ index, query: userMatch[1] ?? '' });
+        const query = userMatch[1] ?? '';
+        setUserMention({ index, query, start: caret - query.length - 1, end: caret });
+        closeSlash();
+        const pos = readCaretMenuPos(index);
+        if (pos) setCaretMenuPos(pos);
+        return;
+      }
+      setUserMention(null);
+
+      // Menú `/`: '/' al inicio o tras un espacio, query sin espacios ni '/'.
+      const slashMatch = !isCode ? beforeCaret.match(/(?:^|\s)\/([^\s/]*)$/) : null;
+      if (slashMatch) {
+        const query = slashMatch[1] ?? '';
+        setSlash({ index, start: caret - query.length - 1, end: caret });
+        setCmdOpen(true);
+        setCmdQuery(query);
+        setCmdSel(0);
+        const pos = readCaretMenuPos(index);
+        if (pos) setCaretMenuPos(pos);
       } else {
-        setUserMention(null);
+        closeSlash();
       }
     },
-    [blocks, convertBlock],
+    [blocks, convertBlock, readCaretMenuPos],
   );
 
   const handleBlockChange = useCallback(
@@ -1169,26 +1289,34 @@ export default function DocsEditor({
   const handleFocus = useCallback((index: number) => {
     prevFocus.current = index;
     setFocusIndex(index);
+    // El foco llegó a un bloque (click, split, conversión): cualquier menú
+    // anclado al caret que haya quedado abierto ya no corresponde.
+    setSlash(null);
+    setCmdOpen(false);
+    setCmdQuery('');
+    setCmdSel(0);
+    setMention(null);
+    setUserMention(null);
   }, []);
 
   const onSelectMention = useCallback(
     (selected: DocsPage) => {
       if (!mention) return;
-      const index = mention.index;
+      const { index, start, end } = mention;
       const block = blocks[index];
       if (!block) {
         setMention(null);
         return;
       }
-      // El `[[query` está al final del texto plano: se borra ese rango y se
-      // agrega el título como texto escapado (fuera de cualquier marca).
-      const flat = htmlToFlatText(block.content);
-      const m = flat.match(/\[\[([^\]]*)$/);
+      // Se borra el `[[query` tipeado (rango plano capturado al tipear, en
+      // cualquier posición del bloque) y se inserta el título como texto
+      // escapado en ese punto (insertTextAtOffset escapa).
       const insert = `[${selected.title || t('untitled')}] `;
-      const start = m ? flat.length - m[0].length : flat.length;
-      const newContent = m
-        ? removeHtmlRange(block.content, start, flat.length) + escapeHtml(insert)
-        : block.content;
+      const newContent = insertTextAtOffset(
+        removeHtmlRange(block.content, start, end),
+        start,
+        insert,
+      );
       setBlocks((prev) => {
         const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
         triggerSave(next);
@@ -1205,20 +1333,20 @@ export default function DocsEditor({
   const onSelectUserMention = useCallback(
     (selected: DocsMentionableUser) => {
       if (!userMention) return;
-      const index = userMention.index;
+      const { index, start, end } = userMention;
       const name = selected.name ?? selected.email;
       const block = blocks[index];
       if (!block) {
         setUserMention(null);
         return;
       }
-      const flat = htmlToFlatText(block.content);
-      const m = flat.match(/(?:^|\s)@([^\s@]*)$/);
+      // Igual que [[ : se reemplaza el `@query` capturado por `@Nombre `.
       const insert = `@${name} `;
-      const start = m ? flat.length - m[0].length + (m[0].startsWith('@') ? 0 : 1) : flat.length;
-      const newContent = m
-        ? removeHtmlRange(block.content, start, flat.length) + escapeHtml(insert)
-        : block.content;
+      const newContent = insertTextAtOffset(
+        removeHtmlRange(block.content, start, end),
+        start,
+        insert,
+      );
       setBlocks((prev) => {
         const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
         triggerSave(next);
@@ -1644,42 +1772,6 @@ export default function DocsEditor({
                   focused={focusIndex === index}
                   ref={(el) => { blockRefs.current[index] = el; }}
                 />
-              {cmdOpen && focusIndex === index && (
-                <div className="docs-command-menu">
-                  <div className="docs-command-title">{t('editor.basicBlocks')}</div>
-                  {filteredCommands.map((cmd, i) => (
-                    <button
-                      key={cmd.key}
-                      type="button"
-                      className={`docs-command-item${i === cmdSel ? ' sel' : ''}`}
-                      onClick={() => applyCommand(index, cmd)}
-                    >
-                      <span className="docs-command-icon">{BLOCK_ICONS[cmd.type]}</span>
-                      <span className="docs-command-label">{cmd.label}</span>
-                      {cmd.shortcut && (
-                        <span className="docs-command-shortcut">{cmd.shortcut}</span>
-                      )}
-                    </button>
-                  ))}
-                  {filteredCommands.length === 0 && (
-                    <div className="docs-command-empty">{t('editor.noCommands')}</div>
-                  )}
-                </div>
-              )}
-              {mention && focusIndex === index && (
-                <MentionPopover
-                  query={mention.query}
-                  onSelect={onSelectMention}
-                  onClose={() => setMention(null)}
-                />
-              )}
-              {userMention && focusIndex === index && (
-                <UserMentionPopover
-                  query={userMention.query}
-                  onSelect={onSelectUserMention}
-                  onClose={() => setUserMention(null)}
-                />
-              )}
               </div>
               <div className="docs-gap">
                 <button
@@ -1701,6 +1793,66 @@ export default function DocsEditor({
           <div className="docs-drop-line" style={{ top: dropLine }} aria-hidden />
         )}
       </div>
+
+      {cmdOpen &&
+        slash &&
+        focusIndex === slash.index &&
+        caretMenuPos &&
+        // Portal a body + position: fixed anclado al caret (como la toolbar):
+        // un ancestro con transform rompería la posición relativa al bloque.
+        createPortal(
+        <div
+          className="docs-command-menu"
+          style={caretMenuStyle(caretMenuPos, 240, 320)}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <div className="docs-command-title">{t('editor.basicBlocks')}</div>
+          {filteredCommands.map((cmd, i) => (
+            <button
+              key={cmd.key}
+              type="button"
+              className={`docs-command-item${i === cmdSel ? ' sel' : ''}`}
+              onClick={() => applyCommand(slash.index, cmd)}
+            >
+              <span className="docs-command-icon">{BLOCK_ICONS[cmd.type]}</span>
+              <span className="docs-command-label">{cmd.label}</span>
+              {cmd.shortcut && (
+                <span className="docs-command-shortcut">{cmd.shortcut}</span>
+              )}
+            </button>
+          ))}
+          {filteredCommands.length === 0 && (
+            <div className="docs-command-empty">{t('editor.noCommands')}</div>
+          )}
+        </div>,
+        document.body,
+      )}
+
+      {mention &&
+        focusIndex === mention.index &&
+        caretMenuPos &&
+        createPortal(
+        <MentionPopover
+          query={mention.query}
+          style={caretMenuStyle(caretMenuPos, 260, 280)}
+          onSelect={onSelectMention}
+          onClose={() => setMention(null)}
+        />,
+        document.body,
+      )}
+
+      {userMention &&
+        focusIndex === userMention.index &&
+        caretMenuPos &&
+        createPortal(
+        <UserMentionPopover
+          query={userMention.query}
+          style={caretMenuStyle(caretMenuPos, 260, 280)}
+          onSelect={onSelectUserMention}
+          onClose={() => setUserMention(null)}
+        />,
+        document.body,
+      )}
 
       {toolbar &&
         !linkDialog &&

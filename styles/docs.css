@@ -386,17 +386,18 @@
 
 /* ---------- Command menu ---------- */
 
+/* Flotante anclado al caret: top/bottom/left/maxHeight vienen inline desde JS. */
 .docs-command-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  width: 220px;
+  position: fixed;
+  width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 6px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-  z-index: 50;
+  z-index: 70;
 }
 
 .docs-command-item {
@@ -421,17 +422,18 @@
 
 /* ---------- Mention popover ---------- */
 
+/* Flotante anclado al caret: top/bottom/left/maxHeight vienen inline desde JS. */
 .docs-mention-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  width: 240px;
+  position: fixed;
+  width: 260px;
+  max-height: 280px;
+  overflow-y: auto;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 6px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-  z-index: 50;
+  z-index: 70;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -452,6 +454,9 @@
 }
 
 .docs-mention-item:hover { background: #f5f5f5; }
+
+/* Item activo por teclado (↑/↓) en los popovers de mención. */
+.docs-mention-item.sel { background: #f0f0f0; }
 
 .docs-mention-icon { font-size: 13px; }
 
@@ -1767,4 +1772,58 @@
 }
 
 .docs-link-btn:hover { background: #f0f0f0; }
+
+/* ---------- Fase D: mobile (≤640px) ---------- */
+
+@media (max-width: 640px) {
+  /* Gutter propio para el grip ⋮⋮ y el "+": con el padding de 16px del shell,
+     left:-26px quedaban fuera de la pantalla. */
+  .docs-blocks { padding-left: 24px; }
+  .docs-block-grip { left: -24px; }
+  .docs-gap-add { left: -24px; }
+
+  /* En touch no hay hover: el grip del bloque en edición y el "+" del gap
+     siguiente quedan visibles mientras el bloque tiene el foco. */
+  .docs-block-outer:focus-within .docs-block-grip,
+  .docs-block-outer:focus-within + .docs-gap .docs-gap-add {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Toolbar de formato y popover de link: entran en el viewport y envuelven. */
+  .docs-format-toolbar {
+    max-width: calc(100vw - 16px);
+    flex-wrap: wrap;
+  }
+
+  .docs-link-popover {
+    max-width: calc(100vw - 16px);
+    flex-wrap: wrap;
+  }
+
+  .docs-link-input { width: min(240px, 48vw); }
+
+  /* Menús anclados al caret: el JS ya clampea left/width; refuerzo de ancho. */
+  .docs-command-menu,
+  .docs-mention-popover { max-width: calc(100vw - 16px); }
+
+  /* Database: scroll horizontal propio en vez de romper la columna. La cadena
+     flex/grid necesita min-width:0 o el min-width de la tabla empuja la página
+     entera fuera del viewport en lugar de scrollear dentro del wrap. */
+  .docs-editor-wrap,
+  .docs-editor,
+  .docs-blocks,
+  .docs-block-outer { min-width: 0; }
+  .docs-table-wrap { overflow-x: auto; }
+  .docs-db-table { min-width: 480px; }
+
+  /* Menú contextual de bloque y submenú "Turn into" dentro del viewport. */
+  .docs-block-menu { left: -24px; width: min(200px, calc(100vw - 32px)); }
+  .docs-bmenu-sub {
+    left: auto;
+    right: 0;
+    top: calc(100% + 4px);
+    width: min(190px, calc(100vw - 32px));
+  }
+}
 .docs-link-btn.primary { background: var(--ink); border-color: var(--ink); color: var(--bg); }

@@ -86,3 +86,20 @@ export function setSelectionOffsets(el: HTMLElement, start: number, end: number)
   sel.removeAllRanges();
   sel.addRange(range);
 }
+
+/**
+ * Rect (coordenadas de viewport) del caret de la selección actual. Con el
+ * rango colapsado los browsers devuelven un rect de ancho 0 en la posición del
+ * caret; con selección activa se toma el primer rect del rango. Devuelve null
+ * si no hay selección o el rect es degenerado (ej. bloque vacío sin texto):
+ * el caller decide el fallback (típicamente el rect del bloque).
+ */
+export function getCaretViewportRect(): { left: number; top: number; bottom: number } | null {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const range = sel.getRangeAt(0);
+  const rect = range.getClientRects()[0] ?? range.getBoundingClientRect();
+  if (!rect) return null;
+  if (rect.top === 0 && rect.bottom === 0 && rect.left === 0 && rect.right === 0) return null;
+  return { left: rect.left, top: rect.top, bottom: rect.bottom || rect.top };
+}

@@ -1,19 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslations } from 'next-intl';
 import type { DocsPage } from '@/lib/docs-types';
 
 interface MentionPopoverProps {
   query: string;
+  /** Posición fija (viewport) calculada por el editor a partir del caret. */
+  style?: CSSProperties;
   onSelect: (page: DocsPage) => void;
   onClose: () => void;
 }
 
-export default function MentionPopover({ query, onSelect, onClose }: MentionPopoverProps) {
+export default function MentionPopover({ query, style, onSelect, onClose }: MentionPopoverProps) {
   const t = useTranslations('docs');
   const [pages, setPages] = useState<DocsPage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [active, setActive] = useState(0);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -28,28 +32,67 @@ export default function MentionPopover({ query, onSelect, onClose }: MentionPopo
       .finally(() => setLoading(false));
   }, [query]);
 
+  // Nueva query: la selección vuelve al primer resultado.
   useEffect(() => {
-    function onEsc(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onEsc);
-    return () => window.removeEventListener('keydown', onEsc);
-  }, [onClose]);
+    setActive(0);
+  }, [query]);
+
+  // Teclado en fase de captura (gana al keydown del editor): ↑/↓ navega,
+  // Enter elige el activo, Esc cierra. El caret del editor no se mueve.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (!pages.length) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        setActive((a) =>
+          e.key === 'ArrowDown' ? (a + 1) % pages.length : (a - 1 + pages.length) % pages.length,
+        );
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        const page = pages[Math.min(active, pages.length - 1)];
+        if (page) onSelect(page);
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [pages, active, onSelect, onClose]);
+
+  // El item activo queda visible dentro del scroll del popover.
+  useEffect(() => {
+    rootRef.current
+      ?.querySelector('.docs-mention-item.sel')
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [active]);
 
   if (!query.trim()) return null;
 
+  const sel = Math.min(active, Math.max(0, pages.length - 1));
+
   return (
-    <div className="docs-mention-popover">
+    <div
+      ref={rootRef}
+      className="docs-mention-popover"
+      style={style}
+      onMouseDown={(e) => e.preventDefault()}
+    >
       {loading ? (
         <div className="docs-mention-empty">…</div>
       ) : pages.length === 0 ? (
         <div className="docs-mention-empty">{t('mentions.noPages')}</div>
       ) : (
-        pages.map((page) => (
+        pages.map((page, i) => (
           <button
             key={page.id}
             type="button"
-            className="docs-mention-item"
+            className={`docs-mention-item${i === sel ? ' sel' : ''}`}
+            onMouseEnter={() => setActive(i)}
             onClick={() => onSelect(page)}
           >
             <span className="docs-mention-icon">{page.icon ?? '📄'}</span>
