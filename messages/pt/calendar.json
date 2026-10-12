@@ -92,7 +92,9 @@
     "empty": "Nenhum bloqueio."
   },
   "bookings": {
-    "title": "Reservas"
+    "title": "Reservas",
+    "join": "Entrar na reunião ↗",
+    "rescheduled": "Reagendada pelo convidado"
   },
   "booking": {
     "timezone": "Fuso horário",
@@ -198,5 +200,15 @@
     "cancelConfirm": "Sim, cancelar",
     "cancelled": "Esta reserva foi cancelada. Já avisamos o anfitrião.",
     "past": "Esta reunião já começou, então não pode ser alterada aqui."
+  },
+  "google": {
+    "desc": "Conecte sua agenda para que seus horários ocupados bloqueiem suas páginas de agendamento e cada reserva entre na sua agenda, com link do Google Meet quando o evento não tiver outro local.",
+    "connect": "Conectar Google Calendar",
+    "disconnect": "Desconectar",
+    "connectedAs": "Conectado como {email}",
+    "noticeConnected": "Google Calendar conectado.",
+    "noticeScopes": "Precisamos das duas permissões de agenda (disponibilidade e eventos). Tente de novo mantendo ambas marcadas.",
+    "noticeError": "Não foi possível conectar o Google Calendar. Tente de novo.",
+    "notConfigured": "O Google OAuth não está configurado neste servidor. Defina GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET e adicione {uri} como redirect URI autorizado."
   }
 }

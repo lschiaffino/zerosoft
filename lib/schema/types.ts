@@ -453,6 +453,8 @@ export interface CalendarBookingRow {
   updated_at: string;
   manage_token: string | null;
   rescheduled_from: string | null;
+  google_event_id: string | null;
+  meeting_url: string | null;
 }
 
 export interface CalendarEventHostRow {

@@ -92,7 +92,9 @@
     "empty": "No blocked slots."
   },
   "bookings": {
-    "title": "Bookings"
+    "title": "Bookings",
+    "join": "Join meeting ↗",
+    "rescheduled": "Rescheduled by the guest"
   },
   "booking": {
     "timezone": "Timezone",
@@ -198,5 +200,15 @@
     "cancelConfirm": "Yes, cancel it",
     "cancelled": "This booking is cancelled. We let the host know.",
     "past": "This meeting already started, so it can't be changed here."
+  },
+  "google": {
+    "desc": "Connect your calendar so busy times block your booking pages and every booking lands in your calendar, with a Google Meet link when the event type has no other location.",
+    "connect": "Connect Google Calendar",
+    "disconnect": "Disconnect",
+    "connectedAs": "Connected as {email}",
+    "noticeConnected": "Google Calendar connected.",
+    "noticeScopes": "We need both calendar permissions (free/busy and events). Try again and keep both checked.",
+    "noticeError": "Couldn't connect Google Calendar. Try again.",
+    "notConfigured": "Google OAuth isn't configured on this server. Set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET and add {uri} as an authorized redirect URI."
   }
 }

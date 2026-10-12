@@ -12,6 +12,7 @@ import {
   type CalendarEventHostRow,
   type CalendarReminderRow,
 } from './db';
+import { googleBusyRanges } from './google-calendar';
 import type {
   CalendarConfigUpdatePayload,
   EventTypeCreatePayload,
@@ -902,7 +903,7 @@ export function applyBuffer(slot: TimeRange, eventType: EventTypeWithRules, cale
  * desde otros módulos para no acoplar el motor a una integración concreta.
  */
 export type ExternalBusyProvider = (userId: string, from: Date, to: Date) => Promise<TimeRange[]>;
-const externalBusyProviders: ExternalBusyProvider[] = [];
+const externalBusyProviders: ExternalBusyProvider[] = [googleBusyRanges];
 export function registerBusyProvider(provider: ExternalBusyProvider): void {
   externalBusyProviders.push(provider);
 }

@@ -8,7 +8,7 @@ import {
 } from '@/lib/calendar';
 import { bookingCreateSchema } from '@/lib/calendar-schema';
 import { invalidBody, crmError } from '@/lib/crm-http';
-import { notifyBooking } from '@/lib/calendar-notify';
+import { afterBookingCreated } from '@/lib/calendar-lifecycle';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       answers,
     });
 
-    await notifyBooking(booking, 'created', { locale: parsed.data.locale });
+    const synced = await afterBookingCreated(booking, parsed.data.locale);
 
     // Solo lo que el invitado necesita (el token es suyo: gestionar su reserva).
     return NextResponse.json(
@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
         endsAt: booking.ends_at,
         status: booking.status,
         manageToken: booking.manage_token,
+        meetingUrl: synced.meeting_url,
       },
       { status: 201 },
     );

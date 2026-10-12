@@ -82,7 +82,7 @@ export async function notifyBooking(
     end,
     title: eventType.title,
     description: manage && kind !== 'cancelled' ? `Reschedule or cancel: ${manage}` : undefined,
-    location: eventType.location || undefined,
+    location: booking.meeting_url || eventType.location || undefined,
     organizer: { name: host?.name ?? 'Zerosoft Cal', email: host?.email ?? 'calendar@zerosoft.ai' },
     attendee: { name: booking.invitee_name, email: booking.invitee_email },
   });
@@ -92,7 +92,8 @@ export async function notifyBooking(
 
   const details = (tz: string) => {
     const lines = [`${escapeHtml(formatWhen(start, tz))} (${escapeHtml(tz)})`];
-    if (eventType.location) lines.push(`Location: ${escapeHtml(eventType.location)}`);
+    const where = booking.meeting_url || eventType.location;
+    if (where) lines.push(`Location: ${escapeHtml(where)}`);
     if (opts.reason) lines.push(`Reason: ${escapeHtml(opts.reason)}`);
     return lines;
   };
@@ -129,7 +130,8 @@ export async function notifyBooking(
       subject: stripTags(fill(copy.hostSubject, { ...vars, event: eventType.title, guest: booking.invitee_name })),
       text: hostParagraphs.map(stripTags).join('\n\n'),
       html: renderBrandedHtml({ heading: copy.heading, paragraphs: hostParagraphs }),
-      attachments,
+      // Si la reserva ya está en su Google Calendar, un .ics la duplicaría.
+      attachments: booking.google_event_id ? undefined : attachments,
     });
   }
 }

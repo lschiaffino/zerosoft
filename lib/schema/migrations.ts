@@ -136,6 +136,15 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Cal ↔ Google Calendar: id del evento creado en el calendario del host y
+    // link de la reunión (Google Meet) generado.
+    id: '007_booking_google_event',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN google_event_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN meeting_url TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

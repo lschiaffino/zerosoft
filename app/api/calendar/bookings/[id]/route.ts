@@ -4,7 +4,7 @@ import { updateBooking, CalendarError } from '@/lib/calendar';
 import { bookingUpdateSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, unauthorized, crmError } from '@/lib/crm-http';
 import { getDb } from '@/lib/db';
-import { notifyBooking } from '@/lib/calendar-notify';
+import { afterBookingCancelled } from '@/lib/calendar-lifecycle';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,7 +57,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const booking = await updateBooking(params.id, parsed.data);
     if (!booking) return notFound();
     if (before?.status === 'confirmed' && booking.status === 'cancelled') {
-      await notifyBooking(booking, 'cancelled', { reason: parsed.data.cancelReason ?? null });
+      await afterBookingCancelled(booking, parsed.data.cancelReason ?? null);
     }
     return NextResponse.json(booking);
   } catch (err) {

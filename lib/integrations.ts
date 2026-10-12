@@ -2,30 +2,60 @@ import { getDb, type IntegrationRow } from './db';
 import { open, seal } from './secret-box';
 
 /**
- * Integraciones OAuth de terceros (por ahora solo Gmail read-only).
- * Reutiliza GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET de next-auth; el flujo es
- * independiente porque necesita scope gmail.readonly + refresh token offline.
+ * Integraciones OAuth de Google (Gmail read-only para el CRM, Google Calendar
+ * para Cal). Reutiliza GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET de next-auth; el
+ * flujo es independiente porque necesita scopes extra + refresh token offline.
  */
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
+function appBase(): string {
+  return (process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+}
+
 export function gmailRedirectUri(): string {
-  const base = (process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '');
-  return `${base}/api/integrations/gmail/callback`;
+  return `${appBase()}/api/integrations/gmail/callback`;
+}
+
+export function googleCalendarRedirectUri(): string {
+  return `${appBase()}/api/integrations/google-calendar/callback`;
+}
+
+export function googleOAuthConfigured(): boolean {
+  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+}
+
+export function googleAuthUrl(opts: { redirectUri: string; scope: string; state: string }): string {
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID ?? '',
+    redirect_uri: opts.redirectUri,
+    response_type: 'code',
+    scope: opts.scope,
+    access_type: 'offline',
+    prompt: 'consent',
+    include_granted_scopes: 'true',
+    state: opts.state,
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
 export function gmailAuthUrl(state: string): string {
-  const params = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID ?? '',
-    redirect_uri: gmailRedirectUri(),
-    response_type: 'code',
+  return googleAuthUrl({
+    redirectUri: gmailRedirectUri(),
     scope: 'openid email https://www.googleapis.com/auth/gmail.readonly',
-    access_type: 'offline',
-    prompt: 'consent',
     state,
   });
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+}
+
+/** Email de la cuenta de Google (OpenID userinfo; sirve para cualquier scope). */
+export async function googleAccountEmail(token: string): Promise<string> {
+  const res = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+    headers: { authorization: `Bearer ${token}` },
+  }).catch(() => null);
+  if (!res?.ok) return '';
+  const data = (await res.json().catch(() => null)) as { email?: string } | null;
+  return data?.email ?? '';
 }
 
 export async function getIntegration(
@@ -105,13 +135,13 @@ async function tokenRequest(params: Record<string, string>): Promise<GoogleToken
   return (await res.json().catch(() => ({ error: 'bad_response' }))) as GoogleTokenResponse;
 }
 
-export async function exchangeCode(code: string): Promise<GoogleTokenResponse> {
+export async function exchangeCode(code: string, redirectUri = gmailRedirectUri()): Promise<GoogleTokenResponse> {
   return tokenRequest({
     grant_type: 'authorization_code',
     code,
     client_id: process.env.GOOGLE_CLIENT_ID ?? '',
     client_secret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-    redirect_uri: gmailRedirectUri(),
+    redirect_uri: redirectUri,
   });
 }
 

@@ -8,7 +8,7 @@ import {
   updateBooking,
 } from '@/lib/calendar';
 import { bookingManageSchema } from '@/lib/calendar-schema';
-import { notifyBooking } from '@/lib/calendar-notify';
+import { afterBookingCancelled, afterBookingRescheduled } from '@/lib/calendar-lifecycle';
 import { crmError, invalidBody, notFound } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
         status: 'cancelled',
         cancelReason: parsed.data.reason ? `Guest: ${parsed.data.reason}` : 'Cancelled by guest',
       });
-      if (updated) await notifyBooking(updated, 'cancelled', { reason: parsed.data.reason ?? null });
+      if (updated) await afterBookingCancelled(updated, parsed.data.reason ?? null);
       return NextResponse.json({ status: 'cancelled' });
     }
 
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
     });
     if (!offered) return crmError(409, 'slot_unavailable');
     const moved = await rescheduleBooking(booking.id, offered.start);
-    await notifyBooking(moved, 'rescheduled', { locale: parsed.data.locale });
+    await afterBookingRescheduled(moved, booking.host_user_id, parsed.data.locale);
     return NextResponse.json({ status: 'confirmed', startsAt: moved.starts_at, endsAt: moved.ends_at });
   } catch (err) {
     if (err instanceof CalendarError) return crmError(err.status, err.code);

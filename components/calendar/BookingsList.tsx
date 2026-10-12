@@ -94,6 +94,12 @@ export default function BookingsList({ bookings, locale }: Props) {
                 <div className="booking-card-time">
                   <p>{formatDateTime(b.starts_at, locale)}</p>
                   <p className="muted">{b.timezone}</p>
+                  {b.meeting_url && b.status === 'confirmed' && (
+                    <a className="mono" href={b.meeting_url} target="_blank" rel="noreferrer">
+                      {t('bookings.join')}
+                    </a>
+                  )}
+                  {b.rescheduled_from && <p className="muted">{t('bookings.rescheduled')}</p>}
                 </div>
                 <div className="booking-card-status">
                   <span className={`badge booking-status-${b.status}`}>{t(`booking.status.${b.status}`)}</span>
