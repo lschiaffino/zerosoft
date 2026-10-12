@@ -3,6 +3,7 @@ import {
   createBlockedSlot,
   createBooking,
   createEventType,
+  getAvailableDays,
   getAvailableSlots,
   getBookingByManageToken,
   getOrCreateCalendarUser,
@@ -116,5 +117,15 @@ describe('Cal: ocupación por persona, round-robin y carreras', () => {
     expect(slots).toContain('09:00');
     expect(slots).not.toContain('10:30');
     expect((await getBookingByManageToken(b.manage_token!))?.id).toBe(b.id);
+  });
+});
+
+describe('Cal: días disponibles del mes', () => {
+  it('solo devuelve días con reglas y lugar (lunes en este setup)', async () => {
+    const { et } = await setup();
+    const monday = nextMonday();
+    const days = await getAvailableDays(et.id, 'UTC', monday.slice(0, 7));
+    expect(days).toContain(monday);
+    for (const d of days) expect(new Date(`${d}T12:00:00Z`).getUTCDay()).toBe(1);
   });
 });

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { getEventTypeByHandle, getCalendarUser } from '@/lib/calendar';
 import PublicBookingPage from '@/components/calendar/PublicBookingPage';
+import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
 

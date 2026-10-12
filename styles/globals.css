@@ -1230,3 +1230,19 @@ section { padding-top: 150px; padding-bottom: 150px; }
   .footer-grid { grid-template-columns: 1fr; }
   .footer-bottom { flex-direction: column; align-items: flex-start; }
 }
+
+/* Pie mínimo de las páginas públicas de reserva (sin chrome de marketing). */
+.powered-by {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 0 24px;
+}
+.powered-by a {
+  color: var(--dim);
+  text-decoration: none;
+}
+.powered-by a:hover {
+  color: var(--ink);
+}

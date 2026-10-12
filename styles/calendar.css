@@ -270,16 +270,22 @@
    ============================================================ */
 
 .booking-page {
-  min-height: calc(100svh - 76px);
+  min-height: calc(100svh - 48px);
   padding: 48px 24px;
   display: flex;
   align-items: flex-start;
   justify-content: center;
 }
 
+.booking-page section {
+  /* La regla global de secciones de marketing (padding 150px) no aplica acá. */
+  padding: 0;
+}
+
 .booking-card {
   width: 100%;
   max-width: 520px;
+  transition: max-width 0.2s var(--ease);
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 32px;
@@ -604,4 +610,24 @@
 .calendar-public-link .mono {
   flex: 1 1 220px;
   font-size: 13px;
+}
+
+/* Escritorio: calendario a la izquierda y horarios a la derecha (como Calendly). */
+@media (min-width: 900px) {
+  .booking-card:has(.booking-body.has-slots) {
+    max-width: 860px;
+  }
+  .booking-body.has-slots {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+  }
+  .booking-body.has-slots .booking-slots {
+    max-height: 440px;
+    overflow-y: auto;
+  }
+  .booking-body.has-slots .booking-slot-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

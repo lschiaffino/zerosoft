@@ -35,27 +35,41 @@ async function tokenFor(userId: string): Promise<string | null> {
 const busyCache = new Map<string, { at: number; ranges: Range[] }>();
 const BUSY_TTL_MS = 60_000;
 
-/** Rangos ocupados del calendario principal del usuario (cache 60s por ventana). */
-export async function googleBusyRanges(userId: string, from: Date, to: Date): Promise<Range[]> {
-  const key = `${userId}:${from.toISOString()}:${to.toISOString()}`;
-  const hit = busyCache.get(key);
-  if (hit && Date.now() - hit.at < BUSY_TTL_MS) return hit.ranges;
+/**
+ * Ventana que se le pide a Google: el mes (UTC) que contiene `from`, con 2 días
+ * de margen a cada lado. Así el calendario de un mes entero (31 consultas de
+ * slots) hace UNA sola llamada a freeBusy, que queda en caché.
+ */
+function monthWindow(from: Date, to: Date): { from: Date; to: Date } {
+  const start = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1) - 2 * 86_400_000);
+  const end = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 1) + 2 * 86_400_000);
+  return to <= end ? { from: start, to: end } : { from, to };
+}
 
-  const token = await tokenFor(userId);
-  if (!token) return [];
-  const res = await fetch(`${API}/freeBusy`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ timeMin: from.toISOString(), timeMax: to.toISOString(), items: [{ id: 'primary' }] }),
-  }).catch(() => null);
-  if (!res?.ok) return [];
-  const data = (await res.json().catch(() => null)) as {
-    calendars?: Record<string, { busy?: Array<{ start: string; end: string }> }>;
-  } | null;
-  const ranges = (data?.calendars?.primary?.busy ?? []).map((b) => ({ start: new Date(b.start), end: new Date(b.end) }));
-  busyCache.set(key, { at: Date.now(), ranges });
-  if (busyCache.size > 500) busyCache.delete(busyCache.keys().next().value as string);
-  return ranges;
+/** Rangos ocupados del calendario principal del usuario (cache 60s por mes). */
+export async function googleBusyRanges(userId: string, from: Date, to: Date): Promise<Range[]> {
+  const win = monthWindow(from, to);
+  const key = `${userId}:${win.from.toISOString()}:${win.to.toISOString()}`;
+  const hit = busyCache.get(key);
+  let ranges = hit && Date.now() - hit.at < BUSY_TTL_MS ? hit.ranges : null;
+
+  if (!ranges) {
+    const token = await tokenFor(userId);
+    if (!token) return [];
+    const res = await fetch(`${API}/freeBusy`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ timeMin: win.from.toISOString(), timeMax: win.to.toISOString(), items: [{ id: 'primary' }] }),
+    }).catch(() => null);
+    if (!res?.ok) return [];
+    const data = (await res.json().catch(() => null)) as {
+      calendars?: Record<string, { busy?: Array<{ start: string; end: string }> }>;
+    } | null;
+    ranges = (data?.calendars?.primary?.busy ?? []).map((b) => ({ start: new Date(b.start), end: new Date(b.end) }));
+    busyCache.set(key, { at: Date.now(), ranges });
+    if (busyCache.size > 500) busyCache.delete(busyCache.keys().next().value as string);
+  }
+  return ranges.filter((r) => r.start < to && r.end > from);
 }
 
 /** Tras crear/mover/cancelar una reserva, la caché de ese host deja de valer. */

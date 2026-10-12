@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getBookingByManageToken, getCalendarUser, getEventTypeById } from '@/lib/calendar';
 import ManageBooking from '@/components/calendar/ManageBooking';
+import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
 

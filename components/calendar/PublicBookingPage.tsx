@@ -152,6 +152,8 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  /** Días del mes visible con lugar (null = cargando: no se deshabilita nada). */
+  const [openDays, setOpenDays] = useState<Set<string> | null>(null);
 
   useEffect(() => {
     try {
@@ -189,6 +191,25 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
     };
   }, [selectedDate, timezone, eventType.id, reschedule]);
 
+  const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+  useEffect(() => {
+    let cancelled = false;
+    setOpenDays(null);
+    fetch(
+      `/api/calendar/event-types/${eventType.id}/slots?month=${monthKey}&timezone=${encodeURIComponent(timezone)}${
+        reschedule ? `&reschedule=${encodeURIComponent(reschedule.token)}` : ''
+      }`,
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { days?: string[] } | null) => {
+        if (!cancelled && data?.days) setOpenDays(new Set(data.days));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [monthKey, timezone, eventType.id, reschedule]);
+
   const today = new Date();
   const minDate = isoDate(today);
   const maxDate = useMemo(() => {
@@ -217,7 +238,8 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
 
   function isDateDisabled(date: Date) {
     const iso = isoDate(date);
-    return iso < minDate || iso > maxDate;
+    if (iso < minDate || iso > maxDate) return true;
+    return openDays !== null && !openDays.has(iso);
   }
 
   function selectDate(iso: string) {
@@ -356,6 +378,7 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
           </section>
         ) : (
           <>
+            <div className={`booking-body${selectedDate ? ' has-slots' : ''}`}>
             <section className="booking-calendar-section">
               <div className="booking-calendar-head">
                 <button
@@ -423,6 +446,7 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
                 )}
               </section>
             )}
+            </div>
 
             {step === 'form' && selectedSlot && (
               <form className="booking-form" onSubmit={submit}>

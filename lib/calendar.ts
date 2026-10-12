@@ -543,6 +543,28 @@ export async function countBookingsThisWeek(userId: string): Promise<number> {
   return Number(row?.c ?? 0);
 }
 
+/** Días (YYYY-MM-DD) de un mes con al menos un slot libre, en la zona del invitado. */
+export async function getAvailableDays(
+  eventTypeId: string,
+  timezone: string,
+  month: string,
+  opts: { excludeBookingId?: string } = {},
+): Promise<string[]> {
+  const m = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!m) return [];
+  const year = Number(m[1]);
+  const mon = Number(m[2]);
+  const daysInMonth = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+  const today = localDate(new Date(), timezone);
+  const days: string[] = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = `${m[1]}-${m[2]}-${String(d).padStart(2, '0')}`;
+    if (date < today) continue;
+    if ((await getAvailableSlots(eventTypeId, timezone, date, opts)).length > 0) days.push(date);
+  }
+  return days;
+}
+
 /** Fecha local YYYY-MM-DD de un instante en una zona horaria. */
 export function localDate(d: Date, timezone: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
