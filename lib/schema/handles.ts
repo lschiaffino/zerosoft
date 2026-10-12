@@ -6,7 +6,7 @@
 export const HANDLE_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/;
 
 const RESERVED_HANDLES = new Set([
-  'admin', 'api', 'app', 'book', 'demo', 'help', 'new', 'r', 'root', 'settings', 'support', 'team', 'www', 'zerosoft',
+  'admin', 'api', 'app', 'book', 'manage', 'demo', 'help', 'new', 'r', 'root', 'settings', 'support', 'team', 'www', 'zerosoft',
 ]);
 
 export function handleBase(input: string): string {

@@ -119,7 +119,11 @@
     "answers": "Respostas",
     "host": "Anfitrião",
     "expiredTitle": "Link expirado",
-    "expiredSub": "Este link de reserva de uso único já foi utilizado."
+    "expiredSub": "Este link de reserva de uso único já foi utilizado.",
+    "rescheduledTitle": "Reagendada",
+    "emailSent": "Enviamos os detalhes e um convite de calendário por email.",
+    "manageLink": "Reagendar ou cancelar",
+    "confirmNewTime": "Confirmar novo horário"
   },
   "routing": {
     "title": "Formulários de roteamento",
@@ -165,7 +169,11 @@
     "invalid_input": "Alguns campos são inválidos. Verifique e tente novamente.",
     "slot_unavailable": "Esse horário não está mais disponível. Escolha outro.",
     "link_expired": "Este link de reserva expirou.",
-    "generic": "Algo deu errado. Tente novamente."
+    "generic": "Algo deu errado. Tente novamente.",
+    "already_started": "Esta reunião já começou.",
+    "not_confirmed": "Esta reserva não está mais ativa.",
+    "rate_limited": "Muitas tentativas. Espere um minuto e tente de novo.",
+    "not_found": "Esta página de agendamento não existe mais."
   },
   "settings": {
     "title": "Configurações",
@@ -181,5 +189,14 @@
     "minNotice": "Antecedência mínima (horas)",
     "maxDays": "Agendável até (dias)",
     "copyLink": "Copiar link"
+  },
+  "manage": {
+    "title": "Sua reserva",
+    "cancel": "Cancelar reserva",
+    "reschedule": "Reagendar",
+    "cancelReason": "Motivo (opcional)",
+    "cancelConfirm": "Sim, cancelar",
+    "cancelled": "Esta reserva foi cancelada. Já avisamos o anfitrião.",
+    "past": "Esta reunião já começou, então não pode ser alterada aqui."
   }
 }

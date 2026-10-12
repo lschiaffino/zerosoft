@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listDueReminders, markReminderSent } from '@/lib/calendar';
 import { sendBookingReminder } from '@/lib/email';
+import { manageUrl } from '@/lib/calendar-notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,6 +39,7 @@ async function run(req: NextRequest) {
       start: new Date(reminder.starts_at),
       timezone: reminder.timezone,
       location: reminder.event_location,
+      manageUrl: reminder.manage_token ? manageUrl({ manage_token: reminder.manage_token }) : null,
     });
     if (res.ok) {
       await markReminderSent(reminder.id);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
-import { getEventTypeById, getAvailableSlots } from '@/lib/calendar';
+import { getBookingByManageToken, getEventTypeById, getAvailableSlots } from '@/lib/calendar';
 import { notFound, crmError } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
@@ -18,7 +18,12 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
     const date = searchParams.get('date') ?? '';
     const timezone = searchParams.get('timezone') ?? 'UTC';
 
-    const slots = await getAvailableSlots(params.id, timezone, date);
+    // Reprogramación: el horario actual del propio booking no cuenta como ocupado.
+    const rescheduleToken = searchParams.get('reschedule');
+    const own = rescheduleToken ? await getBookingByManageToken(rescheduleToken) : undefined;
+    const excludeBookingId = own && own.event_type_id === params.id ? own.id : undefined;
+
+    const slots = await getAvailableSlots(params.id, timezone, date, { excludeBookingId });
     return NextResponse.json({
       slots: slots.map((s) => ({ start: s.start.toISOString(), end: s.end.toISOString() })),
     });

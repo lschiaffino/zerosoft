@@ -451,6 +451,8 @@ export interface CalendarBookingRow {
   host_user_id: string | null;
   created_at: string;
   updated_at: string;
+  manage_token: string | null;
+  rescheduled_from: string | null;
 }
 
 export interface CalendarEventHostRow {

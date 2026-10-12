@@ -4,8 +4,11 @@ import {
   createBooking,
   createEventType,
   getAvailableSlots,
+  getBookingByManageToken,
   getOrCreateCalendarUser,
+  rescheduleBooking,
   setAvailability,
+  setEventHosts,
 } from '@/lib/calendar';
 import { makeUser } from './helpers';
 
@@ -61,5 +64,57 @@ describe('Cal: motor de disponibilidad', () => {
     const slots = await getAvailableSlots(et.id, 'America/Argentina/Buenos_Aires', day);
     expect(slots).toHaveLength(4);
     expect(slots[0].start.toISOString()).toBe(`${day}T09:00:00.000Z`);
+  });
+});
+
+describe('Cal: ocupación por persona, round-robin y carreras', () => {
+  it('una reserva en un event type bloquea la misma hora en otro del mismo host', async () => {
+    const { user, et } = await setup();
+    const other = await createEventType(user.id, { slug: `o-${crypto.randomUUID().slice(0, 6)}`, title: 'Otro', durationMin: 30, active: true } as Parameters<typeof createEventType>[1]);
+    await setAvailability(other.id, { rules: [{ dayOfWeek: 1, startTime: '09:00', endTime: '11:00' }] });
+    const day = nextMonday();
+    await createBooking({ eventTypeId: et.id, email: 'g@x.com', name: 'G', start: `${day}T09:30:00.000Z` });
+    const slots = await getAvailableSlots(other.id, 'UTC', day);
+    expect(slots.map((s) => s.start.toISOString().slice(11, 16))).not.toContain('09:30');
+  });
+
+  it('dos reservas simultáneas del mismo slot: solo una gana', async () => {
+    const { et } = await setup();
+    const day = nextMonday();
+    const start = `${day}T10:00:00.000Z`;
+    const results = await Promise.allSettled([
+      createBooking({ eventTypeId: et.id, email: 'a@x.com', name: 'A', start }),
+      createBooking({ eventTypeId: et.id, email: 'b@x.com', name: 'B', start }),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+  });
+
+  it('round-robin: con un host ocupado asigna al otro, y el slot sigue disponible', async () => {
+    const { user, et } = await setup();
+    const h2 = await makeUser('host2');
+    await setEventHosts(et.id, [user.id, h2.id]);
+    const day = nextMonday();
+    const start = `${day}T09:00:00.000Z`;
+    const first = await createBooking({ eventTypeId: et.id, email: 'a@x.com', name: 'A', start });
+    const slots = await getAvailableSlots(et.id, 'UTC', day);
+    expect(slots.map((s) => s.start.toISOString())).toContain(start);
+    const second = await createBooking({ eventTypeId: et.id, email: 'b@x.com', name: 'B', start });
+    expect(second.host_user_id).not.toBe(first.host_user_id);
+    const after = await getAvailableSlots(et.id, 'UTC', day);
+    expect(after.map((s) => s.start.toISOString())).not.toContain(start);
+  });
+
+  it('reprogramar mueve la reserva y libera el horario viejo', async () => {
+    const { et } = await setup();
+    const day = nextMonday();
+    const b = await createBooking({ eventTypeId: et.id, email: 'g@x.com', name: 'G', start: `${day}T09:00:00.000Z` });
+    expect(b.manage_token).toHaveLength(40);
+    const moved = await rescheduleBooking(b.id, new Date(`${day}T10:30:00.000Z`));
+    expect(moved.starts_at).toBe(`${day}T10:30:00.000Z`);
+    expect(moved.rescheduled_from).toBe(`${day}T09:00:00.000Z`);
+    const slots = (await getAvailableSlots(et.id, 'UTC', day)).map((s) => s.start.toISOString().slice(11, 16));
+    expect(slots).toContain('09:00');
+    expect(slots).not.toContain('10:30');
+    expect((await getBookingByManageToken(b.manage_token!))?.id).toBe(b.id);
   });
 });

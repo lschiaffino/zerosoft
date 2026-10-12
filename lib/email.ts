@@ -8,11 +8,18 @@
  * del event type solo aparece como acento pequeño.
  */
 
+export interface EmailAttachment {
+  filename: string;
+  content: string;
+  contentType?: string;
+}
+
 interface SendOptions {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  attachments?: EmailAttachment[];
 }
 
 function fromEmail(): string {
@@ -36,6 +43,11 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
         subject: opts.subject,
         text: opts.text,
         html: opts.html,
+        attachments: opts.attachments?.map((a) => ({
+          filename: a.filename,
+          content: Buffer.from(a.content, 'utf8').toString('base64'),
+          content_type: a.contentType,
+        })),
       }),
     });
     const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
@@ -52,15 +64,14 @@ function sendMock(opts: SendOptions): { ok: true; provider: string } {
   console.log(`[email:${provider}] to=${opts.to} from=${fromEmail()} subject="${opts.subject}"`);
   // eslint-disable-next-line no-console
   console.log(opts.text);
+  if (opts.attachments?.length) {
+    // eslint-disable-next-line no-console
+    console.log(`[email:${provider}] attachments: ${opts.attachments.map((a) => a.filename).join(', ')}`);
+  }
   return { ok: true, provider };
 }
 
-export async function sendEmail(opts: {
-  to: string;
-  subject: string;
-  text: string;
-  html?: string;
-}): Promise<{ ok: boolean; provider?: string; id?: string; error?: string }> {
+export async function sendEmail(opts: SendOptions): Promise<{ ok: boolean; provider?: string; id?: string; error?: string }> {
   if (process.env.RESEND_API_KEY) {
     const resend = await sendResend(opts);
     if (resend.ok) return { ok: true, provider: 'resend', id: resend.id };
@@ -81,7 +92,7 @@ function safeHex(color: string | null | undefined): string | null {
   return color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : null;
 }
 
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -89,7 +100,7 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function formatWhen(start: Date, timezone: string): string {
+export function formatWhen(start: Date, timezone: string): string {
   return new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -102,7 +113,7 @@ function formatWhen(start: Date, timezone: string): string {
 }
 
 /** HTML mínimo blanco/negro: hairline, mono, acento de marca opcional. */
-function renderBrandedHtml(opts: {
+export function renderBrandedHtml(opts: {
   heading: string;
   paragraphs: string[];
   brandColor?: string | null;
@@ -131,92 +142,10 @@ function renderBrandedHtml(opts: {
 </body></html>`;
 }
 
-interface BookingMailDetails {
-  eventTitle: string;
-  start: Date;
-  end: Date;
-  timezone: string;
-  location: string;
-  brandColor?: string | null;
-  logoUrl?: string | null;
-}
-
-function detailLines(d: BookingMailDetails): string[] {
+function detailLines(d: { start: Date; timezone: string; location: string }): string[] {
   const lines = [`${formatWhen(d.start, d.timezone)} (${escapeHtml(d.timezone)})`];
   if (d.location) lines.push(`Location: ${escapeHtml(d.location)}`);
   return lines;
-}
-
-export async function sendBookingConfirmation(opts: {
-  to: string;
-  eventTitle: string;
-  start: Date;
-  end: Date;
-  timezone: string;
-  location: string;
-  guestName: string;
-  brandColor?: string | null;
-  logoUrl?: string | null;
-}): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const dateText = formatWhen(opts.start, opts.timezone);
-
-  const subject = `Booking confirmed: ${opts.eventTitle}`;
-  const text = `Hi ${opts.guestName},
-
-Your booking for "${opts.eventTitle}" is confirmed.
-
-${dateText} (${opts.timezone})
-${opts.location ? `Location: ${opts.location}` : ''}
-
-See you then.
-`;
-  const html = renderBrandedHtml({
-    heading: 'Booking confirmed',
-    brandColor: opts.brandColor,
-    logoUrl: opts.logoUrl,
-    paragraphs: [
-      `Hi ${escapeHtml(opts.guestName)}, your booking for <strong>${escapeHtml(opts.eventTitle)}</strong> is confirmed.`,
-      ...detailLines(opts),
-      'See you then.',
-    ],
-  });
-
-  const sent = await sendEmail({ to: opts.to, subject, text, html });
-  return { ok: sent.ok, provider: sent.provider, error: sent.error };
-}
-
-/** Aviso al host (owner del event type o host asignado por round-robin). */
-export async function sendHostBookingNotification(opts: {
-  to: string;
-  hostName: string;
-  guestName: string;
-  guestEmail: string;
-  eventTitle: string;
-  start: Date;
-  end: Date;
-  timezone: string;
-  location: string;
-}): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const dateText = formatWhen(opts.start, opts.timezone);
-
-  const subject = `New booking: ${opts.eventTitle} — ${opts.guestName}`;
-  const text = `Hi ${opts.hostName},
-
-${opts.guestName} (${opts.guestEmail}) booked "${opts.eventTitle}".
-
-${dateText} (${opts.timezone})
-${opts.location ? `Location: ${opts.location}` : ''}
-`;
-  const html = renderBrandedHtml({
-    heading: 'New booking',
-    paragraphs: [
-      `Hi ${escapeHtml(opts.hostName)}, <strong>${escapeHtml(opts.guestName)}</strong> (${escapeHtml(opts.guestEmail)}) booked <strong>${escapeHtml(opts.eventTitle)}</strong>.`,
-      ...detailLines(opts),
-    ],
-  });
-
-  const sent = await sendEmail({ to: opts.to, subject, text, html });
-  return { ok: sent.ok, provider: sent.provider, error: sent.error };
 }
 
 /** Recordatorio 24h antes para el invitee. */
@@ -227,6 +156,7 @@ export async function sendBookingReminder(opts: {
   start: Date;
   timezone: string;
   location: string;
+  manageUrl?: string | null;
 }): Promise<{ ok: boolean; provider?: string; error?: string }> {
   const dateText = formatWhen(opts.start, opts.timezone);
 
@@ -237,14 +167,17 @@ Reminder: "${opts.eventTitle}" is coming up in about 24 hours.
 
 ${dateText} (${opts.timezone})
 ${opts.location ? `Location: ${opts.location}` : ''}
-
+${opts.manageUrl ? `\nCan't make it? Reschedule or cancel: ${opts.manageUrl}\n` : ''}
 See you then.
 `;
   const html = renderBrandedHtml({
     heading: 'Reminder',
     paragraphs: [
       `Hi ${escapeHtml(opts.guestName)}, <strong>${escapeHtml(opts.eventTitle)}</strong> is coming up in about 24 hours.`,
-      ...detailLines({ ...opts, end: opts.start }),
+      ...detailLines(opts),
+      ...(opts.manageUrl
+        ? [`Can't make it? <a href="${escapeHtml(opts.manageUrl)}">Reschedule or cancel</a>.`]
+        : []),
       'See you then.',
     ],
   });

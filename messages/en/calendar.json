@@ -119,7 +119,11 @@
     "answers": "Answers",
     "host": "Host",
     "expiredTitle": "Link expired",
-    "expiredSub": "This single-use booking link has already been used."
+    "expiredSub": "This single-use booking link has already been used.",
+    "rescheduledTitle": "Rescheduled",
+    "emailSent": "We emailed you the details and a calendar invite.",
+    "manageLink": "Reschedule or cancel",
+    "confirmNewTime": "Confirm new time"
   },
   "routing": {
     "title": "Routing forms",
@@ -165,7 +169,11 @@
     "invalid_input": "Some fields are invalid. Check them and try again.",
     "slot_unavailable": "That slot is no longer available. Please pick another one.",
     "link_expired": "This booking link has expired.",
-    "generic": "Something went wrong. Try again."
+    "generic": "Something went wrong. Try again.",
+    "already_started": "This meeting already started.",
+    "not_confirmed": "This booking is no longer active.",
+    "rate_limited": "Too many attempts. Wait a minute and try again.",
+    "not_found": "This booking page doesn't exist anymore."
   },
   "settings": {
     "title": "Settings",
@@ -181,5 +189,14 @@
     "minNotice": "Minimum notice (hours)",
     "maxDays": "Bookable up to (days ahead)",
     "copyLink": "Copy link"
+  },
+  "manage": {
+    "title": "Your booking",
+    "cancel": "Cancel booking",
+    "reschedule": "Reschedule",
+    "cancelReason": "Reason (optional)",
+    "cancelConfirm": "Yes, cancel it",
+    "cancelled": "This booking is cancelled. We let the host know.",
+    "past": "This meeting already started, so it can't be changed here."
   }
 }

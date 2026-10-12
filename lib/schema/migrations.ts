@@ -102,6 +102,40 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Cal: link de gestión para el invitado (cancelar/reprogramar), host siempre
+    // explícito y un índice único que impide dos reservas del mismo host a la
+    // misma hora (carreras entre requests simultáneas).
+    id: '006_booking_manage_and_uniqueness',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN manage_token TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN rescheduled_from TEXT');
+      const missing = (await client.execute('SELECT id FROM calendar_bookings WHERE manage_token IS NULL')).rows;
+      for (const r of missing) {
+        await client.execute({
+          sql: 'UPDATE calendar_bookings SET manage_token = ? WHERE id = ? AND manage_token IS NULL',
+          args: [crypto.randomUUID().replace(/-/g, ''), String(r.id)],
+        });
+      }
+      await client.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_bookings_manage ON calendar_bookings(manage_token)',
+      );
+      await client.execute(
+        `UPDATE calendar_bookings SET host_user_id = (
+           SELECT user_id FROM calendar_event_types e WHERE e.id = calendar_bookings.event_type_id)
+         WHERE host_user_id IS NULL`,
+      );
+      try {
+        await client.execute(
+          `CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_bookings_host_slot
+           ON calendar_bookings(host_user_id, starts_at) WHERE status = 'confirmed'`,
+        );
+      } catch {
+        // Si ya hay duplicados históricos el índice no se puede crear; la
+        // verificación en createBooking sigue protegiendo los nuevos.
+      }
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

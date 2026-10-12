@@ -51,21 +51,23 @@ const customField = z.object({
 
 // ---------- Config ----------
 
+/** Zona horaria IANA válida (Intl la acepta). */
+export const ianaTimezone = z
+  .string()
+  .trim()
+  .max(64)
+  .refine((tz) => {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: tz });
+      return true;
+    } catch {
+      return false;
+    }
+  }, 'invalid_timezone');
+
 export const calendarConfigUpdateSchema = z.object({
   handle: z.string().trim().toLowerCase().min(3).max(32).optional(),
-  timezone: z
-    .string()
-    .trim()
-    .max(64)
-    .refine((tz) => {
-      try {
-        new Intl.DateTimeFormat('en', { timeZone: tz });
-        return true;
-      } catch {
-        return false;
-      }
-    }, 'invalid_timezone')
-    .optional(),
+  timezone: ianaTimezone.optional(),
   weekStart: z.number().int().min(0).max(6).optional(),
   bufferBeforeMin: z.number().int().min(0).optional(),
   bufferAfterMin: z.number().int().min(0).optional(),
@@ -140,9 +142,21 @@ export const bookingCreateSchema = z.object({
   email: email,
   name: shortText,
   start: isoDate,
-  timezone: z.string().trim().max(64).optional(),
+  timezone: ianaTimezone.optional(),
   answers: z.record(z.unknown()).optional(),
+  locale: z.enum(['en', 'es', 'pt']).optional(),
 });
+
+/** Acciones del invitado desde su link de gestión. */
+export const bookingManageSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('cancel'), reason: z.string().trim().max(500).optional() }),
+  z.object({
+    action: z.literal('reschedule'),
+    start: isoDate,
+    timezone: ianaTimezone.optional(),
+    locale: z.enum(['en', 'es', 'pt']).optional(),
+  }),
+]);
 
 export const bookingUpdateSchema = z.object({
   status: bookingStatus.optional(),
