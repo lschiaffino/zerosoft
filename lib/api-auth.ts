@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { nanoid } from 'nanoid';
 import { NextResponse } from 'next/server';
 import { getDb, type ApiKeyRow, type UserRow } from './db';
+import { clientIp, rateLimit } from './rate-limit';
 
 export function sha256(input: string): string {
   return createHash('sha256').update(input).digest('hex');
@@ -27,21 +28,6 @@ export async function validateApiKey(rawKey: string): Promise<UserRow | null> {
   return (await db.prepare('SELECT * FROM users WHERE id = ?').get(row.user_id)) as UserRow;
 }
 
-// In-memory sliding-window rate limiter: 100 req/min per key hash.
-const hits = new Map<string, number[]>();
-
-export function rateLimitOk(id: string, limit = 100, windowMs = 60_000): boolean {
-  const now = Date.now();
-  const list = (hits.get(id) ?? []).filter((t) => now - t < windowMs);
-  if (list.length >= limit) {
-    hits.set(id, list);
-    return false;
-  }
-  list.push(now);
-  hits.set(id, list);
-  return true;
-}
-
 export function apiError(status: number, code: string, message: string): NextResponse {
   return NextResponse.json({ error: { code, message } }, { status });
 }
@@ -52,10 +38,17 @@ export type ApiAuth = { user: UserRow } | { res: NextResponse };
 export async function requireApiUser(req: Request): Promise<ApiAuth> {
   const raw = extractBearer(req);
   if (!raw) return { res: apiError(401, 'invalid_key', 'Missing API key. Use Authorization: Bearer zs_…') };
-  const user = await validateApiKey(raw);
-  if (!user) return { res: apiError(401, 'invalid_key', 'Invalid or revoked API key.') };
-  if (!rateLimitOk(sha256(raw))) {
+  // Se limita antes de validar: así tampoco se pueden probar keys a fuerza bruta.
+  const limited = await rateLimit(`api:${sha256(raw)}`, 100, 60);
+  if (!limited.ok) {
     return { res: apiError(429, 'rate_limited', 'Rate limit exceeded: 100 requests per minute.') };
+  }
+  const user = await validateApiKey(raw);
+  if (!user) {
+    // Keys inválidas: además, tope por IP para frenar enumeración.
+    const byIp = await rateLimit(`api-invalid:${clientIp(req)}`, 20, 60);
+    if (!byIp.ok) return { res: apiError(429, 'rate_limited', 'Too many invalid keys.') };
+    return { res: apiError(401, 'invalid_key', 'Invalid or revoked API key.') };
   }
   return { user };
 }

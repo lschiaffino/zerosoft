@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { limitByIp } from '@/lib/rate-limit';
 import { getRoutingFormBySlug, evaluateRouting, missingRequiredFields } from '@/lib/calendar-routing';
 import { routingEvaluateSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, crmError } from '@/lib/crm-http';
@@ -14,6 +15,8 @@ export const dynamic = 'force-dynamic';
 
 /** Definición pública del form (sin user_id ni destinos de las reglas). */
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const limited = await limitByIp(_req, 'routing', 60, 60);
+  if (limited) return limited;
   const form = await getRoutingFormBySlug(params.id);
   if (!form) return notFound();
   return NextResponse.json({
@@ -32,6 +35,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
 /** Evalúa respuestas → { eventTypeSlug } del destino (regla o default). */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const limited = await limitByIp(req, 'routing', 30, 60);
+  if (limited) return limited;
   const form = await getRoutingFormBySlug(params.id);
   if (!form) return notFound();
 

@@ -53,6 +53,22 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // Rate limit compartido entre instancias (lib/rate-limit.ts).
+    id: '003_rate_limits',
+    async up(client) {
+      await client.execute(
+        `CREATE TABLE IF NOT EXISTS rate_limits (
+           key TEXT NOT NULL,
+           window_start INTEGER NOT NULL,
+           count INTEGER NOT NULL DEFAULT 0,
+           expires_at INTEGER NOT NULL,
+           PRIMARY KEY (key, window_start)
+         )`,
+      );
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_rate_limits_expires ON rate_limits(expires_at)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

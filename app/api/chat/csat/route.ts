@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
+import { limitByIp } from '@/lib/rate-limit';
 import { getConversationForCsat, submitConversationCsat } from '@/lib/chat-data';
 import { csatSubmitSchema } from '@/lib/chat-schema';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  const limited = await limitByIp(req, 'chat-csat', 10, 600);
+  if (limited) return limited;
   let raw: unknown;
   try {
     raw = await req.json();

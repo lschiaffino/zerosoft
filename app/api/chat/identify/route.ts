@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
+import { limitByIp } from '@/lib/rate-limit';
 import { getChatVisitorByExternalId, getChatWidget } from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
+  const limited = await limitByIp(req, 'chat-identify', 30, 60);
+  if (limited) return limited;
   const { searchParams } = new URL(req.url);
   const widgetId = searchParams.get('widgetId');
   const externalId = searchParams.get('externalId');

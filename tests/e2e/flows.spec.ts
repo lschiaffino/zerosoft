@@ -103,3 +103,14 @@ test('Track: crear proyecto e issue', async ({ request }) => {
   const list = await request.get(`/api/track/projects/${project.id}/issues`);
   expect(JSON.stringify(await list.json())).toContain('Primer issue');
 });
+
+test('Link: el gate corta la fuerza bruta con 429', async ({ request }) => {
+  const slug = `brute${uid()}`;
+  await request.post('/api/links', { data: { url: 'https://example.com/x', slug, password: 'secreta' } });
+  const statuses: number[] = [];
+  for (let i = 0; i < 7; i++) {
+    statuses.push((await request.post('/api/gate', { data: { slug, password: `mal${i}` } })).status());
+  }
+  expect(statuses.slice(0, 5).every((s) => s === 401)).toBe(true);
+  expect(statuses.at(-1)).toBe(429);
+});

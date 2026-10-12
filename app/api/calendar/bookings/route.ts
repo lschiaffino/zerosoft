@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { limitByIp } from '@/lib/rate-limit';
 import {
   getEventTypeById,
   getAvailableSlots,
@@ -14,6 +15,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const limited = await limitByIp(req, 'booking', 10, 600);
+  if (limited) return limited;
   const body: unknown = await req.json().catch(() => null);
   const parsed = bookingCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);

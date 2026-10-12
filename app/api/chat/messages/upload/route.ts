@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { limitByIp } from '@/lib/rate-limit';
 import {
   chatAttachmentType,
   createChatConversation,
@@ -15,6 +16,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  const limited = await limitByIp(req, 'chat-upload', 10, 600);
+  if (limited) return limited;
   const form = await req.formData().catch(() => null);
   if (!form) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
 

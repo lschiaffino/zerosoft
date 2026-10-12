@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { limitByIp } from '@/lib/rate-limit';
 import {
   getChatConversation,
   getChatVisitorByExternalId,
@@ -26,6 +27,8 @@ async function validateVisitorAndConversation(
 }
 
 export async function POST(req: Request) {
+  const limited = await limitByIp(req, 'chat-read', 120, 60);
+  if (limited) return limited;
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
