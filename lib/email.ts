@@ -1,8 +1,8 @@
 /**
  * Email — envío simple de confirmaciones. Sin dependencias externas.
  * - Resend: si existe RESEND_API_KEY se envía vía fetch.
- * - SMTP: si existe SMTP_HOST se loguea un mock (no hay cliente SMTP instalado).
- * - Fallback: loguea en consola para desarrollo/demo.
+ * - Sin RESEND_API_KEY: loguea en consola (desarrollo/demo).
+ * Si Resend está configurado y falla, devuelve ok:false (para poder reintentar).
  *
  * Templates: mínimos, blanco/negro, monospace (marca zerosoft). El brand_color
  * del event type solo aparece como acento pequeño.
@@ -47,7 +47,7 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
 }
 
 function sendMock(opts: SendOptions): { ok: true; provider: string } {
-  const provider = process.env.SMTP_HOST ? 'smtp_mock' : 'console';
+  const provider = 'console';
   // eslint-disable-next-line no-console
   console.log(`[email:${provider}] to=${opts.to} from=${fromEmail()} subject="${opts.subject}"`);
   // eslint-disable-next-line no-console
@@ -61,8 +61,13 @@ export async function sendEmail(opts: {
   text: string;
   html?: string;
 }): Promise<{ ok: boolean; provider?: string; id?: string; error?: string }> {
-  const resend = await sendResend(opts);
-  if (resend.ok) return { ok: true, provider: 'resend', id: resend.id };
+  if (process.env.RESEND_API_KEY) {
+    const resend = await sendResend(opts);
+    if (resend.ok) return { ok: true, provider: 'resend', id: resend.id };
+    // eslint-disable-next-line no-console
+    console.error(`[email:resend] failed to=${opts.to} error=${resend.error ?? 'unknown'}`);
+    return { ok: false, provider: 'resend', error: resend.error ?? 'resend_error' };
+  }
 
   const mock = sendMock(opts);
   return { ok: true, provider: mock.provider };

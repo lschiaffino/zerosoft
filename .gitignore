@@ -12,3 +12,6 @@ next-env.d.ts
 .DS_Store
 .vercel
 .env*
+
+# Uploads locales (dev / self-host sin Blob)
+public/uploads/

@@ -10,11 +10,15 @@ export const dynamic = 'force-dynamic';
  * no enviados, booking confirmado) y los marca como enviados.
  *
  * Pensado para un cron externo (ej. `curl -X POST .../api/calendar/reminders/due`
- * cada hora). Si CRON_SECRET está definido, exige `Authorization: Bearer <secret>`;
- * si no, queda abierto (desarrollo/self-hosted single-tenant).
+ * cada hora). Si CRON_SECRET está definido, exige `Authorization: Bearer <secret>`
+ * (Vercel Cron lo manda solo). En producción sin CRON_SECRET se niega a correr;
+ * fuera de producción queda abierto para desarrollo.
  */
 async function run(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'cron_secret_not_configured' }, { status: 503 });
+  }
   if (secret) {
     const auth = req.headers.get('authorization') ?? '';
     if (auth !== `Bearer ${secret}`) {

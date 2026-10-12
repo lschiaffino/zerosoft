@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { createCycle, getProject, listCycles } from '@/lib/track-data';
+import { createCycle, getProject, listCycles, canAccessTrackProject } from '@/lib/track-data';
 import { cycleCreateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-async function accessibleProject(id: string, teamId: string | null) {
+async function accessibleProject(id: string, teamId: string | null, ownerId: string) {
   const project = await getProject(id);
   if (!project) return null;
-  if (project.team_id !== teamId) return null;
+  if (!canAccessTrackProject(project, teamId, ownerId)) return null;
   return project;
 }
 
@@ -18,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const project = await accessibleProject(params.id, user.team?.id ?? null);
+  const project = await accessibleProject(params.id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
 
   const rows = await listCycles(params.id);
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const project = await accessibleProject(params.id, user.team?.id ?? null);
+  const project = await accessibleProject(params.id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
 
   const body: unknown = await req.json().catch(() => null);

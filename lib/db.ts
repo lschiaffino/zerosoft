@@ -95,6 +95,10 @@ export function ensureMigrated(): Promise<void> {
         'ALTER TABLE chat_conversations ADD COLUMN snoozed_until TEXT',
         'ALTER TABLE chat_conversations ADD COLUMN csat_score INTEGER',
         'ALTER TABLE chat_conversations ADD COLUMN csat_comment TEXT',
+        // Track: dueño del proyecto (antes solo team_id → los proyectos
+        // personales eran visibles para todos los usuarios sin team).
+        'ALTER TABLE track_projects ADD COLUMN owner_id TEXT REFERENCES users(id) ON DELETE CASCADE',
+        'CREATE INDEX IF NOT EXISTS idx_track_projects_owner ON track_projects(owner_id, team_id, status, name)',
       ]) {
         try {
           await client.execute(alter);
@@ -105,6 +109,19 @@ export function ensureMigrated(): Promise<void> {
       // El CHECK de track_issue_views.view_type no admite ALTER: si la tabla
       // existe y no reconoce 'gantt', se reconstruye (una sola vez; el nuevo
       // DDL ya incluye 'gantt', así que el guard la hace idempotente).
+      // Backfill de owner_id: proyectos de team → owner del team; personales →
+      // creador del primer issue. Los que no se pueden atribuir quedan NULL
+      // (invisibles) en vez de compartidos con todos.
+      await client.execute(
+        `UPDATE track_projects SET owner_id = (SELECT owner_id FROM teams WHERE teams.id = track_projects.team_id)
+         WHERE owner_id IS NULL AND team_id IS NOT NULL`,
+      );
+      await client.execute(
+        `UPDATE track_projects SET owner_id = (
+           SELECT creator_id FROM track_issues WHERE track_issues.project_id = track_projects.id
+           ORDER BY created_at ASC LIMIT 1)
+         WHERE owner_id IS NULL AND team_id IS NULL`,
+      );
       const viewsTable = await client.execute(
         "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'track_issue_views'",
       );
@@ -1667,6 +1684,7 @@ export interface CalendarRoutingRuleRow {
 export interface TrackProjectRow {
   id: string;
   team_id: string | null;
+  owner_id: string | null;
   name: string;
   slug: string;
   description: string;

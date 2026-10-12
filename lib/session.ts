@@ -5,7 +5,14 @@ import { getUserByEmail, upsertUser, type TeamRow, type UserRow } from './db';
 import { resolveWorkspace } from './teams';
 import { seedUserIfNeeded } from './seed';
 
-export const DEMO_MODE = process.env.DEMO_MODE === 'true';
+/**
+ * DEMO_MODE convierte a todo visitante en el usuario demo compartido. En
+ * producción queda apagado salvo que se lo pida explícitamente con
+ * DEMO_MODE_ALLOW_PRODUCTION=true (p. ej. un deploy público de demo).
+ */
+export const DEMO_MODE =
+  process.env.DEMO_MODE === 'true' &&
+  (process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE_ALLOW_PRODUCTION === 'true');
 export const DEMO_EMAIL = 'demo@zerosoft.ai';
 
 /**

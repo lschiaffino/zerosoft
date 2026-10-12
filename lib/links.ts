@@ -196,7 +196,10 @@ export function verifyPassword(password: string, stored: string): boolean {
 // ---------- Password gate cookie (HMAC) ----------
 
 function gateSecret(): string {
-  return process.env.NEXTAUTH_SECRET ?? 'zerosoft-gate-secret';
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === 'production') throw new Error('NEXTAUTH_SECRET is required');
+  return 'zerosoft-gate-secret-dev';
 }
 
 export const gateCookieName = (slug: string): string => `zs_gate_${slug}`;

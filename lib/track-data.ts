@@ -182,6 +182,41 @@ async function nextIdentifier(projectId: string): Promise<string> {
 
 // ---------- Projects ----------
 
+/**
+ * Un proyecto es visible si pertenece al team activo, o si es personal
+ * (sin team) y su dueño es el usuario. `ownerId` es el id efectivo del
+ * workspace (SessionUser.id).
+ */
+export function canAccessTrackProject(
+  project: Pick<TrackProjectRow, 'team_id' | 'owner_id'>,
+  teamId: string | null,
+  ownerId: string,
+): boolean {
+  if (teamId) return project.team_id === teamId;
+  return project.team_id === null && project.owner_id === ownerId;
+}
+
+function projectScope(teamId: string | null, ownerId: string): { where: string; arg: string } {
+  return teamId
+    ? { where: 'team_id = ?', arg: teamId }
+    : { where: '(team_id IS NULL AND owner_id = ?)', arg: ownerId };
+}
+
+/** Slug único globalmente: si está tomado, agrega un sufijo corto. */
+async function uniqueProjectSlug(base: string, excludeId?: string): Promise<string> {
+  const db = getDb();
+  const root = base || 'project';
+  for (let i = 0; i < 20; i++) {
+    const candidate =
+      i === 0 ? root : `${root.slice(0, 57)}-${Math.random().toString(36).slice(2, 6)}`;
+    const taken = (await db
+      .prepare('SELECT id FROM track_projects WHERE slug = ?')
+      .get(candidate)) as { id: string } | undefined;
+    if (!taken || taken.id === excludeId) return candidate;
+  }
+  return `${root.slice(0, 50)}-${crypto.randomUUID().slice(0, 12)}`;
+}
+
 export async function listProjects(
   teamId: string | null,
   userId: string,
@@ -191,8 +226,9 @@ export async function listProjects(
   const pageSize = Math.min(Math.max(options.pageSize ?? 50, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
 
-  const where = teamId ? 'team_id = ?' : '(team_id IS NULL OR team_id = ?)';
-  const args: Array<string | number> = [teamId ?? userId];
+  const scope = projectScope(teamId, userId);
+  const where = scope.where;
+  const args: Array<string | number> = [scope.arg];
 
   const total = (
     (await db.prepare(`SELECT COUNT(*) AS c FROM track_projects WHERE ${where}`).get(...args)) as {
@@ -235,16 +271,17 @@ export async function createProject(
 ): Promise<TrackProjectRow> {
   const db = getDb();
   const id = crypto.randomUUID();
-  const slug = payload.slug ?? slugify(payload.name);
+  const slug = await uniqueProjectSlug(payload.slug ?? slugify(payload.name));
   const now = nowIso();
 
   await db
     .prepare(
-      'INSERT INTO track_projects (id, team_id, name, slug, description, icon, color, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO track_projects (id, team_id, owner_id, name, slug, description, icon, color, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
       teamId,
+      userId,
       payload.name.trim(),
       slug,
       payload.description?.trim() ?? '',
@@ -293,7 +330,7 @@ export async function updateProject(
   }
   if (payload.slug !== undefined) {
     fields.push('slug = ?');
-    args.push(payload.slug);
+    args.push(await uniqueProjectSlug(payload.slug, id));
   }
   if (payload.description !== undefined) {
     fields.push('description = ?');
@@ -608,8 +645,9 @@ export async function listAllIssues(
   const pageSize = Math.min(Math.max(options.pageSize ?? 50, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
 
-  const projectWhere = teamId ? 'team_id = ?' : '(team_id IS NULL OR team_id = ?)';
-  const projectArg = teamId ?? userId;
+  const scope = projectScope(teamId, userId);
+  const projectWhere = scope.where;
+  const projectArg = scope.arg;
 
   const where: string[] = ['i.project_id IN (SELECT id FROM track_projects WHERE ' + projectWhere + ')'];
   const args: Array<string | number> = [projectArg];
@@ -1312,8 +1350,10 @@ export async function createIssueAttachment(
     .get(id)) as TrackIssueAttachmentWithAuthor;
 }
 
-export async function deleteIssueAttachment(id: string): Promise<boolean> {
-  const res = await getDb().prepare('DELETE FROM track_issue_attachments WHERE id = ?').run(id);
+export async function deleteIssueAttachment(id: string, issueId: string): Promise<boolean> {
+  const res = await getDb()
+    .prepare('DELETE FROM track_issue_attachments WHERE id = ? AND issue_id = ?')
+    .run(id, issueId);
   return res.changes > 0;
 }
 
