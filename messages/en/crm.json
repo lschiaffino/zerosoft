@@ -694,6 +694,8 @@
     "teamNamePh": "Team name",
     "teamOwner": "Owner",
     "teamMember": "Member",
+    "teamAdmin": "Admin",
+    "teamRole": "Role",
     "teamRemove": "Remove",
     "teamRemoveConfirm": "Remove {email} from the team?",
     "teamLeave": "Leave",

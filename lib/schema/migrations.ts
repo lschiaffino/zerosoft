@@ -69,6 +69,14 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_rate_limits_expires ON rate_limits(expires_at)');
     },
   },
+  {
+    // API keys: quién la creó (member de un team) para listar/revocar por persona.
+    id: '004_api_keys_created_by',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE api_keys ADD COLUMN created_by TEXT');
+      await client.execute('UPDATE api_keys SET created_by = user_id WHERE created_by IS NULL');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

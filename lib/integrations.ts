@@ -1,4 +1,5 @@
 import { getDb, type IntegrationRow } from './db';
+import { open, seal } from './secret-box';
 
 /**
  * Integraciones OAuth de terceros (por ahora solo Gmail read-only).
@@ -34,7 +35,9 @@ export async function getIntegration(
   const row = (await getDb()
     .prepare('SELECT * FROM integrations WHERE user_id = ? AND provider = ?')
     .get(userId, provider)) as IntegrationRow | undefined;
-  return row ?? null;
+  if (!row) return null;
+  // Los tokens se guardan cifrados (lib/secret-box.ts); acá se devuelven en claro.
+  return { ...row, access_token: open(row.access_token), refresh_token: open(row.refresh_token) };
 }
 
 export async function upsertIntegration(input: {
@@ -64,8 +67,8 @@ export async function upsertIntegration(input: {
       input.userId,
       input.provider,
       input.email,
-      input.accessToken,
-      input.refreshToken,
+      seal(input.accessToken),
+      input.refreshToken ? seal(input.refreshToken) : '',
       input.expiresAt,
       input.scope,
     );
@@ -131,7 +134,7 @@ export async function getValidAccessToken(row: IntegrationRow): Promise<string |
     .prepare(
       "UPDATE integrations SET access_token = ?, expires_at = ?, updated_at = datetime('now') WHERE user_id = ? AND provider = ?",
     )
-    .run(tok.access_token, expiresAt, row.user_id, row.provider);
+    .run(seal(tok.access_token), expiresAt, row.user_id, row.provider);
   return tok.access_token;
 }
 

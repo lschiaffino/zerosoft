@@ -61,39 +61,40 @@ export interface ApiKeyDto {
   prefix: string;
   created_at: string;
   last_used_at: string | null;
+  created_by?: string | null;
+  created_by_email?: string | null;
 }
 
 /** Generates `zs_<nanoid(32)>`, stores only its sha256. Full key is returned once. */
 export async function createApiKey(
   userId: string,
   name: string,
+  createdBy: string = userId,
 ): Promise<{ id: string; key: string }> {
   const db = getDb();
   const key = `zs_${nanoid(32)}`;
   const id = crypto.randomUUID();
   await db
-    .prepare('INSERT INTO api_keys (id, user_id, name, prefix, key_hash) VALUES (?, ?, ?, ?, ?)')
-    .run(
-      id,
-      userId,
-      name,
-      key.slice(0, 10),
-      sha256(key),
-    );
+    .prepare('INSERT INTO api_keys (id, user_id, name, prefix, key_hash, created_by) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, userId, name, key.slice(0, 10), sha256(key), createdBy);
   return { id, key };
 }
 
-export async function listApiKeys(userId: string): Promise<ApiKeyDto[]> {
+/** Keys del workspace. Con `onlyCreatedBy`, solo las que creó esa persona. */
+export async function listApiKeys(userId: string, onlyCreatedBy?: string): Promise<ApiKeyDto[]> {
   return (await getDb()
     .prepare(
-      'SELECT id, name, prefix, created_at, last_used_at FROM api_keys WHERE user_id = ? AND revoked = 0 ORDER BY created_at DESC',
+      `SELECT k.id, k.name, k.prefix, k.created_at, k.last_used_at, k.created_by, u.email AS created_by_email
+       FROM api_keys k LEFT JOIN users u ON u.id = k.created_by
+       WHERE k.user_id = ? AND k.revoked = 0 AND (? IS NULL OR k.created_by = ?)
+       ORDER BY k.created_at DESC`,
     )
-    .all(userId)) as ApiKeyDto[];
+    .all(userId, onlyCreatedBy ?? null, onlyCreatedBy ?? null)) as ApiKeyDto[];
 }
 
-export async function revokeApiKey(userId: string, id: string): Promise<boolean> {
+export async function revokeApiKey(userId: string, id: string, onlyCreatedBy?: string): Promise<boolean> {
   const res = await getDb()
-    .prepare('UPDATE api_keys SET revoked = 1 WHERE id = ? AND user_id = ?')
-    .run(id, userId);
+    .prepare('UPDATE api_keys SET revoked = 1 WHERE id = ? AND user_id = ? AND (? IS NULL OR created_by = ?)')
+    .run(id, userId, onlyCreatedBy ?? null, onlyCreatedBy ?? null);
   return res.changes > 0;
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteChatWidget, getChatWidget, updateChatWidget } from '@/lib/chat-data';
 import { widgetUpdateSchema } from '@/lib/chat-schema';
 
@@ -47,6 +47,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  // Borrar configuración compartida del workspace: solo owner/admin.
+  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const widget = await getChatWidget(params.id);
   if (!canAccess(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   await deleteChatWidget(params.id);

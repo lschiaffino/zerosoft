@@ -29,6 +29,8 @@ interface TeamPanelProps {
   members: MemberInfo[];
   invites: InviteInfo[];
   memberTeams: MemberTeamInfo[];
+  /** Solo el owner puede cambiar roles. */
+  canChangeRoles: boolean;
   activeTeamId: string | null;
   actingTeamName: string | null;
 }
@@ -40,6 +42,7 @@ export default function TeamPanel({
   members,
   invites,
   memberTeams,
+  canChangeRoles,
   activeTeamId,
   actingTeamName,
 }: TeamPanelProps) {
@@ -116,6 +119,22 @@ export default function TeamPanel({
     if (!(await call(`/api/teams/members/${userId}?teamId=${ownedTeam.id}`, { method: 'DELETE' })))
       return;
     refresh();
+  }
+
+  async function changeRole(userId: string, role: 'admin' | 'member') {
+    if (!ownedTeam) return;
+    if (!(await call(`/api/teams/members/${userId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ teamId: ownedTeam.id, role }),
+    }))) return;
+    refresh();
+  }
+
+  function roleLabel(role: string): string {
+    if (role === 'owner') return t('settings.teamOwner');
+    if (role === 'admin') return t('settings.teamAdmin');
+    return t('settings.teamMember');
   }
 
   async function leaveTeam(teamId: string, name: string) {
@@ -197,9 +216,20 @@ export default function TeamPanel({
                 <span className="recent-name">{m.name || m.email}</span>
                 <span className="muted recent-meta">{m.email}</span>
                 <span className="team-row-actions">
-                  <span className="badge">
-                    {m.role === 'owner' ? t('settings.teamOwner') : t('settings.teamMember')}
-                  </span>
+                  {canChangeRoles && m.role !== 'owner' ? (
+                    <select
+                      className="input input-small"
+                      value={m.role === 'admin' ? 'admin' : 'member'}
+                      disabled={busy}
+                      aria-label={t('settings.teamRole')}
+                      onChange={(e) => changeRole(m.user_id, e.target.value as 'admin' | 'member')}
+                    >
+                      <option value="member">{t('settings.teamMember')}</option>
+                      <option value="admin">{t('settings.teamAdmin')}</option>
+                    </select>
+                  ) : (
+                    <span className="badge">{roleLabel(m.role)}</span>
+                  )}
                   {m.role !== 'owner' && (
                     <button
                       type="button"

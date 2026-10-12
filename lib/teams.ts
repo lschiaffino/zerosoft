@@ -15,6 +15,38 @@ import {
 
 const INVITE_TTL_DAYS = 14;
 
+// ---------- Roles ----------
+
+/** owner: dueño del team. admin: gestiona miembros y configuración. member: usa las apps. */
+export type TeamRole = 'owner' | 'admin' | 'member';
+const ROLE_RANK: Record<TeamRole, number> = { member: 0, admin: 1, owner: 2 };
+
+export function normalizeRole(role: string | null | undefined): TeamRole {
+  return role === 'owner' || role === 'admin' ? role : 'member';
+}
+
+export function roleAtLeast(role: TeamRole, min: TeamRole): boolean {
+  return ROLE_RANK[role] >= ROLE_RANK[min];
+}
+
+export async function getMemberRole(teamId: string, userId: string): Promise<TeamRole | null> {
+  const team = await getTeamById(teamId);
+  if (!team) return null;
+  if (team.owner_id === userId) return 'owner';
+  const row = (await getDb()
+    .prepare('SELECT role FROM team_members WHERE team_id = ? AND user_id = ?')
+    .get(teamId, userId)) as { role: string } | undefined;
+  return row ? normalizeRole(row.role) : null;
+}
+
+/** Cambia el rol de un member (nunca al owner, ni a 'owner'). */
+export async function setMemberRole(teamId: string, userId: string, role: 'admin' | 'member'): Promise<boolean> {
+  const res = await getDb()
+    .prepare("UPDATE team_members SET role = ? WHERE team_id = ? AND user_id = ? AND role != 'owner'")
+    .run(role, teamId, userId);
+  return res.changes > 0;
+}
+
 export async function getTeamById(id: string): Promise<TeamRow | null> {
   const row = (await getDb().prepare('SELECT * FROM teams WHERE id = ?').get(id)) as
     | TeamRow
@@ -90,9 +122,16 @@ export async function addMember(teamId: string, userId: string, role = 'member')
 }
 
 export async function removeMember(teamId: string, userId: string): Promise<void> {
+  const team = await getTeamById(teamId);
   await getDb()
     .prepare("DELETE FROM team_members WHERE team_id = ? AND user_id = ? AND role != 'owner'")
     .run(teamId, userId);
+  // Las API keys que creó en el workspace del owner dejan de funcionar.
+  if (team) {
+    await getDb()
+      .prepare('UPDATE api_keys SET revoked = 1 WHERE user_id = ? AND created_by = ?')
+      .run(team.owner_id, userId);
+  }
   // Si el usuario tenía este team como activo, vuelve a su workspace personal.
   await getDb()
     .prepare('UPDATE users SET active_team_id = NULL WHERE id = ? AND active_team_id = ?')
@@ -177,19 +216,19 @@ export async function setActiveTeam(userId: string, teamId: string | null): Prom
  */
 export async function resolveWorkspace(
   user: UserRow,
-): Promise<{ owner: UserRow; team: TeamRow | null }> {
-  if (!user.active_team_id) return { owner: user, team: null };
+): Promise<{ owner: UserRow; team: TeamRow | null; role: TeamRole }> {
+  if (!user.active_team_id) return { owner: user, team: null, role: 'owner' };
   const team = await getTeamById(user.active_team_id);
   if (!team || !(await isMember(team.id, user.id))) {
     await getDb()
       .prepare('UPDATE users SET active_team_id = NULL WHERE id = ?')
       .run(user.id);
-    return { owner: user, team: null };
+    return { owner: user, team: null, role: 'owner' };
   }
-  if (team.owner_id === user.id) return { owner: user, team };
+  if (team.owner_id === user.id) return { owner: user, team, role: 'owner' };
   const owner = (await getDb().prepare('SELECT * FROM users WHERE id = ?').get(team.owner_id)) as
     | UserRow
     | undefined;
-  if (!owner) return { owner: user, team: null };
-  return { owner, team };
+  if (!owner) return { owner: user, team: null, role: 'owner' };
+  return { owner, team, role: (await getMemberRole(team.id, user.id)) ?? 'member' };
 }

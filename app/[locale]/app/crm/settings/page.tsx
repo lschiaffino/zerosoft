@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { listCustomFields, listPipelinesWithStages } from '@/lib/crm';
 import { getIntegration, gmailRedirectUri } from '@/lib/integrations';
 import {
@@ -40,7 +40,9 @@ export default async function CrmSettingsPage({
   // Teams: todo se resuelve sobre tu identidad real (no el workspace activo).
   const realUser = user.actingUser ?? user;
   const ownedTeams = await listOwnedTeams(realUser.id);
-  const ownedTeam = ownedTeams[0] ?? null;
+  // El team que podés gestionar: el tuyo, o el activo si sos admin ahí.
+  const ownedTeam = ownedTeams[0] ?? (user.team && isWorkspaceAdmin(user) ? user.team : null);
+  const canChangeRoles = ownedTeam !== null && ownedTeam.owner_id === realUser.id;
   const [members, pendingInvites, memberTeams] = await Promise.all([
     ownedTeam ? listMembers(ownedTeam.id) : Promise.resolve([]),
     ownedTeam ? listPendingInvites(ownedTeam.id) : Promise.resolve([]),
@@ -71,6 +73,7 @@ export default async function CrmSettingsPage({
           }))}
           invites={inviteUrls}
           memberTeams={memberTeams.map((m) => ({ id: m.id, name: m.name, owner_email: m.owner_email }))}
+          canChangeRoles={canChangeRoles}
           activeTeamId={realUser.active_team_id ?? null}
           actingTeamName={user.actingUser && user.team ? user.team.name : null}
         />

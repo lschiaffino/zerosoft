@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from './auth';
 import { getUserByEmail, upsertUser, type TeamRow, type UserRow } from './db';
-import { resolveWorkspace } from './teams';
+import { resolveWorkspace, roleAtLeast, type TeamRole } from './teams';
 import { seedUserIfNeeded } from './seed';
 
 /**
@@ -23,6 +23,18 @@ export const DEMO_EMAIL = 'demo@zerosoft.ai';
 export interface SessionUser extends UserRow {
   actingUser?: UserRow;
   team?: TeamRow | null;
+  /** Rol en el workspace activo ('owner' en el workspace personal). */
+  role: TeamRole;
+}
+
+/** Puede gestionar miembros y borrar configuración del workspace. */
+export function isWorkspaceAdmin(user: SessionUser): boolean {
+  return roleAtLeast(user.role, 'admin');
+}
+
+/** Id real de la persona logueada (no el del owner del workspace). */
+export function realUserId(user: SessionUser): string {
+  return user.actingUser?.id ?? user.id;
 }
 
 async function getDemoUser(): Promise<UserRow> {
@@ -40,18 +52,18 @@ async function getDemoUser(): Promise<UserRow> {
 export async function getCurrentUser(): Promise<SessionUser | null> {
   if (DEMO_MODE) {
     const demo = await getDemoUser();
-    const { owner, team } = await resolveWorkspace(demo);
-    if (owner.id === demo.id) return { ...demo, team };
-    return { ...owner, actingUser: demo, team };
+    const { owner, team, role } = await resolveWorkspace(demo);
+    if (owner.id === demo.id) return { ...demo, team, role };
+    return { ...owner, actingUser: demo, team, role };
   }
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   if (!email) return null;
   const user = (await getUserByEmail(email)) ?? null;
   if (!user) return null;
-  const { owner, team } = await resolveWorkspace(user);
-  if (owner.id === user.id) return { ...user, team };
-  return { ...owner, actingUser: user, team };
+  const { owner, team, role } = await resolveWorkspace(user);
+  if (owner.id === user.id) return { ...user, team, role };
+  return { ...owner, actingUser: user, team, role };
 }
 
 /**
