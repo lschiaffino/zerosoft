@@ -191,6 +191,24 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
     };
   }, [selectedDate, timezone, eventType.id, reschedule]);
 
+  // Embebido en un iframe (embed.js): avisar el alto y la reserva confirmada.
+  const embedded = typeof window !== 'undefined' && window.parent !== window;
+  useEffect(() => {
+    if (!embedded) return;
+    document.documentElement.classList.add('zs-embed');
+    const post = () =>
+      window.parent.postMessage({ type: 'zs-cal:height', height: document.documentElement.scrollHeight }, '*');
+    post();
+    const ro = new ResizeObserver(post);
+    ro.observe(document.body);
+    return () => ro.disconnect();
+  }, [embedded]);
+  useEffect(() => {
+    if (embedded && confirmed && selectedSlot) {
+      window.parent.postMessage({ type: 'zs-cal:booked', start: selectedSlot.start, eventTypeId: eventType.id }, '*');
+    }
+  }, [embedded, confirmed, selectedSlot, eventType.id]);
+
   const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
   useEffect(() => {
     let cancelled = false;

@@ -8,6 +8,7 @@ import { listMembers } from '@/lib/teams';
 import EventTypeForm from '@/components/calendar/EventTypeForm';
 import AvailabilityEditor from '@/components/calendar/AvailabilityEditor';
 import CopyButton from '@/components/link/CopyButton';
+import CalEmbedCode from '@/components/calendar/CalEmbedCode';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,6 +79,7 @@ export default async function EventTypeDetailPage(
         </div>
         <div className="calendar-detail-col">
           <AvailabilityEditor eventTypeId={id} initialRules={availability} />
+          <CalEmbedCode publicUrl={publicUrl} origin={origin} />
         </div>
       </div>
     </div>

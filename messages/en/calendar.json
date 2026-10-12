@@ -210,5 +210,12 @@
     "noticeScopes": "We need both calendar permissions (free/busy and events). Try again and keep both checked.",
     "noticeError": "Couldn't connect Google Calendar. Try again.",
     "notConfigured": "Google OAuth isn't configured on this server. Set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET and add {uri} as an authorized redirect URI."
+  },
+  "embed": {
+    "title": "Embed on your site",
+    "inline": "Inline",
+    "popup": "Popup button",
+    "inlineDesc": "Paste it where the calendar should appear. The height adjusts by itself.",
+    "popupDesc": "Adds a floating button that opens the booking page in a modal."
   }
 }

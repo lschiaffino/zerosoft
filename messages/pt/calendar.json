@@ -210,5 +210,12 @@
     "noticeScopes": "Precisamos das duas permissões de agenda (disponibilidade e eventos). Tente de novo mantendo ambas marcadas.",
     "noticeError": "Não foi possível conectar o Google Calendar. Tente de novo.",
     "notConfigured": "O Google OAuth não está configurado neste servidor. Defina GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET e adicione {uri} como redirect URI autorizado."
+  },
+  "embed": {
+    "title": "Incorporar no seu site",
+    "inline": "Em linha",
+    "popup": "Botão popup",
+    "inlineDesc": "Cole onde o calendário deve aparecer. A altura se ajusta sozinha.",
+    "popupDesc": "Adiciona um botão flutuante que abre a página de agendamento em um modal."
   }
 }

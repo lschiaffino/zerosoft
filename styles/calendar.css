@@ -631,3 +631,23 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Dentro del iframe del embed: sin alto mínimo (el alto lo maneja el host) ni márgenes extra. */
+html.zs-embed .booking-page {
+  min-height: 0;
+  padding: 12px;
+}
+html.zs-embed .booking-card {
+  border-color: transparent;
+}
+
+.calendar-embed-tabs { display: flex; gap: 8px; margin: 4px 0 12px; }
+.calendar-embed-code {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

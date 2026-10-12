@@ -210,5 +210,12 @@
     "noticeScopes": "Necesitamos los dos permisos de calendario (disponibilidad y eventos). Probá de nuevo dejando ambos tildados.",
     "noticeError": "No se pudo conectar Google Calendar. Probá de nuevo.",
     "notConfigured": "Google OAuth no está configurado en este servidor. Definí GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET y agregá {uri} como redirect URI autorizado."
+  },
+  "embed": {
+    "title": "Embeber en tu sitio",
+    "inline": "En línea",
+    "popup": "Botón popup",
+    "inlineDesc": "Pegalo donde querés que aparezca el calendario. El alto se ajusta solo.",
+    "popupDesc": "Agrega un botón flotante que abre la página de reserva en un modal."
   }
 }
