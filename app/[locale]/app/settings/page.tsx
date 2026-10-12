@@ -64,6 +64,19 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
       </section>
 
       <section className="panel">
+        <p className="section-label">{t('export.title')}</p>
+        <p className="muted">{t('export.desc')}</p>
+        <div className="form-actions">
+          <a className="btn btn-ghost btn-small" href="/api/links/export?format=csv" download>
+            CSV
+          </a>
+          <a className="btn btn-ghost btn-small" href="/api/links/export?format=json" download>
+            JSON
+          </a>
+        </div>
+      </section>
+
+      <section className="panel">
         <p className="section-label">{t('settings.apiKeys')}</p>
         <ApiKeysPanel initialKeys={keys} />
       </section>

@@ -232,11 +232,19 @@ export interface BreakdownItem {
   count: number;
 }
 
-export type AnalyticsRange = '7d' | '30d' | 'all';
+export type AnalyticsRange = '7d' | '30d' | '90d' | 'all';
+
+export function parseRange(raw: string | null | undefined): AnalyticsRange {
+  return raw === '7d' || raw === '90d' || raw === 'all' ? raw : '30d';
+}
+
+const RANGE_DAYS: Record<Exclude<AnalyticsRange, 'all'>, number> = { '7d': 7, '30d': 30, '90d': 90 };
 
 export interface AnalyticsResult {
   total: number;
   rangeTotal: number;
+  /** Clicks del período anterior de igual largo (null en "all"). */
+  previousTotal: number | null;
   byDay: DayCount[];
   referrers: BreakdownItem[];
   countries: BreakdownItem[];
@@ -248,7 +256,7 @@ export interface AnalyticsResult {
 export function rangeStart(range: AnalyticsRange, createdAt: string): string {
   const end = todayUtc();
   if (range === 'all') return createdAt.slice(0, 10);
-  return addDays(end, range === '7d' ? -6 : -29);
+  return addDays(end, -(RANGE_DAYS[range] - 1));
 }
 
 type BreakdownColumn = 'referrer' | 'country' | 'device' | 'browser' | 'os';
@@ -304,9 +312,20 @@ export async function getAnalytics(
       .get(linkId, start)) as { c: number }
   ).c;
 
+  let previousTotal: number | null = null;
+  if (range !== 'all') {
+    const prevStart = addDays(start, -RANGE_DAYS[range]);
+    previousTotal = (
+      (await db
+        .prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND date(ts) >= ? AND date(ts) < ?')
+        .get(linkId, prevStart, start)) as { c: number }
+    ).c;
+  }
+
   return {
     total,
     rangeTotal,
+    previousTotal,
     byDay: await byDayFor(linkId, start, end),
     referrers: await breakdown(linkId, 'referrer', start, 'direct'),
     countries: await breakdown(linkId, 'country', start, 'unknown'),

@@ -583,3 +583,7 @@
 .domain-actions { margin-left: auto; display: flex; gap: 8px; }
 .domain-dns .table { margin-top: 6px; font-size: 12px; }
 .slug-domain-select { max-width: 50%; }
+
+.stat-delta { font-size: 11px; }
+.stat-delta.up { color: #1a7f37; }
+.stat-delta.down { color: #b00020; }

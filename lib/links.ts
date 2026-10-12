@@ -8,6 +8,7 @@ import { isValidSlug } from './reserved';
 import { isValidUrl, normalizeUrl, shortUrl } from './utils';
 import { isAppHost } from './hosts';
 import { getVerifiedDomainByHost } from './link-domains';
+import { emitWebhook } from './webhooks';
 
 /** LinkRow + el hostname de su dominio propio (null = dominio por defecto). */
 export type LinkWithDomain = LinkRow & { domain_hostname?: string | null };
@@ -374,7 +375,9 @@ export async function createLink(
       input.ogImage?.trim() || null,
     );
 
-  return { ok: true, link: (await getUserLink(userId, id))! };
+  const created = (await getUserLink(userId, id))!;
+  await emitWebhook(userId, 'link.created', { link: toLinkDto(created) });
+  return { ok: true, link: created };
 }
 
 // ---------- Bulk create ----------

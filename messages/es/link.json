@@ -164,7 +164,9 @@
     "deleteHint": "Escribí {slug} para confirmar",
     "deleteButton": "Borrar para siempre",
     "createdLabel": "Creado",
-    "noData": "Sin datos en este rango"
+    "noData": "Sin datos en este rango",
+    "range90": "90 días",
+    "inRange": "{range} · vs anterior"
   },
   "bulk": {
     "title": "Creación masiva",
@@ -288,5 +290,9 @@
       "has_links": "Este dominio todavía tiene links. Movelos o borralos primero.",
       "invalid_url": "La URL no es válida."
     }
+  },
+  "export": {
+    "title": "Tus datos",
+    "desc": "Descargá todos tus links. El CSV tiene una fila por link; el JSON incluye además cada click (referrer, país, dispositivo). Sin rehenes."
   }
 }

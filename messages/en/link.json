@@ -164,7 +164,9 @@
     "deleteHint": "Type {slug} to confirm",
     "deleteButton": "Delete forever",
     "createdLabel": "Created",
-    "noData": "No data for this range"
+    "noData": "No data for this range",
+    "range90": "90 days",
+    "inRange": "{range} · vs previous"
   },
   "bulk": {
     "title": "Bulk create",
@@ -288,5 +290,9 @@
       "has_links": "This domain still has links. Move or delete them first.",
       "invalid_url": "That URL isn't valid."
     }
+  },
+  "export": {
+    "title": "Your data",
+    "desc": "Download every link. CSV has one row per link; JSON also includes every click (referrer, country, device). No hostages."
   }
 }

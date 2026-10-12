@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getUserLink } from '@/lib/links';
-import { clicksToCsv, exportClicks, type AnalyticsRange } from '@/lib/track';
+import { clicksToCsv, exportClicks, type AnalyticsRange, parseRange } from '@/lib/track';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 
   const sp = req.nextUrl.searchParams;
   const rawRange = sp.get('range');
-  const range: AnalyticsRange = rawRange === '7d' || rawRange === 'all' ? rawRange : '30d';
+  const range: AnalyticsRange = parseRange(rawRange);
   const country = sp.get('country') ?? undefined;
 
   const clicks = await exportClicks(link.id, link.created_at, { range, country });

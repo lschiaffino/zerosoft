@@ -8,6 +8,7 @@ import {
   getClickCountries,
   listClicks,
   type AnalyticsRange,
+  parseRange,
 } from '@/lib/track';
 import { formatDate, formatDateTime, formatNumber, shortUrl } from '@/lib/utils';
 import CopyButton from '@/components/link/CopyButton';
@@ -40,7 +41,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
   if (!link) notFound();
 
   const rawRange = typeof searchParams.range === 'string' ? searchParams.range : undefined;
-  const range: AnalyticsRange = rawRange === '7d' || rawRange === 'all' ? rawRange : '30d';
+  const range: AnalyticsRange = parseRange(rawRange);
   const country = typeof searchParams.country === 'string' ? searchParams.country : undefined;
   const clickPage = Math.max(Number(searchParams.page ?? '1') || 1, 1);
   const clickPageSize = Math.min(Math.max(Number(searchParams.pageSize ?? '25') || 25, 1), 100);
@@ -55,7 +56,6 @@ export default async function LinkDetailPage(props: DetailPageProps) {
   const countries = await getClickCountries(link.id);
 
   const today = a.byDay[a.byDay.length - 1]?.count ?? 0;
-  const last7 = a.byDay.slice(-7).reduce((sum, d) => sum + d.count, 0);
   const topRef = a.referrers[0]?.name ?? '—';
   const status = linkStatus(link);
 
@@ -69,6 +69,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
   const ranges: Array<{ value: AnalyticsRange; label: string }> = [
     { value: '7d', label: t('detail.range7') },
     { value: '30d', label: t('detail.range30') },
+    { value: '90d', label: t('detail.range90') },
     { value: 'all', label: t('detail.rangeAll') },
   ];
 
@@ -118,8 +119,20 @@ export default async function LinkDetailPage(props: DetailPageProps) {
           <span className="stat-label">{t('detail.today')}</span>
         </div>
         <div className="panel stat-card">
-          <span className="stat-num">{formatNumber(last7, locale)}</span>
-          <span className="stat-label">{t('detail.last7')}</span>
+          <span className="stat-num">{formatNumber(a.rangeTotal, locale)}</span>
+          <span className="stat-label">
+            {t('detail.inRange', { range: ranges.find((r) => r.value === range)?.label ?? range })}
+            {a.previousTotal !== null && (
+              <span className={`stat-delta mono ${a.rangeTotal >= a.previousTotal ? 'up' : 'down'}`}>
+                {' '}
+                {a.previousTotal === 0
+                  ? a.rangeTotal > 0
+                    ? '↑ new'
+                    : '—'
+                  : `${a.rangeTotal >= a.previousTotal ? '↑' : '↓'} ${Math.abs(Math.round(((a.rangeTotal - a.previousTotal) / a.previousTotal) * 100))}%`}
+              </span>
+            )}
+          </span>
         </div>
         <div className="panel stat-card">
           <span className="stat-num stat-num-small mono">{breakdownLabel(topRef)}</span>
