@@ -92,7 +92,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
   if (p.password !== undefined) {
     sets.push('password_hash = ?');
-    args.push(p.password === '' ? null : hashPassword(p.password));
+    args.push(p.password === '' ? null : await hashPassword(p.password));
   }
   if (p.slug !== undefined && p.slug !== link.slug) {
     const slug = p.slug.trim();

@@ -1,4 +1,7 @@
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, scrypt, timingSafeEqual } from 'crypto';
+import { promisify } from 'util';
+
+const scryptAsync = promisify(scrypt) as (password: string, salt: string, keylen: number) => Promise<Buffer>;
 import { customAlphabet } from 'nanoid';
 import { getDb, type LinkRow } from './db';
 import { isValidSlug } from './reserved';
@@ -180,15 +183,15 @@ export function toLinkDto(link: LinkRow): LinkDto {
 
 // ---------- Passwords (scrypt, "salt:hash" hex) ----------
 
-export function hashPassword(password: string): string {
+export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString('hex');
-  return `${salt}:${scryptSync(password, salt, 64).toString('hex')}`;
+  return `${salt}:${(await scryptAsync(password, salt, 64)).toString('hex')}`;
 }
 
-export function verifyPassword(password: string, stored: string): boolean {
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [salt, hash] = stored.split(':');
   if (!salt || !hash) return false;
-  const candidate = scryptSync(password, salt, 64);
+  const candidate = await scryptAsync(password, salt, 64);
   const expected = Buffer.from(hash, 'hex');
   return candidate.length === expected.length && timingSafeEqual(candidate, expected);
 }
@@ -320,7 +323,7 @@ export async function createLink(
       utm.url,
       input.title?.trim() || null,
       JSON.stringify(tags),
-      input.password ? hashPassword(input.password) : null,
+      input.password ? await hashPassword(input.password) : null,
       expiresAt,
       input.maxClicks ?? null,
       redirectType,

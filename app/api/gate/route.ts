@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!link || !link.password_hash) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
-  if (!verifyPassword(password, link.password_hash)) {
+  if (!(await verifyPassword(password, link.password_hash))) {
     return NextResponse.json({ error: 'wrong_password' }, { status: 401 });
   }
 
