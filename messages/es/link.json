@@ -294,5 +294,30 @@
   "export": {
     "title": "Tus datos",
     "desc": "Descargá todos tus links. El CSV tiene una fila por link; el JSON incluye además cada click (referrer, país, dispositivo). Sin rehenes."
+  },
+  "import": {
+    "title": "Importar desde Bitly",
+    "desc": "Traé tus links con sus back-halves. Si verificaste acá primero el mismo dominio propio, siguen funcionando igual cuando muevas el DNS.",
+    "token": "Token de API de Bitly",
+    "csv": "Archivo CSV",
+    "tokenPlaceholder": "Token de acceso de Bitly",
+    "tokenHelp": "Bitly → Settings → API → Generate token. Lo usamos una vez y no lo guardamos.",
+    "csvHelp": "Bitly → Links → Export (o cualquier CSV con una columna de URL larga).",
+    "run": "Importar",
+    "running": "Importando…",
+    "done": "Importamos {imported} links ({kept} conservaron su back-half).",
+    "truncated": "Solo se importaron los primeros 2.000; corrélo de nuevo para el resto.",
+    "renamed": "{n} recibieron un back-half nuevo (estaba tomado)",
+    "skipped": "{n} salteados",
+    "errors": {
+      "bitly_unauthorized": "Bitly rechazó ese token.",
+      "bitly_no_group": "Esa cuenta de Bitly no tiene grupo.",
+      "bitly_error": "No pudimos conectar con Bitly. Probá de nuevo.",
+      "csv_no_url_column": "No encontramos una columna de URL larga en ese CSV.",
+      "empty": "Elegí un archivo.",
+      "file_too_large": "El archivo pesa más de 5 MB.",
+      "invalid_input": "Pegá un token.",
+      "rate_limited": "Demasiadas importaciones. Esperá unos minutos."
+    }
   }
 }

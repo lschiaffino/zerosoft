@@ -3,6 +3,7 @@ import { DEMO_MODE, isWorkspaceAdmin, realUserId, requireUser } from '@/lib/sess
 import { listWebhooks, WEBHOOK_EVENTS } from '@/lib/webhooks';
 import WebhooksPanel from '@/components/app/WebhooksPanel';
 import DomainsPanel from '@/components/link/DomainsPanel';
+import ImportLinksPanel from '@/components/link/ImportLinksPanel';
 import { dnsInstructions, listDomains } from '@/lib/link-domains';
 import { listApiKeys } from '@/lib/api-auth';
 import { formatDate } from '@/lib/utils';
@@ -61,6 +62,11 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
       <section className="panel">
         <p className="section-label">{t('domains.title')}</p>
         <DomainsPanel initial={domains} canManage={isWorkspaceAdmin(user)} />
+      </section>
+
+      <section className="panel">
+        <p className="section-label">{t('import.title')}</p>
+        <ImportLinksPanel />
       </section>
 
       <section className="panel">

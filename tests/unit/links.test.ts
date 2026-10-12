@@ -17,3 +17,19 @@ describe('links: contraseñas y gate', () => {
     expect(isValidGateToken('abc', 'h1', undefined)).toBe(false);
   });
 });
+
+import { isValidUrl, normalizeUrl } from '@/lib/utils';
+
+describe('links: normalización de URLs', () => {
+  it.each([
+    ['example.com/x', 'https://example.com/x', true],
+    ['example.com:8080/x', 'https://example.com:8080/x', true],
+    ['http://a.com', 'http://a.com', true],
+    ['ftp://files.com', 'ftp://files.com', false],
+    ['javascript:alert(1)', 'javascript:alert(1)', false],
+    ['data:text/html,hi', 'data:text/html,hi', false],
+  ])('%s', (input, normalized, valid) => {
+    expect(normalizeUrl(input)).toBe(normalized);
+    expect(isValidUrl(normalizeUrl(input))).toBe(valid);
+  });
+});

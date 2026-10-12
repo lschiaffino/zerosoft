@@ -66,3 +66,21 @@ test('Link: dominio propio con slugs independientes, raíz y gate', async ({ req
   // Con links, el dominio no se puede borrar.
   expect((await request.delete(`/api/links/domains/${domain.id}`)).status()).toBe(409);
 });
+
+test('Link: importar un CSV de Bitly', async ({ request }) => {
+  const a = `imp${uid()}`;
+  const csv = `Title,Bitlink,Long URL,Tags\nUno,https://bit.ly/${a},https://example.com/uno,campaña\nDos,https://bit.ly/zz,ftp://nope,\n`;
+  const res = await request.post('/api/links/import', {
+    multipart: { file: { name: 'bitly.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) } },
+  });
+  expect(res.ok(), await res.text()).toBeTruthy();
+  const report = await res.json();
+  expect(report.imported).toBe(1);
+  expect(report.skipped).toHaveLength(1);
+  const go = await request.get(`/${a}`, { maxRedirects: 0 });
+  expect(go.headers()['location']).toBe('https://example.com/uno');
+
+  const exported = await request.get('/api/links/export?format=json');
+  const body = await exported.json();
+  expect(body.links.some((l: { slug: string }) => l.slug === a)).toBe(true);
+});
