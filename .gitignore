@@ -15,3 +15,7 @@ next-env.d.ts
 
 # Uploads locales (dev / self-host sin Blob)
 public/uploads/
+
+# Tests
+/test-results/
+/playwright-report/
