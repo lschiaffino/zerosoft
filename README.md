@@ -118,7 +118,6 @@ messages/             en / es / pt UI strings
 middleware.ts         locale negotiation + short-link passthrough
 scripts/seed.ts       demo data (Link) · scripts/seed-crm.ts (CRM) — both run via npm run seed
 styles/               globals.css, pages.css, link.css, crm.css (no Tailwind, hand-rolled)
-legacy/               the original static prototype, kept for reference
 ```
 
 ## Stack

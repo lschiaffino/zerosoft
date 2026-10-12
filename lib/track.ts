@@ -46,8 +46,15 @@ export function contextFromHeaders(headers: Headers): ClickContext {
     }
   }
 
-  let country = headers.get('cf-ipcountry') ?? headers.get('x-vercel-ip-country');
-  if (!country) {
+  // Solo headers que pone la infraestructura, no el cliente: en Vercel,
+  // x-vercel-ip-country; detrás de Cloudflare (self-host), cf-ipcountry si se
+  // habilita explícitamente. Si no, geoip por IP.
+  let country: string | null = process.env.VERCEL
+    ? headers.get('x-vercel-ip-country')
+    : process.env.TRUST_CF_IPCOUNTRY === 'true'
+      ? headers.get('cf-ipcountry')
+      : null;
+  if (!country && !process.env.VERCEL) {
     const ip = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
     if (ip) country = geoipCountry(ip);
   }

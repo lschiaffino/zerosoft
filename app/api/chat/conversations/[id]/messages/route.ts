@@ -1,28 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { canAccessConversation } from '@/lib/chat-access';
 import {
   createChatMessage,
-  getChatConversation,
-  getChatWidget,
   listChatMessagesWithUsers,
   recordFirstResponse,
 } from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
 
-async function canAccessConversation(
-  conversationId: string,
-  user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
-) {
-  const conversation = await getChatConversation(conversationId);
-  if (!conversation) return { ok: false, conversation: null };
-  const widget = await getChatWidget(conversation.widget_id);
-  if (!widget) return { ok: false, conversation: null };
-  if (widget.user_id !== user.id && widget.team_id !== user.team?.id) {
-    return { ok: false, conversation: null };
-  }
-  return { ok: true, conversation };
-}
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();

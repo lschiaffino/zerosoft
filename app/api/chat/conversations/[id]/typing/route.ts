@@ -1,22 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { getChatConversation, getChatWidget, listTyping, setTyping } from '@/lib/chat-data';
+import { canAccessConversation } from '@/lib/chat-access';
+import { listTyping, setTyping } from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
 
-async function canAccessConversation(
-  conversationId: string,
-  user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
-) {
-  const conversation = await getChatConversation(conversationId);
-  if (!conversation) return { ok: false };
-  const widget = await getChatWidget(conversation.widget_id);
-  if (!widget) return { ok: false };
-  if (widget.user_id !== user.id && widget.team_id !== user.team?.id) {
-    return { ok: false };
-  }
-  return { ok: true, conversation };
-}
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();

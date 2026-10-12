@@ -1,5 +1,5 @@
 {
   "extends": ["next/core-web-vitals"],
   "plugins": ["@typescript-eslint"],
-  "ignorePatterns": ["legacy/", "public/", "scripts/_*"]
+  "ignorePatterns": ["public/", "scripts/_*"]
 }
