@@ -10,6 +10,7 @@ const SCREENS = [
   '/en/blog',
   '/en/docs',
   '/en/app/links',
+  '/en/app/links/bio',
   '/en/app/settings',
   '/en/app/crm',
   '/en/app/crm/contacts',

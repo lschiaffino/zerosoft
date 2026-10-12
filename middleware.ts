@@ -30,6 +30,15 @@ export default function middleware(req: NextRequest) {
     }
   }
 
+  // Link-in-bio: /@handle → /<locale>/bio/<handle> (Next no admite "@" al
+  // inicio de un segmento dinámico: es la sintaxis de parallel routes).
+  const bio = /^\/@([a-z0-9][a-z0-9-]{1,30}[a-z0-9])\/?$/i.exec(pathname);
+  if (bio && isAppHost(req.headers.get('host'))) {
+    const cookie = req.cookies.get('NEXT_LOCALE')?.value;
+    const locale = cookie && ['en', 'es', 'pt'].includes(cookie) ? cookie : 'en';
+    return NextResponse.rewrite(new URL(`/${locale}/bio/${bio[1].toLowerCase()}`, req.url));
+  }
+
   // Short links en la raíz: un solo segmento (ej. /xK9f2aQ) → rewrite a /r/<slug>
   if (/^\/[A-Za-z0-9_-]{2,32}\/?$/.test(pathname)) {
     const slug = pathname.replace(/\//g, '');

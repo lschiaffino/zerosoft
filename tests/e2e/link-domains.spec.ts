@@ -84,3 +84,28 @@ test('Link: importar un CSV de Bitly', async ({ request }) => {
   const body = await exported.json();
   expect(body.links.some((l: { slug: string }) => l.slug === a)).toBe(true);
 });
+
+test('Link: página bio pública en /@handle', async ({ request, page }) => {
+  const { handle } = await (await request.get('/api/calendar/config')).json();
+  const mk = async (slug: string, extra: Record<string, unknown> = {}) =>
+    (await (await request.post('/api/links', { data: { url: `https://example.com/${slug}`, slug, title: `T ${slug}`, ...extra } })).json()).id as string;
+  const a = await mk(`bioa${uid()}`);
+  const b = await mk(`biob${uid()}`);
+  const secret = await mk(`bios${uid()}`, { password: 'x' });
+
+  // Sin publicar: 404.
+  expect((await page.goto(`/@${handle}`))?.status()).toBe(404);
+
+  const saved = await request.put('/api/links/bio', {
+    data: { title: 'Ana Pérez', bio: 'Hago cosas.', avatarUrl: null, published: true, linkIds: [b, a, secret] },
+  });
+  expect(saved.ok()).toBeTruthy();
+
+  await page.goto(`/@${handle}`);
+  await expect(page.getByRole('heading', { name: 'Ana Pérez' })).toBeVisible();
+  const buttons = page.locator('.bio-link');
+  // El link con contraseña no aparece; el orden se respeta.
+  await expect(buttons).toHaveCount(2);
+  await expect(buttons.first()).toHaveText(/T biob/);
+  expect(await buttons.first().getAttribute('href')).toMatch(/\/biob/);
+});

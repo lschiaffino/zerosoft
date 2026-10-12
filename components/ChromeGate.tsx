@@ -21,7 +21,14 @@ export default function ChromeGate({
 }) {
   const pathname = usePathname();
   if (pathname.startsWith('/app')) return <>{children}</>;
-  if (pathname.startsWith('/book/') || pathname.startsWith('/r/')) {
+  const publicPage =
+    pathname.startsWith('/book/') ||
+    pathname.startsWith('/r/') ||
+    pathname.startsWith('/bio/') ||
+    // /@handle se reescribe a /bio/<handle>, pero el navegador ve /@handle.
+    /^\/@/.test(pathname) ||
+    (typeof window !== 'undefined' && window.location.pathname.startsWith('/@'));
+  if (publicPage) {
     return (
       <>
         {children}

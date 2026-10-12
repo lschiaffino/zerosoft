@@ -238,6 +238,25 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // Link-in-bio: página pública /@handle con los links elegidos.
+    id: '010_link_bio',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS link_bio (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          title TEXT NOT NULL DEFAULT '',
+          bio TEXT NOT NULL DEFAULT '',
+          avatar_url TEXT,
+          published INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`);
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN bio_position INTEGER');
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_links_bio ON links(user_id, bio_position) WHERE bio_position IS NOT NULL',
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

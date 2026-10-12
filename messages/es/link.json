@@ -3,7 +3,8 @@
     "overview": "Resumen",
     "links": "Links",
     "new": "Nuevo link",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "bio": "Página bio"
   },
   "common": {
     "copy": "Copiar",
@@ -319,5 +320,22 @@
       "invalid_input": "Pegá un token.",
       "rate_limited": "Demasiadas importaciones. Esperá unos minutos."
     }
+  },
+  "bio": {
+    "title": "Página bio",
+    "sub": "Una página con tus links en zerosoft.ai/@{handle}. Cada botón pasa por el link corto, así que los clicks aparecen en tus analytics.",
+    "pageTitle": "Título",
+    "bioText": "Bio",
+    "avatar": "URL del avatar (https)",
+    "published": "Publicada",
+    "links": "Links en la página",
+    "linksHint": "Tildá los links a mostrar y ordenalos. Los links con contraseña, archivados o vencidos no se muestran.",
+    "empty": "Primero creá algunos links.",
+    "up": "Subir",
+    "down": "Bajar",
+    "save": "Guardar",
+    "saved": "Guardado ✓",
+    "view": "Ver página ↗",
+    "error": "Revisá los campos (el avatar tiene que ser una URL https)."
   }
 }

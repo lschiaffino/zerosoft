@@ -79,6 +79,7 @@ export default async function AppLayout(
             overview: tLink('tabs.overview'),
             links: tLink('tabs.links'),
             new: tLink('tabs.new'),
+            bio: tLink('tabs.bio'),
             settings: tLink('tabs.settings'),
           },
           crm: {
