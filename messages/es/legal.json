@@ -13,7 +13,7 @@
       "s01": {
         "h": "La versión corta",
         "p": [
-          "Regalamos software. Podés usarlo, hostearlo y modificarlo bajo su licencia open source. Si usás nuestra nube, pagás solo la infraestructura que consumís, al costo. No uses nada de esto para romper la ley ni para lastimar gente. Eso es la mayor parte — el resto es la misma idea con más detalle."
+          "Regalamos el core del software: podés usarlo, hostearlo y modificarlo bajo su licencia open source (AGPLv3). Si usás nuestra nube, arrancás con un plan gratis y pagás por el uso que lo exceda, según los precios publicados. No uses nada de esto para romper la ley ni para lastimar gente. Eso es la mayor parte — el resto es la misma idea con más detalle."
         ]
       },
       "s02": {
@@ -25,15 +25,15 @@
       "s03": {
         "h": "El software y su licencia",
         "p": [
-          "Todos los productos Zerosoft son open source. Cada repositorio trae su licencia (MIT o AGPL, según se indique en el propio repositorio). Tus derechos a descargar, correr, modificar y redistribuir el código vienen de esa licencia, no de estos términos.",
+          "El core de los productos Zerosoft es open source bajo la licencia AGPLv3. Las funciones enterprise (como SSO/SAML, audit logs, roles a medida y white-label) se distribuyen bajo una licencia comercial aparte, indicada en el propio código. Tus derechos a descargar, correr, modificar y redistribuir el core vienen de la AGPLv3, no de estos términos.",
           "Estos términos no restringen la licencia de ninguna manera, y la licencia no te da ningún derecho sobre nuestro servicio hosteado, nuestros dominios o nuestra marca."
         ]
       },
       "s04": {
         "h": "La nube hosteada",
         "p": [
-          "Si creás una cuenta, corremos el software por vos. Pagás exactamente la infraestructura que tu uso consume — cómputo, almacenamiento, ancho de banda — más los impuestos que correspondan. Nuestro margen sobre la infraestructura es 0%. Ese es todo el modelo de negocio: vendemos comodidad, nunca software.",
-          "Publicamos cómo se calcula el costo, y si la nube se abarata, tu factura se abarata."
+          "Si creás una cuenta, corremos el software por vos. Zerosoft Cloud incluye un plan gratis; por encima de sus límites, se factura por uso — por ejemplo clics, reservas, emails, almacenamiento o asientos — más los impuestos que correspondan. Así se sostiene el proyecto: vendemos la comodidad de no operar servidores y las funciones enterprise, nunca el core.",
+          "Publicamos los precios antes de cobrar nada, y avisamos con anticipación antes de cualquier cambio."
         ]
       },
       "s05": {
@@ -63,7 +63,7 @@
       "s08": {
         "h": "Pago y cancelación",
         "p": [
-          "La nube se factura al costo, mensualmente a período vencido, sin permanencia. Cancelá cuando quieras: el servicio corre hasta el fin del período pago, y tus datos quedan exportables por 30 días más.",
+          "Los usos pagos de la nube se facturan según los precios publicados, mensualmente a período vencido, sin permanencia. Cancelá cuando quieras: el servicio corre hasta el fin del período pago, y tus datos quedan exportables por 30 días más.",
           "Las facturas impagas, previo aviso, pueden suspender la cuenta — nunca borrarla sin advertencia."
         ]
       },
@@ -250,7 +250,7 @@
       "s07": {
         "h": "El open source como auditoría",
         "p": [
-          "Cada línea de los productos es pública. No tenés que creer en esta página — podés leer el código, correrlo vos mismo, y verificar las afirmaciones. Los reportes de la gente que hizo exactamente eso son nuestro tipo de email favorito."
+          "El core de los productos es open source, y el código se publica pronto. No vas a tener que creer en esta página: vas a poder leer el código, correrlo vos mismo y verificar cada afirmación. Los reportes de la gente que haga exactamente eso van a ser nuestro tipo de email favorito."
         ]
       },
       "s08": {

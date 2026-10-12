@@ -1,7 +1,7 @@
 {
   "meta": {
-    "tagline": "El software murió",
-    "description": "Reconstruimos las herramientas que usás todos los días y las liberamos: open source, gratis, para siempre. Hostealas vos o pagá solo la nube, al costo."
+    "tagline": "El software es gratis. Pagás lo que escala.",
+    "description": "Reconstruimos las herramientas que usás todos los días como open source (AGPLv3). Hostealas gratis, para siempre, o usá Zerosoft Cloud: plan gratis y pagás solo lo que escala."
   },
   "header": {
     "products": "Productos",
@@ -48,7 +48,7 @@
   "hero": {
     "title1": "El software",
     "title2": "murió.",
-    "sub": "Reconstruimos las herramientas que usás todos los días y las liberamos: open source, gratis, para siempre. Si las corremos por vos, pagás solo la nube. Al costo.",
+    "sub": "El software es gratis. Pagás lo que escala. Reconstruimos las herramientas que usás todos los días como open source: hostealas vos por $0, para siempre, o dejá que las corramos nosotros, con un plan gratis generoso.",
     "ctaPrimary": "Ver el arsenal",
     "ctaSecondary": "Leer el manifiesto",
     "scroll": "Deslizá ↓"
@@ -57,35 +57,36 @@
     "label": "0.01 — Manifiesto",
     "p1": "Te cobran <strong>$30 por mover tarjetas</strong>. $50 por guardar contactos. $12 por acortar un link. No por el software — por la costumbre.",
     "p2": "Pero el software son bits. Y los bits son gratis. <strong>Siempre fueron gratis.</strong>",
-    "p3": "Zerosoft existe para probarlo: reconstruimos las herramientas que mueven al mundo y las liberamos. Sin licencias. Sin lock-in. Sin letra chica. Si querés, lo hosteás vos. Si no, lo corremos nosotros y pagás exactamente lo que cuesta la nube. Ni un peso más.",
+    "p3": "Zerosoft existe para probarlo: reconstruimos las herramientas que mueven al mundo y liberamos el core bajo AGPLv3. Sin lock-in. Sin letra chica. Si querés, lo hosteás vos, gratis, para siempre. Si no, lo corremos nosotros: arrancás gratis y pagás solo lo que escala — clics, reservas, emails, almacenamiento, asientos. Con precios a la vista.",
     "final": "El software murió. Nosotros somos lo que sigue."
   },
   "stats": {
     "s1num": "$0",
-    "s1label": "El precio del software. Siempre.",
-    "s2num": "0%",
-    "s2label": "Nuestro margen sobre la nube.",
-    "s3num": "100%",
+    "s1label": "El core, self-hosteado. Siempre.",
+    "s2num": "0",
+    "s2label": "Funciones del core detrás de un paywall.",
+    "s3num": "AGPL",
     "s3label": "Open source. Para siempre."
   },
   "products": {
     "label": "0.02 — El arsenal",
     "title": "Todo el software que usás.",
-    "titleDim": "Cero software que pagues.",
+    "titleDim": "El core, gratis para siempre.",
     "track": { "tag": "Gestión de proyectos", "desc": "La velocidad de Linear. El precio del aire.", "status": "Disponible" },
-    "crm": { "tag": "Clientes y ventas", "desc": "Tu pipeline completo, de punta a punta. Cero licencias por usuario.", "status": "Disponible" },
+    "crm": { "tag": "Clientes y ventas", "desc": "Tu pipeline completo, de punta a punta. Open source, sin licencias.", "status": "Disponible" },
     "cal": { "tag": "Agendamiento", "desc": "Tu disponibilidad, un link, listo. Sin pagar por el privilegio.", "status": "Disponible" },
     "link": { "tag": "Links cortos", "desc": "Links cortos con métricas reales. Tuyos para siempre.", "status": "Disponible" },
     "chat": { "tag": "Chat con clientes", "desc": "Una inbox para todas las conversaciones. Widgets, personas y canales.", "status": "Disponible" },
-    "docs": { "tag": "Docs y wiki", "desc": "Notas y documentos que son tuyos. Sin cobro por usuario.", "status": "Disponible" },
+    "docs": { "tag": "Docs y wiki", "desc": "Notas y documentos que son tuyos. Exportables, siempre.", "status": "Disponible" },
     "more": { "title": "Todo lo demás", "tag": "Lo que sigue", "desc": "Diseño. Formularios. Analytics. Si el mundo lo usa, lo vamos a liberar. Esto recién empieza.", "status": "Siempre" }
   },
   "model": {
     "label": "0.03 — El modelo",
-    "title": "Dos formas de tenerlo todo.",
-    "titleDim": "Ninguna incluye pagar software.",
-    "a": { "title": "Hostealo vos", "desc": "Todo el código es abierto. Descargalo de GitHub, corrélo en tu servidor, modificalo, rompelo, hacelo tuyo. Porque es tuyo.", "price": "$0", "priceNote": "/ para siempre" },
-    "b": { "title": "Lo corremos nosotros", "desc": "Te damos login, backups, actualizaciones y uptime. Pagás exactamente lo que la nube cuesta. Ni un centavo más. Ni un centavo menos.", "price": "Al costo", "priceNote": "/ de la nube" }
+    "title": "Tres formas de tenerlo.",
+    "titleDim": "El core es gratis en todas.",
+    "a": { "title": "Hostealo vos", "desc": "El core es open source bajo AGPLv3, con todas sus funciones. Corrélo en tu servidor, modificalo, rompelo, hacelo tuyo. Sin trial, sin license key, sin límites.", "price": "$0", "priceNote": "/ para siempre" },
+    "b": { "title": "Zerosoft Cloud", "desc": "Lo corremos nosotros: login, backups, actualizaciones y uptime. Arrancás con un plan gratis generoso y, cuando escalás, pagás por uso — clics, reservas, emails, almacenamiento, asientos. Precios transparentes, publicados antes de cobrarte nada.", "price": "Gratis", "priceNote": "/ para empezar · precios por uso, pronto" },
+    "c": { "title": "Enterprise", "desc": "SSO/SAML, audit logs, roles a medida y white-label, bajo licencia comercial. Con soporte directo del equipo, en tu servidor o en nuestra nube.", "price": "Hablemos", "priceNote": "/ licencia comercial + soporte" }
   },
   "end": {
     "label": "0.04 — Sumate",

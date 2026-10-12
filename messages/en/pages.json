@@ -2,13 +2,13 @@
   "products": {
     "meta": {
       "title": "Products — The arsenal",
-      "description": "Link, CRM, Track, Cal, Docs and Chat: the tools that run a company, rebuilt and set free. Open source, or cloud at cost."
+      "description": "Link, CRM, Track, Cal, Docs and Chat: the tools that run a company, rebuilt and set free. Open source and free to self-host, or in our cloud with a free plan."
     },
     "hero": {
       "label": "0.02 — Products",
       "title1": "Everything you use.",
       "title2": "Zero you pay for.",
-      "sub": "Six tools run the modern company: links, customers, projects, time, docs and support. We rebuilt all six in the open. They cost zero, they are yours, and every one of them is already live."
+      "sub": "Six tools run the modern company: links, customers, projects, time, docs and support. We rebuilt all six in the open. The core costs zero, it is yours, and every one of them is already live."
     },
     "compare": {
       "label": "0.03 — The math",
@@ -23,7 +23,7 @@
       "r4price": "$12 / month",
       "withTitle": "With Zerosoft",
       "big": "$0",
-      "note": "Every month, every year, forever. If we run it for you, you pay only the cloud it consumes. At cost.",
+      "note": "Self-hosted: every month, every year, forever. On Zerosoft Cloud you start free and pay only for what scales.",
       "r5name": "Notion",
       "r5price": "$10 / user / month",
       "r6name": "Intercom",
@@ -62,7 +62,7 @@
       "label": "0.05 — Join us",
       "title1": "Stop paying",
       "title2": "for bits.",
-      "sub": "All six are free and live. Get in now and never pay for software again.",
+      "sub": "All six are live and free to start. Get in now: you pay only for what scales.",
       "button": "Open the app →"
     },
     "link": {
@@ -118,12 +118,12 @@
         "per": "/ month",
         "team": "$4,200",
         "zero": "$0",
-        "note": "Bitly Core costs $35 a month — $420 a year, every year. A 10-person team on per-seat pricing easily crosses $4,200 a year. Link costs $0. Forever."
+        "note": "Bitly Core costs $35 a month — $420 a year, every year. A 10-person team on per-seat pricing easily crosses $4,200 a year. Self-hosted Link costs $0. Forever."
       },
       "faq": {
         "f1": {
           "q": "Is it really free?",
-          "a": "Yes. The code is open source and self-hosting costs nothing. If we host it for you, you pay only the cloud it consumes — at cost, no margin. Software was never the expensive part; the business model was."
+          "a": "Yes. The core is open source (AGPLv3) and self-hosting costs nothing, forever. On Zerosoft Cloud you start on a free plan and, if you scale, pay for usage, with transparent prices. Software was never the expensive part; the business model was."
         },
         "f2": {
           "q": "Can I migrate my links from Bitly?",
@@ -135,7 +135,7 @@
         },
         "f4": {
           "q": "Can I self-host it?",
-          "a": "That is the point. Clone the repo, run it on any server with Node and SQLite, set your own domain, done. No license key, no phone-home, no enterprise tier."
+          "a": "That is the point. The core is AGPLv3: run it on any server with Node and SQLite, set your own domain, done. No license key, no phone-home, every core feature included. Only enterprise extras (SSO, audit logs) come under a commercial license."
         },
         "f5": {
           "q": "Do my links ever expire?",
@@ -203,12 +203,12 @@
         "per": "/ user / month",
         "team": "$960",
         "zero": "$0",
-        "note": "Linear Standard costs $8 per user per month. A team of 10 pays $960 a year, every year, forever. Track costs $0."
+        "note": "Linear Standard costs $8 per user per month. A team of 10 pays $960 a year, every year, forever. Self-hosted Track costs $0."
       },
       "faq": {
         "f1": {
           "q": "Is it really free?",
-          "a": "Yes. Open source under a public license, so self-hosting costs nothing. Our hosted cloud costs only the infrastructure it consumes — at cost, 0% margin."
+          "a": "Yes. The core is open source under AGPLv3, so self-hosting costs nothing. Our hosted cloud starts with a free plan and then charges for usage, with transparent prices."
         },
         "f2": {
           "q": "Can I migrate from Linear?",
@@ -220,7 +220,7 @@
         },
         "f4": {
           "q": "Can I self-host it?",
-          "a": "Absolutely. That is the default way to run every Zerosoft product: your server, your data, your rules. The cloud exists only for convenience."
+          "a": "Absolutely. That is the default way to run every Zerosoft product: your server, your data, your rules. The cloud exists for those who would rather not run servers."
         },
         "f5": {
           "q": "Is it live?",
@@ -238,14 +238,14 @@
     "crm": {
       "meta": {
         "title": "CRM — Customers without the invoice",
-        "description": "Contacts, pipelines, email sync and reports — the 80% of HubSpot you actually use, at 0% of the price. Open source. Live now."
+        "description": "Contacts, pipelines, email sync and reports — the 80% of HubSpot you actually use, for $0 when you self-host. Open source. Live now."
       },
       "hero": {
         "tag": "Customers & sales",
-        "sub": "Contacts, pipelines, email sync and reports — the 80% of HubSpot you actually use, at 0% of the price. Open source. Live now."
+        "sub": "Contacts, pipelines, email sync and reports — the 80% of HubSpot you actually use, for $0 when you self-host. Open source. Live now."
       },
       "featuresTitle": "Your whole pipeline.",
-      "featuresTitleDim": "Zero per seat.",
+      "featuresTitleDim": "Zero licenses.",
       "f1": {
         "t": "Pipelines",
         "d": "Drag deals across stages you define. One pipeline or ten — no per-pipeline pricing."
@@ -288,12 +288,12 @@
         "per": "/ user / month",
         "team": "$6,000",
         "zero": "$0",
-        "note": "HubSpot Sales Hub Professional starts near $50 per user per month. Ten salespeople: $6,000 a year — before onboarding fees. CRM costs $0."
+        "note": "HubSpot Sales Hub Professional starts near $50 per user per month. Ten salespeople: $6,000 a year — before onboarding fees. Self-hosted CRM costs $0."
       },
       "faq": {
         "f1": {
           "q": "Is it really free?",
-          "a": "Yes. The code is open source and self-hosting costs nothing. The hosted cloud costs only the infrastructure it consumes, at cost. We sell convenience, never software."
+          "a": "Yes. The core is open source (AGPLv3) and self-hosting costs nothing. On Zerosoft Cloud you start on a free plan and, if you scale, pay for usage, with transparent prices. We sell convenience, never the core."
         },
         "f2": {
           "q": "Can I migrate from HubSpot?",
@@ -373,12 +373,12 @@
         "per": "/ user / month",
         "team": "$1,440",
         "zero": "$0",
-        "note": "Calendly Standard costs about $12 per user per month. Ten people scheduling: $1,440 a year, every year. Cal costs $0."
+        "note": "Calendly Standard costs about $12 per user per month. Ten people scheduling: $1,440 a year, every year. Self-hosted Cal costs $0."
       },
       "faq": {
         "f1": {
           "q": "Is it really free?",
-          "a": "Yes. Open source, so self-hosting costs nothing. If we host it, you pay only the cloud at cost. Scheduling is bits and a calendar API — it was never worth $12 a month."
+          "a": "Yes. The core is open source, so self-hosting costs nothing. On Zerosoft Cloud you start on a free plan and, if you scale, pay for usage, with transparent prices. Scheduling is bits and a calendar API — it was never worth $12 a month."
         },
         "f2": {
           "q": "Can I migrate from Calendly?",
@@ -390,7 +390,7 @@
         },
         "f4": {
           "q": "Can I self-host it?",
-          "a": "Yes. Clone, run, set your availability, share your link. No license server, no feature flags, no premium tier hiding the good parts."
+          "a": "Yes. Run the core, set your availability, share your link. No license server, no premium tier hiding the good parts: the whole core is yours. Only enterprise extras (SSO, audit logs, white-label) come under a commercial license."
         },
         "f5": {
           "q": "Is it live?",
@@ -433,8 +433,8 @@
         "d": "Make a page public, share with a team, or share with a single user. You control every door."
       },
       "f5": {
-        "t": "No per-seat pricing",
-        "d": "Invite your whole company. The price does not change because more people read docs."
+        "t": "The whole company in",
+        "d": "Invite your whole company. Self-hosted, the price stays at $0 no matter how many people read."
       },
       "f6": {
         "t": "Open data",
@@ -458,12 +458,12 @@
         "per": "/ user / month",
         "team": "$1,200",
         "zero": "$0",
-        "note": "Notion Plus starts around $10 per user per month. A team of ten pays $1,200 a year. Docs costs $0."
+        "note": "Notion Plus starts around $10 per user per month. A team of ten pays $1,200 a year. Self-hosted Docs costs $0."
       },
       "faq": {
         "f1": {
           "q": "Is it really free?",
-          "a": "Yes. Open source and self-hostable for $0. If we host it, you pay only the cloud at cost. No per-user fees."
+          "a": "Yes. Open source (AGPLv3) and self-hostable for $0. On Zerosoft Cloud you start on a free plan and, if you scale, pay for usage, with transparent prices."
         },
         "f2": {
           "q": "Can I import from Notion?",
@@ -534,8 +534,8 @@
         "d": "Every visitor, lead and customer in one place: who they are, what they saw, what they asked."
       },
       "f9": {
-        "t": "No per-seat pricing",
-        "d": "Support is a team sport. Open source and self-hostable — invite everyone, the price stays $0."
+        "t": "The whole team in",
+        "d": "Support is a team sport. Open source and self-hostable: invite everyone, the price stays $0."
       },
       "compare": {
         "rival": "Intercom",
@@ -543,12 +543,12 @@
         "per": "/ seat / month",
         "team": "$3,480",
         "zero": "$0",
-        "note": "Intercom starts around $29 per seat per month. A team of ten pays $3,480 a year. Chat costs $0."
+        "note": "Intercom starts around $29 per seat per month. A team of ten pays $3,480 a year. Self-hosted Chat costs $0."
       },
       "faq": {
         "f1": {
           "q": "Is it really free?",
-          "a": "Yes. Open source and self-hostable for $0. If we host it, you pay only the cloud at cost. No per-seat fees, no per-resolution fees."
+          "a": "Yes. Open source (AGPLv3) and self-hostable for $0. On Zerosoft Cloud you start on a free plan and, if you scale, pay for usage, with transparent prices."
         },
         "f2": {
           "q": "How do I add the widget to my site?",
@@ -588,19 +588,25 @@
     "compareZero": "With Zerosoft",
     "compareTeam": "Team of 10",
     "compareYear": "/ year",
-    "modelLabel": "03 — Two ways to have it",
+    "modelLabel": "03 — Three ways to have it",
     "model": {
       "a": {
         "title": "Self-host it",
-        "desc": "Download the code, run it on your server, change whatever you want. It is yours under an open license — today, tomorrow, and if we ever disappear.",
+        "desc": "The core is open source under AGPLv3, with every core feature included. Run it on your server, modify it, break it, make it yours. No trial, no license key, no limits.",
         "price": "$0",
         "priceNote": "/ forever"
       },
       "b": {
-        "title": "We run it for you",
-        "desc": "Login, backups, updates and uptime included. You pay exactly what the cloud costs us. Not a cent more, ever.",
-        "price": "At cost",
-        "priceNote": "/ of the cloud"
+        "title": "Zerosoft Cloud",
+        "desc": "We run it for you: login, backups, updates and uptime. Start on a generous free plan and, as you scale, pay for usage — clicks, bookings, emails, storage, seats. Transparent prices, published before we ever charge you.",
+        "price": "Free",
+        "priceNote": "/ to start · usage pricing, soon"
+      },
+      "c": {
+        "title": "Enterprise",
+        "desc": "SSO/SAML, audit logs, custom roles and white-label, under a commercial license. With direct support from the team, on your servers or in our cloud.",
+        "price": "Let's talk",
+        "priceNote": "/ commercial license + support"
       }
     },
     "faqLabel": "04 — FAQ",
@@ -625,8 +631,8 @@
       "r1short": "zs.ai/launch",
       "r1dest": "zerosoft.ai/blog/software-is-dead",
       "r1clicks": "4,812",
-      "r2short": "zs.ai/github",
-      "r2dest": "github.com/zerosoft",
+      "r2short": "zs.ai/docs",
+      "r2dest": "zerosoft.ai/docs",
       "r2clicks": "3,204",
       "r3short": "zs.ai/docs",
       "r3dest": "zerosoft.ai/docs",

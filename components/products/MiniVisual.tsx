@@ -6,7 +6,7 @@ export default function MiniVisual({ product }: { product: string }) {
   if (product === 'link') {
     const rows = [
       { url: 'zs.ai/launch', bars: [8, 12, 10, 16, 14] },
-      { url: 'zs.ai/github', bars: [6, 9, 14, 11, 15] },
+      { url: 'zs.ai/demo', bars: [6, 9, 14, 11, 15] },
       { url: 'zs.ai/docs', bars: [10, 7, 12, 9, 13] },
     ];
     return (

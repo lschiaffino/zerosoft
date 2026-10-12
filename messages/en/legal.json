@@ -13,7 +13,7 @@
       "s01": {
         "h": "The short version",
         "p": [
-          "We give software away. You can use it, host it and modify it under its open source license. If you use our cloud, you pay only the infrastructure it consumes, at cost. Do not use any of it to break the law or to hurt people. That is most of it — the rest is the same idea with more detail."
+          "We give the core software away. You can use it, host it and modify it under its open source license (AGPLv3). If you use our cloud, you start on a free plan and pay for usage beyond it, at published prices. Do not use any of it to break the law or hurt people. That is most of it — the rest is the same idea in more detail."
         ]
       },
       "s02": {
@@ -25,15 +25,15 @@
       "s03": {
         "h": "The software and its license",
         "p": [
-          "All Zerosoft products are open source. Each repository ships with its license (MIT or AGPL, as indicated in the repository itself). Your rights to download, run, modify and redistribute the code come from that license, not from these terms.",
+          "The core of Zerosoft products is open source under the AGPLv3 license. Enterprise features (such as SSO/SAML, audit logs, custom roles and white-label) are distributed under a separate commercial license, indicated in the code itself. Your rights to download, run, modify and redistribute the core come from the AGPLv3, not from these terms.",
           "These terms do not restrict the license in any way, and the license does not grant you any rights over our hosted service, our domains or our brand."
         ]
       },
       "s04": {
         "h": "The hosted cloud",
         "p": [
-          "If you create an account, we run the software for you. You pay exactly the infrastructure your usage consumes — compute, storage, bandwidth — plus taxes where applicable. Our margin on infrastructure is 0%. This is the whole business model: we sell convenience, never software.",
-          "We publish how the cost is calculated, and if the cloud gets cheaper, your bill gets cheaper."
+          "If you create an account, we run the software for you. Zerosoft Cloud includes a free plan; beyond its limits, it is billed by usage — for example clicks, bookings, emails, storage or seats — plus taxes where applicable. That is how the project sustains itself: we sell the convenience of not running servers and the enterprise features, never the core.",
+          "We publish prices before charging anything, and we give advance notice before any change."
         ]
       },
       "s05": {
@@ -63,7 +63,7 @@
       "s08": {
         "h": "Payment and cancellation",
         "p": [
-          "The cloud is billed at cost, monthly in arrears, with no lock-in. Cancel whenever you want: the service runs until the end of the paid period, and your data stays exportable for 30 days after that.",
+          "Paid cloud usage is billed at published prices, monthly in arrears, with no lock-in. Cancel whenever you want: the service runs until the end of the paid period, and your data stays exportable for 30 days after that.",
           "Unpaid invoices, after notice, may suspend the account — never delete it without warning."
         ]
       },
@@ -250,7 +250,7 @@
       "s07": {
         "h": "Open source as an audit",
         "p": [
-          "Every line of the products is public. You do not have to trust this page — you can read the code, run it yourself, and verify the claims. Reports from people who did exactly that are our favorite kind of email."
+          "The core of the products is open source, and the code is being published soon. You will not have to trust this page: you will be able to read the code, run it yourself and verify every claim. Reports from people who do exactly that will be our favorite kind of email."
         ]
       },
       "s08": {

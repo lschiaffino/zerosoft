@@ -1,7 +1,7 @@
 {
   "meta": {
-    "tagline": "Software is dead",
-    "description": "We rebuild the tools you use every day and set them free: open source, free, forever. Self-host them or pay only the cloud, at cost."
+    "tagline": "Software is free. You pay for what scales.",
+    "description": "We rebuilt the tools you use every day as open source (AGPLv3). Self-host them free, forever, or use Zerosoft Cloud: a free plan, and you pay only for what scales."
   },
   "header": {
     "products": "Products",
@@ -48,7 +48,7 @@
   "hero": {
     "title1": "Software is",
     "title2": "dead.",
-    "sub": "We rebuild the tools you use every day and set them free: open source, free, forever. If we run them for you, you only pay the cloud. At cost.",
+    "sub": "Software is free. You pay for what scales. We rebuilt the tools you use every day as open source: self-host them for $0, forever, or let us run them for you, with a generous free plan.",
     "ctaPrimary": "See the arsenal",
     "ctaSecondary": "Read the manifesto",
     "scroll": "Scroll ↓"
@@ -57,35 +57,36 @@
     "label": "0.01 — Manifesto",
     "p1": "They charge you <strong>$30 to move cards</strong>. $50 to store contacts. $12 to shorten a link. Not for the software — out of habit.",
     "p2": "But software is bits. And bits are free. <strong>They always were.</strong>",
-    "p3": "Zerosoft exists to prove it: we rebuild the tools that move the world and set them free. No licenses. No lock-in. No fine print. Self-host it if you want. Or we run it for you and you pay exactly what the cloud costs. Not a penny more.",
+    "p3": "Zerosoft exists to prove it: we rebuild the tools that run the world and set the core free under AGPLv3. No lock-in. No fine print. Host it yourself, free, forever. Or we run it for you: you start free and pay only for what scales — clicks, bookings, emails, storage, seats. With prices in the open.",
     "final": "Software is dead. We are what comes next."
   },
   "stats": {
     "s1num": "$0",
-    "s1label": "The price of software. Always.",
-    "s2num": "0%",
-    "s2label": "Our margin on the cloud.",
-    "s3num": "100%",
+    "s1label": "The core, self-hosted. Always.",
+    "s2num": "0",
+    "s2label": "Core features behind a paywall.",
+    "s3num": "AGPL",
     "s3label": "Open source. Forever."
   },
   "products": {
     "label": "0.02 — The arsenal",
     "title": "All the software you use.",
-    "titleDim": "Zero software you pay for.",
+    "titleDim": "The core, free forever.",
     "track": { "tag": "Project management", "desc": "The speed of Linear. The price of air.", "status": "Available" },
-    "crm": { "tag": "Customers & sales", "desc": "Your entire pipeline, end to end. Zero per-seat licenses.", "status": "Available" },
+    "crm": { "tag": "Customers & sales", "desc": "Your full pipeline, end to end. Open source, no licenses.", "status": "Available" },
     "cal": { "tag": "Scheduling", "desc": "Your availability, one link, done. Without paying for the privilege.", "status": "Available" },
     "link": { "tag": "Short links", "desc": "Short links with real analytics. Yours forever.", "status": "Available" },
     "chat": { "tag": "Customer chat", "desc": "One inbox for every conversation. Widgets, people and channels.", "status": "Available" },
-    "docs": { "tag": "Docs & wiki", "desc": "Notes and documents that belong to you. No per-seat pricing.", "status": "Available" },
+    "docs": { "tag": "Docs & wiki", "desc": "Notes and documents that are yours. Exportable, always.", "status": "Available" },
     "more": { "title": "Everything else", "tag": "What's next", "desc": "Design. Forms. Analytics. If the world uses it, we will set it free. This is just the beginning.", "status": "Always" }
   },
   "model": {
     "label": "0.03 — The model",
-    "title": "Two ways to have it all.",
-    "titleDim": "Neither involves paying for software.",
-    "a": { "title": "Host it yourself", "desc": "All the code is open. Download it from GitHub, run it on your server, modify it, break it, make it yours. Because it is yours.", "price": "$0", "priceNote": "/ forever" },
-    "b": { "title": "We run it for you", "desc": "You get login, backups, updates and uptime. You pay exactly what the cloud costs. Not a cent more. Not a cent less.", "price": "At cost", "priceNote": "/ of the cloud" }
+    "title": "Three ways to have it.",
+    "titleDim": "The core is free in all of them.",
+    "a": { "title": "Self-host it", "desc": "The core is open source under AGPLv3, with every core feature included. Run it on your server, modify it, break it, make it yours. No trial, no license key, no limits.", "price": "$0", "priceNote": "/ forever" },
+    "b": { "title": "Zerosoft Cloud", "desc": "We run it for you: login, backups, updates and uptime. Start on a generous free plan and, as you scale, pay for usage — clicks, bookings, emails, storage, seats. Transparent prices, published before we ever charge you.", "price": "Free", "priceNote": "/ to start · usage pricing, soon" },
+    "c": { "title": "Enterprise", "desc": "SSO/SAML, audit logs, custom roles and white-label, under a commercial license. With direct support from the team, on your servers or in our cloud.", "price": "Let's talk", "priceNote": "/ commercial license + support" }
   },
   "end": {
     "label": "0.04 — Join us",

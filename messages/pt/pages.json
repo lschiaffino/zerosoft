@@ -2,13 +2,13 @@
   "products": {
     "meta": {
       "title": "Produtos — O arsenal",
-      "description": "Link, CRM, Track, Cal, Docs e Chat: as ferramentas que movem uma empresa, reconstruídas e libertadas. Open source, ou nuvem ao custo."
+      "description": "Link, CRM, Track, Cal, Docs e Chat: as ferramentas que movem uma empresa, reconstruídas e libertadas. Open source e grátis para hospedar, ou na nossa nuvem com plano grátis."
     },
     "hero": {
       "label": "0.02 — Produtos",
       "title1": "Tudo o que você usa.",
       "title2": "Zero do que você paga.",
-      "sub": "Seis ferramentas movem a empresa moderna: links, clientes, projetos, tempo, documentos e suporte. Reconstruímos as seis em aberto. Custam zero, são suas, e todas já estão no ar."
+      "sub": "Seis ferramentas movem a empresa moderna: links, clientes, projetos, tempo, documentos e suporte. Reconstruímos as seis à vista. O core custa zero, é seu, e as seis já estão no ar."
     },
     "compare": {
       "label": "0.03 — A conta",
@@ -23,7 +23,7 @@
       "r4price": "US$ 12 / mês",
       "withTitle": "Com a Zerosoft",
       "big": "$0",
-      "note": "Todo mês, todo ano, para sempre. Se rodarmos para você, você paga apenas a nuvem que consome. Ao custo.",
+      "note": "Auto-hospedado: todo mês, todo ano, para sempre. Na Zerosoft Cloud você começa grátis e paga só pelo que escala.",
       "r5name": "Notion",
       "r5price": "US$ 10 / usuário / mês",
       "r6name": "Intercom",
@@ -62,7 +62,7 @@
       "label": "0.05 — Junte-se",
       "title1": "Pare de pagar",
       "title2": "por bits.",
-      "sub": "As seis são grátis e estão no ar. Entre agora e nunca mais pague por software.",
+      "sub": "As seis estão no ar e são grátis para começar. Entre agora: você paga só pelo que escala.",
       "button": "Abrir o app →"
     },
     "link": {
@@ -118,12 +118,12 @@
         "per": "/ mês",
         "team": "US$ 4.200",
         "zero": "$0",
-        "note": "O Bitly Core custa US$ 35 por mês — US$ 420 por ano, todo ano. Um time de 10 com preço por assento passa fácil de US$ 4.200 por ano. O Link custa $0. Para sempre."
+        "note": "O Bitly Core custa US$ 35 por mês — US$ 420 por ano, todo ano. Um time de 10 com preço por assento passa fácil de US$ 4.200 por ano. O Link auto-hospedado custa $0. Para sempre."
       },
       "faq": {
         "f1": {
           "q": "É grátis de verdade?",
-          "a": "Sim. O código é open source e self-hospedar não custa nada. Se rodarmos para você, você paga apenas a nuvem que ele consome — ao custo, sem margem. O software nunca foi a parte cara; era o modelo de negócio."
+          "a": "Sim. O core é open source (AGPLv3) e auto-hospedar não custa nada, para sempre. Na Zerosoft Cloud você começa com um plano grátis e, se escalar, paga por uso, com preços transparentes. O software nunca foi a parte cara; o modelo de negócio era."
         },
         "f2": {
           "q": "Posso migrar meus links do Bitly?",
@@ -135,7 +135,7 @@
         },
         "f4": {
           "q": "Posso self-hospedar?",
-          "a": "Essa é a ideia. Clone o repo, rode em qualquer servidor com Node e SQLite, configure seu domínio, pronto. Sem license key, sem phone-home, sem tier enterprise."
+          "a": "Essa é a ideia. O core é AGPLv3: rode em qualquer servidor com Node e SQLite, configure seu domínio, pronto. Sem license key, sem phone-home, com todas as funções do core. Só o enterprise (SSO, audit logs) vem com licença comercial."
         },
         "f5": {
           "q": "Meus links expiram algum dia?",
@@ -203,12 +203,12 @@
         "per": "/ usuário / mês",
         "team": "US$ 960",
         "zero": "$0",
-        "note": "O Linear Standard custa US$ 8 por usuário por mês. Um time de 10 paga US$ 960 por ano, todo ano, para sempre. O Track custa $0."
+        "note": "O Linear Standard custa US$ 8 por usuário por mês. Um time de 10 paga US$ 960 por ano, todo ano, para sempre. O Track auto-hospedado custa $0."
       },
       "faq": {
         "f1": {
           "q": "É grátis de verdade?",
-          "a": "Sim. Open source sob licença pública, então self-hospedar não custa nada. Nossa nuvem custa apenas a infraestrutura que consome — ao custo, 0% de margem."
+          "a": "Sim. O core é open source sob AGPLv3, então auto-hospedar não custa nada. Nossa nuvem começa com um plano grátis e depois cobra por uso, com preços transparentes."
         },
         "f2": {
           "q": "Posso migrar do Linear?",
@@ -220,7 +220,7 @@
         },
         "f4": {
           "q": "Posso self-hospedar?",
-          "a": "Com certeza. É a forma padrão de rodar qualquer produto Zerosoft: seu servidor, seus dados, suas regras. A nuvem existe só por conveniência."
+          "a": "Com certeza. É a forma padrão de rodar cada produto Zerosoft: seu servidor, seus dados, suas regras. A nuvem existe para quem prefere não operar servidores."
         },
         "f5": {
           "q": "Já está no ar?",
@@ -238,14 +238,14 @@
     "crm": {
       "meta": {
         "title": "CRM — Clientes sem a fatura",
-        "description": "Contatos, pipelines, sincronização de email e relatórios — os 80% do HubSpot que você realmente usa, a 0% do preço. Open source. Já está no ar."
+        "description": "Contatos, pipelines, sincronização de email e relatórios — os 80% do HubSpot que você realmente usa, por $0 se você hospedar. Open source. Já está no ar."
       },
       "hero": {
         "tag": "Clientes e vendas",
-        "sub": "Contatos, pipelines, sincronização de email e relatórios — os 80% do HubSpot que você realmente usa, a 0% do preço. Open source. Já está no ar."
+        "sub": "Contatos, pipelines, sincronização de email e relatórios — os 80% do HubSpot que você realmente usa, por $0 se você hospedar. Open source. Já está no ar."
       },
       "featuresTitle": "Todo o seu pipeline.",
-      "featuresTitleDim": "Zero por assento.",
+      "featuresTitleDim": "Zero licenças.",
       "f1": {
         "t": "Pipelines",
         "d": "Arraste deals pelas etapas que você definir. Um pipeline ou dez — sem preço por pipeline."
@@ -288,12 +288,12 @@
         "per": "/ usuário / mês",
         "team": "US$ 6.000",
         "zero": "$0",
-        "note": "O HubSpot Sales Hub Professional começa perto de US$ 50 por usuário por mês. Dez vendedores: US$ 6.000 por ano — antes das taxas de onboarding. O CRM custa $0."
+        "note": "O HubSpot Sales Hub Professional começa perto de US$ 50 por usuário por mês. Dez vendedores: US$ 6.000 por ano — antes das taxas de onboarding. O CRM auto-hospedado custa $0."
       },
       "faq": {
         "f1": {
           "q": "É grátis de verdade?",
-          "a": "Sim. O código é open source e self-hospedar não custa nada. A nuvem custa apenas a infraestrutura que consome, ao custo. Vendemos conveniência, nunca software."
+          "a": "Sim. O core é open source (AGPLv3) e auto-hospedar não custa nada. Na Zerosoft Cloud você começa com um plano grátis e, se escalar, paga por uso, com preços transparentes. Vendemos comodidade, nunca o core."
         },
         "f2": {
           "q": "Posso migrar do HubSpot?",
@@ -373,12 +373,12 @@
         "per": "/ usuário / mês",
         "team": "US$ 1.440",
         "zero": "$0",
-        "note": "O Calendly Standard custa cerca de US$ 12 por usuário por mês. Dez pessoas agendando: US$ 1.440 por ano, todo ano. O Cal custa $0."
+        "note": "O Calendly Standard custa cerca de US$ 12 por usuário por mês. Dez pessoas agendando: US$ 1.440 por ano, todo ano. O Cal auto-hospedado custa $0."
       },
       "faq": {
         "f1": {
           "q": "É grátis de verdade?",
-          "a": "Sim. Open source, então self-hospedar não custa nada. Se rodarmos para você, você paga apenas a nuvem ao custo. Agendar são bits e uma API de calendário — nunca valeu US$ 12 por mês."
+          "a": "Sim. O core é open source, então auto-hospedar não custa nada. Na Zerosoft Cloud você começa com um plano grátis e, se escalar, paga por uso, com preços transparentes. Agendar são bits e uma API de calendário — nunca valeu $12 por mês."
         },
         "f2": {
           "q": "Posso migrar do Calendly?",
@@ -390,7 +390,7 @@
         },
         "f4": {
           "q": "Posso self-hospedar?",
-          "a": "Sim. Clone, rode, configure sua disponibilidade, compartilhe seu link. Sem servidor de licenças, sem feature flags, sem tier premium escondendo o melhor."
+          "a": "Sim. Rode o core, configure sua disponibilidade, compartilhe seu link. Sem servidor de licenças nem tier premium escondendo o melhor: todo o core é seu. Só o enterprise (SSO, audit logs, white-label) vem com licença comercial."
         },
         "f5": {
           "q": "Já está no ar?",
@@ -433,8 +433,8 @@
         "d": "Torne uma página pública, compartilhe com um time ou com um usuário. Você controla cada porta."
       },
       "f5": {
-        "t": "Sem cobrança por usuário",
-        "d": "Convide toda a sua empresa. O preço não muda porque mais pessoas leem documentos."
+        "t": "A empresa toda dentro",
+        "d": "Convide a empresa toda. Auto-hospedado, o preço continua em $0 não importa quanta gente leia."
       },
       "f6": {
         "t": "Dados abertos",
@@ -458,12 +458,12 @@
         "per": "/ usuário / mês",
         "team": "US$ 1.200",
         "zero": "$0",
-        "note": "O Notion Plus começa em cerca de US$ 10 por usuário por mês. Um time de dez paga US$ 1.200 por ano. O Docs custa $0."
+        "note": "O Notion Plus começa em cerca de US$ 10 por usuário por mês. Um time de dez paga US$ 1.200 por ano. O Docs auto-hospedado custa $0."
       },
       "faq": {
         "f1": {
           "q": "É grátis de verdade?",
-          "a": "Sim. Open source e self-hospedável por $0. Se rodarmos para você, você paga apenas a nuvem ao custo. Sem taxas por usuário."
+          "a": "Sim. Open source (AGPLv3) e auto-hospedável por $0. Na Zerosoft Cloud você começa com um plano grátis e, se escalar, paga por uso, com preços transparentes."
         },
         "f2": {
           "q": "Posso migrar do Notion?",
@@ -534,8 +534,8 @@
         "d": "Cada visitante, lead e cliente em um só lugar: quem são, o que viram, o que perguntaram."
       },
       "f9": {
-        "t": "Sem cobrança por usuário",
-        "d": "Suporte é esporte de equipe. Open source e auto-hospedável — convide todo mundo, o preço continua $0."
+        "t": "O time todo dentro",
+        "d": "Suporte é um esporte de equipe. Open source e auto-hospedável: convide todo mundo, o preço continua $0."
       },
       "compare": {
         "rival": "Intercom",
@@ -543,12 +543,12 @@
         "per": "/ usuário / mês",
         "team": "US$ 3.480",
         "zero": "$0",
-        "note": "O Intercom começa em cerca de US$ 29 por usuário por mês. Um time de dez paga US$ 3.480 por ano. O Chat custa $0."
+        "note": "O Intercom começa em cerca de US$ 29 por usuário por mês. Um time de dez paga US$ 3.480 por ano. O Chat auto-hospedado custa $0."
       },
       "faq": {
         "f1": {
           "q": "É grátis de verdade?",
-          "a": "Sim. Open source e self-hospedável por $0. Se rodarmos para você, você paga apenas a nuvem ao custo. Sem taxas por usuário nem por resolução."
+          "a": "Sim. Open source (AGPLv3) e auto-hospedável por $0. Na Zerosoft Cloud você começa com um plano grátis e, se escalar, paga por uso, com preços transparentes."
         },
         "f2": {
           "q": "Como adiciono o widget ao meu site?",
@@ -588,19 +588,25 @@
     "compareZero": "Com a Zerosoft",
     "compareTeam": "Time de 10",
     "compareYear": "/ ano",
-    "modelLabel": "03 — Duas formas de ter",
+    "modelLabel": "03 — Três formas de ter",
     "model": {
       "a": {
         "title": "Hospede você mesmo",
-        "desc": "Baixe o código, rode no seu servidor, mude o que quiser. É seu sob uma licença aberta — hoje, amanhã, e se um dia desaparecermos.",
+        "desc": "O core é open source sob AGPLv3, com todas as funções. Rode no seu servidor, modifique, quebre, faça seu. Sem trial, sem license key, sem limites.",
         "price": "$0",
         "priceNote": "/ para sempre"
       },
       "b": {
-        "title": "Nós rodamos para você",
-        "desc": "Login, backups, atualizações e uptime incluídos. Você paga exatamente o que a nuvem nos custa. Nem um centavo a mais, nunca.",
-        "price": "Ao custo",
-        "priceNote": "/ da nuvem"
+        "title": "Zerosoft Cloud",
+        "desc": "Nós rodamos para você: login, backups, atualizações e uptime. Comece com um plano grátis generoso e, quando escalar, pague por uso — cliques, reservas, emails, armazenamento, assentos. Preços transparentes, publicados antes de cobrar qualquer coisa.",
+        "price": "Grátis",
+        "priceNote": "/ para começar · preços por uso, em breve"
+      },
+      "c": {
+        "title": "Enterprise",
+        "desc": "SSO/SAML, audit logs, papéis personalizados e white-label, sob licença comercial. Com suporte direto do time, nos seus servidores ou na nossa nuvem.",
+        "price": "Fale conosco",
+        "priceNote": "/ licença comercial + suporte"
       }
     },
     "faqLabel": "04 — FAQ",
@@ -625,8 +631,8 @@
       "r1short": "zs.ai/launch",
       "r1dest": "zerosoft.ai/blog/o-software-morreu",
       "r1clicks": "4.812",
-      "r2short": "zs.ai/github",
-      "r2dest": "github.com/zerosoft",
+      "r2short": "zs.ai/docs",
+      "r2dest": "zerosoft.ai/docs",
       "r2clicks": "3.204",
       "r3short": "zs.ai/docs",
       "r3dest": "zerosoft.ai/docs",
