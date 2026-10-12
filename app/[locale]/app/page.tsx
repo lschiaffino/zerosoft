@@ -104,7 +104,7 @@ export default async function OverviewPage(props: { params: Promise<{ locale: st
               {o.recent.map((l) => (
                 <li key={l.id}>
                   <Link href={`/app/links/${l.id}`} className="recent-row">
-                    <span className="mono recent-slug">{shortUrl(l.slug)}</span>
+                    <span className="mono recent-slug">{shortUrl(l.slug, l.domain_hostname)}</span>
                     <span className="muted recent-url">{l.url}</span>
                     <span className="mono recent-clicks">{formatNumber(l.clicks, locale)}</span>
                   </Link>

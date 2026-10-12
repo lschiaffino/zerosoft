@@ -41,7 +41,7 @@ export default async function LinksPage(props: LinksPageProps) {
   const rows: TableRow[] = result.links.map((l) => ({
     id: l.id,
     slug: l.slug,
-    short: shortUrl(l.slug),
+    short: shortUrl(l.slug, l.domain_hostname ?? null),
     url: l.url,
     title: l.title,
     tags: parseTags(l.tags),

@@ -237,7 +237,8 @@
     "unauthorized": "Não autorizado.",
     "empty": "Pelo menos uma URL é obrigatória.",
     "too_many": "URLs demais. Máximo de 200 por lote.",
-    "generic": "Algo deu errado. Tente de novo."
+    "generic": "Algo deu errado. Tente de novo.",
+    "invalid_domain": "Esse domínio ainda não foi verificado."
   },
   "webhooks": {
     "desc": "Enviamos um JSON assinado (POST) para sua URL quando esses eventos acontecem. Verifique o header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") com seu secret. Entregas com falha são reenviadas com backoff.",
@@ -256,6 +257,36 @@
       "invalid_url": "A URL não é válida.",
       "invalid_input": "Informe uma URL e escolha pelo menos um evento.",
       "generic": "Não foi possível adicionar o webhook. Tente de novo."
+    }
+  },
+  "domains": {
+    "title": "Domínios próprios",
+    "desc": "Use seu próprio domínio curto (go.suaempresa.com/promo). Adicione, crie o registro DNS e verifique. O HTTPS é configurado automaticamente.",
+    "hostname": "Domínio",
+    "add": "Adicionar domínio",
+    "empty": "Ainda não há domínios próprios.",
+    "verified": "Verificado",
+    "pending": "Aguardando DNS",
+    "verify": "Verificar",
+    "remove": "Remover",
+    "dnsHelp": "Crie este registro no seu provedor de DNS. As mudanças podem levar alguns minutos.",
+    "type": "Tipo",
+    "name": "Nome",
+    "value": "Valor",
+    "verifiedNow": "Verificado. Agora você pode escolher este domínio ao criar links.",
+    "notYet": "O DNS ainda não aponta para cá. Tente de novo em alguns minutos.",
+    "root": "Redirect da raiz",
+    "rootPlaceholder": "Para onde vai go.suaempresa.com/ (opcional)",
+    "saveRoot": "Salvar",
+    "rootSaved": "Salvo.",
+    "pick": "Domínio",
+    "errors": {
+      "invalid_hostname": "Não é um domínio válido (ex. go.exemplo.com).",
+      "domain_taken": "Esse domínio já está em uso.",
+      "app_host": "Esse é o domínio do Zerosoft.",
+      "provider_error": "Não foi possível registrar o domínio na hospedagem. Tente de novo.",
+      "has_links": "Este domínio ainda tem links. Mova ou exclua-os primeiro.",
+      "invalid_url": "A URL não é válida."
     }
   }
 }

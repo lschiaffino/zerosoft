@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   gateCookieName,
-  getLinkBySlug,
+  getLinkForHost,
   isExpired,
   isValidGateToken,
 } from '@/lib/links';
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   const gone = (reason: string) =>
     NextResponse.redirect(new URL(`/${locale}/gone?reason=${reason}`, req.url));
 
-  const link = await getLinkBySlug(slug);
+  const link = await getLinkForHost(req.headers.get('host'), slug);
   if (!link || link.archived === 1) return gone('notfound');
   if (isExpired(link)) return gone('expired');
   if (link.max_clicks !== null && link.clicks >= link.max_clicks) return gone('limit');

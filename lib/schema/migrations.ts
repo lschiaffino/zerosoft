@@ -179,6 +179,65 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Link: dominios propios. El slug pasa de ser único global a único por
+    // dominio (NULL = dominio por defecto). Cambiar un UNIQUE de columna exige
+    // reconstruir la tabla: se hace con client.migrate (foreign keys apagadas,
+    // así el DROP no borra los clicks en cascada) y solo si sigue el UNIQUE viejo.
+    id: '009_link_domains',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS link_domains (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          hostname TEXT NOT NULL UNIQUE,
+          verified INTEGER NOT NULL DEFAULT 0,
+          verified_at TEXT,
+          root_url TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_domains_user ON link_domains(user_id);
+      `);
+      const current = await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'links'");
+      const sql = String(current.rows[0]?.sql ?? '');
+      if (sql && !/domain_id/.test(sql)) {
+        const cols =
+          'id, user_id, slug, url, title, tags, password_hash, expires_at, max_clicks, archived, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image, clicks, created_at, updated_at';
+        await client.migrate([
+          `CREATE TABLE links_new (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            domain_id TEXT REFERENCES link_domains(id),
+            slug TEXT NOT NULL,
+            url TEXT NOT NULL,
+            title TEXT,
+            tags TEXT NOT NULL DEFAULT '[]',
+            password_hash TEXT,
+            expires_at TEXT,
+            max_clicks INTEGER,
+            archived INTEGER NOT NULL DEFAULT 0,
+            redirect_type INTEGER NOT NULL DEFAULT 302,
+            utm_source TEXT,
+            utm_medium TEXT,
+            utm_campaign TEXT,
+            og_title TEXT,
+            og_description TEXT,
+            og_image TEXT,
+            clicks INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          )`,
+          `INSERT INTO links_new (${cols}) SELECT ${cols} FROM links`,
+          'DROP TABLE links',
+          'ALTER TABLE links_new RENAME TO links',
+          'CREATE INDEX IF NOT EXISTS idx_links_user ON links(user_id, created_at DESC)',
+        ]);
+      }
+      await client.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_links_domain_slug ON links(COALESCE(domain_id, ''), slug)",
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

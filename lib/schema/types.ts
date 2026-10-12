@@ -12,6 +12,7 @@ export interface UserRow {
 }
 
 export interface LinkRow {
+  domain_id: string | null;
   id: string;
   user_id: string;
   slug: string;

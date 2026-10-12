@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import { z } from 'zod';
-import { gateCookieName, gateToken, getLinkBySlug, verifyPassword } from '@/lib/links';
+import { gateCookieName, gateToken, getLinkForHost, verifyPassword } from '@/lib/links';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   // Fuerza bruta sobre un link puntual: 5 intentos por minuto por IP y slug.
   const perLink = await limitByIp(req, 'gate-slug', 5, 60, slug);
   if (perLink) return perLink;
-  const link = await getLinkBySlug(slug);
+  const link = await getLinkForHost(req.headers.get('host'), slug);
   if (!link || !link.password_hash) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }

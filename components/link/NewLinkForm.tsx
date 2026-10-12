@@ -24,12 +24,20 @@ function composeUrl(url: string, source: string, medium: string, campaign: strin
   }
 }
 
-export default function NewLinkForm({ domain }: { domain: string }) {
+interface NewLinkFormProps {
+  /** Dominio por defecto (zerosoft). */
+  domain: string;
+  /** Dominios propios verificados del workspace. */
+  customDomains?: Array<{ id: string; hostname: string }>;
+}
+
+export default function NewLinkForm({ domain, customDomains = [] }: NewLinkFormProps) {
   const t = useTranslations('link');
   const router = useRouter();
 
   const [url, setUrl] = useState('');
   const [slug, setSlug] = useState('');
+  const [domainId, setDomainId] = useState<string>('');
   const [slugState, setSlugState] = useState<SlugState>('idle');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -61,7 +69,9 @@ export default function NewLinkForm({ domain }: { domain: string }) {
     setSlugState('checking');
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/links/check-slug?slug=${encodeURIComponent(value)}`);
+        const res = await fetch(
+          `/api/links/check-slug?slug=${encodeURIComponent(value)}${domainId ? `&domainId=${encodeURIComponent(domainId)}` : ''}`,
+        );
         const data = (await res.json()) as { available: boolean; valid: boolean };
         setSlugState(data.valid && data.available ? 'available' : 'taken');
       } catch {
@@ -69,7 +79,7 @@ export default function NewLinkForm({ domain }: { domain: string }) {
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [slug]);
+  }, [slug, domainId]);
 
   const finalUrl = useMemo(
     () => composeUrl(url, utmSource, utmMedium, utmCampaign),
@@ -101,6 +111,7 @@ export default function NewLinkForm({ domain }: { domain: string }) {
     try {
       const payload: Record<string, unknown> = { url: url.trim(), tags, redirectType };
       if (slug.trim()) payload.slug = slug.trim();
+      if (domainId) payload.domainId = domainId;
       if (title.trim()) payload.title = title.trim();
       if (utmSource.trim()) payload.utmSource = utmSource.trim();
       if (utmMedium.trim()) payload.utmMedium = utmMedium.trim();
@@ -124,7 +135,7 @@ export default function NewLinkForm({ domain }: { domain: string }) {
       }
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       const code = data?.error;
-      setError(code ? t(`errors.${code}`) : t('errors.generic'));
+      setError(code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
       setSubmitting(false);
     } catch {
       setError(t('errors.generic'));
@@ -150,7 +161,23 @@ export default function NewLinkForm({ domain }: { domain: string }) {
       <div className="field">
         <label className="label" htmlFor="nl-slug">{t('new.slugLabel')}</label>
         <div className="slug-row">
-          <span className="slug-domain mono">{domain}/</span>
+          {customDomains.length > 0 ? (
+            <select
+              className="input mono slug-domain-select"
+              value={domainId}
+              onChange={(e) => setDomainId(e.target.value)}
+              aria-label={t('domains.pick')}
+            >
+              <option value="">{domain}/</option>
+              {customDomains.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.hostname}/
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="slug-domain mono">{domain}/</span>
+          )}
           <input
             id="nl-slug"
             className="input mono"

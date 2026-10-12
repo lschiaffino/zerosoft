@@ -237,7 +237,8 @@
     "unauthorized": "No autorizado.",
     "empty": "Al menos una URL es requerida.",
     "too_many": "Demasiadas URLs. Máximo 200 por lote.",
-    "generic": "Algo salió mal. Probá de nuevo."
+    "generic": "Algo salió mal. Probá de nuevo.",
+    "invalid_domain": "Ese dominio todavía no está verificado."
   },
   "webhooks": {
     "desc": "Enviamos un JSON firmado (POST) a tu URL cuando pasan estos eventos. Verificá el header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") con tu secret. Las entregas fallidas se reintentan con backoff.",
@@ -256,6 +257,36 @@
       "invalid_url": "La URL no es válida.",
       "invalid_input": "Ingresá una URL y elegí al menos un evento.",
       "generic": "No se pudo agregar el webhook. Probá de nuevo."
+    }
+  },
+  "domains": {
+    "title": "Dominios propios",
+    "desc": "Usá tu propio dominio corto (go.tuempresa.com/promo). Agregalo, creá el registro DNS y verificá. El HTTPS se configura solo.",
+    "hostname": "Dominio",
+    "add": "Agregar dominio",
+    "empty": "Todavía no hay dominios propios.",
+    "verified": "Verificado",
+    "pending": "Esperando DNS",
+    "verify": "Verificar",
+    "remove": "Quitar",
+    "dnsHelp": "Creá este registro en tu proveedor de DNS. Los cambios pueden tardar unos minutos.",
+    "type": "Tipo",
+    "name": "Nombre",
+    "value": "Valor",
+    "verifiedNow": "Verificado. Ya podés elegir este dominio al crear links.",
+    "notYet": "El DNS todavía no apunta acá. Probá de nuevo en unos minutos.",
+    "root": "Redirect de la raíz",
+    "rootPlaceholder": "A dónde va go.tuempresa.com/ (opcional)",
+    "saveRoot": "Guardar",
+    "rootSaved": "Guardado.",
+    "pick": "Dominio",
+    "errors": {
+      "invalid_hostname": "No es un dominio válido (ej. go.ejemplo.com).",
+      "domain_taken": "Ese dominio ya está en uso.",
+      "app_host": "Ese es el dominio de Zerosoft.",
+      "provider_error": "No se pudo registrar el dominio en el hosting. Probá de nuevo.",
+      "has_links": "Este dominio todavía tiene links. Movelos o borralos primero.",
+      "invalid_url": "La URL no es válida."
     }
   }
 }

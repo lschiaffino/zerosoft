@@ -10,6 +10,14 @@ export const RESERVED_SLUGS = new Set([
 
 export const SLUG_REGEX = /^[A-Za-z0-9_-]{2,32}$/;
 
-export function isValidSlug(slug: string): boolean {
-  return SLUG_REGEX.test(slug) && !RESERVED_SLUGS.has(slug.toLowerCase());
+/**
+ * En el dominio por defecto el slug convive con las rutas del sitio; en un
+ * dominio propio todo /<algo> es un link, así que solo chocan los locales
+ * (/en/gate/…, /es/gone…) y __root (la raíz del dominio).
+ */
+export function isValidSlug(slug: string, customDomain = false): boolean {
+  if (!SLUG_REGEX.test(slug)) return false;
+  const lower = slug.toLowerCase();
+  if (customDomain) return !['en', 'es', 'pt', '__root'].includes(lower);
+  return !RESERVED_SLUGS.has(lower);
 }

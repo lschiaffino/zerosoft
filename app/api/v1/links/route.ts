@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createLink, listLinks, toLinkDto } from '@/lib/links';
+import { listDomains } from '@/lib/link-domains';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const createSchema = z.object({
   url: z.string().min(1),
+  /** Hostname de un dominio propio verificado (ej. go.empresa.com). */
+  domain: z.string().max(253).optional(),
   slug: z.string().max(32).optional(),
   title: z.string().max(200).optional(),
   tags: z.array(z.string().max(40)).max(5).optional(),
@@ -21,13 +24,22 @@ export async function POST(req: NextRequest) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return apiError(400, 'invalid_url', 'A valid "url" is required.');
 
-  const result = await createLink(auth.user.id, parsed.data);
+  let domainId: string | null = null;
+  if (parsed.data.domain) {
+    const domain = (await listDomains(auth.user.id)).find(
+      (d) => d.hostname === parsed.data.domain!.toLowerCase() && d.verified === 1,
+    );
+    if (!domain) return apiError(400, 'invalid_domain', 'That domain is not a verified domain of yours.');
+    domainId = domain.id;
+  }
+  const result = await createLink(auth.user.id, { ...parsed.data, domainId });
   if (!result.ok) {
     const messages: Record<string, string> = {
       invalid_url: 'The destination URL is not valid.',
       invalid_slug: 'The slug is not valid (2–32 chars: a-z 0-9 - _).',
       slug_taken: 'That slug is already taken.',
       invalid_date: 'The expiration date is not valid.',
+      invalid_domain: 'That domain is not a verified domain of yours.',
     };
     return apiError(400, result.code, messages[result.code]);
   }
@@ -37,6 +49,7 @@ export async function POST(req: NextRequest) {
     {
       id: dto.id,
       slug: dto.slug,
+      domain: dto.domain,
       short_url: dto.short_url,
       url: dto.url,
       title: dto.title,

@@ -2,6 +2,8 @@ import { getTranslations } from 'next-intl/server';
 import { DEMO_MODE, isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listWebhooks, WEBHOOK_EVENTS } from '@/lib/webhooks';
 import WebhooksPanel from '@/components/app/WebhooksPanel';
+import DomainsPanel from '@/components/link/DomainsPanel';
+import { dnsInstructions, listDomains } from '@/lib/link-domains';
 import { listApiKeys } from '@/lib/api-auth';
 import { formatDate } from '@/lib/utils';
 import ApiKeysPanel from '@/components/link/ApiKeysPanel';
@@ -20,6 +22,7 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
   // Members ven solo sus keys; owner/admin, las de todo el workspace.
   const keys = await listApiKeys(user.id, isWorkspaceAdmin(user) ? undefined : realUserId(user));
   const webhooks = isWorkspaceAdmin(user) ? await listWebhooks(user.id) : null;
+  const domains = (await listDomains(user.id)).map((d) => ({ ...d, dns: dnsInstructions(d.hostname) }));
 
   return (
     <div className="app-page">
@@ -53,6 +56,11 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="panel">
+        <p className="section-label">{t('domains.title')}</p>
+        <DomainsPanel initial={domains} canManage={isWorkspaceAdmin(user)} />
       </section>
 
       <section className="panel">

@@ -12,6 +12,7 @@ function unauthorized() {
 
 const createSchema = z.object({
   url: z.string().min(1),
+  domainId: z.string().max(64).nullish(),
   slug: z.string().max(32).optional(),
   title: z.string().max(200).optional(),
   tags: z.array(z.string().max(40)).max(5).optional(),

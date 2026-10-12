@@ -85,10 +85,10 @@ export default async function LinkDetailPage(props: DetailPageProps) {
 
       <header className="detail-header">
         <div className="detail-short">
-          <span className="short-url-big mono">{shortUrl(link.slug)}</span>
-          <CopyButton text={shortUrl(link.slug)} />
+          <span className="short-url-big mono">{shortUrl(link.slug, link.domain_hostname ?? null)}</span>
+          <CopyButton text={shortUrl(link.slug, link.domain_hostname ?? null)} />
           <a
-            href={shortUrl(link.slug)}
+            href={shortUrl(link.slug, link.domain_hostname ?? null)}
             target="_blank"
             rel="noopener noreferrer"
             className="icon-btn"

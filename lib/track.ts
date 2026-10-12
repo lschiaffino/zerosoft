@@ -321,6 +321,7 @@ export async function getAnalytics(
 export interface OverviewLink {
   id: string;
   slug: string;
+  domain_hostname: string | null;
   url: string;
   title: string | null;
   clicks: number;
@@ -376,12 +377,13 @@ export async function getUserOverview(userId: string): Promise<UserOverview> {
   const map = new Map(rows.map((r) => [r.d, r.c]));
   const byDay = dayList(start, end).map((date) => ({ date, count: map.get(date) ?? 0 }));
 
-  const cols = 'id, slug, url, title, clicks, created_at';
+  const cols =
+    'l.id, l.slug, l.url, l.title, l.clicks, l.created_at, d.hostname AS domain_hostname FROM links l LEFT JOIN link_domains d ON d.id = l.domain_id';
   const topLinks = (await db
-    .prepare(`SELECT ${cols} FROM links WHERE user_id = ? ORDER BY clicks DESC LIMIT 5`)
+    .prepare(`SELECT ${cols} WHERE l.user_id = ? ORDER BY l.clicks DESC LIMIT 5`)
     .all(userId)) as OverviewLink[];
   const recent = (await db
-    .prepare(`SELECT ${cols} FROM links WHERE user_id = ? ORDER BY created_at DESC LIMIT 5`)
+    .prepare(`SELECT ${cols} WHERE l.user_id = ? ORDER BY l.created_at DESC LIMIT 5`)
     .all(userId)) as OverviewLink[];
 
   return { activeLinks, totalClicks, clicksToday, topLink, byDay, topLinks, recent };

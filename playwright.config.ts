@@ -3,7 +3,11 @@ import os from 'os';
 import path from 'path';
 
 const PORT = 3210;
-const dbFile = path.join(os.tmpdir(), `zerosoft-e2e-${Date.now()}.db`);
+// Una sola base por corrida: el config se evalúa también en cada worker, así que
+// el path se fija en el proceso principal y los workers lo heredan por env.
+// Los tests que tocan la base directo (p. ej. simular DNS verificado) la leen de acá.
+process.env.E2E_DB_FILE ??= path.join(os.tmpdir(), `zerosoft-e2e-${Date.now()}.db`);
+const dbFile = process.env.E2E_DB_FILE;
 
 /**
  * E2E contra la app real en DEMO_MODE (todo request es el usuario demo) y una

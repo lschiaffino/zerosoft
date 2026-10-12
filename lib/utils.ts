@@ -28,8 +28,8 @@ export function shortDomain(): string {
   return process.env.SHORT_DOMAIN ?? 'localhost:3000';
 }
 
-export function shortUrl(slug: string): string {
-  const domain = shortDomain();
+export function shortUrl(slug: string, hostname: string | null = null): string {
+  const domain = hostname ?? shortDomain();
   const proto = domain.includes('localhost') ? 'http' : 'https';
   return `${proto}://${domain}/${slug}`;
 }

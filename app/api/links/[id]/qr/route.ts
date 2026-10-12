@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const link = await getUserLink(user.id, params.id);
   if (!link) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-  const target = shortUrl(link.slug);
+  const target = shortUrl(link.slug, link.domain_hostname ?? null);
   const format = req.nextUrl.searchParams.get('format');
 
   if (format === 'png') {

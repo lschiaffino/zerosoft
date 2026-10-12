@@ -237,7 +237,8 @@
     "unauthorized": "Unauthorized.",
     "empty": "At least one URL is required.",
     "too_many": "Too many URLs. Max 200 per batch.",
-    "generic": "Something went wrong. Try again."
+    "generic": "Something went wrong. Try again.",
+    "invalid_domain": "That domain isn't verified yet."
   },
   "webhooks": {
     "desc": "We POST a signed JSON payload to your URL when these events happen. Verify the Zerosoft-Signature header (t=…,v1=HMAC-SHA256 of \"t.body\") with your secret. Failed deliveries are retried with backoff.",
@@ -256,6 +257,36 @@
       "invalid_url": "That URL isn't valid.",
       "invalid_input": "Enter a URL and pick at least one event.",
       "generic": "Couldn't add the webhook. Try again."
+    }
+  },
+  "domains": {
+    "title": "Custom domains",
+    "desc": "Use your own short domain (go.yourcompany.com/promo). Add it, create the DNS record, then verify. HTTPS is set up automatically.",
+    "hostname": "Domain",
+    "add": "Add domain",
+    "empty": "No custom domains yet.",
+    "verified": "Verified",
+    "pending": "Waiting for DNS",
+    "verify": "Verify",
+    "remove": "Remove",
+    "dnsHelp": "Create this record at your DNS provider. Changes can take a few minutes.",
+    "type": "Type",
+    "name": "Name",
+    "value": "Value",
+    "verifiedNow": "Verified. You can now pick this domain when creating links.",
+    "notYet": "DNS isn't pointing here yet. Try again in a few minutes.",
+    "root": "Root redirect",
+    "rootPlaceholder": "Where go.yourcompany.com/ should go (optional)",
+    "saveRoot": "Save",
+    "rootSaved": "Saved.",
+    "pick": "Domain",
+    "errors": {
+      "invalid_hostname": "That isn't a valid domain (e.g. go.example.com).",
+      "domain_taken": "That domain is already in use.",
+      "app_host": "That's Zerosoft's own domain.",
+      "provider_error": "Couldn't register the domain with the hosting provider. Try again.",
+      "has_links": "This domain still has links. Move or delete them first.",
+      "invalid_url": "That URL isn't valid."
     }
   }
 }
