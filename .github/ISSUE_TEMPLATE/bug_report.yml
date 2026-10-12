@@ -1,0 +1,26 @@
+name: Bug report
+description: Something is broken
+labels: [bug]
+body:
+  - type: dropdown
+    id: product
+    attributes:
+      label: Product
+      options: [Link, CRM, Track, Cal, Chat, Docs, Site / other]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options: [zerosoft.ai cloud, Self-hosted (Docker), Self-hosted (other), Local dev]

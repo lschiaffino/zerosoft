@@ -1,6 +1,6 @@
 # zerosoft.ai
 
-**Software is dead.** We rebuild the tools you use every day and set them free: open source, free, forever. Self-host them, or let us run them and pay only the cloud they consume — at cost.
+**Software is dead.** We rebuild the tools you use every day and set them free. The core is open source (AGPLv3): self-host every product for $0, forever. Or use Zerosoft Cloud: a generous free plan, then transparent usage-based pricing — you pay for what scales, not for seats.
 
 This repository is the whole company in one Next.js app: the marketing site, the blog, and six products — **Link, CRM, Track, Cal, Chat and Docs**.
 
@@ -91,14 +91,17 @@ vercel env add SHORT_DOMAIN production         # zerosoft.ai
 vercel --prod
 ```
 
-To self-host on any $5 VPS instead:
+To self-host on any $5 VPS instead, with Docker:
 
 ```bash
-git clone <repo> && cd zerosoft.ai
-npm install && npm run build
-# set .env.local: NEXTAUTH_URL, NEXTAUTH_SECRET, Google credentials, SHORT_DOMAIN=your-domain
-npm start   # behind any reverse proxy with HTTPS
+git clone <repo> && cd zerosoft
+cp .env.example .env          # NEXTAUTH_URL, NEXTAUTH_SECRET, Google credentials, SHORT_DOMAIN=your-domain
+docker compose up -d          # http://localhost:3000 — put any HTTPS reverse proxy in front
 ```
+
+Data lives in two volumes: `zerosoft-data` (the SQLite file) and `zerosoft-uploads` (attachments). Back them up and you have everything.
+
+Without Docker: `npm ci && npm run build && npm start`.
 
 Export everything, always: links and analytics are yours (JSON via API, and the SQLite file itself if self-hosted). No hostages.
 
@@ -116,6 +119,9 @@ i18n/                 routing + request config (next-intl)
 lib/                  db, auth, links, crm, analytics, rate limit, blog loader
 messages/             en / es / pt UI strings
 middleware.ts         locale negotiation + short-link passthrough
+lib/schema/           versioned migrations (baseline + numbered, tracked in schema_migrations)
+ee/                   enterprise features under a commercial license (see ee/README.md)
+tests/unit/           Vitest · tests/e2e/ Playwright (critical flows + every screen)
 scripts/seed.ts       demo data (Link) · scripts/seed-crm.ts (CRM) — both run via npm run seed
 styles/               globals.css, pages.css, link.css, crm.css (no Tailwind, hand-rolled)
 ```
@@ -124,6 +130,13 @@ styles/               globals.css, pages.css, link.css, crm.css (no Tailwind, ha
 
 Next.js 15 (App Router) · React 19 · TypeScript · @libsql/client (local SQLite file or Turso) · next-intl · next-auth v4 · zero CSS frameworks.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
+
 ## License
 
-Open source. Take it, host it, modify it. That's the whole point.
+Open core, the same model as Cal.com or Dub:
+
+- Everything **outside** `/ee` — every core feature of every product — is [AGPLv3](LICENSE). Use it, self-host it, modify it. If you offer a modified version as a service, publish your changes.
+- The [`/ee`](ee/README.md) folder (SSO/SAML, audit logs, custom roles, white-label) is under the [Zerosoft Enterprise License](ee/LICENSE): free for development, a subscription for production.

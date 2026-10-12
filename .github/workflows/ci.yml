@@ -38,3 +38,18 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build self-host image
+        run: docker build -t zerosoft:ci .
+      - name: Smoke test
+        run: |
+          docker run -d --name zs -p 3000:3000 \
+            -e NEXTAUTH_SECRET=ci -e NEXTAUTH_URL=http://localhost:3000 zerosoft:ci
+          for i in $(seq 1 30); do curl -sf http://localhost:3000/en >/dev/null && break; sleep 2; done
+          curl -sf -o /dev/null -w "%{http_code}\n" http://localhost:3000/en
+          docker logs zs | tail -20

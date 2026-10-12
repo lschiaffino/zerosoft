@@ -1,0 +1,17 @@
+name: Feature request
+description: Something you miss from the tool you're replacing
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: product
+    attributes:
+      label: Product
+      options: [Link, CRM, Track, Cal, Chat, Docs, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you need, and which tool does it today?
+    validations:
+      required: true

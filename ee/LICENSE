@@ -1,0 +1,33 @@
+Zerosoft Enterprise License (the "EE License")
+Copyright (c) 2026 Zerosoft
+
+DRAFT — pending legal review before the first commercial sale.
+
+1. Scope. This license applies only to the files inside the `/ee` directory of
+   this repository (the "Enterprise Software"). Everything outside `/ee` is
+   licensed under the GNU Affero General Public License v3 (see /LICENSE).
+
+2. Production use requires a subscription. You may use the Enterprise Software
+   in production only if you (or the organization you act for) hold a valid
+   Zerosoft Enterprise subscription for the correct number of seats or usage,
+   and you comply with this license and the subscription terms.
+
+3. Development and testing are free. Without a subscription you may copy,
+   modify and run the Enterprise Software for development, testing and
+   evaluation purposes, but not in production.
+
+4. Modifications. You may modify the Enterprise Software. All rights in your
+   modifications to files under `/ee` are licensed to Zerosoft under the same
+   terms, and you may use them only with a valid subscription.
+
+5. No redistribution. You may not sell, sublicense, distribute or offer the
+   Enterprise Software (modified or not) as a service to third parties, and you
+   may not remove, disable or circumvent the license-key checks.
+
+6. Third-party components are licensed under their own terms.
+
+7. Disclaimer. THE ENTERPRISE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY
+   OF ANY KIND. IN NO EVENT SHALL ZEROSOFT BE LIABLE FOR ANY CLAIM, DAMAGES OR
+   OTHER LIABILITY ARISING FROM ITS USE.
+
+For subscriptions: hola@zerosoft.ai
