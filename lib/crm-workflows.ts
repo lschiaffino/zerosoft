@@ -3,6 +3,7 @@
  * Server-only.
  */
 import { createNotification } from './notifications';
+import { safeFetch } from './safe-fetch';
 import { sendEmail } from './email';
 import {
   createActivity,
@@ -642,7 +643,7 @@ async function executeAction(
             ? (cfg.headers as Record<string, string>)
             : { 'content-type': 'application/json' };
         if (!url) return { ok: false, type: action.type, error: 'missing_url' };
-        const res = await fetch(url, {
+        const res = await safeFetch(url, {
           method,
           headers,
           body: JSON.stringify({ event, context: ctx }),

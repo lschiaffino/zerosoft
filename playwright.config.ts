@@ -27,6 +27,8 @@ export default defineConfig({
       NEXTAUTH_SECRET: 'e2e-secret',
       NEXTAUTH_URL: `http://localhost:${PORT}`,
       SHORT_DOMAIN: `localhost:${PORT}`,
+      // El receptor de webhooks del test escucha en 127.0.0.1.
+      ALLOW_PRIVATE_WEBHOOKS: 'true',
     },
   },
 });

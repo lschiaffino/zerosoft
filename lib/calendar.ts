@@ -666,6 +666,17 @@ export async function createBooking(payload: BookingCreatePayload): Promise<Cale
   return (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(id)) as CalendarBookingRow;
 }
 
+/** Reserva de un event type del usuario (como dueño o host asignado). */
+export async function ownedBooking(userId: string, id: string): Promise<CalendarBookingRow | null> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT b.* FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
+       WHERE b.id = ? AND (e.user_id = ? OR b.host_user_id = ?)`,
+    )
+    .get(id, userId, userId)) as CalendarBookingRow | undefined;
+  return row ?? null;
+}
+
 export async function getBookingByManageToken(token: string): Promise<CalendarBookingRow | undefined> {
   if (!token || token.length < 32) return undefined;
   return (await getDb()

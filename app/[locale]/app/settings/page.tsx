@@ -1,5 +1,7 @@
 import { getTranslations } from 'next-intl/server';
-import { DEMO_MODE, requireUser } from '@/lib/session';
+import { DEMO_MODE, isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { listWebhooks, WEBHOOK_EVENTS } from '@/lib/webhooks';
+import WebhooksPanel from '@/components/app/WebhooksPanel';
 import { listApiKeys } from '@/lib/api-auth';
 import { formatDate } from '@/lib/utils';
 import ApiKeysPanel from '@/components/link/ApiKeysPanel';
@@ -15,7 +17,9 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
-  const keys = await listApiKeys(user.id);
+  // Members ven solo sus keys; owner/admin, las de todo el workspace.
+  const keys = await listApiKeys(user.id, isWorkspaceAdmin(user) ? undefined : realUserId(user));
+  const webhooks = isWorkspaceAdmin(user) ? await listWebhooks(user.id) : null;
 
   return (
     <div className="app-page">
@@ -55,6 +59,13 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
         <p className="section-label">{t('settings.apiKeys')}</p>
         <ApiKeysPanel initialKeys={keys} />
       </section>
+
+      {webhooks && (
+        <section className="panel">
+          <p className="section-label">Webhooks</p>
+          <WebhooksPanel initial={webhooks} events={WEBHOOK_EVENTS} />
+        </section>
+      )}
     </div>
   );
 }

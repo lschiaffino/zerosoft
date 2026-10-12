@@ -238,5 +238,24 @@
     "empty": "Al menos una URL es requerida.",
     "too_many": "Demasiadas URLs. Máximo 200 por lote.",
     "generic": "Algo salió mal. Probá de nuevo."
+  },
+  "webhooks": {
+    "desc": "Enviamos un JSON firmado (POST) a tu URL cuando pasan estos eventos. Verificá el header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") con tu secret. Las entregas fallidas se reintentan con backoff.",
+    "url": "URL del endpoint",
+    "events": "Eventos",
+    "last": "Última entrega",
+    "add": "Agregar webhook",
+    "test": "Enviar prueba",
+    "empty": "Todavía no hay webhooks.",
+    "secretTitle": "Secret de firma — copialo ahora",
+    "secretWarning": "No vas a volver a ver este secret.",
+    "errors": {
+      "https_required": "La URL tiene que usar https.",
+      "private_host": "Ese host apunta a una red privada.",
+      "unresolvable_host": "Ese host no resuelve.",
+      "invalid_url": "La URL no es válida.",
+      "invalid_input": "Ingresá una URL y elegí al menos un evento.",
+      "generic": "No se pudo agregar el webhook. Probá de nuevo."
+    }
   }
 }

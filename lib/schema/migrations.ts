@@ -145,6 +145,40 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN meeting_url TEXT');
     },
   },
+  {
+    // Webhooks salientes del workspace (Cal, Link…) y su registro de entregas.
+    id: '008_webhooks',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS webhooks (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          url TEXT NOT NULL,
+          events TEXT NOT NULL DEFAULT '[]',
+          secret TEXT NOT NULL,
+          active INTEGER NOT NULL DEFAULT 1,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_webhooks_user ON webhooks(user_id, active);
+        CREATE TABLE IF NOT EXISTS webhook_deliveries (
+          id TEXT PRIMARY KEY,
+          webhook_id TEXT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+          event TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'delivered', 'failed')),
+          attempts INTEGER NOT NULL DEFAULT 0,
+          response_code INTEGER,
+          last_error TEXT,
+          next_attempt_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          delivered_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_due ON webhook_deliveries(status, next_attempt_at);
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_hook ON webhook_deliveries(webhook_id, created_at DESC);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

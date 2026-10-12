@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/calendar/reminders/due",
+      "path": "/api/cron/tick",
       "schedule": "17 * * * *"
     }
   ]

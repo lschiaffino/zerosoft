@@ -16,6 +16,7 @@ interface CodeTabsProps {
 }
 
 function fullUrl(path: string, baseUrl: string, rootUrl: string): string {
+  if (/^https?:\/\//.test(path)) return path;
   return path.startsWith('/api/v1') ? `${baseUrl}${path.slice(7)}` : `${rootUrl}${path}`;
 }
 
