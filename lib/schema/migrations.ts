@@ -1,0 +1,79 @@
+import type { Client } from '@libsql/client';
+import { baseline } from './baseline';
+
+/**
+ * Migraciones versionadas. Cada una corre una sola vez por base y queda
+ * registrada en schema_migrations. Reglas:
+ * - Nunca editar ni reordenar una migración ya publicada: agregar una nueva.
+ * - Deben tolerar correr en paralelo (varias instancias serverless arrancando a
+ *   la vez): usar IF NOT EXISTS y `addColumn`, que ignora "duplicate column".
+ * - Para reconstruir tablas (cambiar CHECK/UNIQUE) usar `client.migrate([...])`,
+ *   que corre el batch con foreign keys apagadas (un DROP TABLE con FK
+ *   prendidas cascadea borrando las tablas hijas).
+ */
+export interface Migration {
+  id: string;
+  up(client: Client): Promise<void>;
+}
+
+async function addColumn(client: Client, sql: string): Promise<void> {
+  try {
+    await client.execute(sql);
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err))) throw err;
+  }
+}
+
+export const MIGRATIONS: Migration[] = [
+  { id: '001_baseline', up: baseline },
+  {
+    // Track: dueño del proyecto. Antes solo había team_id y los proyectos
+    // personales eran visibles para todos los usuarios sin team.
+    id: '002_track_project_owner',
+    async up(client) {
+      await addColumn(
+        client,
+        'ALTER TABLE track_projects ADD COLUMN owner_id TEXT REFERENCES users(id) ON DELETE CASCADE',
+      );
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_track_projects_owner ON track_projects(owner_id, team_id, status, name)',
+      );
+      // Backfill: proyectos de team → owner del team; personales → creador del
+      // primer issue. Los que no se pueden atribuir quedan NULL (invisibles)
+      // en vez de compartidos con todos.
+      await client.execute(
+        `UPDATE track_projects SET owner_id = (SELECT owner_id FROM teams WHERE teams.id = track_projects.team_id)
+         WHERE owner_id IS NULL AND team_id IS NOT NULL`,
+      );
+      await client.execute(
+        `UPDATE track_projects SET owner_id = (
+           SELECT creator_id FROM track_issues WHERE track_issues.project_id = track_projects.id
+           ORDER BY created_at ASC LIMIT 1)
+         WHERE owner_id IS NULL AND team_id IS NULL`,
+      );
+    },
+  },
+];
+
+export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
+  await client.execute(
+    `CREATE TABLE IF NOT EXISTS schema_migrations (
+       id TEXT PRIMARY KEY,
+       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+     )`,
+  );
+  const done = new Set(
+    (await client.execute('SELECT id FROM schema_migrations')).rows.map((r) => String(r.id)),
+  );
+  const applied: string[] = [];
+  for (const m of migrations) {
+    if (done.has(m.id)) continue;
+    await m.up(client);
+    await client.execute({
+      sql: 'INSERT OR IGNORE INTO schema_migrations (id) VALUES (?)',
+      args: [m.id],
+    });
+    applied.push(m.id);
+  }
+  return applied;
+}
