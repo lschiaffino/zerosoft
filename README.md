@@ -144,4 +144,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.
 Open core, the same model as Cal.com or Dub:
 
 - Everything **outside** `/ee` — every core feature of every product — is [AGPLv3](LICENSE). Use it, self-host it, modify it. If you offer a modified version as a service, publish your changes.
-- The [`/ee`](ee/README.md) folder (SSO/SAML, audit logs, custom roles, white-label) is under the [Zerosoft Enterprise License](ee/LICENSE): free for development, a subscription for production.
+- The [`/ee`](ee/README.md) folder (SSO/SAML, audit logs, custom roles, white-label) is source-available under the [Zerosoft Enterprise License](ee/LICENSE): free for development and testing, a subscription for production use. The license text is a draft pending legal review.

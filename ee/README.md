@@ -4,6 +4,16 @@ Everything in this folder is source-available under the [Zerosoft Enterprise Lic
 not AGPL. Everything **outside** `/ee` is AGPLv3 and always will be: every core feature of
 every product is free to self-host.
 
+In short (the [LICENSE](./LICENSE) text is what counts):
+
+- **Development and testing are free.** Read, copy, modify and run this code in non-production
+  environments without a subscription.
+- **Production use needs a subscription** covering your scope of use (users, instances or usage).
+- **No redistribution, resale as a service, or bypassing license checks.** Forks of the repository
+  are fine as long as `/ee` keeps this license and its notices.
+- The license is a **draft pending legal review**; it will be finalized before the first
+  commercial sale. Questions: hola@zerosoft.ai.
+
 What lives here (as it gets built):
 
 - SSO / SAML and SCIM provisioning
