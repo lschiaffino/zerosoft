@@ -2,13 +2,13 @@
   "products": {
     "meta": {
       "title": "Produtos — O arsenal",
-      "description": "Link, Track, CRM e Cal: as ferramentas que fazem uma empresa funcionar, reconstruídas e libertadas. Open source, ou nuvem ao custo."
+      "description": "Link, CRM, Track, Cal, Docs e Chat: as ferramentas que movem uma empresa, reconstruídas e libertadas. Open source, ou nuvem ao custo."
     },
     "hero": {
       "label": "0.02 — Produtos",
       "title1": "Tudo o que você usa.",
       "title2": "Zero do que você paga.",
-      "sub": "Quatro ferramentas movem a empresa moderna: links, projetos, clientes e tempo. Nós as reconstruímos, todas em aberto. Custam zero, são suas, e a primeira já está no ar."
+      "sub": "Seis ferramentas movem a empresa moderna: links, clientes, projetos, tempo, documentos e suporte. Reconstruímos as seis em aberto. Custam zero, são suas, e todas já estão no ar."
     },
     "compare": {
       "label": "0.03 — A conta",
@@ -23,7 +23,11 @@
       "r4price": "US$ 12 / mês",
       "withTitle": "Com a Zerosoft",
       "big": "$0",
-      "note": "Todo mês, todo ano, para sempre. Se rodarmos para você, você paga apenas a nuvem que consome. Ao custo."
+      "note": "Todo mês, todo ano, para sempre. Se rodarmos para você, você paga apenas a nuvem que consome. Ao custo.",
+      "r5name": "Notion",
+      "r5price": "US$ 10 / usuário / mês",
+      "r6name": "Intercom",
+      "r6price": "US$ 29 / assento / mês"
     },
     "roadmap": {
       "label": "0.04 — Roadmap",
@@ -31,35 +35,35 @@
       "titleDim": "Zero segredos.",
       "i1": {
         "when": "2026 · Q3",
-        "name": "Link",
-        "what": "Links curtos com métricas reais, QR codes e API pública.",
+        "name": "Link · CRM · Docs · Chat",
+        "what": "Links curtos, pipelines, uma wiki com editor de blocos e uma caixa de suporte. No ar e grátis.",
         "state": "Lançado"
       },
       "i2": {
         "when": "2026 · Q4",
-        "name": "Track",
-        "what": "Gestão de projetos keyboard-first. Issues, ciclos, roadmaps.",
-        "state": "Em construção"
-      },
-      "i3": {
-        "when": "2026 · Q3",
-        "name": "CRM",
-        "what": "Contatos, pipelines e relatórios sem licenças por usuário.",
+        "name": "Track · Cal",
+        "what": "Issues, ciclos e timelines Gantt. Páginas de agendamento, round-robin e formulários de roteamento.",
         "state": "Lançado"
       },
+      "i3": {
+        "when": "O que vem",
+        "name": "Conectar",
+        "what": "Domínios próprios para o Link. Sync com Google Calendar para o Cal. APIs e webhooks para Track e Cal.",
+        "state": "Em breve"
+      },
       "i4": {
-        "when": "2027 · Q2",
-        "name": "Cal",
-        "what": "Links de agendamento com detecção de fuso e round-robin.",
-        "state": "Planejado"
+        "when": "O que vem",
+        "name": "Mudar-se",
+        "what": "Importadores em um clique do Bitly, Linear e Notion. Export completo para Docs e Chat.",
+        "state": "Em breve"
       }
     },
     "cta": {
       "label": "0.05 — Junte-se",
       "title1": "Pare de pagar",
       "title2": "por bits.",
-      "sub": "O Link já é grátis e está no ar. O resto está a caminho. Entre agora e nunca mais pague por software.",
-      "button": "Abrir o Link →"
+      "sub": "As seis são grátis e estão no ar. Entre agora e nunca mais pague por software.",
+      "button": "Abrir o app →"
     },
     "link": {
       "meta": {
@@ -106,7 +110,7 @@
       },
       "f9": {
         "t": "Seus dados, exportáveis",
-        "d": "Tudo é seu. Exporte, faça backup, leve para casa. Sem reféns."
+        "d": "Baixe cada clique em CSV, ou puxe links e métricas pela API. Sem reféns."
       },
       "compare": {
         "rival": "Bitly",
@@ -123,15 +127,15 @@
         },
         "f2": {
           "q": "Posso migrar meus links do Bitly?",
-          "a": "Sim. Exporte seus links do Bitly em CSV e importe: destinos, aliases e tags vêm junto. Aponte seu domínio curto antigo para nós e os links existentes continuam funcionando."
+          "a": "Hoje você pode colar até 200 destinos de uma vez e encurtar todos. A importação do Bitly em um clique e os domínios próprios chegam em breve."
         },
         "f3": {
           "q": "E se a Zerosoft fechar?",
-          "a": "Nada de ruim. O código é open source, então qualquer um pode rodá-lo para sempre. Você pode exportar cada link e cada clique a qualquer momento, e self-hospedar leva um comando. Seus links nunca podem ser reféns."
+          "a": "Nada de ruim. O código é open source, então qualquer um pode rodá-lo para sempre. Seus cliques baixam em CSV e seus links saem pela API a qualquer momento. Seus links nunca viram reféns."
         },
         "f4": {
           "q": "Posso self-hospedar?",
-          "a": "Essa é a ideia. Clone o repositório, rode em qualquer servidor com Node e SQLite, aponte seu domínio curto, pronto. Sem chave de licença, sem phone-home, sem tier enterprise."
+          "a": "Essa é a ideia. Clone o repo, rode em qualquer servidor com Node e SQLite, configure seu domínio, pronto. Sem license key, sem phone-home, sem tier enterprise."
         },
         "f5": {
           "q": "Meus links expiram algum dia?",
@@ -149,17 +153,17 @@
     "track": {
       "meta": {
         "title": "Track — Gestão de projetos a zero",
-        "description": "Issues, ciclos e roadmaps com a velocidade do Linear, sem os US$ 8 por cabeça. Keyboard-first, open source. Em construção."
+        "description": "Issues, ciclos e roadmaps com a velocidade do Linear, sem os US$ 8 por cabeça. Open source. No ar."
       },
       "hero": {
         "tag": "Gestão de projetos",
-        "sub": "Issues, ciclos e roadmaps com a velocidade do Linear — sem os US$ 8 por cabeça. Keyboard-first, tolerante a offline, open source. Em construção."
+        "sub": "Issues, ciclos e roadmaps no espírito do Linear — sem os US$ 8 por cabeça. Board, lista, calendário e Gantt. Open source. No ar."
       },
       "featuresTitle": "Feito para velocidade.",
       "featuresTitleDim": "Preço de ar.",
       "f1": {
-        "t": "Keyboard-first",
-        "d": "Toda ação tem um atalho. Crie, atribua, etiquete e feche issues sem tocar no mouse."
+        "t": "Quatro visões",
+        "d": "Board, lista, calendário e Gantt. As mesmas issues, no formato que o seu dia pede."
       },
       "f2": {
         "t": "Ciclos",
@@ -167,31 +171,31 @@
       },
       "f3": {
         "t": "Roadmaps",
-        "d": "Planeje trimestres, não sprints. Cada projeto numa única linha do tempo que a empresa inteira consegue ler."
+        "d": "Planeje trimestres, não sprints. Cada issue em uma timeline Gantt que o time inteiro consegue ler."
       },
       "f4": {
-        "t": "Sincronização instantânea",
-        "d": "Mudanças aparecem em todo lugar em tempo real. Boards, listas e timelines sempre concordam."
+        "t": "Sub-issues e relações",
+        "d": "Quebre o trabalho, marque bloqueios e duplicadas. O grafo por trás do board, à vista."
       },
       "f5": {
-        "t": "Inbox de triagem",
-        "d": "Issues novos caem na triagem. Aceite, mescle ou recuse antes que contaminem o backlog."
+        "t": "Inbox",
+        "d": "Menções, atribuições e atualizações em um só lugar. Marque como lidas e volte ao trabalho."
       },
       "f6": {
-        "t": "Labels e times",
-        "d": "Estruture o trabalho do seu jeito: times, projetos, labels e status personalizados."
+        "t": "Status e prioridades",
+        "d": "Status próprios por projeto, prioridades de baixa a urgente. Estruture o trabalho do seu jeito."
       },
       "f7": {
         "t": "Estimativas",
         "d": "Pontue issues, acompanhe a velocidade, pare de adivinhar prazos."
       },
       "f8": {
-        "t": "Integrações Git",
-        "d": "Feche issues a partir de commits e PRs. Branches nomeadas pelos tickets, automaticamente."
+        "t": "Visões salvas e filtros",
+        "d": "Filtre por status, prioridade, responsável ou ciclo. Salve a visão, abra amanhã."
       },
       "f9": {
-        "t": "API e webhooks",
-        "d": "Tudo o que a UI faz, a API faz. Automatize as partes chatas."
+        "t": "Comentários e atividade",
+        "d": "Cada mudança em uma issue, registrada. Comente, mencione, anexe arquivos. Nada se perde."
       },
       "compare": {
         "rival": "Linear",
@@ -208,27 +212,27 @@
         },
         "f2": {
           "q": "Posso migrar do Linear?",
-          "a": "Sim. Importe seu workspace do Linear: issues, labels, ciclos e histórico vêm via CSV ou pelo export da API do Linear. Seu time mantém a memória."
+          "a": "Ainda não de forma automática. O importador do Linear está no roadmap. Hoje você cria projetos e issues à mão — a maioria dos times começa do zero com o que importa."
         },
         "f3": {
           "q": "E se a Zerosoft fechar?",
-          "a": "Você fica com tudo. O código é aberto, seus dados exportam limpos, e self-hospedar leva um comando. Não há lock-in para te prender."
+          "a": "Você fica com tudo. O código é aberto e hospedar é um comando, então suas issues vivem no seu banco de dados. Não existe lock-in para te prender."
         },
         "f4": {
           "q": "Posso self-hospedar?",
           "a": "Com certeza. É a forma padrão de rodar qualquer produto Zerosoft: seu servidor, seus dados, suas regras. A nuvem existe só por conveniência."
         },
         "f5": {
-          "q": "Quando sai?",
-          "a": "O Track sai no Q4 2026. Escreva para hola@zerosoft.ai e avisamos no dia em que abrir — e só nesse dia. Sem newsletter."
+          "q": "Já está no ar?",
+          "a": "Sim. O Track está no ar: abra, crie um projeto e entregue sua primeira issue hoje — por $0."
         }
       },
       "cta": {
         "label": "Track — 0.05",
         "title1": "Mova cartões.",
         "title2": "Não mova mais nada.",
-        "sub": "O Track está em construção. Deixe seu email e entre primeiro quando sair.",
-        "button": "Avise-me →"
+        "sub": "O Track está no ar. Abra, crie um projeto e mova seu primeiro card hoje — por $0.",
+        "button": "Abrir o Track →"
       }
     },
     "crm": {
@@ -267,16 +271,16 @@
         "d": "CSV entra, CSV sai. Do HubSpot, do Pipedrive, ou de uma planilha chamada final_final2."
       },
       "f7": {
-        "t": "Permissões",
-        "d": "Os times veem o que devem. Os admins veem tudo. Os auditores dormem tranquilos."
+        "t": "Workspace compartilhado",
+        "d": "Convide seu time para um mesmo workspace. Todos veem o mesmo pipeline. Papéis granulares chegam em breve."
       },
       "f8": {
         "t": "Automações",
-        "d": "Se um deal trava por 7 dias, cutuque o dono. Regras simples, zero consultores."
+        "d": "Quando um deal muda de etapa, crie uma tarefa, envie um email ou avise o dono. Regras simples, zero consultores."
       },
       "f9": {
         "t": "API e webhooks",
-        "d": "Sincronize seu billing, seu produto, seu data warehouse. Os dados são seus."
+        "d": "Uma API REST para contatos, empresas, deals e tarefas, mais webhooks a partir dos seus workflows. Os dados são seus."
       },
       "compare": {
         "rival": "HubSpot",
@@ -319,11 +323,11 @@
     "cal": {
       "meta": {
         "title": "Cal — Agendamento, libertado",
-        "description": "Sua disponibilidade como um link. Detecção de fuso, buffers, round-robin e lembretes — sem US$ 12 por mês. Open source. Em construção."
+        "description": "Sua disponibilidade como um link. Detecção de fuso, buffers, round-robin e lembretes — sem US$ 12 por mês. Open source. No ar."
       },
       "hero": {
         "tag": "Agendamento",
-        "sub": "Sua disponibilidade como um link. As pessoas escolhem um horário, todos recebem o convite, e ninguém paga US$ 12 por mês pelo privilégio. Em construção."
+        "sub": "Sua disponibilidade como um link. As pessoas escolhem um horário, todos recebem um email de confirmação, e ninguém paga US$ 12 por mês pelo privilégio. No ar."
       },
       "featuresTitle": "Um link. Pronto.",
       "featuresTitleDim": "Zero emails de vai e volta.",
@@ -337,31 +341,31 @@
       },
       "f3": {
         "t": "Buffers e limites",
-        "d": "Margem antes e depois, máximo de reuniões por dia, aviso mínimo. Sua agenda, defendida."
+        "d": "Folga antes e depois, aviso mínimo, até quando dá para agendar. Sua agenda, defendida."
       },
       "f4": {
         "t": "Round-robin",
         "d": "Distribua reservas pelo time automaticamente. Justo por padrão."
       },
       "f5": {
-        "t": "Sincronização de agenda",
-        "d": "Google Calendar de ida e volta. Blocos ocupados respeitados, convites escritos automaticamente."
+        "t": "Formulários de roteamento",
+        "d": "Faça algumas perguntas primeiro e mande cada pessoa para o tipo de evento certo. A call certa, com a pessoa certa."
       },
       "f6": {
         "t": "Confirmações e lembretes",
-        "d": "Emails automáticos de reserva, lembrete e cancelamento. As ausências caem."
+        "d": "Emails automáticos ao agendar e um lembrete 24 horas antes. Os no-shows caem."
       },
       "f7": {
         "t": "Perguntas personalizadas",
         "d": "Pergunte o que precisar antes da chamada: pauta, telefone, qualquer coisa."
       },
       "f8": {
-        "t": "Incorporável em qualquer lugar",
-        "d": "Coloque sua página de reservas em qualquer site com um snippet."
+        "t": "Horários bloqueados",
+        "d": "Bloqueie feriados, tempo de foco ou o que quiser. Ninguém agenda o que você fechou."
       },
       "f9": {
-        "t": "API e webhooks",
-        "d": "Crie tipos de evento e leia reservas a partir das suas próprias ferramentas."
+        "t": "Agendamentos em um só lugar",
+        "d": "Próximos, cancelados e no-shows em uma só lista. Sync de calendário e API chegam em breve."
       },
       "compare": {
         "rival": "Calendly",
@@ -378,27 +382,27 @@
         },
         "f2": {
           "q": "Posso migrar do Calendly?",
-          "a": "Recriar seus tipos de evento leva minutos — durações, buffers e perguntas mapeiam direto. Seus links antigos podem redirecionar para os novos, então nada quebra."
+          "a": "Recriar seus tipos de evento leva minutos — durações, buffers e perguntas se mantêm. Compartilhe seu novo link de agendamento e pronto."
         },
         "f3": {
           "q": "E se a Zerosoft fechar?",
-          "a": "Você nem perceberia. Self-hospede o mesmo código no seu servidor, exporte suas reservas, e seus links continuam funcionando no seu domínio."
+          "a": "Você nem perceberia. Hospede o mesmo código no seu servidor e suas páginas de agendamento continuam funcionando no seu domínio."
         },
         "f4": {
           "q": "Posso self-hospedar?",
-          "a": "Sim. Clone, rode, conecte sua agenda, compartilhe seu link. Sem servidor de licença, sem feature flags, sem tier premium escondendo as partes boas."
+          "a": "Sim. Clone, rode, configure sua disponibilidade, compartilhe seu link. Sem servidor de licenças, sem feature flags, sem tier premium escondendo o melhor."
         },
         "f5": {
-          "q": "Quando sai?",
-          "a": "O Cal sai no Q2 2027. Escreva para hola@zerosoft.ai e avisamos no momento em que abrir."
+          "q": "Já está no ar?",
+          "a": "Sim. O Cal está no ar: crie um tipo de evento e compartilhe seu primeiro link de agendamento hoje — por $0."
         }
       },
       "cta": {
         "label": "Cal — 0.05",
         "title1": "Agende tempo.",
         "title2": "Não cobre ninguém.",
-        "sub": "O Cal chega no Q2 2027. Levante a mão e avisamos no dia zero.",
-        "button": "Avise-me →"
+        "sub": "O Cal está no ar. Crie um tipo de evento e compartilhe seu link hoje — por $0.",
+        "button": "Abrir o Cal →"
       }
     },
     "docs": {
@@ -434,7 +438,7 @@
       },
       "f6": {
         "t": "Dados abertos",
-        "d": "Cada página é armazenada como JSON limpo. Exporte, migre ou faça backup com um comando."
+        "d": "Cada página é guardada como JSON limpo no seu próprio banco de dados. O export em um clique chega em breve."
       },
       "f7": {
         "t": "Busca rápida",
@@ -467,7 +471,7 @@
         },
         "f3": {
           "q": "E se a Zerosoft fechar?",
-          "a": "Você fica com seus documentos. Exporte tudo como JSON ou Markdown, self-hospede o mesmo código e continue escrevendo."
+          "a": "Você fica com seus docs. Hospede o mesmo código e cada página fica no seu próprio banco de dados. Continue escrevendo."
         },
         "f4": {
           "q": "Posso self-hospedar?",
@@ -489,11 +493,11 @@
     "chat": {
       "meta": {
         "title": "Chat — Suporte ao cliente, liberto",
-        "description": "Uma central de suporte estilo Intercom: widget de webchat, caixa de entrada compartilhada, estados e prioridade, SLAs, bot de IA, horário de atendimento e CSAT. Open source. Disponível agora."
+        "description": "Um help desk estilo Intercom: widget de webchat, caixa compartilhada, status e prioridade de tickets, SLAs, bot de respostas automáticas, horário de atendimento e CSAT. Open source. No ar."
       },
       "hero": {
         "tag": "Chat com clientes",
-        "sub": "Uma central de suporte estilo Intercom: widget de webchat, caixa de entrada compartilhada, estados e prioridade de tickets, SLAs, um bot de IA, horário de atendimento e CSAT. Open source. Disponível agora."
+        "sub": "Um help desk estilo Intercom: widget de webchat, caixa compartilhada, status e prioridade de tickets, SLAs, um bot de respostas automáticas, horário de atendimento e CSAT. Open source. No ar."
       },
       "featuresTitle": "Converse com seus clientes.",
       "featuresTitleDim": "Fique com cada conversa.",
@@ -514,8 +518,8 @@
         "d": "Defina metas de primeira resposta e resolução e veja o que está prestes a estourar antes que estoure. Suporte com relógio."
       },
       "f5": {
-        "t": "Bot de IA",
-        "d": "O bot responde primeiro às perguntas repetitivas, a partir das suas respostas prontas ou páginas de docs, e passa para um humano com o histórico completo."
+        "t": "Respostas automáticas",
+        "d": "O bot busca palavras-chave nas suas respostas prontas e páginas de docs, responde primeiro às perguntas repetitivas e passa para um humano com o histórico completo."
       },
       "f6": {
         "t": "Horário de atendimento e CSAT",
@@ -531,7 +535,7 @@
       },
       "f9": {
         "t": "Sem cobrança por usuário",
-        "d": "Suporte é um esporte de time. Open source, self-hospedável, exportável — convide todo mundo, o preço continua $0."
+        "d": "Suporte é esporte de equipe. Open source e auto-hospedável — convide todo mundo, o preço continua $0."
       },
       "compare": {
         "rival": "Intercom",
@@ -551,12 +555,12 @@
           "a": "Crie um widget, cole uma tag de script antes do fechamento do body e pronto. Funciona com qualquer stack que sirva HTML."
         },
         "f3": {
-          "q": "O bot de IA substitui meu time?",
-          "a": "Não. Ele responde às perguntas repetitivas a partir das suas respostas prontas ou páginas de docs; seu time fica com as conversas que precisam de um humano. Você pode desligá-lo por completo."
+          "q": "O bot substitui meu time?",
+          "a": "Não. Ele responde perguntas repetitivas buscando palavras-chave nas suas respostas prontas e páginas de docs; seu time fica com as conversas que precisam de um humano. Você pode desligá-lo por completo."
         },
         "f4": {
           "q": "E se a Zerosoft fechar?",
-          "a": "Você fica com suas conversas. Exporte tudo, self-hospede o mesmo código e seu histórico de suporte continua seu."
+          "a": "Você fica com suas conversas. Hospede o mesmo código e seu histórico de suporte fica no seu próprio banco de dados."
         },
         "f5": {
           "q": "Quando sai?",
@@ -721,7 +725,7 @@
       "badgeOpen": "Aberta",
       "badgeHigh": "Alta",
       "m1": "Olá! Vocês enviam para o Brasil?",
-      "botTag": "Bot de IA",
+      "botTag": "Resposta automática",
       "m2": "Olá, Mara! Sim — enviamos para todo o mundo em 3–5 dias úteis.",
       "m3": "Perfeito. E posso pagar com Pix?",
       "m4": "Sim, Pix funciona no checkout. Já envio o link.",
@@ -730,32 +734,50 @@
   },
   "status": {
     "meta": {
-      "title": "Status — Todos os sistemas operacionais",
-      "description": "Saúde ao vivo do zerosoft.ai: Link app, motor de redirects, API v1, dashboard e auth. Uptime e incidentes passados, em aberto."
+      "title": "Status",
+      "description": "O que roda o zerosoft.ai e como vamos reportar sua saúde. Sem números inventados."
     },
     "label": "0.06 — Status",
-    "title": "Todos os sistemas operacionais.",
-    "sub": "A saúde do zerosoft.ai ao vivo e em aberto. Chato de propósito.",
-    "updated": "Verificado há 60 segundos · Horários em UTC",
-    "operational": "Operacional",
-    "componentsLabel": "01 — Componentes",
-    "uptimeValue": "100.00%",
-    "uptimeDays": "últimos 30 dias",
-    "uptimeDay": "Dia {day} — 100%",
-    "c1": "Link app",
-    "c2": "Motor de redirects",
-    "c3": "API v1",
-    "c4": "Dashboard",
-    "c5": "Auth",
-    "incidentsLabel": "02 — Incidentes passados",
-    "incident": {
-      "title": "Latência elevada nos redirects",
-      "date": "28 jun 2026",
-      "body": "Por 14 minutos, alguns redirects resolveram mais devagar que o normal por uma configuração errada de cache durante um deploy. Revertemos em minutos e a latência voltou ao normal. Nenhum link deixou de resolver e nenhum dado foi perdido.",
-      "state": "Resolvido",
-      "duration": "14 min"
+    "title": "Status.",
+    "sub": "O monitoramento ao vivo ainda não está conectado. Até estar, não vamos mostrar números que não medimos.",
+    "servicesLabel": "01 — Serviços",
+    "s1": {
+      "name": "Link",
+      "desc": "Dashboard, redirects e QR codes"
     },
-    "none": "Nenhum outro incidente nos últimos 90 dias. Pretendemos mantê-lo assim de chato."
+    "s2": {
+      "name": "CRM",
+      "desc": "Contatos, empresas, deals, workflows"
+    },
+    "s3": {
+      "name": "Track",
+      "desc": "Projetos, issues, ciclos"
+    },
+    "s4": {
+      "name": "Cal",
+      "desc": "Tipos de evento e páginas públicas de agendamento"
+    },
+    "s5": {
+      "name": "Docs",
+      "desc": "Páginas, compartilhamento, comentários"
+    },
+    "s6": {
+      "name": "Chat",
+      "desc": "Widget, caixa de entrada, bot de respostas automáticas"
+    },
+    "s7": {
+      "name": "API v1",
+      "desc": "API REST pública para Link e CRM"
+    },
+    "s8": {
+      "name": "Auth",
+      "desc": "Login com Google"
+    },
+    "noData": "Sem dados ainda",
+    "monitoringLabel": "02 — Monitoramento",
+    "monitoringTitle": "Em breve.",
+    "monitoringBody": "Checagens reais de uptime e um registro público de incidentes estão a caminho. Se algo quebrar antes disso, vamos dizer aqui, com todas as letras.",
+    "contact": "Algo fora do ar? Escreva para hola@zerosoft.ai."
   },
   "docs": {
     "meta": {

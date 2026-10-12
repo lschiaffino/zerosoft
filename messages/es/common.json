@@ -72,13 +72,13 @@
     "label": "0.02 — El arsenal",
     "title": "Todo el software que usás.",
     "titleDim": "Cero software que pagues.",
-    "track": { "tag": "Gestión de proyectos", "desc": "La velocidad de Linear. El precio del aire.", "status": "En construcción" },
+    "track": { "tag": "Gestión de proyectos", "desc": "La velocidad de Linear. El precio del aire.", "status": "Disponible" },
     "crm": { "tag": "Clientes y ventas", "desc": "Tu pipeline completo, de punta a punta. Cero licencias por usuario.", "status": "Disponible" },
-    "cal": { "tag": "Agendamiento", "desc": "Tu disponibilidad, un link, listo. Sin pagar por el privilegio.", "status": "En construcción" },
+    "cal": { "tag": "Agendamiento", "desc": "Tu disponibilidad, un link, listo. Sin pagar por el privilegio.", "status": "Disponible" },
     "link": { "tag": "Links cortos", "desc": "Links cortos con métricas reales. Tuyos para siempre.", "status": "Disponible" },
     "chat": { "tag": "Chat con clientes", "desc": "Una inbox para todas las conversaciones. Widgets, personas y canales.", "status": "Disponible" },
     "docs": { "tag": "Docs y wiki", "desc": "Notas y documentos que son tuyos. Sin cobro por usuario.", "status": "Disponible" },
-    "more": { "title": "Todo lo demás", "tag": "Lo que sigue", "desc": "Documentos. Notas. Chat. Diseño. Si el mundo lo usa, lo vamos a liberar. Esto recién empieza.", "status": "Siempre" }
+    "more": { "title": "Todo lo demás", "tag": "Lo que sigue", "desc": "Diseño. Formularios. Analytics. Si el mundo lo usa, lo vamos a liberar. Esto recién empieza.", "status": "Siempre" }
   },
   "model": {
     "label": "0.03 — El modelo",
@@ -91,7 +91,7 @@
     "label": "0.04 — Sumate",
     "title1": "Bienvenido",
     "title2": "al nuevo mundo.",
-    "sub": "Estamos construyendo. Escribinos y te avisamos cuando cada pieza se libere.",
+    "sub": "Seis herramientas ya son libres. Escribinos y te avisamos cuando llegue la próxima.",
     "cta": "Quiero entrar →"
   },
   "auth": {

@@ -3,10 +3,10 @@
  * the product pages and the /api/og/product route can share it.
  */
 export const PRODUCT_CONFIG = {
-  link: { num: '04', name: 'Link', available: true, launch: '/app' },
-  track: { num: '01', name: 'Track', available: false, launch: '/app' },
+  link: { num: '04', name: 'Link', available: true, launch: '/app/links' },
+  track: { num: '01', name: 'Track', available: true, launch: '/app/track' },
   crm: { num: '02', name: 'CRM', available: true, launch: '/app/crm' },
-  cal: { num: '03', name: 'Cal', available: false, launch: '/app' },
+  cal: { num: '03', name: 'Cal', available: true, launch: '/app/calendar' },
   docs: { num: '05', name: 'Docs', available: true, launch: '/app/docs' },
   chat: { num: '06', name: 'Chat', available: true, launch: '/app/chat' },
 } as const;

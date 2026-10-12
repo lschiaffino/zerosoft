@@ -72,13 +72,13 @@
     "label": "0.02 — The arsenal",
     "title": "All the software you use.",
     "titleDim": "Zero software you pay for.",
-    "track": { "tag": "Project management", "desc": "The speed of Linear. The price of air.", "status": "In the works" },
+    "track": { "tag": "Project management", "desc": "The speed of Linear. The price of air.", "status": "Available" },
     "crm": { "tag": "Customers & sales", "desc": "Your entire pipeline, end to end. Zero per-seat licenses.", "status": "Available" },
-    "cal": { "tag": "Scheduling", "desc": "Your availability, one link, done. Without paying for the privilege.", "status": "In the works" },
+    "cal": { "tag": "Scheduling", "desc": "Your availability, one link, done. Without paying for the privilege.", "status": "Available" },
     "link": { "tag": "Short links", "desc": "Short links with real analytics. Yours forever.", "status": "Available" },
     "chat": { "tag": "Customer chat", "desc": "One inbox for every conversation. Widgets, people and channels.", "status": "Available" },
     "docs": { "tag": "Docs & wiki", "desc": "Notes and documents that belong to you. No per-seat pricing.", "status": "Available" },
-    "more": { "title": "Everything else", "tag": "What's next", "desc": "Docs. Notes. Chat. Design. If the world uses it, we will set it free. This is just the beginning.", "status": "Always" }
+    "more": { "title": "Everything else", "tag": "What's next", "desc": "Design. Forms. Analytics. If the world uses it, we will set it free. This is just the beginning.", "status": "Always" }
   },
   "model": {
     "label": "0.03 — The model",
@@ -91,7 +91,7 @@
     "label": "0.04 — Join us",
     "title1": "Welcome to",
     "title2": "the new world.",
-    "sub": "We are building. Write to us and we will let you know when each piece is set free.",
+    "sub": "Six tools are already free. Write to us and we will tell you when the next one lands.",
     "cta": "I want in →"
   },
   "auth": {

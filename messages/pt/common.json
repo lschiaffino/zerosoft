@@ -72,13 +72,13 @@
     "label": "0.02 — O arsenal",
     "title": "Todo o software que você usa.",
     "titleDim": "Zero software que você paga.",
-    "track": { "tag": "Gestão de projetos", "desc": "A velocidade do Linear. O preço do ar.", "status": "Em construção" },
+    "track": { "tag": "Gestão de projetos", "desc": "A velocidade do Linear. O preço do ar.", "status": "Disponível" },
     "crm": { "tag": "Clientes e vendas", "desc": "Todo o seu pipeline, de ponta a ponta. Zero licenças por usuário.", "status": "Disponível" },
-    "cal": { "tag": "Agendamento", "desc": "Sua disponibilidade, um link, pronto. Sem pagar pelo privilégio.", "status": "Em construção" },
+    "cal": { "tag": "Agendamento", "desc": "Sua disponibilidade, um link, pronto. Sem pagar pelo privilégio.", "status": "Disponível" },
     "link": { "tag": "Links curtos", "desc": "Links curtos com métricas reais. Seus para sempre.", "status": "Disponível" },
     "chat": { "tag": "Chat com clientes", "desc": "Uma caixa de entrada para todas as conversas. Widgets, pessoas e canais.", "status": "Disponível" },
     "docs": { "tag": "Docs e wiki", "desc": "Notas e documentos que são seus. Sem cobrança por usuário.", "status": "Disponível" },
-    "more": { "title": "Todo o resto", "tag": "O que vem", "desc": "Documentos. Notas. Chat. Design. Se o mundo usa, vamos libertar. Isso é só o começo.", "status": "Sempre" }
+    "more": { "title": "Todo o resto", "tag": "O que vem", "desc": "Design. Formulários. Analytics. Se o mundo usa, vamos libertar. Isso é só o começo.", "status": "Sempre" }
   },
   "model": {
     "label": "0.03 — O modelo",
@@ -91,7 +91,7 @@
     "label": "0.04 — Junte-se",
     "title1": "Bem-vindo",
     "title2": "ao novo mundo.",
-    "sub": "Estamos construindo. Escreva para nós e avisaremos quando cada peça for libertada.",
+    "sub": "Seis ferramentas já são livres. Escreva para nós e avisaremos quando a próxima chegar.",
     "cta": "Quero entrar →"
   },
   "auth": {
