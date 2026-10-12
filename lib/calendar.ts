@@ -628,8 +628,8 @@ export async function createBooking(payload: BookingCreatePayload): Promise<Cale
     await getDb()
       .prepare(
         `INSERT INTO calendar_bookings
-         (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, timezone, status, answers, host_user_id, manage_token, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, timezone, status, answers, host_user_id, manage_token, locale, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -643,6 +643,7 @@ export async function createBooking(payload: BookingCreatePayload): Promise<Cale
         serializeJson(payload.answers, {}),
         hostUserId,
         newManageToken(),
+        payload.locale ?? 'en',
         ts,
         ts,
       );
@@ -783,13 +784,14 @@ export interface DueReminderRow extends CalendarReminderRow {
   event_title: string;
   event_location: string;
   manage_token: string | null;
+  locale: string;
 }
 
 /** Recordatorios vencidos de bookings que siguen confirmados. */
 export async function listDueReminders(limit = 50): Promise<DueReminderRow[]> {
   return (await getDb()
     .prepare(
-      `SELECT r.*, b.invitee_email, b.invitee_name, b.starts_at, b.ends_at, b.timezone, b.manage_token,
+      `SELECT r.*, b.invitee_email, b.invitee_name, b.starts_at, b.ends_at, b.timezone, b.manage_token, b.locale,
               e.title AS event_title, e.location AS event_location
        FROM calendar_reminders r
        JOIN calendar_bookings b ON b.id = r.booking_id

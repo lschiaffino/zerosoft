@@ -39,7 +39,8 @@ async function run(req: NextRequest) {
       start: new Date(reminder.starts_at),
       timezone: reminder.timezone,
       location: reminder.event_location,
-      manageUrl: reminder.manage_token ? manageUrl({ manage_token: reminder.manage_token }) : null,
+      manageUrl: reminder.manage_token ? manageUrl({ manage_token: reminder.manage_token }, reminder.locale) : null,
+      locale: reminder.locale,
     });
     if (res.ok) {
       await markReminderSent(reminder.id);

@@ -100,8 +100,9 @@ export function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function formatWhen(start: Date, timezone: string): string {
-  return new Intl.DateTimeFormat('en-US', {
+export function formatWhen(start: Date, timezone: string, locale = 'en'): string {
+  const tag = locale === 'es' ? 'es-AR' : locale === 'pt' ? 'pt-BR' : 'en-US';
+  return new Intl.DateTimeFormat(tag, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -142,13 +143,13 @@ export function renderBrandedHtml(opts: {
 </body></html>`;
 }
 
-function detailLines(d: { start: Date; timezone: string; location: string }): string[] {
-  const lines = [`${formatWhen(d.start, d.timezone)} (${escapeHtml(d.timezone)})`];
-  if (d.location) lines.push(`Location: ${escapeHtml(d.location)}`);
-  return lines;
-}
+const REMINDER_COPY = {
+  en: { subject: 'Reminder: {event} tomorrow', heading: 'Reminder', hi: 'Hi {name},', line: '<strong>{event}</strong> is coming up in about 24 hours.', where: 'Location', change: "Can't make it? <a href=\"{url}\">Reschedule or cancel</a>.", bye: 'See you then.' },
+  es: { subject: 'Recordatorio: {event} mañana', heading: 'Recordatorio', hi: 'Hola {name},', line: '<strong>{event}</strong> es en unas 24 horas.', where: 'Lugar', change: '¿No podés? <a href=\"{url}\">Reprogramar o cancelar</a>.', bye: '¡Nos vemos!' },
+  pt: { subject: 'Lembrete: {event} amanhã', heading: 'Lembrete', hi: 'Olá {name},', line: '<strong>{event}</strong> é daqui a cerca de 24 horas.', where: 'Local', change: 'Não vai poder? <a href=\"{url}\">Reagendar ou cancelar</a>.', bye: 'Até lá!' },
+};
 
-/** Recordatorio 24h antes para el invitee. */
+/** Recordatorio 24h antes para el invitee, en su idioma. */
 export async function sendBookingReminder(opts: {
   to: string;
   guestName: string;
@@ -157,31 +158,24 @@ export async function sendBookingReminder(opts: {
   timezone: string;
   location: string;
   manageUrl?: string | null;
+  locale?: string | null;
 }): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const dateText = formatWhen(opts.start, opts.timezone);
-
-  const subject = `Reminder: ${opts.eventTitle} tomorrow`;
-  const text = `Hi ${opts.guestName},
-
-Reminder: "${opts.eventTitle}" is coming up in about 24 hours.
-
-${dateText} (${opts.timezone})
-${opts.location ? `Location: ${opts.location}` : ''}
-${opts.manageUrl ? `\nCan't make it? Reschedule or cancel: ${opts.manageUrl}\n` : ''}
-See you then.
-`;
-  const html = renderBrandedHtml({
-    heading: 'Reminder',
-    paragraphs: [
-      `Hi ${escapeHtml(opts.guestName)}, <strong>${escapeHtml(opts.eventTitle)}</strong> is coming up in about 24 hours.`,
-      ...detailLines(opts),
-      ...(opts.manageUrl
-        ? [`Can't make it? <a href="${escapeHtml(opts.manageUrl)}">Reschedule or cancel</a>.`]
-        : []),
-      'See you then.',
-    ],
+  const lang = opts.locale === 'es' || opts.locale === 'pt' ? opts.locale : 'en';
+  const c = REMINDER_COPY[lang];
+  const fill = (tpl: string, v: Record<string, string>) => tpl.replace(/\{(\w+)\}/g, (_, k: string) => v[k] ?? '');
+  const strip = (h: string) => h.replace(/<[^>]+>/g, '');
+  const paragraphs = [
+    `${fill(c.hi, { name: escapeHtml(opts.guestName) })} ${fill(c.line, { event: escapeHtml(opts.eventTitle) })}`,
+    `${escapeHtml(formatWhen(opts.start, opts.timezone, lang))} (${escapeHtml(opts.timezone)})`,
+    ...(opts.location ? [`${c.where}: ${escapeHtml(opts.location)}`] : []),
+    ...(opts.manageUrl ? [fill(c.change, { url: escapeHtml(opts.manageUrl) })] : []),
+    c.bye,
+  ];
+  const sent = await sendEmail({
+    to: opts.to,
+    subject: fill(c.subject, { event: opts.eventTitle }),
+    text: paragraphs.map(strip).join('\n\n') + (opts.manageUrl ? `\n\n${opts.manageUrl}` : ''),
+    html: renderBrandedHtml({ heading: c.heading, paragraphs }),
   });
-
-  const sent = await sendEmail({ to: opts.to, subject, text, html });
   return { ok: sent.ok, provider: sent.provider, error: sent.error };
 }

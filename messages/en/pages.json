@@ -42,19 +42,19 @@
       "i2": {
         "when": "2026 · Q4",
         "name": "Track · Cal",
-        "what": "Issues, cycles and Gantt timelines. Booking pages, round-robin and routing forms.",
+        "what": "Issues, cycles and Gantt. Booking pages, round-robin and routing forms. Then: custom domains, Bitly import and full export for Link; Google Calendar sync, API and webhooks for Cal.",
         "state": "Shipped"
       },
       "i3": {
         "when": "Next",
         "name": "Connect",
-        "what": "Custom domains for Link. Google Calendar sync for Cal. APIs and webhooks for Track and Cal.",
+        "what": "API and webhooks for Track. Outlook and iCloud calendars for Cal.",
         "state": "Coming soon"
       },
       "i4": {
         "when": "Next",
         "name": "Move in",
-        "what": "One-click importers from Bitly, Linear and Notion. Full export for Docs and Chat.",
+        "what": "One-click importers from Linear and Notion. Full export for Docs and Chat.",
         "state": "Coming soon"
       }
     },
@@ -68,49 +68,49 @@
     "link": {
       "meta": {
         "title": "Link — Short links, free forever",
-        "description": "Custom aliases, real analytics, QR codes, passwords and a public API. The Bitly alternative that costs zero."
+        "description": "Custom domains, real analytics, QR codes, link-in-bio, Bitly import, webhooks and a public API. The Bitly alternative that costs zero."
       },
       "hero": {
         "tag": "Short links & analytics",
-        "sub": "Everything Bitly charges $35 a month for — custom aliases, click analytics, QR codes, expiring links and a real API — rebuilt, open sourced and set free. Already live."
+        "sub": "Everything Bitly charges $35 a month for — custom domains, click analytics, QR codes, link-in-bio, a real API and webhooks — rebuilt, open sourced and set free. Already live."
       },
       "featuresTitle": "Everything you need.",
       "featuresTitleDim": "Nothing you pay for.",
       "f1": {
-        "t": "Custom aliases",
-        "d": "Pick your own slug: zs.ai/launch reads better than seven random characters. Brand it, remember it, share it."
+        "t": "Custom domains",
+        "d": "go.yourcompany.com/slug. Add the DNS record, verify, done — HTTPS is automatic on our cloud. Same slug on different domains, and you choose where the bare domain goes."
       },
       "f2": {
         "t": "Real analytics",
-        "d": "Clicks by day, referrer, country, device, browser and OS. Cookie-less, fingerprint-less, honest."
+        "d": "Clicks by day, referrer, country, device, browser and OS. 7, 30, 90 days or all time, compared with the previous period. Cookie-less, fingerprint-less, honest."
       },
       "f3": {
         "t": "QR codes",
         "d": "Every link gets an instant QR in SVG or PNG. Print it, project it, ship it."
       },
       "f4": {
-        "t": "Password protection",
-        "d": "Lock a link with a password. Only the people you choose get through."
+        "t": "Passwords, expiry & limits",
+        "d": "Lock a link with a password. Set an expiry date or a maximum click count. The link retires itself."
       },
       "f5": {
-        "t": "Expiration & limits",
-        "d": "Set an expiry date or a maximum click count. The link retires itself."
+        "t": "Import from Bitly",
+        "d": "Paste a Bitly API token to bring the whole account, or upload the CSV export. Back-halves stay. Verify your domain here first and old links keep working when you move the DNS."
       },
       "f6": {
-        "t": "Tags & search",
-        "d": "Tag links by campaign, client or channel. Find anything in seconds."
+        "t": "Link-in-bio",
+        "d": "One page at zerosoft.ai/@you. Pick your links, put them in order, share it. Every click still counts."
       },
       "f7": {
-        "t": "UTM builder",
-        "d": "Build campaign URLs without a spreadsheet. Source, medium, campaign — done."
+        "t": "Tags & UTM",
+        "d": "Tag links by campaign, client or channel. Build UTM URLs without a spreadsheet. Find anything in seconds."
       },
       "f8": {
-        "t": "Public API v1",
-        "d": "Create and measure links from your code with a simple REST API and personal keys."
+        "t": "API & webhooks",
+        "d": "Create and measure links from your code with REST API v1. Get link.created and link.clicked as signed webhooks, with retries."
       },
       "f9": {
-        "t": "Your data, exportable",
-        "d": "Download every click as CSV, or pull links and stats through the API. No hostages."
+        "t": "All your data, out",
+        "d": "Every link as CSV. Every click as JSON. Or pull it all through the API. No hostages."
       },
       "compare": {
         "rival": "Bitly",
@@ -127,11 +127,11 @@
         },
         "f2": {
           "q": "Can I migrate my links from Bitly?",
-          "a": "Today you can paste up to 200 destinations at once and get them all shortened. A one-click Bitly import and custom domains are coming soon."
+          "a": "Yes. Paste your Bitly API token to import the whole account, or upload Bitly's CSV export — up to 2,000 links per run, back-halves included. Add and verify your custom domain here first: once you move the DNS, the same links keep working."
         },
         "f3": {
           "q": "What happens if Zerosoft shuts down?",
-          "a": "Nothing bad. The code is open source, so anyone can run it forever. Your clicks download as CSV and your links come out through the API at any time. Your links can never be held hostage."
+          "a": "Nothing bad. The code is open source, so anyone can run it forever. Export every link as CSV and every click as JSON whenever you want. Your links can never be held hostage."
         },
         "f4": {
           "q": "Can I self-host it?",
@@ -323,49 +323,49 @@
     "cal": {
       "meta": {
         "title": "Cal — Scheduling, set free",
-        "description": "Your availability as a link. Timezone detection, buffers, round-robin and reminders — without $12 a month. Open source. Live now."
+        "description": "Your availability as a link. Google Calendar sync, timezone detection, round-robin, embeds and an API — without $12 a month. Open source. Live now."
       },
       "hero": {
         "tag": "Scheduling",
-        "sub": "Your availability as a link. People pick a slot, everyone gets a confirmation email, and nobody pays $12 a month for the privilege. Live now."
+        "sub": "Your availability as a link. People pick a slot, it lands in your Google Calendar, everyone gets the invite, and nobody pays $12 a month for the privilege. Live now."
       },
       "featuresTitle": "One link. Done.",
       "featuresTitleDim": "Zero emails back and forth.",
       "f1": {
         "t": "Booking pages",
-        "d": "One link per meeting type: 15, 30 or 60 minutes. Share it and never email times again."
+        "d": "One link per meeting: zerosoft.ai/book/you/30min. Days with nothing free are disabled. On desktop, calendar and slots side by side."
       },
       "f2": {
-        "t": "Timezone detection",
-        "d": "Guests see slots in their timezone, you see them in yours. Nobody does math."
+        "t": "Google Calendar sync",
+        "d": "Busy in Google means busy here. Every booking lands in your calendar, with a Google Meet link when there is no other location. Reschedule or cancel and it updates."
       },
       "f3": {
-        "t": "Buffers & limits",
-        "d": "Padding before and after, minimum notice, how far ahead people can book. Your calendar, defended."
+        "t": "Timezones, buffers & limits",
+        "d": "Guests see their timezone, you see yours. Padding before and after, minimum notice, custom questions. Your calendar, defended."
       },
       "f4": {
-        "t": "Round-robin",
-        "d": "Distribute bookings across the team automatically. Fair by default."
+        "t": "Round-robin & routing",
+        "d": "Ask a few questions, send each person to the right event type, spread bookings across the team. Each host connects their own Google Calendar."
       },
       "f5": {
-        "t": "Routing forms",
-        "d": "Ask a few questions first, then send each person to the right event type. Right call, right person."
+        "t": "Guests manage themselves",
+        "d": "Cancel or reschedule from the link in the email. No account, no back and forth."
       },
       "f6": {
-        "t": "Confirmations & reminders",
-        "d": "Automatic emails on booking and a reminder 24 hours before. No-shows drop."
+        "t": "Emails with invites",
+        "d": "Confirmation, reschedule and cancel emails carry an .ics invite. A reminder 24 hours before, with the manage link. No-shows drop."
       },
       "f7": {
-        "t": "Custom questions",
-        "d": "Ask what you need before the call: agenda, phone number, anything."
+        "t": "Embed anywhere",
+        "d": "Put it inline on any site — it sizes itself — or behind a popup button."
       },
       "f8": {
-        "t": "Blocked time",
-        "d": "Block holidays, focus time or anything else. Nobody books what you closed."
+        "t": "API & webhooks",
+        "d": "REST API v1 for event types and bookings: list, create, get, cancel. booking.created, booking.rescheduled and booking.cancelled as signed webhooks, with retries."
       },
       "f9": {
-        "t": "Bookings in one place",
-        "d": "Upcoming, cancelled and no-shows on one list. Calendar sync and an API are coming soon."
+        "t": "Zero double bookings",
+        "d": "Availability is per person, across every event type. Two guests cannot grab the same slot, not even at the same second. Block holidays and focus time too."
       },
       "compare": {
         "rival": "Calendly",
@@ -382,7 +382,7 @@
         },
         "f2": {
           "q": "Can I migrate from Calendly?",
-          "a": "Recreating your event types takes minutes — durations, buffers and questions all map over. Share your new booking link and you are done."
+          "a": "Recreating your event types takes minutes — durations, buffers and questions all map over. Connect Google Calendar, embed your new link where the old one was, done."
         },
         "f3": {
           "q": "What happens if Zerosoft shuts down?",
@@ -393,8 +393,8 @@
           "a": "Yes. Run the core, set your availability, share your link. No license server, no premium tier hiding the good parts: the whole core is yours. Only enterprise extras (SSO, audit logs, white-label) come under a commercial license."
         },
         "f5": {
-          "q": "Is it live?",
-          "a": "Yes. Cal is live: create an event type and share your first booking link today — for $0."
+          "q": "Does it sync with my calendar?",
+          "a": "Google Calendar, yes: busy times block your slots and every booking lands in your calendar with a Meet link. Outlook and iCloud are coming soon."
         }
       },
       "cta": {
@@ -773,7 +773,7 @@
     },
     "s7": {
       "name": "API v1",
-      "desc": "Public REST API for Link and CRM"
+      "desc": "Public REST API for Link, CRM and Cal"
     },
     "s8": {
       "name": "Auth",

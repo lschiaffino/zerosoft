@@ -57,7 +57,12 @@ npm run build && npm start
 | `DEMO_MODE` | `true` = everyone is the shared demo user, no login. Ignored when `NODE_ENV=production` unless `DEMO_MODE_ALLOW_PRODUCTION=true`. |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Transactional email (booking confirmations, reminders). Unset → emails are logged to the console. |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob for file uploads. Required on Vercel; elsewhere, unset → files go to `public/uploads`. |
-| `CRON_SECRET` | Required in production for `/api/calendar/reminders/due` (Vercel Cron sends it as a Bearer token). |
+| `CRON_SECRET` | Required in production for `/api/cron/tick` (Cal reminders + webhook retries; Vercel Cron sends it as a Bearer token). |
+| `ENCRYPTION_KEY` | Encrypts OAuth tokens and webhook secrets at rest. Unset → derived from `NEXTAUTH_SECRET`. |
+| `VERCEL_TOKEN` / `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID` | Link custom domains on Vercel: domains are added to the project (and get HTTPS) through the Vercel API. Self-host: leave unset, domains are verified by DNS. |
+| `APP_HOSTS` | Extra hostnames that serve the app (comma-separated), so they aren't treated as custom short-link domains. |
+| `ALLOW_PRIVATE_WEBHOOKS` | `true` allows webhooks to private/internal hosts and plain http (self-host on a private network). Never on a public cloud. |
+| `ZEROSOFT_LICENSE_KEY` | Enterprise license key for `/ee` features (optional). |
 | `SHORT_DOMAIN` | Public domain shown in short URLs, e.g. `zs.ai`. No trailing slash. |
 
 ## API v1

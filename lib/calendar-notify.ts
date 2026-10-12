@@ -24,29 +24,107 @@ function sequenceOf(booking: CalendarBookingRow): number {
   return Math.floor(new Date(booking.updated_at).getTime() / 1000) - 1_700_000_000;
 }
 
-const COPY: Record<Kind, { guestSubject: string; hostSubject: string; heading: string; guestLine: string; hostLine: string }> = {
-  created: {
-    guestSubject: 'Booking confirmed: {event}',
-    hostSubject: 'New booking: {event} — {guest}',
-    heading: 'Booking confirmed',
-    guestLine: 'your booking for <strong>{event}</strong> is confirmed.',
-    hostLine: '<strong>{guest}</strong> ({email}) booked <strong>{event}</strong>.',
+type Locale = 'en' | 'es' | 'pt';
+
+interface KindCopy {
+  guestSubject: string;
+  hostSubject: string;
+  heading: string;
+  guestLine: string;
+  hostLine: string;
+}
+
+/** Textos por idioma del invitado (el host recibe el mismo idioma: es su cliente). */
+const COPY: Record<Locale, Record<Kind, KindCopy> & { hi: string; where: string; reason: string; manage: string; manageText: string }> = {
+  en: {
+    hi: 'Hi {name},',
+    where: 'Location',
+    reason: 'Reason',
+    manage: 'Need to change something? <a href="{url}">Reschedule or cancel</a>.',
+    manageText: 'Reschedule or cancel: {url}',
+    created: {
+      guestSubject: 'Booking confirmed: {event}',
+      hostSubject: 'New booking: {event} — {guest}',
+      heading: 'Booking confirmed',
+      guestLine: 'your booking for <strong>{event}</strong> is confirmed.',
+      hostLine: '<strong>{guest}</strong> ({email}) booked <strong>{event}</strong>.',
+    },
+    rescheduled: {
+      guestSubject: 'Rescheduled: {event}',
+      hostSubject: 'Rescheduled: {event} — {guest}',
+      heading: 'Booking rescheduled',
+      guestLine: '<strong>{event}</strong> has a new time.',
+      hostLine: '<strong>{guest}</strong> ({email}) moved <strong>{event}</strong> to a new time.',
+    },
+    cancelled: {
+      guestSubject: 'Cancelled: {event}',
+      hostSubject: 'Cancelled: {event} — {guest}',
+      heading: 'Booking cancelled',
+      guestLine: '<strong>{event}</strong> was cancelled.',
+      hostLine: '<strong>{guest}</strong> ({email}) — <strong>{event}</strong> was cancelled.',
+    },
   },
-  rescheduled: {
-    guestSubject: 'Rescheduled: {event}',
-    hostSubject: 'Rescheduled: {event} — {guest}',
-    heading: 'Booking rescheduled',
-    guestLine: '<strong>{event}</strong> has a new time.',
-    hostLine: '<strong>{guest}</strong> ({email}) moved <strong>{event}</strong> to a new time.',
+  es: {
+    hi: 'Hola {name},',
+    where: 'Lugar',
+    reason: 'Motivo',
+    manage: '¿Necesitás cambiar algo? <a href="{url}">Reprogramar o cancelar</a>.',
+    manageText: 'Reprogramar o cancelar: {url}',
+    created: {
+      guestSubject: 'Reserva confirmada: {event}',
+      hostSubject: 'Nueva reserva: {event} — {guest}',
+      heading: 'Reserva confirmada',
+      guestLine: 'tu reserva para <strong>{event}</strong> está confirmada.',
+      hostLine: '<strong>{guest}</strong> ({email}) reservó <strong>{event}</strong>.',
+    },
+    rescheduled: {
+      guestSubject: 'Reprogramada: {event}',
+      hostSubject: 'Reprogramada: {event} — {guest}',
+      heading: 'Reserva reprogramada',
+      guestLine: '<strong>{event}</strong> tiene un nuevo horario.',
+      hostLine: '<strong>{guest}</strong> ({email}) movió <strong>{event}</strong> a otro horario.',
+    },
+    cancelled: {
+      guestSubject: 'Cancelada: {event}',
+      hostSubject: 'Cancelada: {event} — {guest}',
+      heading: 'Reserva cancelada',
+      guestLine: '<strong>{event}</strong> se canceló.',
+      hostLine: '<strong>{guest}</strong> ({email}) — <strong>{event}</strong> se canceló.',
+    },
   },
-  cancelled: {
-    guestSubject: 'Cancelled: {event}',
-    hostSubject: 'Cancelled: {event} — {guest}',
-    heading: 'Booking cancelled',
-    guestLine: '<strong>{event}</strong> was cancelled.',
-    hostLine: '<strong>{guest}</strong> ({email}) — <strong>{event}</strong> was cancelled.',
+  pt: {
+    hi: 'Olá {name},',
+    where: 'Local',
+    reason: 'Motivo',
+    manage: 'Precisa mudar algo? <a href="{url}">Reagendar ou cancelar</a>.',
+    manageText: 'Reagendar ou cancelar: {url}',
+    created: {
+      guestSubject: 'Reserva confirmada: {event}',
+      hostSubject: 'Nova reserva: {event} — {guest}',
+      heading: 'Reserva confirmada',
+      guestLine: 'sua reserva para <strong>{event}</strong> está confirmada.',
+      hostLine: '<strong>{guest}</strong> ({email}) reservou <strong>{event}</strong>.',
+    },
+    rescheduled: {
+      guestSubject: 'Reagendada: {event}',
+      hostSubject: 'Reagendada: {event} — {guest}',
+      heading: 'Reserva reagendada',
+      guestLine: '<strong>{event}</strong> tem um novo horário.',
+      hostLine: '<strong>{guest}</strong> ({email}) mudou <strong>{event}</strong> para outro horário.',
+    },
+    cancelled: {
+      guestSubject: 'Cancelada: {event}',
+      hostSubject: 'Cancelada: {event} — {guest}',
+      heading: 'Reserva cancelada',
+      guestLine: '<strong>{event}</strong> foi cancelada.',
+      hostLine: '<strong>{guest}</strong> ({email}) — <strong>{event}</strong> foi cancelada.',
+    },
   },
 };
+
+function asLocale(l: string | null | undefined): Locale {
+  return l === 'es' || l === 'pt' ? l : 'en';
+}
 
 function fill(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{(\w+)\}/g, (_, k: string) => vars[k] ?? '');
@@ -66,13 +144,15 @@ export async function notifyBooking(
   const host = await getUserById(booking.host_user_id ?? eventType.user_id);
   const start = new Date(booking.starts_at);
   const end = new Date(booking.ends_at);
-  const copy = COPY[kind];
+  const lang = asLocale(opts.locale ?? booking.locale);
+  const L = COPY[lang];
+  const copy = L[kind];
   const vars = {
     event: escapeHtml(eventType.title),
     guest: escapeHtml(booking.invitee_name),
     email: escapeHtml(booking.invitee_email),
   };
-  const manage = booking.manage_token ? manageUrl(booking, opts.locale) : null;
+  const manage = booking.manage_token ? manageUrl(booking, lang) : null;
 
   const ics = buildIcs({
     uid: `${booking.id}@zerosoft.ai`,
@@ -91,25 +171,25 @@ export async function notifyBooking(
   ];
 
   const details = (tz: string) => {
-    const lines = [`${escapeHtml(formatWhen(start, tz))} (${escapeHtml(tz)})`];
+    const lines = [`${escapeHtml(formatWhen(start, tz, lang))} (${escapeHtml(tz)})`];
     const where = booking.meeting_url || eventType.location;
-    if (where) lines.push(`Location: ${escapeHtml(where)}`);
-    if (opts.reason) lines.push(`Reason: ${escapeHtml(opts.reason)}`);
+    if (where) lines.push(`${L.where}: ${escapeHtml(where)}`);
+    if (opts.reason) lines.push(`${L.reason}: ${escapeHtml(opts.reason)}`);
     return lines;
   };
 
   // Invitado
   const guestParagraphs = [
-    `Hi ${vars.guest}, ${fill(copy.guestLine, vars)}`,
+    `${fill(L.hi, { name: vars.guest })} ${fill(copy.guestLine, vars)}`,
     ...details(booking.timezone),
-    ...(manage && kind !== 'cancelled'
-      ? [`Need to change something? <a href="${escapeHtml(manage)}">Reschedule or cancel</a>.`]
-      : []),
+    ...(manage && kind !== 'cancelled' ? [fill(L.manage, { url: escapeHtml(manage) })] : []),
   ];
   await sendEmail({
     to: booking.invitee_email,
     subject: stripTags(fill(copy.guestSubject, { ...vars, event: eventType.title })),
-    text: guestParagraphs.map(stripTags).join('\n\n') + (manage && kind !== 'cancelled' ? `\n\n${manage}` : ''),
+    text:
+      guestParagraphs.slice(0, manage && kind !== 'cancelled' ? -1 : undefined).map(stripTags).join('\n\n') +
+      (manage && kind !== 'cancelled' ? `\n\n${fill(L.manageText, { url: manage })}` : ''),
     html: renderBrandedHtml({
       heading: copy.heading,
       paragraphs: guestParagraphs,
@@ -122,7 +202,7 @@ export async function notifyBooking(
   // Host
   if (host) {
     const hostParagraphs = [
-      `Hi ${escapeHtml(host.name ?? host.email)}, ${fill(copy.hostLine, vars)}`,
+      `${fill(L.hi, { name: escapeHtml(host.name ?? host.email) })} ${fill(copy.hostLine, vars)}`,
       ...details(booking.timezone),
     ];
     await sendEmail({

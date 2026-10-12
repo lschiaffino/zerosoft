@@ -457,6 +457,7 @@ export interface CalendarBookingRow {
   rescheduled_from: string | null;
   google_event_id: string | null;
   meeting_url: string | null;
+  locale: string;
 }
 
 export interface CalendarEventHostRow {

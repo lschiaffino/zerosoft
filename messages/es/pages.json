@@ -42,19 +42,19 @@
       "i2": {
         "when": "2026 · Q4",
         "name": "Track · Cal",
-        "what": "Issues, ciclos y timelines Gantt. Páginas de reserva, round-robin y formularios de ruteo.",
+        "what": "Issues, ciclos y Gantt. Páginas de reserva, round-robin y formularios de ruteo. Después: dominios propios, importación de Bitly y export completo para Link; sync con Google Calendar, API y webhooks para Cal.",
         "state": "Liberado"
       },
       "i3": {
         "when": "Lo que sigue",
         "name": "Conectar",
-        "what": "Dominios propios para Link. Sync con Google Calendar para Cal. APIs y webhooks para Track y Cal.",
+        "what": "API y webhooks para Track. Calendarios de Outlook e iCloud para Cal.",
         "state": "Próximamente"
       },
       "i4": {
         "when": "Lo que sigue",
         "name": "Mudarse",
-        "what": "Importadores en un clic desde Bitly, Linear y Notion. Export completo para Docs y Chat.",
+        "what": "Importadores en un clic desde Linear y Notion. Export completo para Docs y Chat.",
         "state": "Próximamente"
       }
     },
@@ -68,49 +68,49 @@
     "link": {
       "meta": {
         "title": "Link — Links cortos, gratis para siempre",
-        "description": "Alias personalizados, métricas reales, códigos QR, contraseñas y una API pública. La alternativa a Bitly que cuesta cero."
+        "description": "Dominios propios, métricas reales, códigos QR, link-in-bio, importación de Bitly, webhooks y una API pública. La alternativa a Bitly que cuesta cero."
       },
       "hero": {
         "tag": "Links cortos y métricas",
-        "sub": "Todo eso por lo que Bitly cobra $35 al mes — alias personalizados, analytics de clicks, códigos QR, links que expiran y una API de verdad — reconstruido, abierto y liberado. Ya está en el aire."
+        "sub": "Todo eso por lo que Bitly cobra $35 al mes — dominios propios, analytics de clicks, códigos QR, link-in-bio, una API de verdad y webhooks — reconstruido, abierto y liberado. Ya está en el aire."
       },
       "featuresTitle": "Todo lo que necesitás.",
       "featuresTitleDim": "Nada de lo que pagás.",
       "f1": {
-        "t": "Alias personalizados",
-        "d": "Elegí tu propio slug: zs.ai/launch se lee mejor que siete caracteres al azar. Marcalo, recordalo, compartilo."
+        "t": "Dominios propios",
+        "d": "go.tuempresa.com/slug. Creá el registro DNS, verificá, listo — en nuestra nube el HTTPS es automático. El mismo slug en distintos dominios, y vos elegís adónde va la raíz."
       },
       "f2": {
         "t": "Métricas reales",
-        "d": "Clicks por día, referrer, país, dispositivo, navegador y SO. Sin cookies, sin fingerprinting, honestas."
+        "d": "Clicks por día, referrer, país, dispositivo, navegador y SO. 7, 30, 90 días o todo, comparado con el período anterior. Sin cookies, sin fingerprinting, honestas."
       },
       "f3": {
         "t": "Códigos QR",
         "d": "Cada link tiene su QR instantáneo en SVG o PNG. Imprimilo, proyectalo, publicalo."
       },
       "f4": {
-        "t": "Protección con contraseña",
-        "d": "Bloqueá un link con contraseña. Solo entra la gente que vos elegís."
+        "t": "Contraseña, vencimiento y límites",
+        "d": "Bloqueá un link con contraseña. Definí una fecha de vencimiento o un máximo de clicks. El link se jubila solo."
       },
       "f5": {
-        "t": "Expiración y límites",
-        "d": "Definí una fecha de vencimiento o un máximo de clicks. El link se jubila solo."
+        "t": "Importá desde Bitly",
+        "d": "Pegá un token de la API de Bitly y traé la cuenta entera, o subí el CSV exportado. Los back-halves se quedan. Verificá tu dominio acá primero y los links viejos siguen andando cuando movés el DNS."
       },
       "f6": {
-        "t": "Tags y búsqueda",
-        "d": "Etiquetá links por campaña, cliente o canal. Encontrá todo en segundos."
+        "t": "Link-in-bio",
+        "d": "Una página en zerosoft.ai/@vos. Elegí tus links, ordenalos, compartila. Cada clic se sigue contando."
       },
       "f7": {
-        "t": "Constructor UTM",
-        "d": "Creá URLs de campaña sin planillas. Source, medium, campaign — listo."
+        "t": "Tags y UTM",
+        "d": "Etiquetá links por campaña, cliente o canal. Armá URLs con UTM sin planillas. Encontrá todo en segundos."
       },
       "f8": {
-        "t": "API pública v1",
-        "d": "Creá y medí links desde tu código con una API REST simple y keys personales."
+        "t": "API y webhooks",
+        "d": "Creá y medí links desde tu código con la API REST v1. Recibí link.created y link.clicked como webhooks firmados, con reintentos."
       },
       "f9": {
-        "t": "Tus datos, exportables",
-        "d": "Descargá cada clic en CSV, o sacá links y métricas por la API. Sin rehenes."
+        "t": "Todos tus datos, afuera",
+        "d": "Cada link en CSV. Cada clic en JSON. O sacá todo por la API. Sin rehenes."
       },
       "compare": {
         "rival": "Bitly",
@@ -127,11 +127,11 @@
         },
         "f2": {
           "q": "¿Puedo migrar mis links de Bitly?",
-          "a": "Hoy podés pegar hasta 200 destinos de una y acortarlos todos. La importación de Bitly en un clic y los dominios propios llegan pronto."
+          "a": "Sí. Pegá tu token de la API de Bitly para importar la cuenta entera, o subí el CSV que exporta Bitly — hasta 2.000 links por corrida, con sus back-halves. Agregá y verificá tu dominio propio acá primero: cuando movés el DNS, los mismos links siguen andando."
         },
         "f3": {
           "q": "¿Qué pasa si Zerosoft cierra?",
-          "a": "Nada malo. El código es open source, así que cualquiera puede correrlo para siempre. Tus clics se descargan en CSV y tus links salen por la API cuando quieras. Tus links nunca pueden quedar de rehenes."
+          "a": "Nada malo. El código es open source, así que cualquiera puede correrlo para siempre. Exportá cada link en CSV y cada clic en JSON cuando quieras. Tus links nunca pueden quedar de rehenes."
         },
         "f4": {
           "q": "¿Puedo self-hostearlo?",
@@ -323,49 +323,49 @@
     "cal": {
       "meta": {
         "title": "Cal — Agendamiento, liberado",
-        "description": "Tu disponibilidad como un link. Detección de zona horaria, buffers, round-robin y recordatorios — sin $12 por mes. Open source. En vivo."
+        "description": "Tu disponibilidad como un link. Sync con Google Calendar, detección de zona horaria, round-robin, embeds y una API — sin $12 por mes. Open source. En vivo."
       },
       "hero": {
         "tag": "Agendamiento",
-        "sub": "Tu disponibilidad como un link. La gente elige un horario, todos reciben un email de confirmación, y nadie paga $12 por mes por el privilegio. En vivo."
+        "sub": "Tu disponibilidad como un link. La gente elige un horario, cae en tu Google Calendar, todos reciben la invitación, y nadie paga $12 por mes por el privilegio. En vivo."
       },
       "featuresTitle": "Un link. Listo.",
       "featuresTitleDim": "Cero emails de ida y vuelta.",
       "f1": {
         "t": "Páginas de reserva",
-        "d": "Un link por tipo de reunión: 15, 30 o 60 minutos. Compartilo y no vuelvas a mandar horarios por email."
+        "d": "Un link por reunión: zerosoft.ai/book/vos/30min. Los días sin lugar aparecen deshabilitados. En desktop, calendario y horarios lado a lado."
       },
       "f2": {
-        "t": "Detección de zona horaria",
-        "d": "Tus invitados ven los horarios en su zona, vos en la tuya. Nadie hace cuentas."
+        "t": "Sync con Google Calendar",
+        "d": "Ocupado en Google es ocupado acá. Cada reserva cae en tu calendario, con link de Google Meet si no hay otra ubicación. Reprogramás o cancelás y se actualiza."
       },
       "f3": {
-        "t": "Buffers y límites",
-        "d": "Margen antes y después, aviso mínimo, hasta cuándo se puede reservar. Tu calendario, defendido."
+        "t": "Zonas horarias, buffers y límites",
+        "d": "Tus invitados ven su zona, vos la tuya. Margen antes y después, aviso mínimo, preguntas personalizadas. Tu calendario, defendido."
       },
       "f4": {
-        "t": "Round-robin",
-        "d": "Repartí las reservas entre el equipo automáticamente. Justo por defecto."
+        "t": "Round-robin y ruteo",
+        "d": "Hacé un par de preguntas, mandá a cada persona al tipo de evento correcto, repartí las reservas en el equipo. Cada host conecta su propio Google Calendar."
       },
       "f5": {
-        "t": "Formularios de ruteo",
-        "d": "Hacé un par de preguntas primero y mandá a cada persona al tipo de evento correcto. La llamada justa, con la persona justa."
+        "t": "El invitado se arregla solo",
+        "d": "Cancela o reprograma desde el link del email. Sin cuenta, sin ida y vuelta."
       },
       "f6": {
-        "t": "Confirmaciones y recordatorios",
-        "d": "Emails automáticos al reservar y un recordatorio 24 horas antes. Bajan los no-shows."
+        "t": "Emails con invitación",
+        "d": "Confirmación, reprogramación y cancelación llevan su invitación .ics. Un recordatorio 24 horas antes, con el link para gestionarla. Bajan los no-shows."
       },
       "f7": {
-        "t": "Preguntas personalizadas",
-        "d": "Preguntá lo que necesites antes de la llamada: agenda, teléfono, lo que sea."
+        "t": "Embebelo donde sea",
+        "d": "Ponelo inline en cualquier sitio — la altura se ajusta sola — o detrás de un botón popup."
       },
       "f8": {
-        "t": "Horarios bloqueados",
-        "d": "Bloqueá feriados, tiempo de foco o lo que quieras. Nadie reserva lo que cerraste."
+        "t": "API y webhooks",
+        "d": "API REST v1 para tipos de evento y reservas: listar, crear, ver, cancelar. booking.created, booking.rescheduled y booking.cancelled como webhooks firmados, con reintentos."
       },
       "f9": {
-        "t": "Reservas en un solo lugar",
-        "d": "Próximas, canceladas y no-shows en una sola lista. El sync de calendario y la API llegan pronto."
+        "t": "Cero reservas dobles",
+        "d": "La disponibilidad es por persona, en todos los tipos de evento. Dos invitados no pueden agarrar el mismo horario, ni en el mismo segundo. Bloqueá feriados y tiempo de foco también."
       },
       "compare": {
         "rival": "Calendly",
@@ -382,7 +382,7 @@
         },
         "f2": {
           "q": "¿Puedo migrar desde Calendly?",
-          "a": "Recrear tus tipos de evento lleva minutos — duraciones, buffers y preguntas se trasladan igual. Compartí tu nuevo link de reserva y listo."
+          "a": "Recrear tus tipos de evento lleva minutos — duraciones, buffers y preguntas se trasladan igual. Conectá Google Calendar, embebé tu nuevo link donde estaba el viejo, listo."
         },
         "f3": {
           "q": "¿Qué pasa si Zerosoft cierra?",
@@ -393,8 +393,8 @@
           "a": "Sí. Corré el core, configurá tu disponibilidad, compartí tu link. Sin servidor de licencias ni tier premium escondiendo lo bueno: todo el core es tuyo. Solo lo enterprise (SSO, audit logs, white-label) va con licencia comercial."
         },
         "f5": {
-          "q": "¿Ya está en vivo?",
-          "a": "Sí. Cal está en vivo: creá un tipo de evento y compartí tu primer link de reserva hoy — por $0."
+          "q": "¿Se sincroniza con mi calendario?",
+          "a": "Con Google Calendar, sí: tus horarios ocupados bloquean los slots y cada reserva cae en tu calendario con link de Meet. Outlook e iCloud llegan pronto."
         }
       },
       "cta": {
@@ -773,7 +773,7 @@
     },
     "s7": {
       "name": "API v1",
-      "desc": "API REST pública para Link y CRM"
+      "desc": "API REST pública para Link, CRM y Cal"
     },
     "s8": {
       "name": "Auth",

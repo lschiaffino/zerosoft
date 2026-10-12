@@ -257,6 +257,14 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // Idioma del invitado: los emails de Cal (confirmación, recordatorio,
+    // cancelación) salen en el idioma en que reservó.
+    id: '011_booking_locale',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN locale TEXT NOT NULL DEFAULT 'en'");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       start: matching.start.toISOString(),
       timezone: guestTz,
       answers,
+      locale: parsed.data.locale,
     });
 
     const synced = await afterBookingCreated(booking, parsed.data.locale);
