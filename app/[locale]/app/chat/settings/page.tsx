@@ -13,11 +13,17 @@ function formatMinutes(mins: number | null, locale: string): string {
   return `${formatNumber(Math.round((hours / 24) * 10) / 10, locale)} d`;
 }
 
-export default async function ChatSettingsPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function ChatSettingsPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
   const widgets = await listChatWidgets(user.id, user.team?.id ?? null);

@@ -7,7 +7,8 @@ import { cleanRow, zodErrorCode } from '@/lib/crm-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 
@@ -16,7 +17,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(cleanRow(detail.deal));
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 

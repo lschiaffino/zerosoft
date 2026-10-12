@@ -6,11 +6,17 @@ import ProjectList from '@/components/track/ProjectList';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TrackOverviewPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function TrackOverviewPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
   const { rows: projects } = await listProjects(user.team?.id ?? null, user.id, { pageSize: 100 });

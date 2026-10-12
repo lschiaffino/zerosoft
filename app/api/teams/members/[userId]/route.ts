@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic';
  * - sos admin y el otro es member,
  * - o te removés a vos mismo (leave), salvo que seas el owner.
  */
-export async function DELETE(req: NextRequest, { params }: { params: { userId: string } }) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const realId = realUserId(user);
@@ -35,7 +36,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { userId: s
 }
 
 /** Cambiar el rol de un member (admin ↔ member). Solo el owner. */
-export async function PATCH(req: NextRequest, { params }: { params: { userId: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = (await req.json().catch(() => null)) as { teamId?: string; role?: string } | null;

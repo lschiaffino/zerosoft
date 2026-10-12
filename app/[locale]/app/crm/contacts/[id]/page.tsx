@@ -52,11 +52,18 @@ function money(amount: number, currency: string, locale: string): string {
   }
 }
 
-export default async function ContactDetailPage({
-  params: { locale, id },
-}: {
-  params: { locale: string; id: string };
-}) {
+export default async function ContactDetailPage(
+  props: {
+    params: Promise<{ locale: string; id: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const detail = await getContact(user.id, id);

@@ -6,11 +6,18 @@ import { getPost, getAllSlugs } from '@/lib/blog';
 import { formatDate } from '@/lib/utils';
 import BlogCover from '@/components/BlogCover';
 
-export async function generateMetadata({
-  params: { locale, slug },
-}: {
-  params: { locale: string; slug: string };
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ locale: string; slug: string }>;
+  }
+): Promise<Metadata> {
+  const params = await props.params;
+
+  const {
+    locale,
+    slug
+  } = params;
+
   const post = getPost(locale, slug);
   if (!post) return {};
   return {
@@ -36,11 +43,18 @@ export function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }));
 }
 
-export default async function BlogPostPage({
-  params: { locale, slug },
-}: {
-  params: { locale: string; slug: string };
-}) {
+export default async function BlogPostPage(
+  props: {
+    params: Promise<{ locale: string; slug: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    slug
+  } = params;
+
   setRequestLocale(locale);
   const post = getPost(locale, slug);
   if (!post) notFound();

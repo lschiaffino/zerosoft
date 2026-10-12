@@ -10,8 +10,9 @@ export const dynamic = 'force-dynamic';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string; ruleId: string } },
+  props: { params: Promise<{ id: string; ruleId: string }> }
 ) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -31,8 +32,9 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string; ruleId: string } },
+  props: { params: Promise<{ id: string; ruleId: string }> }
 ) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!(await deleteRoutingRule(user.id, params.id, params.ruleId))) return notFound();

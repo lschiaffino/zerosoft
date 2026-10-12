@@ -7,12 +7,24 @@ interface LegalSection {
   ul?: string[];
 }
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const t = await getTranslations({ locale, namespace: 'legal.terms' });
   return { title: t('meta.title'), description: t('meta.description') };
 }
 
-export default async function TermsPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function TermsPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'legal.terms' });
   const sections = Object.entries(t.raw('sections') as Record<string, LegalSection>);

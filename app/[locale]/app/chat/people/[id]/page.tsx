@@ -6,11 +6,18 @@ import VisitorDetailClient from '@/components/chat/VisitorDetailClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ChatVisitorPage({
-  params: { locale, id },
-}: {
-  params: { locale: string; id: string };
-}) {
+export default async function ChatVisitorPage(
+  props: {
+    params: Promise<{ locale: string; id: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
 

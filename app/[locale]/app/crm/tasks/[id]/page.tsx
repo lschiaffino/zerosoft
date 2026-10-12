@@ -23,7 +23,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 interface TaskDetailPageProps {
-  params: { locale: string; id: string };
+  params: Promise<{ locale: string; id: string }>;
 }
 
 function formatDateTime(iso: string, locale: string): string {
@@ -40,7 +40,14 @@ function formatDate(iso: string, locale: string): string {
   );
 }
 
-export default async function TaskDetailPage({ params: { locale, id } }: TaskDetailPageProps) {
+export default async function TaskDetailPage(props: TaskDetailPageProps) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

@@ -11,11 +11,18 @@ import SlaClient from '@/components/chat/SlaClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function WidgetSlaPage({
-  params: { locale, id },
-}: {
-  params: { locale: string; id: string };
-}) {
+export default async function WidgetSlaPage(
+  props: {
+    params: Promise<{ locale: string; id: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
   const widget = await getChatWidget(id);

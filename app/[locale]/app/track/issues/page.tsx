@@ -5,11 +5,17 @@ import IssuesTable from '@/components/track/IssuesTable';
 
 export const dynamic = 'force-dynamic';
 
-export default async function IssuesPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function IssuesPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
   const { rows: issues } = await listAllIssues(user.team?.id ?? null, user.id, { pageSize: 50 });

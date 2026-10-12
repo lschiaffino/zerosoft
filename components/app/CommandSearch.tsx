@@ -117,7 +117,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [actionItems],
+    [actionItems, groupOrder],
   );
 
   useEffect(() => {

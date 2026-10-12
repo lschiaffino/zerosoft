@@ -6,7 +6,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** Revocar una invite pendiente (owner o admin del team). */
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const ownerId = user.actingUser?.id ?? user.id;

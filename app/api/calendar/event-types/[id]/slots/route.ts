@@ -6,7 +6,8 @@ import { notFound, crmError } from '@/lib/crm-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const limited = await limitByIp(_req, 'slots', 120, 60);
   if (limited) return limited;
   try {

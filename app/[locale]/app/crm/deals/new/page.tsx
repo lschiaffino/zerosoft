@@ -7,11 +7,18 @@ import DealFullForm from '@/components/crm/DealFullForm';
 export const dynamic = 'force-dynamic';
 
 interface NewDealPageProps {
-  params: { locale: string };
-  searchParams: Record<string, string | string[] | undefined>;
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function NewDealPage({ params: { locale }, searchParams }: NewDealPageProps) {
+export default async function NewDealPage(props: NewDealPageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

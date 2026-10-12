@@ -6,13 +6,20 @@ import IssueForm from '@/components/track/IssueForm';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewIssuePage({
-  params: { locale, id },
-  searchParams,
-}: {
-  params: { locale: string; id: string };
-  searchParams?: { parentId?: string };
-}) {
+export default async function NewIssuePage(
+  props: {
+    params: Promise<{ locale: string; id: string }>;
+    searchParams?: Promise<{ parentId?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const project = await getProject(id);
   if (!project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) notFound();

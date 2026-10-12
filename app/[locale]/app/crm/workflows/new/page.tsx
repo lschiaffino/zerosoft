@@ -6,7 +6,13 @@ import WorkflowEditor from '@/components/crm/WorkflowEditor';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewWorkflowPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function NewWorkflowPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const lists = await listLists(user.id);

@@ -6,7 +6,13 @@ import CompanyForm from '@/components/crm/CompanyForm';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewCompanyPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function NewCompanyPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

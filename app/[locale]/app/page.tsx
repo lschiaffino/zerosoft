@@ -7,7 +7,13 @@ import LinkChart from '@/components/link/LinkChart';
 
 export const dynamic = 'force-dynamic';
 
-export default async function OverviewPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function OverviewPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
   const o = await getUserOverview(user.id);

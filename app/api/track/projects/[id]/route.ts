@@ -14,7 +14,8 @@ async function accessibleProject(id: string, teamId: string | null, ownerId: str
   return project;
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -24,7 +25,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(project);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -39,7 +41,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(updated);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   // Borrar configuración compartida del workspace: solo owner/admin.

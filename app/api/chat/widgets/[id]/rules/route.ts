@@ -11,7 +11,8 @@ function canAccess(widget: Awaited<ReturnType<typeof getChatWidget>>, user: NonN
   return false;
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(params.id);
@@ -21,7 +22,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return NextResponse.json({ rules });
 }
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(params.id);

@@ -9,15 +9,22 @@ import LinksTable, { type TableRow } from '@/components/link/LinksTable';
 export const dynamic = 'force-dynamic';
 
 interface LinksPageProps {
-  params: { locale: string };
-  searchParams: Record<string, string | string[] | undefined>;
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function one(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
 
-export default async function LinksPage({ params: { locale }, searchParams }: LinksPageProps) {
+export default async function LinksPage(props: LinksPageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
 

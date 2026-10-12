@@ -11,7 +11,8 @@ const reorderSchema = z.object({
   stageIds: z.array(z.string().min(1).max(64)).min(1).max(100),
 });
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 

@@ -8,10 +8,16 @@ import { shortDomain, shortUrl } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 interface GatePageProps {
-  params: { locale: string; slug: string };
+  params: Promise<{ locale: string; slug: string }>;
 }
 
-export async function generateMetadata({ params: { slug } }: GatePageProps) {
+export async function generateMetadata(props: GatePageProps) {
+  const params = await props.params;
+
+  const {
+    slug
+  } = params;
+
   const link = await getLinkBySlug(slug);
   if (!link) return {};
   return {
@@ -28,7 +34,14 @@ export async function generateMetadata({ params: { slug } }: GatePageProps) {
   };
 }
 
-export default async function GatePage({ params: { locale, slug } }: GatePageProps) {
+export default async function GatePage(props: GatePageProps) {
+  const params = await props.params;
+
+  const {
+    locale,
+    slug
+  } = params;
+
   const t = await getTranslations({ locale, namespace: 'link' });
   const link = await getLinkBySlug(slug);
 

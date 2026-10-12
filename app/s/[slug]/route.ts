@@ -25,7 +25,8 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
-export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const { slug } = params;
   const locale = localeFrom(req);
   const gone = (reason: string) =>

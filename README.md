@@ -122,7 +122,7 @@ styles/               globals.css, pages.css, link.css, crm.css (no Tailwind, ha
 
 ## Stack
 
-Next.js 14 (App Router) · TypeScript · @libsql/client (local SQLite file or Turso) · next-intl · next-auth v4 · zero CSS frameworks.
+Next.js 15 (App Router) · React 19 · TypeScript · @libsql/client (local SQLite file or Turso) · next-intl · next-auth v4 · zero CSS frameworks.
 
 ## License
 

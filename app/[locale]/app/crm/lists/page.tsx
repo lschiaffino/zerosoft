@@ -6,7 +6,13 @@ import ListsIndex, { type ListRow } from '@/components/crm/ListsIndex';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ListsPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function ListsPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

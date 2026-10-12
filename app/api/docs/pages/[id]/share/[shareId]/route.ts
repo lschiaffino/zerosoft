@@ -8,8 +8,9 @@ export const dynamic = 'force-dynamic';
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string; shareId: string } },
+  props: { params: Promise<{ id: string; shareId: string }> }
 ) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!(await deleteDocShare(user.id, params.id, params.shareId))) return notFound();

@@ -9,11 +9,18 @@ import AvailabilityEditor from '@/components/calendar/AvailabilityEditor';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EventTypeDetailPage({
-  params: { locale, id },
-}: {
-  params: { locale: string; id: string };
-}) {
+export default async function EventTypeDetailPage(
+  props: {
+    params: Promise<{ locale: string; id: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'calendar' });
   const eventType = await getEventType(user.id, id);

@@ -14,8 +14,8 @@ export const dynamic = 'force-dynamic';
 const PAGE_SIZE = 25;
 
 interface CompaniesPageProps {
-  params: { locale: string };
-  searchParams: Record<string, string | string[] | undefined>;
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function one(v: string | string[] | undefined): string | undefined {
@@ -34,7 +34,14 @@ function parseCustomFilter(
   return out;
 }
 
-export default async function CompaniesPage({ params: { locale }, searchParams }: CompaniesPageProps) {
+export default async function CompaniesPage(props: CompaniesPageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

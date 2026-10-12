@@ -6,7 +6,13 @@ import ApiKeysPanel from '@/components/link/ApiKeysPanel';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SettingsPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function SettingsPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
   const keys = await listApiKeys(user.id);

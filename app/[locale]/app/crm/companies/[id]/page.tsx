@@ -22,10 +22,17 @@ import { listMembers } from '@/lib/teams';
 export const dynamic = 'force-dynamic';
 
 interface CompanyDetailPageProps {
-  params: { locale: string; id: string };
+  params: Promise<{ locale: string; id: string }>;
 }
 
-export default async function CompanyDetailPage({ params: { locale, id } }: CompanyDetailPageProps) {
+export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

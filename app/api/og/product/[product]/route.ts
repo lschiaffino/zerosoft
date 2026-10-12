@@ -4,7 +4,8 @@ import { generateProductOGSVG } from '@/lib/product-og';
 
 export const dynamic = 'force-static';
 
-export async function GET(_request: Request, { params }: { params: { product: string } }) {
+export async function GET(_request: Request, props: { params: Promise<{ product: string }> }) {
+  const params = await props.params;
   const { product } = params;
   if (!isProductKey(product)) {
     return new NextResponse('Not found', { status: 404 });

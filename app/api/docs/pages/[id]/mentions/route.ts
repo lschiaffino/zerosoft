@@ -10,7 +10,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** Notifica una mención @usuario en una página. Solo miembros del workspace. */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 

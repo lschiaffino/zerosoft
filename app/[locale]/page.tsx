@@ -1,10 +1,17 @@
+import { use } from "react";
 import { useTranslations } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import ZeroField from '@/components/ZeroField';
 import Reveal from '@/components/Reveal';
 
-export default function HomePage({ params: { locale } }: { params: { locale: string } }) {
+export default function HomePage(props: { params: Promise<{ locale: string }> }) {
+  const params = use(props.params);
+
+  const {
+    locale
+  } = params;
+
   setRequestLocale(locale);
   const t = useTranslations('common');
 

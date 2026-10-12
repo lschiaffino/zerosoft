@@ -5,7 +5,13 @@ import Reveal from '@/components/Reveal';
 import MiniVisual from '@/components/products/MiniVisual';
 import '@/styles/pages.css';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const t = await getTranslations({ locale, namespace: 'pages.products' });
   return { title: t('meta.title'), description: t('meta.description') };
 }
@@ -18,7 +24,13 @@ const COMPARE_ROWS = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'] as const;
 /** Roadmap items already shipped (rendered with the solid "done" style). */
 const ROADMAP_DONE: readonly string[] = ['i1', 'i2'];
 
-export default async function ProductsPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function ProductsPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'pages.products' });
   const tc = await getTranslations({ locale, namespace: 'common.products' });

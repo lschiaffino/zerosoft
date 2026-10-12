@@ -298,6 +298,8 @@ export default function DocsEditor({
     setBlockMenu(null);
     setToolbar(null);
     setLinkDialog(null);
+    // Solo al cambiar de página: re-sincronizar con cada prop pisaría lo que se está escribiendo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.id]);
 
   // Sincroniza el título (contentEditable) solo cuando cambió por fuera del tipeo.
@@ -1516,6 +1518,8 @@ export default function DocsEditor({
 
       {coverUrl ? (
         <div className="docs-cover">
+          {/* URL arbitraria del usuario: next/image exigiría allowlist de dominios. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={coverUrl} alt="" className="docs-cover-img" />
           <button type="button" className="docs-cover-remove" onClick={removeCover}>
             {t('editor.removeCover')}

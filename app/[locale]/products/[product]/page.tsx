@@ -4,11 +4,18 @@ import ProductPage from '@/components/products/ProductPage';
 import { PRODUCT_KEYS, isProductKey } from '@/lib/products';
 import '@/styles/pages.css';
 
-export async function generateMetadata({
-  params: { locale, product },
-}: {
-  params: { locale: string; product: string };
-}) {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ locale: string; product: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    product
+  } = params;
+
   if (!isProductKey(product)) return {};
   const t = await getTranslations({ locale, namespace: `pages.products.${product}.meta` });
   const title = t('title');
@@ -36,11 +43,18 @@ export function generateStaticParams() {
   return PRODUCT_KEYS.map((product) => ({ product }));
 }
 
-export default async function Page({
-  params: { locale, product },
-}: {
-  params: { locale: string; product: string };
-}) {
+export default async function Page(
+  props: {
+    params: Promise<{ locale: string; product: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    product
+  } = params;
+
   setRequestLocale(locale);
   if (!isProductKey(product)) notFound();
   return <ProductPage locale={locale} product={product} />;

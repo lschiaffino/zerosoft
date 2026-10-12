@@ -14,7 +14,8 @@ export const dynamic = 'force-dynamic';
  */
 
 /** Definición pública del form (sin user_id ni destinos de las reglas). */
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const limited = await limitByIp(_req, 'routing', 60, 60);
   if (limited) return limited;
   const form = await getRoutingFormBySlug(params.id);
@@ -34,7 +35,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 /** Evalúa respuestas → { eventTypeSlug } del destino (regla o default). */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const limited = await limitByIp(req, 'routing', 30, 60);
   if (limited) return limited;
   const form = await getRoutingFormBySlug(params.id);

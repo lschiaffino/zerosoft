@@ -13,7 +13,8 @@ async function accessibleProject(id: string, teamId: string | null, ownerId: str
   return project;
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 

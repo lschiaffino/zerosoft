@@ -5,13 +5,20 @@ import PublicBookingPage from '@/components/calendar/PublicBookingPage';
 
 export const dynamic = 'force-dynamic';
 
-export default async function BookPage({
-  params: { slug, locale },
-  searchParams,
-}: {
-  params: { slug: string; locale: string };
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
+export default async function BookPage(
+  props: {
+    params: Promise<{ slug: string; locale: string }>;
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    slug,
+    locale
+  } = params;
+
   const eventType = await getEventTypeBySlug(slug);
   if (!eventType) notFound();
 

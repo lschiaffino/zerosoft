@@ -17,13 +17,19 @@ import TeamPanel from '@/components/crm/TeamPanel';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CrmSettingsPage({
-  params: { locale },
-  searchParams,
-}: {
-  params: { locale: string };
-  searchParams: { gmail?: string };
-}) {
+export default async function CrmSettingsPage(
+  props: {
+    params: Promise<{ locale: string }>;
+    searchParams: Promise<{ gmail?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

@@ -8,7 +8,8 @@ import { invalidBody, notFound, unauthorized, crmError } from '@/lib/crm-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const form = await getRoutingForm(user.id, params.id);
@@ -16,7 +17,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(form);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -34,7 +36,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   // Borrar configuración compartida del workspace: solo owner/admin.

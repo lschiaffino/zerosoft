@@ -88,18 +88,33 @@ function toRunResult(res: ResultSet): RunResult {
   };
 }
 
+/**
+ * Las filas de libsql son objetos "Row" (índices + columnas, prototipo propio).
+ * Se copian a objetos planos: así se pueden pasar de Server a Client Components
+ * y serializar sin sorpresas.
+ */
+function plainRows(res: ResultSet): Record<string, unknown>[] {
+  return res.rows.map((row) => {
+    const out: Record<string, unknown> = {};
+    res.columns.forEach((col, i) => {
+      out[col] = row[i];
+    });
+    return out;
+  });
+}
+
 function makeStatement(executor: Executor, sql: string, ready: () => Promise<void>): Statement {
   return {
     async get(...args: InValue[]) {
       await ready();
       const res = await executor.execute({ sql, args });
       // libsql devuelve rows[]; better-sqlite3 devuelve undefined si no hay fila.
-      return res.rows[0];
+      return plainRows(res)[0];
     },
     async all(...args: InValue[]) {
       await ready();
       const res = await executor.execute({ sql, args });
-      return res.rows;
+      return plainRows(res);
     },
     async run(...args: InValue[]) {
       await ready();

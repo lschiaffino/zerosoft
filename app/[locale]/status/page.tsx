@@ -2,7 +2,13 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Reveal from '@/components/Reveal';
 import '@/styles/pages.css';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const t = await getTranslations({ locale, namespace: 'pages.status' });
   return { title: t('meta.title'), description: t('meta.description') };
 }
@@ -14,7 +20,13 @@ const SERVICES = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'] as const;
  * live monitoring is not wired up yet. No uptime numbers or incidents until
  * there is real data behind them.
  */
-export default async function StatusPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function StatusPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'pages.status' });
 

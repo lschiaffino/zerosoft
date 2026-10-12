@@ -6,7 +6,13 @@ import GoogleButton from '@/components/auth/GoogleButton';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SignInPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function SignInPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await getCurrentUser();
   if (user) redirect(`/${locale}/app`);
 

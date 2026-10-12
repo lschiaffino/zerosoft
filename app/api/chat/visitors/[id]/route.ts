@@ -23,7 +23,8 @@ async function canAccessVisitor(
   return { ok: true, visitor };
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { ok } = await canAccessVisitor(params.id, user);
@@ -34,7 +35,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return NextResponse.json(visitor);
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { ok } = await canAccessVisitor(params.id, user);

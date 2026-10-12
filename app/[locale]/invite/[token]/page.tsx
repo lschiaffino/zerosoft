@@ -9,11 +9,18 @@ import InviteJoin from '@/components/crm/InviteJoin';
 export const dynamic = 'force-dynamic';
 
 /** Página de aceptación de invite: /[locale]/invite/[token]. */
-export default async function InvitePage({
-  params: { locale, token },
-}: {
-  params: { locale: string; token: string };
-}) {
+export default async function InvitePage(
+  props: {
+    params: Promise<{ locale: string; token: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    token
+  } = params;
+
   const t = await getTranslations({ locale, namespace: 'crm' });
   const user = await getCurrentUser();
 

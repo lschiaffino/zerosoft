@@ -9,10 +9,17 @@ import ListMembers, { type MemberRow } from '@/components/crm/ListMembers';
 export const dynamic = 'force-dynamic';
 
 interface ListDetailPageProps {
-  params: { locale: string; id: string };
+  params: Promise<{ locale: string; id: string }>;
 }
 
-export default async function ListDetailPage({ params: { locale, id } }: ListDetailPageProps) {
+export default async function ListDetailPage(props: ListDetailPageProps) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

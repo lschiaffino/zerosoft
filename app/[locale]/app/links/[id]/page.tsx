@@ -20,11 +20,19 @@ import DangerZone from '@/components/link/DangerZone';
 export const dynamic = 'force-dynamic';
 
 interface DetailPageProps {
-  params: { locale: string; id: string };
-  searchParams: Record<string, string | string[] | undefined>;
+  params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function LinkDetailPage({ params: { locale, id }, searchParams }: DetailPageProps) {
+export default async function LinkDetailPage(props: DetailPageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
 

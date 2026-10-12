@@ -15,7 +15,8 @@ async function accessibleCycle(id: string, teamId: string | null, ownerId: strin
   return cycle;
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -25,7 +26,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(cycle);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 

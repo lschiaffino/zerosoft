@@ -16,13 +16,22 @@ import '@/styles/app.css';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AppLayout({
-  children,
-  params: { locale },
-}: {
-  children: ReactNode;
-  params: { locale: string };
-}) {
+export default async function AppLayout(
+  props: {
+    children: ReactNode;
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
+  const {
+    children
+  } = props;
+
   const user = await requireUser(locale);
   const tSide = await getTranslations({ locale, namespace: 'common.sidebar' });
   const tLink = await getTranslations({ locale, namespace: 'link' });

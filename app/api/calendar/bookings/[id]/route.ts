@@ -20,7 +20,8 @@ async function ownsBooking(userId: string, bookingId: string): Promise<boolean> 
   return row?.user_id === userId;
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const row = (await getDb()
@@ -36,7 +37,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(row);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 

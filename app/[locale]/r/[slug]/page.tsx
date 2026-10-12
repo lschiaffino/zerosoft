@@ -5,11 +5,18 @@ import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
 
-export default async function RoutingFormPage({
-  params: { slug, locale },
-}: {
-  params: { slug: string; locale: string };
-}) {
+export default async function RoutingFormPage(
+  props: {
+    params: Promise<{ slug: string; locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    slug,
+    locale
+  } = params;
+
   const form = await getRoutingFormBySlug(slug);
   if (!form) notFound();
 

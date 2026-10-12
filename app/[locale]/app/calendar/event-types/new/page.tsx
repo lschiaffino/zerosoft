@@ -5,11 +5,17 @@ import EventTypeForm from '@/components/calendar/EventTypeForm';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewEventTypePage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function NewEventTypePage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'calendar' });
   const team = user.team ?? null;

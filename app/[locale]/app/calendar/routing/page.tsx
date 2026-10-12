@@ -5,11 +5,17 @@ import { listRoutingForms } from '@/lib/calendar-routing';
 
 export const dynamic = 'force-dynamic';
 
-export default async function RoutingFormsPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function RoutingFormsPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'calendar' });
   const forms = await listRoutingForms(user.id);

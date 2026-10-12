@@ -21,13 +21,19 @@ function parseOptions(json: string): string[] {
   }
 }
 
-export default async function NewContactPage({
-  params: { locale },
-  searchParams,
-}: {
-  params: { locale: string };
-  searchParams: { companyId?: string };
-}) {
+export default async function NewContactPage(
+  props: {
+    params: Promise<{ locale: string }>;
+    searchParams: Promise<{ companyId?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

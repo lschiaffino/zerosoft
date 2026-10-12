@@ -9,11 +9,18 @@ type Reason = 'notfound' | 'expired' | 'limit' | 'password';
 const REASONS: Reason[] = ['notfound', 'expired', 'limit', 'password'];
 
 interface GonePageProps {
-  params: { locale: string };
-  searchParams: Record<string, string | string[] | undefined>;
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function GonePage({ params: { locale }, searchParams }: GonePageProps) {
+export default async function GonePage(props: GonePageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const t = await getTranslations({ locale, namespace: 'link' });
   const raw = typeof searchParams.reason === 'string' ? searchParams.reason : 'notfound';
   const reason: Reason = (REASONS as string[]).includes(raw) ? (raw as Reason) : 'notfound';

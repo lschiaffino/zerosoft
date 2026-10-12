@@ -4,11 +4,17 @@ import WidgetForm from '@/components/chat/WidgetForm';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewWidgetPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function NewWidgetPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
 
