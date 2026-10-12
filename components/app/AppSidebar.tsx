@@ -255,6 +255,11 @@ export default function AppSidebar({
         { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: pathname.startsWith('/app/calendar/bookings'), icon: 'contacts' },
       ],
     },
+    {
+      items: [
+        { href: '/app/calendar/settings', label: labels.calendar.settings, active: pathname.startsWith('/app/calendar/settings'), icon: 'settings' },
+      ],
+    },
   ];
 
   const trackNav: Array<{ section?: string; items: Item[] }> = [

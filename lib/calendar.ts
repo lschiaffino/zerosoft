@@ -173,11 +173,41 @@ export async function getEventTypeById(id: string): Promise<EventTypeWithRules |
   return row ? decorateEventType(row) : undefined;
 }
 
-export async function getEventTypeBySlug(slug: string): Promise<EventTypeWithRules | undefined> {
+/** Lookup público: /book/<handle>/<slug>. */
+export async function getEventTypeByHandle(
+  handle: string,
+  slug: string,
+): Promise<EventTypeWithRules | undefined> {
   const row = (await getDb()
-    .prepare('SELECT * FROM calendar_event_types WHERE slug = ? AND active = 1')
-    .get(slug)) as CalendarEventTypeRow | undefined;
+    .prepare(
+      `SELECT e.* FROM calendar_event_types e JOIN users u ON u.id = e.user_id
+       WHERE u.handle = ? AND e.slug = ? AND e.active = 1`,
+    )
+    .get(handle.toLowerCase(), slug)) as CalendarEventTypeRow | undefined;
   return row ? decorateEventType(row) : undefined;
+}
+
+/**
+ * Links viejos /book/<slug> (antes de los handles): resuelve al event type más
+ * antiguo con ese slug, que es al que ya apuntaban. Devuelve el path nuevo.
+ */
+export async function legacyBookPath(slug: string): Promise<string | null> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT u.handle FROM calendar_event_types e JOIN users u ON u.id = e.user_id
+       WHERE e.slug = ? AND e.active = 1 AND u.handle IS NOT NULL
+       ORDER BY e.created_at ASC LIMIT 1`,
+    )
+    .get(slug)) as { handle: string } | undefined;
+  return row ? `/book/${row.handle}/${slug}` : null;
+}
+
+/** Path público de un event type (sin locale). */
+export async function bookPathFor(eventType: Pick<CalendarEventTypeRow, 'user_id' | 'slug'>): Promise<string | null> {
+  const row = (await getDb().prepare('SELECT handle FROM users WHERE id = ?').get(eventType.user_id)) as
+    | { handle: string | null }
+    | undefined;
+  return row?.handle ? `/book/${row.handle}/${eventType.slug}` : null;
 }
 
 async function slugExists(

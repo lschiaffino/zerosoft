@@ -166,5 +166,20 @@
     "slot_unavailable": "That slot is no longer available. Please pick another one.",
     "link_expired": "This booking link has expired.",
     "generic": "Something went wrong. Try again."
+  },
+  "settings": {
+    "title": "Settings",
+    "publicLink": "Public link",
+    "handle": "Your handle",
+    "handleHint": "Every booking page lives under this address. Changing it breaks links you already shared.",
+    "handleTaken": "That handle is taken.",
+    "handleInvalid": "Use 3–32 lowercase letters, numbers or dashes.",
+    "defaults": "Defaults for all event types",
+    "weekStart": "Week starts on",
+    "bufferBefore": "Buffer before (min)",
+    "bufferAfter": "Buffer after (min)",
+    "minNotice": "Minimum notice (hours)",
+    "maxDays": "Bookable up to (days ahead)",
+    "copyLink": "Copy link"
   }
 }

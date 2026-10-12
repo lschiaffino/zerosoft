@@ -588,3 +588,20 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Link público (settings y detalle del event type) */
+.calendar-public-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+.calendar-public-link .mono {
+  flex: 1 1 220px;
+  font-size: 13px;
+}

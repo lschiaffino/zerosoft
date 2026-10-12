@@ -21,6 +21,8 @@ const SCREENS = [
   '/en/app/track',
   '/en/app/track/issues',
   '/en/app/calendar',
+  '/en/app/calendar/settings',
+  '/en/app/calendar/event-types',
   '/en/app/chat',
   '/en/app/docs',
 ];

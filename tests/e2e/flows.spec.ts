@@ -67,8 +67,32 @@ test('Cal: crear evento, ver slots y reservar', async ({ request, page }) => {
   const after = (await again.json()).slots as Array<{ start: string }>;
   expect(after.map((s) => s.start)).not.toContain(slots[0].start);
 
-  const res = await page.goto(`/en/book/${slug}`);
+  const { handle } = await (await request.get('/api/calendar/config')).json();
+  expect(handle).toBeTruthy();
+  const res = await page.goto(`/en/book/${handle}/${slug}`);
   expect(res?.status()).toBe(200);
+  await expect(page.getByText('E2E').first()).toBeVisible();
+
+  // Los links viejos /book/<slug> redirigen al nuevo.
+  await page.goto(`/en/book/${slug}`);
+  await expect(page).toHaveURL(new RegExp(`/en/book/${handle}/${slug}$`));
+});
+
+test('Cal: cambiar el handle actualiza el link público', async ({ request, page }) => {
+  const original = (await (await request.get('/api/calendar/config')).json()).handle as string;
+  const next = `e2e-${uid()}`;
+  const taken = await request.post('/api/calendar/config', { data: { handle: 'zerosoft' } });
+  expect(taken.status()).toBe(400);
+  const ok = await request.post('/api/calendar/config', { data: { handle: next, timezone: 'America/Argentina/Buenos_Aires' } });
+  expect(ok.ok()).toBeTruthy();
+  const badTz = await request.post('/api/calendar/config', { data: { timezone: 'Mars/Olympus' } });
+  expect(badTz.status()).toBe(400);
+
+  const slug = `h-${uid()}`;
+  await request.post('/api/calendar/event-types', { data: { slug, title: 'Handle test', durationMin: 15, active: true } });
+  expect((await page.goto(`/en/book/${next}/${slug}`))?.status()).toBe(200);
+  expect((await page.goto(`/en/book/${original}/${slug}`))?.status()).toBe(404);
+  await request.post('/api/calendar/config', { data: { handle: original } });
 });
 
 test('Chat: el widget manda un mensaje y aparece en el inbox', async ({ request }) => {

@@ -52,7 +52,7 @@ export default async function EventTypesPage(
                     aria-hidden
                   />
                   <span className="calendar-event-title">{et.title}</span>
-                  <span className="mono calendar-event-slug">/{et.slug}</span>
+                  <span className="mono calendar-event-slug">/{user.handle}/{et.slug}</span>
                   <span className="muted">
                     {et.duration_min} {t('eventTypes.minutes')}
                   </span>

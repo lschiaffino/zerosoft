@@ -5,6 +5,7 @@ export interface UserRow {
   email: string;
   name: string | null;
   image: string | null;
+  handle?: string | null;
   active_team_id?: string | null;
   seeded_at?: string | null;
   created_at: string;

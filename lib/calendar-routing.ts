@@ -70,12 +70,38 @@ export async function getRoutingForm(
   return row ? decorateForm(row) : undefined;
 }
 
-/** Lookup público por slug (mismo patrón que getEventTypeBySlug): solo forms activos. */
-export async function getRoutingFormBySlug(slug: string): Promise<RoutingFormWithChildren | undefined> {
+/** Lookup público /r/<handle>/<slug>: solo forms activos. */
+export async function getRoutingFormByHandle(
+  handle: string,
+  slug: string,
+): Promise<RoutingFormWithChildren | undefined> {
   const row = (await getDb()
-    .prepare('SELECT * FROM calendar_routing_forms WHERE slug = ? AND active = 1')
-    .get(slug)) as CalendarRoutingFormRow | undefined;
+    .prepare(
+      `SELECT f.* FROM calendar_routing_forms f JOIN users u ON u.id = f.user_id
+       WHERE u.handle = ? AND f.slug = ? AND f.active = 1`,
+    )
+    .get(handle.toLowerCase(), slug)) as CalendarRoutingFormRow | undefined;
   return row ? decorateForm(row) : undefined;
+}
+
+/** Lookup público por id (lo usa la API del form): solo forms activos. */
+export async function getPublicRoutingForm(id: string): Promise<RoutingFormWithChildren | undefined> {
+  const row = (await getDb()
+    .prepare('SELECT * FROM calendar_routing_forms WHERE id = ? AND active = 1')
+    .get(id)) as CalendarRoutingFormRow | undefined;
+  return row ? decorateForm(row) : undefined;
+}
+
+/** Links viejos /r/<slug>: el form más antiguo con ese slug. */
+export async function legacyRoutingPath(slug: string): Promise<string | null> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT u.handle FROM calendar_routing_forms f JOIN users u ON u.id = f.user_id
+       WHERE f.slug = ? AND f.active = 1 AND u.handle IS NOT NULL
+       ORDER BY f.created_at ASC LIMIT 1`,
+    )
+    .get(slug)) as { handle: string } | undefined;
+  return row ? `/r/${row.handle}/${slug}` : null;
 }
 
 async function formSlugExists(userId: string, slug: string, excludeId?: string): Promise<boolean> {

@@ -1,5 +1,6 @@
 import type { Client } from '@libsql/client';
 import { baseline } from './baseline';
+import { pickHandle } from './handles';
 
 /**
  * Migraciones versionadas. Cada una corre una sola vez por base y queda
@@ -75,6 +76,30 @@ export const MIGRATIONS: Migration[] = [
     async up(client) {
       await addColumn(client, 'ALTER TABLE api_keys ADD COLUMN created_by TEXT');
       await client.execute('UPDATE api_keys SET created_by = user_id WHERE created_by IS NULL');
+    },
+  },
+  {
+    // Handle público por usuario: los links de Cal pasan a ser /book/<handle>/<slug>.
+    // Antes eran /book/<slug> y el slug solo era único por usuario: todos los
+    // "30min" apuntaban al primer usuario que lo creó.
+    id: '005_user_handles',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE users ADD COLUMN handle TEXT');
+      await client.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle ON users(handle) WHERE handle IS NOT NULL',
+      );
+      const rows = (await client.execute('SELECT id, email FROM users WHERE handle IS NULL ORDER BY created_at ASC')).rows;
+      const taken = new Set(
+        (await client.execute('SELECT handle FROM users WHERE handle IS NOT NULL')).rows.map((r) => String(r.handle)),
+      );
+      for (const r of rows) {
+        const handle = pickHandle(String(r.email), taken);
+        taken.add(handle);
+        await client.execute({
+          sql: 'UPDATE users SET handle = ? WHERE id = ? AND handle IS NULL',
+          args: [handle, String(r.id)],
+        });
+      }
     },
   },
 ];

@@ -159,6 +159,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     slug: et.slug,
     title: et.title,
     durationMin: et.duration_min,
+    path: `/book/${user.handle}/${et.slug}`,
   }));
 
   const associatedContactIds = new Set(contacts.map((c) => c.id));

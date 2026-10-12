@@ -166,5 +166,20 @@
     "slot_unavailable": "Esse horário não está mais disponível. Escolha outro.",
     "link_expired": "Este link de reserva expirou.",
     "generic": "Algo deu errado. Tente novamente."
+  },
+  "settings": {
+    "title": "Configurações",
+    "publicLink": "Link público",
+    "handle": "Seu handle",
+    "handleHint": "Todas as suas páginas de agendamento ficam neste endereço. Se mudar, os links já compartilhados param de funcionar.",
+    "handleTaken": "Esse handle já está em uso.",
+    "handleInvalid": "Use de 3 a 32 letras minúsculas, números ou hífens.",
+    "defaults": "Padrões para todos os eventos",
+    "weekStart": "A semana começa na",
+    "bufferBefore": "Intervalo antes (min)",
+    "bufferAfter": "Intervalo depois (min)",
+    "minNotice": "Antecedência mínima (horas)",
+    "maxDays": "Agendável até (dias)",
+    "copyLink": "Copiar link"
   }
 }

@@ -7,6 +7,7 @@ import {
 } from '@libsql/client';
 import fs from 'fs';
 import { runMigrations } from './schema/migrations';
+import { handleBase, isValidHandle, pickHandle } from './schema/handles';
 import path from 'path';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -177,9 +178,15 @@ export async function upsertUser(u: {
     return (await db.prepare('SELECT * FROM users WHERE id = ?').get(existing.id)) as UserRow;
   }
   const id = u.id ?? crypto.randomUUID();
+  const base = handleBase(u.email);
+  const taken = new Set(
+    ((await db
+      .prepare("SELECT handle FROM users WHERE handle = ? OR handle LIKE ?")
+      .all(base, `${base}-%`)) as Array<{ handle: string }>).map((r) => r.handle),
+  );
   await db
-    .prepare('INSERT INTO users (id, email, name, image) VALUES (?, ?, ?, ?)')
-    .run(id, u.email, u.name ?? null, u.image ?? null);
+    .prepare('INSERT INTO users (id, email, name, image, handle) VALUES (?, ?, ?, ?, ?)')
+    .run(id, u.email, u.name ?? null, u.image ?? null, pickHandle(u.email, taken));
   return (await db.prepare('SELECT * FROM users WHERE id = ?').get(id)) as UserRow;
 }
 
@@ -191,4 +198,21 @@ export async function getUserByEmail(email: string): Promise<UserRow | undefined
 
 export async function getUserById(id: string): Promise<UserRow | undefined> {
   return (await getDb().prepare('SELECT * FROM users WHERE id = ?').get(id)) as UserRow | undefined;
+}
+
+/** Cambia el handle público (links /book/<handle>/…). */
+export async function setUserHandle(
+  userId: string,
+  handle: string,
+): Promise<{ ok: true } | { ok: false; code: 'invalid_handle' | 'handle_taken' }> {
+  const h = handle.trim().toLowerCase();
+  if (!isValidHandle(h)) return { ok: false, code: 'invalid_handle' };
+  const taken = (await getDb().prepare('SELECT id FROM users WHERE handle = ?').get(h)) as { id: string } | undefined;
+  if (taken && taken.id !== userId) return { ok: false, code: 'handle_taken' };
+  try {
+    await getDb().prepare('UPDATE users SET handle = ? WHERE id = ?').run(h, userId);
+  } catch {
+    return { ok: false, code: 'handle_taken' };
+  }
+  return { ok: true };
 }

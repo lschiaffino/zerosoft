@@ -52,7 +52,20 @@ const customField = z.object({
 // ---------- Config ----------
 
 export const calendarConfigUpdateSchema = z.object({
-  timezone: z.string().trim().max(64).optional(),
+  handle: z.string().trim().toLowerCase().min(3).max(32).optional(),
+  timezone: z
+    .string()
+    .trim()
+    .max(64)
+    .refine((tz) => {
+      try {
+        new Intl.DateTimeFormat('en', { timeZone: tz });
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'invalid_timezone')
+    .optional(),
   weekStart: z.number().int().min(0).max(6).optional(),
   bufferBeforeMin: z.number().int().min(0).optional(),
   bufferAfterMin: z.number().int().min(0).optional(),

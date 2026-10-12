@@ -1,25 +1,22 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { getEventTypeBySlug, getCalendarUser } from '@/lib/calendar';
+import { getEventTypeByHandle, getCalendarUser } from '@/lib/calendar';
 import PublicBookingPage from '@/components/calendar/PublicBookingPage';
 
 export const dynamic = 'force-dynamic';
 
 export default async function BookPage(
   props: {
-    params: Promise<{ slug: string; locale: string }>;
+    params: Promise<{ handle: string; slug: string; locale: string }>;
     searchParams: Promise<Record<string, string | string[] | undefined>>;
   }
 ) {
   const searchParams = await props.searchParams;
   const params = await props.params;
 
-  const {
-    slug,
-    locale
-  } = params;
+  const { handle, slug, locale } = params;
 
-  const eventType = await getEventTypeBySlug(slug);
+  const eventType = await getEventTypeByHandle(handle, slug);
   if (!eventType) notFound();
 
   // Pre-fill opcional del invitado (links generados desde el CRM).

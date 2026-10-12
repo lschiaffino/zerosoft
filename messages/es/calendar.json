@@ -166,5 +166,20 @@
     "slot_unavailable": "Ese horario ya no está disponible. Elegí otro.",
     "link_expired": "Este link de reserva expiró.",
     "generic": "Algo salió mal. Probá de nuevo."
+  },
+  "settings": {
+    "title": "Configuración",
+    "publicLink": "Link público",
+    "handle": "Tu handle",
+    "handleHint": "Todas tus páginas de reserva viven bajo esta dirección. Si lo cambiás, se rompen los links que ya compartiste.",
+    "handleTaken": "Ese handle ya está tomado.",
+    "handleInvalid": "Usá entre 3 y 32 minúsculas, números o guiones.",
+    "defaults": "Valores por defecto para todos los eventos",
+    "weekStart": "La semana empieza el",
+    "bufferBefore": "Margen antes (min)",
+    "bufferAfter": "Margen después (min)",
+    "minNotice": "Aviso mínimo (horas)",
+    "maxDays": "Reservable hasta (días)",
+    "copyLink": "Copiar link"
   }
 }

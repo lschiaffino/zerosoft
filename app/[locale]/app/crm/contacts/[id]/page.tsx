@@ -96,6 +96,7 @@ export default async function ContactDetailPage(
     slug: et.slug,
     title: et.title,
     durationMin: et.duration_min,
+    path: `/book/${user.handle}/${et.slug}`,
   }));
 
   const historyFields: Record<string, string> = {
