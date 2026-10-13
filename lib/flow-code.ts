@@ -79,12 +79,8 @@ const sandboxRunner: CodeRunner = async (job) => {
   const base = { ...credentials(), image: IMAGE, resources: { vcpus: 1 }, timeout: job.timeoutMs + 60_000, persistent: false };
   let sbx: Awaited<ReturnType<SandboxModule['Sandbox']['create']>> | null = null;
   try {
-    try {
-      sbx = await Sandbox.create({ ...base, networkPolicy: 'deny-all' } as unknown as Params);
-    } catch (err) {
-      if (!/network|policy/i.test(String(err))) throw err;
-      sbx = await Sandbox.create(base as unknown as Params);
-    }
+    // Sin red: si el SDK rechaza la política, no corremos el código (fail closed).
+    sbx = await Sandbox.create({ ...base, networkPolicy: 'deny-all' } as unknown as Params);
     await sbx.mkDir(ROOT).catch(() => {});
     await sbx.writeFiles([
       { path: `${ROOT}/runner.cjs`, content: Buffer.from(buildCodeScript()) },
