@@ -1,10 +1,15 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
+import { nextCronRuns } from '@/lib/cron';
 import {
   FLOW_EVENT_TYPES,
   NODE_DEFS,
+  ON_ERROR_MODES,
+  onErrorMode,
+  supportsErrorHandling,
   type FieldDef,
   type FlowNodeType,
 } from '@/lib/flow-schema';
@@ -16,12 +21,22 @@ export interface VariableOption {
   sample: unknown;
 }
 
+/** Datos del workspace para los selects (credenciales, flows, agentes). */
+export interface EditorRefs {
+  credentials: Array<{ id: string; name: string; type: string }>;
+  flows: Array<{ id: string; name: string }>;
+  agents: Array<{ id: string; name: string }>;
+  codeAvailable: boolean;
+  flowId: string;
+}
+
 interface Props {
   nodeId: string;
   type: FlowNodeType;
   config: Record<string, unknown>;
   readOnly: boolean;
   variables: VariableOption[];
+  refs: EditorRefs;
   onChange: (config: Record<string, unknown>) => void;
   onDelete: () => void;
   /** Extra para triggers (URL del webhook, próxima corrida). */
@@ -33,7 +48,22 @@ type T = ReturnType<typeof useTranslations>;
 function optionLabel(t: T, field: FieldDef, value: string): string {
   if (field.key === 'filterOp' || field.key === 'op') return t(`ops.${value}`);
   if (field.key === 'method') return value;
+  if (value === '') return t('options.none');
   return t.has(`options.${value}`) ? t(`options.${value}`) : value;
+}
+
+/** Vista previa de las próximas corridas de un cron (o error). */
+function CronPreview({ cron, timezone }: { cron: string; timezone: string }) {
+  const t = useTranslations('flow.editor');
+  const format = useFormatter();
+  const runs = useMemo(() => nextCronRuns(cron, timezone || 'UTC', 3), [cron, timezone]);
+  if (!cron.trim()) return null;
+  if (runs.length === 0) return <p className="flow-field-error">{t('cronInvalid')}</p>;
+  return (
+    <p className="muted flow-hint" suppressHydrationWarning>
+      {t('cronNext')}: {runs.map((d) => format.dateTime(d, { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone || 'UTC' })).join(' · ')}
+    </p>
+  );
 }
 
 /** Botón { } con la lista de variables disponibles (nodos anteriores). */
@@ -143,15 +173,21 @@ function TemplateInput({
   );
 }
 
-export default function NodeConfigPanel({ nodeId, type, config, readOnly, variables, onChange, onDelete, extra }: Props) {
+export default function NodeConfigPanel({ nodeId, type, config, readOnly, variables, refs, onChange, onDelete, extra }: Props) {
   const t = useTranslations('flow');
   const def = NODE_DEFS[type];
   const set = (key: string, value: unknown) => onChange({ ...config, [key]: value });
   const [jsonError, setJsonError] = useState<string | null>(null);
 
+  /** Etiqueta del campo: la del nodo si la tiene (nodes.<tipo>.fields.x), si no la general. */
+  function fieldLabel(key: string): string {
+    const own = `nodes.${i18nKey(type)}.fields.${key}`;
+    return t.has(own) ? t(own) : t(`fields.${key}`);
+  }
+
   function renderField(field: FieldDef) {
     const id = `f-${nodeId}-${field.key}`;
-    const label = t(`fields.${field.key}`);
+    const label = fieldLabel(field.key);
     const value = config[field.key] ?? field.default;
     switch (field.kind) {
       case 'text':
@@ -171,7 +207,16 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
           );
         }
         return field.kind === 'textarea' ? (
-          <textarea id={id} className="textarea" rows={3} value={String(value ?? '')} readOnly={readOnly} onChange={(e) => set(field.key, e.target.value)} />
+          <textarea
+            id={id}
+            className={field.key === 'code' ? 'textarea mono flow-code' : 'textarea'}
+            rows={field.key === 'code' ? 10 : 3}
+            spellCheck={field.key === 'code' ? false : undefined}
+            value={String(value ?? '')}
+            placeholder={field.placeholder}
+            readOnly={readOnly}
+            onChange={(e) => set(field.key, e.target.value)}
+          />
         ) : (
           <input
             id={id}
@@ -213,11 +258,89 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
             ))}
           </select>
         );
+      case 'credential': {
+        const types = (field.options ?? []) as readonly string[];
+        const list = refs.credentials.filter((c) => types.includes(c.type));
+        const current = String(value ?? '');
+        const missing = current && !refs.credentials.some((c) => c.id === current);
+        return (
+          <>
+            <select id={id} className="select" value={current} disabled={readOnly} onChange={(e) => set(field.key, e.target.value)}>
+              <option value="">{t('editor.credentialNone')}</option>
+              {missing && <option value={current}>{t('editor.credentialMissing')}</option>}
+              {list.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} · {t(`credentials.types.${c.type}`)}
+                </option>
+              ))}
+            </select>
+            <p className="muted flow-hint">
+              {list.length === 0 ? t('editor.credentialEmpty', { types: types.map((x) => t(`credentials.types.${x}`)).join(', ') }) : null}{' '}
+              <Link href="/app/flow/credentials" className="flow-link">
+                {t('editor.manageCredentials')}
+              </Link>
+            </p>
+          </>
+        );
+      }
+      case 'flowRef': {
+        const current = String(value ?? '');
+        return (
+          <select id={id} className="select" value={current} disabled={readOnly} onChange={(e) => set(field.key, e.target.value)}>
+            <option value="">{t('editor.pickFlow')}</option>
+            {refs.flows
+              .filter((f) => f.id !== refs.flowId)
+              .map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+          </select>
+        );
+      }
+      case 'agentRef': {
+        const current = String(value ?? '');
+        return (
+          <>
+            <select id={id} className="select" value={current} disabled={readOnly} onChange={(e) => set(field.key, e.target.value)}>
+              <option value="">{t('editor.pickAgent')}</option>
+              {refs.agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            {refs.agents.length === 0 && (
+              <p className="muted flow-hint">
+                {t('editor.noAgents')}{' '}
+                <Link href="/app/agents" className="flow-link">
+                  {t('editor.createAgent')}
+                </Link>
+              </p>
+            )}
+          </>
+        );
+      }
+      case 'cron':
+        return (
+          <>
+            <input
+              id={id}
+              className="input mono"
+              value={String(value ?? '')}
+              placeholder={field.placeholder}
+              readOnly={readOnly}
+              onChange={(e) => set(field.key, e.target.value)}
+            />
+            <p className="muted flow-hint">{t('editor.cronHelp')}</p>
+            <CronPreview cron={String(value ?? '')} timezone={String(config.timezone ?? 'UTC')} />
+          </>
+        );
       case 'bool':
         return (
           <label className="flow-check">
             <input id={id} type="checkbox" checked={value !== false} disabled={readOnly} onChange={(e) => set(field.key, e.target.checked)} />
-            <span>{t(`fields.${field.key}Hint`)}</span>
+            <span>{fieldLabel(`${field.key}Hint`)}</span>
           </label>
         );
       case 'json':
@@ -372,16 +495,17 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
   }
 
   const visibleFields = (def.fields as readonly FieldDef[]).filter((f) => {
-    if (type === 'trigger.schedule') {
-      const mode = config.mode ?? 'daily';
-      if (mode === 'daily' && (f.key === 'every' || f.key === 'unit')) return false;
-      if (mode === 'interval' && (f.key === 'time' || f.key === 'timezone')) return false;
+    if (f.showIf) {
+      const dep = (def.fields as readonly FieldDef[]).find((x) => x.key === f.showIf!.key);
+      const current = String(config[f.showIf.key] ?? dep?.default ?? '');
+      if (!f.showIf.values.includes(current)) return false;
     }
     if (type === 'trigger.event' && (f.key === 'filterOp' || f.key === 'filterValue') && !String(config.filterPath ?? '').trim()) {
       return false;
     }
     return true;
   });
+  const errorMode = onErrorMode(config);
 
   return (
     <div className="flow-config">
@@ -393,17 +517,50 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
         <span className="mono muted flow-config-id">{nodeId}</span>
       </div>
       <p className="muted flow-config-desc">{t(`nodes.${i18nKey(type)}.desc`)}</p>
+      {type === 'data.code' && !refs.codeAvailable && (
+        <p className="flow-note" role="note">
+          {t('editor.codeUnavailable')}
+        </p>
+      )}
+      {type === 'data.merge' && <p className="muted flow-hint">{t('editor.mergeHint')}</p>}
+      {type === 'trigger.schedule' && <p className="muted flow-hint">{t('editor.scheduleGranularity')}</p>}
+      {type === 'trigger.stripe' && <p className="muted flow-hint">{t('editor.stripeHint')}</p>}
       {extra}
       {visibleFields.map((f) => (
         <div className="flow-field" key={f.key}>
           {f.kind !== 'bool' && (
             <label className="label" htmlFor={`f-${nodeId}-${f.key}`}>
-              {t(`fields.${f.key}`)}
+              {fieldLabel(f.key)}
             </label>
           )}
           {renderField(f)}
         </div>
       ))}
+      {supportsErrorHandling(type) && (
+        <div className="flow-field flow-onerror">
+          <label className="label" htmlFor={`f-${nodeId}-onError`}>
+            {t('fields.onError')}
+          </label>
+          <select
+            id={`f-${nodeId}-onError`}
+            className="select"
+            value={errorMode}
+            disabled={readOnly}
+            onChange={(e) => {
+              const next: Record<string, unknown> = { ...config, onError: e.target.value };
+              if (e.target.value === 'stop') delete next.onError;
+              onChange(next);
+            }}
+          >
+            {ON_ERROR_MODES.map((m) => (
+              <option key={m} value={m}>
+                {t(`onError.${m}`)}
+              </option>
+            ))}
+          </select>
+          <p className="muted flow-hint">{t(`onError.${errorMode}Hint`)}</p>
+        </div>
+      )}
       {!readOnly && (
         <button type="button" className="btn btn-small btn-ghost flow-delete" onClick={onDelete}>
           {t('editor.deleteNode')}

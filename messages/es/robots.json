@@ -13,7 +13,8 @@
     "schedule": "Horario",
     "never": "Nunca corrió",
     "noSchedule": "Manual",
-    "adminOnly": "Solo los admins y owners del workspace pueden crear, editar y correr robots."
+    "adminOnly": "Solo los admins y owners del workspace pueden crear, editar y correr robots.",
+    "record": "Grabar pasos"
   },
   "usage": {
     "title": "Este mes",
@@ -26,7 +27,8 @@
     "none": "Los robots no pueden correr en este servidor.",
     "noneHint": "Configurá ROBOTS_RUNNER=local e instalá Chromium (npx playwright-core install --with-deps chromium) para correr robots en esta máquina, o desplegá en Vercel para usar Vercel Sandbox. Igual podés armar y editar robots.",
     "sandbox": "Corre en una microVM aislada de Vercel Sandbox.",
-    "local": "Corre en un Chromium local de este servidor."
+    "local": "Corre en un Chromium local de este servidor.",
+    "localHint": "Self-host: es el runner por defecto si playwright-core está instalado. Instalá Chromium con npx playwright-core install --with-deps chromium."
   },
   "templates": {
     "title": "Plantillas",
@@ -53,7 +55,14 @@
     "delete": "Borrar",
     "confirmDelete": "¿Borrar este robot y su historial de corridas?",
     "readOnly": "Solo lectura: solo admins y owners pueden editar o correr robots.",
-    "tabs": { "steps": "Pasos", "inputs": "Entradas", "runs": "Corridas", "settings": "Ajustes" }
+    "tabs": {
+      "steps": "Pasos",
+      "inputs": "Entradas",
+      "runs": "Corridas",
+      "settings": "Ajustes"
+    },
+    "record": "Grabar pasos",
+    "paste": "Pegar pasos grabados"
   },
   "steps": {
     "empty": "Todavía no hay pasos. Agregá el primero: normalmente “Ir a URL”.",
@@ -75,7 +84,11 @@
       "screenshot": "Captura",
       "scroll": "Desplazar",
       "if_exists": "Si existe el elemento",
-      "loop_over": "Recorrer lista"
+      "loop_over": "Recorrer lista",
+      "download": "Descargar archivo",
+      "upload": "Subir archivo",
+      "pdf": "Guardar como PDF",
+      "evaluate": "Ejecutar JavaScript"
     },
     "fields": {
       "url": "URL",
@@ -95,10 +108,24 @@
       "count": "Pasos a saltear",
       "target": "Ir al paso",
       "list": "Lista",
-      "max": "Máximo de elementos"
+      "max": "Máximo de elementos",
+      "filename": "Nombre del archivo (opcional)",
+      "fileUrl": "URL del archivo",
+      "script": "JavaScript (cuerpo de una función async, devolvé un valor JSON)",
+      "retries": "Reintentos",
+      "retryDelayMs": "Espera entre intentos (ms)"
     },
-    "modes": { "text": "Texto del primer resultado", "attribute": "Atributo del primer resultado", "all": "Todos los resultados (lista)" },
-    "onMissing": { "skip": "Saltear los pasos siguientes", "goto": "Saltar a un paso posterior", "stop": "Terminar la corrida", "fail": "Hacer fallar la corrida" },
+    "modes": {
+      "text": "Texto del primer resultado",
+      "attribute": "Atributo del primer resultado",
+      "all": "Todos los resultados (lista)"
+    },
+    "onMissing": {
+      "skip": "Saltear los pasos siguientes",
+      "goto": "Saltar a un paso posterior",
+      "stop": "Terminar la corrida",
+      "fail": "Hacer fallar la corrida"
+    },
     "templateHint": "Usá {inputs} para las entradas y {vars} para los valores extraídos. Dentro de un loop: {loopItem}.",
     "tipsTitle": "Consejos para selectores",
     "tips": [
@@ -106,7 +133,10 @@
       "Clic derecho en el elemento → Inspeccionar → Copiar → Copiar selector, y después simplificalo.",
       "¿No hay un buen selector? Dejalo vacío y escribí el texto visible (p. ej. “Ingresar”). El texto se usa cuando el selector no encuentra nada.",
       "Listas: un Extraer con “Todos los resultados” sobre “.item a” devuelve el texto de cada link; agregá el atributo href para obtener las URLs."
-    ]
+    ],
+    "fileHint": "El archivo se guarda y queda la URL en {example}.",
+    "credentialsTip": "Logins: usá {example} con una credencial guardada en Flow. El valor nunca aparece en logs ni capturas.",
+    "credentialsLink": "Credenciales"
   },
   "inputs": {
     "title": "Entradas",
@@ -132,8 +162,17 @@
   "runs": {
     "empty": "Todavía no hay corridas.",
     "select": "Elegí una corrida para ver sus pasos, datos y capturas.",
-    "trigger": { "manual": "Manual", "flow": "Flow", "schedule": "Horario" },
-    "status": { "queued": "En cola", "running": "Corriendo", "success": "Exitosa", "failed": "Fallida" },
+    "trigger": {
+      "manual": "Manual",
+      "flow": "Flow",
+      "schedule": "Horario"
+    },
+    "status": {
+      "queued": "En cola",
+      "running": "Corriendo",
+      "success": "Exitosa",
+      "failed": "Fallida"
+    },
     "duration": "Duración",
     "error": "Error",
     "steps": "Pasos",
@@ -145,7 +184,11 @@
     "omitted": "Demasiado grande para guardar sin Blob storage.",
     "input": "Entradas",
     "copy": "Copiar JSON",
-    "stepStatus": { "success": "OK", "failed": "Falló", "skipped": "Salteado" }
+    "stepStatus": {
+      "success": "OK",
+      "failed": "Falló",
+      "skipped": "Salteado"
+    }
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -153,7 +196,7 @@
     "schedule": "Horario",
     "scheduleNone": "Sin horario",
     "scheduleDaily": "Todos los días a las",
-    "scheduleInterval": "Cada N horas",
+    "scheduleInterval": "Cada N horas o minutos",
     "time": "Hora (HH:MM)",
     "timezone": "Zona horaria",
     "every": "Horas",
@@ -164,7 +207,23 @@
     "flowHint": "Agregá el nodo “Robots: ejecutar robot” y pegá este ID. Los flows también pueden reaccionar a “Robots: corrida terminada” y “Robots: corrida fallida”.",
     "copyId": "Copiar ID",
     "copied": "Copiado",
-    "responsible": "Usá los robots con responsabilidad: respetá los términos de cada sitio y su robots.txt, no sobrecargues servidores y no automatices logins con credenciales reales. Las redes privadas, las URLs file:// y las descargas están bloqueadas."
+    "responsible": "Usá los robots con responsabilidad: respetá los términos de cada sitio y su robots.txt y no sobrecargues servidores. Guardá los logins en credenciales, nunca en los pasos. Las redes privadas y las URLs file:// están bloqueadas; las descargas solo pasan por el paso Descargar archivo (hasta 10 MB).",
+    "scheduleCron": "Cron",
+    "unit": "Unidad",
+    "units": { "hours": "Horas", "minutes": "Minutos" },
+    "everyN": "Cada",
+    "minMinutes": "Mínimo 15 minutos.",
+    "cron": "Expresión cron",
+    "cronHint": "5 campos: minuto hora día mes día-de-semana. Ej.: 0 9 * * 1-5",
+    "cronInvalid": "Expresión cron inválida.",
+    "cronPreview": "Próximas corridas",
+    "granularity": "En la nube los schedules se revisan una vez por hora: una corrida puede salir hasta una hora después de lo programado.",
+    "session": "Guardar sesión entre corridas",
+    "sessionHint": "Conserva cookies y localStorage (cifrados) para no loguearse en cada corrida.",
+    "sessionSaved": "Hay una sesión guardada.",
+    "sessionEmpty": "Sin sesión guardada.",
+    "clearSession": "Borrar sesión",
+    "sessionCleared": "Sesión borrada."
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",
@@ -184,6 +243,49 @@
     "busy": "Hay otro robot corriendo en este workspace. Esperá a que termine.",
     "missing_input": "Completá la entrada obligatoria “{name}”.",
     "no_steps": "Agregá al menos un paso antes de correr.",
-    "disabled": "Este robot está apagado para corridas automáticas."
+    "disabled": "Este robot está apagado para corridas automáticas.",
+    "missing_credential": "Falta la credencial “{name}”. Creala en Flow > Credenciales."
+  },
+  "paste": {
+    "title": "Pegar pasos grabados",
+    "desc": "Pegá el JSON que copiaste desde el panel del grabador.",
+    "append": "Agregar al final",
+    "replace": "Reemplazar los pasos",
+    "import": "Importar",
+    "cancel": "Cancelar",
+    "passwordNote": "Las contraseñas llegan como {placeholder}: cambiá LOGIN por el nombre de una credencial guardada.",
+    "imported": "{count, plural, one {# paso importado} other {# pasos importados}}. Guardá para conservarlos.",
+    "errors": {
+      "invalid_json": "No es JSON válido.",
+      "no_steps": "No hay pasos en el texto pegado.",
+      "invalid_steps": "El paso {index} es inválido."
+    }
+  },
+  "recorder": {
+    "title": "Grabador de pasos",
+    "subtitle": "Hacé la tarea una vez en el sitio y copiá los pasos para tu robot.",
+    "back": "Robots",
+    "howTitle": "Cómo se usa",
+    "step1": "Arrastrá el botón a tu barra de favoritos.",
+    "step2": "Abrí el sitio que querés automatizar y hacé clic en el favorito.",
+    "step3": "Hacé la tarea: clics, campos, selects y Enter quedan grabados. Si la página cambia, volvé a hacer clic en el favorito para seguir.",
+    "step4": "Tocá Copiar pasos en el panel y en el robot usá Pegar pasos grabados.",
+    "bookmarklet": "Grabar robot",
+    "dragHint": "Arrastralo a la barra de favoritos (no hagas clic acá).",
+    "copyCode": "Copiar código",
+    "copyCodeHint": "¿No podés arrastrar? Pegá el código en la consola del navegador del sitio.",
+    "copied": "Copiado",
+    "selectorsTitle": "Selectores",
+    "selectors": "Se usa el primero estable: data-testid, id, name, aria-label, placeholder, texto visible (clics) y por último un camino CSS corto.",
+    "passwords": "Las contraseñas nunca se graban: quedan como {placeholder} para que uses una credencial guardada.",
+    "panel": {
+      "recording": "Grabando",
+      "steps": "pasos",
+      "copy": "Copiar pasos",
+      "copied": "Copiado",
+      "clear": "Limpiar",
+      "close": "Cerrar",
+      "hint": "Hacé la tarea normalmente. Al terminar, copiá los pasos."
+    }
   }
 }

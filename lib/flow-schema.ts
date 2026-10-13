@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 import { CONDITION_OPS } from './flow-template';
+import { isValidCron, isValidTimezone } from './cron';
 
 // ---------- Eventos internos (lib/events.ts) ----------
 
@@ -144,7 +145,7 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
 
 // ---------- Catálogo de nodos ----------
 
-export type NodeCategory = 'trigger' | 'logic' | 'data' | 'action' | 'app' | 'ai';
+export type NodeCategory = 'trigger' | 'logic' | 'data' | 'action' | 'app' | 'integration' | 'ai';
 
 export type FieldKind =
   | 'text'
@@ -156,7 +157,15 @@ export type FieldKind =
   | 'kv'
   | 'conditions'
   | 'cases'
-  | 'event';
+  | 'event'
+  /** Credencial del workspace (options = tipos permitidos). */
+  | 'credential'
+  /** Otro flow del workspace. */
+  | 'flowRef'
+  /** Un agente del workspace. */
+  | 'agentRef'
+  /** Expresión cron con vista previa. */
+  | 'cron';
 
 export interface FieldDef {
   key: string;
@@ -166,6 +175,8 @@ export interface FieldDef {
   template?: boolean;
   placeholder?: string;
   default?: unknown;
+  /** Se muestra solo si otro campo tiene uno de estos valores. */
+  showIf?: { key: string; values: readonly string[] };
 }
 
 export interface NodeDef {
@@ -199,11 +210,21 @@ export const NODE_DEFS = {
     category: 'trigger',
     outputs: ['out'],
     fields: [
-      { key: 'mode', kind: 'select', options: ['interval', 'daily'], default: 'daily' },
-      { key: 'every', kind: 'number', default: 1 },
-      { key: 'unit', kind: 'select', options: ['minutes', 'hours'], default: 'hours' },
-      { key: 'time', kind: 'text', placeholder: '09:00', default: '09:00' },
-      { key: 'timezone', kind: 'text', placeholder: 'UTC', default: 'UTC' },
+      { key: 'mode', kind: 'select', options: ['interval', 'daily', 'cron'], default: 'daily' },
+      { key: 'every', kind: 'number', default: 1, showIf: { key: 'mode', values: ['interval'] } },
+      { key: 'unit', kind: 'select', options: ['minutes', 'hours'], default: 'hours', showIf: { key: 'mode', values: ['interval'] } },
+      { key: 'time', kind: 'text', placeholder: '09:00', default: '09:00', showIf: { key: 'mode', values: ['daily'] } },
+      { key: 'cron', kind: 'cron', placeholder: '0 9 * * 1-5', default: '0 9 * * 1-5', showIf: { key: 'mode', values: ['cron'] } },
+      { key: 'timezone', kind: 'text', placeholder: 'UTC', default: 'UTC', showIf: { key: 'mode', values: ['daily', 'cron'] } },
+    ],
+  },
+  'trigger.stripe': {
+    type: 'trigger.stripe',
+    category: 'trigger',
+    outputs: ['out'],
+    fields: [
+      { key: 'credentialId', kind: 'credential', options: ['stripe'] },
+      { key: 'events', kind: 'text', placeholder: 'checkout.session.completed, invoice.*', default: '' },
     ],
   },
   'trigger.manual': {
@@ -260,6 +281,7 @@ export const NODE_DEFS = {
     fields: [
       { key: 'method', kind: 'select', options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], default: 'POST' },
       { key: 'url', kind: 'text', template: true, placeholder: 'https://api.example.com/hook' },
+      { key: 'credentialId', kind: 'credential', options: ['api_key', 'basic', 'oauth_token'] },
       { key: 'headers', kind: 'kv', template: true, default: [] },
       { key: 'body', kind: 'textarea', template: true, placeholder: '{"text": {{nodes.ai.output.text | json}}}' },
       { key: 'parseJson', kind: 'bool', default: true },
@@ -354,6 +376,145 @@ export const NODE_DEFS = {
       { key: 'retries', kind: 'number', default: 0 },
     ],
   },
+  'logic.run_flow': {
+    type: 'logic.run_flow',
+    category: 'logic',
+    outputs: ['out'],
+    fields: [
+      { key: 'flowId', kind: 'flowRef' },
+      { key: 'inputs', kind: 'kv', template: true, default: [] },
+      { key: 'failOnError', kind: 'bool', default: true },
+    ],
+  },
+  'data.merge': {
+    type: 'data.merge',
+    category: 'data',
+    outputs: ['out'],
+    fields: [
+      { key: 'mode', kind: 'select', options: ['merge', 'aggregate'], default: 'merge' },
+      { key: 'fields', kind: 'kv', template: true, default: [], showIf: { key: 'mode', values: ['merge'] } },
+      { key: 'items', kind: 'text', template: true, placeholder: '{{nodes.deals.output.deals}}', showIf: { key: 'mode', values: ['aggregate'] } },
+      { key: 'field', kind: 'text', placeholder: 'amount', showIf: { key: 'mode', values: ['aggregate'] } },
+      {
+        key: 'operation',
+        kind: 'select',
+        options: ['count', 'sum', 'avg', 'min', 'max', 'collect', 'unique', 'join'],
+        default: 'collect',
+        showIf: { key: 'mode', values: ['aggregate'] },
+      },
+    ],
+  },
+  'data.code': {
+    type: 'data.code',
+    category: 'data',
+    outputs: ['out'],
+    fields: [
+      {
+        key: 'code',
+        kind: 'textarea',
+        placeholder: 'const total = input.nodes.deals.output.total;\nreturn { total, double: total * 2 };',
+        default: 'return { ok: true, trigger: input.trigger };',
+      },
+      { key: 'timeoutSec', kind: 'number', default: 10 },
+    ],
+  },
+  'app.slack': {
+    type: 'app.slack',
+    category: 'integration',
+    outputs: ['out'],
+    fields: [
+      { key: 'credentialId', kind: 'credential', options: ['slack'] },
+      { key: 'channel', kind: 'text', template: true, placeholder: '#sales' },
+      { key: 'text', kind: 'textarea', template: true, placeholder: 'New lead: {{trigger.body.email}}' },
+      { key: 'retries', kind: 'number', default: 1 },
+    ],
+  },
+  'app.google_sheets': {
+    type: 'app.google_sheets',
+    category: 'integration',
+    outputs: ['out'],
+    fields: [
+      { key: 'credentialId', kind: 'credential', options: ['google', 'oauth_token'] },
+      { key: 'operation', kind: 'select', options: ['append', 'read'], default: 'append' },
+      { key: 'spreadsheetId', kind: 'text', template: true, placeholder: '1AbC…' },
+      { key: 'range', kind: 'text', template: true, placeholder: 'Sheet1', default: 'Sheet1' },
+      { key: 'row', kind: 'kv', template: true, default: [], showIf: { key: 'operation', values: ['append'] } },
+      { key: 'retries', kind: 'number', default: 1 },
+    ],
+  },
+  'app.gmail': {
+    type: 'app.gmail',
+    category: 'integration',
+    outputs: ['out'],
+    fields: [
+      { key: 'to', kind: 'text', template: true, placeholder: '{{trigger.email}}' },
+      { key: 'subject', kind: 'text', template: true },
+      { key: 'body', kind: 'textarea', template: true },
+    ],
+  },
+  'app.stripe': {
+    type: 'app.stripe',
+    category: 'integration',
+    outputs: ['out'],
+    fields: [
+      { key: 'credentialId', kind: 'credential', options: ['stripe'] },
+      { key: 'operation', kind: 'select', options: ['create_customer', 'list_payments'], default: 'create_customer' },
+      { key: 'email', kind: 'text', template: true, placeholder: '{{trigger.email}}', showIf: { key: 'operation', values: ['create_customer'] } },
+      { key: 'name', kind: 'text', template: true, showIf: { key: 'operation', values: ['create_customer'] } },
+      { key: 'description', kind: 'text', template: true, showIf: { key: 'operation', values: ['create_customer'] } },
+      { key: 'limit', kind: 'number', default: 10, showIf: { key: 'operation', values: ['list_payments'] } },
+      { key: 'retries', kind: 'number', default: 1 },
+    ],
+  },
+  'app.notion': {
+    type: 'app.notion',
+    category: 'integration',
+    outputs: ['out'],
+    fields: [
+      { key: 'credentialId', kind: 'credential', options: ['notion', 'oauth_token'] },
+      { key: 'operation', kind: 'select', options: ['create_page', 'append_text'], default: 'create_page' },
+      { key: 'databaseId', kind: 'text', template: true, placeholder: 'database id or URL', showIf: { key: 'operation', values: ['create_page'] } },
+      { key: 'title', kind: 'text', template: true, showIf: { key: 'operation', values: ['create_page'] } },
+      { key: 'titleProperty', kind: 'text', placeholder: 'Name', default: 'Name', showIf: { key: 'operation', values: ['create_page'] } },
+      { key: 'properties', kind: 'textarea', template: true, placeholder: '{"Status": {"select": {"name": "New"}}}', showIf: { key: 'operation', values: ['create_page'] } },
+      { key: 'pageId', kind: 'text', template: true, placeholder: 'page id or URL', showIf: { key: 'operation', values: ['append_text'] } },
+      { key: 'content', kind: 'textarea', template: true },
+      { key: 'retries', kind: 'number', default: 1 },
+    ],
+  },
+  'app.discord': {
+    type: 'app.discord',
+    category: 'integration',
+    outputs: ['out'],
+    fields: [
+      { key: 'credentialId', kind: 'credential', options: ['discord'] },
+      { key: 'content', kind: 'textarea', template: true },
+      { key: 'username', kind: 'text', template: true, placeholder: 'Zerosoft' },
+      { key: 'retries', kind: 'number', default: 1 },
+    ],
+  },
+  'app.telegram': {
+    type: 'app.telegram',
+    category: 'integration',
+    outputs: ['out'],
+    fields: [
+      { key: 'credentialId', kind: 'credential', options: ['telegram'] },
+      { key: 'chatId', kind: 'text', template: true, placeholder: '-1001234567890' },
+      { key: 'text', kind: 'textarea', template: true },
+      { key: 'parseMode', kind: 'select', options: ['', 'HTML', 'MarkdownV2'], default: '' },
+      { key: 'retries', kind: 'number', default: 1 },
+    ],
+  },
+  'ai.agent': {
+    type: 'ai.agent',
+    category: 'ai',
+    outputs: ['out'],
+    fields: [
+      { key: 'agentId', kind: 'agentRef' },
+      { key: 'message', kind: 'textarea', template: true, placeholder: '{{trigger.message.body}}' },
+      { key: 'conversationId', kind: 'text', template: true, placeholder: '{{nodes.agent_1.output.conversationId}}' },
+    ],
+  },
   'ai.text': {
     type: 'ai.text',
     category: 'ai',
@@ -390,13 +551,43 @@ export function defaultConfig(type: FlowNodeType): Record<string, unknown> {
   return out;
 }
 
-/** Salidas de un nodo concreto (switch: una por caso + default). */
+// ---------- Manejo de errores por nodo ----------
+
+/**
+ * Qué hace un nodo cuando falla (después de sus reintentos):
+ *  - stop: la corrida falla (default).
+ *  - continue: el paso queda fallido pero el flow sigue por la salida normal.
+ *  - branch: sigue por la salida 'error' (con {{nodes.<id>.output.error}}).
+ */
+export const ON_ERROR_MODES = ['stop', 'continue', 'branch'] as const;
+export type OnErrorMode = (typeof ON_ERROR_MODES)[number];
+
+export function onErrorMode(config: Record<string, unknown> | undefined): OnErrorMode {
+  const v = config?.onError;
+  return v === 'continue' || v === 'branch' ? v : 'stop';
+}
+
+/** Nodos que no admiten manejo de errores (no fallan o no tiene sentido). */
+export function supportsErrorHandling(type: string): boolean {
+  return !isTriggerType(type) && type !== 'logic.loop' && type !== 'logic.delay';
+}
+
+/** Salidas de un nodo concreto (switch: una por caso + default; 'error' si tiene rama de error). */
 export function nodeOutputs(node: { type: string; config?: Record<string, unknown> }): string[] {
+  let outs: string[];
   if (node.type === 'logic.switch') {
     const cases = Array.isArray(node.config?.cases) ? (node.config?.cases as unknown[]) : [];
-    return [...cases.map((_, i) => `case-${i}`), 'default'];
+    outs = [...cases.map((_, i) => `case-${i}`), 'default'];
+  } else {
+    outs = [...(nodeDef(node.type)?.outputs ?? [])];
   }
-  return [...(nodeDef(node.type)?.outputs ?? [])];
+  if (supportsErrorHandling(node.type) && onErrorMode(node.config) === 'branch') outs.push('error');
+  return outs;
+}
+
+/** Tipos de trigger que reciben HTTP en una URL secreta (/api/flow/hooks/<token>). */
+export function isHookTrigger(type: string): boolean {
+  return type === 'trigger.webhook' || type === 'trigger.stripe';
 }
 
 // ---------- Grafo ----------
@@ -455,7 +646,9 @@ export type GraphErrorCode =
   | 'invalid_handle'
   | 'self_loop'
   | 'cycle'
-  | 'delay_in_loop';
+  | 'delay_in_loop'
+  | 'invalid_cron'
+  | 'invalid_timezone';
 
 export type GraphValidation =
   | { ok: true; graph: FlowGraph }
@@ -551,6 +744,18 @@ export function validateGraph(input: unknown): GraphValidation {
     }
   }
 
+  const schedule = triggers[0].type === 'trigger.schedule' ? triggers[0] : null;
+  if (schedule) {
+    const mode = schedule.config.mode;
+    const tz = String(schedule.config.timezone ?? '').trim();
+    if (mode === 'cron' && !isValidCron(String(schedule.config.cron ?? ''))) {
+      return { ok: false, error: 'invalid_cron', nodeId: schedule.id };
+    }
+    if ((mode === 'cron' || mode === 'daily') && tz && !isValidTimezone(tz)) {
+      return { ok: false, error: 'invalid_timezone', nodeId: schedule.id };
+    }
+  }
+
   return { ok: true, graph };
 }
 
@@ -572,6 +777,8 @@ export const flowUpdateSchema = z.object({
   description: z.string().max(1000).optional(),
   graph: z.unknown().optional(),
   enabled: z.boolean().optional(),
+  /** Flow que corre cuando una corrida falla (null = ninguno). */
+  errorFlowId: z.string().max(100).nullable().optional(),
   /** Versión que se editó (bloqueo optimista). */
   version: z.number().int().positive().optional(),
 });
@@ -579,6 +786,45 @@ export const flowUpdateSchema = z.object({
 export const flowRunSchema = z.object({
   input: z.record(z.unknown()).optional(),
 });
+
+export const flowRerunSchema = z.object({
+  /** Nodo desde el que se vuelve a ejecutar (los anteriores reusan su salida). */
+  fromNodeId: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/),
+});
+
+// ---------- Versiones ----------
+
+export interface GraphDiff {
+  added: string[];
+  removed: string[];
+  changed: string[];
+  edgesAdded: number;
+  edgesRemoved: number;
+}
+
+/** Diferencias entre dos grafos (de `before` a `after`). */
+export function diffGraphs(before: FlowGraph | null, after: FlowGraph): GraphDiff {
+  const prev = new Map((before?.nodes ?? []).map((n) => [n.id, n]));
+  const next = new Map(after.nodes.map((n) => [n.id, n]));
+  const added = [...next.keys()].filter((id) => !prev.has(id));
+  const removed = [...prev.keys()].filter((id) => !next.has(id));
+  const changed = [...next.values()]
+    .filter((n) => {
+      const p = prev.get(n.id);
+      return p && (p.type !== n.type || JSON.stringify(p.config ?? {}) !== JSON.stringify(n.config ?? {}));
+    })
+    .map((n) => n.id);
+  const key = (e: FlowEdge) => `${e.source}:${edgeHandle(e)}->${e.target}`;
+  const prevEdges = new Set((before?.edges ?? []).map(key));
+  const nextEdges = new Set(after.edges.map(key));
+  return {
+    added,
+    removed,
+    changed,
+    edgesAdded: [...nextEdges].filter((k) => !prevEdges.has(k)).length,
+    edgesRemoved: [...prevEdges].filter((k) => !nextEdges.has(k)).length,
+  };
+}
 
 // ---------- Plantillas ----------
 
@@ -731,6 +977,310 @@ export const FLOW_TEMPLATES: readonly FlowTemplate[] = [
       edges: [
         { id: 'e1', source: 'trigger', target: 'ai' },
         { id: 'e2', source: 'ai', target: 'slack' },
+      ],
+    },
+  },
+  {
+    key: 'leadToCrmSlack',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.event', position: P(0, 0), config: { event: 'form.submitted' } },
+        {
+          id: 'contact',
+          type: 'app.crm_contact',
+          position: P(0, 160),
+          config: {
+            email: '{{trigger.submission.values.email}}',
+            firstName: '{{trigger.submission.values.first_name}}',
+            lastName: '',
+            source: 'form',
+          },
+        },
+        {
+          id: 'slack',
+          type: 'app.slack',
+          position: P(0, 320),
+          config: {
+            credentialId: '',
+            channel: '#sales',
+            text: 'New lead from {{trigger.form.name}}: {{trigger.submission.values.email}} ({{trigger.utm.utm_source | default:direct}})',
+            retries: 1,
+          },
+        },
+      ],
+      edges: [
+        { id: 'e1', source: 'trigger', target: 'contact' },
+        { id: 'e2', source: 'contact', target: 'slack' },
+      ],
+    },
+  },
+  {
+    key: 'bookingToSheets',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.event', position: P(0, 0), config: { event: 'booking.created' } },
+        {
+          id: 'sheet',
+          type: 'app.google_sheets',
+          position: P(0, 160),
+          config: {
+            credentialId: '',
+            operation: 'append',
+            spreadsheetId: '',
+            range: 'Bookings',
+            row: [
+              { key: 'date', value: '{{trigger.startsAt}}' },
+              { key: 'name', value: '{{trigger.invitee.name}}' },
+              { key: 'email', value: '{{trigger.invitee.email}}' },
+              { key: 'event', value: '{{trigger.eventType.title}}' },
+            ],
+            retries: 1,
+          },
+        },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'sheet' }],
+    },
+  },
+  {
+    key: 'dealWonToStripe',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.event', position: P(0, 0), config: { event: 'deal.won' } },
+        {
+          id: 'stripe',
+          type: 'app.stripe',
+          position: P(0, 160),
+          config: {
+            credentialId: '',
+            operation: 'create_customer',
+            email: '',
+            name: '{{trigger.name}}',
+            description: 'Deal {{trigger.id}} won for {{trigger.amount}} {{trigger.currency}}',
+            retries: 1,
+          },
+        },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'stripe' }],
+    },
+  },
+  {
+    key: 'chatToTrack',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.event', position: P(0, 0), config: { event: 'message.received' } },
+        {
+          id: 'triage',
+          type: 'ai.text',
+          position: P(0, 160),
+          config: {
+            instructions: 'Answer only "bug" if the message reports a bug or an error. Otherwise answer "other".',
+            prompt: '{{trigger.message.body}}',
+            maxTokens: 10,
+          },
+        },
+        {
+          id: 'is_bug',
+          type: 'logic.if',
+          position: P(0, 320),
+          config: { combine: 'all', conditions: [{ left: '{{nodes.triage.output.text | lower}}', op: 'contains', right: 'bug' }] },
+        },
+        {
+          id: 'issue',
+          type: 'app.track_issue',
+          position: P(0, 480),
+          config: {
+            projectId: '',
+            title: 'Chat: {{trigger.message.body | trim}}',
+            description: 'From {{trigger.visitor.email | default:a visitor}} in {{trigger.widget.name}}. Conversation {{trigger.conversation.id}}.',
+            priority: 'high',
+          },
+        },
+      ],
+      edges: [
+        { id: 'e1', source: 'trigger', target: 'triage' },
+        { id: 'e2', source: 'triage', target: 'is_bug' },
+        { id: 'e3', source: 'is_bug', sourceHandle: 'true', target: 'issue' },
+      ],
+    },
+  },
+  {
+    key: 'dailyDigestEmail',
+    graph: {
+      nodes: [
+        {
+          id: 'trigger',
+          type: 'trigger.schedule',
+          position: P(0, 0),
+          config: { mode: 'cron', cron: '0 8 * * 1-5', timezone: 'UTC', time: '09:00', every: 1, unit: 'hours' },
+        },
+        { id: 'deals', type: 'app.crm_deals', position: P(0, 160), config: { sinceHours: 24 } },
+        {
+          id: 'summary',
+          type: 'ai.text',
+          position: P(0, 320),
+          config: {
+            instructions: 'Write a short morning digest for a sales team: totals first, then one line per deal. Plain text.',
+            prompt: '{{nodes.deals.output.count}} deals, total {{nodes.deals.output.total}}:\n{{nodes.deals.output.deals | json}}',
+            maxTokens: 400,
+            onError: 'continue',
+          },
+        },
+        {
+          id: 'email',
+          type: 'app.gmail',
+          position: P(0, 480),
+          config: {
+            to: '',
+            subject: 'Daily digest: {{nodes.deals.output.count}} new deals',
+            body: '{{nodes.summary.output.text | default:No summary today.}}',
+          },
+        },
+      ],
+      edges: [
+        { id: 'e1', source: 'trigger', target: 'deals' },
+        { id: 'e2', source: 'deals', target: 'summary' },
+        { id: 'e3', source: 'summary', target: 'email' },
+      ],
+    },
+  },
+  {
+    key: 'robotToSheets',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.event', position: P(0, 0), config: { event: 'robot.run.finished' } },
+        {
+          id: 'sheet',
+          type: 'app.google_sheets',
+          position: P(0, 160),
+          config: {
+            credentialId: '',
+            operation: 'append',
+            spreadsheetId: '',
+            range: 'Robot',
+            row: [
+              { key: 'at', value: '{{trigger.event.at}}' },
+              { key: 'robot', value: '{{trigger.robot.name}}' },
+              { key: 'title', value: '{{trigger.output.title}}' },
+              { key: 'price', value: '{{trigger.output.price}}' },
+            ],
+            retries: 1,
+          },
+        },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'sheet' }],
+    },
+  },
+  {
+    key: 'stripePaymentToSlack',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.stripe', position: P(0, 0), config: { credentialId: '', events: 'payment_intent.succeeded' } },
+        {
+          id: 'slack',
+          type: 'app.slack',
+          position: P(0, 160),
+          config: {
+            credentialId: '',
+            channel: '#revenue',
+            text: 'Payment received: {{trigger.data.object.amount}} {{trigger.data.object.currency | upper}} ({{trigger.data.object.id}})',
+            retries: 1,
+          },
+        },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'slack' }],
+    },
+  },
+  {
+    key: 'issueToDiscord',
+    graph: {
+      nodes: [
+        {
+          id: 'trigger',
+          type: 'trigger.event',
+          position: P(0, 0),
+          config: { event: 'issue.created', filterPath: 'issue.priority', filterOp: 'equals', filterValue: 'urgent' },
+        },
+        {
+          id: 'discord',
+          type: 'app.discord',
+          position: P(0, 160),
+          config: {
+            credentialId: '',
+            content: 'Urgent issue {{trigger.issue.identifier}}: {{trigger.issue.title}} ({{trigger.project.name}})',
+            username: 'Track',
+            retries: 1,
+          },
+        },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'discord' }],
+    },
+  },
+  {
+    key: 'formToTelegram',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.event', position: P(0, 0), config: { event: 'form.submitted' } },
+        {
+          id: 'telegram',
+          type: 'app.telegram',
+          position: P(0, 160),
+          config: {
+            credentialId: '',
+            chatId: '',
+            text: 'New submission on {{trigger.form.name}}: {{trigger.submission.values | json}}',
+            parseMode: '',
+            retries: 1,
+          },
+        },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'telegram' }],
+    },
+  },
+  {
+    key: 'bookingToNotion',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.event', position: P(0, 0), config: { event: 'booking.created' } },
+        {
+          id: 'notion',
+          type: 'app.notion',
+          position: P(0, 160),
+          config: {
+            credentialId: '',
+            operation: 'create_page',
+            databaseId: '',
+            title: '{{trigger.eventType.title}} with {{trigger.invitee.name}}',
+            titleProperty: 'Name',
+            properties: '',
+            content: 'Starts {{trigger.startsAt}}\n\nAttendee: {{trigger.invitee.email}}\n\nNotes:',
+            retries: 1,
+          },
+        },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'notion' }],
+    },
+  },
+  {
+    key: 'webhookAgentReply',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.webhook', position: P(0, 0), config: {} },
+        { id: 'agent', type: 'ai.agent', position: P(0, 160), config: { agentId: '', message: '{{trigger.body.question}}', conversationId: '' } },
+        {
+          id: 'slack',
+          type: 'app.slack',
+          position: P(0, 320),
+          config: {
+            credentialId: '',
+            channel: '#support',
+            text: 'Q: {{trigger.body.question}}\nA: {{nodes.agent.output.reply}}',
+            retries: 1,
+          },
+        },
+      ],
+      edges: [
+        { id: 'e1', source: 'trigger', target: 'agent' },
+        { id: 'e2', source: 'agent', target: 'slack' },
       ],
     },
   },

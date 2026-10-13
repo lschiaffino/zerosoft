@@ -1473,6 +1473,62 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN full_width INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    // Flow: credenciales por workspace (cifradas con AES-256-GCM, ver
+    // lib/flow-credentials.ts). Las usan los nodos de integraciones y Robots.
+    id: '026_flow_credentials',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS flow_credentials (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL,
+          data TEXT NOT NULL,
+          hint TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_flow_credentials_name ON flow_credentials(user_id, name)');
+    },
+  },
+  {
+    // Flow: historial de versiones (un snapshot del grafo por guardado), flow
+    // de error, re-ejecución desde un paso y sub-flows.
+    id: '026_flow_versions_errors',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS flow_versions (
+          id TEXT PRIMARY KEY,
+          flow_id TEXT NOT NULL REFERENCES flow_flows(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          version INTEGER NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          graph TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_flow_versions_flow ON flow_versions(flow_id, created_at DESC)');
+      await addColumn(client, 'ALTER TABLE flow_flows ADD COLUMN error_flow_id TEXT');
+      await addColumn(client, 'ALTER TABLE flow_runs ADD COLUMN rerun_of TEXT');
+      await addColumn(client, 'ALTER TABLE flow_runs ADD COLUMN parent_run_id TEXT');
+    },
+  },
+  {
+    // Robots: sesión guardada (cookies + localStorage cifrados) entre corridas.
+    id: '026_robot_sessions',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE robots ADD COLUMN persist_session INTEGER NOT NULL DEFAULT 0');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_sessions (
+          robot_id TEXT PRIMARY KEY REFERENCES robots(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          data TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

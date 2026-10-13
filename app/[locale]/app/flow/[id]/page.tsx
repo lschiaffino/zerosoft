@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
-import { getFlow, lastOutputs, listFlowWebhooks } from '@/lib/flow';
+import { listAgents } from '@/lib/agents';
+import { getFlow, lastOutputs, listFlows, listFlowWebhooks } from '@/lib/flow';
+import { flowCodeAvailable } from '@/lib/flow-code';
+import { listCredentials } from '@/lib/flow-credentials';
 import { canEditFlows } from '@/lib/flow-http';
 import FlowEditor from '@/components/flow/FlowEditor';
 
@@ -15,6 +18,7 @@ export default async function FlowEditorPage(props: { params: Promise<{ locale: 
   const flow = await getFlow(user.id, id);
   if (!flow) notFound();
   const canEdit = canEditFlows(user);
+  const [credentials, flows, agents] = await Promise.all([listCredentials(user.id), listFlows(user.id), listAgents(user.id)]);
   return (
     <FlowEditor
       key={flow.id}
@@ -22,6 +26,12 @@ export default async function FlowEditorPage(props: { params: Promise<{ locale: 
       canEdit={canEdit}
       webhooks={canEdit ? await listFlowWebhooks(user.id, id) : []}
       lastOutputs={await lastOutputs(user.id, id)}
+      refs={{
+        credentials: credentials.map((c) => ({ id: c.id, name: c.name, type: c.type })),
+        flows: flows.map((f) => ({ id: f.id, name: f.name })),
+        agents: agents.map((a) => ({ id: a.id, name: a.name })),
+        codeAvailable: flowCodeAvailable(),
+      }}
     />
   );
 }

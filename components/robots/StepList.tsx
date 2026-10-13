@@ -101,7 +101,56 @@ function Field({ label, children, wide }: { label: string; children: React.React
   );
 }
 
-function StepFields({
+/** Campos del paso + reintentos (todos los pasos menos loop_over). */
+function StepFields(props: { step: AnyStep; onChange: (s: AnyStep) => void; readOnly: boolean; prefix: string }) {
+  const { step, onChange, readOnly } = props;
+  const t = useTranslations('robots.steps');
+  if (step.type === 'loop_over') return <TypeFields {...props} />;
+  const rec = step as Record<string, unknown>;
+  const setNum = (key: 'retries' | 'retryDelayMs', raw: string, max: number) => {
+    const n = Math.min(max, Math.max(0, Math.floor(Number(raw) || 0)));
+    const next = { ...rec } as Record<string, unknown>;
+    if (n === 0) delete next[key];
+    else next[key] = n;
+    onChange(next as AnyStep);
+  };
+  return (
+    <>
+      <TypeFields {...props} />
+      <div className="robots-retry">
+        <label className="robots-retry-field">
+          <span>{t('fields.retries')}</span>
+          <input
+            className="input"
+            type="number"
+            min={0}
+            max={5}
+            value={Number(rec.retries ?? 0)}
+            readOnly={readOnly}
+            onChange={(e) => setNum('retries', e.target.value, 5)}
+          />
+        </label>
+        {Number(rec.retries ?? 0) > 0 && (
+          <label className="robots-retry-field">
+            <span>{t('fields.retryDelayMs')}</span>
+            <input
+              className="input"
+              type="number"
+              min={0}
+              max={30000}
+              step={250}
+              value={Number(rec.retryDelayMs ?? 0)}
+              readOnly={readOnly}
+              onChange={(e) => setNum('retryDelayMs', e.target.value, 30_000)}
+            />
+          </label>
+        )}
+      </div>
+    </>
+  );
+}
+
+function TypeFields({
   step,
   onChange,
   readOnly,
@@ -220,6 +269,46 @@ function StepFields({
           </Field>
           {step.onMissing === 'skip' && num('count', t('fields.count'), 1, 100)}
           {step.onMissing === 'goto' && num('target', t('fields.target'), 1, 100)}
+        </div>
+      );
+    case 'download':
+      return (
+        <div className="robots-fields">
+          {text('selector', t('fields.selector'), 'a.export')}
+          {text('text', t('fields.text'), 'Export CSV')}
+          {text('name', t('fields.name'), 'file')}
+          <p className="muted robots-field-hint">{t('fileHint', { example: `{{vars.${step.name || 'file'}.url}}` })}</p>
+        </div>
+      );
+    case 'upload':
+      return (
+        <div className="robots-fields">
+          {text('selector', t('fields.selector'), 'input[type="file"]')}
+          {text('url', t('fields.fileUrl'), 'https://example.com/{{inputs.file}}', true)}
+          {text('filename', t('fields.filename'), 'cv.pdf')}
+        </div>
+      );
+    case 'pdf':
+      return (
+        <div className="robots-fields">
+          {text('name', t('fields.name'), 'pdf')}
+          <p className="muted robots-field-hint">{t('fileHint', { example: `{{vars.${step.name || 'pdf'}.url}}` })}</p>
+        </div>
+      );
+    case 'evaluate':
+      return (
+        <div className="robots-fields">
+          <Field label={t('fields.script')} wide>
+            <textarea
+              className="textarea mono"
+              rows={5}
+              value={step.script}
+              readOnly={readOnly}
+              spellCheck={false}
+              onChange={(e) => set({ script: e.target.value })}
+            />
+          </Field>
+          {text('name', t('fields.name'), 'result')}
         </div>
       );
     case 'loop_over':
