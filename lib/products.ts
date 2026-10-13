@@ -27,3 +27,16 @@ export const PRODUCT_KEYS: SiteProductKey[] = ['link', 'track', 'crm', 'cal', 'd
 export function isProductKey(value: string): value is SiteProductKey {
   return (PRODUCT_KEYS as string[]).includes(value);
 }
+
+/**
+ * Productos que ya existen dentro de la app pero que el sitio de marketing
+ * todavía muestra como "Pronto" (components/site/catalog.ts → UPCOMING).
+ * Van aparte de PRODUCT_CONFIG para no generar páginas /products/<key> ni
+ * entrar en los Record<ProductKey, …> del catálogo.
+ */
+export const APP_ONLY_PRODUCTS = {
+  notes: { name: 'Notes', launch: '/app/notes' },
+  board: { name: 'Board', launch: '/app/board' },
+} as const;
+
+export type AppOnlyProductKey = keyof typeof APP_ONLY_PRODUCTS;

@@ -1,0 +1,46 @@
+{
+  "meta": { "title": "Board" },
+  "sidebar": { "boards": "Pizarras" },
+  "list": {
+    "title": "Pizarras",
+    "subtitle": "Pizarras infinitas para tu equipo. Todos en el workspace pueden abrirlas y editarlas.",
+    "new": "Nueva pizarra",
+    "untitled": "Pizarra sin título",
+    "copyName": "{name} (copia)",
+    "confirmDelete": "¿Borrar “{name}”? No se puede deshacer.",
+    "emptyTitle": "Todavía no hay pizarras.",
+    "emptyHint": "Dibujá, planificá y compartí una idea en un lienzo infinito.",
+    "rename": "Renombrar",
+    "duplicate": "Duplicar",
+    "delete": "Borrar",
+    "actions": "Acciones de la pizarra",
+    "updated": "Editada {when}"
+  },
+  "share": {
+    "button": "Compartir",
+    "title": "Compartir por link",
+    "hint": "Cualquiera con el link puede ver esta pizarra. Solo tu workspace puede editarla.",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "disable": "Dejar de compartir",
+    "enable": "Crear link",
+    "on": "Compartida"
+  },
+  "editor": {
+    "back": "Pizarras",
+    "name": "Nombre de la pizarra",
+    "saving": "Guardando…",
+    "unsaved": "Cambios sin guardar",
+    "saveError": "No se pudo guardar. Reintentando…",
+    "saved": "Guardado",
+    "conflict": "Esta pizarra cambió en otro lado.",
+    "conflictBy": "{name} cambió esta pizarra en otro lado.",
+    "reload": "Recargar",
+    "keepMine": "Conservar mi versión",
+    "tooLarge": "Esta pizarra pesa más de {mb} MB, casi siempre por las imágenes. Sacá o achicá algunas para seguir guardando."
+  },
+  "public": {
+    "notFound": "Pizarra no encontrada",
+    "viewOnly": "Solo lectura"
+  }
+}

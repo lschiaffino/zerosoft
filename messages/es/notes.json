@@ -1,0 +1,101 @@
+{
+  "meta": { "title": "Notas" },
+  "untitled": "Sin título",
+  "sidebar": { "all": "Todas las notas" },
+  "actions": { "newNote": "Nueva nota" },
+  "nav": {
+    "label": "Libretas",
+    "all": "Todas las notas",
+    "pinned": "Fijadas",
+    "notebooks": "Libretas",
+    "tags": "Etiquetas",
+    "trash": "Papelera"
+  },
+  "notebooks": {
+    "new": "Nueva libreta",
+    "namePlaceholder": "Nombre de la libreta",
+    "rename": "Renombrar",
+    "renamePrompt": "Renombrar libreta",
+    "delete": "Borrar libreta",
+    "confirmDelete": "¿Borrar “{name}”? Sus notas van a ir a la papelera.",
+    "empty": "Agrupá tus notas en libretas."
+  },
+  "list": {
+    "search": "Buscar notas",
+    "sortLabel": "Ordenar",
+    "sort": { "updated": "Última edición", "created": "Creación", "title": "Título" },
+    "count": "{count, plural, =0 {Sin notas} one {# nota} other {# notas}}",
+    "noResults": "Nada coincide con “{q}”.",
+    "emptyTitle": "Todavía no hay notas acá.",
+    "justNow": "recién"
+  },
+  "trash": {
+    "confirmDelete": "¿Borrar esta nota para siempre? No se puede deshacer.",
+    "confirmEmpty": "¿Borrar para siempre todas las notas de la papelera?",
+    "empty": "Vaciar papelera",
+    "emptyState": "La papelera está vacía.",
+    "banner": "Esta nota está en la papelera.",
+    "restore": "Restaurar",
+    "deleteForever": "Borrar para siempre"
+  },
+  "editor": {
+    "emptyTitle": "Elegí una nota o empezá una nueva.",
+    "back": "Notas",
+    "moveTo": "Mover a libreta",
+    "noNotebook": "Sin libreta",
+    "saving": "Guardando…",
+    "saved": "Guardado",
+    "saveError": "No se pudo guardar. Se reintenta con tu próxima edición.",
+    "pin": "Fijar",
+    "unpin": "Desfijar",
+    "pinned": "Fijada",
+    "trash": "Papelera",
+    "removeTag": "Quitar etiqueta {tag}",
+    "addTag": "Agregar etiqueta",
+    "source": "Fuente:",
+    "created": "Creada el {date}"
+  },
+  "share": {
+    "button": "Compartir",
+    "title": "Compartir por link",
+    "hint": "Cualquiera con el link puede leer esta nota. Solo vos podés editarla.",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "disable": "Dejar de compartir",
+    "enable": "Crear link"
+  },
+  "ask": {
+    "open": "Preguntale a tus notas",
+    "title": "Preguntale a tus notas",
+    "close": "Cerrar",
+    "hint": "Responde solo con lo que está en tus notas y te dice cuáles usó.",
+    "placeholder": "¿Cuál es la clave del wifi de la oficina?",
+    "submit": "Preguntar",
+    "thinking": "Pensando…",
+    "sources": "De tus notas",
+    "noMatches": "Ninguna de tus notas parece mencionar eso.",
+    "limited": "Llegaste al límite de AI. Probá en un rato.",
+    "disabled": "La AI no está configurada en este workspace.",
+    "failed": "No se pudo obtener una respuesta. Probá de nuevo."
+  },
+  "clip": {
+    "button": "Recortar páginas",
+    "title": "Recortar página",
+    "hint": "Arrastrá este botón a tu barra de favoritos. Hacé clic en cualquier página para guardarla (con el texto seleccionado) como nota.",
+    "bookmarkletName": "Guardar en Notas",
+    "missingUrl": "No hay nada para recortar. Usá el botón desde cualquier página web.",
+    "openNotes": "Abrir Notas",
+    "saved": "Guardado en Notas",
+    "openNote": "Abrir nota",
+    "close": "Cerrar",
+    "noteTitle": "Título",
+    "selection": "Texto",
+    "error": "No se pudo guardar. Probá de nuevo.",
+    "saving": "Guardando…",
+    "save": "Guardar nota"
+  },
+  "public": {
+    "notFound": "Nota no encontrada",
+    "updated": "Actualizada el {date}"
+  }
+}

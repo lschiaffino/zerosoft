@@ -17,6 +17,8 @@ import '@/styles/track-quick.css';
 import '@/styles/chat.css';
 import '@xyflow/react/dist/style.css';
 import '@/styles/flow.css';
+import '@/styles/notes.css';
+import '@/styles/board.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
 
@@ -47,6 +49,8 @@ export default async function AppLayout(
   const tTrack = await getTranslations({ locale, namespace: 'track' });
   const tChat = await getTranslations({ locale, namespace: 'chat' });
   const tFlow = await getTranslations({ locale, namespace: 'flow' });
+  const tNotes = await getTranslations({ locale, namespace: 'notes' });
+  const tBoard = await getTranslations({ locale, namespace: 'board' });
   const tasksDue = await countDueTasks(user.id);
 
   return (
@@ -133,6 +137,8 @@ export default async function AppLayout(
           flow: {
             flows: tFlow('sidebar.flows'),
           },
+          notes: { all: tNotes('sidebar.all'), newNote: tNotes('actions.newNote') },
+          board: { boards: tBoard('sidebar.boards'), newBoard: tBoard('list.new') },
           notifications: {
             title: tTrack('notifications.title'),
             markRead: tTrack('notifications.markRead'),
@@ -175,6 +181,9 @@ export default async function AppLayout(
             { href: '/app/chat/people', label: tChat('sidebar.people') },
             { href: '/app/chat/settings', label: tChat('sidebar.settings') },
             { href: '/app/flow', label: tFlow('sidebar.flows') },
+            { href: '/app/notes', label: tNotes('sidebar.all') },
+            { href: '/app/notes/clip', label: tNotes('clip.title') },
+            { href: '/app/board', label: tBoard('sidebar.boards') },
           ]}
         />
         <main className="app-content">{children}</main>
