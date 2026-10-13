@@ -92,7 +92,9 @@
     "empty": "No hay bloqueos."
   },
   "bookings": {
-    "title": "Reservas"
+    "title": "Reservas",
+    "join": "Unirse a la reunión ↗",
+    "rescheduled": "Reprogramada por el invitado"
   },
   "booking": {
     "timezone": "Zona horaria",
@@ -119,7 +121,11 @@
     "answers": "Respuestas",
     "host": "Anfitrión",
     "expiredTitle": "Link expirado",
-    "expiredSub": "Este link de reserva de un solo uso ya fue utilizado."
+    "expiredSub": "Este link de reserva de un solo uso ya fue utilizado.",
+    "rescheduledTitle": "Reprogramada",
+    "emailSent": "Te enviamos los detalles y una invitación de calendario por email.",
+    "manageLink": "Reprogramar o cancelar",
+    "confirmNewTime": "Confirmar nuevo horario"
   },
   "routing": {
     "title": "Formularios de routing",
@@ -165,6 +171,51 @@
     "invalid_input": "Algunos campos son inválidos. Revisalos e intentá de nuevo.",
     "slot_unavailable": "Ese horario ya no está disponible. Elegí otro.",
     "link_expired": "Este link de reserva expiró.",
-    "generic": "Algo salió mal. Probá de nuevo."
+    "generic": "Algo salió mal. Probá de nuevo.",
+    "already_started": "Esta reunión ya empezó.",
+    "not_confirmed": "Esta reserva ya no está activa.",
+    "rate_limited": "Demasiados intentos. Esperá un minuto y probá de nuevo.",
+    "not_found": "Esta página de reservas ya no existe."
+  },
+  "settings": {
+    "title": "Configuración",
+    "publicLink": "Link público",
+    "handle": "Tu handle",
+    "handleHint": "Todas tus páginas de reserva viven bajo esta dirección. Si lo cambiás, se rompen los links que ya compartiste.",
+    "handleTaken": "Ese handle ya está tomado.",
+    "handleInvalid": "Usá entre 3 y 32 minúsculas, números o guiones.",
+    "defaults": "Valores por defecto para todos los eventos",
+    "weekStart": "La semana empieza el",
+    "bufferBefore": "Margen antes (min)",
+    "bufferAfter": "Margen después (min)",
+    "minNotice": "Aviso mínimo (horas)",
+    "maxDays": "Reservable hasta (días)",
+    "copyLink": "Copiar link"
+  },
+  "manage": {
+    "title": "Tu reserva",
+    "cancel": "Cancelar reserva",
+    "reschedule": "Reprogramar",
+    "cancelReason": "Motivo (opcional)",
+    "cancelConfirm": "Sí, cancelarla",
+    "cancelled": "Esta reserva está cancelada. Ya le avisamos al anfitrión.",
+    "past": "Esta reunión ya empezó, así que no se puede cambiar desde acá."
+  },
+  "google": {
+    "desc": "Conectá tu calendario para que tus horarios ocupados bloqueen tus páginas de reserva y cada reserva caiga en tu calendario, con link de Google Meet cuando el evento no tiene otra ubicación.",
+    "connect": "Conectar Google Calendar",
+    "disconnect": "Desconectar",
+    "connectedAs": "Conectado como {email}",
+    "noticeConnected": "Google Calendar conectado.",
+    "noticeScopes": "Necesitamos los dos permisos de calendario (disponibilidad y eventos). Probá de nuevo dejando ambos tildados.",
+    "noticeError": "No se pudo conectar Google Calendar. Probá de nuevo.",
+    "notConfigured": "Google OAuth no está configurado en este servidor. Definí GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET y agregá {uri} como redirect URI autorizado."
+  },
+  "embed": {
+    "title": "Embeber en tu sitio",
+    "inline": "En línea",
+    "popup": "Botón popup",
+    "inlineDesc": "Pegalo donde querés que aparezca el calendario. El alto se ajusta solo.",
+    "popupDesc": "Agrega un botón flotante que abre la página de reserva en un modal."
   }
 }

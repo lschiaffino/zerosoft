@@ -1,0 +1,19 @@
+# docker compose up -d → http://localhost:3000
+# Fill the variables in .env (see .env.example). Data lives in the named volumes.
+services:
+  zerosoft:
+    build: .
+    image: zerosoft:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+    volumes:
+      - zerosoft-data:/app/data
+      - zerosoft-uploads:/app/public/uploads
+
+volumes:
+  zerosoft-data:
+  zerosoft-uploads:

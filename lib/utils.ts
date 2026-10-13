@@ -28,8 +28,8 @@ export function shortDomain(): string {
   return process.env.SHORT_DOMAIN ?? 'localhost:3000';
 }
 
-export function shortUrl(slug: string): string {
-  const domain = shortDomain();
+export function shortUrl(slug: string, hostname: string | null = null): string {
+  const domain = hostname ?? shortDomain();
   const proto = domain.includes('localhost') ? 'http' : 'https';
   return `${proto}://${domain}/${slug}`;
 }
@@ -46,6 +46,9 @@ export function isValidUrl(url: string): boolean {
 export function normalizeUrl(url: string): string {
   const trimmed = url.trim();
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  // Otro esquema explícito (ftp://, javascript:, data:…): se deja tal cual para
+  // que isValidUrl lo rechace, en vez de convertirlo en https://ftp://…
+  if (/^[a-z][a-z0-9+.-]*:(\/\/|[^0-9])/i.test(trimmed)) return trimmed;
   return `https://${trimmed}`;
 }
 

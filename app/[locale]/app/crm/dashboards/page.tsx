@@ -37,11 +37,17 @@ const DEFAULT_WIDGETS: Array<{
   { type: 'wonlost', x: 6, y: 7, w: 6, h: 5 },
 ];
 
-export default async function CrmDashboardsPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function CrmDashboardsPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

@@ -5,12 +5,24 @@ import { formatDate } from '@/lib/utils';
 import Reveal from '@/components/Reveal';
 import BlogCover from '@/components/BlogCover';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const t = await getTranslations({ locale, namespace: 'common.blog' });
   return { title: t('title') };
 }
 
-export default async function BlogIndexPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function BlogIndexPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'common.blog' });
   const posts = getAllPosts(locale);

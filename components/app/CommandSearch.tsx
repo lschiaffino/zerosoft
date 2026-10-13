@@ -58,7 +58,7 @@ export default function CommandSearch() {
       { group, label: t('newDeal'), meta: '', href: '/app/crm/deals/new' },
       { group, label: t('newTask'), meta: '', href: '/app/crm/tasks' },
       { group, label: t('newLink'), meta: '', href: '/app/links/new' },
-      { group, label: t('newDocPage'), meta: '', href: '/app/docs/new' },
+      { group, label: t('newDocPage'), meta: '', href: '/app/docs' },
       { group, label: t('newEventType'), meta: '', href: '/app/calendar/event-types/new' },
     ];
   }, [t]);
@@ -117,7 +117,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [actionItems],
+    [actionItems, groupOrder],
   );
 
   useEffect(() => {

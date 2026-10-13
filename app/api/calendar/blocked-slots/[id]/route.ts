@@ -7,7 +7,8 @@ import { invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const slot = await getBlockedSlot(user.id, params.id);
@@ -15,7 +16,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(slot);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -28,7 +30,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(slot);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!(await deleteBlockedSlot(user.id, params.id))) return notFound();

@@ -6,7 +6,13 @@ import WorkflowList from '@/components/crm/WorkflowList';
 
 export const dynamic = 'force-dynamic';
 
-export default async function WorkflowsPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function WorkflowsPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const workflows = await listWorkflows(user.id);

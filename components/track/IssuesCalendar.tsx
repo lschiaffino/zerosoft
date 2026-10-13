@@ -121,7 +121,7 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
                   {dayIssues.slice(0, 3).map((issue) => (
                     <Link
                       key={issue.id}
-                      href={`/${locale}/app/track/issues/${issue.id}`}
+                      href={`/app/track/issues/${issue.id}`}
                       className="track-calendar-issue"
                       title={issue.title}
                     >
@@ -147,7 +147,7 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
             {unscheduled.map((issue) => (
               <Link
                 key={issue.id}
-                href={`/${locale}/app/track/issues/${issue.id}`}
+                href={`/app/track/issues/${issue.id}`}
                 className="track-calendar-issue"
               >
                 <span className="track-identifier">{issue.identifier}</span>

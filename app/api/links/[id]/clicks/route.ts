@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getUserLink } from '@/lib/links';
-import { listClicks, type AnalyticsRange } from '@/lib/track';
+import { listClicks, type AnalyticsRange, parseRange } from '@/lib/track';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,8 @@ function notFound() {
   return NextResponse.json({ error: 'not_found' }, { status: 404 });
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const sp = req.nextUrl.searchParams;
   const rawRange = sp.get('range');
-  const range: AnalyticsRange = rawRange === '7d' || rawRange === 'all' ? rawRange : '30d';
+  const range: AnalyticsRange = parseRange(rawRange);
   const country = sp.get('country') ?? undefined;
   const page = Number(sp.get('page') ?? '1') || 1;
   const pageSize = Number(sp.get('pageSize') ?? '25') || 25;

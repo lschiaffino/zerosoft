@@ -24,7 +24,7 @@ const FAQ_IDS = ['f1', 'f2', 'f3', 'f4', 'f5'] as const;
 
 /**
  * Full product detail page: hero, fake-UI browser shot, features,
- * price math, the two ways to have it, FAQ and final CTA.
+ * price math, the three ways to have it, FAQ and final CTA.
  * All copy lives in messages/<locale>/pages.json.
  */
 export default async function ProductPage({
@@ -128,26 +128,20 @@ export default async function ProductPage({
         </Reveal>
       </section>
 
-      {/* TWO WAYS */}
+      {/* THREE WAYS */}
       <section className="container">
         <p className="section-label">{t('product.modelLabel')}</p>
-        <div className="model-grid">
-          <Reveal className="model-card">
-            <p className="model-key">A</p>
-            <h3>{t('product.model.a.title')}</h3>
-            <p className="model-desc">{t('product.model.a.desc')}</p>
-            <p className="model-price">
-              {t('product.model.a.price')} <span>{t('product.model.a.priceNote')}</span>
-            </p>
-          </Reveal>
-          <Reveal className="model-card model-card-dark">
-            <p className="model-key">B</p>
-            <h3>{t('product.model.b.title')}</h3>
-            <p className="model-desc">{t('product.model.b.desc')}</p>
-            <p className="model-price">
-              {t('product.model.b.price')} <span>{t('product.model.b.priceNote')}</span>
-            </p>
-          </Reveal>
+        <div className="model-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
+          {(['a', 'b', 'c'] as const).map((key) => (
+            <Reveal key={key} className={key === 'b' ? 'model-card model-card-dark' : 'model-card'}>
+              <p className="model-key">{key.toUpperCase()}</p>
+              <h3>{t(`product.model.${key}.title`)}</h3>
+              <p className="model-desc">{t(`product.model.${key}.desc`)}</p>
+              <p className="model-price">
+                {t(`product.model.${key}.price`)} <span>{t(`product.model.${key}.priceNote`)}</span>
+              </p>
+            </Reveal>
+          ))}
         </div>
       </section>
 

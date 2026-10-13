@@ -4,7 +4,8 @@ import { generateBlogCoverSVG } from '@/lib/blog-cover';
 
 export const dynamic = 'force-static';
 
-export async function GET(_request: Request, { params }: { params: { slug: string } }) {
+export async function GET(_request: Request, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const { slug } = params;
   const post = getPost('en', slug);
   const title = post?.title ?? slug;

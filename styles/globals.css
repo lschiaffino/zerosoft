@@ -157,6 +157,22 @@ a { color: inherit; text-decoration: none; }
 
 /* ---------- Header ---------- */
 
+.nav-burger,
+.mobile-panel { display: none; }
+.nav-burger {
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 18px;
+  cursor: pointer;
+}
+.mobile-panel-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin: 0; }
+
 .site-header {
   display: flex;
   align-items: center;
@@ -1183,9 +1199,38 @@ section { padding-top: 150px; padding-bottom: 150px; }
 
 @media (max-width: 860px) {
   .container { padding-left: 20px; padding-right: 20px; }
-  .site-header { padding: 18px 20px; flex-wrap: wrap; gap: 14px; height: auto; }
-  nav.main-nav { gap: 16px; flex-wrap: wrap; row-gap: 10px; justify-content: flex-end; }
-  nav.main-nav a.nav-link { display: none; }
+  /* Header mobile: logo · acción principal · ☰ (el resto vive en el panel). */
+  .site-header { padding: 14px 16px; gap: 12px; height: 64px; }
+  nav.main-nav { gap: 10px; flex-wrap: nowrap; justify-content: flex-end; }
+  nav.main-nav a.nav-link,
+  nav.main-nav > .locale-switcher,
+  nav.main-nav > .nav-dropdown,
+  nav.main-nav > .nav-cta-secondary { display: none; }
+  .nav-burger { display: inline-flex; }
+  .mobile-panel:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: absolute;
+    top: 64px;
+    left: 0;
+    right: 0;
+    max-height: calc(100svh - 64px);
+    overflow-y: auto;
+    padding: 16px 16px 24px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
+  }
+  .mobile-panel-products { display: flex; flex-direction: column; gap: 8px; }
+  .mobile-panel-products .mega-item { padding: 14px 16px; flex-direction: row; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .mobile-panel-products .mega-item { flex-wrap: nowrap; }
+  .mobile-panel-products .mega-name { font-size: 20px; }
+  .mobile-panel-products .mega-tag { margin-top: 0; margin-left: auto; text-align: right; }
+  .mobile-panel-products .mega-status { display: none; }
+  .mobile-panel-links { display: flex; gap: 20px; }
+  .mobile-panel-links .nav-link { display: inline-flex; }
+  .mobile-panel-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
   .nav-dropdown { width: 100%; }
 
@@ -1229,4 +1274,20 @@ section { padding-top: 150px; padding-bottom: 150px; }
   .blog-index-grid { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 1fr; }
   .footer-bottom { flex-direction: column; align-items: flex-start; }
+}
+
+/* Pie mínimo de las páginas públicas de reserva (sin chrome de marketing). */
+.powered-by {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 0 24px;
+}
+.powered-by a {
+  color: var(--dim);
+  text-decoration: none;
+}
+.powered-by a:hover {
+  color: var(--ink);
 }

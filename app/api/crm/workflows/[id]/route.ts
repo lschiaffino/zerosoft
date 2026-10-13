@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteWorkflow, getWorkflow, updateWorkflow } from '@/lib/crm-workflows';
 import { workflowUpdateSchema } from '@/lib/crm-workflows-schema';
 import { invalidBody, notFound, unauthorized } from '@/lib/crm-http';
@@ -7,7 +7,8 @@ import { invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const workflow = await getWorkflow(user.id, params.id);
@@ -15,7 +16,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(workflow);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -28,9 +30,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(workflow);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  // Borrar configuración compartida del workspace: solo owner/admin.
+  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   if (!(await deleteWorkflow(user.id, params.id))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

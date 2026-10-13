@@ -7,6 +7,8 @@ export interface MeetingEventType {
   slug: string;
   title: string;
   durationMin: number;
+  /** Path público sin locale: /book/<handle>/<slug>. */
+  path: string;
 }
 
 interface BookMeetingMenuProps {
@@ -20,7 +22,7 @@ interface BookMeetingMenuProps {
 
 /**
  * Popover "Book meeting" (paridad HubSpot Meetings): lista los event types de
- * Cal y genera el link público /book/[slug] con pre-fill del contacto.
+ * Cal y genera el link público /book/[handle]/[slug] con pre-fill del contacto.
  */
 export default function BookMeetingMenu({ eventTypes, name, email, locale }: BookMeetingMenuProps) {
   const t = useTranslations('crm');
@@ -78,7 +80,8 @@ export default function BookMeetingMenu({ eventTypes, name, email, locale }: Boo
     if (name) qs.set('name', name);
     if (email) qs.set('email', email);
     const suffix = qs.toString();
-    return `/${locale}/book/${slug}${suffix ? `?${suffix}` : ''}`;
+    const path = items.find((i) => i.slug === slug)?.path ?? `/book/${slug}`;
+    return `/${locale}${path}${suffix ? `?${suffix}` : ''}`;
   }
 
   async function copyLink(slug: string) {

@@ -46,8 +46,15 @@ export function contextFromHeaders(headers: Headers): ClickContext {
     }
   }
 
-  let country = headers.get('cf-ipcountry') ?? headers.get('x-vercel-ip-country');
-  if (!country) {
+  // Solo headers que pone la infraestructura, no el cliente: en Vercel,
+  // x-vercel-ip-country; detrás de Cloudflare (self-host), cf-ipcountry si se
+  // habilita explícitamente. Si no, geoip por IP.
+  let country: string | null = process.env.VERCEL
+    ? headers.get('x-vercel-ip-country')
+    : process.env.TRUST_CF_IPCOUNTRY === 'true'
+      ? headers.get('cf-ipcountry')
+      : null;
+  if (!country && !process.env.VERCEL) {
     const ip = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
     if (ip) country = geoipCountry(ip);
   }
@@ -225,11 +232,19 @@ export interface BreakdownItem {
   count: number;
 }
 
-export type AnalyticsRange = '7d' | '30d' | 'all';
+export type AnalyticsRange = '7d' | '30d' | '90d' | 'all';
+
+export function parseRange(raw: string | null | undefined): AnalyticsRange {
+  return raw === '7d' || raw === '90d' || raw === 'all' ? raw : '30d';
+}
+
+const RANGE_DAYS: Record<Exclude<AnalyticsRange, 'all'>, number> = { '7d': 7, '30d': 30, '90d': 90 };
 
 export interface AnalyticsResult {
   total: number;
   rangeTotal: number;
+  /** Clicks del período anterior de igual largo (null en "all"). */
+  previousTotal: number | null;
   byDay: DayCount[];
   referrers: BreakdownItem[];
   countries: BreakdownItem[];
@@ -241,7 +256,7 @@ export interface AnalyticsResult {
 export function rangeStart(range: AnalyticsRange, createdAt: string): string {
   const end = todayUtc();
   if (range === 'all') return createdAt.slice(0, 10);
-  return addDays(end, range === '7d' ? -6 : -29);
+  return addDays(end, -(RANGE_DAYS[range] - 1));
 }
 
 type BreakdownColumn = 'referrer' | 'country' | 'device' | 'browser' | 'os';
@@ -297,9 +312,20 @@ export async function getAnalytics(
       .get(linkId, start)) as { c: number }
   ).c;
 
+  let previousTotal: number | null = null;
+  if (range !== 'all') {
+    const prevStart = addDays(start, -RANGE_DAYS[range]);
+    previousTotal = (
+      (await db
+        .prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND date(ts) >= ? AND date(ts) < ?')
+        .get(linkId, prevStart, start)) as { c: number }
+    ).c;
+  }
+
   return {
     total,
     rangeTotal,
+    previousTotal,
     byDay: await byDayFor(linkId, start, end),
     referrers: await breakdown(linkId, 'referrer', start, 'direct'),
     countries: await breakdown(linkId, 'country', start, 'unknown'),
@@ -314,6 +340,7 @@ export async function getAnalytics(
 export interface OverviewLink {
   id: string;
   slug: string;
+  domain_hostname: string | null;
   url: string;
   title: string | null;
   clicks: number;
@@ -369,12 +396,13 @@ export async function getUserOverview(userId: string): Promise<UserOverview> {
   const map = new Map(rows.map((r) => [r.d, r.c]));
   const byDay = dayList(start, end).map((date) => ({ date, count: map.get(date) ?? 0 }));
 
-  const cols = 'id, slug, url, title, clicks, created_at';
+  const cols =
+    'l.id, l.slug, l.url, l.title, l.clicks, l.created_at, d.hostname AS domain_hostname FROM links l LEFT JOIN link_domains d ON d.id = l.domain_id';
   const topLinks = (await db
-    .prepare(`SELECT ${cols} FROM links WHERE user_id = ? ORDER BY clicks DESC LIMIT 5`)
+    .prepare(`SELECT ${cols} WHERE l.user_id = ? ORDER BY l.clicks DESC LIMIT 5`)
     .all(userId)) as OverviewLink[];
   const recent = (await db
-    .prepare(`SELECT ${cols} FROM links WHERE user_id = ? ORDER BY created_at DESC LIMIT 5`)
+    .prepare(`SELECT ${cols} WHERE l.user_id = ? ORDER BY l.created_at DESC LIMIT 5`)
     .all(userId)) as OverviewLink[];
 
   return { activeLinks, totalClicks, clicksToday, topLink, byDay, topLinks, recent };

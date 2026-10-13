@@ -22,7 +22,7 @@ export default function ProjectList({ projects, locale, empty, openIssuesLabel }
           0 0 0 0 0
         </p>
         <p className="muted">{empty.sub}</p>
-        <Link href={`/${locale}/app/track/projects/new`} className="btn btn-solid btn-small">
+        <Link href={`/app/track/projects/new`} className="btn btn-solid btn-small">
           {empty.cta}
         </Link>
       </div>
@@ -32,7 +32,7 @@ export default function ProjectList({ projects, locale, empty, openIssuesLabel }
   return (
     <div className="track-grid">
       {projects.map((p) => (
-        <Link key={p.id} href={`/${locale}/app/track/projects/${p.id}`} className="track-card">
+        <Link key={p.id} href={`/app/track/projects/${p.id}`} className="track-card">
           <div className="track-card-head">
             <span
               className="track-card-icon"

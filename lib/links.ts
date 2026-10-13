@@ -1,22 +1,36 @@
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, scrypt, timingSafeEqual } from 'crypto';
+import { promisify } from 'util';
+
+const scryptAsync = promisify(scrypt) as (password: string, salt: string, keylen: number) => Promise<Buffer>;
 import { customAlphabet } from 'nanoid';
 import { getDb, type LinkRow } from './db';
 import { isValidSlug } from './reserved';
 import { isValidUrl, normalizeUrl, shortUrl } from './utils';
+import { isAppHost } from './hosts';
+import { getVerifiedDomainByHost } from './link-domains';
+import { emitWebhook } from './webhooks';
+
+/** LinkRow + el hostname de su dominio propio (null = dominio por defecto). */
+export type LinkWithDomain = LinkRow & { domain_hostname?: string | null };
+
+const LINK_SELECT = 'SELECT l.*, d.hostname AS domain_hostname FROM links l LEFT JOIN link_domains d ON d.id = l.domain_id';
 
 // ---------- Slugs ----------
 
 const nanoSlug = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 7);
 
-export async function slugExists(slug: string): Promise<boolean> {
-  return !!(await getDb().prepare('SELECT 1 AS x FROM links WHERE slug = ?').get(slug));
+/** El slug ya existe en ese dominio (null = dominio por defecto). */
+export async function slugExists(slug: string, domainId: string | null = null): Promise<boolean> {
+  return !!(await getDb()
+    .prepare("SELECT 1 AS x FROM links WHERE slug = ? AND COALESCE(domain_id, '') = ?")
+    .get(slug, domainId ?? ''));
 }
 
 /** Random 7-char lowercase alphanumeric slug, regenerated on collision. */
-export async function generateSlug(): Promise<string> {
+export async function generateSlug(domainId: string | null = null): Promise<string> {
   for (let i = 0; i < 20; i++) {
     const candidate = nanoSlug();
-    if (isValidSlug(candidate) && !(await slugExists(candidate))) return candidate;
+    if (isValidSlug(candidate) && !(await slugExists(candidate, domainId))) return candidate;
   }
   // Practically unreachable; fall back to a longer id.
   return customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 10)();
@@ -36,16 +50,31 @@ export function parseTags(json: string | null): string[] {
 
 // ---------- Reads ----------
 
-export async function getLinkBySlug(slug: string): Promise<LinkRow | undefined> {
-  return (await getDb().prepare('SELECT * FROM links WHERE slug = ?').get(slug)) as
-    | LinkRow
-    | undefined;
+export async function getLinkBySlug(slug: string, domainId: string | null = null): Promise<LinkWithDomain | undefined> {
+  return (await getDb()
+    .prepare(`${LINK_SELECT} WHERE l.slug = ? AND COALESCE(l.domain_id, '') = ?`)
+    .get(slug, domainId ?? '')) as LinkWithDomain | undefined;
 }
 
-export async function getUserLink(userId: string, id: string): Promise<LinkRow | undefined> {
+/**
+ * Link servido en `host`: en el host de la app, el dominio por defecto; en un
+ * dominio propio verificado, ese dominio. Hosts desconocidos no resuelven nada.
+ */
+export async function getLinkForHost(host: string | null, slug: string): Promise<LinkWithDomain | undefined> {
+  if (isAppHost(host)) return getLinkBySlug(slug, null);
+  const domain = await getVerifiedDomainByHost(host ?? '');
+  return domain ? getLinkBySlug(slug, domain.id) : undefined;
+}
+
+export async function getUserLink(userId: string, id: string): Promise<LinkWithDomain | undefined> {
   return (await getDb()
-    .prepare('SELECT * FROM links WHERE id = ? AND user_id = ?')
-    .get(id, userId)) as LinkRow | undefined;
+    .prepare(`${LINK_SELECT} WHERE l.id = ? AND l.user_id = ?`)
+    .get(id, userId)) as LinkWithDomain | undefined;
+}
+
+/** URL corta de un link, en su dominio propio si tiene. */
+export function linkShortUrl(link: Pick<LinkWithDomain, 'slug' | 'domain_hostname'>): string {
+  return shortUrl(link.slug, link.domain_hostname ?? null);
 }
 
 function escapeLike(s: string): string {
@@ -64,7 +93,7 @@ export interface ListLinksParams {
 }
 
 export interface ListLinksResult {
-  links: LinkRow[];
+  links: LinkWithDomain[];
   total: number;
   page: number;
   pageSize: number;
@@ -75,36 +104,36 @@ export async function listLinks(
   params: ListLinksParams,
 ): Promise<ListLinksResult> {
   const db = getDb();
-  const where: string[] = ['user_id = ?'];
+  const where: string[] = ['l.user_id = ?'];
   const args: Array<string | number> = [userId];
 
   const archived: ArchivedFilter = params.archived ?? '0';
-  if (archived === '0') where.push('archived = 0');
-  else if (archived === '1') where.push('archived = 1');
+  if (archived === '0') where.push('l.archived = 0');
+  else if (archived === '1') where.push('l.archived = 1');
 
   if (params.q) {
     const like = `%${escapeLike(params.q)}%`;
-    where.push(`(slug LIKE ? ESCAPE '\\' OR url LIKE ? ESCAPE '\\' OR title LIKE ? ESCAPE '\\')`);
+    where.push(`(l.slug LIKE ? ESCAPE '\\' OR l.url LIKE ? ESCAPE '\\' OR l.title LIKE ? ESCAPE '\\')`);
     args.push(like, like, like);
   }
   if (params.tag) {
-    where.push(`tags LIKE ? ESCAPE '\\'`);
+    where.push(`l.tags LIKE ? ESCAPE '\\'`);
     args.push(`%"${escapeLike(params.tag)}"%`);
   }
 
   const whereSql = where.join(' AND ');
   const pageSize = Math.min(Math.max(params.pageSize ?? 10, 1), 50);
   const total = (
-    (await db.prepare(`SELECT COUNT(*) AS c FROM links WHERE ${whereSql}`).get(...args)) as {
+    (await db.prepare(`SELECT COUNT(*) AS c FROM links l WHERE ${whereSql}`).get(...args)) as {
       c: number;
     }
   ).c;
   const pages = Math.max(Math.ceil(total / pageSize), 1);
   const page = Math.min(Math.max(params.page ?? 1, 1), pages);
-  const order = params.sort === 'clicks' ? 'clicks DESC, created_at DESC' : 'created_at DESC, id';
+  const order = params.sort === 'clicks' ? 'l.clicks DESC, l.created_at DESC' : 'l.created_at DESC, l.id';
   const links = (await db
-    .prepare(`SELECT * FROM links WHERE ${whereSql} ORDER BY ${order} LIMIT ? OFFSET ?`)
-    .all(...args, pageSize, (page - 1) * pageSize)) as LinkRow[];
+    .prepare(`${LINK_SELECT} WHERE ${whereSql} ORDER BY ${order} LIMIT ? OFFSET ?`)
+    .all(...args, pageSize, (page - 1) * pageSize)) as LinkWithDomain[];
 
   return { links, total, page, pageSize };
 }
@@ -141,6 +170,8 @@ export function linkStatus(link: LinkRow): LinkStatus {
 export interface LinkDto {
   id: string;
   slug: string;
+  /** Dominio propio (null = dominio por defecto). */
+  domain: string | null;
   short_url: string;
   url: string;
   title: string | null;
@@ -157,11 +188,12 @@ export interface LinkDto {
   updated_at: string;
 }
 
-export function toLinkDto(link: LinkRow): LinkDto {
+export function toLinkDto(link: LinkWithDomain): LinkDto {
   return {
     id: link.id,
     slug: link.slug,
-    short_url: shortUrl(link.slug),
+    domain: link.domain_hostname ?? null,
+    short_url: linkShortUrl(link),
     url: link.url,
     title: link.title,
     tags: parseTags(link.tags),
@@ -180,15 +212,15 @@ export function toLinkDto(link: LinkRow): LinkDto {
 
 // ---------- Passwords (scrypt, "salt:hash" hex) ----------
 
-export function hashPassword(password: string): string {
+export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString('hex');
-  return `${salt}:${scryptSync(password, salt, 64).toString('hex')}`;
+  return `${salt}:${(await scryptAsync(password, salt, 64)).toString('hex')}`;
 }
 
-export function verifyPassword(password: string, stored: string): boolean {
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [salt, hash] = stored.split(':');
   if (!salt || !hash) return false;
-  const candidate = scryptSync(password, salt, 64);
+  const candidate = await scryptAsync(password, salt, 64);
   const expected = Buffer.from(hash, 'hex');
   return candidate.length === expected.length && timingSafeEqual(candidate, expected);
 }
@@ -196,7 +228,10 @@ export function verifyPassword(password: string, stored: string): boolean {
 // ---------- Password gate cookie (HMAC) ----------
 
 function gateSecret(): string {
-  return process.env.NEXTAUTH_SECRET ?? 'zerosoft-gate-secret';
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === 'production') throw new Error('NEXTAUTH_SECRET is required');
+  return 'zerosoft-gate-secret-dev';
 }
 
 export const gateCookieName = (slug: string): string => `zs_gate_${slug}`;
@@ -246,6 +281,8 @@ export function applyUtm(
 export interface CreateLinkInput {
   url: string;
   slug?: string;
+  /** Dominio propio verificado del usuario (id). */
+  domainId?: string | null;
   title?: string;
   tags?: string[];
   expiresAt?: string | null;
@@ -260,7 +297,7 @@ export interface CreateLinkInput {
   ogImage?: string;
 }
 
-export type CreateLinkError = 'invalid_url' | 'invalid_slug' | 'slug_taken' | 'invalid_date';
+export type CreateLinkError = 'invalid_url' | 'invalid_slug' | 'slug_taken' | 'invalid_date' | 'invalid_domain';
 
 export type CreateLinkResult =
   | { ok: true; link: LinkRow }
@@ -276,13 +313,21 @@ export async function createLink(
   const normalized = normalizeUrl(input.url);
   if (!isValidUrl(normalized)) return { ok: false, code: 'invalid_url' };
 
+  const domainId = input.domainId || null;
+  if (domainId) {
+    const domain = await db
+      .prepare('SELECT 1 AS x FROM link_domains WHERE id = ? AND user_id = ? AND verified = 1')
+      .get(domainId, userId);
+    if (!domain) return { ok: false, code: 'invalid_domain' };
+  }
+
   let slug: string;
   if (input.slug && input.slug.trim()) {
     slug = input.slug.trim();
-    if (!isValidSlug(slug)) return { ok: false, code: 'invalid_slug' };
-    if (await slugExists(slug)) return { ok: false, code: 'slug_taken' };
+    if (!isValidSlug(slug, Boolean(domainId))) return { ok: false, code: 'invalid_slug' };
+    if (await slugExists(slug, domainId)) return { ok: false, code: 'slug_taken' };
   } else {
-    slug = await generateSlug();
+    slug = await generateSlug(domainId);
   }
 
   const utm = applyUtm(normalized, {
@@ -307,17 +352,18 @@ export async function createLink(
   const redirectType = input.redirectType === 301 ? 301 : 302;
   await db
     .prepare(
-      `INSERT INTO links (id, user_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
       userId,
+      domainId,
       slug,
       utm.url,
       input.title?.trim() || null,
       JSON.stringify(tags),
-      input.password ? hashPassword(input.password) : null,
+      input.password ? await hashPassword(input.password) : null,
       expiresAt,
       input.maxClicks ?? null,
       redirectType,
@@ -329,7 +375,9 @@ export async function createLink(
       input.ogImage?.trim() || null,
     );
 
-  return { ok: true, link: (await getUserLink(userId, id))! };
+  const created = (await getUserLink(userId, id))!;
+  await emitWebhook(userId, 'link.created', { link: toLinkDto(created) });
+  return { ok: true, link: created };
 }
 
 // ---------- Bulk create ----------

@@ -10,7 +10,8 @@ export const dynamic = 'force-dynamic';
 
 const taskUpdateSchema = activityUpdateSchema.omit({ type: true });
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireApiUser(req);
   if ('res' in auth) return auth.res;
 

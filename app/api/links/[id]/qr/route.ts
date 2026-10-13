@@ -7,13 +7,14 @@ import { shortUrl } from '@/lib/utils';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const link = await getUserLink(user.id, params.id);
   if (!link) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-  const target = shortUrl(link.slug);
+  const target = shortUrl(link.slug, link.domain_hostname ?? null);
   const format = req.nextUrl.searchParams.get('format');
 
   if (format === 'png') {

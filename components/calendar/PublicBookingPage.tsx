@@ -11,6 +11,8 @@ interface Props {
   /** Pre-fill de los campos del invitado (p.ej. desde ?name=&email=). */
   prefillName?: string;
   prefillEmail?: string;
+  /** Modo reprogramar (link de gestión del invitado): elige solo el nuevo horario. */
+  reschedule?: { token: string; name: string; email: string };
 }
 
 interface Slot {
@@ -121,7 +123,7 @@ function formatSlotRange(iso: string, timezone: string, locale: string): string 
   }).format(new Date(iso));
 }
 
-export default function PublicBookingPage({ eventType, locale, weekStart = 1, prefillName = '', prefillEmail = '' }: Props) {
+export default function PublicBookingPage({ eventType, locale, weekStart = 1, prefillName = '', prefillEmail = '', reschedule }: Props) {
   const t = useTranslations('calendar');
   const fields = useMemo(() => parseFields(eventType), [eventType]);
   const rules = useMemo(() => getRules(eventType), [eventType]);
@@ -143,17 +145,20 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [step, setStep] = useState<Step>('date');
-  const [name, setName] = useState(prefillName);
-  const [email, setEmail] = useState(prefillEmail);
+  const [name, setName] = useState(reschedule?.name ?? prefillName);
+  const [email, setEmail] = useState(reschedule?.email ?? prefillEmail);
+  const [manageUrl, setManageUrl] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  /** Días del mes visible con lugar (null = cargando: no se deshabilita nada). */
+  const [openDays, setOpenDays] = useState<Set<string> | null>(null);
 
   useEffect(() => {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      setTimezone(COMMON_TIMEZONES.includes(tz) ? tz : 'UTC');
+      setTimezone(tz || 'UTC');
     } catch {
       setTimezone('UTC');
     }
@@ -167,7 +172,9 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
     let cancelled = false;
     setLoadingSlots(true);
     fetch(
-      `/api/calendar/event-types/${eventType.id}/slots?date=${selectedDate}&timezone=${encodeURIComponent(timezone)}`,
+      `/api/calendar/event-types/${eventType.id}/slots?date=${selectedDate}&timezone=${encodeURIComponent(timezone)}${
+        reschedule ? `&reschedule=${encodeURIComponent(reschedule.token)}` : ''
+      }`,
     )
       .then((res) => (res.ok ? res.json() : { slots: [] }))
       .then((data: { slots: Slot[] }) => {
@@ -182,7 +189,44 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
     return () => {
       cancelled = true;
     };
-  }, [selectedDate, timezone, eventType.id]);
+  }, [selectedDate, timezone, eventType.id, reschedule]);
+
+  // Embebido en un iframe (embed.js): avisar el alto y la reserva confirmada.
+  const embedded = typeof window !== 'undefined' && window.parent !== window;
+  useEffect(() => {
+    if (!embedded) return;
+    document.documentElement.classList.add('zs-embed');
+    const post = () =>
+      window.parent.postMessage({ type: 'zs-cal:height', height: document.documentElement.scrollHeight }, '*');
+    post();
+    const ro = new ResizeObserver(post);
+    ro.observe(document.body);
+    return () => ro.disconnect();
+  }, [embedded]);
+  useEffect(() => {
+    if (embedded && confirmed && selectedSlot) {
+      window.parent.postMessage({ type: 'zs-cal:booked', start: selectedSlot.start, eventTypeId: eventType.id }, '*');
+    }
+  }, [embedded, confirmed, selectedSlot, eventType.id]);
+
+  const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+  useEffect(() => {
+    let cancelled = false;
+    setOpenDays(null);
+    fetch(
+      `/api/calendar/event-types/${eventType.id}/slots?month=${monthKey}&timezone=${encodeURIComponent(timezone)}${
+        reschedule ? `&reschedule=${encodeURIComponent(reschedule.token)}` : ''
+      }`,
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { days?: string[] } | null) => {
+        if (!cancelled && data?.days) setOpenDays(new Set(data.days));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [monthKey, timezone, eventType.id, reschedule]);
 
   const today = new Date();
   const minDate = isoDate(today);
@@ -212,7 +256,8 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
 
   function isDateDisabled(date: Date) {
     const iso = isoDate(date);
-    return iso < minDate || iso > maxDate;
+    if (iso < minDate || iso > maxDate) return true;
+    return openDays !== null && !openDays.has(iso);
   }
 
   function selectDate(iso: string) {
@@ -238,22 +283,32 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
     setBusy(true);
     setError(null);
 
-    const res = await fetch('/api/calendar/bookings', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        eventTypeId: eventType.id,
-        start: selectedSlot.start,
-        email,
-        name,
-        timezone,
-        answers,
-      }),
-    }).catch(() => null);
+    const res = reschedule
+      ? await fetch(`/api/calendar/bookings/manage/${encodeURIComponent(reschedule.token)}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action: 'reschedule', start: selectedSlot.start, timezone, locale }),
+        }).catch(() => null)
+      : await fetch('/api/calendar/bookings', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            eventTypeId: eventType.id,
+            start: selectedSlot.start,
+            email,
+            name,
+            timezone,
+            answers,
+            locale,
+          }),
+        }).catch(() => null);
 
     setBusy(false);
 
-    if (res && res.status === 201) {
+    if (res && (res.status === 201 || (reschedule && res.status === 200))) {
+      const data = (await res.json().catch(() => null)) as { manageToken?: string } | null;
+      const token = reschedule?.token ?? data?.manageToken;
+      if (token) setManageUrl(`/${locale}/book/manage/${token}`);
       setConfirmed(true);
       setStep('confirm');
       return;
@@ -261,7 +316,7 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
 
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     const code = data?.error ?? 'generic';
-    setError(t(`errors.${code}`) ?? t('errors.generic'));
+    setError(t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
   }
 
   function monthLabel(d: Date) {
@@ -307,7 +362,7 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
             value={timezone}
             onChange={(e) => setTimezone(e.target.value)}
           >
-            {COMMON_TIMEZONES.map((tz) => (
+            {(COMMON_TIMEZONES.includes(timezone) ? COMMON_TIMEZONES : [timezone, ...COMMON_TIMEZONES]).map((tz) => (
               <option key={tz} value={tz}>
                 {tz}
               </option>
@@ -317,7 +372,9 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
 
         {step === 'confirm' && confirmed && selectedSlot ? (
           <section className="booking-confirm">
-            <h2 className="section-label">{t('booking.confirmedTitle')}</h2>
+            <h2 className="section-label">
+              {reschedule ? t('booking.rescheduledTitle') : t('booking.confirmedTitle')}
+            </h2>
             <p className="booking-confirm-time">
               {formatSlotRange(selectedSlot.start, timezone, locale)}
             </p>
@@ -330,9 +387,16 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
             {eventType.location && (
               <p className="booking-confirm-detail muted">{eventType.location}</p>
             )}
+            <p className="booking-confirm-detail muted">{t('booking.emailSent')}</p>
+            {manageUrl && (
+              <p className="booking-confirm-detail">
+                <a href={manageUrl}>{t('booking.manageLink')}</a>
+              </p>
+            )}
           </section>
         ) : (
           <>
+            <div className={`booking-body${selectedDate ? ' has-slots' : ''}`}>
             <section className="booking-calendar-section">
               <div className="booking-calendar-head">
                 <button
@@ -400,9 +464,14 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
                 )}
               </section>
             )}
+            </div>
 
             {step === 'form' && selectedSlot && (
               <form className="booking-form" onSubmit={submit}>
+                {reschedule ? (
+                  <p className="booking-confirm-time">{formatSlotRange(selectedSlot.start, timezone, locale)}</p>
+                ) : (
+                <>
                 <p className="section-label">{t('booking.yourDetails')}</p>
                 <label className="field">
                   <span className="prop-label">{t('booking.name')}</span>
@@ -458,6 +527,8 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
                     )}
                   </label>
                 ))}
+                </>
+                )}
 
                 {error && <p className="form-error">{error}</p>}
 
@@ -470,7 +541,7 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
                     {t('common.back')}
                   </button>
                   <button type="submit" className="btn btn-solid btn-small" disabled={busy}>
-                    {busy ? t('common.saving') : t('booking.confirm')}
+                    {busy ? t('common.saving') : reschedule ? t('booking.confirmNewTime') : t('booking.confirm')}
                   </button>
                 </div>
               </form>

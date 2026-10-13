@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { createIssue, getProject, listIssues } from '@/lib/track-data';
+import { createIssue, getProject, listIssues, canAccessTrackProject } from '@/lib/track-data';
 import { issueCreateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, pageParams, sortParam, stringArrayParam, unauthorized } from '@/lib/track-http';
 
@@ -9,18 +9,19 @@ export const dynamic = 'force-dynamic';
 
 const SORTS = ['newest', 'oldest', 'priority', 'identifier'] as const;
 
-async function accessibleProject(id: string, teamId: string | null) {
+async function accessibleProject(id: string, teamId: string | null, ownerId: string) {
   const project = await getProject(id);
   if (!project) return null;
-  if (project.team_id !== teamId) return null;
+  if (!canAccessTrackProject(project, teamId, ownerId)) return null;
   return project;
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const project = await accessibleProject(params.id, user.team?.id ?? null);
+  const project = await accessibleProject(params.id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
 
   const sp = req.nextUrl.searchParams;
@@ -42,11 +43,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(result);
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const project = await accessibleProject(params.id, user.team?.id ?? null);
+  const project = await accessibleProject(params.id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
 
   const body: unknown = await req.json().catch(() => null);

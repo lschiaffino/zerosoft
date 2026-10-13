@@ -1,15 +1,29 @@
 import { getTranslations } from 'next-intl/server';
-import { DEMO_MODE, requireUser } from '@/lib/session';
+import { DEMO_MODE, isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { listWebhooks, WEBHOOK_EVENTS } from '@/lib/webhooks';
+import WebhooksPanel from '@/components/app/WebhooksPanel';
+import DomainsPanel from '@/components/link/DomainsPanel';
+import ImportLinksPanel from '@/components/link/ImportLinksPanel';
+import { dnsInstructions, listDomains } from '@/lib/link-domains';
 import { listApiKeys } from '@/lib/api-auth';
 import { formatDate } from '@/lib/utils';
 import ApiKeysPanel from '@/components/link/ApiKeysPanel';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SettingsPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function SettingsPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
-  const keys = await listApiKeys(user.id);
+  // Members ven solo sus keys; owner/admin, las de todo el workspace.
+  const keys = await listApiKeys(user.id, isWorkspaceAdmin(user) ? undefined : realUserId(user));
+  const webhooks = isWorkspaceAdmin(user) ? await listWebhooks(user.id) : null;
+  const domains = (await listDomains(user.id)).map((d) => ({ ...d, dns: dnsInstructions(d.hostname) }));
 
   return (
     <div className="app-page">
@@ -46,9 +60,39 @@ export default async function SettingsPage({ params: { locale } }: { params: { l
       </section>
 
       <section className="panel">
+        <p className="section-label">{t('domains.title')}</p>
+        <DomainsPanel initial={domains} canManage={isWorkspaceAdmin(user)} />
+      </section>
+
+      <section className="panel">
+        <p className="section-label">{t('import.title')}</p>
+        <ImportLinksPanel />
+      </section>
+
+      <section className="panel">
+        <p className="section-label">{t('export.title')}</p>
+        <p className="muted">{t('export.desc')}</p>
+        <div className="form-actions">
+          <a className="btn btn-ghost btn-small" href="/api/links/export?format=csv" download>
+            CSV
+          </a>
+          <a className="btn btn-ghost btn-small" href="/api/links/export?format=json" download>
+            JSON
+          </a>
+        </div>
+      </section>
+
+      <section className="panel">
         <p className="section-label">{t('settings.apiKeys')}</p>
         <ApiKeysPanel initialKeys={keys} />
       </section>
+
+      {webhooks && (
+        <section className="panel">
+          <p className="section-label">Webhooks</p>
+          <WebhooksPanel initial={webhooks} events={WEBHOOK_EVENTS} />
+        </section>
+      )}
     </div>
   );
 }

@@ -28,8 +28,8 @@ const DEAL_SORTS = ['newest', 'oldest', 'amount', 'amount_asc', 'close_date', 'c
 type DealSort = (typeof DEAL_SORTS)[number];
 
 interface DealsPageProps {
-  params: { locale: string };
-  searchParams: Record<string, string | string[] | undefined>;
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function one(v: string | string[] | undefined): string | undefined {
@@ -82,7 +82,14 @@ function withAges(stages: BoardStage[]): BoardStage[] {
   }));
 }
 
-export default async function DealsPage({ params: { locale }, searchParams }: DealsPageProps) {
+export default async function DealsPage(props: DealsPageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

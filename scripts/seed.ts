@@ -155,7 +155,7 @@ async function main() {
         link.url,
         link.title ?? null,
         JSON.stringify(link.tags ?? []),
-        link.password ? hashPassword(GATE_PASSWORD) : null,
+        link.password ? await hashPassword(GATE_PASSWORD) : null,
         expiresAt,
         link.archived ? 1 : 0,
         link.utm?.source ?? null,

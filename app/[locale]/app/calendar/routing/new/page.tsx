@@ -5,11 +5,17 @@ import RoutingFormEditor from '@/components/calendar/RoutingFormEditor';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewRoutingFormPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function NewRoutingFormPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'calendar' });
   const eventTypes = await listEventTypes(user.id);

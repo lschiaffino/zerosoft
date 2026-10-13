@@ -7,11 +7,17 @@ import BlockedSlotsPanel from '@/components/calendar/BlockedSlotsPanel';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CalendarLandingPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function CalendarLandingPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'calendar' });
   const eventTypes = await listEventTypes(user.id);
@@ -71,7 +77,7 @@ export default async function CalendarLandingPage({
                     aria-hidden
                   />
                   <span className="calendar-event-title">{et.title}</span>
-                  <span className="mono calendar-event-slug">/{et.slug}</span>
+                  <span className="mono calendar-event-slug">/{user.handle}/{et.slug}</span>
                   <span className="muted">
                     {et.duration_min} {t('eventTypes.minutes')}
                   </span>

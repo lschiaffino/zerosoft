@@ -5,7 +5,13 @@ import Reveal from '@/components/Reveal';
 import MiniVisual from '@/components/products/MiniVisual';
 import '@/styles/pages.css';
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const t = await getTranslations({ locale, namespace: 'pages.products' });
   return { title: t('meta.title'), description: t('meta.description') };
 }
@@ -14,9 +20,17 @@ const CARDS = ['track', 'crm', 'cal', 'link', 'docs', 'chat'] as const;
 const NAMES = { track: 'Track', crm: 'CRM', cal: 'Cal', link: 'Link', docs: 'Docs', chat: 'Chat' } as const;
 const NUMS = { track: '01', crm: '02', cal: '03', link: '04', docs: '05', chat: '06' } as const;
 const ROADMAP = ['i1', 'i2', 'i3', 'i4'] as const;
-const COMPARE_ROWS = ['r1', 'r2', 'r3', 'r4'] as const;
+const COMPARE_ROWS = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'] as const;
+/** Roadmap items already shipped (rendered with the solid "done" style). */
+const ROADMAP_DONE: readonly string[] = ['i1', 'i2'];
 
-export default async function ProductsPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function ProductsPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'pages.products' });
   const tc = await getTranslations({ locale, namespace: 'common.products' });
@@ -37,7 +51,7 @@ export default async function ProductsPage({ params: { locale } }: { params: { l
         </div>
       </section>
 
-      {/* THE FOUR */}
+      {/* THE SIX */}
       <section className="container" style={{ paddingTop: 0 }}>
         <div className="arsenal-grid">
           {CARDS.map((key) => (
@@ -98,7 +112,7 @@ export default async function ProductsPage({ params: { locale } }: { params: { l
         <div className="road">
           {ROADMAP.map((id) => (
             <Reveal
-              className={`road-item ${id === 'i1' || id === 'i3' ? 'done' : ''}`}
+              className={`road-item ${ROADMAP_DONE.includes(id) ? 'done' : ''}`}
               key={id}
             >
               <span className="road-zero" aria-hidden="true">

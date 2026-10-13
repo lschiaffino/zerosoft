@@ -17,11 +17,18 @@ import IssueDetailClient from '@/components/track/IssueDetailClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function IssueDetailPage({
-  params: { locale, id },
-}: {
-  params: { locale: string; id: string };
-}) {
+export default async function IssueDetailPage(
+  props: {
+    params: Promise<{ locale: string; id: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const issue = await getIssue(id);
   if (!issue) notFound();

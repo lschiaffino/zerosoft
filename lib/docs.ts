@@ -1,4 +1,5 @@
 import { getDb, type DocsCommentRow, type DocsPageRow, type DocsShareRow, type TeamRow, type UserRow } from './db';
+import { sanitizeBlocks } from './docs-sanitize';
 import { isMember } from './teams';
 import {
   type DocsBlock,
@@ -141,7 +142,7 @@ export async function createDocPage(
   const parentId = input.parent_id ?? null;
   const icon = input.icon ?? null;
   const coverUrl = input.cover_url ?? null;
-  const content = stringifyBlocks(input.content ?? defaultBlocks());
+  const content = stringifyBlocks(sanitizeBlocks(input.content ?? defaultBlocks()));
 
   await getDb()
     .prepare(
@@ -191,7 +192,7 @@ export async function updateDocPage(
   }
   if (input.content !== undefined) {
     updates.push('content = ?');
-    args.push(stringifyBlocks(input.content));
+    args.push(stringifyBlocks(sanitizeBlocks(input.content)));
   }
   if (input.parent_id !== undefined) {
     updates.push('parent_id = ?');

@@ -16,13 +16,12 @@ const PRODUCT_LINKS: Record<string, Array<{ href: string; label: string }>> = {
   track: [
     { href: '/app/track/projects', label: 'Projects' },
     { href: '/app/track/issues', label: 'Issues' },
-    { href: '/app/track/cycles', label: 'Cycles' },
     { href: '/app/track/inbox', label: 'Inbox' },
   ],
   chat: [
     { href: '/app/chat/inbox', label: 'Inbox' },
     { href: '/app/chat/people', label: 'People' },
-    { href: '/app/chat/widgets', label: 'Widgets' },
+    { href: '/app/chat', label: 'Widgets' },
     { href: '/app/chat/settings', label: 'Settings' },
   ],
   docs: [
@@ -32,7 +31,7 @@ const PRODUCT_LINKS: Record<string, Array<{ href: string; label: string }>> = {
   calendar: [
     { href: '/app/calendar/event-types', label: 'Event types' },
     { href: '/app/calendar/bookings', label: 'Bookings' },
-    { href: '/app/calendar/availability', label: 'Availability' },
+    { href: '/app/calendar/routing', label: 'Routing' },
     { href: '/app/calendar/settings', label: 'Settings' },
   ],
   link: [

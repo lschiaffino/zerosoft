@@ -11,11 +11,18 @@ export const dynamic = 'force-dynamic';
 const BUCKETS: readonly TaskBucket[] = ['overdue', 'today', 'upcoming', 'done'];
 
 interface TasksPageProps {
-  params: { locale: string };
-  searchParams: Record<string, string | string[] | undefined>;
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function TasksPage({ params: { locale }, searchParams }: TasksPageProps) {
+export default async function TasksPage(props: TasksPageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

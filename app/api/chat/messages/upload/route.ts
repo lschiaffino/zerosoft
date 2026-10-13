@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { limitByIp } from '@/lib/rate-limit';
 import {
   chatAttachmentType,
   createChatConversation,
@@ -9,14 +10,14 @@ import {
   maybeRunChatBot,
   updateChatConversation,
 } from '@/lib/chat-data';
-import { saveChatFile } from '@/lib/chat-upload';
+import { MAX_UPLOAD_SIZE, isAllowedUpload, saveUpload, UploadError } from '@/lib/uploads';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-
 export async function POST(req: Request) {
+  const limited = await limitByIp(req, 'chat-upload', 10, 600);
+  if (limited) return limited;
   const form = await req.formData().catch(() => null);
   if (!form) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
 
@@ -35,8 +36,13 @@ export async function POST(req: Request) {
   if (!(file instanceof Blob) || file.size === 0) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
-  if (file.size > MAX_FILE_SIZE) {
+  if (file.size > MAX_UPLOAD_SIZE) {
     return NextResponse.json({ error: 'file_too_large' }, { status: 413 });
+  }
+  const filename = (file as File).name || 'upload';
+  const mime = file.type || 'application/octet-stream';
+  if (!isAllowedUpload(filename, mime)) {
+    return NextResponse.json({ error: 'file_type_not_allowed' }, { status: 415 });
   }
 
   const visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId);
@@ -54,9 +60,13 @@ export async function POST(req: Request) {
 
   const caption = typeof form.get('body') === 'string' ? (form.get('body') as string).trim() : '';
   const buffer = Buffer.from(await file.arrayBuffer());
-  const filename = (file as File).name || 'upload';
-  const mime = file.type || 'application/octet-stream';
-  const url = await saveChatFile(filename, buffer);
+  let url: string;
+  try {
+    url = await saveUpload('chat', filename, mime, buffer);
+  } catch (err) {
+    if (err instanceof UploadError) return NextResponse.json({ error: err.code }, { status: err.status });
+    throw err;
+  }
 
   const message = await createChatMessage(conversation.id, 'visitor', {
     body: caption,

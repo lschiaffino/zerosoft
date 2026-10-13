@@ -41,13 +41,19 @@ function toFunnelReportStages(stages: Array<{ id: string; name: string; probabil
   });
 }
 
-export default async function CrmReportsPage({
-  params: { locale },
-  searchParams,
-}: {
-  params: { locale: string };
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
+export default async function CrmReportsPage(
+  props: {
+    params: Promise<{ locale: string }>;
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

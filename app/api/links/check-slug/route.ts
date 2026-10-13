@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const slug = (req.nextUrl.searchParams.get('slug') ?? '').trim();
   if (!slug) return NextResponse.json({ slug, valid: false, available: false });
 
-  const valid = isValidSlug(slug);
-  return NextResponse.json({ slug, valid, available: valid && !(await slugExists(slug)) });
+  const domainId = req.nextUrl.searchParams.get('domainId') || null;
+  const valid = isValidSlug(slug, Boolean(domainId));
+  return NextResponse.json({ slug, valid, available: valid && !(await slugExists(slug, domainId)) });
 }

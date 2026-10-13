@@ -36,11 +36,17 @@ function recordName(a: ActivityListRow): string {
   return a.contact_name ?? a.deal_name ?? a.company_name ?? '';
 }
 
-export default async function CrmOverviewPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function CrmOverviewPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const o = await getCrmOverview(user.id);

@@ -5,11 +5,17 @@ import InboxClient from '@/components/chat/InboxClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ChatInboxPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function ChatInboxPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
   const widgets = await listChatWidgets(user.id, user.team?.id ?? null);

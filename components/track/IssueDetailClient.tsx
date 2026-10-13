@@ -270,14 +270,14 @@ export default function IssueDetailClient({
     <div className="app-page track-detail">
       <div className="track-detail-head">
         <div className="track-detail-meta">
-          <Link href={`/${locale}/app/track/projects/${issue.project_id}`}>{labels.back}</Link>
+          <Link href={`/app/track/projects/${issue.project_id}`}>{labels.back}</Link>
         </div>
         <nav className="track-breadcrumb">
-          <Link href={`/${locale}/app/track/projects/${issue.project_id}`}>{initialProjectName}</Link>
+          <Link href={`/app/track/projects/${issue.project_id}`}>{initialProjectName}</Link>
           {initialParentChain.map((p) => (
             <span key={p.id}>
               <span className="track-breadcrumb-sep">/</span>
-              <Link href={`/${locale}/app/track/issues/${p.id}`} title={p.title}>
+              <Link href={`/app/track/issues/${p.id}`} title={p.title}>
                 {p.identifier}
               </Link>
             </span>
@@ -325,7 +325,7 @@ export default function IssueDetailClient({
             <div className="track-section-header">
               <p className="section-label">{labels.subtasks.title}</p>
               <Link
-                href={`/${locale}/app/track/projects/${issue.project_id}/issues/new?parentId=${issue.id}`}
+                href={`/app/track/projects/${issue.project_id}/issues/new?parentId=${issue.id}`}
                 className="btn btn-small"
               >
                 {labels.subtasks.add}
@@ -337,7 +337,7 @@ export default function IssueDetailClient({
               <ul className="track-subtask-list">
                 {children.map((child) => (
                   <li key={child.id} className="track-subtask">
-                    <Link href={`/${locale}/app/track/issues/${child.id}`}>
+                    <Link href={`/app/track/issues/${child.id}`}>
                       <span className="track-identifier">{child.identifier}</span>
                       <span className="track-subtask-title">{child.title || '—'}</span>
                     </Link>
@@ -407,7 +407,7 @@ export default function IssueDetailClient({
                   {outgoing.map((r) => (
                     <li key={r.id} className="track-relation">
                       <span className="track-relation-type">{relationLabel(r.type, 'outgoing')}</span>
-                      <Link href={`/${locale}/app/track/issues/${r.related_issue_id}`}>
+                      <Link href={`/app/track/issues/${r.related_issue_id}`}>
                         <span className="track-identifier">{r.identifier}</span>{' '}
                         {r.title}
                       </Link>
@@ -431,7 +431,7 @@ export default function IssueDetailClient({
                   {incoming.map((r) => (
                     <li key={r.id} className="track-relation">
                       <span className="track-relation-type">{relationLabel(r.type, 'incoming')}</span>
-                      <Link href={`/${locale}/app/track/issues/${r.issue_id}`}>
+                      <Link href={`/app/track/issues/${r.issue_id}`}>
                         <span className="track-identifier">{r.identifier}</span>{' '}
                         {r.title}
                       </Link>

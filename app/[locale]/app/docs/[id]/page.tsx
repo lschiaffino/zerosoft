@@ -8,11 +8,18 @@ import DocsEditorClient from '@/components/docs/DocsEditorClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DocsPageEditor({
-  params: { locale, id },
-}: {
-  params: { locale: string; id: string };
-}) {
+export default async function DocsPageEditor(
+  props: {
+    params: Promise<{ locale: string; id: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   setRequestLocale(locale);
   const user = await requireUser(locale);
   const page = await getDocPage(user.id, id);

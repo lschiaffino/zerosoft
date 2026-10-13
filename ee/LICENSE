@@ -1,0 +1,164 @@
+Zerosoft Enterprise License (the "EE License")
+Version 1.0 — DRAFT
+Copyright (c) 2026 Zerosoft. All rights reserved.
+
+DRAFT — This text has not yet been reviewed by a lawyer. It must be reviewed
+and the bracketed items completed before the first commercial sale. Until
+then it states Zerosoft's intended terms in good faith.
+
+-------------------------------------------------------------------------------
+
+1. Definitions
+
+   "Zerosoft", "we" or "us" means [LEGAL ENTITY NAME, JURISDICTION OF
+   INCORPORATION AND REGISTERED ADDRESS — TO BE COMPLETED], the licensor of
+   the Enterprise Software.
+
+   "Enterprise Software" means all files located in the `/ee` directory of
+   the Zerosoft source code repository, and any other file that states it is
+   licensed under this EE License, in any version, together with any
+   Modifications to them.
+
+   "Core Software" means all other files in the repository. The Core Software
+   is licensed under the GNU Affero General Public License, version 3 (see
+   /LICENSE), and nothing in this EE License limits your rights under it.
+
+   "You" means the individual or legal entity exercising rights under this
+   EE License, together with its Affiliates. "Affiliate" means any entity that
+   controls, is controlled by, or is under common control with that entity.
+
+   "Subscription" means a valid, paid (or otherwise expressly granted in
+   writing) Zerosoft Enterprise subscription purchased from Zerosoft or an
+   authorized reseller, covering the scope of use (for example, number of
+   users, seats, instances or usage) for which You use the Enterprise
+   Software, together with the license key issued for it.
+
+   "Production Use" means any use of the Enterprise Software other than
+   Development and Testing, including use with real users or real data, use
+   to operate your business, or use to provide any service to third parties.
+
+   "Development and Testing" means using the Enterprise Software, in
+   non-production environments, solely to develop, test, evaluate,
+   demonstrate internally, or contribute to the Enterprise Software or the
+   Core Software.
+
+   "Modifications" means any change, addition, derivative work, translation
+   or adaptation of the Enterprise Software, in source or object form.
+
+2. License grant for Development and Testing
+
+   Subject to the terms of this EE License, Zerosoft grants You a
+   non-exclusive, non-transferable, non-sublicensable, royalty-free, worldwide
+   license to copy, modify and run the Enterprise Software for Development and
+   Testing. No Subscription is required for Development and Testing.
+
+3. License grant for Production Use
+
+   You may make Production Use of the Enterprise Software only while You hold
+   a Subscription that covers that use, and only within the scope of that
+   Subscription. Subject to that, and to the terms of this EE License and of
+   the Subscription agreement, Zerosoft grants You a non-exclusive,
+   non-transferable, non-sublicensable license to copy, modify and run the
+   Enterprise Software for Production Use for the term of the Subscription.
+   If the Subscription agreement conflicts with this EE License, the
+   Subscription agreement prevails.
+
+4. Modifications
+
+   You may create Modifications to the Enterprise Software, and You may use
+   them only as permitted in Sections 2 and 3. Notwithstanding anything to
+   the contrary, Zerosoft and its licensors retain all right, title and
+   interest in the Enterprise Software. You grant Zerosoft a perpetual,
+   worldwide, royalty-free, non-exclusive license to use, copy, modify and
+   distribute any Modifications that You submit or contribute to Zerosoft
+   (for example, through a pull request). Modifications You keep private
+   remain subject to this EE License.
+
+5. Restrictions
+
+   Except as expressly allowed in this EE License or in a written agreement
+   with Zerosoft, You may not:
+
+   (a) make Production Use of the Enterprise Software without a valid
+       Subscription, or beyond the scope of Your Subscription;
+   (b) copy, distribute, sell, rent, lease, sublicense or otherwise transfer
+       the Enterprise Software or any Modifications to any third party,
+       except that You may publish them in a source code repository
+       together with this EE License, in a form that preserves all notices;
+   (c) offer the Enterprise Software, or any product or service that
+       exposes its functionality, to third parties as a hosted or managed
+       service;
+   (d) remove, disable, bypass, or circumvent any license key, license
+       check or other technical limitation in the Enterprise Software or the
+       Core Software, or create or share license keys not issued by
+       Zerosoft; or
+   (e) remove or alter any license, copyright or other notices in the
+       Enterprise Software.
+
+6. Third-party components
+
+   The Enterprise Software may include or depend on third-party software
+   licensed under its own terms. Those terms govern that software, and this
+   EE License does not limit Your rights under them.
+
+7. Trademarks
+
+   This EE License does not grant any right to use the Zerosoft name, logos
+   or trademarks, except as needed to describe the origin of the software
+   accurately.
+
+8. Termination
+
+   This EE License terminates automatically if You breach any of its terms.
+   If the breach can be cured, Your rights are reinstated if You cure it
+   within 30 days after becoming aware of it, unless Zerosoft has notified
+   You in writing that the license is terminated. Your right to Production
+   Use also ends when Your Subscription ends or is terminated. On
+   termination You must stop using the Enterprise Software for the purposes
+   that are no longer licensed. The Core Software keeps working without the
+   Enterprise Software, and termination of this EE License does not affect
+   Your rights to the Core Software under the AGPLv3. Sections 4 (last two
+   sentences), 9, 10 and 11 survive termination.
+
+9. Disclaimer of warranty
+
+   UNLESS OTHERWISE AGREED IN WRITING IN A SUBSCRIPTION AGREEMENT, AND TO THE
+   MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE ENTERPRISE SOFTWARE IS
+   PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING ANY WARRANTY OF MERCHANTABILITY, FITNESS FOR A
+   PARTICULAR PURPOSE, TITLE OR NON-INFRINGEMENT. YOU USE IT AT YOUR OWN RISK.
+
+10. Limitation of liability
+
+   TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT WILL
+   ZEROSOFT OR ITS LICENSORS OR CONTRIBUTORS BE LIABLE FOR ANY INDIRECT,
+   INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY OR PUNITIVE DAMAGES, OR FOR
+   LOSS OF PROFITS, REVENUE, DATA OR BUSINESS, ARISING OUT OF OR RELATED TO
+   THIS EE LICENSE OR THE ENTERPRISE SOFTWARE, HOWEVER CAUSED AND UNDER ANY
+   THEORY OF LIABILITY, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+   ZEROSOFT'S TOTAL LIABILITY UNDER THIS EE LICENSE WILL NOT EXCEED THE FEES
+   YOU PAID FOR THE SUBSCRIPTION IN THE 12 MONTHS BEFORE THE EVENT GIVING
+   RISE TO THE CLAIM, OR, IF YOU HAVE NO SUBSCRIPTION, USD 100. NOTHING IN
+   THIS EE LICENSE LIMITS LIABILITY THAT CANNOT BE LIMITED UNDER APPLICABLE
+   LAW.
+
+11. Governing law and venue
+
+   This EE License is governed by the laws of [GOVERNING LAW — TO BE
+   DECIDED], excluding its conflict-of-law rules and the United Nations
+   Convention on Contracts for the International Sale of Goods. The courts of
+   [VENUE — TO BE DECIDED] have exclusive jurisdiction over any dispute
+   arising from it, unless a Subscription agreement provides otherwise.
+
+12. General
+
+   If any provision of this EE License is held unenforceable, the remaining
+   provisions stay in effect. Zerosoft may publish new versions of this EE
+   License; a new version applies only to versions of the Enterprise Software
+   released under it. This EE License is the entire agreement about the
+   Enterprise Software between You and Zerosoft, except for any Subscription
+   agreement.
+
+-------------------------------------------------------------------------------
+
+Subscriptions and questions: hola@zerosoft.ai

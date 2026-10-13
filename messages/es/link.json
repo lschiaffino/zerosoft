@@ -3,7 +3,8 @@
     "overview": "Resumen",
     "links": "Links",
     "new": "Nuevo link",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "bio": "Página bio"
   },
   "common": {
     "copy": "Copiar",
@@ -164,7 +165,9 @@
     "deleteHint": "Escribí {slug} para confirmar",
     "deleteButton": "Borrar para siempre",
     "createdLabel": "Creado",
-    "noData": "Sin datos en este rango"
+    "noData": "Sin datos en este rango",
+    "range90": "90 días",
+    "inRange": "{range} · vs anterior"
   },
   "bulk": {
     "title": "Creación masiva",
@@ -237,6 +240,102 @@
     "unauthorized": "No autorizado.",
     "empty": "Al menos una URL es requerida.",
     "too_many": "Demasiadas URLs. Máximo 200 por lote.",
-    "generic": "Algo salió mal. Probá de nuevo."
+    "generic": "Algo salió mal. Probá de nuevo.",
+    "invalid_domain": "Ese dominio todavía no está verificado."
+  },
+  "webhooks": {
+    "desc": "Enviamos un JSON firmado (POST) a tu URL cuando pasan estos eventos. Verificá el header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") con tu secret. Las entregas fallidas se reintentan con backoff.",
+    "url": "URL del endpoint",
+    "events": "Eventos",
+    "last": "Última entrega",
+    "add": "Agregar webhook",
+    "test": "Enviar prueba",
+    "empty": "Todavía no hay webhooks.",
+    "secretTitle": "Secret de firma — copialo ahora",
+    "secretWarning": "No vas a volver a ver este secret.",
+    "errors": {
+      "https_required": "La URL tiene que usar https.",
+      "private_host": "Ese host apunta a una red privada.",
+      "unresolvable_host": "Ese host no resuelve.",
+      "invalid_url": "La URL no es válida.",
+      "invalid_input": "Ingresá una URL y elegí al menos un evento.",
+      "generic": "No se pudo agregar el webhook. Probá de nuevo."
+    }
+  },
+  "domains": {
+    "title": "Dominios propios",
+    "desc": "Usá tu propio dominio corto (go.tuempresa.com/promo). Agregalo, creá el registro DNS y verificá. El HTTPS se configura solo.",
+    "hostname": "Dominio",
+    "add": "Agregar dominio",
+    "empty": "Todavía no hay dominios propios.",
+    "verified": "Verificado",
+    "pending": "Esperando DNS",
+    "verify": "Verificar",
+    "remove": "Quitar",
+    "dnsHelp": "Creá este registro en tu proveedor de DNS. Los cambios pueden tardar unos minutos.",
+    "type": "Tipo",
+    "name": "Nombre",
+    "value": "Valor",
+    "verifiedNow": "Verificado. Ya podés elegir este dominio al crear links.",
+    "notYet": "El DNS todavía no apunta acá. Probá de nuevo en unos minutos.",
+    "root": "Redirect de la raíz",
+    "rootPlaceholder": "A dónde va go.tuempresa.com/ (opcional)",
+    "saveRoot": "Guardar",
+    "rootSaved": "Guardado.",
+    "pick": "Dominio",
+    "errors": {
+      "invalid_hostname": "No es un dominio válido (ej. go.ejemplo.com).",
+      "domain_taken": "Ese dominio ya está en uso.",
+      "app_host": "Ese es el dominio de Zerosoft.",
+      "provider_error": "No se pudo registrar el dominio en el hosting. Probá de nuevo.",
+      "has_links": "Este dominio todavía tiene links. Movelos o borralos primero.",
+      "invalid_url": "La URL no es válida."
+    }
+  },
+  "export": {
+    "title": "Tus datos",
+    "desc": "Descargá todos tus links. El CSV tiene una fila por link; el JSON incluye además cada click (referrer, país, dispositivo). Sin rehenes."
+  },
+  "import": {
+    "title": "Importar desde Bitly",
+    "desc": "Traé tus links con sus back-halves. Si verificaste acá primero el mismo dominio propio, siguen funcionando igual cuando muevas el DNS.",
+    "token": "Token de API de Bitly",
+    "csv": "Archivo CSV",
+    "tokenPlaceholder": "Token de acceso de Bitly",
+    "tokenHelp": "Bitly → Settings → API → Generate token. Lo usamos una vez y no lo guardamos.",
+    "csvHelp": "Bitly → Links → Export (o cualquier CSV con una columna de URL larga).",
+    "run": "Importar",
+    "running": "Importando…",
+    "done": "Importamos {imported} links ({kept} conservaron su back-half).",
+    "truncated": "Solo se importaron los primeros 2.000; corrélo de nuevo para el resto.",
+    "renamed": "{n} recibieron un back-half nuevo (estaba tomado)",
+    "skipped": "{n} salteados",
+    "errors": {
+      "bitly_unauthorized": "Bitly rechazó ese token.",
+      "bitly_no_group": "Esa cuenta de Bitly no tiene grupo.",
+      "bitly_error": "No pudimos conectar con Bitly. Probá de nuevo.",
+      "csv_no_url_column": "No encontramos una columna de URL larga en ese CSV.",
+      "empty": "Elegí un archivo.",
+      "file_too_large": "El archivo pesa más de 5 MB.",
+      "invalid_input": "Pegá un token.",
+      "rate_limited": "Demasiadas importaciones. Esperá unos minutos."
+    }
+  },
+  "bio": {
+    "title": "Página bio",
+    "sub": "Una página con tus links en zerosoft.ai/@{handle}. Cada botón pasa por el link corto, así que los clicks aparecen en tus analytics.",
+    "pageTitle": "Título",
+    "bioText": "Bio",
+    "avatar": "URL del avatar (https)",
+    "published": "Publicada",
+    "links": "Links en la página",
+    "linksHint": "Tildá los links a mostrar y ordenalos. Los links con contraseña, archivados o vencidos no se muestran.",
+    "empty": "Primero creá algunos links.",
+    "up": "Subir",
+    "down": "Bajar",
+    "save": "Guardar",
+    "saved": "Guardado ✓",
+    "view": "Ver página ↗",
+    "error": "Revisá los campos (el avatar tiene que ser una URL https)."
   }
 }

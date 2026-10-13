@@ -7,11 +7,17 @@ import WidgetList from '@/components/chat/WidgetList';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ChatOverviewPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function ChatOverviewPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
   const widgets = await listChatWidgets(user.id, user.team?.id ?? null);

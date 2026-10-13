@@ -15,6 +15,7 @@ interface PublicField {
 interface PublicRoutingFormProps {
   locale: string;
   form: {
+    id: string;
     slug: string;
     title: string;
     description: string;
@@ -24,7 +25,7 @@ interface PublicRoutingFormProps {
 
 /**
  * Formulario público de routing: hace las preguntas, evalúa las reglas vía
- * POST /api/calendar/routing/<slug>/route y redirige al booking page del
+ * POST /api/calendar/routing/<form id>/route y redirige al booking page del
  * event type destino. Las respuestas de campos llamados `name`/`email` se
  * llevan como query params (?name=&email=) para pre-llenar el booking.
  */
@@ -44,21 +45,21 @@ export default function PublicRoutingForm({ form }: PublicRoutingFormProps) {
     setBusy(true);
     setError(null);
 
-    const res = await fetch(`/api/calendar/routing/${form.slug}/route`, {
+    const res = await fetch(`/api/calendar/routing/${form.id}/route`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ answers }),
     }).catch(() => null);
 
     if (res && res.status === 200) {
-      const data = (await res.json()) as { eventTypeSlug: string };
+      const data = (await res.json()) as { eventTypeSlug: string; bookPath: string };
       const qs = new URLSearchParams();
       const name = answers.name;
       const email = answers.email;
       if (typeof name === 'string' && name.trim()) qs.set('name', name.trim());
       if (typeof email === 'string' && email.trim()) qs.set('email', email.trim());
       const suffix = qs.toString();
-      router.push(`/book/${data.eventTypeSlug}${suffix ? `?${suffix}` : ''}`);
+      router.push(`${data.bookPath}${suffix ? `?${suffix}` : ''}`);
       return;
     }
 

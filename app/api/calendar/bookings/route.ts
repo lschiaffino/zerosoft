@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { limitByIp } from '@/lib/rate-limit';
 import {
   getEventTypeById,
-  getAvailableSlots,
+  findOfferedSlot,
   createBooking,
   CalendarError,
 } from '@/lib/calendar';
 import { bookingCreateSchema } from '@/lib/calendar-schema';
 import { invalidBody, crmError } from '@/lib/crm-http';
-import { sendBookingConfirmation, sendHostBookingNotification } from '@/lib/email';
-import { getUserById } from '@/lib/db';
+import { afterBookingCreated } from '@/lib/calendar-lifecycle';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const limited = await limitByIp(req, 'booking', 10, 600);
+  if (limited) return limited;
   const body: unknown = await req.json().catch(() => null);
   const parsed = bookingCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
@@ -28,12 +30,8 @@ export async function POST(req: NextRequest) {
     const startDate = new Date(start);
     if (Number.isNaN(startDate.getTime())) return crmError(400, 'invalid_input');
 
-    const startDay = startDate.toISOString().slice(0, 10);
     const guestTz = timezone ?? 'UTC';
-    const slots = await getAvailableSlots(eventTypeId, guestTz, startDay);
-    const matching = slots.find(
-      (s) => Math.abs(s.start.getTime() - startDate.getTime()) < 60_000,
-    );
+    const matching = await findOfferedSlot(eventTypeId, startDate, guestTz);
     if (!matching) return crmError(409, 'slot_unavailable');
 
     const booking = await createBooking({
@@ -43,37 +41,23 @@ export async function POST(req: NextRequest) {
       start: matching.start.toISOString(),
       timezone: guestTz,
       answers,
+      locale: parsed.data.locale,
     });
 
-    await sendBookingConfirmation({
-      to: email,
-      guestName: name,
-      eventTitle: eventType.title,
-      start: matching.start,
-      end: matching.end,
-      timezone: guestTz,
-      location: eventType.location,
-      brandColor: eventType.brand_color,
-      logoUrl: eventType.logo_url,
-    });
+    const synced = await afterBookingCreated(booking, parsed.data.locale);
 
-    // Aviso al host: el asignado por round-robin o, si no hay pool, el owner.
-    const host = await getUserById(booking.host_user_id ?? eventType.user_id);
-    if (host) {
-      await sendHostBookingNotification({
-        to: host.email,
-        hostName: host.name ?? host.email,
-        guestName: name,
-        guestEmail: email,
-        eventTitle: eventType.title,
-        start: matching.start,
-        end: matching.end,
-        timezone: guestTz,
-        location: eventType.location,
-      });
-    }
-
-    return NextResponse.json(booking, { status: 201 });
+    // Solo lo que el invitado necesita (el token es suyo: gestionar su reserva).
+    return NextResponse.json(
+      {
+        id: booking.id,
+        startsAt: booking.starts_at,
+        endsAt: booking.ends_at,
+        status: booking.status,
+        manageToken: booking.manage_token,
+        meetingUrl: synced.meeting_url,
+      },
+      { status: 201 },
+    );
   } catch (err) {
     if (err instanceof CalendarError) return crmError(err.status, err.code);
     return crmError(500, 'generic');

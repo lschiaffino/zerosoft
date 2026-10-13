@@ -2,17 +2,23 @@ import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import ZeroField from '@/components/ZeroField';
 import GateForm from '@/components/link/GateForm';
-import { getLinkBySlug } from '@/lib/links';
-import { shortDomain, shortUrl } from '@/lib/utils';
+import { headers } from 'next/headers';
+import { getLinkForHost, linkShortUrl } from '@/lib/links';
 
 export const dynamic = 'force-dynamic';
 
 interface GatePageProps {
-  params: { locale: string; slug: string };
+  params: Promise<{ locale: string; slug: string }>;
 }
 
-export async function generateMetadata({ params: { slug } }: GatePageProps) {
-  const link = await getLinkBySlug(slug);
+export async function generateMetadata(props: GatePageProps) {
+  const params = await props.params;
+
+  const {
+    slug
+  } = params;
+
+  const link = await getLinkForHost((await headers()).get('host'), slug);
   if (!link) return {};
   return {
     title: link.og_title?.trim() || link.title?.trim() || `${slug} — zerosoft.ai`,
@@ -22,15 +28,22 @@ export async function generateMetadata({ params: { slug } }: GatePageProps) {
           title: link.og_title?.trim() || link.title?.trim() || `${slug} — zerosoft.ai`,
           description: link.og_description?.trim() || link.url,
           images: [link.og_image.trim()],
-          url: shortUrl(slug),
+          url: linkShortUrl(link),
         }
       : undefined,
   };
 }
 
-export default async function GatePage({ params: { locale, slug } }: GatePageProps) {
+export default async function GatePage(props: GatePageProps) {
+  const params = await props.params;
+
+  const {
+    locale,
+    slug
+  } = params;
+
   const t = await getTranslations({ locale, namespace: 'link' });
-  const link = await getLinkBySlug(slug);
+  const link = await getLinkForHost((await headers()).get('host'), slug);
 
   if (!link) redirect(`/${locale}/gone?reason=notfound`);
   if (!link.password_hash) redirect(`/${slug}`);
@@ -47,7 +60,7 @@ export default async function GatePage({ params: { locale, slug } }: GatePagePro
           {t('gate.sub')}
           <br />
           <span className="mono gate-slug">
-            {shortDomain()}/{slug}
+            {linkShortUrl(link).replace(/^https?:\/\//, '')}
           </span>
         </p>
         <GateForm slug={slug} />

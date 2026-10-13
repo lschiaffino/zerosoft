@@ -7,7 +7,8 @@ import { invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(req: NextRequest, { params }: { params: { widgetId: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ widgetId: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -20,7 +21,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { widgetId: 
   return NextResponse.json(widget);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { widgetId: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ widgetId: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 

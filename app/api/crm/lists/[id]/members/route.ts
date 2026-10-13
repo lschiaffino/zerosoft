@@ -10,7 +10,8 @@ export const dynamic = 'force-dynamic';
 
 const removeSchema = z.object({ contactId: z.string().min(1).max(64) });
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -23,7 +24,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json({ count: added });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 

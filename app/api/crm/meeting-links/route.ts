@@ -13,6 +13,11 @@ export async function GET() {
 
   const rows = await listEventTypes(user.id, { activeOnly: true });
   return NextResponse.json({
-    rows: rows.map((et) => ({ slug: et.slug, title: et.title, durationMin: et.duration_min })),
+    rows: rows.map((et) => ({
+      slug: et.slug,
+      title: et.title,
+      durationMin: et.duration_min,
+      path: `/book/${user.handle}/${et.slug}`,
+    })),
   });
 }

@@ -4,11 +4,17 @@ import ProjectForm from '@/components/track/ProjectForm';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewProjectPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function NewProjectPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
 

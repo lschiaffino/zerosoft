@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
@@ -6,14 +7,23 @@ import { getEventType, listAvailability, listEventHosts } from '@/lib/calendar';
 import { listMembers } from '@/lib/teams';
 import EventTypeForm from '@/components/calendar/EventTypeForm';
 import AvailabilityEditor from '@/components/calendar/AvailabilityEditor';
+import CopyButton from '@/components/link/CopyButton';
+import CalEmbedCode from '@/components/calendar/CalEmbedCode';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EventTypeDetailPage({
-  params: { locale, id },
-}: {
-  params: { locale: string; id: string };
-}) {
+export default async function EventTypeDetailPage(
+  props: {
+    params: Promise<{ locale: string; id: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'calendar' });
   const eventType = await getEventType(user.id, id);
@@ -24,6 +34,9 @@ export default async function EventTypeDetailPage({
   const hostTeamId = eventType.team_id ?? user.team?.id ?? null;
   const teamMembers = hostTeamId ? await listMembers(hostTeamId) : undefined;
   const hosts = await listEventHosts(id);
+  const h = await headers();
+  const origin = (process.env.NEXTAUTH_URL ?? `https://${h.get('host') ?? 'zerosoft.ai'}`).replace(/\/$/, '');
+  const publicUrl = `${origin}/${locale}/book/${user.handle}/${eventType.slug}`;
 
   return (
     <div className="app-page">
@@ -42,10 +55,16 @@ export default async function EventTypeDetailPage({
           {!eventType.active && <span className="badge">{t('eventTypes.inactive')}</span>}
         </div>
         <div className="detail-meta">
-          <span className="detail-meta-item mono">/{eventType.slug}</span>
+          <span className="detail-meta-item mono">/{user.handle}/{eventType.slug}</span>
           <span className="detail-meta-item muted">
             {eventType.duration_min} {t('eventTypes.minutes')}
           </span>
+        </div>
+        <div className="calendar-public-link">
+          <a className="mono" href={publicUrl} target="_blank" rel="noreferrer">
+            {publicUrl}
+          </a>
+          <CopyButton text={publicUrl} />
         </div>
       </header>
 
@@ -60,6 +79,7 @@ export default async function EventTypeDetailPage({
         </div>
         <div className="calendar-detail-col">
           <AvailabilityEditor eventTypeId={id} initialRules={availability} />
+          <CalEmbedCode publicUrl={publicUrl} origin={origin} />
         </div>
       </div>
     </div>

@@ -23,9 +23,9 @@ Tres cosas hicieron colapsar la dificultad:
 Nuestro acortador de links se corre así:
 
 ```bash
-git clone github.com/zerosoftware/link && cd link
-npm install && npm run build
-SHORT_DOMAIN=tu.dominio npm start
+git clone https://github.com/lschiaffino/zerosoft && cd zerosoft
+cp .env.example .env
+docker compose up -d
 ```
 
 Sin base de datos que instalar (SQLite se crea sola). Sin Redis, sin colas, sin workers. Un proceso de Node y un archivo de datos. El backup es copiar ese archivo.

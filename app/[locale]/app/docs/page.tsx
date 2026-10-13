@@ -9,11 +9,17 @@ import DocsTrashList from '@/components/docs/DocsTrashList';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DocsLandingPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function DocsLandingPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   setRequestLocale(locale);
   const user = await requireUser(locale);
   const pages = await listDocPages(user.id, { archived: false });

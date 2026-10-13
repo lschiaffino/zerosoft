@@ -6,11 +6,17 @@ import ProjectList from '@/components/track/ProjectList';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TrackOverviewPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default async function TrackOverviewPage(
+  props: {
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
   const { rows: projects } = await listProjects(user.team?.id ?? null, user.id, { pageSize: 100 });
@@ -22,7 +28,7 @@ export default async function TrackOverviewPage({
           <h1>{t('overview.title')}</h1>
           <p>{t('overview.subtitle')}</p>
         </div>
-        <Link href={`/${locale}/app/track/projects/new`} className="btn btn-solid">
+        <Link href={`/app/track/projects/new`} className="btn btn-solid">
           {t('overview.emptyCta')}
         </Link>
       </div>

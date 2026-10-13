@@ -25,10 +25,17 @@ import { listMembers } from '@/lib/teams';
 export const dynamic = 'force-dynamic';
 
 interface DealDetailPageProps {
-  params: { locale: string; id: string };
+  params: Promise<{ locale: string; id: string }>;
 }
 
-export default async function DealDetailPage({ params: { locale, id } }: DealDetailPageProps) {
+export default async function DealDetailPage(props: DealDetailPageProps) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
@@ -152,6 +159,7 @@ export default async function DealDetailPage({ params: { locale, id } }: DealDet
     slug: et.slug,
     title: et.title,
     durationMin: et.duration_min,
+    path: `/book/${user.handle}/${et.slug}`,
   }));
 
   const associatedContactIds = new Set(contacts.map((c) => c.id));

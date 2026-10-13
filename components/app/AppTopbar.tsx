@@ -34,18 +34,15 @@ const PAGE_TITLES: Record<string, string> = {
   '/app/calendar': 'Calendar',
   '/app/calendar/event-types': 'Event types',
   '/app/calendar/bookings': 'Bookings',
-  '/app/calendar/availability': 'Availability',
   '/app/calendar/settings': 'Calendar settings',
   '/app/track': 'Track overview',
   '/app/track/projects': 'Projects',
   '/app/track/issues': 'Issues',
-  '/app/track/cycles': 'Cycles',
   '/app/track/inbox': 'Inbox',
   '/app/track/settings': 'Track settings',
   '/app/chat': 'Chat overview',
   '/app/chat/inbox': 'Inbox',
   '/app/chat/people': 'People',
-  '/app/chat/widgets': 'Widgets',
   '/app/chat/settings': 'Chat settings',
 };
 

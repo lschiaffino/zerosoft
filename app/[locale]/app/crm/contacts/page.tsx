@@ -26,8 +26,8 @@ const PAGE_SIZE = 25;
 const SORTS: readonly ContactSort[] = ['newest', 'oldest', 'name', 'name_desc', 'email', 'email_desc'];
 
 interface ContactsPageProps {
-  params: { locale: string };
-  searchParams: Record<string, string | string[] | undefined>;
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function one(v: string | string[] | undefined): string | undefined {
@@ -58,7 +58,14 @@ function parseCustomFilter(
   return out;
 }
 
-export default async function ContactsPage({ params: { locale }, searchParams }: ContactsPageProps) {
+export default async function ContactsPage(props: ContactsPageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    locale
+  } = params;
+
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 

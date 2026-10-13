@@ -23,9 +23,9 @@ Three things collapsed the difficulty:
 Our link shortener runs like this:
 
 ```bash
-git clone github.com/zerosoftware/link && cd link
-npm install && npm run build
-SHORT_DOMAIN=your.domain npm start
+git clone https://github.com/lschiaffino/zerosoft && cd zerosoft
+cp .env.example .env
+docker compose up -d
 ```
 
 No database to install (SQLite creates itself). No Redis, no queues, no workers. One Node process and one data file. The backup is copying that file.

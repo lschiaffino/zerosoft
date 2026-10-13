@@ -1,7 +1,7 @@
 {
   "meta": {
-    "tagline": "O software morreu",
-    "description": "Reconstruímos as ferramentas que você usa todos os dias e as libertamos: open source, grátis, para sempre. Hospede você mesmo ou pague apenas a nuvem, ao custo."
+    "tagline": "O software é grátis. Você paga pelo que escala.",
+    "description": "Reconstruímos as ferramentas que você usa todos os dias como open source (AGPLv3). Hospede grátis, para sempre, ou use a Zerosoft Cloud: plano grátis e você paga só pelo que escala."
   },
   "header": {
     "products": "Produtos",
@@ -48,7 +48,7 @@
   "hero": {
     "title1": "O software",
     "title2": "morreu.",
-    "sub": "Reconstruímos as ferramentas que você usa todos os dias e as libertamos: open source, grátis, para sempre. Se as rodarmos para você, você paga apenas a nuvem. Ao custo.",
+    "sub": "O software é grátis. Você paga pelo que escala. Reconstruímos as ferramentas que você usa todos os dias como open source: hospede você mesmo por $0, para sempre, ou deixe que a gente rode, com um plano grátis generoso.",
     "ctaPrimary": "Ver o arsenal",
     "ctaSecondary": "Ler o manifesto",
     "scroll": "Role ↓"
@@ -57,41 +57,42 @@
     "label": "0.01 — Manifesto",
     "p1": "Cobram <strong>US$ 30 para mover cartões</strong>. US$ 50 para guardar contatos. US$ 12 para encurtar um link. Não pelo software — pelo hábito.",
     "p2": "Mas software são bits. E bits são grátis. <strong>Sempre foram.</strong>",
-    "p3": "A Zerosoft existe para provar: reconstruímos as ferramentas que movem o mundo e as libertamos. Sem licenças. Sem lock-in. Sem letras miúdas. Hospede você mesmo, se quiser. Ou nós rodamos para você e você paga exatamente o que a nuvem custa. Nem um centavo a mais.",
+    "p3": "A Zerosoft existe para provar: reconstruímos as ferramentas que movem o mundo e libertamos o core sob AGPLv3. Sem lock-in. Sem letras miúdas. Hospede você mesmo, grátis, para sempre. Ou nós rodamos para você: você começa grátis e paga só pelo que escala — cliques, reservas, emails, armazenamento, assentos. Com preços à vista.",
     "final": "O software morreu. Nós somos o que vem a seguir."
   },
   "stats": {
     "s1num": "$0",
-    "s1label": "O preço do software. Sempre.",
-    "s2num": "0%",
-    "s2label": "Nossa margem sobre a nuvem.",
-    "s3num": "100%",
+    "s1label": "O core, auto-hospedado. Sempre.",
+    "s2num": "0",
+    "s2label": "Funções do core atrás de um paywall.",
+    "s3num": "AGPL",
     "s3label": "Open source. Para sempre."
   },
   "products": {
     "label": "0.02 — O arsenal",
     "title": "Todo o software que você usa.",
-    "titleDim": "Zero software que você paga.",
-    "track": { "tag": "Gestão de projetos", "desc": "A velocidade do Linear. O preço do ar.", "status": "Em construção" },
-    "crm": { "tag": "Clientes e vendas", "desc": "Todo o seu pipeline, de ponta a ponta. Zero licenças por usuário.", "status": "Disponível" },
-    "cal": { "tag": "Agendamento", "desc": "Sua disponibilidade, um link, pronto. Sem pagar pelo privilégio.", "status": "Em construção" },
+    "titleDim": "O core, grátis para sempre.",
+    "track": { "tag": "Gestão de projetos", "desc": "A velocidade do Linear. O preço do ar.", "status": "Disponível" },
+    "crm": { "tag": "Clientes e vendas", "desc": "Seu pipeline completo, de ponta a ponta. Open source, sem licenças.", "status": "Disponível" },
+    "cal": { "tag": "Agendamento", "desc": "Sua disponibilidade, um link, pronto. Sem pagar pelo privilégio.", "status": "Disponível" },
     "link": { "tag": "Links curtos", "desc": "Links curtos com métricas reais. Seus para sempre.", "status": "Disponível" },
     "chat": { "tag": "Chat com clientes", "desc": "Uma caixa de entrada para todas as conversas. Widgets, pessoas e canais.", "status": "Disponível" },
-    "docs": { "tag": "Docs e wiki", "desc": "Notas e documentos que são seus. Sem cobrança por usuário.", "status": "Disponível" },
-    "more": { "title": "Todo o resto", "tag": "O que vem", "desc": "Documentos. Notas. Chat. Design. Se o mundo usa, vamos libertar. Isso é só o começo.", "status": "Sempre" }
+    "docs": { "tag": "Docs e wiki", "desc": "Notas e documentos que são seus. Exportáveis, sempre.", "status": "Disponível" },
+    "more": { "title": "Todo o resto", "tag": "O que vem", "desc": "Design. Formulários. Analytics. Se o mundo usa, vamos libertar. Isso é só o começo.", "status": "Sempre" }
   },
   "model": {
     "label": "0.03 — O modelo",
-    "title": "Duas formas de ter tudo.",
-    "titleDim": "Nenhuma inclui pagar por software.",
-    "a": { "title": "Hospede você mesmo", "desc": "Todo o código é aberto. Baixe do GitHub, rode no seu servidor, modifique, quebre, faça seu. Porque é seu.", "price": "$0", "priceNote": "/ para sempre" },
-    "b": { "title": "Nós rodamos para você", "desc": "Você tem login, backups, atualizações e uptime. Paga exatamente o que a nuvem custa. Nem um centavo a mais. Nem um a menos.", "price": "Ao custo", "priceNote": "/ da nuvem" }
+    "title": "Três formas de ter.",
+    "titleDim": "O core é grátis em todas.",
+    "a": { "title": "Hospede você mesmo", "desc": "O core é open source sob AGPLv3, com todas as funções. Rode no seu servidor, modifique, quebre, faça seu. Sem trial, sem license key, sem limites.", "price": "$0", "priceNote": "/ para sempre" },
+    "b": { "title": "Zerosoft Cloud", "desc": "Nós rodamos para você: login, backups, atualizações e uptime. Comece com um plano grátis generoso e, quando escalar, pague por uso — cliques, reservas, emails, armazenamento, assentos. Preços transparentes, publicados antes de cobrar qualquer coisa.", "price": "Grátis", "priceNote": "/ para começar · preços por uso, em breve" },
+    "c": { "title": "Enterprise", "desc": "SSO/SAML, audit logs, papéis personalizados e white-label, sob licença comercial. Com suporte direto do time, nos seus servidores ou na nossa nuvem.", "price": "Fale conosco", "priceNote": "/ licença comercial + suporte" }
   },
   "end": {
     "label": "0.04 — Junte-se",
     "title1": "Bem-vindo",
     "title2": "ao novo mundo.",
-    "sub": "Estamos construindo. Escreva para nós e avisaremos quando cada peça for libertada.",
+    "sub": "Seis ferramentas já são livres. Escreva para nós e avisaremos quando a próxima chegar.",
     "cta": "Quero entrar →"
   },
   "auth": {

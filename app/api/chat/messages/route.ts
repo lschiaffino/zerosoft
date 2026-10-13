@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { limitByIp } from '@/lib/rate-limit';
 import {
   applyAssignmentRules,
   createChatConversation,
@@ -16,6 +17,8 @@ import { createNotification } from '@/lib/notifications';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
+  const limited = await limitByIp(req, 'chat-poll', 240, 60);
+  if (limited) return limited;
   const { searchParams } = new URL(req.url);
   const widgetId = searchParams.get('widgetId');
   const visitorId = searchParams.get('visitorId');
@@ -36,6 +39,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const limited = await limitByIp(req, 'chat-msg', 30, 60);
+  if (limited) return limited;
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;

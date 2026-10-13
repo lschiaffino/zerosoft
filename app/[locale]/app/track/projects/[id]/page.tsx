@@ -1,19 +1,26 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
-import { getProject } from '@/lib/track-data';
+import { getProject, canAccessTrackProject } from '@/lib/track-data';
 import ProjectPageClient from '@/components/track/ProjectPageClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ProjectPage({
-  params: { locale, id },
-}: {
-  params: { locale: string; id: string };
-}) {
+export default async function ProjectPage(
+  props: {
+    params: Promise<{ locale: string; id: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    locale,
+    id
+  } = params;
+
   const user = await requireUser(locale);
   const project = await getProject(id);
-  if (!project || project.team_id !== (user.team?.id ?? null)) notFound();
+  if (!project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) notFound();
 
   const t = await getTranslations({ locale, namespace: 'track' });
 

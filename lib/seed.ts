@@ -127,21 +127,29 @@ async function seedCalendar(userId: string) {
  */
 export async function seedUserIfNeeded(userId: string): Promise<void> {
   try {
-    const db = getDb();
-    const row = (await db
-      .prepare('SELECT seeded_at FROM users WHERE id = ?')
-      .get(userId)) as { seeded_at: string | null } | undefined;
-    if (!row || row.seeded_at) return;
-
-    await seedCrm(userId);
-    await seedDocs(userId);
-    await seedTrack(userId);
-    await seedCalendar(userId);
-
-    await db
-      .prepare('UPDATE users SET seeded_at = ? WHERE id = ?')
+    // Reclamo atómico: solo una request siembra, y nunca dos veces aunque un
+    // paso falle (antes un fallo dejaba seeded_at NULL y se re-sembraba el CRM
+    // y Docs en cada login).
+    const claim = await getDb()
+      .prepare('UPDATE users SET seeded_at = ? WHERE id = ? AND seeded_at IS NULL')
       .run(new Date().toISOString(), userId);
+    if (claim.changes === 0) return;
   } catch {
-    // Seed best-effort: si algo falla, el usuario entra igual.
+    return;
+  }
+
+  // Cada producto es independiente: si uno falla, los demás igual se siembran.
+  for (const [name, step] of [
+    ['crm', seedCrm],
+    ['docs', seedDocs],
+    ['track', seedTrack],
+    ['calendar', seedCalendar],
+  ] as const) {
+    try {
+      await step(userId);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`[seed:${name}] user=${userId}`, err);
+    }
   }
 }

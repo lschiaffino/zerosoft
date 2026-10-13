@@ -1,10 +1,17 @@
+import { use } from "react";
 import { useTranslations } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import ZeroField from '@/components/ZeroField';
 import Reveal from '@/components/Reveal';
 
-export default function HomePage({ params: { locale } }: { params: { locale: string } }) {
+export default function HomePage(props: { params: Promise<{ locale: string }> }) {
+  const params = use(props.params);
+
+  const {
+    locale
+  } = params;
+
   setRequestLocale(locale);
   const t = useTranslations('common');
 
@@ -122,23 +129,17 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
           <span className="dim">{t('model.titleDim')}</span>
         </Reveal>
 
-        <div className="model-grid">
-          <Reveal className="model-card">
-            <p className="model-key">A</p>
-            <h3>{t('model.a.title')}</h3>
-            <p className="model-desc">{t('model.a.desc')}</p>
-            <p className="model-price">
-              {t('model.a.price')} <span>{t('model.a.priceNote')}</span>
-            </p>
-          </Reveal>
-          <Reveal className="model-card model-card-dark">
-            <p className="model-key">B</p>
-            <h3>{t('model.b.title')}</h3>
-            <p className="model-desc">{t('model.b.desc')}</p>
-            <p className="model-price">
-              {t('model.b.price')} <span>{t('model.b.priceNote')}</span>
-            </p>
-          </Reveal>
+        <div className="model-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
+          {(['a', 'b', 'c'] as const).map((key) => (
+            <Reveal key={key} className={key === 'b' ? 'model-card model-card-dark' : 'model-card'}>
+              <p className="model-key">{key.toUpperCase()}</p>
+              <h3>{t(`model.${key}.title`)}</h3>
+              <p className="model-desc">{t(`model.${key}.desc`)}</p>
+              <p className="model-price">
+                {t(`model.${key}.price`)} <span>{t(`model.${key}.priceNote`)}</span>
+              </p>
+            </Reveal>
+          ))}
         </div>
       </section>
 

@@ -18,7 +18,8 @@ function notFound() {
   return NextResponse.json({ error: 'not_found' }, { status: 404 });
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const link = await getUserLink(user.id, params.id);
@@ -41,7 +42,8 @@ const patchSchema = z.object({
   ogImage: z.string().max(500).nullable().optional(),
 });
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const link = await getUserLink(user.id, params.id);
@@ -92,7 +94,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
   if (p.password !== undefined) {
     sets.push('password_hash = ?');
-    args.push(p.password === '' ? null : hashPassword(p.password));
+    args.push(p.password === '' ? null : await hashPassword(p.password));
   }
   if (p.slug !== undefined && p.slug !== link.slug) {
     const slug = p.slug.trim();
@@ -130,7 +132,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(toLinkDto(updated));
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const link = await getUserLink(user.id, params.id);

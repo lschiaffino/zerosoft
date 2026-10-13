@@ -46,7 +46,7 @@ export default function IssuesBoard({ issues, statuses, locale, onStatusChange, 
             {colIssues.length === 0 && <p className="track-board-empty">{labels.empty}</p>}
             {colIssues.map((issue) => (
               <div key={issue.id} className="track-board-card">
-                <Link href={`/${locale}/app/track/issues/${issue.id}`} className="track-board-card-link">
+                <Link href={`/app/track/issues/${issue.id}`} className="track-board-card-link">
                   <div className="track-board-card-head">
                     <span className="track-identifier">{issue.identifier}</span>
                     <PriorityDot priority={issue.priority} />

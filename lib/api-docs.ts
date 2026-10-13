@@ -42,9 +42,33 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'crm-deals', titleKey: 'crmDealsTitle', descKey: 'crmDealsDesc' },
   { id: 'crm-tasks', titleKey: 'crmTasksTitle', descKey: 'crmTasksDesc' },
   { id: 'crm-pipelines', titleKey: 'crmPipelinesTitle', descKey: 'crmPipelinesDesc' },
+  { id: 'cal', titleKey: 'calTitle', descKey: 'calDesc' },
+  { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
   { id: 'teams', titleKey: 'teamsTitle', descKey: 'teamsDesc' },
   { id: 'docs', titleKey: 'docsTitle', descKey: 'docsDesc' },
 ];
+
+const BOOKING_EXAMPLE = {
+  id: '8f1c2a8e-5b1e-4a7e-9a0e-2f6a1d0c9b11',
+  status: 'confirmed',
+  startsAt: '2026-11-03T13:00:00.000Z',
+  endsAt: '2026-11-03T13:30:00.000Z',
+  timezone: 'America/Argentina/Buenos_Aires',
+  invitee: {
+    name: 'Ana',
+    email: 'ana@example.com'
+  },
+  answers: {},
+  hostUserId: 'u_123',
+  meetingUrl: 'https://meet.google.com/abc-defg-hij',
+  rescheduledFrom: null,
+  cancelReason: null,
+  eventType: {
+    id: 'et_42',
+    slug: 'intro',
+    title: 'Intro call'
+  }
+};
 
 export const API_ENDPOINTS: ApiEndpoint[] = [
   // Auth
@@ -464,6 +488,88 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
   },
 
   // Teams
+  // Cal
+  {
+    id: 'cal-event-types',
+    sectionId: 'cal',
+    method: 'GET',
+    path: '/api/v1/calendar/event-types',
+    titleKey: 'calEventTypesTitle',
+    descKey: 'calEventTypesDesc',
+    response: {
+      eventTypes: [
+        { id: 'et_42', slug: 'intro', title: 'Intro call', durationMin: 30, active: true, url: 'https://zerosoft.ai/en/book/ana/intro' },
+      ],
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'cal-bookings-list',
+    sectionId: 'cal',
+    method: 'GET',
+    path: '/api/v1/calendar/bookings',
+    titleKey: 'calBookingsListTitle',
+    descKey: 'calBookingsListDesc',
+    params: [
+      { name: 'status', type: 'confirmed | cancelled | no_show', descriptionKey: 'paramCalStatus' },
+      { name: 'from', type: 'ISO 8601', descriptionKey: 'paramCalFrom' },
+      { name: 'to', type: 'ISO 8601', descriptionKey: 'paramCalTo' },
+    ],
+    response: { bookings: [BOOKING_EXAMPLE] },
+    responseStatus: 200,
+  },
+  {
+    id: 'cal-bookings-create',
+    sectionId: 'cal',
+    method: 'POST',
+    path: '/api/v1/calendar/bookings',
+    titleKey: 'calBookingsCreateTitle',
+    descKey: 'calBookingsCreateDesc',
+    params: [
+      { name: 'eventTypeId', type: 'string', required: true, descriptionKey: 'paramCalEventTypeId' },
+      { name: 'start', type: 'ISO 8601', required: true, descriptionKey: 'paramCalStart' },
+      { name: 'name', type: 'string', required: true, descriptionKey: 'paramCalName' },
+      { name: 'email', type: 'string', required: true, descriptionKey: 'paramCalEmail' },
+      { name: 'timezone', type: 'IANA', descriptionKey: 'paramCalTimezone' },
+    ],
+    request: { eventTypeId: 'et_42', start: '2026-11-03T13:00:00.000Z', name: 'Ana', email: 'ana@example.com', timezone: 'America/Argentina/Buenos_Aires' },
+    response: BOOKING_EXAMPLE,
+    responseStatus: 201,
+  },
+  {
+    id: 'cal-bookings-get',
+    sectionId: 'cal',
+    method: 'GET',
+    path: '/api/v1/calendar/bookings/:id',
+    titleKey: 'calBookingsGetTitle',
+    descKey: 'calBookingsGetDesc',
+    response: BOOKING_EXAMPLE,
+    responseStatus: 200,
+  },
+  {
+    id: 'cal-bookings-cancel',
+    sectionId: 'cal',
+    method: 'POST',
+    path: '/api/v1/calendar/bookings/:id/cancel',
+    titleKey: 'calBookingsCancelTitle',
+    descKey: 'calBookingsCancelDesc',
+    params: [{ name: 'reason', type: 'string', descriptionKey: 'paramCalReason' }],
+    request: { reason: 'Customer asked to move it to next month' },
+    response: { ...BOOKING_EXAMPLE, status: 'cancelled', cancelReason: 'Customer asked to move it to next month' },
+    responseStatus: 200,
+  },
+
+  // Webhooks
+  {
+    id: 'webhooks-payload',
+    sectionId: 'webhooks',
+    method: 'POST',
+    path: 'https://your-app.example/webhooks/zerosoft',
+    titleKey: 'webhooksPayloadTitle',
+    descKey: 'webhooksPayloadDesc',
+    request: { id: 'evt_1', type: 'booking.created', createdAt: '2026-11-01T18:00:00.000Z', data: BOOKING_EXAMPLE },
+  },
+
   {
     id: 'teams-invite',
     sectionId: 'teams',

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { createInvite, getTeamById, listPendingInvites } from '@/lib/teams';
+import { createInvite, getMemberRole, getTeamById, listPendingInvites, roleAtLeast } from '@/lib/teams';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const teamId = req.nextUrl.searchParams.get('teamId') ?? '';
   const team = teamId ? await getTeamById(teamId) : null;
   const ownerId = user.actingUser?.id ?? user.id;
-  if (!team || team.owner_id !== ownerId) {
+  if (!team || !roleAtLeast((await getMemberRole(team.id, ownerId)) ?? 'member', 'admin')) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
   return NextResponse.json({ rows: await listPendingInvites(team.id) });
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
   const team = await getTeamById(body.teamId);
-  if (!team || team.owner_id !== ownerId) {
+  if (!team || !roleAtLeast((await getMemberRole(team.id, ownerId)) ?? 'member', 'admin')) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
   const invite = await createInvite(team.id, body.email, ownerId);

@@ -490,6 +490,8 @@ export default function ConversationClient({
                                     rel="noopener noreferrer"
                                     className="chat-attachment-thumb"
                                   >
+                                    {/* Adjunto subido (Blob o local): sin optimización de next/image. */}
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={a.url} alt={a.name} />
                                   </a>
                                 );

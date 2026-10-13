@@ -1,18 +1,25 @@
 /**
  * Email — envío simple de confirmaciones. Sin dependencias externas.
  * - Resend: si existe RESEND_API_KEY se envía vía fetch.
- * - SMTP: si existe SMTP_HOST se loguea un mock (no hay cliente SMTP instalado).
- * - Fallback: loguea en consola para desarrollo/demo.
+ * - Sin RESEND_API_KEY: loguea en consola (desarrollo/demo).
+ * Si Resend está configurado y falla, devuelve ok:false (para poder reintentar).
  *
  * Templates: mínimos, blanco/negro, monospace (marca zerosoft). El brand_color
  * del event type solo aparece como acento pequeño.
  */
+
+export interface EmailAttachment {
+  filename: string;
+  content: string;
+  contentType?: string;
+}
 
 interface SendOptions {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  attachments?: EmailAttachment[];
 }
 
 function fromEmail(): string {
@@ -36,6 +43,11 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
         subject: opts.subject,
         text: opts.text,
         html: opts.html,
+        attachments: opts.attachments?.map((a) => ({
+          filename: a.filename,
+          content: Buffer.from(a.content, 'utf8').toString('base64'),
+          content_type: a.contentType,
+        })),
       }),
     });
     const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
@@ -47,22 +59,26 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
 }
 
 function sendMock(opts: SendOptions): { ok: true; provider: string } {
-  const provider = process.env.SMTP_HOST ? 'smtp_mock' : 'console';
+  const provider = 'console';
   // eslint-disable-next-line no-console
   console.log(`[email:${provider}] to=${opts.to} from=${fromEmail()} subject="${opts.subject}"`);
   // eslint-disable-next-line no-console
   console.log(opts.text);
+  if (opts.attachments?.length) {
+    // eslint-disable-next-line no-console
+    console.log(`[email:${provider}] attachments: ${opts.attachments.map((a) => a.filename).join(', ')}`);
+  }
   return { ok: true, provider };
 }
 
-export async function sendEmail(opts: {
-  to: string;
-  subject: string;
-  text: string;
-  html?: string;
-}): Promise<{ ok: boolean; provider?: string; id?: string; error?: string }> {
-  const resend = await sendResend(opts);
-  if (resend.ok) return { ok: true, provider: 'resend', id: resend.id };
+export async function sendEmail(opts: SendOptions): Promise<{ ok: boolean; provider?: string; id?: string; error?: string }> {
+  if (process.env.RESEND_API_KEY) {
+    const resend = await sendResend(opts);
+    if (resend.ok) return { ok: true, provider: 'resend', id: resend.id };
+    // eslint-disable-next-line no-console
+    console.error(`[email:resend] failed to=${opts.to} error=${resend.error ?? 'unknown'}`);
+    return { ok: false, provider: 'resend', error: resend.error ?? 'resend_error' };
+  }
 
   const mock = sendMock(opts);
   return { ok: true, provider: mock.provider };
@@ -76,7 +92,7 @@ function safeHex(color: string | null | undefined): string | null {
   return color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : null;
 }
 
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -84,8 +100,9 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function formatWhen(start: Date, timezone: string): string {
-  return new Intl.DateTimeFormat('en-US', {
+export function formatWhen(start: Date, timezone: string, locale = 'en'): string {
+  const tag = locale === 'es' ? 'es-AR' : locale === 'pt' ? 'pt-BR' : 'en-US';
+  return new Intl.DateTimeFormat(tag, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -97,7 +114,7 @@ function formatWhen(start: Date, timezone: string): string {
 }
 
 /** HTML mínimo blanco/negro: hairline, mono, acento de marca opcional. */
-function renderBrandedHtml(opts: {
+export function renderBrandedHtml(opts: {
   heading: string;
   paragraphs: string[];
   brandColor?: string | null;
@@ -126,95 +143,13 @@ function renderBrandedHtml(opts: {
 </body></html>`;
 }
 
-interface BookingMailDetails {
-  eventTitle: string;
-  start: Date;
-  end: Date;
-  timezone: string;
-  location: string;
-  brandColor?: string | null;
-  logoUrl?: string | null;
-}
+const REMINDER_COPY = {
+  en: { subject: 'Reminder: {event} tomorrow', heading: 'Reminder', hi: 'Hi {name},', line: '<strong>{event}</strong> is coming up in about 24 hours.', where: 'Location', change: "Can't make it? <a href=\"{url}\">Reschedule or cancel</a>.", bye: 'See you then.' },
+  es: { subject: 'Recordatorio: {event} mañana', heading: 'Recordatorio', hi: 'Hola {name},', line: '<strong>{event}</strong> es en unas 24 horas.', where: 'Lugar', change: '¿No podés? <a href=\"{url}\">Reprogramar o cancelar</a>.', bye: '¡Nos vemos!' },
+  pt: { subject: 'Lembrete: {event} amanhã', heading: 'Lembrete', hi: 'Olá {name},', line: '<strong>{event}</strong> é daqui a cerca de 24 horas.', where: 'Local', change: 'Não vai poder? <a href=\"{url}\">Reagendar ou cancelar</a>.', bye: 'Até lá!' },
+};
 
-function detailLines(d: BookingMailDetails): string[] {
-  const lines = [`${formatWhen(d.start, d.timezone)} (${escapeHtml(d.timezone)})`];
-  if (d.location) lines.push(`Location: ${escapeHtml(d.location)}`);
-  return lines;
-}
-
-export async function sendBookingConfirmation(opts: {
-  to: string;
-  eventTitle: string;
-  start: Date;
-  end: Date;
-  timezone: string;
-  location: string;
-  guestName: string;
-  brandColor?: string | null;
-  logoUrl?: string | null;
-}): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const dateText = formatWhen(opts.start, opts.timezone);
-
-  const subject = `Booking confirmed: ${opts.eventTitle}`;
-  const text = `Hi ${opts.guestName},
-
-Your booking for "${opts.eventTitle}" is confirmed.
-
-${dateText} (${opts.timezone})
-${opts.location ? `Location: ${opts.location}` : ''}
-
-See you then.
-`;
-  const html = renderBrandedHtml({
-    heading: 'Booking confirmed',
-    brandColor: opts.brandColor,
-    logoUrl: opts.logoUrl,
-    paragraphs: [
-      `Hi ${escapeHtml(opts.guestName)}, your booking for <strong>${escapeHtml(opts.eventTitle)}</strong> is confirmed.`,
-      ...detailLines(opts),
-      'See you then.',
-    ],
-  });
-
-  const sent = await sendEmail({ to: opts.to, subject, text, html });
-  return { ok: sent.ok, provider: sent.provider, error: sent.error };
-}
-
-/** Aviso al host (owner del event type o host asignado por round-robin). */
-export async function sendHostBookingNotification(opts: {
-  to: string;
-  hostName: string;
-  guestName: string;
-  guestEmail: string;
-  eventTitle: string;
-  start: Date;
-  end: Date;
-  timezone: string;
-  location: string;
-}): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const dateText = formatWhen(opts.start, opts.timezone);
-
-  const subject = `New booking: ${opts.eventTitle} — ${opts.guestName}`;
-  const text = `Hi ${opts.hostName},
-
-${opts.guestName} (${opts.guestEmail}) booked "${opts.eventTitle}".
-
-${dateText} (${opts.timezone})
-${opts.location ? `Location: ${opts.location}` : ''}
-`;
-  const html = renderBrandedHtml({
-    heading: 'New booking',
-    paragraphs: [
-      `Hi ${escapeHtml(opts.hostName)}, <strong>${escapeHtml(opts.guestName)}</strong> (${escapeHtml(opts.guestEmail)}) booked <strong>${escapeHtml(opts.eventTitle)}</strong>.`,
-      ...detailLines(opts),
-    ],
-  });
-
-  const sent = await sendEmail({ to: opts.to, subject, text, html });
-  return { ok: sent.ok, provider: sent.provider, error: sent.error };
-}
-
-/** Recordatorio 24h antes para el invitee. */
+/** Recordatorio 24h antes para el invitee, en su idioma. */
 export async function sendBookingReminder(opts: {
   to: string;
   guestName: string;
@@ -222,28 +157,25 @@ export async function sendBookingReminder(opts: {
   start: Date;
   timezone: string;
   location: string;
+  manageUrl?: string | null;
+  locale?: string | null;
 }): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const dateText = formatWhen(opts.start, opts.timezone);
-
-  const subject = `Reminder: ${opts.eventTitle} tomorrow`;
-  const text = `Hi ${opts.guestName},
-
-Reminder: "${opts.eventTitle}" is coming up in about 24 hours.
-
-${dateText} (${opts.timezone})
-${opts.location ? `Location: ${opts.location}` : ''}
-
-See you then.
-`;
-  const html = renderBrandedHtml({
-    heading: 'Reminder',
-    paragraphs: [
-      `Hi ${escapeHtml(opts.guestName)}, <strong>${escapeHtml(opts.eventTitle)}</strong> is coming up in about 24 hours.`,
-      ...detailLines({ ...opts, end: opts.start }),
-      'See you then.',
-    ],
+  const lang = opts.locale === 'es' || opts.locale === 'pt' ? opts.locale : 'en';
+  const c = REMINDER_COPY[lang];
+  const fill = (tpl: string, v: Record<string, string>) => tpl.replace(/\{(\w+)\}/g, (_, k: string) => v[k] ?? '');
+  const strip = (h: string) => h.replace(/<[^>]+>/g, '');
+  const paragraphs = [
+    `${fill(c.hi, { name: escapeHtml(opts.guestName) })} ${fill(c.line, { event: escapeHtml(opts.eventTitle) })}`,
+    `${escapeHtml(formatWhen(opts.start, opts.timezone, lang))} (${escapeHtml(opts.timezone)})`,
+    ...(opts.location ? [`${c.where}: ${escapeHtml(opts.location)}`] : []),
+    ...(opts.manageUrl ? [fill(c.change, { url: escapeHtml(opts.manageUrl) })] : []),
+    c.bye,
+  ];
+  const sent = await sendEmail({
+    to: opts.to,
+    subject: fill(c.subject, { event: opts.eventTitle }),
+    text: paragraphs.map(strip).join('\n\n') + (opts.manageUrl ? `\n\n${opts.manageUrl}` : ''),
+    html: renderBrandedHtml({ heading: c.heading, paragraphs }),
   });
-
-  const sent = await sendEmail({ to: opts.to, subject, text, html });
   return { ok: sent.ok, provider: sent.provider, error: sent.error };
 }

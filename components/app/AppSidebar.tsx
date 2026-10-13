@@ -28,7 +28,7 @@ export interface SidebarLabels {
   newProject: string;
   newWidget: string;
   team: string;
-  link: { overview: string; links: string; new: string; settings: string };
+  link: { overview: string; links: string; new: string; bio: string; settings: string };
   crm: {
     overview: string;
     contacts: string;
@@ -227,10 +227,12 @@ export default function AppSidebar({
         {
           href: '/app/links',
           label: labels.link.links,
-          active: pathname.startsWith('/app/links') && !pathname.startsWith('/app/links/new'),
+          active:
+            pathname.startsWith('/app/links') && !pathname.startsWith('/app/links/new') && !pathname.startsWith('/app/links/bio'),
           icon: 'links',
         },
         { href: '/app/links/new', label: labels.link.new, active: pathname.startsWith('/app/links/new'), icon: 'newLink' },
+        { href: '/app/links/bio', label: labels.link.bio, active: pathname.startsWith('/app/links/bio'), icon: 'contacts' },
       ],
     },
     {
@@ -253,6 +255,11 @@ export default function AppSidebar({
         { href: '/app/calendar/event-types', label: labels.calendar.eventTypes, active: pathname.startsWith('/app/calendar/event-types'), icon: 'tasks' },
         { href: '/app/calendar/routing', label: labels.calendar.routing, active: pathname.startsWith('/app/calendar/routing'), icon: 'lists' },
         { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: pathname.startsWith('/app/calendar/bookings'), icon: 'contacts' },
+      ],
+    },
+    {
+      items: [
+        { href: '/app/calendar/settings', label: labels.calendar.settings, active: pathname.startsWith('/app/calendar/settings'), icon: 'settings' },
       ],
     },
   ];
