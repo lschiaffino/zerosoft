@@ -35,7 +35,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: 6px;
   color: var(--ink);
   text-decoration: none;
   transition: background 0.15s ease;
@@ -196,7 +196,7 @@
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 @media (max-width: 640px) {
@@ -219,7 +219,7 @@
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 13px;
   min-width: 0;
   overflow: hidden;
@@ -232,7 +232,7 @@
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .routing-field-label,
@@ -287,7 +287,7 @@
   max-width: 520px;
   transition: max-width 0.2s var(--ease);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 6px;
   padding: 32px;
   background: var(--bg);
 }
@@ -392,7 +392,7 @@
 .booking-calendar-day {
   aspect-ratio: 1;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   font-family: var(--mono);
   font-size: 13px;
@@ -430,7 +430,7 @@
 
 .booking-slot {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 10px 8px;
   background: var(--bg);
   font-family: var(--mono);
@@ -570,7 +570,7 @@
 .booking-answers pre {
   background: #f5f5f5;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 12px;
   font-family: var(--mono);
   font-size: 12px;
@@ -604,7 +604,7 @@
   margin-top: 12px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 6px;
   overflow-wrap: anywhere;
 }
 .calendar-public-link .mono {
@@ -646,7 +646,7 @@ html.zs-embed .booking-card {
   margin-top: 12px;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 6px;
   font-size: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -665,7 +665,7 @@ html.zs-embed .booking-card {
 .book-profile-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .book-profile-item {
   display: flex; align-items: center; gap: 14px; padding: 16px 18px;
-  border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .book-profile-item:hover { border-color: var(--c-cal); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06); }
@@ -674,3 +674,256 @@ html.zs-embed .booking-card {
 .book-profile-text .muted { font-size: 13px; }
 .book-profile-dur { font-size: 12px; color: var(--dim); white-space: nowrap; }
 .book-profile-empty { text-align: center; }
+
+/* ============================================================
+   Cal — pulido: listas con hairlines, acciones en línea,
+   switch, segmentado, empty states y cabeceras sin tarjeta.
+   ============================================================ */
+
+/* Secciones: hairline arriba en vez de tarjeta. */
+.cal-page .panel {
+  border: none;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 20px 0 8px;
+  box-shadow: none;
+}
+.cal-page .panel .section-label { margin-bottom: 14px; }
+.cal-page .rules-panel,
+.cal-page .fields-panel { padding: 18px 0 6px; }
+
+.cal-section { margin-top: 8px; }
+.cal-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+}
+.cal-section-head .section-label { margin: 0; }
+
+/* Stats: fila compacta clickeable. */
+.cal-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 28px;
+}
+.cal-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 16px 14px 0;
+  color: var(--ink);
+  text-decoration: none;
+  min-width: 0;
+}
+.cal-stat + .cal-stat { padding-left: 16px; border-left: 1px solid var(--line); }
+.cal-stat:hover .cal-stat-num { color: var(--accent); }
+.cal-stat-num { font-size: 28px; font-weight: 500; letter-spacing: -0.02em; line-height: 1; transition: color 0.15s; }
+.cal-stat-small { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-stat-label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+
+/* Lista. */
+.cal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.cal-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.cal-row:hover { background: var(--subtle); }
+.cal-row.is-off .calendar-event-title,
+.cal-row.is-off .calendar-event-dot { opacity: 0.45; }
+.cal-row-main {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.cal-row-main:hover .calendar-event-title { text-decoration: underline; text-underline-offset: 3px; }
+.cal-row-meta {
+  font-size: 12px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.cal-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cal-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cal-icon-btn:hover { border-color: var(--line); color: var(--ink); background: var(--bg); }
+.cal-icon-danger:hover { color: var(--bad); }
+.cal-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Switch (≤6px de radio: rectangular). */
+.cal-switch {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--subtle);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cal-switch span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-sm);
+  background: #bdbdbd;
+  transition: transform 0.15s var(--ease), background 0.15s;
+}
+.cal-switch.is-on { background: var(--accent); border-color: var(--accent); }
+.cal-switch.is-on span { transform: translateX(12px); background: #fff; }
+.cal-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Segmentado (duración, filtros). */
+.cal-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  align-self: flex-start;
+  max-width: 100%;
+}
+.cal-seg > button,
+.cal-seg > input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--dim);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cal-seg > :last-child { border-right: none; }
+.cal-seg > button:hover { color: var(--ink); }
+.cal-seg > button.is-on { background: var(--accent-soft, var(--subtle)); color: var(--ink); }
+.cal-seg > input { width: 76px; cursor: text; color: var(--ink); outline: none; }
+.qm-field .cal-seg > input { width: 76px; border: none; border-radius: 0; padding: 6px 10px; }
+.cal-seg-count { font-size: 10px; color: var(--dim); }
+.booking-filters.cal-seg { margin-bottom: 4px; }
+
+.cal-qm-note { font-size: 12px; margin: 0; }
+
+/* Empty states: una acción principal. */
+.cal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 72px 16px;
+  text-align: center;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.cal-empty h2 { font-size: 1.4rem; font-weight: 500; letter-spacing: -0.01em; }
+.cal-empty-line { padding: 24px 4px; border-top: 1px solid var(--line); }
+
+/* Cabecera de detalle sin tarjeta. */
+.cal-detail-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.cal-detail-spacer { flex: 1; }
+.cal-delete-btn:hover:not(:disabled) { color: var(--bad); border-color: var(--bad); }
+.cal-page .calendar-public-link { border-radius: var(--r-md); margin-top: 0; }
+.cal-page .copy-btn { border-radius: var(--r-sm); }
+
+/* Formulario: checkbox en línea, guardar fijo abajo. */
+.calendar-form .form-grid .checkbox-field { flex-direction: row; align-self: end; padding-bottom: 10px; }
+.cal-form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 12px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+.cal-actions { display: flex; gap: 6px; }
+
+.availability-row {
+  grid-template-columns: minmax(104px, 1fr) minmax(0, 128px) 10px minmax(0, 128px) 28px;
+}
+.availability-row .select { min-width: 0; }
+
+.cal-wrap { overflow-wrap: anywhere; word-break: break-word; }
+
+/* Reservas: filas con hairline. */
+.cal-page .booking-cards { gap: 0; }
+.cal-page .booking-card-item { padding: 14px 4px; border-bottom: 1px solid var(--line); }
+
+@media (max-width: 720px) {
+  .cal-stats { grid-template-columns: 1fr 1fr 1fr; }
+  .cal-stat-num { font-size: 22px; }
+  .cal-stat-small { font-size: 13px; }
+  .cal-row { flex-wrap: wrap; }
+  .cal-row-main { flex-direction: column; gap: 2px; flex-basis: calc(100% - 30px); }
+  .cal-row-actions { margin-left: 22px; }
+  .availability-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 28px; }
+  .availability-row .select { grid-column: 1 / -1; }
+  .availability-row > .muted { display: none; }
+}
+.routing-add-form .checkbox-field span { font-size: 12px; color: var(--dim); }
+
+/* Página pública: los días con horarios se distinguen de un vistazo (como Calendly). */
+.booking-calendar-day:not(:disabled):not(.selected) {
+  background: color-mix(in srgb, var(--c-cal) 9%, white);
+  color: var(--ink);
+  font-weight: 600;
+}
+.booking-calendar-day:not(:disabled):not(.selected):hover {
+  background: color-mix(in srgb, var(--c-cal) 18%, white);
+}
+.cal-answers { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.cal-answers > div { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 12px; font-size: 13px; }
+.cal-answers dt { font-size: 11px; color: var(--dim); }
+.cal-answers dd { margin: 0; overflow-wrap: anywhere; }

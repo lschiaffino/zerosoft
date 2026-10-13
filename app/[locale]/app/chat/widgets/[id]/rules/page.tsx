@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import WidgetHeader from '@/components/chat/WidgetHeader';
 import { requireUser } from '@/lib/session';
 import { getChatWidget, listChatAgents } from '@/lib/chat-data';
 import RulesClient from '@/components/chat/RulesClient';
@@ -19,7 +19,6 @@ export default async function WidgetRulesPage(
   } = params;
 
   const user = await requireUser(locale);
-  const t = await getTranslations({ locale, namespace: 'chat' });
   const widget = await getChatWidget(id);
 
   if (!widget || (widget.user_id !== user.id && widget.team_id !== user.team?.id)) {
@@ -30,12 +29,7 @@ export default async function WidgetRulesPage(
 
   return (
     <div className="app-page">
-      <div className="page-head">
-        <div>
-          <h1 className="app-title">{t('rules.title')}</h1>
-          <p className="app-sub muted">{widget.name}</p>
-        </div>
-      </div>
+      <WidgetHeader locale={locale} widget={widget} active="rules" />
       <RulesClient widgetId={widget.id} agents={agents} />
     </div>
   );

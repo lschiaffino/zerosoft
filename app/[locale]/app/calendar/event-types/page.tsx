@@ -1,68 +1,33 @@
+import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { listEventTypes } from '@/lib/calendar';
+import EventTypesView from '@/components/calendar/EventTypesView';
+import { publicOrigin, toListItems } from '@/components/calendar/event-type-items';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EventTypesPage(
-  props: {
-    params: Promise<{ locale: string }>;
-  }
-) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
+export default async function EventTypesPage(props: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { locale } = await props.params;
+  const searchParams = await props.searchParams;
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'calendar' });
   const eventTypes = await listEventTypes(user.id);
+  const origin = publicOrigin((await headers()).get('host'));
 
   return (
-    <div className="app-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('eventTypes.title')}</h1>
-        <Link href="/app/calendar/event-types/new" className="btn btn-solid btn-small">
-          {t('eventTypes.newCta')}
-        </Link>
-      </div>
-
-      {eventTypes.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-zeros mono" aria-hidden>
-            0 0 0
-          </p>
-          <h2>{t('eventTypes.emptyTitle')}</h2>
-          <p className="muted">{t('eventTypes.emptySub')}</p>
-          <Link href="/app/calendar/event-types/new" className="btn btn-solid btn-small">
-            {t('eventTypes.emptyCta')}
-          </Link>
-        </div>
-      ) : (
-        <section className="panel">
-          <ul className="calendar-event-list">
-            {eventTypes.map((et) => (
-              <li key={et.id}>
-                <Link href={`/app/calendar/event-types/${et.id}`} className="calendar-event-row">
-                  <span
-                    className="calendar-event-dot"
-                    style={{ backgroundColor: et.color }}
-                    aria-hidden
-                  />
-                  <span className="calendar-event-title">{et.title}</span>
-                  <span className="mono calendar-event-slug">/{user.handle}/{et.slug}</span>
-                  <span className="muted">
-                    {et.duration_min} {t('eventTypes.minutes')}
-                  </span>
-                  {!et.active && <span className="badge">{t('eventTypes.inactive')}</span>}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+    <div className="app-page cal-page">
+      <EventTypesView
+        title={t('eventTypes.title')}
+        items={toListItems(eventTypes)}
+        handle={user.handle ?? ''}
+        bookBase={`${origin}/${locale}/book`}
+        openNew={searchParams.new === '1'}
+      />
     </div>
   );
 }

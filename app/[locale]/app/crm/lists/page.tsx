@@ -33,10 +33,13 @@ export default async function ListsPage(props: { params: Promise<{ locale: strin
 
   return (
     <div className="app-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('lists.title')}</h1>
-      </div>
-      <ListsIndex rows={rows} lifecycles={lifecycles} leadStatuses={leadStatuses} sources={sources} />
+      <ListsIndex
+        title={t('lists.title')}
+        rows={rows}
+        lifecycles={lifecycles}
+        leadStatuses={leadStatuses}
+        sources={sources}
+      />
     </div>
   );
 }

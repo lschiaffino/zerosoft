@@ -17,6 +17,7 @@ import BreakdownBars from '@/components/link/BreakdownBars';
 import QrSection from '@/components/link/QrSection';
 import EditLinkForm from '@/components/link/EditLinkForm';
 import DangerZone from '@/components/link/DangerZone';
+import CountryFilter from '@/components/link/CountryFilter';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,7 +80,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
   const noData = t('detail.noData');
 
   return (
-    <div className="app-page">
+    <div className="app-page link-detail">
       <Link href="/app/links" className="mono back-link">
         {t('detail.back')}
       </Link>
@@ -97,6 +98,14 @@ export default async function LinkDetailPage(props: DetailPageProps) {
           >
             ↗
           </a>
+          <div className="detail-actions">
+            <a href="#qr" className="btn btn-small">
+              {t('table.qr')}
+            </a>
+            <a href="#edit" className="btn btn-small">
+              {t('common.edit')}
+            </a>
+          </div>
         </div>
         <div className="detail-meta">
           <span className={`badge status-${status}`}>{statusLabel[status]}</span>
@@ -127,7 +136,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
                 {' '}
                 {a.previousTotal === 0
                   ? a.rangeTotal > 0
-                    ? '↑ new'
+                    ? `↑ ${t('detail.deltaNew')}`
                     : '—'
                   : `${a.rangeTotal >= a.previousTotal ? '↑' : '↓'} ${Math.abs(Math.round(((a.rangeTotal - a.previousTotal) / a.previousTotal) * 100))}%`}
               </span>
@@ -229,36 +238,19 @@ export default async function LinkDetailPage(props: DetailPageProps) {
         </div>
 
         {countries.length > 0 && (
-          <form className="click-filter-row" method="get" action={`/app/links/${link.id}`}>
-            <input type="hidden" name="range" value={range} />
+          <div className="click-filter-row">
             <label className="mono" htmlFor="country-filter">
               {t('detail.countryFilter')}
             </label>
-            <select
+            <CountryFilter
               id="country-filter"
-              name="country"
-              className="input mono filter-select"
-              defaultValue={country ?? ''}
-            >
-              <option value="">{t('detail.allCountries')}</option>
-              {countries.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className="btn btn-small">
-              {t('detail.applyFilter')}
-            </button>
-            {country && (
-              <Link
-                href={{ pathname: `/app/links/${link.id}`, query: { range } }}
-                className="btn btn-small btn-ghost"
-              >
-                {t('detail.clearFilter')}
-              </Link>
-            )}
-          </form>
+              linkId={link.id}
+              range={range}
+              value={country ?? ''}
+              countries={countries}
+              allLabel={t('detail.allCountries')}
+            />
+          </div>
         )}
 
         {clickResult.clicks.length === 0 ? (
@@ -266,7 +258,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
         ) : (
           <>
             <div className="table-wrap">
-              <table className="links-table click-log-table">
+              <table className="table links-table click-log-table">
                 <thead>
                   <tr>
                     <th>{t('detail.colTimestamp')}</th>

@@ -51,7 +51,7 @@ export default function BioEditor({ initial, handle, links }: Props) {
   }
 
   return (
-    <form className="link-form" onSubmit={save}>
+    <form className="link-form bio-editor-form" onSubmit={save}>
       <div className="field">
         <label className="label" htmlFor="bio-title">{t('bio.pageTitle')}</label>
         <input id="bio-title" className="input" maxLength={80} value={values.title} onChange={(e) => setValues((v) => ({ ...v, title: e.target.value }))} />

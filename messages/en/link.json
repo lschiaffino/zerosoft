@@ -67,7 +67,9 @@
     "emptySub": "Try another search or create a new link.",
     "emptyCta": "New link",
     "emptyAllTitle": "Nothing here yet",
-    "emptyAllSub": "Create your first short link and watch the zeros roll in."
+    "emptyAllSub": "Create your first short link and watch the zeros roll in.",
+    "bulkCta": "Bulk create",
+    "clearFilters": "Clear filters"
   },
   "new": {
     "title": "New link",
@@ -167,7 +169,8 @@
     "createdLabel": "Created",
     "noData": "No data for this range",
     "range90": "90 days",
-    "inRange": "{range} · vs previous"
+    "inRange": "{range} · vs previous",
+    "deltaNew": "new"
   },
   "bulk": {
     "title": "Bulk create",
@@ -351,5 +354,17 @@
     "saved": "Saved ✓",
     "view": "View page ↗",
     "error": "Check the fields (avatar must be an https URL)."
+  },
+  "quick": {
+    "cancel": "Cancel",
+    "hint": "⌘↵ to create · Esc to close",
+    "more": "More options",
+    "urlPlaceholder": "Paste a long URL…",
+    "slug": "Short link",
+    "title": "Title",
+    "tags": "Tags",
+    "created": "Link created:",
+    "createdCopied": "Created and copied:",
+    "dismiss": "Dismiss"
   }
 }

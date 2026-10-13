@@ -61,7 +61,8 @@
     "clear": "Limpiar filtros",
     "adminOnly": "Solo los admins del workspace pueden cambiar esto.",
     "moreFilters": "Más filtros",
-    "sortBy": "Ordenar por"
+    "sortBy": "Ordenar por",
+    "activityType": "Tipo de actividad"
   },
   "assoc": {
     "associate": "Asociar",
@@ -305,7 +306,8 @@
       "country": "País",
       "lifecycle": "Etapa del lifecycle",
       "owner": "Responsable"
-    }
+    },
+    "newTitle": "Nueva empresa"
   },
   "deals": {
     "title": "Deals",
@@ -551,7 +553,8 @@
     "method": "Método",
     "headers": "Headers (JSON)",
     "message": "Mensaje",
-    "noWorkflows": "Todavía no hay workflows."
+    "noWorkflows": "Todavía no hay workflows.",
+    "emptySub": "Automatizá lo repetitivo: cuando cambia un registro, creá tareas, actualizá campos o enviá webhooks."
   },
   "history": {
     "title": "Historial",
@@ -856,5 +859,27 @@
     "invalidTitle": "Esta invitación ya no es válida",
     "invalidDesc": "Puede haber expirado o sido revocada. Pedí un link nuevo.",
     "backHome": "← Volver a zerosoft.ai"
+  },
+  "quick": {
+    "contact": {
+      "cta": "Nuevo contacto",
+      "title": "Nuevo contacto"
+    },
+    "company": {
+      "cta": "Nueva empresa",
+      "title": "Nueva empresa"
+    },
+    "deal": {
+      "cta": "Nuevo deal",
+      "title": "Nuevo deal"
+    },
+    "hint": "⌘↵ para crear · Esc para cerrar",
+    "createMore": "Crear otro",
+    "fullForm": "Todos los campos",
+    "created": "Creado:",
+    "task": {
+      "cta": "Nueva tarea",
+      "title": "Nueva tarea"
+    }
   }
 }

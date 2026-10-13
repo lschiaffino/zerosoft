@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import type { CalendarBookingRowWithEvent } from '@/lib/calendar';
 
 type Filter = 'upcoming' | 'past' | 'cancelled';
@@ -21,6 +22,16 @@ function formatDateTime(iso: string, locale: string): string {
   }).format(new Date(iso));
 }
 
+/** Respuestas del invitado (JSON) como pares legibles. */
+function answerEntries(raw: string): Array<[string, string]> {
+  try {
+    const obj = JSON.parse(raw) as Record<string, unknown>;
+    return Object.entries(obj).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)]);
+  } catch {
+    return [['—', raw]];
+  }
+}
+
 export default function BookingsList({ bookings, locale }: Props) {
   const t = useTranslations('calendar');
   const [filter, setFilter] = useState<Filter>('upcoming');
@@ -36,6 +47,16 @@ export default function BookingsList({ bookings, locale }: Props) {
       return b.status === 'confirmed' && b.starts_at >= now;
     });
   }, [rows, filter]);
+
+  const counts = useMemo(() => {
+    const now = new Date().toISOString();
+    const c: Record<Filter, number> = { upcoming: 0, past: 0, cancelled: 0 };
+    for (const b of rows) {
+      if (b.status === 'cancelled') c.cancelled += 1;
+      else if (b.status === 'confirmed') c[b.starts_at < now ? 'past' : 'upcoming'] += 1;
+    }
+    return c;
+  }, [rows]);
 
   async function cancel(id: string) {
     if (!confirm(t('booking.cancelConfirm'))) return;
@@ -59,27 +80,41 @@ export default function BookingsList({ bookings, locale }: Props) {
 
   return (
     <div className="bookings-list">
-      <div className="booking-filters">
+      <div className="cal-seg booking-filters" role="tablist">
         {(['upcoming', 'past', 'cancelled'] as Filter[]).map((f) => (
           <button
             key={f}
             type="button"
-            className={`btn btn-small${filter === f ? ' btn-solid' : ' btn-ghost'}`}
+            role="tab"
+            aria-selected={filter === f}
+            className={filter === f ? 'is-on' : ''}
             onClick={() => setFilter(f)}
           >
             {t(`booking.filter.${f}`)}
+            <span className="cal-seg-count mono">{counts[f]}</span>
           </button>
         ))}
       </div>
 
       {filtered.length === 0 ? (
-        <div className="empty-inline">
-          <p className="muted">{t('booking.empty')}</p>
-        </div>
+        filter === 'upcoming' ? (
+          <div className="cal-empty">
+            <p className="empty-zeros mono" aria-hidden>
+              0 0 0
+            </p>
+            <h2>{t('bookings.emptyTitle')}</h2>
+            <p className="muted">{t('bookings.emptySub')}</p>
+            <Link href="/app/calendar/event-types" className="btn btn-solid btn-small">
+              {t('bookings.emptyCta')}
+            </Link>
+          </div>
+        ) : (
+          <p className="muted cal-empty-line">{t('booking.empty')}</p>
+        )
       ) : (
-        <ul className="booking-cards">
+        <ul className="booking-cards cal-list">
           {filtered.map((b) => (
-            <li key={b.id} className="panel booking-card-item">
+            <li key={b.id} className="booking-card-item">
               <div className="booking-card-main">
                 <div className="booking-card-guest">
                   <p className="booking-card-name">{b.invitee_name}</p>
@@ -135,7 +170,14 @@ export default function BookingsList({ bookings, locale }: Props) {
                   {b.answers && b.answers !== '{}' && (
                     <div className="booking-answers">
                       <p className="prop-label">{t('booking.answers')}</p>
-                      <pre>{b.answers}</pre>
+                      <dl className="cal-answers">
+                        {answerEntries(b.answers).map(([k, v]) => (
+                          <div key={k}>
+                            <dt className="mono">{k}</dt>
+                            <dd>{v}</dd>
+                          </div>
+                        ))}
+                      </dl>
                     </div>
                   )}
                   <p className="muted mono">ID: {b.id}</p>

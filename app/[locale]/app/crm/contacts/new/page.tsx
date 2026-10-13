@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
@@ -24,7 +25,7 @@ function parseOptions(json: string): string[] {
 export default async function NewContactPage(
   props: {
     params: Promise<{ locale: string }>;
-    searchParams: Promise<{ companyId?: string }>;
+    searchParams: Promise<{ companyId?: string; full?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -35,6 +36,9 @@ export default async function NewContactPage(
   } = params;
 
   const user = await requireUser(locale);
+  // Sin parámetros, /new abre el alta rápida (modal) sobre la lista; el
+  // formulario completo queda en /new?full=1 o con contexto (companyId…).
+  if (!searchParams.full && !searchParams.companyId) redirect(`/${locale}/app/crm/contacts?new=1`);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   const companies = (await listCompanies(user.id, { pageSize: 100, sort: 'name' })).rows.map((c) => ({

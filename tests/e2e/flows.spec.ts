@@ -197,3 +197,311 @@ test('Cal → CRM: reservar crea el contacto con la reunión en su timeline', as
   await page.goto(`/en/app/crm/contacts/${contactId}`);
   await expect(page.getByText(`Demo ${tag}`).first()).toBeVisible();
 });
+
+test('Link: quick-create desde la lista (tecla C) sin salir de la vista', async ({ page }) => {
+  const slug = `qc${uid()}`;
+  await page.goto('/en/app/links', { waitUntil: 'networkidle' });
+  await page.keyboard.press('c');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByPlaceholder('Paste a long URL…').fill('example.com/quick-create');
+  await dialog.getByPlaceholder('my-link').fill(slug);
+  await dialog.getByRole('button', { name: 'Create link' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL(/\/en\/app\/links$/, { timeout: 15_000 });
+  await expect(page.getByRole('status')).toContainText(slug);
+  await expect(page.locator('.links-table').getByText(slug).first()).toBeVisible();
+
+  // "More options" lleva al formulario completo con la URL precargada.
+  await page.keyboard.press('c');
+  await page.getByRole('dialog').getByPlaceholder('Paste a long URL…').fill('https://example.com/full');
+  await page.getByRole('link', { name: 'More options' }).click();
+  await expect(page).toHaveURL(/\/en\/app\/links\/new\?url=/, { timeout: 15_000 });
+  await expect(page.locator('#nl-url')).toHaveValue('https://example.com/full');
+});
+
+test('Docs: "C" crea una página, el título queda enfocado y aparece en el árbol', async ({ page }) => {
+  await page.goto('/en/app/docs', { waitUntil: 'networkidle' });
+  await page.keyboard.press('c');
+  await page.waitForURL(/\/en\/app\/docs\/[0-9a-f-]{36}$/);
+  const title = `E2E doc ${uid()}`;
+  await expect(page.locator('.docs-title')).toBeFocused();
+  await page.keyboard.type(title);
+  await expect(page.locator('.docs-save-status')).toHaveText(/saved/i);
+  await page.reload();
+  await expect(page.locator('.docs-tree-title', { hasText: title })).toBeVisible();
+});
+
+test('Docs: subpágina desde el árbol y papelera que arrastra a los hijos', async ({ request, page }) => {
+  const parent = await (await request.post('/api/docs/pages', { data: { title: `Parent ${uid()}` } })).json();
+  const child = await (
+    await request.post('/api/docs/pages', { data: { title: `Child ${uid()}`, parent_id: parent.id } })
+  ).json();
+
+  await page.goto(`/en/app/docs/${parent.id}`);
+  const row = page.locator('.docs-tree-row', { hasText: parent.title }).first();
+  await row.hover();
+  await row.locator('.docs-tree-add').click();
+  await page.waitForURL((u) => !u.pathname.endsWith(parent.id) && /\/app\/docs\/[0-9a-f-]{36}$/.test(u.pathname));
+  await expect(page.locator('.docs-breadcrumb')).toContainText(parent.title);
+
+  // "Move to trash" archiva (no borra) la página y sus subpáginas.
+  await page.goto(`/en/app/docs/${parent.id}`);
+  await page.locator('.docs-action-btn').click();
+  await page.getByRole('button', { name: 'Move to trash' }).click();
+  await page.waitForURL(/\/en\/app\/docs$/);
+  await expect(page.locator('.docs-tree')).not.toContainText(child.title);
+  const archivedChild = await (await request.get(`/api/docs/pages/${child.id}`)).json();
+  expect(archivedChild.archived ?? archivedChild.page?.archived).toBe(true);
+
+  await page.locator('#trash summary').click();
+  await page.locator('.docs-trash-row', { hasText: parent.title }).getByRole('button', { name: 'Restore' }).click();
+  await expect(page.locator('.docs-tree-title', { hasText: child.title })).toBeVisible({ timeout: 15_000 });
+});
+
+test('Docs: Share y Comments se abren a demanda desde la barra superior', async ({ request, page }) => {
+  const doc = await (await request.post('/api/docs/pages', { data: { title: `Panels ${uid()}` } })).json();
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  await expect(page.locator('.docs-side')).toBeHidden();
+  await page.getByRole('button', { name: /^Comments/ }).click();
+  await page.locator('.docs-comments textarea').fill('Hola e2e');
+  await page.locator('.docs-comments button', { hasText: /^Comment$/ }).click();
+  await expect(page.locator('.docs-comments')).toContainText('Hola e2e');
+  await page.getByRole('button', { name: /^Share/ }).click();
+  await expect(page.locator('.docs-share')).toBeVisible();
+});
+
+test('Docs: en mobile el árbol se pliega y no hay scroll horizontal', async ({ request, page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const doc = await (await request.post('/api/docs/pages', { data: { title: `Mobile ${uid()}` } })).json();
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  await expect(page.locator('.docs-tree')).toBeHidden();
+  await page.locator('.docs-sidebar-toggle').click();
+  await expect(page.locator('.docs-tree-title', { hasText: doc.title })).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test('Cal: crear event type desde el modal rápido (tecla C), apagarlo y borrarlo', async ({ page, request }) => {
+  const title = `Quick ${uid()}`;
+  await page.goto('/en/app/calendar/event-types');
+  await page.keyboard.press('c');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByPlaceholder('Event name, e.g. Intro call').fill(title);
+  await page.getByRole('radio', { name: '45 min' }).click();
+  await page.keyboard.press('Control+Enter');
+  await expect(page.getByRole('dialog')).toBeHidden({ timeout: 15_000 });
+  const row = page.locator('.cal-row', { hasText: title });
+  await expect(row).toBeVisible({ timeout: 15_000 });
+
+  // Arranca activo y con horario lun–vie 9–17: el link reserva sin más pasos.
+  const { rows } = await (await request.get('/api/calendar/event-types')).json();
+  const created = rows.find((r: { title: string }) => r.title === title);
+  expect(created.active).toBe(1);
+  expect(created.duration_min).toBe(45);
+  const day = new Date(Date.now() + 7 * 86_400_000);
+  while (day.getUTCDay() !== 3) day.setUTCDate(day.getUTCDate() + 1);
+  const slotsRes = await request.get(
+    `/api/calendar/event-types/${created.id}/slots?date=${day.toISOString().slice(0, 10)}&timezone=UTC`,
+  );
+  expect((await slotsRes.json()).slots.length).toBeGreaterThan(0);
+
+  // Switch en línea: apaga sin entrar al detalle.
+  await row.getByRole('switch').click();
+  await expect(row.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+  await expect
+    .poll(async () => (await (await request.get(`/api/calendar/event-types/${created.id}`)).json()).active)
+    .toBe(0);
+
+  page.once('dialog', (d) => d.accept());
+  await row.getByRole('button', { name: `Delete ${title}` }).click();
+  await expect(row).toHaveCount(0);
+  expect((await request.get(`/api/calendar/event-types/${created.id}`)).status()).toBe(404);
+});
+
+test('Cal: /event-types/new abre el modal sobre la lista', async ({ page }) => {
+  await page.goto('/en/app/calendar/event-types/new');
+  await expect(page).toHaveURL(/\/en\/app\/calendar\/event-types\?new=1$/, { timeout: 15_000 });
+  await expect(page.getByRole('dialog')).toBeVisible();
+  // Con foco en el título (hidratado), Esc cierra.
+  await expect(page.getByPlaceholder('Event name, e.g. Intro call')).toBeFocused({ timeout: 15_000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden({ timeout: 15_000 });
+});
+
+test('Cal: routing form rápido abre el editor y se borra desde el detalle', async ({ page }) => {
+  const title = `Route ${uid()}`;
+  await page.goto('/en/app/calendar/routing');
+  await page.getByRole('button', { name: /New routing form/ }).first().click();
+  await page.getByPlaceholder('Form name, e.g. Sales or support').fill(title);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/app\/calendar\/routing\/[0-9a-f-]+$/, { timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await expect(page).toHaveURL(/\/app\/calendar\/routing$/, { timeout: 15_000 });
+  await expect(page.getByText(title)).toHaveCount(0);
+});
+
+// CRM — smoke checks de los flujos arreglados en fase-apps-polish.
+// Pegar dentro de tests/e2e/flows.spec.ts (usa `uid` y `expect`/`test` de ahí).
+
+test('CRM: alta rápida de contacto con la tecla C, sin salir de la lista', async ({ page }) => {
+  const first = `Quick${uid()}`;
+  await page.goto('/en/app/crm/contacts');
+  await page.keyboard.press('c');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('First name').fill(first);
+  await dialog.locator('input[type=email]').fill(`${first.toLowerCase()}@example.com`);
+  await page.keyboard.press('Meta+Enter');
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts$/, { timeout: 15_000 });
+  await expect(page.getByText(first).first()).toBeVisible();
+});
+
+test('CRM: /new abre el modal sobre la lista y "All fields" lleva al form completo', async ({ page }) => {
+  await page.goto('/en/app/crm/companies/new');
+  await expect(page).toHaveURL(/\/en\/app\/crm\/companies$/, { timeout: 15_000 });
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  const name = `Co ${uid()}`;
+  await dialog.getByLabel('Name').fill(name);
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByText(name).first()).toBeVisible();
+
+  await page.goto('/en/app/crm/contacts?new=1');
+  await page.getByRole('dialog').getByRole('link', { name: 'All fields' }).click();
+  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts\/new\?full=1$/, { timeout: 15_000 });
+});
+
+test('CRM: deal rápido desde el board queda en la columna del pipeline', async ({ page }) => {
+  const name = `Deal ${uid()}`;
+  await page.goto('/en/app/crm/deals');
+  await page.getByTestId('crm-quick-deal').click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Name').fill(name);
+  await dialog.locator('input[type=number]').fill('1500');
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByText(name).first()).toBeVisible();
+});
+
+test('CRM: el timeline tiene una sola fila de tabs y el tab elige el tipo', async ({ request, page }) => {
+  const email = `tl-${uid()}@example.com`;
+  const contact = await (await request.post('/api/crm/contacts', { data: { email, firstName: 'Timeline' } })).json();
+  await page.goto(`/en/app/crm/contacts/${contact.id}`);
+  await expect(page.getByRole('tablist')).toHaveCount(1);
+  await page.getByRole('tab', { name: /Call/ }).click();
+  await page.getByPlaceholder(/Subject/).first().fill('Intro call');
+  await page.getByRole('button', { name: /Log call/i }).click();
+  await expect(page.getByText('Intro call')).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Call/ })).toContainText('1');
+});
+
+test('CRM: guardar un reporte es un botón chico que pide nombre en línea', async ({ page }) => {
+  const name = `R ${uid()}`;
+  await page.goto('/en/app/crm/reports');
+  await page.getByRole('button', { name: /Save report/i }).click();
+  await page.getByPlaceholder(/Report name/i).fill(name);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name })).toBeVisible();
+});
+
+test('CRM: tarea rápida con la tecla C', async ({ page }) => {
+  const subject = `Task ${uid()}`;
+  await page.goto('/en/app/crm/tasks');
+  await page.keyboard.press('c');
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Subject').fill(subject);
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+});
+
+test('CRM: los widgets del dashboard no se superponen', async ({ page }) => {
+  await page.goto('/en/app/crm/dashboards');
+  const widgets = page.locator('.dash-widget');
+  await expect(widgets.first()).toBeVisible();
+  const boxes = await widgets.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i];
+      const b = boxes[j];
+      const overlap = a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+      expect(overlap, `widget ${i} y ${j}`).toBe(false);
+    }
+  }
+});
+
+// Chat — smoke e2e de los flujos rápidos (pegar en tests/e2e/flows.spec.ts;
+// usa el `uid()` y los imports que ya están arriba del archivo).
+
+test('Chat: crear widget desde el overview con "C" y abrir su configuración', async ({ page }) => {
+  await page.goto('/en/app/chat', { waitUntil: 'networkidle' });
+  const name = `E2E widget ${uid()}`;
+  const dialog = page.getByRole('dialog');
+  // El atajo se registra al hidratar: reintenta hasta que abre el modal.
+  await expect(async () => {
+    await page.keyboard.press('c');
+    await expect(dialog).toBeVisible({ timeout: 1000 });
+  }).toPass();
+  await page.keyboard.type(name);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/en\/app\/chat\/widgets\/[0-9a-f-]+$/, { timeout: 60_000 });
+  await expect(page.getByRole('heading', { name })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Canned responses' })).toBeVisible();
+});
+
+test('Chat: respuestas guardadas y reglas se crean en un modal, sin salir de la vista', async ({ request, page }) => {
+  const w = await request.post('/api/chat/widgets', { data: { name: `E2E ${uid()}` } });
+  const { id: widgetId } = await w.json();
+
+  await page.goto(`/en/app/chat/widgets/${widgetId}/canned`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Add response' }).click();
+  await page.getByRole('dialog').getByLabel('Shortcut').fill('Hola Mundo');
+  await page.getByPlaceholder('Type your saved message here…').fill('Hi! How can we help?');
+  await page.keyboard.press('Meta+Enter');
+  await expect(page.getByText('/hola-mundo')).toBeVisible();
+  // Editar: click en la fila abre el mismo modal.
+  await page.getByText('/hola-mundo').click();
+  await page.getByPlaceholder('Type your saved message here…').fill('Edited body');
+  await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Edited body')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Assignment rules' }).click();
+  await page.getByRole('button', { name: 'Add rule' }).click();
+  await page.keyboard.type('Pricing questions');
+  await page.getByRole('dialog').locator('select').first().selectOption('keyword');
+  await page.getByPlaceholder('refund, pricing…').fill('pricing');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Pricing questions')).toBeVisible();
+});
+
+test('Chat: responder con Enter (y "/" inserta una respuesta guardada) y resolver', async ({ request, page }) => {
+  const w = await request.post('/api/chat/widgets', { data: { name: `E2E ${uid()}` } });
+  const { id: widgetId } = await w.json();
+  await request.post(`/api/chat/widgets/${widgetId}/canned`, {
+    data: { shortcut: '/thanks', title: 'Thanks', body: 'Thanks for writing in!' },
+  });
+  const visitorId = `v-${uid()}`;
+  const sent = await request.post('/api/chat/messages', {
+    headers: { origin: 'https://cliente.example' },
+    data: { widgetId, visitorId, body: 'Need pricing help' },
+  });
+  const { message } = await sent.json();
+
+  await page.goto(`/en/app/chat/inbox/${message.conversation_id}`, { waitUntil: 'networkidle' });
+  const composer = page.getByRole('textbox', { name: 'Reply' });
+  await composer.fill('/than');
+  await expect(page.locator('.chat-canned-picker')).toBeVisible();
+  await composer.press('Enter'); // inserta la respuesta guardada
+  await composer.press('Enter'); // envía
+  await expect(page.locator('.chat-message.agent').getByText('Thanks for writing in!')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Resolve' }).click();
+  await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible();
+  // El hilo scrollea su propio contenedor, no la página.
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});

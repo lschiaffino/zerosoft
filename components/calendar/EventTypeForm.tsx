@@ -55,6 +55,7 @@ export default function EventTypeForm({ initial, teamMembers, teamId, initialHos
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const [values, setValues] = useState({
     slug: initial?.slug ?? '',
     title: initial?.title ?? '',
@@ -62,7 +63,8 @@ export default function EventTypeForm({ initial, teamMembers, teamId, initialHos
     location: initial?.location ?? '',
     description: initial?.description ?? '',
     color: initial?.color ?? '#000000',
-    active: initial?.active === 1,
+    // Un event type nuevo arranca activo (antes quedaba apagado y el link no reservaba).
+    active: initial ? initial.active === 1 : true,
     bufferBeforeMin: (initial?.bookingRulesParsed?.bufferBeforeMin as number) ?? 0,
     bufferAfterMin: (initial?.bookingRulesParsed?.bufferAfterMin as number) ?? 0,
     minNoticeHours: (initial?.bookingRulesParsed?.minNoticeHours as number) ?? 0,
@@ -80,6 +82,7 @@ export default function EventTypeForm({ initial, teamMembers, teamId, initialHos
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const target = e.target as HTMLInputElement;
       const raw = target.type === 'checkbox' ? target.checked : target.value;
+      setSaved(false);
       setValues((prev) => ({
         ...prev,
         [key]: target.type === 'number' ? (raw === '' ? 0 : Number(raw)) : raw,
@@ -156,6 +159,13 @@ export default function EventTypeForm({ initial, teamMembers, teamId, initialHos
 
     if (res && (res.status === 201 || res.status === 200)) {
       const data = (await res.json()) as { id: string };
+      if (initial) {
+        // Edición: se queda en la página y confirma en el botón.
+        setBusy(false);
+        setSaved(true);
+        router.refresh();
+        return;
+      }
       router.push(`/app/calendar/event-types/${data.id}`);
       return;
     }
@@ -181,7 +191,7 @@ export default function EventTypeForm({ initial, teamMembers, teamId, initialHos
             className="input mono"
             value={values.slug}
             onChange={set('slug')}
-            pattern="^[a-z0-9-]+$"
+            pattern="[a-z0-9\-]+"
             required
             placeholder="30-min-meeting"
           />
@@ -384,9 +394,15 @@ export default function EventTypeForm({ initial, teamMembers, teamId, initialHos
 
       {error && <p className="form-error">{error}</p>}
 
-      <div className="form-actions">
+      <div className="form-actions cal-form-actions">
         <button type="submit" className="btn btn-solid" disabled={busy}>
-          {busy ? t('common.saving') : initial ? t('common.save') : t('common.create')}
+          {busy
+            ? t('common.saving')
+            : saved
+              ? t('common.saved')
+              : initial
+                ? t('common.save')
+                : t('common.create')}
         </button>
       </div>
     </form>

@@ -233,7 +233,7 @@ export default function RoutingFormEditor({ initial, eventTypes, locale }: Routi
               className="input mono"
               value={values.slug}
               onChange={(e) => setValues((v) => ({ ...v, slug: e.target.value }))}
-              pattern="^[a-z0-9-]+$"
+              pattern="[a-z0-9\-]+"
               required
               placeholder="sales-or-support"
             />

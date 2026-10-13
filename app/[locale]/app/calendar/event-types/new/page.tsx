@@ -1,31 +1,11 @@
-import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
-import { listMembers } from '@/lib/teams';
-import EventTypeForm from '@/components/calendar/EventTypeForm';
+import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
-export default async function NewEventTypePage(
-  props: {
-    params: Promise<{ locale: string }>;
-  }
-) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
-  const user = await requireUser(locale);
-  const t = await getTranslations({ locale, namespace: 'calendar' });
-  const team = user.team ?? null;
-  const teamMembers = team ? await listMembers(team.id) : undefined;
-
-  return (
-    <div className="app-page narrow">
-      <h1 className="app-title">{t('eventTypes.newTitle')}</h1>
-      <p className="app-sub muted">{t('eventTypes.newSub')}</p>
-      <EventTypeForm teamMembers={teamMembers} teamId={team?.id ?? null} />
-    </div>
-  );
+/**
+ * La creación vive en un modal rápido sobre la lista de event types
+ * (como Calendly/Linear). Este path queda por compatibilidad: sidebar,
+ * Cmd+K y links viejos abren la lista con el modal abierto.
+ */
+export default async function NewEventTypePage(props: { params: Promise<{ locale: string }> }) {
+  const { locale } = await props.params;
+  redirect(`/${locale}/app/calendar/event-types?new=1`);
 }

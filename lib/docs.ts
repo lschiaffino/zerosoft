@@ -217,6 +217,17 @@ export async function updateDocPage(
     .prepare(`UPDATE docs_pages SET ${updates.join(', ')} WHERE id = ?`)
     .run(...args);
 
+  // Papelera: archivar/restaurar arrastra a las subpáginas (si no, quedaban
+  // huérfanas en la raíz del árbol al mandar el padre a la papelera).
+  if (input.archived !== undefined && (row.archived === 1) !== input.archived) {
+    const ids = (await collectDescendants(ownerId, pageId)).filter((x) => x !== pageId);
+    if (ids.length > 0) {
+      await getDb()
+        .prepare(`UPDATE docs_pages SET archived = ? WHERE id IN (${ids.map(() => '?').join(',')})`)
+        .run(input.archived ? 1 : 0, ...ids);
+    }
+  }
+
   const updated = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as DocsPageRow;
   return toPage(updated);
 }

@@ -461,7 +461,7 @@ export async function reportSourcePerformance(
       `SELECT COALESCE(NULLIF(c.source, ''), 'other') AS source, COUNT(*) AS c
        FROM crm_contacts c
        WHERE c.user_id = ? AND c.created_at >= datetime(?) AND c.created_at <= datetime(?, '23:59:59')${ownerC.sql}
-       GROUP BY source`,
+       GROUP BY 1`,
     )
     .all(
       ...[userId, range.from, range.to, ownerC.arg].filter((v): v is string => v !== undefined),
@@ -473,7 +473,7 @@ export async function reportSourcePerformance(
          COUNT(*) AS c, COALESCE(SUM(d.amount), 0) AS a
        FROM crm_deals d
        WHERE d.user_id = ? AND d.created_at >= datetime(?) AND d.created_at <= datetime(?, '23:59:59')${f.sql}
-       GROUP BY source`,
+       GROUP BY 1`,
     )
     .all(...[userId, range.from, range.to, ...f.args].filter((v): v is string => v !== undefined))) as Array<{
     source: string;
