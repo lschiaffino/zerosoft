@@ -60,7 +60,7 @@ export default function EmailThread({
                 →
               </span>
               <span className="em-to muted">{displayName(m.to)}</span>
-              {!open && count > 1 ? null : <span className="em-date muted">{when(m.sentAt, locale)}</span>}
+              {open && count > 1 && <span className="em-date muted">{when(m.sentAt, locale)}</span>}
             </div>
             <p className={`em-body${open ? '' : ' clamp'}`}>{open ? m.body : m.snippet || m.body}</p>
             {m.direction === 'out' && m.tracked && (

@@ -217,7 +217,7 @@ export default function SequenceEditor({ sequence, steps: initialSteps, template
                   </div>
 
                   {s.type === 'wait' && (
-                    <label className="seq-wait">
+                    <label className="seq-wait-row">
                       {t('sequences.waitFor')}
                       <input
                         className="input seq-days"

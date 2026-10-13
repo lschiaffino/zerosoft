@@ -2669,6 +2669,8 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
 
 /* Secuencias */
 .seq-editor { display: flex; flex-direction: column; gap: 20px; }
+/* <section> trae padding vertical global del sitio: acá no. */
+.seq-editor section, .seq-editor aside { padding-top: 0; padding-bottom: 0; }
 .seq-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .seq-name {
   flex: 1;
@@ -2699,14 +2701,14 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
   font-size: 11px;
 }
 .seq-step-type { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
-.seq-wait .seq-step-n { border-style: dashed; }
+.seq-step.seq-wait .seq-step-n { border-style: dashed; }
 .seq-stats { font-size: 11px; color: var(--dim); }
 .seq-step-tools { margin-left: auto; display: inline-flex; gap: 4px; opacity: 0; transition: opacity 0.12s; }
 .seq-step:hover .seq-step-tools, .seq-step:focus-within .seq-step-tools { opacity: 1; }
 @media (hover: none) { .seq-step-tools { opacity: 1; } }
 .seq-step-tools .icon-btn { min-width: 24px; height: 24px; padding: 0 5px; font-size: 11px; }
 .seq-fields { display: flex; flex-direction: column; gap: 8px; padding-left: 30px; }
-.seq-wait { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; padding-left: 30px; }
+.seq-wait-row { display: inline-flex; align-self: flex-start; align-items: center; gap: 8px; font-size: 13px; padding-left: 30px; }
 .seq-days { width: 72px; }
 .seq-add { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .seq-side { display: flex; flex-direction: column; gap: 12px; padding-left: 24px; border-left: 1px solid var(--line); }
@@ -2714,11 +2716,13 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
 .seq-side .field-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); }
 .seq-window { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .seq-note { font-size: 12px; line-height: 1.5; }
+.seq-side .link-btn { align-self: flex-start; }
+.em-setting .muted { font-size: 13px; }
 .seq-status { font-size: 11px; }
 .seq-status.s-active { color: var(--ink); }
 .seq-status.s-paused { color: var(--warn); }
 .seq-status.s-finished, .seq-status.s-exited { color: var(--dim); }
-.seq-enrollments { border-top: 1px solid var(--line); padding-top: 20px; }
+.seq-editor .seq-enrollments { border-top: 1px solid var(--line); padding-top: 20px; }
 .seq-panel .seq-enr-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; }
 .seq-enr-list li { padding: 8px 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 10px; align-items: center; }
 .seq-enr-list li:first-child { border-top: 0; }
@@ -2730,5 +2734,5 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
 @media (max-width: 860px) {
   .seq-grid { grid-template-columns: 1fr; }
   .seq-side { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); padding-top: 16px; }
-  .seq-fields, .seq-wait { padding-left: 0; }
+  .seq-fields, .seq-wait-row { padding-left: 0; }
 }
