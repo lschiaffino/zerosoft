@@ -41,11 +41,11 @@ afterEach(() => {
   }
 });
 
-async function addDocsPage(userId: string, title: string, text: string): Promise<void> {
+async function addDocsPage(userId: string, title: string, text: string, isPublic = true): Promise<void> {
   const content = JSON.stringify([{ id: crypto.randomUUID(), type: 'paragraph', content: text }]);
   await getDb()
-    .prepare('INSERT INTO docs_pages (id, user_id, title, content) VALUES (?, ?, ?, ?)')
-    .run(crypto.randomUUID(), userId, title, content);
+    .prepare('INSERT INTO docs_pages (id, user_id, title, content, is_public) VALUES (?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), userId, title, content, isPublic ? 1 : 0);
 }
 
 async function setup(label: string, botSource: 'ai' | 'canned' | 'docs' = 'ai') {
@@ -78,6 +78,15 @@ describe('retrieveKnowledge', () => {
     expect(chunks.length).toBeGreaterThan(0);
     expect(chunks[0].title).toBe('Shipping policy');
     expect(chunks.some((c) => c.text.includes('SECRET-B'))).toBe(false);
+  });
+
+  it('no usa páginas privadas: el bot responde a visitantes anónimos', async () => {
+    const { owner, widget } = await setup('priv');
+    await addDocsPage(owner.id, 'Pricing internal', 'PRIVATE: our pricing margins and discounts.', false);
+    await addDocsPage(owner.id, 'Pricing', 'Plans start free; pay as you grow.');
+    const chunks = await retrieveKnowledge(widget, 'pricing discounts');
+    expect(chunks.some((c) => c.text.includes('PRIVATE'))).toBe(false);
+    expect(chunks.map((c) => c.title)).toContain('Pricing');
   });
 
   it('ignora páginas archivadas e incluye canned responses del widget', async () => {

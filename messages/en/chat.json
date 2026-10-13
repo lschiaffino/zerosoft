@@ -193,7 +193,7 @@
     "sourceDocs": "Docs pages",
     "hint": "The bot replies once per conversation, only if nobody has answered yet. It scores visitor keywords against the source (title matches weigh double); without a match it sends just the greeting.",
     "sourceAi": "AI (Docs + canned responses)",
-    "hintAi": "The AI bot answers every visitor message until a teammate replies, using only your Docs pages and this widget's canned responses as knowledge. When it is unsure or the visitor asks for a person, it hands off: the conversation is flagged high priority in the inbox. If AI fails or the monthly quota runs out, the keyword bot answers instead.",
+    "hintAi": "The AI bot answers every visitor message until a teammate replies, using only your public Docs pages and this widget's canned responses as knowledge. When it is unsure or the visitor asks for a person, it hands off: the conversation is flagged high priority in the inbox. If AI fails or the monthly quota runs out, the keyword bot answers instead.",
     "aiNotConfigured": "AI is not configured on this server (set AI_GATEWAY_API_KEY). Until then the bot uses keyword matching over Docs and canned responses."
   },
   "officeHours": {

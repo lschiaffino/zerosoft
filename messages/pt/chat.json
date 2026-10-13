@@ -193,7 +193,7 @@
     "sourceDocs": "Páginas de docs",
     "hint": "O bot responde uma vez por conversa, só se ninguém respondeu ainda. Ele pontua palavras-chave do visitante contra a fonte (título pesa o dobro); sem match envia só a saudação.",
     "sourceAi": "IA (Docs + respostas salvas)",
-    "hintAi": "O bot com IA responde cada mensagem do visitante até alguém da equipe responder, usando só suas páginas de Docs e as respostas salvas deste widget. Se não tiver certeza ou o visitante pedir uma pessoa, ele transfere: a conversa fica com prioridade alta na caixa de entrada. Se a IA falhar ou a cota mensal acabar, o bot por palavras-chave responde.",
+    "hintAi": "O bot com IA responde cada mensagem do visitante até alguém da equipe responder, usando só suas páginas públicas de Docs e as respostas salvas deste widget. Se não tiver certeza ou o visitante pedir uma pessoa, ele transfere: a conversa fica com prioridade alta na caixa de entrada. Se a IA falhar ou a cota mensal acabar, o bot por palavras-chave responde.",
     "aiNotConfigured": "A IA não está configurada neste servidor (defina AI_GATEWAY_API_KEY). Enquanto isso, o bot usa palavras-chave sobre Docs e respostas salvas."
   },
   "officeHours": {

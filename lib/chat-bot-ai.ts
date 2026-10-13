@@ -96,7 +96,7 @@ export async function retrieveKnowledge(
   const candidates: Array<{ kind: 'doc' | 'canned'; title: string; text: string; tokens: string[] }> = [];
   const pages = (await getDb()
     .prepare(
-      'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT 200',
+      'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND is_public = 1 ORDER BY updated_at DESC LIMIT 200',
     )
     .all(widget.user_id)) as Array<{ title: string; content: string }>;
   for (const page of pages) {

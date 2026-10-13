@@ -26,6 +26,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-chat-ai',
+    date: '2026-10-13',
+    title: {
+      en: 'Chat: an AI bot that answers from your public docs',
+      es: 'Chat: un bot con IA que responde con tus docs públicas',
+      pt: 'Chat: um bot com IA que responde com seus docs públicos',
+    },
+    items: [
+      {
+        product: 'chat',
+        en: 'New "AI" bot source: it answers every visitor message from your public Docs pages and canned responses until a teammate replies. When unsure, or when the visitor asks for a person, it hands off and flags the conversation high priority.',
+        es: 'Nueva fuente "IA" para el bot: responde cada mensaje del visitante con tus páginas públicas de Docs y las respuestas guardadas hasta que conteste alguien del equipo. Si no está seguro, o el visitante pide una persona, deriva y marca la conversación con prioridad alta.',
+        pt: 'Nova fonte "IA" para o bot: responde cada mensagem do visitante com suas páginas públicas de Docs e as respostas salvas até alguém da equipe responder. Se não tiver certeza, ou o visitante pedir uma pessoa, transfere e marca a conversa com prioridade alta.',
+      },
+      {
+        product: 'platform',
+        en: 'AI usage is metered per workspace with a free monthly quota, shown in Settings. Self-hosters bring their own AI Gateway key.',
+        es: 'El uso de IA se mide por workspace con una cuota mensual gratis, visible en Configuración. En self-host usás tu propia key de AI Gateway.',
+        pt: 'O uso de IA é medido por workspace com uma cota mensal grátis, visível em Configurações. No self-host você usa sua própria chave do AI Gateway.',
+      },
+    ],
+  },
+  {
     id: '2026-10-13-design',
     date: '2026-10-13',
     title: {

@@ -35,8 +35,17 @@ describe('migraciones versionadas', () => {
     await expect(
       client.execute("INSERT INTO chat_widgets (id, user_id, name, bot_source) VALUES ('w2', 'u1', 'W2', 'ai')"),
     ).rejects.toThrow(/CHECK/);
+    // Como en producción (lib/db.ts): FKs activas. El rebuild no debe borrar
+    // en cascada las conversaciones del widget.
+    await client.execute('PRAGMA foreign_keys = ON');
+    await client.execute("INSERT INTO chat_visitors (id, widget_id, external_id) VALUES ('v1', 'w1', 'ext1')");
+    await client.execute("INSERT INTO chat_conversations (id, widget_id, visitor_id) VALUES ('c1', 'w1', 'v1')");
 
     await runMigrations(client);
+    const convs = (await client.execute("SELECT id FROM chat_conversations WHERE widget_id = 'w1'")).rows;
+    expect(convs.map((r) => r.id)).toEqual(['c1']);
+    const fkErrors = (await client.execute('PRAGMA foreign_key_check')).rows;
+    expect(fkErrors).toEqual([]);
     const row = (await client.execute("SELECT name, bot_enabled, bot_source FROM chat_widgets WHERE id = 'w1'")).rows[0];
     expect(row).toMatchObject({ name: 'W', bot_enabled: 1, bot_source: 'docs' });
     await client.execute("INSERT INTO chat_widgets (id, user_id, name, bot_source) VALUES ('w2', 'u1', 'W2', 'ai')");
