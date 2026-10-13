@@ -17,7 +17,7 @@
     "startFree": "Comece grátis",
     "menu": "Menu",
     "allProducts": "Todos os produtos",
-    "allProductsDesc": "Compare os seis apps",
+    "allProductsDesc": "Compare todos os apps",
     "selfHost": "Hospede pelo GitHub",
     "selfHostDesc": "AGPLv3 · docker compose up",
     "desc": {
@@ -209,9 +209,9 @@
     "hero": {
       "kicker": "O software morreu.",
       "kickerLink": "Leia o manifesto",
-      "title1": "Seis apps. Uma suíte.",
+      "title1": "Dez apps. Uma suíte.",
       "title2": "Zero licenças.",
-      "sub": "Alternativas open source ao Bitly, HubSpot, Calendly, Linear, Intercom e Notion. Hospede de graça, para sempre — ou comece grátis no Zerosoft Cloud.",
+      "sub": "Alternativas open source a HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro e Bitly, com agentes de IA incluídos. Hospede grátis, para sempre, ou comece grátis no Zerosoft Cloud.",
       "ctaStart": "Comece grátis",
       "ctaSelfHost": "Hospede você",
       "note1": "Sem cartão",
@@ -298,7 +298,7 @@
       "perMonth": "/ mês, fixo",
       "total": "Total por ano",
       "zeroTitle": "Zerosoft, no seu servidor",
-      "zeroNote": "Os seis apps. Você paga só o seu próprio servidor.",
+      "zeroNote": "Todos os apps. Você paga só o seu próprio servidor.",
       "cloudNote": "Zerosoft Cloud: comece grátis e depois pague pelo uso, com preços publicados antes de cobrarmos qualquer coisa.",
       "footnote": "Preços de tabela citados nas nossas páginas de produto, cobrança mensal, para 10 usuários (o Bitly Core é um plano mensal fixo). Os fornecedores mudam seus preços — confira nos sites deles. O Zerosoft não tem afiliação com nenhuma empresa citada."
     },

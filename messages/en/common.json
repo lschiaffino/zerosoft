@@ -17,7 +17,7 @@
     "startFree": "Start free",
     "menu": "Menu",
     "allProducts": "All products",
-    "allProductsDesc": "Compare the six apps side by side",
+    "allProductsDesc": "Compare every app side by side",
     "selfHost": "Self-host on GitHub",
     "selfHostDesc": "AGPLv3 · docker compose up",
     "desc": {
@@ -209,9 +209,9 @@
     "hero": {
       "kicker": "Software is dead.",
       "kickerLink": "Read the manifesto",
-      "title1": "Six apps. One suite.",
+      "title1": "Ten apps. One suite.",
       "title2": "Zero licenses.",
-      "sub": "Open-source alternatives to Bitly, HubSpot, Calendly, Linear, Intercom and Notion. Self-host them free, forever — or start free on Zerosoft Cloud.",
+      "sub": "Open-source alternatives to HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro and Bitly — with AI agents built in. Self-host them free, forever, or start free on Zerosoft Cloud.",
       "ctaStart": "Start free",
       "ctaSelfHost": "Self-host",
       "note1": "No credit card",
@@ -298,7 +298,7 @@
       "perMonth": "/ mo, flat",
       "total": "Total per year",
       "zeroTitle": "Zerosoft, self-hosted",
-      "zeroNote": "All six apps. You only pay for your own server.",
+      "zeroNote": "Every app. You only pay for your own server.",
       "cloudNote": "Zerosoft Cloud: free to start, then usage pricing — published before we ever charge.",
       "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat monthly plan). Vendors change their prices — check their sites. Zerosoft is not affiliated with any company named here."
     },

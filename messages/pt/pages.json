@@ -8,7 +8,7 @@
       "label": "0.02 — Produtos",
       "title1": "Tudo o que você usa.",
       "title2": "Zero do que você paga.",
-      "sub": "Seis ferramentas movem a empresa moderna: links, clientes, projetos, tempo, documentos e suporte. Reconstruímos as seis à vista. O core custa zero, é seu, e as seis já estão no ar."
+      "sub": "As ferramentas que movem uma empresa (clientes, suporte, automações, agentes de IA, tarefas, links) e as que você usa sozinho: notas, docs, quadros, sua agenda. Reconstruímos tudo à vista. O core custa zero e é seu."
     },
     "compare": {
       "label": "0.03 — A conta",
@@ -62,7 +62,7 @@
       "label": "0.05 — Junte-se",
       "title1": "Pare de pagar",
       "title2": "por bits.",
-      "sub": "As seis estão no ar e são grátis para começar. Entre agora: você paga só pelo que escala.",
+      "sub": "Estão todos no ar e são grátis para começar. Entre agora: você paga só pelo que escala.",
       "button": "Abrir o app →"
     },
     "link": {
@@ -704,7 +704,7 @@
     "howTitleDim": "em três passos.",
     "suiteLabel": "06 — Parte da suíte",
     "suiteTitle": "Um workspace.",
-    "suiteTitleDim": "Seis apps, o mesmo login.",
+    "suiteTitleDim": "Dez apps, o mesmo login.",
     "previewNote": "Prévia interativa da interface do produto.",
     "compareSave": "Você economiza"
   },
