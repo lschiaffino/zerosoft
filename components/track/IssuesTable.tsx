@@ -115,12 +115,12 @@ export default function IssuesTable({
             return (
               <tr key={issue.id}>
                 <td>
-                  <Link href={`/${locale}/app/track/issues/${issue.id}`}>
+                  <Link href={`/app/track/issues/${issue.id}`}>
                     <span className="track-identifier">{issue.identifier}</span>
                   </Link>
                 </td>
                 <td>
-                  <Link href={`/${locale}/app/track/issues/${issue.id}`}>
+                  <Link href={`/app/track/issues/${issue.id}`}>
                     <span className="track-issue-title">{issue.title || '—'}</span>
                     {issue.child_count > 0 && (
                       <span className="track-subtask-indicator" title={labels.hasSubtasks}>

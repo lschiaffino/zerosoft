@@ -77,7 +77,7 @@ export default function IssueForm({ locale, projectId, parentId, statuses, cycle
       }
 
       const issue = data as { id: string };
-      router.push(`/${locale}/app/track/issues/${issue.id}`);
+      router.push(`/app/track/issues/${issue.id}`);
     } catch {
       setError('generic');
       setSubmitting(false);

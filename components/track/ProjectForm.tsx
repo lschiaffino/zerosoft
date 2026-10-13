@@ -72,7 +72,7 @@ export default function ProjectForm({ locale, labels }: ProjectFormProps) {
       }
 
       const project = data as { id: string };
-      router.push(`/${locale}/app/track/projects/${project.id}`);
+      router.push(`/app/track/projects/${project.id}`);
     } catch {
       setError('generic');
       setSubmitting(false);

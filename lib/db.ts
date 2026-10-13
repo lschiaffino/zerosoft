@@ -177,17 +177,28 @@ export async function upsertUser(u: {
       .run(u.name ?? null, u.image ?? null, existing.id);
     return (await db.prepare('SELECT * FROM users WHERE id = ?').get(existing.id)) as UserRow;
   }
-  const id = u.id ?? crypto.randomUUID();
+  // Dos requests concurrentes del mismo usuario nuevo (o dos usuarios con el
+  // mismo handle base) compiten acá: el email se resuelve con ON CONFLICT y el
+  // handle se reintenta con el siguiente libre.
   const base = handleBase(u.email);
-  const taken = new Set(
-    ((await db
-      .prepare("SELECT handle FROM users WHERE handle = ? OR handle LIKE ?")
-      .all(base, `${base}-%`)) as Array<{ handle: string }>).map((r) => r.handle),
-  );
-  await db
-    .prepare('INSERT INTO users (id, email, name, image, handle) VALUES (?, ?, ?, ?, ?)')
-    .run(id, u.email, u.name ?? null, u.image ?? null, pickHandle(u.email, taken));
-  return (await db.prepare('SELECT * FROM users WHERE id = ?').get(id)) as UserRow;
+  for (let attempt = 0; ; attempt++) {
+    const taken = new Set(
+      ((await db
+        .prepare("SELECT handle FROM users WHERE handle = ? OR handle LIKE ?")
+        .all(base, `${base}-%`)) as Array<{ handle: string }>).map((r) => r.handle),
+    );
+    try {
+      await db
+        .prepare(
+          'INSERT INTO users (id, email, name, image, handle) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO NOTHING',
+        )
+        .run(u.id ?? crypto.randomUUID(), u.email, u.name ?? null, u.image ?? null, pickHandle(u.email, taken));
+      break;
+    } catch (err) {
+      if (attempt >= 4 || !/UNIQUE constraint failed: users\.handle/.test(String(err))) throw err;
+    }
+  }
+  return (await db.prepare('SELECT * FROM users WHERE email = ?').get(u.email)) as UserRow;
 }
 
 export async function getUserByEmail(email: string): Promise<UserRow | undefined> {

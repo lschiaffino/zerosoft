@@ -351,7 +351,7 @@ export default function IssuesGantt({ issues, statuses, locale, onDatesChange, l
                 <div className="track-gantt-row" key={issue.id}>
                   {visible && (
                     <Link
-                      href={`/${locale}/app/track/issues/${issue.id}`}
+                      href={`/app/track/issues/${issue.id}`}
                       className={`track-gantt-bar${p ? ' dragging' : ''}`}
                       draggable={false}
                       style={{
@@ -394,7 +394,7 @@ export default function IssuesGantt({ issues, statuses, locale, onDatesChange, l
             {unscheduled.map((issue) => (
               <Link
                 key={issue.id}
-                href={`/${locale}/app/track/issues/${issue.id}`}
+                href={`/app/track/issues/${issue.id}`}
                 className="track-gantt-issue"
               >
                 <span className="track-identifier">{issue.identifier}</span>

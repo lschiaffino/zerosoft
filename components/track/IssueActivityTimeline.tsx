@@ -271,7 +271,7 @@ export default function IssueActivityTimeline({
           <span>
             {labels.relationAdded.replace('{user}', name)}{' '}
             {relatedIssueId && (
-              <Link href={`/${locale}/app/track/issues/${relatedIssueId}`} className="track-activity-link">
+              <Link href={`/app/track/issues/${relatedIssueId}`} className="track-activity-link">
                 {String(meta.identifier ?? relatedIssueId)}
               </Link>
             )}

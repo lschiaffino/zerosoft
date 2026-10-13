@@ -10,7 +10,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 # El build prerenderiza páginas estáticas; usa una base temporal.
-RUN NEXTAUTH_SECRET=build-only TURSO_DATABASE_URL=file:/tmp/build.db npm run build && npm prune --omit=dev
+RUN NEXTAUTH_SECRET=build-only TURSO_DATABASE_URL=file:/tmp/build.db npm run build && npm prune --omit=dev && mkdir -p public
 
 FROM node:24-bookworm-slim AS run
 WORKDIR /app

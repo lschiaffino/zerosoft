@@ -28,7 +28,7 @@ export default async function TrackOverviewPage(
           <h1>{t('overview.title')}</h1>
           <p>{t('overview.subtitle')}</p>
         </div>
-        <Link href={`/${locale}/app/track/projects/new`} className="btn btn-solid">
+        <Link href={`/app/track/projects/new`} className="btn btn-solid">
           {t('overview.emptyCta')}
         </Link>
       </div>

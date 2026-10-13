@@ -262,7 +262,7 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
     const sp = filtersToParams(filters, sort);
     sp.set('view', view);
     const qs = sp.toString();
-    router.replace(`/${locale}/app/track/projects/${projectId}?${qs}`, { scroll: false });
+    router.replace(`/app/track/projects/${projectId}?${qs}`, { scroll: false });
   }, [filters, sort, view, projectId, locale, router]);
 
   const handleViewChange = (v: ViewType) => {
@@ -378,7 +378,7 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
           {project.description ? <p>{project.description}</p> : null}
         </div>
         <div className="track-form-actions">
-          <Link href={`/${locale}/app/track/projects/${projectId}/issues/new`} className="btn btn-solid">
+          <Link href={`/app/track/projects/${projectId}/issues/new`} className="btn btn-solid">
             {labels.newIssue}
           </Link>
         </div>
