@@ -1,8 +1,8 @@
 ---
-title: "Self-hosting in 2026: easier than ever (and not just for nerds)"
-description: "A $5 VPS, three commands, and your own software running. The gap between 'install' and 'subscribe' has never been this small."
+title: "Self-hosting in 2026: a $5 VPS and three commands"
+description: "Containers, managed DNS and SQLite made self-hosting a small job. What it takes today, and when it still isn't worth it."
 date: "2026-07-11"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["self-hosting", "open source", "tutorial"]
 ---
 
@@ -14,7 +14,7 @@ That truth got old. In 2026, self-hosting a well-made app is easier than setting
 
 Three things collapsed the difficulty:
 
-1. **Containers won.** Docker and its successors package an entire app — code, runtime, configuration — into something that starts with one command. You no longer "install" software: you *run* it.
+1. **Containers won.** Docker and its successors package an entire app (code, runtime, configuration) into something that starts with one command. You no longer "install" software: you *run* it.
 2. **VPSs got cheap and simple.** Hetzner, DigitalOcean, Fly.io, Railway: a server in two minutes, $5 a month, with automatic snapshots and private networks.
 3. **Software got designed for this.** Good modern apps treat self-host as a first-class citizen: a single embedded database (SQLite), documented environment variables, zero mandatory external services.
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-No database to install (SQLite creates itself). No Redis, no queues, no workers. One Node process and one data file. The backup is copying that file.
+No database to install (SQLite creates itself). One Node process and one data file. The backup is copying that file.
 
 Login? Google OAuth with two environment variables. HTTPS? Caddy or your favorite proxy in ten lines. Updates? `git pull && npm run build`.
 
@@ -44,6 +44,6 @@ That's less time per year than you spend fighting plan changes, price increases 
 
 ## And if you don't want even that
 
-That's what the other option is for: we run it for you and you pay the cloud at cost. But the important point isn't that you choose self-host. It's that you *can*. An open door changes the entire relationship: you're no longer trapped, you're choosing.
+That's what the other option is for: we run it for you on zerosoft Cloud, with a free tier and usage pricing. But the important point isn't that you choose self-host. It's that you *can*. An open door changes the entire relationship: you're no longer trapped, you're choosing.
 
-That's the new world: not everyone running servers, but nobody held hostage by a login.
+The goal isn't that everyone runs servers. It's that nobody is stuck with a vendor.

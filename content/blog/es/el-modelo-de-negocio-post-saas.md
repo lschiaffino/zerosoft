@@ -1,37 +1,33 @@
 ---
-title: "El modelo de negocio post-SaaS: qué viene después de la suscripción"
-description: "La suscripción fue la respuesta a un problema que ya no existe. Cuatro modelos que la reemplazan, y por qué elegimos el más aburrido."
+title: "Después de la suscripción: cuatro modelos de negocio para software"
+description: "La suscripción resolvió dos problemas: distribuir e instalar software, y financiar su desarrollo. Los dos cambiaron. Cuatro modelos que vemos crecer y cuál elegimos."
 date: "2026-07-15"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["saas", "modelo de negocio", "futuro"]
 ---
 
-Todo modelo de negocio es la respuesta a una restricción. El SaaS fue la respuesta a dos: distribuir software era difícil (había que instalarlo) y construirlo era carísimo (había que recuperar la inversión). La suscripción resolvía ambas: la nube elimina la instalación, y el pago recurrente financia el desarrollo.
+La suscripción resolvió dos problemas: instalar software era difícil y construirlo era caro. La nube eliminó la instalación y el pago mensual financió el desarrollo.
 
-Las dos restricciones murieron. Distribuir es abrir una URL. Construir cuesta una fracción de lo que costaba. Y sin embargo la suscripción siguió, como una costumbre sin causa.
+Hoy distribuir es abrir una URL y construir cuesta mucho menos que antes. La suscripción sigue igual. Estos son cuatro modelos que vemos crecer en su lugar.
 
-¿Qué la reemplaza? Estos son los cuatro modelos que vemos emerger.
+## 1. Open source y pago por uso de la nube
 
-## 1. Open source + infraestructura al costo
+El software es abierto. Se cobra operarlo, según lo que consume cada cliente. Es el modelo de zerosoft: self-host por $0, o zerosoft Cloud con un plan gratis por workspace y pago por clics, reservas, emails y almacenamiento después. El precio se puede comparar contra lo que cuesta correrlo vos.
 
-El software es libre y gratis; se cobra solo el correrlo, sin margen. Es el modelo de Zerosoftware. Su virtud es la honestidad radical: el precio es verificable contra las facturas de AWS. Su defecto, para los inversores: no hay margen que escalar. Exacto. No es un accidente, es el punto.
+## 2. Open source y servicios
 
-## 2. Open source + servicios reales
+Red Hat lo hace hace décadas: el software es libre y se cobra lo que hacen las personas, como soporte, consultoría y certificaciones. Si dejás de pagar, perdés el servicio, no el software.
 
-Red Hat lo probó hace décadas: el software es libre, y se cobra por lo que los humanos hacen — soporte, consultoría, garantías, certificaciones. Funciona porque cobra por trabajo real, no por copiar bits. La diferencia con el SaaS: si dejás de pagar, perdés el servicio, no el software.
+## 3. Pago por uso
 
-## 3. Usage-based puro
+Requests, minutos de cómputo, GB guardados. Los proveedores de nube y Stripe cobran así. Funciona bien cuando la unidad refleja un costo real. Se arruina cuando la unidad se inventa para facturar más, como los "contactos de marketing" o los límites de API artificiales.
 
-Pagar exactamente por lo que usás: requests, minutos de cómputo, GB almacenados. Stripe y los proveedores de nube viven de esto. Es honesto en la medida en que la métrica refleja costo real; se corrompe cuando la "unidad de uso" se inventa para maximizar facturación (véase: asientos, "contactos de marketing", límites de API artificiales).
+## 4. Compra perpetua
 
-## 4. Compra perpetua (la vuelta)
+Con desarrollo más barato, vuelve a ser viable vender software una vez: un precio, tuyo, con un año de actualizaciones. Varios desarrolladores independientes viven así.
 
-Con el costo de desarrollo colapsando, vuelve a ser viable vender software de una vez, como antes: $X, tuyo, con un año de actualizaciones. Varios indies ya viven así. No escala a valuaciones de billones — y esa es exactamente la razón por la que a los usuarios les conviene.
+## Lo que comparten
 
-## Lo que todos tienen en común
+Ninguno cobra por copiar el código. Cuando copiar no cuesta nada, cualquier precio necesita una razón: operar servidores, atender personas, medir uso real.
 
-Ninguno puede cobrar por *copiar bits*. Ese es el hilo: cuando el costo marginal es cero, cualquier precio mayor a cero necesita justificación, y "porque siempre fue así" dejó de ser una.
-
-El SaaS no va a desaparecer de golpe. Va a encogerse a lo que siempre debió ser: un servicio de hosting con software regalado encima. Nosotros solo le pusimos nombre, precio y ceros.
-
-El software murió. Estos son los herederos.
+El SaaS no va a desaparecer de un día para el otro. Lo más probable es que se parezca cada vez más a un servicio de hosting, con el software abierto adentro.

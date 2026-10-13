@@ -1,41 +1,37 @@
 ---
 title: "O software virou commodity"
-description: "Ninguém se gaba do seu gerador elétrico. Ninguém deveria se gabar do seu CRM. Quando algo vira commodity, o preço cai para o custo marginal — e isso é uma ótima notícia para os usuários."
+description: "Nenhuma fábrica se gaba do seu gerador elétrico. Quando um produto vira commodity, o preço cai para perto do custo marginal. Isso já está acontecendo com o software de trabalho."
 date: "2026-06-09"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["commodity", "software", "saas"]
 ---
 
-No começo do século XX, uma fábrica séria tinha a sua própria usina elétrica. Uma sala cheia de dínamos, engenheiros dedicados, manutenção permanente. Ter eletricidade era vantagem competitiva: se o seu gerador era melhor que o do vizinho, você produzia mais.
+No começo do século XX, uma fábrica séria tinha a própria usina elétrica: uma sala de dínamos, engenheiros dedicados, manutenção permanente. Um gerador melhor que o do vizinho significava produzir mais.
 
-Trinta anos depois, a ideia era absurda. A rede elétrica chegou, o preço caiu para o custo marginal de gerar um quilowatt, e nenhuma fábrica voltou a se gabar de onde tirava a corrente. A eletricidade virou o que é: um commodity. Você compra, usa e não pensa nela.
+Trinta anos depois, a ideia era absurda. A rede elétrica chegou, o preço caiu para perto do custo de gerar um quilowatt e nenhuma fábrica voltou a se gabar de onde tirava a corrente. A eletricidade virou commodity.
 
-Com o software está acontecendo exatamente a mesma coisa.
+O software de trabalho está passando pelo mesmo processo.
 
-## Como morre um mercado (e nasce um melhor)
+## O que acontece quando algo vira commodity
 
-Quando algo vira commodity, três coisas acontecem, sempre na mesma ordem.
+Três coisas, normalmente nesta ordem.
 
-**Primeiro, o preço cai para o custo marginal.** A eletricidade caiu para o custo de queimar carvão. O software cai para o custo de rodar servidores — e esse custo é público: uma instância, um banco de dados e banda se medem em dólares por mês, não por usuário. Cobrar US$ 50 por usuário por mês para guardar contatos numa tabela só se sustenta enquanto os clientes acreditam que existe algo escasso ali dentro. Não existe.
+**O preço cai para perto do custo marginal.** No software, esse custo é rodar servidores, e ele é público: uma instância, um banco de dados e banda se medem em dólares por mês, não por usuário. Cobrar US$ 50 por usuário por mês para guardar contatos numa tabela só se sustenta enquanto o cliente acredita que há algo escasso ali.
 
-**Segundo, a diferenciação se move para outro lugar.** Quando o produto é indistinguível, ganha quem distribui melhor, não quem tem o melhor produto. Na eletricidade, ganharam as redes. No software, a diferenciação se move para o único que não dá para copiar: a confiança, o serviço, os dados que você já depositou. O código deixa de ser o negócio.
+**A diferenciação muda de lugar.** Quando os produtos ficam parecidos, pesam a confiança, o serviço e os dados que você já tem dentro. O código deixa de ser o negócio.
 
-**Terceiro, os incumbentes negam até o fim.** Nenhum vendedor de geradores aplaudiu a rede elétrica. Nenhuma empresa de SaaS vai anunciar que o seu produto vale o que custa rodá-lo. Você vai ouvi-las falar de "valor", de "experiência", de "ecossistema" — de tudo, menos do custo marginal, que é zero.
+**Os incumbentes resistem.** Nenhum fabricante de geradores aplaudiu a rede elétrica. As empresas de SaaS vão falar de "valor", "experiência" e "ecossistema", e pouco do custo de rodar o produto.
 
-## Ninguém se gaba do seu CRM
+## O CRM é encanamento
 
-Olhe de novo para a eletricidade: hoje ninguém escolhe um hotel pelo gerador. Escolhe pelo que o hotel faz *com* a eletricidade.
+Ninguém escolhe um hotel pelo gerador. Escolhe pelo que o hotel faz com a eletricidade.
 
-O mesmo vale para a sua empresa. O seu CRM não é vantagem competitiva: o seu concorrente tem o mesmo. O seu encurtador de links também não. São encanamento. O que te diferencia é o que você constrói por cima: o seu produto, a sua relação com os clientes, a sua velocidade. Cada dólar que você paga a mais por encanamento é um dólar que não vai para o que realmente te torna diferente.
+Na sua empresa, o CRM e o encurtador de links não são vantagem competitiva: o concorrente tem os mesmos. O que diferencia é o que você constrói por cima: produto, relação com clientes, velocidade. Cada dólar a mais em encanamento sai desse orçamento.
 
-## A ótima notícia
+## O que muda para quem usa
 
-A commoditização só soa como perda para quem vendia escassez artificial. Para os usuários é a melhor notícia possível:
+- **Você paga perto do custo.** Sem licença por assento e sem aumento surpresa na renovação.
+- **O software fica previsível.** Como a eletricidade: está lá e funciona.
+- **O orçamento muda de destino.** O que vai para assinaturas indiferenciadas pode ir para o que diferencia a empresa.
 
-- **Você paga o que custa.** Sem licenças por assento, sem aumentos na renovação. O custo da nuvem, ao custo.
-- **O software fica chato, e chato é bom.** Como a eletricidade: está lá, funciona, não é notícia.
-- **O orçamento se realoca.** O que hoje vai para assinaturas indiferenciadas amanhã vai para o que realmente diferencia a sua empresa.
-
-É por isso que a Zerosoftware existe nesse formato: código aberto para você levar e hospedar por US$ 0, ou a nuvem ao custo, sem margem, para você não precisar pensar nela. Como a eletricidade: você compra, usa e dedica a sua energia a outra coisa.
-
-Ninguém se gaba do seu gerador. Em breve ninguém vai se gabar do seu CRM. E o mundo vai ser um pouco mais barato e um pouco mais justo por isso.
+A zerosoft segue esse modelo. O código é aberto e hospedar custa $0. No zerosoft Cloud você começa num plano grátis e depois paga pelo uso do workspace (cliques, reservas, emails, armazenamento), sem cobrança por assento.

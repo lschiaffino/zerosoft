@@ -1,28 +1,29 @@
 ---
-title: "Webhooks de Zerosoft: qué se firma, cómo verificarlo y qué pasa cuando fallan"
-description: "Cinco eventos, una firma HMAC-SHA256 en un header estilo Stripe, reintentos con backoff durante unas 15 horas y una protección contra SSRF. Más un verificador en Node para pegar."
+title: "Webhooks de zerosoft: qué se firma, cómo verificarlo y qué pasa si fallan"
+description: "Los eventos, la firma HMAC-SHA256 en un header estilo Stripe, los reintentos durante unas 15 horas y la protección contra SSRF. Con un verificador en Node para copiar."
 date: "2026-08-27"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["webhooks", "desarrolladores", "seguridad"]
 ---
 
-Consultar una API para enterarte si pasó algo es como refrescar el mail cada diez segundos. Los webhooks lo dan vuelta: Zerosoft te llama a vos. Este post cubre exactamente qué mandamos, cómo probar que fuimos nosotros y qué pasa cuando tu endpoint está caído — todo sacado directo de `lib/webhooks.ts` y `lib/safe-fetch.ts`.
+Consultar una API para enterarte si pasó algo es como refrescar el mail cada diez segundos. Los webhooks lo dan vuelta: zerosoft te llama a vos. Este post cubre exactamente qué mandamos, cómo probar que fuimos nosotros y qué pasa cuando tu endpoint está caído: todo sacado directo de `lib/webhooks.ts` y `lib/safe-fetch.ts`.
 
 ## Los eventos
 
-Son cinco, y solo cinco:
+Cuando escribimos este post eran cinco; hoy son catorce:
 
-- `booking.created` — alguien reservó por Cal.
-- `booking.rescheduled` — una reserva se movió.
-- `booking.cancelled` — una reserva se canceló.
-- `link.created` — se creó un link corto (desde el dashboard, la API o una importación).
-- `link.clicked` — alguien hizo click en un link corto.
+- `booking.created`, `booking.rescheduled` y `booking.cancelled`: reservas de Cal.
+- `link.created`: se creó un link corto (desde el dashboard, la API o una importación).
+- `link.clicked`: alguien hizo clic en un link corto.
+- `contact.created` y `contact.updated`: contactos del CRM.
+- `deal.created`, `deal.updated`, `deal.stage_changed`, `deal.won` y `deal.lost`: deals del CRM.
+- `robot.run.finished` y `robot.run.failed`: corridas de Robots.
 
 También está `ping`, que es lo que manda el botón "Enviar prueba" del panel. Tu handler tiene que aceptarlo y no hacer nada.
 
-Lo que no está: eventos del CRM. Contactos, deals y tareas todavía no emiten estos webhooks. Lo más parecido hoy es un workflow del CRM con una acción de request HTTP — se dispara con triggers como `deal_won` o `contact_created` y pasa por la misma protección contra SSRF que explicamos abajo, pero no va firmado y no se reintenta. O consultar la [API v1](/blog/api-rest-v1-con-claves-personales) cada tanto.
+Las tareas del CRM todavía no emiten webhooks. Para eso, un workflow del CRM con una acción de request HTTP pasa por la misma protección contra SSRF que explicamos abajo, pero no va firmado ni se reintenta.
 
-Un aviso sobre `link.clicked`: se dispara en cada click. Un link que se viraliza te va a mandar muchísimos POST. El redirect en sí nunca espera a tu endpoint — el webhook sale después de responder —, pero tu servidor lo va a sentir. El payload del click trae referrer, país, dispositivo, navegador y sistema operativo. Sin dirección IP.
+Un aviso sobre `link.clicked`: se dispara en cada click. Un link que se viraliza te va a mandar muchísimos POST. El redirect en sí nunca espera a tu endpoint, el webhook sale después de responder, pero tu servidor lo va a sentir. El payload del click trae referrer, país, dispositivo, navegador y sistema operativo. Sin dirección IP.
 
 ## Cómo crear uno
 
@@ -55,7 +56,7 @@ Zerosoft-Signature: t=1793556000,v1=5f2a…
 
 ## Cómo funciona la firma
 
-Es el patrón de Stripe, a propósito — mucha gente ya lo conoce:
+Es el patrón de Stripe, a propósito: mucha gente ya lo conoce:
 
 ```
 v1 = hex( HMAC-SHA256( secret, "<t>.<raw body>" ) )
@@ -118,11 +119,11 @@ app.listen(8080);
 
 ## Timeouts, fallas y reintentos
 
-Cada intento tiene un **timeout de 8 segundos**. Cualquier cosa que no sea 2xx cuenta como falla — redirects incluidos, porque no los seguimos. Si tu endpoint se mudó, actualizá la URL en vez de redirigir.
+Cada intento tiene un **timeout de 8 segundos**. Cualquier cosa que no sea 2xx cuenta como falla: redirects incluidos, porque no los seguimos. Si tu endpoint se mudó, actualizá la URL en vez de redirigir.
 
 El primer intento sale apenas ocurre el evento. Si falla, la entrega se reprograma con backoff: **1 minuto, 5 minutos, 30 minutos, 2 horas, 12 horas**. Después de ese sexto intento queda marcada como `failed` y paramos. Son unas 15 horas de gracia para que tu servidor vuelva.
 
-Los reintentos los corre el job periódico `/api/cron/tick`, que toma hasta 50 entregas vencidas por pasada. O sea que el cronograma real es "ese delay, o el próximo tick, lo que llegue después". En Zerosoft Cloud eso está resuelto. Si hacés self-host, tenés que llamar al tick vos — la [guía de Docker](/blog/self-hosting-con-docker-paso-a-paso) muestra la línea de crontab.
+Los reintentos los corre el job periódico `/api/cron/tick`, que toma hasta 50 entregas vencidas por pasada. O sea que el cronograma real es "ese delay, o el próximo tick, lo que llegue después". En zerosoft Cloud eso está resuelto. Si hacés self-host, tenés que llamar al tick vos: la [guía de Docker](/blog/self-hosting-con-docker-paso-a-paso) muestra la línea de crontab.
 
 El panel muestra la última entrega de cada webhook: estado, código de respuesta y cuándo.
 
@@ -141,7 +142,7 @@ Siendo precisos con los límites: el chequeo resuelve el DNS y después `fetch` 
 
 ## Self-host en una red privada
 
-Si corrés Zerosoft dentro de la red de tu empresa y querés que llame a servicios internos — `http://n8n.lan:5678/webhook/…`, por ejemplo —, configurá:
+Si corrés zerosoft dentro de la red de tu empresa y querés que llame a servicios internos, `http://n8n.lan:5678/webhook/…`, por ejemplo, configurá:
 
 ```bash
 ALLOW_PRIVATE_WEBHOOKS=true

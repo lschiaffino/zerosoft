@@ -1,28 +1,28 @@
 ---
-title: "Webhooks do Zerosoft: o que é assinado, como verificar e o que acontece quando falham"
-description: "Cinco eventos, uma assinatura HMAC-SHA256 num header estilo Stripe, novas tentativas com backoff por cerca de 15 horas e uma proteção contra SSRF. Mais um verificador em Node para colar."
+title: "Webhooks do zerosoft: o que é assinado, como verificar e o que acontece quando falham"
+description: "Os eventos, a assinatura HMAC-SHA256 num header estilo Stripe, as novas tentativas com backoff por cerca de 15 horas e a proteção contra SSRF. Com um verificador em Node para colar."
 date: "2026-08-27"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["webhooks", "desenvolvedores", "segurança"]
 ---
 
-Consultar uma API para descobrir se algo aconteceu é como atualizar a caixa de entrada a cada dez segundos. Webhooks invertem a lógica: o Zerosoft chama você. Este post mostra exatamente o que enviamos, como provar que fomos nós e o que acontece quando o seu endpoint está fora do ar — tudo tirado direto de `lib/webhooks.ts` e `lib/safe-fetch.ts`.
+Consultar uma API para descobrir se algo aconteceu é como atualizar a caixa de entrada a cada dez segundos. Webhooks invertem a lógica: o zerosoft chama você. Este post mostra exatamente o que enviamos, como provar que fomos nós e o que acontece quando o seu endpoint está fora do ar: tudo tirado direto de `lib/webhooks.ts` e `lib/safe-fetch.ts`.
 
 ## Os eventos
 
 São cinco, e só cinco:
 
-- `booking.created` — alguém agendou pelo Cal.
-- `booking.rescheduled` — um agendamento mudou de horário.
-- `booking.cancelled` — um agendamento foi cancelado.
-- `link.created` — um link curto foi criado (pelo dashboard, pela API ou por uma importação).
-- `link.clicked` — alguém clicou num link curto.
+- `booking.created`: alguém agendou pelo Cal.
+- `booking.rescheduled`: um agendamento mudou de horário.
+- `booking.cancelled`: um agendamento foi cancelado.
+- `link.created`: um link curto foi criado (pelo dashboard, pela API ou por uma importação).
+- `link.clicked`: alguém clicou num link curto.
 
 Existe também o `ping`, que é o que o botão "Enviar teste" do painel entrega. Seu handler deve aceitá-lo e não fazer nada.
 
-O que não está aqui: eventos do CRM. Contatos, deals e tarefas ainda não emitem esses webhooks. O mais próximo hoje é um workflow do CRM com uma ação de request HTTP — ele dispara com gatilhos como `deal_won` ou `contact_created` e passa pela mesma proteção contra SSRF descrita abaixo, mas não é assinado e não tem novas tentativas. Ou consultar a [API v1](/blog/api-rest-v1-con-claves-personales) periodicamente.
+O que não está aqui: eventos do CRM. Contatos, deals e tarefas ainda não emitem esses webhooks. O mais próximo hoje é um workflow do CRM com uma ação de request HTTP: ele dispara com gatilhos como `deal_won` ou `contact_created` e passa pela mesma proteção contra SSRF descrita abaixo, mas não é assinado e não tem novas tentativas. Ou consultar a [API v1](/blog/api-rest-v1-con-claves-personales) periodicamente.
 
-Um aviso sobre `link.clicked`: ele dispara a cada clique. Um link que viraliza vai mandar muitos POSTs para você. O redirect em si nunca espera o seu endpoint — o webhook sai depois da resposta —, mas o seu servidor vai sentir. O payload do clique traz referrer, país, dispositivo, navegador e sistema operacional. Sem endereço IP.
+Um aviso sobre `link.clicked`: ele dispara a cada clique. Um link que viraliza vai mandar muitos POSTs para você. O redirect em si nunca espera o seu endpoint (o webhook sai depois da resposta), mas o seu servidor vai sentir. O payload do clique traz referrer, país, dispositivo, navegador e sistema operacional. Sem endereço IP.
 
 ## Como criar um
 
@@ -55,7 +55,7 @@ Zerosoft-Signature: t=1793556000,v1=5f2a…
 
 ## Como a assinatura funciona
 
-É o padrão do Stripe, de propósito — muita gente já conhece:
+É o padrão do Stripe, de propósito: muita gente já conhece:
 
 ```
 v1 = hex( HMAC-SHA256( secret, "<t>.<raw body>" ) )
@@ -118,11 +118,11 @@ app.listen(8080);
 
 ## Timeouts, falhas e novas tentativas
 
-Cada tentativa tem **timeout de 8 segundos**. Qualquer coisa que não seja 2xx conta como falha — inclusive redirects, porque não os seguimos. Se o seu endpoint mudou de lugar, atualize a URL em vez de redirecionar.
+Cada tentativa tem **timeout de 8 segundos**. Qualquer coisa que não seja 2xx conta como falha: inclusive redirects, porque não os seguimos. Se o seu endpoint mudou de lugar, atualize a URL em vez de redirecionar.
 
 A primeira tentativa acontece assim que o evento ocorre. Se falhar, a entrega é reagendada com backoff: **1 minuto, 5 minutos, 30 minutos, 2 horas, 12 horas**. Depois dessa sexta tentativa, ela é marcada como `failed` e paramos. São umas 15 horas de margem para o seu servidor voltar.
 
-As novas tentativas são executadas pelo job periódico `/api/cron/tick`, que pega até 50 entregas vencidas por rodada. Ou seja, o cronograma real é "esse atraso, ou o próximo tick, o que vier depois". No Zerosoft Cloud isso já está resolvido. Se você faz self-host, precisa chamar o tick por conta própria — o [guia de Docker](/blog/self-hosting-con-docker-paso-a-paso) mostra a linha de crontab.
+As novas tentativas são executadas pelo job periódico `/api/cron/tick`, que pega até 50 entregas vencidas por rodada. Ou seja, o cronograma real é "esse atraso, ou o próximo tick, o que vier depois". No zerosoft Cloud isso já está resolvido. Se você faz self-host, precisa chamar o tick por conta própria, o [guia de Docker](/blog/self-hosting-con-docker-paso-a-paso) mostra a linha de crontab.
 
 O painel mostra a última entrega de cada webhook: status, código de resposta e quando.
 
@@ -141,7 +141,7 @@ Sendo precisos sobre os limites: a verificação resolve o DNS e depois o `fetch
 
 ## Self-host numa rede privada
 
-Se você roda o Zerosoft dentro da rede da empresa e quer que ele chame serviços internos — `http://n8n.lan:5678/webhook/…`, por exemplo —, defina:
+Se você roda o zerosoft dentro da rede da empresa e quer que ele chame serviços internos (por exemplo `http://n8n.lan:5678/webhook/…`), defina:
 
 ```bash
 ALLOW_PRIVATE_WEBHOOKS=true

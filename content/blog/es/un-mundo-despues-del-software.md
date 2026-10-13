@@ -1,44 +1,40 @@
 ---
-title: "Un mundo después del software"
-description: "Pensá cinco años adelante: todo el software de trabajo es libre y la nube se cobra al costo. ¿Qué pasa con los presupuestos, los vendors y la innovación?"
+title: "Cinco años adelante: si todo el software de trabajo fuera open source"
+description: "Un ejercicio: en 2031 las herramientas de trabajo son abiertas y la nube se paga por uso. Qué pasa con los presupuestos de IT, los proveedores y dónde se mueve el valor."
 date: "2026-05-25"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["visión", "futuro", "open source"]
 ---
 
-Hagamos un ejercicio. Estamos en 2031. Las herramientas que usa tu empresa para trabajar — gestión de proyectos, CRM, calendario, analytics, documentos, chat — son todas open source. El que quiere, se las hostea. El que no, las contrata en la nube pagando exactamente lo que la infraestructura cuesta, sin margen.
+Supongamos que estamos en 2031 y las herramientas de trabajo (gestión de proyectos, CRM, agenda, documentos, chat) son open source. Quien quiere, las hostea. Quien no, las contrata en una nube que cobra por lo que consume.
 
-No es ciencia ficción: es la extrapolación de dos tendencias que ya pasaron. La IA bajó el costo de escribir software a casi cero, y la nube siempre tuvo precio público. Juntemos las piezas y miremos qué le pasa al resto del mundo.
+El ejercicio parte de dos cosas que ya pasaron: escribir software cuesta mucho menos que hace cinco años, y la infraestructura tiene precios públicos. Veamos qué cambia.
 
-## El presupuesto de IT colapsa (y está bien)
+## El presupuesto de IT se achica
 
-Hoy una empresa de 50 personas paga unos $30 por usuario por mes para mover tarjetas, $50 para guardar contactos, $12 para acortar links. Sumado, es fácilmente el sueldo de una persona más, todos los años, por software cuyo costo marginal es cero.
+Una empresa de 50 personas paga hoy unos $30 por usuario por mes por un gestor de proyectos, $50 por un CRM y $12 por agendar reuniones. Sumado, es más que el sueldo de una persona por año.
 
-En 2031 esa línea del presupuesto no baja un 10% ni un 30%. Colapsa a su costo real: la nube, los backups, el ancho de banda. Centavos por usuario. Lo que queda del presupuesto de IT se mueve a donde siempre debió estar: gente que entiende el negocio, datos propios, seguridad, automatización a medida.
+Si esas herramientas cuestan lo que cuesta correrlas, esa línea baja a servidores, backups y ancho de banda. Lo que sobra del presupuesto puede ir a gente, a datos propios, a seguridad o a automatizaciones hechas a medida.
 
-Para el CFO no es una tragedia. Es la primera vez que el número de "software" del balance dice la verdad.
+## El software pasa a ser infraestructura
 
-## El software deja de ser una línea de gasto
+Cuando algo es barato y estable, deja de discutirse en las reuniones de presupuesto. Pasó con el email y con el almacenamiento. Las herramientas de trabajo van en esa dirección.
 
-Cuando algo se vuelve demasiado barato para medirlo, deja de discutirse en las reuniones de directorio. Nadie discute la factura del agua. El software de trabajo va camino a eso: una utility. Está, funciona, cuesta lo que cuesta la electricidad de correrlo.
+Eso no significa menos software. Significa que la pregunta deja de ser "¿cuánto sale la licencia?" y pasa a ser "¿nos sirve?". Herramientas que hoy no se compran porque no justifican el precio por asiento pasan a ser una instalación más.
 
-¿Suena a pérdida? Al contrario. Las empresas van a tener *más* software, no menos: el que hoy no compran porque "no justifica la licencia" va a existir igual, self-hosteado o al costo. La vara deja de ser "¿cuánto cuesta?" y pasa a ser "¿nos sirve?".
+## Dónde queda el valor
 
-## La innovación se muda
+Si copiar el código cuesta poco, el valor se mueve a lo que no se copia:
 
-Cuando copiar cuesta cero, el valor se concentra en lo que no se puede copiar:
+- **Los datos y la relación con tus clientes.** Nadie puede forkear eso.
+- **El mundo físico.** Hardware, logística, energía.
+- **Modelos entrenados con tus datos**, corriendo en tu infraestructura.
+- **El criterio** de la gente que usa las mismas herramientas que todos y decide mejor.
 
-- **Los datos y la confianza.** No podés forkear la relación con un cliente.
-- **El hardware y el mundo físico.** Chips, robots, sensores, energía.
-- **Los modelos entrenados con lo propio.** IA sobre tus datos, en tu infraestructura.
-- **El juicio.** Gente que decide bien con herramientas que todos tienen.
+Los proveedores que venden asientos tienen dos opciones: cobrar por operar el servicio o defender un margen que cada vez cuesta más justificar.
 
-Las empresas que hoy venden asientos de software tienen dos caminos: convertirse en utilities honestas — cobrar por correr lo que corre — o defender un margen que ya no se sostiene. Sabemos cómo termina esa segunda historia: la vimos con la música, con los diarios, con la tele por cable.
+## Lo que hacemos nosotros
 
-## El software murió. Larga vida al software.
+En 2031 probablemente nadie diga "compramos un CRM". Va a decir "usamos un CRM", como hoy dice "usamos email".
 
-Esto cierra el arco que abrimos con el manifiesto. El software murió como producto escaso que se alquila por usuario. Y nació de nuevo como lo que siempre debió ser: conocimiento libre corriendo sobre infraestructura al costo.
-
-En 2031 nadie va a decir "compramos un CRM". Va a decir "usamos un CRM", como hoy decimos "usamos email". El verbo cambia porque el dueño cambia.
-
-Nosotros ya empezamos: Link está disponible hoy, open source o en la nube al costo. Track, CRM y Cal vienen en camino. Un mundo después del software no se espera: se construye. Link a link.
+zerosoft ya tiene once apps con ese modelo: el core es AGPLv3 y lo corrés por $0, o usás zerosoft Cloud con un plan gratis y pago por uso después.

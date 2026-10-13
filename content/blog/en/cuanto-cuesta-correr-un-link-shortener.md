@@ -1,8 +1,8 @@
 ---
-title: "What it really costs to run a link shortener (spoiler: cents)"
-description: "Bitly charges $35 a month. We did the full math of serving redirects and analytics. The numbers, without blushing."
+title: "What it costs to run a link shortener: the full math"
+description: "Bitly charges $35 a month. We priced redirects, analytics and storage on Link's real architecture. It comes to cents."
 date: "2026-07-09"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "costs", "cloud"]
 ---
 
@@ -14,7 +14,7 @@ Now let's do the math of what that actually costs to serve. Real numbers, from t
 
 A request hits `yourdomain/launch`. The server runs a `SELECT` on a database, writes an `INSERT` for the click, and returns a ~300-byte response with a `Location` header.
 
-That's it. It's probably the lightest workload on the web. No video, no images, no compute. It's reading one row and answering.
+That's it. It's probably the lightest workload on the web. It reads one row and answers.
 
 ## The math, no tricks
 
@@ -39,6 +39,4 @@ When something costs 35 times its cost, you're not buying technology. You're buy
 
 ## Our commitment
 
-With Link, the software is free and open source: download it and run it on that $5 VPS, yours forever. And if you want us to run it for you, with login, backups and uptime, you pay what the cloud costs. At cost. With this same open math.
-
-Bits are free. Now prices are starting to be too.
+Link is open source: download it and run it on that $5 VPS. If you want us to run it (login, backups, uptime), zerosoft Cloud has a free tier, then charges per workspace for usage (clicks, bookings, emails, storage), with free seats.

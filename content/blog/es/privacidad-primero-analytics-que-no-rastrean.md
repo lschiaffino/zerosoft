@@ -1,47 +1,41 @@
 ---
-title: "Privacidad primero: analytics que no rastrean personas"
-description: "No guardamos IPs, no usamos cookies, no perfilamos a nadie. Este es el manifiesto de privacidad de Zerosoftware: qué no recolectamos, y por qué."
+title: "Qué guarda Link de cada clic (y qué no)"
+description: "Las métricas de Link no guardan IPs, no usan cookies ni fingerprinting y no arman perfiles. Qué columnas tiene la tabla de clics y por qué con eso alcanza."
 date: "2026-06-01"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["privacidad", "manifesto", "analytics", "open source"]
 ---
 
-La web moderna se construyó sobre un trato silencioso: el software es "gratis" y a cambio te observa. Cada click, cada scroll, cada segundo que pasás en una página termina en una base de datos que no conocés, mezclado con tu historial de otros mil sitios, vendido a terceros que tampoco conocés. No es una conspiración: es el modelo de negocio.
+Buena parte de la web funciona con un acuerdo implícito: la herramienta es gratis y, a cambio, te observa. Cada clic termina en una base de datos que no conocés, cruzado con tu historial en otros sitios.
 
-Zerosoftware nace con la convicción opuesta: el software es una herramienta, no una cámara. Este post es nuestro manifiesto de privacidad — lo que no recolectamos, lo que sí, y por qué la diferencia importa.
+Las métricas de Link están hechas al revés. Este post cuenta qué no guardamos, qué sí y por qué alcanza.
 
-## Lo que NO recolectamos
+## Lo que no guardamos
 
-La lista de lo que no hacemos es más importante que la de lo que sí:
+- **Direcciones IP.** Ni completas ni hasheadas. La IP se usa en el momento para calcular el país y se descarta.
+- **Cookies de seguimiento.** Ni propias ni de terceros. Por eso un link de Link no necesita banner de consentimiento.
+- **Fingerprinting.** Nada de canvas, fuentes instaladas o combinaciones de atributos para reconocer a alguien entre visitas.
+- **Perfiles.** Las métricas ven un clic, no una persona. No existe una tabla de "visitantes".
+- **Venta de datos.** No compartimos datos con terceros.
 
-- **No guardamos direcciones IP.** Ni completas ni hasheadas. Una IP es un identificador personal; si no la guardás, no la podés perder ni vender.
-- **No usamos cookies de tracking.** Ni propias ni de terceros. Por eso Link no necesita banner de consentimiento: no hay nada que consentir.
-- **No hacemos fingerprinting.** Nada de canvas, fuentes instaladas ni combinaciones exóticas de atributos para reconocerte entre sesiones.
-- **No seguimos personas entre sitios.** Nuestros analytics ven un click, no a un usuario. Los "perfiles de usuario" no existen en nuestra base de datos porque nunca creamos esa tabla.
-- **No vendemos ni compartimos datos.** Con nadie, jamás. No hay "partners de confianza" ni cláusulas con asterisco.
+## Lo que sí guardamos
 
-## Lo que sí medimos (y por qué alcanza)
+Por cada clic, una fila con:
 
-Los analytics de Link responden las preguntas que el dueño de un link realmente tiene: ¿cuánta gente hizo click?, ¿de dónde vino?, ¿en qué dispositivo? Para eso guardamos, por cada click:
+- Fecha y hora.
+- Referrer (el sitio de origen, si el navegador lo manda).
+- País. En Vercel lo pone el edge en un header; en tu servidor se calcula con una base geográfica local (geoip-lite), sin llamar a servicios externos.
+- Dispositivo, navegador y sistema, leídos del `User-Agent`. Guardamos "iPhone / Safari / iOS", no el header completo.
 
-- La fecha y la hora.
-- El referrer (el sitio desde donde llegaron, si el navegador lo envía).
-- El país, calculado con una base geo local, sin llamadas a servicios externos.
-- Device, browser y sistema operativo, leídos del header `User-Agent` y descartados enseguida: guardamos "iPhone / Safari / iOS", no el header crudo.
+Con eso respondés lo que un dueño de link quiere saber: cuánta gente hizo clic, de dónde vino y con qué dispositivo. No alcanza para identificar a nadie, y está hecho así a propósito: lo que no se guarda no se puede filtrar ni vender.
 
-Conteos agregados. Con esos datos no podés identificar a una persona — y esa es exactamente la idea. Diseñamos el esquema de la base de datos de modo que ni siquiera nosotros podríamos rastrearte aunque quisiéramos. La privacidad que depende de promesas es frágil; la que depende de arquitectura, no.
+## Cómo verificarlo
 
-## Software que trabaja para vos, no que te vigila
-
-Un martillo no le reporta a la fábrica cada clavo que pusiste. Una planilla de cálculo no debería reportar los números que escribís. Durante veinte años aceptamos como normal que nuestras herramientas nos espíen porque "así se financian". Falso: se financian así porque es más rentable, no porque sea necesario.
-
-Nuestro modelo no necesita tus datos. El código es open source: podés auditar exactamente qué se guarda y qué no — no tenés que creernos, podés leerlo. Podés self-hostearlo en un VPS de $5 y que tus datos no salgan jamás de tu servidor. Y si preferís nuestro cloud, pagás el costo real de la infraestructura. Ninguna de las tres vías involucra monetizar tu comportamiento.
+El código es abierto: la inserción de clics está en `lib/track.ts` y tiene seis columnas. Podés leerla vos. Y si corrés Link en tu servidor, los datos nunca salen de ahí.
 
 ## Los principios
 
-1. **Recolectar el mínimo.** Si un dato no es imprescindible para que la herramienta funcione, no se guarda.
-2. **Imposible por diseño.** Lo que no se guarda no se puede filtrar, vender ni citar judicialmente.
-3. **Verificable, no confiable.** Código abierto, siempre. La privacidad que no se puede auditar es marketing.
-4. **Tus datos son tuyos.** Export completo desde el día uno, en cada producto — Link hoy; CRM, scheduling y project management mañana.
-
-La privacidad no es una feature que se agrega en la versión 2.3 para cumplir con una regulación. Es una decisión fundacional: de arquitectura y de modelo de negocio. Nosotros la tomamos el día cero, y no vuelve atrás.
+1. **Guardar el mínimo** que la herramienta necesita para funcionar.
+2. **Que la arquitectura lo garantice**, no una promesa en la política de privacidad.
+3. **Que se pueda auditar**, con el código a la vista.
+4. **Que los datos se puedan llevar**: links y clics se exportan en CSV o JSON.

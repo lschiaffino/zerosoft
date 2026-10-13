@@ -1,7 +1,7 @@
 {
   "meta": {
-    "tagline": "Software is free. You pay for what scales.",
-    "description": "We rebuilt the tools you use every day as open source (AGPLv3). Self-host them free, forever, or use Zerosoft Cloud: a free plan, and you pay only for what scales."
+    "tagline": "Eleven open-source apps for your team.",
+    "description": "CRM, support chat, AI agents, automations, browser robots, projects, links, docs, notes, scheduling and a whiteboard. Open source (AGPLv3): run them on your server for $0 or use zerosoft Cloud, with a free plan and usage-based pricing."
   },
   "header": {
     "products": "Products",
@@ -70,133 +70,90 @@
     "groupDocs": "Docs",
     "groupTasks": "Tasks"
   },
-  "hero": {
-    "title1": "Software is",
-    "title2": "dead.",
-    "sub": "Software is free. You pay for what scales. We rebuilt the tools you use every day as open source: self-host them for $0, forever, or let us run them for you, with a generous free plan.",
-    "ctaPrimary": "See the arsenal",
-    "ctaSecondary": "Read the manifesto",
-    "scroll": "Scroll ↓"
-  },
   "manifesto": {
-    "label": "0.01 — Manifesto",
-    "p1": "They charge you <strong>$30 to move cards</strong>. $50 to store contacts. $12 to shorten a link. Not for the software — out of habit.",
-    "p2": "But software is bits. And bits are free. <strong>They always were.</strong>",
-    "p3": "Zerosoft exists to prove it: we rebuild the tools that run the world and set the core free under AGPLv3. No lock-in. No fine print. Host it yourself, free, forever. Or we run it for you: you start free and pay only for what scales — clicks, bookings, emails, storage, seats. With prices in the open.",
-    "final": "Software is dead. We are what comes next."
-  },
-  "stats": {
-    "s1num": "$0",
-    "s1label": "The core, self-hosted. Always.",
-    "s2num": "0",
-    "s2label": "Core features behind a paywall.",
-    "s3num": "AGPL",
-    "s3label": "Open source. Forever."
+    "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
+    "p2": "Running that software costs far less. All eleven zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
+    "p3": "So we publish the code. The core of every app is AGPLv3: you can read it, change it and run it on your server without paying us.",
+    "final": "Why we build zerosoft.",
+    "p4": "If you would rather we run it, zerosoft Cloud bills per workspace, by usage. Adding someone to the team does not change the bill.",
+    "p5": "We started with the tools small teams pay the most for. What is missing is written down in the roadmap, and what ships goes in the changelog."
   },
   "products": {
-    "label": "0.02 — The arsenal",
-    "title": "All the software you use.",
-    "titleDim": "The core, free forever.",
     "track": {
-      "tag": "Project management",
-      "desc": "The speed of Linear. The price of air.",
-      "status": "Available"
+      "desc": "Issues, cycles and Gantt for product teams."
     },
     "crm": {
-      "tag": "Customers & sales",
-      "desc": "Your full pipeline, end to end. Open source, no licenses.",
-      "status": "Available"
+      "desc": "Contacts, deals and pipelines for your sales team."
     },
     "cal": {
-      "tag": "Scheduling",
-      "desc": "Your availability, one link, done. Without paying for the privilege.",
-      "status": "Available"
+      "desc": "Booking pages connected to Google Calendar."
     },
     "link": {
-      "tag": "Short links",
-      "desc": "Short links with real analytics. Yours forever.",
-      "status": "Available"
+      "desc": "Short links on your domain, with click analytics."
     },
     "chat": {
-      "tag": "Customer chat",
-      "desc": "One inbox for every conversation. Widgets, people and channels.",
-      "status": "Available"
+      "desc": "Website chat and a shared support inbox."
     },
     "docs": {
-      "tag": "Docs & wiki",
-      "desc": "Notes and documents that are yours. On your server, if you want.",
-      "status": "Available"
-    },
-    "more": {
-      "title": "Everything else",
-      "tag": "What's next",
-      "desc": "Design. Forms. Analytics. If the world uses it, we will set it free. This is just the beginning.",
-      "status": "Always"
+      "desc": "A wiki and documents with a block editor."
     },
     "agents": {
-      "desc": "AI agents that answer and act."
+      "desc": "AI agents that answer from your own knowledge."
     },
     "flow": {
-      "desc": "Automations across all your apps."
+      "desc": "Automations between your apps and any API."
     },
     "robots": {
-      "desc": "Robots that use the browser for you."
+      "desc": "Browser robots that fill in forms and extract data."
     },
     "notes": {
-      "desc": "Your notes, fast and private."
+      "desc": "Quick notes, notebooks and full-text search."
     },
     "board": {
       "desc": "An infinite whiteboard for your team."
     }
   },
   "model": {
-    "label": "0.03 — The model",
-    "title": "Three ways to have it.",
-    "titleDim": "The core is free in all of them.",
+    "label": "The model",
+    "title": "Three ways to run it.",
+    "titleDim": "The same core in all three.",
     "a": {
       "title": "Self-host it",
-      "desc": "The core is open source under AGPLv3, with every core feature included. Run it on your server, modify it, break it, make it yours. No trial, no license key, no limits.",
+      "desc": "The core is AGPLv3, with every core feature. Run it on your server and change it however you like. There is no trial and no license key.",
       "price": "$0",
-      "priceNote": "/ forever"
+      "priceNote": "/ month, on your server"
     },
     "b": {
-      "title": "Zerosoft Cloud",
-      "desc": "We run it for you: login, backups, updates and uptime. Start on a generous free plan and, as you scale, pay for usage — clicks, bookings, emails, storage, seats. Transparent prices, published before we ever charge you.",
+      "title": "zerosoft Cloud",
+      "desc": "We run it: login, backups, updates and uptime. Every workspace starts on a free plan, then pays for usage: clicks, bookings, emails and storage. Seats are not billed, and AI is billed by tokens.",
       "price": "Free",
-      "priceNote": "/ to start · usage pricing, soon"
+      "priceNote": "/ to start · then usage-based"
     },
     "c": {
       "title": "Enterprise",
-      "desc": "A commercial license with direct support from the team, on your servers or in our cloud. Enterprise extras (SSO/SAML, audit logs, custom roles, white-label) are in development.",
+      "desc": "A commercial license with direct support from the team, on your servers or in our cloud. SSO/SAML, audit logs, custom roles and white-label are in development.",
       "price": "Let's talk",
       "priceNote": "/ commercial license + support"
     }
   },
-  "end": {
-    "label": "0.04 — Join us",
-    "title1": "Welcome to",
-    "title2": "the new world.",
-    "sub": "Six tools are already free. Write to us and we will tell you when the next one lands.",
-    "cta": "I want in →"
-  },
   "auth": {
-    "title": "Enter the new world",
-    "sub": "One click. No passwords, no forms, no plans.",
+    "title": "Sign in to zerosoft",
+    "sub": "Sign in with your Google account. There is no password to create.",
     "google": "Continue with Google",
-    "why": "Google login only. Nothing to hack, nothing to forget.",
+    "why": "Google is the only sign-in, so we never store passwords.",
     "legal": "By signing in you agree to the <terms>Terms</terms> and <privacy>Privacy</privacy>."
   },
   "blog": {
-    "label": "0.05 — Blog",
-    "title": "Ideas from the new world.",
-    "titleDim": "Zero fluff.",
+    "label": "Blog",
+    "title": "Blog.",
+    "titleDim": "How we build zerosoft, and why.",
     "readingTime": "min read",
     "back": "← All posts",
     "empty": "No posts yet. Come back soon."
   },
   "footer": {
     "tagline": "Made of zeros.",
-    "copyright": "© 2026 zerosoft.ai — Software is dead",
+    "copyright": "© 2026 zerosoft.ai",
     "colProduct": "Product",
     "colResources": "Resources",
     "colCompany": "Company",
@@ -222,15 +179,13 @@
     "videos": "Videos"
   },
   "showcase": {
-    "label": "A look inside",
-    "title": "Six tools, one look.",
-    "titleDim": "Pick one and look around."
+    "label": "A look inside"
   },
   "home": {
     "hero": {
-      "title1": "Eleven apps. One suite.",
+      "title1": "Eleven apps for your team.",
       "title2": "Zero licenses.",
-      "sub": "Open-source alternatives to HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, UiPath and Bitly — with AI agents built in. Self-host them free, forever, or start free on Zerosoft Cloud.",
+      "sub": "Open-source alternatives to HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, UiPath and Bitly, with AI agents built in. Run them on your server for $0 or start free on zerosoft Cloud.",
       "ctaStart": "Start free",
       "ctaSelfHost": "Self-host",
       "note1": "No credit card",
@@ -245,8 +200,8 @@
     },
     "replaces": "Replaces",
     "suite": {
-      "title": "Everything your team runs on.",
-      "titleDim": "One place, one license.",
+      "title": "What your team runs on.",
+      "titleDim": "In one workspace.",
       "explore": "Explore {name}",
       "link": {
         "line": "Short links with real analytics.",
@@ -285,11 +240,11 @@
         "b3": "Templates, comments and sharing"
       },
       "one": {
-        "title": "One login. One workspace. One search.",
+        "title": "One account for all eleven apps.",
         "desc": "Invite your team once. Find contacts, companies, deals, links, docs and tasks from a single search bar, and jump between apps without changing tools."
       },
       "teamsTitle": "For teams",
-      "teamsDesc": "Sell, support and ship — together.",
+      "teamsDesc": "Sell, support and ship as a team.",
       "personalTitle": "For you",
       "personalDesc": "Write, plan and keep your time.",
       "replaces": "Replaces {rival}",
@@ -312,26 +267,26 @@
     "stack": {
       "title": "{total} a year.",
       "titleDim": "Or $0.",
-      "sub": "What a 10-person team pays at list price for the six tools Zerosoft replaces, versus self-hosting the open-source core.",
+      "sub": "What a team of 10 pays at list price for HubSpot, Intercom, Calendly, Notion, Linear and Bitly. The zerosoft apps that replace them cost $0 on your server.",
       "colTool": "Tool",
       "colPrice": "List price",
       "colYear": "Team of 10 / year",
       "perUser": "/ user / mo",
       "perMonth": "/ mo, flat",
       "total": "Total per year",
-      "zeroTitle": "Zerosoft, self-hosted",
-      "zeroNote": "Every app. You only pay for your own server.",
-      "cloudNote": "Zerosoft Cloud: free to start, then usage pricing — published before we ever charge.",
-      "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat monthly plan). Vendors change their prices — check their sites. Zerosoft is not affiliated with any company named here."
+      "zeroTitle": "zerosoft, on your server",
+      "zeroNote": "All eleven apps. You only pay for your server.",
+      "cloudNote": "zerosoft Cloud: start free, then pay for usage. Seats are not billed.",
+      "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat plan). Vendors change their prices, so check their sites. zerosoft is not affiliated with any of these companies."
     },
     "oss": {
       "title": "Self-host it in one command.",
-      "titleDim": "Free forever. No license key.",
-      "p": "The core of every app is AGPLv3 — every core feature, no trial, no limits. Run it with Docker on any small VPS. Your data lives in one SQLite file and one uploads volume: back them up and you have everything.",
+      "titleDim": "No license key.",
+      "p": "The core of every app is AGPLv3, with every core feature and no trial. Run it with Docker on a small VPS. Your data lives in one SQLite file and an uploads volume: back up those two and you have everything.",
       "b1": "AGPLv3 core with every core feature",
       "b2": "One container, two volumes",
       "b3": "Your data in one SQLite file you own",
-      "b4": "SSO, audit logs and custom roles (/ee) — in development",
+      "b4": "SSO, audit logs and custom roles (/ee): in development",
       "cta": "View on GitHub",
       "terminal": "terminal",
       "compose": "docker-compose.yml"
@@ -340,39 +295,40 @@
       "label": "Developers",
       "title": "A real API.",
       "titleDim": "And signed webhooks.",
-      "p": "Create a personal key in settings and talk to Link, CRM and Cal over REST. Subscribe to events and verify every delivery with an HMAC signature.",
+      "p": "Create a key in settings and use Link, CRM, Cal and Agents over REST. Subscribe to events and verify every delivery with an HMAC signature.",
       "b1t": "REST API v1",
-      "b1": "Links, CRM contacts, companies, deals, tasks and pipelines, Cal event types and bookings.",
+      "b1": "Links; CRM contacts, companies, deals, tasks, pipelines, products and quotes; Cal event types and bookings; and messages to your agents.",
       "b2t": "Personal API keys",
-      "b2": "zs_… keys shown once and stored hashed. 100 requests per minute.",
+      "b2": "Scoped zs_… keys, shown once and stored hashed. 100 requests per minute.",
       "b3t": "Webhooks",
-      "b3": "link.created, link.clicked and booking.* events, signed with Zerosoft-Signature (HMAC-SHA256) and retried with backoff.",
+      "b3": "Link, booking, contact and deal events, signed with the Zerosoft-Signature header (HMAC-SHA256) and retried with backoff.",
       "cta": "Read the API docs",
       "request": "Request",
       "response": "Response",
       "webhook": "Webhook"
     },
-    "manifesto": {},
     "faq": {
-      "title": "Fair questions.",
-      "titleDim": "Zero fine print.",
-      "q1": "Is it really free?",
-      "a1": "Yes. The core of every app is open source under AGPLv3 and self-hosting costs $0, forever. On Zerosoft Cloud you start on a free plan; if you scale, you pay for usage, with prices published before we ever charge you.",
-      "q2": "How do you make money?",
-      "a2": "Convenience and companies. Zerosoft Cloud charges for usage beyond the free plan, and Enterprise is a commercial license with direct support. We never charge for the core.",
-      "q3": "What do I need to self-host?",
-      "a3": "Docker and a small server. Clone the repo, fill in .env and run docker compose up -d. Data lives in two volumes: a SQLite file and your uploads. Without Docker: npm ci, npm run build, npm start.",
-      "q4": "Can I migrate from the tools I use today?",
-      "a4": "Link imports from Bitly (API or CSV). CRM imports contacts and companies from any CSV, with column mapping and dedupe. Other importers, like Notion and Linear, aren't built yet.",
-      "q5": "What does AGPLv3 mean for my company?",
-      "a5": "You can use it, self-host it and modify it for free. If you offer a modified version as a service to others, you must publish your changes. The /ee folder is under a separate commercial license.",
-      "q6": "Do you have SSO and audit logs?",
-      "a6": "Not yet. SSO/SAML, audit logs, custom roles and white-label are in development as part of Enterprise. We'll say so here the day they ship."
+      "title": "Questions.",
+      "titleDim": "Short answers.",
+      "q1": "How much does it cost?",
+      "a1": "Self-hosting costs $0: the core of every app is AGPLv3, with every core feature. On zerosoft Cloud each workspace starts on a free plan and, past it, pays for usage: clicks, bookings, emails and storage. Seats are not billed. AI is billed by tokens.",
+      "q2": "How does zerosoft make money?",
+      "a2": "From zerosoft Cloud, which bills usage above the free plan, and from Enterprise, a commercial license with direct support. The core is never billed.",
+      "q3": "What happens if zerosoft shuts down?",
+      "a3": "The code is published under AGPLv3, so you can keep running it on your server. Link and CRM export to CSV, and if you self-host, all your data is in a SQLite file you already have.",
+      "q4": "What do I need to self-host?",
+      "a4": "Docker and a small server. Clone the repo, fill in .env and run docker compose up -d. Data lives in two volumes: a SQLite file and your uploads. Without Docker: npm ci, npm run build, npm start.",
+      "q5": "Can I migrate from what I use today?",
+      "a5": "Link imports from Bitly (API or CSV). CRM imports contacts, companies and deals from CSV, with a preset for the HubSpot export. There is no importer yet for Notion, Linear, Calendly or Evernote.",
+      "q6": "What does AGPLv3 mean for my company?",
+      "a6": "You can use, host and modify it at no cost. If you offer a modified version as a service to others, you have to publish your changes. The /ee folder has a separate commercial license.",
+      "q7": "Do you have SSO and audit logs?",
+      "a7": "Not yet. SSO/SAML, audit logs, custom roles and white-label are in development as part of Enterprise. We will announce them in the changelog when they ship."
     },
     "end": {
-      "title1": "Software is dead.",
-      "title2": "Build on zero.",
-      "sub": "Open the app and start free, or clone the repo and run it yourself. Either way, the core costs $0."
+      "title1": "Start in a minute.",
+      "title2": "Or run it yourself.",
+      "sub": "Sign in with Google and use the free plan, or clone the repo and start it with Docker. The core is the same."
     }
   }
 }

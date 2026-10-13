@@ -1,22 +1,22 @@
 ---
 title: "Migrações versionadas sem ORM: um baseline, uma lista e uma tabela"
-description: "Como o Zerosoft evolui seu esquema SQLite/libSQL com migrações numeradas em TypeScript, por que cada uma precisa aguentar rodar duas vezes ao mesmo tempo, e a armadilha que apaga dados."
+description: "Como o zerosoft evolui seu esquema SQLite/libSQL com migrações numeradas em TypeScript, por que cada uma precisa aguentar rodar duas vezes ao mesmo tempo, e a armadilha que apaga dados."
 date: "2026-09-25"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["engenharia", "sqlite", "arquitetura"]
 ---
 
-Todo app com banco de dados, cedo ou tarde, precisa mudar o esquema com dados reais lá dentro. ORMs resolvem isso com arquivos de migração gerados, um CLI e um monte de convenções. O Zerosoft não usa ORM — fala com o libSQL em SQL puro através de um wrapper fininho —, então tivemos que resolver por conta própria.
+Todo app com banco de dados, cedo ou tarde, precisa mudar o esquema com dados reais lá dentro. ORMs resolvem isso com arquivos de migração gerados, um CLI e um monte de convenções. O zerosoft não usa ORM (fala com o libSQL em SQL puro através de um wrapper fininho), então tivemos que resolver por conta própria.
 
 O resultado cabe num arquivo, `lib/schema/migrations.ts`, e umas 30 linhas de runner. Veja como funciona e as regras que impedem que ele machuque alguém.
 
 ## De onde viemos
 
-Por muito tempo o esquema foi um blocão de `CREATE TABLE IF NOT EXISTS` mais uma lista de `ALTER TABLE ... ADD COLUMN` que rodavam a cada inicialização, ignorando os erros de "duplicate column". Idempotente, simples e suficiente — até você precisar de algo que não seja "adicionar uma coluna": preencher dados, mudar uma restrição de unicidade, corrigir um bug na atribuição de linhas. Isso precisa rodar **exatamente uma vez**, em ordem, em todo banco que existir: o nosso no Turso e cada arquivo SQLite de cada self-host.
+Por muito tempo o esquema foi um blocão de `CREATE TABLE IF NOT EXISTS` mais uma lista de `ALTER TABLE ... ADD COLUMN` que rodavam a cada inicialização, ignorando os erros de "duplicate column". Idempotente, simples e suficiente: até você precisar de algo que não seja "adicionar uma coluna": preencher dados, mudar uma restrição de unicidade, corrigir um bug na atribuição de linhas. Isso precisa rodar **exatamente uma vez**, em ordem, em todo banco que existir: o nosso no Turso e cada arquivo SQLite de cada self-host.
 
 ## Passo um: congelar o passado
 
-Pegamos todo aquele bloco — DDL, ALTERs históricos, algumas reconstruções antigas de tabelas — e transformamos na migração número um:
+Pegamos todo aquele bloco (DDL, ALTERs históricos, algumas reconstruções antigas de tabelas) e transformamos na migração número um:
 
 ```ts
 export const MIGRATIONS: Migration[] = [
@@ -47,7 +47,7 @@ export async function runMigrations(client: Client, migrations = MIGRATIONS) {
 }
 ```
 
-Esse é o runner. Cada migração é um `id` e uma função async `up(client)` — TypeScript comum, então pode rodar SQL, ler linhas, calcular coisas em JS e gravar de volta. Não há migrações para baixo: só andamos para frente. Voltar atrás significa restaurar um backup, e é por isso que o [guia de self-hosting](/blog/self-hosting-con-docker-paso-a-paso) manda fazer backup antes de atualizar.
+Esse é o runner. Cada migração é um `id` e uma função async `up(client)`: TypeScript comum, então pode rodar SQL, ler linhas, calcular coisas em JS e gravar de volta. Não há migrações para baixo: só andamos para frente. Voltar atrás significa restaurar um backup, e é por isso que o [guia de self-hosting](/blog/self-hosting-con-docker-paso-a-paso) manda fazer backup antes de atualizar.
 
 ## Quando roda: sob demanda, antes da primeira query
 
@@ -61,7 +61,7 @@ Depois que uma migração foi publicada, algum banco em algum lugar já registro
 
 ## Regra 2: toda migração precisa sobreviver a rodar duas vezes, ao mesmo tempo
 
-Essa é a parte que todo mundo esquece. Instâncias serverless sobem em paralelo. Duas podem ler `schema_migrations`, ver que a `005` está pendente e rodá-la as duas. Não há lock — de propósito, porque uma tabela de locks num banco remoto traz seus próprios modos de falha (quem libera o lock de uma instância que foi derrubada?).
+Essa é a parte que todo mundo esquece. Instâncias serverless sobem em paralelo. Duas podem ler `schema_migrations`, ver que a `005` está pendente e rodá-la as duas. Não há lock: de propósito, porque uma tabela de locks num banco remoto traz seus próprios modos de falha (quem solta o lock de uma instância que foi derrubada?).
 
 Em vez disso, toda migração é idempotente:
 
@@ -76,7 +76,7 @@ E tem teste. `tests/unit/migrations.test.ts` roda todas as migrações num banco
 
 O `ALTER TABLE` do SQLite consegue adicionar e renomear colunas, mas não consegue mudar uma restrição `UNIQUE` ou `CHECK`. A receita oficial é: criar uma tabela nova, copiar as linhas, apagar a antiga, renomear a nova.
 
-A armadilha: com `PRAGMA foreign_keys = ON` (que usamos), `DROP TABLE links` se comporta como um `DELETE` de todas as linhas — e toda tabela filha com `ON DELETE CASCADE` perde as linhas dela também. Reconstrua a tabela de links desse jeito e todo clique já registrado some.
+A armadilha: com `PRAGMA foreign_keys = ON` (que usamos), `DROP TABLE links` se comporta como um `DELETE` de todas as linhas, e toda tabela filha com `ON DELETE CASCADE` perde as linhas dela também. Reconstrua a tabela de links desse jeito e todo clique já registrado some.
 
 A migração `009_link_domains` é exatamente esse caso: os slugs de links deixaram de ser únicos globalmente para ser únicos por domínio próprio. Ela usa o `client.migrate([...])` do libSQL, que roda o lote com as foreign keys desligadas:
 
@@ -89,7 +89,7 @@ await client.migrate([
 ]);
 ```
 
-E por causa da regra 2, ela só reconstrói se a tabela ainda tiver o formato antigo — lê o SQL da tabela em `sqlite_master` e pula a reconstrução se `domain_id` já estiver lá.
+E por causa da regra 2, ela só reconstrói se a tabela ainda tiver o formato antigo: lê o SQL da tabela em `sqlite_master` e pula a reconstrução se `domain_id` já estiver lá.
 
 ## Migrações que pensam nos dados
 
@@ -97,7 +97,7 @@ Algumas das migrações mais úteis nem são sobre esquema:
 
 - `002_track_project_owner` adicionou dono aos projetos do Track e preencheu: projetos de team ficam com o dono do team, os pessoais com o criador da primeira issue, e o que não dá para atribuir fica oculto em vez de visível para todo mundo.
 - `005_user_handles` gerou um handle público único para cada usuário existente, em JS, evitando colisões.
-- `012_crm_task_due_fired` levou o gatilho de workflow "tarefa vencida" para o cron — e marcou como disparadas todas as tarefas que já estavam vencidas, para que o primeiro tick depois do deploy não soltasse uma avalanche de automações.
+- `012_crm_task_due_fired` levou o gatilho de workflow "tarefa vencida" para o cron, e marcou como disparadas todas as tarefas que já estavam vencidas, para que o primeiro tick depois do deploy não soltasse uma avalanche de automações.
 
 Essa última é o argumento de verdade a favor de migrações em código. Pensar no que a primeira execução vai fazer com os dados existentes é o trabalho.
 
@@ -107,7 +107,7 @@ Sendo honestos sobre os custos:
 
 - **Sem diff de esquema.** Nada gera migrações a partir de um modelo. Você escreve o SQL.
 - **Tipos escritos à mão.** Os tipos das linhas ficam em `lib/schema/types.ts` e se mantêm sincronizados por disciplina e revisão, não por geração de código.
-- **Sem transação em volta de uma migração.** Se uma falhar no meio, o que já foi feito fica feito — mais um motivo para cada passo ser idempotente e a nova tentativa terminar o serviço.
+- **Sem transação em volta de uma migração.** Se uma falhar no meio, o que já foi feito fica feito: mais um motivo para cada passo ser idempotente e a nova tentativa terminar o serviço.
 - **A primeira request paga a conta.** Uma migração lenta roda no cold start que a dispara.
 
-Para um código que quer rodar igual num arquivo SQLite e num [banco remoto no Turso](/blog/un-codigo-sqlite-local-o-turso), aceitamos a troca. O sistema de migrações inteiro é uma lista, uma tabela e um loop — e dá para ler tudo antes de o café esfriar.
+Para um código que quer rodar igual num arquivo SQLite e num [banco remoto no Turso](/blog/un-codigo-sqlite-local-o-turso), aceitamos a troca. O sistema de migrações inteiro é uma lista, uma tabela e um loop, e dá para ler tudo antes de o café esfriar.

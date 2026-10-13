@@ -1,26 +1,20 @@
 ---
-title: "Self-hosting en 2026: más fácil que nunca (y no es solo para nerds)"
-description: "Un VPS de $5, tres comandos y tu propio software corriendo. La brecha entre 'instalar' y 'suscribirse' nunca fue tan chica."
+title: "Self-hosting en 2026: un VPS de $5 y tres comandos"
+description: "Contenedores, VPS baratos y apps pensadas para correr con SQLite hicieron que hostear tu propio software sea una tarea chica. Qué cambió y qué hay que mantener."
 date: "2026-07-11"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["self-hosting", "open source", "tutorial"]
 ---
 
-Durante años, la respuesta del SaaS al self-hosting fue siempre la misma: "claro que podés correrlo vos, pero quién quiere ese dolor". Servidores que configurar, bases de datos que mantener, certificados, backups, actualizaciones. Era verdad: era un dolor.
+Durante años, la respuesta del SaaS al self-hosting fue "podés correrlo vos, pero quién quiere ese dolor". Servidores, bases de datos, certificados, backups y actualizaciones. Tenían razón. Hoy hostear una app bien hecha es bastante más simple.
 
-Esa verdad quedó vieja. En 2026, self-hostear una app bien hecha es más fácil que configurar tu impresora.
+## Qué cambió
 
-## Lo que cambió
+1. **Los contenedores.** Docker empaqueta la app entera (código, runtime y configuración) en algo que se levanta con un comando.
+2. **Los VPS.** Hetzner, DigitalOcean, Fly.io o Railway te dan un servidor en dos minutos por unos $5 al mes, con snapshots.
+3. **Las apps.** Cada vez más software asume el self-host desde el diseño: una base embebida (SQLite), variables de entorno documentadas y ningún servicio externo obligatorio.
 
-Tres cosas hicieron colapsar la dificultad:
-
-1. **Los contenedores ganaron.** Docker y sus sucesores empaquetan una app entera —código, runtime, configuración— en algo que se levanta con un comando. Ya no "instalás" software: lo *corrés*.
-2. **Los VPS se abarataron y simplificaron.** Hetzner, DigitalOcean, Fly.io, Railway: un servidor en dos minutos, $5 al mes, con snapshots automáticos y redes privadas.
-3. **El software se diseñó para esto.** Las buenas apps modernas asumen self-host como ciudadano de primera clase: una sola base de datos embebida (SQLite), variables de entorno documentadas, cero servicios externos obligatorios.
-
-## La prueba: Link en tres comandos
-
-Nuestro acortador de links se corre así:
+## zerosoft en tres comandos
 
 ```bash
 git clone https://github.com/lschiaffino/zerosoft && cd zerosoft
@@ -28,22 +22,18 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Sin base de datos que instalar (SQLite se crea sola). Sin Redis, sin colas, sin workers. Un proceso de Node y un archivo de datos. El backup es copiar ese archivo.
+No hay base de datos que instalar: SQLite se crea sola. Tampoco Redis ni colas. Es un proceso de Node y un archivo de datos; el backup es copiar ese archivo (bien hecho, como explicamos en [backups que funcionan](/blog/backups-que-funcionan)).
 
-¿Login? Google OAuth con dos variables de entorno. ¿HTTPS? Caddy o tu proxy favorito en diez líneas. ¿Actualizaciones? `git pull && npm run build`.
+El login con Google son dos variables de entorno. El HTTPS, Caddy u otro proxy en diez líneas. La guía completa está en [self-hosting con Docker, paso a paso](/blog/self-hosting-con-docker-paso-a-paso).
 
-## Lo que realmente hay que mantener
+## Qué hay que mantener
 
-Seamos honestos: self-hostear no es *cero* trabajo. Es, en una app bien diseñada:
+No es cero trabajo. En una app bien diseñada es:
 
-- Un `apt update` de vez en cuando.
-- Mirar que el backup exista (o automatizarlo: es un cron de una línea).
+- Actualizar el sistema operativo de vez en cuando.
+- Verificar que el backup exista, o automatizarlo con un cron.
 - Actualizar la app cuando salga algo que te interese.
 
-Es menos tiempo del que pasás al año peleando con cambios de planes, aumentos de precio y features que tu vendor movió de tier.
+## Si no querés hacerlo
 
-## Y si no querés ni eso
-
-Para eso está la otra opción: lo corremos nosotros y pagás la nube al costo. Pero el punto importante no es que elijas self-host. Es que *podés*. Que la puerta esté abierta cambia la relación entera: ya no estás atrapado, estás eligiendo.
-
-Eso es el nuevo mundo: no que todos administren servidores, sino que nadie sea rehén de un login.
+Lo corremos nosotros en zerosoft Cloud: plan gratis y después pago por uso. Lo importante es que la opción de correrlo vos existe. Con esa salida disponible, quedarte en un proveedor es una elección.

@@ -2,17 +2,17 @@
 title: "Higiene do pipeline para times pequenos: oito regras para o seu CRM não mentir"
 description: "Um playbook prático para manter o pipeline de vendas limpo num time pequeno: como desenhar etapas, quando usar vários pipelines, o que fazer com negócios parados e como as tarefas mantêm tudo andando."
 date: "2026-08-22"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "vendas", "playbook"]
 ---
 
 Todo CRM começa limpo. Seis meses depois o quadro tem 140 negócios abertos, metade com data de fechamento do semestre passado, e a "previsão ponderada" é um número em que ninguém apostaria um almoço. Ninguém decidiu fazer bagunça. Ela foi se acumulando, uma atualização esquecida de cada vez.
 
-Higiene de pipeline não é problema de ferramenta. É um punhado de regras que o time combina, mais um CRM que deixa visível quando alguém quebra essas regras. Estas são as oito que adotaríamos se fôssemos um time de vendas de cinco pessoas começando na segunda-feira, com o jeito como cada uma se traduz no que o Zerosoft CRM faz de verdade.
+Higiene de pipeline não é problema de ferramenta. É um punhado de regras que o time combina, mais um CRM que deixa visível quando alguém quebra essas regras. Estas são as oito que adotaríamos se fôssemos um time de vendas de cinco pessoas começando na segunda-feira, com o jeito como cada uma se traduz no que o zerosoft CRM faz de verdade.
 
 ## 1. Um pipeline por processo de venda, não por pessoa
 
-O Zerosoft suporta vários pipelines, cada um com as suas etapas, e trocar entre eles no quadro de negócios é um dropdown. A tentação é criar um por vendedor, por produto ou por região. Não faça isso.
+O zerosoft suporta vários pipelines, cada um com as suas etapas, e trocar entre eles no quadro de negócios é um dropdown. A tentação é criar um por vendedor, por produto ou por região. Não faça isso.
 
 Um pipeline deve representar um **processo de compra diferente**: negócio novo vs. renovações, ou upgrades self-service vs. negócios enterprise. Se dois pipelines teriam as mesmas etapas, eles são um pipeline só, filtrado por owner ou origem.
 
@@ -29,7 +29,7 @@ Um teste útil: se você não consegue explicar numa frase por que um negócio v
 - Fechado ganho
 - Fechado perdido
 
-De cinco a sete etapas é suficiente para um time pequeno. Cada etapa no Zerosoft tem uma **probabilidade %**, e o quadro usa isso para mostrar no topo os negócios abertos, o valor aberto e uma previsão ponderada. Defina essas probabilidades a partir do seu próprio histórico, se tiver, e revise uma vez por trimestre. Uma etapa é marcada como **Fechado ganho** e outra como **Fechado perdido**; é isso que alimenta os relatórios de ganhos/perdidos e a taxa de vitória.
+De cinco a sete etapas é suficiente para um time pequeno. Cada etapa no zerosoft tem uma **probabilidade %**, e o quadro usa isso para mostrar no topo os negócios abertos, o valor aberto e uma previsão ponderada. Defina essas probabilidades a partir do seu próprio histórico, se tiver, e revise uma vez por trimestre. Uma etapa é marcada como **Fechado ganho** e outra como **Fechado perdido**; é isso que alimenta os relatórios de ganhos/perdidos e a taxa de vitória.
 
 As etapas podem ser reordenadas arrastando nas configurações. Apagar uma etapa ou um pipeline que ainda tem negócios é bloqueado, e apagar é só para admins, para ninguém "arrumar" por acidente.
 
@@ -37,7 +37,7 @@ As etapas podem ser reordenadas arrastando nas configurações. Apagar uma etapa
 
 Esta é a regra que faz a maior parte do trabalho. Se um negócio não tem um próximo passo com data, não é um negócio; é uma esperança com um valor.
 
-O Zerosoft mostra a próxima tarefa aberta no topo da página de cada negócio, com um botão para concluí-la ali mesmo. A página de tarefas (`/app/crm/tasks`) agrupa tudo em Atrasadas, Hoje e Próximas, com filtro por owner. Transforme em hábito do time: ao concluir uma tarefa de um negócio, crie a próxima antes de fechar a aba.
+O zerosoft mostra a próxima tarefa aberta no topo da página de cada negócio, com um botão para concluí-la ali mesmo. A página de tarefas (`/app/crm/tasks`) agrupa tudo em Atrasadas, Hoje e Próximas, com filtro por owner. Transforme em hábito do time: ao concluir uma tarefa de um negócio, crie a próxima antes de fechar a aba.
 
 Se preferir não depender de hábito, os [workflows](/blog/workflows-crm-tareas-de-seguimiento) podem criar o follow-up automaticamente quando um negócio chega a uma etapa.
 
@@ -45,7 +45,7 @@ Se preferir não depender de hábito, os [workflows](/blog/workflows-crm-tareas-
 
 Uma previsão é tão boa quanto os negócios que a alimentam. Um negócio sem valor é invisível na previsão ponderada; um negócio sem data de fechamento é invisível no tempo.
 
-Ressalva honesta: o Zerosoft ainda não tem campos obrigatórios. Não dá para forçar um valor na criação. Então transforme isso em regra e deixe as violações fáceis de achar:
+Ressalva honesta: o zerosoft ainda não tem campos obrigatórios. Não dá para forçar um valor na criação. Então transforme isso em regra e deixe as violações fáceis de achar:
 
 - Na visão de **tabela** de negócios, ordene por data de fechamento. Os negócios sem data vão para o fim, onde você vê todos juntos.
 - Ordene por valor crescente para ver os zeros primeiro.
@@ -73,7 +73,7 @@ Para cada negócio marcado, escolha uma:
 
 Times evitam fechar negócios como perdidos porque parece admitir derrota. O resultado é um pipeline inflado de zumbis que tornam a previsão inútil.
 
-No Zerosoft, fechar um negócio como perdido pede um motivo: Preço, Momento, Concorrente, Sem orçamento, Sumiu, Outro, ou um texto seu. Esse motivo fica salvo no negócio e aparece no gráfico de **Motivos de perda** dos relatórios. Depois de um trimestre, esse gráfico diz mais sobre o seu produto e o seu preço do que a maioria das pesquisas. "Sumiu" no topo? A sua qualificação está frouxa demais. "Preço"? Ou o seu pricing ou o seu público-alvo está errado.
+No zerosoft, fechar um negócio como perdido pede um motivo: Preço, Momento, Concorrente, Sem orçamento, Sumiu, Outro, ou um texto seu. Esse motivo fica salvo no negócio e aparece no gráfico de **Motivos de perda** dos relatórios. Depois de um trimestre, esse gráfico diz mais sobre o seu produto e o seu preço do que a maioria das pesquisas. "Sumiu" no topo? A sua qualificação está frouxa demais. "Preço"? Ou o seu pricing ou o seu público-alvo está errado.
 
 Um negócio perdido também não desaparece. Ele fica no registro, com o histórico, e uma tarefa de follow-up para daqui a 90 dias pode trazê-lo de volta.
 
@@ -85,6 +85,6 @@ Regra prática: não adicione um campo a menos que um relatório, um filtro ou u
 
 ## Para pegar
 
-Regras não sobrevivem sem um ritual. Coloque 30 minutos na agenda toda semana, mesmo dia, time inteiro, e percorram o quadro: selos primeiro, datas de fechamento vencidas depois, negócios sem próxima tarefa por último. Quando a etapa ou o valor de um negócio muda, o Zerosoft guarda um histórico de propriedades no registro, então dá para ver o que mudou desde a semana passada e quem mudou.
+Regras não sobrevivem sem um ritual. Coloque 30 minutos na agenda toda semana, mesmo dia, time inteiro, e percorram o quadro: selos primeiro, datas de fechamento vencidas depois, negócios sem próxima tarefa por último. Quando a etapa ou o valor de um negócio muda, o zerosoft guarda um histórico de propriedades no registro, então dá para ver o que mudou desde a semana passada e quem mudou.
 
 O objetivo não é um quadro bonito. É um quadro em que cada cartão aberto significa "alguém está tocando isso, e sabemos quando vamos saber". Quando isso é verdade, a previsão deixa de ser chute e vira ferramenta.

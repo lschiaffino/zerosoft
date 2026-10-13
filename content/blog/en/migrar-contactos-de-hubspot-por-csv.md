@@ -1,8 +1,8 @@
 ---
-title: "Moving your contacts out of HubSpot with a CSV"
-description: "A step-by-step guide to exporting contacts and companies from HubSpot and importing them into Zerosoft CRM: column mapping, dedupe by email and domain, and what doesn't come along."
+title: "Moving contacts from HubSpot to zerosoft CRM with a CSV"
+description: "Export contacts and companies from HubSpot and import them into zerosoft CRM: column mapping, dedupe by email and domain, and what doesn't come along."
 date: "2026-07-24"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "hubspot", "migration"]
 ---
 
@@ -12,7 +12,7 @@ This is the honest version. What moves, what doesn't, and the order that saves y
 
 ## What you can import (and what you can't)
 
-Zerosoft CRM's importer (`/app/crm/settings` → Import / Export) handles two entities:
+zerosoft CRM's importer (`/app/crm/settings` → Import / Export) handles two entities:
 
 - **Contacts**: first name, last name, email, phone, job title, website, city, country, lifecycle stage, lead status and source.
 - **Companies**: name, domain, industry, employees, phone, website, city, country and lifecycle stage.
@@ -35,7 +35,7 @@ From HubSpot, export your contacts and your companies as two separate CSV files 
 
 ## Step 2: import companies first
 
-Order matters. When a contact is created without an explicit company, Zerosoft looks at the domain of their email and links them to the company with that exact domain (personal addresses like Gmail are skipped). So if `ana@acme.com` arrives after a company with domain `acme.com` exists, Ana gets linked automatically.
+Order matters. When a contact is created without an explicit company, zerosoft looks at the domain of their email and links them to the company with that exact domain (personal addresses like Gmail are skipped). So if `ana@acme.com` arrives after a company with domain `acme.com` exists, Ana gets linked automatically.
 
 That only works if the companies are already there. Companies first, contacts second.
 
@@ -54,7 +54,7 @@ Anything you leave on "— ignore —" is dropped. `Record ID` and friends can s
 
 ### Enum values: the silent trap
 
-Lifecycle stage, lead status and source are fixed lists in Zerosoft:
+Lifecycle stage, lead status and source are fixed lists in zerosoft:
 
 ```
 lifecycle:   subscriber, lead, mql, sql, opportunity, customer, evangelist

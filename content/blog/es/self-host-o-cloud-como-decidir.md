@@ -1,12 +1,12 @@
 ---
-title: "¿Self-host o Zerosoft Cloud? Un checklist honesto"
-description: "Hostear Zerosoft es gratis y está a un docker compose de distancia. Correrlo bien es una lista de tareas chicas: HTTPS, Google OAuth, email, cron, backups, dominios propios. Acá está la lista para que decidas."
+title: "Self-host o zerosoft Cloud: un checklist para decidir"
+description: "Hostear zerosoft está a un docker compose de distancia. Correrlo bien es una lista de tareas chicas: HTTPS, Google OAuth, email, cron, backups y dominios propios. La lista completa."
 date: "2026-08-30"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["self-hosting", "nube", "guía"]
 ---
 
-Lo decimos en todos lados: hostear Zerosoft cuesta $0, para siempre. Es verdad, y no es toda la verdad. El software es gratis. La hora que pasás a las 11 de la noche con un mail de recordatorio que no sale, no.
+Hostear zerosoft cuesta $0 de licencia. Lo que sí cuesta es tu tiempo: la hora que pasás a las 11 de la noche con un mail de recordatorio que no sale.
 
 Este post es el checklist que querríamos tener si estuviéramos decidiendo. Sin vender ninguno de los dos lados: ganamos plata cuando elegís la nube, y aun así construimos cada producto para que corra en tu propio servidor. Elegí la opción cuyas tareas prefieras tener a cargo.
 
@@ -20,7 +20,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Un contenedor, un proceso Node, un archivo SQLite en el volumen `zerosoft-data` y los adjuntos en `zerosoft-uploads`. Las migraciones de la base corren solas cuando arranca la app. Sin Postgres, sin Redis, sin workers de colas.
+Un contenedor, un proceso Node, un archivo SQLite en el volumen `zerosoft-data` y los adjuntos en `zerosoft-uploads`. Las migraciones de la base corren solas cuando arranca la app. No hace falta Postgres, Redis ni workers de colas.
 
 Con eso tenés la app corriendo en el puerto 3000. Pasar de "corre" a "mi equipo depende de esto" es el checklist que sigue.
 
@@ -28,13 +28,13 @@ Con eso tenés la app corriendo en el puerto 3000. Pasar de "corre" a "mi equipo
 
 ### 1. HTTPS y un reverse proxy
 
-El contenedor habla HTTP plano. Le ponés adelante un reverse proxy — Caddy, nginx, Traefik, el que conozcas — y le das un certificado. Con Caddy son unas pocas líneas y certificados automáticos. Configurá `NEXTAUTH_URL` con la dirección HTTPS pública, porque los callbacks del login dependen de eso.
+El contenedor habla HTTP plano. Le ponés adelante un reverse proxy, Caddy, nginx, Traefik, el que conozcas, y le das un certificado. Con Caddy son unas pocas líneas y certificados automáticos. Configurá `NEXTAUTH_URL` con la dirección HTTPS pública, porque los callbacks del login dependen de eso.
 
 **Esfuerzo:** una hora la primera vez, casi cero después.
 
 ### 2. Google OAuth (el único login)
 
-El login de Zerosoft es Google OAuth. `DEMO_MODE` es para explorar, y en producción se ignora salvo que lo fuerces explícitamente: no lo hagas. Así que necesitás un proyecto en Google Cloud con `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`, y el redirect URI `<NEXTAUTH_URL>/api/auth/callback/google`.
+El login de zerosoft es Google OAuth. `DEMO_MODE` es para explorar, y en producción se ignora salvo que lo fuerces explícitamente: no lo hagas. Así que necesitás un proyecto en Google Cloud con `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`, y el redirect URI `<NEXTAUTH_URL>/api/auth/callback/google`.
 
 Si querés el sync de Gmail del CRM o el de Google Calendar de Cal, sumá sus callbacks (`/api/integrations/gmail/callback`, `/api/integrations/google-calendar/callback`) y habilitá las APIs de Gmail y Calendar. La lectura de Gmail es un scope sensible del lado de Google: para una app que se usa solo dentro de tu propio Google Workspace suele ser indoloro; para algo más amplio, revisá las reglas de verificación vigentes de Google antes de prometérselo a nadie.
 
@@ -96,13 +96,13 @@ Los adjuntos de Chat, Track y las tareas del CRM van al volumen `zerosoft-upload
 - Necesitás que el email, el cron, el HTTPS en dominios propios y los backups simplemente existan, hoy.
 - Son un equipo no técnico y el checklist de arriba ya los cansó.
 
-Zerosoft Cloud arranca con un plan gratis generoso; pasado eso, pagás por uso — lo que escala —, nunca por asiento, con precios transparentes publicados antes de cobrarte nada. No ponemos números en este post porque el número honesto para comparar es tu propio tiempo.
+zerosoft Cloud arranca con un plan gratis; pasado eso, pagás por uso del workspace (clics, reservas, emails, almacenamiento), nunca por asiento. No ponemos números en este post porque lo que hay que comparar es tu propio tiempo.
 
 ## Cambiar después: qué es portable hoy
 
 Mirá esto con claridad, porque es donde las decisiones de self-host vs. nube se ponen pegajosas:
 
-- **Link:** exportable — JSON por la API y CSV por link.
+- **Link:** exportable: JSON por la API y CSV por link.
 - **CRM:** exportación completa en CSV/JSON (solo admins), e importación CSV con mapeo y deduplicación del otro lado.
 - **Track, Cal, Chat, Docs:** todavía no tienen exportación. La exportación de conversaciones de Chat y la de Docs a JSON/Markdown son gaps conocidos.
 - **Self-hosted:** el archivo SQLite *es* la exportación. Está todo ahí, legible con cualquier herramienta de SQLite.

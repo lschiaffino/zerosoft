@@ -1,42 +1,36 @@
 ---
-title: "Software is dead: a manifesto"
-description: "You pay $30 to move cards, $50 to store contacts, $12 to shorten a link. Not for the software — out of habit. That ends now."
+title: "The zerosoft manifesto: what work software costs to run, and what we charge"
+description: "Moving cards, storing contacts and shortening links cost cents to run. We publish the code under AGPLv3 and charge for usage, not for seats."
 date: "2026-07-01"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["manifesto", "open source", "saas"]
 ---
 
-For twenty years, the software industry ran on a simple trick: take something that costs nothing to copy — bits — and charge you for it every month, forever.
+A project tool charges about $30 per user per month to move cards between columns. A CRM charges $50 to keep contacts in a table. A link shortener charges $12 to answer a redirect. Running any of those costs cents.
 
-They don't charge you for what software costs to make. They charge you because they can. Because your company is already inside. Because migrating hurts. Because the first one set the price and everyone else copied it.
+The price comes from somewhere else. Your team is already inside, moving out is painful, and the first vendor in each category set a number the rest copied.
 
-## The math doesn't add up (for them)
+## The math
 
-Look at it closely. A project manager charges about $30 per user per month to move cards from one column to another. A CRM charges $50 to store contacts in a table. A link shortener charges $12 for a 300-byte redirect.
+A card is a row in a database. A contact is a row. A redirect is one read and one HTTP response. A $5 server handles a small company's traffic for all three, with room to spare. Bandwidth is billed by the terabyte and storage by the gigabyte, at prices anyone can look up.
 
-The marginal cost of all of that is, literally, zero. A database, a $5 server, bandwidth measured in cents.
+Per-seat pricing ignores all of that. Hire ten people and the bill goes up, even though the server didn't notice.
 
-Software is bits. And bits are free. They always were.
+## What changed
 
-## What happened to music, but in reverse
+Two costs used to justify the subscription: distributing software and building it. The browser solved distribution years ago. AI tools cut the cost of building software enough that one small team can rebuild a category in weeks, not years. What's left is the cost of running it, and that has a public price.
 
-The music industry lost the battle against zero marginal cost and reinvented itself with streaming. The software industry, instead, spent twenty years convincing us that bits were scarce.
+## What we do
 
-That's over. Artificial intelligence pushed the cost of *writing* software to nearly zero. What remains — the cost of *running* it — is the cloud. And the cloud has a public price.
+zerosoft rebuilds the everyday work tools as one open source suite. Today that's eleven apps: CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal and Board.
 
-## The model we propose
+1. **The code is AGPLv3.** Every core feature is in the repository. Read it, run it on your own server, change it. Self-hosting costs $0.
+2. **zerosoft Cloud runs it for you.** Login, backups, updates and uptime. There's a free tier, then you pay for usage per workspace: clicks, bookings, emails and storage. Seats are free. AI is billed by tokens at the provider's price ×1.2.
 
-Zerosoftware rebuilds the tools that move the world and sets them free:
+Because the code is public, you can always leave with your data and the software. That keeps us honest on price and on quality.
 
-1. **All the code is open.** Download it, audit it, modify it, host it. It's yours.
-2. **If you don't want to host it, we run it for you.** With login, backups, updates and uptime. You pay exactly what the cloud costs. At cost. Not a penny more. Not a penny less.
+## What's missing
 
-No per-seat licenses. No lock-in. No fine print. If we ever get it wrong, you take your data and your entire software somewhere else. That's the best guarantee there is.
+Each product page and the README list the known gaps next to the features. We'd rather you find them there than after a migration.
 
-## What's next
-
-We're starting with **Link**, our link shortener with analytics — the Bitly that doesn't charge. Then come Track, CRM and Cal. And then, everything else: docs, notes, chat, design. If the world uses it, we will set it free.
-
-Software is dead. We are what comes next.
-
-Welcome to the new world.
+Start with one app, or [read how to self-host it](/blog/self-hosting-con-docker-paso-a-paso).

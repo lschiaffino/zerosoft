@@ -1,44 +1,36 @@
 ---
-title: "A world after software"
-description: "Think five years ahead: all work software is free and the cloud is billed at cost. What happens to IT budgets, to vendors, and to innovation itself?"
+title: "If work software cost what it costs to run: a thought experiment"
+description: "Imagine every work tool is open source and the hosted version is billed by usage. What happens to IT budgets, to vendors and to where innovation goes."
 date: "2026-05-25"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["vision", "future", "open source"]
 ---
 
-Let's run a thought experiment. It's 2031. Every tool your company works with — project management, CRM, calendar, analytics, docs, chat — is open source. Those who want to self-host do. Those who don't, rent it in the cloud at exactly what the infrastructure costs, with zero margin.
+A thought experiment. It's 2031. Every tool your company uses (project management, CRM, calendar, analytics, docs, chat) is open source. Teams that want to self-host do. The rest pay a hosted version by usage, close to what the infrastructure costs.
 
-This isn't science fiction: it's the extrapolation of two trends that already happened. AI pushed the cost of writing software to nearly zero, and the cloud always had a public price. Put the pieces together and watch what happens to everything else.
+Two trends already point there: AI tools made writing software much cheaper, and cloud infrastructure has always had a public price list.
 
-## The IT budget collapses (and that's fine)
+## The software budget shrinks
 
-Today, a 50-person company pays around $30 per user per month to move cards, $50 to store contacts, $12 to shorten links. Add it up and you easily get one extra salary, every year, for software whose marginal cost is zero.
+Today a 50-person company pays about $30 per user per month for a project tool, $50 for a CRM and $12 for a scheduler. Together that's easily the cost of one more hire, every year.
 
-In 2031 that budget line doesn't drop 10% or 30%. It collapses to its real cost: cloud, backups, bandwidth. Cents per user. What's left of the IT budget moves to where it should have been all along: people who understand the business, owned data, security, custom automation.
+In this scenario the line shrinks to its real cost: servers, backups, bandwidth. The money moves to what the tools can't do: people who understand the business, clean data, security and automations built for how the company works.
 
-For the CFO, this isn't a tragedy. It's the first time the "software" number on the books tells the truth.
+## Software becomes a utility
 
-## Software stops being an expense line
+Nobody debates the water bill in a board meeting. When work software gets cheap enough, it joins that list. Companies end up running more of it, not less: the tools that "didn't justify the license" get installed anyway.
 
-When something becomes too cheap to meter, it stops being discussed in board meetings. Nobody debates the water bill. Work software is heading there: a utility. It's there, it works, it costs what the electricity to run it costs.
+## Where the value moves
 
-Sound like a loss? On the contrary. Companies will run *more* software, not less: the tools they don't buy today because "the license doesn't justify itself" will exist anyway, self-hosted or at cost. The bar stops being "what does it cost?" and becomes "does it help us?".
+When copying costs nothing, value collects in what can't be copied:
 
-## Innovation moves somewhere else
-
-When copying costs zero, value concentrates in what can't be copied:
-
-- **Data and trust.** You can't fork a customer relationship.
-- **Hardware and the physical world.** Chips, robots, sensors, energy.
-- **Models trained on what you own.** AI on your data, on your infrastructure.
+- **Data and trust.** A customer relationship can't be forked.
+- **The physical world.** Chips, sensors, robots, energy.
+- **Models trained on your own data,** running on your own infrastructure.
 - **Judgment.** People who decide well with tools everyone has.
 
-Companies selling software seats today have two paths: become honest utilities — charge for running what runs — or defend a margin that no longer holds up. We know how that second story ends: we watched it with music, with newspapers, with cable TV.
+Vendors selling seats have two options: charge for running the software, or defend a margin the market no longer supports. Music, newspapers and cable TV show how the second option tends to go.
 
-## Software is dead. Long live software.
+## Where we are
 
-This closes the arc we opened with the manifesto. Software died as a scarce product rented per seat. And it was born again as what it should always have been: free knowledge running on at-cost infrastructure.
-
-In 2031 nobody will say "we bought a CRM". They'll say "we use a CRM", the way we say "we use email" today. The verb changes because the owner changes.
-
-We've already started: Link is available today, open source or in the cloud at cost. Track, CRM and Cal are on the way. A world after software isn't something you wait for: it's something you build. Link by link.
+zerosoft is our bet on that scenario: eleven open source apps under AGPLv3, $0 to self-host, and a cloud billed per workspace by usage (clicks, bookings, emails, storage) with free seats. In 2031 nobody says "we bought a CRM". They say "we use one", the way they say it about email.

@@ -1,8 +1,8 @@
 ---
 title: "Cómo maneja Cal las zonas horarias: hora de reloj, UTC y horario de verano"
-description: "Recorrido de ingeniería por las zonas horarias en Cal: qué guardamos en UTC, qué guardamos como hora de reloj, cómo los slots sobreviven al horario de verano y cómo los mails y el .ics llegan en la hora del invitado."
+description: "Qué guarda Cal en UTC, qué guarda como hora de reloj, cómo los horarios sobreviven al cambio de horario de verano y cómo los emails y el .ics llegan en la hora del invitado."
 date: "2026-09-01"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "arquitectura", "zonas horarias"]
 ---
 

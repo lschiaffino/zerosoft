@@ -1,14 +1,14 @@
 ---
-title: "Links con contraseña, fecha de vencimiento o límite de clicks: cuándo usar cada uno"
-description: "Casos de uso concretos para links con contraseña, que vencen o con máximo de clicks en Link, qué ve exactamente el visitante cuando uno se cierra, y dónde entran los QR en SVG y PNG."
+title: "Links con contraseña, vencimiento o límite de clics: cuándo usar cada uno"
+description: "Casos concretos para links con contraseña, con fecha de vencimiento o con máximo de clics en Link, qué ve el visitante cuando uno se cierra y dónde entran los QR."
 date: "2026-09-18"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "qr", "casos de uso"]
 ---
 
-La mayoría de los links cortos viven para siempre y dejan pasar a cualquiera. Es el default correcto. Pero cada tanto querés un link que sepa decir que no: solo a quien tenga la contraseña, solo hasta el viernes, solo para los primeros cien.
+La mayoría de los links cortos no vencen y dejan pasar a cualquiera. Es el comportamiento correcto por defecto. Pero cada tanto querés un link que sepa decir que no: solo a quien tenga la contraseña, solo hasta el viernes, solo para los primeros cien.
 
-Link tiene tres switches para eso, en **Opciones avanzadas** cuando creás o editás un link: **Protección con contraseña**, **Expira el** y **Máx. clicks**. Son gratis, se combinan, y son lo bastante simples como para que valga la pena saber exactamente cómo se comportan antes de imprimir uno en un afiche.
+Link tiene tres switches para eso, en **Opciones avanzadas** cuando creás o editás un link: **Protección con contraseña**, **Expira el** y **Máx. clicks**. Se pueden combinar y son lo bastante simples como para que valga la pena saber exactamente cómo se comportan antes de imprimir uno en un afiche.
 
 ## Links con contraseña
 

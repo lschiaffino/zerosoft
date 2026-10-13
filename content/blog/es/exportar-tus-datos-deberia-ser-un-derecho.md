@@ -1,49 +1,39 @@
 ---
-title: "Exportar tus datos debería ser un derecho"
-description: "La portabilidad no es una feature premium: es un derecho. Cada producto de Zerosoftware nace con export completo en JSON, CSV y API. Acá está el test para comprobarlo."
+title: "Exportar tus datos: un test de diez minutos para cualquier SaaS"
+description: "Cuatro condiciones para que una exportación sirva de verdad (completa, abierta, sin intermediarios y verificable) y cómo las cumple cada app de zerosoft hoy."
 date: "2026-06-15"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["export", "lock-in", "open source", "link"]
 ---
 
-Hay una pregunta que casi nadie hace antes de firmar con un SaaS: ¿cómo me voy? No si se puede — el botón de export existe en casi todos lados — sino qué sale por esa puerta y en qué estado. La mayoría de las veces la respuesta es: menos de lo que creés, en peor formato del que necesitás.
+Casi nadie pregunta antes de contratar un SaaS cómo se va a ir. El botón de exportar existe en casi todos lados; la pregunta es qué sale y en qué estado. Proponemos un test de diez minutos para hacerlo antes de firmar.
 
-Nosotros lo planteamos al revés: exportar tus datos no es una cortesía del proveedor. Es un derecho, y el software debería nacer con él.
+## El test
 
-## El test de los diez minutos
+¿Podés llevarte todo, en un formato abierto, sin hablar con nadie, y reconstruir tu operación en otro lado el mismo día? Cuatro condiciones:
 
-La prueba es simple: ¿podés irte en diez minutos? No cancelar la suscripción — eso siempre es fácil, porque les conviene — sino llevarte todo, en un formato abierto, sin hablar con nadie, y reconstruir tu operación en otro lado el mismo día.
+- **Completo.** Lo que cargaste y lo que se generó. Si te llevás los links pero no los clics, falta la mitad.
+- **Abierto.** JSON o CSV, formatos que lee cualquier herramienta.
+- **Sin intermediarios.** Un botón o una API. Sin tickets de soporte ni esperas.
+- **Verificable.** Lo probás el primer día con datos de prueba, antes de migrar nada.
 
-El test tiene cuatro partes:
+## Cómo exporta zerosoft hoy
 
-- **Completo**: todo lo que entró y todo lo que se generó. Si exportás los links pero no las estadísticas de clicks, no es un export: es un souvenir.
-- **Abierto**: JSON, CSV, formatos que existen hace décadas y que cualquier herramienta lee. Un archivo propietario es una caja fuerte con tu nombre y la llave de otro.
-- **Sin intermediarios**: ningún ticket de soporte, ningún "contactá a tu account manager", ninguna espera de 48 horas. Un botón y una API.
-- **Verificable**: podés probarlo el día uno, con datos de prueba, antes de migrar nada. Si un producto no pasa el test con datos falsos, no lo va a pasar con los tuyos.
+- **Link**: todos los links en CSV, o links y cada clic (referrer, país, dispositivo) en JSON. El log de clics de cada link también baja en CSV. Y la API v1 expone links y estadísticas.
+- **CRM**: contactos, empresas y deals en CSV o JSON desde Configuración, más una API REST para todo el modelo.
+- **Cal**: tipos de evento y reservas por API.
+- **Self-host**: la base de datos completa es un archivo SQLite. Lo copiás y tenés todo.
 
-## Cómo exporta Link hoy
-
-Link, nuestro shortener, cumple el test completo:
-
-- Desde el dashboard exportás todos tus links — alias, destino, password, expiración, max clicks, tags, UTM — en JSON o CSV, con un click.
-- Las analytics viajan con ellos: cada click registrado, con fecha, referrer, país, device, browser y OS. Filas crudas, no solo los agregados bonitos del panel.
-- La API v1 expone todo lo anterior por HTTP, con tu API key. Un script de veinte líneas baja tu cuenta entera. Sin pedirnos permiso.
-- Y si corrés self-hosted, el export más brutal de todos: tu base de datos es un archivo SQLite. Lo copiás y ya está. Eso es portabilidad.
+Lo que todavía no pasa el test: Docs no exporta a Markdown ni PDF (solo copiar el contenido de una página), y Track no tiene API pública. Están en la lista.
 
 ## Lo que pasa afuera
 
-El mercado, mientras tanto:
+- **Slack**: en el plan gratuito, la exportación cubre los canales públicos. Los mensajes directos y los canales privados quedan afuera.
+- **Notion**: las bases de datos salen como CSV planos. Las relaciones y los rollups no viajan.
+- Algunas herramientas no tienen exportación y te mandan a soporte.
 
-- **Slack**: en el plan gratuito, el export cubre solo los canales públicos. Tus mensajes directos y tus canales privados no salen por la puerta común.
-- **Notion**: exporta, sí. Las bases de datos salen como CSV planos: las relaciones entre tablas, los rollups, la estructura que le dio sentido a tu información — eso no viaja. Te llevás las filas; el modelo se queda.
-- Y después está la táctica más honesta de todas: la de las herramientas que directamente no tienen export y te derivan a soporte, donde un humano decide cuándo — y si — recuperás tus datos.
+Una exportación completa es un cliente que se puede ir. Por eso no siempre la hay.
 
-Nada de esto es un accidente. Un export completo es un cliente que se puede ir.
+## La regla
 
-## Nuestra regla: el export nace con el producto
-
-En Zerosoftware la regla es una sola y no se negocia: ningún producto sale sin export completo desde el día uno. JSON y CSV desde la interfaz, API pública documentada, formatos abiertos. Link ya lo hace. El CRM, Cal y Track — todos coming soon — van a abrir con la misma garantía el día que salgan.
-
-Y el código es open source: si algún día hacemos las cosas mal, no necesitás el export — necesitás un VPS de $5 y una tarde.
-
-Tus datos son tuyos. El software que no lo entiende así te está avisando, de antemano, cuánto va a costar irte.
+Cada app nueva de zerosoft tiene que pasar este test o decir públicamente qué le falta. Y como el código es abierto, la salida de último recurso siempre existe: tu propio servidor y una tarde.

@@ -1,45 +1,40 @@
 ---
-title: "Por qué cobramos la nube al costo (y cómo funciona exactamente)"
-description: "Nuestro modelo completo en una página: el software es $0, la infraestructura se pasa al costo, sin margen. La matemática y las preguntas incómodas, respondidas."
+title: "Cómo cobra zerosoft Cloud"
+description: "Self-host por $0. En la nube, un plan gratis por workspace y después pago por uso: clics, reservas, emails y almacenamiento. Los asientos no se cobran y la IA va por tokens."
 date: "2026-07-13"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["modelo", "precios", "nube"]
 ---
 
-Cada vez que contamos el modelo, la primera reacción es la misma: "¿y cuál es la trampa?". Así que acá está todo, completo, con la matemática abierta y las respuestas a las preguntas incómodas.
+Cuando contamos el modelo, la primera pregunta suele ser dónde está la trampa. Acá va completo.
 
-## El modelo en tres líneas
+## El modelo
 
-1. **El software es $0.** Todo el código es open source. Descargalo, corrélo, modificalo. Gratis para siempre, sin límite de usuarios.
-2. **La nube se cobra al costo.** Si preferís que lo corramos nosotros, pagás exactamente lo que la infraestructura cuesta: servidores, bases de datos, ancho de banda, backups. Sin margen.
-3. **La factura es abierta.** Publicamos cómo se calcula. Podés verificarlo contra los precios públicos de los proveedores de nube.
+1. **Self-host: $0.** El core de cada app es open source (AGPLv3), con todas sus funciones y sin límite de usuarios. Pagás tu servidor y nada más.
+2. **zerosoft Cloud: por workspace y por uso.** Cada workspace arranca con un plan gratis. Cuando pasás ese plan, pagás lo que consumís: clics en Link, reservas en Cal, emails enviados y almacenamiento.
+3. **Los asientos no se cobran.** Sumar a una persona al workspace no cambia la factura.
+4. **La IA se cobra por tokens**, a lo que nos cobra el proveedor del modelo ×1,2. Agents, los pasos de IA de Flow y el borrador de emails del CRM consumen tokens; el resto de la suite, no.
 
-## Un ejemplo con números reales
+Los precios por unidad se publican antes de cobrar nada.
 
-Un equipo de 25 personas usando Link corriendo en nuestra nube:
+## Por qué por uso
 
-- Un servidor compartido que sirve a ~500 equipos como el tuyo: $40/mes → **$0,08 por equipo**.
-- Base de datos gestionada (parte proporcional): **~$0,60**.
-- Ancho de banda y backups: **~$0,30**.
+Lo que nos cuesta correr tu workspace depende de lo que hace: cuántos redirects servimos, cuántos emails salen, cuánto ocupa lo que subís. No depende de cuánta gente entra. Cobrar por asiento castiga sumar gente; cobrar por uso sigue al costo real.
 
-Total: **~$1 por mes por equipo**. Eso es lo que pagás. No es una promesa: es aritmética.
+## Las preguntas de siempre
 
-## Las preguntas incómodas
+**¿Cómo se sostiene zerosoft?**
+Con zerosoft Cloud, que cobra el uso que pasa del plan gratis, y con Enterprise, una licencia comercial con soporte directo. El core no se cobra.
 
-**¿Cómo se sostiene Zerosoftware?**
-El costo de construir el software lo absorbemos nosotros (y la comunidad open source que se suma). El costo de correrlo lo pagan los usuarios de cloud, al costo. No hay margen porque no lo necesitamos: el software dejó de ser el negocio.
+**¿Qué pasa si mañana sube el precio?**
+Siempre podés correr el mismo código en tu servidor. Esa salida existe desde el primer día y es lo que pone un techo a lo que podemos cobrar.
 
-**¿Qué pasa si sube el precio de la nube?**
-Tu factura sube lo mismo que sube la nube. Y también baja cuando baja. Es un pase de costo, no un precio: en ambas direcciones.
-
-**¿Qué pasa si Zerosoftware cierra?**
-Te llevás tus datos y el código completo y lo corrés en otro lado en una tarde. Por eso insistimos tanto en el self-host: es la garantía de que nunca vas a estar atrapado con nosotros, ni con nadie.
+**¿Qué pasa si zerosoft cierra?**
+Te llevás tus datos y el código completo. Un workspace self-hosteado es un archivo SQLite y una carpeta de adjuntos.
 
 **¿Y el soporte?**
-La comunidad open source primero. Si necesitás más, ofrecemos soporte como servicio aparte — cobrado como servicio, no disfrazado de licencia de software.
+Issues y discusiones en GitHub para todos. Soporte directo, con Enterprise.
 
-## Por qué nadie hizo esto antes
+## Cuándo conviene cada opción
 
-Algunos lo intentaron. El problema era que construir software era carísimo, y alguien tenía que pagar esos sueldos. La ecuación cambió: hoy se puede construir en semanas lo que antes llevaba años. Cuando el costo de crear software colapsa, cobrarlo como si nada hubiera pasado deja de ser un negocio y pasa a ser un museo.
-
-El software murió. Lo que queda es honestidad y centavos de nube.
+Si tenés a alguien que pueda mantener un servidor, self-host es lo más barato. Si no, la nube te ahorra backups, actualizaciones y monitoreo. El checklist completo está en [self-host o cloud](/blog/self-host-o-cloud-como-decidir).

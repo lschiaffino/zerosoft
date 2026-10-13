@@ -1,16 +1,16 @@
 ---
-title: "How to contribute to Zerosoftware (no permission needed)"
-description: "The code is open, the roadmap is public, and this blog ships in three languages. Here's how to get involved: issues, PRs, translations, documentation, and product ideas."
+title: "How to contribute to zerosoft: issues, pull requests and translations"
+description: "The code and the roadmap are public, and the blog ships in three languages. Where to start: bug reports, pull requests, translations, docs and product ideas."
 date: "2026-06-07"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["open source", "community", "contributing"]
 ---
 
-Zerosoftware isn't a company you buy from — it's a project you can join. Link's code is open source, the roadmap is public, and this blog gets written in three languages. All of it stays alive because people show up one day and say "I can do this better." If you're one of those people, this post is for you.
+zerosoft is an open source project you can contribute to. The code is AGPLv3, the roadmap is public, and this blog ships in three languages. This post covers where to start: bug reports, pull requests, translations, docs and product ideas.
 
 ## Report what's broken
 
-The most underrated contribution in open source isn't code — it's a good issue. If something fails, tell us:
+The most underrated contribution in open source is a good issue. If something fails, tell us:
 
 - **What you did**, step by step, until it broke.
 - **What you expected** to happen, and what actually happened.
@@ -30,18 +30,18 @@ You don't need to be a senior engineer. A good share of merged PRs are typos, va
 
 ## Translations and documentation
 
-Zerosoftware exists in three languages: English, Spanish, and Portuguese. The interface, the documentation at /docs, this blog. That's a lot of text, and there's always some sentence that reads like a machine translation in a trench coat.
+zerosoft exists in three languages: English, Spanish, and Portuguese. The interface, the documentation at /docs, this blog. That's a lot of text, and there's always some sentence that reads like a machine translation in a trench coat.
 
-If you speak two of those languages, your contribution is direct: flag the sentence that sounds off and propose a better one. Our translations don't come from a localization team in California — they come from people who read something and winced.
+If you speak two of those languages, your contribution is direct: flag the sentence that sounds off and propose a better one. Our translations don't come from a localization team in California. They come from people who read something and winced.
 
 Same goes for documentation. The v1 API is documented endpoint by endpoint, but docs are never finished: missing examples, common errors nobody explained, a self-hosting walkthrough for your setup. If you got stuck anywhere in /docs, that spot is your PR.
 
 ## Ideas, not promises
 
-After Link comes Track (project management, Q4 2026), CRM (Q1 2027), and Cal (scheduling, Q2 2027). That order didn't come from a marketing survey — it came from issues and conversations with the people using Link. If you want to influence what gets built, that's the place: tell us which expensive tool is overcharging you and what the free version would need to do to replace it.
+The suite grew from Link to eleven apps, and the order came from issues and conversations with the people using them, not from a marketing survey. If you want to influence what gets built, that's the place: tell us which expensive tool is overcharging you and what the free version would need to do to replace it.
 
 What we won't promise: exact dates, features on demand, 24/7 support. We're a small project with big principles. What we do promise is that everything gets read.
 
 ## The deal
 
-Contributing to Zerosoftware comes with a guarantee no SaaS can sign: what you build is yours forever. The code never closes, the license never changes, and if we disappear tomorrow, the software stays. Made of zeros, maintained by people. Join in.
+What you contribute stays AGPLv3. Published code can't be closed again, and if we disappeared tomorrow, the software would stay. Pick an issue and start.

@@ -2,13 +2,13 @@
 title: "A API REST v1 na prática: chaves pessoais, curl e erros reais"
 description: "Crie uma chave zs_, encurte links, puxe estatísticas de cliques e cadastre contatos e deals a partir de um script. Cada exemplo bate com o código, inclusive quando algo dá errado."
 date: "2026-08-13"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["api", "desenvolvedores", "tutorial"]
 ---
 
-Já escrevemos sobre [por que documentamos todas as APIs](/blog/apis-abiertas-por-que-documentamos-todo). Este é o lado prático: um passeio pela API REST v1 do Zerosoft com comandos `curl` prontos para copiar e colar, para o Link e para o CRM, mais os erros que você vai encontrar de verdade.
+Já escrevemos sobre [por que documentamos todas as APIs](/blog/apis-abiertas-por-que-documentamos-todo). Este é o lado prático: um passeio pela API REST v1 do zerosoft com comandos `curl` prontos para copiar e colar, para o Link e para o CRM, mais os erros que você vai encontrar de verdade.
 
-Tudo aqui foi conferido contra os handlers em `app/api/v1`, não só contra a página de docs. A URL base é `https://zerosoft.ai/api/v1` no Zerosoft Cloud, ou `https://seu-host/api/v1` se você faz self-host.
+Tudo aqui foi conferido contra os handlers em `app/api/v1`, não só contra a página de docs. A URL base é `https://zerosoft.ai/api/v1` no zerosoft Cloud, ou `https://seu-host/api/v1` se você faz self-host.
 
 ## Pegue uma chave
 
@@ -75,7 +75,7 @@ curl -X POST "$ZS/crm/contacts" \
 # 201 → { "id": "...", "first_name": "Ana", "last_name": "Garcia", "lifecycle_stage": "lead", ... }
 ```
 
-Atualize com `PATCH` — todos os campos são opcionais:
+Atualize com `PATCH`: todos os campos são opcionais:
 
 ```bash
 curl -X PATCH "$ZS/crm/contacts/CONTACT_ID" \
@@ -118,7 +118,7 @@ curl "$ZS/crm/tasks?bucket=overdue" -H "Authorization: Bearer $ZS_KEY"
 
 `bucket` aceita `overdue`, `today`, `upcoming` ou `done`. Datas vão como `YYYY-MM-DD`, opcionalmente com horário.
 
-Também há endpoints do Cal (tipos de evento, agendamentos, cancelamento) em `/calendar` — estão nas [docs](/docs).
+Também há endpoints do Cal (tipos de evento, agendamentos, cancelamento) em `/calendar`: estão nas [docs](/docs).
 
 ## Erros: um formato para tudo
 
@@ -155,4 +155,4 @@ Para importações em massa, fique bem abaixo de 100 por minuto e você nunca ve
 
 ## O que (ainda) não existe
 
-Sendo honestos sobre as bordas: ainda não há API para Track, Chat ou Docs, o CRM não emite eventos de webhook, e não há OAuth para apps de terceiros — as chaves são pessoais. Se o dashboard faz algo que a API não faz, isso é uma lacuna, não uma decisão de design. Abra uma issue.
+Sendo honestos sobre as bordas: ainda não há API para Track, Chat ou Docs, o CRM não emite eventos de webhook, e não há OAuth para apps de terceiros, as chaves são pessoais. Se o dashboard faz algo que a API não faz, isso é uma lacuna, não uma decisão de design. Abra uma issue.

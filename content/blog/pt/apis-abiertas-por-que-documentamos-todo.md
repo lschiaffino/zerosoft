@@ -1,12 +1,12 @@
 ---
 title: "APIs abertas: por que documentamos tudo"
-description: "A API v1 pública do Link está documentada por completo em /docs, endpoint por endpoint. Não é um detalhe: é a nossa garantia contra lock-in."
+description: "A API v1 pública está documentada endpoint por endpoint em /docs. Uma API completa é o jeito mais simples de garantir que você pode sair quando quiser."
 date: "2026-05-27"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["api", "open source", "link"]
 ---
 
-Tem um jeito fácil de saber se um produto respeita você: olhe a API. Se a API existe, está documentada e permite fazer tudo o que a interface faz, o produto trata você como adulto. Se a API é um acessório esquecido — três endpoints escondidos, documentação desatualizada, "fale com vendas para ter acesso" — o produto trata você como refém.
+Um teste rápido para avaliar um produto: olhe a API. Se ela existe, está documentada e faz o que a interface faz, você consegue automatizar o que quiser e sair quando quiser. Se são três endpoints escondidos e um "fale com vendas para ter acesso", você depende do fornecedor.
 
 Nós começamos pelo outro lado. O Link é API-first: a interface web é só mais um cliente da API pública. Tudo o que você faz com o mouse, você faz com curl.
 
@@ -16,13 +16,13 @@ A API v1 do Link está disponível hoje, documentada endpoint por endpoint em /d
 
 - **Criar links**: `POST /api/v1/links` com alias customizado, senha, data de expiração, máximo de cliques, tags e parâmetros UTM.
 - **Listar e buscar**: `GET /api/v1/links` com filtros por tag e domínio.
-- **Estatísticas**: `GET /api/v1/links/:id/stats` com cliques por dia, referrer, país, dispositivo, navegador e sistema operacional. Sem cookies, sem fingerprinting — os mesmos dados do dashboard.
+- **Estatísticas**: `GET /api/v1/links/:id/stats` com cliques por dia, referrer, país, dispositivo, navegador e sistema operacional. Sem cookies, sem fingerprinting: os mesmos dados do dashboard.
 - **QR codes**: geração em SVG e PNG.
 
 A autenticação é uma API key no header `Authorization: Bearer`. Você gera e revoga as chaves na sua conta, sem abrir ticket de suporte. Os rate limits são públicos e vêm nos headers `X-RateLimit-*` de cada resposta: você sabe exatamente quantas requisições ainda tem antes de bater no teto. Os erros são JSON com códigos estáveis, não HTML de surpresa.
 
 ```bash
-curl -X POST https://zerosoftware.ai/api/v1/links \
+curl -X POST https://zerosoft.ai/api/v1/links \
   -H "Authorization: Bearer SUA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://suaempresa.com/lancamento", "alias": "lancamento"}'
@@ -30,7 +30,7 @@ curl -X POST https://zerosoftware.ai/api/v1/links \
 
 ## A garantia anti-lock-in que funciona de verdade
 
-Todo mundo promete "sem lock-in". A maioria quer dizer "você pode exportar um CSV se achar o botão". Uma API aberta é uma promessa diferente — e verificável:
+Todo mundo promete "sem lock-in". A maioria quer dizer "você pode exportar um CSV se achar o botão". Uma API aberta é uma promessa diferente, e verificável:
 
 1. **Você pode automatizar a sua saída.** Um script de vinte linhas percorre seus links, baixa suas estatísticas e as reconstrói em outro lugar. Sem precisar da nossa cooperação.
 2. **Você se integra sem pedir permissão.** Seu CRM, seu CI, sua newsletter. Se fala HTTP, fala com o Link.
@@ -41,6 +41,6 @@ Uma empresa que entrega uma API completa está entregando a porta de saída, ace
 ## O que vem a seguir
 
 - **Webhooks**: eventos de clique em tempo real para o seu endpoint, para reagir no momento em que algo acontece.
-- **Endpoints por produto**: Track (Q4 2026), CRM (Q1 2027) e Cal (Q2 2027) saem cada um com sua API pública desde o primeiro dia. A mesma regra: documentado primeiro, estável depois.
+- **Endpoints por produto**: CRM, Cal e Agents já têm endpoints na API v1, ao lado do Link. Track ainda não tem API pública. A regra é a mesma para todos: documentado primeiro, estável depois.
 
-A interface é para as pessoas. A API é para a sua empresa. As duas precisam ser de primeira classe — ou nenhuma é.
+A interface é para as pessoas. A API é para a sua empresa. As duas precisam ser de primeira classe, ou nenhuma é.

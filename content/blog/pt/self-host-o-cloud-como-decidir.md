@@ -1,12 +1,12 @@
 ---
-title: "Self-host ou Zerosoft Cloud? Um checklist honesto"
-description: "Hospedar o Zerosoft é grátis e está a um docker compose de distância. Rodar bem é uma lista de pequenas tarefas: HTTPS, Google OAuth, e-mail, cron, backups, domínios próprios. Aqui está a lista para você decidir."
+title: "Self-host ou zerosoft Cloud? Um checklist honesto"
+description: "Hospedar o zerosoft é grátis e está a um docker compose de distância. Rodar bem é uma lista de pequenas tarefas: HTTPS, Google OAuth, e-mail, cron, backups, domínios próprios. Aqui está a lista para você decidir."
 date: "2026-08-30"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["self-hosting", "nuvem", "guia"]
 ---
 
-Dizemos em todo lugar: hospedar o Zerosoft custa $0, para sempre. É verdade, e não é a verdade inteira. O software é grátis. A hora que você passa às 23h com um e-mail de lembrete que não sai, não é.
+Dizemos em todo lugar: hospedar o zerosoft custa $0. É verdade, mas não é a conta inteira. O software é grátis. A hora que você passa às 23h com um e-mail de lembrete que não sai, não é.
 
 Este post é o checklist que gostaríamos de ter se estivéssemos decidindo. Sem vender nenhum dos lados: ganhamos dinheiro quando você escolhe a nuvem, e mesmo assim construímos cada produto para rodar no seu próprio servidor. Escolha a opção cujas tarefas você prefere assumir.
 
@@ -20,7 +20,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Um contêiner, um processo Node, um arquivo SQLite no volume `zerosoft-data` e os anexos em `zerosoft-uploads`. As migrações do banco rodam sozinhas quando a app sobe. Sem Postgres, sem Redis, sem workers de fila.
+Um contêiner, um processo Node, um arquivo SQLite no volume `zerosoft-data` e os anexos em `zerosoft-uploads`. As migrações do banco rodam sozinhas quando a app sobe. Não precisa de Postgres, Redis nem workers de fila.
 
 Com isso você tem a app rodando na porta 3000. Passar de "está rodando" para "meu time depende disso" é o checklist abaixo.
 
@@ -28,13 +28,13 @@ Com isso você tem a app rodando na porta 3000. Passar de "está rodando" para "
 
 ### 1. HTTPS e um reverse proxy
 
-O contêiner fala HTTP puro. Você coloca um reverse proxy na frente — Caddy, nginx, Traefik, o que você conhecer — e dá um certificado a ele. Com Caddy são poucas linhas e certificados automáticos. Configure `NEXTAUTH_URL` com o endereço HTTPS público, porque os callbacks de login dependem disso.
+O contêiner fala HTTP puro. Você coloca um reverse proxy na frente (Caddy, nginx, Traefik, o que você conhecer) e dá um certificado a ele. Com Caddy são poucas linhas e certificados automáticos. Configure `NEXTAUTH_URL` com o endereço HTTPS público, porque os callbacks de login dependem disso.
 
 **Esforço:** uma hora na primeira vez, quase zero depois.
 
 ### 2. Google OAuth (o único login)
 
-O login do Zerosoft é Google OAuth. `DEMO_MODE` serve para explorar e é ignorado em produção, a menos que você force explicitamente — não force. Então você precisa de um projeto no Google Cloud com `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`, e o redirect URI `<NEXTAUTH_URL>/api/auth/callback/google`.
+O login do zerosoft é Google OAuth. `DEMO_MODE` serve para explorar e é ignorado em produção, a menos que você force explicitamente: não force. Então você precisa de um projeto no Google Cloud com `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`, e o redirect URI `<NEXTAUTH_URL>/api/auth/callback/google`.
 
 Se quiser a sincronização do Gmail no CRM ou do Google Calendar no Cal, adicione os callbacks (`/api/integrations/gmail/callback`, `/api/integrations/google-calendar/callback`) e habilite as APIs do Gmail e do Calendar. Leitura do Gmail é um escopo sensível do lado do Google: para uma app usada só dentro do seu próprio Google Workspace costuma ser tranquilo; para algo mais amplo, confira as regras de verificação atuais do Google antes de prometer para alguém.
 
@@ -86,7 +86,7 @@ Os anexos do Chat, do Track e das tarefas do CRM vão para o volume `zerosoft-up
 ## Quando self-host é a escolha certa
 
 - Alguém do time se dá bem com um servidor Linux e vai assumir a responsabilidade.
-- Os seus dados precisam ficar em infraestrutura que você controla — por contrato com cliente, regulador ou princípio.
+- Os seus dados precisam ficar em infraestrutura que você controla: por contrato com cliente, regulador ou princípio.
 - Você quer modificar o código. (Leia [por que AGPLv3](/blog/por-que-agpl) para entender o que isso implica.)
 - Você prefere gastar uma tarde uma vez a pagar qualquer coisa, nunca.
 
@@ -96,18 +96,18 @@ Os anexos do Chat, do Track e das tarefas do CRM vão para o volume `zerosoft-up
 - Você precisa que e-mail, cron, HTTPS em domínios próprios e backups simplesmente existam, hoje.
 - Vocês são um time não técnico e o checklist acima já cansou.
 
-O Zerosoft Cloud começa com um plano gratuito generoso; depois disso, você paga por uso — o que escala —, nunca por assento, com preços transparentes publicados antes de cobrarmos qualquer coisa. Não colocamos números neste post porque o número honesto para comparar é o seu próprio tempo.
+O zerosoft Cloud começa com um plano gratuito generoso; depois disso, você paga por uso (o que escala), nunca por assento, com preços transparentes publicados antes de cobrarmos qualquer coisa. Não colocamos números neste post porque o número honesto para comparar é o seu próprio tempo.
 
 ## Mudar depois: o que é portável hoje
 
 Veja isso com clareza, porque é aí que a decisão entre self-host e nuvem fica grudenta:
 
-- **Link:** exportável — JSON pela API e CSV por link.
+- **Link:** exportável, JSON pela API e CSV por link.
 - **CRM:** exportação completa em CSV/JSON (só admins), e importação CSV com mapeamento e deduplicação do outro lado.
 - **Track, Cal, Chat, Docs:** ainda sem recurso de exportação. Exportar conversas do Chat e exportar Docs em JSON/Markdown são lacunas conhecidas.
 - **Self-hosted:** o arquivo SQLite *é* a exportação. Está tudo lá, legível com qualquer ferramenta de SQLite.
 
-Hoje não existe um botão de "mover meu workspace da nuvem para o meu servidor" (nem o contrário). Se portabilidade entre os dois é um requisito rígido, comece onde pretende ficar — ou comece self-hosted, onde o arquivo inteiro está com você.
+Hoje não existe um botão de "mover meu workspace da nuvem para o meu servidor" (nem o contrário). Se portabilidade entre os dois é um requisito rígido, comece onde pretende ficar, ou comece self-hosted, onde o arquivo inteiro está com você.
 
 ## A versão curta
 

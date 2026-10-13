@@ -1,8 +1,8 @@
 ---
-title: "How Cal handles timezones: wall clocks, UTC and DST"
-description: "An engineering walkthrough of timezones in Cal: what we store in UTC, what we keep as wall-clock time, how slots survive DST, and how emails and .ics invites reach the guest in their own time."
+title: "How Cal handles time zones: wall clocks, UTC and DST"
+description: "What Cal stores in UTC, what it keeps as wall-clock time, how slots survive DST changes, and how emails and .ics invites reach the guest in their own time zone."
 date: "2026-09-01"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "architecture", "timezones"]
 ---
 
@@ -22,9 +22,9 @@ Rule 2 is the one that makes DST a non-event. If we converted your availability 
 
 There are three different timezones in Cal, and keeping them apart is half the job:
 
-- **The host's timezone.** Set in Cal settings and validated as a real IANA zone (if `Intl.DateTimeFormat` rejects it, so does the API). New accounts start at UTC — we don't silently infer it, so your availability never moves because you travelled.
+- **The host's timezone.** Set in Cal settings and validated as a real IANA zone (if `Intl.DateTimeFormat` rejects it, so does the API). New accounts start at UTC. We don't silently infer it, so your availability never moves because you travelled.
 - **The guest's timezone.** The booking page reads it from the browser with `Intl.DateTimeFormat().resolvedOptions().timeZone`, and the guest can change it from a dropdown. It's saved on the booking.
-- **The viewer's timezone.** Inside the app, a small client component writes your browser's zone to a `tz` cookie, so dashboards like "bookings this week" render in your time. Outside a request — cron jobs, tests — it falls back to UTC.
+- **The viewer's timezone.** Inside the app, a small client component writes your browser's zone to a `tz` cookie, so dashboards like "bookings this week" render in your time. Outside a request (cron jobs, tests), it falls back to UTC.
 
 ## Building slots across two calendars
 
@@ -46,7 +46,7 @@ The core helper is `localToUtc(date, time, tz)`: "what UTC instant is 09:00 on 2
 
 So we iterate. Start by pretending the wall-clock time *is* UTC. Ask `Intl` what local time that instant is in the target zone. The difference between what we wanted and what we got is the offset; shift by it and check again. It usually settles in one or two rounds; the loop is capped at five. Because the offset is measured at the actual instant, DST transitions are picked up automatically.
 
-It's about fifteen lines, and it means zero dependencies and nothing to update when a country changes its DST rules — the runtime's timezone database handles that.
+It's about fifteen lines, and it means zero dependencies and nothing to update when a country changes its DST rules: the runtime's timezone database handles that.
 
 ## A DST week, concretely
 
@@ -63,7 +63,7 @@ The client sends the chosen instant plus the guest's timezone. The server doesn'
 
 ## Emails, reminders and .ics
 
-Everything the guest receives is rendered in **their** timezone and **their** language. Confirmation, reschedule and cancellation emails format the time with `Intl.DateTimeFormat` using `en-US`, `es-AR` or `pt-BR`, in the booking's timezone, with the zone name printed next to it — "(America/Sao_Paulo)" — so there's no ambiguity. The manage link points to the guest's locale too.
+Everything the guest receives is rendered in **their** timezone and **their** language. Confirmation, reschedule and cancellation emails format the time with `Intl.DateTimeFormat` using `en-US`, `es-AR` or `pt-BR`, in the booking's timezone, with the zone name printed next to it ("(America/Sao_Paulo)") so there's no ambiguity. The manage link points to the guest's locale too.
 
 The 24-hour reminder is scheduled as a UTC instant (`start - 24h`) and sent by the cron at `/api/cron/tick`, which runs hourly, so it goes out somewhere between 24 and 23 hours before the meeting. Meetings booked less than 24 hours ahead don't get one; the confirmation just arrived.
 
@@ -80,4 +80,4 @@ Things we know about and haven't fully solved:
 - **A guest's DST-change day is treated as 24 hours.** On the one day a year that's 23 or 25 hours long in the guest's zone, a slot right at midnight can show up under the neighbouring date.
 - **Availability rules inside a DST gap.** A rule that starts at a local time that doesn't exist (02:30 on spring-forward night) resolves to a nearby instant. Business hours rarely live there, but we haven't special-cased it.
 
-None of these is hypothetical hand-waving; they fall straight out of the code above, which is the point. If you find another one, the code is open — [here's how to contribute](/blog/como-contribuir-a-zerosoftware).
+None of these is hypothetical hand-waving; they fall straight out of the code above, which is the point. If you find another one, the code is open: [here's how to contribute](/blog/como-contribuir-a-zerosoftware).

@@ -1,8 +1,8 @@
 ---
-title: "UTMs without the spreadsheet: a convention for small teams"
-description: "A simple UTM naming convention for a small team, and how to run it in Link with the UTM builder, tags, bulk create, per-link CSV export and 7/30/90-day comparisons."
+title: "UTMs without the spreadsheet: a naming convention for small teams"
+description: "A short UTM naming convention, and how to run it in Link with the UTM builder, tags, bulk create, per-link CSV export and 7/30/90-day comparisons."
 date: "2026-09-03"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "utm", "marketing"]
 ---
 
@@ -24,7 +24,7 @@ Here's a convention that fits on a sticky note. Adapt the vocabulary, but keep t
 
 **`utm_medium`: what kind of channel.** A short, closed list: `email`, `social`, `paid-social`, `cpc`, `referral`, `print`. If you're about to invent a new medium, you probably meant a new source.
 
-**`utm_campaign`: what you're pushing, with a date.** `2026-09-launch`, `2026-10-webinar-pricing`. The date prefix sorts them and kills the "which launch?" question forever.
+**`utm_campaign`: what you're pushing, with a date.** `2026-09-launch`, `2026-10-webinar-pricing`. The date prefix sorts them and ends the "which launch?" question.
 
 And the rules:
 
@@ -38,7 +38,7 @@ Need `utm_content` or `utm_term` for A/B variants? Link's builder only has field
 
 In **New link**, paste the destination and open the **UTM builder**. Fill source, medium and campaign; the **Final URL** preview shows exactly what the destination will be. Then:
 
-- **Title:** something a human can read in a list. "Sept launch — LinkedIn post".
+- **Title:** something a human can read in a list. "Sept launch: LinkedIn post".
 - **Tags:** the campaign name, e.g. `2026-09-launch`. Up to five tags per link, so you can add the channel or the owner too.
 - **Custom slug** if the link is going somewhere people will type it, like a slide or a podcast.
 

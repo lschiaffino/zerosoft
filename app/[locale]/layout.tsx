@@ -36,8 +36,8 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   const t = await getTranslations({ locale, namespace: 'common.meta' });
   return {
     title: {
-      default: 'Zerosoft — ' + t('tagline'),
-      template: '%s — Zerosoft',
+      default: 'zerosoft · ' + t('tagline'),
+      template: '%s · zerosoft',
     },
     description: t('description'),
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),

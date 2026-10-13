@@ -1,38 +1,31 @@
 ---
-title: "El software libre ganó. Nadie lo notó."
-description: "Linux, Postgres, nginx, Kubernetes: el mundo ya corre sobre open source. La única capa que siguió propietaria es la que toca el usuario. Esa última milla es la que venimos a cerrar."
+title: "Internet corre sobre software libre, menos la capa que usás"
+description: "Linux, Postgres, nginx y Kubernetes sostienen buena parte de internet. Las herramientas de oficina siguieron cerradas y con suscripción. Por qué pasó y qué hacemos al respecto."
 date: "2026-05-28"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["open source", "linux", "saas"]
 ---
 
-Si estás leyendo esto, tu pedido viajó por un servidor Linux, pasó por un nginx, consultó un Postgres y probablemente salió de un contenedor orquestado por Kubernetes. El mundo ya corre sobre software libre. Hace rato. Tan hace rato que dejó de ser noticia.
+Para que leas esta página, el pedido probablemente pasó por un servidor Linux, un nginx y una base Postgres, adentro de un contenedor. La infraestructura de internet es, en su mayoría, software libre, y hace tanto tiempo que ya no es noticia.
 
-Los números son de una contundencia que aburre:
+Algunos datos verificables:
 
-- Más del 80% de los servidores web y prácticamente el 100% de las 500 supercomputadoras más potentes del mundo corren Linux.
-- Más del 90% de la infraestructura cloud se apoya en software open source.
-- Postgres, MySQL, Redis, nginx, Kubernetes, Docker, Git: el stack completo con el que se construye internet es libre.
-- Las auditorías de código de Synopsys vienen reportando hace años que más del 90% de las bases de código comerciales contienen componentes open source.
+- Las 500 supercomputadoras del ranking TOP500 corren Linux desde 2017.
+- Postgres, MySQL, Redis, nginx, Kubernetes, Docker y Git son open source.
+- Los informes anuales de Synopsys sobre auditorías de código comercial encuentran componentes open source en más del 90% de las bases de código que revisan.
 
-La batalla por el servidor terminó. Ganó el software libre, y ganó tan completo que nadie lo festeja: es simplemente el aire que respira la industria.
+## La capa que quedó cerrada
 
-## La capa que quedó afuera
+La excepción es la capa que toca el usuario: el acortador de links, el CRM, el calendario, el gestor de proyectos, el chat del equipo. Esas herramientas siguen siendo propietarias y se pagan por mes.
 
-Hay una excepción visible: la capa que toca el usuario. El acortador de links, el CRM, el calendario, el gestor de proyectos, el chat del equipo. Esa última milla siguió propietaria, cerrada y con suscripción mensual.
+Y están construidas sobre lo mismo: corren en Linux, guardan datos en Postgres y sirven tráfico con nginx. Abajo son open source; arriba se alquilan.
 
-La ironía es difícil de ignorar: esos productos están construidos enteramente sobre software libre — corren en Linux, guardan datos en Postgres, sirven tráfico con nginx — pero se venden como cajas negras. El SaaS moderno es open source por abajo y alquiler por arriba.
+El resultado se ve en cualquier presupuesto. La infraestructura, que es lo difícil, no cuesta licencia. Las herramientas de oficina, que son técnicamente más simples, cuestan decenas de dólares por usuario por mes.
 
-El resultado salta a la vista en cualquier presupuesto de IT: la infraestructura, que es lo técnicamente difícil, es gratis. Las herramientas de oficina, que son lo técnicamente simple, cuestan decenas de dólares por usuario por mes. El mapa de precios del software quedó exactamente al revés.
+Hay una explicación. La infraestructura la construyeron ingenieros para otros ingenieros, y compartirla les convenía a todos. La capa de aplicación es donde estaba el negocio: el usuario final no audita código, paga suscripciones.
 
-No es un accidente técnico. La infraestructura se liberó porque los ingenieros la construían para sí mismos, y compartir era una ventaja competitiva. La capa de aplicación quedó capturada porque ahí estaba el modelo de negocio: el usuario final no audita código, paga suscripciones.
+## Lo que estamos haciendo
 
-## La última milla
+zerosoft reconstruye esa capa como open source (AGPLv3). Empezamos por Link y hoy son once apps: CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal y Board.
 
-Eso es lo que venimos a cerrar. Las herramientas de trabajo — las que usa todos los días alguien que no programa — son la última milla del software libre.
-
-Empezamos por **Link**: short links con alias custom, analytics sin cookies, QR en SVG y PNG, links con password y expiración, y una API pública v1. Ya está disponible, el código es abierto y la nube se cobra al costo. Después vienen Track (Q4 2026), CRM (Q1 2027) y Cal (Q2 2027), con el mismo contrato: self-host a $0 o cloud al costo, sin margen.
-
-El software libre no necesita que lo descubran. Necesita que lo terminen. La infraestructura ya es libre; falta liberar lo que toca la gente.
-
-> La última milla del open source no corre en un datacenter. Corre en tu pestaña del navegador.
+Las podés correr en tu servidor por $0, o usar zerosoft Cloud, que tiene un plan gratis y después cobra por uso del workspace (clics, reservas, emails, almacenamiento).

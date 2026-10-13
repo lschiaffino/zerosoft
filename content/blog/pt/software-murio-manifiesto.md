@@ -1,42 +1,34 @@
 ---
-title: "O software morreu: um manifesto"
-description: "Você paga US$ 30 para mover cartões, US$ 50 para guardar contatos, US$ 12 para encurtar um link. Não pelo software — pelo hábito. Isso acabou."
+title: "Um manifesto sobre o preço do software"
+description: "US$ 30 para mover cartões, US$ 50 para guardar contatos, US$ 12 para encurtar um link. De onde vêm esses preços e o que a zerosoft faz diferente."
 date: "2026-07-01"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["manifesto", "open source", "saas"]
 ---
 
-Durante vinte anos, a indústria do software operou com um truque simples: pegar algo que não custa nada para copiar — bits — e cobrar por isso todos os meses, para sempre.
+Um gestor de projetos cobra cerca de US$ 30 por usuário por mês para mover cartões entre colunas. Um CRM cobra US$ 50 por usuário para guardar contatos numa tabela. Um encurtador cobra US$ 12 por mês por um redirect de poucos bytes. Este post explica de onde vêm esses preços e o que fazemos diferente.
 
-Não cobram pelo que o software custa a fazer. Cobram porque podem. Porque a sua empresa já está dentro. Porque migrar dói. Porque o primeiro definiu o preço e todos os outros copiaram.
+## O preço segue o hábito
 
-## As contas não fecham (para eles)
+O preço de um SaaS raramente acompanha o custo de fazer ou rodar o software. Ele acompanha o que o mercado aceita pagar. A sua empresa já está dentro, migrar dá trabalho e o primeiro do setor definiu o valor que os outros copiaram.
 
-Olhemos de perto. Um gestor de projetos cobra cerca de US$ 30 por usuário por mês para mover cartões de uma coluna a outra. Um CRM cobra US$ 50 para guardar contatos numa tabela. Um encurtador de links cobra US$ 12 por um redirect de 300 bytes.
+Copiar um programa custa praticamente nada. Rodá-lo custa um banco de dados, um servidor de poucos dólares e banda medida em centavos. A diferença entre esse custo e a fatura mensal é margem.
 
-O custo marginal de tudo isso é, literalmente, zero. Um banco de dados, um servidor de US$ 5, banda medida em centavos.
+## O que mudou
 
-Software são bits. E bits são grátis. Sempre foram.
+Duas coisas. Escrever software ficou muito mais barato: com ferramentas de IA, uma pessoa constrói em semanas o que antes pedia um time e um trimestre. E o custo de rodar software sempre foi público: qualquer provedor de nuvem publica quanto custa um servidor, um GB e um TB de tráfego.
 
-## O que aconteceu com a música, mas ao contrário
+Se fazer é barato e rodar tem preço público, sobra pouca justificativa para cobrar por assento.
 
-A indústria musical perdeu a batalha contra o custo marginal zero e se reinventou com o streaming. A indústria do software, por outro lado, passou vinte anos nos convencendo de que os bits eram escassos.
+## O que a zerosoft faz
 
-Acabou. A inteligência artificial derrubou o custo de *escrever* software para quase zero. O que resta — o custo de *rodá-lo* — é a nuvem. E a nuvem tem preço público.
+Reconstruímos as ferramentas que uma empresa usa todos os dias. Hoje são onze apps: CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal e Board.
 
-## O modelo que propomos
+1. **O código é aberto (AGPLv3).** Você pode baixar, auditar, modificar e hospedar no seu servidor por $0, com todas as funções do core.
+2. **Se preferir, nós rodamos.** No zerosoft Cloud você começa num plano grátis e, quando cresce, paga pelo uso do workspace: cliques, reservas, emails e armazenamento. Assentos não são cobrados.
 
-A Zerosoftware reconstrói as ferramentas que movem o mundo e as liberta:
-
-1. **Todo o código é aberto.** Baixe, audite, modifique, hospede. É seu.
-2. **Se você não quiser hospedar, nós rodamos para você.** Com login, backups, atualizações e uptime. Você paga exatamente o que a nuvem custa. Ao custo. Nem um centavo a mais. Nem um a menos.
-
-Sem licenças por usuário. Sem lock-in. Sem letras miúdas. Se um dia errarmos, você leva seus dados e seu software inteiro para outro lugar. Essa é a melhor garantia que existe.
+Se um dia você quiser sair, exporta os dados e roda o mesmo código em outro lugar. Essa é a garantia mais simples que conseguimos oferecer.
 
 ## O que vem a seguir
 
-Começamos com o **Link**, nosso encurtador de links com analytics — o Bitly que não cobra. Depois vêm Track, CRM e Cal. E depois, todo o resto: documentos, notas, chat, design. Se o mundo usa, vamos libertar.
-
-O software morreu. Nós somos o que vem a seguir.
-
-Bem-vindo ao novo mundo.
+As onze apps já estão disponíveis e o roadmap é público. Cada lacuna conhecida está listada no README, ao lado dos recursos. Se você usa uma ferramenta paga que deveria estar nesta lista, conte para a gente.

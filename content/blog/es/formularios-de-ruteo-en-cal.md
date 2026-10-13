@@ -1,8 +1,8 @@
 ---
 title: "Formularios de ruteo en Cal: cada lead a la reunión correcta"
-description: "Un par de preguntas antes del calendario y cada visitante cae en el event type que corresponde. Cómo armar routing forms en Cal, cómo se evalúan las reglas y dónde están los límites."
+description: "Un par de preguntas antes del calendario y cada visitante cae en el tipo de evento que corresponde. Cómo armar formularios de ruteo en Cal, cómo se evalúan las reglas y dónde están los límites."
 date: "2026-08-03"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "agendar", "ventas"]
 ---
 
@@ -15,7 +15,7 @@ La solución es vieja y aburrida: hacer un par de preguntas *antes* de mostrar e
 Un routing form tiene tres partes:
 
 - **Preguntas.** Los campos que completa el visitante. Tres tipos: **Text**, **Select** (un desplegable con hasta 50 opciones) y **Yes / No**. Cada pregunta tiene un label (lo que ve la gente), una key (a la que se refieren las reglas, en minúsculas, tipo `company_size`) y puede marcarse como obligatoria.
-- **Reglas.** Cada regla dice: *si la pregunta X* — **is**, **is not**, **contains** o **is answered** — *el valor Y, mandalo al event type Z*.
+- **Reglas.** Cada regla dice: *si la pregunta X*, **is**, **is not**, **contains** o **is answered**, *el valor Y, mandalo al event type Z*.
 - **Un event type por defecto.** A dónde va la gente si ninguna regla matchea.
 
 El form tiene su propia URL pública, `/r/<tu-handle>/<slug>`, que compartís en lugar de un link de reserva. Cuando el visitante envía, Cal evalúa las reglas y lo redirige a `/book/<tu-handle>/<event-slug>` del event type que corresponda.
@@ -26,18 +26,18 @@ Un caso hipotético: una agencia B2B de 6 personas que vende proyectos web y ade
 
 **1. Creá primero los event types de destino.** Los routing forms apuntan a event types, así que tienen que existir. Por ejemplo:
 
-- `discovery-call` — 45 min, con los dos fundadores en un pool round-robin,
-- `intro-call` — 20 min, con un account manager junior,
-- `support-triage` — 15 min, con quien se ocupe del soporte.
+- `discovery-call`: 45 min, con los dos fundadores en un pool round-robin,
+- `intro-call`: 20 min, con un account manager junior,
+- `support-triage`: 15 min, con quien se ocupe del soporte.
 
 **2. Creá el form.** Andá a **Cal → Routing forms → New routing form**. Ponele título y slug, por ejemplo `hablemos`.
 
 **3. Agregá las preguntas.**
 
-- `name` — Text, obligatoria
-- `email` — Text, obligatoria
-- `need` — Select: *Sitio nuevo*, *Rediseño*, *Soporte para un sitio existente*
-- `budget` — Select: *Menos de 5k*, *5k–20k*, *Más de 20k*
+- `name`: Text, obligatoria
+- `email`: Text, obligatoria
+- `need`: Select: *Sitio nuevo*, *Rediseño*, *Soporte para un sitio existente*
+- `budget`: Select: *Menos de 5k*, *5k–20k*, *Más de 20k*
 
 **4. Agregá las reglas, en orden.**
 

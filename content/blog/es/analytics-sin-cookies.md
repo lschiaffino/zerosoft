@@ -1,12 +1,12 @@
 ---
-title: "Analytics sin cookies: lo que un click ya te cuenta"
-description: "Las analytics de Link no usan cookies, ni JavaScript, ni fingerprinting. Todo lo que sabemos de un click viene del request HTTP que el navegador iba a mandar de todas formas."
+title: "Métricas sin cookies: lo que un clic ya te cuenta"
+description: "Las métricas de Link no usan cookies, JavaScript ni fingerprinting. Todo sale del pedido HTTP que el navegador manda igual para seguir el link."
 date: "2026-06-24"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["analytics", "privacidad", "link", "open source"]
 ---
 
-Un click en un link corto es una conversación entre un navegador y nuestro servidor. Antes de que exista cualquier analytics, esa conversación ya pasa: el navegador pide el redirect, el servidor contesta con un 302. Las analytics sin cookies son simplemente escuchar con atención esa conversación, en vez de intervenir el cuarto.
+Cuando alguien hace clic en un link corto, el navegador le pide el redirect a nuestro servidor y el servidor contesta con un 302. Ese pedido ya trae casi todo lo que hace falta para medir: de dónde viene, desde qué dispositivo y desde qué país. Este post muestra qué leemos de cada header y qué descartamos.
 
 ## El request cuenta la historia
 

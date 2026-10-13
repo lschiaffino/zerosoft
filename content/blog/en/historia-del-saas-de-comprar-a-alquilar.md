@@ -1,12 +1,12 @@
 ---
-title: "The true history of SaaS: from buying software to renting it forever"
-description: "You used to buy a CD and the software was yours. Today you rent your own work tools, month after month, with no exit date. How it happened and how it ends."
+title: "How software went from a one-time purchase to a monthly rent"
+description: "You used to buy a box and keep the software. Now most work tools are rented with no end date. How that happened, and what's changing."
 date: "2026-07-07"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["saas", "history"]
 ---
 
-There was a time when software was bought like a hammer. You paid once, took home a box with a CD, and it was yours. Forever. If the company that made it vanished the next day, your hammer kept working.
+There was a time when software was bought like a hammer. You paid once, took home a box with a CD, and it was yours. If the company that made it vanished the next day, your hammer kept working.
 
 That era ended. And not by accident.
 
@@ -18,9 +18,9 @@ The power was on the buyer's side: the decision to pay renewed itself only if th
 
 ## Act 2: the cloud changed everything (2000–2015)
 
-Salesforce had the idea that defined two decades: if software runs on our servers, there's nothing to buy — only something to rent. SaaS was born: monthly payment, browser access, automatic updates.
+Salesforce had the idea that defined two decades: if software runs on our servers, there's nothing to buy. Only something to rent. SaaS was born: monthly payment, browser access, automatic updates.
 
-At first it was genuinely better. No installs, no own servers, no IT department. The problem came later, when everyone realized what it meant for the vendor: predictable recurring revenue. Wall Street's favorite metric. The goal stopped being "make a product so good they buy the next version" and became "make it impossible to leave".
+At first it was genuinely better. Nothing to install and no servers to run. The problem came later, when everyone realized what it meant for the vendor: predictable recurring revenue. Wall Street's favorite metric. The goal stopped being "make a product so good they buy the next version" and became "make it impossible to leave".
 
 ## Act 3: the lock-in era (2015–today)
 
@@ -38,6 +38,6 @@ The rent stayed as if nothing had happened. Until now.
 
 ## How the story ends
 
-It ends the way it began: with software being yours again. Not in a box with a CD, but better: open source code you can run anywhere, or run on our cloud paying only what the infrastructure costs.
+It ends the way it began: with software being yours again. This time as open source code you can run anywhere, or on our cloud, paying for usage instead of seats.
 
-From renting forever to owning again. That's the new world. And if you look at history, it's not new at all: it's software returning to its nature.
+From renting with no end date back to owning. Historically, that's how software started.

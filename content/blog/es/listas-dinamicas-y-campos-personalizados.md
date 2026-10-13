@@ -1,14 +1,14 @@
 ---
-title: "Listas estáticas, listas dinámicas y campos personalizados, sin hacer un desastre"
-description: "Cómo segmentar contactos en Zerosoft CRM con listas estáticas, listas dinámicas, vistas guardadas y campos personalizados: para qué sirve cada cosa, qué no puede hacer y unas reglas para mantener los datos limpios."
+title: "Listas estáticas, listas dinámicas y campos personalizados en el CRM"
+description: "Cómo segmentar contactos en el CRM de zerosoft con listas estáticas, listas dinámicas, vistas guardadas y campos personalizados: para qué sirve cada una, sus límites y reglas para mantener los datos limpios."
 date: "2026-09-20"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "segmentación", "guía"]
 ---
 
 Todo CRM termina teniendo un cajón de sastre. Un campo que se llama "Notas 2". Un desplegable con las opciones "Sí", "si" y "S". Treinta listas llamadas "Webinar", "Webinar marzo", "webinar marzo FINAL". Ninguna fue una mala idea en su momento. Todas juntas hacen que segmentar sea más lento que exportar a una planilla, que es exactamente lo que la gente termina haciendo.
 
-Zerosoft CRM te da tres herramientas para cortar tus contactos: listas estáticas, listas dinámicas y vistas guardadas, más los campos personalizados para cortar por ellos. Se pisan un poco, y cada una tiene límites que conviene conocer. Acá va cuándo usar cuál.
+zerosoft CRM te da tres herramientas para cortar tus contactos: listas estáticas, listas dinámicas y vistas guardadas, más los campos personalizados para cortar por ellos. Se pisan un poco, y cada una tiene límites que conviene conocer. Acá va cuándo usar cuál.
 
 ## Las tres herramientas, un párrafo cada una
 
@@ -28,7 +28,7 @@ Así que la regla general es simple:
 - El segmento depende de un campo personalizado, un dueño, una fecha, o es sobre empresas o deals → **vista guardada**.
 - El segmento es un grupo de personas concretas que ningún filtro describe → **lista estática**.
 
-Otra cosa que las listas no hacen: no son listas de correo. Zerosoft CRM no manda campañas de marketing ni secuencias. Una lista sirve para organizar, contar y disparar trabajo, no para mandar emails masivos.
+Otra cosa que las listas no hacen: no son listas de correo. zerosoft CRM no manda campañas de marketing ni secuencias. Una lista sirve para organizar, contar y disparar trabajo, no para mandar emails masivos.
 
 ## Campos personalizados: qué hay
 

@@ -1,17 +1,17 @@
 ---
 title: "Dominios propios para tus links cortos: DNS, paso a paso"
-description: "Cómo servir los links de Link desde go.tuempresa.com: qué registro DNS crear, cómo funciona la verificación en Zerosoft Cloud y en tu propio servidor, y dónde suele trabarse."
+description: "Cómo servir los links de Link desde go.tuempresa.com: qué registro DNS crear, cómo funciona la verificación en zerosoft Cloud y en tu propio servidor, y dónde suele trabarse."
 date: "2026-07-21"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "dns", "dominios"]
 ---
 
-Un link corto en un dominio ajeno es un pequeño acto de fe que le pedís a cada lector. `go.tuempresa.com/lanzamiento` dice quién lo manda. Un dominio random dice "hacé click y rezá". Link soporta dominios propios de fábrica, y configurar uno es un registro DNS y un botón. Este post cuenta exactamente qué pasa, en Zerosoft Cloud y en tu propio servidor, incluyendo las partes que suelen salir mal.
+`go.tuempresa.com/lanzamiento` le dice al lector quién manda el link; un dominio genérico, no. Link acepta dominios propios y configurar uno es un registro DNS y un botón. Este post cuenta qué pasa en zerosoft Cloud y en tu propio servidor, incluidas las partes que suelen salir mal.
 
 ## Antes de arrancar
 
-- **Usá un subdominio.** `go.`, `l.`, `links.` — lo que quieras. Podés usar un dominio raíz (`tuempresa.link`), pero los subdominios se llevan mejor con los proveedores de DNS, ya vas a ver por qué.
-- **Tené acceso al DNS.** Cloudflare, Route 53, el panel de tu registrador — donde viva la zona.
+- **Usá un subdominio.** `go.`, `l.`, `links.`: lo que quieras. Podés usar un dominio raíz (`tuempresa.link`), pero los subdominios se llevan mejor con los proveedores de DNS, ya vas a ver por qué.
+- **Tené acceso al DNS.** Cloudflare, Route 53, el panel de tu registrador: donde viva la zona.
 - **Sé admin del workspace.** Agregar un dominio es solo para admins. Una vez verificado, aparece como opción para cualquiera del workspace que cree un link.
 
 ## Paso 1: agregá el dominio
@@ -28,7 +28,7 @@ El dominio queda en **Esperando DNS**, con una tablita que te dice exactamente q
 
 Lo que dice la tabla depende de dónde corre Link.
 
-### En Zerosoft Cloud (y cualquier deploy en Vercel)
+### En zerosoft Cloud (y cualquier deploy en Vercel)
 
 Cuando el servidor tiene `VERCEL_TOKEN` y `VERCEL_PROJECT_ID` (más `VERCEL_TEAM_ID` si el proyecto está en un team), agregar un dominio también lo registra en el proyecto de Vercel vía su API. El registro que creás es:
 
@@ -44,7 +44,7 @@ Vercel emite el certificado HTTPS solo, cuando el DNS resuelve. No tocás certif
 
 ### En tu propio servidor
 
-Dejá vacías las variables `VERCEL_*`. Ahí la instrucción es un CNAME que apunta al host de tu propia app — el de `SHORT_DOMAIN`, o `NEXTAUTH_URL` si esa no está:
+Dejá vacías las variables `VERCEL_*`. Ahí la instrucción es un CNAME que apunta al host de tu propia app: el de `SHORT_DOMAIN`, o `NEXTAUTH_URL` si esa no está:
 
 ```
 # supongamos que tu instancia de Link corre en links.ejemplo.org
@@ -57,7 +57,7 @@ Para un dominio raíz la tabla dice `CNAME @`, que muchos proveedores no permite
 
 ## Paso 3: verificá
 
-Los cambios de DNS tardan entre segundos y un buen rato. Cuando creas que ya está, tocá **Verificar**. Si todavía no, vas a ver "El DNS todavía no apunta acá" — esperá y probá de nuevo. La verificación tiene rate limit por IP, así que machacar el botón no ayuda.
+Los cambios de DNS tardan entre segundos y un buen rato. Cuando creas que ya está, tocá **Verificar**. Si todavía no, vas a ver "El DNS todavía no apunta acá": esperá y probá de nuevo. La verificación tiene rate limit por IP, así que machacar el botón no ayuda.
 
 Qué chequea "verificar" en realidad:
 
@@ -74,7 +74,7 @@ Esta es la parte que nadie espera, para bien.
 
 **Los slugs son por dominio.** `zerosoft.ai/promo` y `go.tuempresa.com/promo` son links distintos y pueden ir a lugares distintos. El mismo slug puede existir una vez por dominio.
 
-**La raíz puede redirigir.** Por defecto, quien abre `go.tuempresa.com/` sin slug cae en la home de Zerosoft. Después de verificar, configurá un **Redirect de la raíz** (tu home, por ejemplo) y el dominio pelado va ahí.
+**La raíz puede redirigir.** Por defecto, quien abre `go.tuempresa.com/` sin slug cae en la home de zerosoft. Después de verificar, configurá un **Redirect de la raíz** (tu home, por ejemplo) y el dominio pelado va ahí.
 
 **Todo lo demás funciona igual.** Passwords, vencimiento, límite de clicks, QR (generados con tu dominio adentro), analytics y el webhook `link.clicked`, cuyo payload incluye el dominio.
 
@@ -82,7 +82,7 @@ Esta es la parte que nadie espera, para bien.
 
 El middleware tiene que decidir, en cada request, si el host es "la app" o "un dominio propio de links". En un dominio propio, cualquier path de un solo segmento se trata como slug, lo que rompería el dashboard si tu host de la app quedara mal clasificado.
 
-La app reconoce sus propios hosts a partir de `NEXTAUTH_URL`, `SHORT_DOMAIN`, las URLs de Vercel, `localhost` y todo lo que termine en `.vercel.app`. Si servís la app desde hostnames **extra** — un nombre interno, un segundo dominio público — listalos:
+La app reconoce sus propios hosts a partir de `NEXTAUTH_URL`, `SHORT_DOMAIN`, las URLs de Vercel, `localhost` y todo lo que termine en `.vercel.app`. Si servís la app desde hostnames **extra**, un nombre interno, un segundo dominio público, listalos:
 
 ```
 APP_HOSTS=links.ejemplo.org,links.interno.lan

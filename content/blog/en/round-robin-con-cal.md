@@ -1,8 +1,8 @@
 ---
-title: "Round-robin scheduling with Cal: one link, the whole team"
-description: "How to share one booking link across your sales or support team with Cal, and exactly how Cal picks the host for each meeting — cursor, pool order, conflicts and all."
+title: "Round-robin scheduling in Cal: one link for the whole team"
+description: "Share one booking link across a sales or support team, and see exactly how Cal picks the host for each meeting: cursor, pool order and conflicts."
 date: "2026-07-18"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "scheduling", "teams"]
 ---
 
@@ -14,7 +14,7 @@ That's round-robin. Cal does it, and since the code is open, we can do something
 
 Round-robin lives on the event type. You need a team first, because the host pool is made of team members.
 
-1. Go to **Cal → Event types** and create (or open) the event type you want to share — say, "Product demo", 30 minutes.
+1. Go to **Cal → Event types** and create (or open) the event type you want to share: say, "Product demo", 30 minutes.
 2. In the **Hosts (round-robin)** section, tick the team members who should take these meetings. The form says it plainly: bookings rotate through the selected team members.
 3. Set the weekly availability for the event type (more on why this matters below).
 4. Ask every host to connect their own Google Calendar from **Cal → Settings**. This is per person, not per workspace, and it matters a lot.
@@ -74,7 +74,7 @@ Everything downstream follows the **assigned** host, not the event type owner:
 
 ## Gotchas worth knowing
 
-**Availability is per event type, not per host.** The weekly hours you set on the event type (in the owner's timezone) apply to the whole pool. Cal doesn't read each host's personal working hours. If Bruno only works mornings, he needs to block his afternoons — via blocked slots or his Google Calendar — or he'll get afternoon meetings.
+**Availability is per event type, not per host.** The weekly hours you set on the event type (in the owner's timezone) apply to the whole pool. Cal doesn't read each host's personal working hours. If Bruno only works mornings, he needs to block his afternoons (via blocked slots or his Google Calendar), or he'll get afternoon meetings.
 
 **Connect every calendar.** A host without Google Calendar connected looks free to Cal whenever they don't have a Cal booking or a blocked slot. That's the most common way round-robin goes wrong: not the algorithm, the missing data.
 

@@ -13,6 +13,14 @@ const nextConfig = {
   // El widget de Chat corre embebido en sitios de terceros y llama a estos
   // endpoints públicos (sin cookies). Next responde el preflight OPTIONS solo;
   // estos headers lo habilitan cross-origin.
+  // Slugs de blog renombrados: el viejo redirige para siempre al nuevo.
+  async redirects() {
+    const renamed = [['open-source-no-es-gratis-es-libre', 'gratis-vs-libre']];
+    return renamed.flatMap(([from, to]) => [
+      { source: `/:locale(en|es|pt)/blog/${from}`, destination: `/:locale/blog/${to}`, permanent: true },
+      { source: `/blog/${from}`, destination: `/blog/${to}`, permanent: true },
+    ]);
+  },
   async headers() {
     const cors = [
       { key: 'Access-Control-Allow-Origin', value: '*' },

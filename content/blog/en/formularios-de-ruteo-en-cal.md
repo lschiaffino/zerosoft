@@ -1,8 +1,8 @@
 ---
-title: "Routing forms in Cal: send every lead to the right meeting"
-description: "A few questions before the calendar, and each visitor lands on the right event type. How to build routing forms in Cal, how rules are evaluated, and where the limits are."
+title: "Routing forms in Cal: send each lead to the right meeting"
+description: "A few questions before the calendar, and each visitor lands on the right event type. How to build routing forms in Cal, how rules are evaluated and where the limits are."
 date: "2026-08-03"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "scheduling", "sales"]
 ---
 
@@ -15,7 +15,7 @@ The fix is old and boring: ask a couple of questions *before* showing the calend
 A routing form has three parts:
 
 - **Questions.** The fields the visitor fills in. Three types: **Text**, **Select** (a dropdown with up to 50 options) and **Yes / No**. Each question has a label (what people see), a key (what rules refer to, lowercase like `company_size`) and can be marked required.
-- **Rules.** Each rule says: *if question X* — **is**, **is not**, **contains**, or **is answered** — *value Y, route to event type Z*.
+- **Rules.** Each rule says: *if question X*. **is**, **is not**, **contains**, or **is answered**: *value Y, route to event type Z*.
 - **A default event type.** Where people go if no rule matches.
 
 The form gets its own public URL, `/r/<your-handle>/<slug>`, which you share instead of a booking link. When the visitor submits, Cal evaluates the rules and redirects them to `/book/<your-handle>/<event-slug>` for the matching event type.
@@ -26,18 +26,18 @@ Let's do a hypothetical: a 6-person B2B agency that sells website projects and a
 
 **1. Create the destination event types first.** Routing forms point to event types, so you need them in place. Say:
 
-- `discovery-call` — 45 min, with the two founders in a round-robin pool,
-- `intro-call` — 20 min, with a junior account manager,
-- `support-triage` — 15 min, with whoever handles support.
+- `discovery-call`: 45 min, with the two founders in a round-robin pool,
+- `intro-call`: 20 min, with a junior account manager,
+- `support-triage`: 15 min, with whoever handles support.
 
 **2. Create the form.** Go to **Cal → Routing forms → New routing form**. Give it a title and a slug, like `talk-to-us`.
 
 **3. Add questions.**
 
-- `name` — Text, required
-- `email` — Text, required
-- `need` — Select: *New website*, *Redesign*, *Support for an existing site*
-- `budget` — Select: *Under 5k*, *5k–20k*, *Over 20k*
+- `name`: Text, required
+- `email`: Text, required
+- `need`: Select: *New website*, *Redesign*, *Support for an existing site*
+- `budget`: Select: *Under 5k*, *5k–20k*, *Over 20k*
 
 **4. Add rules, in order.**
 
@@ -65,7 +65,7 @@ Required questions are validated on the server too, not just in the browser.
 
 ## Things that make it work better
 
-**Name your keys `name` and `email`.** If your form has questions with exactly those keys, Cal passes the answers along as `?name=…&email=…` to the booking page, so the visitor doesn't type them twice. Other answers aren't carried over to the booking today — if you need them on the booking itself, add them as custom questions on the event type too.
+**Name your keys `name` and `email`.** If your form has questions with exactly those keys, Cal passes the answers along as `?name=…&email=…` to the booking page, so the visitor doesn't type them twice. Other answers aren't carried over to the booking today. If you need them on the booking itself, add them as custom questions on the event type too.
 
 **Combine with round-robin.** A rule picks the *event type*; the event type's host pool picks the *person*. Routing plus [round-robin](/blog/round-robin-con-cal) is how you get "enterprise leads rotate between the two senior reps, everyone else rotates among the rest".
 

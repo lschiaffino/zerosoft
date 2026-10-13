@@ -1,18 +1,18 @@
 ---
-title: "Higiene del pipeline para equipos chicos: ocho reglas para que tu CRM no mienta"
-description: "Un playbook práctico para mantener limpio el pipeline de ventas en un equipo chico: cómo diseñar etapas, cuándo usar varios pipelines, qué hacer con los deals estancados y cómo las tareas mantienen todo en movimiento."
+title: "Ocho reglas para que el pipeline de un equipo chico diga la verdad"
+description: "Cómo diseñar etapas, cuándo usar varios pipelines, qué hacer con los deals estancados y cómo usar tareas para que el pipeline del CRM se mantenga al día."
 date: "2026-08-22"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "ventas", "playbook"]
 ---
 
 Todo CRM arranca limpio. Seis meses después el tablero tiene 140 deals abiertos, la mitad con fecha de cierre del otoño pasado, y el "forecast ponderado" es un número por el que nadie apostaría un almuerzo. Nadie decidió hacer un desastre. Se fue acumulando, una actualización salteada a la vez.
 
-La higiene del pipeline no es un problema de herramienta. Son un puñado de reglas que el equipo acuerda, más un CRM que hace visible cuando se rompen. Estas son las ocho que adoptaríamos si fuéramos un equipo de ventas de cinco personas arrancando el lunes, con cómo se traduce cada una a lo que Zerosoft CRM hace de verdad.
+La herramienta ayuda poco si el equipo no acuerda un puñado de reglas. El CRM sirve para que se vea cuando alguien las rompe. Estas son las ocho que adoptaríamos si fuéramos un equipo de ventas de cinco personas arrancando el lunes, con cómo se traduce cada una a lo que zerosoft CRM hace de verdad.
 
 ## 1. Un pipeline por proceso de venta, no por persona
 
-Zerosoft soporta varios pipelines, cada uno con sus etapas, y cambiar entre ellos en el tablero de deals es un dropdown. La tentación es armar uno por vendedor, por producto o por región. No lo hagas.
+zerosoft soporta varios pipelines, cada uno con sus etapas, y cambiar entre ellos en el tablero de deals es un dropdown. La tentación es armar uno por vendedor, por producto o por región. No lo hagas.
 
 Un pipeline tiene que representar un **proceso de compra distinto**: negocio nuevo vs. renovaciones, o upgrades self-serve vs. deals enterprise. Si dos pipelines tendrían las mismas etapas, son un solo pipeline, filtrado por owner u origen.
 
@@ -29,7 +29,7 @@ Una prueba útil: si no podés explicar en una oración por qué un deal va en e
 - Cerrado ganado
 - Cerrado perdido
 
-De cinco a siete etapas alcanza para un equipo chico. Cada etapa en Zerosoft tiene una **probabilidad %**, y el tablero la usa para mostrar arriba los deals abiertos, el monto abierto y un forecast ponderado. Poné esas probabilidades según tu propia historia si la tenés, y revisalas una vez por trimestre. Una etapa se marca como **Cerrado ganado** y otra como **Cerrado perdido**; eso es lo que alimenta los reportes de ganados/perdidos y el win rate.
+De cinco a siete etapas alcanza para un equipo chico. Cada etapa en zerosoft tiene una **probabilidad %**, y el tablero la usa para mostrar arriba los deals abiertos, el monto abierto y un forecast ponderado. Poné esas probabilidades según tu propia historia si la tenés, y revisalas una vez por trimestre. Una etapa se marca como **Cerrado ganado** y otra como **Cerrado perdido**; eso es lo que alimenta los reportes de ganados/perdidos y el win rate.
 
 Las etapas se reordenan arrastrando en los ajustes. Borrar una etapa o un pipeline que todavía tiene deals está bloqueado, y borrarlos es solo para admins, así nadie "ordena" por accidente.
 
@@ -37,7 +37,7 @@ Las etapas se reordenan arrastrando en los ajustes. Borrar una etapa o un pipeli
 
 Esta es la regla que hace la mayor parte del trabajo. Si un deal no tiene un próximo paso con fecha, no es un deal; es una esperanza con un monto.
 
-Zerosoft muestra la próxima tarea abierta arriba de la página de cada deal, con un botón para completarla ahí mismo. La página de tareas (`/app/crm/tasks`) agrupa todo en Vencidas, Hoy y Próximas, filtrable por owner. Hacelo costumbre de equipo: cuando completás una tarea de un deal, creás la siguiente antes de cerrar la pestaña.
+zerosoft muestra la próxima tarea abierta arriba de la página de cada deal, con un botón para completarla ahí mismo. La página de tareas (`/app/crm/tasks`) agrupa todo en Vencidas, Hoy y Próximas, filtrable por owner. Hacelo costumbre de equipo: cuando completás una tarea de un deal, creás la siguiente antes de cerrar la pestaña.
 
 Si preferís no depender de la costumbre, los [workflows](/blog/workflows-crm-tareas-de-seguimiento) pueden crear el seguimiento solos cuando un deal llega a una etapa.
 
@@ -45,7 +45,7 @@ Si preferís no depender de la costumbre, los [workflows](/blog/workflows-crm-ta
 
 Un forecast es tan bueno como los deals que lo alimentan. Un deal sin monto es invisible en el forecast ponderado; un deal sin fecha de cierre es invisible en el tiempo.
 
-Aclaración honesta: Zerosoft todavía no tiene campos obligatorios. No podés forzar un valor al crear. Así que hacelo regla y hacé que las violaciones sean fáciles de encontrar:
+Aclaración honesta: zerosoft todavía no tiene campos obligatorios. No podés forzar un valor al crear. Así que hacelo regla y hacé que las violaciones sean fáciles de encontrar:
 
 - En la vista de **tabla** de deals, ordená por fecha de cierre. Los deals sin fecha se van al fondo, donde los ves todos juntos.
 - Ordená por monto ascendente para ver los ceros primero.
@@ -73,7 +73,7 @@ Para cada deal marcado, elegí una:
 
 Los equipos evitan cerrar deals como perdidos porque se siente como admitir una derrota. El resultado es un pipeline inflado de zombies que vuelven inútil el forecast.
 
-En Zerosoft, cerrar un deal como perdido te pide un motivo: Precio, Momento, Competencia, Sin presupuesto, No respondió más, Otro, o tu propio texto. Ese motivo queda guardado en el deal y aparece en el gráfico de **Motivos de pérdida** de los reportes. Después de un trimestre, ese gráfico te dice más sobre tu producto y tu precio que la mayoría de las encuestas. ¿"No respondió más" arriba de todo? Tu calificación es demasiado floja. ¿"Precio"? O tu pricing o tu targeting están mal.
+En zerosoft, cerrar un deal como perdido te pide un motivo: Precio, Momento, Competencia, Sin presupuesto, No respondió más, Otro, o tu propio texto. Ese motivo queda guardado en el deal y aparece en el gráfico de **Motivos de pérdida** de los reportes. Después de un trimestre, ese gráfico te dice más sobre tu producto y tu precio que la mayoría de las encuestas. ¿"No respondió más" arriba de todo? Tu calificación es demasiado floja. ¿"Precio"? O tu pricing o tu targeting están mal.
 
 Un deal perdido tampoco desaparece. Queda en el registro, con su historia, y una tarea de seguimiento a 90 días lo puede resucitar.
 
@@ -85,6 +85,6 @@ Regla práctica: no agregues un campo salvo que un reporte, un filtro o una deci
 
 ## Que quede
 
-Las reglas no sobreviven sin un ritual. Poné 30 minutos en el calendario todas las semanas, mismo día, todo el equipo, y recorran el tablero: badges primero, fechas de cierre pasadas segundo, deals sin próxima tarea tercero. Cuando cambia la etapa o el monto de un deal, Zerosoft guarda un historial de propiedades en el registro, así ves qué se movió desde la semana pasada y quién lo movió.
+Las reglas no sobreviven sin un ritual. Poné 30 minutos en el calendario todas las semanas, mismo día, todo el equipo, y recorran el tablero: badges primero, fechas de cierre pasadas segundo, deals sin próxima tarea tercero. Cuando cambia la etapa o el monto de un deal, zerosoft guarda un historial de propiedades en el registro, así ves qué se movió desde la semana pasada y quién lo movió.
 
 El objetivo no es un tablero lindo. Es un tablero donde cada tarjeta abierta significa "alguien está trabajando esto, y sabemos cuándo vamos a saber". Cuando eso es verdad, el forecast deja de ser una adivinanza y pasa a ser una herramienta.

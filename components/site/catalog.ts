@@ -91,13 +91,13 @@ export interface ProductPageSpec {
 export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   crm: { sections: ['shot', 'features', 'how', 'compare', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
   chat: { sections: ['shot', 'how', 'features', 'compare', 'video', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
-  agents: { sections: ['how', 'shot', 'features', 'compare', 'faq'], features: 6, faqs: 4, featureLayout: 'split' },
-  flow: { sections: ['shot', 'how', 'features', 'compare', 'model', 'faq'], features: 6, faqs: 4, featureLayout: 'columns' },
-  robots: { sections: ['how', 'features', 'shot', 'compare', 'faq'], features: 6, faqs: 4, featureLayout: 'columns' },
+  agents: { sections: ['how', 'shot', 'features', 'compare', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
+  flow: { sections: ['shot', 'how', 'features', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  robots: { sections: ['how', 'features', 'shot', 'compare', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   track: { sections: ['shot', 'features', 'video', 'compare', 'how', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
   link: { sections: ['shot', 'compare', 'features', 'how', 'video', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
   docs: { sections: ['shot', 'features', 'compare', 'video', 'model', 'faq'], features: 9, faqs: 5, featureLayout: 'split' },
-  notes: { sections: ['features', 'shot', 'compare', 'faq'], features: 6, faqs: 4, featureLayout: 'columns' },
+  notes: { sections: ['features', 'shot', 'compare', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   cal: { sections: ['shot', 'how', 'compare', 'features', 'video', 'faq'], features: 9, faqs: 5, featureLayout: 'columns' },
-  board: { sections: ['shot', 'features', 'compare', 'model', 'faq'], features: 6, faqs: 4, featureLayout: 'split' },
+  board: { sections: ['shot', 'features', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
 };

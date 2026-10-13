@@ -1,42 +1,34 @@
 ---
-title: "De 0 a 1: clonar un SaaS en una semana"
-description: "Lo que antes llevaba un equipo y seis meses, hoy lleva días. Link se construyó así. Cuando el costo de crear software colapsa, el precio tiene que seguirlo."
+title: "Cómo construimos la primera versión de Link en una semana"
+description: "Un ingeniero y una LLM: redirects, métricas sin cookies, QR, links con contraseña y una API pública en una semana. Qué hizo la IA, qué hizo la persona y qué implica para el precio del software."
 date: "2026-05-30"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["ia", "open source", "saas", "link"]
 ---
 
-Hace dos años, clonar Bitly era un proyecto de seis meses: un equipo de tres o cuatro personas, un roadmap, sprints, QA y un presupuesto de seis cifras. Hoy lo hace un ingeniero con una LLM en una semana. No es una predicción. Es exactamente lo que hicimos con Link.
+Hace unos años, hacer un clon de Bitly era un proyecto de meses para un equipo de tres o cuatro personas. La primera versión de Link la hizo un ingeniero con una LLM en una semana. Esto es lo que entró y cómo se repartió el trabajo.
 
-## Qué significa "una semana"
+## Qué entró en esa semana
 
-Cuando decimos que Link se construyó en días, hablamos de todo esto:
+- Un motor de redirects que resuelve un alias y devuelve el destino en milisegundos.
+- Un panel con métricas por día, referrer, país, dispositivo, navegador y sistema, sin cookies.
+- QR en SVG y PNG, links con contraseña, vencimiento y límite de clics, tags y constructor de UTM.
+- Una API pública v1 con claves personales.
+- Login con Google.
 
-- Un redirect engine que resuelve un alias custom y devuelve el destino en milisegundos.
-- Un dashboard con analytics por día, referrer, país, device, browser y OS — sin cookies.
-- QR en SVG y PNG, links con password, expiración, límite de clicks, tags y UTM builder.
-- Una API pública v1 con API keys por Bearer.
-- Login solo con Google. Sin formularios de registro ni passwords que guardar.
+En 2019, cada una de esas piezas era un ticket de dos semanas.
 
-Cada una de esas piezas era, en 2019, un ticket de dos semanas. Hoy es una tarde.
+## Qué cambió
 
-## Qué cambió de verdad
+La IA no "programa sola". Lo que pasa es que buena parte de un SaaS estándar es código que ya se escribió muchas veces: endpoints CRUD, migraciones, validaciones, tests, claves de API, un rate limiter. Ese código lleva tiempo, no ingenio, y las LLMs lo escriben en minutos.
 
-No es que la IA "programa sola". Es que el 80% del trabajo de un SaaS estándar es código que ya se escribió mil veces: endpoints CRUD, migraciones, validaciones, tests, un esquema de API keys, un rate limiter. Ese código no necesita genio; necesita tiempo. Y las LLMs lo bajaron de semanas a minutos.
+El trabajo del ingeniero se movió: menos tipear, más decidir la arquitectura, revisar, cortar funciones y mantener el sistema coherente. Alguien tiene que saber qué pedir y qué rechazar.
 
-El ingeniero senior no desapareció: cambió de rol. Dejó de tipear boilerplate y pasó a hacer lo que siempre fue su trabajo real — decidir la arquitectura, revisar, cortar features, mantener la coherencia del sistema. La IA escribe rápido; alguien tiene que saber qué pedirle y qué rechazar.
+## Qué implica para el precio
 
-El resultado es una asimetría brutal: el costo de *crear* un SaaS típico cayó una o dos órdenes de magnitud. Y el costo de *correrlo* ya era público: una VPS, una base de datos, ancho de banda que se mide en centavos.
+Si construir un acortador lleva una semana, el argumento de "construir software es caro" ya no explica cobrar $35 por mes por usarlo. Lo que sigue costando plata es correrlo: un servidor, una base de datos y ancho de banda.
 
-## La consecuencia que nadie quiere decir en voz alta
+Por eso Link (y las otras diez apps) funciona así:
 
-Si construir un acortador de links cuesta una semana de una persona, cobrar $12 por mes por usarlo no es un negocio: es un alquiler cobrado sobre la costumbre.
-
-Los precios del SaaS se sostenían con un argumento razonable: construir software era caro, y alguien tenía que pagar esos sueldos. Ese argumento murió. Cuando el costo de producción colapsa, el precio lo sigue — pasó con la música, con el almacenamiento, con las llamadas internacionales. El software no es especial.
-
-Nosotros simplemente lo hacemos explícito:
-
-1. **Self-host, $0.** El código de Link es open source. Descargalo, auditalo, hostealo. Es tuyo.
-2. **Cloud al costo.** Si no querés administrar nada, lo corremos nosotros y pagás exactamente lo que cuesta la nube. Sin margen, ni un peso más.
-
-La semana que tarda clonar un SaaS no es una anécdota de productividad. Es el nuevo precio del software: cero por los bits, más lo que cuestan los servidores. Y eso está publicado.
+1. **Self-host por $0.** El código es open source. Lo descargás, lo auditás y lo corrés.
+2. **zerosoft Cloud.** Si no querés administrar nada, lo corremos nosotros: plan gratis y después pago por uso (clics, almacenamiento).

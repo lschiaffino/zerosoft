@@ -1,8 +1,8 @@
 ---
-title: "Quanto custa de verdade rodar um encurtador de links (spoiler: centavos)"
-description: "O Bitly cobra US$ 35 por mês. Nós fizemos a conta completa do custo de servir redirects e analytics. Os números, sem corar."
+title: "Quanto custa rodar um encurtador de links: a conta completa"
+description: "O Bitly cobra US$ 35 por mês. Calculamos o custo de servir redirects e analytics com a arquitetura real do Link."
 date: "2026-07-09"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "custos", "nuvem"]
 ---
 
@@ -14,7 +14,7 @@ Agora façamos a conta do que isso realmente custa para servir. Com números rea
 
 Uma requisição chega a `seudominio/launch`. O servidor faz um `SELECT` num banco de dados, grava um `INSERT` com o clique e devolve uma resposta de ~300 bytes com um header `Location`.
 
-Isso é tudo. É provavelmente a workload mais leve que existe na web. Não há vídeo, não há imagens, não há computação. É ler uma linha e responder.
+Isso é tudo. É provavelmente a workload mais leve que existe na web. Não há vídeo, imagem nem processamento pesado. É ler uma linha e responder.
 
 ## A conta, sem truques
 
@@ -39,6 +39,4 @@ Quando o preço de algo é 35 vezes o seu custo, você não está comprando tecn
 
 ## Nosso compromisso
 
-Com o Link, o software é grátis e open source: baixe e rode naquele VPS de US$ 5, seu para sempre. E se você quiser que rodemos para você, com login, backups e uptime, paga o que a nuvem custa. Ao custo. Com essa mesma conta aberta.
-
-Os bits são grátis. Agora os preços também começam a ser.
+O Link é open source: baixe e rode naquele VPS de US$ 5. Se preferir que a gente rode, o zerosoft Cloud tem um plano grátis para começar e depois cobra pelos cliques que você usar.
