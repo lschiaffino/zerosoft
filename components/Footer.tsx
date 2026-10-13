@@ -39,6 +39,9 @@ export default async function Footer({ locale }: { locale: string }) {
             <li>
               <Link href="/products">{t('allProducts')}</Link>
             </li>
+            <li>
+              <Link href="/tools">{t('freeTools')}</Link>
+            </li>
           </ul>
         </div>
 

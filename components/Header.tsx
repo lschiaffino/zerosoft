@@ -14,6 +14,7 @@ export default async function Header({ locale }: { locale: string }) {
         products: t('products'),
         blog: t('blog'),
         docs: t('docs'),
+        freeTools: t('freeTools'),
         changelog: t('changelog'),
         github: t('github'),
         startFree: t('startFree'),
