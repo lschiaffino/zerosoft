@@ -13,6 +13,7 @@ import '@/styles/calendar.css';
 import '@/styles/track.css';
 import '@/styles/chat.css';
 import '@/styles/app.css';
+import '@/styles/color.css';
 
 export const dynamic = 'force-dynamic';
 

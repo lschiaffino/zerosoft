@@ -22,7 +22,7 @@ export default function ShowcaseTabs({ tabs, panels }: ShowcaseTabsProps) {
             id={`showcase-tab-${tab.key}`}
             aria-selected={i === active}
             aria-controls={`showcase-panel-${tab.key}`}
-            className={`showcase-tab${i === active ? ' active' : ''}`}
+            className={`showcase-tab card-${tab.key}${i === active ? ' active' : ''}`}
             onClick={() => setActive(i)}
           >
             <span className="showcase-tab-name">{tab.label}</span>

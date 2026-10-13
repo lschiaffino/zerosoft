@@ -42,7 +42,7 @@ function parseLabels(raw: string): IssueLabel[] {
 
 function PriorityDot({ priority }: { priority: string }) {
   const color =
-    priority === 'urgent' ? '#000000' : priority === 'high' ? '#444444' : priority === 'medium' ? '#888888' : '#bbbbbb';
+    priority === 'urgent' ? 'var(--bad)' : priority === 'high' ? 'var(--c-track)' : priority === 'medium' ? 'var(--warn)' : '#bbbbbb';
   return <span className="track-priority-dot" style={{ background: color }} aria-hidden />;
 }
 

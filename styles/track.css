@@ -418,7 +418,7 @@
 }
 
 .track-view-switcher button.active {
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   color: #fff;
 }
 
@@ -500,7 +500,7 @@
 .track-filter-toggle.active,
 .track-filter-clear.active,
 .track-filter-save.active {
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   border-color: var(--ink);
   color: #fff;
 }
@@ -553,7 +553,7 @@
   margin-left: 6px;
   padding: 1px 5px;
   border-radius: 10px;
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   color: #fff;
   font-size: 11px;
 }
@@ -852,7 +852,7 @@
 }
 
 .track-calendar-day.today .track-calendar-day-number {
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   color: #fff;
 }
 
@@ -1083,7 +1083,7 @@
   height: 16px;
   min-width: 6px;
   border-radius: 999px;
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   z-index: 2;
   cursor: grab;
   touch-action: none;
@@ -1166,7 +1166,7 @@
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   z-index: 1;
   pointer-events: none;
 }
@@ -1291,7 +1291,7 @@
   margin-left: 6px;
   padding: 1px 5px;
   border-radius: 10px;
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   color: #fff;
   font-size: 10px;
 }
@@ -1738,7 +1738,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   border: 2px solid var(--bg);
 }
 
