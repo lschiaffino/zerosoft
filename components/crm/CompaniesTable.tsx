@@ -7,6 +7,8 @@ import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
 import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
 import RecordPreview from './RecordPreview';
+import TagDots, { type TagDot } from './TagDots';
+import TagBulkControls from './TagBulkControls';
 
 export interface CompanyRow {
   id: string;
@@ -20,6 +22,9 @@ export interface CompanyRow {
   lifecycle: string;
   lifecycleLabel: string;
   created: string;
+  tags?: TagDot[];
+  /** Empresa madre (jerarquía). */
+  parentName?: string | null;
 }
 
 interface CompaniesTableProps {
@@ -27,6 +32,7 @@ interface CompaniesTableProps {
   sort: string;
   lifecycles: string[];
   locale: string;
+  allTags?: Array<{ id: string; name: string }>;
 }
 
 const COLS = [
@@ -38,11 +44,13 @@ const COLS = [
   { id: 'contacts', labelKey: 'companies.table.contacts', defaultVisible: true },
   { id: 'deals', labelKey: 'deals.title', defaultVisible: true },
   { id: 'lifecycle', labelKey: 'companies.table.lifecycle', defaultVisible: true },
+  { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
+  { id: 'parent', labelKey: 'companies.detail.parent', defaultVisible: false },
   { id: 'created', labelKey: 'companies.table.created', defaultVisible: false },
 ];
 
 /** Tabla de empresas con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function CompaniesTable({ rows, sort, lifecycles, locale }: CompaniesTableProps) {
+export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags = [] }: CompaniesTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -125,6 +133,8 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale }: Compa
               )}
               {visible.has('deals') && <th className="th-num">{t('deals.title')}</th>}
               {visible.has('lifecycle') && <th>{t('companies.table.lifecycle')}</th>}
+              {visible.has('tags') && <th>{t('tags.column')}</th>}
+              {visible.has('parent') && <th>{t('companies.detail.parent')}</th>}
               {visible.has('created') && (
                 <th>
                   <SortTh label={t('companies.table.created')} asc="oldest" desc="newest" current={sort} />
@@ -206,6 +216,12 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale }: Compa
                     />
                   </td>
                 )}
+                {visible.has('tags') && (
+                  <td className="cell-crm-tags">
+                    <TagDots tags={row.tags ?? []} />
+                  </td>
+                )}
+                {visible.has('parent') && <td className="muted cell-sub">{row.parentName || '—'}</td>}
                 {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
                 <td className="cell-actions">
                   <button
@@ -250,6 +266,13 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale }: Compa
           >
             {t('companies.bulk.apply')}
           </button>
+          <TagBulkControls
+            entity="company"
+            ids={[...selected]}
+            tags={allTags}
+            disabled={busy}
+            onDone={() => setSelected(new Set())}
+          />
           {confirmingDelete ? (
             <>
               <span className="bulk-count">

@@ -11,7 +11,9 @@
     "workflows": "Workflows",
     "settings": "Ajustes",
     "templates": "Templates",
-    "sequences": "Secuencias"
+    "sequences": "Secuencias",
+    "products": "Productos",
+    "quotes": "Cotizaciones"
   },
   "switcher": {
     "product": "Producto",
@@ -74,7 +76,11 @@
     "pickCompany": "Elegí una empresa…",
     "noOptions": "No hay nada disponible para asociar.",
     "failed": "Algo salió mal. Probá de nuevo.",
-    "remove": "Quitar"
+    "remove": "Quitar",
+    "primary": "Principal",
+    "makePrimary": "Hacer principal",
+    "label": "Etiqueta",
+    "noLabel": "Sin etiqueta"
   },
   "enums": {
     "lifecycle": {
@@ -119,6 +125,26 @@
     "direction": {
       "inbound": "Entrante",
       "outbound": "Saliente"
+    },
+    "recurring": {
+      "none": "Pago único",
+      "monthly": "Mensual",
+      "yearly": "Anual"
+    },
+    "quoteStatus": {
+      "draft": "Borrador",
+      "sent": "Enviada",
+      "accepted": "Aceptada",
+      "declined": "Rechazada",
+      "expired": "Vencida"
+    },
+    "contactCompanyLabel": {
+      "employee": "Empleado",
+      "decision_maker": "Decisor",
+      "billing": "Facturación",
+      "champion": "Champion",
+      "influencer": "Influenciador",
+      "former_employee": "Ex empleado"
     }
   },
   "overview": {
@@ -219,7 +245,8 @@
       "lifecycleSection": "Lifecycle",
       "ownershipSection": "Asignación",
       "customFieldsSection": "Campos personalizados",
-      "viewAllProperties": "Ver todas las propiedades"
+      "viewAllProperties": "Ver todas las propiedades",
+      "companies": "Empresas"
     },
     "form": {
       "firstName": "Nombre",
@@ -296,7 +323,21 @@
       "lifecycleSection": "Lifecycle",
       "ownershipSection": "Asignación",
       "customFieldsSection": "Campos personalizados",
-      "viewAllProperties": "Ver todas las propiedades"
+      "viewAllProperties": "Ver todas las propiedades",
+      "hierarchy": "Jerarquía de la empresa",
+      "notPrimaryCompany": "otra empresa principal",
+      "rollup": "Valor en deals",
+      "rollupOpen": "Abiertos",
+      "rollupWon": "Ganados",
+      "rollupDeals": "Deals",
+      "rollupTree": "Incluyendo {count, plural, one {# empresa hija} other {# empresas hijas}}",
+      "rollupNote": "En {currency}. Cada deal cuenta una sola vez.",
+      "parent": "Empresa madre",
+      "pickParent": "Elegir empresa madre…",
+      "noParent": "Sin empresa madre.",
+      "children": "Empresas hijas",
+      "pickChild": "Agregar empresa hija…",
+      "noChildren": "Sin empresas hijas."
     },
     "form": {
       "name": "Nombre",
@@ -406,13 +447,15 @@
       "aboutSection": "Sobre este deal",
       "ownershipSection": "Asignación",
       "customFieldsSection": "Campos personalizados",
-      "viewAllProperties": "Ver todas las propiedades"
+      "viewAllProperties": "Ver todas las propiedades",
+      "companies": "Empresas"
     },
     "addPipeline": "+ Agregar pipeline",
     "pipelineNamePlaceholder": "Nombre del pipeline",
     "addStage": "+ Agregar stage",
     "stageNamePlaceholder": "Nombre del stage",
-    "addStageConfirm": "Agregar stage"
+    "addStageConfirm": "Agregar stage",
+    "bulkSelected": "{count} seleccionados"
   },
   "tasks": {
     "title": "Tareas",
@@ -519,7 +562,8 @@
       "meeting_booked": "Reunión agendada (Cal)",
       "manual": "Manual",
       "email_opened": "Email abierto",
-      "email_clicked": "Click en un link del email"
+      "email_clicked": "Click en un link del email",
+      "quote_accepted": "Cotización aceptada"
     },
     "actionTypes": {
       "send_email": "Enviar email",
@@ -750,7 +794,11 @@
     "trackingTitle": "Seguimiento de emails",
     "trackingDesc": "Agrega una imagen invisible y reescribe los links de los emails enviados desde el CRM para ver aperturas y clicks. Se puede apagar en cada email.",
     "trackingOn": "Seguir aperturas y clicks",
-    "trackingAdminOnly": "Solo los admins pueden cambiar esto."
+    "trackingAdminOnly": "Solo los admins pueden cambiar esto.",
+    "tags": "Tags",
+    "tagsDesc": "Etiquetas compartidas para contactos, empresas y deals. Filtrá las listas por tag y etiquetá registros en masa.",
+    "currency": "Moneda",
+    "currencyDesc": "La moneda base del workspace, los tipos de cambio manuales y qué pasa cuando aceptan una cotización."
   },
   "importP": {
     "title": "Importar {entity}",
@@ -791,7 +839,35 @@
       "name": "Nombre",
       "domain": "Dominio",
       "industry": "Industria",
-      "employees": "Empleados"
+      "employees": "Empleados",
+      "ownerEmail": "Owner (email o nombre)",
+      "companyName": "Nombre de la empresa",
+      "companyDomain": "Dominio de la empresa",
+      "parentCompanyName": "Empresa madre (nombre)",
+      "parentCompanyDomain": "Empresa madre (dominio)",
+      "pipeline": "Pipeline",
+      "stage": "Etapa",
+      "amount": "Monto",
+      "currency": "Moneda",
+      "closeDate": "Fecha de cierre",
+      "priority": "Prioridad",
+      "description": "Descripción",
+      "contactEmail": "Email(s) de contacto"
+    },
+    "preset": "Mapeo guardado",
+    "presetAuto": "Detección automática",
+    "presetHubspot": "Export de HubSpot",
+    "presetName": "Nombre del mapeo",
+    "presetNamePlaceholder": "Ponele nombre a este mapeo…",
+    "presetSave": "Guardar mapeo",
+    "presetSaved": "Mapeo guardado.",
+    "presetDelete": "Borrar mapeo",
+    "customField": "Personalizado: {label}",
+    "errorsAndWarnings": "Errores y avisos",
+    "hint": {
+      "contacts": "Los contactos se cruzan por email. Una columna de empresa la vincula (o la crea) como primaria; el owner acepta el email o el nombre completo de alguien del equipo.",
+      "companies": "Las empresas se cruzan por dominio. Una columna de empresa madre la vincula a una empresa que ya exista.",
+      "deals": "El pipeline y la etapa se buscan por nombre (si no, el primer pipeline y su primera etapa). Las empresas se vinculan o se crean; los contactos se buscan por email y se crean si faltan."
     }
   },
   "errors": {
@@ -824,7 +900,21 @@
     "missing_contact": "Este registro no tiene un contacto al que escribirle.",
     "unsubscribed": "Este contacto se dio de baja.",
     "invalid_time": "Usá el formato HH:MM.",
-    "incomplete_steps": "Cada paso de email necesita un cuerpo o un template."
+    "incomplete_steps": "Cada paso de email necesita un cuerpo o un template.",
+    "invalid_product": "Ese producto no existe en este espacio de trabajo.",
+    "no_line_items": "Primero agregá al menos una línea al deal.",
+    "not_draft": "Solo se pueden editar cotizaciones en borrador.",
+    "expired": "Esta cotización venció.",
+    "not_open": "Esta cotización ya fue respondida.",
+    "invalid_signature": "Escribí tu nombre completo y aceptá las condiciones.",
+    "invalid_label": "Esa etiqueta de asociación no es válida.",
+    "invalid_association": "Esos dos registros no se pueden asociar.",
+    "hierarchy_cycle": "Una empresa no puede ser su propia madre ni la madre de una de sus madres.",
+    "invalid_parent": "Esa empresa madre no existe en este workspace.",
+    "invalid_tag": "Ese tag no existe en este workspace.",
+    "duplicate_tag": "Ya existe un tag con ese nombre.",
+    "invalid_currency": "Usá un código de moneda de 3 letras (por ejemplo EUR) distinto de la moneda base.",
+    "invalid_rate": "El tipo de cambio tiene que ser un número mayor que cero."
   },
   "filters": {
     "advanced": "Filtros avanzados",
@@ -866,7 +956,8 @@
       "amount": "Monto",
       "stage": "Etapa",
       "priority": "Prioridad",
-      "closeDate": "Fecha de cierre"
+      "closeDate": "Fecha de cierre",
+      "tag": "Tag"
     }
   },
   "meetings": {
@@ -1044,5 +1135,178 @@
     "cancelReply": "Cancelar",
     "sentGmail": "Enviado desde tu Gmail.",
     "sentSystem": "Enviado desde zerosoft. Conectá Gmail para enviar con tu dirección."
+  },
+  "products": {
+    "title": "Productos",
+    "subtitle": "Tu catálogo. Sumá productos a los deals como líneas y mandalos en cotizaciones.",
+    "new": "Nuevo producto",
+    "newTitle": "Nuevo producto",
+    "editTitle": "Editar producto",
+    "search": "Buscar por nombre o SKU…",
+    "showArchived": "Ver archivados",
+    "hideArchived": "Ocultar archivados",
+    "emptyTitle": "Todavía no hay productos",
+    "emptySearch": "Ningún producto coincide con la búsqueda",
+    "emptySub": "Cargá una vez tus planes, servicios y extras, y después sumalos a cualquier deal.",
+    "active": "Activo",
+    "archived": "Archivado",
+    "archive": "Archivar",
+    "unarchive": "Restaurar",
+    "confirmDelete": "Borrar definitivamente",
+    "form": {
+      "name": "Nombre del producto",
+      "price": "Precio",
+      "currency": "Moneda",
+      "recurring": "Facturación",
+      "taxPct": "Impuesto %",
+      "sku": "SKU",
+      "description": "Descripción"
+    },
+    "table": {
+      "name": "Nombre",
+      "sku": "SKU",
+      "price": "Precio",
+      "recurring": "Facturación",
+      "tax": "Impuesto",
+      "status": "Estado"
+    }
+  },
+  "lineItems": {
+    "title": "Líneas",
+    "empty": "Sin líneas. Agregá productos del catálogo o una línea personalizada.",
+    "item": "Ítem",
+    "qty": "Cant.",
+    "unitPrice": "Precio unit.",
+    "discount": "Descuento",
+    "discountPct": "Desc. %",
+    "tax": "Impuesto",
+    "taxPct": "Imp. %",
+    "amount": "Importe",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "remove": "Quitar",
+    "addProduct": "+ Agregar producto…",
+    "noProducts": "No hay productos activos",
+    "addCustom": "+ Línea personalizada",
+    "customName": "Descripción",
+    "catalog": "Catálogo de productos",
+    "amountSource": "Monto del deal",
+    "fromItems": "Desde las líneas (neto, sin impuestos): {amount}",
+    "manual": "Monto manual: {amount}"
+  },
+  "quotes": {
+    "title": "Cotizaciones",
+    "subtitle": "Cotizaciones enviadas a tus clientes. Se crean desde un deal con líneas.",
+    "emptyTitle": "Todavía no hay cotizaciones",
+    "emptySub": "Abrí un deal, agregale líneas y creá la cotización desde ahí.",
+    "goToDeals": "Ir a deals",
+    "emptyDeal": "Este deal no tiene cotizaciones.",
+    "create": "Crear cotización",
+    "createSubmit": "Crear borrador",
+    "createHint": "Toma una foto de las líneas actuales",
+    "needsLineItems": "Primero agregá líneas.",
+    "editTitle": "Editar cotización",
+    "markSent": "Marcar como enviada",
+    "copyLink": "Copiar link",
+    "copied": "Copiado ✓",
+    "openPublic": "Abrir página pública",
+    "print": "Imprimir / PDF",
+    "refreshItems": "Actualizar líneas desde el deal",
+    "confirmDelete": "Borrar definitivamente",
+    "draftHint": "Borrador: solo vos lo ves. Marcala como enviada para activar el link público que tu cliente puede aceptar.",
+    "backToDeal": "Volver al deal",
+    "table": {
+      "number": "Número",
+      "title": "Título",
+      "deal": "Deal",
+      "status": "Estado",
+      "total": "Total",
+      "expires": "Vence",
+      "created": "Creada"
+    },
+    "form": {
+      "title": "Título de la cotización",
+      "expiresAt": "Fecha de vencimiento",
+      "senderName": "Tu nombre",
+      "senderEmail": "Tu email",
+      "senderCompany": "Tu empresa",
+      "recipientName": "Nombre del destinatario",
+      "recipientEmail": "Email del destinatario",
+      "recipientCompany": "Empresa del destinatario",
+      "notes": "Notas",
+      "terms": "Condiciones"
+    },
+    "timeline": {
+      "title": "Actividad",
+      "created": "Borrador creado",
+      "sent": "Enviada",
+      "accepted": "Aceptada por {name}",
+      "declined": "Rechazada",
+      "expired": "Vencida"
+    }
+  },
+  "quotePublic": {
+    "quote": "Cotización",
+    "issued": "Emitida",
+    "validUntil": "Válida hasta",
+    "preparedFor": "Preparada para",
+    "acceptedBy": "Aceptada y firmada por",
+    "declinedOn": "Rechazada el {date}",
+    "notFound": "Cotización no encontrada",
+    "acceptTitle": "Aceptar esta cotización",
+    "fullName": "Nombre completo",
+    "fullNamePlaceholder": "Escribí tu nombre completo para firmar",
+    "agree": "Acepto las condiciones de esta cotización y estoy autorizado/a a aceptarla.",
+    "accept": "Aceptar cotización",
+    "decline": "Rechazar",
+    "sending": "Enviando…",
+    "legal": "Tu nombre escrito funciona como firma. Registramos la hora y un hash de tu dirección IP.",
+    "declineTitle": "Rechazar esta cotización",
+    "reason": "Motivo (opcional)",
+    "confirmDecline": "Rechazar cotización",
+    "stateAccepted": "Esta cotización fue aceptada. ¡Gracias!",
+    "stateDeclined": "Esta cotización fue rechazada.",
+    "stateExpired": "Esta cotización venció. Pedile una nueva a quien te la envió.",
+    "errors": {
+      "expired": "Esta cotización venció.",
+      "not_open": "Esta cotización ya fue respondida.",
+      "invalid_signature": "Escribí tu nombre completo y marcá la casilla para aceptar.",
+      "not_found": "Esta cotización ya no existe.",
+      "rate_limited": "Demasiados intentos. Esperá unos minutos y volvé a probar."
+    }
+  },
+  "tags": {
+    "column": "Tags",
+    "filter": "Tag",
+    "add": "+ Tag",
+    "pick": "Elegí un tag",
+    "newPlaceholder": "Nombre del tag nuevo",
+    "create": "Crear",
+    "remove": "Quitar tag",
+    "bulkPick": "Tag…",
+    "bulkAdd": "Agregar tag",
+    "bulkRemove": "Quitar tag",
+    "color": "Color",
+    "name": "Nombre del tag",
+    "empty": "Todavía no hay tags. Creá uno acá arriba o agregalo desde cualquier contacto, empresa o deal.",
+    "counts": "{contacts} contactos · {companies} empresas · {deals} deals",
+    "delete": "Borrar tag",
+    "confirmDelete": "Borrar"
+  },
+  "currency": {
+    "base": "Moneda base",
+    "baseHint": "Los reportes, dashboards y totales del pipeline se muestran en esta moneda.",
+    "rates": "Tipos de cambio",
+    "ratesHint": "Tipos de cambio manuales: cuántos {base} vale una unidad de cada moneda.",
+    "missing": "Sin tipo de cambio para {list}: esos montos se suman 1:1.",
+    "currency": "Moneda",
+    "rateTo": "Cambio a {base}",
+    "updated": "Actualizado",
+    "remove": "Quitar tipo de cambio",
+    "addRate": "Agregar",
+    "quoteMovesDeal": "Cuando aceptan una cotización, mover el deal a la etapa ganada",
+    "saved": "Guardado.",
+    "convertedHint": "Convertido a {base} con el tipo de cambio del workspace",
+    "reportNote": "Montos en {base}. Los deals en otras monedas se convierten con tus tipos de cambio."
   }
 }

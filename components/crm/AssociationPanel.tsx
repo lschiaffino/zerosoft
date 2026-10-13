@@ -9,6 +9,10 @@ export interface AssociationRecord {
   name: string;
   meta?: string;
   href?: string;
+  /** Asociación primaria (se marca con texto, no con una pastilla). */
+  primary?: boolean;
+  /** Label actual de la asociación ('' = sin label). */
+  label?: string;
 }
 
 export interface AssociationOption {
@@ -16,12 +20,20 @@ export interface AssociationOption {
   value: string;
 }
 
+/** Las server actions pueden devolver { error } con un código crm.errors.* (ej. hierarchy_cycle). */
+type ActionResult = void | { error?: string } | undefined;
+
 interface AssociationPanelProps {
   title?: string;
   records: AssociationRecord[];
   options: AssociationOption[];
-  onAssociate: (id: string) => void | Promise<void>;
-  onRemove: (id: string) => void | Promise<void>;
+  onAssociate: (id: string) => ActionResult | Promise<ActionResult>;
+  onRemove: (id: string) => ActionResult | Promise<ActionResult>;
+  /** Si viene, las filas no primarias muestran "Make primary". */
+  onSetPrimary?: (id: string) => ActionResult | Promise<ActionResult>;
+  /** Si viene junto con labelOptions, cada fila tiene un selector de label. */
+  onSetLabel?: (id: string, label: string) => ActionResult | Promise<ActionResult>;
+  labelOptions?: Array<{ value: string; label: string }>;
   addLabel: string;
   removeLabel?: string;
   emptyLabel: string;
@@ -30,8 +42,9 @@ interface AssociationPanelProps {
 }
 
 /**
- * Panel genérico de asociación estilo HubSpot/Twenty:
- * chips de registros asociados con botón ✕, y un selector para asociar existente.
+ * Panel genérico de asociación estilo HubSpot/Twenty: filas de registros
+ * asociados (primaria marcada, label opcional, quitar) y un selector para
+ * asociar uno existente.
  */
 export default function AssociationPanel({
   title,
@@ -39,6 +52,9 @@ export default function AssociationPanel({
   options,
   onAssociate,
   onRemove,
+  onSetPrimary,
+  onSetLabel,
+  labelOptions,
   addLabel,
   removeLabel,
   emptyLabel,
@@ -48,20 +64,24 @@ export default function AssociationPanel({
   const t = useTranslations('crm');
   const router = useRouter();
   const [pending, setPending] = useState<Set<string>>(new Set());
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const busyNow = busy || pending.size > 0;
   const associatedIds = new Set(records.map((r) => r.id));
   const available = options.filter((o) => !associatedIds.has(o.id));
 
-  async function wrap(action: () => void | Promise<void>, id: string) {
-    setError(false);
+  async function wrap(action: () => ActionResult | Promise<ActionResult>, id: string) {
+    setError(null);
     setPending((prev) => new Set(prev).add(id));
     try {
-      await action();
-      router.refresh();
+      const res = await action();
+      if (res && typeof res === 'object' && res.error) {
+        setError(t.has(`errors.${res.error}`) ? t(`errors.${res.error}` as 'errors.generic') : t('errors.generic'));
+      } else {
+        router.refresh();
+      }
     } catch {
-      setError(true);
+      setError(t('errors.generic'));
     } finally {
       setPending((prev) => {
         const next = new Set(prev);
@@ -86,12 +106,43 @@ export default function AssociationPanel({
         <div className="chip-list">
           {records.map((r) => (
             <span className="chip-contact" key={r.id}>
-              {r.href ? (
-                <Link href={r.href}>{r.name}</Link>
-              ) : (
-                <span>{r.name}</span>
-              )}
+              {r.href ? <Link href={r.href}>{r.name}</Link> : <span>{r.name}</span>}
               {r.meta && <span className="muted chip-meta">{r.meta}</span>}
+              {(r.primary !== undefined || (onSetLabel && labelOptions)) && (
+                <span className="assoc-row-meta">
+                  {r.primary ? (
+                    <span className="assoc-primary mono">{t('assoc.primary')}</span>
+                  ) : onSetPrimary ? (
+                    <button
+                      type="button"
+                      className="assoc-link-btn"
+                      disabled={busyNow}
+                      onClick={() => wrap(() => onSetPrimary(r.id), r.id)}
+                    >
+                      {t('assoc.makePrimary')}
+                    </button>
+                  ) : null}
+                  {onSetLabel && labelOptions && (
+                    <select
+                      className="assoc-label-select"
+                      value={r.label ?? ''}
+                      disabled={busyNow}
+                      aria-label={`${t('assoc.label')} ${r.name}`}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        void wrap(() => onSetLabel(r.id, v), r.id);
+                      }}
+                    >
+                      <option value="">{t('assoc.noLabel')}</option>
+                      {labelOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </span>
+              )}
               <button
                 type="button"
                 className="chip-remove"
@@ -127,7 +178,7 @@ export default function AssociationPanel({
         </select>
       )}
 
-      {error && <p className="form-error">{t('errors.generic')}</p>}
+      {error && <p className="form-error">{error}</p>}
     </div>
   );
 }

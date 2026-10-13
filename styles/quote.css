@@ -1,0 +1,198 @@
+/* ============================================================
+   CRM — quote como documento (/q/<token> y /app/crm/quotes/[id]).
+   Blanco, negro, hairlines y números mono. @media print al final.
+   ============================================================ */
+
+.qp {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 48px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.qd {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  padding: 40px 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.qd p { margin: 0; }
+/* globals.css da padding vertical grande a todo <section> (marketing). */
+.qd section { padding-top: 0; padding-bottom: 0; }
+.qd-dim { color: var(--dim); }
+.qd-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 6px !important;
+}
+
+.qd-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.qd-company { font-weight: 500; }
+.qd-meta { text-align: right; }
+.qd-kind { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.qd-number { font-size: 18px; margin-bottom: 8px !important; }
+.qd-meta dl {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 12px;
+  justify-content: end;
+  margin: 0;
+  font-size: 12px;
+}
+.qd-meta dt { color: var(--dim); }
+.qd-meta dd { margin: 0; }
+
+.qd-title { font-size: 22px; font-weight: 500; letter-spacing: -0.01em; margin: 0; }
+
+.qd-items { width: 100%; border-collapse: collapse; font-size: 13px; }
+.qd-items th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding: 0 8px 8px;
+  border-bottom: 1px solid var(--ink);
+}
+.qd-items td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.qd-items th:first-child, .qd-items td:first-child { padding-left: 0; }
+.qd-items th:last-child, .qd-items td:last-child { padding-right: 0; }
+.qd-items .num { text-align: right; white-space: nowrap; }
+.qd-item-name { font-weight: 500; }
+.qd-sku { display: block; font-size: 11px; }
+.qd-desc { display: block; color: var(--dim); font-size: 12px; white-space: pre-line; }
+
+.qd-totals {
+  display: grid;
+  grid-template-columns: auto minmax(120px, auto);
+  gap: 6px 24px;
+  justify-content: end;
+  margin: 0;
+}
+.qd-totals dt { color: var(--dim); text-align: right; }
+.qd-totals dd { margin: 0; text-align: right; }
+.qd-totals .qd-grand {
+  padding-top: 8px;
+  border-top: 1px solid var(--ink);
+  color: var(--ink);
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.qd-block { padding-top: 16px; border-top: 1px solid var(--line); }
+.qd-text { white-space: pre-line; }
+
+.qd-signature { padding-top: 16px; border-top: 1px solid var(--line); }
+.qd-signer { font-size: 20px; font-style: italic; }
+
+/* ---------- Acciones de la página pública ---------- */
+
+.qp-actions {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 20px 24px;
+}
+.qp-form { display: flex; flex-direction: column; gap: 12px; }
+.qp-heading { font-weight: 500; margin: 0; }
+.qp-field { display: flex; flex-direction: column; gap: 4px; }
+.qp-field > span { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+.qp-field input,
+.qp-field textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  font: inherit;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.qp-field input:focus,
+.qp-field textarea:focus { outline: none; border-color: var(--ink); }
+.qp-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; cursor: pointer; }
+.qp-check input { margin-top: 3px; }
+.qp-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.qp-spacer { flex: 1; }
+.qp-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--ink);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.qp-btn.qp-primary { background: var(--ink); color: var(--bg); }
+.qp-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.qp-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.qp-link:hover { color: var(--ink); }
+.qp-error { color: var(--bad); font-size: 13px; margin: 0; }
+.qp-legal { font-size: 11px; color: var(--dim); margin: 0; }
+.qp-state { margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+.qp-state::before { content: ''; width: 8px; height: 8px; border-radius: 1px; background: var(--dim); }
+.qp-state.q-accepted::before { background: var(--ok); }
+.qp-state.q-declined::before { background: var(--bad); }
+.qp-state.q-expired::before { background: var(--warn); }
+
+@media (max-width: 640px) {
+  .qp { padding-top: 16px; }
+  .qd { padding: 24px 16px; gap: 20px; }
+  .qd-head { flex-direction: column; }
+  .qd-meta { text-align: left; }
+  .qd-meta dl { justify-content: start; }
+  .qd-items { font-size: 12px; }
+  .qd-items th, .qd-items td { padding-left: 4px; padding-right: 4px; }
+}
+
+/* ---------- Impresión / PDF ---------- */
+
+@media print {
+  @page { margin: 16mm; }
+  html, body { background: #fff !important; color: #000 !important; }
+  .qp-no-print,
+  .qp-actions,
+  .powered-by { display: none !important; }
+  .qp { padding: 0; max-width: none; }
+  .qd {
+    border: none;
+    padding: 0;
+    box-shadow: none !important;
+    color: #000;
+  }
+  .qd-items tr { break-inside: avoid; }
+  .qd-dim, .qd-label, .qd-items th, .qd-totals dt { color: #555 !important; }
+
+  /* Dentro de la app: solo el documento (sin sidebar, topbar ni acciones). */
+  body:has(.quote-app-view) * { visibility: hidden; }
+  body:has(.quote-app-view) .quote-app-view .qd,
+  body:has(.quote-app-view) .quote-app-view .qd * { visibility: visible; }
+  body:has(.quote-app-view) .quote-app-view .qd { position: absolute; inset: 0 auto auto 0; width: 100%; }
+}

@@ -1,12 +1,25 @@
 'use server';
 
 import { getCurrentUser } from '@/lib/session';
-import { getDb } from '@/lib/db';
 import { updateActivity, updateContact, updateDeal } from '@/lib/crm';
+import {
+  associateContactCompany,
+  associateDealCompany,
+  removeContactCompany,
+  removeDealCompany,
+  setParentCompany,
+} from '@/lib/crm-assoc';
+import { CrmRefError } from '@/lib/crm-refs';
 
-export async function setContactCompany(contactId: string, companyId: string | null) {
+async function requireActor() {
   const user = await getCurrentUser();
   if (!user) throw new Error('unauthorized');
+  return user;
+}
+
+/** Empresa primaria del contacto (compat: companyId). null quita la primaria. */
+export async function setContactCompany(contactId: string, companyId: string | null) {
+  const user = await requireActor();
   const updated = await updateContact(
     user.id,
     contactId,
@@ -18,8 +31,7 @@ export async function setContactCompany(contactId: string, companyId: string | n
 }
 
 export async function addDealContact(dealId: string, contactId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('unauthorized');
+  const user = await requireActor();
   const updated = await updateDeal(
     user.id,
     dealId,
@@ -30,8 +42,7 @@ export async function addDealContact(dealId: string, contactId: string) {
 }
 
 export async function removeDealContact(dealId: string, contactId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('unauthorized');
+  const user = await requireActor();
   const updated = await updateDeal(
     user.id,
     dealId,
@@ -41,62 +52,36 @@ export async function removeDealContact(dealId: string, contactId: string) {
   if (!updated) throw new Error('not_found');
 }
 
+/** Asocia una empresa al deal (si no tenía, queda primaria). */
 export async function addCompanyToDeal(dealId: string, companyId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('unauthorized');
-  const contact = (await getDb()
-    .prepare(
-      'SELECT id FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 1',
-    )
-    .get(companyId, user.id)) as { id: string } | undefined;
-  if (!contact) throw new Error('no_contact');
-  const updated = await updateDeal(
-    user.id,
-    dealId,
-    { addContactIds: [contact.id] },
-    user.actingUser?.email ?? user.email,
-  );
-  if (!updated) throw new Error('not_found');
+  const user = await requireActor();
+  await associateDealCompany(user.id, dealId, companyId, {});
 }
 
 export async function removeCompanyFromDeal(dealId: string, companyId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('unauthorized');
-  const companyContacts = (await getDb()
-    .prepare('SELECT id FROM crm_contacts WHERE company_id = ? AND user_id = ?')
-    .all(companyId, user.id)) as Array<{ id: string }>;
-  const associated = (await getDb()
-    .prepare('SELECT contact_id FROM crm_deal_contacts WHERE deal_id = ?')
-    .all(dealId)) as Array<{ contact_id: string }>;
-  const associatedIds = new Set(associated.map((r) => r.contact_id));
-  const removeIds = companyContacts.map((c) => c.id).filter((id) => associatedIds.has(id));
-  if (!removeIds.length) return;
-  const updated = await updateDeal(
-    user.id,
-    dealId,
-    { removeContactIds: removeIds },
-    user.actingUser?.email ?? user.email,
-  );
-  if (!updated) throw new Error('not_found');
+  const user = await requireActor();
+  await removeDealCompany(user.id, dealId, companyId);
+}
+
+export async function setDealCompanyPrimary(dealId: string, companyId: string) {
+  const user = await requireActor();
+  await associateDealCompany(user.id, dealId, companyId, { primary: true });
 }
 
 export async function setTaskContact(taskId: string, contactId: string | null) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('unauthorized');
+  const user = await requireActor();
   const updated = await updateActivity(user.id, taskId, { contactId });
   if (!updated) throw new Error('not_found');
 }
 
 export async function setTaskCompany(taskId: string, companyId: string | null) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('unauthorized');
+  const user = await requireActor();
   const updated = await updateActivity(user.id, taskId, { companyId });
   if (!updated) throw new Error('not_found');
 }
 
 export async function setTaskDeal(taskId: string, dealId: string | null) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('unauthorized');
+  const user = await requireActor();
   const updated = await updateActivity(user.id, taskId, { dealId });
   if (!updated) throw new Error('not_found');
 }
@@ -105,44 +90,51 @@ export async function setTaskDeal(taskId: string, dealId: string | null) {
 // Las pages server no pueden pasar funciones inline a Client Components; pasan
 // server actions con .bind(null, recordId) para pre-llenar el id del padre.
 
+/** Agrega una empresa al contacto (la primera queda primaria). */
 export async function associateCompanyToContact(contactId: string, companyId: string) {
-  return setContactCompany(contactId, companyId);
+  const user = await requireActor();
+  await associateContactCompany(user.id, contactId, companyId, {});
 }
 
-export async function removeCompanyFromContact(contactId: string) {
-  return setContactCompany(contactId, null);
+/** Quita una empresa del contacto (si era la primaria, se promueve la siguiente). */
+export async function removeCompanyFromContact(contactId: string, companyId: string) {
+  const user = await requireActor();
+  await removeContactCompany(user.id, contactId, companyId);
+}
+
+export async function setContactCompanyPrimary(contactId: string, companyId: string) {
+  const user = await requireActor();
+  await associateContactCompany(user.id, contactId, companyId, { primary: true });
+}
+
+export async function setContactCompanyLabel(contactId: string, companyId: string, label: string) {
+  const user = await requireActor();
+  await associateContactCompany(user.id, contactId, companyId, { label });
 }
 
 export async function associateDealToContact(contactId: string, dealId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('unauthorized');
-  const updated = await updateDeal(
-    user.id,
-    dealId,
-    { addContactIds: [contactId] },
-    user.actingUser?.email ?? user.email,
-  );
-  if (!updated) throw new Error('not_found');
+  return addDealContact(dealId, contactId);
 }
 
 export async function removeDealFromContact(contactId: string, dealId: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('unauthorized');
-  const updated = await updateDeal(
-    user.id,
-    dealId,
-    { removeContactIds: [contactId] },
-    user.actingUser?.email ?? user.email,
-  );
-  if (!updated) throw new Error('not_found');
+  return removeDealContact(dealId, contactId);
 }
 
 export async function associateContactToCompany(companyId: string, contactId: string) {
-  return setContactCompany(contactId, companyId);
+  return associateCompanyToContact(contactId, companyId);
 }
 
 export async function removeContactFromCompany(companyId: string, contactId: string) {
-  return setContactCompany(contactId, null);
+  return removeCompanyFromContact(contactId, companyId);
+}
+
+export async function setCompanyContactLabel(companyId: string, contactId: string, label: string) {
+  return setContactCompanyLabel(contactId, companyId, label);
+}
+
+/** Esta empresa pasa a ser la primaria del contacto. */
+export async function setCompanyAsContactPrimary(companyId: string, contactId: string) {
+  return setContactCompanyPrimary(contactId, companyId);
 }
 
 export async function associateDealToCompany(companyId: string, dealId: string) {
@@ -151,6 +143,10 @@ export async function associateDealToCompany(companyId: string, dealId: string) 
 
 export async function removeDealFromCompany(companyId: string, dealId: string) {
   return removeCompanyFromDeal(dealId, companyId);
+}
+
+export async function setCompanyAsDealPrimary(companyId: string, dealId: string) {
+  return setDealCompanyPrimary(dealId, companyId);
 }
 
 export async function associateCompanyToDeal(dealId: string, companyId: string) {
@@ -168,6 +164,40 @@ export async function associateContactToDeal(dealId: string, contactId: string) 
 export async function removeContactFromDeal(dealId: string, contactId: string) {
   return removeDealContact(dealId, contactId);
 }
+
+// ---------- Jerarquía de empresas ----------
+
+/** Ciclos o empresas ajenas vuelven como { error } para mostrarlos en el panel. */
+async function hierarchy(companyId: string, parentId: string | null): Promise<{ error?: string }> {
+  const user = await requireActor();
+  try {
+    await setParentCompany(user.id, companyId, parentId);
+    return {};
+  } catch (e) {
+    if (e instanceof CrmRefError) return { error: e.code };
+    throw e;
+  }
+}
+
+export async function setCompanyParent(companyId: string, parentId: string) {
+  return hierarchy(companyId, parentId);
+}
+
+export async function clearCompanyParent(companyId: string) {
+  const user = await requireActor();
+  await setParentCompany(user.id, companyId, null);
+}
+
+export async function addChildCompany(companyId: string, childId: string) {
+  return hierarchy(childId, companyId);
+}
+
+export async function removeChildCompany(_companyId: string, childId: string) {
+  const user = await requireActor();
+  await setParentCompany(user.id, childId, null);
+}
+
+// ---------- Tasks ----------
 
 export async function associateContactToTask(taskId: string, contactId: string) {
   return setTaskContact(taskId, contactId);

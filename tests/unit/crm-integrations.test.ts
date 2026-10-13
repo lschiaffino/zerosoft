@@ -15,6 +15,16 @@ import {
   dealCreateSchema,
   dealMoveSchema,
   dealUpdateSchema,
+  associationSchema,
+  lineItemCreateSchema,
+  lineItemUpdateSchema,
+  productCreateSchema,
+  productUpdateSchema,
+  quoteCreateSchema,
+  quoteUpdateSchema,
+  tagApplySchema,
+  tagCreateSchema,
+  tagUpdateSchema,
 } from '@/lib/crm-schema';
 import { enrollSchema, unenrollSchema } from '@/lib/crm-email-schema';
 import { makeUser } from './helpers';
@@ -163,6 +173,16 @@ describe('Docs de la API: los ejemplos de request son válidos', () => {
     'tasks-patch': activityUpdateSchema,
     'sequences-enroll': enrollSchema,
     'sequences-unenroll': unenrollSchema,
+    'products-create': productCreateSchema,
+    'products-patch': productUpdateSchema,
+    'line-items-create': lineItemCreateSchema,
+    'line-items-patch': lineItemUpdateSchema,
+    'quotes-create': quoteCreateSchema,
+    'quotes-patch': quoteUpdateSchema,
+    'associations-create': associationSchema,
+    'tags-create': tagCreateSchema,
+    'tags-patch': tagUpdateSchema,
+    'tags-records': tagApplySchema,
   };
   const fill = (v: unknown): unknown =>
     JSON.parse(JSON.stringify(v).replace(/\{[a-z_]+_id\}/g, '00000000-0000-4000-8000-000000000000'));
@@ -187,6 +207,11 @@ describe('OpenAPI', () => {
     expect(spec.paths['/api/v1/crm/activities']?.get).toBeTruthy();
     expect(spec.paths['/api/v1/crm/sequences/{id}/enroll']?.post).toBeTruthy();
     expect(spec.paths['/api/v1/crm/email-templates/{id}']?.get).toBeTruthy();
+    expect(spec.paths['/api/v1/crm/products/{id}']?.patch).toBeTruthy();
+    expect(spec.paths['/api/v1/crm/deals/{id}/line-items/{itemId}']?.delete).toBeTruthy();
+    expect(spec.paths['/api/v1/crm/quotes']?.post).toBeTruthy();
+    expect(spec.paths['/api/v1/crm/associations']?.delete).toBeTruthy();
+    expect(spec.paths['/api/v1/crm/tags/{id}/records']?.post).toBeTruthy();
     expect(Object.keys(spec.paths).every((p) => p.startsWith('/api/v1/'))).toBe(true);
   });
 });

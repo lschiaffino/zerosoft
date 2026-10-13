@@ -15,6 +15,7 @@ import {
   type DashboardWidgetType,
 } from '@/lib/crm-dashboards-schema';
 import DashboardsView from '@/components/crm/DashboardsView';
+import { getCrmSettings, missingRates } from '@/lib/crm-currency';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,12 +81,16 @@ export default async function CrmDashboardsPage(
   );
   const initialData = Object.fromEntries(entries) as unknown as DashboardInitialData;
 
+  const [crmSettings, missing] = await Promise.all([getCrmSettings(user.id), missingRates(user.id)]);
+
   return (
     <div className="app-page">
       <div className="page-head">
         <h1 className="app-title">{t('dashboards.title')}</h1>
       </div>
       <DashboardsView
+        baseCurrency={crmSettings.baseCurrency}
+        missingRates={missing}
         dashboards={dashboards}
         pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))}
         defaultPipelineId={defaultPipelineId}

@@ -48,6 +48,10 @@ interface ReportsViewProps {
   ownerPerformance: OwnerPerformance[];
   activityLeaderboard: ActivityLeaderboard[];
   conversionRate: ConversionRate;
+  /** Moneda base del workspace (montos convertidos). */
+  baseCurrency?: string;
+  /** Monedas usadas sin tipo de cambio (se suman 1:1). */
+  missingRates?: string[];
 }
 
 const RANGES: ReportRangeLabel[] = ['7d', '30d', '90d', 'quarter', '12m'];
@@ -63,10 +67,11 @@ function niceCeil(max: number): number {
   return nice * pow;
 }
 
-function formatMoney(n: number, locale: string): string {
+/** Montos de reportes: siempre en la moneda base del workspace (los deals se convierten en SQL). */
+function formatMoney(n: number, locale: string, currency = 'USD'): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'USD',
+    currency,
     maximumFractionDigits: 0,
   }).format(n);
 }
@@ -228,7 +233,9 @@ function WonLostChart({
 function TimeseriesChart({
   data,
   locale,
+  baseCurrency = 'USD',
 }: {
+  baseCurrency?: string;
   data: TimeseriesPoint[];
   locale: string;
 }) {
@@ -299,7 +306,7 @@ function TimeseriesChart({
                   width={bw}
                   height={amountH}
                 >
-                  <title>{`${bucketLabel(d.bucket, locale)} · won: ${formatMoney(d.wonAmount, locale)}`}</title>
+                  <title>{`${bucketLabel(d.bucket, locale)} · won: ${formatMoney(d.wonAmount, locale, baseCurrency)}`}</title>
                 </rect>
               </g>
             );
@@ -336,7 +343,9 @@ function KpiCard({
   delta,
   money = false,
   locale,
+  baseCurrency = 'USD',
 }: {
+  baseCurrency?: string;
   label: string;
   value: number;
   delta: number;
@@ -345,7 +354,7 @@ function KpiCard({
 }) {
   return (
     <div className="panel stat-card">
-      <span className="stat-num">{money ? formatMoney(value, locale) : formatNumber(value, locale)}</span>
+      <span className="stat-num">{money ? formatMoney(value, locale, baseCurrency) : formatNumber(value, locale)}</span>
       <span className="stat-label">{label}</span>
       <Delta value={delta} />
     </div>
@@ -630,6 +639,8 @@ function SavedReportsBar({
 }
 
 export default function ReportsView({
+  baseCurrency = 'USD',
+  missingRates = [],
   reports,
   funnel,
   forecastByStage,
@@ -669,6 +680,10 @@ export default function ReportsView({
   return (
     <div className="reports">
       <ReportTypeTabs reportType={reportType} />
+      <p className="muted currency-note">
+        {t('currency.reportNote', { base: baseCurrency })}
+        {missingRates.length > 0 && <> {t('currency.missing', { list: missingRates.join(', ') })}</>}
+      </p>
 
       <div className="report-controls">
         <RangeSelector range={range} />
@@ -706,26 +721,26 @@ export default function ReportsView({
       {reportType === 'overview' && (
         <>
           <div className="kpi-grid">
-            <KpiCard
+            <KpiCard baseCurrency={baseCurrency}
               label={t('reports.kpi.newContacts')}
               value={kpis.newContacts}
               delta={kpis.newContactsDelta}
               locale={locale}
             />
-            <KpiCard
+            <KpiCard baseCurrency={baseCurrency}
               label={t('reports.kpi.newDeals')}
               value={kpis.newDeals}
               delta={kpis.newDealsDelta}
               locale={locale}
             />
-            <KpiCard
+            <KpiCard baseCurrency={baseCurrency}
               label={t('reports.kpi.wonAmount')}
               value={kpis.wonAmount}
               delta={kpis.wonAmountDelta}
               money
               locale={locale}
             />
-            <KpiCard
+            <KpiCard baseCurrency={baseCurrency}
               label={t('reports.kpi.activities')}
               value={kpis.activities}
               delta={kpis.activitiesDelta}
@@ -737,7 +752,7 @@ export default function ReportsView({
             <div className="panel-head">
               <p className="section-label">{t('reports.activityOverTime')}</p>
             </div>
-            <TimeseriesChart data={timeseries} locale={locale} />
+            <TimeseriesChart baseCurrency={baseCurrency} data={timeseries} locale={locale} />
           </section>
 
           <section className="panel">
@@ -761,7 +776,7 @@ export default function ReportsView({
                       <td>{o.name ?? o.email}</td>
                       <td className="mono td-num">{formatNumber(o.contacts, locale)}</td>
                       <td className="mono td-num">{formatNumber(o.deals, locale)}</td>
-                      <td className="mono td-num">{formatMoney(o.wonAmount, locale)}</td>
+                      <td className="mono td-num">{formatMoney(o.wonAmount, locale, baseCurrency)}</td>
                       <td className="mono td-num">{formatNumber(o.activities, locale)}</td>
                     </tr>
                   ))}
@@ -793,7 +808,7 @@ export default function ReportsView({
                       </span>
                       <span
                         className="breakdown-track"
-                        title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale)}`}
+                        title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale, baseCurrency)}`}
                       >
                         <span
                           className="breakdown-bar"
@@ -803,7 +818,7 @@ export default function ReportsView({
                       <span className="funnel-stats mono">
                         {formatNumber(stage.count, locale)}
                         <span className="funnel-sep">·</span>
-                        {formatMoney(stage.amount, locale)}
+                        {formatMoney(stage.amount, locale, baseCurrency)}
                         {stage.conversionRate !== null && (
                           <span className="funnel-conv" title={t('reports.vsPrev')}>
                             {stage.conversionRate}%
@@ -826,7 +841,7 @@ export default function ReportsView({
                 )}
               </div>
               <div className="report-total">
-                <span className="stat-num">{formatMoney(forecastTotal, locale)}</span>
+                <span className="stat-num">{formatMoney(forecastTotal, locale, baseCurrency)}</span>
                 <span className="stat-label">
                   {t('reports.total')} · {t('reports.forecast')}
                 </span>
@@ -842,7 +857,7 @@ export default function ReportsView({
                       </span>
                       <span
                         className="breakdown-track"
-                        title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale)} × ${stage.probability}%`}
+                        title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale, baseCurrency)} × ${stage.probability}%`}
                       >
                         <span
                           className="breakdown-bar"
@@ -850,7 +865,7 @@ export default function ReportsView({
                         />
                       </span>
                       <span className="funnel-stats mono">
-                        {formatMoney(stage.forecast, locale)}
+                        {formatMoney(stage.forecast, locale, baseCurrency)}
                         <span className="funnel-sep">·</span>
                         {stage.probability}%
                       </span>
@@ -893,7 +908,7 @@ export default function ReportsView({
                 labelFor={sourceLabel}
                 titleFor={(item) => {
                   const row = reports.dealsBySource.find((d) => d.source === item.name);
-                  return row ? formatMoney(row.amount, locale) : '';
+                  return row ? formatMoney(row.amount, locale, baseCurrency) : '';
                 }}
                 locale={locale}
               />
@@ -924,7 +939,7 @@ export default function ReportsView({
                 labelFor={priorityLabel}
                 titleFor={(item) => {
                   const row = reports.dealsByPriority.find((p) => p.priority === item.name);
-                  return row ? formatMoney(row.amount, locale) : '';
+                  return row ? formatMoney(row.amount, locale, baseCurrency) : '';
                 }}
                 locale={locale}
               />
@@ -981,7 +996,7 @@ export default function ReportsView({
                   </span>
                   <span
                     className="breakdown-track"
-                    title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale)}`}
+                    title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale, baseCurrency)}`}
                   >
                     <span
                       className="breakdown-bar"
@@ -991,7 +1006,7 @@ export default function ReportsView({
                   <span className="funnel-stats mono">
                     {formatNumber(stage.count, locale)}
                     <span className="funnel-sep">·</span>
-                    {formatMoney(stage.amount, locale)}
+                    {formatMoney(stage.amount, locale, baseCurrency)}
                     {stage.conversionRate !== null && (
                       <span className="funnel-conv" title={t('reports.vsPrev')}>
                         {stage.conversionRate}%
@@ -1016,7 +1031,7 @@ export default function ReportsView({
             )}
           </div>
           <div className="report-total">
-            <span className="stat-num">{formatMoney(forecastTotal, locale)}</span>
+            <span className="stat-num">{formatMoney(forecastTotal, locale, baseCurrency)}</span>
             <span className="stat-label">
               {t('reports.total')} · {t('reports.forecast')}
             </span>
@@ -1032,7 +1047,7 @@ export default function ReportsView({
                   </span>
                   <span
                     className="breakdown-track"
-                    title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale)} × ${stage.probability}%`}
+                    title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale, baseCurrency)} × ${stage.probability}%`}
                   >
                     <span
                       className="breakdown-bar"
@@ -1040,7 +1055,7 @@ export default function ReportsView({
                     />
                   </span>
                   <span className="funnel-stats mono">
-                    {formatMoney(stage.forecast, locale)}
+                    {formatMoney(stage.forecast, locale, baseCurrency)}
                     <span className="funnel-sep">·</span>
                     {stage.probability}%
                     <span className="funnel-sep">·</span>
@@ -1062,7 +1077,7 @@ export default function ReportsView({
             labelFor={sourceLabel}
             titleFor={(item) => {
               const row = sourcePerformance.find((s) => s.source === item.name);
-              return row ? formatMoney(row.amount, locale) : '';
+              return row ? formatMoney(row.amount, locale, baseCurrency) : '';
             }}
             locale={locale}
           />
@@ -1082,7 +1097,7 @@ export default function ReportsView({
                     <td>{sourceLabel(s.source)}</td>
                     <td className="mono td-num">{formatNumber(s.contacts, locale)}</td>
                     <td className="mono td-num">{formatNumber(s.deals, locale)}</td>
-                    <td className="mono td-num">{formatMoney(s.amount, locale)}</td>
+                    <td className="mono td-num">{formatMoney(s.amount, locale, baseCurrency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1119,7 +1134,7 @@ export default function ReportsView({
                     <td className="mono td-num">{formatNumber(o.wonDeals, locale)}</td>
                     <td className="mono td-num">{formatNumber(o.lostDeals, locale)}</td>
                     <td className="mono td-num">{o.winRate}%</td>
-                    <td className="mono td-num">{formatMoney(o.wonAmount, locale)}</td>
+                    <td className="mono td-num">{formatMoney(o.wonAmount, locale, baseCurrency)}</td>
                     <td className="mono td-num">{formatNumber(o.activities, locale)}</td>
                   </tr>
                 ))}
@@ -1168,7 +1183,7 @@ export default function ReportsView({
               <span className="stat-num">{formatNumber(conversionRate.won, locale)}</span>
               <span className="stat-label">{t('reports.wonDeals')}</span>
             </div>
-            <KpiCard
+            <KpiCard baseCurrency={baseCurrency}
               label={t('reports.conversionRate')}
               value={conversionRate.rate}
               delta={conversionRate.delta}

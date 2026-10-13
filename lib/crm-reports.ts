@@ -3,6 +3,10 @@
  * Usado por /app/crm/reports.
  */
 import { getDb } from './db';
+import { baseAmountSql } from './crm-currency';
+
+/** Montos de deals convertidos a la moneda base del workspace (tipos de cambio manuales). */
+const AMT = baseAmountSql('d');
 import type { FunnelStage } from './crm';
 
 export type ReportBucket = 'day' | 'week' | 'month' | 'quarter';
@@ -167,14 +171,14 @@ export async function reportKpis(
 
   const wonAmount = await sum(
     db,
-    `SELECT COALESCE(SUM(d.amount), 0) AS s FROM crm_deals d
+    `SELECT COALESCE(SUM(${AMT}), 0) AS s FROM crm_deals d
      JOIN crm_stages s ON s.id = d.stage_id
      WHERE d.user_id = ? AND s.is_won = 1 AND d.closed_at >= datetime(?) AND d.closed_at <= datetime(?, '23:59:59')${f.sql}`,
     [userId, range.from, range.to, ...f.args],
   );
   const prevWonAmount = await sum(
     db,
-    `SELECT COALESCE(SUM(d.amount), 0) AS s FROM crm_deals d
+    `SELECT COALESCE(SUM(${AMT}), 0) AS s FROM crm_deals d
      JOIN crm_stages s ON s.id = d.stage_id
      WHERE d.user_id = ? AND s.is_won = 1 AND d.closed_at >= datetime(?) AND d.closed_at <= datetime(?, '23:59:59')${f.sql}`,
     [userId, range.prevFrom, range.prevTo, ...f.args],
@@ -238,7 +242,7 @@ export async function reportTimeseries(
 
   const wonRows = (await db
     .prepare(
-      `SELECT ${b} AS bucket, COALESCE(SUM(d.amount), 0) AS s
+      `SELECT ${b} AS bucket, COALESCE(SUM(${AMT}), 0) AS s
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
        WHERE d.user_id = ? AND s.is_won = 1 AND d.closed_at >= datetime(?) AND d.closed_at <= datetime(?, '23:59:59')${f.sql}
@@ -287,7 +291,7 @@ export async function reportByOwner(
     );
     const wonAmount = await sum(
       db,
-      `SELECT COALESCE(SUM(d.amount), 0) AS s FROM crm_deals d
+      `SELECT COALESCE(SUM(${AMT}), 0) AS s FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
        WHERE d.user_id = ? AND COALESCE(d.owner_id, d.user_id) = ? AND s.is_won = 1 AND d.closed_at >= datetime(?) AND d.closed_at <= datetime(?, '23:59:59')${fc.sql}`,
       [userId, o.id, range.from, range.to, ...fc.args],
@@ -410,7 +414,7 @@ export async function reportFunnel(
   const rows = (await getDb()
     .prepare(
       `SELECT s.id, s.name, s.probability, s.is_won, s.is_lost,
-         COUNT(d.id) AS count, COALESCE(SUM(d.amount), 0) AS amount
+         COUNT(d.id) AS count, COALESCE(SUM(${AMT}), 0) AS amount
        FROM crm_stages s
        LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ?
        WHERE s.pipeline_id = ?
@@ -436,8 +440,8 @@ export async function reportForecast(
     .prepare(
       `SELECT s.id, s.name, s.probability,
          COUNT(d.id) AS count,
-         COALESCE(SUM(d.amount), 0) AS amount,
-         COALESCE(SUM(d.amount * s.probability / 100.0), 0) AS forecast
+         COALESCE(SUM(${AMT}), 0) AS amount,
+         COALESCE(SUM(${AMT} * s.probability / 100.0), 0) AS forecast
        FROM crm_stages s
        LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ? AND d.closed_at IS NULL
        WHERE s.pipeline_id = ?
@@ -470,7 +474,7 @@ export async function reportSourcePerformance(
   const dealsRows = (await db
     .prepare(
       `SELECT COALESCE(NULLIF(d.source, ''), 'other') AS source,
-         COUNT(*) AS c, COALESCE(SUM(d.amount), 0) AS a
+         COUNT(*) AS c, COALESCE(SUM(${AMT}), 0) AS a
        FROM crm_deals d
        WHERE d.user_id = ? AND d.created_at >= datetime(?) AND d.created_at <= datetime(?, '23:59:59')${f.sql}
        GROUP BY 1`,
@@ -526,7 +530,7 @@ export async function reportOwnerPerformance(
 
     const wonRow = (await db
       .prepare(
-        `SELECT COUNT(*) AS c, COALESCE(SUM(d.amount), 0) AS a FROM crm_deals d
+        `SELECT COUNT(*) AS c, COALESCE(SUM(${AMT}), 0) AS a FROM crm_deals d
          JOIN crm_stages s ON s.id = d.stage_id
          WHERE d.user_id = ? AND COALESCE(d.owner_id, d.user_id) = ? AND s.is_won = 1 AND d.closed_at >= datetime(?) AND d.closed_at <= datetime(?, '23:59:59')${fc.sql}`,
       )

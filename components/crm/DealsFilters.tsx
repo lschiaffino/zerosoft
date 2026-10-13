@@ -17,6 +17,9 @@ interface DealsFiltersProps {
   priority: string;
   source: string;
   owner: string;
+  /** Tag activo (?tag=) y tags disponibles. */
+  tag?: string;
+  tags?: Array<{ id: string; name: string }>;
   createdFrom: string;
   createdTo: string;
   custom: Record<string, string>;
@@ -38,6 +41,8 @@ export default function DealsFilters({
   priority,
   source,
   owner,
+  tag = '',
+  tags = [],
   createdFrom,
   createdTo,
   custom,
@@ -64,6 +69,7 @@ export default function DealsFilters({
       priority: priority || undefined,
       source: source || undefined,
       owner: owner || undefined,
+      tag: tag || undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
       filters: advanced || undefined,
@@ -92,6 +98,7 @@ export default function DealsFilters({
     priority,
     source,
     owner,
+    tag,
     createdFrom,
     createdTo,
     ...Object.values(custom),
@@ -170,6 +177,23 @@ export default function DealsFilters({
               </option>
             ))}
           </select>
+
+          {tags.length > 0 && (
+            <select
+              className={`filter-select filter-btn${tag ? ' on' : ''}`}
+              value={tag}
+              onChange={(e) => go({ tag: e.target.value || undefined })}
+              aria-label={t('tags.filter')}
+              data-testid="tag-filter"
+            >
+              <option value="">{t('tags.filter')}</option>
+              {tags.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+          )}
           <div className="filter-date-group">
             <input
               className="input filter-date"
@@ -232,6 +256,7 @@ export default function DealsFilters({
                   priority: undefined,
                   source: undefined,
                   owner: undefined,
+                  tag: undefined,
                   createdFrom: undefined,
                   createdTo: undefined,
                 })

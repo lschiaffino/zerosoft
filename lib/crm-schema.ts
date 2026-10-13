@@ -412,6 +412,11 @@ export const importContactRowSchema = z.object({
   lifecycleStage: lifecycleStage.optional(),
   leadStatus: leadStatus.optional(),
   source: source.optional(),
+  /** Email (o nombre) de una persona del workspace. */
+  ownerEmail: shortText.optional(),
+  /** Empresa a asociar como primaria (se busca por dominio, luego nombre; se crea si falta). */
+  companyName: shortText.optional(),
+  companyDomain: shortText.optional(),
 });
 
 export const importCompanyRowSchema = z.object({
@@ -424,6 +429,34 @@ export const importCompanyRowSchema = z.object({
   city: shortText.optional(),
   country: shortText.optional(),
   lifecycleStage: lifecycleStage.optional(),
+  ownerEmail: shortText.optional(),
+  /** Empresa madre (solo si ya existe). */
+  parentCompanyName: shortText.optional(),
+  parentCompanyDomain: shortText.optional(),
+});
+
+/** Deals: montos y fechas llegan crudos; lib/crm-import.ts los interpreta. */
+export const importDealRowSchema = z.object({
+  name: shortText.optional(),
+  pipeline: shortText.optional(),
+  stage: shortText.optional(),
+  amount: z.string().trim().max(60).optional(),
+  currency: currency.optional(),
+  closeDate: z.string().trim().max(60).optional(),
+  ownerEmail: shortText.optional(),
+  priority: priority.optional(),
+  source: source.optional(),
+  description: longText.optional(),
+  companyName: shortText.optional(),
+  companyDomain: shortText.optional(),
+  /** Uno o más emails ("Jane (jane@x.com); bob@y.com"). */
+  contactEmail: shortText.optional(),
+});
+
+export const importPresetCreateSchema = z.object({
+  entity: z.enum(['contacts', 'companies', 'deals']),
+  name: z.string().trim().min(1).max(100),
+  mapping: z.record(z.string().max(200), z.string().max(120)),
 });
 
 export const importContactsSchema = z.object({

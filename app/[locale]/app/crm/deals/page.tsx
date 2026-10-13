@@ -22,6 +22,9 @@ import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterB
 import { AddPipelineChip } from '@/components/crm/AddPipelineStage';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+import { listTags, tagsForRecords } from '@/lib/crm-tags';
+import { getCurrencyContext } from '@/lib/crm-currency';
+import { convertAmount, formatMoney } from '@/lib/crm-money';
 
 export const dynamic = 'force-dynamic';
 
@@ -128,6 +131,8 @@ export default async function DealsPage(props: DealsPageProps) {
   const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
   const customFieldDefs = await listCustomFields(user.id, 'deals');
+  const [allTags, currencyCtx] = await Promise.all([listTags(user.id), getCurrencyContext(user.id)]);
+  const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
   const customFields = customFieldDefs
     .filter((cf) => cf.type === 'select')
     .map((cf) => {
@@ -158,6 +163,12 @@ export default async function DealsPage(props: DealsPageProps) {
     },
     { key: 'priority', label: t('filters.field.priority'), type: 'select', options: priorities },
     { key: 'source', label: t('filters.field.source'), type: 'select', options: sources },
+    {
+      key: 'tag',
+      label: t('filters.field.tag'),
+      type: 'select',
+      options: allTags.map((x) => ({ value: x.id, label: x.name })),
+    },
     { key: 'owner', label: t('filters.field.owner'), type: 'select', options: owners },
     { key: 'closeDate', label: t('filters.field.closeDate'), type: 'date' },
     { key: 'created', label: t('filters.field.created'), type: 'date' },
@@ -209,6 +220,7 @@ export default async function DealsPage(props: DealsPageProps) {
     const createdFrom = one(searchParams.createdFrom) ?? '';
     const createdTo = one(searchParams.createdTo) ?? '';
     const custom = parseCustomFilter(searchParams);
+    const tag = one(searchParams.tag) ?? '';
     const rawFilters = one(searchParams.filters) ?? '';
     const advancedRules = parseFilterRules(rawFilters);
     const sortParam = one(searchParams.sort);
@@ -226,6 +238,7 @@ export default async function DealsPage(props: DealsPageProps) {
       owner: owner || undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
+      tag: tag || undefined,
       custom: Object.keys(custom).length ? custom : undefined,
       filters: advancedRules.length ? advancedRules : undefined,
       customTypes,
@@ -247,6 +260,7 @@ export default async function DealsPage(props: DealsPageProps) {
       for (const r of counts) contactCounts.set(r.deal_id, r.c);
     }
 
+    const rowTags = await tagsForRecords(user.id, 'deal', rows.map((r) => r.id));
     const dayMs = 86_400_000;
     const tableRows: DealRow[] = rows.map((d) => {
       const start = new Date(d.created_at.replace(' ', 'T') + 'Z').getTime();
@@ -271,6 +285,13 @@ export default async function DealsPage(props: DealsPageProps) {
         age: Math.max(0, Math.floor((stop - start) / dayMs)),
         contacts: contactCounts.get(d.id) ?? 0,
         created: formatDate(d.created_at, locale),
+        tags: rowTags.get(d.id) ?? [],
+        companyName: d.company_name,
+        amountBase: (() => {
+          if (d.currency.toUpperCase() === currencyCtx.base) return null;
+          const v = convertAmount(d.amount, d.currency, currencyCtx.base, currencyCtx);
+          return v === null ? null : formatMoney(v, currencyCtx.base, locale);
+        })(),
       };
     });
 
@@ -282,6 +303,7 @@ export default async function DealsPage(props: DealsPageProps) {
     if (priority) query.priority = priority;
     if (source) query.source = source;
     if (owner) query.owner = owner;
+    if (tag) query.tag = tag;
     if (createdFrom) query.createdFrom = createdFrom;
     if (createdTo) query.createdTo = createdTo;
     Object.entries(custom).forEach(([k, v]) => {
@@ -299,6 +321,8 @@ export default async function DealsPage(props: DealsPageProps) {
           priority={priority}
           source={source}
           owner={owner}
+          tag={tag}
+          tags={tagOptions}
           createdFrom={createdFrom}
           createdTo={createdTo}
           custom={custom}
@@ -333,6 +357,7 @@ export default async function DealsPage(props: DealsPageProps) {
               priorities={priorities}
               sources={sources}
               locale={locale}
+              allTags={tagOptions}
             />
             {pages > 1 && (
               <nav className="pager mono">
@@ -421,11 +446,11 @@ export default async function DealsPage(props: DealsPageProps) {
             </span>
             <span>
               {t('deals.totals.openAmount')}:{' '}
-              <strong>{formatAmount(totals.openAmount, 'USD', locale)}</strong>
+              <strong>{formatMoney(totals.openAmount, currencyCtx.base, locale)}</strong>
             </span>
             <span>
               {t('deals.totals.forecast')}:{' '}
-              <strong>{formatAmount(totals.forecast, 'USD', locale)}</strong>
+              <strong>{formatMoney(totals.forecast, currencyCtx.base, locale)}</strong>
             </span>
           </div>
           <DealsBoard
@@ -433,6 +458,7 @@ export default async function DealsPage(props: DealsPageProps) {
             pipelineId={pipeline.id}
             stages={boardStages}
             locale={locale}
+            baseCurrency={currencyCtx.base}
             priorities={priorities}
             sources={sources}
           />

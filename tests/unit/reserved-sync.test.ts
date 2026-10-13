@@ -21,4 +21,10 @@ describe('slugs reservados', () => {
     expect(RESERVED_SLUGS.has('b')).toBe(true);
     expect(isValidSlug('notes')).toBe(true);
   });
+
+  it('reserva la página pública de quotes del CRM (/q)', () => {
+    expect(RESERVED_SLUGS.has('q')).toBe(true);
+    expect(middlewareReserved()).toContain('q');
+    expect(isValidSlug('quote')).toBe(true);
+  });
 });

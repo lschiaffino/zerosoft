@@ -9,7 +9,7 @@ const intlMiddleware = createMiddleware(routing);
 // Mantener sincronizada con lib/reserved.ts
 const RESERVED = new Set([
   'en', 'es', 'pt',
-  'app', 'api', 'auth', 'r', 's', 'n', 'b',
+  'app', 'api', 'auth', 'r', 's', 'n', 'b', 'q',
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',

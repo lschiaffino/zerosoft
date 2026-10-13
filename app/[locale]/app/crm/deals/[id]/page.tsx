@@ -9,10 +9,14 @@ import AssociationPanel from '@/components/crm/AssociationPanel';
 import {
   associateCompanyToDeal,
   removeCompanyFromDealByDeal,
+  setDealCompanyPrimary,
   associateContactToDeal,
   removeContactFromDeal,
 } from '@/components/crm/associationActions';
 import DealStagePanel from '@/components/crm/DealStagePanel';
+import LineItemsPanel from '@/components/crm/LineItemsPanel';
+import DealQuotesPanel from '@/components/crm/DealQuotesPanel';
+import { listLineItems, listProducts, listQuotes } from '@/lib/crm-products';
 import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
 import { listEventTypes } from '@/lib/calendar';
 import { customPropFields } from '@/components/crm/customPropFields';
@@ -23,6 +27,10 @@ import { aiEnabled } from '@/lib/ai';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import HistoryPanel from '@/components/crm/HistoryPanel';
 import { listMembers } from '@/lib/teams';
+import { getCurrencyContext } from '@/lib/crm-currency';
+import { convertAmount, formatMoney } from '@/lib/crm-money';
+import { listTags, tagsForRecords } from '@/lib/crm-tags';
+import RecordTags from '@/components/crm/RecordTags';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +51,17 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
 
   const detail = await getDeal(user.id, id);
   if (!detail) notFound();
-  const { deal, stage, pipeline, contacts, company } = detail;
+  const { deal, stage, pipeline, contacts, company, companies: dealCompanies } = detail;
+  const [currencyCtx, allTags, recordTags] = await Promise.all([
+    getCurrencyContext(user.id),
+    listTags(user.id),
+    tagsForRecords(user.id, 'deal', [id]),
+  ]);
+  // Monto en la moneda base del workspace (solo si es otra moneda y hay tipo de cambio).
+  const baseAmount =
+    deal.currency.toUpperCase() !== currencyCtx.base
+      ? convertAmount(deal.amount, deal.currency, currencyCtx.base, currencyCtx)
+      : null;
 
   const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
@@ -53,6 +71,14 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   const emailTemplates = await listEmailTemplates(user.id);
   const emailSettings = await getEmailSettings(user.id);
   const nextTask = await nextTaskFor(user.id, { dealId: id });
+
+  // Line items y quotes (columna central).
+  const [lineSummary, activeProducts, dealQuotes] = await Promise.all([
+    listLineItems(user.id, id),
+    listProducts(user.id, { active: true, pageSize: 200 }),
+    listQuotes(user.id, { dealId: id, pageSize: 50 }),
+  ]);
+  const realPerson = user.actingUser ?? user;
 
   const stages = (await getDb()
     .prepare('SELECT * FROM crm_stages WHERE pipeline_id = ? ORDER BY position ASC')
@@ -217,6 +243,11 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         </div>
         <div className="detail-meta">
           <span className="detail-amount">{fmtAmount(deal.amount, deal.currency)}</span>
+          {baseAmount !== null && (
+            <span className="detail-meta-item muted mono" title={t('currency.convertedHint', { base: currencyCtx.base })}>
+              ≈ {formatMoney(baseAmount, currencyCtx.base, locale)}
+            </span>
+          )}
           {pipeline && <span className="detail-meta-item muted">{pipeline.name}</span>}
           {company && (
             <Link href={`/app/crm/companies/${company.id}`} className="detail-meta-item cell-email">
@@ -234,6 +265,12 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
             </span>
           )}
         </div>
+        <RecordTags
+          entity="deal"
+          recordId={deal.id}
+          tags={recordTags.get(deal.id) ?? []}
+          allTags={allTags.map((x) => ({ id: x.id, name: x.name, color: x.color }))}
+        />
         <div className="detail-actions">
           <BookMeetingMenu
             eventTypes={meetingTypes}
@@ -273,6 +310,70 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
             />
           </section>
 
+          <section className="panel" id="line-items">
+            <div className="panel-head">
+              <h2 className="section-label">{t('lineItems.title')}</h2>
+              {lineSummary && lineSummary.items.length > 0 && (
+                <span className="panel-more">{lineSummary.items.length}</span>
+              )}
+            </div>
+            <LineItemsPanel
+              dealId={deal.id}
+              currency={deal.currency}
+              locale={locale}
+              items={(lineSummary?.items ?? []).map((i) => ({
+                id: i.id,
+                product_id: i.product_id,
+                name: i.name,
+                sku: i.sku,
+                quantity: i.quantity,
+                unit_price: i.unit_price,
+                discount_pct: i.discount_pct,
+                tax_pct: i.tax_pct,
+                recurring: i.recurring,
+                net: i.net,
+                total: i.total,
+                updated_at: i.updated_at,
+              }))}
+              totals={lineSummary?.totals ?? { subtotal: 0, discount: 0, net: 0, tax: 0, total: 0 }}
+              amountOverride={!!deal.amount_override}
+              dealAmount={deal.amount}
+              products={activeProducts.rows.map((p) => ({
+                id: p.id,
+                name: p.name,
+                price: p.price,
+                currency: p.currency,
+                recurring: p.recurring,
+              }))}
+            />
+          </section>
+
+          <section className="panel" id="quotes">
+            <div className="panel-head">
+              <h2 className="section-label">{t('quotes.title')}</h2>
+              {dealQuotes.total > 0 && <span className="panel-more">{dealQuotes.total}</span>}
+            </div>
+            <DealQuotesPanel
+              dealId={deal.id}
+              dealName={deal.name}
+              locale={locale}
+              hasLineItems={(lineSummary?.items.length ?? 0) > 0}
+              quotes={dealQuotes.rows.map((q) => ({
+                id: q.id,
+                number: q.number,
+                status: q.status,
+                total: q.total,
+                currency: q.currency,
+                title: q.title,
+              }))}
+              sender={{
+                name: realPerson.name ?? '',
+                email: realPerson.email,
+                company: user.team?.name ?? '',
+              }}
+            />
+          </section>
+
           <section className="panel">
             <h2 className="section-label">{t('deals.detail.timeline')}</h2>
             <NextTaskBanner
@@ -300,24 +401,21 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         <div className="detail-col detail-col-side">
           <section className="panel">
             <AssociationPanel
-              title={t('deals.detail.company')}
-              records={
-                company
-                  ? [
-                      {
-                        id: company.id,
-                        name: company.name,
-                        href: `/app/crm/companies/${company.id}`,
-                        meta: company.domain || undefined,
-                      },
-                    ]
-                  : []
-              }
+              title={t('deals.detail.companies')}
+              count={dealCompanies.length}
+              records={dealCompanies.map((c) => ({
+                id: c.id,
+                name: c.name,
+                href: `/app/crm/companies/${c.id}`,
+                meta: c.domain || undefined,
+                primary: !!c.is_primary,
+              }))}
               options={allCompanies
-                .filter((c) => c.id !== company?.id)
+                .filter((c) => !dealCompanies.some((dc) => dc.id === c.id))
                 .map((c) => ({ id: c.id, value: c.name }))}
               onAssociate={associateCompanyToDeal.bind(null, deal.id)}
               onRemove={removeCompanyFromDealByDeal.bind(null, deal.id)}
+              onSetPrimary={setDealCompanyPrimary.bind(null, deal.id)}
               addLabel={t('assoc.pickCompany')}
               emptyLabel={t('deals.detail.noCompany')}
             />

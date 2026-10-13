@@ -761,7 +761,7 @@ export async function listEmailThreads(
     where = 'ec.contact_id = ?';
     arg = f.contactId;
   } else if (f.companyId) {
-    where = 'ec.contact_id IN (SELECT id FROM crm_contacts WHERE user_id = ec.user_id AND company_id = ?)';
+    where = 'ec.contact_id IN (SELECT contact_id FROM crm_contact_companies WHERE user_id = ec.user_id AND company_id = ?)';
     arg = f.companyId;
   } else if (f.dealId) {
     where = 'ec.contact_id IN (SELECT contact_id FROM crm_deal_contacts WHERE deal_id = ?)';

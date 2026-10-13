@@ -2,6 +2,8 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getCrmOverview, type ActivityListRow } from '@/lib/crm';
+import { getCrmSettings } from '@/lib/crm-currency';
+import { formatMoney } from '@/lib/crm-money';
 import { formatDate, formatNumber } from '@/lib/utils';
 import WonLostChart from '@/components/crm/WonLostChart';
 
@@ -16,12 +18,8 @@ const ACTIVITY_ICONS: Record<string, string> = {
   email: '✉',
 };
 
-function money(amount: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(amount);
+function money(amount: number, locale: string, currency = 'USD'): string {
+  return formatMoney(amount, currency, locale);
 }
 
 /** Link al registro asociado de una actividad (contacto > deal > empresa). */
@@ -50,6 +48,8 @@ export default async function CrmOverviewPage(
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const o = await getCrmOverview(user.id);
+  // Totales en la moneda base (los deals en otras monedas se convierten).
+  const base = (await getCrmSettings(user.id)).baseCurrency;
 
   const allZero =
     o.totalContacts === 0 &&
@@ -90,17 +90,17 @@ export default async function CrmOverviewPage(
           <span className="stat-label">{t('overview.openDeals')}</span>
         </div>
         <div className="panel stat-card">
-          <span className="stat-num stat-num-small">{money(o.openDealsAmount, locale)}</span>
+          <span className="stat-num stat-num-small">{money(o.openDealsAmount, locale, base)}</span>
           <span className="stat-label">{t('overview.openAmount')}</span>
         </div>
         <div className="panel stat-card">
-          <span className="stat-num stat-num-small">{money(o.forecastWeighted, locale)}</span>
+          <span className="stat-num stat-num-small">{money(o.forecastWeighted, locale, base)}</span>
           <span className="stat-label">{t('overview.forecast')}</span>
         </div>
         <div className="panel stat-card">
           <span className="stat-num">{formatNumber(o.wonThisMonth.count, locale)}</span>
           <span className="stat-label">
-            {t('overview.wonMonth')} · {money(o.wonThisMonth.amount, locale)}
+            {t('overview.wonMonth')} · {money(o.wonThisMonth.amount, locale, base)}
           </span>
         </div>
         <div className="panel stat-card">
@@ -128,7 +128,7 @@ export default async function CrmOverviewPage(
                     />
                   </span>
                   <span className="breakdown-count mono">
-                    {s.count} · {money(s.amount, locale)}
+                    {s.count} · {money(s.amount, locale, base)}
                   </span>
                 </div>
               ))}
@@ -216,7 +216,7 @@ export default async function CrmOverviewPage(
                   <span className="recent-name">{d.name}</span>
                   <span className="muted recent-meta">{d.stage_name ?? ''}</span>
                   <span className="mono recent-date">
-                    {money(d.amount, locale)}
+                    {money(d.amount, locale, d.currency)}
                     {d.close_date
                       ? ` · ${formatDate(`${d.close_date.slice(0, 10)}T00:00:00Z`, locale)}`
                       : ''}

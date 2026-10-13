@@ -4,6 +4,7 @@
  * Run with: npm run seed
  */
 import { ensureMigrated, getClient, txDb, upsertUser } from '../lib/db';
+import { lineTotals, sumLines } from '../lib/crm-money';
 
 const USER_ID = 'demo';
 const EMAIL = 'demo@zerosoft.ai';
@@ -684,6 +685,157 @@ async function main() {
       JSON.stringify({ lifecycle: 'lead', sort: 'newest' }),
       listsCreatedAt,
     );
+
+    // ---- Asociaciones, jerarquía y tags (modelo nivel HubSpot) ----
+    // company_id del contacto → asociación primaria; deal → empresas de sus
+    // contactos (primaria = la del primer contacto vinculado).
+    await tdb
+      .prepare(
+        `INSERT OR IGNORE INTO crm_contact_companies (contact_id, company_id, user_id, is_primary, label, created_at)
+         SELECT id, company_id, user_id, 1, '', created_at FROM crm_contacts
+         WHERE user_id = ? AND company_id IS NOT NULL`,
+      )
+      .run(USER_ID);
+    await tdb
+      .prepare(
+        `INSERT OR IGNORE INTO crm_deal_companies (deal_id, company_id, user_id, is_primary)
+         SELECT d.id, c.company_id, d.user_id, 1 FROM crm_deals d
+         JOIN crm_contacts c ON c.id = (
+           SELECT dc.contact_id FROM crm_deal_contacts dc JOIN crm_contacts cc ON cc.id = dc.contact_id
+           WHERE dc.deal_id = d.id AND cc.company_id IS NOT NULL ORDER BY dc.rowid LIMIT 1)
+         WHERE d.user_id = ?`,
+      )
+      .run(USER_ID);
+    await tdb
+      .prepare(
+        `INSERT OR IGNORE INTO crm_deal_companies (deal_id, company_id, user_id, is_primary)
+         SELECT DISTINCT d.id, c.company_id, d.user_id, 0 FROM crm_deals d
+         JOIN crm_deal_contacts dc ON dc.deal_id = d.id
+         JOIN crm_contacts c ON c.id = dc.contact_id
+         WHERE d.user_id = ? AND c.company_id IS NOT NULL`,
+      )
+      .run(USER_ID);
+    // Labels de ejemplo en algunas asociaciones.
+    const labelled = (await tdb
+      .prepare('SELECT contact_id, company_id FROM crm_contact_companies WHERE user_id = ? LIMIT 12')
+      .all(USER_ID)) as Array<{ contact_id: string; company_id: string }>;
+    const demoLabels = ['decision_maker', 'billing', 'champion', 'employee'];
+    for (const [i, a] of labelled.entries()) {
+      await tdb
+        .prepare('UPDATE crm_contact_companies SET label = ? WHERE contact_id = ? AND company_id = ?')
+        .run(demoLabels[i % demoLabels.length], a.contact_id, a.company_id);
+    }
+    // Jerarquía: las 2 empresas siguientes a la primera son hijas de ella; la 4ª es nieta.
+    if (companyIds.length >= 4) {
+      const setParent = tdb.prepare('UPDATE crm_companies SET parent_company_id = ? WHERE id = ?');
+      await setParent.run(companyIds[0], companyIds[1]);
+      await setParent.run(companyIds[0], companyIds[2]);
+      await setParent.run(companyIds[1], companyIds[3]);
+    }
+    // Tags.
+    await tdb.prepare('DELETE FROM crm_tags WHERE user_id = ?').run(USER_ID);
+    const demoTags: Array<[string, string]> = [
+      ['VIP', 'crm'],
+      ['Partner', 'cal'],
+      ['Churn risk', 'track'],
+      ['Enterprise', 'link'],
+    ];
+    const tagIds: string[] = [];
+    for (const [name, color] of demoTags) {
+      const id = crypto.randomUUID();
+      tagIds.push(id);
+      await tdb.prepare('INSERT INTO crm_tags (id, user_id, name, color) VALUES (?, ?, ?, ?)').run(id, USER_ID, name, color);
+    }
+    const tagRecord = tdb.prepare(
+      'INSERT OR IGNORE INTO crm_record_tags (tag_id, user_id, entity, record_id) VALUES (?, ?, ?, ?)',
+    );
+    const someContacts = (await tdb
+      .prepare('SELECT id FROM crm_contacts WHERE user_id = ? ORDER BY created_at DESC LIMIT 10')
+      .all(USER_ID)) as Array<{ id: string }>;
+    for (const [i, c] of someContacts.entries()) await tagRecord.run(tagIds[i % 3], USER_ID, 'contact', c.id);
+    for (const [i, id] of companyIds.slice(0, 6).entries()) await tagRecord.run(tagIds[i % 2 === 0 ? 3 : 1], USER_ID, 'company', id);
+    const someDeals = (await tdb
+      .prepare('SELECT id FROM crm_deals WHERE user_id = ? ORDER BY amount DESC LIMIT 6')
+      .all(USER_ID)) as Array<{ id: string }>;
+    for (const [i, d] of someDeals.entries()) await tagRecord.run(tagIds[i < 3 ? 0 : 2], USER_ID, 'deal', d.id);
+
+    // ---- Productos, line items y un quote enviado ----
+    // (line items y quotes caen en cascada con los deals borrados arriba).
+    await tdb.prepare('DELETE FROM crm_products WHERE user_id = ?').run(USER_ID);
+    const PRODUCTS: Array<{ name: string; sku: string; price: number; currency: string; recurring: string; tax: number }> = [
+      { name: 'Starter plan', sku: 'PLAN-STARTER', price: 49, currency: 'USD', recurring: 'monthly', tax: 0 },
+      { name: 'Pro plan', sku: 'PLAN-PRO', price: 1990, currency: 'USD', recurring: 'yearly', tax: 0 },
+      { name: 'Onboarding', sku: 'SRV-ONBOARD', price: 1500, currency: 'USD', recurring: 'none', tax: 21 },
+      { name: 'Premium support (EU)', sku: 'SUP-EU', price: 300, currency: 'EUR', recurring: 'monthly', tax: 21 },
+      { name: 'Custom integration', sku: 'SRV-INTEG', price: 4000, currency: 'USD', recurring: 'none', tax: 0 },
+    ];
+    const productIds: string[] = [];
+    const productsAt = ts(80);
+    for (const p of PRODUCTS) {
+      const pid = crypto.randomUUID();
+      productIds.push(pid);
+      await tdb
+        .prepare(
+          `INSERT INTO crm_products (id, user_id, name, sku, description, price, currency, recurring, tax_pct, active, created_at, updated_at)
+           VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, 1, ?, ?)`,
+        )
+        .run(pid, USER_ID, p.name, p.sku, p.price, p.currency, p.recurring, p.tax, productsAt, productsAt);
+    }
+    const insertLine = tdb.prepare(
+      `INSERT INTO crm_line_items (id, user_id, deal_id, product_id, name, sku, description, quantity, unit_price,
+         discount_pct, tax_pct, recurring, position, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const seededLines: Array<{ dealIdx: number; lines: Array<{ p: number; qty: number; disc: number }> }> = [
+      { dealIdx: 0, lines: [{ p: 1, qty: 10, disc: 10 }, { p: 2, qty: 1, disc: 0 }] },
+      { dealIdx: 1, lines: [{ p: 0, qty: 5, disc: 0 }, { p: 4, qty: 1, disc: 15 }] },
+    ];
+    const lineAt = ts(5);
+    for (const { dealIdx, lines } of seededLines) {
+      const deal = deals[dealIdx];
+      if (!deal) continue;
+      const snapshot = lines.map((l, pos) => {
+        const p = PRODUCTS[l.p];
+        const line = { quantity: l.qty, unit_price: p.price, discount_pct: l.disc, tax_pct: p.tax };
+        return { pos, l, p, line, totals: lineTotals(line, 'USD') };
+      });
+      for (const s of snapshot) {
+        await insertLine.run(
+          crypto.randomUUID(), USER_ID, deal.id, productIds[s.l.p], s.p.name, s.p.sku,
+          s.l.qty, s.p.price, s.l.disc, s.p.tax, s.p.recurring, s.pos, lineAt, lineAt,
+        );
+      }
+      const totals = sumLines(snapshot.map((s) => s.line), 'USD');
+      await tdb.prepare("UPDATE crm_deals SET amount = ?, currency = 'USD' WHERE id = ?").run(totals.net, deal.id);
+      if (dealIdx !== 0) continue;
+      // Un quote enviado sobre el primer deal (página pública /q/demo-quote-…).
+      const items = snapshot.map((s) => ({
+        name: s.p.name, sku: s.p.sku, description: '', quantity: s.l.qty, unit_price: s.p.price,
+        discount_pct: s.l.disc, tax_pct: s.p.tax, recurring: s.p.recurring, ...s.totals,
+      }));
+      const recipient = (await tdb
+        .prepare('SELECT first_name, last_name, email FROM crm_contacts WHERE id = ?')
+        .get(deal.primaryContact.id)) as { first_name: string; last_name: string; email: string } | undefined;
+      const sentAt = ts(3);
+      await tdb
+        .prepare(
+          `INSERT INTO crm_quotes (id, user_id, deal_id, number, title, status, token, currency, items,
+             subtotal, discount_total, tax_total, total, expires_at, terms, notes,
+             sender_name, sender_email, sender_company, recipient_name, recipient_email, recipient_company,
+             created_by, sent_at, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, 'sent', ?, 'USD', ?, ?, ?, ?, ?, ?, ?, ?, 'Demo User', ?, 'Zerosoft Demo', ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          crypto.randomUUID(), USER_ID, deal.id, `Q-${new Date().getUTCFullYear()}-0001`, 'Pro plan rollout',
+          `demo-quote-${crypto.randomUUID().slice(0, 8)}`, JSON.stringify(items),
+          totals.subtotal, totals.discount, totals.tax, totals.total, dateStr(-27),
+          'Payment due within 30 days of acceptance. Prices exclude bank fees.',
+          'Includes onboarding for up to 10 seats.', EMAIL,
+          `${recipient?.first_name ?? ''} ${recipient?.last_name ?? ''}`.trim(), recipient?.email ?? '',
+          COMPANIES[deal.primaryContact.companyIdx ?? 0]?.name ?? '', USER_ID, sentAt, ts(4), sentAt,
+        );
+    }
+
     await tx.commit();
   } catch (e) {
     await tx.rollback();

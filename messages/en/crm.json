@@ -11,7 +11,9 @@
     "workflows": "Workflows",
     "settings": "Settings",
     "templates": "Templates",
-    "sequences": "Sequences"
+    "sequences": "Sequences",
+    "products": "Products",
+    "quotes": "Quotes"
   },
   "switcher": {
     "product": "Product",
@@ -74,7 +76,11 @@
     "pickCompany": "Select a company…",
     "noOptions": "Nothing available to associate.",
     "failed": "Something went wrong. Try again.",
-    "remove": "Remove"
+    "remove": "Remove",
+    "primary": "Primary",
+    "makePrimary": "Make primary",
+    "label": "Label",
+    "noLabel": "No label"
   },
   "enums": {
     "lifecycle": {
@@ -119,6 +125,26 @@
     "direction": {
       "inbound": "Inbound",
       "outbound": "Outbound"
+    },
+    "recurring": {
+      "none": "One-time",
+      "monthly": "Monthly",
+      "yearly": "Yearly"
+    },
+    "quoteStatus": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired"
+    },
+    "contactCompanyLabel": {
+      "employee": "Employee",
+      "decision_maker": "Decision maker",
+      "billing": "Billing contact",
+      "champion": "Champion",
+      "influencer": "Influencer",
+      "former_employee": "Former employee"
     }
   },
   "overview": {
@@ -219,7 +245,8 @@
       "lifecycleSection": "Lifecycle",
       "ownershipSection": "Ownership",
       "customFieldsSection": "Custom fields",
-      "viewAllProperties": "View all properties"
+      "viewAllProperties": "View all properties",
+      "companies": "Companies"
     },
     "form": {
       "firstName": "First name",
@@ -296,7 +323,21 @@
       "lifecycleSection": "Lifecycle",
       "ownershipSection": "Ownership",
       "customFieldsSection": "Custom fields",
-      "viewAllProperties": "View all properties"
+      "viewAllProperties": "View all properties",
+      "hierarchy": "Company hierarchy",
+      "notPrimaryCompany": "other primary company",
+      "rollup": "Deal value",
+      "rollupOpen": "Open",
+      "rollupWon": "Won",
+      "rollupDeals": "Deals",
+      "rollupTree": "Including {count, plural, one {# child company} other {# child companies}}",
+      "rollupNote": "In {currency}. Each deal counts once.",
+      "parent": "Parent company",
+      "pickParent": "Set a parent company…",
+      "noParent": "No parent company.",
+      "children": "Child companies",
+      "pickChild": "Add a child company…",
+      "noChildren": "No child companies."
     },
     "form": {
       "name": "Name",
@@ -406,13 +447,15 @@
       "aboutSection": "About this deal",
       "ownershipSection": "Ownership",
       "customFieldsSection": "Custom fields",
-      "viewAllProperties": "View all properties"
+      "viewAllProperties": "View all properties",
+      "companies": "Companies"
     },
     "addPipeline": "+ Add pipeline",
     "pipelineNamePlaceholder": "Pipeline name",
     "addStage": "+ Add stage",
     "stageNamePlaceholder": "Stage name",
-    "addStageConfirm": "Add stage"
+    "addStageConfirm": "Add stage",
+    "bulkSelected": "{count} selected"
   },
   "tasks": {
     "title": "Tasks",
@@ -519,7 +562,8 @@
       "meeting_booked": "Meeting booked (Cal)",
       "manual": "Manual",
       "email_opened": "Email opened",
-      "email_clicked": "Email link clicked"
+      "email_clicked": "Email link clicked",
+      "quote_accepted": "Quote accepted"
     },
     "actionTypes": {
       "send_email": "Send email",
@@ -750,7 +794,11 @@
     "trackingTitle": "Email tracking",
     "trackingDesc": "Adds an invisible image and rewrites links in emails sent from the CRM so you can see opens and clicks. It can be turned off per email.",
     "trackingOn": "Track opens and clicks",
-    "trackingAdminOnly": "Only admins can change this."
+    "trackingAdminOnly": "Only admins can change this.",
+    "tags": "Tags",
+    "tagsDesc": "Shared labels for contacts, companies and deals. Filter lists by tag and tag records in bulk.",
+    "currency": "Currency",
+    "currencyDesc": "Your workspace's base currency, manual exchange rates and what happens when a quote is accepted."
   },
   "importP": {
     "title": "Import {entity}",
@@ -791,7 +839,35 @@
       "name": "Name",
       "domain": "Domain",
       "industry": "Industry",
-      "employees": "Employees"
+      "employees": "Employees",
+      "ownerEmail": "Owner (email or name)",
+      "companyName": "Company name",
+      "companyDomain": "Company domain",
+      "parentCompanyName": "Parent company name",
+      "parentCompanyDomain": "Parent company domain",
+      "pipeline": "Pipeline",
+      "stage": "Stage",
+      "amount": "Amount",
+      "currency": "Currency",
+      "closeDate": "Close date",
+      "priority": "Priority",
+      "description": "Description",
+      "contactEmail": "Contact email(s)"
+    },
+    "preset": "Mapping preset",
+    "presetAuto": "Auto-detect",
+    "presetHubspot": "HubSpot export",
+    "presetName": "Preset name",
+    "presetNamePlaceholder": "Name this mapping…",
+    "presetSave": "Save as preset",
+    "presetSaved": "Preset saved.",
+    "presetDelete": "Delete preset",
+    "customField": "Custom: {label}",
+    "errorsAndWarnings": "Errors and warnings",
+    "hint": {
+      "contacts": "Contacts are matched by email. A company column links (or creates) the company as primary; owner accepts a teammate's email or full name.",
+      "companies": "Companies are matched by domain. A parent company column links an existing company as parent.",
+      "deals": "Pipeline and stage are matched by name (defaults to the first pipeline and stage). Companies are linked or created; contacts are matched by email and created if missing."
     }
   },
   "errors": {
@@ -824,7 +900,21 @@
     "missing_contact": "This record has no contact to email.",
     "unsubscribed": "This contact unsubscribed.",
     "invalid_time": "Use the HH:MM format.",
-    "incomplete_steps": "Every email step needs a body or a template."
+    "incomplete_steps": "Every email step needs a body or a template.",
+    "invalid_product": "That product doesn't exist in this workspace.",
+    "no_line_items": "Add at least one line item to the deal first.",
+    "not_draft": "Only draft quotes can be edited.",
+    "expired": "This quote has expired.",
+    "not_open": "This quote was already answered.",
+    "invalid_signature": "Type your full name and accept the terms.",
+    "invalid_label": "That association label isn't valid.",
+    "invalid_association": "Those two records can't be associated.",
+    "hierarchy_cycle": "A company can't be its own parent or the parent of one of its parents.",
+    "invalid_parent": "That parent company doesn't exist in this workspace.",
+    "invalid_tag": "That tag doesn't exist in this workspace.",
+    "duplicate_tag": "A tag with that name already exists.",
+    "invalid_currency": "Use a 3-letter currency code (for example EUR) different from the base currency.",
+    "invalid_rate": "The rate must be a number greater than zero."
   },
   "filters": {
     "advanced": "Advanced filters",
@@ -866,7 +956,8 @@
       "amount": "Amount",
       "stage": "Stage",
       "priority": "Priority",
-      "closeDate": "Close date"
+      "closeDate": "Close date",
+      "tag": "Tag"
     }
   },
   "meetings": {
@@ -1044,5 +1135,178 @@
     "cancelReply": "Cancel",
     "sentGmail": "Sent from your Gmail.",
     "sentSystem": "Sent from zerosoft. Connect Gmail to send as yourself."
+  },
+  "products": {
+    "title": "Products",
+    "subtitle": "Your catalog. Add products to deals as line items and send them in quotes.",
+    "new": "New product",
+    "newTitle": "New product",
+    "editTitle": "Edit product",
+    "search": "Search by name or SKU…",
+    "showArchived": "Show archived",
+    "hideArchived": "Hide archived",
+    "emptyTitle": "No products yet",
+    "emptySearch": "No products match that search",
+    "emptySub": "Create your plans, services and add-ons once, then add them to any deal.",
+    "active": "Active",
+    "archived": "Archived",
+    "archive": "Archive",
+    "unarchive": "Restore",
+    "confirmDelete": "Delete for good",
+    "form": {
+      "name": "Product name",
+      "price": "Price",
+      "currency": "Currency",
+      "recurring": "Billing",
+      "taxPct": "Tax %",
+      "sku": "SKU",
+      "description": "Description"
+    },
+    "table": {
+      "name": "Name",
+      "sku": "SKU",
+      "price": "Price",
+      "recurring": "Billing",
+      "tax": "Tax",
+      "status": "Status"
+    }
+  },
+  "lineItems": {
+    "title": "Line items",
+    "empty": "No line items. Add products from your catalog or a custom line.",
+    "item": "Item",
+    "qty": "Qty",
+    "unitPrice": "Unit price",
+    "discount": "Discount",
+    "discountPct": "Disc. %",
+    "tax": "Tax",
+    "taxPct": "Tax %",
+    "amount": "Amount",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "remove": "Remove",
+    "addProduct": "+ Add product…",
+    "noProducts": "No active products",
+    "addCustom": "+ Custom line",
+    "customName": "Description",
+    "catalog": "Product catalog",
+    "amountSource": "Deal amount",
+    "fromItems": "From line items (net, before tax): {amount}",
+    "manual": "Manual amount: {amount}"
+  },
+  "quotes": {
+    "title": "Quotes",
+    "subtitle": "Quotes sent to your customers. Create them from a deal with line items.",
+    "emptyTitle": "No quotes yet",
+    "emptySub": "Open a deal, add line items and create a quote from there.",
+    "goToDeals": "Go to deals",
+    "emptyDeal": "No quotes for this deal.",
+    "create": "Create quote",
+    "createSubmit": "Create draft",
+    "createHint": "Snapshots the current line items",
+    "needsLineItems": "Add line items first.",
+    "editTitle": "Edit quote",
+    "markSent": "Mark as sent",
+    "copyLink": "Copy link",
+    "copied": "Copied ✓",
+    "openPublic": "Open public page",
+    "print": "Print / PDF",
+    "refreshItems": "Refresh items from deal",
+    "confirmDelete": "Delete for good",
+    "draftHint": "Draft: only you can see it. Mark it as sent to activate the public link your customer can accept.",
+    "backToDeal": "Back to deal",
+    "table": {
+      "number": "Number",
+      "title": "Title",
+      "deal": "Deal",
+      "status": "Status",
+      "total": "Total",
+      "expires": "Expires",
+      "created": "Created"
+    },
+    "form": {
+      "title": "Quote title",
+      "expiresAt": "Expiration date",
+      "senderName": "Your name",
+      "senderEmail": "Your email",
+      "senderCompany": "Your company",
+      "recipientName": "Recipient name",
+      "recipientEmail": "Recipient email",
+      "recipientCompany": "Recipient company",
+      "notes": "Notes",
+      "terms": "Terms"
+    },
+    "timeline": {
+      "title": "Activity",
+      "created": "Draft created",
+      "sent": "Sent",
+      "accepted": "Accepted by {name}",
+      "declined": "Declined",
+      "expired": "Expired"
+    }
+  },
+  "quotePublic": {
+    "quote": "Quote",
+    "issued": "Issued",
+    "validUntil": "Valid until",
+    "preparedFor": "Prepared for",
+    "acceptedBy": "Accepted and signed by",
+    "declinedOn": "Declined on {date}",
+    "notFound": "Quote not found",
+    "acceptTitle": "Accept this quote",
+    "fullName": "Full name",
+    "fullNamePlaceholder": "Type your full name to sign",
+    "agree": "I agree to the terms of this quote and I'm authorized to accept it.",
+    "accept": "Accept quote",
+    "decline": "Decline",
+    "sending": "Sending…",
+    "legal": "Your typed name works as your signature. We record the time and a hashed IP address.",
+    "declineTitle": "Decline this quote",
+    "reason": "Reason (optional)",
+    "confirmDecline": "Decline quote",
+    "stateAccepted": "This quote was accepted. Thank you!",
+    "stateDeclined": "This quote was declined.",
+    "stateExpired": "This quote has expired. Ask the sender for a new one.",
+    "errors": {
+      "expired": "This quote has expired.",
+      "not_open": "This quote was already answered.",
+      "invalid_signature": "Type your full name and check the box to accept.",
+      "not_found": "This quote doesn't exist anymore.",
+      "rate_limited": "Too many attempts. Wait a few minutes and try again."
+    }
+  },
+  "tags": {
+    "column": "Tags",
+    "filter": "Tag",
+    "add": "+ Tag",
+    "pick": "Pick a tag",
+    "newPlaceholder": "New tag name",
+    "create": "Create",
+    "remove": "Remove tag",
+    "bulkPick": "Tag…",
+    "bulkAdd": "Add tag",
+    "bulkRemove": "Remove tag",
+    "color": "Color",
+    "name": "Tag name",
+    "empty": "No tags yet. Create one above, or add one from any contact, company or deal.",
+    "counts": "{contacts} contacts · {companies} companies · {deals} deals",
+    "delete": "Delete tag",
+    "confirmDelete": "Delete"
+  },
+  "currency": {
+    "base": "Base currency",
+    "baseHint": "Reports, dashboards and pipeline totals are shown in this currency.",
+    "rates": "Exchange rates",
+    "ratesHint": "Manual rates: how many {base} one unit of each currency is worth.",
+    "missing": "No exchange rate for {list}: those amounts are counted 1:1.",
+    "currency": "Currency",
+    "rateTo": "Rate to {base}",
+    "updated": "Updated",
+    "remove": "Remove rate",
+    "addRate": "Add rate",
+    "quoteMovesDeal": "When a quote is accepted, move the deal to the won stage",
+    "saved": "Saved.",
+    "convertedHint": "Converted to {base} with the workspace exchange rate",
+    "reportNote": "Amounts in {base}. Deals in other currencies are converted with your exchange rates."
   }
 }

@@ -113,6 +113,8 @@ export default async function AppLayout(
             settings: tCrm('tabs.settings'),
             sequences: tCrm('tabs.sequences'),
             templates: tCrm('tabs.templates'),
+            products: tCrm('tabs.products'),
+            quotes: tCrm('tabs.quotes'),
           },
           docs: {
             overview: tDocs('sidebar.overview'),
@@ -174,6 +176,8 @@ export default async function AppLayout(
             { href: '/app/crm/companies', label: tCrm('tabs.companies') },
             { href: '/app/crm/deals', label: tCrm('tabs.deals') },
             { href: '/app/crm/lists', label: tCrm('tabs.lists') },
+            { href: '/app/crm/products', label: tCrm('tabs.products') },
+            { href: '/app/crm/quotes', label: tCrm('tabs.quotes') },
             { href: '/app/crm/tasks', label: tCrm('tabs.tasks') },
             { href: '/app/crm/sequences', label: tCrm('tabs.sequences') },
             { href: '/app/crm/templates', label: tCrm('tabs.templates') },

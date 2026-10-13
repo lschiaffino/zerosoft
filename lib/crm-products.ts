@@ -465,10 +465,14 @@ export async function createQuote(
     .get(dealId)) as { name: string } | undefined;
 
   const year = new Date().getUTCFullYear();
-  const count = ((await db.prepare('SELECT COUNT(*) AS c FROM crm_quotes WHERE user_id = ?').get(userId)) as {
-    c: number;
-  }).c;
-  const number = `Q-${year}-${String(count + 1).padStart(4, '0')}`;
+  // Siguiente número del año (máximo + 1, así borrar un quote no repite números).
+  const last = ((await db
+    .prepare(
+      `SELECT COALESCE(MAX(CAST(substr(number, 8) AS INTEGER)), 0) AS n FROM crm_quotes
+       WHERE user_id = ? AND number LIKE ?`,
+    )
+    .get(userId, `Q-${year}-%`)) as { n: number }).n;
+  const number = `Q-${year}-${String(last + 1).padStart(4, '0')}`;
   const expires =
     data.expiresAt === undefined
       ? new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10)
@@ -655,6 +659,7 @@ export interface PublicQuote {
   accepted_at: string | null;
   declined_at: string | null;
   signer_name: string;
+  decline_reason: string;
   created_at: string;
 }
 
@@ -689,6 +694,7 @@ export async function getPublicQuote(token: string, db: Db = getDb()): Promise<P
     accepted_at: q.accepted_at,
     declined_at: q.declined_at,
     signer_name: q.signer_name,
+    decline_reason: q.decline_reason,
     created_at: q.created_at,
   };
 }

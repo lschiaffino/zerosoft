@@ -12,7 +12,18 @@ import {
   removeContactFromCompany,
   associateDealToCompany,
   removeDealFromCompany,
+  setCompanyContactLabel,
+  setCompanyAsContactPrimary,
+  setCompanyAsDealPrimary,
+  setCompanyParent,
+  clearCompanyParent,
+  addChildCompany,
+  removeChildCompany,
 } from '@/components/crm/associationActions';
+import { CONTACT_COMPANY_LABELS } from '@/lib/crm-constants';
+import { listTags, tagsForRecords } from '@/lib/crm-tags';
+import { formatMoney } from '@/lib/crm-money';
+import RecordTags from '@/components/crm/RecordTags';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
@@ -39,7 +50,11 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
 
   const detail = await getCompany(user.id, id);
   if (!detail) notFound();
-  const { company, contacts, deals } = detail;
+  const { company, contacts, deals, parent, ancestors, children, rollup } = detail;
+  const [allTags, recordTags] = await Promise.all([
+    listTags(user.id),
+    tagsForRecords(user.id, 'company', [id]),
+  ]);
 
   const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
@@ -73,6 +88,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
     id: c.id,
     name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
   }));
+
+  // Empresas del workspace para madre / hijas (sin la propia).
+  const allCompanies = (await getDb()
+    .prepare('SELECT id, name FROM crm_companies WHERE user_id = ? AND id != ? ORDER BY name COLLATE NOCASE ASC LIMIT 300')
+    .all(user.id, company.id)) as Array<{ id: string; name: string }>;
+  const fmtBase = (n: number) => formatMoney(n, rollup.currency, locale);
 
   // Deals del usuario para el selector de asociación.
   const allDeals = (await getDb()
@@ -151,6 +172,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
     country: t('companies.form.country'),
     lifecycle_stage: t('companies.form.lifecycle'),
     owner_id: t('companies.form.owner'),
+    parent_company_id: t('companies.detail.parent'),
   };
   const historyValues: Record<string, Record<string, string>> = {
     lifecycle_stage: Object.fromEntries(
@@ -167,6 +189,19 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       </div>
 
       <header className="detail-header">
+        {ancestors.length > 0 && (
+          <nav className="company-crumbs mono" aria-label={t('companies.detail.hierarchy')}>
+            {[...ancestors].reverse().map((a) => (
+              <span key={a.id}>
+                <Link href={`/app/crm/companies/${a.id}`}>{a.name}</Link>
+                <span className="company-crumbs-sep" aria-hidden>
+                  /
+                </span>
+              </span>
+            ))}
+            <span className="muted">{company.name}</span>
+          </nav>
+        )}
         <div className="detail-title-row">
           <h1 className="detail-title">{company.name}</h1>
           <span className={`badge stage-${company.lifecycle_stage}`}>
@@ -196,6 +231,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
             </span>
           )}
         </div>
+        <RecordTags
+          entity="company"
+          recordId={company.id}
+          tags={recordTags.get(company.id) ?? []}
+          allTags={allTags.map((x) => ({ id: x.id, name: x.name, color: x.color }))}
+        />
       </header>
 
       <div className="detail-grid-3">
@@ -239,8 +280,11 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
                 id: c.id,
                 name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
                 href: `/app/crm/contacts/${c.id}`,
-                meta: c.email || undefined,
+                meta: [c.email, c.is_primary ? '' : t('companies.detail.notPrimaryCompany')].filter(Boolean).join(' · ') || undefined,
+                label: c.label,
               }))}
+              onSetLabel={setCompanyContactLabel.bind(null, company.id)}
+              labelOptions={CONTACT_COMPANY_LABELS.map((v) => ({ value: v, label: t(`enums.contactCompanyLabel.${v}`) }))}
               options={allContacts
                 .filter((c) => !contacts.some((cc) => cc.id === c.id))
                 .map((c) => ({ id: c.id, value: c.name }))}
@@ -263,7 +307,9 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
                 name: d.name,
                 href: `/app/crm/deals/${d.id}`,
                 meta: `${stageName.get(d.stage_id) ?? '—'} · ${fmtAmount(d.amount, d.currency)}`,
+                primary: !!d.is_primary,
               }))}
+              onSetPrimary={setCompanyAsDealPrimary.bind(null, company.id)}
               options={allDeals
                 .filter((d) => !deals.some((dd) => dd.id === d.id))
                 .map((d) => ({ id: d.id, value: d.name }))}
@@ -275,6 +321,62 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
             <Link href="/app/crm/deals/new?full=1" className="kb-add">
               {t('companies.detail.newDeal')}
             </Link>
+          </section>
+
+          <section className="panel" data-testid="company-rollup">
+            <h2 className="section-label">{t('companies.detail.rollup')}</h2>
+            <dl className="rollup-grid">
+              <dt className="muted">{t('companies.detail.rollupOpen')}</dt>
+              <dd className="mono">{fmtBase(rollup.own.open)}</dd>
+              <dt className="muted">{t('companies.detail.rollupWon')}</dt>
+              <dd className="mono">{fmtBase(rollup.own.won)}</dd>
+            </dl>
+            {rollup.childCount > 0 && (
+              <>
+                <p className="label rollup-sub">{t('companies.detail.rollupTree', { count: rollup.childCount })}</p>
+                <dl className="rollup-grid">
+                  <dt className="muted">{t('companies.detail.rollupOpen')}</dt>
+                  <dd className="mono">{fmtBase(rollup.total.open)}</dd>
+                  <dt className="muted">{t('companies.detail.rollupWon')}</dt>
+                  <dd className="mono">{fmtBase(rollup.total.won)}</dd>
+                  <dt className="muted">{t('companies.detail.rollupDeals')}</dt>
+                  <dd className="mono">{rollup.total.count}</dd>
+                </dl>
+              </>
+            )}
+            <p className="muted rollup-note">{t('companies.detail.rollupNote', { currency: rollup.currency })}</p>
+          </section>
+
+          <section className="panel">
+            <AssociationPanel
+              title={t('companies.detail.parent')}
+              records={parent ? [{ id: parent.id, name: parent.name, href: `/app/crm/companies/${parent.id}` }] : []}
+              options={parent ? [] : allCompanies.map((c) => ({ id: c.id, value: c.name }))}
+              onAssociate={setCompanyParent.bind(null, company.id)}
+              onRemove={clearCompanyParent.bind(null, company.id)}
+              addLabel={t('companies.detail.pickParent')}
+              emptyLabel={t('companies.detail.noParent')}
+            />
+          </section>
+
+          <section className="panel">
+            <AssociationPanel
+              title={t('companies.detail.children')}
+              count={children.length}
+              records={children.map((c) => ({
+                id: c.id,
+                name: c.name,
+                href: `/app/crm/companies/${c.id}`,
+                meta: c.domain || undefined,
+              }))}
+              options={allCompanies
+                .filter((c) => c.id !== parent?.id && !children.some((ch) => ch.id === c.id))
+                .map((c) => ({ id: c.id, value: c.name }))}
+              onAssociate={addChildCompany.bind(null, company.id)}
+              onRemove={removeChildCompany.bind(null, company.id)}
+              addLabel={t('companies.detail.pickChild')}
+              emptyLabel={t('companies.detail.noChildren')}
+            />
           </section>
 
           <HistoryPanel

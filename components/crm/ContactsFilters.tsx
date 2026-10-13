@@ -23,6 +23,9 @@ interface ContactsFiltersProps {
   leadStatus: string;
   source: string;
   owner: string;
+  /** Tag activo (?tag=) y tags disponibles. */
+  tag?: string;
+  tags?: Array<{ id: string; name: string }>;
   createdFrom: string;
   createdTo: string;
   custom: Record<string, string>;
@@ -51,6 +54,8 @@ export default function ContactsFilters({
   leadStatus,
   source,
   owner,
+  tag = '',
+  tags = [],
   createdFrom,
   createdTo,
   custom,
@@ -80,6 +85,7 @@ export default function ContactsFilters({
       leadStatus: leadStatus || undefined,
       source: source || undefined,
       owner: owner || undefined,
+      tag: tag || undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
       filters: advanced || undefined,
@@ -116,6 +122,7 @@ export default function ContactsFilters({
     if (leadStatus) query.leadStatus = leadStatus;
     if (source) query.source = source;
     if (owner) query.owner = owner;
+    if (tag) query.tag = tag;
     if (createdFrom) query.createdFrom = createdFrom;
     if (createdTo) query.createdTo = createdTo;
     if (advanced) query.filters = advanced;
@@ -148,6 +155,7 @@ export default function ContactsFilters({
     leadStatus,
     source,
     owner,
+    tag,
     createdFrom,
     createdTo,
     ...Object.values(custom),
@@ -268,6 +276,23 @@ export default function ContactsFilters({
             </option>
           ))}
         </select>
+
+        {tags.length > 0 && (
+          <select
+            className={`filter-select${tag ? ' on' : ''}`}
+            value={tag}
+            onChange={(e) => go({ tag: e.target.value || undefined })}
+            aria-label={t('tags.filter')}
+            data-testid="tag-filter"
+          >
+            <option value="">{t('tags.filter')}</option>
+            {tags.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </select>
+        )}
         <button
           type="button"
           className={`filter-more${moreOpen ? ' open' : ''}${moreActive ? ' on' : ''}`}
@@ -290,6 +315,7 @@ export default function ContactsFilters({
                   leadStatus: undefined,
                   source: undefined,
                   owner: undefined,
+                  tag: undefined,
                   createdFrom: undefined,
                   createdTo: undefined,
                   view: undefined,

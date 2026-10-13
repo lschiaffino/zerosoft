@@ -28,7 +28,7 @@ import {
   type DealCompanyRow,
 } from './crm-assoc';
 import { tagCondition, type TagEntity } from './crm-tags';
-import { getCrmSettings } from './crm-currency';
+import { baseAmountSql, getCrmSettings } from './crm-currency';
 import {
   ensureMigrated,
   getClient,
@@ -1468,6 +1468,8 @@ export interface BoardDeal extends CrmDealRow {
   contact_name: string | null;
   company_name: string | null;
   last_activity_at: string | null;
+  /** amount convertido a la moneda base del workspace (totales del board). */
+  amount_base: number;
   /** Calculados en la page (días desde created_at / última actividad). */
   age_days?: number;
   idle_days?: number;
@@ -1495,7 +1497,8 @@ export async function listDealsForBoard(
          c.id AS contact_id,
          NULLIF(trim(c.first_name || ' ' || c.last_name), '') AS contact_name,
          co.name AS company_name,
-         (SELECT MAX(a.created_at) FROM crm_activities a WHERE a.deal_id = d.id) AS last_activity_at
+         (SELECT MAX(a.created_at) FROM crm_activities a WHERE a.deal_id = d.id) AS last_activity_at,
+         ${baseAmountSql('d')} AS amount_base
        FROM crm_deals d
        LEFT JOIN crm_contacts c ON c.id = (
          SELECT dc.contact_id FROM crm_deal_contacts dc WHERE dc.deal_id = d.id ORDER BY dc.rowid LIMIT 1
@@ -1512,7 +1515,8 @@ export async function listDealsForBoard(
       stage,
       deals: stageDeals,
       count: stageDeals.length,
-      amount: stageDeals.reduce((s, d) => s + d.amount, 0),
+      // Totales en moneda base (deals en otras monedas se convierten).
+      amount: stageDeals.reduce((s, d) => s + d.amount_base, 0),
     };
   });
 }
@@ -2669,172 +2673,18 @@ export async function deleteCustomField(userId: string, id: string): Promise<boo
 // IMPORT / EXPORT
 // ============================================================
 
-export interface MappedContactRow {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  jobTitle?: string;
-  website?: string;
-  city?: string;
-  country?: string;
-  lifecycleStage?: string;
-  leadStatus?: string;
-  source?: string;
-}
-
-export interface MappedCompanyRow {
-  name?: string;
-  domain?: string;
-  industry?: string;
-  employees?: number | null;
-  phone?: string;
-  website?: string;
-  city?: string;
-  country?: string;
-  lifecycleStage?: string;
-}
-
-export type ImportMode = 'skip' | 'update';
-
-export interface ImportResult {
-  total: number;
-  created: number;
-  updated: number;
-  skipped: number;
-  errors: string[];
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-async function recordImport(
-  userId: string,
-  entity: string,
-  result: ImportResult,
-  db: Db = getDb(),
-): Promise<void> {
-  await db
-    .prepare(
-      `INSERT INTO crm_imports (id, user_id, entity, total, created, updated, skipped, errors)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      crypto.randomUUID(),
-      userId,
-      entity,
-      result.total,
-      result.created,
-      result.updated,
-      result.skipped,
-      JSON.stringify(result.errors),
-    );
-}
-
-/**
- * Importa contactos con dedupe por lower(email).
- * - email existente → mode 'update' actualiza los campos provistos; mode 'skip' lo salta.
- * - email vacío → siempre crea (no hay clave para deduplicar).
- * - email inválido → no se importa; queda en errors.
- * Todo en una transacción; graba el resumen en crm_imports.
- */
-export async function importContacts(
-  userId: string,
-  rows: MappedContactRow[],
-  mode: ImportMode,
-): Promise<ImportResult> {
-  const result: ImportResult = {
-    total: rows.length,
-    created: 0,
-    updated: 0,
-    skipped: 0,
-    errors: [],
-  };
-  await ensureMigrated();
-  const tx = await getClient().transaction();
-  const tdb = txDb(tx);
-  try {
-    const findByEmail = tdb.prepare(
-      'SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = lower(?) LIMIT 1',
-    );
-    for (const [i, row] of rows.entries()) {
-      const email = (row.email ?? '').trim();
-      if (email && !EMAIL_RE.test(email)) {
-        result.errors.push(`Row ${i + 1}: invalid email "${email}"`);
-        continue;
-      }
-      const existing = email
-        ? ((await findByEmail.get(userId, email)) as { id: string } | undefined)
-        : undefined;
-      if (existing) {
-        if (mode === 'skip') {
-          result.skipped++;
-        } else {
-          await updateContact(userId, existing.id, { ...row, email }, tdb);
-          result.updated++;
-        }
-        continue;
-      }
-      await createContact(userId, { ...row, email }, tdb);
-      result.created++;
-    }
-    await recordImport(userId, 'contacts', result, tdb);
-    await tx.commit();
-  } catch (e) {
-    await tx.rollback();
-    throw e;
-  }
-  return result;
-}
-
-/** Importa empresas con dedupe por lower(domain). Misma semántica que importContacts. */
-export async function importCompanies(
-  userId: string,
-  rows: MappedCompanyRow[],
-  mode: ImportMode,
-): Promise<ImportResult> {
-  const result: ImportResult = {
-    total: rows.length,
-    created: 0,
-    updated: 0,
-    skipped: 0,
-    errors: [],
-  };
-  await ensureMigrated();
-  const tx = await getClient().transaction();
-  const tdb = txDb(tx);
-  try {
-    const findByDomain = tdb.prepare(
-      `SELECT id FROM crm_companies WHERE user_id = ? AND domain != '' AND lower(domain) = lower(?) LIMIT 1`,
-    );
-    for (const [i, row] of rows.entries()) {
-      if (!(row.name ?? '').trim() && !(row.domain ?? '').trim()) {
-        result.errors.push(`Row ${i + 1}: missing name and domain`);
-        continue;
-      }
-      const domain = (row.domain ?? '').trim();
-      const existing = domain
-        ? ((await findByDomain.get(userId, domain)) as { id: string } | undefined)
-        : undefined;
-      if (existing) {
-        if (mode === 'skip') {
-          result.skipped++;
-        } else {
-          await updateCompany(userId, existing.id, { ...row, domain }, tdb);
-          result.updated++;
-        }
-        continue;
-      }
-      await createCompany(userId, { ...row, domain }, tdb);
-      result.created++;
-    }
-    await recordImport(userId, 'companies', result, tdb);
-    await tx.commit();
-  } catch (e) {
-    await tx.rollback();
-    throw e;
-  }
-  return result;
-}
+// La lógica de import vive en lib/crm-import.ts (owner por email, custom
+// fields, asociaciones, deals, presets). Se re-exporta por compatibilidad.
+export {
+  importCompanies,
+  importContacts,
+  importDeals,
+  type ImportMode,
+  type ImportResult,
+  type MappedCompanyRow,
+  type MappedContactRow,
+  type MappedDealRow,
+} from './crm-import';
 
 export type ExportEntity = 'contacts' | 'companies' | 'deals' | 'activities';
 
@@ -2938,7 +2788,7 @@ async function funnelForPipeline(
   return (await getDb()
     .prepare(
       `SELECT s.id, s.name, s.probability, s.is_won, s.is_lost,
-         COUNT(d.id) AS count, COALESCE(SUM(d.amount), 0) AS amount
+         COUNT(d.id) AS count, COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount
        FROM crm_stages s
        LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ?
        WHERE s.pipeline_id = ?
@@ -2991,14 +2841,14 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
 
   const open = (await db
     .prepare(
-      'SELECT COUNT(*) AS c, COALESCE(SUM(amount), 0) AS a FROM crm_deals WHERE user_id = ? AND closed_at IS NULL',
+      `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')}), 0) AS a FROM crm_deals d WHERE d.user_id = ? AND d.closed_at IS NULL`,
     )
     .get(userId)) as { c: number; a: number };
 
   const forecastWeighted = (
     (await db
       .prepare(
-        `SELECT COALESCE(SUM(d.amount * s.probability / 100.0), 0) AS f
+        `SELECT COALESCE(SUM(${baseAmountSql('d')} * s.probability / 100.0), 0) AS f
          FROM crm_deals d
          JOIN crm_stages s ON s.id = d.stage_id
          WHERE d.user_id = ? AND d.closed_at IS NULL`,
@@ -3008,7 +2858,7 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
 
   const wonThisMonth = (await db
     .prepare(
-      `SELECT COUNT(*) AS c, COALESCE(SUM(d.amount), 0) AS a
+      `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')}), 0) AS a
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
        WHERE d.user_id = ? AND s.is_won = 1 AND substr(d.closed_at, 1, 7) = ?`,
@@ -3092,8 +2942,8 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
         .prepare(
           `SELECT s.id, s.name, s.probability,
              COUNT(d.id) AS count,
-             COALESCE(SUM(d.amount), 0) AS amount,
-             COALESCE(SUM(d.amount * s.probability / 100.0), 0) AS forecast
+             COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount,
+             COALESCE(SUM(${baseAmountSql('d')} * s.probability / 100.0), 0) AS forecast
            FROM crm_stages s
            LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ? AND d.closed_at IS NULL
            WHERE s.pipeline_id = ?
@@ -3105,10 +2955,10 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
 
   const dealsBySource = (await db
     .prepare(
-      `SELECT COALESCE(NULLIF(source, ''), 'other') AS source,
-         COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount
-       FROM crm_deals
-       WHERE user_id = ?
+      `SELECT COALESCE(NULLIF(d.source, ''), 'other') AS source,
+         COUNT(*) AS count, COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount
+       FROM crm_deals d
+       WHERE d.user_id = ?
        GROUP BY 1
        ORDER BY amount DESC`,
     )
@@ -3145,10 +2995,10 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
 
   const dealsByPriority = (await db
     .prepare(
-      `SELECT priority, COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount
-       FROM crm_deals
-       WHERE user_id = ?
-       GROUP BY priority
+      `SELECT d.priority AS priority, COUNT(*) AS count, COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount
+       FROM crm_deals d
+       WHERE d.user_id = ?
+       GROUP BY d.priority
        ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 3 END`,
     )
     .all(userId)) as CrmReports['dealsByPriority'];
