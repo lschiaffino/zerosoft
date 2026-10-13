@@ -45,6 +45,7 @@ export const TRIGGER_TYPES = [
   'email_opened',
   'email_clicked',
   'meeting_booked',
+  'quote_accepted',
   'manual',
 ] as const;
 export type TriggerType = (typeof TRIGGER_TYPES)[number];

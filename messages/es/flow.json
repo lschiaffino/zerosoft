@@ -217,6 +217,7 @@
     "deal_stage_changed": "CRM: deal cambió de etapa",
     "deal_won": "CRM: deal ganado",
     "deal_lost": "CRM: deal perdido",
+    "quote_accepted": "CRM: cotización aceptada",
     "email_received": "CRM: email recibido",
     "email_sent": "CRM: email enviado",
     "email_opened": "CRM: email abierto",

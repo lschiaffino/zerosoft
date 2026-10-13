@@ -1116,6 +1116,221 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // CRM — modelo de datos nivel HubSpot (bloque 3): asociaciones
+    // many-to-many con primaria (deal↔company, contact↔company con label),
+    // jerarquía de empresas, tags, productos, line items, quotes,
+    // multi-moneda y presets de import. crm_contacts.company_id queda como
+    // espejo de la empresa primaria (compatibilidad). Ver lib/crm-assoc.ts.
+    id: '022_crm_model_tables',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE crm_companies ADD COLUMN parent_company_id TEXT');
+      await addColumn(client, 'ALTER TABLE crm_deals ADD COLUMN amount_override INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_crm_companies_parent ON crm_companies(user_id, parent_company_id);
+
+        CREATE TABLE IF NOT EXISTS crm_contact_companies (
+          contact_id TEXT NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
+          company_id TEXT NOT NULL REFERENCES crm_companies(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          is_primary INTEGER NOT NULL DEFAULT 0,
+          label TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (contact_id, company_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_contact_companies_company ON crm_contact_companies(company_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_contact_companies_primary
+          ON crm_contact_companies(contact_id) WHERE is_primary = 1;
+
+        CREATE TABLE IF NOT EXISTS crm_deal_companies (
+          deal_id TEXT NOT NULL REFERENCES crm_deals(id) ON DELETE CASCADE,
+          company_id TEXT NOT NULL REFERENCES crm_companies(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          is_primary INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (deal_id, company_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_deal_companies_company ON crm_deal_companies(company_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_deal_companies_primary
+          ON crm_deal_companies(deal_id) WHERE is_primary = 1;
+
+        CREATE TABLE IF NOT EXISTS crm_tags (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          color TEXT NOT NULL DEFAULT 'crm',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_tags_name ON crm_tags(user_id, name COLLATE NOCASE);
+
+        CREATE TABLE IF NOT EXISTS crm_record_tags (
+          tag_id TEXT NOT NULL REFERENCES crm_tags(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          entity TEXT NOT NULL CHECK (entity IN ('contact', 'company', 'deal')),
+          record_id TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (tag_id, entity, record_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_record_tags_record ON crm_record_tags(user_id, entity, record_id);
+
+        CREATE TRIGGER IF NOT EXISTS trg_crm_contacts_del_tags AFTER DELETE ON crm_contacts BEGIN
+          DELETE FROM crm_record_tags WHERE entity = 'contact' AND record_id = OLD.id;
+        END;
+        CREATE TRIGGER IF NOT EXISTS trg_crm_companies_del_tags AFTER DELETE ON crm_companies BEGIN
+          DELETE FROM crm_record_tags WHERE entity = 'company' AND record_id = OLD.id;
+        END;
+        CREATE TRIGGER IF NOT EXISTS trg_crm_deals_del_tags AFTER DELETE ON crm_deals BEGIN
+          DELETE FROM crm_record_tags WHERE entity = 'deal' AND record_id = OLD.id;
+        END;
+
+        CREATE TABLE IF NOT EXISTS crm_settings (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          base_currency TEXT NOT NULL DEFAULT 'USD',
+          quote_accept_moves_deal INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_exchange_rates (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          currency TEXT NOT NULL,
+          rate REAL NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, currency)
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_products (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          sku TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          price REAL NOT NULL DEFAULT 0,
+          currency TEXT NOT NULL DEFAULT 'USD',
+          recurring TEXT NOT NULL DEFAULT 'none' CHECK (recurring IN ('none', 'monthly', 'yearly')),
+          tax_pct REAL NOT NULL DEFAULT 0,
+          active INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_products_user ON crm_products(user_id, active, name);
+
+        CREATE TABLE IF NOT EXISTS crm_line_items (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          deal_id TEXT NOT NULL REFERENCES crm_deals(id) ON DELETE CASCADE,
+          product_id TEXT REFERENCES crm_products(id) ON DELETE SET NULL,
+          name TEXT NOT NULL,
+          sku TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          quantity REAL NOT NULL DEFAULT 1,
+          unit_price REAL NOT NULL DEFAULT 0,
+          discount_pct REAL NOT NULL DEFAULT 0,
+          tax_pct REAL NOT NULL DEFAULT 0,
+          recurring TEXT NOT NULL DEFAULT 'none',
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_line_items_deal ON crm_line_items(deal_id, position);
+
+        CREATE TABLE IF NOT EXISTS crm_quotes (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          deal_id TEXT NOT NULL REFERENCES crm_deals(id) ON DELETE CASCADE,
+          number TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'draft'
+            CHECK (status IN ('draft', 'sent', 'accepted', 'declined', 'expired')),
+          token TEXT NOT NULL UNIQUE,
+          currency TEXT NOT NULL DEFAULT 'USD',
+          items TEXT NOT NULL DEFAULT '[]',
+          subtotal REAL NOT NULL DEFAULT 0,
+          discount_total REAL NOT NULL DEFAULT 0,
+          tax_total REAL NOT NULL DEFAULT 0,
+          total REAL NOT NULL DEFAULT 0,
+          expires_at TEXT,
+          terms TEXT NOT NULL DEFAULT '',
+          notes TEXT NOT NULL DEFAULT '',
+          sender_name TEXT NOT NULL DEFAULT '',
+          sender_email TEXT NOT NULL DEFAULT '',
+          sender_company TEXT NOT NULL DEFAULT '',
+          recipient_name TEXT NOT NULL DEFAULT '',
+          recipient_email TEXT NOT NULL DEFAULT '',
+          recipient_company TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          sent_at TEXT,
+          accepted_at TEXT,
+          declined_at TEXT,
+          signer_name TEXT NOT NULL DEFAULT '',
+          signer_ip_hash TEXT NOT NULL DEFAULT '',
+          decline_reason TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_quotes_user ON crm_quotes(user_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_crm_quotes_deal ON crm_quotes(deal_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_import_presets (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          entity TEXT NOT NULL,
+          name TEXT NOT NULL,
+          mapping TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_import_presets_user ON crm_import_presets(user_id, entity, name);
+      `);
+
+      // Backfill contact ↔ company: la empresa actual pasa a ser la primaria
+      // (solo si la empresa es del mismo workspace).
+      await client.execute(`
+        INSERT OR IGNORE INTO crm_contact_companies (contact_id, company_id, user_id, is_primary, label, created_at)
+        SELECT c.id, c.company_id, c.user_id, 1, '', c.created_at
+        FROM crm_contacts c
+        JOIN crm_companies co ON co.id = c.company_id AND co.user_id = c.user_id
+        WHERE c.company_id IS NOT NULL`);
+
+      // Backfill deal ↔ company. Si algún día existió crm_deals.company_id se
+      // usa como primaria; si no, la empresa del primer contacto vinculado.
+      // Las empresas de los demás contactos quedan asociadas (no primarias),
+      // igual que las mostraba la ficha de empresa hasta ahora.
+      const dealCols = (await client.execute('PRAGMA table_info(crm_deals)')).rows.map((r) => String(r.name));
+      if (dealCols.includes('company_id')) {
+        await client.execute(`
+          INSERT OR IGNORE INTO crm_deal_companies (deal_id, company_id, user_id, is_primary)
+          SELECT d.id, d.company_id, d.user_id, 1 FROM crm_deals d
+          JOIN crm_companies co ON co.id = d.company_id AND co.user_id = d.user_id
+          WHERE d.company_id IS NOT NULL`);
+      }
+      await client.execute(`
+        INSERT OR IGNORE INTO crm_deal_companies (deal_id, company_id, user_id, is_primary)
+        SELECT d.id, c.company_id, d.user_id, 1
+        FROM crm_deals d
+        JOIN crm_contacts c ON c.id = (
+          SELECT dc.contact_id FROM crm_deal_contacts dc
+          JOIN crm_contacts cc ON cc.id = dc.contact_id
+          JOIN crm_companies cco ON cco.id = cc.company_id AND cco.user_id = cc.user_id
+          WHERE dc.deal_id = d.id
+          ORDER BY dc.rowid LIMIT 1)
+        WHERE NOT EXISTS (SELECT 1 FROM crm_deal_companies x WHERE x.deal_id = d.id AND x.is_primary = 1)`);
+      await client.execute(`
+        INSERT OR IGNORE INTO crm_deal_companies (deal_id, company_id, user_id, is_primary)
+        SELECT DISTINCT d.id, c.company_id, d.user_id, 0
+        FROM crm_deals d
+        JOIN crm_deal_contacts dc ON dc.deal_id = d.id
+        JOIN crm_contacts c ON c.id = dc.contact_id
+        JOIN crm_companies co ON co.id = c.company_id AND co.user_id = d.user_id`);
+    },
+  },
+  {
+    // Productos, line items y quotes salieron: su ítem del roadmap pasa a "hecho".
+    id: '022_crm_model_roadmap_done',
+    async up(client) {
+      await client.execute(
+        "UPDATE roadmap_items SET status = 'done', updated_at = datetime('now') WHERE id = 'rm_seed_crm_quotes' AND status IN ('planned', 'in_progress')",
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
