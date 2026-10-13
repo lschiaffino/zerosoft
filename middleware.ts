@@ -12,7 +12,7 @@ const RESERVED = new Set([
   'app', 'api', 'auth', 'r', 's',
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
-  'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos',
+  'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap',
 ]);
 
 export default function middleware(req: NextRequest) {

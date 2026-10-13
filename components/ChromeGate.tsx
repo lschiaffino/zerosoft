@@ -13,14 +13,24 @@ import type { ReactNode } from 'react';
 export default function ChromeGate({
   header,
   footer,
+  support = null,
   children,
 }: {
   header: ReactNode;
   footer: ReactNode;
+  /** Widget de soporte propio: en el sitio y en la app, nunca en páginas públicas de clientes. */
+  support?: ReactNode;
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  if (pathname.startsWith('/app')) return <>{children}</>;
+  if (pathname.startsWith('/app')) {
+    return (
+      <>
+        {children}
+        {support}
+      </>
+    );
+  }
   const publicPage =
     pathname.startsWith('/book/') ||
     pathname.startsWith('/r/') ||
@@ -45,6 +55,7 @@ export default function ChromeGate({
       {header}
       {children}
       {footer}
+      {support}
     </>
   );
 }

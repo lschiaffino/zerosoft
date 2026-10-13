@@ -26,6 +26,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-roadmap',
+    date: '2026-10-13',
+    title: {
+      en: 'A public roadmap built from your feedback',
+      es: 'Un roadmap público hecho con tu feedback',
+      pt: 'Um roadmap público feito com o seu feedback',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'zerosoft.ai/roadmap shows what is planned, in progress and done. Every piece of feedback is grouped into these items, and you can upvote what you need.',
+        es: 'zerosoft.ai/roadmap muestra lo planeado, en curso y hecho. Cada feedback se agrupa en estos ítems, y podés votar lo que necesitás.',
+        pt: 'zerosoft.ai/roadmap mostra o que está planejado, em andamento e feito. Cada feedback é agrupado nesses itens, e você pode votar no que precisa.',
+      },
+      {
+        product: 'chat',
+        en: 'The Chat widget can now identify signed-in visitors with zsChat.identify({ email, name }).',
+        es: 'El widget de Chat ahora puede identificar visitantes logueados con zsChat.identify({ email, name }).',
+        pt: 'O widget do Chat agora pode identificar visitantes logados com zsChat.identify({ email, name }).',
+      },
+    ],
+  },
+  {
     id: '2026-10-13-track-tasks',
     date: '2026-10-13',
     title: {

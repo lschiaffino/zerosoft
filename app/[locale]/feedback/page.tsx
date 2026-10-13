@@ -28,6 +28,7 @@ export default async function FeedbackPage(props: {
   const { product } = await props.searchParams;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'feedback' });
+  const tr = await getTranslations({ locale, namespace: 'roadmap' });
   const user = await getCurrentUser().catch(() => null);
   const email = user?.actingUser?.email ?? user?.email ?? null;
   const initial: FeedbackProduct = FEEDBACK_PRODUCTS.includes(product as FeedbackProduct)
@@ -59,6 +60,9 @@ export default async function FeedbackPage(props: {
           </ol>
           <Link href="/changelog" className="fb-aside-link">
             {t('page.changelogLink')}
+          </Link>
+          <Link href="/roadmap" className="fb-aside-link">
+            {tr('seeRoadmap')}
           </Link>
         </aside>
       </div>

@@ -7,6 +7,7 @@ import { GITHUB_URL, PRODUCT_NAMES, SITE_PRODUCTS } from './site/catalog';
 export default async function Footer({ locale }: { locale: string }) {
   const t = await getTranslations({ locale, namespace: 'common.footer' });
   const tm = await getTranslations({ locale, namespace: 'common.meta' });
+  const tr = await getTranslations({ locale, namespace: 'roadmap' });
 
   return (
     <footer className="site-footer">
@@ -62,6 +63,7 @@ export default async function Footer({ locale }: { locale: string }) {
             <li><Link href="/#manifiesto">{t('manifesto')}</Link></li>
             <li><Link href="/blog">{t('blog')}</Link></li>
             <li><Link href="/videos">{t('videos')}</Link></li>
+            <li><Link href="/roadmap">{tr('footerLink')}</Link></li>
             <li><Link href="/feedback">{t('feedback')}</Link></li>
             <li><a href="mailto:hola@zerosoft.ai">{t('contact')}</a></li>
           </ul>

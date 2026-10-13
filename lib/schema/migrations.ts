@@ -369,6 +369,77 @@ export const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    // Roadmap: ítems (ideas/bugs) que salen del feedback y de las
+    // conversaciones de soporte, sus señales (de dónde vino cada pedido) y los
+    // votos públicos (uno por IP hasheada por ítem).
+    id: '016_roadmap_items_signals_votes',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS roadmap_items (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          product TEXT NOT NULL DEFAULT 'other',
+          kind TEXT NOT NULL DEFAULT 'idea' CHECK (kind IN ('idea', 'bug')),
+          status TEXT NOT NULL DEFAULT 'proposed'
+            CHECK (status IN ('proposed', 'planned', 'in_progress', 'done', 'declined')),
+          votes INTEGER NOT NULL DEFAULT 0,
+          is_public INTEGER NOT NULL DEFAULT 0,
+          shipped_changelog_id TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_roadmap_items_status ON roadmap_items(status, votes DESC)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS roadmap_signals (
+          id TEXT PRIMARY KEY,
+          item_id TEXT NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+          source TEXT NOT NULL CHECK (source IN ('feedback', 'chat')),
+          source_id TEXT NOT NULL,
+          excerpt TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_roadmap_signals_item ON roadmap_signals(item_id, created_at DESC)');
+      await client.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_roadmap_signals_source ON roadmap_signals(source, source_id)',
+      );
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS roadmap_votes (
+          item_id TEXT NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+          ip_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (item_id, ip_hash)
+        )`);
+    },
+  },
+  {
+    // Roadmap público inicial: lo que ya está en el plan de trabajo (no promesas
+    // nuevas). Ids fijos para que sea idempotente; después se edita desde el admin.
+    id: '016_roadmap_seed',
+    async up(client) {
+      const now = new Date().toISOString();
+      const items: Array<[string, string, string, string, string]> = [
+        ['rm_seed_agents', 'Agents: AI agents that answer in Chat and take actions', 'Agents with instructions, knowledge (Docs, URLs) and tools across the suite (CRM, Cal, Track), with human handoff.', 'other', 'in_progress'],
+        ['rm_seed_flow', 'Flow: visual automations across every app', 'An open-source n8n/Zapier: triggers from every product, webhooks, schedules, conditions, delays, HTTP and AI steps.', 'other', 'in_progress'],
+        ['rm_seed_notes', 'Notes: quick notes, notebooks and search', 'An Evernote-style app for personal notes, with tags, pinning, checklists and full-text search.', 'other', 'planned'],
+        ['rm_seed_board', 'Board: an infinite whiteboard', 'A Miro-style canvas to sketch, plan and share boards by link.', 'other', 'planned'],
+        ['rm_seed_robots', 'Robots: browser automations', 'Record steps in the browser and run them on a schedule or from Flow.', 'other', 'planned'],
+        ['rm_seed_crm_email', 'CRM: automatic Gmail sync, templates and open/click tracking', 'Emails sync in the background, templates with variables, and opens and clicks on the contact timeline.', 'crm', 'planned'],
+        ['rm_seed_crm_sequences', 'CRM: follow-up sequences', 'Multi-step email and task sequences that stop when the contact replies or books a meeting.', 'crm', 'planned'],
+        ['rm_seed_crm_quotes', 'CRM: products, line items and quotes', 'A product catalog, line items on deals and a public quote page your customer can accept.', 'crm', 'planned'],
+        ['rm_seed_track_tasks', 'Track: inline tasks, checkboxes and drag & drop', 'Add tasks inline or with C, check them off, edit in place and drag across the board. Plus a My tasks view.', 'track', 'done'],
+        ['rm_seed_chat_ai', 'Chat: AI bot that answers from your public docs', 'Answers every visitor message until a teammate replies, and hands off when unsure.', 'chat', 'done'],
+      ];
+      for (const [id, title, description, product, status] of items) {
+        await client.execute({
+          sql: `INSERT OR IGNORE INTO roadmap_items (id, title, description, product, kind, status, votes, is_public, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 'idea', ?, 0, 1, ?, ?)`,
+          args: [id, title, description, product, status, now, now],
+        });
+      }
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

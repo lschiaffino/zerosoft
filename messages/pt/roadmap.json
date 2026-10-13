@@ -1,0 +1,77 @@
+{
+  "metaTitle": "Roadmap",
+  "metaDescription": "O que vamos construir a seguir no zerosoft.ai — a partir do seu feedback e das conversas de suporte. Vote no que importa para você.",
+  "label": "Roadmap",
+  "title": "O que vem por aí.",
+  "titleDim": "Feito com o que você nos conta.",
+  "intro": "Lemos cada feedback e cada conversa de suporte e os agrupamos nestes itens. Vote no que você precisa: isso sobe o item na lista.",
+  "column": {
+    "planned": "Planejado",
+    "in_progress": "Em andamento",
+    "done": "Concluído"
+  },
+  "columnEmpty": "Ainda não há nada aqui.",
+  "upvote": "Votar",
+  "voted": "Votado",
+  "votes": "{count, plural, one {# voto} other {# votos}}",
+  "voteError": "Não conseguimos contar seu voto. Tente mais tarde.",
+  "shipped": "Lançado — ver changelog",
+  "kind": {
+    "idea": "Ideia",
+    "bug": "Correção"
+  },
+  "product": {
+    "link": "Link",
+    "crm": "CRM",
+    "cal": "Cal",
+    "track": "Track",
+    "chat": "Chat",
+    "docs": "Docs",
+    "site": "Site",
+    "other": "Plataforma"
+  },
+  "changelog": "Changelog",
+  "suggest": "Sugerir algo",
+  "ctaTitle": "Não está na lista?",
+  "ctaBody": "Conte o que construir ou corrigir. Lemos cada mensagem e ela termina aqui.",
+  "ctaButton": "Enviar feedback",
+  "footerLink": "Roadmap",
+  "seeRoadmap": "Ver o roadmap",
+  "admin": {
+    "title": "Roadmap",
+    "sub": "Itens criados a partir do feedback e dos chats de suporte. Os novos ficam propostos e privados até você torná-los públicos.",
+    "all": "Todos",
+    "status": {
+      "proposed": "Proposto",
+      "planned": "Planejado",
+      "in_progress": "Em andamento",
+      "done": "Concluído",
+      "declined": "Descartado"
+    },
+    "empty": "Ainda não há itens. Eles aparecem conforme chegam feedbacks e conversas de suporte.",
+    "public": "Público",
+    "private": "Privado",
+    "signals": "{count, plural, one {# sinal} other {# sinais}}",
+    "excerpts": "Trechos vinculados",
+    "source": {
+      "feedback": "Feedback",
+      "chat": "Chat de suporte"
+    },
+    "titleLabel": "Título",
+    "descriptionLabel": "Descrição",
+    "statusLabel": "Status",
+    "productLabel": "Produto",
+    "kindLabel": "Tipo",
+    "changelogLabel": "Id da entrada do changelog",
+    "changelogHint": "Quando estiver concluído, o id da entrada do changelog em que foi lançado.",
+    "save": "Salvar",
+    "saved": "Salvo",
+    "error": "Algo deu errado. Tente novamente.",
+    "mergeInto": "Mesclar com…",
+    "merge": "Mesclar",
+    "mergeConfirm": "Mesclar este item com o selecionado? Os sinais e votos passam para o outro e este item é excluído.",
+    "viewPublic": "Ver o roadmap público",
+    "feedbackLink": "Roadmap",
+    "backToFeedback": "Feedback"
+  }
+}

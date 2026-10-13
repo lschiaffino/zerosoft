@@ -2,6 +2,7 @@ import { after, NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import {
   applyAssignmentRules,
+  cleanVisitorIdentity,
   createChatConversation,
   createChatMessage,
   getChatWidget,
@@ -58,10 +59,7 @@ export async function POST(req: Request) {
   const widget = await getChatWidget(widgetId);
   if (!widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-  const visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, {
-    email: typeof body.email === 'string' ? body.email : null,
-    name: typeof body.name === 'string' ? body.name : null,
-  });
+  const visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, cleanVisitorIdentity(body.email, body.name));
 
   let conversation = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))?.conversation ?? null;
   if (!conversation) {
