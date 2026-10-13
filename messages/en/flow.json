@@ -1,9 +1,7 @@
 {
   "title": "Flow",
   "subtitle": "Automations across every zerosoft app and any service with an API.",
-  "sidebar": {
-    "flows": "Flows"
-  },
+  "sidebar": { "flows": "Flows", "credentials": "Credentials" },
   "list": {
     "title": "Your flows",
     "new": "New flow",
@@ -21,26 +19,22 @@
     "subtitle": "Ready-made flows. Use one and adjust the details.",
     "use": "Use template",
     "items": {
-      "bookingToTrack": {
-        "name": "New Cal booking → Track task",
-        "desc": "Every new booking creates an issue to prepare the meeting."
-      },
-      "linkMilestone": {
-        "name": "Link clicked 100 times → email me",
-        "desc": "Get an email the moment a short link hits 100 clicks."
-      },
-      "webhookToContact": {
-        "name": "Webhook → CRM contact",
-        "desc": "Any form or service that can POST JSON creates a contact."
-      },
-      "dealsDigest": {
-        "name": "Daily digest of new deals",
-        "desc": "Every morning, an email with the deals created in the last 24 hours."
-      },
-      "chatSummaryToSlack": {
-        "name": "Chat message → AI summary to Slack",
-        "desc": "Summarizes each incoming message with AI and posts it to a Slack webhook."
-      }
+      "bookingToTrack": { "name": "New Cal booking → Track task", "desc": "Every new booking creates an issue to prepare the meeting." },
+      "linkMilestone": { "name": "Link clicked 100 times → email me", "desc": "Get an email the moment a short link hits 100 clicks." },
+      "webhookToContact": { "name": "Webhook → CRM contact", "desc": "Any form or service that can POST JSON creates a contact." },
+      "dealsDigest": { "name": "Daily digest of new deals", "desc": "Every morning, an email with the deals created in the last 24 hours." },
+      "chatSummaryToSlack": { "name": "Chat message → AI summary to Slack", "desc": "Summarizes each incoming message with AI and posts it to a Slack webhook." },
+      "leadToCrmSlack": { "name": "Form lead → CRM + Slack", "desc": "Each form submission becomes a contact and a message in your sales channel." },
+      "bookingToSheets": { "name": "New booking → Google Sheets row", "desc": "Logs every Cal booking as a row: date, name, email and event." },
+      "dealWonToStripe": { "name": "Deal won → Stripe customer", "desc": "Creates the customer in Stripe as soon as a deal is marked won." },
+      "chatToTrack": { "name": "Chat bug report → Track issue", "desc": "AI flags chat messages that report a bug and opens a high-priority issue." },
+      "dailyDigestEmail": { "name": "Weekday digest email", "desc": "Every weekday at 8:00, an AI summary of new deals sent from your Gmail." },
+      "robotToSheets": { "name": "Robot data → Google Sheets", "desc": "Appends what a robot extracts (like a daily price) to a sheet." },
+      "stripePaymentToSlack": { "name": "Stripe payment → Slack", "desc": "Posts each successful payment to Slack. Verified with the Stripe signature." },
+      "issueToDiscord": { "name": "Urgent issue → Discord", "desc": "Sends urgent Track issues to a Discord channel." },
+      "formToTelegram": { "name": "Form submission → Telegram", "desc": "Get every form submission on Telegram." },
+      "bookingToNotion": { "name": "Booking → Notion meeting notes", "desc": "Creates a page in a Notion database for each new booking." },
+      "webhookAgentReply": { "name": "Webhook question → agent → Slack", "desc": "An agent answers questions sent to a webhook and posts the answer to Slack." }
     }
   },
   "editor": {
@@ -95,7 +89,27 @@
     "templateHelp": "Use '{{trigger.x}}' for trigger data and '{{nodes.<id>.output.x}}' for the output of an earlier node. Filters: json, join, lines, map:field, default:value, upper, lower, length.",
     "everySummary": "Every {n} {unit}",
     "dailySummary": "Daily at {time} ({tz})",
-    "conditionsCount": "{n, plural, one {# condition} other {# conditions}}"
+    "conditionsCount": "{n, plural, one {# condition} other {# conditions}}",
+    "versionsTab": "Versions",
+    "errorFlow": "Error flow",
+    "errorFlowNone": "None",
+    "errorFlowHint": "Runs another flow when a run fails. It receives '{{trigger.flow}}', '{{trigger.run.error}}' and '{{trigger.failedNode}}'.",
+    "credentialNone": "Select a credential",
+    "credentialMissing": "Deleted credential",
+    "credentialEmpty": "0 credentials of type {types}.",
+    "manageCredentials": "Manage credentials",
+    "pickFlow": "Select a flow",
+    "pickAgent": "Select an agent",
+    "noAgents": "0 agents in this workspace.",
+    "createAgent": "Create one",
+    "cronHelp": "minute hour day month weekday. Example: 0 9 * * 1-5 = weekdays at 9:00.",
+    "cronNext": "Next runs",
+    "cronInvalid": "Invalid cron expression.",
+    "codeUnavailable": "Code runs in an isolated Vercel Sandbox. It isn't available on this server: set FLOW_CODE_RUNNER=sandbox with Vercel credentials to enable it. Until then the node fails with code_unavailable.",
+    "mergeHint": "Waits until every connected node has run, then runs once. Use the key '...' to copy all fields of an object.",
+    "scheduleGranularity": "On zerosoft cloud the scheduler checks once an hour, so runs can start up to an hour late. Self-hosted, it follows your cron for /api/cron/tick.",
+    "stripeHint": "Save the flow, copy the webhook URL into Stripe (Developers → Webhooks) and save its signing secret in the credential. Unsigned requests are rejected.",
+    "allEvents": "All events"
   },
   "categories": {
     "trigger": "Trigger",
@@ -103,12 +117,13 @@
     "data": "Data",
     "action": "Action",
     "app": "Apps",
-    "ai": "AI"
+    "ai": "AI",
+    "integration": "Integrations"
   },
   "nodes": {
     "trigger_event": { "title": "App event", "desc": "Runs when something happens in zerosoft: a booking, a click, a new contact, an issue, a chat message…" },
     "trigger_webhook": { "title": "Incoming webhook", "desc": "Runs when a service POSTs to this flow's secret URL." },
-    "trigger_schedule": { "title": "Schedule", "desc": "Runs every N minutes or hours, or daily at a time in your time zone." },
+    "trigger_schedule": { "title": "Schedule", "desc": "Runs every N minutes or hours, daily at a time, or on a cron expression, in your time zone." },
     "trigger_manual": { "title": "Manual", "desc": "Runs only from the Test run button, with the JSON you provide." },
     "logic_if": { "title": "If", "desc": "Splits the flow in two: true and false." },
     "logic_switch": { "title": "Switch", "desc": "Picks a branch by comparing a value to a list of cases." },
@@ -116,7 +131,11 @@
     "logic_delay": { "title": "Delay", "desc": "Waits before continuing (up to 30 days)." },
     "logic_loop": { "title": "Loop", "desc": "Runs the item branch once per element of a list, in order. Then continues through done." },
     "data_set": { "title": "Set fields", "desc": "Builds an object with new fields from templates." },
-    "data_json_parse": { "title": "Parse JSON", "desc": "Turns JSON text into data you can use in later nodes." },
+    "data_json_parse": {
+      "title": "Parse JSON",
+      "desc": "Turns JSON text into data you can use in later nodes.",
+      "fields": { "text": "JSON text" }
+    },
     "action_http": { "title": "HTTP request", "desc": "Calls any API. Public HTTPS hosts only." },
     "action_email": { "title": "Send email", "desc": "Sends a plain-text email." },
     "app_crm_contact": { "title": "CRM: create contact", "desc": "Creates a contact (or returns the existing one with the same email)." },
@@ -127,7 +146,43 @@
     "app_chat_message": { "title": "Chat: send message", "desc": "Replies in a Chat conversation as the bot." },
     "app_docs_page": { "title": "Docs: create page", "desc": "Creates a Docs page. Blank lines separate paragraphs." },
     "app_robot_run": { "title": "Robots: run robot", "desc": "Runs a browser robot with these inputs and waits for its extracted data (up to the robot's timeout)." },
-    "ai_text": { "title": "AI: generate text", "desc": "Writes, summarizes or classifies text with AI. Counts toward your AI quota." }
+    "ai_text": { "title": "AI: generate text", "desc": "Writes, summarizes or classifies text with AI. Counts toward your AI quota." },
+    "trigger_stripe": { "title": "Stripe event", "desc": "Runs when Stripe sends an event to this flow's URL. The signature is verified with the credential's webhook secret." },
+    "logic_run_flow": {
+      "title": "Run flow",
+      "desc": "Runs another flow with these inputs and waits for it. Its node outputs are in '{{nodes.<id>.output.outputs}}'.",
+      "fields": { "inputs": "Inputs ('{{trigger.x}}' in the other flow)", "failOnErrorHint": "Fail if the other flow fails" }
+    },
+    "data_merge": {
+      "title": "Merge / Aggregate",
+      "desc": "Merge combines values from several nodes into one object. Aggregate sums, averages or collects a field from a list.",
+      "fields": {
+        "mode": "Mode",
+        "fields": "Fields",
+        "items": "List"
+      }
+    },
+    "data_code": {
+      "title": "Code",
+      "desc": "Runs JavaScript in an isolated sandbox. 'input.trigger' and 'input.nodes' hold the data. Return a JSON value.",
+      "fields": { "code": "JavaScript (async function body)" }
+    },
+    "app_slack": { "title": "Slack: send message", "desc": "Posts with a bot token (any channel) or an incoming webhook." },
+    "app_google_sheets": {
+      "title": "Google Sheets",
+      "desc": "Appends a row or reads a range. Works with an OAuth token or a service account.",
+      "fields": { "row": "Row values (in column order)" }
+    },
+    "app_gmail": { "title": "Gmail: send email", "desc": "Sends from the Gmail account connected in CRM by whoever created the flow (or the workspace owner)." },
+    "app_stripe": { "title": "Stripe", "desc": "Creates a customer or lists recent payments." },
+    "app_notion": { "title": "Notion", "desc": "Creates a page in a database or appends text to a page. Share the page or database with your integration first." },
+    "app_discord": { "title": "Discord: send message", "desc": "Posts to a channel through a webhook." },
+    "app_telegram": { "title": "Telegram: send message", "desc": "Sends a message with your bot to a chat, group or channel." },
+    "ai_agent": {
+      "title": "Run agent",
+      "desc": "Sends a message to one of your agents and returns its reply. Uses the agent's tools and knowledge.",
+      "fields": { "message": "Message", "conversationId": "Continue conversation (optional)" }
+    }
   },
   "fields": {
     "event": "Event",
@@ -148,7 +203,7 @@
     "items": "List",
     "max": "Max items",
     "fields": "Fields",
-    "text": "JSON text",
+    "text": "Text",
     "method": "Method",
     "url": "URL",
     "headers": "Headers",
@@ -179,7 +234,31 @@
     "robotId": "Robot ID",
     "inputs": "Inputs",
     "failOnError": "Fail if the robot fails",
-    "failOnErrorHint": "Stop the flow when the robot run fails"
+    "failOnErrorHint": "Stop the flow when the robot run fails",
+    "cron": "Cron expression",
+    "credentialId": "Credential",
+    "events": "Event types (empty = all)",
+    "flowId": "Flow",
+    "agentId": "Agent",
+    "message": "Message",
+    "field": "Field",
+    "operation": "Operation",
+    "code": "Code",
+    "timeoutSec": "Time limit (seconds, max 30)",
+    "channel": "Channel",
+    "spreadsheetId": "Spreadsheet ID",
+    "range": "Sheet or range",
+    "row": "Row",
+    "name": "Name",
+    "limit": "How many",
+    "databaseId": "Database",
+    "titleProperty": "Title property",
+    "properties": "Other properties (JSON)",
+    "pageId": "Page",
+    "username": "Display name",
+    "chatId": "Chat ID",
+    "parseMode": "Format",
+    "onError": "If this step fails"
   },
   "options": {
     "all": "All conditions",
@@ -193,7 +272,25 @@
     "low": "Low",
     "medium": "Medium",
     "high": "High",
-    "urgent": "Urgent"
+    "urgent": "Urgent",
+    "cron": "Cron expression",
+    "none": "None",
+    "append": "Append row",
+    "read": "Read range",
+    "create_customer": "Create customer",
+    "list_payments": "List payments",
+    "create_page": "Create page in database",
+    "append_text": "Append text to page",
+    "merge": "Merge",
+    "aggregate": "Aggregate",
+    "count": "Count",
+    "sum": "Sum",
+    "avg": "Average",
+    "min": "Minimum",
+    "max": "Maximum",
+    "collect": "Collect values",
+    "unique": "Unique values",
+    "join": "Join as text"
   },
   "handles": {
     "out": "Next",
@@ -202,7 +299,8 @@
     "item": "Each item",
     "done": "Done",
     "default": "Default",
-    "case": "Case {n}"
+    "case": "Case {n}",
+    "error": "Error"
   },
   "events": {
     "booking_created": "Cal: booking created",
@@ -267,8 +365,16 @@
       "manual": "Test run",
       "trigger_event": "Event",
       "trigger_webhook": "Webhook",
-      "trigger_schedule": "Schedule"
-    }
+      "trigger_schedule": "Schedule",
+      "trigger_stripe": "Stripe",
+      "subflow": "Sub-flow",
+      "error": "Error flow"
+    },
+    "rerun": "Re-run",
+    "rerunOf": "Re-run of {id}. Earlier steps reuse their previous output.",
+    "rerunFrom": "Re-run from here",
+    "rerunHint": "Earlier steps reuse this run's output. Uses the saved flow.",
+    "rerunDirty": "You have unsaved changes. The re-run uses the last saved version. Continue?"
   },
   "stepStatus": {
     "running": "Running",
@@ -296,6 +402,108 @@
     "invalid_handle": "A connection uses an output the node doesn't have.",
     "self_loop": "A node can't connect to itself.",
     "cycle": "Flows can't have cycles. Use a Loop node to repeat steps.",
-    "delay_in_loop": "Delay can't be used inside a Loop."
+    "delay_in_loop": "Delay can't be used inside a Loop.",
+    "invalid_cron": "Invalid cron expression.",
+    "invalid_timezone": "Unknown time zone. Use a name like America/New_York.",
+    "invalid_error_flow": "Pick another flow of this workspace as the error flow.",
+    "run_active": "This run is still in progress.",
+    "node_not_found": "That node is no longer in the flow.",
+    "node_is_trigger": "Re-run from a step after the trigger.",
+    "node_in_loop": "Steps inside a Loop can't be re-run on their own. Re-run from the Loop."
+  },
+  "onError": {
+    "stop": "Stop the flow",
+    "continue": "Continue",
+    "branch": "Use the error branch",
+    "stopHint": "The run fails here (after any retries).",
+    "continueHint": "The step is marked failed and the flow continues. Its output has 'error'.",
+    "branchHint": "Adds an Error output. Connect what should happen on failure."
+  },
+  "versions": {
+    "title": "Versions",
+    "subtitle": "A version is saved every time the flow's nodes change.",
+    "loading": "Loading…",
+    "empty": "0 versions yet.",
+    "current": "Current",
+    "first": "First version",
+    "noChanges": "Same nodes",
+    "nodes": "{n, plural, one {# node} other {# nodes}}",
+    "added": "+{n}: {ids}",
+    "removed": "−{n}: {ids}",
+    "changed": "{n} edited: {ids}",
+    "edges": "connections +{added} −{removed}",
+    "restore": "Restore",
+    "restoring": "Restoring…",
+    "confirm": "Restore version {n}? The current flow is kept as a version too.",
+    "confirmDirty": "Restore version {n}? Your unsaved changes will be lost.",
+    "error": "Couldn't restore this version.",
+    "restored": "Restored. Now at version {n}."
+  },
+  "credentials": {
+    "title": "Credentials",
+    "subtitle": "API keys and tokens for Flow integrations and Robots. Encrypted at rest and never shown again after saving.",
+    "new": "New credential",
+    "newTitle": "New credential",
+    "editTitle": "Edit {name}",
+    "name": "Name",
+    "nameHint": "Letters, numbers, - and _. Robots use it as {example}.",
+    "type": "Type",
+    "value": "Details",
+    "updated": "Updated",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Delete {name}? Flows and robots that use it will fail.",
+    "empty": "0 credentials yet.",
+    "emptyHint": "Add one to use Slack, Google Sheets, Stripe, Notion, Discord or Telegram in your flows, or logins in Robots.",
+    "listTitle": "Saved credentials",
+    "adminOnly": "Only workspace admins and owners can add or edit credentials.",
+    "optional": "optional",
+    "savedPlaceholder": "Saved. Leave empty to keep it.",
+    "keepHint": "Leave empty to keep the saved value.",
+    "security": "Values are encrypted with AES-256-GCM, are only decrypted while a run uses them and are redacted from run logs.",
+    "types": {
+      "api_key": "API key (header)",
+      "basic": "Username and password",
+      "oauth_token": "OAuth / bearer token",
+      "slack": "Slack",
+      "google": "Google",
+      "stripe": "Stripe",
+      "notion": "Notion",
+      "discord": "Discord",
+      "telegram": "Telegram"
+    },
+    "typeHints": {
+      "api_key": "Sent as a header in HTTP requests, for example Authorization: Bearer TOKEN.",
+      "basic": "HTTP basic auth, or a site login for Robots.",
+      "oauth_token": "Pasted access token, sent as Authorization: Bearer.",
+      "slack": "Bot token (xoxb-, needs chat:write) to post to any channel, or an incoming webhook URL.",
+      "google": "Access token with the Sheets scope, or a service account JSON key (share the sheet with its email).",
+      "stripe": "Secret or restricted key. Add the webhook signing secret to use the Stripe event trigger.",
+      "notion": "Internal integration token. Share pages or databases with the integration.",
+      "discord": "Channel webhook URL (Channel settings → Integrations → Webhooks).",
+      "telegram": "Bot token from @BotFather."
+    },
+    "fields": {
+      "headerName": "Header",
+      "prefix": "Prefix",
+      "value": "Key",
+      "username": "Username",
+      "password": "Password",
+      "accessToken": "Access token",
+      "botToken": "Bot token",
+      "webhookUrl": "Webhook URL",
+      "serviceAccountJson": "Service account JSON",
+      "secretKey": "Secret key",
+      "webhookSecret": "Webhook signing secret",
+      "token": "Integration token"
+    },
+    "errors": {
+      "invalid_name": "Use 1-60 letters, numbers, - or _.",
+      "invalid_type": "Unknown type.",
+      "missing_field": "{field} is required.",
+      "duplicate_name": "A credential with this name already exists.",
+      "invalid_json": "The service account JSON is invalid (needs client_email and private_key).",
+      "invalid_input": "Invalid data."
+    }
   }
 }

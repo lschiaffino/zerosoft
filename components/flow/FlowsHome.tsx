@@ -67,16 +67,21 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
           <h1 className="page-title">{t('title')}</h1>
           <p className="muted flow-sub">{t('subtitle')}</p>
         </div>
-        {canEdit && (
-          <button
-            type="button"
-            className="btn btn-solid"
-            disabled={busy !== null}
-            onClick={() => create({ name: t('editor.untitled') }, 'new')}
-          >
-            {t('list.new')}
-          </button>
-        )}
+        <div className="flow-home-actions">
+          <Link href="/app/flow/credentials" className="btn btn-ghost">
+            {t('credentials.title')}
+          </Link>
+          {canEdit && (
+            <button
+              type="button"
+              className="btn btn-solid"
+              disabled={busy !== null}
+              onClick={() => create({ name: t('editor.untitled') }, 'new')}
+            >
+              {t('list.new')}
+            </button>
+          )}
+        </div>
       </div>
       {!canEdit && <p className="muted flow-note">{t('list.adminOnly')}</p>}
       {error && (

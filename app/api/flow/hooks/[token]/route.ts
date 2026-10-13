@@ -43,11 +43,17 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
   });
   const query = Object.fromEntries(req.nextUrl.searchParams);
 
-  const res = await enqueueWebhookRun(token, { method: 'POST', body, query, headers });
+  const res = await enqueueWebhookRun(
+    token,
+    { method: 'POST', body, query, headers },
+    { body: raw, signature: req.headers.get('stripe-signature') },
+  );
   if (!res.ok) {
     if (res.error === 'rate_limited') return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
+    if (res.error === 'invalid_signature') return NextResponse.json({ error: 'invalid_signature' }, { status: 400 });
     // Flow apagado o token inexistente: misma respuesta (no revela cuál).
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
+  if (res.ignored) return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
   return NextResponse.json({ ok: true, runId: res.runId }, { status: 202 });
 }

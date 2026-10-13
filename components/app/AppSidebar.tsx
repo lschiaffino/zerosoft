@@ -81,6 +81,7 @@ export interface SidebarLabels {
   };
   flow: {
     flows: string;
+    credentials: string;
   };
   /** Notes y Board (opcionales: los aporta su propio namespace de mensajes). */
   notes?: { all: string; newNote: string };
@@ -380,7 +381,22 @@ export default function AppSidebar({
   ];
 
   const flowNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/flow', label: labels.flow.flows, active: pathname.startsWith('/app/flow'), icon: 'flow' }] },
+    {
+      items: [
+        {
+          href: '/app/flow',
+          label: labels.flow.flows,
+          active: pathname.startsWith('/app/flow') && !pathname.startsWith('/app/flow/credentials'),
+          icon: 'flow',
+        },
+        {
+          href: '/app/flow/credentials',
+          label: labels.flow.credentials,
+          active: pathname.startsWith('/app/flow/credentials'),
+          icon: 'settings',
+        },
+      ],
+    },
   ];
 
   const notesNav: Array<{ section?: string; items: Item[] }> = [

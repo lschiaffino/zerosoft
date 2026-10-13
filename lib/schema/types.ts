@@ -1046,6 +1046,30 @@ export interface FlowFlowRow {
   trigger_type: string | null;
   trigger_event: string | null;
   next_run_at: string | null; // ISO
+  error_flow_id: string | null; // flow que corre cuando una corrida falla
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FlowVersionRow {
+  id: string;
+  flow_id: string;
+  user_id: string;
+  version: number;
+  name: string;
+  graph: string; // JSON FlowGraph
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface FlowCredentialRow {
+  id: string;
+  user_id: string; // workspace
+  name: string;
+  type: string;
+  data: string; // cifrado (lib/flow-credentials.ts)
+  hint: string; // pista enmascarada (últimos caracteres)
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1066,6 +1090,8 @@ export interface FlowRunRow {
   chain_seen: string; // JSON string[]
   step_count: number;
   locked_until: string | null;
+  rerun_of: string | null; // corrida original (re-ejecución desde un paso)
+  parent_run_id: string | null; // corrida que la lanzó (sub-flow o flow de error)
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
@@ -1253,6 +1279,7 @@ export interface RobotRow {
   schedule: string | null; // JSON RobotSchedule
   next_run_at: string | null;
   timeout_sec: number;
+  persist_session: number; // 0 | 1 (cookies/localStorage entre corridas)
   created_by: string | null;
   created_at: string;
   updated_at: string;

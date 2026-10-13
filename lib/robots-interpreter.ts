@@ -26,6 +26,12 @@ export interface RobotLocator {
   evaluate<R>(fn: (el: Element) => R, arg?: unknown, opts?: { timeout?: number }): Promise<R>;
   waitFor(opts?: { state?: 'attached' | 'visible'; timeout?: number }): Promise<void>;
   scrollIntoViewIfNeeded(opts?: { timeout?: number }): Promise<void>;
+  setInputFiles?(files: { name: string; mimeType: string; buffer: unknown }, opts?: { timeout?: number }): Promise<void>;
+}
+
+export interface RobotDownload {
+  suggestedFilename(): string;
+  createReadStream(): Promise<AsyncIterable<Uint8Array> | null>;
 }
 
 export interface RobotPage {
@@ -36,7 +42,10 @@ export interface RobotPage {
   keyboard: { press(key: string): Promise<void> };
   waitForTimeout(ms: number): Promise<void>;
   screenshot(opts?: { type?: 'jpeg' | 'png'; quality?: number; timeout?: number }): Promise<Uint8Array>;
-  evaluate<R>(fn: (arg: number) => R, arg: number): Promise<R>;
+  /** Función serializada, o expresión de texto (paso evaluate: no la frena la CSP de la página). */
+  evaluate<R>(fn: ((arg: number) => R) | string, arg?: number): Promise<R>;
+  waitForEvent?(event: 'download', opts?: { timeout?: number }): Promise<RobotDownload>;
+  pdf?(opts?: { format?: string; printBackground?: boolean }): Promise<Uint8Array>;
 }
 
 export interface RobotLogEntry {
@@ -56,6 +65,16 @@ export interface RobotScreenshot {
   type: 'image/jpeg';
 }
 
+/** Archivo producido por download / pdf (base64); el servidor lo sube a Blob. */
+export interface RobotFile {
+  /** Variable donde queda el resultado ({{vars.<name>.url}}). */
+  name: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  data: string;
+}
+
 export interface InterpreterResult {
   status: 'success' | 'failed';
   error: string | null;
@@ -63,6 +82,9 @@ export interface InterpreterResult {
   logs: RobotLogEntry[];
   screenshots: RobotScreenshot[];
   pages: number;
+  files?: RobotFile[];
+  /** Cookies + localStorage al terminar (solo si se pidió guardar la sesión). */
+  storageState?: unknown;
 }
 
 export interface InterpreterOptions {
@@ -77,6 +99,10 @@ export interface InterpreterOptions {
   /** Timeout por acción (ms). */
   actionTimeout?: number;
   robotName?: string;
+  /** Credenciales referenciadas: {{credentials.<name>.<campo>}}. */
+  credentials?: Record<string, Record<string, string>>;
+  maxFiles?: number;
+  maxFileBytes?: number;
 }
 
 export interface InterpreterStep {
@@ -99,11 +125,41 @@ export async function robotInterpreter(
   const maxExecuted = opts.maxExecuted ?? 500;
   const maxLoopItems = opts.maxLoopItems ?? 50;
   const actionTimeout = opts.actionTimeout ?? 15_000;
+  const maxFiles = opts.maxFiles ?? 5;
+  const maxFileBytes = opts.maxFileBytes ?? 10 * 1024 * 1024;
   const vars: Record<string, unknown> = {};
   const logs: RobotLogEntry[] = [];
   const screenshots: RobotScreenshot[] = [];
+  const files: RobotFile[] = [];
   let pages = 0;
   let executed = 0;
+  // Buffer existe en Node (arnés y sandbox); en tests se usa el global también.
+  const B = (globalThis as unknown as {
+    Buffer?: {
+      from(b: Uint8Array | ArrayBuffer): { toString(enc: string): string; length: number };
+      concat(list: Uint8Array[]): Uint8Array & { toString(enc: string): string; length: number };
+    };
+  }).Buffer;
+  const mimeFor = (filename: string): string => {
+    const ext = filename.toLowerCase().split('.').pop() ?? '';
+    const map: Record<string, string> = {
+      pdf: 'application/pdf',
+      csv: 'text/csv',
+      txt: 'text/plain',
+      json: 'application/json',
+      zip: 'application/zip',
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      xls: 'application/vnd.ms-excel',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    };
+    return map[ext] ?? 'application/octet-stream';
+  };
 
   class RobotError extends Error {}
   const fail = (code: string): never => {
@@ -311,8 +367,6 @@ export async function robotInterpreter(
         if (screenshots.length >= maxShots) return { detail: 'screenshot_limit' };
         const buf = await page.screenshot({ type: 'jpeg', quality: 60, timeout: timeout() });
         let b64 = '';
-        // Buffer en Node; Uint8Array genérico en tests.
-        const B = (globalThis as unknown as { Buffer?: { from(b: Uint8Array): { toString(enc: string): string } } }).Buffer;
         if (B) b64 = B.from(buf).toString('base64');
         screenshots.push({ name: str(s.name) || `shot${screenshots.length + 1}`, data: b64, type: 'image/jpeg' });
         return { detail: str(s.name) };
@@ -339,8 +393,108 @@ export async function robotInterpreter(
         if (mode === 'goto') return { jump: Number(s.target) || 0, detail: `missing → step ${Number(s.target)}` };
         return { skip: Math.max(1, Number(s.count) || 1), detail: `missing → skip ${Math.max(1, Number(s.count) || 1)}` };
       }
+      case 'download': {
+        if (files.length >= maxFiles) fail('file_limit');
+        if (!B || !page.waitForEvent) fail('unsupported');
+        const name = str(s.name);
+        const loc = await resolveTarget(selector, render(str(s.text), ctx).trim());
+        const t = timeout();
+        const [download] = await Promise.all([page.waitForEvent!('download', { timeout: t }), loc.click({ timeout: t })]);
+        const stream = await download.createReadStream();
+        if (!stream) fail('download_failed');
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        for await (const chunk of stream as AsyncIterable<Uint8Array>) {
+          size += chunk.length;
+          if (size > maxFileBytes) fail('file_too_large');
+          chunks.push(chunk);
+        }
+        const filename = (download.suggestedFilename() || name).replace(/[^\w.() -]/g, '_').slice(-120);
+        const data = B!.concat(chunks).toString('base64');
+        files.push({ name, filename, contentType: mimeFor(filename), size, data });
+        vars[name] = { filename, size };
+        return { detail: `${name}: ${filename} (${size} B)` };
+      }
+      case 'upload': {
+        if (!selector) fail('missing_selector');
+        if (!B) fail('unsupported');
+        const url = render(s.url, ctx).trim();
+        if (!/^https?:\/\//i.test(url)) fail('invalid_url');
+        const blocked = await opts.checkUrl(url);
+        if (blocked) fail(blocked);
+        // Sin redirecciones: el destino ya se validó contra hosts privados.
+        const res = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(timeout()) }).catch(() => null);
+        if (!res || !res.ok) fail('upload_fetch_failed');
+        const declared = Number(res!.headers.get('content-length') ?? 0);
+        if (declared > maxFileBytes) fail('file_too_large');
+        const buf = await res!.arrayBuffer();
+        if (buf.byteLength > maxFileBytes) fail('file_too_large');
+        let filename = render(str(s.filename), ctx).trim();
+        if (!filename) {
+          try {
+            filename = decodeURIComponent(new URL(url).pathname.split('/').pop() || '') || 'file';
+          } catch {
+            filename = 'file';
+          }
+        }
+        filename = filename.replace(/[^\w.() -]/g, '_').slice(-120);
+        const mimeType = (res!.headers.get('content-type') || mimeFor(filename)).split(';')[0].trim();
+        const input = page.locator(selector).first();
+        if (!input.setInputFiles) fail('unsupported');
+        await input.setInputFiles!({ name: filename, mimeType, buffer: B!.from(buf) }, { timeout: timeout() });
+        return { detail: `${filename} (${buf.byteLength} B)` };
+      }
+      case 'pdf': {
+        if (files.length >= maxFiles) fail('file_limit');
+        if (!B || !page.pdf) fail('unsupported');
+        const name = str(s.name);
+        const buf = await page.pdf!({ format: 'A4', printBackground: true });
+        if (buf.length > maxFileBytes) fail('file_too_large');
+        files.push({ name, filename: `${name}.pdf`, contentType: 'application/pdf', size: buf.length, data: B!.from(buf).toString('base64') });
+        vars[name] = { filename: `${name}.pdf`, size: buf.length };
+        return { detail: `${name}.pdf (${buf.length} B)` };
+      }
+      case 'evaluate': {
+        const name = str(s.name);
+        const script = render(str(s.script), ctx);
+        // Corre en la página (no en el servidor). Texto, no función: la CSP del sitio no lo bloquea.
+        const expr = `(async () => {\n${script}\n})().then((v) => JSON.stringify(v === undefined ? null : v))`;
+        const limit = timeout();
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const json = await Promise.race([
+          page.evaluate<string>(expr),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new RobotError('evaluate_timeout')), limit);
+          }),
+        ]).finally(() => {
+          if (timer) clearTimeout(timer);
+        });
+        if (typeof json !== 'string') fail('evaluate_not_json');
+        if (json.length > 100_000) fail('result_too_large');
+        vars[name] = JSON.parse(json) as unknown;
+        return { detail: `${name} = ${clip(json, 120)}` };
+      }
       default:
         return fail('unknown_step');
+    }
+  };
+
+  /** Errores que no se arreglan reintentando el paso. */
+  const NO_RETRY = /^(timeout|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
+
+  /** Ejecuta un paso con sus reintentos (retries + retryDelayMs). */
+  const runWithRetries = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome & { attempts: number }> => {
+    const retries = Math.min(Math.max(Math.floor(Number(s.retries) || 0), 0), 5);
+    const delay = Math.min(Math.max(Math.floor(Number(s.retryDelayMs) || 0), 0), 30_000);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const out = await runLeaf(s, ctx);
+        return { ...out, attempts: attempt };
+      } catch (err) {
+        const retryable = !(err instanceof RobotError && NO_RETRY.test(err.message));
+        if (!retryable || attempt >= retries || remaining() <= delay) throw err;
+        if (delay > 0) await page.waitForTimeout(delay);
+      }
     }
   };
 
@@ -378,9 +532,10 @@ export async function robotInterpreter(
         i += 1;
         continue;
       }
-      let out: Outcome;
+      let out: Outcome & { attempts?: number };
       try {
-        out = await runLeaf(s, { ...ctx, vars });
+        out = await runWithRetries(s, { ...ctx, vars });
+        if (out.attempts) out.detail = `${out.detail ?? ''} · ${out.attempts} ${out.attempts === 1 ? 'retry' : 'retries'}`.trim();
       } catch (err) {
         const code =
           err instanceof RobotError
@@ -415,11 +570,11 @@ export async function robotInterpreter(
 
   let error: string | null = null;
   try {
-    await runList(steps, { inputs, vars, robot: { name: opts.robotName ?? '' } }, '');
+    await runList(steps, { inputs, vars, robot: { name: opts.robotName ?? '' }, credentials: opts.credentials ?? {} }, '');
   } catch (err) {
     error = err instanceof Error ? err.message.slice(0, 300) : 'error';
   }
-  return { status: error ? 'failed' : 'success', error, vars, logs, screenshots, pages };
+  return { status: error ? 'failed' : 'success', error, vars, logs, screenshots, pages, files };
 }
 
 /** IPv4/IPv6 privada, loopback, link-local, CGNAT o multicast. Autocontenida. */
@@ -461,6 +616,13 @@ export interface HarnessJob {
   executablePath?: string;
   /** Flags de Chromium (p. ej. --no-sandbox dentro de la microVM). */
   args?: string[];
+  credentials?: Record<string, Record<string, string>>;
+  maxFiles?: number;
+  maxFileBytes?: number;
+  /** Sesión guardada (cookies + localStorage) para arrancar logueado. */
+  storageState?: unknown;
+  /** Devolver la sesión al terminar (para guardarla). */
+  saveSession?: boolean;
 }
 
 /** Subconjunto de playwright-core que usa el arnés. */
@@ -474,6 +636,7 @@ export interface HarnessChromium {
       }) => Promise<void>): Promise<void>;
       on(event: 'page', cb: (p: { close(): Promise<void> }) => void): void;
       newPage(): Promise<unknown>;
+      storageState(): Promise<unknown>;
     }>;
     close(): Promise<void>;
   }>;
@@ -505,7 +668,9 @@ export async function robotHarness(
       void b.close().catch(() => {});
     }, Math.max(1000, job.deadline - Date.now() + 5000));
     const context = await browser.newContext({
-      acceptDownloads: false,
+      // Descargas: solo las lee el paso download (van a un temporal que se borra al cerrar).
+      acceptDownloads: true,
+      ...(job.storageState ? { storageState: job.storageState } : {}),
       serviceWorkers: 'block',
       viewport: { width: 1280, height: 800 },
       locale: 'en-US',
@@ -539,7 +704,7 @@ export async function robotHarness(
       if (opened > job.maxPages) void p.close().catch(() => {});
     });
     const page = (await context.newPage()) as RobotPage;
-    return await interpret(page, job.steps, job.inputs, {
+    const result = await interpret(page, job.steps, job.inputs, {
       deadline: job.deadline,
       checkUrl,
       maxPages: job.maxPages,
@@ -547,7 +712,18 @@ export async function robotHarness(
       maxExecuted: job.maxExecuted,
       maxLoopItems: job.maxLoopItems,
       robotName: job.robotName,
+      credentials: job.credentials,
+      maxFiles: job.maxFiles,
+      maxFileBytes: job.maxFileBytes,
     });
+    if (job.saveSession) {
+      try {
+        result.storageState = await context.storageState();
+      } catch {
+        // sin sesión: se conserva la anterior
+      }
+    }
+    return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message.split('\n')[0].slice(0, 300) : 'browser_error';
     return {

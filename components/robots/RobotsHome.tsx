@@ -53,10 +53,13 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
 
   function scheduleLabel(r: RobotListItem): string {
     if (!r.schedule) return t('list.noSchedule');
+    const s = r.schedule;
     const base =
-      r.schedule.mode === 'daily'
-        ? `${t('settings.scheduleDaily')} ${r.schedule.time} ${r.schedule.timezone}`
-        : `${t('settings.scheduleInterval').replace('N', String(r.schedule.every))}`;
+      s.mode === 'daily'
+        ? `${t('settings.scheduleDaily')} ${s.time} ${s.timezone}`
+        : s.mode === 'cron'
+          ? `${t('settings.scheduleCron')} ${s.cron ?? ''} ${s.timezone}`
+          : `${t('settings.everyN')} ${s.every} ${t(`settings.units.${s.unit === 'minutes' ? 'minutes' : 'hours'}`).toLowerCase()}`;
     return r.enabled ? base : `${base} · off`;
   }
 
@@ -67,16 +70,21 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
           <h1 className="page-title">{t('title')}</h1>
           <p className="muted robots-sub">{t('subtitle')}</p>
         </div>
-        {canEdit && (
-          <button
-            type="button"
-            className="btn btn-solid"
-            disabled={busy !== null}
-            onClick={() => create({ name: t('editor.untitled') }, 'new')}
-          >
-            {t('list.new')}
-          </button>
-        )}
+        <div className="robots-head-actions">
+          <Link href="/app/robots/recorder" className="btn btn-ghost">
+            {t('list.record')}
+          </Link>
+          {canEdit && (
+            <button
+              type="button"
+              className="btn btn-solid"
+              disabled={busy !== null}
+              onClick={() => create({ name: t('editor.untitled') }, 'new')}
+            >
+              {t('list.new')}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="robots-strip">

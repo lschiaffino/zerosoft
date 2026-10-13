@@ -59,6 +59,9 @@ npm run build && npm start
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob for file uploads. Required on Vercel; elsewhere, unset → files go to `public/uploads`. |
 | `CRON_SECRET` | Required in production for `/api/cron/tick` (Cal reminders + webhook retries; Vercel Cron sends it as a Bearer token). |
 | `ENCRYPTION_KEY` | Encrypts OAuth tokens and webhook secrets at rest. Unset → derived from `NEXTAUTH_SECRET`. |
+| `CREDENTIALS_KEY` | Optional dedicated key for Flow/Robots credentials (AES-256-GCM, bound to each workspace). Unset → derived from `ENCRYPTION_KEY` or `NEXTAUTH_SECRET`. Rotating it means re-entering saved credentials. |
+| `FLOW_CODE_RUNNER` | `sandbox` or `none`. The Flow "Code" node runs JavaScript in Vercel Sandbox (30 s, 128 MB, no network). Default: `sandbox` on Vercel or with `VERCEL_TOKEN` + `VERCEL_TEAM_ID` + `VERCEL_PROJECT_ID`, otherwise `none` (the node is disabled with a notice). |
+| `ROBOTS_RUNNER` | `sandbox`, `local` or `none`. Default: `sandbox` on Vercel; elsewhere `local` when `playwright-core` is installed (it is, after `npm ci`), else `none`. |
 | `VERCEL_TOKEN` / `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID` | Link custom domains on Vercel: domains are added to the project (and get HTTPS) through the Vercel API. Self-host: leave unset, domains are verified by DNS. |
 | `APP_HOSTS` | Extra hostnames that serve the app (comma-separated), so they aren't treated as custom short-link domains. |
 | `ALLOW_PRIVATE_WEBHOOKS` | `true` allows webhooks to private/internal hosts and plain http (self-host on a private network). Never on a public cloud. |
@@ -107,6 +110,13 @@ docker compose up -d          # http://localhost:3000 — put any HTTPS reverse 
 Data lives in two volumes: `zerosoft-data` (the SQLite file) and `zerosoft-uploads` (attachments). Back them up and you have everything.
 
 Without Docker: `npm ci && npm run build && npm start`.
+
+### Robots and Flow on a self-hosted server
+
+- **Robots** run in a local headless Chromium by default when `ROBOTS_RUNNER` is unset: `npm ci` installs `playwright-core`, you add the browser once with `npx playwright-core install --with-deps chromium` (or point `ROBOTS_CHROMIUM_PATH` at an installed Chrome). Set `ROBOTS_RUNNER=none` to disable runs. The same SSRF guard as webhooks blocks private hosts unless `ALLOW_PRIVATE_WEBHOOKS=true`.
+- **Schedules** (Flow and Robots) are fired by `/api/cron/tick`. Vercel calls it once an hour (`vercel.json`); self-hosted, call it as often as you like (for example every minute with `curl -H "Authorization: Bearer $CRON_SECRET" https://your-host/api/cron/tick`). Cron expressions are 5-field with a time zone; robot intervals are at least 15 minutes.
+- **Credentials** for integrations (Slack, Google Sheets, Stripe, Notion, Discord, Telegram, API keys, logins) live in `/app/flow/credentials`, encrypted per workspace. Keep `CREDENTIALS_KEY` (or `NEXTAUTH_SECRET`) stable.
+- **Code node** needs Vercel Sandbox credentials (`FLOW_CODE_RUNNER=sandbox` + `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID`); without them it stays disabled. User code never runs inside the app process.
 
 Export everything, always: links and analytics are yours (JSON via API, and the SQLite file itself if self-hosted). No hostages.
 

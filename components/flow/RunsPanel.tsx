@@ -13,16 +13,44 @@ interface Props {
   selectedRunId: string | null;
   onSelect: (run: RunDetail | null) => void;
   refreshKey: number;
+  canEdit?: boolean;
+  /** Hay cambios sin guardar (la re-ejecución usa el grafo guardado). */
+  dirty?: boolean;
+  onRerun?: (run: RunDetail) => void;
 }
 
 /** Historial de corridas con el detalle de cada paso (input / output / error). */
-export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey }: Props) {
+export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey, canEdit, dirty, onRerun }: Props) {
   const t = useTranslations('flow');
   const format = useFormatter();
   const now = useNow({ updateInterval: 30_000 });
   const [runs, setRuns] = useState<FlowRunDto[] | null>(null);
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [openStep, setOpenStep] = useState<string | null>(null);
+  const [rerunning, setRerunning] = useState<string | null>(null);
+  const [rerunError, setRerunError] = useState<string | null>(null);
+
+  async function rerunFrom(nodeId: string) {
+    if (!detail) return;
+    if (dirty && !window.confirm(t('runs.rerunDirty'))) return;
+    setRerunning(nodeId);
+    setRerunError(null);
+    const res = await fetch(`/api/flow/runs/${detail.id}/rerun`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ fromNodeId: nodeId }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { run?: RunDetail; error?: string } | null;
+    setRerunning(null);
+    if (!res?.ok || !data?.run) {
+      const code = data?.error ?? 'generic';
+      setRerunError(t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
+      return;
+    }
+    setDetail(data.run);
+    onSelect(data.run);
+    onRerun?.(data.run);
+  }
 
   const loadRuns = useCallback(async () => {
     const res = await fetch(`/api/flow/flows/${flowId}/runs?limit=50`).catch(() => null);
@@ -77,7 +105,8 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey 
                   <span className="flow-run-main">
                     <span>{t(`runs.status.${r.status}`)}</span>
                     <span className="muted">
-                      {t(`runs.triggers.${i18nKey(r.triggerType)}`)} · {format.relativeTime(new Date(r.createdAt), now)}
+                      {r.rerunOf ? t('runs.rerun') : t.has(`runs.triggers.${i18nKey(r.triggerType)}`) ? t(`runs.triggers.${i18nKey(r.triggerType)}`) : r.triggerType} ·{' '}
+                      {format.relativeTime(new Date(r.createdAt), now)}
                     </span>
                   </span>
                   <span className="muted mono">{formatDuration(r.startedAt, r.finishedAt)}</span>
@@ -101,6 +130,12 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey 
               <span className="muted mono">{detail.id.slice(0, 8)}</span>
             </div>
             {detail.error && <p className="flow-error">{detail.error}</p>}
+            {detail.rerunOf && <p className="muted flow-hint">{t('runs.rerunOf', { id: detail.rerunOf.slice(0, 8) })}</p>}
+            {rerunError && (
+              <p className="flow-error" role="alert">
+                {rerunError}
+              </p>
+            )}
             <ol className="flow-steps">
               {detail.steps.map((s) => {
                 const open = openStep === s.id;
@@ -115,6 +150,14 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey 
                       <span className="muted mono">{formatDuration(s.startedAt, s.finishedAt)}</span>
                     </button>
                     {s.error && <p className="flow-error flow-step-error">{s.error}</p>}
+                    {open && canEdit && (detail.status === 'failed' || detail.status === 'success') && !s.nodeType.startsWith('trigger.') && (
+                      <div className="flow-step-actions">
+                        <button type="button" className="btn btn-small" disabled={rerunning !== null} onClick={() => void rerunFrom(s.nodeId)}>
+                          {rerunning === s.nodeId ? t('editor.running') : t('runs.rerunFrom')}
+                        </button>
+                        <span className="muted">{t('runs.rerunHint')}</span>
+                      </div>
+                    )}
                     {open && (
                       <div className="flow-step-io">
                         {s.input !== null && (

@@ -4,10 +4,13 @@ import { useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { RobotDto, RobotRunDto, RobotUsage } from '@/lib/robots';
+import { isValidCron, nextCronRuns } from '@/lib/cron';
+import { parseRecordedSteps, PASSWORD_PLACEHOLDER } from '@/lib/robots-recorder';
 import {
   countSteps,
   MAX_ROBOT_STEPS,
   MAX_TIMEOUT_SEC,
+  MIN_SCHEDULE_MINUTES,
   type RobotInputDef,
   type RobotSchedule,
   type RobotStep,
@@ -38,6 +41,14 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const [enabled, setEnabled] = useState(initial.enabled);
   const [schedule, setSchedule] = useState<RobotSchedule>(initial.schedule);
   const [timeoutSec, setTimeoutSec] = useState(initial.timeoutSec);
+  const [persistSession, setPersistSession] = useState(initial.persistSession);
+  const [hasSession, setHasSession] = useState(initial.hasSession);
+  const [sessionMsg, setSessionMsg] = useState<string | null>(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [pasteMode, setPasteMode] = useState<'append' | 'replace'>('append');
+  const [pasteError, setPasteError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [runs, setRuns] = useState(initialRuns);
   const [usage, setUsage] = useState(initialUsage);
   const [selectedRun, setSelectedRun] = useState<string | null>(initialRuns[0]?.id ?? null);
@@ -53,8 +64,8 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const readOnly = !canEdit;
 
   const payload = useMemo(
-    () => ({ name, description, steps, inputs, enabled, schedule, timeoutSec }),
-    [name, description, steps, inputs, enabled, schedule, timeoutSec],
+    () => ({ name, description, steps, inputs, enabled, schedule, timeoutSec, persistSession }),
+    [name, description, steps, inputs, enabled, schedule, timeoutSec, persistSession],
   );
   const dirty =
     JSON.stringify(payload) !==
@@ -66,6 +77,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       enabled: robot.enabled,
       schedule: robot.schedule,
       timeoutSec: robot.timeoutSec,
+      persistSession: robot.persistSession,
     });
 
   async function save(): Promise<boolean> {
@@ -89,6 +101,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     setRobot(data.robot);
     setSteps(data.robot.steps);
     setInputs(data.robot.inputs);
+    setHasSession(data.robot.hasSession);
     setSavedAt(Date.now());
     return true;
   }
@@ -127,6 +140,35 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       .then((r) => r.json() as Promise<{ usage?: RobotUsage }>)
       .catch(() => null);
     if (u?.usage) setUsage(u.usage);
+  }
+
+  function importPasted() {
+    const res = parseRecordedSteps(pasteText);
+    if (!res.ok) {
+      setPasteError(t(`paste.errors.${res.error}`, { index: (res.index ?? 0) + 1 }));
+      return;
+    }
+    const next = pasteMode === 'replace' ? res.steps : [...steps, ...res.steps];
+    if (countSteps(next) > MAX_ROBOT_STEPS) {
+      setPasteError(t('errors.too_many_steps'));
+      return;
+    }
+    setSteps(next);
+    setPasteOpen(false);
+    setPasteText('');
+    setPasteError(null);
+    setNotice(t('paste.imported', { count: res.steps.length }));
+  }
+
+  async function clearSession() {
+    setSessionMsg(null);
+    const res = await fetch(`/api/robots/${robot.id}/session`, { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) {
+      setError(t('errors.generic'));
+      return;
+    }
+    setHasSession(false);
+    setSessionMsg(t('settings.sessionCleared'));
   }
 
   async function remove() {
@@ -196,6 +238,11 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
           {error}
         </p>
       )}
+      {notice && !error && (
+        <p className="muted robots-note" role="status">
+          {notice}
+        </p>
+      )}
 
       <div className="robots-tabs" role="tablist">
         {(['steps', 'inputs', 'runs', 'settings'] as const).map((k) => (
@@ -210,7 +257,26 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       {tab === 'steps' && (
         <div className="robots-steps-layout">
           <div>
-            <p className="muted robots-count">{t('steps.count', { count: stepCount, max: MAX_ROBOT_STEPS })}</p>
+            <div className="robots-steps-bar">
+              <p className="muted robots-count">{t('steps.count', { count: stepCount, max: MAX_ROBOT_STEPS })}</p>
+              <span className="robots-steps-bar-actions">
+                <Link href="/app/robots/recorder" className="btn btn-small btn-ghost">
+                  {t('editor.record')}
+                </Link>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="btn btn-small"
+                    onClick={() => {
+                      setPasteError(null);
+                      setPasteOpen(true);
+                    }}
+                  >
+                    {t('editor.paste')}
+                  </button>
+                )}
+              </span>
+            </div>
             <StepList steps={steps} onChange={setSteps} readOnly={readOnly} invalidIndex={invalidIndex} />
           </div>
           <aside className="robots-tips">
@@ -226,6 +292,10 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
                 vars: '{{vars.x}}',
                 loopItem: '{{loop.item}}',
               })}
+            </p>
+            <p className="muted">
+              {t('steps.credentialsTip', { example: '{{credentials.name.password}}' })}{' '}
+              <Link href="/app/flow/credentials">{t('steps.credentialsLink')}</Link>
             </p>
           </aside>
         </div>
@@ -265,11 +335,12 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
                       v === 'none'
                         ? null
                         : {
-                            mode: v as 'daily' | 'interval',
+                            mode: v as 'daily' | 'interval' | 'cron',
                             time: schedule?.time ?? '09:00',
                             timezone: schedule?.timezone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'),
                             every: schedule?.every ?? 24,
-                            unit: 'hours',
+                            unit: schedule?.unit ?? 'hours',
+                            cron: schedule?.cron || '0 9 * * 1-5',
                           },
                     );
                   }}
@@ -277,8 +348,27 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
                   <option value="none">{t('settings.scheduleNone')}</option>
                   <option value="daily">{t('settings.scheduleDaily')}</option>
                   <option value="interval">{t('settings.scheduleInterval')}</option>
+                  <option value="cron">{t('settings.scheduleCron')}</option>
                 </select>
               </label>
+              {schedule?.mode === 'cron' && (
+                <>
+                  <label className="robots-field">
+                    <span>{t('settings.cron')}</span>
+                    <input
+                      className="input mono"
+                      value={schedule.cron ?? ''}
+                      readOnly={readOnly}
+                      placeholder="0 9 * * 1-5"
+                      onChange={(e) => setSchedule({ ...schedule, cron: e.target.value })}
+                    />
+                  </label>
+                  <label className="robots-field">
+                    <span>{t('settings.timezone')}</span>
+                    <input className="input" value={schedule.timezone} readOnly={readOnly} onChange={(e) => setSchedule({ ...schedule, timezone: e.target.value })} />
+                  </label>
+                </>
+              )}
               {schedule?.mode === 'daily' && (
                 <>
                   <label className="robots-field">
@@ -292,26 +382,70 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
                 </>
               )}
               {schedule?.mode === 'interval' && (
-                <label className="robots-field">
-                  <span>{t('settings.every')}</span>
-                  <input
-                    className="input"
-                    type="number"
-                    min={1}
-                    max={168}
-                    value={schedule.every}
-                    readOnly={readOnly}
-                    onChange={(e) => setSchedule({ ...schedule, every: Math.min(168, Math.max(1, Math.floor(Number(e.target.value) || 1))) })}
-                  />
-                </label>
+                <>
+                  <label className="robots-field">
+                    <span>{t('settings.everyN')}</span>
+                    <input
+                      className="input"
+                      type="number"
+                      min={schedule.unit === 'minutes' ? MIN_SCHEDULE_MINUTES : 1}
+                      max={schedule.unit === 'minutes' ? 1440 : 168}
+                      value={schedule.every}
+                      readOnly={readOnly}
+                      onChange={(e) => {
+                        const max = schedule.unit === 'minutes' ? 1440 : 168;
+                        setSchedule({ ...schedule, every: Math.min(max, Math.max(1, Math.floor(Number(e.target.value) || 1))) });
+                      }}
+                    />
+                  </label>
+                  <label className="robots-field">
+                    <span>{t('settings.unit')}</span>
+                    <select
+                      className="select"
+                      disabled={readOnly}
+                      value={schedule.unit ?? 'hours'}
+                      onChange={(e) => {
+                        const unit = e.target.value as 'hours' | 'minutes';
+                        const every = unit === 'minutes' ? Math.max(MIN_SCHEDULE_MINUTES, schedule.every) : Math.min(168, schedule.every);
+                        setSchedule({ ...schedule, unit, every });
+                      }}
+                    >
+                      <option value="hours">{t('settings.units.hours')}</option>
+                      <option value="minutes">{t('settings.units.minutes')}</option>
+                    </select>
+                  </label>
+                </>
               )}
             </div>
+            {schedule?.mode === 'interval' && schedule.unit === 'minutes' && (
+              <p className={`robots-hint ${schedule.every < MIN_SCHEDULE_MINUTES ? 'robots-error' : 'muted'}`}>{t('settings.minMinutes')}</p>
+            )}
+            {schedule?.mode === 'cron' && <CronPreview cron={schedule.cron ?? ''} timezone={schedule.timezone} />}
+            {schedule && <p className="muted robots-hint">{t('settings.granularity')}</p>}
             {robot.nextRunAt && robot.enabled && robot.schedule && (
               <p className="muted robots-hint" suppressHydrationWarning>
                 {t('settings.nextRun', { date: format.dateTime(new Date(robot.nextRunAt), { dateStyle: 'medium', timeStyle: 'short' }) })}
               </p>
             )}
           </fieldset>
+
+          <div className="robots-session">
+            <label className="robots-check">
+              <input type="checkbox" checked={persistSession} disabled={readOnly} onChange={(e) => setPersistSession(e.target.checked)} />
+              <span>
+                {t('settings.session')}
+                <small className="muted">{t('settings.sessionHint')}</small>
+              </span>
+            </label>
+            <div className="robots-session-row">
+              <span className="muted">{hasSession ? t('settings.sessionSaved') : (sessionMsg ?? t('settings.sessionEmpty'))}</span>
+              {!readOnly && (
+                <button type="button" className="btn btn-small btn-ghost" disabled={!hasSession} onClick={() => void clearSession()}>
+                  {t('settings.clearSession')}
+                </button>
+              )}
+            </div>
+          </div>
 
           <label className="robots-field robots-timeout">
             <span>{t('settings.timeout')}</span>
@@ -349,6 +483,47 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
           <p className="robots-warning" role="note">
             {t('settings.responsible')}
           </p>
+        </div>
+      )}
+
+      {pasteOpen && (
+        <div className="robots-modal-backdrop" role="presentation" onClick={() => setPasteOpen(false)}>
+          <div className="robots-modal" role="dialog" aria-modal="true" aria-labelledby="robots-paste-title" onClick={(e) => e.stopPropagation()}>
+            <h2 id="robots-paste-title">{t('paste.title')}</h2>
+            <p className="muted">{t('paste.desc')}</p>
+            <textarea
+              className="textarea mono"
+              rows={10}
+              value={pasteText}
+              autoFocus
+              spellCheck={false}
+              aria-label={t('paste.title')}
+              placeholder='{"zerosoftRobotSteps": 1, "steps": [...]}'
+              onChange={(e) => setPasteText(e.target.value)}
+            />
+            <div className="robots-paste-mode" role="radiogroup">
+              {(['append', 'replace'] as const).map((m) => (
+                <label key={m} className="robots-radio">
+                  <input type="radio" name="paste-mode" checked={pasteMode === m} onChange={() => setPasteMode(m)} />
+                  <span>{t(`paste.${m}`)}</span>
+                </label>
+              ))}
+            </div>
+            <p className="muted robots-hint">{t('paste.passwordNote', { placeholder: PASSWORD_PLACEHOLDER })}</p>
+            {pasteError && (
+              <p className="robots-error" role="alert">
+                {pasteError}
+              </p>
+            )}
+            <div className="robots-modal-actions">
+              <button type="button" className="btn btn-small btn-ghost" onClick={() => setPasteOpen(false)}>
+                {t('paste.cancel')}
+              </button>
+              <button type="button" className="btn btn-small btn-solid" onClick={importPasted} disabled={!pasteText.trim()}>
+                {t('paste.import')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -401,6 +576,24 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Vista previa de las próximas corridas de un cron (o aviso si es inválido). */
+function CronPreview({ cron, timezone }: { cron: string; timezone: string }) {
+  const t = useTranslations('robots.settings');
+  const format = useFormatter();
+  if (!isValidCron(cron)) return <p className="robots-error robots-hint">{t('cronInvalid')}</p>;
+  const runs = nextCronRuns(cron, timezone || 'UTC', 3);
+  return (
+    <div className="robots-cron-preview">
+      <p className="muted robots-hint">{t('cronHint')}</p>
+      {runs.length > 0 && (
+        <p className="muted robots-hint" suppressHydrationWarning>
+          {t('cronPreview')}: {runs.map((d) => format.dateTime(d, { dateStyle: 'medium', timeStyle: 'short' })).join(' · ')}
+        </p>
       )}
     </div>
   );

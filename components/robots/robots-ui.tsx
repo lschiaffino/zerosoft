@@ -54,7 +54,10 @@ export function RunnerNote({ backend }: { backend: RobotUsage['backend'] }) {
   return (
     <div className="robots-runner" role="note">
       <span className="robots-dot is-success" aria-hidden="true" />
-      <span className="muted">{t(`runner.${backend}`)}</span>
+      <span className="muted">
+        {t(`runner.${backend}`)}
+        {backend === 'local' && <small className="robots-runner-hint">{t('runner.localHint')}</small>}
+      </span>
     </div>
   );
 }

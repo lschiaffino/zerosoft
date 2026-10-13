@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { deleteFlow, getFlow, lastOutputs, listFlowWebhooks, updateFlow } from '@/lib/flow';
 import { flowUpdateSchema } from '@/lib/flow-schema';
-import { canEditFlows, flowError, forbidden, notFound, unauthorized } from '@/lib/flow-http';
+import { canEditFlows, flowError, forbidden, notFound, realUserId, unauthorized } from '@/lib/flow-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   if (!canEditFlows(user)) return forbidden();
   const parsed = flowUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return flowError(400, 'invalid_input');
-  const res = await updateFlow(user.id, id, parsed.data);
+  const res = await updateFlow(user.id, id, parsed.data, realUserId(user));
   if (!res.ok) {
     if (res.error === 'not_found') return notFound();
     if (res.error === 'conflict') return flowError(409, 'conflict');

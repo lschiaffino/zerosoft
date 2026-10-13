@@ -7,15 +7,19 @@
  */
 import { randomBytes } from 'crypto';
 import { after } from 'next/server';
-import { getDb, type FlowFlowRow, type FlowRunRow, type FlowStepRow } from './db';
+import { nextCronRun, tzOffsetMinutes } from './cron';
+import { getDb, type FlowFlowRow, type FlowRunRow, type FlowStepRow, type FlowVersionRow } from './db';
 import { flowChain } from './events';
 import {
+  diffGraphs,
   EMPTY_GRAPH,
+  isHookTrigger,
   isTriggerType,
   triggerNode,
   validateGraph,
   type FlowEventType,
   type FlowGraph,
+  type GraphDiff,
   type GraphErrorCode,
 } from './flow-schema';
 import { compare, getPath, type ConditionOp } from './flow-template';
@@ -34,6 +38,7 @@ export interface FlowDto {
   triggerType: string | null;
   triggerEvent: string | null;
   nextRunAt: string | null;
+  errorFlowId: string | null;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -51,6 +56,8 @@ export interface FlowRunDto {
   input: unknown;
   error: string | null;
   stepCount: number;
+  rerunOf: string | null;
+  parentRunId: string | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
@@ -97,6 +104,7 @@ export function toFlowDto(row: FlowFlowRow): FlowDto {
     triggerType: row.trigger_type,
     triggerEvent: row.trigger_event,
     nextRunAt: row.next_run_at,
+    errorFlowId: row.error_flow_id ?? null,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -112,6 +120,8 @@ export function toRunDto(row: FlowRunRow): FlowRunDto {
     input: parseJson(row.input, {}),
     error: row.error,
     stepCount: row.step_count,
+    rerunOf: row.rerun_of ?? null,
+    parentRunId: row.parent_run_id ?? null,
     createdAt: row.created_at,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
@@ -134,33 +144,20 @@ function toStepDto(row: FlowStepRow): FlowStepDto {
 
 // ---------- Schedules ----------
 
-function tzOffsetMinutes(tz: string, at: Date): number {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: tz,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).formatToParts(at);
-    const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
-    const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
-    return Math.round((asUtc - Math.floor(at.getTime() / 1000) * 1000) / 60000);
-  } catch {
-    return 0;
-  }
-}
-
-/** Próxima ejecución de un trigger.schedule después de `from`. */
-export function computeNextRun(config: Record<string, unknown>, from: Date = new Date()): Date {
+/**
+ * Próxima ejecución de un trigger.schedule (o del schedule de un robot)
+ * después de `from`. `minMinutes`: intervalo mínimo entre corridas.
+ * Cron inválido → dentro de un año (nunca se usa: la validación lo rechaza).
+ */
+export function computeNextRun(config: Record<string, unknown>, from: Date = new Date(), minMinutes = 5): Date {
   if (config.mode === 'interval') {
     const every = Math.max(1, Math.floor(Number(config.every) || 1));
     const unitMs = config.unit === 'minutes' ? 60_000 : 3_600_000;
-    // Mínimo 5 minutos entre corridas.
-    return new Date(from.getTime() + Math.max(every * unitMs, 5 * 60_000));
+    return new Date(from.getTime() + Math.max(every * unitMs, minMinutes * 60_000));
+  }
+  if (config.mode === 'cron') {
+    const tz = typeof config.timezone === 'string' && config.timezone ? config.timezone : 'UTC';
+    return nextCronRun(String(config.cron ?? ''), tz, from) ?? new Date(from.getTime() + 365 * 86_400_000);
   }
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(config.time ?? '09:00').trim());
   const hh = m ? Math.min(23, Number(m[1])) : 9;
@@ -188,10 +185,10 @@ function triggerFields(graph: FlowGraph, enabled: boolean, from = new Date()) {
   return { type, event, next };
 }
 
-/** Un token por nodo trigger.webhook; se conservan los de nodos que siguen. */
+/** Un token por nodo trigger.webhook / trigger.stripe; se conservan los de nodos que siguen. */
 async function syncWebhooks(workspaceId: string, flowId: string, graph: FlowGraph): Promise<void> {
   const db = getDb();
-  const nodeIds = graph.nodes.filter((n) => n.type === 'trigger.webhook').map((n) => n.id);
+  const nodeIds = graph.nodes.filter((n) => isHookTrigger(n.type)).map((n) => n.id);
   const existing = (await db
     .prepare('SELECT node_id FROM flow_webhooks WHERE flow_id = ?')
     .all(flowId)) as Array<{ node_id: string }>;
@@ -250,7 +247,87 @@ export async function getFlow(workspaceId: string, id: string): Promise<FlowDto 
 
 export type FlowWriteResult =
   | { ok: true; flow: FlowDto }
-  | { ok: false; error: GraphErrorCode | 'not_found' | 'conflict'; nodeId?: string };
+  | { ok: false; error: GraphErrorCode | 'not_found' | 'conflict' | 'invalid_error_flow'; nodeId?: string };
+
+// ---------- Versiones ----------
+
+/** Versiones guardadas por flow (las más viejas se borran). */
+export const MAX_FLOW_VERSIONS = 50;
+
+export interface FlowVersionDto {
+  id: string;
+  version: number;
+  name: string;
+  nodeCount: number;
+  createdBy: string | null;
+  createdAt: string;
+  /** Cambios respecto de la versión anterior. */
+  diff: GraphDiff;
+}
+
+async function snapshotVersion(
+  workspaceId: string,
+  flowId: string,
+  version: number,
+  name: string,
+  graph: FlowGraph,
+  actorId: string | null,
+): Promise<void> {
+  const db = getDb();
+  await db
+    .prepare(
+      'INSERT INTO flow_versions (id, flow_id, user_id, version, name, graph, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(crypto.randomUUID(), flowId, workspaceId, version, name, JSON.stringify(graph), actorId, nowIso());
+  await db
+    .prepare(
+      `DELETE FROM flow_versions WHERE flow_id = ? AND id NOT IN (
+         SELECT id FROM flow_versions WHERE flow_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?)`,
+    )
+    .run(flowId, flowId, MAX_FLOW_VERSIONS);
+}
+
+export async function listFlowVersions(workspaceId: string, flowId: string): Promise<FlowVersionDto[]> {
+  const rows = (await getDb()
+    .prepare('SELECT * FROM flow_versions WHERE flow_id = ? AND user_id = ? ORDER BY created_at DESC, rowid DESC')
+    .all(flowId, workspaceId)) as FlowVersionRow[];
+  return rows.map((row, i) => {
+    const graph = parseGraph(row.graph);
+    const prev = rows[i + 1] ? parseGraph(rows[i + 1].graph) : null;
+    return {
+      id: row.id,
+      version: row.version,
+      name: row.name,
+      nodeCount: graph.nodes.length,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      diff: diffGraphs(prev, graph),
+    };
+  });
+}
+
+export async function getFlowVersion(
+  workspaceId: string,
+  flowId: string,
+  versionId: string,
+): Promise<{ id: string; version: number; graph: FlowGraph } | null> {
+  const row = (await getDb()
+    .prepare('SELECT * FROM flow_versions WHERE id = ? AND flow_id = ? AND user_id = ?')
+    .get(versionId, flowId, workspaceId)) as FlowVersionRow | undefined;
+  return row ? { id: row.id, version: row.version, graph: parseGraph(row.graph) } : null;
+}
+
+/** Restaura el grafo de una versión (queda como una versión nueva). */
+export async function restoreFlowVersion(
+  workspaceId: string,
+  flowId: string,
+  versionId: string,
+  actorId: string | null,
+): Promise<FlowWriteResult> {
+  const v = await getFlowVersion(workspaceId, flowId, versionId);
+  if (!v) return { ok: false, error: 'not_found' };
+  return updateFlow(workspaceId, flowId, { graph: v.graph }, actorId);
+}
 
 export async function createFlow(
   workspaceId: string,
@@ -274,13 +351,22 @@ export async function createFlow(
     )
     .run(id, workspaceId, input.name.trim(), input.description ?? '', JSON.stringify(v.graph), tf.type, tf.event, actorId, ts, ts);
   await syncWebhooks(workspaceId, id, v.graph);
+  await snapshotVersion(workspaceId, id, 1, input.name.trim(), v.graph, actorId);
   return { ok: true, flow: (await getFlow(workspaceId, id))! };
 }
 
 export async function updateFlow(
   workspaceId: string,
   id: string,
-  patch: { name?: string; description?: string; graph?: unknown; enabled?: boolean; version?: number },
+  patch: {
+    name?: string;
+    description?: string;
+    graph?: unknown;
+    enabled?: boolean;
+    version?: number;
+    errorFlowId?: string | null;
+  },
+  actorId: string | null = null,
 ): Promise<FlowWriteResult> {
   const row = await getFlowRow(workspaceId, id);
   if (!row) return { ok: false, error: 'not_found' };
@@ -291,6 +377,14 @@ export async function updateFlow(
     if (!v.ok) return v;
     graph = v.graph;
   }
+  let errorFlowId = row.error_flow_id ?? null;
+  if (patch.errorFlowId !== undefined) {
+    errorFlowId = patch.errorFlowId || null;
+    if (errorFlowId && (errorFlowId === id || !(await getFlowRow(workspaceId, errorFlowId)))) {
+      return { ok: false, error: 'invalid_error_flow' };
+    }
+  }
+  const graphChanged = patch.graph !== undefined && JSON.stringify(graph) !== row.graph;
   const enabled = patch.enabled ?? row.enabled === 1;
   const tf = triggerFields(graph, enabled);
   // Al editar un schedule ya programado, se conserva la próxima corrida si la
@@ -300,7 +394,7 @@ export async function updateFlow(
   const res = await getDb()
     .prepare(
       `UPDATE flow_flows SET name = ?, description = ?, enabled = ?, graph = ?, version = version + 1,
-         trigger_type = ?, trigger_event = ?, next_run_at = ?, updated_at = ?
+         trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, updated_at = ?
        WHERE id = ? AND user_id = ? AND version = ?`,
     )
     .run(
@@ -311,6 +405,7 @@ export async function updateFlow(
       tf.type,
       tf.event,
       keepNext ? row.next_run_at : tf.next,
+      errorFlowId,
       nowIso(),
       id,
       workspaceId,
@@ -318,11 +413,17 @@ export async function updateFlow(
     );
   if (res.changes === 0) return { ok: false, error: 'conflict' };
   if (patch.graph !== undefined) await syncWebhooks(workspaceId, id, graph);
+  if (graphChanged) {
+    await snapshotVersion(workspaceId, id, row.version + 1, patch.name?.trim() || row.name, graph, actorId);
+  }
   return { ok: true, flow: (await getFlow(workspaceId, id))! };
 }
 
 export async function deleteFlow(workspaceId: string, id: string): Promise<boolean> {
   const res = await getDb().prepare('DELETE FROM flow_flows WHERE id = ? AND user_id = ?').run(id, workspaceId);
+  if (res.changes > 0) {
+    await getDb().prepare('UPDATE flow_flows SET error_flow_id = NULL WHERE user_id = ? AND error_flow_id = ?').run(workspaceId, id);
+  }
   return res.changes > 0;
 }
 
@@ -382,6 +483,10 @@ export interface EnqueueOptions {
   status?: 'queued' | 'running';
   /** Lock inicial (corridas manuales que se ejecutan en el momento). */
   lockMs?: number;
+  /** Corrida que la lanzó (sub-flow o flow de error). */
+  parentRunId?: string | null;
+  /** Corrida original (re-ejecución desde un paso). */
+  rerunOf?: string | null;
 }
 
 /** Inserta una corrida en cola. null si el workspace superó el límite. */
@@ -398,8 +503,9 @@ export async function enqueueRun(
   const status = opts.status ?? 'queued';
   await getDb()
     .prepare(
-      `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, chain_depth, chain_seen, locked_until, created_at, started_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, chain_depth, chain_seen, locked_until,
+         parent_run_id, rerun_of, created_at, started_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -411,6 +517,8 @@ export async function enqueueRun(
       chain.depth,
       JSON.stringify([...new Set([...chain.seen, flow.id])]),
       opts.lockMs ? new Date(Date.now() + opts.lockMs).toISOString() : null,
+      opts.parentRunId ?? null,
+      opts.rerunOf ?? null,
       ts,
       status === 'running' ? ts : null,
     );
@@ -473,11 +581,19 @@ export async function enqueueEventRuns(
   return ids;
 }
 
-/** Webhook entrante: encola si el token existe y el flow está habilitado. */
+/**
+ * Webhook entrante: encola si el token existe y el flow está habilitado.
+ * trigger.stripe además verifica la firma (Stripe-Signature con el secreto
+ * de la credencial) y filtra por tipo de evento; el evento queda como trigger.
+ */
 export async function enqueueWebhookRun(
   token: string,
   data: { method: string; body: unknown; query: Record<string, string>; headers: Record<string, string> },
-): Promise<{ ok: true; runId: string } | { ok: false; error: 'not_found' | 'disabled' | 'rate_limited' }> {
+  raw: { body: string; signature: string | null } = { body: '', signature: null },
+): Promise<
+  | { ok: true; runId: string | null; ignored?: boolean }
+  | { ok: false; error: 'not_found' | 'disabled' | 'rate_limited' | 'invalid_signature' }
+> {
   const hook = (await getDb()
     .prepare(
       `SELECT h.node_id, f.id, f.user_id, f.enabled, f.graph FROM flow_webhooks h
@@ -488,6 +604,19 @@ export async function enqueueWebhookRun(
   if (hook.enabled !== 1) return { ok: false, error: 'disabled' };
   const trigger = triggerNode(parseGraph(hook.graph));
   if (!trigger || trigger.id !== hook.node_id) return { ok: false, error: 'not_found' };
+  if (trigger.type === 'trigger.stripe') {
+    const { resolveCredential } = await import('./flow-credentials');
+    const { verifyStripeSignature, stripeEventAllowed } = await import('./flow-integrations');
+    const cred = await resolveCredential(hook.user_id, String(trigger.config.credentialId ?? ''));
+    const secret = cred?.type === 'stripe' ? cred.data.webhookSecret : '';
+    if (!secret || !verifyStripeSignature(raw.body, raw.signature, secret)) return { ok: false, error: 'invalid_signature' };
+    const event = (data.body && typeof data.body === 'object' ? data.body : {}) as { type?: string };
+    if (!stripeEventAllowed(trigger.config.events, String(event.type ?? ''))) return { ok: true, runId: null, ignored: true };
+    const runId = await enqueueRun({ id: hook.id, user_id: hook.user_id }, 'trigger.stripe', event);
+    if (!runId) return { ok: false, error: 'rate_limited' };
+    kickFlowWorker();
+    return { ok: true, runId };
+  }
   const runId = await enqueueRun({ id: hook.id, user_id: hook.user_id }, 'trigger.webhook', data);
   if (!runId) return { ok: false, error: 'rate_limited' };
   kickFlowWorker();

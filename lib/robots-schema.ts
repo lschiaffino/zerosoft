@@ -8,6 +8,7 @@
  * {{loop.item}} / {{loop.index}}.
  */
 import { z } from 'zod';
+import { isValidCron, isValidTimezone } from './cron';
 
 // ---------- Límites ----------
 
@@ -28,6 +29,13 @@ export const MAX_TIMEOUT_SEC = 300;
 export const DEFAULT_TIMEOUT_SEC = 120;
 /** Variables de entrada por robot. */
 export const MAX_INPUTS = 20;
+/** Archivos (download / pdf) por corrida y tamaño máximo de cada uno. */
+export const MAX_FILES = 5;
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+/** Reintentos por paso. */
+export const MAX_STEP_RETRIES = 5;
+/** Intervalo mínimo de un schedule en minutos. */
+export const MIN_SCHEDULE_MINUTES = 15;
 
 // ---------- Pasos ----------
 
@@ -43,6 +51,10 @@ export const STEP_TYPES = [
   'screenshot',
   'scroll',
   'if_exists',
+  'download',
+  'upload',
+  'pdf',
+  'evaluate',
   'loop_over',
 ] as const;
 export type RobotStepType = (typeof STEP_TYPES)[number];
@@ -51,23 +63,32 @@ const varName = z.string().trim().regex(/^[A-Za-z_][A-Za-z0-9_]{0,39}$/, 'invali
 const selector = z.string().trim().max(500);
 const template = z.string().max(2000);
 
-const gotoStep = z.object({ type: z.literal('goto'), url: template.min(1) });
+/** Reintentos opcionales de cualquier paso (cantidad + espera entre intentos). */
+const retry = {
+  retries: z.number().int().min(0).max(MAX_STEP_RETRIES).optional(),
+  retryDelayMs: z.number().int().min(0).max(30_000).optional(),
+};
+
+const gotoStep = z.object({ type: z.literal('goto'), url: template.min(1), ...retry });
 const clickStep = z.object({
   type: z.literal('click'),
   selector: selector.optional().default(''),
   text: z.string().max(200).optional().default(''),
+  ...retry,
 });
-const fillStep = z.object({ type: z.literal('fill'), selector: selector.min(1), value: template.default('') });
-const selectStep = z.object({ type: z.literal('select'), selector: selector.min(1), value: template.default('') });
+const fillStep = z.object({ type: z.literal('fill'), selector: selector.min(1), value: template.default(''), ...retry });
+const selectStep = z.object({ type: z.literal('select'), selector: selector.min(1), value: template.default(''), ...retry });
 const pressStep = z.object({
   type: z.literal('press'),
   key: z.string().trim().min(1).max(40).regex(/^[A-Za-z0-9+_ -]+$/),
   selector: selector.optional().default(''),
+  ...retry,
 });
 const waitStep = z.object({
   type: z.literal('wait'),
   ms: z.number().int().min(0).max(30_000).optional().default(0),
   selector: selector.optional().default(''),
+  ...retry,
 });
 const extractStep = z.object({
   type: z.literal('extract'),
@@ -75,14 +96,41 @@ const extractStep = z.object({
   name: varName,
   mode: z.enum(['text', 'attribute', 'all']).default('text'),
   attribute: z.string().trim().max(60).optional().default(''),
+  ...retry,
 });
-const extractTableStep = z.object({ type: z.literal('extract_table'), selector: selector.min(1), name: varName });
-const screenshotStep = z.object({ type: z.literal('screenshot'), name: varName });
+const extractTableStep = z.object({ type: z.literal('extract_table'), selector: selector.min(1), name: varName, ...retry });
+const screenshotStep = z.object({ type: z.literal('screenshot'), name: varName, ...retry });
 const scrollStep = z.object({
   type: z.literal('scroll'),
   selector: selector.optional().default(''),
   /** Píxeles a bajar; 0 = hasta el final de la página. */
   y: z.number().int().min(0).max(100_000).optional().default(0),
+  ...retry,
+});
+/** Clic que dispara una descarga: el archivo va a Blob y {{vars.<name>.url}} queda con la URL. */
+const downloadStep = z.object({
+  type: z.literal('download'),
+  selector: selector.optional().default(''),
+  text: z.string().max(200).optional().default(''),
+  name: varName,
+  ...retry,
+});
+/** Sube a un <input type="file"> un archivo bajado de una URL pública. */
+const uploadStep = z.object({
+  type: z.literal('upload'),
+  selector: selector.min(1),
+  url: template.min(1),
+  filename: z.string().max(200).optional().default(''),
+  ...retry,
+});
+/** La página actual como PDF (A4) en Blob: {{vars.<name>.url}}. */
+const pdfStep = z.object({ type: z.literal('pdf'), name: varName, ...retry });
+/** JS propio dentro de la página (cuerpo de una función async); el valor devuelto (JSON) queda en vars. */
+const evaluateStep = z.object({
+  type: z.literal('evaluate'),
+  script: z.string().min(1).max(10_000),
+  name: varName,
+  ...retry,
 });
 const ifExistsStep = z.object({
   type: z.literal('if_exists'),
@@ -107,6 +155,10 @@ const leafStep = z.discriminatedUnion('type', [
   screenshotStep,
   scrollStep,
   ifExistsStep,
+  downloadStep,
+  uploadStep,
+  pdfStep,
+  evaluateStep,
 ]);
 
 const loopStep = z.object({
@@ -132,11 +184,21 @@ export type RobotInputDef = z.infer<typeof robotInputSchema>;
 
 export const robotScheduleSchema = z
   .object({
-    mode: z.enum(['daily', 'interval']),
+    mode: z.enum(['daily', 'interval', 'cron']),
     time: z.string().regex(/^\d{1,2}:\d{2}$/).optional().default('09:00'),
     timezone: z.string().max(60).optional().default('UTC'),
-    every: z.number().int().min(1).max(168).optional().default(24),
-    unit: z.enum(['hours']).optional().default('hours'),
+    every: z.number().int().min(1).max(1440).optional().default(24),
+    unit: z.enum(['hours', 'minutes']).optional().default('hours'),
+    /** Cron de 5 campos (mode = cron), en `timezone`. */
+    cron: z.string().max(120).optional(),
+  })
+  .superRefine((s, ctx) => {
+    if (s.mode === 'interval') {
+      if (s.unit === 'minutes' && s.every < MIN_SCHEDULE_MINUTES) ctx.addIssue({ code: 'custom', path: ['every'], message: 'min_interval' });
+      if (s.unit === 'hours' && s.every > 168) ctx.addIssue({ code: 'custom', path: ['every'], message: 'max_interval' });
+    }
+    if (s.mode === 'cron' && !isValidCron(s.cron ?? '')) ctx.addIssue({ code: 'custom', path: ['cron'], message: 'invalid_cron' });
+    if (s.mode !== 'interval' && !isValidTimezone(s.timezone)) ctx.addIssue({ code: 'custom', path: ['timezone'], message: 'invalid_timezone' });
   })
   .nullable();
 export type RobotSchedule = z.infer<typeof robotScheduleSchema>;
@@ -253,6 +315,14 @@ export function defaultStep(type: RobotStepType): RobotStep {
       return { type, selector: '', y: 0 };
     case 'if_exists':
       return { type, selector: '', text: '', onMissing: 'skip', count: 1, target: 1 };
+    case 'download':
+      return { type, selector: '', text: '', name: 'file' };
+    case 'upload':
+      return { type, selector: 'input[type="file"]', url: '', filename: '' };
+    case 'pdf':
+      return { type, name: 'pdf' };
+    case 'evaluate':
+      return { type, script: 'return document.title;', name: 'result' };
     case 'loop_over':
       return { type, list: '{{inputs.urls}}', max: 10, steps: [] };
   }
@@ -274,6 +344,8 @@ export const robotUpdateSchema = z.object({
   enabled: z.boolean().optional(),
   schedule: robotScheduleSchema.optional(),
   timeoutSec: z.number().int().min(10).max(MAX_TIMEOUT_SEC).optional(),
+  /** Guardar cookies y localStorage entre corridas (cifrados). */
+  persistSession: z.boolean().optional(),
 });
 
 export const robotRunSchema = z.object({
