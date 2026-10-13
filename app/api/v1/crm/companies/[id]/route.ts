@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
-import { getCompany, updateCompany } from '@/lib/crm';
+import { getCompany, updateCompany, deleteCompany } from '@/lib/crm';
 import { companyUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
 
@@ -32,4 +32,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (company instanceof CrmRefError) return apiError(400, company.code, 'A referenced record does not exist.');
   if (!company) return apiError(404, 'not_found', 'Company not found.');
   return NextResponse.json(cleanRow(company));
+}
+
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const auth = await requireApiUser(req);
+  if ('res' in auth) return auth.res;
+  if (!(await deleteCompany(auth.user.id, params.id))) return apiError(404, 'not_found', 'Company not found.');
+  return new NextResponse(null, { status: 204 });
 }

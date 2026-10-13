@@ -40,6 +40,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'crm-contacts', titleKey: 'crmContactsTitle', descKey: 'crmContactsDesc' },
   { id: 'crm-companies', titleKey: 'crmCompaniesTitle', descKey: 'crmCompaniesDesc' },
   { id: 'crm-deals', titleKey: 'crmDealsTitle', descKey: 'crmDealsDesc' },
+  { id: 'crm-activities', titleKey: 'crmActivitiesTitle', descKey: 'crmActivitiesDesc' },
   { id: 'crm-tasks', titleKey: 'crmTasksTitle', descKey: 'crmTasksDesc' },
   { id: 'crm-pipelines', titleKey: 'crmPipelinesTitle', descKey: 'crmPipelinesDesc' },
   { id: 'cal', titleKey: 'calTitle', descKey: 'calDesc' },
@@ -189,7 +190,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     responseStatus: 200,
   },
 
-  // CRM Contacts
+  // CRM Contacts — los requests van en camelCase; las respuestas devuelven
+  // las columnas tal cual (snake_case).
   {
     id: 'contacts-list',
     sectionId: 'crm-contacts',
@@ -199,23 +201,25 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     descKey: 'contactsListDesc',
     params: [
       { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
+      { name: 'lifecycle', type: 'string', descriptionKey: 'paramLifecycleStage' },
       { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
       { name: 'pageSize', type: 'integer', descriptionKey: 'paramPageSize' },
     ],
     response: {
-      rows: [
+      contacts: [
         {
           id: 'b1f47ac2-…',
           first_name: 'Ana',
           last_name: 'Garcia',
           email: 'ana@kallpa.co',
           lifecycle_stage: 'sql',
+          company_id: null,
           created_at: '2026-07-18 10:04:11',
         },
       ],
       total: 142,
       page: 1,
-      pageSize: 10,
+      pageSize: 25,
     },
     responseStatus: 200,
   },
@@ -227,16 +231,17 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     titleKey: 'contactsCreateTitle',
     descKey: 'contactsCreateDesc',
     params: [
-      { name: 'first_name', type: 'string', descriptionKey: 'paramFirstName' },
-      { name: 'last_name', type: 'string', descriptionKey: 'paramLastName' },
+      { name: 'firstName', type: 'string', descriptionKey: 'paramFirstName' },
+      { name: 'lastName', type: 'string', descriptionKey: 'paramLastName' },
       { name: 'email', type: 'string', descriptionKey: 'paramEmail' },
-      { name: 'lifecycle_stage', type: 'string', descriptionKey: 'paramLifecycleStage' },
+      { name: 'lifecycleStage', type: 'string', descriptionKey: 'paramLifecycleStage' },
+      { name: 'companyId', type: 'string', descriptionKey: 'paramCompanyId' },
     ],
     request: {
-      first_name: 'Ana',
-      last_name: 'Garcia',
+      firstName: 'Ana',
+      lastName: 'Garcia',
       email: 'ana@kallpa.co',
-      lifecycle_stage: 'sql',
+      lifecycleStage: 'sql',
     },
     response: {
       id: 'b1f47ac2-…',
@@ -267,12 +272,22 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     descKey: 'contactsPatchDesc',
     params: [
       { name: 'id', type: 'string', required: true, descriptionKey: 'paramId' },
-      { name: 'first_name', type: 'string', descriptionKey: 'paramFirstName' },
-      { name: 'last_name', type: 'string', descriptionKey: 'paramLastName' },
-      { name: 'email', type: 'string', descriptionKey: 'paramEmail' },
+      { name: 'firstName', type: 'string', descriptionKey: 'paramFirstName' },
+      { name: 'lifecycleStage', type: 'string', descriptionKey: 'paramLifecycleStage' },
+      { name: 'companyId', type: 'string | null', descriptionKey: 'paramCompanyId' },
     ],
-    request: { lifecycle_stage: 'opportunity' },
+    request: { lifecycleStage: 'opportunity' },
     responseStatus: 200,
+  },
+  {
+    id: 'contacts-delete',
+    sectionId: 'crm-contacts',
+    method: 'DELETE',
+    path: '/api/v1/crm/contacts/{id}',
+    titleKey: 'contactsDeleteTitle',
+    descKey: 'contactsDeleteDesc',
+    params: [{ name: 'id', type: 'string', required: true, descriptionKey: 'paramId' }],
+    responseStatus: 204,
   },
 
   // CRM Companies
@@ -288,6 +303,12 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
       { name: 'pageSize', type: 'integer', descriptionKey: 'paramPageSize' },
     ],
+    response: {
+      companies: [{ id: 'c7a1…', name: 'Norte Labs', domain: 'nortelabs.co', industry: 'Software' }],
+      total: 40,
+      page: 1,
+      pageSize: 25,
+    },
     responseStatus: 200,
   },
   {
@@ -326,9 +347,20 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       { name: 'id', type: 'string', required: true, descriptionKey: 'paramId' },
       { name: 'name', type: 'string', descriptionKey: 'paramCompanyName' },
       { name: 'domain', type: 'string', descriptionKey: 'paramCompanyDomain' },
+      { name: 'industry', type: 'string', descriptionKey: 'paramCompanyIndustry' },
     ],
     request: { industry: 'Cloud infrastructure' },
     responseStatus: 200,
+  },
+  {
+    id: 'companies-delete',
+    sectionId: 'crm-companies',
+    method: 'DELETE',
+    path: '/api/v1/crm/companies/{id}',
+    titleKey: 'companiesDeleteTitle',
+    descKey: 'companiesDeleteDesc',
+    params: [{ name: 'id', type: 'string', required: true, descriptionKey: 'paramId' }],
+    responseStatus: 204,
   },
 
   // CRM Deals
@@ -341,10 +373,15 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     descKey: 'dealsListDesc',
     params: [
       { name: 'pipelineId', type: 'string', descriptionKey: 'paramPipelineId' },
-      { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
       { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
       { name: 'pageSize', type: 'integer', descriptionKey: 'paramPageSize' },
     ],
+    response: {
+      deals: [{ id: 'd9e2…', name: 'Norte Labs — New business', amount: 24000, currency: 'USD', stage_id: '{stage_id}' }],
+      total: 36,
+      page: 1,
+      pageSize: 25,
+    },
     responseStatus: 200,
   },
   {
@@ -355,12 +392,21 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     titleKey: 'dealsCreateTitle',
     descKey: 'dealsCreateDesc',
     params: [
-      { name: 'name', type: 'string', required: true, descriptionKey: 'paramDealName' },
+      { name: 'pipelineId', type: 'string', required: true, descriptionKey: 'paramPipelineId' },
+      { name: 'stageId', type: 'string', required: true, descriptionKey: 'paramStageId' },
+      { name: 'name', type: 'string', descriptionKey: 'paramDealName' },
       { name: 'amount', type: 'number', descriptionKey: 'paramDealAmount' },
       { name: 'currency', type: 'string', descriptionKey: 'paramDealCurrency' },
-      { name: 'stage_id', type: 'string', required: true, descriptionKey: 'paramStageId' },
+      { name: 'contactIds', type: 'string[]', descriptionKey: 'paramContactIds' },
     ],
-    request: { name: 'Norte Labs — New business', amount: 24000, currency: 'USD', stage_id: '{stage_id}' },
+    request: {
+      pipelineId: '{pipeline_id}',
+      stageId: '{stage_id}',
+      name: 'Norte Labs — New business',
+      amount: 24000,
+      currency: 'USD',
+      contactIds: ['{contact_id}'],
+    },
     responseStatus: 201,
   },
   {
@@ -384,10 +430,73 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       { name: 'id', type: 'string', required: true, descriptionKey: 'paramId' },
       { name: 'name', type: 'string', descriptionKey: 'paramDealName' },
       { name: 'amount', type: 'number', descriptionKey: 'paramDealAmount' },
-      { name: 'stage_id', type: 'string', descriptionKey: 'paramStageId' },
+      { name: 'addContactIds', type: 'string[]', descriptionKey: 'paramContactIds' },
     ],
-    request: { amount: 28000 },
+    request: { amount: 28000, closeDate: '2026-11-30' },
     responseStatus: 200,
+  },
+  {
+    id: 'deals-move',
+    sectionId: 'crm-deals',
+    method: 'POST',
+    path: '/api/v1/crm/deals/{id}/move',
+    titleKey: 'dealsMoveTitle',
+    descKey: 'dealsMoveDesc',
+    params: [
+      { name: 'id', type: 'string', required: true, descriptionKey: 'paramId' },
+      { name: 'stageId', type: 'string', required: true, descriptionKey: 'paramStageId' },
+      { name: 'lostReason', type: 'string', descriptionKey: 'paramLostReason' },
+    ],
+    request: { stageId: '{stage_id}' },
+    responseStatus: 200,
+  },
+  {
+    id: 'deals-delete',
+    sectionId: 'crm-deals',
+    method: 'DELETE',
+    path: '/api/v1/crm/deals/{id}',
+    titleKey: 'dealsDeleteTitle',
+    descKey: 'dealsDeleteDesc',
+    params: [{ name: 'id', type: 'string', required: true, descriptionKey: 'paramId' }],
+    responseStatus: 204,
+  },
+
+  // CRM Activities (timeline)
+  {
+    id: 'activities-list',
+    sectionId: 'crm-activities',
+    method: 'GET',
+    path: '/api/v1/crm/activities',
+    titleKey: 'activitiesListTitle',
+    descKey: 'activitiesListDesc',
+    params: [
+      { name: 'contactId | companyId | dealId', type: 'string', required: true, descriptionKey: 'paramRecordFilter' },
+      { name: 'type', type: 'note | task | call | meeting | email', descriptionKey: 'paramActivityType' },
+      { name: 'limit', type: 'integer', descriptionKey: 'paramPageSize' },
+    ],
+    response: {
+      activities: [
+        { id: 'a12…', type: 'meeting', subject: 'Intro call', due_at: '2026-11-03 13:00:00', duration_min: 30, contact_id: '{contact_id}' },
+      ],
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'activities-create',
+    sectionId: 'crm-activities',
+    method: 'POST',
+    path: '/api/v1/crm/activities',
+    titleKey: 'activitiesCreateTitle',
+    descKey: 'activitiesCreateDesc',
+    params: [
+      { name: 'type', type: 'note | call | meeting | email', required: true, descriptionKey: 'paramActivityType' },
+      { name: 'subject', type: 'string', descriptionKey: 'paramTaskSubject' },
+      { name: 'body', type: 'string', descriptionKey: 'paramActivityBody' },
+      { name: 'contactId', type: 'string', descriptionKey: 'paramContactId' },
+      { name: 'dealId', type: 'string', descriptionKey: 'paramDealId' },
+    ],
+    request: { type: 'call', subject: 'Discovery call', body: 'Budget approved for Q1.', durationMin: 25, contactId: '{contact_id}' },
+    responseStatus: 201,
   },
 
   // CRM Tasks
@@ -399,7 +508,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     titleKey: 'tasksListTitle',
     descKey: 'tasksListDesc',
     params: [
-      { name: 'bucket', type: 'string', descriptionKey: 'paramTaskBucket' },
+      { name: 'bucket', type: 'overdue | today | upcoming | done', descriptionKey: 'paramTaskBucket' },
       { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
       { name: 'pageSize', type: 'integer', descriptionKey: 'paramPageSize' },
     ],
@@ -414,12 +523,12 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     descKey: 'tasksCreateDesc',
     params: [
       { name: 'subject', type: 'string', required: true, descriptionKey: 'paramTaskSubject' },
-      { name: 'due_at', type: 'string (ISO)', descriptionKey: 'paramTaskDueAt' },
-      { name: 'contact_id', type: 'string', descriptionKey: 'paramContactId' },
-      { name: 'company_id', type: 'string', descriptionKey: 'paramCompanyId' },
-      { name: 'deal_id', type: 'string', descriptionKey: 'paramDealId' },
+      { name: 'dueAt', type: 'string (ISO 8601)', descriptionKey: 'paramTaskDueAt' },
+      { name: 'contactId', type: 'string', descriptionKey: 'paramContactId' },
+      { name: 'companyId', type: 'string', descriptionKey: 'paramCompanyId' },
+      { name: 'dealId', type: 'string', descriptionKey: 'paramDealId' },
     ],
-    request: { subject: 'Follow-up call', due_at: '2026-07-25T15:00:00Z', deal_id: '{deal_id}' },
+    request: { subject: 'Follow-up call', dueAt: '2026-07-25T15:00:00Z', dealId: '{deal_id}' },
     responseStatus: 201,
   },
   {

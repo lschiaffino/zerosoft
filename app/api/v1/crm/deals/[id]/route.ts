@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
-import { getDeal, updateDeal } from '@/lib/crm';
+import { getDeal, updateDeal, deleteDeal } from '@/lib/crm';
 import { dealUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
 
@@ -32,4 +32,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (deal instanceof CrmRefError) return apiError(400, deal.code, 'A referenced record does not exist.');
   if (!deal) return apiError(404, 'not_found', 'Deal not found.');
   return NextResponse.json(cleanRow(deal));
+}
+
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const auth = await requireApiUser(req);
+  if ('res' in auth) return auth.res;
+  if (!(await deleteDeal(auth.user.id, params.id))) return apiError(404, 'not_found', 'Deal not found.');
+  return new NextResponse(null, { status: 204 });
 }

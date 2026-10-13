@@ -1519,3 +1519,5 @@
 .chat-sla-input {
   width: 110px;
 }
+.chat-visitor-crm { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.chat-visitor-crm-hint { font-size: 11px; }

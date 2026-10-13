@@ -49,6 +49,11 @@ export default function ApiDocsLayout() {
             <span className="dim">{t('titleDim')}</span>
           </h1>
           <p className="doc-intro">{t('intro')}</p>
+          <p className="doc-intro">
+            <a className="btn btn-ghost btn-small" href="/api/v1/openapi.json" download="zerosoft-openapi.json">
+              {t('openapiCta')}
+            </a>
+          </p>
         </section>
 
         <div className="api-docs-body">

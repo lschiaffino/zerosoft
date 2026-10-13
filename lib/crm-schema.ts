@@ -31,10 +31,24 @@ const currency = z
   .string()
   .trim()
   .regex(/^[A-Za-z]{3}$/, { message: 'invalid_currency' });
+/**
+ * Fecha 'YYYY-MM-DD' o fecha-hora. Acepta ISO 8601 con zona (Z o ±hh:mm, como
+ * lo manda cualquier cliente de la API) y lo guarda en UTC 'YYYY-MM-DD HH:MM:SS',
+ * el formato de la DB, para que ordenar y comparar fechas siga funcionando.
+ */
 const isoDate = z
   .string()
   .trim()
-  .regex(/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?$/, { message: 'invalid_date' });
+  .regex(/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/, { message: 'invalid_date' })
+  .transform((v, ctx) => {
+    if (!/(Z|[+-]\d{2}:?\d{2})$/.test(v) || v.length <= 10) return v.replace('T', ' ');
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'invalid_date' });
+      return z.NEVER;
+    }
+    return d.toISOString().slice(0, 19).replace('T', ' ');
+  });
 
 const lifecycleStage = z.enum(LIFECYCLE_STAGES);
 const leadStatus = z.enum(LEAD_STATUSES);

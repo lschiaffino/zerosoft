@@ -113,7 +113,12 @@
     "widget": "Widget",
     "crmContact": "Contacto CRM",
     "notes": "Notas",
-    "csat": "CSAT"
+    "csat": "CSAT",
+    "createContact": "Crear contacto en el CRM",
+    "logToCrm": "Guardar conversación en el CRM",
+    "loggedToCrm": "Guardada en el timeline del contacto ✓",
+    "crmError": "No se pudo guardar en el CRM. Probá de nuevo.",
+    "needsEmail": "Pedile un email para crear el contacto en el CRM."
   },
   "priorities": {
     "low": "Baja",

@@ -22,6 +22,23 @@ export default function VisitorPanel({ conversation, onToggleResolved }: Visitor
   const t = useTranslations('chat');
   const locale = useLocale();
   const [collapsed, setCollapsed] = useState(false);
+  const [crmBusy, setCrmBusy] = useState(false);
+  const [linkedId, setLinkedId] = useState<string | null>(null);
+  const [crmNotice, setCrmNotice] = useState<string | null>(null);
+
+  async function sendToCrm() {
+    setCrmBusy(true);
+    setCrmNotice(null);
+    const res = await fetch(`/api/chat/conversations/${conversation.id}/crm`, { method: 'POST' }).catch(() => null);
+    setCrmBusy(false);
+    const data = res ? ((await res.json().catch(() => null)) as { contactId?: string } | null) : null;
+    if (res?.ok && data?.contactId) {
+      setLinkedId(data.contactId);
+      setCrmNotice(t('visitorPanel.loggedToCrm'));
+    } else {
+      setCrmNotice(t('visitorPanel.crmError'));
+    }
+  }
 
   const visitor = conversation.visitor;
   const contact = conversation.crm_contact;
@@ -75,19 +92,26 @@ export default function VisitorPanel({ conversation, onToggleResolved }: Visitor
           </div>
         </dl>
 
-        {contact && (
-          <div className="chat-visitor-crm">
-            <p className="mono muted">{t('visitorPanel.crmContact')}</p>
-            <Link
-              href={`/app/crm/contacts/${contact.id}`}
-              className="chat-visitor-crm-link"
-            >
-              {contact.first_name || contact.last_name
-                ? `${contact.first_name} ${contact.last_name}`.trim()
-                : contact.email}
+        <div className="chat-visitor-crm">
+          <p className="mono muted">{t('visitorPanel.crmContact')}</p>
+          {contact || linkedId ? (
+            <Link href={`/app/crm/contacts/${contact?.id ?? linkedId}`} className="chat-visitor-crm-link">
+              {contact
+                ? contact.first_name || contact.last_name
+                  ? `${contact.first_name} ${contact.last_name}`.trim()
+                  : contact.email
+                : visitor.name || visitor.email}
             </Link>
-          </div>
-        )}
+          ) : null}
+          {visitor.email ? (
+            <button type="button" className="btn btn-ghost btn-small" disabled={crmBusy} onClick={sendToCrm}>
+              {contact || linkedId ? t('visitorPanel.logToCrm') : t('visitorPanel.createContact')}
+            </button>
+          ) : (
+            !contact && <p className="muted chat-visitor-crm-hint">{t('visitorPanel.needsEmail')}</p>
+          )}
+          {crmNotice && <p className="mono muted chat-visitor-crm-hint">{crmNotice}</p>}
+        </div>
 
         <div className="chat-visitor-props">
           <p className="chat-visitor-props-title mono muted">{t('conversation.subject')}</p>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
-import { getContact, updateContact } from '@/lib/crm';
+import { getContact, updateContact, deleteContact } from '@/lib/crm';
 import { contactUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
 
@@ -32,4 +32,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (contact instanceof CrmRefError) return apiError(400, contact.code, 'A referenced record does not exist.');
   if (!contact) return apiError(404, 'not_found', 'Contact not found.');
   return NextResponse.json(cleanRow(contact));
+}
+
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const auth = await requireApiUser(req);
+  if ('res' in auth) return auth.res;
+  if (!(await deleteContact(auth.user.id, params.id))) return apiError(404, 'not_found', 'Contact not found.');
+  return new NextResponse(null, { status: 204 });
 }

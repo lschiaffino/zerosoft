@@ -511,6 +511,7 @@
       "deal_lost": "Deal lost",
       "task_due": "Task due",
       "email_received": "Email received",
+      "meeting_booked": "Meeting booked (Cal)",
       "manual": "Manual"
     },
     "actionTypes": {

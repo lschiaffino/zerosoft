@@ -174,3 +174,26 @@ test('CRM: contacto → deal en el board → nota en el timeline', async ({ requ
   await page.goto(`/en/app/crm/deals?pipeline=${pipeline.id}`);
   await expect(page.getByText(`Deal ${tag}`).first()).toBeVisible();
 });
+
+test('Cal → CRM: reservar crea el contacto con la reunión en su timeline', async ({ request, page }) => {
+  const tag = uid();
+  const email = `cal-${tag}@example.com`;
+  const et = await request.post('/api/calendar/event-types', {
+    data: { slug: `crm-${tag}`, title: `Demo ${tag}`, durationMin: 30, active: true },
+  });
+  const eventType = await et.json();
+  const rules = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, startTime: '09:00', endTime: '17:00' }));
+  await request.post(`/api/calendar/event-types/${eventType.id}/availability`, { data: { rules } });
+  const day = new Date(Date.now() + 4 * 86_400_000).toISOString().slice(0, 10);
+  const { slots } = await (await request.get(`/api/calendar/event-types/${eventType.id}/slots?date=${day}&timezone=UTC`)).json();
+  const booking = await request.post('/api/calendar/bookings', {
+    data: { eventTypeId: eventType.id, email, name: 'Rita Gómez', start: slots[0].start, timezone: 'UTC' },
+  });
+  expect(booking.status()).toBe(201);
+
+  const list = await (await request.get(`/api/crm/contacts?q=${encodeURIComponent(email)}`)).json();
+  expect(list.rows).toHaveLength(1);
+  const contactId = list.rows[0].id;
+  await page.goto(`/en/app/crm/contacts/${contactId}`);
+  await expect(page.getByText(`Demo ${tag}`).first()).toBeVisible();
+});
