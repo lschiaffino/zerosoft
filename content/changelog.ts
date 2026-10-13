@@ -26,6 +26,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-app-fixes',
+    date: '2026-10-13',
+    title: {
+      en: 'Faster everyday work across the apps',
+      es: 'Menos clics en el día a día de las apps',
+      pt: 'Menos cliques no dia a dia dos apps',
+    },
+    items: [
+      { product: 'track', en: 'Cycles from the UI: create, edit, see progress and complete them, moving unfinished issues to the next cycle. Workflow statuses are managed in project settings. Sub-issues and projects are created in a modal; C, J/K and Enter work across Track, and Track actions are in ⌘K.', es: 'Ciclos desde la interfaz: crearlos, editarlos, ver el progreso y completarlos pasando lo pendiente al siguiente. Los estados se gestionan en la configuración del proyecto. Sub-issues y proyectos se crean en un modal; C, J/K y Enter funcionan en todo Track, y sus acciones están en ⌘K.', pt: 'Ciclos pela interface: criar, editar, ver o progresso e concluir passando o pendente para o próximo. Os status são gerenciados nas configurações do projeto. Sub-issues e projetos são criados em um modal; C, J/K e Enter funcionam em todo o Track, e suas ações estão no ⌘K.' },
+      { product: 'link', en: 'Select several links to archive, tag or delete them at once. Editing a link opens a side panel.', es: 'Seleccioná varios links para archivarlos, etiquetarlos o borrarlos de una vez. Editar un link abre un panel lateral.', pt: 'Selecione vários links para arquivar, etiquetar ou excluir de uma vez. Editar um link abre um painel lateral.' },
+      { product: 'crm', en: 'From a company you create deals and contacts without leaving the page. New workflows start from a modal. Fixed activities by owner and funnel conversion in reports.', es: 'Desde una empresa creás negocios y contactos sin salir de la página. Los workflows nuevos arrancan desde un modal. Se corrigieron las actividades por responsable y la conversión del embudo en reportes.', pt: 'A partir de uma empresa você cria negócios e contatos sem sair da página. Novos workflows começam em um modal. Corrigidas as atividades por responsável e a conversão do funil nos relatórios.' },
+      { product: 'docs', en: 'Reorder pages by dragging above or below, or with Alt+↑/↓. Small text and full width are saved per page. Emoji search by name.', es: 'Reordená páginas arrastrando arriba o abajo, o con Alt+↑/↓. Texto chico y ancho completo se guardan por página. Búsqueda de emoji por nombre.', pt: 'Reordene páginas arrastando acima ou abaixo, ou com Alt+↑/↓. Texto pequeno e largura total ficam salvos por página. Busca de emoji por nome.' },
+      { product: 'chat', en: 'Reports have their own section.', es: 'Los reportes tienen su propia sección.', pt: 'Os relatórios têm sua própria seção.' },
+    ],
+  },
+  {
     id: '2026-10-13-design-zeros',
     date: '2026-10-13',
     title: {
