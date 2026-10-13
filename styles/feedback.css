@@ -1,0 +1,175 @@
+/* ---------- Feedback: formulario (modal de la app y página pública) ---------- */
+
+.fb-form { display: flex; flex-direction: column; gap: 18px; }
+
+.fb-field { display: flex; flex-direction: column; position: relative; }
+.fb-field .label { margin-bottom: 8px; }
+
+.fb-kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+.fb-kind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.fb-kind:hover { border-color: var(--ink); }
+.fb-kind.active { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.fb-kind:focus-visible { outline: 2px solid var(--accent, var(--ink)); outline-offset: 2px; }
+
+/* Glifos geométricos por tipo: idea = círculo, bug = cuadrado, otro = rombo */
+.fb-kind-glyph { width: 8px; height: 8px; border: 1.5px solid currentColor; flex-shrink: 0; }
+.fb-kind-idea { border-radius: 50%; border-color: var(--warn); background: var(--warn); }
+.fb-kind-bug { border-radius: 2px; border-color: var(--bad); background: var(--bad); }
+.fb-kind-other { transform: rotate(45deg); border-radius: 1px; }
+
+.fb-select-wrap { position: relative; display: block; }
+.fb-select-wrap::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--dot);
+  pointer-events: none;
+}
+.fb-select-wrap .select { padding-left: 32px; }
+
+.fb-textarea { resize: vertical; min-height: 120px; line-height: 1.55; font-size: 13px; }
+
+.fb-count {
+  align-self: flex-end;
+  margin-top: 6px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+.fb-hint { font-size: 11px; color: var(--dim); letter-spacing: 0.02em; margin-top: 6px; line-height: 1.5; }
+.fb-form > .fb-hint { margin-top: -6px; }
+
+.fb-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+.fb-error {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--bad);
+  border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent);
+  background: color-mix(in srgb, var(--bad) 6%, transparent);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.fb-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
+.fb-success { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 6px 0; }
+
+.fb-success-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--ok);
+  color: var(--ok);
+  font-family: var(--mono);
+  font-size: 16px;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--ok) 12%, transparent);
+}
+
+.fb-success-title { font-size: 1.25rem; font-weight: 500; letter-spacing: -0.01em; }
+.fb-success-body { font-size: 0.95rem; line-height: 1.6; color: #4a4a4a; max-width: 46ch; }
+.fb-success .fb-actions { justify-content: flex-start; margin-top: 6px; }
+
+/* ---------- Modal en la app ---------- */
+
+.fb-modal { width: min(500px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; }
+.fb-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.fb-modal-sub { font-size: 13px; line-height: 1.55; color: #5a5a5a; margin-top: 6px; }
+
+.fb-modal-x {
+  border: none;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--dim);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.fb-modal-x:hover { color: var(--ink); background: #f5f5f5; }
+
+button.side-link {
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* ---------- Página pública /feedback ---------- */
+
+.fb-page { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: 56px; align-items: start; padding-bottom: 140px; }
+
+.fb-page-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 32px;
+  background: var(--bg);
+}
+
+.fb-aside { display: flex; flex-direction: column; gap: 22px; padding-top: 8px; }
+.fb-aside-title { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--dim); }
+.fb-aside ol { list-style: none; display: flex; flex-direction: column; gap: 18px; counter-reset: fb; }
+.fb-aside li {
+  counter-increment: fb;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: #4a4a4a;
+}
+.fb-aside li::before {
+  content: counter(fb, decimal-leading-zero);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  padding-top: 4px;
+}
+.fb-aside-link { font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; border-bottom: 1px solid var(--ink); align-self: flex-start; padding-bottom: 2px; }
+
+@media (max-width: 860px) {
+  .fb-page { grid-template-columns: 1fr; gap: 40px; }
+  .fb-page-card { padding: 22px 18px; }
+}
+
+/* ---------- Listado del owner ---------- */
+
+.fb-admin-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.fb-admin-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.fb-admin-row { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+.fb-admin-row:last-child { border-bottom: none; }
+.fb-admin-row.is-new { box-shadow: inset 3px 0 0 var(--accent, var(--ink)); }
+.fb-admin-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: 0.03em; }
+.fb-admin-tag { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); text-transform: uppercase; letter-spacing: 0.1em; font-size: 10px; }
+.fb-admin-tag i { width: 7px; height: 7px; border-radius: 50%; background: var(--dot, var(--dim)); display: inline-block; }
+.fb-admin-msg { white-space: pre-wrap; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.fb-admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.fb-admin-actions .btn { padding: 6px 12px; font-size: 10px; }
+.fb-admin-url { overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }

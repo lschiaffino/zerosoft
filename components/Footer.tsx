@@ -36,6 +36,7 @@ export default async function Footer({ locale }: { locale: string }) {
           <ul>
             <li><Link href="/docs">Docs</Link></li>
             <li><Link href="/blog">Blog</Link></li>
+            <li><Link href="/changelog">{t('changelog')}</Link></li>
             <li><Link href="/status">Status</Link></li>
           </ul>
         </div>
@@ -44,6 +45,7 @@ export default async function Footer({ locale }: { locale: string }) {
           <h4>{t('colCompany')}</h4>
           <ul>
             <li><Link href="/#manifiesto">{t('manifesto')}</Link></li>
+            <li><Link href="/feedback">{t('feedback')}</Link></li>
             <li><a href="mailto:hola@zerosoft.ai">{t('contact')}</a></li>
           </ul>
         </div>

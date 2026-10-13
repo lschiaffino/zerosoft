@@ -1,0 +1,168 @@
+/* ---------- Changelog público ---------- */
+
+.cl-main { padding-bottom: 140px; }
+
+.cl-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 34px; }
+.cl-hero-actions .btn { display: inline-flex; align-items: center; gap: 10px; }
+
+/* Glifo de feed: un cero con dos arcos (sin ícono RSS de marca) */
+.cl-feed-glyph {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent);
+}
+
+/* Filtros por producto */
+.cl-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 28px;
+  margin-bottom: 56px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.cl-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--dot); display: inline-block; }
+.cl-chip:hover { border-color: var(--ink); }
+.cl-chip.active { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.cl-chip.active i { box-shadow: 0 0 0 1.5px var(--bg); }
+
+.cl-count { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: 0.06em; }
+
+/* Timeline: fecha | nodo | tarjeta */
+.cl-list { list-style: none; position: relative; display: flex; flex-direction: column; gap: 40px; }
+
+.cl-list::before {
+  content: '';
+  position: absolute;
+  left: 159px;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background: var(--line);
+}
+
+.cl-entry {
+  display: grid;
+  grid-template-columns: 130px 20px minmax(0, 1fr);
+  column-gap: 20px;
+  align-items: start;
+  scroll-margin-top: 110px;
+}
+
+.cl-date { position: sticky; top: 100px; padding-top: 22px; text-align: right; }
+.cl-date time { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.cl-day { font-size: 2.2rem; font-weight: 500; letter-spacing: -0.03em; line-height: 1; }
+.cl-month { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+
+.cl-node {
+  position: relative;
+  z-index: 1;
+  margin-top: 30px;
+  justify-self: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+  background: var(--bg);
+}
+
+.cl-entry:first-child .cl-node { background: var(--ink); box-shadow: 0 0 0 5px rgba(13, 13, 13, 0.08); }
+.cl-entry:target .cl-card { border-color: var(--ink); }
+
+.cl-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 26px 30px 28px;
+  background: var(--bg);
+  transition: border-color 0.25s;
+}
+
+.cl-card:hover { border-color: #cfcfcf; }
+
+.cl-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.cl-dots { display: inline-flex; gap: 5px; }
+.cl-dots i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.cl-anchor { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; opacity: 0; transition: opacity 0.2s; }
+.cl-card:hover .cl-anchor, .cl-anchor:focus-visible { opacity: 1; }
+
+.cl-title { font-size: clamp(1.3rem, 2.2vw, 1.65rem); font-weight: 500; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+
+.cl-items { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+
+.cl-items li {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 14px;
+  align-items: baseline;
+  font-size: 0.97rem;
+  line-height: 1.6;
+  color: #3d3d3d;
+}
+
+.cl-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.cl-tag i { width: 7px; height: 7px; border-radius: 50%; background: var(--dot); display: inline-block; flex-shrink: 0; transform: translateY(-1px); }
+
+.cl-end { margin-top: 44px; padding-left: 170px; font-size: 11px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
+
+.cl-cta {
+  margin-top: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  border: 1px solid var(--ink);
+  border-radius: 14px;
+  padding: 30px 32px;
+}
+
+.cl-cta-title { font-size: 1.4rem; font-weight: 500; letter-spacing: -0.02em; }
+.cl-cta-body { margin-top: 6px; color: #4a4a4a; font-size: 0.98rem; line-height: 1.55; }
+
+@media (max-width: 860px) {
+  .cl-list::before { left: 5px; }
+  .cl-entry { grid-template-columns: 11px minmax(0, 1fr); column-gap: 16px; row-gap: 10px; }
+  .cl-date { grid-column: 2; grid-row: 1; position: static; padding-top: 0; text-align: left; }
+  .cl-date time { flex-direction: row; align-items: baseline; gap: 10px; }
+  .cl-day { font-size: 1.5rem; }
+  .cl-node { grid-column: 1; grid-row: 1; margin-top: 8px; }
+  .cl-card { grid-column: 2; padding: 20px 18px 22px; }
+  .cl-items li { grid-template-columns: 1fr; gap: 2px; font-size: 0.92rem; }
+  .cl-end { padding-left: 27px; }
+  /* Filtros en una fila con scroll horizontal (sin scroll de la página) */
+  .cl-filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-bottom: 36px; padding-bottom: 20px; }
+  .cl-filters::-webkit-scrollbar { display: none; }
+  .cl-chip { flex-shrink: 0; }
+  .cl-count { display: none; }
+  .cl-anchor { display: none; }
+}
