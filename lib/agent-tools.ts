@@ -26,6 +26,8 @@ export interface AgentRunContext {
   toolCalls: AgentToolCallDto[];
   /** Se marca cuando el agente deriva a un humano. */
   handoff: boolean;
+  /** Todo lo que escribió el visitante en esta conversación (para validar datos que dice ser suyos). */
+  visitorText?: string;
 }
 
 type ToolOutput = Record<string, unknown>;
@@ -193,6 +195,11 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
         inputSchema: z.object({ email: z.string().trim().max(200) }),
         execute: logged(ctx, 'crm_find_contact', async ({ email }: { email: string }) => {
           if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
+          // Solo el email que el propio visitante escribió: evita usar al agente
+          // para averiguar si un email cualquiera está en el CRM.
+          if (ctx.channel !== 'playground' && !(ctx.visitorText ?? '').toLowerCase().includes(email.toLowerCase())) {
+            return { error: 'email_not_given_by_visitor' };
+          }
           const c = await findContact(workspaceId, email);
           if (!c) return { found: false };
           return { found: true, contactId: c.id, firstName: c.first_name, lifecycleStage: c.lifecycle_stage };

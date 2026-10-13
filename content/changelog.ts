@@ -26,6 +26,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-agents',
+    date: '2026-10-13',
+    title: {
+      en: 'Agents: AI agents that answer and take action',
+      es: 'Agents: agentes de IA que responden y actúan',
+      pt: 'Agents: agentes de IA que respondem e agem',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'New app: Agents, an open-source alternative to Intercom Fin. Give an agent instructions and knowledge (your Docs and web pages), and tools across the suite: search knowledge, save leads to the CRM, offer times and book meetings in Cal, create Track issues, run Flow automations and hand off to a person.',
+        es: 'App nueva: Agents, una alternativa open source a Intercom Fin. Dale a un agente instrucciones, conocimiento (tus Docs y páginas web) y herramientas de toda la suite: buscar en el conocimiento, guardar leads en el CRM, ofrecer horarios y agendar en Cal, crear issues en Track, correr automatizaciones de Flow y derivar a una persona.',
+        pt: 'App novo: Agents, uma alternativa open source ao Intercom Fin. Dê a um agente instruções, conhecimento (seus Docs e páginas web) e ferramentas de toda a suíte: buscar no conhecimento, salvar leads no CRM, oferecer horários e agendar no Cal, criar issues no Track, rodar automações do Flow e transferir para uma pessoa.',
+      },
+      {
+        product: 'chat',
+        en: 'Put an agent on any Chat widget, share it as a public page at zerosoft.ai/a/<handle>, or call it from the API. Test it in a playground that shows every tool call.',
+        es: 'Poné un agente en cualquier widget de Chat, compartilo como página pública en zerosoft.ai/a/<handle> o llamalo desde la API. Probalo en un playground que muestra cada herramienta que usa.',
+        pt: 'Coloque um agente em qualquer widget do Chat, compartilhe como página pública em zerosoft.ai/a/<handle> ou chame pela API. Teste num playground que mostra cada ferramenta que ele usa.',
+      },
+    ],
+  },
+  {
     id: '2026-10-13-tools',
     date: '2026-10-13',
     title: {

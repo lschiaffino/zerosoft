@@ -882,6 +882,15 @@ export const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    // Agents salió: su ítem del roadmap pasa a "hecho".
+    id: '019_agents_roadmap_done',
+    async up(client) {
+      await client.execute(
+        "UPDATE roadmap_items SET status = 'done', updated_at = datetime('now') WHERE id = 'rm_seed_agents' AND status IN ('planned', 'in_progress')",
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

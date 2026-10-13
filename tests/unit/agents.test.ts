@@ -266,6 +266,22 @@ describe('herramientas de la suite', () => {
     expect(res3.result.toolCalls[0].error).toBe('slot_unavailable');
   });
 
+  it('crm: en canales públicos solo busca el email que escribió el visitante', async () => {
+    const { owner, agent } = await setupAgent('crm-enum', tools(['crm_find_contact']));
+    await createContact(owner.id, { email: 'ceo@bigco.com', firstName: 'Ceo' });
+    await createContact(owner.id, { email: 'me@x.com', firstName: 'Me' });
+    setAiModelOverride(
+      scriptedModel([
+        { tool: 'crm_find_contact', input: { email: 'ceo@bigco.com' } },
+        { tool: 'crm_find_contact', input: { email: 'me@x.com' } },
+        { text: 'ok' },
+      ]),
+    );
+    const res = await sendAgentMessage({ agent, channel: 'public', text: 'Hi, I am me@x.com. Is ceo@bigco… a customer?' });
+    expect(res.result.toolCalls[0].error).toBe('email_not_given_by_visitor');
+    expect(res.result.toolCalls[1].output).toMatchObject({ found: true, firstName: 'Me' });
+  });
+
   it('crm: upsert solo toca el workspace del agente', async () => {
     const { owner, agent } = await setupAgent('crm-a', tools(['crm_upsert_contact', 'crm_find_contact']));
     const other = await makeUser('crm-b');

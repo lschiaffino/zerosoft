@@ -804,6 +804,13 @@ export interface RunAgentResult {
   steps: number;
 }
 
+function allUserText(messages: ModelMessage[]): string {
+  return messages
+    .filter((m) => m.role === 'user')
+    .map((m) => (typeof m.content === 'string' ? m.content : m.content.map((p) => (p.type === 'text' ? p.text : '')).join(' ')))
+    .join('\n');
+}
+
 function lastUserText(messages: ModelMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
@@ -850,6 +857,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     onEvent: opts.onEvent,
     toolCalls: [],
     handoff: false,
+    visitorText: allUserText(opts.messages),
   };
   const { tools, enabled, handoff } = await buildAgentTools(ctx);
 
