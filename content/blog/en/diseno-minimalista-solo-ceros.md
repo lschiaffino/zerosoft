@@ -1,21 +1,21 @@
 ---
-title: "Minimalist design: only zeros"
-description: "Our site has no colors, no stock photos, no gradient hero. It has one giant zero made of zeros. That's an engineering decision, not an aesthetic one."
+title: "Why our site is mostly zeros"
+description: "No stock photos, no gradients, one large zero made of zeros. The design follows the same rule as the pricing: nothing we don't need."
 date: "2026-06-04"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["design", "manifesto", "identity"]
 ---
 
-The first time you land on zerosoftware.ai you see a white screen with a black zero in the middle. No animated hamburger menu, no logo carousel, no purple gradient. A zero.
+The first time you land on zerosoftware.ai you see a white screen with a black zero in the middle. That's the whole hero.
 
-It's not a landing page under construction. It's the finished site. And every decision we made there says the same thing our business model says.
+That's the finished site. And every decision we made there says the same thing our business model says.
 
 ## The zero is the roadmap
 
 For us the zero is not a logo. It's the entire product specification:
 
 - **Software at $0.** Everything we build is open source. Download it, audit it, host it. It costs zero because bits cost zero.
-- **Zero margin.** If you'd rather we run it, you pay what the cloud charges. Not a penny more. Not a penny less.
+- **Zero seats billed.** If you'd rather we run it, you pay for usage per workspace, never per person.
 - **Zero lock-in.** Your data and your code leave whenever you want. The door has no key.
 
 When your business model fits in a single glyph, you don't need twenty slides to explain it. The whole site is one sentence.
@@ -42,6 +42,6 @@ Most software sites are decoration: layers of animations, illustrations and test
 
 Fewer things on screen means fewer things to load, fewer things to break, fewer things tracking you. The page weighs about as much as a text file. It loads instantly on any connection. And there's not a single pixel there to convince you of something the numbers don't say.
 
-The zero is not Pinterest minimalism. It's a contract: everything we promise fits in that symbol. Software at $0, zero margin, zero lock-in.
+The zero is not Pinterest minimalism. It's a contract: everything we promise fits in that symbol. Software at $0, no per-seat billing, and data you can take with you.
 
 If a company dares to put its business model on the front page, in a single character, it's at least worth listening to.

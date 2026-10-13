@@ -1,91 +1,76 @@
 ---
-title: "Zerosoft CRM vs. HubSpot: una comparación honesta"
-description: "Dónde HubSpot está muy adelante, dónde Zerosoft CRM se defiende y quién debería quedarse donde está. Una comparación que admite los huecos en vez de esconderlos."
+title: "CRM vs. HubSpot: qué hace cada uno hoy"
+description: "Dónde HubSpot está adelante (marketing, integraciones, IA, apps móviles), qué hace hoy el CRM de zerosoft (secuencias, cotizaciones, formularios, lead scoring, API) y quién debería quedarse donde está."
 date: "2026-10-05"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "hubspot", "comparativa"]
 ---
 
-HubSpot no es un CRM. Es una plataforma de marketing, ventas, soporte y contenido con un CRM en el medio, construida durante casi dos décadas por una empresa muy grande. Zerosoft CRM es un CRM: contactos, empresas, deals, tareas y los reportes alrededor. Compararlos feature por feature sería injusto para nosotros y deshonesto para vos, así que vamos a hacer otra cosa: decir claramente dónde gana HubSpot, qué hace hoy Zerosoft CRM y quién debería elegir cuál.
+HubSpot es una plataforma de marketing, ventas, soporte y contenido con un CRM en el medio, construida durante casi dos décadas por una empresa grande. El CRM de zerosoft es un CRM de ventas: contactos, empresas, deals, email, tareas y reportes. Este post dice dónde gana HubSpot, qué hace hoy nuestro CRM y quién debería elegir cuál.
 
 ## La versión corta
 
-- **Quedate en HubSpot** si tu marketing pasa por el CRM: campañas de email, secuencias, tracking de aperturas, formularios en tu sitio, lead scoring. O si necesitás cotizaciones, un marketplace grande de integraciones, funciones de IA o apps móviles.
-- **Mirá Zerosoft CRM** si lo que realmente usás es el pipeline, las fichas de contacto y algunos reportes, estás pagando asientos y planes que no tocás, y preferís ser dueño de la base, la API y el código.
+- **Quedate en HubSpot** si tu marketing pasa por el CRM (campañas masivas, landing pages, nurturing según el comportamiento en tu sitio), si dependés de su marketplace de integraciones o de sus apps móviles, o si necesitás SSO y audit logs hoy.
+- **Mirá el CRM de zerosoft** si usás el pipeline, las fichas, el email de ventas y los reportes, pagás asientos que no aprovechás y preferís ser dueño de la base, la API y el código.
 
-## Dónde HubSpot está muy adelante
+## Dónde HubSpot está adelante
 
-Esta es la sección larga, a propósito.
+**Marketing.** Campañas de email masivas, landing pages, flujos de nurturing y segmentación por comportamiento web. Nuestro CRM no tiene módulo de marketing: tiene formularios de captura y secuencias de ventas uno a uno.
 
-**Automatización de marketing.** HubSpot puede manejar toda tu operación de marketing: campañas, flujos de nurturing, landing pages, segmentación según el comportamiento en tu sitio. Zerosoft CRM no tiene módulo de marketing. Nuestros workflows pueden mandar un email cuando le pasa algo a un registro, pero es un email automático suelto, no una herramienta de campañas.
+**Email.** HubSpot conecta Gmail y Outlook. Nosotros, solo Gmail, y conectarlo requiere que Google verifique la app para los permisos de lectura y envío; hasta entonces solo funciona con usuarios de prueba. Las secuencias corren desde un cron por hora, así que un paso sale dentro de la hora en que vence.
 
-**Secuencias y plantillas de email.** Secuencias de venta de varios pasos que se cortan cuando el prospecto responde, una biblioteca de plantillas compartida, snippets. Zerosoft CRM **no tiene nada de eso** hoy. Está en el roadmap.
+**Cotizaciones con cobro.** Nuestras cotizaciones tienen página pública, aceptación con nombre y PDF por impresión, pero no firma electrónica ni cobro.
 
-**Tracking de aperturas y clics.** HubSpot te dice quién abrió qué. Nosotros no trackeamos aperturas ni clics de los emails del CRM.
+**Integraciones.** HubSpot tiene un marketplace enorme. Nosotros tenemos API REST, webhooks, Flow (que conecta con el resto de la suite y con cualquier API por HTTP) y la acción `webhook` de los workflows.
 
-**Sincronización automática del email.** HubSpot registra tu bandeja en el contacto correcto en segundo plano. Nuestra integración con Gmail es **de solo lectura y a demanda**: apretás "sincronizar", revisa hasta 100 de tus contactos actualizados más recientemente, trae hasta 8 mensajes recientes por contacto y guarda metadata (asunto, fragmento, dirección, fecha), no el cuerpo. Nada corre en segundo plano. Sin Outlook.
+**IA.** HubSpot trae asistentes para redactar, resumir y prospectar. Nuestro CRM tiene "redactar con IA" en el email, si la IA está activada, y nada más por ahora.
 
-**Cotizaciones, productos y líneas.** HubSpot arma una cotización desde un catálogo de productos y la manda a firmar. Los deals de Zerosoft CRM tienen monto, etapa y fecha de cierre. Sin productos, sin cotizaciones, sin line items.
+**Apps móviles.** HubSpot tiene apps para iOS y Android. Nuestro CRM se usa desde el navegador del celular, y las tablas se desplazan de costado en lugar de pasar a tarjetas.
 
-**Formularios de captura.** HubSpot te da formularios para embeber en tu sitio que crean contactos solos. Nosotros no tenemos formularios de leads en el CRM. Podés crear contactos por API desde tu propio formulario, pero eso es código que escribís vos.
+**Enterprise.** SSO, SCIM, audit logs y permisos por campo. Nuestras funciones enterprise viven en `/ee` y siguen en desarrollo.
 
-**Marketplace de integraciones.** HubSpot tiene un marketplace con una cantidad enorme de apps. Zerosoft CRM tiene una API REST, una acción `webhook` dentro de los workflows y conexiones nativas con los otros productos de Zerosoft. Todavía no emitimos eventos de webhook propios del CRM.
+## Qué hace hoy el CRM de zerosoft
 
-**Funciones de IA.** HubSpot trae asistentes de IA para redactar, resumir y prospectar. Zerosoft CRM no tiene funciones de IA.
+**Registros y asociaciones.** Contactos, empresas y deals con su timeline y sus tareas. Un contacto puede estar en varias empresas, con etiquetas (decisor, facturación, champion) y una primaria. Las empresas tienen jerarquía y suman el valor de los deals del árbol. Campos personalizados y tags.
 
-**Apps móviles.** HubSpot tiene apps para iOS y Android. Nosotros no; el CRM funciona en el navegador del celular y listo.
+**Pipelines.** Varios pipelines con etapas y probabilidades propias, tabla y tablero kanban, ganado o perdido con motivo e indicador de deals estancados.
 
-**Enterprise y madurez.** SSO, SCIM, audit logs, roles personalizados, permisos granulares, papeles de compliance, una red de partners y un ejército de consultores. Nuestras funciones enterprise viven en la carpeta `/ee` y siguen en desarrollo. Y una más mundana: los deals y las actividades no se pueden importar, solo contactos y empresas.
+**Email de ventas.** Envío desde tu Gmail en el timeline, sync automático de la bandeja con los hilos en el contacto correcto, plantillas y snippets con variables, tracking de aperturas y clics, y secuencias de varios pasos que se cortan solas si el contacto responde, reserva en Cal o se da de baja.
 
-Si alguno de estos puntos es la razón por la que compraste HubSpot, el resto del post no cambia eso.
+**Productos y cotizaciones.** Catálogo con SKU, impuestos y recurrencia; líneas en cada deal; cotizaciones con página pública donde el cliente acepta o rechaza. Varias monedas con tipos de cambio manuales.
 
-## Qué hace hoy Zerosoft CRM
+**Captura y calificación.** Formularios hosteados o embebidos que crean el contacto, guardan UTMs y pueden asignar dueño por round-robin. Lead scoring por propiedades y por actividad reciente.
 
-Nada de esto es exótico. Es el núcleo de un CRM, hecho con cuidado, con el código a la vista.
+**Equipos.** Visibilidad por miembro (todo, lo propio o lo de su equipo de ventas), cuotas mensuales o trimestrales y asignación de leads por round-robin.
 
-**Registros y asociaciones.** Contactos, empresas y deals, vinculados entre sí, cada uno con su timeline de actividades y sus tareas. Campos personalizados de cinco tipos: texto, número, fecha, selección y booleano.
+**Workflows y reportes.** Disparadores por cambios en registros, tareas, emails, reuniones, cotizaciones aceptadas, formularios y score, con ramas sí/no. Reportes de embudo, forecast, origen, responsable y actividad, más dashboards con widgets. Ver [cinco recetas](/blog/workflows-crm-tareas-de-seguimiento) y [la revisión semanal](/blog/revision-semanal-del-crm).
 
-**Pipelines.** Varios pipelines con tus propias etapas y probabilidades, una vista de tabla y un tablero kanban donde arrastrás deals entre etapas. Escribimos sobre [cómo mantener ese tablero honesto](/blog/higiene-del-pipeline).
+**Importar, exportar y API.** Importación CSV de contactos, empresas y deals con mapeo, deduplicado y un preset para la exportación de HubSpot. Exportación en CSV o JSON. API REST en `/api/v1/crm/*` con scopes por clave, documentada en [/docs](/docs).
 
-**Listas y vistas.** Listas estáticas donde agregás gente a mano, listas dinámicas que se actualizan desde un filtro, y vistas guardadas por entidad para que nadie reconstruya el mismo filtro el lunes a la mañana.
+**El resto de la suite.** Cada reserva de Cal crea el contacto y registra la reunión; desde Chat creás el contacto y guardás la conversación.
 
-**Reportes y dashboards.** KPIs y series de tiempo, un embudo con tasa de conversión por etapa, un forecast ponderado por la probabilidad de cada etapa, rendimiento por origen y por responsable, un ranking de actividad, y dashboards que armás con widgets. Alcanza para correr [una revisión semanal](/blog/revision-semanal-del-crm) sin planilla.
+## Precios
 
-**Workflows.** Disparadores sobre contactos, deals, tareas y emails entrantes (creado, actualizado, cambio de etapa, ganado, perdido, tarea vencida, email recibido, o manual) que alimentan acciones: mandar un email, crear una tarea, registrar una actividad, actualizar un campo, agregar a una lista, llamar a un webhook, avisarle a alguien del equipo. Los workflows son solo para admins. Acá tenés [cinco recetas prácticas](/blog/workflows-crm-tareas-de-seguimiento).
+HubSpot tiene un CRM gratis y hubs pagos por plan y por asiento, con algunos productos que cobran por contactos de marketing. Los detalles cambian seguido: mirá su página de precios.
 
-**Importar y exportar.** Importación de CSV con mapeo de columnas y dedupe (por email para contactos, por dominio para empresas; saltear o actualizar los existentes), más un panel de duplicados. Exportación a CSV o JSON cuando quieras, solo para admins. La [guía de migración desde HubSpot](/blog/migrar-contactos-de-hubspot-por-csv) lo explica paso a paso.
-
-**Una API que no tenés que negociar.** `/api/v1/crm/*` cubre contactos, empresas, deals, tareas y pipelines con las mismas claves personales `zs_` que el resto de Zerosoft, documentadas en [/docs](/docs).
-
-**El resto de la suite.** Desde un contacto podés sacar un link de reserva de Zerosoft Cal con su nombre y email ya cargados. Link, Track, Chat y Docs están detrás del mismo login.
-
-## Precios, sin números inventados
-
-HubSpot tiene un CRM gratis y hubs pagos que se venden por plan y por asiento, con algunos productos que además cobran por contactos de marketing. Los detalles cambian seguido; mirá su página de precios en vez de confiar en un número de un post, incluido este.
-
-Zerosoft CRM es gratis para self-hosting, para siempre, con todas las funciones del núcleo, bajo AGPLv3. En Zerosoft Cloud hay un free tier generoso y después pago por uso, con precios transparentes publicados antes de cobrarte nada. Ni por asiento ni por contacto.
-
-El precio importa recién cuando las funciones encajan. Si necesitás secuencias y cotizaciones, un CRM más barato sin ellas es solo un problema más barato.
+El CRM de zerosoft cuesta $0 en tu servidor, con todas las funciones del core, bajo AGPLv3. En zerosoft Cloud hay un plan gratis y después pago por uso (emails, almacenamiento). No se cobra por asiento ni por contacto.
 
 ## Quién debería quedarse en HubSpot
 
-- Equipos donde **marketing y ventas comparten el CRM** y viven de campañas, secuencias, formularios y tracking.
-- Equipos de ventas que dependen del **tracking de aperturas, las plantillas y el registro automático de la bandeja**.
-- Cualquiera que mande **cotizaciones desde un catálogo de productos**.
-- Empresas cuyo stack se sostiene con **integraciones del marketplace**.
+- Equipos donde **marketing y ventas comparten el CRM** y viven de campañas y landing pages.
+- Quien necesita **Outlook**, **firma electrónica** o **cobrar desde la cotización**.
+- Empresas cuyo stack depende del **marketplace de integraciones**.
 - Vendedores que trabajan desde **la app del celular**.
-- Organizaciones que necesitan **SSO, audit logs y roles personalizados** hoy.
+- Organizaciones que necesitan **SSO, audit logs y permisos por campo** hoy.
 
-Si sos vos, quedate. HubSpot es bueno en esas cosas y no vamos a hacer de cuenta que no.
+## A quién le sirve el CRM de zerosoft
 
-## A quién le sirve Zerosoft CRM
+- Equipos chicos que usan HubSpot como **base de contactos, pipeline y email de ventas** y pagan por mucho más.
+- Founders y agencias que quieren **secuencias, cotizaciones y reportes** sin una llamada de ventas.
+- **Developers** que quieren una API documentada, exportación completa y self-hosting sobre SQLite o Turso.
+- Equipos a los que les importa **dónde viven los datos de sus clientes**.
+- Quien ya usa **Cal, Link o Chat** de zerosoft.
 
-- Equipos chicos que usan HubSpot como **una base de contactos más un pipeline** y pagan por mucho más.
-- Founders y agencias que quieren **pipelines, tareas y reportes** sin una llamada de ventas ni un upgrade de plan.
-- **Developers** que quieren una API documentada, exportación completa y la opción de hacer self-hosting sobre un archivo SQLite o Turso.
-- Equipos a los que les importa **dónde viven los datos de sus clientes** y quieren leer el código que los toca.
-- Cualquiera que ya use **Zerosoft Cal, Link o Chat**.
+## Probalo con tus datos
 
-## Probalo con tus propios datos
-
-Exportá una parte de tus contactos y empresas de HubSpot, importalos, armá un pipeline y hacé tu próxima revisión semanal desde ahí. Con una tarde alcanza para saber. Si lo primero que extrañás es una secuencia o un email trackeado, ya tenés la respuesta, y HubSpot vale lo que pagás.
+Exportá una parte de tus contactos y empresas de HubSpot, importalos con el preset, armá un pipeline y hacé tu próxima revisión semanal desde ahí. Con una tarde alcanza para saber si te sirve.

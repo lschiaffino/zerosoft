@@ -1,17 +1,17 @@
 ---
 title: "Custom domains for short links: DNS, step by step"
-description: "How to serve your Link short URLs from go.yourcompany.com: which DNS record to create, how verification works on Zerosoft Cloud and on your own server, and the gotchas."
+description: "How to serve Link short URLs from go.yourcompany.com: which DNS record to create, how verification works on zerosoft Cloud and on your own server, and what usually goes wrong."
 date: "2026-07-21"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "dns", "custom domains"]
 ---
 
-A short link on someone else's domain is a small act of trust you ask from every reader. `go.yourcompany.com/launch` says who sent it. A random domain says "click me and hope". Link supports custom domains out of the box, and setting one up is one DNS record and one button. This post walks through exactly what happens, on Zerosoft Cloud and on your own server, including the parts that usually go wrong.
+A short link on someone else's domain is a small act of trust you ask from every reader. `go.yourcompany.com/launch` says who sent it. A random domain says "click me and hope". Link supports custom domains out of the box, and setting one up is one DNS record and one button. This post walks through exactly what happens, on zerosoft Cloud and on your own server, including the parts that usually go wrong.
 
 ## Before you start
 
-- **Use a subdomain.** `go.`, `l.`, `links.` — whatever you like. You can use an apex domain (`yourco.link`), but subdomains are friendlier with DNS providers, as you'll see below.
-- **Have access to your DNS.** Cloudflare, Route 53, your registrar's panel — wherever the zone lives.
+- **Use a subdomain.** `go.`, `l.`, `links.`: whatever you like. You can use an apex domain (`yourco.link`), but subdomains are friendlier with DNS providers, as you'll see below.
+- **Have access to your DNS.** Cloudflare, Route 53, your registrar's panel: wherever the zone lives.
 - **Be a workspace admin.** Adding a domain is admin-only. Once it's verified, it shows up as an option when anyone in the workspace creates a link.
 
 ## Step 1: add the domain
@@ -28,7 +28,7 @@ The domain now shows as **Waiting for DNS**, with a small table telling you exac
 
 What the table says depends on where Link runs.
 
-### On Zerosoft Cloud (and any Vercel deployment)
+### On zerosoft Cloud (and any Vercel deployment)
 
 When the server has `VERCEL_TOKEN` and `VERCEL_PROJECT_ID` set (plus `VERCEL_TEAM_ID` if the project lives in a team), adding a domain also registers it on the Vercel project through their API. The record you create is:
 
@@ -44,7 +44,7 @@ Vercel issues the HTTPS certificate on its own once DNS resolves. You don't touc
 
 ### On your own server
 
-Leave the `VERCEL_*` variables empty. Then the instruction is a CNAME pointing at your app's own host — the one in `SHORT_DOMAIN`, or `NEXTAUTH_URL` if that's not set:
+Leave the `VERCEL_*` variables empty. Then the instruction is a CNAME pointing at your app's own host: the one in `SHORT_DOMAIN`, or `NEXTAUTH_URL` if that's not set:
 
 ```
 # say your Link instance runs at links.example.org
@@ -57,7 +57,7 @@ For an apex domain the table says `CNAME @`, which many DNS providers don't allo
 
 ## Step 3: verify
 
-DNS changes take anywhere from seconds to a while. When you think it's live, click **Verify**. If it isn't, you'll see "DNS isn't pointing here yet" — wait and try again. Verification is rate limited per IP, so hammering the button doesn't help.
+DNS changes take anywhere from seconds to a while. When you think it's live, click **Verify**. If it isn't, you'll see "DNS isn't pointing here yet": wait and try again. Verification is rate limited per IP, so hammering the button doesn't help.
 
 What "verify" actually checks:
 
@@ -74,7 +74,7 @@ This is the part people don't expect, in a good way.
 
 **Slugs are per domain.** `zerosoft.ai/promo` and `go.yourcompany.com/promo` are different links and can point to different places. The same slug can exist once per domain.
 
-**The root can redirect somewhere.** By default, someone opening `go.yourcompany.com/` with no slug lands on the Zerosoft home page. After verifying, set a **Root redirect** (your homepage, say) and the bare domain goes there instead.
+**The root can redirect somewhere.** By default, someone opening `go.yourcompany.com/` with no slug lands on the zerosoft home page. After verifying, set a **Root redirect** (your homepage, say) and the bare domain goes there instead.
 
 **Everything else works the same.** Passwords, expiration, click limits, QR codes (generated with the custom domain in them), analytics, and the `link.clicked` webhook, whose payload includes the domain.
 
@@ -82,7 +82,7 @@ This is the part people don't expect, in a good way.
 
 The middleware has to decide, for every request, whether the host is "the app" or "a custom link domain". On a custom domain, every single-segment path is treated as a slug, which would break the dashboard if your app host got misclassified.
 
-The app recognizes its own hosts from `NEXTAUTH_URL`, `SHORT_DOMAIN`, the Vercel URLs, `localhost` and anything ending in `.vercel.app`. If you serve the app from **extra** hostnames — `www.` variants beyond the obvious, an internal name, a second public domain — list them:
+The app recognizes its own hosts from `NEXTAUTH_URL`, `SHORT_DOMAIN`, the Vercel URLs, `localhost` and anything ending in `.vercel.app`. If you serve the app from **extra** hostnames (`www.` variants beyond the obvious, an internal name, a second public domain), list them:
 
 ```
 APP_HOSTS=links.example.org,links.internal.lan

@@ -1,8 +1,8 @@
 ---
-title: "How we built Link: the entire architecture fits on one page"
-description: "Next.js, SQLite and a route handler that responds in milliseconds. No Redis, no Kafka, no microservices. This is what an honest shortener looks like."
+title: "How Link is built: Next.js, SQLite and one route handler"
+description: "The redirect is a route handler that answers in milliseconds, backed by SQLite and nothing else. The whole architecture, on one page."
 date: "2026-06-25"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "architecture", "open source"]
 ---
 
@@ -40,7 +40,7 @@ The database is SQLite with better-sqlite3, in WAL mode. For this workload it's 
 
 ## Analytics without cookies
 
-No tracker, no pixel, no fingerprint. Everything comes from the headers the browser already sends with every request:
+There's no tracker and no pixel. Everything comes from the headers the browser already sends with every request:
 
 ```ts
 function recordClick(req: NextRequest, linkId: string) {
@@ -58,7 +58,7 @@ function recordClick(req: NextRequest, linkId: string) {
 }
 ```
 
-We store the referrer's domain, not the full URL. The country comes from the edge header, not from geolocating the IP — which we never store anyway.
+We store the referrer's domain, not the full URL. The country comes from the edge header, not from geolocating the IP, which we never store anyway.
 
 ## QR on demand
 
@@ -70,4 +70,4 @@ QRs are never generated ahead or stored: they're computed on each request to `/q
 - **Kafka / event queues:** the analytics `INSERT` is part of the request and costs under a millisecond. A queue is the solution to a problem we don't have.
 - **Microservices:** a shortener is one process. Splitting it into five turns every deploy into choreography and every bug into a distributed investigation.
 
-Boring architecture is a feature: fewer parts that can fail at 3 a.m. All the code is open — audit every line.
+Boring architecture is a feature: fewer parts that can fail at 3 a.m. All the code is open: audit every line.

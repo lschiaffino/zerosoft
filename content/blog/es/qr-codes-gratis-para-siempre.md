@@ -1,44 +1,40 @@
 ---
-title: "Los códigos QR son gratis. Para siempre."
-description: "El QR es un estándar abierto desde 1994: ISO/IEC 18004, patentes renunciadas por su inventor. Generarlo cuesta cero cómputo. Cobrarlo como feature premium es un abuso — en Link va incluido."
+title: "Cómo funciona un código QR y por qué no debería ser un plan premium"
+description: "El QR es un estándar abierto (ISO/IEC 18004) cuyo inventor decidió no cobrar la patente. Cómo se arma la grilla, qué hace la corrección de errores y cómo los genera Link."
 date: "2026-06-22"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "qr", "open source"]
 ---
 
-El código QR nació en 1994 en Denso Wave, una subsidiaria de Toyota. Masahiro Hara y su equipo lo crearon para seguir autopartes en la línea de producción: necesitaban algo que guardara más datos que un código de barras y se leyera rápido, desde cualquier ángulo.
+El código QR nació en 1994 en Denso Wave, una empresa del grupo Toyota. Masahiro Hara y su equipo lo diseñaron para seguir autopartes en la línea de montaje: necesitaban algo que guardara más datos que un código de barras y se leyera rápido desde cualquier ángulo.
 
-Y entonces hicieron algo que la industria del software todavía no termina de procesar: renunciaron a ejercer la patente. La especificación se publicó, el estándar se abrió y hoy es ISO/IEC 18004. Cualquiera puede generar y leer códigos QR. Sin licencia, sin regalías, sin pedirle permiso a nadie.
+Denso Wave decidió no ejercer la patente. La especificación se publicó y hoy es el estándar ISO/IEC 18004. Cualquiera puede generar y leer códigos QR sin pagar licencia.
 
-## Generar un QR no cuesta nada
+## Generar un QR
 
-Un QR no es un servicio. Es aritmética. Se toman tus bytes, se codifican en una grilla de módulos blancos y negros, se agrega corrección de errores Reed-Solomon y se dibuja el resultado. En cualquier CPU de los últimos veinte años, eso tarda microsegundos.
+Un QR es aritmética: tus bytes se codifican en una grilla de módulos blancos y negros, se les suma corrección de errores Reed-Solomon y se dibuja el resultado. En cualquier CPU de los últimos veinte años tarda microsegundos.
 
-No hay "servidor de QR". No hay costo por código. No hay nada que escale con el uso. Podés generar un millón de QR en una laptop de hace diez años, sin internet, con una librería open source.
+No hace falta un servidor especial ni hay un costo que crezca con el uso. Con una librería open source podés generar un millón en una laptop vieja, sin internet.
 
-## Cómo funciona, en 40 segundos
+## Cómo funciona
 
-Un QR es una matriz de módulos: la versión 1 es de 21×21, y cada versión suma 4 módulos por lado hasta la versión 40, de 177×177. Tres elementos hacen el truco:
+Un QR es una matriz de módulos. La versión 1 mide 21×21 y cada versión suma 4 módulos por lado, hasta la 40, de 177×177. Tres elementos hacen el trabajo:
 
-- **Los cuadrados de las esquinas** (finder patterns): le dicen al lector dónde está el código y en qué ángulo. Por eso podés escanearlo rotado, torcido o en perspectiva.
-- **La corrección Reed-Solomon**: los datos se guardan con redundancia. En el nivel más alto, el código se lee aunque esté hasta un 30% dañado o tapado. Por eso las marcas pueden estampar su logo en el medio.
-- **La máscara**: antes de dibujarse, la grilla pasa por un XOR con un patrón de máscara para evitar grandes bloques de un solo color que confundirían al lector.
+- **Los cuadrados de las esquinas** (finder patterns) le indican al lector dónde está el código y en qué ángulo. Por eso se lee rotado o en perspectiva.
+- **La corrección Reed-Solomon** guarda los datos con redundancia. En el nivel más alto, el código se lee aunque falte hasta un 30%. Por eso se puede poner un logo en el medio.
+- **La máscara**: antes de dibujarse, la grilla pasa por un XOR con un patrón para evitar bloques grandes de un solo color.
 
-El resto son los datos en zigzag: modo de codificación, longitud y tu contenido. Un URL cabe sobrado en las versiones chicas.
+El resto son los datos en zigzag: modo de codificación, longitud y contenido. Una URL entra sobrada en las versiones chicas.
 
-## Entonces, ¿por qué te lo cobran?
+## Por qué aparece en planes pagos
 
-Mirá cualquier SaaS de marketing o de links: los QR aparecen en el plan premium. "QR personalizados desde tantos dólares al mes." Te cobran una suscripción mensual por ejecutar una función de una librería open source sobre un estándar abierto con patentes renunciadas.
+En muchos SaaS de marketing y links, el QR está en el plan premium. Se cobra una suscripción por ejecutar una librería open source sobre un estándar abierto.
 
-Es como cobrarte por sumar. La indignación es legítima: no están vendiendo tecnología, están vendiendo acceso a algo que ya era tuyo.
+## En Link
 
-## En Link va incluido
+Cada link corto de Link tiene su QR en dos formatos:
 
-Cada short link que creás en Link trae su QR, en dos formatos:
+- **SVG**, vectorial, para imprenta, vidrieras o packaging.
+- **PNG**, para presentaciones, PDFs o stickers.
 
-- **SVG**: vectorial, escala infinito sin pixelarse. Para imprenta, vidrieras, packaging.
-- **PNG**: listo para pegar en una presentación, un PDF o un sticker.
-
-Sin plan premium. Sin límite de descargas. Sin marca de agua. Para siempre — porque nunca fue nuestro para cobrarlo.
-
-Link es open source: self-host a $0, o cloud al costo de la nube, sin margen. Los QR son la parte más barata de todo el sistema. Cobrarlos sería ridículo. Por eso no lo hacemos.
+Sin límite de descargas ni marca de agua. Lo que todavía no hace: QR con logo o colores propios.

@@ -1,14 +1,14 @@
 ---
-title: "Open core explicado: qué es libre, qué es /ee y por qué la línea está ahí"
-description: "Todos los productos de Zerosoft son AGPL. Una carpeta, /ee, no. Qué vive ahí exactamente, qué dice su licencia borrador, qué está construido hoy y cómo decidimos dónde trazar la línea."
+title: "Open core: qué es AGPL, qué va en /ee y por qué"
+description: "Todo el repositorio de zerosoft es AGPLv3 salvo una carpeta, /ee. Qué va ahí, qué dice su licencia borrador, qué está construido hoy y cómo decidimos dónde va la línea."
 date: "2026-08-15"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["open source", "open core", "licencias"]
 ---
 
-"Open core" es una de esas frases que pueden significar cualquier cosa, desde "abierto de verdad con algunos extras pagos" hasta "una demo recortada con un repo en GitHub". Así que en vez de definirlo en abstracto, acá va el nuestro, con nombres de carpetas.
+"Open core" puede significar cualquier cosa, desde un producto abierto con algunos extras pagos hasta una demo recortada con un repo en GitHub. En lugar de definirlo en abstracto, acá va el nuestro, con nombres de carpetas.
 
-Zerosoft es un solo repositorio. Todo lo que hay adentro es AGPLv3, salvo una carpeta llamada `/ee`. Ese es todo el modelo. El resto del post es sobre qué va en esa carpeta, qué no y por qué.
+zerosoft es un solo repositorio. Todo lo que hay adentro es AGPLv3, salvo una carpeta llamada `/ee`. Ese es todo el modelo. El resto del post es sobre qué va en esa carpeta, qué no y por qué.
 
 ## Qué hay en el core (básicamente, todo)
 
@@ -19,18 +19,18 @@ Cada feature de producto que usás en el día a día está fuera de `/ee`, bajo 
 - **Track, Cal, Chat, Docs:** todo. Ciclos y vista Gantt, formularios de ruteo y hosts en round-robin, políticas de SLA y CSAT, páginas anidadas y permisos para compartir.
 - **Teams:** workspaces con roles owner, admin y member, invitaciones, y acciones solo para admins como los workflows del CRM, la exportación y el borrado masivo.
 
-Nada de eso requiere una license key. Nada es "gratis hasta N usuarios". Hostear los seis productos no cuesta nada, para siempre. Nuestro propio [ee/README.md](https://github.com/lschiaffino/zerosoft/blob/main/ee/README.md) lo dice sin vueltas: todo lo que está fuera de `/ee` es AGPLv3 "y siempre lo va a ser".
+Nada de eso requiere una license key. Nada es "gratis hasta N usuarios". Hostear las once apps no cuesta nada. Nuestro propio [ee/README.md](https://github.com/lschiaffino/zerosoft/blob/main/ee/README.md) lo dice sin vueltas: todo lo que está fuera de `/ee` es AGPLv3 "y siempre lo va a ser".
 
 ## Qué vive en /ee
 
 La lista es corta y, hoy, mayormente un plan. El README dice "lo que vive acá (a medida que se construye)":
 
-- **SSO / SAML y aprovisionamiento SCIM** — entrar con el proveedor de identidad de tu empresa, dar de alta y de baja usuarios automáticamente.
-- **Audit logs** — quién hizo qué y cuándo, para compliance.
-- **Roles custom y permisos granulares** — más allá de owner / admin / member.
-- **White-label** — sacar la marca Zerosoft de las páginas de reserva y del widget de chat.
+- **SSO / SAML y aprovisionamiento SCIM**: entrar con el proveedor de identidad de tu empresa, dar de alta y de baja usuarios automáticamente.
+- **Audit logs**: quién hizo qué y cuándo, para compliance.
+- **Roles custom y permisos granulares**: más allá de owner / admin / member.
+- **White-label**: sacar la marca zerosoft de las páginas de reserva y del widget de chat.
 
-Seamos precisos con el estado, porque de eso se trata este blog: **estas features están en desarrollo.** Lo que hoy existe en la carpeta es la plomería de licencias — `ee/lib/license.ts`, que verifica una license key — y el texto de la licencia. Si necesitás SAML la semana que viene, Zerosoft todavía no llegó, y preferimos que lo escuches de nosotros.
+Seamos precisos con el estado, porque de eso se trata este blog: **estas features están en desarrollo.** Lo que hoy existe en la carpeta es la plomería de licencias, `ee/lib/license.ts`, que verifica una license key, y el texto de la licencia. Si necesitás SAML la semana que viene, zerosoft todavía no llegó, y preferimos que lo escuches de nosotros.
 
 ## Cómo funciona la plomería
 
@@ -39,11 +39,11 @@ Dos reglas evitan que `/ee` se filtre al core:
 1. **El código del core nunca importa de `/ee`**, salvo a través de `ee/lib/license.ts`, que expone `isEnterprise()` y `hasFeature()`.
 2. **Las features enterprise tienen que degradar limpio.** Sin licencia, el core sigue funcionando exactamente igual.
 
-Las license keys se verifican **offline**: una firma Ed25519 sobre un JSON chiquito (cliente, fecha de vencimiento, features). Sin phone-home, sin telemetría, sin un servidor nuestro que tenga que estar arriba para que tu instancia funcione. Seteás `ZEROSOFT_LICENSE_KEY` en tu entorno; si falta o es inválida, `/ee` simplemente queda apagado.
+Las license keys se verifican **offline**: una firma Ed25519 sobre un JSON chiquito (cliente, fecha de vencimiento, features). No hay phone-home, telemetría ni un servidor nuestro que tenga que estar arriba para que tu instancia funcione. Seteás `ZEROSOFT_LICENSE_KEY` en tu entorno; si falta o es inválida, `/ee` simplemente queda apagado.
 
 ## Qué dice la licencia de /ee
 
-La [Zerosoft Enterprise License](https://github.com/lschiaffino/zerosoft/blob/main/ee/LICENSE) es source-available, no open source. En resumen — y lo que vale es el texto de la licencia:
+La [zerosoft Enterprise License](https://github.com/lschiaffino/zerosoft/blob/main/ee/LICENSE) es source-available, no open source. En resumen, y lo que vale es el texto de la licencia:
 
 - **Desarrollo y testing son gratis.** Leelo, copialo, modificalo, correlo en entornos que no son de producción sin pagar.
 - **El uso en producción necesita una suscripción** que cubra tu alcance de uso (usuarios, instancias o uso).
@@ -65,12 +65,12 @@ El open core tiene un modo de falla conocido: la empresa va moviendo de a poco f
 
 Nuestras barandas contra eso:
 
-- **El core no se puede retirar.** Lo que se publicó bajo AGPL sigue siendo AGPL. Aunque cambiáramos de idea, la última versión libre se puede forkear para siempre.
+- **El core no se puede retirar.** Lo que se publicó bajo AGPL sigue siendo AGPL. Aunque cambiáramos de idea, la última versión libre se puede forkear siempre.
 - **La lista de `/ee` es pública y específica.** Está en el README. Si algún día crece para incluir algo que un equipo chico necesita, lo vas a ver en un diff.
-- **Nuestra nube tampoco vende el core.** Zerosoft Cloud tiene un plan gratis generoso y después cobra por uso — lo que escala — con precios transparentes publicados antes de cobrarte nada. Vendemos comodidad y extras enterprise, nunca las features en sí.
+- **Nuestra nube tampoco vende el core.** zerosoft Cloud tiene un plan gratis y después cobra por uso del workspace (clics, reservas, emails, almacenamiento), sin cargo por asiento. Vendemos operación y extras enterprise, no las funciones del core.
 
 ## A quién le importa /ee
 
-Honestamente, a la mayoría de los lectores de este blog, no. Si sos freelancer, una startup o una empresa chica que hostea Zerosoft, el core es el producto y nunca vas a tocar una license key.
+Honestamente, a la mayoría de los lectores de este blog, no. Si sos freelancer, una startup o una empresa chica que hostea zerosoft, el core es el producto y nunca vas a tocar una license key.
 
 Si estás en una organización más grande que necesita SSO, audit trails o roles custom: vienen en camino, el código va a ser legible antes de que compres y lo vas a poder probar gratis. Escribinos y contanos cuál necesitás primero: nos ayuda de verdad a decidir qué construir.

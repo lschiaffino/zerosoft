@@ -1,12 +1,12 @@
 ---
 title: "Por que só temos 'Continuar com o Google'"
-description: "Não é preguiça: senhas são o elo mais fraco da segurança moderna, e delegar o login é delegá-lo a quem faz isso melhor. Os trade-offs, sem rodeios."
+description: "Senhas são o ponto mais fraco da segurança de um app. Por que delegamos o login ao Google e o que isso custa em flexibilidade."
 date: "2026-06-13"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["segurança", "oauth", "login"]
 ---
 
-Quando você abre o Link, existe um único botão: **Continuar com o Google**. Não há formulário de cadastro, não há email + senha, não há "esqueci minha senha". Não é uma decisão de design preguiçosa. É uma decisão de segurança, e vale a pena explicá-la direito.
+Quando você abre o Link, existe um único botão: **Continuar com o Google**. Não há formulário de cadastro, senha nem "esqueci minha senha". É uma decisão de segurança, e vale a pena explicá-la direito.
 
 ## A senha é o elo fraco
 
@@ -30,12 +30,12 @@ Enquanto isso, do outro lado do botão há milhares de engenheiros de segurança
 
 Seria desonesto vender isso como pura vantagem. Não é:
 
-- **Você precisa de uma conta Google.** Se não tem ou não quer ter, hoje não consegue usar o cloud da Zerosoftware. O self-host, por outro lado, não pede login.
-- **Dependemos da disponibilidade do Google.** Se o auth deles cai, o login cai. Seus links e a API com API keys continuam funcionando — o redirect não depende do login — mas o painel, sim.
+- **Você precisa de uma conta Google.** Se não tem ou não quer ter, hoje não consegue usar o cloud da zerosoft. O self-host, por outro lado, não pede login.
+- **Dependemos da disponibilidade do Google.** Se o auth deles cai, o login cai. Seus links e a API com API keys continuam funcionando (o redirect não depende do login) mas o painel, sim.
 - **O Google fica sabendo que você entra aqui.** Pedimos apenas email e nome; ele não vê sua atividade nem seus dados. Mas esse metadado existe, e se isso incomoda, a resposta é o self-host.
 
 ## Vamos adicionar mais providers?
 
-Sim, quando somarem sem quebrar a propriedade-chave: não existir nenhum segredo compartilhado nos nossos servidores. GitHub e Microsoft cumprem. Passkeys cumprem ainda melhor — são o futuro óbvio do login — e provavelmente são o próximo passo.
+Sim, quando somarem sem quebrar a propriedade-chave: não existir nenhum segredo compartilhado nos nossos servidores. GitHub e Microsoft cumprem. Passkeys cumprem ainda melhor (são o futuro óbvio do login) e provavelmente são o próximo passo.
 
 Email + senha? Não. Esse formulário não volta. A forma mais segura de guardar senhas é não guardá-las.

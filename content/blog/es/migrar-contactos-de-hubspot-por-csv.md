@@ -1,28 +1,25 @@
 ---
-title: "Cómo sacar tus contactos de HubSpot con un CSV"
-description: "Guía paso a paso para exportar contactos y empresas de HubSpot e importarlos en Zerosoft CRM: mapeo de columnas, dedupe por email y dominio, y qué cosas no viajan."
+title: "Cómo pasar tus contactos de HubSpot al CRM con un CSV"
+description: "Paso a paso para exportar contactos y empresas de HubSpot e importarlos en el CRM de zerosoft: mapeo de columnas, deduplicado por email y dominio, y qué no viaja."
 date: "2026-07-24"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "hubspot", "migración"]
 ---
 
 Cambiarte de CRM suena a proyecto de un trimestre. Para la mayoría de los equipos chicos es una tarde: dos CSV, una pantalla de mapeo y un café. El truco es saber exactamente qué hace el importador con cada fila antes de apretar el botón, así no terminás con 400 duplicados y una columna de lifecycle llena de vacíos.
 
-Esta es la versión honesta. Qué se mueve, qué no, y el orden que te ahorra limpiar después.
+Acá va qué se mueve, qué no y en qué orden conviene hacerlo para no limpiar después.
 
 ## Qué podés importar (y qué no)
 
-El importador de Zerosoft CRM (`/app/crm/settings` → Import / Export) maneja dos entidades:
+Cuando escribimos esta guía, el importador del CRM (`/app/crm/settings` → Import / Export) manejaba dos entidades. Hoy también importa deals (pipeline y etapa por nombre, monto, moneda y fecha de cierre), owners por email o nombre, campos personalizados y asociaciones, y trae un preset para la exportación de HubSpot. Lo de abajo sigue valiendo para contactos y empresas:
 
 - **Contactos**: nombre, apellido, email, teléfono, cargo, sitio web, ciudad, país, lifecycle stage, lead status y origen.
 - **Empresas**: nombre, dominio, industria, empleados, teléfono, sitio web, ciudad, país y lifecycle stage.
 
 Lo que hoy **no** importa:
 
-- **Deals.** Todavía no hay importador de deals. Si tenés un pipeline vivo, o recreás a mano los deals abiertos (para un equipo chico suele ser lo más rápido) o lo scripteás contra la API pública: `POST /api/v1/crm/deals` existe y recibe pipeline, etapa, monto, fecha de cierre y contactos.
 - **Actividades.** Notas, llamadas, emails y reuniones registradas en HubSpot se quedan en HubSpot. Exportalas a un archivo como referencia; no van a aparecer en el timeline.
-- **Campos personalizados.** El mapeo del CSV solo apunta a los campos estándar de arriba. Los valores custom se pueden cargar por API (`custom` en contactos, empresas y deals), no desde la pantalla del CSV.
-- **Owners.** No hay columna de owner en el import. Asignalos después, desde cada registro o por API.
 
 Si algo de esto te mata el plan, mejor saberlo ahora que a mitad de camino.
 
@@ -35,7 +32,7 @@ En HubSpot, exportá contactos y empresas como dos CSV separados desde la vista 
 
 ## Paso 2: primero las empresas
 
-El orden importa. Cuando se crea un contacto sin empresa explícita, Zerosoft mira el dominio de su email y lo vincula con la empresa que tenga exactamente ese dominio (los emails personales tipo Gmail se saltean). Si `ana@acme.com` llega cuando ya existe una empresa con dominio `acme.com`, Ana queda vinculada sola.
+El orden importa. Cuando se crea un contacto sin empresa explícita, zerosoft mira el dominio de su email y lo vincula con la empresa que tenga exactamente ese dominio (los emails personales tipo Gmail se saltean). Si `ana@acme.com` llega cuando ya existe una empresa con dominio `acme.com`, Ana queda vinculada sola.
 
 Eso solo funciona si las empresas ya están. Empresas primero, contactos después.
 
@@ -54,7 +51,7 @@ Lo que dejes en "— ignorar —" se descarta. `Record ID` y compañía pueden q
 
 ### Los valores de enum: la trampa silenciosa
 
-Lifecycle stage, lead status y origen son listas fijas en Zerosoft:
+Lifecycle stage, lead status y origen son listas fijas en zerosoft:
 
 ```
 lifecycle:   subscriber, lead, mql, sql, opportunity, customer, evangelist

@@ -1,14 +1,14 @@
 ---
 title: "Workflows de CRM que criam as tarefas de follow-up por você"
-description: "Como usar os workflows do Zerosoft CRM para criar tarefas de follow-up automáticas: triggers e ações reais, cinco receitas para times pequenos e os limites que você precisa conhecer antes de depender deles."
+description: "Como usar os workflows do zerosoft CRM para criar tarefas de follow-up automáticas: triggers e ações reais, cinco receitas para times pequenos e os limites que você precisa conhecer antes de depender deles."
 date: "2026-08-08"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "workflows", "automação"]
 ---
 
 Deals quase nunca morrem porque alguém disse não. Morrem porque ninguém fez o follow-up. A proposta saiu numa terça, a semana apertou e, quando alguém lembrou, o prospect já tinha fechado com quem lembrou antes.
 
-A solução não é disciplina. É fazer o follow-up existir antes de alguém precisar pensar nele. É para isso que servem os workflows do Zerosoft CRM, e a coisa mais útil que eles fazem é chata: criar uma tarefa, com data, ligada ao registro certo.
+A solução não é disciplina. É fazer o follow-up existir antes de alguém precisar pensar nele. É para isso que servem os workflows do zerosoft CRM, e a coisa mais útil que eles fazem é chata: criar uma tarefa, com data, ligada ao registro certo.
 
 ## As peças
 
@@ -61,12 +61,12 @@ A mais simples e a que se paga mais rápido. Todo contato novo, venha da API ou 
 
 O filtro de etapa pede o ID da etapa, não o nome. O jeito mais rápido de pegar é `GET /api/v1/crm/pipelines` com a sua chave de API, que lista cada pipeline com as etapas. Sim, colar um ID é tosco; está na nossa lista.
 
-### 3. Perdido não é para sempre
+### 3. Perdido pode voltar
 
 - Trigger: **Negócio perdido**
 - Ação: **Criar tarefa**, assunto "Retomar contato", vence em 90 dias
 
-Perder por timing ou orçamento é diferente de perder por fit. Uma tarefa daqui a três meses não custa nada e transforma alguns "não" em "ainda não". O Zerosoft já pede um motivo de perda quando um deal é fechado como perdido, então quem recebe a tarefa tem o contexto.
+Perder por timing ou orçamento é diferente de perder por fit. Uma tarefa daqui a três meses não custa nada e transforma alguns "não" em "ainda não". O zerosoft já pede um motivo de perda quando um deal é fechado como perdido, então quem recebe a tarefa tem o contexto.
 
 ### 4. Ganho → comece o onboarding
 

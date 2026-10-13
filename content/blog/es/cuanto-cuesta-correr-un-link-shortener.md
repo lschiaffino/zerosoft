@@ -1,44 +1,32 @@
 ---
-title: "Cuánto cuesta realmente correr un acortador de links (spoiler: centavos)"
-description: "Bitly cobra $35 al mes. Nosotros hicimos la cuenta completa de lo que cuesta servir redirects y analytics. Los números, sin vergüenza."
+title: "Cuánto cuesta correr un acortador de links"
+description: "La cuenta completa de cómputo, base de datos, ancho de banda y backups para servir 100.000 clics por mes con la arquitectura de Link. Da menos de un dólar."
 date: "2026-07-09"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "costos", "nube"]
 ---
 
-Bitly cobra $35 por mes por su plan básico pago. Veamos qué comprás exactamente con esos $35: redirects (301/302), un contador de clicks, algunos gráficos, QR codes.
+El plan pago básico de Bitly cuesta $35 por mes: redirects, un contador de clics, gráficos y códigos QR. Hicimos la cuenta de lo que cuesta servir eso con la arquitectura real de Link.
 
-Ahora hagamos la cuenta de lo que eso cuesta servir de verdad. Con números reales, de la arquitectura real de Link, nuestro acortador.
+## Qué es un redirect
 
-## Qué es un redirect, técnicamente
+Llega un pedido a `tudominio/launch`. El servidor hace un `SELECT`, escribe un `INSERT` con el clic y devuelve unos 300 bytes con un header `Location`. No hay video, imágenes ni cómputo pesado.
 
-Una request llega a `tudominio/launch`. El servidor hace un `SELECT` en una base de datos, escribe un `INSERT` con el click, y devuelve una respuesta de ~300 bytes con un header `Location`.
+## La cuenta
 
-Eso es todo. Es probablemente la workload más liviana que existe en la web. No hay video, no hay imágenes, no hay cómputo. Es leer una fila y contestar.
+Un usuario intenso: 50 links activos y 100.000 clics por mes.
 
-## La cuenta, sin trampas
+- **Cómputo.** 100.000 pedidos por mes son unos 2,3 por minuto. Un VPS de $5 (1 vCPU, 1 GB de RAM) atiende cientos por segundo de este tipo. Usás menos del 2% de la máquina: **$0,10 por mes**.
+- **Base de datos.** SQLite en el mismo VPS. 100.000 clics son unos 20 MB por mes, 240 MB por año. El disco de 25 GB alcanza para años: **$0**.
+- **Ancho de banda.** Menos de 100 MB por mes, con 1 TB incluido: **$0**.
+- **Backups.** Un snapshot semanal: **unos $0,50 por mes**.
 
-Supongamos un usuario intenso: 50 links activos, 100.000 clicks por mes.
+**Total: menos de $1 por mes.** Con 10.000 clics, menos de $0,20.
 
-- **Cómputo.** 100.000 requests mensuales son ~2.3 requests por minuto. Un VPS de $5/mes (1 vCPU, 1GB RAM) maneja cientos de requests por *segundo* para esto. Estás usando menos del 2% de la máquina. Costo real asignado: **$0,10/mes**.
-- **Base de datos.** SQLite en el mismo VPS. 100.000 clicks son 100.000 filas chicas: ~20MB al mes. En un año, 240MB. El disco de 25GB del VPS te da para una década. Costo: **$0**.
-- **Ancho de banda.** 300 bytes por redirect + la página de analytics que mirás vos. Menos de 100MB al mes. El VPS incluye 1TB. Costo: **$0**.
-- **Backups.** Snapshot semanal: ~$0,50/mes.
+## Qué pagan los $35
 
-**Total: menos de $1 por mes.** Y si tenés 10.000 clicks en vez de 100.000, menos de $0,20.
+No infraestructura. Pagan un dominio corto lindo (el tuyo cuesta unos $10 por año), un equipo de ventas y margen.
 
-## Entonces, ¿qué son los $35?
+## Link
 
-No son infraestructura. Son:
-
-- El dominio corto bonito (que también podés tener: cuestan $10/año).
-- El equipo de ventas.
-- El margen del 3.400%.
-
-Cuando el precio de algo es 35 veces su costo, no estás comprando tecnología. Estás comprando la ausencia de alternativa. Hasta que hay alternativa.
-
-## Nuestro compromiso
-
-Con Link, el software es gratis y open source: descargalo y corrélo en ese VPS de $5, tuyo para siempre. Y si querés que lo corramos nosotros, con login y backups y uptime, pagás lo que la nube cuesta. Al costo. Con esta misma cuenta abierta.
-
-Los bits son gratis. Ahora los precios también empiezan a serlo.
+Link es open source: lo corrés en ese VPS de $5 por $0 de licencia. Si preferís que lo corramos nosotros, zerosoft Cloud tiene un plan gratis y después cobra por clic y por almacenamiento, sin cargo por asiento.

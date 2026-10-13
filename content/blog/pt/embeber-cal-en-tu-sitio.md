@@ -2,7 +2,7 @@
 title: "Incorpore o Cal no seu site: inline, popup, Google Meet e lembretes"
 description: "Guia prático para colocar sua página de agendamento do Cal no seu próprio site, conectar o Google Calendar para ter links do Meet e garantir que os links de cancelamento e os lembretes de 24 horas saiam de verdade."
 date: "2026-09-15"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "agendamento", "tutorial"]
 ---
 

@@ -2,12 +2,12 @@
   "products": {
     "meta": {
       "title": "Productos",
-      "description": "Once apps para tu empresa y para vos: CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal y Board. Open source para correr en tu servidor, o en nuestra nube con un plan gratis para empezar."
+      "description": "Once apps: CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal y Board. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
     },
     "hero": {
-      "title1": "Todo lo que usás.",
-      "title2": "Cero de lo que pagás.",
-      "sub": "Las herramientas que mueven una empresa (clientes, soporte, automatizaciones, agentes de IA, tareas, links) y las que usás solo: notas, docs, pizarras, tu agenda. Las reconstruimos a la vista. El core cuesta cero y es tuyo."
+      "title1": "Once apps.",
+      "title2": "Un solo workspace.",
+      "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "compare": {
       "todayTitle": "Hoy pagás",
@@ -18,10 +18,10 @@
       "r3name": "HubSpot",
       "r3price": "$50 / usuario / mes",
       "r4name": "Calendly",
-      "r4price": "$12 / mes",
-      "withTitle": "Con Zerosoft",
+      "r4price": "$12 / usuario / mes",
+      "withTitle": "Con zerosoft",
       "big": "$0",
-      "note": "Self-hosteado: todos los meses, todos los años, para siempre. En Zerosoft Cloud arrancás gratis y pagás solo lo que escala.",
+      "note": "En tu servidor, el core cuesta $0 por mes. En zerosoft Cloud empezás gratis y pagás por uso; los asientos no se cobran.",
       "r5name": "Notion",
       "r5price": "$10 / usuario / mes",
       "r6name": "Intercom",
@@ -29,64 +29,64 @@
     },
     "roadmap": {
       "title": "El plan, a la vista.",
-      "titleDim": "Cero secretos.",
+      "titleDim": "Lo hecho y lo que sigue.",
       "i1": {
         "when": "2026 · Q3",
         "name": "Link · CRM · Docs · Chat",
-        "what": "Links cortos, pipelines, una wiki con editor de bloques y un inbox de soporte. En vivo y gratis.",
-        "state": "Liberado"
+        "what": "Links cortos, pipelines, una wiki con editor de bloques y un inbox de soporte.",
+        "state": "Disponible"
       },
       "i2": {
         "when": "2026 · Q4",
-        "name": "Track · Cal",
-        "what": "Issues, ciclos y Gantt. Páginas de reserva, round-robin y formularios de ruteo. Después: dominios propios, importación de Bitly y export completo para Link; sync con Google Calendar, API y webhooks para Cal.",
-        "state": "Liberado"
+        "name": "Track · Cal · Agents · Flow · Robots · Notes · Board",
+        "what": "Issues, ciclos y Gantt. Páginas de reserva con Google Calendar. Agentes de IA, automatizaciones, robots de navegador, notas y una pizarra.",
+        "state": "Disponible"
       },
       "i3": {
         "when": "Lo que sigue",
         "name": "Conectar",
         "what": "API y webhooks para Track. Calendarios de Outlook e iCloud para Cal.",
-        "state": "Próximamente"
+        "state": "Pendiente"
       },
       "i4": {
         "when": "Lo que sigue",
         "name": "Mudarse",
-        "what": "Importadores en un clic desde Linear y Notion. Export completo para Docs y Chat.",
-        "state": "Próximamente"
+        "what": "Importadores desde Linear y Notion. Export completo para Docs y Chat.",
+        "state": "Pendiente"
       }
     },
     "cta": {
-      "title1": "Dejá de pagar",
-      "title2": "por bits.",
-      "sub": "Están todas en vivo y son gratis para empezar. Entrá ahora: pagás solo lo que escala.",
+      "title1": "Probá las once apps.",
+      "title2": "Con una sola cuenta.",
+      "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app →"
     },
     "link": {
       "meta": {
-        "title": "Link — Links cortos, gratis para siempre",
-        "description": "Dominios propios, métricas reales, códigos QR, link-in-bio, importación de Bitly, webhooks y una API pública. La alternativa a Bitly que cuesta cero."
+        "title": "Link: links cortos con tu dominio y métricas",
+        "description": "Links cortos con dominio propio, métricas sin cookies, códigos QR, link-in-bio, importación desde Bitly, API y webhooks. Alternativa open source a Bitly."
       },
       "hero": {
         "tag": "Links cortos y métricas",
-        "sub": "Todo eso por lo que Bitly cobra $35 al mes — dominios propios, analytics de clicks, códigos QR, link-in-bio, una API de verdad y webhooks — reconstruido, abierto y liberado. Ya está en el aire."
+        "sub": "Acortá links con tu dominio, descargá el QR y mirá los clics por país, referrer y dispositivo. Tu cuenta de Bitly entra con un token o un CSV."
       },
-      "featuresTitle": "Todo lo que necesitás.",
-      "featuresTitleDim": "Nada de lo que pagás.",
+      "featuresTitle": "Links cortos con métricas.",
+      "featuresTitleDim": "En tu dominio.",
       "f1": {
         "t": "Dominios propios",
-        "d": "go.tuempresa.com/slug. Creá el registro DNS, verificá, listo — en nuestra nube el HTTPS es automático. El mismo slug en distintos dominios, y vos elegís adónde va la raíz."
+        "d": "go.tuempresa.com/slug. Creás el registro DNS y lo verificás; en zerosoft Cloud el HTTPS es automático. Cada dominio tiene sus propios slugs y vos elegís adónde va la raíz."
       },
       "f2": {
-        "t": "Métricas reales",
-        "d": "Clicks por día, referrer, país, dispositivo, navegador y SO. 7, 30, 90 días o todo, comparado con el período anterior. Sin cookies, sin fingerprinting, honestas."
+        "t": "Métricas sin cookies",
+        "d": "Clics por día, referrer, país, dispositivo, navegador y sistema. 7, 30 o 90 días o todo el historial, comparado con el período anterior. Sin cookies ni fingerprinting."
       },
       "f3": {
         "t": "Códigos QR",
-        "d": "Cada link tiene su QR instantáneo en SVG o PNG. Imprimilo, proyectalo, publicalo."
+        "d": "Cada link tiene su QR en SVG o PNG. Si cambiás el destino, el QR impreso sigue sirviendo."
       },
       "f4": {
         "t": "Contraseña, vencimiento y límites",
-        "d": "Bloqueá un link con contraseña. Definí una fecha de vencimiento o un máximo de clicks. El link se jubila solo."
+        "d": "Protegé un link con contraseña, ponele fecha de vencimiento o un máximo de clics. Cuando se cumple, deja de redirigir."
       },
       "f5": {
         "t": "Importá desde Bitly",
@@ -105,44 +105,45 @@
         "d": "Creá y medí links desde tu código con la API REST v1. Recibí link.created y link.clicked como webhooks firmados, con reintentos."
       },
       "f9": {
-        "t": "Todos tus datos, afuera",
-        "d": "Cada link en CSV. Cada clic en JSON. O sacá todo por la API. Sin rehenes."
+        "t": "Exportación",
+        "d": "Tus links en CSV y el registro de clics de cada link en CSV. También podés leer todo por la API."
       },
       "compare": {
         "rival": "Bitly",
         "price": "$35",
         "per": "/ mes",
-        "team": "$4.200",
+        "team": "$420",
         "zero": "$0",
-        "note": "Bitly Core cuesta $35 al mes — $420 al año, todos los años. Un equipo de 10 con precio por usuario supera fácil los $4.200 al año. Link self-hosteado cuesta $0. Para siempre."
+        "note": "Bitly Core cuesta $35 por mes: $420 al año. Los planes con más links y usuarios cuestan más. Link en tu servidor cuesta $0.",
+        "teamLabel": "Un año"
       },
       "faq": {
         "f1": {
-          "q": "¿Es realmente gratis?",
-          "a": "Sí. El core es open source (AGPLv3) y self-hostearlo no cuesta nada, para siempre. En Zerosoft Cloud arrancás con un plan gratis y, si escalás, pagás por uso, con precios transparentes. El software nunca fue lo caro; lo era el modelo de negocio."
+          "q": "¿Cómo traigo mis links de Bitly?",
+          "a": "Pegá un token de la API de Bitly para importar la cuenta, o subí el CSV que exporta Bitly (hasta 2.000 links por corrida). Los back-halves se mantienen. Si verificás tu dominio acá antes de mover el DNS, los links viejos siguen funcionando."
         },
         "f2": {
-          "q": "¿Puedo migrar mis links de Bitly?",
-          "a": "Sí. Pegá tu token de la API de Bitly para importar la cuenta entera, o subí el CSV que exporta Bitly — hasta 2.000 links por corrida, con sus back-halves. Agregá y verificá tu dominio propio acá primero: cuando movés el DNS, los mismos links siguen andando."
+          "q": "¿Los links vencen?",
+          "a": "Solo si les ponés vencimiento o límite de clics. Los QR apuntan al link corto, así que podés cambiar el destino sin reimprimirlos."
         },
         "f3": {
-          "q": "¿Qué pasa si Zerosoft cierra?",
-          "a": "Nada malo. El código es open source, así que cualquiera puede correrlo para siempre. Exportá cada link en CSV y cada clic en JSON cuando quieras. Tus links nunca pueden quedar de rehenes."
+          "q": "¿Qué guarda de cada clic?",
+          "a": "País, referrer, dispositivo, navegador y sistema operativo, sin cookies. El registro de clics de cada link se puede filtrar por país y exportar a CSV."
         },
         "f4": {
-          "q": "¿Puedo self-hostearlo?",
-          "a": "Esa es la idea. El core es AGPLv3: corrélo en cualquier servidor con Node y SQLite, configurá tu dominio, listo. Sin license key, sin phone-home, con todas las funciones del core. Solo lo enterprise (SSO, audit logs) va con licencia comercial."
+          "q": "¿Hay API?",
+          "a": "Sí. La API REST v1 crea, lista, edita y borra links y devuelve sus estadísticas. Los webhooks link.created y link.clicked llegan firmados con HMAC."
         },
         "f5": {
-          "q": "¿Mis links expiran alguna vez?",
-          "a": "Solo si vos se lo pedís. Los links nunca expiran por su cuenta y nunca quedan detrás de un paywall. La expiración es una feature que controlás vos, no una amenaza que usamos nosotros."
+          "q": "¿Qué le falta comparado con Bitly?",
+          "a": "Carpetas, deep links a apps móviles, ruteo por país o dispositivo, QR con logo y colores, y acciones en lote sobre la tabla de links."
         }
       },
       "cta": {
-        "title1": "Acortá algo.",
-        "title2": "Pagá nada.",
-        "sub": "Gratis, abierto, ya en el aire. Tu primer link corto está a diez segundos.",
-        "button": "Usar Link →"
+        "title1": "Acortá tu primer link.",
+        "title2": "Tarda diez segundos.",
+        "sub": "Pegá una URL, elegí el alias y compartila.",
+        "button": "Abrir Link →"
       },
       "steps": {
         "s1": {
@@ -155,44 +156,44 @@
         },
         "s3": {
           "t": "Compartí y medí",
-          "d": "Métricas sin cookies por día, referrer, país, dispositivo, navegador y sistema. Exportá a CSV o disparás un webhook en cada clic."
+          "d": "Métricas sin cookies por día, referrer, país, dispositivo, navegador y sistema. Exportá a CSV o recibí un webhook en cada clic."
         }
       }
     },
     "track": {
       "meta": {
-        "title": "Track — Gestión de proyectos a cero",
-        "description": "Issues, ciclos y timelines con la velocidad de Linear, sin los $8 por cabeza. Open source. En vivo."
+        "title": "Track: issues, ciclos y Gantt open source",
+        "description": "Issues con sub-issues, ciclos, estimaciones y vistas de lista, tablero, calendario y Gantt. Alternativa open source a Linear."
       },
       "hero": {
         "tag": "Gestión de proyectos",
-        "sub": "Issues, ciclos y timelines con el espíritu de Linear — sin los $8 por cabeza. Board, lista, calendario y Gantt. Open source. En vivo."
+        "sub": "Issues con sub-issues, relaciones, prioridades y estimaciones. Planificás en ciclos y seguís el trabajo en lista, tablero, calendario o Gantt."
       },
-      "featuresTitle": "Hecho para la velocidad.",
-      "featuresTitleDim": "Al precio del aire.",
+      "featuresTitle": "Planificá en ciclos.",
+      "featuresTitleDim": "Seguí cada issue.",
       "f1": {
         "t": "Cuatro vistas",
         "d": "Board, lista, calendario y Gantt. Los mismos issues, con la forma que tu día necesita."
       },
       "f2": {
         "t": "Ciclos",
-        "d": "Trabajá en ciclos enfocados de una o dos semanas. Definí, entregá, revisá, repetí."
+        "d": "Agrupá issues en ciclos de una o dos semanas para planificar cada sprint."
       },
       "f3": {
-        "t": "Timeline",
-        "d": "Cada issue con fechas en un timeline Gantt que todo el equipo puede leer."
+        "t": "Gantt",
+        "d": "Los issues con fechas aparecen en un timeline que todo el equipo puede leer."
       },
       "f4": {
         "t": "Sub-issues y relaciones",
-        "d": "Partí el trabajo, marcá bloqueos y duplicados. El grafo detrás del board, a la vista."
+        "d": "Partí el trabajo en sub-issues y marcá bloqueos y duplicados."
       },
       "f5": {
         "t": "Inbox",
-        "d": "Menciones, asignaciones y novedades en un solo lugar. Marcalas como leídas y volvé a trabajar."
+        "d": "Menciones, asignaciones y novedades en un solo lugar. Marcalas como leídas y seguí."
       },
       "f6": {
         "t": "Estados y prioridades",
-        "d": "Estados propios por proyecto, prioridades de baja a urgente. Estructurá el trabajo a tu manera."
+        "d": "Estados propios por proyecto y prioridades de baja a urgente."
       },
       "f7": {
         "t": "Estimaciones",
@@ -204,7 +205,7 @@
       },
       "f9": {
         "t": "Comentarios y actividad",
-        "d": "Cada cambio en un issue, registrado. Comentá, mencioná, adjuntá archivos. Nada se pierde."
+        "d": "Cada cambio queda en la actividad del issue. Comentá, mencioná y adjuntá archivos."
       },
       "compare": {
         "rival": "Linear",
@@ -212,35 +213,35 @@
         "per": "/ usuario / mes",
         "team": "$960",
         "zero": "$0",
-        "note": "Linear Standard cuesta $8 por usuario por mes. Un equipo de 10 paga $960 al año, todos los años, para siempre. Track self-hosteado cuesta $0."
+        "note": "Linear Standard cuesta $8 por usuario por mes. Un equipo de 10 paga $960 al año. Track en tu servidor cuesta $0."
       },
       "faq": {
         "f1": {
-          "q": "¿Es realmente gratis?",
-          "a": "Sí. El core es open source bajo AGPLv3, así que self-hostearlo no cuesta nada. Nuestra nube arranca con un plan gratis y después cobra por uso, con precios transparentes."
+          "q": "¿Puedo importar desde Linear?",
+          "a": "Todavía no. El importador de Linear está en el roadmap. Hoy creás los proyectos y estados a mano y cargás los issues abiertos."
         },
         "f2": {
-          "q": "¿Puedo migrar desde Linear?",
-          "a": "Todavía no de forma automática. El importador de Linear está en el roadmap. Hoy creás proyectos e issues a mano — la mayoría de los equipos arranca de cero con lo que importa."
+          "q": "¿Cómo se organiza el trabajo?",
+          "a": "Por proyecto. Cada proyecto tiene sus estados, miembros, ciclos y vistas guardadas. Los issues tienen prioridad, estimación, responsable, fechas, sub-issues y relaciones."
         },
         "f3": {
-          "q": "¿Qué pasa si Zerosoft cierra?",
-          "a": "Te quedás con todo. El código es abierto y self-hostear es un comando, así que tus issues viven en tu base de datos. No hay lock-in que te encierre."
+          "q": "¿Dónde veo lo que me toca?",
+          "a": "En Mis tareas y en el inbox, que junta menciones, asignaciones y cambios en tus issues."
         },
         "f4": {
-          "q": "¿Puedo self-hostearlo?",
-          "a": "Por supuesto. Es la forma por defecto de correr cada producto Zerosoft: tu servidor, tus datos, tus reglas. La nube existe para quien prefiere no operar servidores."
+          "q": "¿Tiene API o webhooks?",
+          "a": "Todavía no. La API v1 cubre Link, CRM, Cal y Agents. Mientras tanto, Flow puede crear issues cuando pasa algo en otra app."
         },
         "f5": {
-          "q": "¿Ya está en vivo?",
-          "a": "Sí. Track está en vivo: abrilo, creá un proyecto y sacá tu primer issue hoy — por $0."
+          "q": "¿Cómo lo hosteo?",
+          "a": "Viene en el mismo contenedor que el resto de la suite. Los issues quedan en tu archivo SQLite y los adjuntos, en el volumen de uploads."
         }
       },
       "cta": {
-        "title1": "Mové tarjetas.",
-        "title2": "No muevas nada más.",
-        "sub": "Track está en vivo. Abrilo, creá un proyecto y mové tu primera tarjeta hoy — por $0.",
-        "button": "Usar Track →"
+        "title1": "Armá tu primer ciclo.",
+        "title2": "Con el equipo adentro.",
+        "sub": "Creá un proyecto, invitá al equipo y cargá los issues de esta semana.",
+        "button": "Abrir Track →"
       },
       "steps": {
         "s1": {
@@ -259,50 +260,50 @@
     },
     "crm": {
       "meta": {
-        "title": "CRM — Clientes sin la factura",
-        "description": "Contactos, pipelines, sincronización de email y reportes — el 80% de HubSpot que de verdad usás, por $0 si lo hosteás vos. Open source. Ya está vivo."
+        "title": "CRM: contactos, deals y pipelines open source",
+        "description": "Contactos, empresas, pipelines, secuencias de email con Gmail, formularios, cotizaciones y reportes. Alternativa open source a HubSpot que corre en tu servidor."
       },
       "hero": {
         "tag": "Clientes y ventas",
-        "sub": "Contactos, pipelines, sincronización de email y reportes — el 80% de HubSpot que de verdad usás, por $0 si lo hosteás vos. Open source. Ya está vivo."
+        "sub": "Contactos, empresas y deals en un pipeline kanban. Sincroniza Gmail, manda secuencias, captura leads con formularios y arma cotizaciones. El export de HubSpot entra con un preset."
       },
       "featuresTitle": "Todo tu pipeline.",
-      "featuresTitleDim": "Cero licencias.",
+      "featuresTitleDim": "Del primer contacto a la cotización.",
       "f1": {
         "t": "Pipelines",
-        "d": "Arrastrá deals por las etapas que definas. Un pipeline o diez — sin precio por pipeline."
+        "d": "Arrastrá deals entre etapas en un tablero kanban. Tantos pipelines como necesites, con probabilidad por etapa y motivo de pérdida."
       },
       "f2": {
         "t": "Contactos y empresas",
-        "d": "Cada persona, cada empresa, cada contacto en un solo lugar. Buscable en milisegundos."
+        "d": "Contactos, empresas y deals asociados entre sí, con jerarquía de empresas, tags, campos propios y detección de duplicados."
       },
       "f3": {
-        "t": "Sincronización de email",
-        "d": "Conectá Gmail y sincronizá tus conversaciones con cada contacto en un clic. Quedan en el timeline correcto."
+        "t": "Gmail y secuencias",
+        "d": "Conectá Gmail y cada email queda en el timeline del contacto. Las secuencias mandan varios pasos y se cortan cuando te responden."
       },
       "f4": {
         "t": "Actividades",
-        "d": "Llamadas, reuniones, notas y tareas en un timeline por deal. Las reuniones agendadas en Cal aparecen ahí solas."
+        "d": "Llamadas, reuniones, notas y tareas en un timeline por registro. Las reuniones agendadas en Cal aparecen solas."
       },
       "f5": {
-        "t": "Reportes",
-        "d": "Valor del pipeline, conversión por etapa, forecast por mes. Los números que tu reunión del lunes necesita."
+        "t": "Reportes y dashboards",
+        "d": "Embudo, forecast, fuentes, cuotas por vendedor y dashboards con widgets. Los reportes se guardan."
       },
       "f6": {
-        "t": "Importá de donde sea",
-        "d": "CSV entra, CSV sale. Desde HubSpot, Pipedrive, o una planilla llamada final_final2."
+        "t": "Importación CSV",
+        "d": "Contactos, empresas y deals desde cualquier CSV, con mapeo de columnas y un preset para el export de HubSpot. Exportás a CSV o JSON."
       },
       "f7": {
-        "t": "Workspace compartido",
-        "d": "Invitá a tu equipo a un mismo workspace. Todos ven el mismo pipeline. Los roles granulares llegan pronto."
+        "t": "Formularios y lead scoring",
+        "d": "Formularios embebibles que crean el contacto, lo asignan por round-robin y le suman puntos según tus reglas."
       },
       "f8": {
-        "t": "Automatizaciones",
-        "d": "Cuando un deal cambia de etapa, creá una tarea, mandá un email o avisale al dueño. Reglas simples, cero consultores."
+        "t": "Workflows",
+        "d": "Cuando un registro se crea o cambia, llega un email o se acepta una cotización: creá una tarea, mandá un email, llamá un webhook o inscribí en una secuencia."
       },
       "f9": {
         "t": "API y webhooks",
-        "d": "Una API REST para contactos, empresas, deals, actividades y tareas, más webhooks firmados cuando cambian contactos y deals. Son tus datos."
+        "d": "API REST con scopes por clave para contactos, empresas, deals, tareas, productos y cotizaciones. Webhooks firmados cuando cambian contactos y deals."
       },
       "compare": {
         "rival": "HubSpot",
@@ -310,34 +311,34 @@
         "per": "/ usuario / mes",
         "team": "$6.000",
         "zero": "$0",
-        "note": "HubSpot Sales Hub Professional arranca cerca de $50 por usuario por mes. Diez vendedores: $6.000 al año — antes de los costos de onboarding. CRM self-hosteado cuesta $0."
+        "note": "HubSpot Sales Hub Professional arranca cerca de $50 por usuario por mes. Diez vendedores pagan $6.000 al año, antes del onboarding. El CRM en tu servidor cuesta $0."
       },
       "faq": {
         "f1": {
-          "q": "¿Es realmente gratis?",
-          "a": "Sí. El core es open source (AGPLv3) y self-hostearlo no cuesta nada. En Zerosoft Cloud arrancás con un plan gratis y, si escalás, pagás por uso, con precios transparentes. Vendemos comodidad, nunca el core."
+          "q": "¿Cómo paso mis datos desde HubSpot?",
+          "a": "Exportá contactos, empresas y deals de HubSpot a CSV y usá el preset «HubSpot export» del importador. Mapea columnas, dueños por email, campos propios y asociaciones. Creá antes los pipelines y etapas: los deals se ubican por nombre de etapa."
         },
         "f2": {
-          "q": "¿Puedo migrar desde HubSpot?",
-          "a": "Sí, para tus contactos y empresas: exportalos de HubSpot como CSV e importalos, asignando cada columna a un campo. Los deals se crean en el pipeline que configures acá."
+          "q": "¿Manda emails desde mi cuenta?",
+          "a": "Sí, desde tu Gmail conectado, con plantillas, seguimiento de aperturas y clics y secuencias. Los pasos de una secuencia salen dentro de la hora en que vencen. En tu servidor, conectar Gmail requiere un cliente OAuth de Google propio."
         },
         "f3": {
-          "q": "¿Qué pasa si Zerosoft cierra?",
-          "a": "Para vos, nada. El código es abierto, tus datos se exportan en cualquier momento, y la versión self-hosted sigue corriendo pase lo que pase con nosotros."
+          "q": "¿Puedo limitar qué ve cada vendedor?",
+          "a": "Sí. Elegís si los miembros ven todos los registros, solo los suyos o los de su equipo de ventas. La regla también se aplica a la búsqueda, los reportes, las exportaciones y la API."
         },
         "f4": {
-          "q": "¿Puedo self-hostearlo?",
-          "a": "Sí — es el punto del proyecto. Tus datos de clientes son probablemente lo más sensible que tenés; tenerlos en tu propio servidor es una feature, no una carga."
+          "q": "¿Hay API?",
+          "a": "Sí. La API REST v1 cubre contactos, empresas, deals, actividades, tareas, pipelines, productos, cotizaciones, asociaciones, tags y formularios. Cada clave tiene scopes (crm:read, crm:write) y actúa con los permisos de quien la creó."
         },
         "f5": {
-          "q": "¿Cuándo sale?",
-          "a": "Ya salió. Abrilo, importá tus contactos y cerrá tu primer deal hoy — por $0, obviamente."
+          "q": "¿Qué le falta comparado con HubSpot?",
+          "a": "Las cotizaciones no tienen firma electrónica ni cobro. Los formularios no tienen varios pasos, campos condicionales ni subida de archivos. En el celular, las tablas se desplazan de costado en lugar de pasar a tarjetas."
         }
       },
       "cta": {
-        "title1": "Cerrá deals.",
-        "title2": "No tu billetera.",
-        "sub": "CRM ya está vivo. Abrilo, importá tu CSV y manejá tu pipeline hoy — por $0.",
+        "title1": "Armá tu pipeline.",
+        "title2": "Con los datos que ya tenés.",
+        "sub": "Importá un CSV de HubSpot o de una planilla y empezá a mover deals.",
         "button": "Abrir CRM →"
       },
       "steps": {
@@ -357,15 +358,15 @@
     },
     "cal": {
       "meta": {
-        "title": "Cal — Agendamiento, liberado",
-        "description": "Tu disponibilidad como un link. Sync con Google Calendar, detección de zona horaria, round-robin, embeds y una API — sin $12 por mes. Open source. En vivo."
+        "title": "Cal: páginas de reserva con Google Calendar",
+        "description": "Páginas de reserva sincronizadas con Google Calendar y Meet, round-robin, formularios de ruteo, embeds, API y webhooks. Alternativa open source a Calendly."
       },
       "hero": {
         "tag": "Agendamiento",
-        "sub": "Tu disponibilidad como un link. La gente elige un horario, cae en tu Google Calendar, todos reciben la invitación, y nadie paga $12 por mes por el privilegio. En vivo."
+        "sub": "Compartís un link, la otra persona elige un horario y la reunión cae en tu Google Calendar con link de Meet. Recordatorios, reprogramación y cancelación incluidos."
       },
-      "featuresTitle": "Un link. Listo.",
-      "featuresTitleDim": "Cero emails de ida y vuelta.",
+      "featuresTitle": "Un link para agendar.",
+      "featuresTitleDim": "Sin ida y vuelta de emails.",
       "f1": {
         "t": "Páginas de reserva",
         "d": "Un link por reunión: zerosoft.ai/book/vos/30min. Los días sin lugar aparecen deshabilitados. En desktop, calendario y horarios lado a lado."
@@ -376,7 +377,7 @@
       },
       "f3": {
         "t": "Zonas horarias, buffers y límites",
-        "d": "Tus invitados ven su zona, vos la tuya. Margen antes y después, aviso mínimo, preguntas personalizadas. Tu calendario, defendido."
+        "d": "Tus invitados ven su zona horaria y vos la tuya. Margen antes y después, aviso mínimo y preguntas personalizadas."
       },
       "f4": {
         "t": "Round-robin y ruteo",
@@ -384,23 +385,23 @@
       },
       "f5": {
         "t": "El invitado se arregla solo",
-        "d": "Cancela o reprograma desde el link del email. Sin cuenta, sin ida y vuelta."
+        "d": "Cancela o reprograma desde el link del email, sin crear una cuenta."
       },
       "f6": {
         "t": "Emails con invitación",
-        "d": "Confirmación, reprogramación y cancelación llevan su invitación .ics. Un recordatorio 24 horas antes, con el link para gestionarla. Bajan los no-shows."
+        "d": "Confirmación, reprogramación y cancelación llevan su invitación .ics. Un recordatorio sale 24 horas antes, con el link para gestionar la reserva."
       },
       "f7": {
-        "t": "Embebelo donde sea",
-        "d": "Ponelo inline en cualquier sitio — la altura se ajusta sola — o detrás de un botón popup."
+        "t": "Embebelo en tu sitio",
+        "d": "Inline en cualquier página (la altura se ajusta sola) o detrás de un botón popup."
       },
       "f8": {
         "t": "API y webhooks",
         "d": "API REST v1 para tipos de evento y reservas: listar, crear, ver, cancelar. booking.created, booking.rescheduled y booking.cancelled como webhooks firmados, con reintentos."
       },
       "f9": {
-        "t": "Cero reservas dobles",
-        "d": "La disponibilidad es por persona, en todos los tipos de evento. Dos invitados no pueden agarrar el mismo horario, ni en el mismo segundo. Bloqueá feriados y tiempo de foco también."
+        "t": "Sin reservas dobles",
+        "d": "La disponibilidad es por persona y cruza todos tus tipos de evento, así que dos invitados no pueden tomar el mismo horario. También podés bloquear feriados o tiempo de foco."
       },
       "compare": {
         "rival": "Calendly",
@@ -408,35 +409,35 @@
         "per": "/ usuario / mes",
         "team": "$1.440",
         "zero": "$0",
-        "note": "Calendly Standard cuesta unos $12 por usuario por mes. Diez personas agendando: $1.440 al año, todos los años. Cal self-hosteado cuesta $0."
+        "note": "Calendly Standard cuesta cerca de $12 por usuario por mes. Diez personas pagan $1.440 al año. Cal en tu servidor cuesta $0."
       },
       "faq": {
         "f1": {
-          "q": "¿Es realmente gratis?",
-          "a": "Sí. El core es open source, así que self-hostearlo no cuesta nada. En Zerosoft Cloud arrancás con un plan gratis y, si escalás, pagás por uso, con precios transparentes. Agendar son bits y una API de calendario — nunca valió $12 al mes."
+          "q": "¿Cómo me paso desde Calendly?",
+          "a": "No hay importador. Recreás cada tipo de evento con su duración, buffers y preguntas, conectás Google Calendar y reemplazás el link o el embed en tu sitio."
         },
         "f2": {
-          "q": "¿Puedo migrar desde Calendly?",
-          "a": "Recrear tus tipos de evento lleva minutos — duraciones, buffers y preguntas se trasladan igual. Conectá Google Calendar, embebé tu nuevo link donde estaba el viejo, listo."
+          "q": "¿Con qué calendarios se sincroniza?",
+          "a": "Con Google Calendar: lo ocupado bloquea horarios y cada reserva crea el evento con link de Meet. Outlook e iCloud todavía no. En tu servidor, la conexión con Google requiere un cliente OAuth propio."
         },
         "f3": {
-          "q": "¿Qué pasa si Zerosoft cierra?",
-          "a": "Ni te enterarías. Self-hosteá el mismo código en tu servidor y tus páginas de reserva siguen andando en tu dominio."
+          "q": "¿Sirve para un equipo?",
+          "a": "Sí. Un tipo de evento puede tener varios hosts y asigna por round-robin a quien esté libre. Los formularios de ruteo mandan a cada persona al tipo de evento que corresponde."
         },
         "f4": {
-          "q": "¿Puedo self-hostearlo?",
-          "a": "Sí. Corré el core, configurá tu disponibilidad, compartí tu link. Sin servidor de licencias ni tier premium escondiendo lo bueno: todo el core es tuyo. Solo lo enterprise (SSO, audit logs, white-label) va con licencia comercial."
+          "q": "¿Hay API?",
+          "a": "Sí. La API REST v1 lista tipos de evento y crea, lista y cancela reservas con las mismas reglas que la página pública. Los webhooks booking.created, booking.rescheduled y booking.cancelled llegan firmados."
         },
         "f5": {
-          "q": "¿Se sincroniza con mi calendario?",
-          "a": "Con Google Calendar, sí: tus horarios ocupados bloquean los slots y cada reserva cae en tu calendario con link de Meet. Outlook e iCloud llegan pronto."
+          "q": "¿Qué le falta comparado con Calendly?",
+          "a": "Cobros con Stripe, eventos grupales o colectivos, recordatorios por SMS y horarios reutilizables: hoy la disponibilidad se define en cada tipo de evento."
         }
       },
       "cta": {
-        "title1": "Agendá tiempo.",
-        "title2": "No le cobres a nadie.",
-        "sub": "Cal está en vivo. Creá un tipo de evento y compartí tu link hoy — por $0.",
-        "button": "Usar Cal →"
+        "title1": "Compartí tu link.",
+        "title2": "Que elijan el horario.",
+        "sub": "Creá un tipo de evento, conectá Google Calendar y mandá el link.",
+        "button": "Abrir Cal →"
       },
       "steps": {
         "s1": {
@@ -455,50 +456,50 @@
     },
     "docs": {
       "meta": {
-        "title": "Docs — Notas y wikis, liberados",
-        "description": "Un wiki estilo Notion para tu equipo: páginas anidadas, editor de bloques, menciones y compartir. Open source. Disponible ahora."
+        "title": "Docs: wiki y documentos con editor de bloques",
+        "description": "Páginas anidadas, editor de bloques con menú /, links entre páginas, menciones, comentarios y plantillas. Alternativa open source a Notion."
       },
       "hero": {
         "tag": "Docs y wiki",
-        "sub": "Un espacio de trabajo estilo Notion para notas y documentos: páginas anidadas, editor de bloques, menciones a páginas y compartir. Open source. Disponible ahora."
+        "sub": "Una wiki para tu equipo: páginas anidadas, editor de bloques con menú /, links entre páginas con [[, menciones con @ y comentarios por bloque."
       },
-      "featuresTitle": "Escribí juntos.",
-      "featuresTitleDim": "Sé dueño de todo.",
+      "featuresTitle": "Escribí en bloques.",
+      "featuresTitleDim": "Ordená en páginas.",
       "f1": {
         "t": "Editor de bloques",
         "d": "Párrafos, títulos, listas, to-dos, citas, bloques de código y tablas. Escribí '/' y seguí escribiendo."
       },
       "f2": {
         "t": "Páginas anidadas",
-        "d": "Organizá páginas en un árbol. Arrastrá páginas para reordenarlas o anidarlas bajo cualquier padre."
+        "d": "Organizá las páginas en un árbol y arrastralas para anidarlas bajo otra."
       },
       "f3": {
-        "t": "Menciones a páginas",
-        "d": "Escribí [[ para vincular otra página. Las menciones se mantienen conectadas aunque cambien los títulos."
+        "t": "Links y menciones",
+        "d": "Escribí [[ para vincular otra página y @ para mencionar a alguien del workspace."
       },
       "f4": {
-        "t": "Compartir",
-        "d": "Hacé una página pública, compartila con un equipo o con un usuario. Vos controlás cada puerta."
+        "t": "Comentarios",
+        "d": "Comentá la página entera o un bloque. Los hilos se resuelven y se reabren."
       },
       "f5": {
-        "t": "Toda la empresa adentro",
-        "d": "Invitá a toda tu empresa. Self-hosteado, el precio sigue en $0 sin importar cuánta gente lea."
+        "t": "Sin costo por asiento",
+        "d": "Invitá a toda la empresa. Los asientos no se cobran, ni en tu servidor ni en zerosoft Cloud."
       },
       "f6": {
-        "t": "Datos abiertos",
-        "d": "Cada página se guarda como JSON limpio en tu propia base de datos. El export en un clic llega pronto."
+        "t": "Tus datos en tu base",
+        "d": "Cada página se guarda como JSON en tu base de datos. Si hosteás vos, está en tu archivo SQLite."
       },
       "f7": {
-        "t": "Búsqueda rápida",
-        "d": "Encontrá páginas por título en milisegundos. La búsqueda que realmente necesitás, no la que te cobran extra."
+        "t": "Búsqueda",
+        "d": "Encontrá páginas desde ⌘K, junto con contactos, links y tareas."
       },
       "f8": {
-        "t": "Enfoque monocromático",
-        "d": "Sin colores de neón ni interfaz ruidosa. Solo vos, las palabras y la estructura."
+        "t": "Plantillas",
+        "d": "Arrancá desde notas de reunión, spec de proyecto o retro semanal."
       },
       "f9": {
-        "t": "Self-hosteable",
-        "d": "Tus documentos se quedan en tu servidor si querés. Sin lock-in de vendor, nunca."
+        "t": "Papelera",
+        "d": "Mandar una página a la papelera se lleva sus subpáginas, y restaurarla las devuelve juntas."
       },
       "compare": {
         "rival": "Notion",
@@ -506,34 +507,34 @@
         "per": "/ usuario / mes",
         "team": "$1.200",
         "zero": "$0",
-        "note": "Notion Plus arranca en unos $10 por usuario por mes. Un equipo de diez paga $1.200 al año. Docs self-hosteado cuesta $0."
+        "note": "Notion Plus cuesta cerca de $10 por usuario por mes. Un equipo de diez paga $1.200 al año. Docs en tu servidor cuesta $0."
       },
       "faq": {
         "f1": {
-          "q": "¿Es realmente gratis?",
-          "a": "Sí. Open source (AGPLv3) y self-hosteable por $0. En Zerosoft Cloud arrancás con un plan gratis y, si escalás, pagás por uso, con precios transparentes."
+          "q": "¿Puedo importar desde Notion?",
+          "a": "Todavía no hay importador. Hoy la forma es copiar y pegar el contenido de cada página."
         },
         "f2": {
-          "q": "¿Puedo migrar desde Notion?",
-          "a": "Exportá tus páginas de Notion como Markdown y pegalas en Docs. La importación automática completa está en el roadmap."
+          "q": "¿Pueden editar varios a la vez?",
+          "a": "No en tiempo real. Si dos personas editan la misma página al mismo tiempo, queda la última versión guardada. Tampoco hay historial de versiones todavía."
         },
         "f3": {
-          "q": "¿Qué pasa si Zerosoft cierra?",
-          "a": "Te quedás con tus docs. Self-hosteá el mismo código y cada página queda en tu propia base de datos. Seguí escribiendo."
+          "q": "¿Puedo publicar una página en la web?",
+          "a": "Todavía no. Compartir hoy controla quién puede leer la página por la API; no hay una página pública de solo lectura."
         },
         "f4": {
-          "q": "¿Puedo self-hostearlo?",
-          "a": "Sí. Tus documentos son tuyos. Corré Docs en tu propio servidor con Node y SQLite en minutos."
+          "q": "¿Qué tienen las bases de datos?",
+          "a": "Una tabla dentro de la página, con columnas de texto, selección, fecha y número, y vista de galería. Todavía no hay filtros, orden, agrupación ni relaciones."
         },
         "f5": {
-          "q": "¿Cuándo sale?",
-          "a": "Docs ya está disponible. Abrilo y escribí tu primera página — por $0."
+          "q": "¿Tiene API pública?",
+          "a": "Todavía no. La API v1 cubre Link, CRM, Cal y Agents. Si hosteás vos, las páginas están en tu base SQLite como JSON."
         }
       },
       "cta": {
-        "title1": "Anotalo.",
-        "title2": "No pagues nada.",
-        "sub": "Docs ya está disponible. Empezá tu wiki de equipo hoy — por $0.",
+        "title1": "Escribí la primera página.",
+        "title2": "Después armá la wiki.",
+        "sub": "Empezá de una plantilla y anidá páginas a medida que crece.",
         "button": "Abrir Docs →"
       },
       "steps": {
@@ -546,41 +547,41 @@
           "d": "Títulos, listas, to-dos y más desde el menú /. Linkeá otras páginas con [[ y dejá comentarios."
         },
         "s3": {
-          "t": "Compartila",
-          "d": "Dejá la página privada, abrila al equipo, a una persona, o publicala con un link público."
+          "t": "Comentá y encontrá",
+          "d": "Dejá comentarios en cada bloque y encontrá cualquier página desde ⌘K."
         }
       }
     },
     "chat": {
       "meta": {
-        "title": "Chat — Soporte al cliente, liberado",
-        "description": "Un help desk estilo Intercom: widget de webchat, inbox compartido, estados y prioridad de tickets, SLAs, bot de respuestas automáticas, horario de atención y CSAT. Open source. En vivo."
+        "title": "Chat: widget de chat web e inbox compartido",
+        "description": "Widget de chat para tu sitio, inbox compartido, SLAs, reglas de asignación, respuestas guardadas, bot con IA y CSAT. Alternativa open source a Intercom."
       },
       "hero": {
         "tag": "Chat con clientes",
-        "sub": "Un help desk estilo Intercom: widget de webchat, inbox compartido, estados y prioridad de tickets, SLAs, un bot de respuestas automáticas, horario de atención y CSAT. Open source. En vivo."
+        "sub": "Un widget de chat para tu sitio y un inbox compartido para el equipo. Estados y prioridades, SLAs, reglas de asignación, respuestas guardadas, un bot con IA y CSAT."
       },
-      "featuresTitle": "Hablá con tus clientes.",
-      "featuresTitleDim": "Quedate con cada conversación.",
+      "featuresTitle": "Un inbox para soporte.",
+      "featuresTitleDim": "Con todo el equipo adentro.",
       "f1": {
-        "t": "Widget webchat",
-        "d": "Un script tag pone un widget de chat rápido y monocromo en cualquier sitio. Identificá visitantes y saludalos por su nombre."
+        "t": "Widget de chat web",
+        "d": "Un script tag pone el widget en cualquier sitio. Si identificás al visitante, lo ves con su nombre y email."
       },
       "f2": {
-        "t": "Bandeja compartida",
-        "d": "Cada conversación cae en una sola bandeja que trabaja todo el equipo: asigná, respondé, posponé, resolvé. Sin forwards, sin BCC."
+        "t": "Inbox compartido",
+        "d": "Cada conversación cae en un inbox que trabaja todo el equipo: asigná, respondé, posponé y resolvé. J y K pasan de una a otra."
       },
       "f3": {
         "t": "Estados y prioridad",
-        "d": "Abiertas, pendientes, resueltas — con prioridades de baja a urgente que suben lo importante. Nada se pierde."
+        "d": "Abiertas, pendientes, pospuestas y resueltas, con prioridad de baja a urgente."
       },
       "f4": {
         "t": "SLAs",
-        "d": "Definí objetivos de primera respuesta y resolución, y mirá lo que está por vencer antes de que venza. Soporte con reloj."
+        "d": "Objetivos de primera respuesta y resolución por prioridad, con aviso antes de que venzan."
       },
       "f5": {
-        "t": "Respuestas automáticas",
-        "d": "El bot busca palabras clave en tus respuestas prediseñadas y páginas de docs, responde primero las preguntas repetitivas y deriva a un humano con el hilo completo."
+        "t": "Bot con IA",
+        "d": "Responde con tus respuestas guardadas y tus páginas de Docs, y deriva a una persona con prioridad alta. Sin IA configurada, busca por palabras clave."
       },
       "f6": {
         "t": "Horario de atención y CSAT",
@@ -591,12 +592,12 @@
         "d": "Enviá cada conversación a la persona correcta automáticamente y respondé en dos teclas con mensajes guardados."
       },
       "f8": {
-        "t": "Personas y visitantes",
-        "d": "Cada visitante, lead y cliente en un solo lugar: quiénes son, qué vieron, qué preguntaron."
+        "t": "Personas",
+        "d": "La lista de visitantes con sus conversaciones y notas. Si dejan email, pasan al CRM con un clic."
       },
       "f9": {
-        "t": "Todo el equipo adentro",
-        "d": "El soporte es un deporte de equipo. Open source y self-hosteable: invitá a todos, el precio sigue en $0."
+        "t": "Sin costo por asiento",
+        "d": "Invitá a todo el equipo de soporte. Los asientos no se cobran."
       },
       "compare": {
         "rival": "Intercom",
@@ -604,34 +605,34 @@
         "per": "/ asiento / mes",
         "team": "$3.480",
         "zero": "$0",
-        "note": "Intercom arranca en unos $29 por asiento por mes. Un equipo de diez paga $3.480 al año. Chat self-hosteado cuesta $0."
+        "note": "Intercom arranca cerca de $29 por asiento por mes. Un equipo de diez paga $3.480 al año. Chat en tu servidor cuesta $0."
       },
       "faq": {
         "f1": {
-          "q": "¿Es realmente gratis?",
-          "a": "Sí. Open source (AGPLv3) y self-hosteable por $0. En Zerosoft Cloud arrancás con un plan gratis y, si escalás, pagás por uso, con precios transparentes."
+          "q": "¿Cómo agrego el widget a mi sitio?",
+          "a": "Creá un widget, copiá el script tag y pegalo antes del cierre del body. Funciona en cualquier sitio que sirva HTML."
         },
         "f2": {
-          "q": "¿Cómo agrego el widget a mi sitio?",
-          "a": "Creá un widget, pegá un script tag antes del cierre del body y listo. Funciona con cualquier stack que sirva HTML."
+          "q": "¿Atiende email o WhatsApp?",
+          "a": "Todavía no. Chat tiene un solo canal: el widget web."
         },
         "f3": {
-          "q": "¿El bot reemplaza a mi equipo?",
-          "a": "No. Responde preguntas repetitivas buscando palabras clave en tus respuestas prediseñadas y páginas de docs; tu equipo se queda con las conversaciones que necesitan un humano. Podés apagarlo del todo."
+          "q": "¿Cómo funciona el bot?",
+          "a": "Responde hasta que contesta una persona del equipo. Usa IA con tus respuestas guardadas y páginas de Docs; sin IA configurada, busca por palabras clave. Se apaga por widget."
         },
         "f4": {
-          "q": "¿Qué pasa si Zerosoft cierra?",
-          "a": "Te quedás con tus conversaciones. Self-hosteá el mismo código y tu historial de soporte queda en tu propia base de datos."
+          "q": "¿Se conecta con el CRM?",
+          "a": "Sí. Si el visitante deja su email, Chat crea el contacto en el CRM y registra la conversación en su timeline."
         },
         "f5": {
-          "q": "¿Cuándo sale?",
-          "a": "Chat ya está disponible. Creá tu primer widget y respondé clientes hoy — por $0."
+          "q": "¿Qué le falta comparado con Intercom?",
+          "a": "Notas internas, menciones y tags dentro de la conversación, un centro de ayuda, mensajes proactivos y reportes por agente o por rango de fechas."
         }
       },
       "cta": {
-        "title1": "Respondé a todos.",
-        "title2": "No pagues nada.",
-        "sub": "Chat ya está disponible. Poné el widget en tu sitio hoy — por $0.",
+        "title1": "Poné el widget.",
+        "title2": "Respondé desde el inbox.",
+        "sub": "Creá un widget, pegá el script en tu sitio y recibí el primer mensaje.",
         "button": "Abrir Chat →"
       },
       "steps": {
@@ -645,13 +646,13 @@
         },
         "s3": {
           "t": "Respondé más rápido",
-          "d": "Respuestas guardadas para lo de siempre y un bot que las sugiere por palabras clave. El CSAT te dice cómo salió."
+          "d": "Respuestas guardadas para lo de siempre y un bot con IA que contesta lo repetido. El CSAT te dice cómo salió."
         }
       }
     },
     "agents": {
       "meta": {
-        "title": "Agents, agentes de IA open source",
+        "title": "Agents: agentes de IA con tu conocimiento",
         "description": "Agentes de IA que responden con tu conocimiento y usan herramientas de CRM, Cal, Track y Flow. Una alternativa open source a Intercom Fin."
       },
       "hero": {
@@ -695,7 +696,7 @@
       "faq": {
         "f1": {
           "q": "¿Qué modelo de IA usa?",
-          "a": "Cualquiera del AI Gateway, con el formato proveedor/modelo (por ejemplo, anthropic/claude-sonnet-5-5). En tu servidor, el consumo lo pagás directo con tu clave."
+          "a": "Cualquiera del AI Gateway, con el formato proveedor/modelo (por ejemplo, anthropic/claude-sonnet-5-5). En tu servidor pagás el consumo directo con tu clave; en zerosoft Cloud se cobra por tokens."
         },
         "f2": {
           "q": "¿Puede inventar respuestas?",
@@ -703,11 +704,15 @@
         },
         "f3": {
           "q": "¿Dónde habla con mis clientes?",
-          "a": "En el widget de Chat de tu sitio, en una página pública propia y por API desde tu app."
+          "a": "En el widget de Chat de tu sitio, en una página pública propia y por la API v1 (scope agents:run) desde tu app."
         },
         "f4": {
           "q": "¿Puede cambiar mis datos?",
           "a": "Solo con las herramientas que le prendas y solo dentro de tu workspace. Para agendar necesita un horario que él mismo ofreció y la confirmación del visitante."
+        },
+        "f5": {
+          "q": "¿Puedo traer la configuración de Fin?",
+          "a": "No hay importador. Pegás tus instrucciones como brief y sumás tus páginas de Docs y tus sitios como conocimiento."
         }
       },
       "cta": {
@@ -733,14 +738,14 @@
     },
     "flow": {
       "meta": {
-        "title": "Flow, automatizaciones open source",
+        "title": "Flow: automatizaciones visuales open source",
         "description": "Automatizaciones visuales entre todas las apps de zerosoft y cualquier API. Una alternativa open source a Zapier y n8n."
       },
       "hero": {
         "sub": "Automatizaciones visuales entre todas las apps de zerosoft y cualquier servicio con API. Disparadores, condiciones, loops y pasos con IA en un mismo lienzo."
       },
       "featuresTitle": "Todo conectado.",
-      "featuresTitleDim": "Pagás el servidor, no las tareas.",
+      "featuresTitleDim": "Sin cobro por tarea.",
       "f1": {
         "t": "Disparadores de toda la suite",
         "d": "Una reserva en Cal, un clic en Link, un contacto nuevo, un issue o un mensaje de Chat."
@@ -790,6 +795,10 @@
         "f4": {
           "q": "¿Hay un límite de ejecuciones?",
           "a": "En tu servidor no se cobra por tarea. Hay un tope de ejecuciones por hora en cada workspace, para que un loop mal armado no sature el servidor."
+        },
+        "f5": {
+          "q": "¿Qué le falta comparado con Zapier?",
+          "a": "Un catálogo de integraciones con servicios de terceros. Fuera de zerosoft, Flow habla HTTP: si el servicio tiene API o webhooks, lo conectás con un pedido HTTP."
         }
       },
       "cta": {
@@ -815,7 +824,7 @@
     },
     "robots": {
       "meta": {
-        "title": "Robots, automatización de navegador open source",
+        "title": "Robots: automatización de navegador open source",
         "description": "Robots que navegan, completan formularios y extraen datos en tu lugar. Una alternativa open source a UiPath."
       },
       "hero": {
@@ -872,6 +881,10 @@
         "f4": {
           "q": "¿Cómo uso lo que extrae?",
           "a": "Cada corrida devuelve JSON. Desde Flow podés crear contactos, mandar un email o cargar un issue con esos datos."
+        },
+        "f5": {
+          "q": "¿Qué le falta comparado con UiPath?",
+          "a": "Robots automatiza el navegador, no el escritorio: no maneja aplicaciones de Windows ni archivos locales. Tampoco guarda credenciales cifradas para sitios con login."
         }
       },
       "cta": {
@@ -897,7 +910,7 @@
     },
     "notes": {
       "meta": {
-        "title": "Notes, notas open source",
+        "title": "Notes: notas, libretas y búsqueda open source",
         "description": "Libretas, checklists, clipper web y preguntas sobre tus notas. Una alternativa open source a Evernote."
       },
       "hero": {
@@ -954,6 +967,10 @@
         "f4": {
           "q": "¿Se maneja con teclado?",
           "a": "Sí. Apretás N para una nota nueva y la búsqueda encuentra texto dentro de todas tus notas."
+        },
+        "f5": {
+          "q": "¿Puedo importar desde Evernote?",
+          "a": "Todavía no hay importador. Podés pegar el contenido de tus notas o usar el clipper para guardar páginas web."
         }
       },
       "cta": {
@@ -965,7 +982,7 @@
     },
     "board": {
       "meta": {
-        "title": "Board, pizarra infinita open source",
+        "title": "Board: pizarra infinita open source",
         "description": "Una pizarra infinita compartida con tu equipo, con guardado automático y links de solo lectura. Una alternativa open source a Miro."
       },
       "hero": {
@@ -1021,6 +1038,10 @@
         "f4": {
           "q": "¿En qué está basada?",
           "a": "En Excalidraw, el editor open source de pizarras a mano alzada."
+        },
+        "f5": {
+          "q": "¿Puedo traer mis tableros de Miro?",
+          "a": "No hay importador. Exportá el tablero de Miro como imagen y pegalo en una pizarra nueva."
         }
       },
       "cta": {
@@ -1032,38 +1053,38 @@
     }
   },
   "product": {
-    "launch": "Usar {name} — es gratis",
+    "launch": "Probar {name}",
     "compareToday": "Hoy pagás",
-    "compareZero": "Con Zerosoft",
+    "compareZero": "Con zerosoft",
     "compareTeam": "Equipo de 10",
     "compareYear": "/ año",
     "model": {
       "a": {
         "title": "Hostealo vos",
-        "desc": "El core es open source bajo AGPLv3, con todas sus funciones. Corrélo en tu servidor, modificalo, rompelo, hacelo tuyo. Sin trial, sin license key, sin límites.",
+        "desc": "El core es AGPLv3, con todas sus funciones. Corrélo en tu servidor y modificalo como quieras. No hay período de prueba ni clave de licencia.",
         "price": "$0",
-        "priceNote": "/ para siempre"
+        "priceNote": "/ mes, en tu servidor"
       },
       "b": {
-        "title": "Zerosoft Cloud",
-        "desc": "Lo corremos nosotros: login, backups, actualizaciones y uptime. Arrancás con un plan gratis generoso y, cuando escalás, pagás por uso — clics, reservas, emails, almacenamiento, asientos. Precios transparentes, publicados antes de cobrarte nada.",
+        "title": "zerosoft Cloud",
+        "desc": "Lo operamos nosotros: login, backups, actualizaciones y uptime. Cada workspace empieza con un plan gratis y después paga por uso: clics, reservas, emails y almacenamiento. Los asientos no se cobran y la IA se cobra por tokens.",
         "price": "Gratis",
-        "priceNote": "/ para empezar · precios por uso, pronto"
+        "priceNote": "/ para empezar · después, por uso"
       },
       "c": {
         "title": "Enterprise",
-        "desc": "Licencia comercial con soporte directo del equipo, en tu servidor o en nuestra nube. Los extras enterprise (SSO/SAML, audit logs, roles a medida, white-label) están en desarrollo.",
+        "desc": "Licencia comercial con soporte directo del equipo, en tu servidor o en nuestra nube. SSO/SAML, logs de auditoría, roles a medida y white-label están en desarrollo.",
         "price": "Hablemos",
         "priceNote": "/ licencia comercial + soporte"
       }
     },
-    "faqTitle": "Preguntas justas.",
-    "faqTitleDim": "Cero letra chica.",
+    "faqTitle": "Preguntas sobre {name}.",
+    "faqTitleDim": "Migración, límites y API.",
     "alternative": "La alternativa open source a {rival}",
     "selfHost": "Hostealo vos",
     "apiDocs": "Docs de la API",
-    "howTitle": "Andando",
-    "howTitleDim": "en tres pasos.",
+    "howTitle": "Cómo se usa.",
+    "howTitleDim": "En tres pasos.",
     "suiteTitle": "Un workspace.",
     "suiteTitleDim": "Once apps, el mismo login.",
     "previewNote": "Vista interactiva de la interfaz del producto."
@@ -1337,28 +1358,28 @@
   },
   "docs": {
     "meta": {
-      "title": "API Docs — Zerosoft",
-      "description": "La API REST de Zerosoft: links, CRM y Cal. Keys personales, respuestas JSON, cero fricción."
+      "title": "Docs de la API",
+      "description": "La API REST de zerosoft para Link, CRM, Cal y Agents. Claves personales con scopes y respuestas JSON."
     },
-    "label": "0.05 — API",
-    "title": "La API de Zerosoft.",
-    "titleDim": "Cero fricción.",
-    "intro": "Todos los productos exponen la misma API: REST, JSON y keys personales. Si el dashboard lo puede hacer, tu código también.",
+    "label": "API",
+    "title": "La API de zerosoft.",
+    "titleDim": "REST y JSON.",
+    "intro": "Link, CRM, Cal y Agents exponen una API REST con respuestas JSON y claves personales.",
     "baseLabel": "Base URL",
     "authTitle": "Autenticación",
     "authDesc": "Cada request necesita una API key, enviada como Bearer token. Para sesiones de navegador, el flujo OAuth de Google crea la cookie de sesión.",
-    "authNote": "Creá las keys en Dashboard → Settings → API keys. La key se muestra una sola vez — copiala y guardala como una contraseña. Cada key permite 100 requests por minuto.",
+    "authNote": "Creá las keys en Dashboard → Settings → API keys. La key se muestra una sola vez: copiala y guardala como una contraseña. Cada key permite 100 requests por minuto.",
     "linksTitle": "Links",
     "linksDesc": "Crear, listar, actualizar y medir links cortos.",
-    "crmContactsTitle": "CRM — Contactos",
+    "crmContactsTitle": "CRM · Contactos",
     "crmContactsDesc": "Personas y leads.",
-    "crmCompaniesTitle": "CRM — Empresas",
+    "crmCompaniesTitle": "CRM · Empresas",
     "crmCompaniesDesc": "Organizaciones y cuentas.",
-    "crmDealsTitle": "CRM — Deals",
+    "crmDealsTitle": "CRM · Deals",
     "crmDealsDesc": "Oportunidades y pipelines.",
-    "crmTasksTitle": "CRM — Tareas",
+    "crmTasksTitle": "CRM · Tareas",
     "crmTasksDesc": "Actividades y seguimientos.",
-    "crmPipelinesTitle": "CRM — Pipelines y etapas",
+    "crmPipelinesTitle": "CRM · Pipelines y etapas",
     "crmPipelinesDesc": "Pipelines de venta y sus etapas.",
     "teamsTitle": "Equipos",
     "teamsDesc": "Invitar, aceptar y cambiar de workspace.",
@@ -1367,7 +1388,7 @@
     "authFlowTitle": "Inicio de sesión con Google",
     "authFlowDesc": "Redirigí al usuario para iniciar el flujo OAuth de Google. Tras el éxito vuelve a la app con la cookie de sesión.",
     "linksCreateTitle": "Crear un link",
-    "linksCreateDesc": "Crea un link corto. slug es opcional — si lo omitís, generamos uno.",
+    "linksCreateDesc": "Crea un link corto. slug es opcional: si lo omitís, generamos uno.",
     "linksListTitle": "Listar links",
     "linksListDesc": "Tus links, del más nuevo al más viejo. Paginá con page y pageSize (máx 100).",
     "linksDeleteTitle": "Borrar un link",
@@ -1518,11 +1539,11 @@
     "paramCalTimezone": "Zona horaria del invitado para los emails. Por defecto UTC.",
     "paramCalReason": "Se le muestra al invitado en el email de cancelación.",
     "contactsDeleteTitle": "Borrar un contacto",
-    "contactsDeleteDesc": "Borra el contacto para siempre. Sus actividades quedan, sin vincular.",
+    "contactsDeleteDesc": "Borra el contacto de forma definitiva. Sus actividades quedan, sin vincular.",
     "companiesDeleteTitle": "Borrar una empresa",
-    "companiesDeleteDesc": "Borra la empresa para siempre. Los contactos siguen existiendo sin empresa.",
+    "companiesDeleteDesc": "Borra la empresa de forma definitiva. Los contactos siguen existiendo sin empresa.",
     "dealsDeleteTitle": "Borrar un deal",
-    "dealsDeleteDesc": "Borra el deal para siempre.",
+    "dealsDeleteDesc": "Borra el deal de forma definitiva.",
     "dealsMoveTitle": "Mover un deal de etapa",
     "dealsMoveDesc": "Mueve el deal a otra etapa de su pipeline. Las etapas ganado/perdido lo cierran; perdido necesita lostReason. Dispara deal.stage_changed (y deal.won / deal.lost).",
     "crmActivitiesTitle": "CRM · Actividades",
@@ -1537,7 +1558,7 @@
     "paramActivityType": "Tipo de actividad.",
     "paramActivityBody": "Texto libre: notas, resumen de la llamada, cuerpo del email.",
     "openapiCta": "Descargar la spec OpenAPI 3.1",
-    "crmEmailTitle": "CRM — Templates de email y secuencias",
+    "crmEmailTitle": "CRM · Templates de email y secuencias",
     "crmEmailDesc": "Templates y snippets de email compartidos, y secuencias de ventas de varios pasos. Los emails de las secuencias salen del Gmail conectado de quien envía; los pasos corren con el programador de cada hora.",
     "emailTemplatesListTitle": "Listar templates de email",
     "emailTemplatesListDesc": "Templates y snippets compartidos en el workspace. Las variables van entre llaves dobles (contact.first_name, contact.company, deal.name, owner.first_name, contact.custom.x), con un valor por defecto opcional después de una barra vertical.",
@@ -1551,13 +1572,13 @@
     "sequencesUnenrollDesc": "Saca al contacto de la secuencia (estado exited, motivo manual).",
     "paramTemplateKind": "Filtrar por tipo: template o snippet.",
     "paramSenderId": "Miembro del workspace cuyo Gmail envía los emails. Por defecto, el owner del contacto y si no quien creó la secuencia.",
-    "crmProductsTitle": "CRM — Productos y line items",
+    "crmProductsTitle": "CRM · Productos y line items",
     "crmProductsDesc": "Catálogo de productos y los line items de cada deal. Mientras un deal tenga line items, su monto es la suma de los netos (después del descuento, antes de impuestos), salvo que amountOverride esté activo.",
-    "crmQuotesTitle": "CRM — Cotizaciones",
+    "crmQuotesTitle": "CRM · Cotizaciones",
     "crmQuotesDesc": "Cotizaciones creadas desde los line items de un deal. Cada una guarda una copia de los ítems y tiene una página pública (public_url) donde el cliente acepta o rechaza. Al aceptar se dispara el evento de Flow quote.accepted y el trigger de workflow quote_accepted.",
-    "crmAssociationsTitle": "CRM — Asociaciones",
+    "crmAssociationsTitle": "CRM · Asociaciones",
     "crmAssociationsDesc": "Vínculos muchos a muchos entre contactos, empresas y deals. Un contacto o un deal puede tener varias empresas; una es la primaria. contact.company_id siempre refleja la empresa primaria.",
-    "crmTagsTitle": "CRM — Tags",
+    "crmTagsTitle": "CRM · Tags",
     "crmTagsDesc": "Tags del workspace para contactos, empresas y deals.",
     "productsListTitle": "Listar productos",
     "productsListDesc": "Productos del catálogo, primero los activos, ordenados por nombre.",

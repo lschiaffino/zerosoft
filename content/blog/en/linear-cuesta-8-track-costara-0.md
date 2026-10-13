@@ -1,54 +1,43 @@
 ---
-title: "Linear costs $8. Track will cost $0."
-description: "Linear is probably the best issue tracker ever built: speed, keyboard-first, cycles. The only problem is the per-seat bill. That's why we're building Track. Q4 2026."
+title: "What we took from Linear for Track, and what Linear's per-seat price adds up to"
+description: "Linear is a great issue tracker: fast, keyboard-driven, built around cycles. Its price grows with every hire. Why we built Track, and what it does and doesn't do yet."
 date: "2026-06-21"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["track", "linear", "open source"]
 ---
 
-Let's start with honesty: Linear is probably the best issue tracker ever built. If you've used it, you know. And it's also the perfect demonstration of everything wrong with SaaS.
+Linear is probably the best issue tracker built so far. We wrote this post when we started Track, and the opinion hasn't changed.
 
-## What we love about Linear
+## What Linear gets right
 
-We're not here to throw stones. We're here to copy the good parts:
+- **Speed.** Optimistic updates, real-time sync, no spinners. A fast tool is a tool people keep up to date.
+- **Keyboard.** `Cmd+K` and you can create, assign, move and close without the mouse.
+- **Cycles.** Sprints without ceremony: plan, ship, look at what's left.
 
-- **The speed.** Everything is instant. Mutations are optimistic, sync is real-time, there's never a spinner. Speed isn't a detail: it's what makes the team *want* to keep the board updated.
-- **Keyboard first.** `Cmd+K` and you never touch the mouse. Create, assign, move, close: all from the keyboard. The tool disappears and only the work remains.
-- **Cycles.** Sprints without ceremony. Work comes in, gets prioritized, gets done, gets measured. No two weeks spent configuring workflows and permissions.
+Linear showed an issue tracker can feel like a good text editor. That's hard to do.
 
-Linear proved an issue tracker can feel like a modern text editor. That's real, and it's hard.
+## The bill
 
-## What we don't love: the bill
+The Standard plan is $8 per user per month. Per year:
 
-The basic plan is $8 per user per month, billed annually. Let's do the math any CTO does:
+- Team of 10: $960.
+- Team of 50: $4,800.
+- Team of 200: $19,200.
 
-- Team of 10: $960 a year.
-- Team of 50: $4,800 a year.
-- Team of 200: $19,200 a year.
+What's stored is issues: title, description, status, priority and a few timestamps. The infrastructure cost per seat is cents, and the price grows with headcount.
 
-For what? Storing issues — title, description, status, priority, a few timestamps — in a database. The real infrastructure cost per seat is measured in cents. And the price grows in the wrong direction: the bigger your team, the bigger the bill, the more painful the exit. Your entire product history is held hostage.
+## What Track does today
 
-## What Track will have
+Track shipped after this post was first written. Today it has:
 
-Track is our Linear clone, in construction now, shipping Q4 2026. The short list:
+- Issues with custom statuses, priorities, labels, assignees, estimates and due dates.
+- Sub-issues and relations (blocks, duplicates).
+- Cycles.
+- Four views: list, board, calendar and Gantt, plus saved views.
+- Comments, attachments, an activity log and an inbox.
 
-- Issues with statuses, priorities, labels and assignees.
-- Cycles, with velocity and automatic progress.
-- Truly keyboard-first: command palette and shortcuts for everything.
-- Speed as a non-negotiable requirement, not a roadmap goal.
-- API from day one.
-- Self-host from day one too: one deploy, your Postgres, your data.
+What it doesn't have yet: keyboard shortcuts, a public API, real-time sync and velocity charts. When we started we promised the first two from day one. We didn't deliver them yet, and [the Track vs Linear comparison](/blog/zerosoft-track-vs-linear) spells out the rest.
 
-No 40-screen workflow builder. No paid plugin marketplace. No "talk to sales".
+## What it costs
 
-## Why it will cost $0
-
-Because it's software, and software is bits, and bits are free. Track's code will be open source: download it, audit it, run it for your whole team without paying a cent. If you don't want to host it, we run it for you and you pay exactly what the cloud costs. At cost. No margin.
-
-Linear charges $8 per seat because it can. We charge $0 because we can. The difference is the model, not the technology.
-
-## The waitlist
-
-Track ships in Q4 2026. If you want early access — and a say in what gets built first — join the waitlist at zerosoftware.ai. The site is in English, Spanish and Portuguese, like everything we build.
-
-Linear showed how a tracker should feel. Track will show how much it should cost.
+Track's code is AGPLv3. Self-hosting costs $0 for any team size. On zerosoft Cloud seats are free and you pay for usage beyond the free tier.

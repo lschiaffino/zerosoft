@@ -1,14 +1,14 @@
 ---
-title: "CRM workflows that create follow-up tasks for you"
-description: "How to use Zerosoft CRM workflows to create follow-up tasks automatically: real triggers and actions, five recipes for small teams, and the limits you should know before you rely on them."
+title: "CRM workflows that create follow-up tasks"
+description: "How to use zerosoft CRM workflows to create follow-up tasks: the real triggers and actions, five recipes for small teams, and the limits to know."
 date: "2026-08-08"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "workflows", "automation"]
 ---
 
 Deals rarely die because someone said no. They die because nobody followed up. The proposal went out on a Tuesday, the week got busy, and by the time anyone remembered, the prospect had signed with someone who did remember.
 
-The fix isn't discipline. It's making the follow-up exist before anyone has to think about it. That's what workflows in Zerosoft CRM are for, and the most useful thing they do is boring: create a task, with a date, attached to the right record.
+The fix is to create the follow-up before anyone has to think about it. That's what workflows in zerosoft CRM are for, and the most useful thing they do is boring: create a task, with a date, attached to the right record.
 
 ## The pieces
 
@@ -61,12 +61,12 @@ The simplest one and the one that pays off fastest. Every new contact, whether i
 
 The stage filter takes the stage's ID, not its name. The quickest way to get it is `GET /api/v1/crm/pipelines` with your API key, which lists each pipeline with its stages. Yes, pasting an ID is rough; it's on our list.
 
-### 3. Lost isn't forever
+### 3. Revisit lost deals
 
 - Trigger: **Deal lost**
 - Action: **Create task**, subject "Check back in", due in 90 days
 
-Losing on timing or budget is different from losing on fit. A task three months out costs nothing and turns some "no"s into "not yet"s. Zerosoft already asks for a lost reason when a deal is closed as lost, so the person who gets the task knows the context.
+Losing on timing or budget is different from losing on fit. A task three months out costs nothing and turns some "no"s into "not yet"s. zerosoft already asks for a lost reason when a deal is closed as lost, so the person who gets the task knows the context.
 
 ### 4. Won → kick off onboarding
 

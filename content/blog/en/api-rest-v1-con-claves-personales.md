@@ -1,14 +1,14 @@
 ---
-title: "The REST API v1, hands-on: personal keys, curl and real errors"
-description: "Create a zs_ key, shorten links, pull click stats, create contacts and deals from a script. Every example matches the code, including what happens when things go wrong."
+title: "The REST API v1 by example: personal keys, curl and real errors"
+description: "Create a zs_ key, shorten links, read click stats and create CRM contacts and deals from a script. Every example matches the route handlers, errors included."
 date: "2026-08-13"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["api", "developers", "tutorial"]
 ---
 
-We've written about [why we document every API](/blog/apis-abiertas-por-que-documentamos-todo). This is the practical side: a walkthrough of Zerosoft's REST API v1 with copy-pasteable `curl` commands for Link and the CRM, plus the errors you'll actually hit.
+We've written about [why we document every API](/blog/apis-abiertas-por-que-documentamos-todo). This is the practical side: a walkthrough of zerosoft's REST API v1 with copy-pasteable `curl` commands for Link and the CRM, plus the errors you'll actually hit.
 
-Everything here was checked against the route handlers in `app/api/v1`, not just the docs page. The base URL is `https://zerosoft.ai/api/v1` on Zerosoft Cloud, or `https://your-host/api/v1` if you self-host.
+Everything here was checked against the route handlers in `app/api/v1`, not just the docs page. The base URL is `https://zerosoft.ai/api/v1` on zerosoft Cloud, or `https://your-host/api/v1` if you self-host.
 
 ## Get a key
 
@@ -75,7 +75,7 @@ curl -X POST "$ZS/crm/contacts" \
 # 201 → { "id": "...", "first_name": "Ana", "last_name": "Garcia", "lifecycle_stage": "lead", ... }
 ```
 
-Update with `PATCH` — every field is optional:
+Update with `PATCH`: every field is optional:
 
 ```bash
 curl -X PATCH "$ZS/crm/contacts/CONTACT_ID" \
@@ -118,7 +118,7 @@ curl "$ZS/crm/tasks?bucket=overdue" -H "Authorization: Bearer $ZS_KEY"
 
 `bucket` accepts `overdue`, `today`, `upcoming` or `done`. Dates use `YYYY-MM-DD`, optionally followed by a time.
 
-There are also Cal endpoints (event types, bookings, cancel) under `/calendar` — the [docs](/docs) have them.
+There are also Cal endpoints (event types, bookings, cancel) under `/calendar`: the [docs](/docs) have them.
 
 ## Errors: one shape for everything
 
@@ -155,4 +155,4 @@ For bulk imports, pace yourself at well under 100 per minute and you'll never se
 
 ## What's not there (yet)
 
-Being honest about the edges: there's no API for Track, Chat or Docs yet, the CRM has no webhook events, and there's no OAuth for third-party apps — keys are personal. If the dashboard can do something the API can't, that's a gap, not a design choice. Open an issue.
+Being honest about the edges: there's no public API for Track or Chat yet, and there's no OAuth for third-party apps: keys are personal. If the dashboard can do something the API can't, that's a gap, not a design choice. Open an issue.

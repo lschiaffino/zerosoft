@@ -40,7 +40,7 @@ const FIELD_ACCENTS = PRODUCT_KEYS.map(productRgb);
 /** Orden de la tabla de costos: de la más cara a la más barata. */
 const STACK_ORDER = ['crm', 'chat', 'cal', 'docs', 'track', 'link'] as const;
 
-const FAQ = ['1', '2', '3', '4', '5', '6'] as const;
+const FAQ = ['1', '2', '3', '4', '5', '6', '7'] as const;
 
 export default function HomePage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = use(props.params);
@@ -407,6 +407,8 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
           <p>{t.rich('manifesto.p1', { strong: (chunks) => <strong>{chunks}</strong> })}</p>
           <p>{t.rich('manifesto.p2', { strong: (chunks) => <strong>{chunks}</strong> })}</p>
           <p>{t('manifesto.p3')}</p>
+          <p>{t('manifesto.p4')}</p>
+          <p>{t('manifesto.p5')}</p>
         </div>
       </section>
 

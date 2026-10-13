@@ -1,8 +1,8 @@
 ---
-title: "Moving from Bitly to Link: what comes with you and what stays behind"
-description: "A practical guide to importing your Bitly links into Link by API token or CSV: what gets imported, what doesn't, how back-halves are kept, and the right order for custom domains."
+title: "Moving from Bitly to Link: what the import brings and what it leaves"
+description: "Import Bitly links into Link by API token or CSV: what comes across, what doesn't, how back-halves are kept, and the right order for custom domains."
 date: "2026-08-20"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "bitly", "migration"]
 ---
 

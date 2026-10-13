@@ -1,7 +1,7 @@
 {
   "meta": {
-    "tagline": "O software é grátis. Você paga pelo que escala.",
-    "description": "Reconstruímos as ferramentas que você usa todos os dias como open source (AGPLv3). Hospede grátis, para sempre, ou use a Zerosoft Cloud: plano grátis e você paga só pelo que escala."
+    "tagline": "Onze apps open source para o seu time.",
+    "description": "CRM, chat de suporte, agentes de IA, automações, robôs de navegador, projetos, links, docs, notas, agenda e quadro branco. Open source (AGPLv3): rode no seu servidor por $0 ou use a zerosoft Cloud, com plano grátis e cobrança por uso."
   },
   "header": {
     "products": "Produtos",
@@ -70,133 +70,90 @@
     "groupDocs": "Docs",
     "groupTasks": "Tarefas"
   },
-  "hero": {
-    "title1": "O software",
-    "title2": "morreu.",
-    "sub": "O software é grátis. Você paga pelo que escala. Reconstruímos as ferramentas que você usa todos os dias como open source: hospede você mesmo por $0, para sempre, ou deixe que a gente rode, com um plano grátis generoso.",
-    "ctaPrimary": "Ver o arsenal",
-    "ctaSecondary": "Ler o manifesto",
-    "scroll": "Role ↓"
-  },
   "manifesto": {
-    "label": "0.01 — Manifesto",
-    "p1": "Cobram <strong>US$ 30 para mover cartões</strong>. US$ 50 para guardar contatos. US$ 12 para encurtar um link. Não pelo software — pelo hábito.",
-    "p2": "Mas software são bits. E bits são grátis. <strong>Sempre foram.</strong>",
-    "p3": "A Zerosoft existe para provar: reconstruímos as ferramentas que movem o mundo e libertamos o core sob AGPLv3. Sem lock-in. Sem letras miúdas. Hospede você mesmo, grátis, para sempre. Ou nós rodamos para você: você começa grátis e paga só pelo que escala — cliques, reservas, emails, armazenamento, assentos. Com preços à vista.",
-    "final": "O software morreu. Nós somos o que vem a seguir."
-  },
-  "stats": {
-    "s1num": "$0",
-    "s1label": "O core, auto-hospedado. Sempre.",
-    "s2num": "0",
-    "s2label": "Funções do core atrás de um paywall.",
-    "s3num": "AGPL",
-    "s3label": "Open source. Para sempre."
+    "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
+    "p2": "Rodar esse software custa bem menos. Os onze apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
+    "p3": "Por isso publicamos o código. O core de cada app é AGPLv3: você pode ler, modificar e rodar no seu servidor sem nos pagar nada.",
+    "final": "Por que fazemos a zerosoft.",
+    "p4": "Se preferir que a gente opere, a zerosoft Cloud cobra por workspace e por uso. Colocar mais alguém no time não muda a fatura.",
+    "p5": "Começamos pelas ferramentas que um time pequeno mais paga. O que falta está escrito no roadmap, e o que sai vai para o changelog."
   },
   "products": {
-    "label": "0.02 — O arsenal",
-    "title": "Todo o software que você usa.",
-    "titleDim": "O core, grátis para sempre.",
     "track": {
-      "tag": "Gestão de projetos",
-      "desc": "A velocidade do Linear. O preço do ar.",
-      "status": "Disponível"
+      "desc": "Issues, ciclos e Gantt para times de produto."
     },
     "crm": {
-      "tag": "Clientes e vendas",
-      "desc": "Seu pipeline completo, de ponta a ponta. Open source, sem licenças.",
-      "status": "Disponível"
+      "desc": "Contatos, negócios e pipelines para o seu time de vendas."
     },
     "cal": {
-      "tag": "Agendamento",
-      "desc": "Sua disponibilidade, um link, pronto. Sem pagar pelo privilégio.",
-      "status": "Disponível"
+      "desc": "Páginas de agendamento conectadas ao Google Calendar."
     },
     "link": {
-      "tag": "Links curtos",
-      "desc": "Links curtos com métricas reais. Seus para sempre.",
-      "status": "Disponível"
+      "desc": "Links curtos no seu domínio, com métricas de cliques."
     },
     "chat": {
-      "tag": "Chat com clientes",
-      "desc": "Uma caixa de entrada para todas as conversas. Widgets, pessoas e canais.",
-      "status": "Disponível"
+      "desc": "Chat no site e caixa de entrada compartilhada para suporte."
     },
     "docs": {
-      "tag": "Docs e wiki",
-      "desc": "Notas e documentos que são seus. No seu servidor, se quiser.",
-      "status": "Disponível"
-    },
-    "more": {
-      "title": "Todo o resto",
-      "tag": "O que vem",
-      "desc": "Design. Formulários. Analytics. Se o mundo usa, vamos libertar. Isso é só o começo.",
-      "status": "Sempre"
+      "desc": "Wiki e documentos com editor de blocos."
     },
     "agents": {
-      "desc": "Agentes de IA que respondem e agem."
+      "desc": "Agentes de IA que respondem com o seu conhecimento."
     },
     "flow": {
-      "desc": "Automações entre todos os seus apps."
+      "desc": "Automações entre os seus apps e qualquer API."
     },
     "robots": {
-      "desc": "Robôs que usam o navegador por você."
+      "desc": "Robôs de navegador que preenchem formulários e extraem dados."
     },
     "notes": {
-      "desc": "Suas notas, rápidas e privadas."
+      "desc": "Notas rápidas, cadernos e busca em todo o texto."
     },
     "board": {
       "desc": "Um quadro branco infinito para o seu time."
     }
   },
   "model": {
-    "label": "0.03 — O modelo",
-    "title": "Três formas de ter.",
-    "titleDim": "O core é grátis em todas.",
+    "label": "O modelo",
+    "title": "Três formas de usar.",
+    "titleDim": "O core é o mesmo nas três.",
     "a": {
       "title": "Hospede você mesmo",
-      "desc": "O core é open source sob AGPLv3, com todas as funções. Rode no seu servidor, modifique, quebre, faça seu. Sem trial, sem license key, sem limites.",
+      "desc": "O core é AGPLv3, com todas as funções. Rode no seu servidor e modifique como quiser. Não tem período de teste nem chave de licença.",
       "price": "$0",
-      "priceNote": "/ para sempre"
+      "priceNote": "/ mês, no seu servidor"
     },
     "b": {
-      "title": "Zerosoft Cloud",
-      "desc": "Nós rodamos para você: login, backups, atualizações e uptime. Comece com um plano grátis generoso e, quando escalar, pague por uso — cliques, reservas, emails, armazenamento, assentos. Preços transparentes, publicados antes de cobrar qualquer coisa.",
+      "title": "zerosoft Cloud",
+      "desc": "Nós operamos: login, backups, atualizações e uptime. Cada workspace começa com um plano grátis e depois paga por uso: cliques, agendamentos, emails e armazenamento. Assentos não são cobrados, e a IA é cobrada por tokens.",
       "price": "Grátis",
-      "priceNote": "/ para começar · preços por uso, em breve"
+      "priceNote": "/ para começar · depois, por uso"
     },
     "c": {
       "title": "Enterprise",
-      "desc": "Licença comercial com suporte direto do time, nos seus servidores ou na nossa nuvem. Os extras enterprise (SSO/SAML, audit logs, papéis personalizados, white-label) estão em desenvolvimento.",
+      "desc": "Licença comercial com suporte direto do time, nos seus servidores ou na nossa nuvem. SSO/SAML, logs de auditoria, papéis personalizados e white-label estão em desenvolvimento.",
       "price": "Fale conosco",
       "priceNote": "/ licença comercial + suporte"
     }
   },
-  "end": {
-    "label": "0.04 — Junte-se",
-    "title1": "Bem-vindo",
-    "title2": "ao novo mundo.",
-    "sub": "Seis ferramentas já são livres. Escreva para nós e avisaremos quando a próxima chegar.",
-    "cta": "Quero entrar →"
-  },
   "auth": {
-    "title": "Entre no novo mundo",
-    "sub": "Um clique. Sem senhas, sem formulários, sem planos.",
+    "title": "Entre na zerosoft",
+    "sub": "Entre com a sua conta Google. Não tem senha para criar.",
     "google": "Continuar com Google",
-    "why": "Apenas login com Google. Nada para hackear, nada para esquecer.",
+    "why": "Usamos só o Google para entrar, então não guardamos senhas.",
     "legal": "Ao entrar, você aceita os <terms>Termos</terms> e a <privacy>Privacidade</privacy>."
   },
   "blog": {
-    "label": "0.05 — Blog",
-    "title": "Ideias do novo mundo.",
-    "titleDim": "Zero enrolação.",
+    "label": "Blog",
+    "title": "Blog.",
+    "titleDim": "Como construímos a zerosoft, e por quê.",
     "readingTime": "min de leitura",
     "back": "← Todos os posts",
     "empty": "Ainda não há posts. Volte em breve."
   },
   "footer": {
     "tagline": "Feito de zeros.",
-    "copyright": "© 2026 zerosoft.ai — O software morreu",
+    "copyright": "© 2026 zerosoft.ai",
     "colProduct": "Produto",
     "colResources": "Recursos",
     "colCompany": "Empresa",
@@ -222,15 +179,13 @@
     "videos": "Vídeos"
   },
   "showcase": {
-    "label": "Por dentro",
-    "title": "Seis ferramentas, um mesmo visual.",
-    "titleDim": "Escolha uma e dê uma olhada."
+    "label": "Por dentro"
   },
   "home": {
     "hero": {
-      "title1": "Onze apps. Uma suíte.",
+      "title1": "Onze apps para o seu time.",
       "title2": "Zero licenças.",
-      "sub": "Alternativas open source a HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, UiPath e Bitly, com agentes de IA incluídos. Hospede grátis, para sempre, ou comece grátis no Zerosoft Cloud.",
+      "sub": "Alternativas open source ao HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, UiPath e Bitly, com agentes de IA incluídos. Rode no seu servidor por $0 ou comece grátis na zerosoft Cloud.",
       "ctaStart": "Comece grátis",
       "ctaSelfHost": "Hospede você",
       "note1": "Sem cartão",
@@ -245,8 +200,8 @@
     },
     "replaces": "Substitui",
     "suite": {
-      "title": "Tudo o que o seu time usa.",
-      "titleDim": "Um lugar, uma licença.",
+      "title": "O que o seu time usa.",
+      "titleDim": "Num só workspace.",
       "explore": "Conheça o {name}",
       "link": {
         "line": "Links curtos com métricas reais.",
@@ -285,7 +240,7 @@
         "b3": "Modelos, comentários e compartilhamento"
       },
       "one": {
-        "title": "Um login. Um workspace. Uma busca.",
+        "title": "Uma conta para os onze apps.",
         "desc": "Convide seu time uma vez. Encontre contatos, empresas, negócios, links, docs e tarefas em uma única barra de busca, e pule entre apps sem trocar de ferramenta."
       },
       "teamsTitle": "Para equipes",
@@ -312,26 +267,26 @@
     "stack": {
       "title": "{total} por ano.",
       "titleDim": "Ou $0.",
-      "sub": "O que um time de 10 pessoas paga a preço de tabela pelas seis ferramentas que o Zerosoft substitui, contra hospedar você mesmo o core open source.",
+      "sub": "O que um time de 10 pessoas paga a preço de tabela por HubSpot, Intercom, Calendly, Notion, Linear e Bitly. Os apps da zerosoft que os substituem custam $0 no seu servidor.",
       "colTool": "Ferramenta",
       "colPrice": "Preço de tabela",
       "colYear": "Time de 10 / ano",
       "perUser": "/ usuário / mês",
       "perMonth": "/ mês, fixo",
       "total": "Total por ano",
-      "zeroTitle": "Zerosoft, no seu servidor",
-      "zeroNote": "Todos os apps. Você paga só o seu próprio servidor.",
-      "cloudNote": "Zerosoft Cloud: comece grátis e depois pague pelo uso, com preços publicados antes de cobrarmos qualquer coisa.",
-      "footnote": "Preços de tabela citados nas nossas páginas de produto, cobrança mensal, para 10 usuários (o Bitly Core é um plano mensal fixo). Os fornecedores mudam seus preços — confira nos sites deles. O Zerosoft não tem afiliação com nenhuma empresa citada."
+      "zeroTitle": "zerosoft, no seu servidor",
+      "zeroNote": "Os onze apps. Você paga só o seu servidor.",
+      "cloudNote": "zerosoft Cloud: comece grátis e depois pague por uso. Assentos não são cobrados.",
+      "footnote": "Preços de tabela citados nas nossas páginas de produto, com cobrança mensal, para 10 usuários (Bitly Core é um plano fixo). Os fornecedores mudam os preços: confira nos sites deles. A zerosoft não tem afiliação com nenhuma dessas empresas."
     },
     "oss": {
       "title": "Hospede com um só comando.",
-      "titleDim": "Grátis para sempre. Sem chave de licença.",
-      "p": "O core de cada app é AGPLv3: todos os recursos do core, sem teste grátis, sem limites. Rode com Docker em qualquer VPS pequena. Seus dados ficam em um arquivo SQLite e um volume de anexos: faça backup deles e você tem tudo.",
+      "titleDim": "Sem chave de licença.",
+      "p": "O core de cada app é AGPLv3, com todas as funções e sem período de teste. Rode com Docker numa VPS pequena. Seus dados ficam num arquivo SQLite e num volume de anexos: com backup desses dois, você tem tudo.",
       "b1": "Core AGPLv3 com todos os recursos",
       "b2": "Um contêiner, dois volumes",
       "b3": "Seus dados em um arquivo SQLite que é seu",
-      "b4": "SSO, auditoria e papéis personalizados (/ee) — em desenvolvimento",
+      "b4": "SSO, auditoria e papéis personalizados (/ee): em desenvolvimento",
       "cta": "Ver no GitHub",
       "terminal": "terminal",
       "compose": "docker-compose.yml"
@@ -340,39 +295,40 @@
       "label": "Desenvolvedores",
       "title": "Uma API de verdade.",
       "titleDim": "E webhooks assinados.",
-      "p": "Crie uma chave pessoal nas configurações e fale com o Link, o CRM e o Cal via REST. Assine eventos e verifique cada entrega com uma assinatura HMAC.",
+      "p": "Crie uma chave nas configurações e use Link, CRM, Cal e Agents via REST. Assine eventos e verifique cada entrega com uma assinatura HMAC.",
       "b1t": "API REST v1",
-      "b1": "Links, contatos, empresas, negócios, tarefas e pipelines do CRM, tipos de evento e agendamentos do Cal.",
+      "b1": "Links; contatos, empresas, negócios, tarefas, pipelines, produtos e cotações do CRM; tipos de evento e agendamentos do Cal; e mensagens para os seus agentes.",
       "b2t": "Chaves pessoais",
-      "b2": "Chaves zs_… exibidas uma única vez e guardadas com hash. 100 requisições por minuto.",
+      "b2": "Chaves zs_… com escopos, mostradas uma única vez e guardadas com hash. 100 requisições por minuto.",
       "b3t": "Webhooks",
-      "b3": "Eventos link.created, link.clicked e booking.*, assinados com Zerosoft-Signature (HMAC-SHA256) e com novas tentativas escalonadas.",
+      "b3": "Eventos de links, agendamentos, contatos e negócios, assinados com o header Zerosoft-Signature (HMAC-SHA256) e com novas tentativas escalonadas.",
       "cta": "Ler a doc da API",
       "request": "Requisição",
       "response": "Resposta",
       "webhook": "Webhook"
     },
-    "manifesto": {},
     "faq": {
-      "title": "Perguntas justas.",
-      "titleDim": "Zero letras miúdas.",
-      "q1": "É grátis mesmo?",
-      "a1": "Sim. O core de cada app é open source sob AGPLv3 e hospedar você mesmo custa $0, para sempre. No Zerosoft Cloud você começa em um plano grátis; se escalar, paga pelo uso, com preços publicados antes de cobrarmos qualquer coisa.",
-      "q2": "Como vocês ganham dinheiro?",
-      "a2": "Com conveniência e com empresas. O Zerosoft Cloud cobra o uso além do plano grátis, e o Enterprise é uma licença comercial com suporte direto. Nunca cobramos pelo core.",
-      "q3": "Do que eu preciso para hospedar?",
-      "a3": "Docker e um servidor pequeno. Clone o repositório, preencha o .env e rode docker compose up -d. Os dados ficam em dois volumes: um arquivo SQLite e os seus anexos. Sem Docker: npm ci, npm run build, npm start.",
-      "q4": "Posso migrar das ferramentas que uso hoje?",
-      "a4": "O Link importa do Bitly (API ou CSV). O CRM importa contatos e empresas de qualquer CSV, com mapeamento de colunas e deduplicação. Outros importadores, como Notion e Linear, ainda não existem.",
-      "q5": "O que a AGPLv3 significa para a minha empresa?",
-      "a5": "Você pode usar, hospedar e modificar de graça. Se oferecer uma versão modificada como serviço para terceiros, precisa publicar suas mudanças. A pasta /ee tem uma licença comercial separada.",
-      "q6": "Vocês têm SSO e logs de auditoria?",
-      "a6": "Ainda não. SSO/SAML, logs de auditoria, papéis personalizados e white-label estão em desenvolvimento como parte do Enterprise. Vamos avisar aqui no dia em que saírem."
+      "title": "Perguntas frequentes.",
+      "titleDim": "Respostas curtas.",
+      "q1": "Quanto custa?",
+      "a1": "Hospedar você mesmo custa $0: o core de cada app é AGPLv3, com todas as funções. Na zerosoft Cloud cada workspace começa com um plano grátis e, se passar dele, paga por uso: cliques, agendamentos, emails e armazenamento. Assentos não são cobrados. A IA é cobrada por tokens.",
+      "q2": "Como a zerosoft ganha dinheiro?",
+      "a2": "Com a zerosoft Cloud, que cobra o uso acima do plano grátis, e com o Enterprise, uma licença comercial com suporte direto. O core não é cobrado.",
+      "q3": "E se a zerosoft fechar?",
+      "a3": "O código está publicado sob AGPLv3, então você pode continuar rodando no seu servidor. Link e CRM exportam para CSV, e se você hospeda, todos os seus dados estão num arquivo SQLite que já é seu.",
+      "q4": "Do que eu preciso para hospedar?",
+      "a4": "Docker e um servidor pequeno. Clone o repositório, preencha o .env e rode docker compose up -d. Os dados ficam em dois volumes: um arquivo SQLite e os seus anexos. Sem Docker: npm ci, npm run build, npm start.",
+      "q5": "Dá para migrar do que eu uso hoje?",
+      "a5": "O Link importa do Bitly (API ou CSV). O CRM importa contatos, empresas e negócios de CSV, com um preset para o export do HubSpot. Para Notion, Linear, Calendly e Evernote ainda não existe importador.",
+      "q6": "O que a AGPLv3 significa para a minha empresa?",
+      "a6": "Você pode usar, hospedar e modificar sem pagar. Se oferecer uma versão modificada como serviço a terceiros, precisa publicar as suas mudanças. A pasta /ee tem uma licença comercial à parte.",
+      "q7": "Vocês têm SSO e logs de auditoria?",
+      "a7": "Ainda não. SSO/SAML, logs de auditoria, papéis personalizados e white-label estão em desenvolvimento como parte do Enterprise. Vamos anunciar no changelog quando saírem."
     },
     "end": {
-      "title1": "O software morreu.",
-      "title2": "Construa sobre o zero.",
-      "sub": "Abra o app e comece grátis, ou clone o repositório e rode você mesmo. De qualquer jeito, o core custa $0."
+      "title1": "Comece em um minuto.",
+      "title2": "Ou rode você mesmo.",
+      "sub": "Entre com o Google e use o plano grátis, ou clone o repositório e suba com Docker. O core é o mesmo."
     }
   }
 }

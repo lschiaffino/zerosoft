@@ -1,8 +1,8 @@
 ---
-title: "Availability hygiene: buffers, minimum notice and booking windows"
-description: "A booking link is only as good as the rules behind it. A practical guide to weekly availability, buffers, minimum notice, booking windows and blocked slots in Cal — and why each one matters."
+title: "Buffers, minimum notice and booking windows in Cal"
+description: "How weekly availability, buffers, minimum notice, booking windows and blocked slots work in Cal, and the defaults we suggest for each."
 date: "2026-08-17"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "scheduling", "productivity"]
 ---
 
@@ -24,13 +24,13 @@ Availability is set **per event type**, as rules of "day of week + start time + 
 
 Per event type is deliberate. Your 15-minute "quick question" slot can be open all day, while the 60-minute workshop only runs on Tuesday and Thursday afternoons. One person, different doors.
 
-A detail people miss: **slots are cut by the event's duration, starting from the beginning of each window.** A 30-minute event in a 9:00–12:00 window offers 9:00, 9:30, 10:00… A 45-minute event offers 9:00, 9:45, 10:30, 11:15 — and stops there, because 12:00 isn't enough room for another one. If you want 45-minute meetings on round hours, shape the windows accordingly, or add a buffer.
+A detail people miss: **slots are cut by the event's duration, starting from the beginning of each window.** A 30-minute event in a 9:00–12:00 window offers 9:00, 9:30, 10:00… A 45-minute event offers 9:00, 9:45, 10:30, 11:15, and stops there, because 12:00 isn't enough room for another one. If you want 45-minute meetings on round hours, shape the windows accordingly, or add a buffer.
 
 ## Buffers
 
 Buffers are padding before and after a meeting: **Buffer before (min)** and **Buffer after (min)**.
 
-Here's how Cal uses them. For every candidate slot, it stretches the slot by the buffers — 10:00–10:30 with a 10-minute after buffer becomes 10:00–10:40 — and checks that stretched range against everything you're busy with: other Cal bookings (in any event type), blocked slots, and your Google Calendar if it's connected. If anything overlaps, the slot disappears.
+Here's how Cal uses them. For every candidate slot, it stretches the slot by the buffers (10:00–10:30 with a 10-minute after buffer becomes 10:00–10:40), and checks that stretched range against everything you're busy with: other Cal bookings (in any event type), blocked slots, and your Google Calendar if it's connected. If anything overlaps, the slot disappears.
 
 Why you want them:
 
@@ -48,7 +48,7 @@ Suggested: 10 minutes before and after for sales and support calls; more on the 
 
 **Min. notice (hours)** stops people from booking a meeting that starts too soon. With 4 hours of notice, at 10:00 the earliest bookable slot is 14:00.
 
-It's a straight "now plus N hours" calculation, so it doesn't care about nights or weekends. If you set 12 hours, at 20:00 on Friday someone can still book Saturday 8:00 — if Saturday is in your availability. If you don't work weekends, make sure your weekly rules say so.
+It's a straight "now plus N hours" calculation, so it doesn't care about nights or weekends. If you set 12 hours, at 20:00 on Friday someone can still book Saturday 8:00, if Saturday is in your availability. If you don't work weekends, make sure your weekly rules say so.
 
 Why it matters: a meeting that appears on your calendar 15 minutes before it starts is a meeting you'll probably miss or show up to unprepared. Suggested: 2–4 hours for internal-ish calls, 12–24 hours for demos and interviews.
 
@@ -56,7 +56,7 @@ Why it matters: a meeting that appears on your calendar 15 minutes before it sta
 
 **Max. future (days)** caps how far ahead people can book. Default: 30 days. It's counted from today in the guest's timezone.
 
-Why limit it? Because meetings booked far in the future have higher no-show rates and collide with plans you haven't made yet — a vacation, a conference, a product launch. Keeping the window at 2–4 weeks means your calendar reflects reality. Recruiting and sales demos usually do fine at 14–21 days. Office hours or onboarding sessions might want 60.
+Why limit it? Because meetings booked far in the future have higher no-show rates and collide with plans you haven't made yet: a vacation, a conference, a product launch. Keeping the window at 2–4 weeks means your calendar reflects reality. Recruiting and sales demos usually do fine at 14–21 days. Office hours or onboarding sessions might want 60.
 
 ## Blocked slots
 
@@ -92,4 +92,4 @@ If you want something to copy, here's a sensible default for a hypothetical solo
 - Booking window: 21 days.
 - Google Calendar connected, blocked slots for anything off-calendar.
 
-None of this is advanced. It's hygiene. The kind you only notice when it's missing — usually at 6:30 in the morning, on a call you didn't know you had.
+None of this is advanced. It's hygiene. The kind you only notice when it's missing, usually at 6:30 in the morning, on a call you didn't know you had.

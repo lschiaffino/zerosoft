@@ -2,7 +2,7 @@
 title: "Higiene de agenda: buffers, aviso mínimo e janela de agendamento"
 description: "Um link de agendamento vale o que valem as regras por trás dele. Guia prático de disponibilidade semanal, buffers, aviso mínimo, janela de agendamento e blocked slots no Cal, e por que cada um importa."
 date: "2026-08-17"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "agendamento", "produtividade"]
 ---
 

@@ -1,45 +1,40 @@
 ---
-title: "Why we charge the cloud at cost (and exactly how it works)"
-description: "Our full model on one page: software is $0, infrastructure is passed through at cost, zero margin. The math and the uncomfortable questions, answered."
+title: "How zerosoft Cloud is priced"
+description: "The software is AGPLv3 and costs $0 to self-host. The cloud has a free tier and then charges per workspace for usage. The details, and the questions people ask."
 date: "2026-07-13"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["model", "pricing", "cloud"]
 ---
 
-Every time we explain the model, the first reaction is the same: "so what's the catch?". So here it all is, complete, with open math and answers to the uncomfortable questions.
+The first question about our model is usually "what's the catch?". Here's the whole thing.
 
-## The model in three lines
+## The model
 
-1. **Software is $0.** All the code is open source. Download it, run it, modify it. Free forever, no user limits.
-2. **The cloud is charged at cost.** If you'd rather we run it for you, you pay exactly what the infrastructure costs: servers, databases, bandwidth, backups. No margin.
-3. **The bill is open.** We publish how it's calculated. You can verify it against the public prices of cloud providers.
+1. **The software costs $0.** All the code is AGPLv3. Download it, run it, change it. No user limits.
+2. **zerosoft Cloud charges for usage, per workspace.** There's a free tier. Past it, you pay for what you consume: clicks, bookings, emails and storage.
+3. **Seats are free.** Add the whole company. The bill moves with usage, not headcount.
+4. **AI is billed by tokens,** at the model provider's price ×1.2.
 
-## An example with real numbers
+## Why usage and not seats
 
-A 25-person team using Link on our cloud:
+What costs us money is compute, storage, bandwidth and email delivery. A person logging in costs close to nothing. So we bill the things that cost something. A short link that gets clicked a million times uses more server than a team of fifty that rarely opens the dashboard.
 
-- A shared server serving ~500 teams like yours: $40/month → **$0.08 per team**.
-- Managed database (proportional share): **~$0.60**.
-- Bandwidth and backups: **~$0.30**.
+When this post was first published, the plan was to charge the cloud strictly at cost. We moved to per-workspace usage pricing because it's easier to predict and to read on an invoice. The principle is the same: you pay for the machine you use.
 
-Total: **~$1 per month per team**. That's what you pay. Not a promise: arithmetic.
+## Questions
 
-## The uncomfortable questions
-
-**How does Zerosoftware sustain itself?**
-The cost of building the software is absorbed by us (and the open source community that joins). The cost of running it is paid by cloud users, at cost. There's no margin because we don't need one: software stopped being the business.
+**How does zerosoft pay for itself?**
+Cloud usage beyond the free tier, and Enterprise licenses with direct support for the features in `/ee`.
 
 **What if cloud prices go up?**
-Your bill goes up by exactly what the cloud goes up. And it goes down when it goes down. It's a cost pass-through, not a price: in both directions.
+Usage prices are published before you're charged for anything. If they change, we announce it first.
 
-**What if Zerosoftware shuts down?**
-You take your data and the full code and run it elsewhere in an afternoon. That's why we insist so much on self-host: it's the guarantee you'll never be trapped with us, or with anyone.
+**What if zerosoft shuts down?**
+You take your data and the code and run it on your own server. That's why self-hosting gets as much attention as the cloud: you're never stuck with us.
 
 **And support?**
-The open source community first. If you need more, we offer support as a separate service — charged as a service, not disguised as a software license.
+The open source community first, through GitHub issues. Direct support comes with an Enterprise license.
 
-## Why nobody did this before
+## Why now
 
-Some tried. The problem was that building software was extremely expensive, and someone had to pay those salaries. The equation changed: today you can build in weeks what used to take years. When the cost of creating software collapses, charging for it as if nothing happened stops being a business and becomes a museum.
-
-Software is dead. What's left is honesty and cents of cloud.
+Building software used to be expensive enough to justify high subscription prices. AI tools cut that cost a lot. What's left is the cost of running it, and that's what we charge for.

@@ -181,7 +181,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { product: 'crm', en: 'Contacts, companies, deals and tasks are created in a modal. One row of timeline tabs, a lighter reports bar and a denser settings page. Fixed duplicated "other" rows in reports.', es: 'Contactos, empresas, deals y tareas se crean en un modal. Una sola fila de pestañas en el timeline, una barra de reportes más liviana y configuración más compacta. Arreglamos filas "otros" duplicadas en reportes.', pt: 'Contatos, empresas, deals e tarefas são criados em um modal. Uma só linha de abas na timeline, barra de relatórios mais leve e configurações mais compactas. Corrigimos linhas "outros" duplicadas em relatórios.' },
       { product: 'cal', en: 'New event types start active with Mon–Fri 9–17, so your link works right away. Delete event types, toggle them from the list, and bookings split into upcoming, past and cancelled.', es: 'Los tipos de evento nuevos arrancan activos con lunes a viernes de 9 a 17, así tu link funciona enseguida. Podés borrarlos, activarlos desde la lista, y las reservas se separan en próximas, pasadas y canceladas.', pt: 'Tipos de evento novos começam ativos com segunda a sexta das 9 às 17, então seu link funciona na hora. Dá para excluí-los, ativá-los pela lista, e as reservas se dividem em próximas, passadas e canceladas.' },
       { product: 'chat', en: 'The conversation no longer jumps on every refresh, J/K moves between conversations, and canned responses and rules are edited in a modal.', es: 'La conversación ya no salta en cada actualización, J/K te mueve entre conversaciones, y las respuestas guardadas y reglas se editan en un modal.', pt: 'A conversa não pula mais a cada atualização, J/K navega entre conversas, e respostas salvas e regras são editadas em um modal.' },
-      { product: 'docs', en: 'Move to trash no longer deletes for good and takes subpages along. Autosave waits for the save and never loses your last edit. Collapsible page tree and a people picker for sharing.', es: 'Mover a la papelera ya no borra para siempre y se lleva las subpáginas. El autoguardado espera a guardar y no pierde tu última edición. Árbol de páginas plegable y selector de personas para compartir.', pt: 'Mover para a lixeira não exclui mais para sempre e leva as subpáginas. O salvamento automático espera salvar e não perde sua última edição. Árvore de páginas recolhível e seletor de pessoas para compartilhar.' },
+      { product: 'docs', en: 'Move to trash no longer deletes the page permanently and takes subpages along. Autosave waits for the save and never loses your last edit. Collapsible page tree and a people picker for sharing.', es: 'Mover a la papelera ya no borra la página definitivamente y se lleva las subpáginas. El autoguardado espera a guardar y no pierde tu última edición. Árbol de páginas plegable y selector de personas para compartir.', pt: 'Mover para a lixeira não exclui mais a página definitivamente e leva as subpáginas. O salvamento automático espera salvar e não perde sua última edição. Árvore de páginas recolhível e seletor de pessoas para compartilhar.' },
     ],
   },
   {
@@ -415,9 +415,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         product: 'platform',
-        en: 'Each product now has its own color — Link blue, CRM violet, Cal green, Track orange, Chat pink, Docs amber — used for navigation, main buttons and charts.',
-        es: 'Cada producto tiene su color — Link azul, CRM violeta, Cal verde, Track naranja, Chat rosa, Docs ámbar — en la navegación, los botones principales y los gráficos.',
-        pt: 'Cada produto agora tem sua cor — Link azul, CRM violeta, Cal verde, Track laranja, Chat rosa, Docs âmbar — na navegação, nos botões principais e nos gráficos.',
+        en: 'Each product now has its own color (Link blue, CRM violet, Cal green, Track orange, Chat pink, Docs amber), used for navigation, main buttons and charts.',
+        es: 'Cada producto tiene su color (Link azul, CRM violeta, Cal verde, Track naranja, Chat rosa, Docs ámbar) en la navegación, los botones principales y los gráficos.',
+        pt: 'Cada produto agora tem sua cor (Link azul, CRM violeta, Cal verde, Track laranja, Chat rosa, Docs âmbar) na navegação, nos botões principais e nos gráficos.',
       },
       {
         product: 'platform',
@@ -515,9 +515,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'link',
-        en: 'Import from Bitly via API token or CSV — up to 2,000 links per run, keeping back-halves when they are free.',
-        es: 'Importar desde Bitly con token de la API o CSV — hasta 2.000 links por vez, conservando los back-halves si están libres.',
-        pt: 'Importar do Bitly via token da API ou CSV — até 2.000 links por vez, mantendo os back-halves quando estão livres.',
+        en: 'Import from Bitly via API token or CSV: up to 2,000 links per run, keeping back-halves when they are available.',
+        es: 'Importar desde Bitly con token de la API o CSV: hasta 2.000 links por vez, conservando los back-halves si están libres.',
+        pt: 'Importar do Bitly via token da API ou CSV: até 2.000 links por vez, mantendo os back-halves quando estão livres.',
       },
       {
         product: 'link',
@@ -874,9 +874,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'platform',
-        en: 'Teams: shared workspaces with invite links — create, invite, accept, switch and leave.',
-        es: 'Teams: workspaces compartidos con links de invitación — crear, invitar, aceptar, cambiar y salir.',
-        pt: 'Times: workspaces compartilhados com links de convite — criar, convidar, aceitar, trocar e sair.',
+        en: 'Teams: shared workspaces with invite links. Create, invite, accept, switch and leave.',
+        es: 'Teams: workspaces compartidos con links de invitación. Crear, invitar, aceptar, cambiar y salir.',
+        pt: 'Times: workspaces compartilhados com links de convite. Criar, convidar, aceitar, trocar e sair.',
       },
       {
         product: 'link',
@@ -890,9 +890,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     id: '2026-07-18-launch',
     date: '2026-07-18',
     title: {
-      en: 'zerosoft is live: Link and CRM',
-      es: 'zerosoft está online: Link y CRM',
-      pt: 'zerosoft está no ar: Link e CRM',
+      en: 'First release: Link and CRM',
+      es: 'Primera versión: Link y CRM',
+      pt: 'Primeira versão: Link e CRM',
     },
     items: [
       {

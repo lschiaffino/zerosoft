@@ -1,14 +1,14 @@
 ---
-title: "Design minimalista: só zeros"
-description: "Nosso site não tem cores, não tem fotos de banco de imagens, não tem hero com gradiente. Tem um zero gigante feito de zeros. É uma decisão de engenharia, não de estética."
+title: "Um design feito de zeros"
+description: "Por que o site é quase todo preto e branco, com um zero no lugar de fotos e gradientes, e o que essa escolha economiza."
 date: "2026-06-04"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["design", "manifesto", "identidade"]
 ---
 
-Na primeira vez que você entra no zerosoftware.ai, vê uma tela branca com um zero preto no meio. Sem menu hambúrguer animado, sem carrossel de logos, sem gradiente roxo. Um zero.
+A home do zerosoft.ai abre com um zero grande feito de zeros. Não tem carrossel de logos nem foto de banco de imagens.
 
-Não é uma landing em construção. É o site pronto. E cada decisão que tomamos ali diz o mesmo que o nosso modelo de negócio.
+O site está pronto assim. Cada uma dessas ausências é uma decisão, e todas seguem a mesma lógica do nosso modelo de negócio.
 
 ## O zero é o roadmap
 

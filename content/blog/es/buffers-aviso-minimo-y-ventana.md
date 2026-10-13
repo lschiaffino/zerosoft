@@ -1,14 +1,14 @@
 ---
-title: "Higiene de agenda: buffers, aviso mínimo y ventana de reservas"
-description: "Un link de reservas vale lo que valen las reglas que tiene atrás. Guía práctica de disponibilidad semanal, buffers, aviso mínimo, ventana de reservas y blocked slots en Cal, y por qué importa cada uno."
+title: "Buffers, aviso mínimo y ventana de reservas en Cal"
+description: "Guía práctica de disponibilidad semanal, buffers, aviso mínimo, ventana de reservas y horarios bloqueados en Cal: qué hace cada regla y qué valores sugerimos."
 date: "2026-08-17"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "agendar", "productividad"]
 ---
 
 La mayoría de los dolores de agenda no los causa la herramienta. Los causa un link de reservas que dice "sí" a cosas que nunca aceptarías en persona: una llamada que arranca en el minuto en que termina la anterior, una reunión reservada para dentro de 20 minutos, una demo a cuatro meses que nadie va a recordar.
 
-Cada una de esas cosas tiene un ajuste. Acá va qué hace cada regla en Cal, cómo funciona por dentro y los valores que te sugerimos. Diez minutos de configuración te ahorran un montón de reprogramaciones incómodas.
+Cada una tiene un ajuste. Acá va qué hace cada regla en Cal, cómo funciona por dentro y qué valores sugerimos. Son diez minutos de configuración.
 
 ## Paso cero: configurá tu zona horaria
 

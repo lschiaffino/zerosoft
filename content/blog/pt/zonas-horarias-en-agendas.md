@@ -2,7 +2,7 @@
 title: "Como o Cal lida com fusos horários: hora de relógio, UTC e horário de verão"
 description: "Um passeio de engenharia pelos fusos horários no Cal: o que guardamos em UTC, o que guardamos como hora de relógio, como os horários sobrevivem ao horário de verão e como emails e .ics chegam no horário do convidado."
 date: "2026-09-01"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "arquitetura", "fusos horários"]
 ---
 

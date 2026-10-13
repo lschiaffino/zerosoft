@@ -2,11 +2,11 @@
 title: "Links com senha, data de expiração ou limite de cliques: quando usar cada um"
 description: "Casos de uso práticos para links com senha, que expiram ou com máximo de cliques no Link, o que exatamente o visitante vê quando um deles fecha, e onde entram os QR codes em SVG e PNG."
 date: "2026-09-18"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "qr", "casos de uso"]
 ---
 
-A maioria dos links curtos vive para sempre e deixa qualquer um passar. É o padrão certo. Mas de vez em quando você quer um link que saiba dizer não: só para quem tem a senha, só até sexta, só para os primeiros cem.
+A maioria dos links curtos não expira e deixa qualquer um passar. É o padrão certo. Mas de vez em quando você quer um link que saiba dizer não: só para quem tem a senha, só até sexta, só para os primeiros cem.
 
 O Link tem três chaves para isso, em **Opções avançadas** ao criar ou editar um link: **Proteção por senha**, **Expira em** e **Máx. cliques**. São grátis, se combinam, e são simples o bastante para valer a pena saber exatamente como se comportam antes de imprimir um num cartaz.
 

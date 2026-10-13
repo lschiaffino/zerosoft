@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Vídeos — zerosoft.ai",
+    "title": "Vídeos",
     "description": "Gravações curtas do app real: Link, CRM, Cal, Track, Chat e Docs."
   },
   "label": "Vídeos",
@@ -9,9 +9,9 @@
   "note": "Gravado no modo demo do app com dados de exemplo.",
   "items": {
     "zerosoft-intro": {
-      "title": "O que é o Zerosoft",
+      "title": "O que é a zerosoft",
       "duration": "0:48",
-      "desc": "Um tour rápido pelos seis produtos e como alternar entre eles."
+      "desc": "Um tour de 48 segundos por seis dos apps e como alternar entre eles."
     },
     "crm": {
       "title": "CRM",
@@ -26,7 +26,7 @@
     "cal": {
       "title": "Cal",
       "duration": "0:29",
-      "desc": "Tipos de evento, a página pública de agendamento, escolher um horário e agendar — e o agendamento no seu app."
+      "desc": "Tipos de evento, a página pública de agendamento, escolher um horário e agendar. Depois, o agendamento no seu app."
     },
     "track": {
       "title": "Track",

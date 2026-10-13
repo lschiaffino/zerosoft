@@ -2,7 +2,7 @@
 title: "UTMs sem planilha: uma convenção para times pequenos"
 description: "Uma convenção de UTMs simples para um time pequeno, e como aplicá-la no Link com o UTM builder, tags, criação em massa, export CSV por link e comparação de 7/30/90 dias."
 date: "2026-09-03"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "utm", "marketing"]
 ---
 
@@ -24,7 +24,7 @@ Esta convenção cabe num post-it. Adapte o vocabulário, mas mantenha as regras
 
 **`utm_medium`: que tipo de canal.** Uma lista curta e fechada: `email`, `social`, `paid-social`, `cpc`, `referral`, `print`. Se você está prestes a inventar um medium novo, provavelmente queria um source novo.
 
-**`utm_campaign`: o que você está promovendo, com data.** `2026-09-lancamento`, `2026-10-webinar-precos`. O prefixo de data ordena tudo e acaba para sempre com a pergunta "qual lançamento?".
+**`utm_campaign`: o que você está promovendo, com data.** `2026-09-lancamento`, `2026-10-webinar-precos`. O prefixo de data ordena tudo e acaba com a pergunta "qual lançamento?".
 
 E as regras:
 
@@ -38,7 +38,7 @@ Precisa de `utm_content` ou `utm_term` para variantes de teste A/B? O builder do
 
 Em **Novo link**, cole o destino e abra o **UTM builder**. Preencha source, medium e campaign; a prévia da **URL final** mostra exatamente como o destino vai ficar. Depois:
 
-- **Título:** algo que um humano consiga ler numa lista. "Lançamento set — post LinkedIn".
+- **Título:** algo que um humano consiga ler numa lista. "Lançamento set: post LinkedIn".
 - **Tags:** o nome da campanha, por exemplo `2026-09-lancamento`. Até cinco tags por link, então dá para incluir o canal ou o responsável.
 - **Slug customizado** se o link vai para algum lugar onde as pessoas vão digitá-lo, como um slide ou um podcast.
 

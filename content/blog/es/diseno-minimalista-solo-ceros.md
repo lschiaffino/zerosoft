@@ -1,47 +1,35 @@
 ---
-title: "Diseño minimalista: solo ceros"
-description: "Nuestro sitio no tiene colores, no tiene fotos de stock, no tiene hero con gradiente. Tiene un cero gigante hecho de ceros. Es una decisión de ingeniería, no de estética."
+title: "Un diseño hecho de ceros"
+description: "Por qué el sitio de zerosoft usa ceros como logo, separadores y numeración, un solo color por app y nada de fotos de stock ni gradientes. Las decisiones y sus razones."
 date: "2026-06-04"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["diseño", "manifiesto", "identidad"]
 ---
 
-La primera vez que entrás a zerosoftware.ai ves una pantalla blanca con un cero negro en el medio. Sin menú hamburguesa animado, sin carrusel de logos, sin gradiente violeta. Un cero.
+El sitio de zerosoft no tiene fotos de stock, carruseles de logos ni gradientes. Tiene ceros: en el logo, en los separadores, en la numeración de las secciones y en un campo de ceros que reacciona al cursor en la portada. Este post cuenta por qué.
 
-No es una landing en construcción. Es el sitio terminado. Y cada decisión que tomamos ahí dice lo mismo que nuestro modelo de negocio.
+## Qué significa el cero
 
-## El cero es la hoja de ruta
+El cero resume el modelo:
 
-Para nosotros el cero no es un logo. Es la especificación completa del producto:
+- **$0 de licencia.** El core es open source (AGPLv3) y lo corrés en tu servidor sin pagar nada.
+- **Cero asientos.** En zerosoft Cloud se paga por uso del workspace, no por persona.
+- **Cero lock-in.** Tus datos y el código salen cuando quieras.
 
-- **Software a $0.** Todo lo que construimos es open source. Descargalo, auditalo, hostealo. Cuesta cero porque los bits cuestan cero.
-- **Cero margen.** Si preferís que lo corramos nosotros, pagás lo que la nube cobra. Ni un peso más. Ni un peso menos.
-- **Cero lock-in.** Tus datos y tu código salen cuando quieras. La puerta no tiene llave.
+Si el modelo entra en un símbolo, no hacen falta veinte slides.
 
-Cuando tu modelo de negocio entra en un solo glifo, no necesitás veinte slides para explicarlo. El sitio entero es una oración.
+## Un cero hecho de ceros
 
-## Un cero hecho de cientos de ceros
+El campo de la portada no es una imagen. Son cientos de ceros, cada uno un carácter, que se apartan cuando acercás el cursor y vuelven.
 
-El cero del centro no es una imagen. Es una composición: cientos de ceros pequeños, cada uno un carácter, formando el contorno de un cero más grande. Y son interactivos: acercá el cursor y responden, se apartan, vuelven.
+Hay un paralelo con cómo hacemos software: piezas simples y legibles que, combinadas, producen algo con estructura. Un redirect de 300 bytes, una fila en una tabla, una consulta SQL que cualquiera puede leer.
 
-Hay una razón técnica para esto. El software que hacemos funciona igual: piezas simples, idénticas, auditables, que combinadas producen algo con estructura. Un redirect de 300 bytes. Una fila en una base de datos. Un query SQL que cualquiera puede leer. Nada de magia propietaria escondida en un binario.
+## Un color por app
 
-Que sea interactivo tampoco es capricho. Es la prueba de que lo mínimo no es lo pobre. Con un solo carácter tipográfico y un evento de mouse se puede construir algo que la gente toca, mueve y recuerda. Eso es ingeniería: resolver con menos.
+Casi todo es blanco y negro. Cada una de las once apps tiene un color propio, y ese color aparece en un solo lugar: su cero. En una página de producto, el único bloque a todo color es la comparación de precios.
 
-## Blanco, negro y una sola tipografía
+El color en muchos sitios de software sirve para que algo mediocre parezca premium. Lo usamos para una sola cosa: saber en qué app estás.
 
-El sitio no tiene color. Literalmente: dos valores, `#000` y `#fff`. No es daltonismo corporativo. Es una postura.
+## Menos, a propósito
 
-El color en el diseño SaaS es un sedante. Los gradientes violetas, los verdes de "success", los azules de confianza: existen para que algo mediocre se sienta premium. Nosotros no tenemos nada que sedar. El producto funciona o no funciona, y el blanco y negro es la manera más honesta de decirlo: acá no hay nada disfrazado.
-
-La tipografía es monoespaciada. La de las terminales, la de los diffs, la de los logs. Es la tipografía con la que se construye software, no con la que se vende. Si leés nuestro sitio con la misma fuente con la que leés tu código, es porque hablamos el mismo idioma.
-
-## Diseño como manifiesto, no como decoración
-
-La mayoría de los sitios de software son decoración: capas de animaciones, ilustraciones y testimoniales encima de un producto que no alcanza. El nuestro funciona al revés. El diseño *es* el argumento.
-
-Menos cosas en pantalla significa menos cosas que cargar, menos cosas que romper, menos cosas que te rastrean. La página pesa lo que pesa un texto. Carga instantáneo en cualquier conexión. Y no hay un solo píxel que esté ahí para convencerte de algo que los números no dicen.
-
-El cero no es minimalismo de Pinterest. Es un contrato: todo lo que prometemos cabe en ese símbolo. Software a $0, margen cero, lock-in cero.
-
-Si una empresa se atreve a poner su modelo de negocio en la portada, en un solo carácter, mínimo escuchala.
+En la [fase A del rediseño](/changelog) las páginas de producto perdieron los tags, las cards y las sombras. Menos elementos en pantalla son menos cosas que cargar y que se rompen, y ningún píxel está ahí para convencerte de algo que el producto no hace.

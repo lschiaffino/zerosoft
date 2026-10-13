@@ -2,7 +2,7 @@
 title: "Heresia técnica: SQLite é suficiente"
 description: "O banco de dados mais implantado do planeta roda no seu celular, no seu navegador e, sim, no Link. Milhões de linhas sem drama, WAL mode e backups que são copiar um arquivo."
 date: "2026-06-12"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["sqlite", "self-host", "arquitetura"]
 ---
 
@@ -12,15 +12,15 @@ Dizer em voz alta que seu app roda em SQLite provoca uma reação previsível: a
 
 - **WAL mode.** Com Write-Ahead Logging, as leituras não bloqueiam a escrita e a escrita não bloqueia as leituras. Centenas de leitores concorrentes enquanto se escreve.
 - **Volume.** Milhões de linhas são rotina. O limite teórico de um banco SQLite é 281 TB. O analytics de um ano inteiro do Link cabe em poucos GB.
-- **Velocidade.** Roda in-process, dentro do seu app: sem rede, sem socket, sem salto de latência entre a query e os dados. Muitas consultas respondem mais rápido do que contra um Postgres em outro container.
+- **Velocidade.** Roda in-process, dentro do seu app: sem rede, socket nem salto de latência entre a query e os dados. Muitas consultas respondem mais rápido do que contra um Postgres em outro container.
 - **Backups.** `cp link.db backup.db`. Fim do runbook. Com Litestream, replicação contínua para object storage por centavos.
-- **À prova de guerra.** O sqlite.org roda sobre SQLite. A própria documentação diz que aguenta sem drama sites de até ~100.000 requisições por dia — e isso é conservador.
+- **À prova de guerra.** O sqlite.org roda sobre SQLite. A própria documentação diz que aguenta sem drama sites de até ~100.000 requisições por dia, e isso é conservador.
 
 ## Por que o Link usa SQLite
 
-A workload do Link é o paraíso do SQLite: um redirect é um `SELECT` por chave primária mais um `INSERT` pequeno. Leitura intensiva, escrita leve, um único servidor. O banco inteiro de um usuário pesado — centenas de milhares de cliques — são dezenas de megabytes.
+A workload do Link é o paraíso do SQLite: um redirect é um `SELECT` por chave primária mais um `INSERT` pequeno. Leitura intensiva, escrita leve, um único servidor. O banco inteiro de um usuário pesado (centenas de milhares de cliques) são dezenas de megabytes.
 
-Para quem faz self-host, a diferença é brutal: não há nada para instalar. Sem Postgres para configurar, sem Redis para tunar, sem docker-compose com seis serviços, sem volume persistente para mapear. Baixe o Link, rode, pronto. Um processo, um arquivo.
+Para quem faz self-host, a diferença é brutal: não há nada para instalar. Não tem Postgres para configurar, Redis para ajustar nem docker-compose com seis serviços, sem volume persistente para mapear. Baixe o Link, rode, pronto. Um processo, um arquivo.
 
 E esse arquivo é tudo: seu banco, seu backup e seu plano de saída. Se um dia você for embora, leva o `link.db` e tem seus dados completos, legíveis e portáveis. Sem dump proprietário, sem exportador trancado num plano pago.
 

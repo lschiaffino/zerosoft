@@ -1,14 +1,14 @@
 ---
 title: "Round-robin con Cal: un solo link para todo el equipo"
-description: "Cómo compartir un único link de reservas entre tu equipo de ventas o soporte con Cal, y cómo elige Cal al host de cada reunión: cursor, orden del pool, conflictos y todo."
+description: "Cómo compartir un único link de reservas entre tu equipo de ventas o soporte, y cómo elige Cal al host de cada reunión: cursor, orden del pool y conflictos."
 date: "2026-07-18"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "agendar", "equipos"]
 ---
 
 Tenés tres personas que pueden tomar una demo. No querés tres links de reserva en tu web, y mucho menos que alguien decida a mano quién se queda con cada lead. Querés un link, y que las reuniones se repartan entre el equipo.
 
-Eso es round-robin. Cal lo hace, y como el código es abierto podemos hacer algo que la mayoría de las herramientas de agenda no hacen: mostrarte exactamente cómo se elige al host. Sin caja negra, sin copy de marketing sobre "distribución inteligente". Un cursor y un loop.
+Eso es round-robin. Cal lo hace, y como el código es abierto podemos hacer algo que la mayoría de las herramientas de agenda no hacen: mostrarte exactamente cómo se elige al host. Es un cursor y un loop.
 
 ## Cómo configurarlo
 
@@ -74,7 +74,7 @@ Todo lo que viene después sigue al host **asignado**, no al dueño del event ty
 
 ## Detalles que conviene saber
 
-**La disponibilidad es por event type, no por host.** Las horas semanales que configurás en el event type (en la zona horaria del dueño) aplican a todo el pool. Cal no lee el horario laboral personal de cada host. Si Bruno trabaja solo a la mañana, tiene que bloquear sus tardes —con blocked slots o en su Google Calendar— o le van a caer reuniones a la tarde.
+**La disponibilidad es por event type, no por host.** Las horas semanales que configurás en el event type (en la zona horaria del dueño) aplican a todo el pool. Cal no lee el horario laboral personal de cada host. Si Bruno trabaja solo a la mañana, tiene que bloquear sus tardes, con blocked slots o en su Google Calendar, o le van a caer reuniones a la tarde.
 
 **Conectá todos los calendarios.** Un host sin Google Calendar conectado parece libre para Cal siempre que no tenga una reserva de Cal o un blocked slot. Es la forma más común en que el round-robin sale mal: no es el algoritmo, son los datos que faltan.
 

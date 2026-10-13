@@ -1,22 +1,22 @@
 ---
 title: "Rate limiting sin Redis: una tabla y un UPSERT"
-description: "Cómo Zerosoft limita su API y sus endpoints públicos con un contador de ventana fija guardado en la misma base SQLite/libSQL, y cuándo eso deja de ser buena idea."
+description: "Cómo zerosoft limita su API y sus endpoints públicos con un contador de ventana fija en la misma base SQLite/libSQL, y cuándo eso deja de ser buena idea."
 date: "2026-09-10"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["ingeniería", "arquitectura", "sqlite"]
 ---
 
-Preguntale a internet cómo poner rate limiting en una app web y la respuesta llega en menos de un segundo: Redis. `INCR`, `EXPIRE`, listo. Es una buena respuesta. También es un servicio más para correr, asegurar, monitorear y pagar — y para un proyecto cuyo self-host es "un contenedor, un archivo", un servicio más es un costo real.
+Preguntale a internet cómo poner rate limiting en una app web y la respuesta llega en menos de un segundo: Redis. `INCR`, `EXPIRE`, listo. Es una buena respuesta. También es un servicio más para correr, asegurar, monitorear y pagar, y para un proyecto cuyo self-host es "un contenedor, un archivo", un servicio más es un costo real.
 
-Así que Zerosoft hace rate limiting en la base que ya tiene. Acá va cómo funciona, por qué es correcto y dónde se queda corto.
+Así que zerosoft hace rate limiting en la base que ya tiene. Acá va cómo funciona, por qué es correcto y dónde se queda corto.
 
 ## El problema: los contadores tienen que ser compartidos
 
 La primera versión obvia es un `Map` en memoria: clave → contador. Anda perfecto en tu notebook y no sirve para nada en producción.
 
-Zerosoft Cloud corre sobre funciones serverless. Cada instancia tiene su propia memoria, las instancias van y vienen, y una ráfaga de tráfico se puede repartir entre una docena. Un límite en memoria de 100 por minuto se convierte en "100 por minuto por instancia, multiplicado por las instancias que existan ahora". Eso no es un límite, es una sugerencia.
+zerosoft Cloud corre sobre funciones serverless. Cada instancia tiene su propia memoria, las instancias van y vienen, y una ráfaga de tráfico se puede repartir entre una docena. Un límite en memoria de 100 por minuto se convierte en "100 por minuto por instancia, multiplicado por las instancias que existan ahora". En la práctica, eso no limita nada.
 
-El contador tiene que vivir en un lugar que todas las instancias vean. Redis es uno. La base de datos es otro — y esa ya la pagamos.
+El contador tiene que vivir en un lugar que todas las instancias vean. Redis es uno. La base de datos es otro, y esa ya la pagamos.
 
 ## La implementación entera
 
@@ -48,7 +48,7 @@ return { ok: count <= limit, remaining: Math.max(0, limit - count), resetAt: win
 
 Eso es una **ventana fija**. El tiempo se corta en baldes alineados al reloj (cada minuto arranca en :00), y cada clave tiene un contador por balde.
 
-Lo importante es que el incremento y la lectura son la misma sentencia. No hay "leer el contador, sumar uno, escribirlo" en código de aplicación — el patrón que se rompe con concurrencia porque dos requests leen 99, las dos escriben 100 y las dos pasan. SQLite ejecuta el UPSERT de forma atómica, y `RETURNING` devuelve el valor que acaba de escribir. Dos requests simultáneas reciben 100 y 101, no 100 y 100.
+Lo importante es que el incremento y la lectura son la misma sentencia. No hay "leer el contador, sumar uno, escribirlo" en código de aplicación: el patrón que se rompe con concurrencia porque dos requests leen 99, las dos escriben 100 y las dos pasan. SQLite ejecuta el UPSERT de forma atómica, y `RETURNING` devuelve el valor que acaba de escribir. Dos requests simultáneas reciben 100 y 101, no 100 y 100.
 
 ## La limpieza
 
@@ -58,7 +58,7 @@ Cada ventana deja una fila. En vez de un job aparte, la limpieza es perezosa: co
 
 Sobre `rateLimit()` hay dos capas.
 
-**La API.** Cada request a `/api/v1` está limitada a **100 por minuto por key**. El balde es el SHA-256 de la key, y el chequeo corre *antes* de validarla — así que adivinar keys gasta el mismo presupuesto. Las requests con keys inválidas tienen un segundo límite: 20 por minuto por IP. (La [guía de la API](/blog/api-rest-v1-con-claves-personales) cuenta qué ve el cliente.)
+**La API.** Cada request a `/api/v1` está limitada a **100 por minuto por key**. El balde es el SHA-256 de la key, y el chequeo corre *antes* de validarla: así que adivinar keys gasta el mismo presupuesto. Las requests con keys inválidas tienen un segundo límite: 20 por minuto por IP. (La [guía de la API](/blog/api-rest-v1-con-claves-personales) cuenta qué ve el cliente.)
 
 **Endpoints públicos.** `limitByIp()` arma la clave con un nombre de balde más la IP del cliente, y devuelve un `429` listo con header `Retry-After`. Algunos valores reales del código:
 
@@ -72,7 +72,7 @@ Para pruebas de carga locales, `RATE_LIMIT_DISABLED=true` apaga los límites por
 
 ## El problema de la IP
 
-Un límite por IP vale lo que vale la IP que leés. `clientIp()` toma `x-vercel-forwarded-for`, después la primera entrada de `x-forwarded-for`, después `x-real-ip`. En Vercel esos headers los pone el edge, no el cliente. Cuando hacés self-host, los pone tu reverse proxy — así que configuralo para que pise `X-Forwarded-For` en vez de agregarle, o un cliente puede mandar el suyo. La [guía de Docker](/blog/self-hosting-con-docker-paso-a-paso) tiene la línea para Nginx.
+Un límite por IP vale lo que vale la IP que leés. `clientIp()` toma `x-vercel-forwarded-for`, después la primera entrada de `x-forwarded-for`, después `x-real-ip`. En Vercel esos headers los pone el edge, no el cliente. Cuando hacés self-host, los pone tu reverse proxy: así que configuralo para que pise `X-Forwarded-For` en vez de agregarle, o un cliente puede mandar el suyo. La [guía de Docker](/blog/self-hosting-con-docker-paso-a-paso) tiene la línea para Nginx.
 
 ## Los tradeoffs, sin maquillaje
 
@@ -82,7 +82,7 @@ Este diseño es una decisión, no un almuerzo gratis.
 
 **Las ventanas fijas permiten ráfagas en los bordes.** Un cliente puede mandar 100 requests a las 12:00:59 y otras 100 a las 12:01:00. En esos dos segundos pasaron 200. Las ventanas deslizantes o los token buckets lo resuelven; en Redis son fáciles con un script Lua y en SQL son incómodos. Para límites de "frenar abusos", la ventana fija alcanza. Para cuotas de facturación estrictas, no.
 
-**Las requests rechazadas también cuentan.** El UPSERT siempre incrementa, así que un cliente que sigue martillando después del límite hace crecer el contador. Es inofensivo — se resetea en la próxima ventana —, pero no uses `count` como métrica de tráfico legítimo.
+**Las requests rechazadas también cuentan.** El UPSERT siempre incrementa, así que un cliente que sigue martillando después del límite hace crecer el contador. Es inofensivo, se resetea en la próxima ventana, pero no uses `count` como métrica de tráfico legítimo.
 
 **Destino compartido.** Si la base se cae, el rate limiting se cae con ella. Lo consideramos una virtud: si la base está caída, nada más funciona tampoco, y una dependencia falla de forma más simple que dos.
 
@@ -95,4 +95,4 @@ Sacá los contadores de la base cuando se cumpla alguna de estas:
 - Necesitás ventanas deslizantes, token buckets o precisión por segundo.
 - Ya corrés Redis para otra cosa, así que el argumento de la infraestructura extra desaparece.
 
-Hasta entonces, una tabla, un índice y un UPSERT hacen el trabajo — y quien hace self-host tiene rate limiting con cero contenedores extra.
+Hasta entonces, una tabla, un índice y un UPSERT hacen el trabajo, y quien hace self-host tiene rate limiting con cero contenedores extra.

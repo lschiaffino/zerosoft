@@ -1,8 +1,8 @@
 ---
-title: "How to build a link-in-bio page with Link (and what you can't do yet)"
-description: "Your /@handle page in five minutes: title, bio, avatar, ordered buttons and click tracking through your own short links. Plus the honest list of what it doesn't do."
+title: "Building a link-in-bio page with Link, and what it can't do yet"
+description: "Your /@handle page in five minutes: title, bio, avatar, ordered buttons and click tracking through your own short links. Plus the list of what's missing."
 date: "2026-08-06"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "link in bio", "how-to"]
 ---
 
@@ -20,7 +20,7 @@ Let's set expectations first, because link-in-bio tools love to oversell. The pa
 - **Buttons.** Any of your links, in the order you choose, up to 50.
 - **A publish switch.** Unpublished pages return a 404.
 
-That's the whole list. There are no themes, colors, fonts, background images, social icon rows, embedded videos or custom CSS. The page uses the same minimalist style as the rest of Zerosoft. If you need a heavily branded page, a dedicated tool (or a page on your own site) will serve you better — and you can still point its buttons at your short links.
+That's the whole list. There are no themes, colors, fonts, background images, social icon rows, embedded videos or custom CSS. The page uses the same minimalist style as the rest of zerosoft. If you need a heavily branded page, a dedicated tool (or a page on your own site) will serve you better, and you can still point its buttons at your short links.
 
 ## Step 1: create the links first
 
@@ -73,10 +73,10 @@ A simple fix for the second one: create a short link per platform that points at
 
 - **Seasonal top button.** Move the current launch to the top, the evergreen stuff below. Reordering is two clicks.
 - **Self-expiring promos.** Create the promo link with an expiration date and check it on the page. It disappears on its own.
-- **One link per destination, forever.** If the destination changes (new store, new podcast host), edit the short link's URL. The button, the page and any QR code you printed keep working.
+- **One link per destination, for good.** If the destination changes (new store, new podcast host), edit the short link's URL. The button, the page and any QR code you printed keep working.
 
 ## What's not there yet
 
-To be clear about the edges: no visual customization beyond title, bio and avatar; no avatar upload; no page-view analytics; and the page lives on the main domain only, not on your custom domain. If any of these is a deal-breaker for you, tell us — or, since the code is open, send a pull request.
+To be clear about the edges: no visual customization beyond title, bio and avatar; no avatar upload; no page-view analytics; and the page lives on the main domain only, not on your custom domain. If any of these is a deal-breaker for you, tell us, or, since the code is open, send a pull request.
 
 A list of buttons shouldn't cost a subscription. Now it doesn't.

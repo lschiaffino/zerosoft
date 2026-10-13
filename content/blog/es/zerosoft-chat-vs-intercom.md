@@ -1,12 +1,12 @@
 ---
-title: "Zerosoft Chat vs Intercom: una comparación honesta"
-description: "Intercom está muy adelante en IA, canales, integraciones y centro de ayuda. Chat es un inbox de webchat self-hosteable con SLAs y CSAT. Qué hace cada uno, y quién no debería cambiarse."
+title: "Chat vs. Intercom: qué hace cada uno hoy"
+description: "Intercom está muy adelante en IA, canales, integraciones y centro de ayuda. Chat es un inbox de webchat self-hosteable con SLAs y CSAT. Qué hace cada uno y quién no debería cambiarse."
 date: "2026-09-23"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["chat", "intercom", "comparación"]
 ---
 
-Saquemos primero la parte incómoda: Intercom y Zerosoft Chat ya no son la misma categoría de producto. Intercom se convirtió en una plataforma de atención al cliente con la IA al centro. Chat es un widget de webchat con un inbox compartido y lo básico del soporte bien hecho. Compararlos feature por feature sería ridículo — así que, en cambio, acá va dónde está parado cada uno de verdad, y una respuesta honesta a "¿me conviene cambiarme?".
+Intercom y Chat ya no son la misma categoría de producto. Intercom es una plataforma de atención al cliente con la IA al centro. Chat es un widget de webchat con un inbox compartido y lo básico del soporte. Compararlos función por función no tiene sentido. Acá va dónde está cada uno y una respuesta a "¿me conviene cambiarme?".
 
 ## La versión corta
 
@@ -15,9 +15,9 @@ Saquemos primero la parte incómoda: Intercom y Zerosoft Chat ya no son la misma
 
 ## Dónde Intercom está claramente adelante
 
-**IA.** Es lo grande. El agente de IA de Intercom lee tu contenido y le responde a los clientes en lenguaje natural, resolviendo muchas conversaciones de punta a punta. El bot de Chat es **matching por palabras clave, no un LLM**: compara las palabras del visitante con tus respuestas guardadas o tus páginas de Docs, responde una vez por conversación con la mejor coincidencia (o solo con un saludo) y después se corre. Es predecible y nunca inventa nada, pero no juega en la misma liga, y no vamos a hacer de cuenta que sí.
+**IA.** El agente Fin de Intercom lleva años en producción, lee tu contenido y resuelve muchas conversaciones de punta a punta. Chat tiene un bot que responde con un modelo de lenguaje si configurás una clave del AI Gateway (y, si no, por coincidencia de palabras clave con tus respuestas guardadas y tus páginas de Docs) hasta que contesta una persona. Para algo más parecido a Fin está [Agents](/products/agents): agentes con tu conocimiento y herramientas de la suite que se conectan al widget de Chat. Son más nuevos y menos probados que Fin.
 
-**Canales.** Intercom maneja conversaciones de varios canales — email, apps de mensajería, redes y más — en un solo inbox. Chat es un widget para tu web. Eso es todo, por ahora.
+**Canales.** Intercom junta email, apps de mensajería y redes en un solo inbox. Chat es un widget para tu web, nada más por ahora.
 
 **Centro de ayuda.** Intercom trae un centro de ayuda público con artículos, colecciones y búsqueda. Chat no. Podés apuntar el bot de Chat a tus páginas de Docs, pero Docs es una herramienta de conocimiento interno, no un sitio de ayuda público y listo para SEO.
 
@@ -29,7 +29,7 @@ Saquemos primero la parte incómoda: Intercom y Zerosoft Chat ya no son la misma
 
 **Ticketing, workflows y profundidad de reportes.** Intercom tiene tickets, constructores visuales de flujos y reportes detallados. Los reportes de Chat son un solo panel enfocado: primera respuesta promedio, porcentaje dentro del SLA de primera respuesta, tiempo promedio de resolución, cantidad de resueltas y CSAT.
 
-**Madurez.** Años en producción en empresas muy grandes, certificaciones de seguridad, features enterprise. Nuestras piezas enterprise — SSO/SAML, logs de auditoría, roles personalizados y white-label para el widget — están en desarrollo en `/ee`, no lanzadas.
+**Madurez.** Años en producción en empresas muy grandes, certificaciones de seguridad, features enterprise. Nuestras piezas enterprise, SSO/SAML, logs de auditoría, roles personalizados y white-label para el widget, están en desarrollo en `/ee`, no lanzadas.
 
 ## Dónde Chat se defiende
 
@@ -42,20 +42,20 @@ Saquemos primero la parte incómoda: Intercom y Zerosoft Chat ya no son la misma
 - **Respuestas guardadas:** escribí `/` en la caja de respuesta para buscar e insertar.
 - **Horario de atención:** horario por día y zona horaria; fuera de horario, el widget muestra un aviso de ausencia con cuándo volvés.
 - **CSAT:** calificación de 1 a 5 con comentario opcional, que se pide al resolver una conversación.
-- **Personas:** una lista de visitantes con sus conversaciones y notas. Si el email de un visitante coincide con un contacto de Zerosoft CRM, la conversación muestra ese contacto.
+- **Personas:** una lista de visitantes con sus conversaciones y notas. Desde una conversación creás el contacto en el CRM y guardás la charla en su timeline.
 
 **Es tuyo.** AGPLv3, self-hosteable, conversaciones en tu propia base de datos. Para equipos con requisitos de residencia de datos, o que simplemente no quieren sus conversaciones con clientes en la nube de otro proveedor más, eso importa.
 
-**La suite.** Chat comparte login, equipo y datos con CRM, Docs, Track, Cal y Link. Tus páginas de Docs pueden alimentar al bot; tus contactos del CRM aparecen al lado del chat.
+**La suite.** Chat comparte login, equipo y datos con las otras diez apps. Tus páginas de Docs alimentan al bot, tus contactos del CRM aparecen al lado del chat y Flow puede reaccionar a cada mensaje nuevo.
 
-**Un precio que no castiga crecer.** Intercom combina precio por asiento con cargos por uso de su agente de IA; mirá su página de precios para los números actuales, porque cambian. Chat self-hosted es gratis, para siempre. Zerosoft Cloud tiene un tier gratuito generoso y después pago por uso, con precios publicados antes de cobrarte nada.
+**Un precio que no castiga crecer.** Intercom combina precio por asiento con cargos por uso de su agente de IA; mirá su página de precios para los números actuales, porque cambian. Chat cuesta $0 en tu servidor. zerosoft Cloud tiene un plan gratis y después pago por uso, sin cargo por asiento.
 
 ## Quién debería quedarse en Intercom
 
-Sinceramente, muchos equipos. Quedate si:
+Muchos equipos. Quedate si:
 
-- Dependés de un agente de IA para resolver una parte importante de las conversaciones. El bot por keywords de Chat no lo reemplaza.
-- Atendés clientes en más de un canal — email, WhatsApp, redes — y los querés en un solo lugar.
+- Dependés de un agente de IA probado para resolver una parte importante de las conversaciones.
+- Atendés clientes en más de un canal (email, WhatsApp, redes) y los querés en un solo lugar.
 - Necesitás un centro de ayuda público, tours de producto o mensajes salientes.
 - Das soporte dentro de una app móvil nativa.
 - Tu stack de soporte depende de integraciones (sincronización con CRM, ticketing, data warehouse) o de la API de Intercom.
@@ -67,13 +67,13 @@ Para esos equipos, pasarse a Chat sería un paso atrás.
 
 - Equipos chicos (de dos a diez personas) atendiendo el chat de su web, donde el trabajo es "responder rápido y no perder nada".
 - Empresas que quieren las conversaciones de soporte en su propio servidor, bajo una licencia open source.
-- Equipos que ya usan Zerosoft CRM o Docs y quieren el chat al lado de sus contactos y su conocimiento.
+- Equipos que ya usan zerosoft CRM o Docs y quieren el chat al lado de sus contactos y su conocimiento.
 - Cualquiera que miró una factura por asiento más cargo por resolución y decidió que su volumen no lo justifica.
 
 ## Cómo probarlo
 
-Creá un widget en **Chat**, copiá el snippet de embebido y ponelo en una página de staging. Configurá dos políticas de SLA, una regla de asignación y cinco respuestas guardadas. Si podés, corrélo una semana al lado de tu herramienta actual y compará con honestidad: si extrañaste el agente de IA todos los días, ya tenés tu respuesta.
+Creá un widget en **Chat**, copiá el snippet de embebido y ponelo en una página de staging. Configurá dos políticas de SLA, una regla de asignación y cinco respuestas guardadas. Si podés, corrélo una semana al lado de tu herramienta actual y compará: si extrañaste algo todos los días, ya tenés tu respuesta.
 
 ## En resumen
 
-Intercom es, por lejos, el producto más capaz, sobre todo en IA y canales. Chat es un inbox de webchat enfocado, honesto y self-hosteable, con los fundamentos del soporte — SLAs, reglas, CSAT — incluidos. Elegí el que se corresponde con el trabajo que realmente tenés.
+Intercom es el producto más capaz, sobre todo en IA y canales. Chat es un inbox de webchat self-hosteable con SLAs, reglas de asignación y CSAT. Elegí el que corresponde al trabajo que tenés.

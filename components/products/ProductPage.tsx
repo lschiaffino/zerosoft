@@ -200,7 +200,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
       <section className="lp-section container pd-faq" id="faq" key="faq">
         <div>
           <h2 className="lp-title">
-            {t('product.faqTitle')} <span className="dim">{t('product.faqTitleDim')}</span>
+            {t('product.faqTitle', { name: cfg.name })} <span className="dim">{t('product.faqTitleDim')}</span>
           </h2>
         </div>
         <div className="faq">

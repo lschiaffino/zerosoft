@@ -1,18 +1,18 @@
 ---
-title: "Backups que funcionam para um Zerosoft self-hosted"
-description: "Todo o seu Zerosoft é um arquivo SQLite, uma pasta de uploads e um .env. Como copiá-los de forma consistente com a app rodando, tirá-los do servidor e provar que eles realmente restauram."
+title: "Backups que funcionam para um zerosoft self-hosted"
+description: "Todo o seu zerosoft é um arquivo SQLite, uma pasta de uploads e um .env. Como copiá-los de forma consistente com a app rodando, tirá-los do servidor e provar que eles realmente restauram."
 date: "2026-10-12"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["self-hosting", "backups", "sqlite"]
 ---
 
-Já dissemos algumas vezes neste blog: no Zerosoft, o backup é "só um arquivo". É verdade no espírito e um pouco perigoso na prática. Um banco SQLite que está recebendo escritas não é um arquivo que você pode copiar com `cp` às cegas e confiar.
+Já dissemos algumas vezes neste blog: no zerosoft, o backup é "só um arquivo". É verdade no espírito e um pouco perigoso na prática. Um banco SQLite que está recebendo escritas não é um arquivo que você pode copiar com `cp` às cegas e confiar.
 
 Esta é a versão prática: o que fazer backup, como copiar de forma consistente com a app rodando, para onde mandar e como saber que o backup realmente restaura. Quinze minutos de configuração, dez minutos por trimestre.
 
 ## Do que você está fazendo backup
 
-Um Zerosoft self-hosted com Docker tem exatamente três coisas que importam:
+Um zerosoft self-hosted com Docker tem exatamente três coisas que importam:
 
 1. **O banco de dados.** Um arquivo SQLite, `zerosoftware.db`, em `/app/data` dentro do contêiner, guardado no volume `zerosoft-data`. Links, cliques, contatos, negócios, issues, agendamentos, conversas, docs, usuários, times, chaves de API: tudo.
 2. **Uploads.** Os anexos do Chat, do Track e das tarefas do CRM, em `/app/public/uploads`, guardados no volume `zerosoft-uploads`.
@@ -28,7 +28,7 @@ docker volume ls | grep zerosoft
 
 ## Por que um cp não basta
 
-O Zerosoft abre o banco local em **modo WAL** (`PRAGMA journal_mode = WAL`). No modo WAL, as escritas novas vão primeiro para um arquivo à parte, `zerosoftware.db-wal`, e são incorporadas ao arquivo principal depois, num checkpoint. Com a app rodando, normalmente você vai ver três arquivos: `zerosoftware.db`, `-wal` e `-shm`.
+O zerosoft abre o banco local em **modo WAL** (`PRAGMA journal_mode = WAL`). No modo WAL, as escritas novas vão primeiro para um arquivo à parte, `zerosoftware.db-wal`, e são incorporadas ao arquivo principal depois, num checkpoint. Com a app rodando, normalmente você vai ver três arquivos: `zerosoftware.db`, `-wal` e `-shm`.
 
 Então, se você fizer `cp zerosoftware.db` com a app rodando:
 
@@ -44,7 +44,7 @@ O SQLite traz duas formas de tirar um snapshot consistente de um banco em uso:
 - **`.backup`** (o backup online do CLI `sqlite3`) copia o banco página por página para um arquivo novo e gera um snapshot consistente mesmo com a app continuando a escrever.
 - **`VACUUM INTO '/caminho/arquivo.db'`** escreve uma cópia nova e compactada do banco como estava numa única transação. Dá um pouco mais de trabalho e gera um arquivo menor. O arquivo de destino não pode existir ainda.
 
-As duas estão corretas. As duas incluem o que está no WAL. A imagem do Zerosoft não traz o CLI `sqlite3`, então o caminho mais simples é um contêiner Alpine descartável que monta o volume:
+As duas estão corretas. As duas incluem o que está no WAL. A imagem do zerosoft não traz o CLI `sqlite3`, então o caminho mais simples é um contêiner Alpine descartável que monta o volume:
 
 ```bash
 #!/bin/sh
@@ -83,7 +83,7 @@ Prefere `VACUUM INTO`? Troque a linha do `.backup` por `sqlite3 /data/zerosoftwa
 
 ## Não esqueça o .env
 
-O Zerosoft criptografa no banco os tokens OAuth (as integrações com Gmail e Google Calendar) e os segredos dos webhooks com AES-256-GCM. A chave vem de `ENCRYPTION_KEY`, ou de `NEXTAUTH_SECRET` se ela não estiver definida.
+O zerosoft criptografa no banco os tokens OAuth (as integrações com Gmail e Google Calendar) e os segredos dos webhooks com AES-256-GCM. A chave vem de `ENCRYPTION_KEY`, ou de `NEXTAUTH_SECRET` se ela não estiver definida.
 
 O que isso significa para backups: se você restaurar o banco num servidor com um segredo *diferente*, tudo carrega normalmente, mas esses valores criptografados não podem ser decifrados. As integrações precisam ser reconectadas e os segredos de assinatura dos webhooks se perdem. Faça backup do seu `.env` também, separado e criptografado (ele guarda o seu client secret do Google), no seu gerenciador de senhas ou cofre de segredos. Não como um arquivo solto ao lado dos dumps do banco.
 
@@ -101,7 +101,7 @@ restic -r s3:https://<endpoint>/<bucket> backup /var/backups/zerosoft
 
 Coloque essa linha no fim do script. Mantenha mais retenção fora do que localmente: algumas semanas de diários mais alguns mensais bastam para a maioria dos times pequenos. E, se o seu storage permitir, faça com que as credenciais do servidor possam *gravar* backups mas não apagar os antigos; ransomware adora um backup que ele consegue apagar.
 
-Se você quer algo mais próximo de contínuo, o Litestream envia as mudanças do WAL do SQLite para object storage. Mencionamos porque combina bem com SQLite, mas não validamos especificamente com o Zerosoft: teste o restore antes de depender dele.
+Se você quer algo mais próximo de contínuo, o Litestream envia as mudanças do WAL do SQLite para object storage. Mencionamos porque combina bem com SQLite, mas não validamos especificamente com o zerosoft: teste o restore antes de depender dele.
 
 ## Restaurar, de verdade
 
@@ -126,7 +126,7 @@ Dois detalhes que pegam muita gente:
 - **Apague o `-wal` e o `-shm` antigos.** Um WAL que sobrou do banco anterior nunca deve ser aplicado sobre o arquivo restaurado.
 - **Dono dos arquivos.** A app roda como o usuário `zerosoft` (uid 1001). Arquivos restaurados como root podem ser legíveis mas não graváveis, e a app vai falhar na primeira escrita.
 
-As migrações rodam sozinhas quando a app sobe, então restaurar um backup antigo numa versão mais nova do Zerosoft atualiza o esquema. O caminho inverso — um banco mais novo com código mais antigo — não é algo com que você possa contar.
+As migrações rodam sozinhas quando a app sobe, então restaurar um backup antigo numa versão mais nova do zerosoft atualiza o esquema. O caminho inverso (um banco mais novo com código mais antigo) não é algo com que você possa contar.
 
 ## O simulado que ninguém faz
 

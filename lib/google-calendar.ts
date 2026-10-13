@@ -88,7 +88,7 @@ export function wantsGoogleMeet(location: string | null | undefined): boolean {
 function eventBody(booking: CalendarBookingRow, eventType: CalendarEventTypeRow, withMeet: boolean) {
   return {
     summary: `${eventType.title} — ${booking.invitee_name}`,
-    description: `Booked with Zerosoft Cal.\n${booking.invitee_name} <${booking.invitee_email}>`,
+    description: `Booked with zerosoft Cal.\n${booking.invitee_name} <${booking.invitee_email}>`,
     start: { dateTime: booking.starts_at, timeZone: 'UTC' },
     end: { dateTime: booking.ends_at, timeZone: 'UTC' },
     attendees: [{ email: booking.invitee_email, displayName: booking.invitee_name }],

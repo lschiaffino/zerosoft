@@ -1,18 +1,18 @@
 ---
-title: "Backups que funcionan para un Zerosoft self-hosted"
-description: "Todo tu Zerosoft es un archivo SQLite, una carpeta de uploads y un .env. Cómo copiarlos de forma consistente con la app corriendo, sacarlos del servidor y probar que de verdad se restauran."
+title: "Backups de un zerosoft self-hosted que se pueden restaurar"
+description: "Un zerosoft self-hosted es un archivo SQLite, una carpeta de adjuntos y un .env. Cómo copiarlos de forma consistente con la app corriendo, sacarlos del servidor y probar la restauración."
 date: "2026-10-12"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["self-hosting", "backups", "sqlite"]
 ---
 
-Lo dijimos varias veces en este blog: en Zerosoft, el backup es "un archivo". Es cierto en espíritu y un poco peligroso en la práctica. Una base SQLite en la que se está escribiendo no es un archivo que puedas copiar con `cp` a ciegas y confiar.
+En zerosoft, el backup es "un archivo". Es casi cierto: una base SQLite en la que se está escribiendo no se puede copiar con `cp` y confiar en que la copia sirva.
 
 Esta es la versión práctica: qué backupear, cómo copiarlo de forma consistente con la app corriendo, adónde mandarlo y cómo saber que el backup realmente se restaura. Quince minutos de setup, diez minutos por trimestre.
 
 ## Qué estás backupeando
 
-Un Zerosoft self-hosted con Docker tiene exactamente tres cosas que importan:
+Un zerosoft self-hosted con Docker tiene exactamente tres cosas que importan:
 
 1. **La base de datos.** Un archivo SQLite, `zerosoftware.db`, en `/app/data` dentro del contenedor, guardado en el volumen `zerosoft-data`. Links, clicks, contactos, deals, issues, reservas, conversaciones, docs, usuarios, teams, API keys: todo.
 2. **Uploads.** Los adjuntos de Chat, Track y las tareas del CRM, en `/app/public/uploads`, guardados en el volumen `zerosoft-uploads`.
@@ -28,14 +28,14 @@ docker volume ls | grep zerosoft
 
 ## Por qué un cp no alcanza
 
-Zerosoft abre su base local en **modo WAL** (`PRAGMA journal_mode = WAL`). En modo WAL, las escrituras nuevas van primero a un archivo aparte, `zerosoftware.db-wal`, y se vuelcan al archivo principal más tarde, en un checkpoint. Con la app corriendo, normalmente vas a ver tres archivos: `zerosoftware.db`, `-wal` y `-shm`.
+zerosoft abre su base local en **modo WAL** (`PRAGMA journal_mode = WAL`). En modo WAL, las escrituras nuevas van primero a un archivo aparte, `zerosoftware.db-wal`, y se vuelcan al archivo principal más tarde, en un checkpoint. Con la app corriendo, normalmente vas a ver tres archivos: `zerosoftware.db`, `-wal` y `-shm`.
 
 Entonces, si hacés `cp zerosoftware.db` con la app corriendo:
 
 - Datos ya commiteados pueden seguir viviendo en el `-wal`, y tu copia no los tiene.
 - Si copiás el `.db` y el `-wal` por separado, puede caer una escritura en el medio y el par que te queda puede no coincidir.
 
-Copiar a mano *sí* está bien si la app está frenada: en un apagado limpio SQLite hace el checkpoint del WAL al archivo principal. Si en cambio el proceso murió de golpe, puede quedar un `-wal` con datos commiteados, así que copiá todos los archivos juntos. Pero frenar tu app todas las noches para backupearla no tiene sentido cuando SQLite tiene una forma correcta de hacerlo en caliente.
+Copiar a mano *sí* está bien si la app está frenada: en un apagado limpio SQLite hace el checkpoint del WAL al archivo principal. Si en cambio el proceso se cortó de golpe, puede quedar un `-wal` con datos commiteados, así que copiá todos los archivos juntos. Pero frenar tu app todas las noches para backupearla no tiene sentido cuando SQLite tiene una forma correcta de hacerlo en caliente.
 
 ## La forma correcta: .backup o VACUUM INTO
 
@@ -44,7 +44,7 @@ SQLite trae dos formas de sacar un snapshot consistente de una base viva:
 - **`.backup`** (el backup online del CLI `sqlite3`) copia la base página por página a un archivo nuevo y produce un snapshot consistente aunque la app siga escribiendo.
 - **`VACUUM INTO '/ruta/archivo.db'`** escribe una copia nueva y compactada de la base tal como estaba en una única transacción. Trabaja un poco más y te da un archivo más chico. El archivo destino no tiene que existir.
 
-Las dos son correctas. Las dos incluyen lo que está en el WAL. La imagen de Zerosoft no trae el CLI `sqlite3`, así que lo más simple es un contenedor Alpine descartable que monte el volumen:
+Las dos son correctas. Las dos incluyen lo que está en el WAL. La imagen de zerosoft no trae el CLI `sqlite3`, así que lo más simple es un contenedor Alpine descartable que monte el volumen:
 
 ```bash
 #!/bin/sh
@@ -83,7 +83,7 @@ Corrélo desde cron, a una hora tranquila:
 
 ## No te olvides del .env
 
-Zerosoft cifra en la base los tokens OAuth (las integraciones de Gmail y Google Calendar) y los secretos de los webhooks con AES-256-GCM. La clave sale de `ENCRYPTION_KEY`, o de `NEXTAUTH_SECRET` si esa no está.
+zerosoft cifra en la base los tokens OAuth (las integraciones de Gmail y Google Calendar) y los secretos de los webhooks con AES-256-GCM. La clave sale de `ENCRYPTION_KEY`, o de `NEXTAUTH_SECRET` si esa no está.
 
 Qué significa para los backups: si restaurás la base en un servidor con un secreto *distinto*, todo carga igual, pero esos valores cifrados no se pueden descifrar. Hay que reconectar las integraciones y se pierden los secretos de firma de los webhooks. Backupeá también tu `.env`, por separado y cifrado (tiene tu client secret de Google), en tu gestor de contraseñas o tu bóveda de secretos. No como un archivo plano al lado de los dumps de la base.
 
@@ -101,7 +101,7 @@ restic -r s3:https://<endpoint>/<bucket> backup /var/backups/zerosoft
 
 Sumá esa línea al final del script. Guardá más retención afuera que en local: unas semanas de diarios más algunos mensuales alcanzan para la mayoría de los equipos chicos. Y si tu storage lo permite, que las credenciales del servidor puedan *escribir* backups pero no borrar los viejos; al ransomware le encanta un backup que puede borrar.
 
-Si querés algo más cercano a continuo, Litestream manda los cambios del WAL de SQLite a object storage. Lo mencionamos porque encaja bien con SQLite, pero no lo validamos específicamente con Zerosoft: probá el restore antes de depender de él.
+Si querés algo más cercano a continuo, Litestream manda los cambios del WAL de SQLite a object storage. Lo mencionamos porque encaja bien con SQLite, pero no lo validamos específicamente con zerosoft: probá el restore antes de depender de él.
 
 ## Restaurar, de verdad
 
@@ -126,7 +126,7 @@ Dos detalles que muerden:
 - **Borrá el `-wal` y el `-shm` viejos.** Un WAL sobrante de la base anterior nunca tiene que aplicarse encima del archivo restaurado.
 - **El dueño de los archivos.** La app corre como el usuario `zerosoft` (uid 1001). Archivos restaurados como root pueden ser legibles pero no escribibles, y la app va a fallar en la primera escritura.
 
-Las migraciones corren solas cuando arranca la app, así que restaurar un backup viejo sobre una versión más nueva de Zerosoft actualiza su esquema. La dirección contraria — una base más nueva sobre código más viejo — no es algo con lo que puedas contar.
+Las migraciones corren solas cuando arranca la app, así que restaurar un backup viejo sobre una versión más nueva de zerosoft actualiza su esquema. La dirección contraria, una base más nueva sobre código más viejo, no es algo con lo que puedas contar.
 
 ## El simulacro que nadie hace
 

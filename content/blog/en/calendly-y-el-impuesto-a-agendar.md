@@ -1,44 +1,38 @@
 ---
-title: "Calendly and the scheduling tax"
-description: "Twelve dollars a month to show your availability: a calendar and a form. The tax on booking meetings exists because nobody seriously questioned it. Until now."
+title: "Calendly at $12 per user: what a booking costs to serve"
+description: "A scheduling tool is a public availability page and a form that writes to your calendar. What Calendly charges for it, what a booking costs to run, and what Cal does instead."
 date: "2026-06-18"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "scheduling", "saas"]
 ---
 
-Open Calendly and look at what it is, technically: a public page with your availability and a form that writes an event into your calendar. Two components. For that, Calendly charges $12 per user per month on the Standard plan — $10 if you pay for the year upfront.
+Technically, Calendly is two things: a public page with your availability and a form that writes an event into your calendar. The Standard plan costs $12 per user per month, or $10 billed annually.
 
-This isn't a criticism of the execution. The product is well built. It's a criticism of the price: the marginal cost of a booking is a row in a database, two calls to the Google Calendar API and a confirmation email. We're talking cents. Fractions of a cent.
+The product is well made. The question is the price. A booking is a database row, two Google Calendar API calls and a confirmation email. That costs a fraction of a cent.
 
-## The tax nobody voted for
+## What a team pays
 
-Let's call it what it is: a scheduling tax. Every sales demo, every job interview, every client call goes through that form. And every one of those interactions pays a toll to a company for showing empty slots on a calendar.
+- A 10-person sales team: $120 a month.
+- $1,440 a year.
+- $7,200 over five years.
 
-Do the math with a real team:
+The free plan has one event type, one calendar connection and no automated reminders. Most teams outgrow it around the time they start depending on it.
 
-- A 10-person sales team: $120 per month.
-- That's $1,440 per year.
-- Over five years: $7,200. For a calendar and a form.
+## How the price was set
 
-And the free plan isn't a serious alternative: one event type, one calendar connection, no automated reminders, no workflows. It's designed so you outgrow it exactly when you start relying on it. It's not a plan: it's a funnel.
+The price comes from perceived value ("one extra meeting a month pays for it"), not from cost. That's how most SaaS is priced: by what the buyer can afford.
 
-## The SaaS pricing mindset
+## What Cal does
 
-The price wasn't derived from cost. It was derived from perceived value: "if this gets you one extra meeting a month, it pays for itself". That reasoning is the heart of all SaaS. You don't pay what the software costs — you pay what the vendor estimates you can afford.
+**Cal** is the scheduling app in zerosoft. Today it has:
 
-By that logic, showing your availability costs about a lunch. Every month. Forever.
+- **Booking pages** with weekly availability per event type, shown in the guest's timezone.
+- **Google Calendar sync:** busy times block slots, and bookings land in your calendar with a Meet link.
+- **Buffers, minimum notice and a booking window,** plus blocked slots.
+- **Round-robin** across a team and **routing forms** that send each visitor to the right event type.
+- **Emails with .ics invites,** a 24-hour reminder, and guest cancel and reschedule links.
+- **Embeds** (inline or popup), a REST API and signed webhooks.
 
-## What's coming: Cal
+What it doesn't have yet: Outlook or iCloud calendars, payments, group events and reusable schedules. The full list is in [Cal vs Calendly](/blog/zerosoft-cal-vs-calendly).
 
-**Cal** is our answer. It ships in Q2 2027, and it does what a scheduling tool is supposed to do, no more and no less:
-
-- **Public booking pages** with your real availability, connected to your calendar.
-- **Automatic timezone detection**: whoever books sees your slots in their time, not yours. No more "is your 3pm my 3pm?".
-- **Buffers** between meetings, so nobody chains four calls on you without a break.
-- Everything else you'd expect: event types, durations, confirmations.
-
-The price: **$0**. The code is open source: download it and host it yourself. And if you'd rather we run it, you pay what the infrastructure costs. At cost. No margin. The bill is public and you can verify it against any cloud provider's prices.
-
-Scheduling a meeting is a problem solved fifteen years ago. There's no technical reason for it to cost $144 per person per year. The only reason is that nobody questioned it.
-
-We did. Cal arrives in Q2 2027. In the meantime, you can try **Link**, our link shortener with analytics — available today under the same model: $0 self-hosted, cloud at cost.
+Self-hosting Cal costs $0. On zerosoft Cloud you get a free tier, then pay per booking and email beyond it. Seats are free.

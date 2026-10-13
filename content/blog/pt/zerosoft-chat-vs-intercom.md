@@ -1,12 +1,12 @@
 ---
-title: "Zerosoft Chat vs Intercom: uma comparação honesta"
+title: "zerosoft Chat vs Intercom: uma comparação honesta"
 description: "O Intercom está muito à frente em IA, canais, integrações e central de ajuda. O Chat é um inbox de webchat auto-hospedável com SLAs e CSAT. O que cada um faz, e quem não deveria trocar."
 date: "2026-09-23"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["chat", "intercom", "comparação"]
 ---
 
-Vamos tirar a parte desconfortável do caminho: o Intercom e o Zerosoft Chat não são mais a mesma categoria de produto. O Intercom virou uma plataforma de atendimento com IA no centro. O Chat é um widget de webchat com um inbox compartilhado e o básico do suporte bem feito. Comparar os dois feature por feature seria bobagem — então, em vez disso, aqui está onde cada um realmente está, e uma resposta honesta para "devo trocar?".
+Vamos tirar a parte desconfortável do caminho: o Intercom e o zerosoft Chat não são mais a mesma categoria de produto. O Intercom virou uma plataforma de atendimento com IA no centro. O Chat é um widget de webchat com um inbox compartilhado e o básico do suporte bem feito. Comparar os dois feature por feature seria bobagem: então, em vez disso, aqui está onde cada um realmente está, e uma resposta honesta para "devo trocar?".
 
 ## A versão curta
 
@@ -15,9 +15,9 @@ Vamos tirar a parte desconfortável do caminho: o Intercom e o Zerosoft Chat nã
 
 ## Onde o Intercom está claramente à frente
 
-**IA.** Esse é o ponto principal. O agente de IA do Intercom lê seu conteúdo e responde clientes em linguagem natural, resolvendo muitas conversas do começo ao fim. O bot do Chat é **correspondência por palavras-chave, não um LLM**: ele compara as palavras do visitante com suas respostas prontas ou suas páginas do Docs, responde uma vez por conversa com a melhor correspondência (ou só com uma saudação) e depois sai do caminho. É previsível e nunca inventa nada, mas não joga na mesma liga, e a gente não vai fingir que joga.
+**IA.** Esse é o ponto principal. O agente de IA do Intercom lê seu conteúdo e responde clientes em linguagem natural, resolvendo muitas conversas do começo ao fim. O bot do Chat pode responder com IA: busca nas suas páginas do Docs e nas respostas prontas, responde enquanto nenhum humano entrou na conversa e, se não sabe ou o visitante pede uma pessoa, passa a conversa para o time com prioridade alta. Sem IA configurada, cai num bot por palavras-chave que responde uma vez. Para agentes que também agem (cadastram leads, agendam), existe o Agents. Mesmo assim, o Intercom está anos à frente em IA de atendimento.
 
-**Canais.** O Intercom reúne conversas de vários canais — email, apps de mensagem, redes sociais e mais — num inbox só. O Chat é um widget para o seu site. Só isso, por enquanto.
+**Canais.** O Intercom reúne conversas de vários canais (email, apps de mensagem, redes sociais e mais) num inbox só. O Chat é um widget para o seu site. Só isso, por enquanto.
 
 **Central de ajuda.** O Intercom vem com uma central de ajuda pública, com artigos, coleções e busca. O Chat não. Dá para apontar o bot do Chat para as suas páginas do Docs, mas o Docs é uma ferramenta de conhecimento interno, não um site de ajuda público e pronto para SEO.
 
@@ -29,7 +29,7 @@ Vamos tirar a parte desconfortável do caminho: o Intercom e o Zerosoft Chat nã
 
 **Tickets, workflows e profundidade de relatórios.** O Intercom tem tickets, construtores visuais de fluxo e relatórios detalhados. Os relatórios do Chat são um único painel focado: primeira resposta média, porcentagem dentro do SLA de primeira resposta, tempo médio de resolução, número de resolvidas e CSAT.
 
-**Maturidade.** Anos em produção em empresas muito grandes, certificações de segurança, recursos enterprise. Nossas peças enterprise — SSO/SAML, logs de auditoria, papéis personalizados e white-label para o widget — estão em desenvolvimento em `/ee`, não lançadas.
+**Maturidade.** Anos em produção em empresas muito grandes, certificações de segurança, recursos enterprise. Nossas peças enterprise (SSO/SAML, logs de auditoria, papéis personalizados e white-label para o widget) estão em desenvolvimento em `/ee`, não lançadas.
 
 ## Onde o Chat se garante
 
@@ -42,20 +42,20 @@ Vamos tirar a parte desconfortável do caminho: o Intercom e o Zerosoft Chat nã
 - **Respostas prontas:** digite `/` na caixa de resposta para buscar e inserir.
 - **Horário de atendimento:** horário por dia e fuso; fora do horário, o widget mostra um aviso de ausência com quando vocês voltam.
 - **CSAT:** nota de 1 a 5 com comentário opcional, pedida quando a conversa é resolvida.
-- **Pessoas:** uma lista de visitantes com suas conversas e notas. Se o email de um visitante bate com um contato do Zerosoft CRM, a conversa mostra esse contato.
+- **Pessoas:** uma lista de visitantes com suas conversas e notas. Se o email de um visitante bate com um contato do zerosoft CRM, a conversa mostra esse contato.
 
 **É seu.** AGPLv3, auto-hospedável, conversas no seu próprio banco de dados. Para times com exigências de residência de dados, ou que simplesmente não querem as conversas com clientes na nuvem de mais um fornecedor, isso importa.
 
 **A suíte.** O Chat compartilha login, time e dados com CRM, Docs, Track, Cal e Link. Suas páginas do Docs podem alimentar o bot; seus contatos do CRM aparecem ao lado do chat.
 
-**Preço que não pune o crescimento.** O Intercom combina preço por assento com cobranças por uso do agente de IA; confira a página de preços deles para os números atuais, porque eles mudam. O Chat auto-hospedado é gratuito, para sempre. O Zerosoft Cloud tem um plano gratuito generoso e depois pagamento por uso, com preços publicados antes de cobrarmos qualquer coisa.
+**Preço que não pune o crescimento.** O Intercom combina preço por assento com cobranças por uso do agente de IA; confira a página de preços deles para os números atuais, porque eles mudam. O Chat auto-hospedado custa $0. O zerosoft Cloud tem um plano grátis para começar e depois cobra pelo uso do workspace, sem cobrança por assento.
 
 ## Quem deveria ficar no Intercom
 
 Sinceramente, muitos times. Fique se:
 
-- Você depende de um agente de IA para resolver uma parte relevante das conversas. O bot por palavras-chave do Chat não substitui isso.
-- Você atende clientes em mais de um canal — email, WhatsApp, redes — e quer tudo num lugar só.
+- Você depende de um agente de IA para resolver uma parte relevante das conversas. O bot do Chat e o Agents ainda não chegam nesse nível.
+- Você atende clientes em mais de um canal (email, WhatsApp, redes) e quer tudo num lugar só.
 - Você precisa de central de ajuda pública, tours de produto ou mensagens ativas.
 - Você dá suporte dentro de um app móvel nativo.
 - Seu stack de suporte depende de integrações (sincronização com CRM, ticketing, data warehouse) ou da API do Intercom.
@@ -67,7 +67,7 @@ Para esses times, migrar para o Chat seria um passo atrás.
 
 - Times pequenos (de duas a dez pessoas) atendendo o chat do site, em que o trabalho é "responder rápido e não deixar nada cair".
 - Empresas que querem as conversas de suporte no próprio servidor, sob uma licença open source.
-- Times que já usam o Zerosoft CRM ou o Docs e querem o chat ao lado dos contatos e do conhecimento.
+- Times que já usam o zerosoft CRM ou o Docs e querem o chat ao lado dos contatos e do conhecimento.
 - Qualquer um que olhou uma fatura por assento mais cobrança por resolução e concluiu que o volume não justifica.
 
 ## Como testar
@@ -76,4 +76,4 @@ Crie um widget no **Chat**, copie o snippet de incorporação e coloque numa pá
 
 ## Resumindo
 
-O Intercom é, de longe, o produto mais capaz, principalmente em IA e canais. O Chat é um inbox de webchat focado, honesto e auto-hospedável, com os fundamentos do suporte — SLAs, regras, CSAT — incluídos. Escolha o que corresponde ao trabalho que você realmente tem.
+O Intercom é, de longe, o produto mais capaz, principalmente em IA e canais. O Chat é um inbox de webchat focado, honesto e auto-hospedável, com os fundamentos do suporte (SLAs, regras, CSAT) incluídos. Escolha o que corresponde ao trabalho que você realmente tem.
