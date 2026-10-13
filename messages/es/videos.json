@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "title": "Videos — zerosoft.ai",
+    "description": "Grabaciones cortas del app real: Link, CRM, Cal, Track, Chat y Docs."
+  },
+  "label": "Videos",
+  "title": "Miralo funcionando.",
+  "sub": "Grabaciones cortas de pantalla del app real, con subtítulos (en inglés). Sin mockups, sin audio.",
+  "note": "Grabado en el modo demo del app con datos de ejemplo.",
+  "items": {
+    "zerosoft-intro": {
+      "title": "Qué es Zerosoft",
+      "duration": "0:48",
+      "desc": "Un recorrido rápido por los seis productos y cómo pasar de uno a otro."
+    },
+    "crm": {
+      "title": "CRM",
+      "duration": "0:39",
+      "desc": "Contactos con vistas guardadas y filtros, el timeline de un contacto, arrastrar deals entre etapas y la barra de etapa del deal."
+    },
+    "link": {
+      "title": "Link",
+      "duration": "0:42",
+      "desc": "Crear un link corto con slug propio, tags y UTM, y ver los clicks por referrer, país y dispositivo."
+    },
+    "cal": {
+      "title": "Cal",
+      "duration": "0:29",
+      "desc": "Tipos de evento, la página pública de reservas, elegir un horario y reservar — y la reserva en tu app."
+    },
+    "track": {
+      "title": "Track",
+      "duration": "0:33",
+      "desc": "Los issues de un proyecto en lista y en tablero, y un issue con sus propiedades y un comentario."
+    },
+    "chat": {
+      "title": "Chat",
+      "duration": "0:25",
+      "desc": "El inbox compartido: responder a un visitante, resolver la conversación y ver a todos en Personas."
+    },
+    "docs": {
+      "title": "Docs",
+      "duration": "0:27",
+      "desc": "Páginas anidadas, to-dos, tablas y bloques de código, y comentarios en una página."
+    }
+  },
+  "embedLabel": "En movimiento",
+  "embedTitleDim": "— la app real, grabada.",
+  "allVideos": "Todos los videos"
+}

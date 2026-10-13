@@ -5,6 +5,7 @@ import Reveal from '@/components/Reveal';
 import Icon from '@/components/site/Icon';
 import { FEATURE_ICONS, GITHUB_URL, HAS_API, PRODUCT_NAMES, SITE_PRODUCTS } from '@/components/site/catalog';
 import BrowserFrame from './BrowserFrame';
+import VideoPlayer from '@/components/VideoPlayer';
 import LinkMockup from './mockups/LinkMockup';
 import TrackMockup from './mockups/TrackMockup';
 import CrmMockup from './mockups/CrmMockup';
@@ -45,6 +46,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
   const t = await getTranslations({ locale, namespace: 'pages' });
   const tc = await getTranslations({ locale, namespace: 'common.products' });
   const tcm = await getTranslations({ locale, namespace: 'common' });
+  const tv = await getTranslations({ locale, namespace: 'videos' });
 
   const cfg = PRODUCT_CONFIG[product];
   const Mockup = MOCKUPS[product];
@@ -143,6 +145,28 @@ export default async function ProductPage({ locale, product }: { locale: string;
       </section>
 
       {/* PRICE MATH */}
+      {/* VIDEO: grabación real de la app */}
+      <section className="lp-section container" id="video">
+        <div className="lp-head">
+          <p className="section-label">{tv('embedLabel')}</p>
+          <Reveal as="h2" className="lp-title">
+            {tv(`items.${product}.title`)} <span className="dim">{tv('embedTitleDim')}</span>
+          </Reveal>
+          <p className="lp-sub">{tv(`items.${product}.desc`)}</p>
+        </div>
+        <div className="lp-video">
+          <VideoPlayer
+            src={`/videos/${product}.mp4`}
+            poster={`/videos/${product}.jpg`}
+            title={tv(`items.${product}.title`)}
+            autoPlayOnVisible
+          />
+          <p className="lp-video-note">
+            {tv('note')} <Link href="/videos">{tv('allVideos')} →</Link>
+          </p>
+        </div>
+      </section>
+
       <section className="lp-section container" id="pricing">
         <div className="lp-head">
           <p className="section-label">{t('product.compareLabel')}</p>

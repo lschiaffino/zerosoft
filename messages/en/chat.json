@@ -130,8 +130,7 @@
     "title": "People",
     "search": "Search people…",
     "empty": "No people match your search.",
-    "conversations_one": "{{count}} conversation",
-    "conversations_other": "{{count}} conversations",
+    "conversations": "{count, plural, one {# conversation} other {# conversations}}",
     "notes": "Notes",
     "editNotes": "Edit notes",
     "lastSeen": "Last seen"
@@ -159,7 +158,7 @@
     "breached": "Breached",
     "breachedFirst": "First reply SLA",
     "breachedResolution": "Resolution SLA",
-    "dueIn": "Reply in {{minutes}}m",
+    "dueIn": "Reply in {minutes}m",
     "resolved": "Resolved",
     "policies": "SLA policies",
     "priority": "Priority",
@@ -224,7 +223,7 @@
   },
   "read": {
     "read": "Read",
-    "at": "Read at {{time}}"
+    "at": "Read at {time}"
   },
   "common": {
     "save": "Save",

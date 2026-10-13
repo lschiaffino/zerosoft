@@ -863,7 +863,9 @@ tr:hover .cell-quick { opacity: 0.8; }
 
 .kb-card { touch-action: pan-y; }
 
-.kb-card-ghost {
+.kb-card.kb-card-ghost {
+  /* .kb-card (app.css) fija position: relative; sin esta especificidad el ghost
+     queda al final del body y no se ve durante el drag. */
   position: fixed;
   z-index: 300;
   pointer-events: none;

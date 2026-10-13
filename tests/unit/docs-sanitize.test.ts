@@ -26,3 +26,13 @@ describe('Docs: sanitización en el servidor', () => {
     expect(b.rows).toEqual([['', 'ok']]);
   });
 });
+
+describe('Docs: celdas de tablas', () => {
+  it('quedan como texto plano, sin escapar & ni duplicarlo al re-guardar', async () => {
+    const { sanitizeBlocks } = await import('@/lib/docs-sanitize');
+    const block = { id: 'b', type: 'table', content: '', rows: [['R&D', '<b>x</b>']] } as unknown as Parameters<typeof sanitizeBlocks>[0][number];
+    const once = sanitizeBlocks([block]);
+    const twice = sanitizeBlocks(once);
+    expect(twice[0].rows).toEqual([['R&D', 'x']]);
+  });
+});

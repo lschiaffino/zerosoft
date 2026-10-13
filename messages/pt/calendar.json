@@ -217,5 +217,10 @@
     "popup": "Botão popup",
     "inlineDesc": "Cole onde o calendário deve aparecer. A altura se ajusta sozinha.",
     "popupDesc": "Adiciona um botão flutuante que abre a página de agendamento em um modal."
+  },
+  "profile": {
+    "sub": "Escolha um tipo de reunião para ver os horários disponíveis.",
+    "empty": "Não há tipos de reunião disponíveis no momento.",
+    "minutes": "{n} min"
   }
 }
