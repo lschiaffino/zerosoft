@@ -11,6 +11,7 @@ import {
   updateChatConversation,
 } from './chat-data';
 import { createNotification } from './notifications';
+import { rankKnowledge, searchTokens, type KnowledgeDoc } from './knowledge-search';
 
 /**
  * Bot de Chat con AI (bot_source = 'ai').
@@ -31,27 +32,11 @@ export const HANDOFF_MARKER = '[[HANDOFF]]';
 export const HANDOFF_SYSTEM_PREFIX = 'AI handoff:';
 const HISTORY_LIMIT = 12;
 const TOP_K = 5;
-const CHUNK_CHARS = 900;
 const BOT_TYPING_SECONDS = 30;
 
 // ---------- Retrieval (BM25) ----------
 
-const STOPWORDS = new Set(
-  (
-    'the and for are but not you your with this that what how can from have has was were will would ' +
-    'que los las del por para con una uno unos unas como mas pero sus esta este esto son hay ' +
-    'qual quais como mais mas seu sua nao sim uma com para pelo pela dos das isso este esta'
-  ).split(' '),
-);
-
-export function searchTokens(text: string): string[] {
-  return text
-    .normalize('NFD')
-    .replace(/\p{M}+/gu, '')
-    .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter((w) => (w.length >= 3 || /^\d+$/.test(w)) && !STOPWORDS.has(w));
-}
+export { searchTokens };
 
 export interface KnowledgeChunk {
   kind: 'doc' | 'canned';
@@ -60,94 +45,30 @@ export interface KnowledgeChunk {
   score: number;
 }
 
-function chunkText(text: string): string[] {
-  if (text.length <= CHUNK_CHARS) return [text];
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  const chunks: string[] = [];
-  let current = '';
-  for (const s of sentences) {
-    if (current && current.length + s.length + 1 > CHUNK_CHARS) {
-      chunks.push(current);
-      current = '';
-    }
-    current = current ? `${current} ${s}` : s;
-    while (current.length > CHUNK_CHARS * 1.5) {
-      chunks.push(current.slice(0, CHUNK_CHARS));
-      current = current.slice(CHUNK_CHARS);
-    }
-  }
-  if (current) chunks.push(current);
-  return chunks;
-}
-
 /**
  * Las piezas de conocimiento más relevantes para `query`, solo del workspace
  * dueño del widget (docs) y del propio widget (canned). Okapi BM25 con el
- * título contado doble.
+ * título contado doble (lib/knowledge-search.ts).
  */
 export async function retrieveKnowledge(
   widget: Pick<ChatWidgetRow, 'id' | 'user_id'>,
   query: string,
   k = TOP_K,
 ): Promise<KnowledgeChunk[]> {
-  const queryTokens = [...new Set(searchTokens(query))];
-  if (queryTokens.length === 0) return [];
-
-  const candidates: Array<{ kind: 'doc' | 'canned'; title: string; text: string; tokens: string[] }> = [];
+  if (searchTokens(query).length === 0) return [];
+  const docs: Array<KnowledgeDoc<'doc' | 'canned'> & { chunk?: boolean; titleExtra?: string }> = [];
   const pages = (await getDb()
     .prepare(
       'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND is_public = 1 ORDER BY updated_at DESC LIMIT 200',
     )
     .all(widget.user_id)) as Array<{ title: string; content: string }>;
   for (const page of pages) {
-    const text = extractDocsText(page.content, 12_000);
-    const titleTokens = searchTokens(page.title);
-    for (const chunk of chunkText(text)) {
-      candidates.push({
-        kind: 'doc',
-        title: page.title,
-        text: chunk,
-        tokens: [...titleTokens, ...titleTokens, ...searchTokens(chunk)],
-      });
-    }
+    docs.push({ kind: 'doc', title: page.title, text: extractDocsText(page.content, 12_000) });
   }
   for (const r of await listCannedResponses(widget.id)) {
-    const titleTokens = searchTokens(`${r.shortcut} ${r.title}`);
-    candidates.push({
-      kind: 'canned',
-      title: r.title,
-      text: r.body,
-      tokens: [...titleTokens, ...titleTokens, ...searchTokens(r.body)],
-    });
+    docs.push({ kind: 'canned', title: r.title, text: r.body, titleExtra: r.shortcut, chunk: false });
   }
-  if (candidates.length === 0) return [];
-
-  const n = candidates.length;
-  const avgdl = candidates.reduce((acc, c) => acc + c.tokens.length, 0) / n || 1;
-  const df = new Map<string, number>();
-  const tfs = candidates.map((c) => {
-    const tf = new Map<string, number>();
-    for (const t of c.tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
-    for (const q of queryTokens) if (tf.has(q)) df.set(q, (df.get(q) ?? 0) + 1);
-    return tf;
-  });
-  const k1 = 1.2;
-  const b = 0.75;
-  const scored = candidates.map((c, i) => {
-    let score = 0;
-    for (const q of queryTokens) {
-      const f = tfs[i].get(q) ?? 0;
-      if (!f) continue;
-      const d = df.get(q) ?? 0;
-      const idf = Math.log(1 + (n - d + 0.5) / (d + 0.5));
-      score += (idf * f * (k1 + 1)) / (f + k1 * (1 - b + (b * c.tokens.length) / avgdl));
-    }
-    return { kind: c.kind, title: c.title, text: c.text, score };
-  });
-  return scored
-    .filter((c) => c.score > 0)
-    .sort((a, b2) => b2.score - a.score)
-    .slice(0, k);
+  return rankKnowledge(docs, query, k).map((c) => ({ kind: c.kind, title: c.title, text: c.text, score: c.score }));
 }
 
 // ---------- Prompt ----------
@@ -175,7 +96,7 @@ export function buildBotInstructions(widget: Pick<ChatWidgetRow, 'name'>, knowle
   ].join('\n');
 }
 
-function describeMessage(m: ChatMessageRow): string {
+export function describeMessage(m: ChatMessageRow): string {
   let text = m.body?.trim() ?? '';
   try {
     const attachments = JSON.parse(m.attachments || '[]') as Array<{ name?: string }>;
@@ -207,7 +128,7 @@ export function toModelMessages(rows: ChatMessageRow[]): ModelMessage[] {
 
 // ---------- Estado de la conversación ----------
 
-async function recentMessages(conversationId: string, limit = HISTORY_LIMIT): Promise<ChatMessageRow[]> {
+export async function recentMessages(conversationId: string, limit = HISTORY_LIMIT): Promise<ChatMessageRow[]> {
   const rows = (await getDb()
     .prepare('SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?')
     .all(conversationId, limit)) as ChatMessageRow[];
@@ -230,7 +151,7 @@ export async function wasHandedOff(conversationId: string): Promise<boolean> {
   return Boolean(row);
 }
 
-async function setBotTyping(conversationId: string): Promise<void> {
+export async function setBotTyping(conversationId: string): Promise<void> {
   const expiresAt = new Date(Date.now() + BOT_TYPING_SECONDS * 1000).toISOString();
   await getDb()
     .prepare(
@@ -239,7 +160,7 @@ async function setBotTyping(conversationId: string): Promise<void> {
     .run(crypto.randomUUID(), conversationId, expiresAt);
 }
 
-async function clearBotTyping(conversationId: string): Promise<void> {
+export async function clearBotTyping(conversationId: string): Promise<void> {
   await getDb()
     .prepare("DELETE FROM chat_typing WHERE conversation_id = ? AND sender_type = 'user' AND user_id IS NULL")
     .run(conversationId);
@@ -247,9 +168,13 @@ async function clearBotTyping(conversationId: string): Promise<void> {
 
 const PRIORITY_RANK = { low: 0, medium: 1, high: 2, urgent: 3 } as const;
 
-async function markHandoff(widget: ChatWidgetRow, conversation: ChatConversationRow): Promise<void> {
+export async function markHandoff(
+  widget: ChatWidgetRow,
+  conversation: ChatConversationRow,
+  who = 'the AI bot',
+): Promise<void> {
   await createChatMessage(conversation.id, 'system', {
-    body: `${HANDOFF_SYSTEM_PREFIX} the AI bot handed this conversation to a human.`,
+    body: `${HANDOFF_SYSTEM_PREFIX} ${who} handed this conversation to a human.`,
   });
   const priority = PRIORITY_RANK[conversation.priority] < PRIORITY_RANK.high ? 'high' : conversation.priority;
   await updateChatConversation(conversation.id, {
@@ -361,6 +286,11 @@ export async function dispatchChatBot(
   schedule?: ScheduleTask,
 ): Promise<ChatMessageRow | null> {
   if (widget.bot_enabled !== 1) return null;
+  if (widget.bot_source === 'agent') {
+    // Widget atendido por un agente (Agents → Canales).
+    const { dispatchAgentChat } = await import('./agents-chat');
+    return dispatchAgentChat(widget, conversation, visitorMessage, schedule);
+  }
   if (widget.bot_source !== 'ai' || !aiEnabled()) {
     return maybeRunChatBot(widget, conversation, visitorMessage.body);
   }

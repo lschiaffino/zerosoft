@@ -213,7 +213,9 @@
     "hint": "El bot responde una vez por conversación, solo si nadie contestó todavía. Puntúa las keywords del visitante contra la fuente (el título pesa doble); sin match manda solo el saludo.",
     "sourceAi": "AI (Docs + respuestas prediseñadas)",
     "hintAi": "El bot con AI responde cada mensaje del visitante hasta que conteste alguien del equipo, usando solo tus páginas de Docs públicas y las respuestas prediseñadas de este widget. Si no está seguro o el visitante pide una persona, deriva: la conversación queda con prioridad alta en el inbox. Si la AI falla o se agota la cuota mensual, responde el bot por keywords.",
-    "aiNotConfigured": "La AI no está configurada en este servidor (definí AI_GATEWAY_API_KEY). Mientras tanto el bot usa keywords sobre Docs y respuestas prediseñadas."
+    "aiNotConfigured": "La AI no está configurada en este servidor (definí AI_GATEWAY_API_KEY). Mientras tanto el bot usa keywords sobre Docs y respuestas prediseñadas.",
+    "sourceAgent": "Agente de AI (desde Agents)",
+    "hintAgent": "Este widget lo atiende un agente de AI. Sus instrucciones, conocimiento y herramientas se gestionan en Agents → Canales. El agente se detiene cuando alguien del equipo responde o cuando deriva la conversación."
   },
   "officeHours": {
     "title": "Horario de atención",

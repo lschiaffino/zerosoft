@@ -14,13 +14,14 @@ export const PRODUCT_CONFIG = {
   docs: { num: '05', name: 'Docs', available: true, launch: '/app/docs' },
   chat: { num: '06', name: 'Chat', available: true, launch: '/app/chat' },
   flow: { num: '07', name: 'Flow', available: false, launch: '/app/flow' },
+  agents: { num: '08', name: 'Agents', available: false, launch: '/app/agents' },
 } as const;
 
 /** Todas las apps (incluye las que aún no se publican en el sitio). */
 export type ProductKey = keyof typeof PRODUCT_CONFIG;
 
 /** Productos publicados en el sitio (páginas, OG, comparativas). */
-export type SiteProductKey = Exclude<ProductKey, 'flow'>;
+export type SiteProductKey = Exclude<ProductKey, 'flow' | 'agents'>;
 
 export const PRODUCT_KEYS: SiteProductKey[] = ['link', 'track', 'crm', 'cal', 'docs', 'chat'];
 

@@ -76,7 +76,7 @@ export interface WidgetCreatePayload {
   fields?: ChatFieldDef[];
   botEnabled?: boolean;
   botGreeting?: string;
-  botSource?: 'canned' | 'docs' | 'ai';
+  botSource?: 'canned' | 'docs' | 'ai' | 'agent';
   officeHours?: OfficeHoursConfig | null;
 }
 
@@ -88,7 +88,7 @@ export interface WidgetUpdatePayload {
   fields?: ChatFieldDef[];
   botEnabled?: boolean;
   botGreeting?: string;
-  botSource?: 'canned' | 'docs' | 'ai';
+  botSource?: 'canned' | 'docs' | 'ai' | 'agent';
   officeHours?: OfficeHoursConfig | null;
 }
 

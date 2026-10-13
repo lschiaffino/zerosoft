@@ -22,7 +22,8 @@ export type IconName =
   | 'feedback'
   | 'flow'
   | 'notes'
-  | 'board';
+  | 'board'
+  | 'agents';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -153,6 +154,12 @@ const PATHS: Record<IconName, ReactNode> = {
       <rect x="3" y="4" width="18" height="14" />
       <path d="M7 14l3-4 3 3 4-5" />
       <path d="M9 21h6" />
+    </>
+  ),
+  agents: (
+    <>
+      <rect x="4" y="7" width="16" height="12" rx="2" />
+      <path d="M12 3v4M9 12h.01M15 12h.01M9.5 16h5" />
     </>
   ),
 };

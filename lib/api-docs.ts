@@ -44,6 +44,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'crm-tasks', titleKey: 'crmTasksTitle', descKey: 'crmTasksDesc' },
   { id: 'crm-pipelines', titleKey: 'crmPipelinesTitle', descKey: 'crmPipelinesDesc' },
   { id: 'cal', titleKey: 'calTitle', descKey: 'calDesc' },
+  { id: 'agents', titleKey: 'agentsTitle', descKey: 'agentsDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
 
@@ -637,6 +638,29 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     params: [{ name: 'reason', type: 'string', descriptionKey: 'paramCalReason' }],
     request: { reason: 'Customer asked to move it to next month' },
     response: { ...BOOKING_EXAMPLE, status: 'cancelled', cancelReason: 'Customer asked to move it to next month' },
+    responseStatus: 200,
+  },
+
+  // Agents
+  {
+    id: 'agents-messages',
+    sectionId: 'agents',
+    method: 'POST',
+    path: '/api/v1/agents/:id/messages',
+    titleKey: 'agentsMessagesTitle',
+    descKey: 'agentsMessagesDesc',
+    params: [
+      { name: 'message', type: 'string', required: true, descriptionKey: 'paramAgentMessage' },
+      { name: 'conversationId', type: 'string', descriptionKey: 'paramAgentConversationId' },
+    ],
+    request: { message: 'Do you ship to Brazil?' },
+    response: {
+      conversationId: '6b0f8f7e-2a43-4d0c-9a51-3f3c1f1b8e21',
+      message: { id: 'b7e1…', role: 'assistant', content: 'Yes! We ship to Brazil in 5–7 business days.', createdAt: '2026-11-01T18:00:00.000Z' },
+      status: 'replied',
+      handoff: false,
+      toolCalls: [{ tool: 'search_knowledge', input: { query: 'shipping Brazil' }, output: { results: [] }, error: null }],
+    },
     responseStatus: 200,
   },
 
