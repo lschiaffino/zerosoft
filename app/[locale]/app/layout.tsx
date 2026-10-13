@@ -17,6 +17,7 @@ import '@/styles/track-quick.css';
 import '@/styles/chat.css';
 import '@xyflow/react/dist/style.css';
 import '@/styles/flow.css';
+import '@/styles/agents.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
 
@@ -47,6 +48,7 @@ export default async function AppLayout(
   const tTrack = await getTranslations({ locale, namespace: 'track' });
   const tChat = await getTranslations({ locale, namespace: 'chat' });
   const tFlow = await getTranslations({ locale, namespace: 'flow' });
+  const tAgents = await getTranslations({ locale, namespace: 'agents' });
   const tasksDue = await countDueTasks(user.id);
 
   return (
@@ -82,6 +84,7 @@ export default async function AppLayout(
           newProject: tSide('newProject'),
           newWidget: tSide('newWidget'),
           newFlow: tSide('newFlow'),
+          newAgent: tSide('newAgent'),
           team: tSide('team'),
           link: {
             overview: tLink('tabs.overview'),
@@ -133,6 +136,9 @@ export default async function AppLayout(
           flow: {
             flows: tFlow('sidebar.flows'),
           },
+          agents: {
+            agents: tAgents('sidebar.agents'),
+          },
           notifications: {
             title: tTrack('notifications.title'),
             markRead: tTrack('notifications.markRead'),
@@ -175,6 +181,7 @@ export default async function AppLayout(
             { href: '/app/chat/people', label: tChat('sidebar.people') },
             { href: '/app/chat/settings', label: tChat('sidebar.settings') },
             { href: '/app/flow', label: tFlow('sidebar.flows') },
+            { href: '/app/agents', label: tAgents('sidebar.agents') },
           ]}
         />
         <main className="app-content">{children}</main>

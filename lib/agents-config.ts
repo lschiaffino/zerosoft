@@ -106,6 +106,7 @@ export const agentCreateSchema = z.object({
   name: z.string().trim().min(1).max(80),
   template: z.enum(AGENT_TEMPLATE_KEYS).optional(),
   instructions: z.string().max(12_000).optional(),
+  welcomeMessage: z.string().trim().max(500).optional(),
 });
 
 /** Herramientas y emoji por defecto de cada plantilla (las instrucciones vienen de i18n). */

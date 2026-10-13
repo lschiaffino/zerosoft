@@ -61,6 +61,7 @@ export default function CommandSearch() {
       { group, label: t('newDocPage'), meta: '', href: '/app/docs' },
       { group, label: t('newEventType'), meta: '', href: '/app/calendar/event-types/new' },
       { group, label: t('newFlow'), meta: '', href: '/app/flow' },
+      { group, label: t('newAgent'), meta: '', href: '/app/agents' },
     ];
   }, [t]);
 

@@ -35,6 +35,7 @@ export default function ChromeGate({
     pathname.startsWith('/book/') ||
     pathname.startsWith('/r/') ||
     pathname.startsWith('/bio/') ||
+    pathname.startsWith('/a/') ||
     // /@handle se reescribe a /bio/<handle>, pero el navegador ve /@handle.
     /^\/@/.test(pathname) ||
     (typeof window !== 'undefined' && window.location.pathname.startsWith('/@'));

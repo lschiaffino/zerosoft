@@ -15,6 +15,7 @@ const PRODUCT_NAMES: Record<string, string> = {
   track: 'Track',
   chat: 'Chat',
   flow: 'Flow',
+  agents: 'Agents',
 };
 
 export function productFromPath(pathname: string): keyof typeof PRODUCT_NAMES {
@@ -24,6 +25,7 @@ export function productFromPath(pathname: string): keyof typeof PRODUCT_NAMES {
   if (pathname.includes('/app/track')) return 'track';
   if (pathname.includes('/app/chat')) return 'chat';
   if (pathname.includes('/app/flow')) return 'flow';
+  if (pathname.includes('/app/agents')) return 'agents';
   return 'link';
 }
 

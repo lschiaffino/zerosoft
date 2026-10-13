@@ -29,6 +29,7 @@ export interface SidebarLabels {
   newProject: string;
   newWidget: string;
   newFlow: string;
+  newAgent: string;
   team: string;
   link: { overview: string; links: string; new: string; bio: string; settings: string };
   crm: {
@@ -74,6 +75,9 @@ export interface SidebarLabels {
   flow: {
     flows: string;
   };
+  agents: {
+    agents: string;
+  };
   notifications: {
     title: string;
     markRead: string;
@@ -104,6 +108,7 @@ const PRODUCTS = [
   { key: 'track', name: 'Track', href: '/app/track' },
   { key: 'chat', name: 'Chat', href: '/app/chat' },
   { key: 'flow', name: 'Flow', href: '/app/flow' },
+  { key: 'agents', name: 'Agents', href: '/app/agents' },
 ] as const;
 
 /** Color de cada producto (tokens --c-* de globals.css). */
@@ -115,6 +120,7 @@ const PRODUCT_COLOR: Record<string, string> = {
   track: 'var(--c-track)',
   chat: 'var(--c-chat)',
   flow: 'var(--c-flow)',
+  agents: 'var(--c-agents)',
 };
 
 /**
@@ -148,7 +154,9 @@ export default function AppSidebar({
             ? 'chat'
             : pathname.includes('/app/flow')
               ? 'flow'
-              : 'link';
+              : pathname.includes('/app/agents')
+                ? 'agents'
+                : 'link';
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -333,6 +341,10 @@ export default function AppSidebar({
     { items: [{ href: '/app/flow', label: labels.flow.flows, active: pathname.startsWith('/app/flow'), icon: 'flow' }] },
   ];
 
+  const agentsNav: Array<{ section?: string; items: Item[] }> = [
+    { items: [{ href: '/app/agents', label: labels.agents.agents, active: pathname.startsWith('/app/agents'), icon: 'agents' }] },
+  ];
+
   const nav =
     product === 'crm'
       ? crmNav
@@ -346,7 +358,9 @@ export default function AppSidebar({
               ? chatNav
               : product === 'flow'
                 ? flowNav
-                : linkNav;
+                : product === 'agents'
+                  ? agentsNav
+                  : linkNav;
 
   const newItems: Item[] =
     product === 'crm'
@@ -366,7 +380,9 @@ export default function AppSidebar({
               ? [{ href: '/app/chat/widgets/new', label: labels.newWidget, active: false, icon: 'chat' }]
               : product === 'flow'
                 ? [{ href: '/app/flow', label: labels.newFlow, active: false, icon: 'flow' }]
-                : [{ href: '/app/links/new', label: labels.newLink, active: false, icon: 'newLink' }];
+                : product === 'agents'
+                  ? [{ href: '/app/agents', label: labels.newAgent, active: false, icon: 'agents' }]
+                  : [{ href: '/app/links/new', label: labels.newLink, active: false, icon: 'newLink' }];
 
   const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
 

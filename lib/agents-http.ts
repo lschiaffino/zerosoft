@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import type { SessionUser } from './session';
 import { roleAtLeast } from './teams';
-import { AiError } from './ai';
+import { AiError, aiEnabled } from './ai';
 import { AgentError, sendAgentMessage, type SendAgentMessageOptions } from './agents';
 import type { AgentStreamEvent } from './agents-config';
 
@@ -43,6 +43,8 @@ export function runErrorCode(err: unknown): { code: string; status: number } {
 export function streamAgentReply(
   opts: Omit<SendAgentMessageOptions, 'onEvent' | 'stream'>,
 ): Response {
+  // Sin AI no hay stream: el cliente muestra el error directamente.
+  if (!aiEnabled()) return agentError(503, 'ai_disabled');
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
