@@ -1,0 +1,74 @@
+{
+  "entry": "Feedback",
+  "form": {
+    "title": "Send feedback",
+    "sub": "An idea, a bug, something that bugs you. It goes straight to the people building zerosoft.",
+    "kindLabel": "Type",
+    "kind": {
+      "idea": "Idea",
+      "bug": "Bug",
+      "other": "Other"
+    },
+    "productLabel": "Product",
+    "product": {
+      "link": "Link",
+      "crm": "CRM",
+      "cal": "Cal",
+      "track": "Track",
+      "chat": "Chat",
+      "docs": "Docs",
+      "site": "Website",
+      "other": "Other"
+    },
+    "messageLabel": "Message",
+    "placeholder": {
+      "idea": "What would make this better for you?",
+      "bug": "What happened, and what did you expect? Steps to reproduce help a lot.",
+      "other": "Tell us anything."
+    },
+    "emailLabel": "Email (optional)",
+    "emailPlaceholder": "you@company.com",
+    "emailHint": "Only if you want a reply. We don't add it to any list.",
+    "signedInAs": "Sent as {email}",
+    "send": "Send",
+    "sending": "Sending…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "count": "{count} / {max}",
+    "successTitle": "Thanks — got it.",
+    "successBody": "We read every message. If you left an email and it needs a reply, we'll write back.",
+    "another": "Send another",
+    "errorInvalid": "Write at least a few words (and check the email, if you added one).",
+    "errorRate": "Too many messages in a short time. Try again in a few minutes.",
+    "errorGeneric": "Couldn't send it. Try again, or email hola@zerosoft.ai."
+  },
+  "page": {
+    "metaTitle": "Feedback",
+    "metaDescription": "Send an idea, a bug report or anything else to the team building zerosoft.ai.",
+    "label": "Feedback",
+    "title": "Tell us what to fix.",
+    "titleDim": "Or what to build next.",
+    "intro": "zerosoft is built in the open and shaped by the people who use it. No account needed.",
+    "asideTitle": "What happens next",
+    "aside1": "Every message lands in our inbox and gets read by a person.",
+    "aside2": "Bugs get fixed first. Ideas go into the roadmap discussion.",
+    "aside3": "Shipped changes show up in the changelog.",
+    "changelogLink": "See the changelog →"
+  },
+  "admin": {
+    "title": "Feedback",
+    "sub": "Messages sent from the app and the website. Only visible to ADMIN_EMAILS.",
+    "all": "All",
+    "status": {
+      "new": "New",
+      "read": "Read",
+      "done": "Done"
+    },
+    "markRead": "Mark read",
+    "markDone": "Done",
+    "reopen": "Reopen",
+    "anonymous": "Anonymous",
+    "empty": "Nothing here yet.",
+    "openPage": "page"
+  }
+}

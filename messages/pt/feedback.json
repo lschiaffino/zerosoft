@@ -1,0 +1,74 @@
+{
+  "entry": "Feedback",
+  "form": {
+    "title": "Enviar feedback",
+    "sub": "Uma ideia, um bug, algo que te incomoda. Vai direto para quem constrói o zerosoft.",
+    "kindLabel": "Tipo",
+    "kind": {
+      "idea": "Ideia",
+      "bug": "Bug",
+      "other": "Outro"
+    },
+    "productLabel": "Produto",
+    "product": {
+      "link": "Link",
+      "crm": "CRM",
+      "cal": "Cal",
+      "track": "Track",
+      "chat": "Chat",
+      "docs": "Docs",
+      "site": "Site",
+      "other": "Outro"
+    },
+    "messageLabel": "Mensagem",
+    "placeholder": {
+      "idea": "O que deixaria isso melhor para você?",
+      "bug": "O que aconteceu e o que você esperava? Os passos para reproduzir ajudam muito.",
+      "other": "Conte o que quiser."
+    },
+    "emailLabel": "Email (opcional)",
+    "emailPlaceholder": "voce@empresa.com",
+    "emailHint": "Só se você quiser resposta. Não adicionamos a nenhuma lista.",
+    "signedInAs": "Enviado como {email}",
+    "send": "Enviar",
+    "sending": "Enviando…",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "count": "{count} / {max}",
+    "successTitle": "Obrigado — recebemos.",
+    "successBody": "Lemos cada mensagem. Se você deixou um email e precisar de resposta, a gente escreve.",
+    "another": "Enviar outro",
+    "errorInvalid": "Escreva pelo menos algumas palavras (e confira o email, se colocou um).",
+    "errorRate": "Muitas mensagens em pouco tempo. Tente de novo em alguns minutos.",
+    "errorGeneric": "Não foi possível enviar. Tente de novo ou escreva para hola@zerosoft.ai."
+  },
+  "page": {
+    "metaTitle": "Feedback",
+    "metaDescription": "Envie uma ideia, um bug ou o que quiser para o time que constrói o zerosoft.ai.",
+    "label": "Feedback",
+    "title": "Diga o que consertar.",
+    "titleDim": "Ou o que construir depois.",
+    "intro": "O zerosoft é construído em aberto e moldado por quem usa. Não precisa de conta.",
+    "asideTitle": "O que acontece depois",
+    "aside1": "Cada mensagem chega na nossa caixa de entrada e é lida por uma pessoa.",
+    "aside2": "Bugs são corrigidos primeiro. Ideias entram na discussão do roadmap.",
+    "aside3": "O que for publicado aparece no changelog.",
+    "changelogLink": "Ver o changelog →"
+  },
+  "admin": {
+    "title": "Feedback",
+    "sub": "Mensagens enviadas pelo app e pelo site. Só os ADMIN_EMAILS veem.",
+    "all": "Todos",
+    "status": {
+      "new": "Novo",
+      "read": "Lido",
+      "done": "Feito"
+    },
+    "markRead": "Marcar lido",
+    "markDone": "Feito",
+    "reopen": "Reabrir",
+    "anonymous": "Anônimo",
+    "empty": "Nada por aqui ainda.",
+    "openPage": "página"
+  }
+}

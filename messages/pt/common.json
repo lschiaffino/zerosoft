@@ -165,7 +165,9 @@
     "contact": "Contato",
     "terms": "Termos",
     "privacy": "Privacidade",
-    "security": "Segurança"
+    "security": "Segurança",
+    "changelog": "Changelog",
+    "feedback": "Feedback"
   },
   "showcase": {
     "label": "Por dentro",

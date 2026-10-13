@@ -183,7 +183,9 @@
           "Google integration data, only if you connect it: for Gmail, the metadata of emails exchanged with your CRM contacts (sender, recipients, subject, a short snippet, date and message IDs), not full message bodies; for Google Calendar, your busy and free times and the events that bookings create in your calendar.",
           "Integration secrets: OAuth tokens for Google, and webhook signing secrets, stored encrypted. API keys are stored only as hashes. A Bitly token you give us for an import is used for that import and not stored.",
           "Technical data: IP addresses are used briefly for rate limiting and appear in our hosting provider's request logs (see Retention). Email delivery status for the transactional emails we send.",
-          "Messages you send us: emails to our support, privacy, abuse or security addresses."
+          "Messages you send us: emails to our support, privacy, abuse or security addresses.",
+          "Bookings and CRM: when someone books a meeting through Cal, their name, email, the meeting time and their answers are also saved as a contact and a meeting activity in the host's CRM. When an agent chooses to, a Chat conversation is saved to the visitor's CRM contact.",
+          "Feedback: if you send feedback through the site or the app, we keep the message, the type and product you picked, the page you were on, your browser's user agent, and your email if you give it or are signed in."
         ]
       },
       "s04": {
