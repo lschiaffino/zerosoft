@@ -190,7 +190,7 @@ Verified on 2026-10-13 against a DEMO_MODE dev server with seed data (desktop 14
 | Deals table | Table view with filters and inline stage | Deals (Table) | `GET /api/crm/deals` | works | screens.spec |
 | Pipelines & stages | Create and rename pipelines, add, reorder and delete stages, set probability and won/lost flags | Settings › Pipelines (inline-editable rows) | `/api/crm/pipelines`, `/stages` | works | manual |
 | Custom fields | Text/number/select/date fields per entity | Settings › Custom fields | `/api/crm/custom-fields` | works | manual |
-| Import / export CSV | Paste or upload CSV, map columns, then import. Export as CSV or JSON | Settings › Import / Export | `/api/crm/import`, `/api/crm/export` | works | manual |
+| Import / export CSV | Paste or upload CSV, map columns, then import contacts, companies or deals (pipeline/stage by name, amount, currency, close date). Owners by email or name, custom fields, associations (company by name/domain, contacts by email), saved mapping presets and a built-in "HubSpot export" preset. Export as CSV or JSON | Settings › Import / Export | `/api/crm/import`, `/api/crm/import/presets`, `/api/crm/export` | works | crm-import.test |
 | Team / workspaces | Create a team, invite members, set roles, switch workspace | Settings › Team | `/api/teams/*` | works | crm.test (owner must be member) |
 | Tasks | Overdue, Today, Upcoming and Done buckets. Owner and project filters, quick-create modal (`C`), projects | Tasks | `/api/crm/activities`, `/api/crm/tasks/projects` | works (fixed: CTA placement, modal) | flows.spec "tarea rápida con la tecla C"; crm.test task_due |
 | Lists | Static and dynamic lists with a real member count | Lists | `/api/crm/lists`, `/lists/[id]/members` | works | crm.test "listas dinámicas" |
@@ -202,7 +202,13 @@ Verified on 2026-10-13 against a DEMO_MODE dev server with seed data (desktop 14
 | Chat → CRM | Chat visitors with an email become contacts, and the conversation is logged | automatic | — | works | crm-integrations.test "Chat → CRM" |
 | Global search | Search records from ⌘K | Sidebar search | `/api/crm/search` | works | manual |
 | Record history | Audit log of property changes | Record detail › History | `/api/crm/history` | works | manual |
-| Quotes / products / line items | Products catalog, quotes on deals | — | — | missing | — |
+| Associations | Contact ↔ companies (many, with labels: employee, decision maker, billing, champion, influencer, former employee; one primary that `company_id` mirrors), deal ↔ companies (many, one primary), deal ↔ contacts. Add, remove, make primary and relabel from the record side panels | Record detail › side panels | `/api/crm/associations`, `GET/POST/DELETE /api/v1/crm/associations` | works (new) | crm-model.test "asociaciones" |
+| Company hierarchy | Parent company picker, child companies list, breadcrumb of parents, rolled-up deal value (own vs. whole tree, open and won, base currency). Cycles are rejected | Company detail | `PATCH /api/crm/companies/[id]` (`parentCompanyId`) | works (new) | crm-model.test "jerarquía" |
+| Products | Catalog with SKU, price, currency, recurring (none/monthly/yearly), tax %, active/archived. Quick-create modal (`C`) | Products | `/api/crm/products`, `/api/v1/crm/products` | works (new) | crm-model.test "dinero" |
+| Line items | Product or custom lines on a deal (qty, unit price, discount %, tax %), rounded per line to the currency's minor unit. The deal amount follows the net total unless it's set by hand (override toggle) | Deal detail › Line items | `/api/crm/deals/[id]/line-items`, `/api/v1/crm/deals/{id}/line-items` | works (new) | crm-model.test "dinero" |
+| Quotes | Created from a deal (snapshot of its line items, terms, notes, expiration, sender and recipient). Draft → sent → accepted / declined / expired. Public page `/q/<token>` with typed-name + checkbox acceptance (stores time and IP hash), decline with reason, print/PDF. Accepting logs a deal activity, notifies the owner, fires the `quote_accepted` workflow trigger and the Flow event `quote.accepted`, and can move the deal to the won stage (setting) | Quotes, Deal detail › Quotes | `/api/crm/quotes`, `/api/v1/crm/quotes` | works (new) | crm-model.test "quotes" |
+| Tags | Workspace tags with a product-accent color on contacts, companies and deals. Filter lists by tag, bulk add/remove from the bulk bar, edit on the record header. Shown as a square dot + text | Lists, record headers, Settings › Tags | `/api/crm/tags*`, `/api/v1/crm/tags*` | works (new) | crm-model.test "tags" |
+| Multi-currency | Workspace base currency and manual exchange rates. Deals, products and quotes keep their currency; reports, dashboards, board totals and company roll-ups convert to the base (missing rates count 1:1 and are listed) | Settings › Currency | `/api/crm/settings`, `/api/crm/exchange-rates` | works (new) | crm-model.test "multi-moneda" |
 | Forms / lead capture | Embeddable forms that create contacts | — | — | missing | — |
 | Mobile | Lists, detail, settings and reports usable at 390 px without page-level horizontal overflow (tables scroll inside their wrapper) | all | — | partial (tables scroll sideways; no card layout) | manual |
 
@@ -210,7 +216,7 @@ Verified on 2026-10-13 against a DEMO_MODE dev server with seed data (desktop 14
 
 1. Phone-width tables only scroll sideways, and row actions sit off-screen. HubSpot switches to a card or list layout on mobile.
 2. Sequences, templates and tracking now exist, but sending as the user needs a Google OAuth client verified for `gmail.readonly` (restricted scope: Google security assessment) and `gmail.send` (sensitive). Until the app is verified, only test users can connect Gmail. Sequence steps run at hourly cron granularity.
-3. No products, quotes or line items on deals.
+3. Quotes have no e-signature provider, PDF attachment by email or payment collection (HubSpot quotes can take payments). Exchange rates are manual (no daily feed).
 4. No forms or lead capture beyond Chat and Cal.
 5. Reports: the "By owner → Activities" column shows 0 while 200+ activities exist (activities without an owner aren't attributed). The funnel shows >100% conversion on closed stages (8 won after 4 in negotiation shows "200%").
 6. The sidebar "New" menu and ⌘K still point at `/new`. That now opens the modal via redirect, but it costs a server round-trip. Deep-link the menu to `?new=1` (AppSidebar/CommandSearch were left untouched to avoid conflicts).

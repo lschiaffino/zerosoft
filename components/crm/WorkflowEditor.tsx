@@ -19,6 +19,7 @@ const TRIGGER_TYPES = [
   'email_opened',
   'email_clicked',
   'meeting_booked',
+  'quote_accepted',
   'manual',
 ] as const;
 

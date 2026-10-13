@@ -1,15 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { ImportResult } from '@/lib/crm';
 import {
-  IMPORT_FIELDS as FIELDS,
+  CUSTOM_PREFIX,
   guessMapping,
+  hubspotMapping,
+  importTargets,
+  mappingToObject,
   parseCsv,
+  presetMapping,
   type ImportEntity as Entity,
+  type MappableCustomField,
 } from './csv';
+
+interface SavedPreset {
+  id: string;
+  name: string;
+  mapping: Record<string, string>;
+}
+
+/** Preset de mapeo elegido: auto-detect, HubSpot o uno guardado (id). */
+type PresetChoice = 'auto' | 'hubspot' | string;
 
 /** Import en 3 pasos: pegar/elegir CSV → mapear columnas → resultado. */
 export default function ImportPanel() {
@@ -26,6 +40,84 @@ export default function ImportPanel() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customFields, setCustomFields] = useState<MappableCustomField[]>([]);
+  const [presets, setPresets] = useState<SavedPreset[]>([]);
+  const [preset, setPreset] = useState<PresetChoice>('auto');
+  const [presetName, setPresetName] = useState('');
+  const [presetNotice, setPresetNotice] = useState<string | null>(null);
+
+  // Custom fields y presets guardados de la entidad elegida.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/crm/custom-fields?entity=${entity}`)
+      .then((r) => (r.ok ? r.json() : { rows: [] }))
+      .then((d: { rows: Array<{ name: string; label: string }> }) => {
+        if (!cancelled) setCustomFields(d.rows.map((f) => ({ name: f.name, label: f.label })));
+      })
+      .catch(() => null);
+    fetch(`/api/crm/import/presets?entity=${entity}`)
+      .then((r) => (r.ok ? r.json() : { rows: [] }))
+      .then((d: { rows: SavedPreset[] }) => {
+        if (!cancelled) setPresets(d.rows);
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
+  }, [entity]);
+
+  function mappingFor(choice: PresetChoice, hdrs: string[]): string[] {
+    if (choice === 'hubspot') return hubspotMapping(hdrs, entity, customFields);
+    const saved = presets.find((p) => p.id === choice);
+    if (saved) return presetMapping(hdrs, saved.mapping, importTargets(entity, customFields));
+    return guessMapping(hdrs, entity, customFields);
+  }
+
+  function onPreset(choice: PresetChoice) {
+    setPreset(choice);
+    setPresetNotice(null);
+    setMapping(mappingFor(choice, headers));
+  }
+
+  async function savePreset() {
+    const name = presetName.trim();
+    if (!name) return;
+    setPresetNotice(null);
+    const res = await fetch('/api/crm/import/presets', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ entity, name, mapping: mappingToObject(headers, mapping) }),
+    }).catch(() => null);
+    if (!res || res.status !== 201) {
+      setPresetNotice(t('errors.generic'));
+      return;
+    }
+    const created = (await res.json()) as SavedPreset;
+    setPresets((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+    setPreset(created.id);
+    setPresetName('');
+    setPresetNotice(t('importP.presetSaved'));
+  }
+
+  async function deletePreset(id: string) {
+    const res = await fetch(`/api/crm/import/presets/${id}`, { method: 'DELETE' }).catch(() => null);
+    if (!res || !res.ok) {
+      setPresetNotice(t('errors.generic'));
+      return;
+    }
+    setPresets((prev) => prev.filter((p) => p.id !== id));
+    setPreset('auto');
+    setPresetNotice(null);
+  }
+
+  function fieldLabel(f: string): string {
+    if (f.startsWith(CUSTOM_PREFIX)) {
+      const name = f.slice(CUSTOM_PREFIX.length);
+      const cf = customFields.find((c) => c.name === name);
+      return t('importP.customField', { label: cf?.label ?? name });
+    }
+    return t(`importP.fields.${f}`);
+  }
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -46,7 +138,7 @@ export default function ImportPanel() {
     const dataRows = parsed.slice(1);
     setHeaders(hdrs);
     setRows(dataRows);
-    setMapping(guessMapping(hdrs, entity));
+    setMapping(mappingFor(preset, hdrs));
   }
 
   function mappedRows(): Array<Record<string, string>> {
@@ -98,6 +190,8 @@ export default function ImportPanel() {
     setMapping([]);
     setResult(null);
     setError(null);
+    setPreset('auto');
+    setPresetNotice(null);
   }
 
   const parsed = headers.length > 0 && rows.length > 0;
@@ -125,10 +219,12 @@ export default function ImportPanel() {
                 setEntity(e.target.value as Entity);
                 setHeaders([]);
                 setRows([]);
+                setPreset('auto');
               }}
             >
               <option value="contacts">{t('settings.entities.contacts')}</option>
               <option value="companies">{t('settings.entities.companies')}</option>
+              <option value="deals">{t('settings.entities.deals')}</option>
             </select>
           </div>
 
@@ -194,6 +290,55 @@ export default function ImportPanel() {
 
       {step === 2 && (
         <div className="imp-body">
+          <div className="imp-presets">
+            <label className="imp-preset-pick">
+              <span className="label">{t('importP.preset')}</span>
+              <select
+                className="filter-select"
+                value={preset}
+                onChange={(e) => onPreset(e.target.value)}
+                aria-label={t('importP.preset')}
+              >
+                <option value="auto">{t('importP.presetAuto')}</option>
+                <option value="hubspot">{t('importP.presetHubspot')}</option>
+                {presets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {presets.some((p) => p.id === preset) && (
+              <button type="button" className="btn btn-ghost btn-small" onClick={() => deletePreset(preset)}>
+                {t('importP.presetDelete')}
+              </button>
+            )}
+            <span className="imp-preset-save">
+              <input
+                className="input"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder={t('importP.presetNamePlaceholder')}
+                aria-label={t('importP.presetName')}
+                maxLength={100}
+              />
+              <button
+                type="button"
+                className="btn btn-small"
+                onClick={savePreset}
+                disabled={!presetName.trim() || !mapping.some(Boolean)}
+              >
+                {t('importP.presetSave')}
+              </button>
+            </span>
+            {presetNotice && (
+              <span className="muted imp-preset-notice" role="status">
+                {presetNotice}
+              </span>
+            )}
+          </div>
+          <p className="muted">{t(`importP.hint.${entity}`)}</p>
+
           <p className="label">{t('importP.mapTo')}</p>
           <div className="imp-map">
             {headers.map((h, i) => (
@@ -212,9 +357,9 @@ export default function ImportPanel() {
                   }
                 >
                   <option value="">{t('importP.ignore')}</option>
-                  {FIELDS[entity].map((f) => (
+                  {importTargets(entity, customFields).map((f) => (
                     <option key={f} value={f}>
-                      {t(`importP.fields.${f}`)}
+                      {fieldLabel(f)}
                     </option>
                   ))}
                 </select>
@@ -282,7 +427,7 @@ export default function ImportPanel() {
           {result.errors.length > 0 && (
             <div className="imp-errors">
               <p className="label">
-                {t('importP.errors')} ({result.errors.length})
+                {t('importP.errorsAndWarnings')} ({result.errors.length})
               </p>
               <ul className="imp-error-list">
                 {result.errors.slice(0, 20).map((err, i) => (

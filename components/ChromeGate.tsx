@@ -39,6 +39,8 @@ export default function ChromeGate({
     pathname.startsWith('/n/') ||
     pathname.startsWith('/b/') ||
     pathname.startsWith('/a/') ||
+    // Quotes del CRM (/q/<token>): documento del cliente, sin chrome de marketing.
+    pathname.startsWith('/q/') ||
     // /@handle se reescribe a /bio/<handle>, pero el navegador ve /@handle.
     /^\/@/.test(pathname) ||
     (typeof window !== 'undefined' && window.location.pathname.startsWith('/@'));

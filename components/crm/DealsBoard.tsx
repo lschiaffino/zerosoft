@@ -25,6 +25,8 @@ interface DealsBoardProps {
   pipelineId: string;
   stages: BoardStage[];
   locale: string;
+  /** Moneda base del workspace: los totales de columna se muestran en ella. */
+  baseCurrency?: string;
   priorities: Array<{ value: string; label: string }>;
   sources: Array<{ value: string; label: string }>;
 }
@@ -57,7 +59,7 @@ function recompute(col: BoardStage): BoardStage {
   return {
     ...col,
     count: col.deals.length,
-    amount: col.deals.reduce((s, d) => s + d.amount, 0),
+    amount: col.deals.reduce((s, d) => s + (d.amount_base ?? d.amount), 0),
   };
 }
 
@@ -78,7 +80,7 @@ function applyMove(cols: BoardStage[], dealId: string, stageId: string, beforeId
   });
 }
 
-export default function DealsBoard({ pipelineId, stages, locale, priorities, sources }: DealsBoardProps) {
+export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 'USD', priorities, sources }: DealsBoardProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [cols, setCols] = useState<BoardStage[]>(stages);
@@ -325,7 +327,7 @@ export default function DealsBoard({ pipelineId, stages, locale, priorities, sou
               <div className="kb-col-head">
                 <span className="kb-col-name">{col.stage.name}</span>
                 <span className="kb-col-stats">
-                  {col.count} · {fmtMoney(col.amount, col.deals[0]?.currency ?? 'USD')}
+                  {col.count} · {fmtMoney(col.amount, baseCurrency)}
                 </span>
               </div>
 

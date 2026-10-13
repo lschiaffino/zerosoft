@@ -94,6 +94,8 @@ export interface CrmCompanyRow {
   city: string;
   country: string;
   lifecycle_stage: string;
+  /** Empresa madre (jerarquía); null = raíz. Sin ciclos (lib/crm-assoc.ts). */
+  parent_company_id: string | null;
   custom: string; // JSON object
   created_at: string;
   updated_at: string;
@@ -133,6 +135,8 @@ export interface CrmDealRow {
   lost_reason: string;
   position: number;
   closed_at: string | null;
+  /** 1 = el amount es manual aunque haya line items (si no, se recalcula). */
+  amount_override: number;
   custom: string; // JSON object
   created_at: string;
   updated_at: string;
@@ -428,6 +432,126 @@ export interface CrmWorkflowRunRow {
   output: string; // JSON
   started_at: string;
   finished_at: string | null;
+}
+
+// ---------- CRM: modelo nivel HubSpot (022_crm_model_tables) ----------
+
+export interface CrmContactCompanyRow {
+  contact_id: string;
+  company_id: string;
+  user_id: string;
+  is_primary: number;
+  label: string;
+  created_at: string;
+}
+
+export interface CrmDealCompanyRow {
+  deal_id: string;
+  company_id: string;
+  user_id: string;
+  is_primary: number;
+  created_at: string;
+}
+
+export interface CrmTagRow {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
+export interface CrmSettingsRow {
+  user_id: string;
+  base_currency: string;
+  quote_accept_moves_deal: number;
+  updated_at: string;
+}
+
+export interface CrmExchangeRateRow {
+  user_id: string;
+  currency: string;
+  /** Cuántas unidades de la moneda base vale 1 unidad de `currency`. */
+  rate: number;
+  updated_at: string;
+}
+
+export interface CrmProductRow {
+  id: string;
+  user_id: string;
+  name: string;
+  sku: string;
+  description: string;
+  price: number;
+  currency: string;
+  recurring: 'none' | 'monthly' | 'yearly';
+  tax_pct: number;
+  active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmLineItemRow {
+  id: string;
+  user_id: string;
+  deal_id: string;
+  product_id: string | null;
+  name: string;
+  sku: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  discount_pct: number;
+  tax_pct: number;
+  recurring: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CrmQuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
+
+export interface CrmQuoteRow {
+  id: string;
+  user_id: string;
+  deal_id: string;
+  number: string;
+  title: string;
+  status: CrmQuoteStatus;
+  token: string;
+  currency: string;
+  items: string; // JSON QuoteItemSnapshot[]
+  subtotal: number;
+  discount_total: number;
+  tax_total: number;
+  total: number;
+  expires_at: string | null;
+  terms: string;
+  notes: string;
+  sender_name: string;
+  sender_email: string;
+  sender_company: string;
+  recipient_name: string;
+  recipient_email: string;
+  recipient_company: string;
+  created_by: string | null;
+  sent_at: string | null;
+  accepted_at: string | null;
+  declined_at: string | null;
+  signer_name: string;
+  signer_ip_hash: string;
+  decline_reason: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmImportPresetRow {
+  id: string;
+  user_id: string;
+  entity: string;
+  name: string;
+  mapping: string; // JSON { header: field }
+  created_at: string;
 }
 
 export interface TeamRow {

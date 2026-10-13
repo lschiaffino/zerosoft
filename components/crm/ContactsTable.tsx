@@ -7,6 +7,8 @@ import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
 import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
 import RecordPreview from './RecordPreview';
+import TagDots, { type TagDot } from './TagDots';
+import TagBulkControls from './TagBulkControls';
 
 export interface ContactRow {
   id: string;
@@ -19,6 +21,7 @@ export interface ContactRow {
   leadStatus: string;
   source: string;
   created: string;
+  tags?: TagDot[];
 }
 
 interface Option {
@@ -36,6 +39,8 @@ interface ContactsTableProps {
   locale: string;
   /** Secuencias para la acción masiva "Inscribir en secuencia". */
   sequences?: Array<{ id: string; name: string }>;
+  /** Tags del workspace (bulk add/remove). */
+  allTags?: Array<{ id: string; name: string }>;
 }
 
 const COLS = [
@@ -46,6 +51,7 @@ const COLS = [
   { id: 'lifecycle', labelKey: 'contacts.table.lifecycle', defaultVisible: true },
   { id: 'leadStatus', labelKey: 'contacts.table.leadStatus', defaultVisible: true },
   { id: 'source', labelKey: 'contacts.table.source', defaultVisible: false },
+  { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
   { id: 'created', labelKey: 'contacts.table.created', defaultVisible: true },
 ];
 
@@ -59,6 +65,7 @@ export default function ContactsTable({
   companies = [],
   locale,
   sequences = [],
+  allTags = [],
 }: ContactsTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -171,6 +178,7 @@ export default function ContactsTable({
               {visible.has('lifecycle') && <th>{t('contacts.table.lifecycle')}</th>}
               {visible.has('leadStatus') && <th>{t('contacts.table.leadStatus')}</th>}
               {visible.has('source') && <th>{t('contacts.table.source')}</th>}
+              {visible.has('tags') && <th>{t('tags.column')}</th>}
               {visible.has('created') && (
                 <th>
                   <SortTh label={t('contacts.table.created')} asc="oldest" desc="newest" current={sort} />
@@ -294,6 +302,11 @@ export default function ContactsTable({
                     />
                   </td>
                 )}
+                {visible.has('tags') && (
+                  <td className="cell-crm-tags">
+                    <TagDots tags={row.tags ?? []} />
+                  </td>
+                )}
                 {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
                 <td className="cell-actions">
                   <button
@@ -338,6 +351,13 @@ export default function ContactsTable({
           >
             {t('contacts.bulk.apply')}
           </button>
+          <TagBulkControls
+            entity="contact"
+            ids={[...selected]}
+            tags={allTags}
+            disabled={busy}
+            onDone={() => setSelected(new Set())}
+          />
           {sequences.length > 0 && (
             <>
               <select

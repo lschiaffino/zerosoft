@@ -7,6 +7,7 @@ import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
 import CompanyFilters from '@/components/crm/CompanyFilters';
 import CompaniesTable, { type CompanyRow } from '@/components/crm/CompaniesTable';
+import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
@@ -53,6 +54,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const owner = one(searchParams.owner) ?? '';
   const createdFrom = one(searchParams.createdFrom) ?? '';
   const createdTo = one(searchParams.createdTo) ?? '';
+  const tag = one(searchParams.tag) ?? '';
   const custom = parseCustomFilter(searchParams);
   const sortParam = one(searchParams.sort);
   const sort =
@@ -75,6 +77,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     owner: owner || undefined,
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
+    tag: tag || undefined,
     custom: Object.keys(custom).length ? custom : undefined,
     filters: advancedRules.length ? advancedRules : undefined,
     customTypes,
@@ -83,22 +86,35 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     pageSize: PAGE_SIZE,
   });
 
-  // Deals por empresa (deals vinculados a contactos de la empresa), solo para la página actual.
+  // Deals por empresa (asociaciones deal ↔ company), solo para la página actual.
   const dealCounts = new Map<string, number>();
   if (rows.length) {
     const ids = rows.map((r) => r.id);
     const ph = ids.map(() => '?').join(',');
     const counts = (await getDb()
       .prepare(
-        `SELECT c.company_id AS cid, COUNT(DISTINCT d.id) AS c
-         FROM crm_deals d
-         JOIN crm_deal_contacts dc ON dc.deal_id = d.id
-         JOIN crm_contacts c ON c.id = dc.contact_id
-         WHERE c.company_id IN (${ph}) AND d.user_id = ?
-         GROUP BY c.company_id`,
+        `SELECT dc.company_id AS cid, COUNT(DISTINCT d.id) AS c
+         FROM crm_deal_companies dc
+         JOIN crm_deals d ON d.id = dc.deal_id
+         WHERE dc.company_id IN (${ph}) AND d.user_id = ?
+         GROUP BY dc.company_id`,
       )
       .all(...ids, user.id)) as Array<{ cid: string; c: number }>;
     for (const r of counts) dealCounts.set(r.cid, r.c);
+  }
+  const [allTags, rowTags] = await Promise.all([
+    listTags(user.id),
+    tagsForRecords(user.id, 'company', rows.map((r) => r.id)),
+  ]);
+  const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
+  // Nombre de la empresa madre de cada fila (columna "Parent company").
+  const parentIds = [...new Set(rows.map((r) => r.parent_company_id).filter((v): v is string => !!v))];
+  const parentNames = new Map<string, string>();
+  if (parentIds.length) {
+    const prows = (await getDb()
+      .prepare(`SELECT id, name FROM crm_companies WHERE user_id = ? AND id IN (${parentIds.map(() => '?').join(',')})`)
+      .all(user.id, ...parentIds)) as Array<{ id: string; name: string }>;
+    for (const r of prows) parentNames.set(r.id, r.name);
   }
 
   // Industrias presentes para el filtro (select).
@@ -148,6 +164,12 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     { key: 'lifecycle', label: t('filters.field.lifecycle'), type: 'select', options: lifecycles },
     { key: 'owner', label: t('filters.field.owner'), type: 'select', options: owners },
     { key: 'created', label: t('filters.field.created'), type: 'date' },
+    {
+      key: 'tag',
+      label: t('filters.field.tag'),
+      type: 'select',
+      options: allTags.map((x) => ({ value: x.id, label: x.name })),
+    },
     ...customFieldDefs.map((cf): FilterBuilderField => {
       if (cf.type === 'boolean') {
         return {
@@ -194,6 +216,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     lifecycle: c.lifecycle_stage,
     lifecycleLabel: lifecycleLabel(c.lifecycle_stage),
     created: formatDate(c.created_at, locale),
+    tags: rowTags.get(c.id) ?? [],
+    parentName: c.parent_company_id ? parentNames.get(c.parent_company_id) ?? null : null,
   }));
 
   const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
@@ -203,6 +227,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   if (industry) query.industry = industry;
   if (lifecycle) query.lifecycle = lifecycle;
   if (owner) query.owner = owner;
+  if (tag) query.tag = tag;
   if (createdFrom) query.createdFrom = createdFrom;
   if (createdTo) query.createdTo = createdTo;
   Object.entries(custom).forEach(([k, v]) => {
@@ -216,6 +241,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     !!industry ||
     !!lifecycle ||
     !!owner ||
+    !!tag ||
     !!createdFrom ||
     !!createdTo ||
     Object.keys(custom).length > 0;
@@ -232,6 +258,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         industry={industry}
         lifecycle={lifecycle}
         owner={owner}
+        tag={tag}
+        tags={tagOptions}
         createdFrom={createdFrom}
         createdTo={createdTo}
         custom={custom}
@@ -262,7 +290,13 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         </div>
       ) : (
         <>
-          <CompaniesTable rows={tableRows} sort={sort} lifecycles={[...LIFECYCLE_STAGES]} locale={locale} />
+          <CompaniesTable
+            rows={tableRows}
+            sort={sort}
+            lifecycles={[...LIFECYCLE_STAGES]}
+            locale={locale}
+            allTags={tagOptions}
+          />
           {pages > 1 && (
             <nav className="pager mono">
               {currentPage > 1 ? (

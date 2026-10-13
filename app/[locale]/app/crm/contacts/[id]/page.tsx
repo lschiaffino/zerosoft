@@ -27,6 +27,8 @@ import DuplicatesPanel from '@/components/crm/DuplicatesPanel';
 import {
   associateCompanyToContact,
   removeCompanyFromContact,
+  setContactCompanyLabel,
+  setContactCompanyPrimary,
   associateDealToContact,
   removeDealFromContact,
 } from '@/components/crm/associationActions';
@@ -39,6 +41,9 @@ import SequencePanel from '@/components/crm/SequencePanel';
 import { listEmailThreads, mergeTimelineWithThreads, getEmailSettings, listEmailTemplates } from '@/lib/crm-email';
 import { listEnrollments, listSequences } from '@/lib/crm-sequences';
 import { aiEnabled } from '@/lib/ai';
+import { CONTACT_COMPANY_LABELS } from '@/lib/crm-constants';
+import { listTags, tagsForRecords } from '@/lib/crm-tags';
+import RecordTags from '@/components/crm/RecordTags';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,7 +76,11 @@ export default async function ContactDetailPage(
   const detail = await getContact(user.id, id);
   if (!detail) notFound();
 
-  const { contact, company, deals, lists } = detail;
+  const { contact, company, companies: contactCompanies, deals, lists } = detail;
+  const [allTags, recordTags] = await Promise.all([
+    listTags(user.id),
+    tagsForRecords(user.id, 'contact', [id]),
+  ]);
 
   const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
@@ -229,6 +238,12 @@ export default async function ContactDetailPage(
           )}
           {contact.job_title && <span className="detail-meta-item muted">{contact.job_title}</span>}
         </div>
+        <RecordTags
+          entity="contact"
+          recordId={contact.id}
+          tags={recordTags.get(contact.id) ?? []}
+          allTags={allTags.map((x) => ({ id: x.id, name: x.name, color: x.color }))}
+        /> 
         <div className="detail-actions">
           <BookMeetingMenu
             eventTypes={meetingTypes}
@@ -289,24 +304,24 @@ export default async function ContactDetailPage(
         <div className="detail-col detail-col-side">
           <section className="panel">
             <AssociationPanel
-              title={t('contacts.detail.company')}
-              records={
-                company
-                  ? [
-                      {
-                        id: company.id,
-                        name: company.name,
-                        href: `/app/crm/companies/${company.id}`,
-                        meta: company.domain || undefined,
-                      },
-                    ]
-                  : []
-              }
+              title={t('contacts.detail.companies')}
+              count={contactCompanies.length}
+              records={contactCompanies.map((c) => ({
+                id: c.id,
+                name: c.name,
+                href: `/app/crm/companies/${c.id}`,
+                meta: c.domain || undefined,
+                primary: !!c.is_primary,
+                label: c.label,
+              }))}
               options={companies
-                .filter((c) => c.id !== company?.id)
+                .filter((c) => !contactCompanies.some((cc) => cc.id === c.id))
                 .map((c) => ({ id: c.id, value: c.name }))}
               onAssociate={associateCompanyToContact.bind(null, contact.id)}
               onRemove={removeCompanyFromContact.bind(null, contact.id)}
+              onSetPrimary={setContactCompanyPrimary.bind(null, contact.id)}
+              onSetLabel={setContactCompanyLabel.bind(null, contact.id)}
+              labelOptions={CONTACT_COMPANY_LABELS.map((v) => ({ value: v, label: t(`enums.contactCompanyLabel.${v}`) }))}
               addLabel={t('contacts.detail.associateCompany')}
               emptyLabel={t('contacts.detail.noCompany')}
             />

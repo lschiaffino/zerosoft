@@ -11,7 +11,9 @@
     "workflows": "Workflows",
     "settings": "Configurações",
     "templates": "Templates",
-    "sequences": "Sequências"
+    "sequences": "Sequências",
+    "products": "Produtos",
+    "quotes": "Orçamentos"
   },
   "switcher": {
     "product": "Produto",
@@ -74,7 +76,11 @@
     "pickCompany": "Selecione uma empresa…",
     "noOptions": "Nada disponível para associar.",
     "failed": "Algo deu errado. Tente novamente.",
-    "remove": "Remover"
+    "remove": "Remover",
+    "primary": "Principal",
+    "makePrimary": "Tornar principal",
+    "label": "Rótulo",
+    "noLabel": "Sem rótulo"
   },
   "enums": {
     "lifecycle": {
@@ -119,6 +125,26 @@
     "direction": {
       "inbound": "Recebida",
       "outbound": "Enviada"
+    },
+    "recurring": {
+      "none": "Pagamento único",
+      "monthly": "Mensal",
+      "yearly": "Anual"
+    },
+    "quoteStatus": {
+      "draft": "Rascunho",
+      "sent": "Enviado",
+      "accepted": "Aceito",
+      "declined": "Recusado",
+      "expired": "Vencido"
+    },
+    "contactCompanyLabel": {
+      "employee": "Funcionário",
+      "decision_maker": "Tomador de decisão",
+      "billing": "Faturamento",
+      "champion": "Champion",
+      "influencer": "Influenciador",
+      "former_employee": "Ex-funcionário"
     }
   },
   "overview": {
@@ -219,7 +245,8 @@
       "lifecycleSection": "Ciclo de vida",
       "ownershipSection": "Atribuição",
       "customFieldsSection": "Campos personalizados",
-      "viewAllProperties": "Ver todas as propriedades"
+      "viewAllProperties": "Ver todas as propriedades",
+      "companies": "Empresas"
     },
     "form": {
       "firstName": "Nome",
@@ -296,7 +323,21 @@
       "lifecycleSection": "Ciclo de vida",
       "ownershipSection": "Atribuição",
       "customFieldsSection": "Campos personalizados",
-      "viewAllProperties": "Ver todas as propriedades"
+      "viewAllProperties": "Ver todas as propriedades",
+      "hierarchy": "Hierarquia da empresa",
+      "notPrimaryCompany": "outra empresa principal",
+      "rollup": "Valor em negócios",
+      "rollupOpen": "Abertos",
+      "rollupWon": "Ganhos",
+      "rollupDeals": "Negócios",
+      "rollupTree": "Incluindo {count, plural, one {# empresa filha} other {# empresas filhas}}",
+      "rollupNote": "Em {currency}. Cada negócio conta uma vez.",
+      "parent": "Empresa controladora",
+      "pickParent": "Definir empresa controladora…",
+      "noParent": "Sem empresa controladora.",
+      "children": "Empresas filhas",
+      "pickChild": "Adicionar empresa filha…",
+      "noChildren": "Sem empresas filhas."
     },
     "form": {
       "name": "Nome",
@@ -406,13 +447,15 @@
       "aboutSection": "Sobre este negócio",
       "ownershipSection": "Atribuição",
       "customFieldsSection": "Campos personalizados",
-      "viewAllProperties": "Ver todas as propriedades"
+      "viewAllProperties": "Ver todas as propriedades",
+      "companies": "Empresas"
     },
     "addPipeline": "+ Adicionar pipeline",
     "pipelineNamePlaceholder": "Nome do pipeline",
     "addStage": "+ Adicionar etapa",
     "stageNamePlaceholder": "Nome da etapa",
-    "addStageConfirm": "Adicionar etapa"
+    "addStageConfirm": "Adicionar etapa",
+    "bulkSelected": "{count} selecionados"
   },
   "tasks": {
     "title": "Tarefas",
@@ -519,7 +562,8 @@
       "meeting_booked": "Reunião agendada (Cal)",
       "manual": "Manual",
       "email_opened": "Email aberto",
-      "email_clicked": "Clique em um link do email"
+      "email_clicked": "Clique em um link do email",
+      "quote_accepted": "Orçamento aceito"
     },
     "actionTypes": {
       "send_email": "Enviar e-mail",
@@ -750,7 +794,11 @@
     "trackingTitle": "Rastreamento de emails",
     "trackingDesc": "Adiciona uma imagem invisível e reescreve os links dos emails enviados pelo CRM para ver aberturas e cliques. Pode ser desligado em cada email.",
     "trackingOn": "Rastrear aberturas e cliques",
-    "trackingAdminOnly": "Só admins podem mudar isso."
+    "trackingAdminOnly": "Só admins podem mudar isso.",
+    "tags": "Tags",
+    "tagsDesc": "Rótulos compartilhados para contatos, empresas e negócios. Filtre listas por tag e marque registros em massa.",
+    "currency": "Moeda",
+    "currencyDesc": "A moeda base do workspace, as taxas de câmbio manuais e o que acontece quando um orçamento é aceito."
   },
   "importP": {
     "title": "Importar {entity}",
@@ -791,7 +839,35 @@
       "name": "Nome",
       "domain": "Domínio",
       "industry": "Setor",
-      "employees": "Funcionários"
+      "employees": "Funcionários",
+      "ownerEmail": "Responsável (email ou nome)",
+      "companyName": "Nome da empresa",
+      "companyDomain": "Domínio da empresa",
+      "parentCompanyName": "Empresa-mãe (nome)",
+      "parentCompanyDomain": "Empresa-mãe (domínio)",
+      "pipeline": "Pipeline",
+      "stage": "Etapa",
+      "amount": "Valor",
+      "currency": "Moeda",
+      "closeDate": "Data de fechamento",
+      "priority": "Prioridade",
+      "description": "Descrição",
+      "contactEmail": "Email(s) do contato"
+    },
+    "preset": "Mapeamento salvo",
+    "presetAuto": "Detecção automática",
+    "presetHubspot": "Exportação do HubSpot",
+    "presetName": "Nome do mapeamento",
+    "presetNamePlaceholder": "Dê um nome a este mapeamento…",
+    "presetSave": "Salvar mapeamento",
+    "presetSaved": "Mapeamento salvo.",
+    "presetDelete": "Excluir mapeamento",
+    "customField": "Personalizado: {label}",
+    "errorsAndWarnings": "Erros e avisos",
+    "hint": {
+      "contacts": "Os contatos são cruzados pelo email. Uma coluna de empresa a vincula (ou cria) como principal; o responsável aceita o email ou o nome completo de alguém da equipe.",
+      "companies": "As empresas são cruzadas pelo domínio. Uma coluna de empresa-mãe a vincula a uma empresa que já exista.",
+      "deals": "O pipeline e a etapa são buscados pelo nome (senão, o primeiro pipeline e sua primeira etapa). As empresas são vinculadas ou criadas; os contatos são buscados pelo email e criados se faltarem."
     }
   },
   "errors": {
@@ -824,7 +900,21 @@
     "missing_contact": "Este registro não tem um contato para enviar.",
     "unsubscribed": "Este contato cancelou a inscrição.",
     "invalid_time": "Use o formato HH:MM.",
-    "incomplete_steps": "Cada etapa de email precisa de um corpo ou de um template."
+    "incomplete_steps": "Cada etapa de email precisa de um corpo ou de um template.",
+    "invalid_product": "Esse produto não existe neste espaço de trabalho.",
+    "no_line_items": "Adicione pelo menos um item ao deal primeiro.",
+    "not_draft": "Só é possível editar orçamentos em rascunho.",
+    "expired": "Este orçamento venceu.",
+    "not_open": "Este orçamento já foi respondido.",
+    "invalid_signature": "Digite seu nome completo e aceite as condições.",
+    "invalid_label": "Esse rótulo de associação não é válido.",
+    "invalid_association": "Esses dois registros não podem ser associados.",
+    "hierarchy_cycle": "Uma empresa não pode ser sua própria controladora nem a controladora de uma de suas controladoras.",
+    "invalid_parent": "Essa empresa controladora não existe neste workspace.",
+    "invalid_tag": "Essa tag não existe neste workspace.",
+    "duplicate_tag": "Já existe uma tag com esse nome.",
+    "invalid_currency": "Use um código de moeda de 3 letras (por exemplo EUR) diferente da moeda base.",
+    "invalid_rate": "A taxa precisa ser um número maior que zero."
   },
   "filters": {
     "advanced": "Filtros avançados",
@@ -866,7 +956,8 @@
       "amount": "Valor",
       "stage": "Estágio",
       "priority": "Prioridade",
-      "closeDate": "Data de fechamento"
+      "closeDate": "Data de fechamento",
+      "tag": "Tag"
     }
   },
   "meetings": {
@@ -1044,5 +1135,178 @@
     "cancelReply": "Cancelar",
     "sentGmail": "Enviado do seu Gmail.",
     "sentSystem": "Enviado pelo zerosoft. Conecte o Gmail para enviar com seu endereço."
+  },
+  "products": {
+    "title": "Produtos",
+    "subtitle": "Seu catálogo. Adicione produtos aos deals como itens e envie em orçamentos.",
+    "new": "Novo produto",
+    "newTitle": "Novo produto",
+    "editTitle": "Editar produto",
+    "search": "Buscar por nome ou SKU…",
+    "showArchived": "Ver arquivados",
+    "hideArchived": "Ocultar arquivados",
+    "emptyTitle": "Ainda não há produtos",
+    "emptySearch": "Nenhum produto corresponde à busca",
+    "emptySub": "Cadastre uma vez seus planos, serviços e extras e depois adicione a qualquer deal.",
+    "active": "Ativo",
+    "archived": "Arquivado",
+    "archive": "Arquivar",
+    "unarchive": "Restaurar",
+    "confirmDelete": "Excluir definitivamente",
+    "form": {
+      "name": "Nome do produto",
+      "price": "Preço",
+      "currency": "Moeda",
+      "recurring": "Cobrança",
+      "taxPct": "Imposto %",
+      "sku": "SKU",
+      "description": "Descrição"
+    },
+    "table": {
+      "name": "Nome",
+      "sku": "SKU",
+      "price": "Preço",
+      "recurring": "Cobrança",
+      "tax": "Imposto",
+      "status": "Status"
+    }
+  },
+  "lineItems": {
+    "title": "Itens",
+    "empty": "Sem itens. Adicione produtos do catálogo ou um item personalizado.",
+    "item": "Item",
+    "qty": "Qtd.",
+    "unitPrice": "Preço unit.",
+    "discount": "Desconto",
+    "discountPct": "Desc. %",
+    "tax": "Imposto",
+    "taxPct": "Imp. %",
+    "amount": "Valor",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "remove": "Remover",
+    "addProduct": "+ Adicionar produto…",
+    "noProducts": "Nenhum produto ativo",
+    "addCustom": "+ Item personalizado",
+    "customName": "Descrição",
+    "catalog": "Catálogo de produtos",
+    "amountSource": "Valor do deal",
+    "fromItems": "Pelos itens (líquido, sem impostos): {amount}",
+    "manual": "Valor manual: {amount}"
+  },
+  "quotes": {
+    "title": "Orçamentos",
+    "subtitle": "Orçamentos enviados aos seus clientes. São criados a partir de um deal com itens.",
+    "emptyTitle": "Ainda não há orçamentos",
+    "emptySub": "Abra um deal, adicione itens e crie o orçamento por lá.",
+    "goToDeals": "Ir para deals",
+    "emptyDeal": "Este deal não tem orçamentos.",
+    "create": "Criar orçamento",
+    "createSubmit": "Criar rascunho",
+    "createHint": "Tira uma foto dos itens atuais",
+    "needsLineItems": "Adicione itens primeiro.",
+    "editTitle": "Editar orçamento",
+    "markSent": "Marcar como enviado",
+    "copyLink": "Copiar link",
+    "copied": "Copiado ✓",
+    "openPublic": "Abrir página pública",
+    "print": "Imprimir / PDF",
+    "refreshItems": "Atualizar itens do deal",
+    "confirmDelete": "Excluir definitivamente",
+    "draftHint": "Rascunho: só você vê. Marque como enviado para ativar o link público que seu cliente pode aceitar.",
+    "backToDeal": "Voltar ao deal",
+    "table": {
+      "number": "Número",
+      "title": "Título",
+      "deal": "Deal",
+      "status": "Status",
+      "total": "Total",
+      "expires": "Vence",
+      "created": "Criado"
+    },
+    "form": {
+      "title": "Título do orçamento",
+      "expiresAt": "Data de validade",
+      "senderName": "Seu nome",
+      "senderEmail": "Seu email",
+      "senderCompany": "Sua empresa",
+      "recipientName": "Nome do destinatário",
+      "recipientEmail": "Email do destinatário",
+      "recipientCompany": "Empresa do destinatário",
+      "notes": "Observações",
+      "terms": "Condições"
+    },
+    "timeline": {
+      "title": "Atividade",
+      "created": "Rascunho criado",
+      "sent": "Enviado",
+      "accepted": "Aceito por {name}",
+      "declined": "Recusado",
+      "expired": "Vencido"
+    }
+  },
+  "quotePublic": {
+    "quote": "Orçamento",
+    "issued": "Emitido",
+    "validUntil": "Válido até",
+    "preparedFor": "Preparado para",
+    "acceptedBy": "Aceito e assinado por",
+    "declinedOn": "Recusado em {date}",
+    "notFound": "Orçamento não encontrado",
+    "acceptTitle": "Aceitar este orçamento",
+    "fullName": "Nome completo",
+    "fullNamePlaceholder": "Digite seu nome completo para assinar",
+    "agree": "Concordo com as condições deste orçamento e tenho autorização para aceitá-lo.",
+    "accept": "Aceitar orçamento",
+    "decline": "Recusar",
+    "sending": "Enviando…",
+    "legal": "Seu nome digitado vale como assinatura. Registramos o horário e um hash do seu endereço IP.",
+    "declineTitle": "Recusar este orçamento",
+    "reason": "Motivo (opcional)",
+    "confirmDecline": "Recusar orçamento",
+    "stateAccepted": "Este orçamento foi aceito. Obrigado!",
+    "stateDeclined": "Este orçamento foi recusado.",
+    "stateExpired": "Este orçamento venceu. Peça um novo a quem enviou.",
+    "errors": {
+      "expired": "Este orçamento venceu.",
+      "not_open": "Este orçamento já foi respondido.",
+      "invalid_signature": "Digite seu nome completo e marque a caixa para aceitar.",
+      "not_found": "Este orçamento não existe mais.",
+      "rate_limited": "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+    }
+  },
+  "tags": {
+    "column": "Tags",
+    "filter": "Tag",
+    "add": "+ Tag",
+    "pick": "Escolha uma tag",
+    "newPlaceholder": "Nome da nova tag",
+    "create": "Criar",
+    "remove": "Remover tag",
+    "bulkPick": "Tag…",
+    "bulkAdd": "Adicionar tag",
+    "bulkRemove": "Remover tag",
+    "color": "Cor",
+    "name": "Nome da tag",
+    "empty": "Ainda não há tags. Crie uma acima ou adicione a partir de qualquer contato, empresa ou negócio.",
+    "counts": "{contacts} contatos · {companies} empresas · {deals} negócios",
+    "delete": "Excluir tag",
+    "confirmDelete": "Excluir"
+  },
+  "currency": {
+    "base": "Moeda base",
+    "baseHint": "Relatórios, dashboards e totais do pipeline aparecem nesta moeda.",
+    "rates": "Taxas de câmbio",
+    "ratesHint": "Taxas manuais: quantos {base} vale uma unidade de cada moeda.",
+    "missing": "Sem taxa de câmbio para {list}: esses valores são somados 1:1.",
+    "currency": "Moeda",
+    "rateTo": "Taxa para {base}",
+    "updated": "Atualizada",
+    "remove": "Remover taxa",
+    "addRate": "Adicionar",
+    "quoteMovesDeal": "Quando um orçamento for aceito, mover o negócio para a etapa ganha",
+    "saved": "Salvo.",
+    "convertedHint": "Convertido para {base} com a taxa de câmbio do workspace",
+    "reportNote": "Valores em {base}. Negócios em outras moedas são convertidos com suas taxas de câmbio."
   }
 }

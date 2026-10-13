@@ -8,6 +8,28 @@ import { dayRangeUtc, getUserTimeZone } from './user-tz';
 import type { WebhookEvent } from './webhooks';
 import { emitEvent } from './events';
 import {
+  associateDealCompany,
+  autoAssociateContactCompanies,
+  listContactCompanies,
+  listCompanyContacts,
+  listCompanyDeals,
+  listChildCompanies,
+  companyAncestors,
+  companyRollup,
+  listDealCompanies,
+  setContactPrimaryCompany,
+  setParentCompany,
+  syncContactPrimary,
+  syncDealPrimary,
+  type CompanyContactRow,
+  type CompanyDealRow,
+  type CompanyRollup,
+  type ContactCompanyRow,
+  type DealCompanyRow,
+} from './crm-assoc';
+import { tagCondition, type TagEntity } from './crm-tags';
+import { baseAmountSql, getCrmSettings } from './crm-currency';
+import {
   ensureMigrated,
   getClient,
   getDb,
@@ -142,12 +164,21 @@ function customExpr(alias: 'c' | 'co' | 'd', name: string, type: FilterFieldType
  * Traduce una regla a una condición WHERE parametrizada.
  * Devuelve null si la regla es inválida o está incompleta (se ignora, no rompe la query).
  */
+const ALIAS_ENTITY: Record<'c' | 'co' | 'd', TagEntity> = { c: 'contact', co: 'company', d: 'deal' };
+
 function buildRuleCondition(
   alias: 'c' | 'co' | 'd',
   fields: Record<string, AdvancedFieldDef>,
   rule: FilterRule,
   customTypes?: Record<string, FilterFieldType>,
 ): { sql: string; args: Array<string | number> } | null {
+  // Tag: relación many-to-many, no una columna. is / isnot sobre crm_record_tags.
+  if (rule.f === 'tag') {
+    const v = (rule.v ?? '').trim();
+    if (!v || !SELECT_OPS.has(rule.o)) return null;
+    const cond = tagCondition(alias, ALIAS_ENTITY[alias]);
+    return { sql: rule.o === 'is' ? cond : `NOT ${cond}`, args: [v] };
+  }
   let def = fields[rule.f];
   if (!def && rule.f.startsWith('custom:')) {
     const name = rule.f.slice(7);
@@ -248,6 +279,9 @@ async function fireEvent(
     }
   }
 }
+
+/** Dispara workflows (+ webhook si corresponde) de un evento del CRM. Lo usan los quotes. */
+export const fireCrmEvent = fireEvent;
 
 /** Eventos del CRM que también salen como webhooks (lib/webhooks.ts). */
 const CRM_WEBHOOK_EVENTS: Partial<Record<import('./crm-workflows').TriggerType, WebhookEvent>> = {
@@ -391,6 +425,8 @@ export interface ContactFilter {
   owner?: string;
   createdFrom?: string;
   createdTo?: string;
+  /** Id de tag: solo contactos con ese tag. */
+  tag?: string;
   custom?: Record<string, string>;
   filters?: FilterRule[];
   /** Tipos de los custom fields (para operadores correctos en reglas `custom:*`). */
@@ -439,8 +475,13 @@ function buildContactWhere(
     args.push(f.source);
   }
   if (f.companyId) {
-    where.push('c.company_id = ?');
+    // Cualquier asociación (no solo la primaria).
+    where.push('EXISTS (SELECT 1 FROM crm_contact_companies xcc WHERE xcc.contact_id = c.id AND xcc.company_id = ?)');
     args.push(f.companyId);
+  }
+  if (f.tag) {
+    where.push(tagCondition('c', 'contact'));
+    args.push(f.tag);
   }
   if (f.owner) {
     where.push('c.owner_id = ?');
@@ -506,7 +547,10 @@ export type ContactDealRow = CrmDealRow & { stage_name: string; pipeline_name: s
 
 export interface ContactDetail {
   contact: CrmContactRow;
+  /** Empresa primaria (= contact.company_id). */
   company: CrmCompanyRow | null;
+  /** Todas las empresas asociadas (primaria primero) con su label. */
+  companies: ContactCompanyRow[];
   deals: ContactDealRow[];
   lists: CrmListRow[];
 }
@@ -543,7 +587,8 @@ export async function getContact(userId: string, id: string): Promise<ContactDet
        ORDER BY l.name ASC`,
     )
     .all(id, userId)) as CrmListRow[];
-  return { contact, company, deals, lists };
+  const companies = await listContactCompanies(userId, id, db);
+  return { contact, company, companies, deals, lists };
 }
 
 export interface ContactInput {
@@ -652,6 +697,7 @@ export async function createContact(
       companyId,
       JSON.stringify(data.custom ?? {}),
     );
+  if (companyId) await setContactPrimaryCompany(userId, id, companyId, db);
   const contact = (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
   await fireEvent(userId, { type: 'contact_created', entity: 'contact', entityId: id });
   return contact;
@@ -680,6 +726,13 @@ export async function updateContact(
   await db
     .prepare(`UPDATE crm_contacts SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
     .run(...sets.map(([, v]) => v), now(), id);
+  // company_id es el espejo de la asociación primaria: la tabla de
+  // asociaciones manda (asocia la nueva como primaria o quita la actual).
+  const companySet = sets.find(([c]) => c === 'company_id');
+  if (companySet) {
+    await setContactPrimaryCompany(userId, id, (companySet[1] as string | null) ?? null, db);
+    companySet[1] = await syncContactPrimary(id, db);
+  }
   await logPropertyEvents(userId, 'contact', id, existing as unknown as Record<string, unknown>, sets, actorEmail, db);
   const contact = (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
   await fireEvent(userId, { type: 'contact_updated', entity: 'contact', entityId: id });
@@ -746,11 +799,18 @@ export async function mergeContacts(
   const tx = await getClient().transaction();
   const tdb = txDb(tx);
   try {
-    if (!keep.company_id && drop.company_id) {
-      await tdb
-        .prepare('UPDATE crm_contacts SET company_id = ?, updated_at = ? WHERE id = ?')
-        .run(drop.company_id, now(), keepId);
-    }
+    // Empresas: las del descartado pasan como no primarias; si el que queda
+    // no tenía, se promueve la más antigua (syncContactPrimary).
+    await tdb
+      .prepare('UPDATE OR IGNORE crm_contact_companies SET contact_id = ?, is_primary = 0 WHERE contact_id = ?')
+      .run(keepId, dropId);
+    await tdb.prepare('DELETE FROM crm_contact_companies WHERE contact_id = ?').run(dropId);
+    await syncContactPrimary(keepId, tdb);
+    await tdb.prepare('UPDATE crm_contacts SET updated_at = ? WHERE id = ?').run(now(), keepId);
+    // Tags del descartado.
+    await tdb
+      .prepare("UPDATE OR IGNORE crm_record_tags SET record_id = ? WHERE entity = 'contact' AND record_id = ?")
+      .run(keepId, dropId);
     // Deals: migra los vínculos; si el keep ya estaba en el deal, descarta el dupe.
     await tdb
       .prepare('UPDATE OR IGNORE crm_deal_contacts SET contact_id = ? WHERE contact_id = ?')
@@ -825,12 +885,58 @@ export async function bulkUpdateCompanies(
 
 export async function bulkDeleteCompanies(userId: string, ids: string[]): Promise<number> {
   if (!ids.length) return 0;
+  const db = getDb();
   const ph = ids.map(() => '?').join(',');
-  return (
-    await getDb()
-      .prepare(`DELETE FROM crm_companies WHERE user_id = ? AND id IN (${ph})`)
-      .run(userId, ...ids)
+  const affected = await companyDependents(userId, ids, db);
+  const changes = (
+    await db.prepare(`DELETE FROM crm_companies WHERE user_id = ? AND id IN (${ph})`).run(userId, ...ids)
   ).changes;
+  await afterCompanyDelete(userId, affected, db);
+  return changes;
+}
+
+/** Contactos y deals asociados + hijas de las empresas que se van a borrar. */
+async function companyDependents(
+  userId: string,
+  ids: string[],
+  db: Db,
+): Promise<{ contacts: string[]; deals: string[] }> {
+  const ph = ids.map(() => '?').join(',');
+  const contacts = (await db
+    .prepare(`SELECT DISTINCT contact_id AS id FROM crm_contact_companies WHERE user_id = ? AND company_id IN (${ph})`)
+    .all(userId, ...ids)) as Array<{ id: string }>;
+  const deals = (await db
+    .prepare(`SELECT DISTINCT deal_id AS id FROM crm_deal_companies WHERE user_id = ? AND company_id IN (${ph})`)
+    .all(userId, ...ids)) as Array<{ id: string }>;
+  return { contacts: contacts.map((r) => r.id), deals: deals.map((r) => r.id) };
+}
+
+/**
+ * Tras borrar empresas: las FKs ya borraron las asociaciones; se re-elige la
+ * primaria de contactos/deals afectados y las hijas huérfanas quedan como raíz.
+ */
+async function afterCompanyDelete(
+  userId: string,
+  affected: { contacts: string[]; deals: string[] },
+  db: Db,
+): Promise<void> {
+  for (const id of affected.contacts) await syncContactPrimary(id, db);
+  for (const id of affected.deals) await syncDealPrimary(id, db);
+  await db
+    .prepare(
+      `UPDATE crm_companies SET parent_company_id = NULL
+       WHERE user_id = ? AND parent_company_id IS NOT NULL
+         AND parent_company_id NOT IN (SELECT id FROM crm_companies WHERE user_id = ?)`,
+    )
+    .run(userId, userId);
+  // Contactos que apuntaban a una empresa borrada sin asociación (datos viejos).
+  await db
+    .prepare(
+      `UPDATE crm_contacts SET company_id = NULL
+       WHERE user_id = ? AND company_id IS NOT NULL
+         AND company_id NOT IN (SELECT id FROM crm_companies WHERE user_id = ?)`,
+    )
+    .run(userId, userId);
 }
 
 export interface CompanyFilter {
@@ -840,6 +946,10 @@ export interface CompanyFilter {
   owner?: string;
   createdFrom?: string;
   createdTo?: string;
+  /** Id de tag: solo empresas con ese tag. */
+  tag?: string;
+  /** Solo hijas directas de esta empresa. */
+  parentId?: string;
   custom?: Record<string, string>;
   filters?: FilterRule[];
   customTypes?: Record<string, FilterFieldType>;
@@ -891,6 +1001,14 @@ export async function listCompanies(
     where.push('co.created_at <= ?');
     args.push(`${f.createdTo} 23:59:59`);
   }
+  if (f.tag) {
+    where.push(tagCondition('co', 'company'));
+    args.push(f.tag);
+  }
+  if (f.parentId) {
+    where.push('co.parent_company_id = ?');
+    args.push(f.parentId);
+  }
   if (f.custom) {
     for (const [name, value] of Object.entries(f.custom)) {
       if (!value) continue;
@@ -921,7 +1039,7 @@ export async function listCompanies(
   const rows = (await db
     .prepare(
       `SELECT co.*,
-         (SELECT COUNT(*) FROM crm_contacts ct WHERE ct.company_id = co.id) AS contact_count
+         (SELECT COUNT(*) FROM crm_contact_companies ct WHERE ct.company_id = co.id) AS contact_count
        FROM crm_companies co
        WHERE ${whereSql}
        ORDER BY ${order}
@@ -933,8 +1051,17 @@ export async function listCompanies(
 
 export interface CompanyDetail {
   company: CrmCompanyRow;
-  contacts: CrmContactRow[];
-  deals: CrmDealRow[];
+  /** Contactos asociados (con label y si esta es su empresa primaria). */
+  contacts: CompanyContactRow[];
+  /** Deals asociados (crm_deal_companies). */
+  deals: CompanyDealRow[];
+  /** Empresa madre inmediata (null = raíz). */
+  parent: { id: string; name: string } | null;
+  /** Cadena de madres hasta la raíz (inmediata primero). */
+  ancestors: Array<{ id: string; name: string }>;
+  children: CrmCompanyRow[];
+  /** Valor de deals propio y del árbol completo, en moneda base. */
+  rollup: CompanyRollup;
 }
 
 export async function getCompany(userId: string, id: string): Promise<CompanyDetail | null> {
@@ -943,20 +1070,12 @@ export async function getCompany(userId: string, id: string): Promise<CompanyDet
     .prepare('SELECT * FROM crm_companies WHERE id = ? AND user_id = ?')
     .get(id, userId)) as CrmCompanyRow | undefined;
   if (!company) return null;
-  const contacts = (await db
-    .prepare('SELECT * FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at DESC')
-    .all(id, userId)) as CrmContactRow[];
-  // Deals de la empresa = deals vinculados a contactos de la empresa.
-  const deals = (await db
-    .prepare(
-      `SELECT DISTINCT d.* FROM crm_deals d
-       JOIN crm_deal_contacts dc ON dc.deal_id = d.id
-       JOIN crm_contacts c ON c.id = dc.contact_id
-       WHERE c.company_id = ? AND d.user_id = ?
-       ORDER BY d.created_at DESC`,
-    )
-    .all(id, userId)) as CrmDealRow[];
-  return { company, contacts, deals };
+  const contacts = await listCompanyContacts(userId, id, db);
+  const deals = await listCompanyDeals(userId, id, db);
+  const ancestors = await companyAncestors(userId, id, db);
+  const children = await listChildCompanies(userId, id, db);
+  const rollup = await companyRollup(userId, id, db);
+  return { company, contacts, deals, parent: ancestors[0] ?? null, ancestors, children, rollup };
 }
 
 export interface CompanyInput {
@@ -970,6 +1089,8 @@ export interface CompanyInput {
   country?: string;
   lifecycleStage?: string;
   ownerId?: string | null;
+  /** Empresa madre (jerarquía). null = raíz. Valida ciclos. */
+  parentCompanyId?: string | null;
   custom?: Record<string, unknown>;
 }
 
@@ -1015,6 +1136,7 @@ export async function createCompany(
       data.lifecycleStage ?? 'lead',
       JSON.stringify(data.custom ?? {}),
     );
+  if (data.parentCompanyId) await setParentCompany(userId, id, data.parentCompanyId, db);
   return (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
 }
 
@@ -1030,7 +1152,12 @@ export async function updateCompany(
     .get(id, userId)) as CrmCompanyRow | undefined;
   if (!existing) return null;
   await assertRefs(userId, { ownerId: data.ownerId }, db);
+  // Primero la jerarquía: si hay ciclo lanza CrmRefError y no se guarda nada.
+  if (data.parentCompanyId !== undefined) {
+    await setParentCompany(userId, id, data.parentCompanyId, db);
+  }
   const sets = toColumnValues(COMPANY_COLS, data as Record<string, unknown>);
+  if (data.parentCompanyId !== undefined) sets.push(['parent_company_id', data.parentCompanyId]);
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
   await db
     .prepare(`UPDATE crm_companies SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
@@ -1040,10 +1167,12 @@ export async function updateCompany(
 }
 
 export async function deleteCompany(userId: string, id: string): Promise<boolean> {
-  return (
-    (await getDb().prepare('DELETE FROM crm_companies WHERE id = ? AND user_id = ?').run(id, userId))
-      .changes > 0
-  );
+  const db = getDb();
+  const affected = await companyDependents(userId, [id], db);
+  const deleted =
+    (await db.prepare('DELETE FROM crm_companies WHERE id = ? AND user_id = ?').run(id, userId)).changes > 0;
+  if (deleted) await afterCompanyDelete(userId, affected, db);
+  return deleted;
 }
 
 // ============================================================
@@ -1225,6 +1354,10 @@ export interface DealFilter {
   owner?: string;
   createdFrom?: string;
   createdTo?: string;
+  /** Id de tag: solo deals con ese tag. */
+  tag?: string;
+  /** Deals asociados a esta empresa. */
+  companyId?: string;
   custom?: Record<string, string>;
   filters?: FilterRule[];
   customTypes?: Record<string, FilterFieldType>;
@@ -1233,7 +1366,7 @@ export interface DealFilter {
   pageSize?: number;
 }
 
-export type DealListRow = CrmDealRow & { stage_name: string | null };
+export type DealListRow = CrmDealRow & { stage_name: string | null; company_name: string | null };
 
 const DEAL_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   name: { expr: 'd.name', type: 'text' },
@@ -1290,6 +1423,14 @@ export async function listDeals(
     where.push('d.created_at <= ?');
     args.push(`${f.createdTo} 23:59:59`);
   }
+  if (f.tag) {
+    where.push(tagCondition('d', 'deal'));
+    args.push(f.tag);
+  }
+  if (f.companyId) {
+    where.push('EXISTS (SELECT 1 FROM crm_deal_companies xdc WHERE xdc.deal_id = d.id AND xdc.company_id = ?)');
+    args.push(f.companyId);
+  }
   if (f.custom) {
     for (const [name, value] of Object.entries(f.custom)) {
       if (!value) continue;
@@ -1309,7 +1450,9 @@ export async function listDeals(
   const page = Math.min(Math.max(f.page ?? 1, 1), pages);
   const rows = (await db
     .prepare(
-      `SELECT d.*, s.name AS stage_name
+      `SELECT d.*, s.name AS stage_name,
+         (SELECT co.name FROM crm_deal_companies pdc JOIN crm_companies co ON co.id = pdc.company_id
+          WHERE pdc.deal_id = d.id AND pdc.is_primary = 1) AS company_name
        FROM crm_deals d
        LEFT JOIN crm_stages s ON s.id = d.stage_id
        WHERE ${whereSql}
@@ -1325,6 +1468,8 @@ export interface BoardDeal extends CrmDealRow {
   contact_name: string | null;
   company_name: string | null;
   last_activity_at: string | null;
+  /** amount convertido a la moneda base del workspace (totales del board). */
+  amount_base: number;
   /** Calculados en la page (días desde created_at / última actividad). */
   age_days?: number;
   idle_days?: number;
@@ -1352,12 +1497,14 @@ export async function listDealsForBoard(
          c.id AS contact_id,
          NULLIF(trim(c.first_name || ' ' || c.last_name), '') AS contact_name,
          co.name AS company_name,
-         (SELECT MAX(a.created_at) FROM crm_activities a WHERE a.deal_id = d.id) AS last_activity_at
+         (SELECT MAX(a.created_at) FROM crm_activities a WHERE a.deal_id = d.id) AS last_activity_at,
+         ${baseAmountSql('d')} AS amount_base
        FROM crm_deals d
        LEFT JOIN crm_contacts c ON c.id = (
          SELECT dc.contact_id FROM crm_deal_contacts dc WHERE dc.deal_id = d.id ORDER BY dc.rowid LIMIT 1
        )
-       LEFT JOIN crm_companies co ON co.id = c.company_id
+       LEFT JOIN crm_deal_companies pdc ON pdc.deal_id = d.id AND pdc.is_primary = 1
+       LEFT JOIN crm_companies co ON co.id = pdc.company_id
        WHERE d.user_id = ? AND d.pipeline_id = ?
        ORDER BY d.position ASC`,
     )
@@ -1368,7 +1515,8 @@ export async function listDealsForBoard(
       stage,
       deals: stageDeals,
       count: stageDeals.length,
-      amount: stageDeals.reduce((s, d) => s + d.amount, 0),
+      // Totales en moneda base (deals en otras monedas se convierten).
+      amount: stageDeals.reduce((s, d) => s + d.amount_base, 0),
     };
   });
 }
@@ -1378,7 +1526,10 @@ export interface DealDetail {
   stage: CrmStageRow | null;
   pipeline: CrmPipelineRow | null;
   contacts: CrmContactRow[];
+  /** Empresa primaria del deal. */
   company: CrmCompanyRow | null;
+  /** Todas las empresas asociadas (primaria primero). */
+  companies: DealCompanyRow[];
 }
 
 export async function getDeal(userId: string, id: string): Promise<DealDetail | null> {
@@ -1403,14 +1554,14 @@ export async function getDeal(userId: string, id: string): Promise<DealDetail | 
        ORDER BY dc.rowid ASC`,
     )
     .all(id)) as CrmContactRow[];
-  // Empresa del deal = la del contacto primario (primero vinculado).
-  const company =
-    contacts.length && contacts[0].company_id
-      ? ((await db
-          .prepare('SELECT * FROM crm_companies WHERE id = ?')
-          .get(contacts[0].company_id)) as CrmCompanyRow | undefined) ?? null
-      : null;
-  return { deal, stage, pipeline, contacts, company };
+  const companies = await listDealCompanies(userId, id, db);
+  const primary = companies.find((c) => c.is_primary) ?? null;
+  let company: CrmCompanyRow | null = null;
+  if (primary) {
+    const { is_primary: _p, ...row } = primary;
+    company = row;
+  }
+  return { deal, stage, pipeline, contacts, company, companies };
 }
 
 export interface DealInput {
@@ -1429,6 +1580,12 @@ export interface DealInput {
   contactIds?: string[];
   addContactIds?: string[];
   removeContactIds?: string[];
+  /** Empresa primaria (se asocia si hace falta). */
+  companyId?: string | null;
+  /** Empresas a asociar (no primarias, salvo que no haya otra). */
+  companyIds?: string[];
+  /** true = el amount es manual aunque haya line items. */
+  amountOverride?: boolean;
 }
 
 export type CreateDealResult =
@@ -1463,8 +1620,10 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
   if (!data.stageId || !(await stageInPipeline(data.stageId, data.pipelineId))) {
     return { ok: false, reason: 'invalid_stage' };
   }
-  await assertRefs(userId, { ownerId: data.ownerId }, db);
+  await assertRefs(userId, { ownerId: data.ownerId, companyId: data.companyId }, db);
+  for (const companyId of data.companyIds ?? []) await assertRefs(userId, { companyId }, db);
   const contactIds = await ownedContactIds(userId, data.contactIds ?? [], db);
+  const currency = (data.currency || (await getCrmSettings(userId, db)).baseCurrency).toUpperCase();
   const id = crypto.randomUUID();
   const maxPos = (
     (await db
@@ -1491,7 +1650,7 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
         data.stageId!,
         data.name ?? '',
         data.amount ?? 0,
-        data.currency ?? 'USD',
+        currency,
         data.closeDate ?? null,
         data.priority ?? 'medium',
         data.source ?? '',
@@ -1503,6 +1662,10 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
         ts,
       );
     if (contactIds.length) await setDealContacts(id, contactIds, tdb);
+    if (data.companyId) await associateDealCompany(userId, id, data.companyId, { primary: true }, tdb);
+    for (const companyId of data.companyIds ?? []) await associateDealCompany(userId, id, companyId, {}, tdb);
+    // Las empresas primarias de los contactos quedan asociadas (como HubSpot).
+    if (contactIds.length) await autoAssociateContactCompanies(userId, id, contactIds, tdb);
     await tx.commit();
   } catch (e) {
     await tx.rollback();
@@ -1523,6 +1686,7 @@ const DEAL_COLS: Record<string, string> = {
   description: 'description',
   lostReason: 'lost_reason',
   ownerId: 'owner_id',
+  amountOverride: 'amount_override',
   custom: 'custom',
 };
 
@@ -1537,10 +1701,19 @@ export async function updateDeal(
     .prepare('SELECT * FROM crm_deals WHERE id = ? AND user_id = ?')
     .get(id, userId)) as CrmDealRow | undefined;
   if (!existing) return null;
-  await assertRefs(userId, { ownerId: data.ownerId }, db);
+  await assertRefs(userId, { ownerId: data.ownerId, companyId: data.companyId }, db);
+  for (const companyId of data.companyIds ?? []) await assertRefs(userId, { companyId }, db);
   const setIds = data.contactIds ? await ownedContactIds(userId, data.contactIds, db) : undefined;
   const addIds = await ownedContactIds(userId, data.addContactIds ?? [], db);
-  const sets = toColumnValues(DEAL_COLS, data as Record<string, unknown>);
+  const patch: Record<string, unknown> = { ...data };
+  if (typeof patch.currency === 'string') patch.currency = patch.currency.toUpperCase();
+  if (data.amountOverride !== undefined) patch.amountOverride = data.amountOverride ? 1 : 0;
+  // Editar el amount a mano en un deal con line items lo fija (override).
+  const lineCount = (
+    (await db.prepare('SELECT COUNT(*) AS c FROM crm_line_items WHERE deal_id = ?').get(id)) as { c: number }
+  ).c;
+  if (data.amount !== undefined && data.amountOverride === undefined && lineCount > 0) patch.amountOverride = 1;
+  const sets = toColumnValues(DEAL_COLS, patch);
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
   await ensureMigrated();
   const tx = await getClient().transaction();
@@ -1562,12 +1735,21 @@ export async function updateDeal(
       );
       for (const contactId of addIds) await ins.run(id, contactId);
     }
+    if (data.companyId) await associateDealCompany(userId, id, data.companyId, { primary: true }, tdb);
+    for (const companyId of data.companyIds ?? []) await associateDealCompany(userId, id, companyId, {}, tdb);
+    const linked = [...(setIds ?? []), ...addIds];
+    if (linked.length) await autoAssociateContactCompanies(userId, id, linked, tdb);
     await tx.commit();
   } catch (e) {
     await tx.rollback();
     throw e;
   }
   await logPropertyEvents(userId, 'deal', id, existing as unknown as Record<string, unknown>, sets, actorEmail);
+  // Volver a "calcular desde line items" (o cambiar la moneda) recalcula el amount.
+  if (lineCount > 0 && (data.amountOverride === false || data.currency !== undefined)) {
+    const { recalcDealAmount } = await import('./crm-products');
+    await recalcDealAmount(userId, id);
+  }
   const deal = (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow;
   await fireEvent(userId, { type: 'deal_updated', entity: 'deal', entityId: id });
   return deal;
@@ -2491,172 +2673,18 @@ export async function deleteCustomField(userId: string, id: string): Promise<boo
 // IMPORT / EXPORT
 // ============================================================
 
-export interface MappedContactRow {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  jobTitle?: string;
-  website?: string;
-  city?: string;
-  country?: string;
-  lifecycleStage?: string;
-  leadStatus?: string;
-  source?: string;
-}
-
-export interface MappedCompanyRow {
-  name?: string;
-  domain?: string;
-  industry?: string;
-  employees?: number | null;
-  phone?: string;
-  website?: string;
-  city?: string;
-  country?: string;
-  lifecycleStage?: string;
-}
-
-export type ImportMode = 'skip' | 'update';
-
-export interface ImportResult {
-  total: number;
-  created: number;
-  updated: number;
-  skipped: number;
-  errors: string[];
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-async function recordImport(
-  userId: string,
-  entity: string,
-  result: ImportResult,
-  db: Db = getDb(),
-): Promise<void> {
-  await db
-    .prepare(
-      `INSERT INTO crm_imports (id, user_id, entity, total, created, updated, skipped, errors)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      crypto.randomUUID(),
-      userId,
-      entity,
-      result.total,
-      result.created,
-      result.updated,
-      result.skipped,
-      JSON.stringify(result.errors),
-    );
-}
-
-/**
- * Importa contactos con dedupe por lower(email).
- * - email existente → mode 'update' actualiza los campos provistos; mode 'skip' lo salta.
- * - email vacío → siempre crea (no hay clave para deduplicar).
- * - email inválido → no se importa; queda en errors.
- * Todo en una transacción; graba el resumen en crm_imports.
- */
-export async function importContacts(
-  userId: string,
-  rows: MappedContactRow[],
-  mode: ImportMode,
-): Promise<ImportResult> {
-  const result: ImportResult = {
-    total: rows.length,
-    created: 0,
-    updated: 0,
-    skipped: 0,
-    errors: [],
-  };
-  await ensureMigrated();
-  const tx = await getClient().transaction();
-  const tdb = txDb(tx);
-  try {
-    const findByEmail = tdb.prepare(
-      'SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = lower(?) LIMIT 1',
-    );
-    for (const [i, row] of rows.entries()) {
-      const email = (row.email ?? '').trim();
-      if (email && !EMAIL_RE.test(email)) {
-        result.errors.push(`Row ${i + 1}: invalid email "${email}"`);
-        continue;
-      }
-      const existing = email
-        ? ((await findByEmail.get(userId, email)) as { id: string } | undefined)
-        : undefined;
-      if (existing) {
-        if (mode === 'skip') {
-          result.skipped++;
-        } else {
-          await updateContact(userId, existing.id, { ...row, email }, tdb);
-          result.updated++;
-        }
-        continue;
-      }
-      await createContact(userId, { ...row, email }, tdb);
-      result.created++;
-    }
-    await recordImport(userId, 'contacts', result, tdb);
-    await tx.commit();
-  } catch (e) {
-    await tx.rollback();
-    throw e;
-  }
-  return result;
-}
-
-/** Importa empresas con dedupe por lower(domain). Misma semántica que importContacts. */
-export async function importCompanies(
-  userId: string,
-  rows: MappedCompanyRow[],
-  mode: ImportMode,
-): Promise<ImportResult> {
-  const result: ImportResult = {
-    total: rows.length,
-    created: 0,
-    updated: 0,
-    skipped: 0,
-    errors: [],
-  };
-  await ensureMigrated();
-  const tx = await getClient().transaction();
-  const tdb = txDb(tx);
-  try {
-    const findByDomain = tdb.prepare(
-      `SELECT id FROM crm_companies WHERE user_id = ? AND domain != '' AND lower(domain) = lower(?) LIMIT 1`,
-    );
-    for (const [i, row] of rows.entries()) {
-      if (!(row.name ?? '').trim() && !(row.domain ?? '').trim()) {
-        result.errors.push(`Row ${i + 1}: missing name and domain`);
-        continue;
-      }
-      const domain = (row.domain ?? '').trim();
-      const existing = domain
-        ? ((await findByDomain.get(userId, domain)) as { id: string } | undefined)
-        : undefined;
-      if (existing) {
-        if (mode === 'skip') {
-          result.skipped++;
-        } else {
-          await updateCompany(userId, existing.id, { ...row, domain }, tdb);
-          result.updated++;
-        }
-        continue;
-      }
-      await createCompany(userId, { ...row, domain }, tdb);
-      result.created++;
-    }
-    await recordImport(userId, 'companies', result, tdb);
-    await tx.commit();
-  } catch (e) {
-    await tx.rollback();
-    throw e;
-  }
-  return result;
-}
+// La lógica de import vive en lib/crm-import.ts (owner por email, custom
+// fields, asociaciones, deals, presets). Se re-exporta por compatibilidad.
+export {
+  importCompanies,
+  importContacts,
+  importDeals,
+  type ImportMode,
+  type ImportResult,
+  type MappedCompanyRow,
+  type MappedContactRow,
+  type MappedDealRow,
+} from './crm-import';
 
 export type ExportEntity = 'contacts' | 'companies' | 'deals' | 'activities';
 
@@ -2760,7 +2788,7 @@ async function funnelForPipeline(
   return (await getDb()
     .prepare(
       `SELECT s.id, s.name, s.probability, s.is_won, s.is_lost,
-         COUNT(d.id) AS count, COALESCE(SUM(d.amount), 0) AS amount
+         COUNT(d.id) AS count, COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount
        FROM crm_stages s
        LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ?
        WHERE s.pipeline_id = ?
@@ -2813,14 +2841,14 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
 
   const open = (await db
     .prepare(
-      'SELECT COUNT(*) AS c, COALESCE(SUM(amount), 0) AS a FROM crm_deals WHERE user_id = ? AND closed_at IS NULL',
+      `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')}), 0) AS a FROM crm_deals d WHERE d.user_id = ? AND d.closed_at IS NULL`,
     )
     .get(userId)) as { c: number; a: number };
 
   const forecastWeighted = (
     (await db
       .prepare(
-        `SELECT COALESCE(SUM(d.amount * s.probability / 100.0), 0) AS f
+        `SELECT COALESCE(SUM(${baseAmountSql('d')} * s.probability / 100.0), 0) AS f
          FROM crm_deals d
          JOIN crm_stages s ON s.id = d.stage_id
          WHERE d.user_id = ? AND d.closed_at IS NULL`,
@@ -2830,7 +2858,7 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
 
   const wonThisMonth = (await db
     .prepare(
-      `SELECT COUNT(*) AS c, COALESCE(SUM(d.amount), 0) AS a
+      `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')}), 0) AS a
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
        WHERE d.user_id = ? AND s.is_won = 1 AND substr(d.closed_at, 1, 7) = ?`,
@@ -2914,8 +2942,8 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
         .prepare(
           `SELECT s.id, s.name, s.probability,
              COUNT(d.id) AS count,
-             COALESCE(SUM(d.amount), 0) AS amount,
-             COALESCE(SUM(d.amount * s.probability / 100.0), 0) AS forecast
+             COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount,
+             COALESCE(SUM(${baseAmountSql('d')} * s.probability / 100.0), 0) AS forecast
            FROM crm_stages s
            LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ? AND d.closed_at IS NULL
            WHERE s.pipeline_id = ?
@@ -2927,10 +2955,10 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
 
   const dealsBySource = (await db
     .prepare(
-      `SELECT COALESCE(NULLIF(source, ''), 'other') AS source,
-         COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount
-       FROM crm_deals
-       WHERE user_id = ?
+      `SELECT COALESCE(NULLIF(d.source, ''), 'other') AS source,
+         COUNT(*) AS count, COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount
+       FROM crm_deals d
+       WHERE d.user_id = ?
        GROUP BY 1
        ORDER BY amount DESC`,
     )
@@ -2967,10 +2995,10 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
 
   const dealsByPriority = (await db
     .prepare(
-      `SELECT priority, COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount
-       FROM crm_deals
-       WHERE user_id = ?
-       GROUP BY priority
+      `SELECT d.priority AS priority, COUNT(*) AS count, COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount
+       FROM crm_deals d
+       WHERE d.user_id = ?
+       GROUP BY d.priority
        ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 3 END`,
     )
     .all(userId)) as CrmReports['dealsByPriority'];

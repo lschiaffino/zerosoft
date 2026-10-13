@@ -18,6 +18,10 @@ import ExportPanel from '@/components/crm/ExportPanel';
 import GmailPanel from '@/components/crm/GmailPanel';
 import TeamPanel from '@/components/crm/TeamPanel';
 import EmailTrackingSetting from '@/components/crm/EmailTrackingSetting';
+import TagsManager from '@/components/crm/TagsManager';
+import CurrencySettings from '@/components/crm/CurrencySettings';
+import { listTags } from '@/lib/crm-tags';
+import { getCrmSettings, listExchangeRates, missingRates } from '@/lib/crm-currency';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +53,12 @@ export default async function CrmSettingsPage(
       )
     : null;
   const emailSettings = await getEmailSettings(user.id);
+  const [tags, crmSettings, rates, missing] = await Promise.all([
+    listTags(user.id),
+    getCrmSettings(user.id),
+    listExchangeRates(user.id),
+    missingRates(user.id),
+  ]);
 
   // Teams: todo se resuelve sobre tu identidad real (no el workspace activo).
   const realUser = user.actingUser ?? user;
@@ -73,6 +83,8 @@ export default async function CrmSettingsPage(
     { id: 'integrations', label: t('settings.integrations') },
     { id: 'pipelines', label: t('settings.pipelines') },
     { id: 'fields', label: t('settings.customFields') },
+    { id: 'tags', label: t('settings.tags') },
+    { id: 'currency', label: t('settings.currency') },
     { id: 'import', label: t('settings.importCta') },
     { id: 'export', label: t('settings.exportCta') },
   ];
@@ -146,6 +158,38 @@ export default async function CrmSettingsPage(
               <p className="muted">{t('settings.customFieldsDesc')}</p>
             </header>
             <CustomFieldsPanel initialFields={customFields} />
+          </section>
+
+          <section className="crm-set" id="tags">
+            <header className="crm-set-head">
+              <h2>{t('settings.tags')}</h2>
+              <p className="muted">{t('settings.tagsDesc')}</p>
+            </header>
+            <TagsManager
+              initialTags={tags.map((x) => ({
+                id: x.id,
+                name: x.name,
+                color: x.color,
+                contacts: x.contacts,
+                companies: x.companies,
+                deals: x.deals,
+              }))}
+            />
+          </section>
+
+          <section className="crm-set" id="currency">
+            <header className="crm-set-head">
+              <h2>{t('settings.currency')}</h2>
+              <p className="muted">{t('settings.currencyDesc')}</p>
+            </header>
+            <CurrencySettings
+              baseCurrency={crmSettings.baseCurrency}
+              quoteAcceptMovesDeal={crmSettings.quoteAcceptMovesDeal}
+              rates={rates.map((r) => ({ currency: r.currency, rate: r.rate, updated_at: r.updated_at }))}
+              missing={missing}
+              canEdit={isWorkspaceAdmin(user)}
+              locale={locale}
+            />
           </section>
 
           <section className="crm-set" id="import">

@@ -21,6 +21,7 @@ import {
   type ReportRangeLabel,
 } from '@/lib/crm-reports';
 import ReportsView from '@/components/crm/ReportsView';
+import { getCrmSettings, missingRates } from '@/lib/crm-currency';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,12 +119,16 @@ export default async function CrmReportsPage(
     reportConversionRate(user.id, range, filters),
   ]);
 
+  const [crmSettings, missing] = await Promise.all([getCrmSettings(user.id), missingRates(user.id)]);
+
   return (
     <div className="app-page">
       <div className="page-head">
         <h1 className="app-title">{t('reports.title')}</h1>
       </div>
       <ReportsView
+        baseCurrency={crmSettings.baseCurrency}
+        missingRates={missing}
         reports={reports}
         funnel={funnel}
         forecastByStage={forecastByStage}

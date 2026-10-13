@@ -8,6 +8,8 @@ import InlineEditCell from './InlineEditCell';
 import InlineStageCell from './InlineStageCell';
 import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
 import RecordPreview from './RecordPreview';
+import TagDots, { type TagDot } from './TagDots';
+import TagBulkControls from './TagBulkControls';
 
 export interface DealRow {
   id: string;
@@ -25,6 +27,11 @@ export interface DealRow {
   age: number;
   contacts: number;
   created: string;
+  tags?: TagDot[];
+  /** Empresa primaria. */
+  companyName?: string | null;
+  /** Monto convertido a la moneda base (texto), si la moneda es otra. */
+  amountBase?: string | null;
 }
 
 interface StageOption {
@@ -46,6 +53,7 @@ interface DealsTableProps {
   priorities: Option[];
   sources: Option[];
   locale: string;
+  allTags?: Array<{ id: string; name: string }>;
 }
 
 const COLS = [
@@ -57,11 +65,23 @@ const COLS = [
   { id: 'closeDate', labelKey: 'deals.table.closeDate', defaultVisible: true },
   { id: 'age', labelKey: 'deals.table.age', defaultVisible: false },
   { id: 'contacts', labelKey: 'deals.table.contacts', defaultVisible: false },
+  { id: 'company', labelKey: 'deals.detail.company', defaultVisible: true },
+  { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
   { id: 'created', labelKey: 'deals.table.created', defaultVisible: true },
 ];
 
-export default function DealsTable({ rows, sort, stages, priorities, sources, locale }: DealsTableProps) {
+export default function DealsTable({ rows, sort, stages, priorities, sources, locale, allTags = [] }: DealsTableProps) {
   const t = useTranslations('crm');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   const [visible, toggleVisible] = useColumnVisibility(
     COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
     'zs-deals-columns',
@@ -83,6 +103,15 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
         <table className="table crm-table">
           <thead>
             <tr>
+              <th className="cell-check">
+                <input
+                  type="checkbox"
+                  className="row-check"
+                  checked={allSelected}
+                  onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
+                  aria-label={t('common.all')}
+                />
+              </th>
               {visible.has('name') && <th>{t('deals.table.name')}</th>}
               {visible.has('amount') && (
                 <th className="th-num">
@@ -104,6 +133,8 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
               )}
               {visible.has('age') && <th className="th-num">{t('deals.table.age')}</th>}
               {visible.has('contacts') && <th className="th-num">{t('deals.table.contacts')}</th>}
+              {visible.has('company') && <th>{t('deals.detail.company')}</th>}
+              {visible.has('tags') && <th>{t('tags.column')}</th>}
               {visible.has('created') && (
                 <th>
                   <SortTh label={t('deals.table.created')} asc="oldest" desc="newest" current={sort} />
@@ -115,6 +146,15 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
           <tbody>
             {rows.map((row) => (
               <tr key={row.id}>
+                <td className="cell-check">
+                  <input
+                    type="checkbox"
+                    className="row-check"
+                    checked={selected.has(row.id)}
+                    onChange={() => toggleOne(row.id)}
+                    aria-label={row.name}
+                  />
+                </td>
                 {visible.has('name') && (
                   <td>
                     <Link href={`/app/crm/deals/${row.id}`} className="cell-name">
@@ -131,6 +171,7 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
                       type="number"
                       className="mono"
                     />
+                    {row.amountBase && <span className="muted mono cell-converted">≈ {row.amountBase}</span>}
                   </td>
                 )}
                 {visible.has('stage') && (
@@ -176,6 +217,12 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
                 )}
                 {visible.has('age') && <td className="mono muted td-num">{row.age}d</td>}
                 {visible.has('contacts') && <td className="mono td-num">{row.contacts}</td>}
+                {visible.has('company') && <td className="muted cell-sub">{row.companyName || '—'}</td>}
+                {visible.has('tags') && (
+                  <td className="cell-crm-tags">
+                    <TagDots tags={row.tags ?? []} />
+                  </td>
+                )}
                 {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
                 <td className="cell-actions">
                   <button
@@ -193,6 +240,16 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
           </tbody>
         </table>
       </div>
+
+      {selected.size > 0 && (
+        <div className="bulk-bar" role="toolbar">
+          <span className="bulk-count">{t('deals.bulkSelected', { count: selected.size })}</span>
+          <TagBulkControls entity="deal" ids={[...selected]} tags={allTags} onDone={() => setSelected(new Set())} />
+          <button type="button" className="bulk-btn" onClick={() => setSelected(new Set())}>
+            {t('contacts.bulk.clear')}
+          </button>
+        </div>
+      )}
 
       {previewId && (
         <RecordPreview type="deal" id={previewId} locale={locale} onClose={() => setPreviewId(null)} />

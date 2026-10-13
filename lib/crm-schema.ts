@@ -5,10 +5,14 @@
 import { z } from 'zod';
 import {
   ACTIVITY_TYPES,
+  CONTACT_COMPANY_LABELS,
   LIFECYCLE_STAGES,
   LEAD_STATUSES,
   PRIORITIES,
+  RECURRING_INTERVALS,
   SOURCES,
+  TAG_COLORS,
+  TAG_ENTITIES,
 } from './crm-constants';
 
 // ---------- Primitivas compartidas ----------
@@ -30,7 +34,14 @@ const amount = z.number().min(0);
 const currency = z
   .string()
   .trim()
-  .regex(/^[A-Za-z]{3}$/, { message: 'invalid_currency' });
+  .regex(/^[A-Za-z]{3}$/, { message: 'invalid_currency' })
+  .transform((v) => v.toUpperCase());
+const percent = z.number().min(0).max(100);
+/** Solo fecha 'YYYY-MM-DD' (vencimiento de quotes). */
+const dateOnly = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'invalid_date' });
 /**
  * Fecha 'YYYY-MM-DD' o fecha-hora. Acepta ISO 8601 con zona (Z o ±hh:mm, como
  * lo manda cualquier cliente de la API) y lo guarda en UTC 'YYYY-MM-DD HH:MM:SS',
@@ -105,6 +116,8 @@ export const companyCreateSchema = z.object({
   country: shortText.optional(),
   lifecycleStage: lifecycleStage.optional(),
   ownerId: id.nullish(),
+  /** Empresa madre (jerarquía). null = raíz. */
+  parentCompanyId: id.nullish(),
   custom: custom.optional(),
 });
 
@@ -146,6 +159,10 @@ export const dealCreateSchema = z.object({
   source: source.optional(),
   description: longText.optional(),
   contactIds: z.array(id).max(50).optional(),
+  /** Empresa primaria del deal. */
+  companyId: id.nullish(),
+  /** Otras empresas asociadas. */
+  companyIds: z.array(id).max(20).optional(),
   ownerId: id.nullish(),
   custom: custom.optional(),
 });
@@ -157,6 +174,8 @@ export const dealUpdateSchema = dealCreateSchema
     lostReason: shortText.optional(),
     addContactIds: z.array(id).max(50).optional(),
     removeContactIds: z.array(id).max(50).optional(),
+    /** true = amount manual aunque haya line items; false = recalcular desde line items. */
+    amountOverride: z.boolean().optional(),
   });
 
 export const dealMoveSchema = z.object({
@@ -261,6 +280,124 @@ export const customFieldCreateSchema = z.object({
 
 export const customFieldUpdateSchema = customFieldCreateSchema.partial();
 
+// ---------- Asociaciones ----------
+
+const assocObject = z.enum(['contact', 'company', 'deal']);
+
+export const associationSchema = z.object({
+  fromType: assocObject,
+  fromId: id,
+  toType: assocObject,
+  toId: id,
+  /** Empresa primaria (contact ↔ company, deal ↔ company). */
+  primary: z.boolean().optional(),
+  /** Label de contact ↔ company ('' o null = sin label). */
+  label: z.union([z.enum(CONTACT_COMPANY_LABELS), z.literal('')]).nullish(),
+});
+
+export const associationRemoveSchema = associationSchema.omit({ primary: true, label: true });
+
+// ---------- Tags ----------
+
+export const tagCreateSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  color: z.enum(TAG_COLORS).optional(),
+});
+
+export const tagUpdateSchema = tagCreateSchema.partial();
+
+export const tagApplySchema = z.object({
+  entity: z.enum(TAG_ENTITIES),
+  ids: z.array(id).min(1).max(1000),
+  action: z.enum(['add', 'remove']),
+});
+
+export const recordTagsSchema = z.object({
+  entity: z.enum(TAG_ENTITIES),
+  recordId: id,
+  tagIds: z.array(id).max(50),
+});
+
+// ---------- Moneda ----------
+
+export const crmSettingsSchema = z.object({
+  baseCurrency: currency.optional(),
+  quoteAcceptMovesDeal: z.boolean().optional(),
+});
+
+export const exchangeRateSchema = z.object({
+  currency,
+  rate: z.number().positive().max(1e9),
+});
+
+// ---------- Productos, line items, quotes ----------
+
+const money = z.number().min(0).max(1e12);
+
+export const productCreateSchema = z.object({
+  name,
+  sku: z.string().trim().max(100).optional(),
+  description: longText.optional(),
+  price: money.optional(),
+  currency: currency.optional(),
+  recurring: z.enum(RECURRING_INTERVALS).optional(),
+  taxPct: percent.optional(),
+  active: z.boolean().optional(),
+});
+
+export const productUpdateSchema = productCreateSchema.partial();
+
+export const lineItemCreateSchema = z.object({
+  /** De un producto del catálogo (copia nombre, precio e impuesto) o custom (sin productId). */
+  productId: id.nullish(),
+  name: shortText.optional(),
+  sku: z.string().trim().max(100).optional(),
+  description: longText.optional(),
+  quantity: z.number().positive().max(1e9).optional(),
+  unitPrice: money.optional(),
+  discountPct: percent.optional(),
+  taxPct: percent.optional(),
+  recurring: z.enum(RECURRING_INTERVALS).optional(),
+  position: z.number().int().min(0).optional(),
+});
+
+export const lineItemUpdateSchema = lineItemCreateSchema.omit({ productId: true }).partial();
+
+const quoteFields = {
+  title: shortText.optional(),
+  expiresAt: dateOnly.nullish(),
+  terms: longText.optional(),
+  notes: longText.optional(),
+  senderName: shortText.optional(),
+  senderEmail: email.optional(),
+  senderCompany: shortText.optional(),
+  recipientName: shortText.optional(),
+  recipientEmail: email.optional(),
+  recipientCompany: shortText.optional(),
+};
+
+export const quoteCreateSchema = z.object({ dealId: id, ...quoteFields });
+
+export const quoteUpdateSchema = z.object({
+  ...quoteFields,
+  /** Vuelve a tomar los line items actuales del deal (solo borradores). */
+  refreshItems: z.boolean().optional(),
+  /** 'sent' publica el link (draft → sent). */
+  status: z.literal('sent').optional(),
+});
+
+export const quoteRespondSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('accept'),
+    name: z.string().trim().min(1).max(200),
+    agree: z.literal(true),
+  }),
+  z.object({
+    action: z.literal('decline'),
+    reason: z.string().trim().max(1000).optional(),
+  }),
+]);
+
 // ---------- Import ----------
 
 export const importContactRowSchema = z.object({
@@ -275,6 +412,11 @@ export const importContactRowSchema = z.object({
   lifecycleStage: lifecycleStage.optional(),
   leadStatus: leadStatus.optional(),
   source: source.optional(),
+  /** Email (o nombre) de una persona del workspace. */
+  ownerEmail: shortText.optional(),
+  /** Empresa a asociar como primaria (se busca por dominio, luego nombre; se crea si falta). */
+  companyName: shortText.optional(),
+  companyDomain: shortText.optional(),
 });
 
 export const importCompanyRowSchema = z.object({
@@ -287,6 +429,34 @@ export const importCompanyRowSchema = z.object({
   city: shortText.optional(),
   country: shortText.optional(),
   lifecycleStage: lifecycleStage.optional(),
+  ownerEmail: shortText.optional(),
+  /** Empresa madre (solo si ya existe). */
+  parentCompanyName: shortText.optional(),
+  parentCompanyDomain: shortText.optional(),
+});
+
+/** Deals: montos y fechas llegan crudos; lib/crm-import.ts los interpreta. */
+export const importDealRowSchema = z.object({
+  name: shortText.optional(),
+  pipeline: shortText.optional(),
+  stage: shortText.optional(),
+  amount: z.string().trim().max(60).optional(),
+  currency: currency.optional(),
+  closeDate: z.string().trim().max(60).optional(),
+  ownerEmail: shortText.optional(),
+  priority: priority.optional(),
+  source: source.optional(),
+  description: longText.optional(),
+  companyName: shortText.optional(),
+  companyDomain: shortText.optional(),
+  /** Uno o más emails ("Jane (jane@x.com); bob@y.com"). */
+  contactEmail: shortText.optional(),
+});
+
+export const importPresetCreateSchema = z.object({
+  entity: z.enum(['contacts', 'companies', 'deals']),
+  name: z.string().trim().min(1).max(100),
+  mapping: z.record(z.string().max(200), z.string().max(120)),
 });
 
 export const importContactsSchema = z.object({

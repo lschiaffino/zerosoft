@@ -65,6 +65,7 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
             email_opened: t('workflows.triggerTypes.email_opened'),
             email_clicked: t('workflows.triggerTypes.email_clicked'),
             meeting_booked: t('workflows.triggerTypes.meeting_booked'),
+            quote_accepted: t('workflows.triggerTypes.quote_accepted'),
             manual: t('workflows.triggerTypes.manual'),
           },
           actionTypes: {

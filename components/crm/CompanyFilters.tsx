@@ -15,6 +15,9 @@ interface CompanyFiltersProps {
   industry: string;
   lifecycle: string;
   owner: string;
+  /** Tag activo (?tag=) y tags disponibles. */
+  tag?: string;
+  tags?: Array<{ id: string; name: string }>;
   createdFrom: string;
   createdTo: string;
   custom: Record<string, string>;
@@ -33,6 +36,8 @@ export default function CompanyFilters({
   industry,
   lifecycle,
   owner,
+  tag = '',
+  tags = [],
   createdFrom,
   createdTo,
   custom,
@@ -55,6 +60,7 @@ export default function CompanyFilters({
       industry: industry || undefined,
       lifecycle: lifecycle || undefined,
       owner: owner || undefined,
+      tag: tag || undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
       filters: advanced || undefined,
@@ -78,7 +84,7 @@ export default function CompanyFilters({
     go({ [`custom_${name}`]: value || undefined });
   }
 
-  const activeFilters = [q, industry, lifecycle, owner, createdFrom, createdTo, ...Object.values(custom)].filter(
+  const activeFilters = [q, industry, lifecycle, owner, tag, createdFrom, createdTo, ...Object.values(custom)].filter(
     Boolean,
   ).length;
 
@@ -142,6 +148,23 @@ export default function CompanyFilters({
               </option>
             ))}
           </select>
+
+          {tags.length > 0 && (
+            <select
+              className={`filter-select filter-btn${tag ? ' on' : ''}`}
+              value={tag}
+              onChange={(e) => go({ tag: e.target.value || undefined })}
+              aria-label={t('tags.filter')}
+              data-testid="tag-filter"
+            >
+              <option value="">{t('tags.filter')}</option>
+              {tags.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+          )}
           <div className="filter-date-group">
             <input
               className="input filter-date"
@@ -203,6 +226,7 @@ export default function CompanyFilters({
                   industry: undefined,
                   lifecycle: undefined,
                   owner: undefined,
+                  tag: undefined,
                   createdFrom: undefined,
                   createdTo: undefined,
                 })

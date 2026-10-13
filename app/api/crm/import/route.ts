@@ -4,11 +4,14 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import {
   importCompanies,
   importContacts,
+  importDeals,
+  normalizeImportValue,
   type MappedCompanyRow,
   type MappedContactRow,
-} from '@/lib/crm';
+  type MappedDealRow,
+} from '@/lib/crm-import';
 import { crmError, unauthorized, limitAction } from '@/lib/crm-http';
-import { importCompanyRowSchema, importContactRowSchema } from '@/lib/crm-schema';
+import { importCompanyRowSchema, importContactRowSchema, importDealRowSchema } from '@/lib/crm-schema';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,14 +20,18 @@ export const dynamic = 'force-dynamic';
 // Cada fila se sanea campo por campo con el schema de import: lo que no valida
 // se descarta (un "Lead" en mayúscula se acepta como 'lead'), así una celda
 // mala no tumba el import entero. El email se pasa tal cual para que la lib
-// lo reporte como error de esa fila.
+// lo reporte como error de esa fila. Los valores de HubSpot ("Marketing
+// Qualified Lead", "In Progress"…) se traducen antes de validar, y las claves
+// `custom.<name>` pasan como texto: la lib las convierte según el tipo.
 const importSchema = z.object({
-  entity: z.enum(['contacts', 'companies']),
+  entity: z.enum(['contacts', 'companies', 'deals']),
   mode: z.enum(['skip', 'update']),
   rows: z.array(z.record(z.string(), z.string())).min(1).max(5000),
 });
 
-type RowSchema = typeof importContactRowSchema | typeof importCompanyRowSchema;
+type RowSchema = typeof importContactRowSchema | typeof importCompanyRowSchema | typeof importDealRowSchema;
+
+const CUSTOM_KEY = /^custom\.([A-Za-z0-9_-]{1,64})$/;
 
 function sanitizeRows(rows: Array<Record<string, string>>, schema: RowSchema): Array<Record<string, unknown>> {
   const shape = schema.shape as Record<string, z.ZodTypeAny>;
@@ -42,7 +49,8 @@ function sanitizeRows(rows: Array<Record<string, string>>, schema: RowSchema): A
         if (value.replace(/[^\d]/g, '') && Number.isSafeInteger(n)) out.employees = n;
         continue;
       }
-      for (const candidate of [value, value.toLowerCase()]) {
+      const normalized = normalizeImportValue(key, value);
+      for (const candidate of [normalized, normalized.toLowerCase()]) {
         const r = field.safeParse(candidate);
         if (r.success && r.data !== undefined) {
           out[key] = r.data;
@@ -50,6 +58,13 @@ function sanitizeRows(rows: Array<Record<string, string>>, schema: RowSchema): A
         }
       }
     }
+    const custom: Record<string, string> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      const m = CUSTOM_KEY.exec(key);
+      const v = value?.trim();
+      if (m && v) custom[m[1]] = v.slice(0, 500);
+    }
+    if (Object.keys(custom).length) out.custom = custom;
     return out;
   });
 }
@@ -69,7 +84,9 @@ export async function POST(req: NextRequest) {
     const result =
       entity === 'contacts'
         ? await importContacts(user.id, sanitizeRows(rows, importContactRowSchema) as MappedContactRow[], mode)
-        : await importCompanies(user.id, sanitizeRows(rows, importCompanyRowSchema) as MappedCompanyRow[], mode);
+        : entity === 'companies'
+          ? await importCompanies(user.id, sanitizeRows(rows, importCompanyRowSchema) as MappedCompanyRow[], mode)
+          : await importDeals(user.id, sanitizeRows(rows, importDealRowSchema) as MappedDealRow[], mode);
     return NextResponse.json(result);
   } catch {
     return crmError(500, 'import_failed');

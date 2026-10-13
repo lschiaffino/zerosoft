@@ -217,6 +217,7 @@
     "deal_stage_changed": "CRM: deal changed stage",
     "deal_won": "CRM: deal won",
     "deal_lost": "CRM: deal lost",
+    "quote_accepted": "CRM: quote accepted",
     "email_received": "CRM: email received",
     "email_sent": "CRM: email sent",
     "email_opened": "CRM: email opened",

@@ -46,6 +46,8 @@ export interface SidebarLabels {
     settings: string;
     sequences: string;
     templates: string;
+    products: string;
+    quotes: string;
   };
   docs: {
     overview: string;
@@ -238,6 +240,8 @@ export default function AppSidebar({
         { href: '/app/crm/companies', label: labels.crm.companies, active: pathname.startsWith('/app/crm/companies'), icon: 'companies' },
         { href: '/app/crm/deals', label: labels.crm.deals, active: pathname.startsWith('/app/crm/deals'), icon: 'deals' },
         { href: '/app/crm/lists', label: labels.crm.lists, active: pathname.startsWith('/app/crm/lists'), icon: 'lists' },
+        { href: '/app/crm/products', label: labels.crm.products, active: pathname.startsWith('/app/crm/products'), icon: 'lists' },
+        { href: '/app/crm/quotes', label: labels.crm.quotes, active: pathname.startsWith('/app/crm/quotes'), icon: 'docs' },
       ],
     },
     {

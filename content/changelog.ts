@@ -26,6 +26,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-crm-model',
+    date: '2026-10-13',
+    title: {
+      en: 'CRM: products, quotes, associations, tags and currencies',
+      es: 'CRM: productos, cotizaciones, asociaciones, tags y monedas',
+      pt: 'CRM: produtos, cotações, associações, tags e moedas',
+    },
+    items: [
+      { product: 'crm', en: 'Product catalog and line items on deals: the deal amount adds itself up. Send a quote as a public page your customer can accept with their name; accepting can move the deal to won.', es: 'Catálogo de productos y líneas en los deals: el monto del deal se calcula solo. Mandá una cotización como página pública que tu cliente acepta con su nombre; al aceptarla, el deal puede pasar a ganado.', pt: 'Catálogo de produtos e itens nos deals: o valor do deal se calcula sozinho. Envie uma cotação como página pública que o cliente aceita com o nome; ao aceitar, o deal pode virar ganho.' },
+      { product: 'crm', en: 'Contacts and deals can belong to several companies, companies can have parents and children, and everything can be tagged and filtered by tag.', es: 'Contactos y deals pueden estar en varias empresas, las empresas pueden tener madre e hijas, y todo se puede etiquetar y filtrar por tag.', pt: 'Contatos e deals podem estar em várias empresas, empresas podem ter matriz e filiais, e tudo pode receber tags e ser filtrado por tag.' },
+      { product: 'crm', en: 'Multi-currency with a base currency and your own exchange rates in reports. Import deals and use a ready-made HubSpot export mapping.', es: 'Multi-moneda con moneda base y tus propios tipos de cambio en los reportes. Importá deals y usá un mapeo listo para exports de HubSpot.', pt: 'Multimoeda com moeda base e suas próprias taxas de câmbio nos relatórios. Importe deals e use um mapeamento pronto para exports do HubSpot.' },
+    ],
+  },
+  {
     id: '2026-10-13-crm-email',
     date: '2026-10-13',
     title: {

@@ -22,6 +22,7 @@ import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+import { listTags, tagsForRecords } from '@/lib/crm-tags';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +85,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const owner = one(searchParams.owner) ?? str(viewQuery.owner) ?? '';
   const createdFrom = one(searchParams.createdFrom) ?? str(viewQuery.createdFrom) ?? '';
   const createdTo = one(searchParams.createdTo) ?? str(viewQuery.createdTo) ?? '';
+  const tag = one(searchParams.tag) ?? str(viewQuery.tag) ?? '';
   const custom = parseCustomFilter(searchParams, viewQuery);
   const rawFilters = one(searchParams.filters) ?? str(viewQuery.filters) ?? '';
   const advancedRules = parseFilterRules(rawFilters);
@@ -106,6 +108,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     owner: owner || undefined,
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
+    tag: tag || undefined,
     custom: Object.keys(custom).length ? custom : undefined,
     filters: advancedRules.length ? advancedRules : undefined,
     customTypes,
@@ -113,6 +116,11 @@ export default async function ContactsPage(props: ContactsPageProps) {
     page,
   });
   const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
+  const [allTags, rowTags] = await Promise.all([
+    listTags(user.id),
+    tagsForRecords(user.id, 'contact', rows.map((r) => r.id)),
+  ]);
+  const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
 
   const companies = (await listCompanies(user.id, { pageSize: 200, sort: 'name' })).rows.map((c) => ({
     value: c.id,
@@ -163,6 +171,12 @@ export default async function ContactsPage(props: ContactsPageProps) {
       options: SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
     },
     { key: 'created', label: t('filters.field.created'), type: 'date' },
+    {
+      key: 'tag',
+      label: t('filters.field.tag'),
+      type: 'select',
+      options: allTags.map((x) => ({ value: x.id, label: x.name })),
+    },
     ...customFieldDefs.map((cf): FilterBuilderField => {
       if (cf.type === 'boolean') {
         return {
@@ -208,6 +222,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     leadStatus: c.lead_status,
     source: c.source,
     created: formatDate(c.created_at, locale),
+    tags: rowTags.get(c.id) ?? [],
   }));
 
   const query: Record<string, string> = {};
@@ -216,6 +231,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   if (leadStatus) query.leadStatus = leadStatus;
   if (source) query.source = source;
   if (owner) query.owner = owner;
+  if (tag) query.tag = tag;
   if (createdFrom) query.createdFrom = createdFrom;
   if (createdTo) query.createdTo = createdTo;
   Object.entries(custom).forEach(([k, v]) => {
@@ -231,6 +247,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     !!leadStatus ||
     !!source ||
     !!owner ||
+    !!tag ||
     !!createdFrom ||
     !!createdTo ||
     Object.keys(custom).length > 0;
@@ -248,6 +265,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
         leadStatus={leadStatus}
         source={source}
         owner={owner}
+        tag={tag}
+        tags={tagOptions}
         createdFrom={createdFrom}
         createdTo={createdTo}
         custom={custom}
@@ -290,6 +309,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
             companies={companies}
             locale={locale}
             sequences={(await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }))}
+            allTags={tagOptions}
           />
           {pages > 1 && (
             <nav className="pager mono">

@@ -28,6 +28,10 @@ interface DashboardsViewProps {
   defaultPipelineId: string | null;
   initialData: DashboardInitialData;
   locale: string;
+  /** Moneda base del workspace (montos convertidos). */
+  baseCurrency?: string;
+  /** Monedas usadas sin tipo de cambio (se suman 1:1). */
+  missingRates?: string[];
 }
 
 interface DragState {
@@ -78,10 +82,11 @@ function parseConfig(raw: string): DashboardWidgetConfig {
   }
 }
 
-function formatMoney(n: number, locale: string): string {
+/** Montos de reportes: siempre en la moneda base del workspace (los deals se convierten en SQL). */
+function formatMoney(n: number, locale: string, currency = 'USD'): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'USD',
+    currency,
     maximumFractionDigits: 0,
   }).format(n);
 }
@@ -322,6 +327,8 @@ function WonLostChart({
 // ---------- View ----------
 
 export default function DashboardsView({
+  baseCurrency = 'USD',
+  missingRates = [],
   dashboards,
   pipelines,
   defaultPipelineId,
@@ -329,6 +336,7 @@ export default function DashboardsView({
   locale,
 }: DashboardsViewProps) {
   const t = useTranslations('crm.dashboards');
+  const tc = useTranslations('crm');
   const tCrm = useTranslations('crm');
 
   const [boards, setBoards] = useState<CrmDashboardWithWidgets[]>(dashboards);
@@ -760,7 +768,7 @@ export default function DashboardsView({
         return (
           <div className="dash-kpi">
             <span className="stat-num dash-kpi-value">
-              {metric === 'wonAmount' ? formatMoney(value, locale) : formatNumber(value, locale)}
+              {metric === 'wonAmount' ? formatMoney(value, locale, baseCurrency) : formatNumber(value, locale)}
             </span>
             <span className={`stat-delta ${delta >= 0 ? 'up' : 'down'}`}>
               {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)}%
@@ -781,7 +789,7 @@ export default function DashboardsView({
                 </span>
                 <span
                   className="breakdown-track"
-                  title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale)}`}
+                  title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale, baseCurrency)}`}
                 >
                   <span
                     className="breakdown-bar"
@@ -809,7 +817,7 @@ export default function DashboardsView({
         return (
           <>
             <div className="report-total">
-              <span className="stat-num dash-total-num">{formatMoney(total, locale)}</span>
+              <span className="stat-num dash-total-num">{formatMoney(total, locale, baseCurrency)}</span>
               <span className="stat-label">
                 {tCrm('reports.total')} · {tCrm('reports.forecast')}
               </span>
@@ -822,14 +830,14 @@ export default function DashboardsView({
                   </span>
                   <span
                     className="breakdown-track"
-                    title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale)}`}
+                    title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale, baseCurrency)}`}
                   >
                     <span
                       className="breakdown-bar"
                       style={{ width: `${Math.max((stage.forecast / max) * 100, 2)}%` }}
                     />
                   </span>
-                  <span className="funnel-stats mono">{formatMoney(stage.forecast, locale)}</span>
+                  <span className="funnel-stats mono">{formatMoney(stage.forecast, locale, baseCurrency)}</span>
                 </div>
               ))}
             </div>
@@ -878,7 +886,7 @@ export default function DashboardsView({
                 </span>
                 <span
                   className="breakdown-track"
-                  title={`${formatNumber(s.contacts, locale)} · ${formatMoney(s.amount, locale)}`}
+                  title={`${formatNumber(s.contacts, locale)} · ${formatMoney(s.amount, locale, baseCurrency)}`}
                 >
                   <span
                     className="breakdown-bar"
@@ -910,7 +918,7 @@ export default function DashboardsView({
                   <td>{o.name ?? o.email}</td>
                   <td className="mono td-num">{formatNumber(o.contacts, locale)}</td>
                   <td className="mono td-num">{formatNumber(o.deals, locale)}</td>
-                  <td className="mono td-num">{formatMoney(o.wonAmount, locale)}</td>
+                  <td className="mono td-num">{formatMoney(o.wonAmount, locale, baseCurrency)}</td>
                 </tr>
               ))}
             </tbody>
@@ -985,6 +993,9 @@ export default function DashboardsView({
   return (
     <div className="dash">
       {error && <p className="form-error">{error}</p>}
+      {missingRates.length > 0 && (
+        <p className="muted currency-note">{tc('currency.missing', { list: missingRates.join(', ') })}</p>
+      )}
 
       <div className="dash-tabs">
         {boards.map((b) => (
