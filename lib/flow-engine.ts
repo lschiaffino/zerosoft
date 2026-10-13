@@ -201,7 +201,7 @@ async function trackIssueNode(ws: string, cfg: Record<string, unknown>, tctx: Re
     title,
     description: description ? [{ type: 'text', text: description }] : undefined,
     priority,
-  });
+  }, { source: 'flow' });
   return { issue: { id: issue.id, identifier: issue.identifier, title: issue.title }, project: { id: project.id, name: project.name } };
 }
 

@@ -1682,6 +1682,128 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  // ---------- Track d9 (027_track_*) ----------
+  {
+    // Track: labels del workspace (workspace_id = team activo o, en el
+    // workspace personal, el id del dueño). Los labels libres que ya tenían
+    // los issues (JSON en track_issues.labels) se copian como labels del
+    // workspace, deduplicados por nombre; el JSON del issue se conserva y solo
+    // se reescriben los ids para apuntar al label del workspace.
+    id: '027_track_labels',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_labels (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          color TEXT NOT NULL DEFAULT '#666666',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_track_labels_name ON track_labels(workspace_id, name COLLATE NOCASE);
+      `);
+      const rows = (
+        await client.execute(
+          `SELECT i.id, i.labels, COALESCE(p.team_id, p.owner_id) AS ws
+           FROM track_issues i JOIN track_projects p ON p.id = i.project_id
+           WHERE i.labels IS NOT NULL AND i.labels != '[]' AND COALESCE(p.team_id, p.owner_id) IS NOT NULL`,
+        )
+      ).rows;
+      const byName = new Map<string, { id: string; name: string; color: string }>();
+      const existing = (await client.execute('SELECT id, workspace_id, name, color FROM track_labels')).rows;
+      for (const r of existing) {
+        byName.set(`${r.workspace_id}\u0000${String(r.name).toLowerCase()}`, {
+          id: String(r.id),
+          name: String(r.name),
+          color: String(r.color),
+        });
+      }
+      const usedIds = new Set(existing.map((r) => String(r.id)));
+      for (const r of rows) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(String(r.labels));
+        } catch {
+          continue;
+        }
+        if (!Array.isArray(parsed)) continue;
+        const ws = String(r.ws);
+        const next: Array<{ id: string; name: string; color: string }> = [];
+        for (const l of parsed as Array<Record<string, unknown>>) {
+          const name = String(l?.name ?? '').trim().slice(0, 50);
+          if (!name) continue;
+          const key = `${ws}\u0000${name.toLowerCase()}`;
+          let label = byName.get(key);
+          if (!label) {
+            const raw = typeof l.id === 'string' && l.id && !usedIds.has(l.id) ? l.id : crypto.randomUUID();
+            label = { id: raw, name, color: typeof l.color === 'string' && l.color ? l.color.slice(0, 20) : '#666666' };
+            await client.execute({
+              sql: 'INSERT OR IGNORE INTO track_labels (id, workspace_id, name, color) VALUES (?, ?, ?, ?)',
+              args: [label.id, ws, label.name, label.color],
+            });
+            usedIds.add(label.id);
+            byName.set(key, label);
+          }
+          if (!next.some((x) => x.id === label!.id)) next.push(label);
+        }
+        await client.execute({
+          sql: 'UPDATE track_issues SET labels = ? WHERE id = ?',
+          args: [JSON.stringify(next), String(r.id)],
+        });
+      }
+    },
+  },
+  {
+    // Track: integración con GitHub por webhook (sin GitHub App). Un webhook
+    // por workspace: secreto cifrado (lib/secret-box), repos aceptados y qué
+    // hacer al abrir / mergear un PR. track_issue_links guarda PRs y commits
+    // vinculados a issues.
+    id: '027_track_github',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_github (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL UNIQUE,
+          owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          secret TEXT NOT NULL,
+          repos TEXT NOT NULL DEFAULT '[]',
+          on_pr_open TEXT NOT NULL DEFAULT 'in_progress',
+          on_pr_merge TEXT NOT NULL DEFAULT 'done',
+          last_delivery_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS track_issue_links (
+          id TEXT PRIMARY KEY,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL CHECK (kind IN ('pr', 'commit')),
+          repo TEXT NOT NULL,
+          ref TEXT NOT NULL,
+          url TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          state TEXT NOT NULL DEFAULT 'open',
+          branch TEXT,
+          author TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (issue_id, kind, repo, ref)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_links_issue ON track_issue_links(issue_id, created_at DESC);
+      `);
+    },
+  },
+  {
+    // Track: triage. Issues creados desde afuera (API, Chat, Flow, GitHub)
+    // entran a una cola por proyecto si el proyecto tiene triage activo.
+    id: '027_track_triage',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN triage_enabled INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE track_issues ADD COLUMN source TEXT NOT NULL DEFAULT 'app'");
+      await addColumn(client, 'ALTER TABLE track_issues ADD COLUMN triage INTEGER NOT NULL DEFAULT 0');
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_track_issues_triage ON track_issues(project_id, triage, created_at DESC)',
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
