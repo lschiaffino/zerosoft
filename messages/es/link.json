@@ -67,7 +67,9 @@
     "emptySub": "Probá otra búsqueda o creá un link nuevo.",
     "emptyCta": "Nuevo link",
     "emptyAllTitle": "Todavía no hay nada",
-    "emptyAllSub": "Creá tu primer short link y mirá cómo caen los ceros."
+    "emptyAllSub": "Creá tu primer short link y mirá cómo caen los ceros.",
+    "bulkCta": "Crear en lote",
+    "clearFilters": "Limpiar filtros"
   },
   "new": {
     "title": "Nuevo link",
@@ -167,7 +169,8 @@
     "createdLabel": "Creado",
     "noData": "Sin datos en este rango",
     "range90": "90 días",
-    "inRange": "{range} · vs anterior"
+    "inRange": "{range} · vs anterior",
+    "deltaNew": "nuevo"
   },
   "bulk": {
     "title": "Creación masiva",
@@ -351,5 +354,17 @@
     "saved": "Guardado ✓",
     "view": "Ver página ↗",
     "error": "Revisá los campos (el avatar tiene que ser una URL https)."
+  },
+  "quick": {
+    "cancel": "Cancelar",
+    "hint": "⌘↵ para crear · Esc para cerrar",
+    "more": "Más opciones",
+    "urlPlaceholder": "Pegá una URL larga…",
+    "slug": "Link corto",
+    "title": "Título",
+    "tags": "Etiquetas",
+    "created": "Link creado:",
+    "createdCopied": "Creado y copiado:",
+    "dismiss": "Cerrar"
   }
 }

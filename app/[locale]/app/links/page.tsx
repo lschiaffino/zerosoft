@@ -2,9 +2,11 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { linkStatus, listLinks, parseTags, userTags, type ArchivedFilter } from '@/lib/links';
-import { formatDate, shortUrl } from '@/lib/utils';
+import { formatDate, shortDomain, shortUrl } from '@/lib/utils';
+import { listDomains } from '@/lib/link-domains';
 import FilterBar from '@/components/link/FilterBar';
 import LinksTable, { type TableRow } from '@/components/link/LinksTable';
+import LinksQuickCreate, { NewLinkButton } from '@/components/link/LinksQuickCreate';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +39,9 @@ export default async function LinksPage(props: LinksPageProps) {
 
   const result = await listLinks(user.id, { q: q || undefined, tag: tag ?? undefined, archived, sort, page });
   const tags = await userTags(user.id);
+  const customDomains = (await listDomains(user.id))
+    .filter((d) => d.verified === 1)
+    .map((d) => ({ id: d.id, hostname: d.hostname }));
 
   const rows: TableRow[] = result.links.map((l) => ({
     id: l.id,
@@ -60,12 +65,15 @@ export default async function LinksPage(props: LinksPageProps) {
   const hasFilters = !!q || !!tag || archived !== '0';
 
   return (
-    <div className="app-page">
+    <div className="app-page links-page">
       <div className="page-head">
         <h1 className="app-title">{t('table.title')}</h1>
-        <Link href="/app/links/new" className="btn btn-solid btn-small">
-          {t('table.newCta')}
-        </Link>
+        <div className="page-head-actions">
+          <Link href="/app/links/bulk" className="btn btn-small">
+            {t('table.bulkCta')}
+          </Link>
+          <LinksQuickCreate domain={shortDomain()} customDomains={customDomains} />
+        </div>
       </div>
 
       <FilterBar q={q} tag={tag} archived={archived} sort={sort} tags={tags} />
@@ -77,9 +85,13 @@ export default async function LinksPage(props: LinksPageProps) {
           </p>
           <h2>{hasFilters ? t('table.emptyTitle') : t('table.emptyAllTitle')}</h2>
           <p className="muted">{hasFilters ? t('table.emptySub') : t('table.emptyAllSub')}</p>
-          <Link href="/app/links/new" className="btn btn-solid btn-small">
-            {t('table.emptyCta')}
-          </Link>
+          {hasFilters ? (
+            <Link href="/app/links" className="btn btn-small">
+              {t('table.clearFilters')}
+            </Link>
+          ) : (
+            <NewLinkButton label={t('table.emptyCta')} />
+          )}
         </div>
       ) : (
         <>

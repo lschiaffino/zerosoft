@@ -6,8 +6,12 @@ import { listDomains } from '@/lib/link-domains';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewLinkPage(props: { params: Promise<{ locale: string }> }) {
+export default async function NewLinkPage(props: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const params = await props.params;
+  const searchParams = await props.searchParams;
 
   const {
     locale
@@ -18,12 +22,13 @@ export default async function NewLinkPage(props: { params: Promise<{ locale: str
     .filter((d) => d.verified === 1)
     .map((d) => ({ id: d.id, hostname: d.hostname }));
   const t = await getTranslations({ locale, namespace: 'link' });
+  const initialUrl = typeof searchParams.url === 'string' ? searchParams.url.slice(0, 2000) : '';
 
   return (
     <div className="app-page narrow">
       <h1 className="app-title">{t('new.title')}</h1>
       <p className="app-sub muted">{t('new.sub')}</p>
-      <NewLinkForm domain={shortDomain()} customDomains={customDomains} />
+      <NewLinkForm domain={shortDomain()} customDomains={customDomains} initialUrl={initialUrl} />
     </div>
   );
 }

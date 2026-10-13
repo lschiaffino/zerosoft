@@ -197,3 +197,25 @@ test('Cal → CRM: reservar crea el contacto con la reunión en su timeline', as
   await page.goto(`/en/app/crm/contacts/${contactId}`);
   await expect(page.getByText(`Demo ${tag}`).first()).toBeVisible();
 });
+
+test('Link: quick-create desde la lista (tecla C) sin salir de la vista', async ({ page }) => {
+  const slug = `qc${uid()}`;
+  await page.goto('/en/app/links', { waitUntil: 'networkidle' });
+  await page.keyboard.press('c');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByPlaceholder('Paste a long URL…').fill('example.com/quick-create');
+  await dialog.getByPlaceholder('my-link').fill(slug);
+  await dialog.getByRole('button', { name: 'Create link' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL(/\/en\/app\/links$/);
+  await expect(page.getByRole('status')).toContainText(slug);
+  await expect(page.locator('.links-table').getByText(slug).first()).toBeVisible();
+
+  // "More options" lleva al formulario completo con la URL precargada.
+  await page.keyboard.press('c');
+  await page.getByRole('dialog').getByPlaceholder('Paste a long URL…').fill('https://example.com/full');
+  await page.getByRole('link', { name: 'More options' }).click();
+  await expect(page).toHaveURL(/\/en\/app\/links\/new\?url=/);
+  await expect(page.locator('#nl-url')).toHaveValue('https://example.com/full');
+});
