@@ -560,6 +560,15 @@ export const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    // Flow salió: el ítem del roadmap pasa a "hecho".
+    id: '017_flow_roadmap_done',
+    async up(client) {
+      await client.execute(
+        "UPDATE roadmap_items SET status = 'done', updated_at = datetime('now') WHERE id = 'rm_seed_flow' AND status = 'in_progress'",
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

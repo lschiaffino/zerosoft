@@ -39,15 +39,24 @@ export default function SuiteGrid({ cta }: { cta?: { label: string; href: string
             })}
             {UPCOMING.filter((u) => u.audience === a).map((u) => {
               n += 1;
+              const inner = (
+                <>
+                  <span className="suite-num">{String(n).padStart(2, '0')}</span>
+                  <span className="suite-name">{u.name}</span>
+                  <span className="suite-line">{h(`suite.upcoming.${u.key}`)}</span>
+                  <span className="suite-vs">{h('suite.replaces', { rival: u.rival })}</span>
+                  <span className="suite-soon">{h(u.href ? 'suite.new' : 'suite.soon')}</span>
+                </>
+              );
               return (
-                <li key={u.key} className={`suite-row is-soon card-${u.key}`}>
-                  <div className="suite-row-link">
-                    <span className="suite-num">{String(n).padStart(2, '0')}</span>
-                    <span className="suite-name">{u.name}</span>
-                    <span className="suite-line">{h(`suite.upcoming.${u.key}`)}</span>
-                    <span className="suite-vs">{h('suite.replaces', { rival: u.rival })}</span>
-                    <span className="suite-soon">{h('suite.soon')}</span>
-                  </div>
+                <li key={u.key} className={`suite-row ${u.href ? '' : 'is-soon '}card-${u.key}`}>
+                  {u.href ? (
+                    <Link href={u.href} className="suite-row-link">
+                      {inner}
+                    </Link>
+                  ) : (
+                    <div className="suite-row-link">{inner}</div>
+                  )}
                 </li>
               );
             })}

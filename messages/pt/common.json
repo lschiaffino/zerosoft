@@ -280,7 +280,8 @@
         "robots": "Robôs que usam o navegador por você.",
         "notes": "Notas rápidas, cadernos e busca.",
         "board": "Um quadro branco infinito."
-      }
+      },
+      "new": "Novo"
     },
     "stack": {
       "label": "0.02 — Substitua seu stack",

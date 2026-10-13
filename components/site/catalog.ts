@@ -59,9 +59,13 @@ export const AUDIENCE_PRODUCTS: Record<Audience, readonly ProductKey[]> = {
  */
 export type UpcomingKey = 'agents' | 'flow' | 'robots' | 'notes' | 'board';
 
-export const UPCOMING: ReadonlyArray<{ key: UpcomingKey; name: string; rival: string; audience: Audience }> = [
+/**
+ * `href` = ya está en la app pero todavía sin página de producto: se muestra
+ * como "Nuevo" con link a la app en vez de "Pronto".
+ */
+export const UPCOMING: ReadonlyArray<{ key: UpcomingKey; name: string; rival: string; audience: Audience; href?: string }> = [
   { key: 'agents', name: 'Agents', rival: 'Intercom Fin', audience: 'teams' },
-  { key: 'flow', name: 'Flow', rival: 'Zapier · n8n', audience: 'teams' },
+  { key: 'flow', name: 'Flow', rival: 'Zapier · n8n', audience: 'teams', href: '/app/flow' },
   { key: 'robots', name: 'Robots', rival: 'UiPath', audience: 'teams' },
   { key: 'notes', name: 'Notes', rival: 'Evernote', audience: 'personal' },
   { key: 'board', name: 'Board', rival: 'Miro', audience: 'personal' },
