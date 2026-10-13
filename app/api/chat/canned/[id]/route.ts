@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { canAccessWidget } from '@/lib/chat-access';
+import { setCannedActions, type CannedActions } from '@/lib/chat-inbox';
 import {
   deleteCannedResponse,
   getCannedResponse,
@@ -16,10 +18,9 @@ async function canAccessResponse(
   const response = await getCannedResponse(responseId);
   if (!response) return { ok: false, response: null };
   const widget = await getChatWidget(response.widget_id);
-  if (!widget) return { ok: false, response: null };
-  if (widget.user_id !== user.id && widget.team_id !== user.team?.id) {
-    return { ok: false, response: null };
-  }
+  // canAccessWidget: antes `widget.team_id !== user.team?.id` dejaba pasar a
+  // cualquier usuario sin team sobre widgets personales ajenos (null === null).
+  if (!canAccessWidget(widget, user)) return { ok: false, response: null };
   return { ok: true, response };
 }
 
@@ -53,7 +54,10 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
   });
 
   if (!updated) return NextResponse.json({ error: 'generic' }, { status: 500 });
-  return NextResponse.json(updated);
+  if (body.actions && typeof body.actions === 'object') {
+    await setCannedActions(params.id, body.actions as CannedActions);
+  }
+  return NextResponse.json((await getCannedResponse(params.id)) ?? updated);
 }
 
 export async function DELETE(_req: Request, props: { params: Promise<{ id: string }> }) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import {
   countUnreadNotifications,
   listNotifications,
@@ -22,13 +22,13 @@ export async function GET(req: NextRequest) {
   const types = sp.getAll('type').filter(Boolean);
 
   const [rows, unreadCount] = await Promise.all([
-    listNotifications(user.id, {
+    listNotifications(realUserId(user), {
       unreadOnly,
       limit,
       page,
       type: types.length ? (types as NotificationType[]) : undefined,
     }),
-    countUnreadNotifications(user.id),
+    countUnreadNotifications(realUserId(user)),
   ]);
 
   return NextResponse.json({ rows, unreadCount });
@@ -40,9 +40,9 @@ export async function PATCH(req: NextRequest) {
 
   const body: unknown = await req.json().catch(() => null);
   if (body && typeof body === 'object' && 'readAll' in body && body.readAll === true) {
-    await markAllNotificationsRead(user.id);
+    await markAllNotificationsRead(realUserId(user));
   }
 
-  const unreadCount = await countUnreadNotifications(user.id);
+  const unreadCount = await countUnreadNotifications(realUserId(user));
   return NextResponse.json({ ok: true, unreadCount });
 }

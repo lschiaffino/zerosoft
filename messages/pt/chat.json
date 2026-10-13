@@ -283,6 +283,55 @@
   },
   "reports": {
     "title": "Relatórios",
-    "subtitle": "SLA e satisfação de todos os widgets."
+    "subtitle": "Conversas criadas no período, por agente.",
+    "exportCsv": "Exportar CSV",
+    "from": "De",
+    "to": "Até",
+    "apply": "Aplicar",
+    "lastDays": "Últimos {days} dias",
+    "conversations": "Conversas",
+    "responses": "{count, plural, one {# resposta} other {# respostas}}",
+    "byAgent": "Por agente",
+    "empty": "Não há conversas neste período.",
+    "agent": "Agente",
+    "firstResponse": "Primeira resposta",
+    "resolution": "Resolução",
+    "resolved": "Resolvidas",
+    "note": "Os tempos são médias desde a criação da conversa. CSAT de 1 a 5."
+  },
+  "tags": {
+    "title": "Tags",
+    "filter": "Filtrar por tag",
+    "all": "Todas as tags",
+    "remove": "Remover #{tag}",
+    "add": "+ tag"
+  },
+  "notes": {
+    "label": "Nota interna",
+    "mode": "Tipo de mensagem",
+    "hint": "Nota interna… só sua equipe vê. @ para mencionar",
+    "add": "Adicionar nota"
+  },
+  "macros": {
+    "applied": "Macro {shortcut} aplicada",
+    "title": "Ações ao usar esta resposta (macro)",
+    "status": "Status",
+    "assign": "Atribuir a",
+    "tags": "Adicionar tags",
+    "snooze": "Adiar",
+    "none": "Sem mudança",
+    "me": "Quem usar",
+    "summary": {
+      "snooze": "Adia {hours} h",
+      "status": "Muda para {status}",
+      "unassign": "Remove atribuição",
+      "assign": "Atribui a {name}"
+    }
+  },
+  "help": {
+    "title": "Ajuda",
+    "enabled": "Mostrar aba de ajuda",
+    "hint": "O widget ganha uma aba com os artigos publicados do Docs e os sugere enquanto o visitante digita a pergunta.",
+    "open": "Ver central de ajuda"
   }
 }

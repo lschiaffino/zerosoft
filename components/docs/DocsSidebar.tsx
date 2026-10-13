@@ -24,6 +24,8 @@ interface DocsSidebarProps {
     newSubpage: string;
     empty: string;
   };
+  /** Páginas de otros workspaces compartidas con la persona. */
+  shared?: Array<{ id: string; title: string; icon: string | null; role: 'view' | 'edit'; owner_name: string | null; owner_email: string }>;
 }
 
 type TreeNode = DocsPage & { children?: TreeNode[] };
@@ -50,6 +52,7 @@ export default function DocsSidebar({
   reorderAction,
   stepAction,
   labels,
+  shared = [],
 }: DocsSidebarProps) {
   const t = useTranslations('docs');
   const router = useRouter();
@@ -289,6 +292,27 @@ export default function DocsSidebar({
           >
             {t('sidebar.dropTopLevel')}
           </div>
+        )}
+
+        {shared.length > 0 && (
+          <nav className="docs-shared" aria-label={t('sidebar.sharedWithMe')}>
+            <p className="docs-shared-label">{t('sidebar.sharedWithMe')}</p>
+            <ul className="docs-tree">
+              {shared.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    href={`/app/docs/${p.id}`}
+                    className={`docs-shared-row${p.id === currentId ? ' active' : ''}`}
+                    title={t('sidebar.sharedBy', { name: p.owner_name || p.owner_email })}
+                  >
+                    <span className="docs-tree-icon" aria-hidden>{p.icon ?? '📄'}</span>
+                    <span className="docs-shared-title">{p.title || t('untitled')}</span>
+                    <span className="docs-shared-role mono">{t(`share.roles.${p.role}`)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         )}
 
         <div className="docs-sidebar-foot">

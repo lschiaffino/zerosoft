@@ -21,6 +21,8 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
 
   const [tab, setTab] = useState<FilterTab>('open');
   const [q, setQ] = useState('');
+  const [tag, setTag] = useState('');
+  const [tags, setTags] = useState<Array<{ tag: string; count: number }>>([]);
   const [rows, setRows] = useState<ChatConversationListRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -34,13 +36,22 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
     const base: Record<string, string> = {};
     if (widgetIds.length > 0) base.widgetIds = widgetIds.join(',');
     if (q.trim()) base.q = q.trim();
+    if (tag) base.tag = tag;
     if (tab === 'open' || tab === 'pending' || tab === 'snoozed' || tab === 'resolved') {
       base.status = tab;
     }
     if (tab === 'unassigned') base.assignedTo = 'unassigned';
     if (tab === 'mine') base.assignedTo = currentUserId;
     return base;
-  }, [tab, q, widgetIds, currentUserId]);
+  }, [tab, q, tag, widgetIds, currentUserId]);
+
+  useEffect(() => {
+    if (widgetIds.length === 0) return;
+    fetch('/api/chat/tags')
+      .then((r) => (r.ok ? r.json() : { rows: [] }))
+      .then((d: { rows?: Array<{ tag: string; count: number }> }) => setTags(d.rows ?? []))
+      .catch(() => {});
+  }, [widgetIds.length]);
 
   async function fetchRows(offset: number, append: boolean) {
     if (widgetIds.length === 0) {
@@ -130,6 +141,21 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
             </button>
           ))}
         </div>
+        {tags.length > 0 && (
+          <select
+            className="select chat-inbox-tag"
+            value={tag}
+            onChange={(e) => setTag(e.target.value)}
+            aria-label={t('tags.filter')}
+          >
+            <option value="">{t('tags.all')}</option>
+            {tags.map((x) => (
+              <option key={x.tag} value={x.tag}>
+                #{x.tag} ({x.count})
+              </option>
+            ))}
+          </select>
+        )}
         <input
           ref={searchRef}
           type="search"

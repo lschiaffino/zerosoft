@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { canAccessWidget } from '@/lib/chat-access';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
 import { countChatConversations, getChatWidget } from '@/lib/chat-data';
@@ -25,7 +26,7 @@ export default async function EditWidgetPage(
   const user = await requireUser(locale);
   const widget = await getChatWidget(id);
 
-  if (!widget || (widget.user_id !== user.id && widget.team_id !== user.team?.id)) {
+  if (!widget || !canAccessWidget(widget, user)) {
     notFound();
   }
 
@@ -38,7 +39,11 @@ export default async function EditWidgetPage(
 
       <div className="chat-edit-grid">
         <div className="chat-edit-form">
-          <WidgetForm initial={widget} aiAvailable={aiEnabled()} />
+          <WidgetForm
+            initial={widget}
+            aiAvailable={aiEnabled()}
+            helpCenterPath={user.handle ? `/${locale}/h/${user.handle}` : null}
+          />
         </div>
         <div className="chat-edit-side">
           <EmbedCode widgetId={widget.id} origin={origin} />

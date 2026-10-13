@@ -24,6 +24,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var WELCOME = ${JSON.stringify(welcomeMessage)};
   var FIELDS = ${JSON.stringify(fields)};
   var ORIGIN = ${JSON.stringify(origin)};
+  // Pestaña "Help": artículos publicados del centro de ayuda (Docs).
+  var HELP = ${JSON.stringify(widget!.help_enabled === 1)};
   var STORAGE_KEY = 'zs_chat_visitor_' + WIDGET_ID;
   var MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -154,7 +156,19 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       COLOR +
       ';color:#fff;font-weight:600;display:flex;align-items:center;justify-content:space-between;',
   });
-  header.appendChild(dom('span', {}, ['Chat']));
+  var tabChat = null;
+  var tabHelp = null;
+  if (HELP) {
+    var tabs = dom('div', { style: 'display:flex;gap:4px;', role: 'tablist' });
+    var tabStyle = 'background:none;border:none;color:#fff;font:inherit;font-weight:600;cursor:pointer;padding:2px 8px;border-radius:4px;';
+    tabChat = dom('button', { type: 'button', role: 'tab', 'aria-selected': 'true', style: tabStyle + 'background:rgba(255,255,255,0.18);' }, ['Chat']);
+    tabHelp = dom('button', { type: 'button', role: 'tab', 'aria-selected': 'false', style: tabStyle + 'opacity:0.75;' }, ['Help']);
+    tabs.appendChild(tabChat);
+    tabs.appendChild(tabHelp);
+    header.appendChild(tabs);
+  } else {
+    header.appendChild(dom('span', {}, ['Chat']));
+  }
   var closeBtn = dom('button', { style: 'background:none;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;', 'aria-label': 'Close' }, ['×']);
   header.appendChild(closeBtn);
 
@@ -233,14 +247,135 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
 
   var formWrap = dom('div', { style: 'padding:16px;border-bottom:1px solid rgba(0,0,0,0.06);background:#fff;display:none;' });
 
+  // Sugerencias de artículos mientras el visitante escribe (antes de empezar la conversación).
+  var suggestWrap = dom('div', {
+    style: 'display:none;padding:10px 12px;border-top:1px solid rgba(0,0,0,0.06);background:#fff;font-size:12px;',
+  });
+
+  var chatPane = dom('div', { style: 'flex:1;display:flex;flex-direction:column;min-height:0;' });
+  var helpPane = dom('div', { style: 'flex:1;display:none;flex-direction:column;min-height:0;background:#fff;' });
+  var helpSearch = dom('input', {
+    type: 'search',
+    placeholder: 'Search articles…',
+    'aria-label': 'Search articles',
+    style: 'margin:12px 12px 4px;border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:8px 10px;outline:none;font:inherit;',
+  });
+  var helpList = dom('div', { style: 'flex:1;overflow-y:auto;padding:4px 12px 8px;' });
+  var helpFoot = dom('div', { style: 'padding:10px 12px;border-top:1px solid rgba(0,0,0,0.06);font-size:12px;display:none;' });
+  helpPane.appendChild(helpSearch);
+  helpPane.appendChild(helpList);
+  helpPane.appendChild(helpFoot);
+
   box.appendChild(header);
-  box.appendChild(formWrap);
-  box.appendChild(awayBanner);
-  box.appendChild(messages);
-  box.appendChild(csatWrap);
-  box.appendChild(typingIndicator);
-  box.appendChild(previewWrap);
-  box.appendChild(inputWrap);
+  chatPane.appendChild(formWrap);
+  chatPane.appendChild(awayBanner);
+  chatPane.appendChild(messages);
+  chatPane.appendChild(csatWrap);
+  chatPane.appendChild(typingIndicator);
+  chatPane.appendChild(previewWrap);
+  chatPane.appendChild(suggestWrap);
+  chatPane.appendChild(inputWrap);
+  box.appendChild(chatPane);
+  box.appendChild(helpPane);
+
+  function articleRow(a, compact) {
+    var row = dom(a.url ? 'a' : 'div', {
+      style:
+        'display:block;padding:' + (compact ? '6px 0' : '10px 0') + ';border-bottom:1px solid rgba(0,0,0,0.06);color:#111;text-decoration:none;',
+    });
+    if (a.url) {
+      row.setAttribute('href', a.url);
+      row.setAttribute('target', '_blank');
+      row.setAttribute('rel', 'noopener noreferrer');
+    }
+    row.appendChild(dom('div', { style: 'font-weight:600;font-size:13px;' }, [a.title || 'Untitled']));
+    if (!compact && a.excerpt) {
+      row.appendChild(dom('div', { style: 'font-size:12px;color:#666;margin-top:2px;line-height:1.4;' }, [a.excerpt]));
+    }
+    return row;
+  }
+
+  function fetchHelp(q) {
+    return api('/api/chat/help?widgetId=' + encodeURIComponent(WIDGET_ID) + (q ? '&q=' + encodeURIComponent(q) : ''), { method: 'GET' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+  }
+
+  function renderHelp(data, q) {
+    helpList.innerHTML = '';
+    var list = (data && data.articles) || [];
+    if (!list.length) {
+      helpList.appendChild(dom('p', { style: 'color:#666;font-size:13px;margin:12px 0;' }, [q ? 'No articles found.' : 'No articles yet.']));
+    }
+    list.forEach(function (a) { helpList.appendChild(articleRow(a, false)); });
+    if (data && data.helpCenterUrl) {
+      helpFoot.innerHTML = '';
+      helpFoot.appendChild(dom('a', { href: data.helpCenterUrl, target: '_blank', rel: 'noopener noreferrer', style: 'color:' + COLOR + ';' }, ['Visit help center']));
+      helpFoot.style.display = 'block';
+    }
+  }
+
+  var helpTimer = null;
+  helpSearch.addEventListener('input', function () {
+    if (helpTimer) clearTimeout(helpTimer);
+    helpTimer = setTimeout(function () {
+      var q = helpSearch.value.trim();
+      fetchHelp(q).then(function (d) { renderHelp(d, q); });
+    }, 250);
+  });
+
+  var helpLoaded = false;
+  function showTab(which) {
+    if (!HELP) return;
+    var help = which === 'help';
+    chatPane.style.display = help ? 'none' : 'flex';
+    helpPane.style.display = help ? 'flex' : 'none';
+    tabChat.setAttribute('aria-selected', help ? 'false' : 'true');
+    tabHelp.setAttribute('aria-selected', help ? 'true' : 'false');
+    tabChat.style.background = help ? 'none' : 'rgba(255,255,255,0.18)';
+    tabHelp.style.background = help ? 'rgba(255,255,255,0.18)' : 'none';
+    tabChat.style.opacity = help ? '0.75' : '1';
+    tabHelp.style.opacity = help ? '1' : '0.75';
+    if (help && !helpLoaded) {
+      helpLoaded = true;
+      fetchHelp('').then(function (d) { renderHelp(d, ''); });
+    }
+    if (help) helpSearch.focus();
+  }
+  if (HELP) {
+    tabChat.addEventListener('click', function () { showTab('chat'); });
+    tabHelp.addEventListener('click', function () { showTab('help'); });
+  }
+
+  // Mientras el visitante escribe su primera pregunta, artículos que coinciden.
+  var suggestTimer = null;
+  var lastSuggestQ = '';
+  function suggestArticles() {
+    if (!HELP) return;
+    if (suggestTimer) clearTimeout(suggestTimer);
+    suggestTimer = setTimeout(function () {
+      var q = input.value.trim();
+      if (conversationId || q.length < 4) {
+        suggestWrap.style.display = 'none';
+        lastSuggestQ = '';
+        return;
+      }
+      if (q === lastSuggestQ) return;
+      lastSuggestQ = q;
+      fetchHelp(q).then(function (d) {
+        if (input.value.trim() !== q) return;
+        var list = ((d && d.articles) || []).slice(0, 3);
+        suggestWrap.innerHTML = '';
+        if (!list.length) {
+          suggestWrap.style.display = 'none';
+          return;
+        }
+        suggestWrap.appendChild(dom('div', { style: 'color:#666;margin-bottom:2px;' }, ['These articles might help:']));
+        list.forEach(function (a) { suggestWrap.appendChild(articleRow(a, true)); });
+        suggestWrap.style.display = 'block';
+      });
+    }, 400);
+  }
   root.appendChild(btn);
   root.appendChild(box);
 
@@ -612,12 +747,14 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     var v = input.value.trim();
     if (!v && !selectedFile) return;
     input.value = '';
+    suggestWrap.style.display = 'none';
     sendMessage(v);
   });
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') send.click();
   });
   input.addEventListener('input', sendTyping);
+  input.addEventListener('input', suggestArticles);
   attachBtn.addEventListener('click', function () { fileInput.click(); });
   fileInput.addEventListener('change', function () {
     selectedFile = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { canAccessWidget } from '@/lib/chat-access';
 import { getCurrentUser } from '@/lib/session';
 import { getAssignmentRule, getChatWidget, reorderAssignmentRules } from '@/lib/chat-data';
 
@@ -13,7 +14,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   if (!rule) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const widget = await getChatWidget(rule.widget_id);
   if (!widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  if (widget.user_id !== user.id && widget.team_id !== user.team?.id) {
+  if (!canAccessWidget(widget, user)) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 

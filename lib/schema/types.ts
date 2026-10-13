@@ -605,6 +605,10 @@ export interface DocsPageRow {
   position?: number | null;
   small_text?: 0 | 1;
   full_width?: 0 | 1;
+  /** Publicada en el centro de ayuda (/h/<handle>/<slug>). */
+  published?: 0 | 1;
+  slug?: string | null;
+  published_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -614,6 +618,8 @@ export interface DocsShareRow {
   page_id: string;
   kind: 'public' | 'team' | 'user';
   target_id: string | null;
+  /** 'view' | 'edit' (default 'view'). */
+  role?: 'view' | 'edit';
   created_at: string;
 }
 
@@ -890,6 +896,8 @@ export interface ChatWidgetRow {
   /** Agente que responde cuando bot_source = 'agent' (lib/agents-chat.ts). */
   agent_id?: string | null;
   office_hours: string | null; // JSON OfficeHoursConfig
+  /** Pestaña "Ayuda" del widget con artículos publicados de Docs. */
+  help_enabled?: 0 | 1;
   created_at: string;
   updated_at: string;
 }
@@ -931,6 +939,8 @@ export interface ChatMessageRow {
   body: string;
   attachments: string; // JSON ChatAttachment[]
   read_at: string | null;
+  /** Nota interna: solo la ven los agentes. */
+  is_note?: 0 | 1;
   created_at: string;
 }
 
@@ -973,6 +983,8 @@ export interface ChatCannedResponseRow {
   shortcut: string;
   title: string;
   body: string;
+  /** JSON CannedActions (macro): status, assign, tag, snooze. */
+  actions?: string;
   created_at: string;
   updated_at: string;
 }

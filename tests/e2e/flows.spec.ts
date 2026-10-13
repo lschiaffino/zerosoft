@@ -279,7 +279,7 @@ test('Docs: Share y Comments se abren a demanda desde la barra superior', async 
   await page.locator('.docs-comments button', { hasText: /^Comment$/ }).click();
   await expect(page.locator('.docs-comments')).toContainText('Hola e2e');
   await page.getByRole('button', { name: /^Share/ }).click();
-  await expect(page.locator('.docs-share')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Share' })).toBeVisible();
 });
 
 test('Docs: en mobile el árbol se pliega y no hay scroll horizontal', async ({ request, page }) => {
@@ -604,4 +604,59 @@ test('Chat: Reports tiene su propia entrada en la navegación', async ({ page })
   await page.getByRole('link', { name: 'Reports' }).first().click();
   await expect(page).toHaveURL(/\/app\/chat\/reports/);
   await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
+});
+
+// ---------- Fase D1/D2: centro de ayuda y notas internas ----------
+
+test('Docs → centro de ayuda: publicar la hace visible en /h/<handle> y despublicar la saca', async ({ request, page }) => {
+  const { handle } = await (await request.get('/api/calendar/config')).json();
+  const title = `Help ${uid()}`;
+  const doc = await (await request.post('/api/docs/pages', { data: { title } })).json();
+  await request.patch(`/api/docs/pages/${doc.id}`, {
+    data: {
+      content: [
+        { id: 'h1', type: 'heading', level: 1, content: 'Primer paso' },
+        { id: 'p1', type: 'paragraph', content: 'Contenido del artículo e2e.' },
+      ],
+    },
+  });
+  // Sin publicar: no existe en el centro de ayuda.
+  expect((await page.goto(`/en/h/${handle}`))?.status()).toBe(200);
+  await expect(page.getByText(title)).toHaveCount(0);
+
+  const published = await (await request.patch(`/api/docs/pages/${doc.id}`, { data: { published: true } })).json();
+  expect(published.slug).toBeTruthy();
+  await page.goto(`/en/h/${handle}`, { waitUntil: 'networkidle' });
+  await page.getByRole('link', { name: title }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/h/${handle}/${published.slug}$`));
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await expect(page.getByText('Contenido del artículo e2e.')).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: 'Yes' }).click();
+  await expect(page.getByText('Thanks for letting us know.')).toBeVisible();
+
+  await request.patch(`/api/docs/pages/${doc.id}`, { data: { published: false } });
+  expect((await page.goto(`/en/h/${handle}/${published.slug}`))?.status()).toBe(404);
+});
+
+test('Chat: nota interna visible para agentes, nunca para el visitante', async ({ request, page }) => {
+  const { id: widgetId } = await (await request.post('/api/chat/widgets', { data: { name: `E2E ${uid()}` } })).json();
+  const visitorId = `v-${uid()}`;
+  const sent = await request.post('/api/chat/messages', {
+    headers: { origin: 'https://cliente.example' },
+    data: { widgetId, visitorId, body: 'Necesito ayuda' },
+  });
+  const { message } = await sent.json();
+
+  await page.goto(`/en/app/chat/inbox/${message.conversation_id}`, { waitUntil: 'networkidle' });
+  await page.getByRole('tab', { name: 'Internal note' }).click();
+  const composer = page.getByRole('textbox', { name: 'Reply' });
+  await composer.fill('Cliente VIP, revisar plan');
+  await composer.press('Enter');
+  await expect(page.locator('.chat-message.note').getByText('Cliente VIP, revisar plan')).toBeVisible();
+
+  const thread = await request.get(`/api/chat/messages?widgetId=${widgetId}&visitorId=${visitorId}`);
+  const text = JSON.stringify(await thread.json());
+  expect(text).toContain('Necesito ayuda');
+  expect(text).not.toContain('Cliente VIP');
 });

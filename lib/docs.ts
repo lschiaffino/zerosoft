@@ -2,11 +2,13 @@ import { getDb, type DocsCommentRow, type DocsPageRow, type DocsShareRow, type T
 import { sanitizeBlocks } from './docs-sanitize';
 import { isMember } from './teams';
 import {
+  type DocsAccess,
   type DocsBlock,
   type DocsBlockType,
   type DocsComment,
   type DocsPage,
   type DocsPageShare,
+  type DocsShareRole,
   defaultBlocks,
   stringifyBlocks,
 } from './docs-types';
@@ -27,7 +29,7 @@ export function parseBlocks(raw: string | null | undefined): DocsBlock[] {
   }
 }
 
-function toPage(row: DocsPageRow): DocsPage {
+export function toDocPage(row: DocsPageRow): DocsPage {
   return {
     id: row.id,
     user_id: row.user_id,
@@ -37,6 +39,8 @@ function toPage(row: DocsPageRow): DocsPage {
     cover_url: row.cover_url,
     content: parseBlocks(row.content),
     is_public: row.is_public === 1,
+    published: row.published === 1,
+    slug: row.slug ?? null,
     archived: row.archived === 1,
     small_text: row.small_text === 1,
     full_width: row.full_width === 1,
@@ -47,7 +51,32 @@ function toPage(row: DocsPageRow): DocsPage {
 }
 
 function toShare(row: DocsShareRow): DocsPageShare {
-  return { ...row };
+  return { ...row, role: row.role === 'edit' ? 'edit' : 'view' };
+}
+
+/** "Cómo empezar ¿rápido?" → "como-empezar-rapido". */
+export function slugifyTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/g, '');
+}
+
+/** Slug libre dentro del workspace (base, base-2, base-3…). */
+async function uniqueSlug(ownerId: string, pageId: string, title: string): Promise<string> {
+  const base = slugifyTitle(title) || `page-${pageId.slice(0, 8)}`;
+  const taken = new Set(
+    ((await getDb()
+      .prepare('SELECT slug FROM docs_pages WHERE user_id = ? AND slug IS NOT NULL AND id != ?')
+      .all(ownerId, pageId)) as Array<{ slug: string }>).map((r) => r.slug),
+  );
+  let candidate = base;
+  for (let i = 2; taken.has(candidate); i++) candidate = `${base}-${i}`;
+  return candidate;
 }
 
 // ---------- Permisos ----------
@@ -59,45 +88,54 @@ export interface DocsActor {
 }
 
 /**
- * Verifica si el actor puede leer una página.
- * - Owner: siempre.
- * - Pública: cualquiera autenticado (incluye invitados de team).
- * - Team: miembros del team objetivo del share.
- * - Usuario: el usuario real coincide con target_id.
+ * Acceso efectivo del actor a una página (null = sin acceso).
+ * - Owner del workspace: 'owner'.
+ * - Shares: por usuario real (target_id = id de la persona) o por team del
+ *   que es miembro; gana el rol más alto ('edit' > 'view').
+ * - Publicada en el centro de ayuda: cualquiera autenticado puede leerla.
+ * `is_public` ya NO da lectura: solo habilita a la IA del Chat.
  */
-export async function canReadPage(
-  page: DocsPageRow,
-  actor: DocsActor,
-): Promise<boolean> {
-  if (page.user_id === actor.id) return true;
-  if (page.is_public === 1) return true;
-
+export async function getDocAccess(page: DocsPageRow, actor: DocsActor): Promise<DocsAccess | null> {
+  if (page.user_id === actor.id) return 'owner';
+  const userId = actor.actingUser?.id ?? actor.id;
   const shares = (await getDb()
     .prepare('SELECT * FROM docs_shares WHERE page_id = ?')
     .all(page.id)) as DocsShareRow[];
-
+  let access: DocsAccess | null = null;
   for (const share of shares) {
-    if (share.kind === 'public') return true;
-    if (share.kind === 'team' && share.target_id) {
-      const userId = actor.actingUser?.id ?? actor.id;
-      if (await isMember(share.target_id, userId)) return true;
-    }
-    if (share.kind === 'user' && share.target_id) {
-      const userId = actor.actingUser?.id ?? actor.id;
-      if (share.target_id === userId) return true;
-    }
+    let match = false;
+    if (share.kind === 'public') match = true;
+    else if (share.kind === 'user' && share.target_id === userId) match = true;
+    else if (share.kind === 'team' && share.target_id) match = await isMember(share.target_id, userId);
+    if (!match) continue;
+    if (share.role === 'edit' && share.kind !== 'public') return 'edit';
+    access = 'view';
   }
-  return false;
+  if (!access && page.published === 1 && page.archived === 0) access = 'view';
+  return access;
 }
 
-export async function canEditPage(
-  page: DocsPageRow,
+/** Fila + acceso del actor, o null si la página no existe o no la puede ver. */
+export async function resolveDocAccess(
   actor: DocsActor,
-): Promise<boolean> {
-  if (page.user_id === actor.id) return true;
-  const userId = actor.actingUser?.id ?? actor.id;
-  if (actor.team && actor.team.owner_id === userId) return true;
-  return false;
+  pageId: string,
+): Promise<{ row: DocsPageRow; access: DocsAccess } | null> {
+  const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as
+    | DocsPageRow
+    | undefined;
+  if (!row) return null;
+  const access = await getDocAccess(row, actor);
+  return access ? { row, access } : null;
+}
+
+/** Verifica si el actor puede leer una página (ver getDocAccess). */
+export async function canReadPage(page: DocsPageRow, actor: DocsActor): Promise<boolean> {
+  return (await getDocAccess(page, actor)) !== null;
+}
+
+export async function canEditPage(page: DocsPageRow, actor: DocsActor): Promise<boolean> {
+  const access = await getDocAccess(page, actor);
+  return access === 'owner' || access === 'edit';
 }
 
 // ---------- CRUD ----------
@@ -113,7 +151,7 @@ export async function listDocPages(
       'SELECT * FROM docs_pages WHERE user_id = ? AND archived = ? ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC',
     )
     .all(ownerId, archived)) as DocsPageRow[];
-  return rows.map(toPage);
+  return rows.map(toDocPage);
 }
 
 export async function getDocPage(
@@ -125,7 +163,7 @@ export async function getDocPage(
     .get(pageId)) as DocsPageRow | undefined;
   if (!row) return null;
   if (row.user_id !== ownerId) return null;
-  return toPage(row);
+  return toDocPage(row);
 }
 
 export interface CreateDocPageInput {
@@ -156,7 +194,7 @@ export async function createDocPage(
     .run(id, ownerId, parentId, title, icon, coverUrl, content, now, now);
 
   const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(id)) as DocsPageRow;
-  return toPage(row);
+  return toDocPage(row);
 }
 
 export interface UpdateDocPageInput {
@@ -166,6 +204,7 @@ export interface UpdateDocPageInput {
   content?: DocsBlock[];
   parent_id?: string | null;
   is_public?: boolean;
+  published?: boolean;
   archived?: boolean;
   small_text?: boolean;
   full_width?: boolean;
@@ -218,12 +257,26 @@ export async function updateDocPage(
     updates.push('is_public = ?');
     args.push(input.is_public ? 1 : 0);
   }
+  if (input.published !== undefined) {
+    updates.push('published = ?');
+    args.push(input.published ? 1 : 0);
+    if (input.published && row.published !== 1) {
+      // El slug se fija al publicar por primera vez y queda estable (los
+      // links del centro de ayuda no se rompen al renombrar la página).
+      if (!row.slug) {
+        updates.push('slug = ?');
+        args.push(await uniqueSlug(ownerId, pageId, input.title ?? row.title));
+      }
+      updates.push('published_at = ?');
+      args.push(new Date().toISOString());
+    }
+  }
   if (input.archived !== undefined) {
     updates.push('archived = ?');
     args.push(input.archived ? 1 : 0);
   }
 
-  if (updates.length === 0) return toPage(row);
+  if (updates.length === 0) return toDocPage(row);
 
   updates.push('updated_at = ?');
   args.push(new Date().toISOString());
@@ -245,7 +298,7 @@ export async function updateDocPage(
   }
 
   const updated = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as DocsPageRow;
-  return toPage(updated);
+  return toDocPage(updated);
 }
 
 /** Recupera la cadena de ancestros de una página (más cercano primero). */
@@ -262,7 +315,7 @@ export async function getDocPageAncestors(
       .get(currentId, ownerId)) as DocsPageRow | undefined;
     if (!row || seen.has(row.id)) break;
     seen.add(row.id);
-    ancestors.unshift(toPage(row));
+    ancestors.unshift(toDocPage(row));
     currentId = row.parent_id;
   }
   return ancestors;
@@ -437,21 +490,87 @@ export async function createDocShare(
   pageId: string,
   kind: 'public' | 'team' | 'user',
   targetId?: string | null,
+  role: DocsShareRole = 'view',
 ): Promise<DocsPageShare | null> {
   const page = (await getDb()
     .prepare('SELECT * FROM docs_pages WHERE id = ?')
     .get(pageId)) as DocsPageRow | undefined;
   if (!page || page.user_id !== ownerId) return null;
+  const effectiveRole: DocsShareRole = kind === 'public' ? 'view' : role;
+
+  // Compartir de nuevo con el mismo destino actualiza el rol (sin duplicar).
+  const existing = (await getDb()
+    .prepare('SELECT * FROM docs_shares WHERE page_id = ? AND kind = ? AND target_id IS ?')
+    .get(pageId, kind, targetId ?? null)) as DocsShareRow | undefined;
+  if (existing) {
+    await getDb().prepare('UPDATE docs_shares SET role = ? WHERE id = ?').run(effectiveRole, existing.id);
+    return toShare({ ...existing, role: effectiveRole });
+  }
 
   const id = crypto.randomUUID();
   await getDb()
     .prepare(
-      `INSERT INTO docs_shares (id, page_id, kind, target_id) VALUES (?, ?, ?, ?)`,
+      `INSERT INTO docs_shares (id, page_id, kind, target_id, role) VALUES (?, ?, ?, ?, ?)`,
     )
-    .run(id, pageId, kind, targetId ?? null);
+    .run(id, pageId, kind, targetId ?? null, effectiveRole);
 
   const row = (await getDb().prepare('SELECT * FROM docs_shares WHERE id = ?').get(id)) as DocsShareRow;
   return toShare(row);
+}
+
+export async function updateDocShareRole(
+  ownerId: string,
+  pageId: string,
+  shareId: string,
+  role: DocsShareRole,
+): Promise<DocsPageShare | null> {
+  const page = await getDocPageRow(pageId);
+  if (!page || page.user_id !== ownerId) return null;
+  const share = (await getDb()
+    .prepare('SELECT * FROM docs_shares WHERE id = ? AND page_id = ?')
+    .get(shareId, pageId)) as DocsShareRow | undefined;
+  if (!share || share.kind === 'public') return null;
+  await getDb().prepare('UPDATE docs_shares SET role = ? WHERE id = ?').run(role, shareId);
+  return toShare({ ...share, role });
+}
+
+export interface SharedDocPage {
+  id: string;
+  title: string;
+  icon: string | null;
+  role: DocsShareRole;
+  owner_name: string | null;
+  owner_email: string;
+  updated_at: string;
+}
+
+/**
+ * Páginas de OTROS workspaces compartidas con la persona (directo o vía un
+ * team del que es miembro). Las del workspace activo no se repiten.
+ */
+export async function listSharedWithMe(realUserId: string, workspaceId: string): Promise<SharedDocPage[]> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT p.id, p.title, p.icon, p.updated_at, s.role, u.name AS owner_name, u.email AS owner_email
+       FROM docs_shares s
+       JOIN docs_pages p ON p.id = s.page_id
+       JOIN users u ON u.id = p.user_id
+       WHERE p.archived = 0 AND p.user_id != ?
+         AND ((s.kind = 'user' AND s.target_id = ?)
+           OR (s.kind = 'team' AND s.target_id IN (
+                 SELECT team_id FROM team_members WHERE user_id = ?
+                 UNION SELECT id FROM teams WHERE owner_id = ?)))
+       ORDER BY p.updated_at DESC
+       LIMIT 200`,
+    )
+    .all(workspaceId, realUserId, realUserId, realUserId)) as Array<SharedDocPage & { role: string }>;
+  const byId = new Map<string, SharedDocPage>();
+  for (const r of rows) {
+    const role: DocsShareRole = r.role === 'edit' ? 'edit' : 'view';
+    const prev = byId.get(r.id);
+    if (!prev || (prev.role === 'view' && role === 'edit')) byId.set(r.id, { ...r, role });
+  }
+  return [...byId.values()];
 }
 
 export async function deleteDocShare(
@@ -571,7 +690,7 @@ export async function searchDocPages(
        LIMIT 20`,
     )
     .all(ownerId, q)) as DocsPageRow[];
-  return rows.map(toPage);
+  return rows.map(toDocPage);
 }
 
 // ---------- Re-export tree helpers (pure, live in docs-types) ----------

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { canAccessWidget } from '@/lib/chat-access';
 import { getCurrentUser } from '@/lib/session';
 import {
   getChatVisitor,
@@ -17,7 +18,7 @@ async function canAccessVisitor(
   if (!visitor) return { ok: false, visitor: null };
   const widget = await getChatWidget(visitor.widget_id);
   if (!widget) return { ok: false, visitor: null };
-  if (widget.user_id !== user.id && widget.team_id !== user.team?.id) {
+  if (!canAccessWidget(widget, user)) {
     return { ok: false, visitor: null };
   }
   return { ok: true, visitor };

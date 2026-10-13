@@ -1784,3 +1784,125 @@ a.chat-stat:hover .chat-stat-num {
 .chat-notes-status {
   font-size: 11px;
 }
+
+/* ---------- Notas internas, tags, macros ---------- */
+
+.chat-message.note .chat-message-bubble {
+  background: color-mix(in srgb, var(--warn) 8%, var(--bg));
+  color: var(--ink);
+  border: 1px dashed color-mix(in srgb, var(--warn) 55%, var(--bg));
+}
+.chat-note-label {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--warn);
+}
+
+.chat-composer-modes {
+  display: flex;
+  gap: 1.25rem;
+  padding: 0 1rem;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+.chat-composer-mode {
+  padding: 8px 0 6px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dim);
+  cursor: pointer;
+}
+.chat-composer-mode:hover { color: var(--ink); }
+.chat-composer-mode.active { color: var(--ink); border-bottom-color: var(--ink); }
+.chat-composer-mode.active.note { color: var(--warn); border-bottom-color: var(--warn); }
+.chat-composer-modes + .chat-composer { border-top: none; padding-top: 0.5rem; }
+.chat-composer.note { background: color-mix(in srgb, var(--warn) 5%, var(--bg)); }
+.chat-composer.note .chat-composer-input { border-color: color-mix(in srgb, var(--warn) 45%, var(--bg)); }
+
+.chat-tags-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 6px 1rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.chat-tags-label { font-size: 11px; }
+.chat-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.chat-tag button {
+  border: none;
+  background: none;
+  color: var(--dim);
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 13px;
+  line-height: 1;
+}
+.chat-tag button:hover { color: var(--ink); }
+.chat-tag-input {
+  width: 90px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: none;
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--ink);
+  outline: none;
+}
+.chat-tag-input:focus { border-bottom-color: var(--line); }
+.chat-macro-applied { font-size: 11px; margin-left: auto; }
+
+.chat-row-tags { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.chat-inbox-tag { max-width: 200px; }
+.chat-canned-actions-summary { display: block; font-size: 11px; margin-top: 4px; }
+.qm-section-label { margin: 6px 0 -2px; font-size: 11px; }
+
+/* ---------- Reportes ---------- */
+
+.chat-report-range {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0 20px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+.chat-report-field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+.chat-report-field .input { height: 32px; padding: 0 8px; }
+.chat-report-presets { display: flex; gap: 14px; margin-left: auto; }
+.chat-report-preset { font-size: 12px; color: var(--dim); text-decoration: none; padding-bottom: 2px; border-bottom: 1px solid transparent; }
+.chat-report-preset:hover { color: var(--ink); }
+.chat-report-preset.active { color: var(--ink); border-bottom-color: var(--ink); }
+.chat-report-table-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
+.chat-report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.chat-report-table th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--dim);
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.chat-report-table td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.chat-report-table .num { text-align: right; }
+
+@media (max-width: 640px) {
+  .chat-report-presets { margin-left: 0; width: 100%; }
+  .chat-inbox-tag { max-width: none; flex: 1; }
+}
