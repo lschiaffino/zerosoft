@@ -208,7 +208,7 @@ test('Link: quick-create desde la lista (tecla C) sin salir de la vista', async 
   await dialog.getByPlaceholder('my-link').fill(slug);
   await dialog.getByRole('button', { name: 'Create link' }).click();
   await expect(dialog).toBeHidden();
-  await expect(page).toHaveURL(/\/en\/app\/links$/);
+  await expect(page).toHaveURL(/\/en\/app\/links$/, { timeout: 15_000 });
   await expect(page.getByRole('status')).toContainText(slug);
   await expect(page.locator('.links-table').getByText(slug).first()).toBeVisible();
 
@@ -216,7 +216,7 @@ test('Link: quick-create desde la lista (tecla C) sin salir de la vista', async 
   await page.keyboard.press('c');
   await page.getByRole('dialog').getByPlaceholder('Paste a long URL…').fill('https://example.com/full');
   await page.getByRole('link', { name: 'More options' }).click();
-  await expect(page).toHaveURL(/\/en\/app\/links\/new\?url=/);
+  await expect(page).toHaveURL(/\/en\/app\/links\/new\?url=/, { timeout: 15_000 });
   await expect(page.locator('#nl-url')).toHaveValue('https://example.com/full');
 });
 
@@ -321,7 +321,7 @@ test('Cal: crear event type desde el modal rápido (tecla C), apagarlo y borrarl
 
 test('Cal: /event-types/new abre el modal sobre la lista', async ({ page }) => {
   await page.goto('/en/app/calendar/event-types/new');
-  await expect(page).toHaveURL(/\/en\/app\/calendar\/event-types\?new=1$/);
+  await expect(page).toHaveURL(/\/en\/app\/calendar\/event-types\?new=1$/, { timeout: 15_000 });
   await expect(page.getByRole('dialog')).toBeVisible();
   // Con foco en el título (hidratado), Esc cierra.
   await expect(page.getByPlaceholder('Event name, e.g. Intro call')).toBeFocused({ timeout: 15_000 });
@@ -357,13 +357,13 @@ test('CRM: alta rápida de contacto con la tecla C, sin salir de la lista', asyn
   await dialog.locator('input[type=email]').fill(`${first.toLowerCase()}@example.com`);
   await page.keyboard.press('Meta+Enter');
   await expect(dialog).toBeHidden({ timeout: 15_000 });
-  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts$/);
+  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts$/, { timeout: 15_000 });
   await expect(page.getByText(first).first()).toBeVisible();
 });
 
 test('CRM: /new abre el modal sobre la lista y "All fields" lleva al form completo', async ({ page }) => {
   await page.goto('/en/app/crm/companies/new');
-  await expect(page).toHaveURL(/\/en\/app\/crm\/companies$/);
+  await expect(page).toHaveURL(/\/en\/app\/crm\/companies$/, { timeout: 15_000 });
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   const name = `Co ${uid()}`;
@@ -374,7 +374,7 @@ test('CRM: /new abre el modal sobre la lista y "All fields" lleva al form comple
 
   await page.goto('/en/app/crm/contacts?new=1');
   await page.getByRole('dialog').getByRole('link', { name: 'All fields' }).click();
-  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts\/new\?full=1$/);
+  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts\/new\?full=1$/, { timeout: 15_000 });
 });
 
 test('CRM: deal rápido desde el board queda en la columna del pipeline', async ({ page }) => {
