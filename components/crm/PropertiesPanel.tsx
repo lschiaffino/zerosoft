@@ -38,7 +38,15 @@ interface PropertiesPanelProps {
   viewAllLabel?: string;
 }
 
-const ERROR_CODES = ['invalid_email', 'missing_name', 'invalid_input', 'not_found'] as const;
+const ERROR_CODES = [
+  'invalid_email',
+  'missing_name',
+  'invalid_input',
+  'not_found',
+  'invalid_company',
+  'invalid_owner',
+  'forbidden',
+] as const;
 
 /**
  * dl editable inline: click en el valor (o en ✎) → input/select →

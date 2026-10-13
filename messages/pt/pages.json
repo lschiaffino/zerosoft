@@ -153,11 +153,11 @@
     "track": {
       "meta": {
         "title": "Track — Gestão de projetos a zero",
-        "description": "Issues, ciclos e roadmaps com a velocidade do Linear, sem os US$ 8 por cabeça. Open source. No ar."
+        "description": "Issues, ciclos e timelines com a velocidade do Linear, sem os US$ 8 por cabeça. Open source. No ar."
       },
       "hero": {
         "tag": "Gestão de projetos",
-        "sub": "Issues, ciclos e roadmaps no espírito do Linear — sem os US$ 8 por cabeça. Board, lista, calendário e Gantt. Open source. No ar."
+        "sub": "Issues, ciclos e timelines no espírito do Linear — sem os US$ 8 por cabeça. Board, lista, calendário e Gantt. Open source. No ar."
       },
       "featuresTitle": "Feito para velocidade.",
       "featuresTitleDim": "Preço de ar.",
@@ -170,8 +170,8 @@
         "d": "Trabalhe em ciclos focados de uma ou duas semanas. Escopo, entrega, revisão, repita."
       },
       "f3": {
-        "t": "Roadmaps",
-        "d": "Planeje trimestres, não sprints. Cada issue em uma timeline Gantt que o time inteiro consegue ler."
+        "t": "Timeline",
+        "d": "Cada issue com datas em uma timeline Gantt que o time inteiro consegue ler."
       },
       "f4": {
         "t": "Sub-issues e relações",
@@ -187,7 +187,7 @@
       },
       "f7": {
         "t": "Estimativas",
-        "d": "Pontue issues, acompanhe a velocidade, pare de adivinhar prazos."
+        "d": "Pontue issues para que todos saibam o tamanho do trabalho antes de começar."
       },
       "f8": {
         "t": "Visões salvas e filtros",
@@ -256,7 +256,7 @@
       },
       "f3": {
         "t": "Sincronização de email",
-        "d": "Conecte o Gmail e as conversas se anexam sozinhas ao contato certo. Automaticamente."
+        "d": "Conecte o Gmail e sincronize suas conversas com cada contato em um clique. Elas caem na timeline certa."
       },
       "f4": {
         "t": "Atividades",
@@ -297,7 +297,7 @@
         },
         "f2": {
           "q": "Posso migrar do HubSpot?",
-          "a": "Sim. Exporte contatos, empresas e deals do HubSpot e importe os CSVs. Pipelines e etapas mapeiam um a um, e as propriedades personalizadas vêm junto."
+          "a": "Sim, para seus contatos e empresas: exporte-os do HubSpot como CSV e importe, mapeando cada coluna para um campo. Os deals são criados no pipeline que você configurar aqui."
         },
         "f3": {
           "q": "E se a Zerosoft fechar?",
@@ -788,7 +788,7 @@
   "docs": {
     "meta": {
       "title": "API Docs — Zerosoft",
-      "description": "A API REST da Zerosoft: links, CRM, equipes e docs. Chaves pessoais, respostas JSON, zero fricção."
+      "description": "A API REST da Zerosoft: links, CRM e Cal. Chaves pessoais, respostas JSON, zero fricção."
     },
     "label": "0.05 — API",
     "title": "A API da Zerosoft.",

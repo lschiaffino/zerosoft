@@ -34,13 +34,6 @@ export async function POST() {
   if (!token) return NextResponse.json({ error: 'token_expired' }, { status: 400 });
 
   const db = getDb();
-  const known = new Set(
-    (
-      (await db.prepare('SELECT gmail_id FROM crm_emails WHERE user_id = ?').all(user.id)) as Array<{
-        gmail_id: string;
-      }>
-    ).map((r) => r.gmail_id),
-  );
 
   const contacts = (await db
     .prepare(
@@ -61,13 +54,22 @@ export async function POST() {
 
   async function syncContact(contact: { id: string; email: string }): Promise<void> {
     const q = `from:${contact.email} OR to:${contact.email}`;
-    const ids = (await gmailListMessageIds(token!, q, MESSAGES_PER_CONTACT)).filter(
-      (m) => !known.has(m.id),
+    const listed = await gmailListMessageIds(token!, q, MESSAGES_PER_CONTACT);
+    if (!listed.length) return;
+    // Solo los que todavía no están importados (consulta acotada a estos ids).
+    const already = new Set(
+      (
+        (await db
+          .prepare(
+            `SELECT gmail_id FROM crm_emails WHERE user_id = ? AND gmail_id IN (${listed.map(() => '?').join(',')})`,
+          )
+          .all(user!.id, ...listed.map((m) => m.id))) as Array<{ gmail_id: string }>
+      ).map((r) => r.gmail_id),
     );
-    for (const m of ids) {
+    for (const m of listed) {
+      if (already.has(m.id)) continue;
       const meta = await gmailGetMessageMeta(token!, m.id);
       if (!meta) continue;
-      known.add(meta.id);
       const direction = meta.from.toLowerCase().includes(contact.email.toLowerCase())
         ? 'in'
         : 'out';
@@ -85,8 +87,9 @@ export async function POST() {
         meta.snippet,
         meta.internalDate,
       );
-      if (res.changes) {
-        synced += res.changes;
+      if (res.changes) synced += res.changes;
+      // Solo los mails que escribió el contacto cuentan como "recibidos".
+      if (res.changes && direction === 'in') {
         await runWorkflowsForEvent(user!.id, {
           type: 'email_received',
           entity: 'email',

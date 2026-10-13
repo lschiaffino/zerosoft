@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createDeal, listDeals } from '@/lib/crm';
 import { dealCreateSchema } from '@/lib/crm-schema';
-import { cleanRow, defaultPipelineId, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { catchRef, cleanRow, CrmRefError, defaultPipelineId, pageParams, zodErrorCode } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const result = await createDeal(auth.user.id, parsed.data);
+  const result = await catchRef(createDeal(auth.user.id, parsed.data));
+  if (result instanceof CrmRefError) return apiError(400, result.code, 'A referenced record does not exist.');
   if (!result.ok) {
     return result.reason === 'invalid_stage'
       ? apiError(400, 'invalid_stage', 'The stage does not belong to that pipeline.')

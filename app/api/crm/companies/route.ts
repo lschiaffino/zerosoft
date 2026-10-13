@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { createCompany, listCompanies } from '@/lib/crm';
 import { companyCreateSchema } from '@/lib/crm-schema';
-import { invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
+import { catchRef, crmError, CrmRefError, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
   const parsed = companyCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const company = await createCompany(user.id, parsed.data);
+  const company = await catchRef(createCompany(user.id, parsed.data));
+  if (company instanceof CrmRefError) return crmError(400, company.code);
   return NextResponse.json(company, { status: 201 });
 }

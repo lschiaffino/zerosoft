@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!parsed.success) return crmError(400, 'invalid_input');
 
   if (!(await getList(user.id, params.id))) return notFound();
-  const added = await addListMembers(params.id, parsed.data.contactIds);
+  const added = await addListMembers(user.id, params.id, parsed.data.contactIds);
   return NextResponse.json({ count: added });
 }
 
@@ -34,6 +34,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   if (!parsed.success) return crmError(400, 'invalid_input');
 
   if (!(await getList(user.id, params.id))) return notFound();
-  if (!(await removeListMember(params.id, parsed.data.contactId))) return notFound();
+  if (!(await removeListMember(user.id, params.id, parsed.data.contactId))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

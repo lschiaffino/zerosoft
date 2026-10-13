@@ -2,6 +2,7 @@
  * CRM Workflows — motor de automatizaciones con triggers y acciones.
  * Server-only.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createNotification } from './notifications';
 import { safeFetch } from './safe-fetch';
 import { sendEmail } from './email';
@@ -378,38 +379,45 @@ export async function listWorkflowRuns(
 // ---------- Contexto y utilidades de acciones ----------
 
 interface ActionContext {
-  contact?: { id: string; first_name: string; last_name: string; email: string; company_id: string | null } | null;
-  company?: { id: string; name: string } | null;
-  deal?: { id: string; name: string; amount: number; currency: string } | null;
+  contact?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    company_id: string | null;
+    custom?: string;
+  } | null;
+  company?: { id: string; name: string; custom?: string } | null;
+  deal?: { id: string; name: string; amount: number; currency: string; custom?: string } | null;
 }
 
 async function loadContext(userId: string, event: WorkflowEvent): Promise<ActionContext> {
   const ctx: ActionContext = {};
   if (event.entity === 'contact') {
     ctx.contact = (await getDb()
-      .prepare('SELECT id, first_name, last_name, email, company_id FROM crm_contacts WHERE id = ? AND user_id = ?')
+      .prepare('SELECT id, first_name, last_name, email, company_id, custom FROM crm_contacts WHERE id = ? AND user_id = ?')
       .get(event.entityId, userId)) as ActionContext['contact'];
     if (ctx.contact?.company_id) {
       ctx.company = (await getDb()
-        .prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?')
+        .prepare('SELECT id, name, custom FROM crm_companies WHERE id = ? AND user_id = ?')
         .get(ctx.contact.company_id, userId)) as ActionContext['company'];
     }
   } else if (event.entity === 'company') {
     ctx.company = (await getDb()
-      .prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?')
+      .prepare('SELECT id, name, custom FROM crm_companies WHERE id = ? AND user_id = ?')
       .get(event.entityId, userId)) as ActionContext['company'];
     ctx.contact = (await getDb()
       .prepare(
-        'SELECT id, first_name, last_name, email, company_id FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 1',
+        'SELECT id, first_name, last_name, email, company_id, custom FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 1',
       )
       .get(event.entityId, userId)) as ActionContext['contact'];
   } else if (event.entity === 'deal') {
     ctx.deal = (await getDb()
-      .prepare('SELECT id, name, amount, currency FROM crm_deals WHERE id = ? AND user_id = ?')
+      .prepare('SELECT id, name, amount, currency, custom FROM crm_deals WHERE id = ? AND user_id = ?')
       .get(event.entityId, userId)) as ActionContext['deal'];
     ctx.contact = (await getDb()
       .prepare(
-        `SELECT c.id, c.first_name, c.last_name, c.email, c.company_id
+        `SELECT c.id, c.first_name, c.last_name, c.email, c.company_id, c.custom
          FROM crm_contacts c
          JOIN crm_deal_contacts dc ON dc.contact_id = c.id
          WHERE dc.deal_id = ? AND c.user_id = ?
@@ -418,7 +426,7 @@ async function loadContext(userId: string, event: WorkflowEvent): Promise<Action
       .get(event.entityId, userId)) as ActionContext['contact'];
     if (ctx.contact?.company_id) {
       ctx.company = (await getDb()
-        .prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?')
+        .prepare('SELECT id, name, custom FROM crm_companies WHERE id = ? AND user_id = ?')
         .get(ctx.contact.company_id, userId)) as ActionContext['company'];
     }
   } else if (event.entity === 'task') {
@@ -427,17 +435,17 @@ async function loadContext(userId: string, event: WorkflowEvent): Promise<Action
       .get(event.entityId, userId)) as { contact_id: string | null; company_id: string | null; deal_id: string | null } | undefined;
     if (task?.contact_id) {
       ctx.contact = (await getDb()
-        .prepare('SELECT id, first_name, last_name, email, company_id FROM crm_contacts WHERE id = ? AND user_id = ?')
+        .prepare('SELECT id, first_name, last_name, email, company_id, custom FROM crm_contacts WHERE id = ? AND user_id = ?')
         .get(task.contact_id, userId)) as ActionContext['contact'];
     }
     if (task?.company_id) {
       ctx.company = (await getDb()
-        .prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?')
+        .prepare('SELECT id, name, custom FROM crm_companies WHERE id = ? AND user_id = ?')
         .get(task.company_id, userId)) as ActionContext['company'];
     }
     if (task?.deal_id) {
       ctx.deal = (await getDb()
-        .prepare('SELECT id, name, amount, currency FROM crm_deals WHERE id = ? AND user_id = ?')
+        .prepare('SELECT id, name, amount, currency, custom FROM crm_deals WHERE id = ? AND user_id = ?')
         .get(task.deal_id, userId)) as ActionContext['deal'];
     }
   } else if (event.entity === 'email') {
@@ -446,11 +454,11 @@ async function loadContext(userId: string, event: WorkflowEvent): Promise<Action
       .get(event.entityId, userId)) as { contact_id: string } | undefined;
     if (email?.contact_id) {
       ctx.contact = (await getDb()
-        .prepare('SELECT id, first_name, last_name, email, company_id FROM crm_contacts WHERE id = ? AND user_id = ?')
+        .prepare('SELECT id, first_name, last_name, email, company_id, custom FROM crm_contacts WHERE id = ? AND user_id = ?')
         .get(email.contact_id, userId)) as ActionContext['contact'];
       if (ctx.contact?.company_id) {
         ctx.company = (await getDb()
-          .prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?')
+          .prepare('SELECT id, name, custom FROM crm_companies WHERE id = ? AND user_id = ?')
           .get(ctx.contact.company_id, userId)) as ActionContext['company'];
       }
     }
@@ -476,18 +484,31 @@ function renderTemplate(template: string, ctx: ActionContext): string {
   };
 
   return template.replace(/\{\{(\s*[\w.]+\s*)\}\}/g, (_match, key: string) => {
-    return vars[key.trim()] ?? '';
+    const k = key.trim();
+    if (k in vars) return vars[k];
+    // Propiedades custom: {{contact.custom.<key>}}, {{company.custom.<key>}}, {{deal.custom.<key>}}.
+    const m = /^(contact|company|deal)\.custom\.(\w+)$/.exec(k);
+    if (m) {
+      const record = ctx[m[1] as 'contact' | 'company' | 'deal'];
+      const value = parseJsonObject(record?.custom ?? null)[m[2]];
+      return value === undefined || value === null ? '' : String(value);
+    }
+    return '';
   });
 }
+
+const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 
 async function resolveContactIdForEvent(userId: string, event: WorkflowEvent): Promise<string | null> {
   if (event.entity === 'contact') return event.entityId;
   if (event.entity === 'deal') {
     const row = (await getDb()
       .prepare(
-        'SELECT contact_id FROM crm_deal_contacts WHERE deal_id = ? ORDER BY rowid ASC LIMIT 1',
+        `SELECT dc.contact_id FROM crm_deal_contacts dc
+         JOIN crm_deals d ON d.id = dc.deal_id
+         WHERE dc.deal_id = ? AND d.user_id = ? ORDER BY dc.rowid ASC LIMIT 1`,
       )
-      .get(event.entityId)) as { contact_id: string } | undefined;
+      .get(event.entityId, userId)) as { contact_id: string } | undefined;
     return row?.contact_id ?? null;
   }
   if (event.entity === 'company') {
@@ -536,13 +557,10 @@ async function executeAction(
         const toRaw = safeString(cfg.to);
         const subjectTemplate = safeString(cfg.subject);
         const bodyTemplate = safeString(cfg.body);
-        let toEmail = toRaw;
-        if (toRaw === 'contact') {
-          toEmail = ctx.contact?.email ?? '';
-        } else if (toRaw && !toRaw.includes('@')) {
-          // Se asume que es un campo del contexto, por simplicidad no se soporta.
-          toEmail = '';
-        }
+        // 'contact' = email del contacto; un email literal; o una plantilla
+        // como {{contact.custom.billing_email}} que se resuelve con el contexto.
+        let toEmail = toRaw === 'contact' ? ctx.contact?.email ?? '' : renderTemplate(toRaw, ctx).trim();
+        if (!EMAIL_RE.test(toEmail)) toEmail = '';
         if (!toEmail) {
           return { ok: false, type: action.type, error: 'missing_recipient' };
         }
@@ -632,7 +650,7 @@ async function executeAction(
         if (!listId) return { ok: false, type: action.type, error: 'missing_list' };
         const contactId = await resolveContactIdForEvent(userId, event);
         if (!contactId) return { ok: false, type: action.type, error: 'missing_contact' };
-        const added = await addListMembers(listId, [contactId]);
+        const added = await addListMembers(userId, listId, [contactId]);
         return { ok: true, type: action.type, result: { added } };
       }
       case 'webhook': {
@@ -730,7 +748,18 @@ async function runSingleWorkflow(
     .run(failed ? 'failed' : 'done', JSON.stringify(output), now(), runId);
 }
 
+/**
+ * Cadena de ejecución: una acción (p. ej. update_field) puede disparar otro
+ * evento y con él más workflows. Se corta un workflow que ya corrió en la
+ * cadena (evita loops A→A y A→B→A) y cualquier cadena más profunda que
+ * MAX_CHAIN_DEPTH.
+ */
+const MAX_CHAIN_DEPTH = 3;
+const chain = new AsyncLocalStorage<{ depth: number; seen: ReadonlySet<string> }>();
+
 export async function runWorkflowsForEvent(userId: string, event: WorkflowEvent): Promise<void> {
+  const parent = chain.getStore();
+  if (parent && parent.depth >= MAX_CHAIN_DEPTH) return;
   const db = getDb();
   const rows = (await db
     .prepare('SELECT * FROM crm_workflows WHERE user_id = ? AND enabled = 1')
@@ -782,11 +811,26 @@ export async function runWorkflowsForEvent(userId: string, event: WorkflowEvent)
     wf.actions = actionGroups.get(wf.id) ?? [];
   }
 
-  const matching = workflows.filter((wf) =>
-    wf.triggers.some((t) => triggerMatches(t, event)),
+  const matching = workflows.filter(
+    (wf) => !parent?.seen.has(wf.id) && wf.triggers.some((t) => triggerMatches(t, event)),
   );
 
-  await Promise.all(matching.map((wf) => runSingleWorkflow(userId, wf, event).catch(() => null)));
+  await Promise.all(
+    matching.map((wf) =>
+      chain
+        .run({ depth: (parent?.depth ?? 0) + 1, seen: new Set([...(parent?.seen ?? []), wf.id]) }, () =>
+          runSingleWorkflow(userId, wf, event),
+        )
+        .catch(() => null),
+    ),
+  );
+}
+
+/** Ejecución manual desde la UI: corre solo este workflow (sin registro asociado). */
+export async function runWorkflowManually(userId: string, workflow: Workflow): Promise<void> {
+  await chain.run({ depth: 1, seen: new Set([workflow.id]) }, () =>
+    runSingleWorkflow(userId, workflow, { type: 'manual', entity: 'deal', entityId: '' }),
+  );
 }
 
 // ---------- Emails transaccionales desde el CRM ----------
@@ -805,13 +849,20 @@ async function resolveContactIdForEmail(
   recordType: 'contact' | 'company' | 'deal',
   recordId: string,
 ): Promise<string | null> {
-  if (recordType === 'contact') return recordId;
+  if (recordType === 'contact') {
+    const row = await getDb()
+      .prepare('SELECT 1 FROM crm_contacts WHERE id = ? AND user_id = ?')
+      .get(recordId, userId);
+    return row ? recordId : null;
+  }
   if (recordType === 'deal') {
     const row = (await getDb()
       .prepare(
-        'SELECT contact_id FROM crm_deal_contacts WHERE deal_id = ? ORDER BY rowid ASC LIMIT 1',
+        `SELECT dc.contact_id FROM crm_deal_contacts dc
+         JOIN crm_deals d ON d.id = dc.deal_id
+         WHERE dc.deal_id = ? AND d.user_id = ? ORDER BY dc.rowid ASC LIMIT 1`,
       )
-      .get(recordId)) as { contact_id: string } | undefined;
+      .get(recordId, userId)) as { contact_id: string } | undefined;
     return row?.contact_id ?? null;
   }
   // company

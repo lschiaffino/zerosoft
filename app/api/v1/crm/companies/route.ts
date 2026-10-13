@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createCompany, listCompanies } from '@/lib/crm';
 import { companyCreateSchema } from '@/lib/crm-schema';
-import { cleanRow, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { catchRef, cleanRow, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const company = await createCompany(auth.user.id, parsed.data);
+  const company = await catchRef(createCompany(auth.user.id, parsed.data));
+  if (company instanceof CrmRefError) return apiError(400, company.code, 'A referenced record does not exist.');
   return NextResponse.json(cleanRow(company), { status: 201 });
 }

@@ -265,6 +265,23 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN locale TEXT NOT NULL DEFAULT 'en'");
     },
   },
+  {
+    // CRM: el trigger task_due lo dispara el cron cuando la tarea vence (antes
+    // se disparaba al crearla). Las tareas ya vencidas quedan marcadas como
+    // disparadas para no generar una avalancha en el primer tick.
+    id: '012_crm_task_due_fired',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE crm_activities ADD COLUMN due_fired_at TEXT');
+      await client.execute(
+        `UPDATE crm_activities SET due_fired_at = datetime('now')
+         WHERE type = 'task' AND due_at IS NOT NULL AND due_at <= datetime('now') AND due_fired_at IS NULL`,
+      );
+      await client.execute(
+        `CREATE INDEX IF NOT EXISTS idx_crm_activities_due_pending ON crm_activities(due_at)
+         WHERE type = 'task' AND done = 0 AND due_fired_at IS NULL`,
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

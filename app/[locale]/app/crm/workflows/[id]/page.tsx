@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { getWorkflow, listWorkflowRuns } from '@/lib/crm-workflows';
 import { listLists } from '@/lib/crm';
 import WorkflowEditor from '@/components/crm/WorkflowEditor';
@@ -34,6 +34,7 @@ export default async function WorkflowDetailPage(
         {t('common.back')}
       </Link>
       <h1 className="page-title">{workflow.name}</h1>
+      {!isWorkspaceAdmin(user) && <p className="muted panel-desc">{t('common.adminOnly')}</p>}
       <WorkflowEditor
         workflow={workflow}
         lists={lists}

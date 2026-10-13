@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { redirect } from 'next/navigation';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { listLists } from '@/lib/crm';
 import WorkflowEditor from '@/components/crm/WorkflowEditor';
 
@@ -14,6 +15,7 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
   } = params;
 
   const user = await requireUser(locale);
+  if (!isWorkspaceAdmin(user)) redirect(`/${locale}/app/crm/workflows`);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const lists = await listLists(user.id);
 

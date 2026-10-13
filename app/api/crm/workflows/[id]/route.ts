@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteWorkflow, getWorkflow, updateWorkflow } from '@/lib/crm-workflows';
 import { workflowUpdateSchema } from '@/lib/crm-workflows-schema';
-import { invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { invalidBody, notFound, unauthorized, forbidden } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,6 +20,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!isWorkspaceAdmin(user)) return forbidden();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = workflowUpdateSchema.safeParse(body);

@@ -3,6 +3,7 @@
  * Sigue el patrón de lib/links.ts: getDb() singleton, WHERE builders,
  * paginación con clamp, ids crypto.randomUUID(), timestamps UTC.
  */
+import { assertRefs, CrmRefError, ownedContactIds } from './crm-refs';
 import {
   ensureMigrated,
   getClient,
@@ -486,7 +487,9 @@ export async function getContact(userId: string, id: string): Promise<ContactDet
     .get(id, userId)) as CrmContactRow | undefined;
   if (!contact) return null;
   const company = contact.company_id
-    ? ((await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(contact.company_id)) as
+    ? ((await db
+        .prepare('SELECT * FROM crm_companies WHERE id = ? AND user_id = ?')
+        .get(contact.company_id, userId)) as
         | CrmCompanyRow
         | undefined) ?? null
     : null;
@@ -588,6 +591,7 @@ export async function createContact(
   data: ContactInput,
   db: Db = getDb(),
 ): Promise<CrmContactRow> {
+  await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
   const id = crypto.randomUUID();
   // Auto-link: si no vino empresa explícita, intentamos por dominio del email.
   const companyId =
@@ -633,6 +637,7 @@ export async function updateContact(
     .prepare('SELECT * FROM crm_contacts WHERE id = ? AND user_id = ?')
     .get(id, userId)) as CrmContactRow | undefined;
   if (!existing) return null;
+  await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
   const sets = toColumnValues(CONTACT_COLS, data as Record<string, unknown>);
   // Auto-link: si cambia el email, no vino companyId explícito y el contacto
   // no tiene empresa, intentamos vincular por dominio del email nuevo.
@@ -724,6 +729,8 @@ export async function mergeContacts(
     await tdb
       .prepare('UPDATE crm_activities SET contact_id = ?, updated_at = ? WHERE contact_id = ?')
       .run(keepId, now(), dropId);
+    // Emails (Gmail y enviados desde el CRM).
+    await tdb.prepare('UPDATE crm_emails SET contact_id = ? WHERE contact_id = ?').run(keepId, dropId);
     // Listas estáticas.
     await tdb
       .prepare('UPDATE OR IGNORE crm_list_members SET contact_id = ? WHERE contact_id = ?')
@@ -954,6 +961,7 @@ export async function createCompany(
   data: CompanyInput,
   db: Db = getDb(),
 ): Promise<CrmCompanyRow> {
+  await assertRefs(userId, { ownerId: data.ownerId }, db);
   const id = crypto.randomUUID();
   await db
     .prepare(
@@ -990,6 +998,7 @@ export async function updateCompany(
     .prepare('SELECT * FROM crm_companies WHERE id = ? AND user_id = ?')
     .get(id, userId)) as CrmCompanyRow | undefined;
   if (!existing) return null;
+  await assertRefs(userId, { ownerId: data.ownerId }, db);
   const sets = toColumnValues(COMPANY_COLS, data as Record<string, unknown>);
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
   await db
@@ -1423,6 +1432,8 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
   if (!data.stageId || !(await stageInPipeline(data.stageId, data.pipelineId))) {
     return { ok: false, reason: 'invalid_stage' };
   }
+  await assertRefs(userId, { ownerId: data.ownerId }, db);
+  const contactIds = await ownedContactIds(userId, data.contactIds ?? [], db);
   const id = crypto.randomUUID();
   const maxPos = (
     (await db
@@ -1460,7 +1471,7 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
         ts,
         ts,
       );
-    if (data.contactIds?.length) await setDealContacts(id, data.contactIds, tdb);
+    if (contactIds.length) await setDealContacts(id, contactIds, tdb);
     await tx.commit();
   } catch (e) {
     await tx.rollback();
@@ -1495,6 +1506,9 @@ export async function updateDeal(
     .prepare('SELECT * FROM crm_deals WHERE id = ? AND user_id = ?')
     .get(id, userId)) as CrmDealRow | undefined;
   if (!existing) return null;
+  await assertRefs(userId, { ownerId: data.ownerId }, db);
+  const setIds = data.contactIds ? await ownedContactIds(userId, data.contactIds, db) : undefined;
+  const addIds = await ownedContactIds(userId, data.addContactIds ?? [], db);
   const sets = toColumnValues(DEAL_COLS, data as Record<string, unknown>);
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
   await ensureMigrated();
@@ -1504,18 +1518,18 @@ export async function updateDeal(
     await tdb
       .prepare(`UPDATE crm_deals SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
       .run(...sets.map(([, v]) => v), now(), id);
-    if (data.contactIds) await setDealContacts(id, data.contactIds, tdb);
+    if (setIds) await setDealContacts(id, setIds, tdb);
     if (data.removeContactIds?.length) {
       const ph = data.removeContactIds.map(() => '?').join(',');
       await tdb
         .prepare(`DELETE FROM crm_deal_contacts WHERE deal_id = ? AND contact_id IN (${ph})`)
         .run(id, ...data.removeContactIds);
     }
-    if (data.addContactIds?.length) {
+    if (addIds.length) {
       const ins = tdb.prepare(
         'INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id) VALUES (?, ?)',
       );
-      for (const contactId of data.addContactIds) await ins.run(id, contactId);
+      for (const contactId of addIds) await ins.run(id, contactId);
     }
     await tx.commit();
   } catch (e) {
@@ -1679,11 +1693,50 @@ const ACTIVITY_SELECT = `
   LEFT JOIN crm_task_projects p ON p.id = a.project_id
 `;
 
+async function assertActivityRefs(userId: string, data: ActivityInput, db: Db): Promise<void> {
+  await assertRefs(
+    userId,
+    { contactId: data.contactId, companyId: data.companyId, dealId: data.dealId, ownerId: data.ownerId },
+    db,
+  );
+  if (
+    data.projectId &&
+    !(await db
+      .prepare('SELECT 1 FROM crm_task_projects WHERE id = ? AND user_id = ?')
+      .get(data.projectId, userId))
+  ) {
+    throw new CrmRefError('invalid_project');
+  }
+}
+
+/**
+ * Tareas cuyo vencimiento ya pasó y todavía no dispararon `task_due`.
+ * La llama el cron (app/api/cron/tick); cada tarea dispara una sola vez por fecha.
+ */
+export async function fireDueTasks(limit = 200): Promise<number> {
+  const db = getDb();
+  const rows = (await db
+    .prepare(
+      `SELECT id, user_id FROM crm_activities
+       WHERE type = 'task' AND done = 0 AND due_at IS NOT NULL AND due_at <= ? AND due_fired_at IS NULL
+       ORDER BY due_at ASC LIMIT ?`,
+    )
+    .all(now(), limit)) as Array<{ id: string; user_id: string }>;
+  for (const row of rows) {
+    const claimed = await db
+      .prepare('UPDATE crm_activities SET due_fired_at = ? WHERE id = ? AND due_fired_at IS NULL')
+      .run(now(), row.id);
+    if (claimed.changes) await fireEvent(row.user_id, { type: 'task_due', entity: 'task', entityId: row.id });
+  }
+  return rows.length;
+}
+
 export async function createActivity(
   userId: string,
   data: ActivityInput,
 ): Promise<CrmActivityRow> {
   const db = getDb();
+  await assertActivityRefs(userId, data, db);
   const id = crypto.randomUUID();
   const ts = now();
   await db
@@ -1711,13 +1764,7 @@ export async function createActivity(
       ts,
       ts,
     );
-  const activity = (await db
-    .prepare('SELECT * FROM crm_activities WHERE id = ?')
-    .get(id)) as CrmActivityRow;
-  if (activity.type === 'task' && activity.due_at) {
-    await fireEvent(userId, { type: 'task_due', entity: 'task', entityId: id });
-  }
-  return activity;
+  return (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
 }
 
 export async function updateActivity(
@@ -1730,12 +1777,17 @@ export async function updateActivity(
     .prepare('SELECT * FROM crm_activities WHERE id = ? AND user_id = ?')
     .get(id, userId)) as CrmActivityRow | undefined;
   if (!existing) return null;
+  await assertActivityRefs(userId, data, db);
 
   const sets: Array<[string, string | number | null]> = [];
   if (data.type !== undefined) sets.push(['type', data.type]);
   if (data.subject !== undefined) sets.push(['subject', data.subject]);
   if (data.body !== undefined) sets.push(['body', data.body]);
-  if (data.dueAt !== undefined) sets.push(['due_at', data.dueAt]);
+  if (data.dueAt !== undefined) {
+    sets.push(['due_at', data.dueAt]);
+    // Nueva fecha → el aviso de vencimiento (task_due) vuelve a quedar pendiente.
+    if (data.dueAt !== existing.due_at) sets.push(['due_fired_at', null]);
+  }
   if (data.direction !== undefined) sets.push(['direction', data.direction]);
   if (data.outcome !== undefined) sets.push(['outcome', data.outcome]);
   if (data.durationMin !== undefined) sets.push(['duration_min', data.durationMin]);
@@ -1754,13 +1806,7 @@ export async function updateActivity(
   await db
     .prepare(`UPDATE crm_activities SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
     .run(...sets.map(([, v]) => v), id);
-  const activity = (await db
-    .prepare('SELECT * FROM crm_activities WHERE id = ?')
-    .get(id)) as CrmActivityRow;
-  if (activity.type === 'task' && activity.due_at) {
-    await fireEvent(userId, { type: 'task_due', entity: 'task', entityId: id });
-  }
-  return activity;
+  return (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
 }
 
 export async function deleteActivity(userId: string, id: string): Promise<boolean> {
@@ -2210,7 +2256,11 @@ export async function getList(userId: string, id: string): Promise<ListDetail | 
          LIMIT 500`,
       )
       .all(...args)) as ContactListRow[];
-    return { list, members, memberCount: members.length };
+    // Se muestran hasta 500, pero el conteo es el real.
+    const count = (await db
+      .prepare(`SELECT COUNT(*) AS n FROM crm_contacts c WHERE ${where}`)
+      .get(...args)) as { n: number };
+    return { list, members, memberCount: count.n };
   }
   const members = (await db
     .prepare(
@@ -2218,10 +2268,10 @@ export async function getList(userId: string, id: string): Promise<ListDetail | 
        FROM crm_contacts c
        JOIN crm_list_members m ON m.contact_id = c.id
        LEFT JOIN crm_companies co ON co.id = c.company_id
-       WHERE m.list_id = ?
+       WHERE m.list_id = ? AND c.user_id = ?
        ORDER BY c.created_at DESC`,
     )
-    .all(id)) as ContactListRow[];
+    .all(id, userId)) as ContactListRow[];
   return { list, members, memberCount: members.length };
 }
 
@@ -2278,7 +2328,18 @@ export async function deleteList(userId: string, id: string): Promise<boolean> {
   );
 }
 
-export async function addListMembers(listId: string, contactIds: string[]): Promise<number> {
+/** Agrega contactos a una lista estática del workspace (ignora ids ajenos). */
+export async function addListMembers(
+  userId: string,
+  listId: string,
+  contactIds: string[],
+): Promise<number> {
+  const list = await getDb()
+    .prepare("SELECT 1 FROM crm_lists WHERE id = ? AND user_id = ? AND kind = 'static'")
+    .get(listId, userId);
+  if (!list) return 0;
+  contactIds = await ownedContactIds(userId, contactIds);
+  if (!contactIds.length) return 0;
   await ensureMigrated();
   const tx = await getClient().transaction();
   const tdb = txDb(tx);
@@ -2296,11 +2357,18 @@ export async function addListMembers(listId: string, contactIds: string[]): Prom
   return added;
 }
 
-export async function removeListMember(listId: string, contactId: string): Promise<boolean> {
+export async function removeListMember(
+  userId: string,
+  listId: string,
+  contactId: string,
+): Promise<boolean> {
   return (
     (await getDb()
-      .prepare('DELETE FROM crm_list_members WHERE list_id = ? AND contact_id = ?')
-      .run(listId, contactId)).changes > 0
+      .prepare(
+        `DELETE FROM crm_list_members WHERE list_id = ? AND contact_id = ?
+         AND list_id IN (SELECT id FROM crm_lists WHERE user_id = ?)`,
+      )
+      .run(listId, contactId, userId)).changes > 0
   );
 }
 
@@ -2648,19 +2716,35 @@ export async function exportRows(
   switch (entity) {
     case 'contacts':
       return (await db
-        .prepare('SELECT * FROM crm_contacts WHERE user_id = ? ORDER BY created_at DESC')
+        .prepare(
+          `SELECT x.*, u.email AS owner_email FROM crm_contacts x
+           LEFT JOIN users u ON u.id = x.owner_id
+           WHERE x.user_id = ? ORDER BY x.created_at DESC`,
+        )
         .all(userId)) as CrmContactRow[];
     case 'companies':
       return (await db
-        .prepare('SELECT * FROM crm_companies WHERE user_id = ? ORDER BY created_at DESC')
+        .prepare(
+          `SELECT x.*, u.email AS owner_email FROM crm_companies x
+           LEFT JOIN users u ON u.id = x.owner_id
+           WHERE x.user_id = ? ORDER BY x.created_at DESC`,
+        )
         .all(userId)) as CrmCompanyRow[];
     case 'deals':
       return (await db
-        .prepare('SELECT * FROM crm_deals WHERE user_id = ? ORDER BY created_at DESC')
+        .prepare(
+          `SELECT x.*, u.email AS owner_email FROM crm_deals x
+           LEFT JOIN users u ON u.id = x.owner_id
+           WHERE x.user_id = ? ORDER BY x.created_at DESC`,
+        )
         .all(userId)) as CrmDealRow[];
     case 'activities':
       return (await db
-        .prepare('SELECT * FROM crm_activities WHERE user_id = ? ORDER BY created_at DESC')
+        .prepare(
+          `SELECT x.*, u.email AS owner_email FROM crm_activities x
+           LEFT JOIN users u ON u.id = x.owner_id
+           WHERE x.user_id = ? ORDER BY x.created_at DESC`,
+        )
         .all(userId)) as CrmActivityRow[];
   }
 }

@@ -138,3 +138,39 @@ test('Link: el gate corta la fuerza bruta con 429', async ({ request }) => {
   expect(statuses.slice(0, 5).every((s) => s === 401)).toBe(true);
   expect(statuses.at(-1)).toBe(429);
 });
+
+test('CRM: contacto → deal en el board → nota en el timeline', async ({ request, page }) => {
+  const tag = uid();
+  const contactRes = await request.post('/api/crm/contacts', {
+    data: { firstName: 'E2E', lastName: tag, email: `e2e-${tag}@example.com` },
+  });
+  expect(contactRes.status()).toBe(201);
+  const contact = await contactRes.json();
+
+  const pipelines = await (await request.get('/api/crm/pipelines')).json();
+  const pipeline = pipelines.rows[0];
+  const stage = pipeline.stages[0];
+  const dealRes = await request.post('/api/crm/deals', {
+    data: { name: `Deal ${tag}`, pipelineId: pipeline.id, stageId: stage.id, amount: 1200, contactIds: [contact.id] },
+  });
+  expect(dealRes.status()).toBe(201);
+
+  const note = await request.post('/api/crm/activities', {
+    data: { type: 'note', subject: `Nota ${tag}`, body: 'hola', contactId: contact.id },
+  });
+  expect(note.status()).toBe(201);
+
+  // Referencia a un registro inexistente → 400, no 500.
+  const bad = await request.post('/api/crm/contacts', {
+    data: { email: `x-${tag}@example.com`, companyId: '00000000-0000-0000-0000-000000000000' },
+  });
+  expect(bad.status()).toBe(400);
+  expect((await bad.json()).error).toBe('invalid_company');
+
+  await page.goto(`/en/app/crm/contacts/${contact.id}`);
+  await expect(page.getByText(`Nota ${tag}`).first()).toBeVisible();
+  await expect(page.getByText(`Deal ${tag}`).first()).toBeVisible();
+
+  await page.goto(`/en/app/crm/deals?pipeline=${pipeline.id}`);
+  await expect(page.getByText(`Deal ${tag}`).first()).toBeVisible();
+});

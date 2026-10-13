@@ -148,6 +148,7 @@ export interface CrmActivityRow {
   due_at: string | null;
   done: 0 | 1;
   done_at: string | null;
+  due_fired_at?: string | null;
   pinned: 0 | 1;
   direction: string;
   outcome: string;

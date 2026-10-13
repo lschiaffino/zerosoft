@@ -21,7 +21,7 @@ interface ContactFormProps {
   defaultCompanyId?: string;
 }
 
-const ERROR_CODES = ['invalid_email', 'missing_name', 'invalid_input'] as const;
+const ERROR_CODES = ['invalid_email', 'missing_name', 'invalid_input', 'invalid_company', 'invalid_owner'] as const;
 
 /** Form de alta de contacto: campos estándar + empresa + custom fields por tipo. */
 export default function ContactForm({

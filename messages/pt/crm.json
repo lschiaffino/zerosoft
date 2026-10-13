@@ -58,7 +58,8 @@
     "unpin": "Desafixar",
     "pinned": "Fixado",
     "nextTask": "Próxima tarefa",
-    "clear": "Limpar filtros"
+    "clear": "Limpar filtros",
+    "adminOnly": "Só admins do workspace podem alterar isso."
   },
   "assoc": {
     "associate": "Associar",
@@ -781,6 +782,13 @@
     "invalid_stage": "Esse estágio não pertence a este pipeline.",
     "import_failed": "A importação falhou. Verifique o arquivo e tente de novo.",
     "invalid_input": "Alguns campos são inválidos. Verifique e tente de novo.",
+    "invalid_company": "Essa empresa não existe neste workspace.",
+    "invalid_contact": "Esse contato não existe neste workspace.",
+    "invalid_deal": "Esse negócio não existe neste workspace.",
+    "invalid_owner": "O responsável precisa ser membro deste workspace.",
+    "invalid_project": "Esse projeto não existe neste workspace.",
+    "forbidden": "Só admins do workspace podem fazer isso.",
+    "rate_limited": "Muitas tentativas. Espere um pouco e tente de novo.",
     "generic": "Algo deu errado. Tente de novo."
   },
   "filters": {

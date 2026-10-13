@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { toggleWorkflow } from '@/lib/crm-workflows';
 import { workflowToggleSchema } from '@/lib/crm-workflows-schema';
-import { invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { invalidBody, notFound, unauthorized, forbidden } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,6 +11,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!isWorkspaceAdmin(user)) return forbidden();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = workflowToggleSchema.safeParse(body);

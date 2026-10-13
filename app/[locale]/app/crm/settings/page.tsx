@@ -116,7 +116,11 @@ export default async function CrmSettingsPage(
 
       <section className="panel">
         <p className="section-label">{t('settings.exportCta')}</p>
-        <ExportPanel locale={locale} />
+        {isWorkspaceAdmin(user) ? (
+          <ExportPanel locale={locale} />
+        ) : (
+          <p className="muted panel-desc">{t('common.adminOnly')}</p>
+        )}
       </section>
     </div>
   );

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { createContact, listContacts } from '@/lib/crm';
 import { contactCreateSchema } from '@/lib/crm-schema';
-import { invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
+import { catchRef, crmError, CrmRefError, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
   const parsed = contactCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const contact = await createContact(user.id, parsed.data);
+  const contact = await catchRef(createContact(user.id, parsed.data));
+  if (contact instanceof CrmRefError) return crmError(400, contact.code);
   return NextResponse.json(contact, { status: 201 });
 }
