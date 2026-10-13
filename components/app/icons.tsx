@@ -18,7 +18,8 @@ export type IconName =
   | 'bell'
   | 'inbox'
   | 'chat'
-  | 'feedback';
+  | 'feedback'
+  | 'flow';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -123,6 +124,13 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       <path d="M12 7v4M12 14h.01" />
+    </>
+  ),
+  flow: (
+    <>
+      <rect x="3" y="3" width="6" height="6" />
+      <rect x="15" y="15" width="6" height="6" />
+      <path d="M6 9v3a3 3 0 0 0 3 3h6" />
     </>
   ),
 };

@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, type SiteProductKey as ProductKey } from '@/lib/products';
 import Reveal from '@/components/Reveal';
 import Icon from '@/components/site/Icon';
 import { FEATURE_ICONS, GITHUB_URL, HAS_API, PRODUCT_NAMES, SITE_PRODUCTS } from '@/components/site/catalog';
