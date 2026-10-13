@@ -14,6 +14,8 @@ const PRODUCT_COLOR: Partial<Record<FeedbackProduct, string>> = {
   chat: 'var(--c-chat)',
   docs: 'var(--c-docs)',
   flow: 'var(--c-flow)',
+  notes: 'var(--c-notes)',
+  board: 'var(--c-board)',
 };
 
 /**

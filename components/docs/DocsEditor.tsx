@@ -60,6 +60,11 @@ interface DocsEditorProps {
   commentCounts?: Record<string, number>;
   /** Abre el panel de comentarios anclado al bloque. */
   onBlockComment?: (blockId: string) => void;
+  /**
+   * Modo embebido (lo usa Notes): solo título + bloques. Sin barra de página,
+   * portada, ícono ni menciones [[ / @ (que apuntan a páginas y miembros de Docs).
+   */
+  embedded?: boolean;
 }
 
 const BLOCK_COMMANDS: {
@@ -208,6 +213,7 @@ export default function DocsEditor({
   onAddComment,
   commentCounts,
   onBlockComment,
+  embedded = false,
 }: DocsEditorProps) {
   const t = useTranslations('docs');
   const [blocks, setBlocks] = useState<DocsBlock[]>(() =>
@@ -1238,7 +1244,7 @@ export default function DocsEditor({
       };
 
       // `[[query`: la query no cruza '[' ni ']' (otro '[[' reinicia el trigger).
-      const mentionMatch = !isCode ? beforeCaret.match(/\[\[([^\][]*)$/) : null;
+      const mentionMatch = !isCode && !embedded ? beforeCaret.match(/\[\[([^\][]*)$/) : null;
       if (mentionMatch) {
         const query = mentionMatch[1] ?? '';
         setMention({ index, query, start: caret - mentionMatch[0].length, end: caret });
@@ -1251,7 +1257,7 @@ export default function DocsEditor({
       setMention(null);
 
       // @mención: '@' al inicio o tras un espacio, query sin espacios.
-      const userMatch = !isCode ? beforeCaret.match(/(?:^|\s)@([^\s@]*)$/) : null;
+      const userMatch = !isCode && !embedded ? beforeCaret.match(/(?:^|\s)@([^\s@]*)$/) : null;
       if (userMatch) {
         const query = userMatch[1] ?? '';
         setUserMention({ index, query, start: caret - query.length - 1, end: caret });
@@ -1276,7 +1282,7 @@ export default function DocsEditor({
         closeSlash();
       }
     },
-    [blocks, convertBlock, readCaretMenuPos],
+    [blocks, convertBlock, embedded, readCaretMenuPos],
   );
 
   const handleBlockChange = useCallback(
@@ -1428,7 +1434,8 @@ export default function DocsEditor({
   let numberedIndex = 0;
 
   return (
-    <div className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}`}>
+    <div className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}${embedded ? ' docs-editor-embedded' : ''}`}>
+      {!embedded && (
       <div className="docs-top-bar">
         {ancestorChain.length > 0 && (
           <nav className="docs-breadcrumb">
@@ -1516,7 +1523,9 @@ export default function DocsEditor({
         </div>
       </div>
 
-      {coverUrl ? (
+      )}
+
+      {embedded ? null : coverUrl ? (
         <div className="docs-cover">
           {/* URL arbitraria del usuario: next/image exigiría allowlist de dominios. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1563,12 +1572,14 @@ export default function DocsEditor({
       )}
 
       <div className="docs-page-header">
+        {!embedded && (
         <EmojiPicker value={icon} onChange={(next) => {
           setIcon(next);
           triggerSave(undefined, undefined, next);
         }}>
           <span className="docs-icon">{icon}</span>
         </EmojiPicker>
+        )}
         <div
           ref={titleRef}
           className="docs-title"
@@ -1595,6 +1606,7 @@ export default function DocsEditor({
         />
       </div>
 
+      {!embedded && (
       <div className="docs-page-meta">
         <button type="button" className="docs-meta-btn">
           {t('editor.addIcon')}
@@ -1606,6 +1618,7 @@ export default function DocsEditor({
           {t('editor.addComment')}
         </button>
       </div>
+      )}
 
       <div className="docs-blocks" ref={blocksWrapRef}>
         {blocks.map((block, index) => {

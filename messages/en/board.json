@@ -1,0 +1,46 @@
+{
+  "meta": { "title": "Board" },
+  "sidebar": { "boards": "Boards" },
+  "list": {
+    "title": "Boards",
+    "subtitle": "Infinite whiteboards for your team. Everyone in the workspace can open and edit them.",
+    "new": "New board",
+    "untitled": "Untitled board",
+    "copyName": "{name} (copy)",
+    "confirmDelete": "Delete “{name}”? This can't be undone.",
+    "emptyTitle": "No boards yet.",
+    "emptyHint": "Sketch, plan and share an idea on an infinite canvas.",
+    "rename": "Rename",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "actions": "Board actions",
+    "updated": "Edited {when}"
+  },
+  "share": {
+    "button": "Share",
+    "title": "Share by link",
+    "hint": "Anyone with the link can view this board. Only your workspace can edit it.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "disable": "Stop sharing",
+    "enable": "Create link",
+    "on": "Shared"
+  },
+  "editor": {
+    "back": "Boards",
+    "name": "Board name",
+    "saving": "Saving…",
+    "unsaved": "Unsaved changes",
+    "saveError": "Couldn't save. Retrying…",
+    "saved": "Saved",
+    "conflict": "This board changed somewhere else.",
+    "conflictBy": "{name} changed this board somewhere else.",
+    "reload": "Reload",
+    "keepMine": "Keep my version",
+    "tooLarge": "This board is over {mb} MB, usually because of images. Remove or shrink some images to keep saving."
+  },
+  "public": {
+    "notFound": "Board not found",
+    "viewOnly": "View only"
+  }
+}

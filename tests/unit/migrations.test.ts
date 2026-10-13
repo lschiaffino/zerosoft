@@ -69,7 +69,7 @@ describe('migraciones versionadas', () => {
       client.execute("INSERT INTO feedback (id, kind, product, message) VALUES ('f2', 'idea', 'flow', 'x')"),
     ).rejects.toThrow(/CHECK/);
     await client.execute('PRAGMA foreign_keys = ON');
-    await runMigrations(client);
+    await runMigrations(client, MIGRATIONS.slice(0, idx + 1));
     const rows = (await client.execute('SELECT id, product FROM feedback')).rows;
     expect(rows.map((r) => [r.id, r.product])).toEqual([['f1', 'crm']]);
     await client.execute("INSERT INTO feedback (id, kind, product, message) VALUES ('f2', 'idea', 'flow', 'x')");

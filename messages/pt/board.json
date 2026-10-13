@@ -1,0 +1,46 @@
+{
+  "meta": { "title": "Board" },
+  "sidebar": { "boards": "Quadros" },
+  "list": {
+    "title": "Quadros",
+    "subtitle": "Quadros infinitos para o seu time. Todos no workspace podem abrir e editar.",
+    "new": "Novo quadro",
+    "untitled": "Quadro sem título",
+    "copyName": "{name} (cópia)",
+    "confirmDelete": "Excluir “{name}”? Não dá para desfazer.",
+    "emptyTitle": "Ainda não há quadros.",
+    "emptyHint": "Desenhe, planeje e compartilhe uma ideia em uma tela infinita.",
+    "rename": "Renomear",
+    "duplicate": "Duplicar",
+    "delete": "Excluir",
+    "actions": "Ações do quadro",
+    "updated": "Editado {when}"
+  },
+  "share": {
+    "button": "Compartilhar",
+    "title": "Compartilhar por link",
+    "hint": "Qualquer pessoa com o link pode ver este quadro. Só o seu workspace pode editá-lo.",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "disable": "Parar de compartilhar",
+    "enable": "Criar link",
+    "on": "Compartilhado"
+  },
+  "editor": {
+    "back": "Quadros",
+    "name": "Nome do quadro",
+    "saving": "Salvando…",
+    "unsaved": "Alterações não salvas",
+    "saveError": "Não foi possível salvar. Tentando de novo…",
+    "saved": "Salvo",
+    "conflict": "Este quadro mudou em outro lugar.",
+    "conflictBy": "{name} mudou este quadro em outro lugar.",
+    "reload": "Recarregar",
+    "keepMine": "Manter minha versão",
+    "tooLarge": "Este quadro passa de {mb} MB, quase sempre por causa das imagens. Remova ou reduza algumas para continuar salvando."
+  },
+  "public": {
+    "notFound": "Quadro não encontrado",
+    "viewOnly": "Somente leitura"
+  }
+}

@@ -872,3 +872,48 @@ export interface FlowWebhookRow {
   token: string;
   created_at: string;
 }
+
+// ---------- Notes ----------
+
+export interface NoteNotebookRow {
+  id: string;
+  workspace_id: string; // dueño del workspace
+  person_id: string; // persona real (las notas son personales)
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteRow {
+  id: string;
+  workspace_id: string;
+  person_id: string;
+  notebook_id: string | null;
+  title: string;
+  content: string; // JSON DocsBlock[]
+  body_text: string; // texto plano (búsqueda, snippet, AI)
+  tags: string; // JSON string[]
+  pinned: number; // 0/1
+  source_url: string | null;
+  share_token: string | null;
+  trashed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---------- Board ----------
+
+export interface BoardRow {
+  id: string;
+  workspace_id: string;
+  created_by: string | null;
+  updated_by: string | null;
+  name: string;
+  scene: string; // JSON { elements, appState, files }
+  scene_bytes: number;
+  thumbnail: string | null; // SVG chico (opcional)
+  version: number;
+  share_token: string | null;
+  created_at: string;
+  updated_at: string;
+}

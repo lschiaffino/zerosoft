@@ -18,6 +18,8 @@
       "chat": "Chat",
       "docs": "Docs",
       "flow": "Flow",
+      "notes": "Notes",
+      "board": "Board",
       "site": "Sitio web",
       "other": "Otro"
     },

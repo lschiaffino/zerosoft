@@ -26,6 +26,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-notes-board',
+    date: '2026-10-13',
+    title: {
+      en: 'Notes and Board: two new apps for you',
+      es: 'Notes y Board: dos apps nuevas para vos',
+      pt: 'Notes e Board: dois apps novos para você',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Notes, an open-source alternative to Evernote: press N for a new note, notebooks, tags, pinning, checklists you can tick, full-text search, a web clipper, read-only share links and "Ask AI" over your notes. Your notes are private to you.',
+        es: 'Notes, una alternativa open source a Evernote: apretá N para una nota nueva, libretas, tags, fijadas, checklists para tildar, búsqueda de texto completo, un clipper web, links de solo lectura y "Preguntale a la IA" sobre tus notas. Tus notas son solo tuyas.',
+        pt: 'Notes, uma alternativa open source ao Evernote: aperte N para uma nota nova, cadernos, tags, fixadas, checklists para marcar, busca de texto completo, um clipper web, links somente leitura e "Pergunte à IA" sobre suas notas. Suas notas são só suas.',
+      },
+      {
+        product: 'platform',
+        en: 'Board, an open-source alternative to Miro: an infinite whiteboard with autosave, thumbnails, duplicate and read-only share links.',
+        es: 'Board, una alternativa open source a Miro: una pizarra infinita con autoguardado, miniaturas, duplicar y links de solo lectura.',
+        pt: 'Board, uma alternativa open source ao Miro: um quadro infinito com salvamento automático, miniaturas, duplicar e links somente leitura.',
+      },
+    ],
+  },
+  {
     id: '2026-10-13-flow',
     date: '2026-10-13',
     title: {
