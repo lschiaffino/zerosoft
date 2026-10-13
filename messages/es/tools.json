@@ -1,0 +1,537 @@
+{
+  "hub": {
+    "metaTitle": "Herramientas gratis para negocios — sin registro",
+    "metaDescription": "Herramientas gratis para equipos chicos: generador de firmas de email, códigos QR, facturas, política de privacidad, análisis de sitios web, redactor de emails y anuncios con AI, nombres de negocio y más. Sin registro ni tracking.",
+    "label": "Herramientas gratis",
+    "title1": "Herramientas gratis.",
+    "title2": "Sin registro, sin letra chica.",
+    "sub": "Utilidades chicas que usamos nosotros mismos: firmas, códigos QR, facturas, políticas, textos. La mayoría corre entera en tu navegador: no hay nada que instalar y no guardamos nada de nuestro lado.",
+    "groups": {
+      "sales": { "title": "Ventas", "desc": "Quedá bien en cada email y respondé más rápido." },
+      "marketing": { "title": "Marketing", "desc": "Códigos, links, nombres y textos para tu próxima campaña." },
+      "finance": { "title": "Operaciones y finanzas", "desc": "Los papeles que todo negocio necesita, listos en minutos." },
+      "website": { "title": "Sitio web", "desc": "Descubrí qué está frenando a tu sitio." }
+    },
+    "footTitle": "¿Querés lo completo?",
+    "footBody": "zerosoft reemplaza HubSpot, Intercom, Calendly, Notion, Linear y Bitly con apps open source. Plan gratis, sin tarjeta."
+  },
+  "common": {
+    "label": "Herramientas gratis",
+    "free": "Gratis · sin registro",
+    "kind": {
+      "ai": "Con AI",
+      "server": "Análisis en vivo",
+      "local": "Corre en tu navegador"
+    },
+    "startFree": "Empezá gratis",
+    "saveInZerosoft": "Guardalo en zerosoft",
+    "seeProduct": "Ver {product}",
+    "faqTitle": "Preguntas",
+    "relatedTitle": "Más herramientas gratis",
+    "allTools": "Todas las herramientas gratis",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "copyAll": "Copiar todo",
+    "networkError": "No pudimos conectarnos con el servidor. Revisá tu conexión y probá de nuevo.",
+    "invalid": "Revisá los campos y probá de nuevo.",
+    "aiReason": {
+      "rate_limited": "Llegaste al límite gratis de las herramientas con AI (10 por hora).",
+      "ai_disabled": "La AI no está disponible en este momento.",
+      "quota_exceeded": "La AI no está disponible en este momento.",
+      "ai_error": "El modelo de AI no respondió esta vez."
+    },
+    "fallbackUsed": "Te dejamos ideas de nuestro generador propio."
+  },
+  "ai": {
+    "language": "Idioma del resultado",
+    "languages": { "en": "Inglés", "es": "Español", "pt": "Portugués" },
+    "generating": "Generando…",
+    "limitNote": "Gratis, sin registro. Hasta 10 generaciones con AI por hora.",
+    "empty": "Los resultados van a aparecer acá."
+  },
+  "signature": {
+    "sample": { "name": "Alex Rivera", "title": "Head of Sales", "company": "Acme S.A." },
+    "fields": {
+      "name": "Nombre completo",
+      "title": "Cargo",
+      "company": "Empresa",
+      "phone": "Teléfono",
+      "email": "Email",
+      "website": "Sitio web",
+      "photoUrl": "URL de la foto o el logo",
+      "meetingUrl": "Link para “Agendá una reunión”",
+      "accent": "Color de acento",
+      "customColor": "Color personalizado",
+      "socials": "Redes sociales"
+    },
+    "hints": {
+      "photoUrl": "Usá la URL pública de una imagen (cuadrada, de al menos 144×144). Dejalo vacío para no mostrar foto.",
+      "meetingUrl": "Tip: creá una página de reservas gratis con zerosoft Cal y acortala con Link."
+    },
+    "templates": "Plantillas",
+    "templateNames": { "classic": "Clásica", "modern": "Moderna", "compact": "Compacta", "bold": "Destacada" },
+    "copySignature": "Copiar firma",
+    "copyHtml": "Copiar HTML",
+    "install": {
+      "title": "Cómo instalarla",
+      "gmail": "Configuración → Ver toda la configuración → General → Firma → Crear nueva, y pegala.",
+      "outlook": "Configuración → Correo → Redactar y responder → Firma de correo electrónico, y pegala.",
+      "apple": "Mail → Configuración → Firmas → +, pegala y desmarcá “Usar siempre mi tipo de letra predeterminado”."
+    }
+  },
+  "qr": {
+    "type": "Tipo de QR",
+    "kinds": { "url": "URL", "text": "Texto", "wifi": "Wi-Fi", "vcard": "Contacto", "email": "Email" },
+    "fields": {
+      "url": "URL del sitio",
+      "text": "Texto",
+      "ssid": "Nombre de la red (SSID)",
+      "password": "Contraseña",
+      "security": "Seguridad",
+      "open": "Ninguna (red abierta)",
+      "hidden": "Red oculta",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "org": "Empresa",
+      "jobTitle": "Cargo",
+      "phone": "Teléfono",
+      "email": "Email",
+      "website": "Sitio web",
+      "to": "Para",
+      "subject": "Asunto",
+      "body": "Mensaje",
+      "size": "Tamaño",
+      "margin": "Margen",
+      "fg": "Color del código",
+      "bg": "Fondo",
+      "ecc": "Corrección de errores"
+    },
+    "hints": { "ecc": "Más corrección aguanta daños o un logo encima, pero hace el código más denso." },
+    "ecc": { "L": "Baja (7%)", "M": "Media (15%)", "Q": "Alta (25%)", "H": "Máxima (30%)" },
+    "previewAlt": "Vista previa del código QR",
+    "tooLong": "Demasiado contenido para un código QR. Acortalo.",
+    "empty": "Completá los campos para ver tu código QR.",
+    "lowContrast": "El código y el fondo tienen el mismo color: no se va a poder escanear.",
+    "downloadPng": "Descargar PNG",
+    "downloadSvg": "Descargar SVG",
+    "staticNote": "Son códigos estáticos: no vencen nunca y no miden escaneos. ¿Necesitás métricas de escaneo o cambiar el destino después? Usá Link."
+  },
+  "invoice": {
+    "fields": {
+      "number": "Número de factura",
+      "currency": "Moneda",
+      "issueDate": "Fecha de emisión",
+      "dueDate": "Vencimiento",
+      "fromName": "De",
+      "toName": "Facturar a",
+      "fromDetails": "Tus datos",
+      "toDetails": "Datos del cliente",
+      "logoUrl": "URL del logo",
+      "description": "Descripción",
+      "qty": "Cant.",
+      "price": "Precio",
+      "tax": "Impuesto %",
+      "discount": "Descuento",
+      "discountType": "Tipo de descuento",
+      "notes": "Notas / condiciones de pago"
+    },
+    "placeholders": {
+      "fromName": "Tu empresa",
+      "toName": "Nombre del cliente",
+      "details": "Dirección, CUIT/ID fiscal, email…",
+      "item": "Servicio o producto",
+      "notes": "Datos bancarios, condiciones de pago, agradecimiento…"
+    },
+    "removeItem": "Quitar línea",
+    "addItem": "Agregar línea",
+    "confirmReset": "¿Empezar una factura nueva? Se va a borrar el borrador actual.",
+    "preview": "Vista previa de la factura",
+    "doc": {
+      "invoice": "Factura",
+      "number": "N.º",
+      "issued": "Emisión",
+      "due": "Vencimiento",
+      "billTo": "Facturar a",
+      "description": "Descripción",
+      "qty": "Cant.",
+      "price": "Precio",
+      "tax": "Impuesto",
+      "amount": "Importe",
+      "subtotal": "Subtotal",
+      "discount": "Descuento",
+      "taxAt": "Impuesto {rate}%",
+      "total": "Total",
+      "notes": "Notas"
+    },
+    "downloadPdf": "Descargar PDF",
+    "newInvoice": "Factura nueva",
+    "savedLocally": "Borrador guardado en este navegador",
+    "pdfHint": "“Descargar PDF” abre el diálogo de impresión del navegador: elegí “Guardar como PDF”."
+  },
+  "saas": {
+    "teamSize": "Tamaño del equipo",
+    "teamHint": "Define los usuarios de cada herramienta que cobra por usuario. Abajo podés ajustar cada una.",
+    "perSeat": "/usuario/mes",
+    "perMonth": "/mes",
+    "seatsFor": "Usuarios de {vendor}",
+    "flat": "fijo",
+    "listPriceNote": "Precios de lista del plan pago más básico, en USD, con facturación anual. Son precios de lista: verificalos con cada proveedor, los planes cambian seguido.",
+    "yearlyToday": "Lo que pagás por año ({count} herramientas)",
+    "threeYears": "En 3 años:",
+    "withZerosoft": "Con zerosoft",
+    "zeroNote": "Plan gratis para las apps. Pagás solo lo que escala (como el uso de AI), al costo. O hostealo vos, gratis para siempre.",
+    "cta": "Empezá gratis",
+    "seeApps": "Ver las apps"
+  },
+  "privacy": {
+    "disclaimer": "No es asesoramiento legal. Este generador completa una plantilla con tus respuestas. Las leyes cambian según el país y el negocio: hacé revisar el resultado por un abogado antes de publicarlo.",
+    "fields": {
+      "company": "Nombre de la empresa",
+      "website": "Sitio web o app",
+      "email": "Email de contacto para privacidad",
+      "jurisdiction": "Jurisdicción principal",
+      "address": "Dirección postal (opcional)",
+      "effectiveDate": "Fecha de vigencia",
+      "data": "Datos que recopilás",
+      "practices": "Prácticas",
+      "thirdParties": "Servicios que usás"
+    },
+    "jurisdictions": {
+      "us": "Estados Unidos (incl. California)",
+      "eu": "Unión Europea (RGPD)",
+      "uk": "Reino Unido",
+      "br": "Brasil (LGPD)",
+      "ar": "Argentina",
+      "mx": "México",
+      "ca": "Canadá",
+      "other": "Otra / internacional"
+    },
+    "data": {
+      "contact": "Datos de contacto",
+      "account": "Datos de la cuenta",
+      "payment": "Pagos / facturación",
+      "usage": "Datos de uso",
+      "device": "Dispositivo e IP",
+      "location": "Ubicación",
+      "content": "Contenido de usuarios"
+    },
+    "practices": {
+      "cookies": "Usamos cookies",
+      "analytics": "Usamos analítica",
+      "ads": "Hacemos publicidad / retargeting",
+      "newsletter": "Enviamos emails de marketing",
+      "noChildren": "No está dirigido a menores"
+    },
+    "copy": "Copiar (Markdown)",
+    "downloadMd": "Descargar .md",
+    "downloadHtml": "Descargar .html"
+  },
+  "names": {
+    "submit": "Generar nombres",
+    "keywords": "Palabras clave",
+    "keywordsHint": "Qué hacés, en pocas palabras. Ej.: “delivery de café, rápido”.",
+    "industry": "Rubro",
+    "style": "Estilo",
+    "styles": { "modern": "Moderno", "classic": "Clásico", "playful": "Divertido", "techy": "Tech", "premium": "Premium" },
+    "domainNote": "Los dominios son sugerencias: verificá la disponibilidad con tu registrador. Hacé clic en un dominio para copiarlo."
+  },
+  "writer": {
+    "email": {
+      "submit": "Escribir emails",
+      "goal": "¿Qué tiene que lograr el email?",
+      "goalHint": "Ej.: “agendar una demo con los leads que bajaron nuestra guía de precios”.",
+      "subject": "Asunto",
+      "preview": "Vista previa"
+    },
+    "ad": {
+      "submit": "Escribir anuncios",
+      "goal": "¿Qué estás promocionando?",
+      "goalHint": "Ej.: “prueba gratis de 14 días de nuestro servicio contable para freelancers”.",
+      "subject": "Título",
+      "preview": "Descripción"
+    },
+    "audience": "Público",
+    "tone": "Tono",
+    "tones": { "friendly": "Amigable", "professional": "Profesional", "persuasive": "Persuasivo", "casual": "Informal", "urgent": "Urgente" },
+    "platform": "Plataforma",
+    "points": "Puntos clave",
+    "pointsHint": "Datos, ofertas o pruebas que querés incluir. La AI no inventa números.",
+    "variant": "Variante"
+  },
+  "persona": {
+    "submit": "Crear buyer persona",
+    "product": "¿Qué vendés?",
+    "productHint": "Una o dos frases sobre tu producto y quién lo compra.",
+    "industry": "Rubro",
+    "market": "Mercado / región",
+    "goals": "Objetivos",
+    "pains": "Problemas",
+    "objections": "Objeciones",
+    "channels": "Dónde busca"
+  },
+  "blog": {
+    "submit": "Ver ideas",
+    "topic": "Tema o palabra clave",
+    "audience": "Público"
+  },
+  "grader": {
+    "urlLabel": "URL del sitio",
+    "submit": "Analizar mi sitio",
+    "analyzing": "Analizando…",
+    "analyzingLong": "Bajando tu página, robots.txt y sitemap… tarda unos segundos.",
+    "errors": {
+      "invalid_url": "Eso no parece una URL pública válida.",
+      "private_host": "Solo podemos analizar sitios públicos.",
+      "https_required": "Solo podemos analizar sitios servidos por HTTPS.",
+      "unreachable": "No pudimos llegar a ese sitio. ¿Está online?",
+      "timeout": "El sitio tardó demasiado en responder.",
+      "not_html": "Esa URL no devuelve una página web.",
+      "http_error": "El sitio respondió con un error.",
+      "rate_limited": "Hiciste muchos análisis. Probá de nuevo en una hora.",
+      "network": "No pudimos conectarnos con nuestro servidor. Probá de nuevo."
+    },
+    "verdict": {
+      "good": "Sólido. Un par de ajustes y listo.",
+      "ok": "Aceptable, con margen claro para mejorar.",
+      "bad": "Necesita trabajo: empezá por lo marcado en rojo."
+    },
+    "pagespeed": "Google PageSpeed (mobile)",
+    "categories": {
+      "security": "Seguridad",
+      "performance": "Rendimiento",
+      "seo": "SEO",
+      "mobile": "Mobile",
+      "accessibility": "Accesibilidad"
+    },
+    "status": { "pass": "Aprobado", "warn": "Mejorable", "fail": "No aprobado" },
+    "checks": {
+      "https": { "title": "Servido por HTTPS", "fix": "Instalá un certificado TLS (gratis con Let’s Encrypt o tu hosting) y redirigí HTTP a HTTPS." },
+      "hsts": { "title": "Header HSTS", "fix": "Agregá Strict-Transport-Security para que los navegadores usen siempre HTTPS." },
+      "securityHeaders": { "title": "Headers de seguridad", "fix": "Agregá Content-Security-Policy, X-Content-Type-Options, X-Frame-Options y Referrer-Policy." },
+      "responseTime": { "title": "Tiempo de respuesta del servidor", "fix": "Apuntá a menos de 800 ms: cacheá las páginas, usá un CDN y evitá llamadas lentas en el servidor." },
+      "pageWeight": { "title": "Tamaño del HTML", "fix": "Mantené el HTML por debajo de 150 KB: sacá datos inline, markup sin uso y scripts inline grandes." },
+      "compression": { "title": "Compresión", "fix": "Activá Brotli o gzip en tu servidor o CDN." },
+      "caching": { "title": "Headers de caché", "fix": "Enviá Cache-Control, ETag o Last-Modified para que las visitas repetidas carguen más rápido." },
+      "renderBlocking": { "title": "Scripts que bloquean el renderizado", "fix": "Agregá async o defer a los scripts del head, o movelos al final del body." },
+      "title": { "title": "Título de la página", "fix": "Escribí un título único de 10 a 70 caracteres con tu palabra clave principal." },
+      "metaDescription": { "title": "Meta description", "fix": "Agregá una descripción de 50 a 170 caracteres que den ganas de hacer clic." },
+      "h1": { "title": "Un solo encabezado H1", "fix": "Usá exactamente un H1 que diga de qué trata la página." },
+      "canonical": { "title": "URL canónica", "fix": "Agregá un link rel=canonical en el head para evitar problemas de contenido duplicado." },
+      "openGraph": { "title": "Etiquetas Open Graph", "fix": "Agregá og:title, og:description y og:image para que los links se vean bien al compartirlos." },
+      "indexable": { "title": "Indexable por buscadores", "fix": "Sacá “noindex” de la meta etiqueta robots o del header X-Robots-Tag." },
+      "robotsTxt": { "title": "robots.txt", "fix": "Publicá un robots.txt en la raíz de tu dominio." },
+      "sitemap": { "title": "Sitemap XML", "fix": "Publicá sitemap.xml y referencialo desde robots.txt." },
+      "viewport": { "title": "Viewport para mobile", "fix": "Agregá una meta etiqueta viewport con width=device-width, initial-scale=1." },
+      "icons": { "title": "Favicon / ícono de app", "fix": "Agregá un favicon y un apple-touch-icon." },
+      "lang": { "title": "Idioma de la página", "fix": "Definí el atributo lang en el elemento html, por ejemplo lang=es." },
+      "imageAlt": { "title": "Texto alternativo de imágenes", "fix": "Describí cada imagen relevante con texto alt (usá un alt vacío para las decorativas)." },
+      "linkText": { "title": "Links con texto", "fix": "Poné un aria-label a los links que son solo un ícono para que los lectores de pantalla los anuncien." },
+      "formLabels": { "title": "Etiquetas de formularios", "fix": "Asociá cada campo a un elemento label o dale un aria-label." }
+    }
+  },
+  "utm": {
+    "url": "URL de la página",
+    "presets": "Atajos",
+    "presetNames": { "newsletter": "Newsletter", "linkedin": "LinkedIn", "google": "Google Ads", "signature": "Firma de email" },
+    "optional": "opcional",
+    "hints": {
+      "source": "De dónde viene el tráfico: google, newsletter, linkedin.",
+      "medium": "El canal: email, cpc, social.",
+      "campaign": "Nombre de la campaña: liquidacion-primavera, lanzamiento-2026.",
+      "term": "Palabra clave paga, si hay.",
+      "content": "Para distinguir dos links de la misma campaña: cta-header, footer."
+    },
+    "normalize": "Pasar a minúsculas y reemplazar espacios por guiones",
+    "result": "Tu URL con seguimiento",
+    "empty": "Ingresá una URL para armar tu link.",
+    "missing": "Tip: siempre completá source, medium y campaign: las herramientas de analítica agrupan por esos valores.",
+    "shortenHint": "¿URL muy larga? Acortala con Link y obtené un link prolijo, un código QR y métricas de clics."
+  },
+  "items": {
+    "email-signature-generator": {
+      "name": "Generador de firmas de email",
+      "short": "Firmas profesionales que funcionan en Gmail, Outlook y Apple Mail.",
+      "metaTitle": "Generador de firmas de email gratis (Gmail, Outlook, Apple Mail)",
+      "metaDescription": "Creá una firma de email HTML profesional en un minuto. Cuatro plantillas, tus colores, redes sociales y un botón para agendar reuniones. Gratis, sin registro y sin píxeles de tracking.",
+      "title": "Generador de firmas de email",
+      "sub": "Completá tus datos, elegí una plantilla y copiala directo en Gmail, Outlook o Apple Mail. HTML con tablas que se ve bien en todos lados, y sin píxeles de tracking.",
+      "ctaTitle": "Convertí respuestas en reuniones",
+      "ctaBody": "Sumá a tu firma una página de reservas gratis de zerosoft Cal y dejá que elijan horario sin ida y vuelta.",
+      "faq": [
+        { "q": "¿La firma se ve igual en Gmail y en Outlook?", "a": "Sí. Las plantillas usan tablas y estilos inline, el único formato en el que coinciden todos los clientes de email. Si hace falta, la tipografía cae a Arial." },
+        { "q": "¿Por qué no aparece mi foto?", "a": "La foto tiene que ser la URL pública de una imagen (por ejemplo, de tu sitio o de LinkedIn). Algunos clientes bloquean las imágenes remotas hasta que el destinatario las permite." },
+        { "q": "¿Miden quién abre mis emails?", "a": "No. La firma no tiene píxeles de tracking y no se envía nada a nuestros servidores: se genera en tu navegador." },
+        { "q": "¿Es gratis de verdad?", "a": "Sí, gratis y sin registro. Tus datos se guardan solo en tu navegador para que puedas volver a editarlos." }
+      ]
+    },
+    "qr-code-generator": {
+      "name": "Generador de códigos QR",
+      "short": "Códigos QR para links, Wi-Fi, contactos y email. PNG o SVG.",
+      "metaTitle": "Generador de códigos QR gratis: URL, Wi-Fi, vCard, PNG y SVG",
+      "metaDescription": "Creá códigos QR para links, redes Wi-Fi, tarjetas de contacto y emails. Colores, tamaño y corrección de errores a medida. Descargalos en PNG o SVG. Gratis, sin registro, no vencen.",
+      "title": "Generador de códigos QR",
+      "sub": "Creá un código QR para un link, una red Wi-Fi, una tarjeta de contacto o un email. Elegí colores y tamaño, y descargalo en PNG o SVG. Se genera en tu navegador.",
+      "ctaTitle": "Medí cada escaneo",
+      "ctaBody": "Con zerosoft Link tus códigos QR apuntan a un link corto que podés editar cuando quieras, con métricas de escaneo por país, dispositivo y fecha.",
+      "faq": [
+        { "q": "¿Estos códigos QR vencen?", "a": "No. Son códigos estáticos: el contenido está dentro de la imagen, así que funcionan para siempre y no dependen de nuestros servidores." },
+        { "q": "¿PNG o SVG?", "a": "El SVG escala a cualquier tamaño sin perder calidad: es lo mejor para imprimir. El PNG es lo más cómodo para web, presentaciones y documentos." },
+        { "q": "¿Puedo ver cuánta gente lo escaneó?", "a": "No con un código estático. Hacé que el QR apunte a un link corto de zerosoft Link para contar escaneos y cambiar el destino después." },
+        { "q": "¿Qué corrección de errores conviene?", "a": "Media sirve para casi todo. Elegí Máxima si el código va impreso chico, sobre superficies rugosas o con un logo encima." }
+      ]
+    },
+    "invoice-generator": {
+      "name": "Generador de facturas",
+      "short": "Facturas profesionales con impuestos y descuentos. Descargalas en PDF.",
+      "metaTitle": "Generador de facturas gratis: descargá el PDF sin registro",
+      "metaDescription": "Creá una factura profesional con tu logo, ítems, impuestos, descuentos y cualquier moneda. Descargala en PDF. Gratis, sin registro y con borradores guardados en tu navegador.",
+      "title": "Generador de facturas",
+      "sub": "Agregá tus datos, los ítems, impuestos y descuento: los totales se actualizan mientras escribís. Descargá un PDF prolijo en cualquier moneda. El borrador queda en tu navegador.",
+      "ctaTitle": "Tené cada cliente y cada negocio en un solo lugar",
+      "ctaBody": "zerosoft CRM sigue contactos, empresas y negocios gratis, así siempre sabés a quién facturarle.",
+      "faq": [
+        { "q": "¿Cómo descargo la factura en PDF?", "a": "Hacé clic en “Descargar PDF” y elegí “Guardar como PDF” en el diálogo de impresión del navegador. Se imprime solo la factura, sin el formulario." },
+        { "q": "¿Cómo se calculan los impuestos y descuentos?", "a": "Primero se aplica el descuento al subtotal y se reparte entre las líneas; después se calcula el impuesto de cada línea sobre el importe con descuento, redondeado a los centavos de la moneda." },
+        { "q": "¿Se guardan mis datos en algún lado?", "a": "Solo en el almacenamiento local de tu navegador, para que puedas cerrar la pestaña y seguir después. No se envía nada a nuestros servidores." },
+        { "q": "¿Esta factura es válida fiscalmente?", "a": "Depende de tu país. En algunos (como Argentina) la factura legal tiene que ser electrónica o llevar datos específicos. Consultalo con tu contador." }
+      ]
+    },
+    "saas-cost-calculator": {
+      "name": "Calculadora de costos SaaS",
+      "short": "Cuánto paga tu equipo por año de HubSpot, Notion, Calendly y más.",
+      "metaTitle": "Calculadora de costos SaaS: ¿cuánto cuesta tu software?",
+      "metaDescription": "Sumá lo que paga tu equipo cada año por HubSpot, Intercom, Calendly, Notion, Linear, Bitly, Zapier, Miro y Evernote, y comparalo con el plan gratis de zerosoft.",
+      "title": "Calculadora de costos SaaS",
+      "sub": "Elegí las herramientas que paga tu equipo y cuántos usuarios. Mirá la cuenta anual a precio de lista, y cuánto cuesta con zerosoft.",
+      "ctaTitle": "Las mismas herramientas, cero licencias",
+      "ctaBody": "zerosoft reconstruye el software que usás todos los días como open source. Plan gratis en la nube, o hostealo vos gratis para siempre.",
+      "faq": [
+        { "q": "¿De dónde salen los precios?", "a": "Son los precios de lista públicos del plan pago más básico de cada proveedor, con facturación anual, en USD. Los proveedores cambian sus planes seguido: revisá sus páginas de precios para tu caso." },
+        { "q": "¿zerosoft es gratis de verdad?", "a": "Las apps son gratis en el plan de la nube y open source (AGPLv3). Pagás solo lo que escala, como el uso de AI, al costo." },
+        { "q": "¿zerosoft reemplaza todas las herramientas de la lista?", "a": "Link, CRM, Cal, Track, Chat y Docs ya están disponibles. Flow, Board y Notes están en camino." }
+      ]
+    },
+    "privacy-policy-generator": {
+      "name": "Generador de política de privacidad",
+      "short": "Una política de privacidad clara para tu sitio, con un formulario guiado.",
+      "metaTitle": "Generador de política de privacidad gratis (RGPD, CCPA, LGPD)",
+      "metaDescription": "Generá la política de privacidad de tu sitio web o app con un formulario guiado: datos que recopilás, cookies, analítica, terceros y tu jurisdicción. Copiala o descargala en Markdown o HTML. Gratis.",
+      "title": "Generador de política de privacidad",
+      "sub": "Respondé unas preguntas y obtené una política de privacidad legible para tu sitio o app, con secciones para RGPD, CCPA, LGPD y más. Copiala o descargala en Markdown o HTML.",
+      "ctaTitle": "Publicá tus políticas y mantenelas al día",
+      "ctaBody": "Guardá tus políticas, términos y documentos internos en zerosoft Docs, con historial de versiones y para compartir: gratis.",
+      "faq": [
+        { "q": "¿Esto es asesoramiento legal?", "a": "No. Es una plantilla completada con tus respuestas. Cada negocio es distinto: hacela revisar por un abogado antes de publicarla." },
+        { "q": "¿Cubre el RGPD y la CCPA?", "a": "Agrega las secciones que esas leyes suelen exigir (bases legales, derechos, contacto, transferencias internacionales), pero cumplir depende de cómo manejás los datos en la práctica." },
+        { "q": "¿En qué idioma se genera la política?", "a": "En el idioma de esta página. Cambiá el idioma del sitio para generarla en inglés, español o portugués." },
+        { "q": "¿Guardan lo que escribo?", "a": "No. La política se genera en tu navegador." }
+      ]
+    },
+    "business-name-generator": {
+      "name": "Generador de nombres de negocio",
+      "short": "Ideas de nombres con AI, con eslogan y sugerencias de dominio.",
+      "metaTitle": "Generador de nombres de empresa gratis con AI y dominios",
+      "metaDescription": "Conseguí ideas de nombres para tu negocio con AI: nombres cortos y fáciles de recordar, con eslogan y sugerencias de dominio. Gratis, sin registro.",
+      "title": "Generador de nombres de negocio",
+      "sub": "Contá qué hacés y elegí un estilo. Recibí diez nombres cortos y fáciles de recordar, cada uno con un eslogan y una idea de dominio.",
+      "ctaTitle": "¿Ya tenés nombre? Sumá los links",
+      "ctaBody": "Usá zerosoft Link con tu propio dominio para links cortos con tu marca, códigos QR y métricas: gratis.",
+      "faq": [
+        { "q": "¿Los dominios están disponibles?", "a": "No verificamos la disponibilidad. Tomalos como ideas y buscalos en tu registrador antes de decidir." },
+        { "q": "¿Puedo usar estos nombres comercialmente?", "a": "Sí, pero revisá primero las marcas registradas en tu país. Los nombres generados pueden coincidir con marcas existentes." },
+        { "q": "¿Hay un límite?", "a": "Hasta 10 generaciones con AI por hora por persona. Si la AI no está disponible, te mostramos ideas de un generador propio que combina palabras." }
+      ]
+    },
+    "ai-email-writer": {
+      "name": "Redactor de emails con AI",
+      "short": "Tres borradores de email listos para enviar a partir de un brief corto.",
+      "metaTitle": "Redactor de emails con AI gratis: ventas y marketing",
+      "metaDescription": "Escribí emails de ventas, seguimiento y marketing con AI. Contá el objetivo, el público y el tono, y recibí tres variantes con asunto. Gratis, sin registro.",
+      "title": "Redactor de emails con AI",
+      "sub": "Decile el objetivo, el público y el tono. Recibí tres borradores distintos con asunto y texto de vista previa, listos para ajustar y enviar.",
+      "ctaTitle": "Envialo desde tu CRM",
+      "ctaBody": "zerosoft CRM junta cada contacto, email y negocio, con workflows que hacen el seguimiento por vos.",
+      "faq": [
+        { "q": "¿Qué idiomas soporta?", "a": "Inglés, español y portugués. Elegí el idioma del resultado en el formulario." },
+        { "q": "¿La AI inventa datos?", "a": "Tiene instrucciones de no inventar números ni afirmaciones. Sumá los datos que quieras en “Puntos clave” y revisá siempre antes de enviar." },
+        { "q": "¿Hay un límite?", "a": "Hasta 10 generaciones con AI por hora por persona, gratis y sin cuenta." }
+      ]
+    },
+    "ai-ad-copy-generator": {
+      "name": "Generador de anuncios con AI",
+      "short": "Títulos y descripciones para anuncios de Google, Meta y LinkedIn.",
+      "metaTitle": "Generador de textos para anuncios con AI gratis: Google, Meta, LinkedIn",
+      "metaDescription": "Generá títulos, descripciones y texto principal para Google Ads, Facebook, Instagram y LinkedIn con AI. Tres variantes dentro de los límites de cada plataforma. Gratis.",
+      "title": "Generador de anuncios con AI",
+      "sub": "Describí la oferta y el público, elegí la plataforma y el tono. Recibí tres variantes de anuncio con el largo justo para Google, Meta o LinkedIn.",
+      "ctaTitle": "Seguí cada lead desde el clic hasta el cierre",
+      "ctaBody": "Mandá el tráfico de tus anuncios a links medidos con zerosoft Link y gestioná los leads en zerosoft CRM: los dos gratis.",
+      "faq": [
+        { "q": "¿Los textos respetan los límites de caracteres?", "a": "Se le pide a la AI que respete los límites de cada plataforma (por ejemplo, 30 caracteres en los títulos de Google). Revisalos siempre en el editor de anuncios." },
+        { "q": "¿Qué plataformas soporta?", "a": "Google Ads, Meta (Facebook e Instagram) y LinkedIn." },
+        { "q": "¿Hay un límite?", "a": "Hasta 10 generaciones con AI por hora por persona." }
+      ]
+    },
+    "website-grader": {
+      "name": "Analizador de sitios web",
+      "short": "Puntuá tu sitio en velocidad, SEO, seguridad, mobile y accesibilidad.",
+      "metaTitle": "Analizador de sitios web gratis: SEO, velocidad y seguridad",
+      "metaDescription": "Calificá tu sitio web sobre 100: HTTPS, tiempo de respuesta, peso de la página, título y meta etiquetas, Open Graph, robots.txt, sitemap, viewport mobile, texto alt y más, con cómo arreglarlo. Gratis.",
+      "title": "Analizador de sitios web",
+      "sub": "Ingresá tu URL y recibí un puntaje sobre 100 en seguridad, rendimiento, SEO, mobile y accesibilidad, con un arreglo concreto para cada problema.",
+      "ctaTitle": "Sabé en qué hacen clic tus visitas",
+      "ctaBody": "Compartí links cortos medidos con zerosoft Link y mirá los clics por origen, país y dispositivo: gratis.",
+      "faq": [
+        { "q": "¿Qué revisa el analizador?", "a": "HTTPS y headers de seguridad, tiempo de respuesta del servidor, tamaño del HTML, compresión y caché, título, meta description, encabezados, canonical, Open Graph, robots.txt, sitemap, viewport, íconos, idioma, texto alt, texto de los links y etiquetas de formularios." },
+        { "q": "¿Es lo mismo que Google PageSpeed?", "a": "No. Revisamos el HTML y los headers que devuelve tu servidor: es rápido y detecta casi todo lo básico. PageSpeed corre un navegador completo para medir el rendimiento en detalle." },
+        { "q": "¿Puede revisar páginas con login?", "a": "No, solo páginas públicas accesibles desde internet." },
+        { "q": "¿Hay un límite?", "a": "Hasta 20 análisis por hora por persona." }
+      ]
+    },
+    "buyer-persona-generator": {
+      "name": "Generador de buyer persona",
+      "short": "Un buyer persona realista con objetivos, problemas y objeciones.",
+      "metaTitle": "Generador de buyer persona gratis con AI",
+      "metaDescription": "Creá un buyer persona con AI: rol, objetivos, problemas, objeciones, canales y una frase. Usalo para afinar tu discurso de ventas y tu marketing. Gratis, sin registro.",
+      "title": "Generador de buyer persona",
+      "sub": "Contá qué vendés y a quién. Recibí un buyer persona realista con objetivos, problemas, objeciones y dónde busca soluciones.",
+      "ctaTitle": "Convertí personas en pipeline",
+      "ctaBody": "Segmentá contactos por persona en zerosoft CRM y derivá conversaciones con zerosoft Chat: gratis.",
+      "faq": [
+        { "q": "¿El persona se basa en datos reales?", "a": "Es una hipótesis inicial de la AI. Validala con entrevistas y con los datos de tus clientes." },
+        { "q": "¿Cuántos buyer personas conviene tener?", "a": "A la mayoría de los negocios chicos les alcanza con dos o tres. Corré el generador para cada segmento al que le vendés." },
+        { "q": "¿Hay un límite?", "a": "Hasta 10 generaciones con AI por hora por persona." }
+      ]
+    },
+    "blog-ideas-generator": {
+      "name": "Generador de ideas para blog",
+      "short": "Diez ideas de posts que tu público está buscando.",
+      "metaTitle": "Generador de ideas para blog gratis (AI)",
+      "metaDescription": "Conseguí diez ideas de posts pensadas para SEO sobre cualquier tema y público: guías, listas, comparaciones y plantillas. Con AI, gratis y sin registro.",
+      "title": "Generador de ideas para blog",
+      "sub": "Ingresá un tema y tu público. Recibí diez ideas de posts, cada una con un enfoque claro: guías, listas, comparaciones y más.",
+      "ctaTitle": "Escribilo en equipo",
+      "ctaBody": "Redactá, revisá y publicá tus posts en zerosoft Docs: páginas colaborativas con editor de bloques, gratis.",
+      "faq": [
+        { "q": "¿Los títulos están optimizados para SEO?", "a": "Están escritos según lo que la gente busca, con menos de 70 caracteres. Validá las palabras clave con tu herramienta de SEO." },
+        { "q": "¿Y si la AI no está disponible?", "a": "Igual recibís ideas de nuestras plantillas propias." },
+        { "q": "¿Hay un límite?", "a": "Hasta 10 generaciones con AI por hora por persona." }
+      ]
+    },
+    "utm-builder": {
+      "name": "Generador de UTM",
+      "short": "URLs de campaña con seguimiento para tu analítica, en un clic.",
+      "metaTitle": "Generador de UTM gratis: creá URLs de campaña",
+      "metaDescription": "Armá URLs de campaña con parámetros UTM (source, medium, campaign, term, content) para Google Analytics y cualquier herramienta de analítica. Atajos y valores prolijos y consistentes. Gratis.",
+      "title": "Generador de UTM",
+      "sub": "Agregá utm_source, utm_medium y utm_campaign a cualquier link para que tu analítica sepa de dónde vino cada visita. Valores consistentes y en minúsculas por defecto.",
+      "ctaTitle": "Acortalo y contá los clics",
+      "ctaBody": "Pegá tu link con UTM en zerosoft Link y obtené una URL corta con tu marca, un código QR y métricas de clics: gratis.",
+      "faq": [
+        { "q": "¿Qué parámetros UTM son obligatorios?", "a": "Usá source, medium y campaign en todos los links. Term y content son opcionales." },
+        { "q": "¿Por qué en minúsculas?", "a": "Las herramientas de analítica toman “Email” y “email” como valores distintos. Usar todo en minúsculas evita reportes partidos." },
+        { "q": "¿Puedo usar UTM en links internos?", "a": "Mejor no: reinician el origen de la sesión en la analítica. Usalos solo en links desde fuera de tu sitio." }
+      ]
+    }
+  }
+}

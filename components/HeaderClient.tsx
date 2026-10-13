@@ -15,6 +15,7 @@ interface HeaderClientProps {
     products: string;
     blog: string;
     docs: string;
+    freeTools: string;
     changelog: string;
     github: string;
     startFree: string;
@@ -173,6 +174,9 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
               </div>
             </div>
           </div>
+          <Link className="hd-link" href="/tools">
+            {labels.freeTools}
+          </Link>
           <Link className="hd-link" href="/docs">
             {labels.docs}
           </Link>
@@ -227,6 +231,9 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <div className="mobile-panel-links">
           <Link className="hd-link" href="/products">
             {th('allProducts')}
+          </Link>
+          <Link className="hd-link" href="/tools">
+            {labels.freeTools}
           </Link>
           <Link className="hd-link" href="/docs">
             {labels.docs}
