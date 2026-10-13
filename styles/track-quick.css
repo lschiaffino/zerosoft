@@ -781,3 +781,11 @@ a.track-board-card-title:hover {
     min-width: 0;
   }
 }
+
+/* Barra de filtros: radio chico y sin desbordar en mobile. */
+.track-filter-bar { border-radius: 6px; min-width: 0; }
+@media (max-width: 640px) {
+  .track-filter-search { flex-wrap: wrap; width: 100%; }
+  .track-filter-search input[type="search"] { min-width: 0; flex: 1 1 100%; }
+  .track-filter-group { width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+}
