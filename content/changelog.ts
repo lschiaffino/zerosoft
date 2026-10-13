@@ -26,6 +26,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-crm-email',
+    date: '2026-10-13',
+    title: {
+      en: 'CRM: Gmail sync, templates, tracking and sequences',
+      es: 'CRM: sync de Gmail, plantillas, tracking y secuencias',
+      pt: 'CRM: sync do Gmail, modelos, rastreamento e sequências',
+    },
+    items: [
+      {
+        product: 'crm',
+        en: 'Gmail now syncs in the background: emails with your contacts land on their timeline, grouped by thread, and you can reply from the CRM. Emails are sent from your own Gmail.',
+        es: 'Gmail ahora se sincroniza solo: los emails con tus contactos aparecen en su timeline, agrupados por hilo, y podés responder desde el CRM. Los emails salen desde tu propio Gmail.',
+        pt: 'O Gmail agora sincroniza sozinho: os emails com seus contatos aparecem na timeline, agrupados por conversa, e você responde pelo CRM. Os emails saem do seu próprio Gmail.',
+      },
+      {
+        product: 'crm',
+        en: 'Templates and snippets with variables, an AI draft button, and open and click tracking with notifications.',
+        es: 'Plantillas y snippets con variables, un botón para redactar con IA, y aviso de aperturas y clics con notificaciones.',
+        pt: 'Modelos e snippets com variáveis, um botão para redigir com IA, e rastreamento de aberturas e cliques com notificações.',
+      },
+      {
+        product: 'crm',
+        en: 'Sequences: automatic follow-up emails and tasks with waits, business days and send windows. Contacts leave on their own when they reply, book a meeting or unsubscribe.',
+        es: 'Secuencias: emails y tareas de seguimiento automáticos con esperas, días hábiles y horarios de envío. Los contactos salen solos cuando responden, agendan una reunión o se dan de baja.',
+        pt: 'Sequências: emails e tarefas de acompanhamento automáticos com esperas, dias úteis e janelas de envio. Os contatos saem sozinhos quando respondem, agendam uma reunião ou cancelam a inscrição.',
+      },
+    ],
+  },
+  {
     id: '2026-10-13-robots',
     date: '2026-10-13',
     title: {

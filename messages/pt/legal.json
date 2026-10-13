@@ -153,7 +153,7 @@
     },
     "label": "Legal — 02",
     "title": "Política de Privacidade",
-    "updated": "Última atualização: 12 de outubro de 2026",
+    "updated": "Última atualização: 13 de outubro de 2026",
     "intro": "Coletamos o mínimo, guardamos só pelo tempo necessário e nunca vendemos. Esta política explica exatamente o que isso significa, na mesma linguagem simples que usamos em todo lugar. Nós a revisamos periodicamente e sempre que o produto muda de um jeito que afete seus dados.",
     "tocTitle": "Conteúdo",
     "sections": {
@@ -180,11 +180,12 @@
           "Dados de cliques: quando alguém segue um link curto, registramos o horário, o link, o domínio de origem, o país aproximado, o tipo de dispositivo, o navegador e o sistema operacional. Não guardamos o endereço IP nem o user-agent completo junto com o clique.",
           "Dados de reservas: quando alguém reserva por uma página do Cal, o nome, e-mail, respostas às perguntas do anfitrião, fuso horário e idioma informados, e os detalhes da reserva.",
           "Dados do chat: mensagens escritas em um widget de Chat, o nome e o e-mail se o visitante decidir informá-los, anexos que ele envia, avaliações de satisfação, e um identificador aleatório de visitante guardado no navegador dele para que a conversa continue entre visitas.",
-          "Dados de integrações do Google, só se você conectá-las: do Gmail, os metadados dos e-mails trocados com seus contatos do CRM (remetente, destinatários, assunto, um trecho curto, data e identificadores), não o corpo completo das mensagens; do Google Agenda, seus horários livres e ocupados e os eventos que as reservas criam na sua agenda.",
+          "Dados de integrações do Google, só se você conectá-las: do Gmail, os e-mails trocados com seus contatos do CRM (remetente, destinatários, assunto, data, identificadores de mensagem e de conversa, e o corpo da mensagem — texto simples e uma cópia higienizada do HTML, com tamanho limitado, sem anexos nem imagens remotas), e os e-mails que você envia pelo CRM através do seu Gmail; do Google Agenda, seus horários livres e ocupados e os eventos que as reservas criam na sua agenda.",
           "Segredos de integrações: tokens OAuth do Google e segredos de assinatura de webhooks, guardados criptografados. As API keys são guardadas apenas como hashes. Um token do Bitly que você nos fornece para importar é usado nessa importação e não é guardado.",
           "Dados técnicos: endereços IP são usados brevemente para limitar requisições e aparecem nos logs de requisições do nosso provedor de hospedagem (veja Retenção). O status de entrega dos e-mails transacionais que enviamos.",
           "Mensagens que você nos envia: e-mails para nossos endereços de suporte, privacidade, abuso ou segurança.",
           "Reservas e CRM: quando alguém agenda uma reunião pelo Cal, nome, email, horário e respostas também são salvos como contato e atividade de reunião no CRM do anfitrião. Se um agente decidir, uma conversa do Chat é salva no contato do CRM do visitante.",
+          "Rastreamento dos e-mails enviados pelo CRM, quando o titular da conta o mantém ativo (pode ser desligado para o workspace ou em cada e-mail): uma imagem invisível e links reescritos registram quando o e-mail é aberto ou um link é clicado — o horário, o link e o user agent do navegador, não o endereço IP. Os e-mails de sequências incluem um link para cancelar a inscrição; ao cancelar, não são enviados mais e-mails de sequências para esse endereço.",
           "Feedback: se você enviar feedback pelo site ou pelo app, guardamos a mensagem, o tipo e o produto escolhidos, a página em que você estava, o user agent do navegador e seu email, se você informar ou estiver logado."
         ]
       },
@@ -195,7 +196,7 @@
           "Nenhum fingerprinting de dispositivos nem rastreamento entre sites.",
           "Nenhum endereço IP guardado junto com os cliques.",
           "Nenhuma senha: o login é delegado ao Google. As senhas de links são guardadas apenas como hashes scrypt com salt.",
-          "Nenhum corpo completo de e-mails do Gmail, e nada de e-mails que não envolvam seus contatos do CRM.",
+          "Nada de e-mails que não envolvam seus contatos do CRM, e nenhum anexo.",
           "Nenhum dado de cartão: hoje não cobramos. Quando lançarmos planos pagos, os pagamentos serão processados por um processador de pagamentos que vamos nomear aqui antes."
         ]
       },
@@ -226,7 +227,7 @@
       "s08": {
         "h": "Dados de usuários do Google",
         "p": [
-          "Se você conecta o Gmail ou o Google Agenda, a Zerosoft pede apenas o acesso que cada recurso precisa: acesso somente leitura ao Gmail para mostrar os e-mails trocados com seus contatos do CRM, e acesso à disponibilidade (free/busy) e a eventos do Google Agenda para evitar reservas sobrepostas e para criar, atualizar ou cancelar os eventos gerados pelas suas reservas. Você pode desconectar a qualquer momento nas configurações do produto ou na sua conta do Google.",
+          "Se você conecta o Gmail ou o Google Agenda, a Zerosoft pede apenas o acesso que cada recurso precisa: leitura do Gmail para mostrar na timeline os e-mails trocados com seus contatos do CRM (e detectar respostas que param uma sequência), envio do Gmail para mandar do seu próprio endereço os e-mails e etapas de sequências que você escreve no CRM, e acesso à disponibilidade (free/busy) e a eventos do Google Agenda para evitar reservas sobrepostas e para criar, atualizar ou cancelar os eventos gerados pelas suas reservas. Os dados do Gmail são usados só para esses recursos: não são usados para publicidade, não são vendidos e não são usados para treinar modelos de IA. Você pode desconectar a qualquer momento nas configurações do produto ou na sua conta do Google.",
           "O uso e a transferência para qualquer outro app, pela Zerosoft, de informações recebidas das APIs do Google seguem a Política de Dados do Usuário dos Serviços de API do Google (Google API Services User Data Policy), incluindo os requisitos de Uso Limitado (Limited Use).",
           "Na prática: usamos os dados de usuários do Google apenas para fornecer e melhorar os recursos visíveis ao usuário que os utilizam; não os transferimos a terceiros, exceto quando necessário para fornecer esses recursos, para cumprir a lei, ou como parte de uma fusão ou aquisição com aviso prévio; não os usamos para publicidade; não os usamos para treinar modelos gerais de IA ou aprendizado de máquina; e ninguém na Zerosoft os lê, a menos que você nos dê permissão explícita para mensagens específicas, que seja necessário por segurança (por exemplo, para investigar abuso) ou que a lei exija."
         ]

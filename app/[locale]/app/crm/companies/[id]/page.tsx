@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
-import { getCompany, LIFECYCLE_STAGES, listCustomFields, listExternalEmailItems, listTimeline, mergeTimelineWithEmails, nextTaskFor, parseCustom } from '@/lib/crm';
+import { listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
+import { getCompany, LIFECYCLE_STAGES, listCustomFields, listTimeline, nextTaskFor, parseCustom } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
 import AssociationPanel from '@/components/crm/AssociationPanel';
 import {
@@ -44,8 +45,8 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
   const timeline = await listTimeline(user.id, { companyId: id, limit: 100 });
-  const emailItems = await listExternalEmailItems(user.id, { companyId: id, limit: 50 });
-  const timelineItems = mergeTimelineWithEmails(timeline, emailItems);
+  const threads = await listEmailThreads(user.id, { companyId: id, limit: 100 });
+  const timelineItems = mergeTimelineWithThreads(timeline, threads);
   const nextTask = await nextTaskFor(user.id, { companyId: id });
 
   // Nombres de stage para los deals relacionados.

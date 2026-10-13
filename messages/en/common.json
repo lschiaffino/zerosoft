@@ -210,9 +210,9 @@
     "hero": {
       "kicker": "Software is dead.",
       "kickerLink": "Read the manifesto",
-      "title1": "Ten apps. One suite.",
+      "title1": "Eleven apps. One suite.",
       "title2": "Zero licenses.",
-      "sub": "Open-source alternatives to HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro and Bitly — with AI agents built in. Self-host them free, forever, or start free on Zerosoft Cloud.",
+      "sub": "Open-source alternatives to HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, UiPath and Bitly — with AI agents built in. Self-host them free, forever, or start free on Zerosoft Cloud.",
       "ctaStart": "Start free",
       "ctaSelfHost": "Self-host",
       "note1": "No credit card",

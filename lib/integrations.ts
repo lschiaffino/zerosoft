@@ -1,8 +1,9 @@
 import { getDb, type IntegrationRow } from './db';
 import { open, seal } from './secret-box';
+import { GMAIL_READ_SCOPE, GMAIL_SEND_SCOPE } from './gmail';
 
 /**
- * Integraciones OAuth de Google (Gmail read-only para el CRM, Google Calendar
+ * Integraciones OAuth de Google (Gmail lectura + envío para el CRM, Google Calendar
  * para Cal). Reutiliza GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET de next-auth; el
  * flujo es independiente porque necesita scopes extra + refresh token offline.
  */
@@ -43,7 +44,10 @@ export function googleAuthUrl(opts: { redirectUri: string; scope: string; state:
 export function gmailAuthUrl(state: string): string {
   return googleAuthUrl({
     redirectUri: gmailRedirectUri(),
-    scope: 'openid email https://www.googleapis.com/auth/gmail.readonly',
+    // Lectura (sync de emails con contactos del CRM) + envío como el usuario
+    // (emails y secuencias del CRM). Ver docs/feature-map.md: ambos scopes
+    // requieren verificación de la app en Google (gmail.readonly es restricted).
+    scope: `openid email ${GMAIL_READ_SCOPE} ${GMAIL_SEND_SCOPE}`,
     state,
   });
 }
@@ -181,69 +185,4 @@ async function gmailFetch<T>(token: string, path: string): Promise<T | null> {
 export async function gmailProfileEmail(token: string): Promise<string> {
   const profile = await gmailFetch<{ emailAddress?: string }>(token, '/profile');
   return profile?.emailAddress ?? '';
-}
-
-interface GmailListResponse {
-  messages?: Array<{ id: string; threadId: string }>;
-}
-
-/** IDs de mensajes que matchean la query (más recientes primero). */
-export async function gmailListMessageIds(
-  token: string,
-  query: string,
-  maxResults = 10,
-): Promise<Array<{ id: string; threadId: string }>> {
-  const params = new URLSearchParams({ q: query, maxResults: String(maxResults) });
-  const data = await gmailFetch<GmailListResponse>(token, `/messages?${params.toString()}`);
-  return data?.messages ?? [];
-}
-
-export interface GmailMessageMeta {
-  id: string;
-  threadId: string;
-  subject: string;
-  from: string;
-  to: string;
-  snippet: string;
-  internalDate: string; // ISO
-}
-
-interface GmailMessageResponse {
-  id: string;
-  threadId?: string;
-  snippet?: string;
-  internalDate?: string;
-  payload?: { headers?: Array<{ name: string; value: string }> };
-}
-
-/** Metadata mínima de un mensaje (Subject/From/To/Date + snippet). */
-export async function gmailGetMessageMeta(
-  token: string,
-  id: string,
-): Promise<GmailMessageMeta | null> {
-  const params = new URLSearchParams({
-    format: 'metadata',
-    'metadataHeaders': 'Subject',
-  });
-  params.append('metadataHeaders', 'From');
-  params.append('metadataHeaders', 'To');
-  params.append('metadataHeaders', 'Date');
-  const data = await gmailFetch<GmailMessageResponse>(
-    token,
-    `/messages/${encodeURIComponent(id)}?${params.toString()}`,
-  );
-  if (!data?.id) return null;
-  const headers = new Map(
-    (data.payload?.headers ?? []).map((h) => [h.name.toLowerCase(), h.value]),
-  );
-  const internalMs = Number(data.internalDate ?? 0);
-  return {
-    id: data.id,
-    threadId: data.threadId ?? '',
-    subject: headers.get('subject') ?? '',
-    from: headers.get('from') ?? '',
-    to: headers.get('to') ?? '',
-    snippet: data.snippet ?? '',
-    internalDate: internalMs ? new Date(internalMs).toISOString() : new Date().toISOString(),
-  };
 }

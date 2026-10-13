@@ -5,7 +5,7 @@
 import { getDb } from './db';
 import type { NotificationRow } from './db';
 
-export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation' | 'chat_message';
+export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'email_activity';
 
 export interface NotificationCreatePayload {
   userId: string;

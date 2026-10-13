@@ -704,7 +704,7 @@
     "howTitleDim": "in three steps.",
     "suiteLabel": "06 — Part of the suite",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Ten apps, same login.",
+    "suiteTitleDim": "Eleven apps, same login.",
     "previewNote": "Interactive preview of the product UI.",
     "compareSave": "You keep"
   },
@@ -1076,11 +1076,25 @@
     "activitiesListDesc": "Most recent first. Pass exactly one of contactId, companyId or dealId.",
     "activitiesCreateTitle": "Log an activity",
     "activitiesCreateDesc": "Log a note, call, meeting or email on a record. Tasks have their own endpoint.",
-    "paramContactIds": "Contact ids to associate with the deal.",
+    "paramContactIds": "IDs of the contacts to enroll (1–500).",
     "paramLostReason": "Why it was lost (required for lost stages).",
     "paramRecordFilter": "The record whose timeline you want.",
     "paramActivityType": "Kind of activity.",
     "paramActivityBody": "Free text: notes, call summary, email body.",
-    "openapiCta": "Download OpenAPI 3.1 spec"
+    "openapiCta": "Download OpenAPI 3.1 spec",
+    "crmEmailTitle": "CRM — Email templates & sequences",
+    "crmEmailDesc": "Shared email templates and snippets, and multi-step sales sequences. Sequence emails are sent from the sender's connected Gmail; steps run on the hourly scheduler.",
+    "emailTemplatesListTitle": "List email templates",
+    "emailTemplatesListDesc": "Templates and snippets shared in the workspace. Variables go between double curly braces (contact.first_name, contact.company, deal.name, owner.first_name, contact.custom.x), with an optional fallback after a pipe.",
+    "emailTemplatesGetTitle": "Get an email template",
+    "emailTemplatesGetDesc": "Returns one template or snippet.",
+    "sequencesListTitle": "List sequences",
+    "sequencesListDesc": "Sequences with their number of steps and enrollments.",
+    "sequencesEnrollTitle": "Enroll contacts in a sequence",
+    "sequencesEnrollDesc": "Enrolls up to 500 contacts. Contacts that are already enrolled, unsubscribed or without email are returned in skipped. The sender needs Gmail connected with send permission.",
+    "sequencesUnenrollTitle": "Unenroll a contact",
+    "sequencesUnenrollDesc": "Removes the contact from the sequence (status exited, reason manual).",
+    "paramTemplateKind": "Filter by kind: template or snippet.",
+    "paramSenderId": "Workspace member whose Gmail sends the emails. Defaults to the contact owner, then the sequence creator."
   }
 }

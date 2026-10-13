@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { registerMailbox } from '@/lib/crm-email-sync';
 import { exchangeCode, gmailProfileEmail, upsertIntegration } from '@/lib/integrations';
 
 export const runtime = 'nodejs';
@@ -19,6 +20,8 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const code = sp.get('code');
   const state = sp.get('state');
+  // El Gmail es de la persona (no del workspace): en un team cada miembro conecta el suyo.
+  const personId = realUserId(user);
   const cookieState = req.cookies.get(STATE_COOKIE)?.value;
 
   function out(params: string): NextResponse {
@@ -28,7 +31,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (sp.get('error')) return out('gmail=denied');
-  if (!code || !state || !cookieState || state !== cookieState || !state.startsWith(`${user.id}.`)) {
+  if (!code || !state || !cookieState || state !== cookieState || !state.startsWith(`${personId}.`)) {
     return out('gmail=error');
   }
 
@@ -37,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   const email = await gmailProfileEmail(tokens.access_token);
   await upsertIntegration({
-    userId: user.id,
+    userId: personId,
     provider: 'gmail',
     email,
     accessToken: tokens.access_token,
@@ -46,5 +49,6 @@ export async function GET(req: NextRequest) {
     scope: tokens.scope ?? '',
   });
 
+  await registerMailbox(user.id, personId);
   return out('gmail=connected');
 }

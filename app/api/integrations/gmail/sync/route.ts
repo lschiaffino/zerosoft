@@ -1,109 +1,28 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
-import { getDb } from '@/lib/db';
-import { runWorkflowsForEvent } from '@/lib/crm-workflows';
-import {
-  getIntegration,
-  getValidAccessToken,
-  gmailGetMessageMeta,
-  gmailListMessageIds,
-  touchIntegrationSync,
-} from '@/lib/integrations';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { syncMailbox } from '@/lib/crm-email-sync';
+import { limitAction } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const CONTACTS_PER_SYNC = 100;
-const MESSAGES_PER_CONTACT = 8;
-const CHUNK = 5;
-
 /**
- * Sincroniza emails de Gmail → crm_emails para los contactos del CRM.
- * Por contacto busca `from:x OR to:x`, saltea los gmail_id ya importados
- * (UNIQUE user_id+gmail_id) e inserta metadata mínima (sin cuerpo).
+ * "Sync now": misma pasada incremental que el cron (lib/crm-email-sync.ts),
+ * con más margen de mensajes. Si el cron está sincronizando este buzón
+ * responde 409 (locked) en vez de duplicar trabajo.
  */
 export async function POST() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const personId = realUserId(user);
+  const limited = await limitAction(personId, 'gmail-sync', 20, 3600);
+  if (limited) return limited;
 
-  const integration = await getIntegration(user.id, 'gmail');
-  if (!integration) return NextResponse.json({ error: 'not_connected' }, { status: 400 });
-
-  const token = await getValidAccessToken(integration);
-  if (!token) return NextResponse.json({ error: 'token_expired' }, { status: 400 });
-
-  const db = getDb();
-
-  const contacts = (await db
-    .prepare(
-      `SELECT id, email FROM crm_contacts
-       WHERE user_id = ? AND email != '' AND email IS NOT NULL
-       ORDER BY updated_at DESC LIMIT ?`,
-    )
-    .all(user.id, CONTACTS_PER_SYNC)) as Array<{ id: string; email: string }>;
-
-  const insert = db.prepare(
-    `INSERT OR IGNORE INTO crm_emails
-       (id, user_id, contact_id, gmail_id, thread_id, direction, from_email, to_emails,
-        subject, snippet, sent_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-
-  let synced = 0;
-
-  async function syncContact(contact: { id: string; email: string }): Promise<void> {
-    const q = `from:${contact.email} OR to:${contact.email}`;
-    const listed = await gmailListMessageIds(token!, q, MESSAGES_PER_CONTACT);
-    if (!listed.length) return;
-    // Solo los que todavía no están importados (consulta acotada a estos ids).
-    const already = new Set(
-      (
-        (await db
-          .prepare(
-            `SELECT gmail_id FROM crm_emails WHERE user_id = ? AND gmail_id IN (${listed.map(() => '?').join(',')})`,
-          )
-          .all(user!.id, ...listed.map((m) => m.id))) as Array<{ gmail_id: string }>
-      ).map((r) => r.gmail_id),
-    );
-    for (const m of listed) {
-      if (already.has(m.id)) continue;
-      const meta = await gmailGetMessageMeta(token!, m.id);
-      if (!meta) continue;
-      const direction = meta.from.toLowerCase().includes(contact.email.toLowerCase())
-        ? 'in'
-        : 'out';
-      const emailId = crypto.randomUUID();
-      const res = await insert.run(
-        emailId,
-        user!.id,
-        contact.id,
-        meta.id,
-        meta.threadId,
-        direction,
-        meta.from,
-        meta.to,
-        meta.subject,
-        meta.snippet,
-        meta.internalDate,
-      );
-      if (res.changes) synced += res.changes;
-      // Solo los mails que escribió el contacto cuentan como "recibidos".
-      if (res.changes && direction === 'in') {
-        await runWorkflowsForEvent(user!.id, {
-          type: 'email_received',
-          entity: 'email',
-          entityId: emailId,
-          payload: { contactId: contact.id, gmailId: meta.id, direction },
-        });
-      }
-    }
-  }
-
-  for (let i = 0; i < contacts.length; i += CHUNK) {
-    await Promise.all(contacts.slice(i, i + CHUNK).map((c) => syncContact(c).catch(() => null)));
-  }
-
-  await touchIntegrationSync(user.id, 'gmail');
-  return NextResponse.json({ ok: true, synced, contacts: contacts.length });
+  const res = await syncMailbox(user.id, personId, { maxMessages: 150 });
+  if (res.status === 'not_connected') return NextResponse.json({ error: 'not_connected' }, { status: 400 });
+  if (res.status === 'token_expired') return NextResponse.json({ error: 'token_expired' }, { status: 400 });
+  if (res.status === 'locked') return NextResponse.json({ error: 'sync_in_progress' }, { status: 409 });
+  if (res.status === 'error') return NextResponse.json({ error: 'sync_failed' }, { status: 502 });
+  return NextResponse.json({ ok: true, synced: res.stored, fetched: res.fetched, mode: res.mode, more: res.more ?? false });
 }

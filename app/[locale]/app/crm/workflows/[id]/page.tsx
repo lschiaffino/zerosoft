@@ -5,6 +5,7 @@ import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { getWorkflow, listWorkflowRuns } from '@/lib/crm-workflows';
 import { listLists } from '@/lib/crm';
 import WorkflowEditor from '@/components/crm/WorkflowEditor';
+import { listSequences } from '@/lib/crm-sequences';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,7 @@ export default async function WorkflowDetailPage(
 
   const runs = await listWorkflowRuns(user.id, id, 20);
   const lists = await listLists(user.id);
+  const sequences = (await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }));
 
   return (
     <div className="app-page">
@@ -38,6 +40,7 @@ export default async function WorkflowDetailPage(
       <WorkflowEditor
         workflow={workflow}
         lists={lists}
+        sequences={sequences}
         runs={runs}
         labels={{
           name: t('workflows.name'),
@@ -69,6 +72,8 @@ export default async function WorkflowDetailPage(
             deal_lost: t('workflows.triggerTypes.deal_lost'),
             task_due: t('workflows.triggerTypes.task_due'),
             email_received: t('workflows.triggerTypes.email_received'),
+            email_opened: t('workflows.triggerTypes.email_opened'),
+            email_clicked: t('workflows.triggerTypes.email_clicked'),
             meeting_booked: t('workflows.triggerTypes.meeting_booked'),
             manual: t('workflows.triggerTypes.manual'),
           },
@@ -80,6 +85,7 @@ export default async function WorkflowDetailPage(
             add_to_list: t('workflows.actionTypes.add_to_list'),
             webhook: t('workflows.actionTypes.webhook'),
             notify_user: t('workflows.actionTypes.notify_user'),
+            enroll_in_sequence: t('workflows.actionTypes.enroll_in_sequence'),
           },
           fromStageId: t('workflows.fromStageId'),
           toStageId: t('workflows.toStageId'),
@@ -96,6 +102,7 @@ export default async function WorkflowDetailPage(
           method: t('workflows.method'),
           headers: t('workflows.headers'),
           message: t('workflows.message'),
+          sequenceId: t('workflows.sequenceId'),
         }}
       />
     </div>

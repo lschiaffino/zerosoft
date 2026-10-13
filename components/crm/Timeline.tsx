@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import type { EmailThreadView } from '@/lib/crm-email';
+import EmailThread from './EmailThread';
 
 export type TimelineRecordType = 'contact' | 'company' | 'deal';
 
@@ -21,9 +23,20 @@ export interface TimelineItem {
   company_name?: string | null;
   deal_name?: string | null;
   created_at: string;
-  /** Email sincronizado desde Gmail: read-only, sin acciones, badge "Gmail". */
+  /** Thread de emails (Gmail o enviados desde el CRM): read-only, se muestra agrupado. */
   external?: boolean;
   from_email?: string;
+  thread?: EmailThreadView;
+}
+
+/** Herramientas del composer de email: templates/snippets, IA y tracking. */
+export interface EmailTools {
+  templates: Array<{ id: string; kind: 'template' | 'snippet'; name: string; subject: string; body: string }>;
+  aiEnabled: boolean;
+  trackingDefault: boolean;
+  /** Para el render de variables (preview) y el contexto de la IA. */
+  contactId?: string;
+  dealId?: string;
 }
 
 interface TimelineProps {
@@ -34,6 +47,7 @@ interface TimelineProps {
   locale: string;
   /** Email precargado en el composer cuando type === email. */
   defaultEmail?: string;
+  emailTools?: EmailTools;
 }
 
 const TYPES = ['note', 'task', 'call', 'meeting', 'email'] as const;
@@ -77,6 +91,7 @@ export default function Timeline({
   emptyLabel,
   locale,
   defaultEmail = '',
+  emailTools,
 }: TimelineProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -91,6 +106,13 @@ export default function Timeline({
   const [durationMin, setDurationMin] = useState('');
   const [posting, setPosting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<EmailThreadView | null>(null);
+  const [tracking, setTracking] = useState(emailTools?.trackingDefault ?? true);
+  const [missing, setMissing] = useState<string[]>([]);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Lista
   const [filter, setFilter] = useState<ActivityType | 'all'>('all');
@@ -103,6 +125,83 @@ export default function Timeline({
   const [editBody, setEditBody] = useState('');
 
   const filtered = filter === 'all' ? items : items.filter((i) => i.type === filter);
+  const templates = emailTools?.templates.filter((x) => x.kind === 'template') ?? [];
+  const snippets = emailTools?.templates.filter((x) => x.kind === 'snippet') ?? [];
+
+  function errorText(code: string | undefined): string {
+    if (!code) return t('errors.generic');
+    return t.has(`errors.${code}`) ? t(`errors.${code}` as 'errors.generic') : t('errors.generic');
+  }
+
+  /** Render de variables con el contacto/deal del registro (y aviso de faltantes). */
+  async function render(subjectTpl: string, bodyTpl: string): Promise<{ subject: string; body: string } | null> {
+    const res = await fetch('/api/crm/email-templates/preview', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        subject: subjectTpl,
+        body: bodyTpl,
+        contactId: emailTools?.contactId,
+        dealId: emailTools?.dealId,
+      }),
+    }).catch(() => null);
+    if (!res?.ok) return null;
+    const data = (await res.json()) as { subject: string; body: string; missing: string[] };
+    setMissing(data.missing);
+    return { subject: data.subject, body: data.body };
+  }
+
+  async function insertTemplate(id: string) {
+    const tpl = templates.find((x) => x.id === id);
+    if (!tpl) return;
+    const out = await render(tpl.subject, tpl.body);
+    if (!out) return;
+    if (!replyTo) setSubject(out.subject);
+    setBody(out.body);
+  }
+
+  async function insertSnippet(id: string) {
+    const sn = snippets.find((x) => x.id === id);
+    if (!sn) return;
+    const out = await render('', sn.body);
+    if (!out) return;
+    setBody((b) => (b.trim() ? `${b.replace(/\s+$/, '')}\n\n${out.body}` : out.body));
+  }
+
+  async function aiDraft() {
+    if (!emailTools?.contactId || aiBusy) return;
+    setAiBusy(true);
+    setEmailError(null);
+    const res = await fetch('/api/crm/emails/draft', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contactId: emailTools.contactId,
+        instructions: aiPrompt.trim() || undefined,
+        subject: subject.trim() || undefined,
+      }),
+    }).catch(() => null);
+    setAiBusy(false);
+    const data = (await res?.json().catch(() => null)) as { body?: string; error?: string } | null;
+    if (!res?.ok || !data?.body) {
+      setEmailError(errorText(data?.error));
+      return;
+    }
+    setBody(data.body);
+    setAiOpen(false);
+    setAiPrompt('');
+  }
+
+  function startReply(thread: EmailThreadView) {
+    setReplyTo(thread);
+    setFilter('email');
+    setType('email');
+    const base = thread.subject || thread.messages[thread.messages.length - 1]?.subject || '';
+    setSubject(/^re:/i.test(base) ? base : `Re: ${base}`);
+    const lastIn = [...thread.messages].reverse().find((m) => m.direction === 'in');
+    const addr = lastIn ? /[^\s<>"]+@[^\s<>"]+/.exec(lastIn.from)?.[0] : null;
+    if (addr) setEmailTo(addr);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -119,17 +218,22 @@ export default function Timeline({
           to: emailTo.trim(),
           subject: subject.trim(),
           body: body.trim(),
+          tracking,
+          threadId: replyTo?.threadId,
         }),
       }).catch(() => null);
       setPosting(false);
+      const data = (await res?.json().catch(() => ({}))) as { error?: string; via?: 'gmail' | 'system' } | undefined;
       if (res && res.ok) {
         setSubject('');
         setBody('');
         setEmailTo(defaultEmail);
+        setReplyTo(null);
+        setMissing([]);
+        setNotice(data?.via === 'system' ? t('email.sentSystem') : t('email.sentGmail'));
         router.refresh();
       } else {
-        const data = await res?.json().catch(() => ({}));
-        setEmailError(data.error ? t(`errors.${data.error}` as const) : t('errors.generic'));
+        setEmailError(errorText(data?.error));
       }
       return;
     }
@@ -247,6 +351,14 @@ export default function Timeline({
       </div>
 
       <form className="tl-composer" onSubmit={submit}>
+        {type === 'email' && replyTo && (
+          <div className="em-replying">
+            <span className="muted">{t('email.replyingTo', { subject: replyTo.subject || '—' })}</span>
+            <button type="button" className="link-btn" onClick={() => { setReplyTo(null); setSubject(''); }}>
+              {t('email.cancelReply')}
+            </button>
+          </div>
+        )}
         {type === 'email' && (
           <input
             className="input"
@@ -272,6 +384,72 @@ export default function Timeline({
           placeholder={type === 'email' ? t('common.body') : t('tasks.form.body')}
           maxLength={type === 'email' ? 20000 : 5000}
         />
+        {type === 'email' && emailTools && (
+          <div className="em-tools">
+            {templates.length > 0 && (
+              <select
+                className="filter-select"
+                value=""
+                onChange={(e) => insertTemplate(e.target.value)}
+                aria-label={t('email.insertTemplate')}
+              >
+                <option value="">{t('email.insertTemplate')}</option>
+                {templates.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {snippets.length > 0 && (
+              <select
+                className="filter-select"
+                value=""
+                onChange={(e) => insertSnippet(e.target.value)}
+                aria-label={t('email.insertSnippet')}
+              >
+                <option value="">{t('email.insertSnippet')}</option>
+                {snippets.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {emailTools.aiEnabled && emailTools.contactId && (
+              <button type="button" className="btn btn-ghost btn-small" onClick={() => setAiOpen((v) => !v)} aria-expanded={aiOpen}>
+                {t('email.aiDraft')}
+              </button>
+            )}
+            <label className="em-check">
+              <input type="checkbox" checked={tracking} onChange={(e) => setTracking(e.target.checked)} />
+              {t('email.tracking')}
+            </label>
+          </div>
+        )}
+        {type === 'email' && aiOpen && (
+          <div className="em-ai">
+            <input
+              className="input"
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder={t('email.aiPrompt')}
+              maxLength={2000}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  aiDraft();
+                }
+              }}
+            />
+            <button type="button" className="btn btn-small" disabled={aiBusy} onClick={aiDraft}>
+              {aiBusy ? t('email.aiDrafting') : t('email.aiDraft')}
+            </button>
+          </div>
+        )}
+        {type === 'email' && missing.length > 0 && (
+          <p className="em-warn mono">{t('email.missingVars', { vars: missing.join(', ') })}</p>
+        )}
         <div className="tl-composer-actions">
           <div className="tl-composer-extras">
             {filter === 'all' && (
@@ -330,6 +508,7 @@ export default function Timeline({
           </button>
         </div>
         {emailError && <p className="form-error">{emailError}</p>}
+        {notice && !emailError && <p className="muted em-notice">{notice}</p>}
       </form>
 
       {filtered.length === 0 ? (
@@ -342,7 +521,9 @@ export default function Timeline({
               className={`tl-item${item.done ? ' tl-done' : ''}${item.pinned ? ' tl-pinned' : ''}${busyId === item.id ? ' row-busy' : ''}`}
             >
               <span className={`tl-dot ${item.type}`} aria-hidden />
-              {editingId === item.id ? (
+              {item.thread ? (
+                <EmailThread thread={item.thread} locale={locale} onReply={emailTools ? startReply : undefined} />
+              ) : editingId === item.id ? (
                 <div className="tl-edit">
                   <input
                     className="input"

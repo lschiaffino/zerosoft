@@ -502,6 +502,8 @@ export async function startRobotRun(
  */
 export async function runDueRobots(now: Date = new Date(), limit = 5, budgetMs = 240_000): Promise<number> {
   await failStaleRobotRuns();
+  // Sin tiempo suficiente en este tick: quedan para el próximo.
+  if (budgetMs < 60_000) return 0;
   const rows = (await getDb()
     .prepare(
       `SELECT * FROM robots WHERE enabled = 1 AND schedule IS NOT NULL AND next_run_at IS NOT NULL AND next_run_at <= ?

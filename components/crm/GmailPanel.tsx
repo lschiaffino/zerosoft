@@ -13,10 +13,12 @@ interface GmailPanelProps {
   notice: string | null;
   /** Redirect URI a registrar en Google Cloud Console. */
   redirectUri: string;
+  /** El token incluye gmail.send (conexiones viejas eran solo lectura). */
+  canSend?: boolean;
 }
 
 /** Panel de integración Gmail en CRM settings: connect / sync now / disconnect. */
-export default function GmailPanel({ connected, email, lastSync, notice, redirectUri }: GmailPanelProps) {
+export default function GmailPanel({ connected, email, lastSync, notice, redirectUri, canSend = true }: GmailPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [busy, setBusy] = useState<'sync' | 'disconnect' | null>(null);
@@ -31,14 +33,11 @@ export default function GmailPanel({ connected, email, lastSync, notice, redirec
     const res = await fetch('/api/integrations/gmail/sync', { method: 'POST' }).catch(() => null);
     setBusy(null);
     if (!res || !res.ok) {
-      setError(t('settings.gmailSyncFailed'));
+      setError(res?.status === 409 ? t('settings.gmailSyncInProgress') : t('settings.gmailSyncFailed'));
       return;
     }
-    const data = (await res.json().catch(() => null)) as {
-      synced?: number;
-      contacts?: number;
-    } | null;
-    setResult(t('settings.gmailSynced', { count: data?.synced ?? 0, contacts: data?.contacts ?? 0 }));
+    const data = (await res.json().catch(() => null)) as { synced?: number } | null;
+    setResult(t('settings.gmailSynced', { count: data?.synced ?? 0 }));
     router.refresh();
   }
 
@@ -63,6 +62,16 @@ export default function GmailPanel({ connected, email, lastSync, notice, redirec
             <span className="badge">Gmail</span> {t('settings.gmailConnectedAs', { email })}
           </p>
           {lastSync && <p className="muted">{t('settings.gmailLastSync', { date: lastSync })}</p>}
+          <p className="muted">{t('settings.gmailAuto')}</p>
+          {!canSend && (
+            <p className="gmail-warn">
+              {t('settings.gmailSendMissing')}{' '}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+              <a className="link-btn" href="/api/integrations/gmail/start">
+                {t('settings.gmailReconnect')}
+              </a>
+            </p>
+          )}
           <div className="form-actions">
             <button
               type="button"
@@ -90,6 +99,7 @@ export default function GmailPanel({ connected, email, lastSync, notice, redirec
           <a className="btn btn-solid btn-small" href="/api/integrations/gmail/start">
             {t('settings.gmailConnect')}
           </a>
+          <p className="muted">{t('settings.gmailPersonal')}</p>
           <p className="muted gmail-hint">
             {t('settings.gmailRedirectHint')} <code>{redirectUri}</code>
           </p>
