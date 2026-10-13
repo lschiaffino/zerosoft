@@ -219,3 +219,65 @@ test('Link: quick-create desde la lista (tecla C) sin salir de la vista', async 
   await expect(page).toHaveURL(/\/en\/app\/links\/new\?url=/);
   await expect(page.locator('#nl-url')).toHaveValue('https://example.com/full');
 });
+
+test('Docs: "C" crea una página, el título queda enfocado y aparece en el árbol', async ({ page }) => {
+  await page.goto('/en/app/docs', { waitUntil: 'networkidle' });
+  await page.keyboard.press('c');
+  await page.waitForURL(/\/en\/app\/docs\/[0-9a-f-]{36}$/);
+  const title = `E2E doc ${uid()}`;
+  await expect(page.locator('.docs-title')).toBeFocused();
+  await page.keyboard.type(title);
+  await expect(page.locator('.docs-save-status')).toHaveText(/saved/i);
+  await page.reload();
+  await expect(page.locator('.docs-tree-title', { hasText: title })).toBeVisible();
+});
+
+test('Docs: subpágina desde el árbol y papelera que arrastra a los hijos', async ({ request, page }) => {
+  const parent = await (await request.post('/api/docs/pages', { data: { title: `Parent ${uid()}` } })).json();
+  const child = await (
+    await request.post('/api/docs/pages', { data: { title: `Child ${uid()}`, parent_id: parent.id } })
+  ).json();
+
+  await page.goto(`/en/app/docs/${parent.id}`);
+  const row = page.locator('.docs-tree-row', { hasText: parent.title }).first();
+  await row.hover();
+  await row.locator('.docs-tree-add').click();
+  await page.waitForURL((u) => !u.pathname.endsWith(parent.id) && /\/app\/docs\/[0-9a-f-]{36}$/.test(u.pathname));
+  await expect(page.locator('.docs-breadcrumb')).toContainText(parent.title);
+
+  // "Move to trash" archiva (no borra) la página y sus subpáginas.
+  await page.goto(`/en/app/docs/${parent.id}`);
+  await page.locator('.docs-action-btn').click();
+  await page.getByRole('button', { name: 'Move to trash' }).click();
+  await page.waitForURL(/\/en\/app\/docs$/);
+  await expect(page.locator('.docs-tree')).not.toContainText(child.title);
+  const archivedChild = await (await request.get(`/api/docs/pages/${child.id}`)).json();
+  expect(archivedChild.archived ?? archivedChild.page?.archived).toBe(true);
+
+  await page.locator('#trash summary').click();
+  await page.locator('.docs-trash-row', { hasText: parent.title }).getByRole('button', { name: 'Restore' }).click();
+  await expect(page.locator('.docs-tree-title', { hasText: child.title })).toBeVisible({ timeout: 15_000 });
+});
+
+test('Docs: Share y Comments se abren a demanda desde la barra superior', async ({ request, page }) => {
+  const doc = await (await request.post('/api/docs/pages', { data: { title: `Panels ${uid()}` } })).json();
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  await expect(page.locator('.docs-side')).toBeHidden();
+  await page.getByRole('button', { name: /^Comments/ }).click();
+  await page.locator('.docs-comments textarea').fill('Hola e2e');
+  await page.locator('.docs-comments button', { hasText: /^Comment$/ }).click();
+  await expect(page.locator('.docs-comments')).toContainText('Hola e2e');
+  await page.getByRole('button', { name: /^Share/ }).click();
+  await expect(page.locator('.docs-share')).toBeVisible();
+});
+
+test('Docs: en mobile el árbol se pliega y no hay scroll horizontal', async ({ request, page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const doc = await (await request.post('/api/docs/pages', { data: { title: `Mobile ${uid()}` } })).json();
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  await expect(page.locator('.docs-tree')).toBeHidden();
+  await page.locator('.docs-sidebar-toggle').click();
+  await expect(page.locator('.docs-tree-title', { hasText: doc.title })).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});

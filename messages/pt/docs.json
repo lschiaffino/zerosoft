@@ -6,7 +6,8 @@
     "newPage": "Nova página",
     "latest": "Páginas recentes",
     "emptyTitle": "Ainda não há páginas",
-    "emptySub": "Crie sua primeira página e comece a escrever."
+    "emptySub": "Crie sua primeira página e comece a escrever.",
+    "edited": "Editada {date}"
   },
   "sidebar": {
     "overview": "Resumo",
@@ -15,7 +16,9 @@
     "newPage": "Nova página",
     "newSubpage": "Nova subpágina",
     "empty": "Sem páginas",
-    "dropTopLevel": "Solte aqui para mover ao nível raiz"
+    "dropTopLevel": "Solte aqui para mover ao nível raiz",
+    "collapse": "Recolher",
+    "expand": "Expandir"
   },
   "editor": {
     "untitled": "Página sem título",
@@ -79,7 +82,10 @@
       "divider": "Divisor",
       "table": "Tabela",
       "database": "Banco de dados"
-    }
+    },
+    "breadcrumb": "Caminho",
+    "closePanel": "Fechar painel",
+    "inTrash": "Esta página está na lixeira."
   },
   "database": {
     "columnName": "Coluna {n}",
@@ -113,12 +119,23 @@
   },
   "share": {
     "title": "Compartilhar",
-    "public": "Público na web",
+    "public": "Qualquer pessoa logada com o link",
     "team": "Equipe",
     "user": "Usuário",
     "share": "Compartilhar",
     "teamId": "ID da equipe",
-    "userId": "ID do usuário"
+    "userId": "ID do usuário",
+    "publicHelp": "Qualquer usuário do zerosoft com o link pode lê-la pela API.",
+    "with": "Compartilhar com um time ou pessoa…",
+    "kinds": {
+      "public": "Link",
+      "team": "Time",
+      "user": "Pessoa"
+    },
+    "remove": "Parar de compartilhar",
+    "noTargets": "Crie um time em Configurações para compartilhar com outras pessoas.",
+    "copyLink": "Copiar link",
+    "copied": "Copiado"
   },
   "templates": {
     "title": "Começar de um modelo",
@@ -128,7 +145,8 @@
     "title": "Lixeira",
     "restore": "Restaurar",
     "deleteForever": "Excluir para sempre",
-    "confirmDelete": "Excluir esta página para sempre? Esta ação não pode ser desfeita."
+    "confirmDelete": "Excluir esta página para sempre? Esta ação não pode ser desfeita.",
+    "help": "Páginas na lixeira mantêm suas subpáginas. Restaure-as ou exclua para sempre."
   },
   "comments": {
     "title": "Comentários",

@@ -6,7 +6,8 @@
     "newPage": "New page",
     "latest": "Latest pages",
     "emptyTitle": "No pages yet",
-    "emptySub": "Create your first page and start writing."
+    "emptySub": "Create your first page and start writing.",
+    "edited": "Edited {date}"
   },
   "sidebar": {
     "overview": "Overview",
@@ -15,7 +16,9 @@
     "newPage": "New page",
     "newSubpage": "New subpage",
     "empty": "No pages",
-    "dropTopLevel": "Drop here to make top-level"
+    "dropTopLevel": "Drop here to make top-level",
+    "collapse": "Collapse",
+    "expand": "Expand"
   },
   "editor": {
     "untitled": "Untitled page",
@@ -79,7 +82,10 @@
       "divider": "Divider",
       "table": "Table",
       "database": "Database"
-    }
+    },
+    "breadcrumb": "Breadcrumb",
+    "closePanel": "Close panel",
+    "inTrash": "This page is in the trash."
   },
   "database": {
     "columnName": "Column {n}",
@@ -113,12 +119,23 @@
   },
   "share": {
     "title": "Share",
-    "public": "Public on the web",
+    "public": "Anyone signed in with the link",
     "team": "Team",
     "user": "User",
     "share": "Share",
     "teamId": "Team ID",
-    "userId": "User ID"
+    "userId": "User ID",
+    "publicHelp": "Any zerosoft user with the link can read it through the API.",
+    "with": "Share with a team or person…",
+    "kinds": {
+      "public": "Link",
+      "team": "Team",
+      "user": "Person"
+    },
+    "remove": "Stop sharing",
+    "noTargets": "Create a team in Settings to share with other people.",
+    "copyLink": "Copy link",
+    "copied": "Copied"
   },
   "templates": {
     "title": "Start from a template",
@@ -128,7 +145,8 @@
     "title": "Trash",
     "restore": "Restore",
     "deleteForever": "Delete forever",
-    "confirmDelete": "Delete this page forever? This cannot be undone."
+    "confirmDelete": "Delete this page forever? This cannot be undone.",
+    "help": "Pages in the trash keep their subpages. Restore them or delete them forever."
   },
   "comments": {
     "title": "Comments",

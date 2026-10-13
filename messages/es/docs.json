@@ -6,7 +6,8 @@
     "newPage": "Nueva página",
     "latest": "Últimas páginas",
     "emptyTitle": "Todavía no hay páginas",
-    "emptySub": "Creá tu primera página y empezá a escribir."
+    "emptySub": "Creá tu primera página y empezá a escribir.",
+    "edited": "Editada {date}"
   },
   "sidebar": {
     "overview": "Resumen",
@@ -15,7 +16,9 @@
     "newPage": "Nueva página",
     "newSubpage": "Nueva subpágina",
     "empty": "Sin páginas",
-    "dropTopLevel": "Soltá acá para mover al nivel raíz"
+    "dropTopLevel": "Soltá acá para mover al nivel raíz",
+    "collapse": "Contraer",
+    "expand": "Expandir"
   },
   "editor": {
     "untitled": "Página sin título",
@@ -79,7 +82,10 @@
       "divider": "Divisor",
       "table": "Tabla",
       "database": "Base de datos"
-    }
+    },
+    "breadcrumb": "Ruta",
+    "closePanel": "Cerrar panel",
+    "inTrash": "Esta página está en la papelera."
   },
   "database": {
     "columnName": "Columna {n}",
@@ -113,12 +119,23 @@
   },
   "share": {
     "title": "Compartir",
-    "public": "Público en la web",
+    "public": "Cualquiera con sesión y el link",
     "team": "Equipo",
     "user": "Usuario",
     "share": "Compartir",
     "teamId": "ID del equipo",
-    "userId": "ID del usuario"
+    "userId": "ID del usuario",
+    "publicHelp": "Cualquier usuario de zerosoft con el link puede leerla por la API.",
+    "with": "Compartir con un team o persona…",
+    "kinds": {
+      "public": "Link",
+      "team": "Team",
+      "user": "Persona"
+    },
+    "remove": "Dejar de compartir",
+    "noTargets": "Creá un team en Ajustes para compartir con otras personas.",
+    "copyLink": "Copiar link",
+    "copied": "Copiado"
   },
   "templates": {
     "title": "Empezar desde una plantilla",
@@ -128,7 +145,8 @@
     "title": "Papelera",
     "restore": "Restaurar",
     "deleteForever": "Eliminar para siempre",
-    "confirmDelete": "¿Eliminar esta página para siempre? No se puede deshacer."
+    "confirmDelete": "¿Eliminar esta página para siempre? No se puede deshacer.",
+    "help": "Las páginas en la papelera conservan sus subpáginas. Restauralas o borralas para siempre."
   },
   "comments": {
     "title": "Comentarios",

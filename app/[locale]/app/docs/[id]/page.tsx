@@ -25,6 +25,7 @@ export default async function DocsPageEditor(
   const page = await getDocPage(user.id, id);
   if (!page) notFound();
   const allPages = await listDocPages(user.id, { archived: false });
+  const trashed = await listDocPages(user.id, { archived: true });
   const ancestors = await getDocPageAncestors(user.id, id);
   const shares = await listDocShares(id);
   const comments = await listDocComments(id);
@@ -35,6 +36,7 @@ export default async function DocsPageEditor(
       <DocsSidebar
         pages={allPages}
         currentId={id}
+        trashCount={trashed.length}
         createAction={createDocPageAction.bind(null, user.id, locale)}
         moveAction={moveDocPageAction.bind(null, user.id)}
         labels={{

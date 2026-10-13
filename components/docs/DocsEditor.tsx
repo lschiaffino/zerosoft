@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useTranslations } from 'next-intl';
@@ -51,7 +52,8 @@ import EmojiPicker from './EmojiPicker';
 interface DocsEditorProps {
   page: DocsPage;
   ancestors: DocsPage[];
-  onSave: (page: DocsPage) => void;
+  /** Guarda solo lo que edita el editor (no pisa archived/is_public). */
+  onSave: (patch: Partial<DocsPage>) => void;
   saving?: boolean;
   onDuplicate?: () => void;
   onDelete?: () => void;
@@ -60,6 +62,8 @@ interface DocsEditorProps {
   commentCounts?: Record<string, number>;
   /** Abre el panel de comentarios anclado al bloque. */
   onBlockComment?: (blockId: string) => void;
+  /** Acciones extra en la barra superior (Share, Comments). */
+  topActions?: ReactNode;
 }
 
 const BLOCK_COMMANDS: {
@@ -208,6 +212,7 @@ export default function DocsEditor({
   onAddComment,
   commentCounts,
   onBlockComment,
+  topActions,
 }: DocsEditorProps) {
   const t = useTranslations('docs');
   const [blocks, setBlocks] = useState<DocsBlock[]>(() =>
@@ -245,6 +250,9 @@ export default function DocsEditor({
   const [menuOpen, setMenuOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Guardado pendiente (debounce): se ejecuta ya si el usuario sale de la página. */
+  const pendingSave = useRef<(() => void) | null>(null);
+  const [dirty, setDirty] = useState(false);
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
   const titleRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -299,6 +307,29 @@ export default function DocsEditor({
     setToolbar(null);
     setLinkDialog(null);
     // Solo al cambiar de página: re-sincronizar con cada prop pisaría lo que se está escribiendo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page.id]);
+
+  // No perder lo último tipeado: al salir de la página (navegación interna,
+  // cerrar pestaña) se ejecuta el guardado pendiente en vez de descartarlo.
+  useEffect(() => {
+    const flush = () => {
+      if (saveTimeout.current) clearTimeout(saveTimeout.current);
+      pendingSave.current?.();
+    };
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [page.id]);
+
+  // Página nueva (sin título): el foco va al título, como en Notion.
+  useEffect(() => {
+    if (page.title) return;
+    const id = requestAnimationFrame(() => titleRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+    // Solo al abrir la página.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.id]);
 
@@ -506,17 +537,22 @@ export default function DocsEditor({
       nextCover?: string | null,
     ) => {
       if (saveTimeout.current) clearTimeout(saveTimeout.current);
-      saveTimeout.current = setTimeout(() => {
+      const run = () => {
+        pendingSave.current = null;
+        saveTimeout.current = null;
+        setDirty(false);
         onSave({
-          ...page,
           title: nextTitle ?? title,
           icon: nextIcon ?? icon,
           cover_url: nextCover === '' ? null : (nextCover ?? coverUrl),
           content: nextBlocks ?? blocks,
         });
-      }, 600);
+      };
+      pendingSave.current = run;
+      setDirty(true);
+      saveTimeout.current = setTimeout(run, 600);
     },
-    [blocks, coverUrl, icon, onSave, page, title],
+    [blocks, coverUrl, icon, onSave, title],
   );
 
   const updateBlock = useCallback(
@@ -1380,11 +1416,6 @@ export default function DocsEditor({
     setMenuOpen(false);
   };
 
-  const archivePage = () => {
-    onSave({ ...page, archived: true });
-    setMenuOpen(false);
-  };
-
   const addCover = (url: string) => {
     setCoverUrl(url);
     triggerSave(undefined, undefined, undefined, url);
@@ -1430,8 +1461,7 @@ export default function DocsEditor({
   return (
     <div className={`docs-editor${smallText ? ' docs-editor-small' : ''}${fullWidth ? ' docs-editor-full' : ''}`}>
       <div className="docs-top-bar">
-        {ancestorChain.length > 0 && (
-          <nav className="docs-breadcrumb">
+        <nav className="docs-breadcrumb" aria-label={t('editor.breadcrumb')}>
             <Link href="/app/docs" className="docs-breadcrumb-root">
               Docs
             </Link>
@@ -1449,9 +1479,12 @@ export default function DocsEditor({
               <span className="docs-breadcrumb-current">{title || t('untitled')}</span>
             </span>
           </nav>
-        )}
 
         <div className="docs-page-actions">
+          <span className="docs-save-status" aria-live="polite">
+            {saving || dirty ? t('editor.saving') : t('editor.saved')}
+          </span>
+          {topActions}
           <div className="docs-action-menu-wrap" ref={menuRef}>
             <button
               type="button"
@@ -1474,9 +1507,6 @@ export default function DocsEditor({
                     {t('editor.duplicate')}
                   </button>
                 )}
-                <button type="button" className="docs-page-menu-item" onClick={archivePage}>
-                  {t('editor.archive')}
-                </button>
                 <hr className="docs-page-menu-divider" />
                 <button
                   type="button"
@@ -1525,42 +1555,7 @@ export default function DocsEditor({
             {t('editor.removeCover')}
           </button>
         </div>
-      ) : (
-        <div className="docs-cover-placeholder">
-          <button type="button" className="docs-cover-add" onClick={() => setCoverOpen(true)}>
-            {t('editor.addCover')}
-          </button>
-          {coverOpen && (
-            <div className="docs-cover-popover" ref={coverRef}>
-              <input
-                type="text"
-                placeholder={t('editor.coverUrlPlaceholder')}
-                className="docs-cover-input"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') addCover((e.target as HTMLInputElement).value);
-                }}
-              />
-              <div className="docs-cover-presets">
-                {[
-                  'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&q=80',
-                  'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200&q=80',
-                  'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=1200&q=80',
-                  'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1200&q=80',
-                ].map((url) => (
-                  <button
-                    key={url}
-                    type="button"
-                    className="docs-cover-preset"
-                    style={{ backgroundImage: `url(${url})` }}
-                    onClick={() => addCover(url)}
-                    aria-label={t('editor.coverPreset')}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      ) : null}
 
       <div className="docs-page-header">
         <EmojiPicker value={icon} onChange={(next) => {
@@ -1596,12 +1591,42 @@ export default function DocsEditor({
       </div>
 
       <div className="docs-page-meta">
-        <button type="button" className="docs-meta-btn">
-          {t('editor.addIcon')}
-        </button>
-        <button type="button" className="docs-meta-btn" onClick={() => setCoverOpen(true)}>
-          {t('editor.addCover')}
-        </button>
+        {!coverUrl && (
+          <div className="docs-cover-anchor">
+            <button type="button" className="docs-meta-btn" onClick={() => setCoverOpen(true)}>
+              {t('editor.addCover')}
+            </button>
+          {coverOpen && (
+            <div className="docs-cover-popover" ref={coverRef}>
+              <input
+                type="text"
+                placeholder={t('editor.coverUrlPlaceholder')}
+                className="docs-cover-input"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') addCover((e.target as HTMLInputElement).value);
+                }}
+              />
+              <div className="docs-cover-presets">
+                {[
+                  'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&q=80',
+                  'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200&q=80',
+                  'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=1200&q=80',
+                  'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1200&q=80',
+                ].map((url) => (
+                  <button
+                    key={url}
+                    type="button"
+                    className="docs-cover-preset"
+                    style={{ backgroundImage: `url(${url})` }}
+                    onClick={() => addCover(url)}
+                    aria-label={t('editor.coverPreset')}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          </div>
+        )}
         <button type="button" className="docs-meta-btn" onClick={() => onAddComment?.()}>
           {t('editor.addComment')}
         </button>
@@ -1990,10 +2015,6 @@ export default function DocsEditor({
         </div>,
         document.body,
       )}
-
-      <div className="docs-editor-foot">
-        <span className="docs-save-status">{saving ? t('editor.saving') : t('editor.saved')}</span>
-      </div>
     </div>
   );
 }
