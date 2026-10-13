@@ -1,46 +1,69 @@
-import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
-import { isWorkspaceAdmin, requireUser } from '@/lib/session';
-import { listWorkflows } from '@/lib/crm-workflows';
-import WorkflowList from '@/components/crm/WorkflowList';
+import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
+import { isWorkspaceAdmin, requireUser } from "@/lib/session";
+import { listWorkflows } from "@/lib/crm-workflows";
+import WorkflowList from "@/components/crm/WorkflowList";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-export default async function WorkflowsPage(props: { params: Promise<{ locale: string }> }) {
+export default async function WorkflowsPage(props: {
+  params: Promise<{ locale: string }>;
+}) {
   const params = await props.params;
 
-  const {
-    locale
-  } = params;
+  const { locale } = params;
 
   const user = await requireUser(locale);
-  const t = await getTranslations({ locale, namespace: 'crm' });
+  const t = await getTranslations({ locale, namespace: "crm" });
   const workflows = await listWorkflows(user.id);
 
   return (
     <div className="app-page">
-      <div className="page-header">
-        <h1 className="page-title">{t('workflows.title')}</h1>
-        {isWorkspaceAdmin(user) && (
-          <Link href="/app/crm/workflows/new" className="btn btn-solid">
-            {t('workflows.new')}
+      <div className="page-head">
+        <h1 className="app-title">{t("workflows.title")}</h1>
+        {isWorkspaceAdmin(user) && workflows.length > 0 && (
+          <Link
+            href="/app/crm/workflows/new"
+            className="btn btn-solid btn-small"
+          >
+            {t("workflows.new")}
           </Link>
         )}
       </div>
-      {!isWorkspaceAdmin(user) && <p className="muted panel-desc">{t('common.adminOnly')}</p>}
-      <WorkflowList
-        workflows={workflows}
-        labels={{
-          enabled: t('workflows.enabled'),
-          disabled: t('workflows.disabled'),
-          edit: t('common.edit'),
-          runNow: t('workflows.runNow'),
-          delete: t('workflows.deleteConfirm'),
-          noWorkflows: t('workflows.noWorkflows'),
-          triggerLabel: t('workflows.triggers'),
-          actionsLabel: t('workflows.actions'),
-        }}
-      />
+      {!isWorkspaceAdmin(user) && (
+        <p className="muted">{t("common.adminOnly")}</p>
+      )}
+      {workflows.length === 0 ? (
+        <div className="empty-state">
+          <p className="empty-zeros mono" aria-hidden>
+            0 0 0 0 0 0 0
+          </p>
+          <h2>{t("workflows.noWorkflows")}</h2>
+          <p className="muted">{t("workflows.emptySub")}</p>
+          {isWorkspaceAdmin(user) && (
+            <Link
+              href="/app/crm/workflows/new"
+              className="btn btn-solid btn-small"
+            >
+              {t("workflows.new")}
+            </Link>
+          )}
+        </div>
+      ) : (
+        <WorkflowList
+          workflows={workflows}
+          labels={{
+            enabled: t("workflows.enabled"),
+            disabled: t("workflows.disabled"),
+            edit: t("common.edit"),
+            runNow: t("workflows.runNow"),
+            delete: t("workflows.deleteConfirm"),
+            noWorkflows: t("workflows.noWorkflows"),
+            triggerLabel: t("workflows.triggers"),
+            actionsLabel: t("workflows.actions"),
+          }}
+        />
+      )}
     </div>
   );
 }

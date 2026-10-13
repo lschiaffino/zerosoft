@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
+import { useKeyShortcut } from '@/components/app/QuickModal';
 import { useTranslations, useLocale } from 'next-intl';
 import type {
   ChatAgent,
@@ -32,8 +33,8 @@ interface ConversationClientProps {
 }
 
 function initials(name: string | null, email: string | null): string {
-  const base = name || email || '?';
-  const parts = base.trim().split(/\s+/);
+  const base = (name || email || '?').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim() || '?';
+  const parts = base.split(/\s+/);
   if (parts.length > 1) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   return base.slice(0, 2).toUpperCase();
 }
@@ -87,13 +88,15 @@ export default function ConversationClient({
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [listOpen, setListOpen] = useState(false);
-  const [listRows, setListRows] = useState<ChatConversationListRow[]>([]);
+  const [listRows, setListRows] = useState<ChatConversationListRow[] | null>(null);
+  const router = useRouter();
   const [canned, setCanned] = useState<ChatCannedResponseRow[]>([]);
   const [cannedIndex, setCannedIndex] = useState(0);
   const [visitorTyping, setVisitorTyping] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const threadEndRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const lastMessageId = useRef<string | null>(null);
   const typingSentAt = useRef<number>(0);
 
   async function fetchMessages() {
@@ -109,10 +112,9 @@ export default function ConversationClient({
 
   async function fetchList() {
     try {
-      const params = new URLSearchParams({
-        widgetIds: conversation.widget_id,
-        limit: '50',
-      });
+      // Todas las conversaciones del workspace (como el inbox), no solo las
+      // del widget de esta conversación.
+      const params = new URLSearchParams({ limit: '50' });
       const res = await fetch(`/api/chat/conversations?${params.toString()}`);
       if (!res.ok) return;
       const data = (await res.json()) as { rows: ChatConversationListRow[] };
@@ -171,17 +173,39 @@ export default function ConversationClient({
     fetchList();
     fetchCanned();
     markRead();
+    let tick = 0;
     const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
       fetchMessages();
       fetchTyping();
+      tick += 1;
+      if (tick % 5 === 0) fetchList();
     }, 3000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
+  // Bajar al último mensaje solo cuando llega uno nuevo, y scrolleando el
+  // contenedor del hilo (scrollIntoView movía toda la página y además se
+  // disparaba en cada poll de 3 s aunque no hubiera nada nuevo).
   useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const last = messages[messages.length - 1]?.id ?? null;
+    if (last === lastMessageId.current) return;
+    const first = lastMessageId.current === null;
+    lastMessageId.current = last;
+    const el = messagesRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: first ? 'auto' : 'smooth' });
   }, [messages]);
+
+  // J / K: conversación siguiente / anterior de la lista (como Intercom).
+  function step(delta: 1 | -1) {
+    if (!listRows || listRows.length === 0) return;
+    const index = listRows.findIndex((c) => c.id === conversationId);
+    const next = listRows[index < 0 ? 0 : index + delta];
+    if (next) router.push(`/app/chat/inbox/${next.id}`);
+  }
+  useKeyShortcut('j', () => step(1));
+  useKeyShortcut('k', () => step(-1));
 
   async function updateConversation(payload: ConversationUpdatePayload) {
     const res = await fetch(`/api/chat/conversations/${conversationId}`, {
@@ -192,6 +216,7 @@ export default function ConversationClient({
     if (!res.ok) return;
     const updated = (await res.json()) as ChatConversationWithVisitor;
     setConversation((prev) => ({ ...prev, ...updated }));
+    fetchList();
   }
 
   async function sendReply() {
@@ -325,7 +350,11 @@ export default function ConversationClient({
       </button>
 
       <div className={`chat-conversation-list-pane${listOpen ? ' open' : ''}`}>
-        <ConversationList conversations={listRows} currentId={conversationId} />
+        {listRows ? (
+          <ConversationList conversations={listRows} currentId={conversationId} />
+        ) : (
+          <p className="muted chat-inbox-loading mono">{t('common.loading')}</p>
+        )}
       </div>
 
       <div className="chat-conversation-thread-pane">
@@ -348,9 +377,7 @@ export default function ConversationClient({
                     ? t('sla.breachedResolution')
                     : t('sla.breachedFirst')}
                 </span>
-              ) : conversation.resolved_at ? (
-                <span className="chat-sla-badge chat-sla-resolved">{t('sla.resolved')}</span>
-              ) : conversation.sla_due_in_minutes != null ? (
+              ) : conversation.resolved_at ? null : conversation.sla_due_in_minutes != null ? (
                 <span className="chat-sla-badge chat-sla-due">
                   {t('sla.dueIn', { minutes: conversation.sla_due_in_minutes })}
                 </span>
@@ -432,7 +459,7 @@ export default function ConversationClient({
 
             <button
               type="button"
-              className={`btn btn-small${isResolved ? '' : ' btn-ghost'}`}
+              className={`btn btn-small${isResolved ? '' : ' btn-solid'}`}
               onClick={toggleResolved}
             >
               {isResolved ? t('conversation.reopen') : t('conversation.resolve')}
@@ -440,7 +467,7 @@ export default function ConversationClient({
           </div>
         </header>
 
-        <div className="chat-messages">
+        <div className="chat-messages" ref={messagesRef}>
           {messages.length === 0 ? (
             <div className="chat-messages-empty">
               <p className="empty-zeros mono" aria-hidden>0 0 0</p>
@@ -464,7 +491,15 @@ export default function ConversationClient({
                     key={m.id}
                     className={`chat-message${isVisitor ? ' visitor' : ' agent'}${m.sender_type === 'bot' ? ' bot' : ''}`}
                   >
-                    <span className="chat-message-avatar">{initials(name, m.user_email)}</span>
+                    <span className="chat-message-avatar">
+                      {isVisitor
+                        ? visitor.name || visitor.email
+                          ? initials(visitor.name, visitor.email)
+                          : '?'
+                        : m.sender_type === 'user'
+                          ? initials(m.user_name, m.user_email)
+                          : initials(name, null)}
+                    </span>
                     <div className="chat-message-body">
                       <div className="chat-message-meta">
                         <span className="chat-message-name">{name}</span>
@@ -529,7 +564,6 @@ export default function ConversationClient({
                   </li>
                 );
               })}
-              <div ref={threadEndRef} />
             </ul>
           )}
         </div>
@@ -566,7 +600,8 @@ export default function ConversationClient({
           <div className="chat-composer-field">
             <textarea
               className="textarea chat-composer-input"
-              placeholder={t('conversation.reply')}
+              placeholder={t('conversation.replyHint')}
+              aria-label={t('conversation.reply')}
               value={reply}
               onChange={(e) => {
                 setReply(e.target.value);
@@ -604,7 +639,7 @@ export default function ConversationClient({
         </div>
       </div>
 
-      <VisitorPanel conversation={conversation} onToggleResolved={toggleResolved} />
+      <VisitorPanel conversation={conversation} />
     </div>
   );
 }

@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useKeyShortcut } from '@/components/app/QuickModal';
+import NewWidgetButton from './NewWidgetButton';
 import type { ChatConversationListRow } from '@/lib/chat-data';
 import ConversationList from './ConversationList';
 
@@ -16,7 +18,6 @@ const PAGE_SIZE = 25;
 
 export default function InboxClient({ widgetIds, currentUserId }: InboxClientProps) {
   const t = useTranslations('chat');
-  const locale = useLocale();
 
   const [tab, setTab] = useState<FilterTab>('open');
   const [q, setQ] = useState('');
@@ -24,6 +25,10 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const rowsCount = useRef(0);
+  rowsCount.current = rows.length;
 
   const filters = useMemo(() => {
     const base: Record<string, string> = {};
@@ -56,6 +61,7 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
       setError(t('errors.generic'));
     } finally {
       setLoading(false);
+      setLoaded(true);
     }
   }
 
@@ -63,6 +69,40 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
     fetchRows(0, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
+
+  // Las conversaciones nuevas aparecen solas (antes había que recargar).
+  // Solo refresca la primera página para no pisar un "Load more".
+  useEffect(() => {
+    if (widgetIds.length === 0) return;
+    const id = setInterval(() => {
+      if (document.visibilityState !== 'visible' || rowsCount.current > PAGE_SIZE) return;
+      const params = new URLSearchParams({ ...filters, limit: String(PAGE_SIZE), offset: '0' });
+      fetch(`/api/chat/conversations?${params.toString()}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { rows: ChatConversationListRow[]; total: number } | null) => {
+          if (!data) return;
+          setRows(data.rows);
+          setTotal(data.total);
+        })
+        .catch(() => {});
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [filters, widgetIds.length]);
+
+  useKeyShortcut('/', () => searchRef.current?.focus());
+
+  if (widgetIds.length === 0) {
+    return (
+      <div className="empty-state">
+        <p className="empty-zeros mono" aria-hidden>
+          0 0 0
+        </p>
+        <h2>{t('inbox.noWidgetsTitle')}</h2>
+        <p className="muted">{t('inbox.noWidgetsSub')}</p>
+        <NewWidgetButton shortcut={false} />
+      </div>
+    );
+  }
 
   const tabs: { key: FilterTab; label: string }[] = [
     { key: 'open', label: t('inbox.filters.open') },
@@ -83,6 +123,7 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
               key={tItem.key}
               type="button"
               className={`chat-inbox-tab${tab === tItem.key ? ' active' : ''}`}
+              aria-pressed={tab === tItem.key}
               onClick={() => setTab(tItem.key)}
             >
               {tItem.label}
@@ -90,7 +131,8 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
           ))}
         </div>
         <input
-          type="text"
+          ref={searchRef}
+          type="search"
           className="input chat-inbox-search"
           placeholder={t('inbox.search')}
           value={q}
@@ -100,11 +142,15 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
 
       {error && <p className="chat-inbox-error">{error}</p>}
 
-      <section className="panel chat-inbox-panel">
-        <ConversationList
-          conversations={rows}
-          emptyTitle={t('inbox.empty')}
-        />
+      <section className="chat-inbox-panel" aria-busy={loading}>
+        {loaded ? (
+          <ConversationList
+            conversations={rows}
+            emptyTitle={tab === 'open' && !q.trim() ? t('inbox.emptyOpen') : t('inbox.empty')}
+          />
+        ) : (
+          <p className="muted chat-inbox-loading mono">{t('common.loading')}</p>
+        )}
       </section>
 
       {rows.length < total && (

@@ -3009,7 +3009,7 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
          COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount
        FROM crm_deals
        WHERE user_id = ?
-       GROUP BY source
+       GROUP BY 1
        ORDER BY amount DESC`,
     )
     .all(userId)) as CrmReports['dealsBySource'];
@@ -3059,7 +3059,7 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
        WHERE d.user_id = ? AND s.is_lost = 1
-       GROUP BY d.lost_reason
+       GROUP BY 1
        ORDER BY count DESC`,
     )
     .all(userId)) as CrmReports['lostReasons'];

@@ -20,6 +20,8 @@ import ContactsFilters, { type ContactSort } from '@/components/crm/ContactsFilt
 import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
+import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
@@ -236,9 +238,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     <div className="app-page">
       <div className="page-head">
         <h1 className="app-title">{t('contacts.title')}</h1>
-        <Link href="/app/crm/contacts/new" className="btn btn-solid btn-small">
-          {t('contacts.newCta')}
-        </Link>
+        <CrmQuickCreate kind="contact" />
       </div>
 
       <ContactsFilters
@@ -270,10 +270,12 @@ export default async function ContactsPage(props: ContactsPageProps) {
           </p>
           <h2>{t('contacts.emptyTitle')}</h2>
           <p className="muted">{t('contacts.emptySub')}</p>
-          {!hasFilters && (
-            <Link href="/app/crm/contacts/new" className="btn btn-solid btn-small">
-              {t('contacts.emptyCta')}
+          {hasFilters ? (
+            <Link href="/app/crm/contacts" className="btn btn-small">
+              {t('common.clear')}
             </Link>
+          ) : (
+            <CrmQuickCreate kind="contact" variant="empty" label={t('contacts.emptyCta')} />
           )}
         </div>
       ) : (

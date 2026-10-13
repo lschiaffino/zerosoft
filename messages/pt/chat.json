@@ -13,7 +13,13 @@
     "noWidgets": "Nenhum widget ainda.",
     "newWidget": "Novo widget",
     "recentConversations": "Conversas recentes",
-    "unreadMessages": "Mensagens não lidas"
+    "unreadMessages": "Mensagens não lidas",
+    "deleteConfirm": "Excluir o widget “{name}”? As conversas dele deixam de estar disponíveis no seu site. Não dá para desfazer.",
+    "openInbox": "Abrir inbox",
+    "openConversations": "Conversas abertas",
+    "noOpen": "Nenhuma conversa aberta. Tudo em dia.",
+    "emptyTitle": "Crie seu primeiro widget",
+    "emptySub": "Um widget é a bolha de chat que você coloca no seu site. Crie um, cole o snippet e as novas conversas chegam no inbox."
   },
   "widgetForm": {
     "name": "Nome",
@@ -49,7 +55,7 @@
     "title": "Código de incorporação",
     "copy": "Copiar",
     "copied": "Copiado",
-    "instructions": "Cole esta tag script antes do fechamento </body>."
+    "instructions": "Cole este snippet logo antes do fechamento da tag body do seu site."
   },
   "inbox": {
     "title": "Caixa de entrada",
@@ -65,7 +71,10 @@
     "search": "Buscar visitantes ou assuntos…",
     "empty": "Nenhuma conversa corresponde aos seus filtros.",
     "loadMore": "Carregar mais",
-    "unread": "Não lida"
+    "unread": "Não lida",
+    "emptyOpen": "Nenhuma conversa aberta. Tudo em dia.",
+    "noWidgetsTitle": "Nenhum widget ainda",
+    "noWidgetsSub": "As conversas chegam por um widget no seu site. Crie um para começar a receber chats aqui."
   },
   "conversation": {
     "open": "Aberta",
@@ -103,7 +112,8 @@
       "medium": "Média",
       "high": "Alta",
       "urgent": "Urgente"
-    }
+    },
+    "replyHint": "Responder… Enter envia · / respostas prontas"
   },
   "visitorPanel": {
     "title": "Visitante",
@@ -118,7 +128,8 @@
     "logToCrm": "Salvar conversa no CRM",
     "loggedToCrm": "Salva na timeline do contato ✓",
     "crmError": "Não foi possível salvar no CRM. Tente de novo.",
-    "needsEmail": "Peça um email para criar o contato no CRM."
+    "needsEmail": "Peça um email para criar o contato no CRM.",
+    "started": "Início"
   },
   "priorities": {
     "low": "Baixa",
@@ -133,6 +144,7 @@
     "conversations": "{count, plural, one {# conversa} other {# conversas}}",
     "notes": "Notas",
     "editNotes": "Editar notas",
+    "notesPlaceholder": "Adicione uma nota sobre esta pessoa… salva automaticamente",
     "lastSeen": "Visto por último"
   },
   "rules": {
@@ -149,7 +161,13 @@
     "matchType": "Tipo de correspondência",
     "keyword": "Palavra-chave",
     "timeRange": "Intervalo de tempo",
-    "keywordPlaceholder": "reembolso, preços…"
+    "keywordPlaceholder": "reembolso, preços…",
+    "sub": "As regras rodam de cima para baixo: a primeira que bater atribui a nova conversa.",
+    "emptySub": "Direcione conversas por palavra-chave ou horário, ou distribua em round-robin entre o time.",
+    "deleteConfirm": "Excluir esta regra de atribuição?",
+    "moveUp": "Subir",
+    "moveDown": "Descer",
+    "namePlaceholder": "Nome da regra, ex.: Preços para vendas"
   },
   "sla": {
     "title": "SLA",
@@ -174,7 +192,8 @@
     "avgFirstResponse": "1ª resposta média",
     "withinSla": "Dentro do SLA de 1ª resposta",
     "avgResolution": "Resolução média",
-    "resolvedCount": "Conversas resolvidas"
+    "resolvedCount": "Conversas resolvidas",
+    "widgetsNote": "Cada widget tem sua aparência, código de instalação, regras de atribuição, respostas prontas e SLA."
   },
   "csat": {
     "title": "CSAT",
@@ -209,7 +228,12 @@
     "shortcut": "Atalho",
     "body": "Corpo",
     "empty": "Ainda não há respostas prontas.",
-    "placeholder": "Digite aqui sua mensagem salva…"
+    "placeholder": "Digite aqui sua mensagem salva…",
+    "sub": "Respostas prontas deste widget. Numa conversa, digite / para inserir uma.",
+    "emptySub": "Salve as respostas que você digita sempre e insira com / enquanto responde.",
+    "deleteConfirm": "Excluir a resposta pronta {shortcut}?",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Opcional — por padrão, o atalho"
   },
   "attachments": {
     "image": "Imagem",
@@ -240,5 +264,17 @@
     "generic": "Algo deu errado. Tente novamente.",
     "invalid_input": "Alguns campos são inválidos. Verifique e tente novamente.",
     "missing_name": "O nome é obrigatório."
+  },
+  "quick": {
+    "create": "Criar",
+    "hint": "Enter para criar · Esc para cancelar",
+    "saveHint": "⌘↵ para salvar · Esc para cancelar",
+    "widgetPlaceholder": "Nome do widget, ex.: Suporte do site",
+    "widgetNote": "Em seguida você verá o snippet para colar no seu site. Lá também configura boas-vindas, campos, bot e horários."
+  },
+  "widgetNav": {
+    "settings": "Widget",
+    "back": "Todos os widgets",
+    "conversations": "{count, plural, one {# conversa} other {# conversas}}"
   }
 }

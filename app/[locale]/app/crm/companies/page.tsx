@@ -9,6 +9,8 @@ import CompanyFilters from '@/components/crm/CompanyFilters';
 import CompaniesTable, { type CompanyRow } from '@/components/crm/CompaniesTable';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
+import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
@@ -222,9 +224,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     <div className="app-page">
       <div className="page-head">
         <h1 className="app-title">{t('companies.title')}</h1>
-        <Link href="/app/crm/companies/new" className="btn btn-solid btn-small">
-          {t('companies.newCta')}
-        </Link>
+        <CrmQuickCreate kind="company" />
       </div>
 
       <CompanyFilters
@@ -252,10 +252,12 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
           </p>
           <h2>{t('companies.emptyTitle')}</h2>
           <p className="muted">{t('companies.emptySub')}</p>
-          {!hasFilters && (
-            <Link href="/app/crm/companies/new" className="btn btn-solid btn-small">
-              {t('companies.emptyCta')}
+          {hasFilters ? (
+            <Link href="/app/crm/companies" className="btn btn-small">
+              {t('common.clear')}
             </Link>
+          ) : (
+            <CrmQuickCreate kind="company" variant="empty" label={t('companies.emptyCta')} />
           )}
         </div>
       ) : (

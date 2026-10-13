@@ -29,13 +29,15 @@ interface NewLinkFormProps {
   domain: string;
   /** Dominios propios verificados del workspace. */
   customDomains?: Array<{ id: string; hostname: string }>;
+  /** URL precargada (p. ej. desde "More options" del quick-create). */
+  initialUrl?: string;
 }
 
-export default function NewLinkForm({ domain, customDomains = [] }: NewLinkFormProps) {
+export default function NewLinkForm({ domain, customDomains = [], initialUrl = '' }: NewLinkFormProps) {
   const t = useTranslations('link');
   const router = useRouter();
 
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(initialUrl);
   const [slug, setSlug] = useState('');
   const [domainId, setDomainId] = useState<string>('');
   const [slugState, setSlugState] = useState<SlugState>('idle');
@@ -46,6 +48,7 @@ export default function NewLinkForm({ domain, customDomains = [] }: NewLinkFormP
   const [utmCampaign, setUtmCampaign] = useState('');
   const [redirectType, setRedirectType] = useState<301 | 302>(302);
   const [advanced, setAdvanced] = useState(false);
+  const [ogOpen, setOgOpen] = useState(false);
   const [expiresAt, setExpiresAt] = useState('');
   const [maxClicks, setMaxClicks] = useState('');
   const [password, setPassword] = useState('');
@@ -152,6 +155,7 @@ export default function NewLinkForm({ domain, customDomains = [] }: NewLinkFormP
           className="input"
           type="text"
           required
+          autoFocus={!initialUrl}
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder={t('new.urlPlaceholder')}
@@ -311,13 +315,13 @@ export default function NewLinkForm({ domain, customDomains = [] }: NewLinkFormP
       <button
         type="button"
         className="advanced-toggle mono"
-        onClick={() => setAdvanced((v) => !v)}
-        aria-expanded={advanced}
+        onClick={() => setOgOpen((v) => !v)}
+        aria-expanded={ogOpen}
       >
-        {advanced ? '−' : '+'} {t('new.ogTitle')}
+        {ogOpen ? '−' : '+'} {t('new.ogTitle')}
       </button>
 
-      {advanced && (
+      {ogOpen && (
         <div className="advanced-grid">
           <div className="field">
             <label className="label" htmlFor="nl-og-title">

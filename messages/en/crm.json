@@ -61,7 +61,8 @@
     "clear": "Clear filters",
     "adminOnly": "Only workspace admins can change this.",
     "moreFilters": "More filters",
-    "sortBy": "Sort by"
+    "sortBy": "Sort by",
+    "activityType": "Activity type"
   },
   "assoc": {
     "associate": "Associate",
@@ -305,7 +306,8 @@
       "country": "Country",
       "lifecycle": "Lifecycle stage",
       "owner": "Owner"
-    }
+    },
+    "newTitle": "New company"
   },
   "deals": {
     "title": "Deals",
@@ -551,7 +553,8 @@
     "method": "Method",
     "headers": "Headers (JSON)",
     "message": "Message",
-    "noWorkflows": "No workflows yet."
+    "noWorkflows": "No workflows yet.",
+    "emptySub": "Automate the busywork: when a record changes, create tasks, update fields or send webhooks."
   },
   "history": {
     "title": "History",
@@ -856,5 +859,27 @@
     "invalidTitle": "This invite is no longer valid",
     "invalidDesc": "It may have expired or been revoked. Ask for a new link.",
     "backHome": "← Back to zerosoft.ai"
+  },
+  "quick": {
+    "contact": {
+      "cta": "New contact",
+      "title": "New contact"
+    },
+    "company": {
+      "cta": "New company",
+      "title": "New company"
+    },
+    "deal": {
+      "cta": "New deal",
+      "title": "New deal"
+    },
+    "hint": "⌘↵ to create · Esc to close",
+    "createMore": "Create more",
+    "fullForm": "All fields",
+    "created": "Created:",
+    "task": {
+      "cta": "New task",
+      "title": "New task"
+    }
   }
 }

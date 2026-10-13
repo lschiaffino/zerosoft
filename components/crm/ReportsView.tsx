@@ -118,8 +118,8 @@ function ProporBars({
   const max = Math.max(...items.map((i) => i.count), 1);
   return (
     <div className="breakdown">
-      {items.map((item) => (
-        <div className="breakdown-row" key={item.name}>
+      {items.map((item, i) => (
+        <div className="breakdown-row" key={`${item.name}-${i}`}>
           <span className="breakdown-name" title={item.name}>
             {labelFor(item.name)}
           </span>
@@ -492,6 +492,9 @@ function SavedReportsBar({
   const [rows, setRows] = useState<SavedReport[]>([]);
   const [name, setName] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  // El input de nombre solo aparece al pedir "Save report": la barra queda
+  // compacta (un botón chico + reportes guardados como links).
+  const [naming, setNaming] = useState(false);
 
   async function load() {
     const res = await fetch(`/api/crm/reports?reportType=${reportType}`);
@@ -525,6 +528,7 @@ function SavedReportsBar({
     });
     if (res.ok) {
       setName('');
+      setNaming(false);
       setStatus('saved');
       await load();
       setTimeout(() => setStatus('idle'), 1500);
@@ -559,20 +563,6 @@ function SavedReportsBar({
 
   return (
     <div className="saved-reports-bar">
-      <div className="saved-reports-save">
-        <input
-          className="input"
-          type="text"
-          placeholder={t('reports.reportName')}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && save()}
-        />
-        <button type="button" className="btn btn-sm" onClick={save} disabled={status === 'saving' || !name.trim()}>
-          {status === 'saving' ? t('common.saving') : t('reports.saveReport')}
-        </button>
-        {status === 'saved' && <span className="saved-ok">{t('common.saved')}</span>}
-      </div>
       {rows.length > 0 && (
         <div className="saved-reports-list">
           <span className="saved-reports-label">{t('reports.savedReports')}</span>
@@ -593,6 +583,48 @@ function SavedReportsBar({
           ))}
         </div>
       )}
+      {naming ? (
+        <form
+          className="saved-reports-save"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save();
+          }}
+        >
+          <input
+            className="input"
+            type="text"
+            autoFocus
+            placeholder={t('reports.reportName')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setNaming(false);
+                setName('');
+              }
+            }}
+          />
+          <button type="submit" className="btn btn-small btn-solid" disabled={status === 'saving' || !name.trim()}>
+            {status === 'saving' ? t('common.saving') : t('common.save')}
+          </button>
+          <button
+            type="button"
+            className="btn btn-small btn-ghost"
+            onClick={() => {
+              setNaming(false);
+              setName('');
+            }}
+          >
+            {t('common.cancel')}
+          </button>
+        </form>
+      ) : (
+        <button type="button" className="saved-reports-trigger" onClick={() => setNaming(true)}>
+          + {t('reports.saveReport')}
+        </button>
+      )}
+      {status === 'saved' && <span className="saved-ok">{t('common.saved')}</span>}
     </div>
   );
 }
@@ -637,11 +669,11 @@ export default function ReportsView({
   return (
     <div className="reports">
       <ReportTypeTabs reportType={reportType} />
-      <SavedReportsBar reportType={reportType} filters={filters} />
 
       <div className="report-controls">
         <RangeSelector range={range} />
         <BucketSelector bucket={bucket} />
+        <SavedReportsBar reportType={reportType} filters={filters} />
       </div>
 
       <div className="report-filters">
@@ -1025,7 +1057,7 @@ export default function ReportsView({
         <section className="panel">
           <p className="section-label">{t('reports.dealsBySource')}</p>
           <ProporBars
-            items={sourcePerformance.map((s) => ({ name: s.source, count: s.deals }))}
+            items={sourcePerformance.map((s, i) => ({ name: s.source, count: s.deals }))}
             emptyLabel={t('reports.empty')}
             labelFor={sourceLabel}
             titleFor={(item) => {
@@ -1045,8 +1077,8 @@ export default function ReportsView({
                 </tr>
               </thead>
               <tbody>
-                {sourcePerformance.map((s) => (
-                  <tr key={s.source}>
+                {sourcePerformance.map((s, i) => (
+                  <tr key={`${s.source}-${i}`}>
                     <td>{sourceLabel(s.source)}</td>
                     <td className="mono td-num">{formatNumber(s.contacts, locale)}</td>
                     <td className="mono td-num">{formatNumber(s.deals, locale)}</td>

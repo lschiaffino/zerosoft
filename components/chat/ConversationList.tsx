@@ -12,8 +12,8 @@ interface ConversationListProps {
 }
 
 function initials(name: string | null, email: string | null): string {
-  const base = name || email || '?';
-  const parts = base.trim().split(/\s+/);
+  const base = (name || email || '?').replace(/[^\p{L}\p{N}\s@.]/gu, ' ').trim() || '?';
+  const parts = base.split(/\s+/);
   if (parts.length > 1) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   return base.slice(0, 2).toUpperCase();
 }
@@ -64,9 +64,11 @@ export default function ConversationList({
                 </div>
                 <div className="chat-row-preview">{preview(c)}</div>
                 <div className="chat-row-meta">
-                  <span className={`chat-status chat-status-${c.status}`}>
-                    {t(`conversation.${c.status}`)}
-                  </span>
+                  {c.status !== 'open' && (
+                    <span className={`chat-status chat-status-${c.status}`}>
+                      {t(`conversation.${c.status}`)}
+                    </span>
+                  )}
                   {c.priority !== 'medium' && (
                     <span className={`chat-priority chat-priority-${c.priority} mono`}>
                       {t(`priorities.${c.priority}`)}
@@ -78,9 +80,7 @@ export default function ConversationList({
                         ? t('sla.breachedResolution')
                         : t('sla.breachedFirst')}
                     </span>
-                  ) : c.resolved_at ? (
-                    <span className="chat-sla-badge chat-sla-resolved">{t('sla.resolved')}</span>
-                  ) : c.sla_due_in_minutes != null ? (
+                  ) : c.resolved_at ? null : c.sla_due_in_minutes != null ? (
                     <span className="chat-sla-badge chat-sla-due">
                       {t('sla.dueIn', { minutes: c.sla_due_in_minutes })}
                     </span>

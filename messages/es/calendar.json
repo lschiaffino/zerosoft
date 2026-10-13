@@ -17,7 +17,10 @@
     "remove": "Eliminar",
     "back": "← Volver",
     "view": "Ver",
-    "hide": "Ocultar"
+    "hide": "Ocultar",
+    "delete": "Eliminar",
+    "deleting": "Eliminando…",
+    "edit": "Editar"
   },
   "overview": {
     "title": "Calendario",
@@ -27,7 +30,7 @@
   },
   "eventTypes": {
     "title": "Tipos de evento",
-    "newCta": "+ Nuevo tipo de evento",
+    "newCta": "Nuevo tipo de evento",
     "newTitle": "Nuevo tipo de evento",
     "newSub": "Crea un link de reserva. Define duración, reglas y preguntas.",
     "back": "← Todos los tipos de evento",
@@ -94,7 +97,10 @@
   "bookings": {
     "title": "Reservas",
     "join": "Unirse a la reunión ↗",
-    "rescheduled": "Reprogramada por el invitado"
+    "rescheduled": "Reprogramada por el invitado",
+    "emptyTitle": "No hay reservas próximas",
+    "emptySub": "Compartí un link de reserva y las nuevas reservas aparecen acá.",
+    "emptyCta": "Ir a tipos de evento"
   },
   "booking": {
     "timezone": "Zona horaria",
@@ -129,7 +135,7 @@
   },
   "routing": {
     "title": "Formularios de routing",
-    "newCta": "+ Nuevo formulario",
+    "newCta": "Nuevo formulario",
     "newTitle": "Nuevo formulario de routing",
     "newSub": "Hacé unas preguntas y derivá a cada persona a la página de reserva correcta.",
     "back": "← Todos los formularios",
@@ -163,7 +169,8 @@
     "valueTrue": "Sí",
     "valueFalse": "No",
     "submit": "Continuar",
-    "noRoute": "Ninguna página de reserva coincide con tus respuestas."
+    "noRoute": "Ninguna página de reserva coincide con tus respuestas.",
+    "deleteConfirm": "¿Eliminar “{title}”? Su link público deja de funcionar."
   },
   "errors": {
     "invalid_slug": "Slug inválido. Usá solo letras minúsculas, números y guiones.",
@@ -222,5 +229,31 @@
     "sub": "Elegí un tipo de reunión para ver los horarios disponibles.",
     "empty": "No hay tipos de reunión disponibles por ahora.",
     "minutes": "{n} min"
+  },
+  "quick": {
+    "eventCrumb": "Cal › Nuevo tipo de evento",
+    "titlePlaceholder": "Nombre del evento, p. ej. Llamada inicial",
+    "slug": "URL",
+    "duration": "Duración",
+    "custom": "Otra",
+    "location": "Ubicación",
+    "create": "Crear",
+    "hint": "⌘↵ crear · Esc cerrar",
+    "defaultHours": "Reservable de lunes a viernes, 9:00–17:00. Lo cambiás cuando quieras.",
+    "moreOptions": "Abrir al crear",
+    "routingCrumb": "Cal › Nuevo formulario de ruteo",
+    "routingTitlePlaceholder": "Nombre del formulario, p. ej. Ventas o soporte",
+    "routingCreate": "Crear y sumar preguntas"
+  },
+  "list": {
+    "copyLink": "Copiar link",
+    "copied": "Copiado",
+    "open": "Abrir página de reserva",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar “{title}”? Se borran su página de reserva y todas sus reservas. Para pausarlo, apagalo.",
+    "toggleOn": "Acepta reservas — clic para apagar",
+    "toggleOff": "Apagado — clic para aceptar reservas",
+    "shortcut": "Apretá C para crear"
   }
 }

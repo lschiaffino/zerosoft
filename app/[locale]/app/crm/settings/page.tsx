@@ -61,67 +61,103 @@ export default async function CrmSettingsPage(
     url: `${baseUrl}/en/invite/${i.token}`,
   }));
 
+  const sections = [
+    { id: 'team', label: t('settings.team') },
+    { id: 'integrations', label: t('settings.integrations') },
+    { id: 'pipelines', label: t('settings.pipelines') },
+    { id: 'fields', label: t('settings.customFields') },
+    { id: 'import', label: t('settings.importCta') },
+    { id: 'export', label: t('settings.exportCta') },
+  ];
+
+  // Layout de ajustes tipo Linear/Apple: índice a la izquierda y secciones
+  // separadas por hairlines (título + descripción arriba, controles abajo),
+  // sin tarjetas apiladas.
   return (
-    <div className="app-page">
+    <div className="app-page crm-settings-page">
       <h1 className="app-title">{t('settings.title')}</h1>
 
-      <section className="panel">
-        <p className="section-label">{t('settings.team')}</p>
-        <p className="muted panel-desc">{t('settings.teamDesc')}</p>
-        <TeamPanel
-          realEmail={realUser.email}
-          ownedTeam={ownedTeam ? { id: ownedTeam.id, name: ownedTeam.name } : null}
-          members={members.map((m) => ({
-            user_id: m.user_id,
-            role: m.role,
-            email: m.email,
-            name: m.name,
-          }))}
-          invites={inviteUrls}
-          memberTeams={memberTeams.map((m) => ({ id: m.id, name: m.name, owner_email: m.owner_email }))}
-          canChangeRoles={canChangeRoles}
-          activeTeamId={realUser.active_team_id ?? null}
-          actingTeamName={user.actingUser && user.team ? user.team.name : null}
-        />
-      </section>
+      <div className="crm-settings">
+        <nav className="crm-settings-nav" aria-label={t('settings.title')}>
+          {sections.map((s) => (
+            <a key={s.id} href={`#${s.id}`}>
+              {s.label}
+            </a>
+          ))}
+        </nav>
 
-      <section className="panel">
-        <p className="section-label">{t('settings.integrations')}</p>
-        <p className="muted panel-desc">{t('settings.gmailDesc')}</p>
-        <GmailPanel
-          connected={gmail !== null}
-          email={gmail?.email ?? ''}
-          lastSync={gmailLastSync}
-          notice={searchParams.gmail ?? null}
-          redirectUri={gmailRedirectUri()}
-        />
-      </section>
+        <div className="crm-settings-body">
+          <section className="crm-set" id="team">
+            <header className="crm-set-head">
+              <h2>{t('settings.team')}</h2>
+              <p className="muted">{t('settings.teamDesc')}</p>
+            </header>
+            <TeamPanel
+              realEmail={realUser.email}
+              ownedTeam={ownedTeam ? { id: ownedTeam.id, name: ownedTeam.name } : null}
+              members={members.map((m) => ({
+                user_id: m.user_id,
+                role: m.role,
+                email: m.email,
+                name: m.name,
+              }))}
+              invites={inviteUrls}
+              memberTeams={memberTeams.map((m) => ({ id: m.id, name: m.name, owner_email: m.owner_email }))}
+              canChangeRoles={canChangeRoles}
+              activeTeamId={realUser.active_team_id ?? null}
+              actingTeamName={user.actingUser && user.team ? user.team.name : null}
+            />
+          </section>
 
-      <section className="panel">
-        <p className="section-label">{t('settings.pipelines')}</p>
-        <p className="muted panel-desc">{t('settings.pipelinesDesc')}</p>
-        <PipelinesEditor initialPipelines={pipelines} />
-      </section>
+          <section className="crm-set" id="integrations">
+            <header className="crm-set-head">
+              <h2>{t('settings.integrations')}</h2>
+              <p className="muted">{t('settings.gmailDesc')}</p>
+            </header>
+            <GmailPanel
+              connected={gmail !== null}
+              email={gmail?.email ?? ''}
+              lastSync={gmailLastSync}
+              notice={searchParams.gmail ?? null}
+              redirectUri={gmailRedirectUri()}
+            />
+          </section>
 
-      <section className="panel">
-        <p className="section-label">{t('settings.customFields')}</p>
-        <p className="muted panel-desc">{t('settings.customFieldsDesc')}</p>
-        <CustomFieldsPanel initialFields={customFields} />
-      </section>
+          <section className="crm-set" id="pipelines">
+            <header className="crm-set-head">
+              <h2>{t('settings.pipelines')}</h2>
+              <p className="muted">{t('settings.pipelinesDesc')}</p>
+            </header>
+            <PipelinesEditor initialPipelines={pipelines} />
+          </section>
 
-      <section className="panel">
-        <p className="section-label">{t('settings.importCta')}</p>
-        <ImportPanel />
-      </section>
+          <section className="crm-set" id="fields">
+            <header className="crm-set-head">
+              <h2>{t('settings.customFields')}</h2>
+              <p className="muted">{t('settings.customFieldsDesc')}</p>
+            </header>
+            <CustomFieldsPanel initialFields={customFields} />
+          </section>
 
-      <section className="panel">
-        <p className="section-label">{t('settings.exportCta')}</p>
-        {isWorkspaceAdmin(user) ? (
-          <ExportPanel locale={locale} />
-        ) : (
-          <p className="muted panel-desc">{t('common.adminOnly')}</p>
-        )}
-      </section>
+          <section className="crm-set" id="import">
+            <header className="crm-set-head">
+              <h2>{t('settings.importCta')}</h2>
+            </header>
+            <ImportPanel />
+          </section>
+
+          <section className="crm-set" id="export">
+            <header className="crm-set-head">
+              <h2>{t('settings.exportCta')}</h2>
+            </header>
+            {isWorkspaceAdmin(user) ? (
+              <ExportPanel locale={locale} />
+            ) : (
+              <p className="muted">{t('common.adminOnly')}</p>
+            )}
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

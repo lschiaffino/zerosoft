@@ -11,8 +11,8 @@ interface VisitorDetailClientProps {
 }
 
 function initials(name: string | null, email: string | null): string {
-  const base = name || email || '?';
-  const parts = base.trim().split(/\s+/);
+  const base = (name || email || '?').replace(/[^\p{L}\p{N}\s@.]/gu, ' ').trim() || '?';
+  const parts = base.split(/\s+/);
   if (parts.length > 1) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   return base.slice(0, 2).toUpperCase();
 }
@@ -22,7 +22,7 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
   const locale = useLocale();
   const [visitor, setVisitor] = useState<ChatVisitorWithStats>(initialVisitor);
   const [notes, setNotes] = useState(visitor.notes ?? '');
-  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +38,7 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
       if (!res.ok) throw new Error('save_failed');
       const updated = (await res.json()) as ChatVisitorWithStats;
       setVisitor((prev) => ({ ...prev, notes: updated.notes }));
-      setEditing(false);
+      setSaved(true);
     } catch {
       setError(t('errors.generic'));
     } finally {
@@ -48,7 +48,6 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
 
   function cancel() {
     setNotes(visitor.notes ?? '');
-    setEditing(false);
     setError(null);
   }
 
@@ -69,11 +68,11 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
             <dd className="mono">{formatDateTime(visitor.created_at, locale)}</dd>
           </div>
           <div className="chat-visitor-detail">
-            <dt className="mono muted">{t('people.conversations', { count: visitor.conversations.length })}</dt>
+            <dt className="mono muted">{t('overview.conversations')}</dt>
             <dd>{visitor.conversations.length}</dd>
           </div>
           <div className="chat-visitor-detail">
-            <dt className="mono muted">{t('visitorPanel.notes')}</dt>
+            <dt className="mono muted">{t('conversation.messages')}</dt>
             <dd>{visitor.total_messages}</dd>
           </div>
         </dl>
@@ -82,34 +81,34 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
       <section className="panel chat-visitor-notes">
         <div className="panel-head">
           <p className="section-label">{t('people.notes')}</p>
-          {!editing && (
-            <button type="button" className="btn btn-small" onClick={() => setEditing(true)}>
-              {t('people.editNotes')}
-            </button>
-          )}
+          {saving ? (
+            <span className="mono muted chat-notes-status">{t('common.loading')}</span>
+          ) : saved ? (
+            <span className="mono muted chat-notes-status">{t('sla.saved')}</span>
+          ) : null}
         </div>
-        {editing ? (
-          <div className="chat-notes-editor">
-            <textarea
-              className="textarea"
-              rows={6}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={t('people.notes')}
-            />
-            {error && <p className="form-error">{error}</p>}
-            <div className="form-actions">
-              <button type="button" className="btn btn-small" onClick={cancel} disabled={saving}>
-                {t('common.cancel')}
-              </button>
-              <button type="button" className="btn btn-solid btn-small" onClick={saveNotes} disabled={saving}>
-                {saving ? t('common.loading') : t('common.save')}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className="chat-notes-body">{visitor.notes || <span className="muted">{t('common.empty')}</span>}</p>
-        )}
+        <textarea
+          className="textarea chat-notes-inline"
+          rows={4}
+          value={notes}
+          onChange={(e) => {
+            setNotes(e.target.value);
+            setSaved(false);
+          }}
+          onBlur={() => {
+            if ((notes.trim() || null) !== (visitor.notes ?? null)) saveNotes();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              saveNotes();
+            }
+            if (e.key === 'Escape') cancel();
+          }}
+          placeholder={t('people.notesPlaceholder')}
+          aria-label={t('people.notes')}
+        />
+        {error && <p className="form-error">{error}</p>}
       </section>
 
       <section className="panel">

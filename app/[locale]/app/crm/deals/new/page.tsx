@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
@@ -20,6 +21,9 @@ export default async function NewDealPage(props: NewDealPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  // Sin parámetros, /new abre el alta rápida (modal) sobre la lista; el
+  // formulario completo queda en /new?full=1 o con contexto (companyId…).
+  if (Object.keys(searchParams).length === 0) redirect(`/${locale}/app/crm/deals?new=1`);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   const pipelines = (await listPipelinesWithStages(user.id)).map((p) => ({

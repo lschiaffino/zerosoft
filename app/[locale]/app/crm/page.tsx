@@ -66,7 +66,7 @@ export default async function CrmOverviewPage(
             0 0 0 0 0
           </p>
           <p className="muted">{t('overview.empty')}</p>
-          <Link href="/app/crm/contacts/new" className="btn btn-solid btn-small">
+          <Link href="/app/crm/contacts?new=1" className="btn btn-solid btn-small">
             {t('overview.emptyCta')}
           </Link>
         </div>

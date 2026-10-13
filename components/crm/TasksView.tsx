@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter, usePathname } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
+import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
 
 export interface TaskRow {
   id: string;
@@ -31,6 +32,10 @@ interface TasksViewProps {
   projects: Array<{ value: string; label: string; color: string }>;
   ownerId?: string;
   projectId?: string;
+  /** Título de la página: el header (título + CTA) lo arma la vista. */
+  title: string;
+  /** Contenido bajo el header (p. ej. el gestor de proyectos). */
+  children?: ReactNode;
 }
 
 interface ContactOption {
@@ -49,7 +54,16 @@ function localToUtc(local: string): string | null {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
-export default function TasksView({ bucket, rows, members, projects, ownerId, projectId }: TasksViewProps) {
+export default function TasksView({
+  bucket,
+  rows,
+  members,
+  projects,
+  ownerId,
+  projectId,
+  title,
+  children,
+}: TasksViewProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const pathname = usePathname();
@@ -114,8 +128,10 @@ export default function TasksView({ bucket, rows, members, projects, ownerId, pr
     router.refresh();
   }
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  useKeyShortcut('c', () => setShowComposer(true), !showComposer);
+
+  async function onSubmit(e?: FormEvent) {
+    e?.preventDefault();
     setComposerError(null);
     if (!subject.trim()) {
       setComposerError(t('errors.missing_name'));
@@ -155,6 +171,21 @@ export default function TasksView({ bucket, rows, members, projects, ownerId, pr
 
   return (
     <>
+      <div className="page-head">
+        <h1 className="app-title">{title}</h1>
+        <button
+          type="button"
+          className="btn btn-small btn-solid"
+          onClick={() => setShowComposer(true)}
+          data-testid="crm-quick-task"
+        >
+          {t('quick.task.cta')}
+          <span className="kbd-hint" aria-hidden>
+            C
+          </span>
+        </button>
+      </div>
+      {children}
       <div className="task-controls">
         <div className="filter-chips">
           {BUCKETS.map((b) => (
@@ -196,82 +227,82 @@ export default function TasksView({ bucket, rows, members, projects, ownerId, pr
               </option>
             ))}
           </select>
-
-          <button type="button" className="btn btn-small btn-solid" onClick={() => setShowComposer((v) => !v)}>
-            {showComposer ? t('common.close') : t('tasks.newTask')}
-          </button>
         </div>
       </div>
 
-      {showComposer && (
-        <form className="task-composer" onSubmit={onSubmit}>
-          <select className="select" value={type} onChange={(e) => setType(e.target.value as typeof type)}>
-            {(['task', 'call', 'meeting', 'email', 'note'] as const).map((v) => (
-              <option key={v} value={v}>
-                {taskTypeLabel(v)}
-              </option>
-            ))}
-          </select>
-          <input
-            className="input task-composer-subject"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder={t('tasks.form.subject')}
-            aria-label={t('tasks.form.subject')}
-            maxLength={500}
-          />
-          <input
-            className="input"
-            type="datetime-local"
-            value={due}
-            onChange={(e) => setDue(e.target.value)}
-            aria-label={t('tasks.form.dueAt')}
-          />
-          <select
-            className="select"
-            value={contactId}
-            onChange={(e) => setContactId(e.target.value)}
-            aria-label={t('tasks.form.contact')}
-          >
-            <option value="">{t('tasks.form.contact')}</option>
-            {contacts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select"
-            value={projectIdDraft}
-            onChange={(e) => setProjectIdDraft(e.target.value)}
-            aria-label={t('tasks.form.project')}
-          >
-            <option value="">{t('tasks.form.project')}</option>
-            {projects.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select"
-            value={ownerIdDraft}
-            onChange={(e) => setOwnerIdDraft(e.target.value)}
-            aria-label={t('tasks.form.owner')}
-          >
-            <option value="">{t('tasks.form.owner')}</option>
-            {members.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className="btn btn-solid btn-small" disabled={composerBusy}>
-            {composerBusy ? t('common.creating') : t('common.add')}
-          </button>
-          {composerError && <p className="form-error">{composerError}</p>}
-        </form>
-      )}
+      <QuickModal
+        open={showComposer}
+        onClose={() => setShowComposer(false)}
+        crumb={`CRM › ${t('quick.task.title')}`}
+        onSubmit={() => onSubmit()}
+        submitLabel={composerBusy ? t('common.creating') : t('common.create')}
+        cancelLabel={t('common.cancel')}
+        submitDisabled={!subject.trim()}
+        busy={composerBusy}
+        error={composerError}
+        hint={t('quick.hint')}
+      >
+        <input
+          data-autofocus
+          className="qm-title"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder={t('tasks.form.subject')}
+          aria-label={t('tasks.form.subject')}
+          maxLength={500}
+        />
+        <div className="qm-row">
+          <label className="qm-field">
+            <span>{t('common.activityType')}</span>
+            <select value={type} onChange={(e) => setType(e.target.value as typeof type)}>
+              {(['task', 'call', 'meeting', 'email', 'note'] as const).map((v) => (
+                <option key={v} value={v}>
+                  {taskTypeLabel(v)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="qm-field">
+            <span>{t('tasks.form.dueAt')}</span>
+            <input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
+          </label>
+        </div>
+        <div className="qm-row">
+          <label className="qm-field">
+            <span>{t('tasks.form.contact')}</span>
+            <select value={contactId} onChange={(e) => setContactId(e.target.value)}>
+              <option value="">—</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="qm-field">
+            <span>{t('tasks.form.project')}</span>
+            <select value={projectIdDraft} onChange={(e) => setProjectIdDraft(e.target.value)}>
+              <option value="">—</option>
+              {projects.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="qm-field">
+            <span>{t('tasks.form.owner')}</span>
+            <select value={ownerIdDraft} onChange={(e) => setOwnerIdDraft(e.target.value)}>
+              <option value="">—</option>
+              {members.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </QuickModal>
 
       {rows.length === 0 ? (
         <div className="empty-state">

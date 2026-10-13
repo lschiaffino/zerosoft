@@ -36,7 +36,12 @@ export default function AvailabilityEditor({ eventTypeId, initialRules }: Availa
   const [saved, setSaved] = useState(false);
 
   function addRule(day?: number) {
-    setRules((prev) => [...prev, emptyRule(day ?? 1)]);
+    // Sin día explícito: el primer día hábil (lun→dom) que todavía no tiene horario.
+    setRules((prev) => {
+      const used = new Set(prev.map((r) => r.dayOfWeek));
+      const next = day ?? [1, 2, 3, 4, 5, 6, 0].find((d) => !used.has(d)) ?? 1;
+      return [...prev, emptyRule(next)];
+    });
     setSaved(false);
   }
 
@@ -66,9 +71,9 @@ export default function AvailabilityEditor({ eventTypeId, initialRules }: Availa
     <section className="panel">
       <div className="panel-head">
         <p className="section-label">{t('availability.title')}</p>
-        <div className="panel-actions">
-          <button type="button" className="btn btn-small" onClick={() => addRule()}>
-            {t('availability.addRule')}
+        <div className="panel-actions cal-actions">
+          <button type="button" className="btn btn-small btn-ghost" onClick={() => addRule()}>
+            + {t('availability.addRule')}
           </button>
           <button type="button" className="btn btn-solid btn-small" onClick={save} disabled={busy}>
             {busy ? t('common.saving') : saved ? t('common.saved') : t('common.save')}
@@ -104,15 +109,21 @@ export default function AvailabilityEditor({ eventTypeId, initialRules }: Availa
                 value={rule.startTime}
                 onChange={(e) => updateRule(i, { startTime: e.target.value })}
               />
-              <span className="muted">→</span>
+              <span className="muted" aria-hidden>–</span>
               <input
                 className="input mono"
                 type="time"
                 value={rule.endTime}
                 onChange={(e) => updateRule(i, { endTime: e.target.value })}
               />
-              <button type="button" className="btn btn-ghost btn-small" onClick={() => removeRule(i)}>
-                {t('common.remove')}
+              <button
+                type="button"
+                className="cal-icon-btn cal-icon-danger"
+                onClick={() => removeRule(i)}
+                aria-label={t('common.remove')}
+                title={t('common.remove')}
+              >
+                ×
               </button>
             </div>
           ))}

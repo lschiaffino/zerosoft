@@ -271,7 +271,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
               addLabel={t('assoc.pickDeal')}
               emptyLabel={t('companies.detail.noDeals')}
             />
-            <Link href="/app/crm/deals/new" className="kb-add">
+            <Link href="/app/crm/deals/new?full=1" className="kb-add">
               {t('companies.detail.newDeal')}
             </Link>
           </section>

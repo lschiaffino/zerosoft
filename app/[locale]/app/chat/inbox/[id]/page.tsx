@@ -39,9 +39,7 @@ export default async function ChatConversationPage(
 
   return (
     <div className="app-page chat-conversation-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('inbox.title')}</h1>
-      </div>
+      <h1 className="chat-sr-only">{t('inbox.title')}</h1>
       <ConversationClient
         conversationId={id}
         initialConversation={conversation}

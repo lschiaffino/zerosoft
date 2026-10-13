@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useKeyShortcut } from '@/components/app/QuickModal';
 import { Link, useRouter } from '@/i18n/navigation';
 import ListForm, { type EnumOption } from './ListForm';
 
@@ -15,6 +16,8 @@ export interface ListRow {
 }
 
 interface ListsIndexProps {
+  /** Título de la página: el header (título + CTA) lo arma la vista. */
+  title: string;
   rows: ListRow[];
   lifecycles: EnumOption[];
   leadStatuses: EnumOption[];
@@ -22,12 +25,13 @@ interface ListsIndexProps {
 }
 
 /** Index de listas: form de nueva lista (toggle) + tabla con delete confirmado inline. */
-export default function ListsIndex({ rows, lifecycles, leadStatuses, sources }: ListsIndexProps) {
+export default function ListsIndex({ rows, lifecycles, leadStatuses, sources, title }: ListsIndexProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  useKeyShortcut('c', () => setShowForm(true), !showForm);
 
   async function remove(id: string) {
     setBusyId(id);
@@ -39,9 +43,13 @@ export default function ListsIndex({ rows, lifecycles, leadStatuses, sources }: 
 
   return (
     <>
-      <div>
+      <div className="page-head">
+        <h1 className="app-title">{title}</h1>
         <button type="button" className="btn btn-solid btn-small" onClick={() => setShowForm((v) => !v)}>
           {t('lists.newCta')}
+          <span className="kbd-hint" aria-hidden>
+            C
+          </span>
         </button>
       </div>
 

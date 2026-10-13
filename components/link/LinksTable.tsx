@@ -73,17 +73,17 @@ export default function LinksTable({ rows }: LinksTableProps) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id} className={busyId === row.id ? 'row-busy' : undefined}>
-              <td>
+            <tr key={row.id} className={`links-row${busyId === row.id ? ' row-busy' : ''}`}>
+              <td className="td-link">
                 <div className="cell-link">
-                  <Link href={`/app/links/${row.id}`} className="mono cell-slug">
-                    {row.short}
+                  <Link href={`/app/links/${row.id}`} className="mono cell-slug" title={row.short}>
+                    {row.short.replace(/^https?:\/\//, '')}
                   </Link>
                   <CopyButton text={row.short} className="copy-btn-icon" />
                 </div>
                 {row.title && <div className="cell-title muted">{truncate(row.title, 32)}</div>}
               </td>
-              <td>
+              <td className="td-dest">
                 <a
                   href={row.url}
                   target="_blank"
@@ -91,10 +91,10 @@ export default function LinksTable({ rows }: LinksTableProps) {
                   className="cell-url muted"
                   title={row.url}
                 >
-                  {truncate(row.url, 36)}
+                  {row.url}
                 </a>
               </td>
-              <td>
+              <td className="td-tags">
                 <div className="cell-tags">
                   {row.tags.map((tag) => (
                     <span key={tag} className="badge">
@@ -103,12 +103,12 @@ export default function LinksTable({ rows }: LinksTableProps) {
                   ))}
                 </div>
               </td>
-              <td className="mono td-num">{row.clicks}</td>
+              <td className="mono td-num td-clicks">{row.clicks}</td>
               <td className="mono muted cell-date">{row.created}</td>
-              <td>
+              <td className="td-status">
                 <span className={`badge status-${row.status}`}>{statusLabel[row.status]}</span>
               </td>
-              <td>
+              <td className="td-actions">
                 {confirmingId === row.id ? (
                   <div className="cell-actions confirm">
                     <span className="confirm-label">{t('table.confirmDelete')}</span>
@@ -129,9 +129,6 @@ export default function LinksTable({ rows }: LinksTableProps) {
                   </div>
                 ) : (
                   <div className="cell-actions">
-                    <Link href={`/app/links/${row.id}`} className="icon-btn" title={t('table.analytics')}>
-                      →
-                    </Link>
                     <Link href={`/app/links/${row.id}#qr`} className="icon-btn" title={t('table.qr')}>
                       ▦
                     </Link>
