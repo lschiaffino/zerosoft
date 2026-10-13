@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "overview": "Visão geral",
+    "myTasks": "Minhas tarefas",
     "projects": "Projetos",
     "issues": "Issues",
     "cycles": "Ciclos",
@@ -244,5 +245,42 @@
     "missing_title": "O título é obrigatório.",
     "invalid_input": "Alguns campos são inválidos. Revise e tente novamente.",
     "generic": "Algo deu errado. Tente novamente."
+  },
+  "quick": {
+    "newTask": "Nova tarefa",
+    "placeholder": "Título da tarefa, Enter para salvar, Esc para cancelar",
+    "hint": "!alta @amanhã",
+    "project": "Projeto",
+    "modalTitle": "Nova issue",
+    "titlePlaceholder": "Título da issue",
+    "descriptionPlaceholder": "Adicione uma descrição…",
+    "create": "Criar issue",
+    "createMore": "Criar outra",
+    "submitHint": "Enter ou ⌘↵ para criar",
+    "shortcutHint": "Pressione C para criar uma issue"
+  },
+  "inline": {
+    "markDone": "Marcar como concluída",
+    "markOpen": "Marcar como pendente",
+    "noDoneStatus": "Este projeto não tem um status “Concluído”.",
+    "saveError": "Não foi possível salvar a alteração. Ela foi revertida.",
+    "createError": "Não foi possível criar a tarefa. Tente de novo.",
+    "noDate": "Sem data",
+    "today": "Hoje",
+    "tomorrow": "Amanhã",
+    "nextWeek": "Próxima semana",
+    "clear": "Remover data",
+    "pickDate": "Escolher data",
+    "dragHint": "Arraste para outra coluna para mudar o status",
+    "dismiss": "Fechar"
+  },
+  "myTasks": {
+    "title": "Minhas tarefas",
+    "subtitle": "Tudo o que está atribuído a você, em todos os projetos.",
+    "overdue": "Atrasadas",
+    "today": "Hoje",
+    "upcoming": "Próximas",
+    "noDate": "Sem data",
+    "empty": "Nada atribuído a você. Aproveite a calma."
   }
 }

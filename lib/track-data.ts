@@ -724,6 +724,38 @@ export async function listAllIssues(
   return { rows, total, page, pageSize };
 }
 
+/**
+ * "My tasks": issues asignados a `assigneeId` en todos los proyectos
+ * accesibles del workspace. Por defecto excluye los completados
+ * (status done/cancelled). Ordena por vencimiento (sin fecha al final) y
+ * prioridad.
+ */
+export async function listMyIssues(
+  teamId: string | null,
+  ownerId: string,
+  assigneeId: string,
+  options: { includeCompleted?: boolean; limit?: number } = {},
+): Promise<TrackIssueWithStatus[]> {
+  const scope = projectScope(teamId, ownerId);
+  const limit = Math.min(Math.max(options.limit ?? 200, 1), 500);
+  const where = [
+    `i.project_id IN (SELECT id FROM track_projects WHERE ${scope.where} AND status = 'active')`,
+    'i.assignee_id = ?',
+  ];
+  if (!options.includeCompleted) {
+    where.push("(s.category IS NULL OR s.category NOT IN ('done', 'cancelled'))");
+  }
+  return (await getDb()
+    .prepare(
+      `${issueSelect(`WHERE ${where.join(' AND ')}`)}
+       ORDER BY i.due_date IS NULL, i.due_date ASC,
+         CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+         i.created_at ASC
+       LIMIT ?`,
+    )
+    .all(scope.arg, assigneeId, limit)) as TrackIssueWithStatus[];
+}
+
 export async function getIssue(id: string): Promise<TrackIssueWithStatus | undefined> {
   return (await getDb().prepare(`${issueSelect('WHERE i.id = ?')}`).get(id)) as
     | TrackIssueWithStatus
@@ -746,7 +778,7 @@ export async function createIssue(
 ): Promise<TrackIssueWithStatus> {
   const db = getDb();
   const id = crypto.randomUUID();
-  const identifier = await nextIdentifier(projectId);
+  let identifier = await nextIdentifier(projectId);
   const now = nowIso();
 
   // Si no se provee status, tomar el primero del proyecto
@@ -760,29 +792,41 @@ export async function createIssue(
     statusId = first?.id ?? null;
   }
 
-  await db
-    .prepare(
-      'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, start_date, due_date, labels, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    )
-    .run(
-      id,
-      projectId,
-      identifier,
-      payload.title?.trim() ?? '',
-      blocksToJson(payload.description),
-      statusId,
-      payload.priority ?? 'medium',
-      payload.assigneeId ?? null,
-      creatorId,
-      payload.cycleId ?? null,
-      payload.estimate ?? null,
-      payload.parentId ?? null,
-      payload.startDate ?? null,
-      payload.dueDate ?? null,
-      labelsToJson(payload.labels),
-      now,
-      now,
-    );
+  // El identificador (PROJ-n) se calcula con MAX+1: dos creaciones
+  // simultáneas (p. ej. quick-add con Enter rápido) pueden chocar con el
+  // UNIQUE(project_id, identifier). En ese caso se recalcula y se reintenta.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await db
+        .prepare(
+          'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, start_date, due_date, labels, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          id,
+          projectId,
+          identifier,
+          payload.title?.trim() ?? '',
+          blocksToJson(payload.description),
+          statusId,
+          payload.priority ?? 'medium',
+          payload.assigneeId ?? null,
+          creatorId,
+          payload.cycleId ?? null,
+          payload.estimate ?? null,
+          payload.parentId ?? null,
+          payload.startDate ?? null,
+          payload.dueDate ?? null,
+          labelsToJson(payload.labels),
+          now,
+          now,
+        );
+      break;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (attempt >= 5 || !msg.includes('UNIQUE') || !msg.includes('identifier')) throw err;
+      identifier = await nextIdentifier(projectId);
+    }
+  }
 
   await createIssueActivity(id, creatorId, 'created', {});
   if (payload.parentId) {
@@ -1025,6 +1069,45 @@ export async function listProjectMembers(projectId: string, userId: string): Pro
     | undefined;
   if (!owner) return [];
   return [{ id: owner.id, email: owner.email, name: owner.name, role: 'owner' }];
+}
+
+/** Proyecto con lo necesario para crear/editar issues inline desde vistas cruzadas. */
+export interface TrackProjectMeta {
+  id: string;
+  name: string;
+  icon: string | null;
+  statuses: TrackStatusRow[];
+  members: ProjectMember[];
+}
+
+/**
+ * Proyectos activos accesibles con sus status y miembros, para las vistas
+ * que mezclan issues de varios proyectos (Issues, My tasks).
+ */
+export async function listProjectMetas(teamId: string | null, ownerId: string): Promise<TrackProjectMeta[]> {
+  const db = getDb();
+  const scope = projectScope(teamId, ownerId);
+  const projects = (await db
+    .prepare(
+      `SELECT id, name, icon FROM track_projects WHERE ${scope.where} AND status = 'active' ORDER BY name ASC LIMIT 100`,
+    )
+    .all(scope.arg)) as Array<{ id: string; name: string; icon: string | null }>;
+  if (projects.length === 0) return [];
+
+  const statuses = (await db
+    .prepare(
+      `SELECT * FROM track_statuses WHERE project_id IN ${inClause(projects.length)} ORDER BY position ASC`,
+    )
+    .all(...projects.map((p) => p.id))) as TrackStatusRow[];
+
+  // Todos los proyectos del scope comparten miembros (mismo team o mismo dueño).
+  const members = await listProjectMembers(projects[0].id, ownerId);
+
+  return projects.map((p) => ({
+    ...p,
+    statuses: statuses.filter((s) => s.project_id === p.id),
+    members,
+  }));
 }
 
 // ---------- Saved views ----------
