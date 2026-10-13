@@ -125,8 +125,7 @@
     "title": "Pessoas",
     "search": "Buscar pessoas…",
     "empty": "Nenhuma pessoa corresponde à sua busca.",
-    "conversations_one": "{{count}} conversa",
-    "conversations_other": "{{count}} conversas",
+    "conversations": "{count, plural, one {# conversa} other {# conversas}}",
     "notes": "Notas",
     "editNotes": "Editar notas",
     "lastSeen": "Visto por último"
@@ -154,7 +153,7 @@
     "breached": "Violado",
     "breachedFirst": "SLA de 1ª resposta",
     "breachedResolution": "SLA de resolução",
-    "dueIn": "Responder em {{minutes}}m",
+    "dueIn": "Responder em {minutes}m",
     "resolved": "Resolvido",
     "policies": "Políticas de SLA",
     "priority": "Prioridade",
@@ -219,7 +218,7 @@
   },
   "read": {
     "read": "Lido",
-    "at": "Lido às {{time}}"
+    "at": "Lido às {time}"
   },
   "common": {
     "save": "Salvar",
