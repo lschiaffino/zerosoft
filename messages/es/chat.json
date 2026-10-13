@@ -283,6 +283,55 @@
   },
   "reports": {
     "title": "Reportes",
-    "subtitle": "SLA y satisfacción de todos los widgets."
+    "subtitle": "Conversaciones creadas en el rango, por agente.",
+    "exportCsv": "Exportar CSV",
+    "from": "Desde",
+    "to": "Hasta",
+    "apply": "Aplicar",
+    "lastDays": "Últimos {days} días",
+    "conversations": "Conversaciones",
+    "responses": "{count, plural, one {# respuesta} other {# respuestas}}",
+    "byAgent": "Por agente",
+    "empty": "No hay conversaciones en este rango.",
+    "agent": "Agente",
+    "firstResponse": "Primera respuesta",
+    "resolution": "Resolución",
+    "resolved": "Resueltas",
+    "note": "Los tiempos son promedios desde que se creó la conversación. CSAT de 1 a 5."
+  },
+  "tags": {
+    "title": "Tags",
+    "filter": "Filtrar por tag",
+    "all": "Todos los tags",
+    "remove": "Quitar #{tag}",
+    "add": "+ tag"
+  },
+  "notes": {
+    "label": "Nota interna",
+    "mode": "Tipo de mensaje",
+    "hint": "Nota interna… solo la ve tu equipo. @ para mencionar",
+    "add": "Agregar nota"
+  },
+  "macros": {
+    "applied": "Macro {shortcut} aplicada",
+    "title": "Acciones al usar esta respuesta (macro)",
+    "status": "Estado",
+    "assign": "Asignar a",
+    "tags": "Agregar tags",
+    "snooze": "Posponer",
+    "none": "Sin cambios",
+    "me": "Quien la usa",
+    "summary": {
+      "snooze": "Pospone {hours} h",
+      "status": "Pasa a {status}",
+      "unassign": "Desasigna",
+      "assign": "Asigna a {name}"
+    }
+  },
+  "help": {
+    "title": "Ayuda",
+    "enabled": "Mostrar pestaña de ayuda",
+    "hint": "El widget suma una pestaña con los artículos publicados de Docs y los sugiere mientras el visitante escribe su pregunta.",
+    "open": "Ver centro de ayuda"
   }
 }

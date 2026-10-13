@@ -40,6 +40,21 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-13-help-center',
+    date: '2026-10-13',
+    title: {
+      en: 'Help center, sharing and a sharper inbox',
+      es: 'Centro de ayuda, compartir y una bandeja más completa',
+      pt: 'Central de ajuda, compartilhamento e uma caixa de entrada mais completa',
+    },
+    items: [
+      { product: 'docs', en: 'Publish pages to a public help center at /h/your-handle, with search, table of contents and a "Was this helpful?" vote. "Public" is now "AI can use it", separate from publishing.', es: 'Publicá páginas en un centro de ayuda público en /h/tu-handle, con búsqueda, índice y la pregunta "¿Te sirvió?". "Pública" ahora es "La IA puede usarla", separado de publicar.', pt: 'Publique páginas em uma central de ajuda pública em /h/seu-handle, com busca, índice e a pergunta "Ajudou?". "Pública" agora é "A IA pode usá-la", separado de publicar.' },
+      { product: 'docs', en: 'Share pages with members or teams as viewers or editors; shared pages show up under "Shared with me". Version history with restore, and export to Markdown or PDF.', es: 'Compartí páginas con miembros o teams para ver o editar; aparecen en "Compartidas conmigo". Historial de versiones con restaurar, y export a Markdown o PDF.', pt: 'Compartilhe páginas com membros ou times para ver ou editar; elas aparecem em "Compartilhadas comigo". Histórico de versões com restauração, e exportação para Markdown ou PDF.' },
+      { product: 'chat', en: 'Internal notes with @mentions, conversation tags with an inbox filter, and macros: saved replies that also set status, assign, tag or snooze.', es: 'Notas internas con @menciones, tags de conversación con filtro en la bandeja, y macros: respuestas guardadas que además cambian estado, asignan, etiquetan o posponen.', pt: 'Notas internas com @menções, tags de conversa com filtro na caixa de entrada, e macros: respostas salvas que também mudam status, atribuem, etiquetam ou adiam.' },
+      { product: 'chat', en: 'The widget can show a Help tab with your published articles and suggests them while the visitor types. Reports by date range and agent, with CSV export.', es: 'El widget puede mostrar una pestaña de ayuda con tus artículos publicados y sugerirlos mientras el visitante escribe. Reportes por rango de fechas y por agente, con export a CSV.', pt: 'O widget pode mostrar uma aba de ajuda com seus artigos publicados e sugeri-los enquanto o visitante digita. Relatórios por período e por agente, com exportação CSV.' },
+    ],
+  },
+  {
     id: '2026-10-13-app-fixes',
     date: '2026-10-13',
     title: {

@@ -21,7 +21,9 @@
     "expand": "Expand",
     "pageActions": "Page actions",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "sharedWithMe": "Shared with me",
+    "sharedBy": "Shared by {name}"
   },
   "editor": {
     "untitled": "Untitled page",
@@ -129,7 +131,7 @@
     "share": "Share",
     "teamId": "Team ID",
     "userId": "User ID",
-    "publicHelp": "Any zerosoft user with the link can read it through the API.",
+    "publicHelp": "Anyone signed in to zerosoft with the link.",
     "with": "Share with a team or person…",
     "kinds": {
       "public": "Link",
@@ -139,7 +141,30 @@
     "remove": "Stop sharing",
     "noTargets": "Create a team in Settings to share with other people.",
     "copyLink": "Copy link",
-    "copied": "Copied"
+    "copied": "Copied",
+    "userNotFound": "No zerosoft account with that email.",
+    "error": "Could not share.",
+    "invitePlaceholder": "Email, member or team",
+    "role": "Permission",
+    "roles": {
+      "view": "Can view",
+      "edit": "Can edit",
+      "owner": "Full access"
+    },
+    "invite": "Invite",
+    "workspace": "Your workspace",
+    "workspaceHelp": "Every member of the workspace",
+    "publish": "Publish to help center",
+    "publishHelp": "Anyone can read it on the web, no account needed.",
+    "publishNoHandle": "Set your handle in Calendar to get a help center.",
+    "copyPublic": "Copy public link",
+    "feedbackStats": "{yes} found it helpful · {no} did not",
+    "ai": "AI can use it",
+    "aiHelp": "The Chat bot and agents use it to answer.",
+    "openHelpCenter": "Open help center",
+    "sharedEditBanner": "Shared by {name}. You can edit it.",
+    "readOnlyBanner": "Shared by {name}. Read only.",
+    "readOnly": "Read only."
   },
   "templates": {
     "title": "Start from a template",
@@ -165,5 +190,51 @@
     "blockThread": "Block thread",
     "showAll": "Show all",
     "blockTag": "Block"
+  },
+  "help": {
+    "notFound": "Help center not found",
+    "metaTitle": "{name} help center",
+    "metaDescription": "Guides and answers from {name}.",
+    "title": "Help center",
+    "searchPlaceholder": "Search articles",
+    "search": "Search",
+    "resultsFor": "Results for \"{q}\"",
+    "noResults": "No articles found. Try other words.",
+    "empty": "No published articles yet.",
+    "untitled": "Untitled",
+    "breadcrumb": "Breadcrumb",
+    "updated": "Updated {date}",
+    "pager": "Articles",
+    "prev": "Previous",
+    "next": "Next",
+    "toc": "On this page",
+    "helpful": "Was this article helpful?",
+    "yes": "Yes",
+    "no": "No",
+    "thanks": "Thanks for letting us know."
+  },
+  "versions": {
+    "title": "Version history",
+    "save": "Save version",
+    "saved": "Saved",
+    "restore": "Restore",
+    "restoreConfirm": "Restore this version? The current state stays in the history.",
+    "back": "Versions",
+    "unknownAuthor": "Earlier version",
+    "untitled": "Untitled",
+    "loading": "Loading…",
+    "empty": "No versions yet. One is saved when you edit, at most every 5 minutes.",
+    "kinds": {
+      "auto": "Automatic",
+      "manual": "Saved manually",
+      "restore": "Before restore"
+    },
+    "note": "The last 50 versions are kept."
+  },
+  "export": {
+    "markdown": "Export as Markdown",
+    "pdf": "Export as PDF",
+    "markdownShort": "Markdown",
+    "pdfShort": "PDF"
   }
 }

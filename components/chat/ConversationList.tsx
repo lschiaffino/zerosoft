@@ -105,6 +105,14 @@ export default function ConversationList({
                       t('conversation.unassigned')
                     )}
                   </span>
+                  {c.tags && (
+                    <span className="chat-row-tags mono muted">
+                      {c.tags
+                        .split(',')
+                        .map((tag) => `#${tag}`)
+                        .join(' ')}
+                    </span>
+                  )}
                 </div>
               </div>
               {unread && !active && <span className="chat-unread-dot" aria-label={t('inbox.unread')} />}

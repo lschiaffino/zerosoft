@@ -69,6 +69,10 @@ interface DocsEditorProps {
   embedded?: boolean;
   /** Acciones extra en la barra superior (Share, Comments). */
   topActions?: ReactNode;
+  /** Items extra del menú "···" (export, versiones). Reciben un cierre del menú. */
+  menuExtra?: (close: () => void) => ReactNode;
+  /** Muestra los toggles de layout (texto chico / ancho completo); solo el dueño. */
+  layoutToggles?: boolean;
 }
 
 const BLOCK_COMMANDS: {
@@ -219,6 +223,8 @@ export default function DocsEditor({
   onBlockComment,
   embedded = false,
   topActions,
+  menuExtra,
+  layoutToggles = true,
 }: DocsEditorProps) {
   const t = useTranslations('docs');
   const [blocks, setBlocks] = useState<DocsBlock[]>(() =>
@@ -1514,6 +1520,13 @@ export default function DocsEditor({
                     {t('editor.duplicate')}
                   </button>
                 )}
+                {menuExtra && (
+                  <>
+                    <hr className="docs-page-menu-divider" />
+                    {menuExtra(() => setMenuOpen(false))}
+                  </>
+                )}
+                {layoutToggles && (<>
                 <hr className="docs-page-menu-divider" />
                 <button
                   type="button"
@@ -1542,7 +1555,8 @@ export default function DocsEditor({
                   {t('editor.fullWidth')}
                   <span className={`docs-toggle${fullWidth ? ' on' : ''}`} />
                 </button>
-                <hr className="docs-page-menu-divider" />
+                </>)}
+                {onDelete && <hr className="docs-page-menu-divider" />}
                 {onDelete && (
                   <button
                     type="button"

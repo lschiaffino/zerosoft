@@ -17,6 +17,8 @@ interface WidgetFormProps {
   initial?: ChatWidgetRow | null;
   /** Si el servidor tiene AI configurada (lib/ai.ts aiEnabled). */
   aiAvailable?: boolean;
+  /** Ruta del centro de ayuda del workspace (/<locale>/h/<handle>), si hay handle. */
+  helpCenterPath?: string | null;
 }
 
 function emptyField(): WidgetFormField {
@@ -88,7 +90,7 @@ function parseOfficeHours(initial: ChatWidgetRow | null | undefined): {
 
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
-export default function WidgetForm({ initial, aiAvailable = false }: WidgetFormProps) {
+export default function WidgetForm({ initial, aiAvailable = false, helpCenterPath = null }: WidgetFormProps) {
   const t = useTranslations('chat');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -101,6 +103,7 @@ export default function WidgetForm({ initial, aiAvailable = false }: WidgetFormP
     botEnabled: initial?.bot_enabled === 1,
     botGreeting: initial?.bot_greeting ?? '',
     botSource: initial?.bot_source ?? 'canned',
+    helpEnabled: initial?.help_enabled === 1,
   });
   const [fields, setFields] = useState<WidgetFormField[]>(parseFields(initial));
   const [office, setOffice] = useState(parseOfficeHours(initial));
@@ -159,6 +162,7 @@ export default function WidgetForm({ initial, aiAvailable = false }: WidgetFormP
       officeHours: office.enabled
         ? { timezone: office.timezone.trim() || 'UTC', days: office.days }
         : null,
+      helpEnabled: values.helpEnabled,
     };
 
     const url = initial ? `/api/chat/widgets/${initial.id}` : '/api/chat/widgets';
@@ -295,6 +299,24 @@ export default function WidgetForm({ initial, aiAvailable = false }: WidgetFormP
           </div>
         ) : (
           <p className="muted">{t('bot.disabled')}</p>
+        )}
+      </section>
+
+      <section className="panel fields-panel">
+        <div className="panel-head">
+          <p className="section-label">{t('help.title')}</p>
+          <label className="checkbox-field">
+            <input type="checkbox" checked={values.helpEnabled} onChange={set('helpEnabled')} />
+            <span>{t('help.enabled')}</span>
+          </label>
+        </div>
+        <p className="muted chat-bot-hint">{t('help.hint')}</p>
+        {helpCenterPath && (
+          <p className="chat-bot-hint">
+            <a href={helpCenterPath} target="_blank" rel="noopener noreferrer">
+              {t('help.open')}
+            </a>
+          </p>
         )}
       </section>
 

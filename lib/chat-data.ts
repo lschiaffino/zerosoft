@@ -78,6 +78,7 @@ export interface WidgetCreatePayload {
   botGreeting?: string;
   botSource?: 'canned' | 'docs' | 'ai' | 'agent';
   officeHours?: OfficeHoursConfig | null;
+  helpEnabled?: boolean;
 }
 
 export interface WidgetUpdatePayload {
@@ -90,6 +91,7 @@ export interface WidgetUpdatePayload {
   botGreeting?: string;
   botSource?: 'canned' | 'docs' | 'ai' | 'agent';
   officeHours?: OfficeHoursConfig | null;
+  helpEnabled?: boolean;
 }
 
 export async function listChatWidgets(
@@ -123,7 +125,7 @@ export async function createChatWidget(
   const now = nowIso();
   await db
     .prepare(
-      'INSERT INTO chat_widgets (id, team_id, user_id, name, color, position, welcome_message, fields, bot_enabled, bot_greeting, bot_source, office_hours, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO chat_widgets (id, team_id, user_id, name, color, position, welcome_message, fields, bot_enabled, bot_greeting, bot_source, office_hours, help_enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
@@ -138,6 +140,7 @@ export async function createChatWidget(
       payload.botGreeting?.trim() ?? null,
       payload.botSource ?? 'canned',
       payload.officeHours ? JSON.stringify(payload.officeHours) : null,
+      payload.helpEnabled ? 1 : 0,
       now,
       now,
     );
@@ -190,6 +193,10 @@ export async function updateChatWidget(
   if (payload.officeHours !== undefined) {
     fields.push('office_hours = ?');
     args.push(payload.officeHours ? JSON.stringify(payload.officeHours) : null);
+  }
+  if (payload.helpEnabled !== undefined) {
+    fields.push('help_enabled = ?');
+    args.push(payload.helpEnabled ? 1 : 0);
   }
 
   if (fields.length > 0) {
@@ -594,6 +601,8 @@ export async function updateChatVisitor(
 export interface ConversationListOptions {
   status?: string;
   assignedTo?: string | 'unassigned';
+  /** Solo conversaciones con este tag. */
+  tag?: string;
   q?: string;
   limit?: number;
   offset?: number;
@@ -694,6 +703,8 @@ export interface ChatConversationListRow extends ChatConversationRow, SlaCompute
   last_message_body: string | null;
   assigned_name: string | null;
   assigned_email: string | null;
+  /** Tags separados por coma (GROUP_CONCAT); ver ConversationList. */
+  tags: string | null;
 }
 
 export interface ChatConversationWithVisitor extends ChatConversationRow, SlaComputedFields {
@@ -728,6 +739,10 @@ export async function listChatConversations(
     where.push('c.assigned_to = ?');
     args.push(options.assignedTo);
   }
+  if (options.tag) {
+    where.push('EXISTS (SELECT 1 FROM chat_conversation_tags t WHERE t.conversation_id = c.id AND t.tag = ?)');
+    args.push(options.tag);
+  }
   if (options.q) {
     where.push('(c.subject LIKE ? OR v.name LIKE ? OR v.email LIKE ?)');
     const like = `%${escapeLike(options.q)}%`;
@@ -745,7 +760,8 @@ export async function listChatConversations(
         v.external_id AS visitor_external_id,
         u.name AS assigned_name,
         u.email AS assigned_email,
-        (SELECT body FROM chat_messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_message_body
+        (SELECT body FROM chat_messages m WHERE m.conversation_id = c.id AND m.is_note = 0 ORDER BY m.created_at DESC LIMIT 1) AS last_message_body,
+        (SELECT GROUP_CONCAT(tag, ',') FROM (SELECT tag FROM chat_conversation_tags t WHERE t.conversation_id = c.id ORDER BY tag)) AS tags
        FROM chat_conversations c
        JOIN chat_visitors v ON v.id = c.visitor_id
        LEFT JOIN users u ON u.id = c.assigned_to
@@ -780,6 +796,10 @@ export async function countChatConversations(
   } else if (options.assignedTo) {
     where.push('c.assigned_to = ?');
     args.push(options.assignedTo);
+  }
+  if (options.tag) {
+    where.push('EXISTS (SELECT 1 FROM chat_conversation_tags t WHERE t.conversation_id = c.id AND t.tag = ?)');
+    args.push(options.tag);
   }
   if (options.q) {
     where.push('(c.subject LIKE ? OR v.name LIKE ? OR v.email LIKE ?)');
@@ -1544,7 +1564,9 @@ export async function findBotReply(
   if (useDocs) {
     const pages = (await getDb()
       .prepare(
-        'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT 100',
+        // Solo lo que la IA puede leer (is_public) o ya es público (published):
+        // antes respondía con cualquier página privada del workspace.
+        'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1) ORDER BY updated_at DESC LIMIT 100',
       )
       .all(widget.user_id)) as Array<{ title: string; content: string }>;
     for (const page of pages) {
@@ -1584,7 +1606,7 @@ export async function maybeRunChatBot(
   if (widget.bot_enabled !== 1) return null;
   const replied = (await getDb()
     .prepare(
-      "SELECT COUNT(*) AS c FROM chat_messages WHERE conversation_id = ? AND sender_type IN ('user', 'bot')",
+      "SELECT COUNT(*) AS c FROM chat_messages WHERE conversation_id = ? AND sender_type IN ('user', 'bot') AND is_note = 0",
     )
     .get(conversation.id)) as { c: number } | undefined;
   if ((replied?.c ?? 0) > 0) return null;
@@ -1615,6 +1637,8 @@ export interface MessageCreatePayload {
   body: string;
   userId?: string | null;
   attachments?: ChatAttachment[];
+  /** Nota interna: solo agentes (nunca el visitante, el bot ni la API pública). */
+  isNote?: boolean;
 }
 
 export interface ChatMessageWithUser extends ChatMessageRow {
@@ -1623,10 +1647,18 @@ export interface ChatMessageWithUser extends ChatMessageRow {
   user_image: string | null;
 }
 
-export async function listChatMessages(conversationId: string): Promise<ChatMessageRow[]> {
+/**
+ * Mensajes de la conversación. Por defecto SIN notas internas: lo usan el
+ * widget (visitante), el CRM y el roadmap. El inbox de agentes usa
+ * listChatMessagesWithUsers, que sí las incluye.
+ */
+export async function listChatMessages(
+  conversationId: string,
+  opts: { includeNotes?: boolean } = {},
+): Promise<ChatMessageRow[]> {
   return (await getDb()
     .prepare(
-      'SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC',
+      `SELECT * FROM chat_messages WHERE conversation_id = ?${opts.includeNotes ? '' : ' AND is_note = 0'} ORDER BY created_at ASC`,
     )
     .all(conversationId)) as ChatMessageRow[];
 }
@@ -1654,7 +1686,7 @@ export async function createChatMessage(
   const id = crypto.randomUUID();
   await db
     .prepare(
-      'INSERT INTO chat_messages (id, conversation_id, sender_type, user_id, body, attachments, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO chat_messages (id, conversation_id, sender_type, user_id, body, attachments, is_note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
@@ -1663,6 +1695,7 @@ export async function createChatMessage(
       payload.userId ?? null,
       payload.body,
       jsonStringify(payload.attachments),
+      payload.isNote && senderType === 'user' ? 1 : 0,
       nowIso(),
     );
 
@@ -1682,7 +1715,7 @@ export async function markMessagesRead(
       .prepare(
         `UPDATE chat_messages
          SET read_at = COALESCE(read_at, ?)
-         WHERE conversation_id = ? AND sender_type IN ('user', 'bot') AND read_at IS NULL`,
+         WHERE conversation_id = ? AND sender_type IN ('user', 'bot') AND is_note = 0 AND read_at IS NULL`,
       )
       .run(nowIso(), conversationId);
     return;

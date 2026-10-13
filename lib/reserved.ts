@@ -2,7 +2,7 @@
 // Mantener sincronizada con middleware.ts
 export const RESERVED_SLUGS = new Set([
   'en', 'es', 'pt',
-  'app', 'api', 'auth', 'r', 's', 'n', 'b', 'q', 'f',
+  'app', 'api', 'auth', 'r', 's', 'n', 'b', 'q', 'f', 'h',
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',

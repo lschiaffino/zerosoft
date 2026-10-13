@@ -30,12 +30,14 @@ export async function GET(req: Request) {
   const status = searchParams.get('status') ?? undefined;
   const assignedTo = searchParams.get('assignedTo') ?? undefined;
   const q = searchParams.get('q') ?? undefined;
+  const tag = searchParams.get('tag') ?? undefined;
   const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '50', 10), 1), 200);
   const offset = Math.max(parseInt(searchParams.get('offset') ?? '0', 10), 0);
 
   const options = {
     status,
     assignedTo: assignedTo as 'unassigned' | string | undefined,
+    tag,
     q,
     limit,
     offset,

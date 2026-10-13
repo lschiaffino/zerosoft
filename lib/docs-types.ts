@@ -46,7 +46,11 @@ export interface DocsPage {
   icon: string | null;
   cover_url: string | null;
   content: DocsBlock[];
+  /** La IA del Chat (bot y agentes) puede usarla como conocimiento. */
   is_public: boolean;
+  /** Publicada en el centro de ayuda público (/h/<handle>/<slug>). */
+  published?: boolean;
+  slug?: string | null;
   archived: boolean;
   /** Ajustes de página persistidos (menú "…" del editor). */
   small_text?: boolean;
@@ -62,6 +66,23 @@ export interface DocsPageShare {
   page_id: string;
   kind: 'public' | 'team' | 'user';
   target_id: string | null;
+  role: DocsShareRole;
+  created_at: string;
+}
+
+export type DocsShareRole = 'view' | 'edit';
+
+/** Acceso efectivo de quien abre una página. */
+export type DocsAccess = 'owner' | 'edit' | 'view';
+
+export interface DocsVersionSummary {
+  id: string;
+  page_id: string;
+  title: string;
+  kind: 'auto' | 'manual' | 'restore';
+  author_id: string | null;
+  author_name: string | null;
+  author_email: string | null;
   created_at: string;
 }
 

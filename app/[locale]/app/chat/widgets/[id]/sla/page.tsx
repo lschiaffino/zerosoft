@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { canAccessWidget } from '@/lib/chat-access';
 import WidgetHeader from '@/components/chat/WidgetHeader';
 import { requireUser } from '@/lib/session';
 import {
@@ -26,7 +27,7 @@ export default async function WidgetSlaPage(
   const user = await requireUser(locale);
   const widget = await getChatWidget(id);
 
-  if (!widget || (widget.user_id !== user.id && widget.team_id !== user.team?.id)) {
+  if (!widget || !canAccessWidget(widget, user)) {
     notFound();
   }
 

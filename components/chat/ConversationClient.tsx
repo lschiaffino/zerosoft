@@ -98,6 +98,45 @@ export default function ConversationClient({
   const messagesRef = useRef<HTMLDivElement>(null);
   const lastMessageId = useRef<string | null>(null);
   const typingSentAt = useRef<number>(0);
+  // Composer: respuesta al visitante o nota interna (solo agentes).
+  const [mode, setMode] = useState<'reply' | 'note'>('reply');
+  const [mentions, setMentions] = useState<string[]>([]);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [macroApplied, setMacroApplied] = useState<string | null>(null);
+
+  async function fetchTags() {
+    try {
+      const res = await fetch(`/api/chat/conversations/${conversationId}/tags`);
+      if (!res.ok) return;
+      const data = (await res.json()) as { tags: string[] };
+      setTags(data.tags);
+    } catch {
+      // ignore
+    }
+  }
+
+  async function addTag(raw: string) {
+    const tag = raw.trim();
+    if (!tag) return;
+    const res = await fetch(`/api/chat/conversations/${conversationId}/tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag }),
+    });
+    if (res.ok) {
+      setTags(((await res.json()) as { tags: string[] }).tags);
+      setTagInput('');
+      fetchList();
+    }
+  }
+
+  async function removeTag(tag: string) {
+    setTags((prev) => prev.filter((x) => x !== tag));
+    await fetch(`/api/chat/conversations/${conversationId}/tags?tag=${encodeURIComponent(tag)}`, { method: 'DELETE' }).catch(() => {});
+    fetchList();
+  }
 
   async function fetchMessages() {
     try {
@@ -172,6 +211,7 @@ export default function ConversationClient({
     fetchMessages();
     fetchList();
     fetchCanned();
+    fetchTags();
     markRead();
     let tick = 0;
     const interval = setInterval(() => {
@@ -224,7 +264,7 @@ export default function ConversationClient({
     if ((!body && !selectedFile) || sending) return;
     setSending(true);
     try {
-      if (selectedFile) {
+      if (selectedFile && mode === 'reply') {
         const formData = new FormData();
         formData.append('file', selectedFile);
         if (body) formData.append('body', body);
@@ -240,13 +280,15 @@ export default function ConversationClient({
           await fetchList();
         }
       } else {
+        const isNote = mode === 'note';
         const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ body }),
+          body: JSON.stringify(isNote ? { body, note: true, mentions } : { body }),
         });
         if (res.ok) {
           setReply('');
+          setMentions([]);
           await fetchMessages();
           await fetchList();
         }
@@ -293,13 +335,76 @@ export default function ConversationClient({
 
   const pickerOpen = pickerMatches.length > 0;
 
-  function insertCanned(response: ChatCannedResponseRow) {
+  // @menciones (solo en notas internas): agentes del workspace.
+  const mentionQuery = useMemo(() => {
+    if (mode !== 'note') return null;
+    const match = reply.match(/(?:^|\s)@([^\s@]*)$/);
+    return match ? match[1].toLowerCase() : null;
+  }, [reply, mode]);
+  const mentionMatches = useMemo(() => {
+    if (mentionQuery === null) return [];
+    return agents
+      .filter((a) => a.id !== currentUser.id)
+      .filter((a) => (a.name ?? '').toLowerCase().includes(mentionQuery) || a.email.toLowerCase().includes(mentionQuery))
+      .slice(0, 6);
+  }, [mentionQuery, agents, currentUser.id]);
+  const mentionOpen = mentionMatches.length > 0;
+
+  function insertMention(agent: ChatAgent) {
+    const label = agent.name || agent.email;
+    setReply((prev) => prev.replace(/@([^\s@]*)$/, `@${label} `));
+    setMentions((prev) => (prev.includes(agent.id) ? prev : [...prev, agent.id]));
+    setMentionIndex(0);
+  }
+
+  async function insertCanned(response: ChatCannedResponseRow) {
     const before = reply.slice(0, reply.lastIndexOf('/'));
     setReply((before + response.body).trimStart() + ' ');
     setCannedIndex(0);
+    // Macro: si la respuesta guardada tiene acciones, se aplican ya.
+    let hasActions = false;
+    try {
+      const a = JSON.parse(response.actions || '{}') as Record<string, unknown>;
+      hasActions = Object.keys(a).length > 0;
+    } catch {
+      hasActions = false;
+    }
+    if (!hasActions) return;
+    const res = await fetch(`/api/chat/conversations/${conversationId}/macro`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cannedId: response.id }),
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { conversation: ChatConversationWithVisitor | null; tags: string[] };
+    if (data.conversation) {
+      const next = data.conversation;
+      setConversation((prev) => ({ ...prev, ...next }));
+    }
+    setTags(data.tags);
+    setMacroApplied(response.shortcut);
+    setTimeout(() => setMacroApplied(null), 3000);
+    fetchList();
   }
 
   function handleComposerKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (mentionOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex((i) => (i + 1) % mentionMatches.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex((i) => (i - 1 + mentionMatches.length) % mentionMatches.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertMention(mentionMatches[Math.min(mentionIndex, mentionMatches.length - 1)]);
+        return;
+      }
+    }
     if (pickerOpen) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -467,6 +572,36 @@ export default function ConversationClient({
           </div>
         </header>
 
+        <div className="chat-tags-row">
+          <span className="chat-tags-label mono muted">{t('tags.title')}</span>
+          {tags.map((tag) => (
+            <span key={tag} className="chat-tag mono">
+              #{tag}
+              <button type="button" onClick={() => removeTag(tag)} aria-label={t('tags.remove', { tag })}>
+                ×
+              </button>
+            </span>
+          ))}
+          <input
+            className="chat-tag-input mono"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                addTag(tagInput);
+              }
+            }}
+            onBlur={() => {
+              if (tagInput.trim()) addTag(tagInput);
+            }}
+            placeholder={t('tags.add')}
+            aria-label={t('tags.add')}
+            maxLength={40}
+          />
+          {macroApplied && <span className="chat-macro-applied mono muted">{t('macros.applied', { shortcut: macroApplied })}</span>}
+        </div>
+
         <div className="chat-messages" ref={messagesRef}>
           {messages.length === 0 ? (
             <div className="chat-messages-empty">
@@ -489,7 +624,7 @@ export default function ConversationClient({
                 return (
                   <li
                     key={m.id}
-                    className={`chat-message${isVisitor ? ' visitor' : ' agent'}${m.sender_type === 'bot' ? ' bot' : ''}`}
+                    className={`chat-message${isVisitor ? ' visitor' : ' agent'}${m.sender_type === 'bot' ? ' bot' : ''}${m.is_note ? ' note' : ''}`}
                   >
                     <span className="chat-message-avatar">
                       {isVisitor
@@ -506,6 +641,7 @@ export default function ConversationClient({
                         {m.sender_type === 'bot' && (
                           <span className="chat-bot-badge mono">{t('conversation.botBadge')}</span>
                         )}
+                        {m.is_note ? <span className="chat-note-label mono">{t('notes.label')}</span> : null}
                         <span className="chat-message-time mono muted" title={formatDateTime(m.created_at, locale)}>
                           {formatTimeAgo(m.created_at, locale)}
                         </span>
@@ -554,7 +690,7 @@ export default function ConversationClient({
                             })}
                           </div>
                         )}
-                        {!isVisitor && m.read_at && (
+                        {!isVisitor && !m.is_note && m.read_at && (
                           <span className="chat-read-receipt" title={formatDateTime(m.read_at, locale)}>
                             {t('read.read')}
                           </span>
@@ -582,15 +718,40 @@ export default function ConversationClient({
           </div>
         )}
 
-        <div className="chat-composer">
+        <div className="chat-composer-modes" role="tablist" aria-label={t('notes.mode')}>
           <button
             type="button"
-            className="chat-composer-attach"
-            onClick={() => fileInputRef.current?.click()}
-            title={t('attachments.upload')}
+            role="tab"
+            aria-selected={mode === 'reply'}
+            className={`chat-composer-mode${mode === 'reply' ? ' active' : ''}`}
+            onClick={() => setMode('reply')}
           >
-            ⊕
+            {t('conversation.reply')}
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'note'}
+            className={`chat-composer-mode${mode === 'note' ? ' active note' : ''}`}
+            onClick={() => {
+              setMode('note');
+              clearSelectedFile();
+            }}
+          >
+            {t('notes.label')}
+          </button>
+        </div>
+        <div className={`chat-composer${mode === 'note' ? ' note' : ''}`}>
+          {mode === 'reply' && (
+            <button
+              type="button"
+              className="chat-composer-attach"
+              onClick={() => fileInputRef.current?.click()}
+              title={t('attachments.upload')}
+            >
+              ⊕
+            </button>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -600,7 +761,7 @@ export default function ConversationClient({
           <div className="chat-composer-field">
             <textarea
               className="textarea chat-composer-input"
-              placeholder={t('conversation.replyHint')}
+              placeholder={mode === 'note' ? t('notes.hint') : t('conversation.replyHint')}
               aria-label={t('conversation.reply')}
               value={reply}
               onChange={(e) => {
@@ -611,7 +772,23 @@ export default function ConversationClient({
               onKeyDown={handleComposerKeyDown}
               rows={1}
             />
-            {pickerOpen && (
+            {mentionOpen && (
+              <ul className="chat-canned-picker">
+                {mentionMatches.map((a, i) => (
+                  <li key={a.id}>
+                    <button
+                      type="button"
+                      className={`chat-canned-picker-item${i === mentionIndex ? ' active' : ''}`}
+                      onClick={() => insertMention(a)}
+                    >
+                      <span className="chat-canned-picker-title">{a.name || a.email}</span>
+                      <span className="chat-canned-picker-shortcut mono">{a.email}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {pickerOpen && !mentionOpen && (
               <ul className="chat-canned-picker">
                 {pickerMatches.map((r, i) => (
                   <li key={r.id}>
@@ -634,7 +811,7 @@ export default function ConversationClient({
             onClick={sendReply}
             disabled={sending || (!reply.trim() && !selectedFile)}
           >
-            {sending ? t('common.loading') : t('conversation.send')}
+            {sending ? t('common.loading') : mode === 'note' ? t('notes.add') : t('conversation.send')}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { createCannedResponse, getChatWidget, listCannedResponses } from '@/lib/chat-data';
+import { createCannedResponse, getChatWidget, getCannedResponse, listCannedResponses } from '@/lib/chat-data';
+import { setCannedActions, type CannedActions } from '@/lib/chat-inbox';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,5 +45,8 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   }
 
   const response = await createCannedResponse(params.id, { shortcut, title, body: responseBody });
-  return NextResponse.json(response, { status: 201 });
+  if (body.actions && typeof body.actions === 'object') {
+    await setCannedActions(response.id, body.actions as CannedActions);
+  }
+  return NextResponse.json((await getCannedResponse(response.id)) ?? response, { status: 201 });
 }
