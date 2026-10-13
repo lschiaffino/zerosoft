@@ -1,14 +1,14 @@
 ---
-title: "Workflows de CRM que crean las tareas de seguimiento por vos"
-description: "Cómo usar los workflows de Zerosoft CRM para crear tareas de seguimiento automáticas: triggers y acciones reales, cinco recetas para equipos chicos y los límites que tenés que conocer antes de depender de ellos."
+title: "Workflows del CRM que crean las tareas de seguimiento"
+description: "Cómo usar los workflows del CRM de zerosoft para crear tareas de seguimiento automáticas: triggers y acciones reales, cinco recetas para equipos chicos y sus límites."
 date: "2026-08-08"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "workflows", "automatización"]
 ---
 
 Los deals casi nunca mueren porque alguien dijo que no. Mueren porque nadie hizo el seguimiento. La propuesta salió un martes, la semana se complicó y cuando alguien se acordó, el prospecto ya había firmado con otro que sí se acordó.
 
-La solución no es disciplina. Es que el seguimiento exista antes de que alguien tenga que pensarlo. Para eso están los workflows de Zerosoft CRM, y lo más útil que hacen es aburrido: crear una tarea, con fecha, pegada al registro correcto.
+La solución no es disciplina. Es que el seguimiento exista antes de que alguien tenga que pensarlo. Para eso están los workflows de zerosoft CRM, y lo más útil que hacen es aburrido: crear una tarea, con fecha, pegada al registro correcto.
 
 ## Las piezas
 
@@ -61,12 +61,12 @@ La más simple y la que más rápido rinde. Cada contacto nuevo, venga de la API
 
 El filtro de etapa pide el ID de la etapa, no su nombre. La forma más rápida de sacarlo es `GET /api/v1/crm/pipelines` con tu API key, que lista cada pipeline con sus etapas. Sí, pegar un ID es tosco; está en nuestra lista.
 
-### 3. Perdido no es para siempre
+### 3. Un deal perdido puede volver
 
 - Trigger: **Deal perdido**
 - Acción: **Crear tarea**, asunto "Volver a contactar", vence en 90 días
 
-Perder por timing o por presupuesto no es lo mismo que perder por fit. Una tarea a tres meses no cuesta nada y convierte algunos "no" en "todavía no". Zerosoft ya te pide un motivo de pérdida cuando cerrás un deal como perdido, así que quien recibe la tarea tiene el contexto.
+Perder por timing o por presupuesto no es lo mismo que perder por fit. Una tarea a tres meses no cuesta nada y convierte algunos "no" en "todavía no". zerosoft ya te pide un motivo de pérdida cuando cerrás un deal como perdido, así que quien recibe la tarea tiene el contexto.
 
 ### 4. Ganado → arrancá el onboarding
 
@@ -86,10 +86,10 @@ Los mensajes de notificación y los emails sí soportan placeholders: `{{contact
 
 Los workflows son simples a propósito. Antes de montar tu proceso encima, sabé lo que no hacen:
 
-- **No hay condiciones ni ramas.** No existe "solo si el monto > 10.000" ni "solo si el lifecycle es SQL". Un trigger se dispara con cada evento que coincide. El filtro de etapa en "Etapa cambiada" es el único recorte que viene de fábrica.
+- **Ramas simples.** Cuando escribimos este post no había condiciones. Hoy hay una acción de rama sí/no sobre una propiedad (por ejemplo, "monto > 10.000"); las acciones siguientes corren en una rama o en la otra.
 - **"Actualizado" es cualquier actualización.** "Deal actualizado" y "Contacto actualizado" se disparan con cada edición, incluso las mínimas. Combinarlos con "Crear tarea" es una gran forma de enterrar a tu equipo. Preferí triggers específicos (cambio de etapa, ganado, perdido).
-- **"Email recibido" depende del sync de Gmail,** que es manual y de solo lectura: los emails entran cuando alguien aprieta sincronizar, no en segundo plano.
-- **No hay esperas ni delays.** "Vence en N días" pone la fecha de la tarea; el workflow corre en el momento.
+- **"Email recibido" depende del sync de Gmail,** que hoy corre solo desde el cron de cada hora (y con "Sincronizar ahora").
+- **No hay esperas.** "Vence en N días" pone la fecha de la tarea; el workflow corre en el momento. Para esperar, usá Flow.
 - **Las ejecuciones manuales no tienen registro asociado.** "Ejecutar ahora" sirve para probar un email o un webhook; una tarea creada así no queda pegada a nada.
 - **Protección contra loops.** Una acción como "Actualizar campo" puede disparar otros workflows, pero un workflow nunca se vuelve a correr dentro de la misma cadena y las cadenas cortan a los tres niveles. No podés armar un loop infinito; tampoco una cascada de 10 pasos.
 

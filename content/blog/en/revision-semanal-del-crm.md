@@ -1,14 +1,14 @@
 ---
-title: "The 30-minute weekly CRM review"
-description: "A weekly ritual for small sales teams: one dashboard, a saved view, two bookmarked filters, two dynamic lists and one rotating report. What to look at, in what order, and what to do with what you find."
+title: "A 30-minute weekly CRM review"
+description: "A weekly routine for small sales teams: one dashboard, a saved view, two filters, two dynamic lists and one rotating report. What to look at and in what order."
 date: "2026-09-06"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "reports", "playbook"]
 ---
 
 Most teams look at their CRM in two modes: frantically, the day before a board meeting, and never, the rest of the time. Neither works. The first produces numbers nobody trusts; the second produces a CRM nobody updates, which is how you end up with the first.
 
-The fix is boring and effective: thirty minutes, once a week, same day, with an agenda that doesn't change. This is the one we'd run, built on what Zerosoft CRM actually has: dashboards, reports, saved views and dynamic lists.
+The fix is boring and effective: thirty minutes, once a week, same day, with an agenda that doesn't change. This is the one we'd run, built on what zerosoft CRM actually has: dashboards, reports, saved views and dynamic lists.
 
 ## Set it up once (about 20 minutes)
 

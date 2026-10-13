@@ -1,14 +1,14 @@
 ---
-title: "QR codes are free. Forever."
-description: "QR is an open standard since 1994: ISO/IEC 18004, patents waived by its inventor. Generating one costs zero compute. Charging for it as a premium feature is an abuse — Link includes it."
+title: "QR codes are an open standard. Link includes them."
+description: "QR has been an open standard since 1994 (ISO/IEC 18004), with patents waived by its inventor. Generating one costs nothing, so Link makes one for every link."
 date: "2026-06-22"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "qr", "open source"]
 ---
 
 The QR code was born in 1994 at Denso Wave, a Toyota subsidiary. Masahiro Hara and his team created it to track car parts on the production line: they needed something that held more data than a barcode and read fast, from any angle.
 
-Then they did something the software industry still hasn't fully processed: they waived their patent rights. The spec was published, the standard opened up, and today it's ISO/IEC 18004. Anyone can generate and read QR codes. No license, no royalties, no asking anyone for permission.
+Then they did something the software industry still hasn't fully processed: they waived their patent rights. The spec was published, the standard opened up, and today it's ISO/IEC 18004. Anyone can generate and read QR codes. You don't need a license or anyone's permission.
 
 ## Generating a QR costs nothing
 
@@ -39,6 +39,6 @@ Every short link you create in Link comes with its QR code, in two formats:
 - **SVG**: vector, scales infinitely without pixelating. For print, storefronts, packaging.
 - **PNG**: ready to drop into a deck, a PDF or a sticker.
 
-No premium plan. No download limit. No watermark. Forever — because it was never ours to charge for.
+There's no premium plan, download limit or watermark. The standard was never ours to charge for.
 
-Link is open source: self-host for $0, or cloud at cost with zero margin. QR codes are the cheapest part of the entire system. Charging for them would be ridiculous. So we don't.
+Link is open source: self-host for $0, or use zerosoft Cloud and pay for usage, not seats. QR codes are the cheapest part of the entire system. Charging for them would be ridiculous. So we don't.

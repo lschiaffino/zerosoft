@@ -1,73 +1,61 @@
 ---
-title: "Cómo construimos Link: la arquitectura completa entra en una página"
-description: "Next.js, SQLite y un route handler que responde en milisegundos. Sin Redis, sin Kafka, sin microservicios. Así está hecho un acortador honesto."
+title: "La arquitectura de Link en una página"
+description: "Next.js, SQLite (o Turso) y un route handler que lee, registra el clic y redirige. Sin Redis, sin colas y sin microservicios. Cómo está hecho y por qué alcanza."
 date: "2026-06-25"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "arquitectura", "open source"]
 ---
 
-La mayoría de los acortadores "enterprise" describe su arquitectura con diagramas de quince cajas. La nuestra entra en este post. No por falta de ambición: porque un acortador de links no necesita más.
+Muchos acortadores describen su arquitectura con diagramas de quince cajas. La de Link entra en este post, porque un acortador no necesita más.
 
-## El redirect es un route handler, no una plataforma
+## El redirect es un route handler
 
-Link es Next.js con App Router. Todo el producto pasa por un route handler que hace exactamente tres cosas: leer, registrar, redirigir.
+Link es una app de Next.js con App Router. Cada link corto pasa por `app/r/[slug]/route.ts`, que hace tres cosas: buscar el link, registrar el clic y redirigir. Simplificado:
 
 ```ts
-// app/[slug]/route.ts
-export function GET(req: NextRequest, { params }: { params: { slug: string } }) {
-  const link = getLink(params.slug); // SELECT por slug indexado
-  if (!link || expired(link) || maxedOut(link)) {
-    return new Response("Not found", { status: 404 });
+export async function GET(req: NextRequest, { params }) {
+  const { slug } = await params;
+  const link = await getLinkForHost(host, slug); // SELECT por slug indexado
+  if (!link || link.archived) return gone('notfound');
+  if (isExpired(link)) return gone('expired');
+  if (link.max_clicks !== null && link.clicks >= link.max_clicks) return gone('limit');
+  if (link.password_hash && !validGateCookie(req, link)) {
+    return NextResponse.redirect(`/gate/${slug}`); // pide la contraseña
   }
-  if (link.password && !authorized(req, link)) {
-    return NextResponse.redirect(`/gate/${params.slug}`, 302);
-  }
-
-  recordClick(req, link.id); // INSERT de ~200 bytes
-  return NextResponse.redirect(link.url, 302);
+  await recordClick(link.id, contextFromHeaders(req.headers)); // INSERT chico
+  after(() => emitEvent(link.user_id, 'link.clicked', { /* … */ }));
+  return NextResponse.redirect(link.url, link.redirect_type);
 }
 ```
 
-Medido en el VPS más barato que encontramos: menos de 3 milisegundos de punta a punta, p99 incluido. La latencia que percibís es la de la red, no la nuestra.
+El clic se registra antes de responder (un `INSERT` chico). El webhook `link.clicked` sale con `after()`, después de la respuesta, así el redirect no espera a nadie.
 
-## SQLite, en serio
+## SQLite
 
-La base es SQLite con better-sqlite3, en modo WAL. Para esta carga es una decisión de ingeniería, no un atajo:
+La base es SQLite a través de `@libsql/client`. La misma app puede usar un archivo local o una base Turso remota, según una variable de entorno (lo contamos en [un código, dos bases](/blog/un-codigo-sqlite-local-o-turso)). Para esta carga, SQLite alcanza de sobra:
 
-- **Sincrónico y en proceso:** sin red, sin pool de conexiones. Un `SELECT` es un lookup de microsegundos.
-- **Un archivo:** backup es copiar el archivo. Restore es pegarlo. Migrar de servidor es un `scp`.
-- **Escala de sobra:** millones de filas indexadas responden en milisegundos. Nuestro usuario más pesado está a décadas del límite.
+- **En proceso:** sin red ni pool de conexiones en modo local. Un `SELECT` por índice tarda microsegundos.
+- **Un archivo:** el backup es una copia consistente de ese archivo y mudarse de servidor es copiarlo.
+- **Escala:** millones de filas indexadas responden en milisegundos.
 
-## Analytics sin cookies
+## Métricas sin cookies
 
-No hay tracker, ni píxel, ni fingerprint. Todo sale de los headers que el browser ya manda en cada request:
+Todo sale de los headers que el navegador ya manda (`lib/track.ts`):
 
-```ts
-function recordClick(req: NextRequest, linkId: string) {
-  const ua = parseUA(req.headers.get("user-agent")); // device, browser, os
-  db.prepare(`INSERT INTO clicks
-    (link_id, ts, referrer, country, device, browser, os)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    linkId,
-    Date.now(),
-    domainOf(req.headers.get("referer")),    // solo el dominio
-    req.headers.get("cf-ipcountry") ?? null, // país, sin tocar la IP
-    ua.device, ua.browser, ua.os
-  );
-}
-```
+- **Referrer:** solo el dominio, sin `www.`, o `direct`.
+- **País:** en Vercel, del header `x-vercel-ip-country`; en tu servidor, de una base geográfica local. La IP no se guarda.
+- **Dispositivo, navegador y sistema:** del `User-Agent`, con ua-parser.
 
-Guardamos el dominio del referrer, no la URL completa. El país viene del header del edge, no de geolocalizar la IP — que ni siquiera almacenamos.
+Cada clic es un `INSERT` en `clicks` con esas seis columnas y un `UPDATE` del contador del link, en la misma transacción.
 
-## QR on-demand
+## QR bajo demanda
 
-Los QR no se generan por adelantado ni se guardan: se calculan en cada request a `/qr/[slug].svg`. Es un algoritmo determinista sobre un string; almacenarlo sería pagar disco para guardar algo que se recomputa gratis en un milisegundo.
+Los QR no se guardan: se generan en cada pedido a `/api/links/:id/qr`, en SVG o PNG. Es un algoritmo determinista sobre un string; guardarlo sería ocupar disco con algo que se recalcula en un milisegundo.
 
-## Lo que no usamos (y por qué)
+## Lo que no usamos
 
-- **Redis:** SQLite en WAL ya lee en microsegundos. Un cache sería otra pieza que mantener para ganar nada.
-- **Kafka / colas de eventos:** el `INSERT` de analytics es parte del request y cuesta menos de un milisegundo. Una cola es la solución a un problema que no tenemos.
-- **Microservicios:** un acortador es un proceso. Dividirlo en cinco convierte cada deploy en una coreografía y cada bug en una investigación distribuida.
+- **Redis:** SQLite ya lee en microsegundos. Un cache sería otra pieza que mantener.
+- **Colas de eventos:** el `INSERT` de un clic cuesta menos de un milisegundo, y los webhooks salen después de responder.
+- **Microservicios:** un acortador es un proceso. Partirlo en cinco complica cada deploy y cada bug.
 
-La arquitectura aburrida es una feature: hay menos piezas que puedan fallar a las 3 de la mañana. Todo el código es abierto — auditá cada línea.
+Menos piezas son menos cosas que fallan a las 3 de la mañana. El código está en GitHub.

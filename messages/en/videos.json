@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Videos — zerosoft.ai",
+    "title": "Videos",
     "description": "Short screen recordings of the real app: Link, CRM, Cal, Track, Chat and Docs."
   },
   "label": "Videos",
@@ -9,9 +9,9 @@
   "note": "Recorded in the app's demo mode with sample data.",
   "items": {
     "zerosoft-intro": {
-      "title": "What is Zerosoft",
+      "title": "What is zerosoft",
       "duration": "0:48",
-      "desc": "A quick tour of the six products and how to switch between them."
+      "desc": "A 48-second tour of six of the apps and how to switch between them."
     },
     "crm": {
       "title": "CRM",
@@ -26,7 +26,7 @@
     "cal": {
       "title": "Cal",
       "duration": "0:29",
-      "desc": "Event types, the public booking page, picking a slot and booking — and the booking in your app."
+      "desc": "Event types, the public booking page, picking a slot and booking. Then the booking in your app."
     },
     "track": {
       "title": "Track",

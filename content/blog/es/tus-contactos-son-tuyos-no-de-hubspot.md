@@ -1,40 +1,34 @@
 ---
-title: "Tus contactos son tuyos, no de HubSpot"
-description: "HubSpot te cobra más cuanto más crece tu base de contactos. Pero un contacto es una fila que cuesta bytes guardar. Tus contactos son tuyos, e irte debería llevar minutos, no un proyecto de migración."
+title: "Precio por contacto: por qué tu factura de HubSpot crece con tu base"
+description: "HubSpot cobra más a medida que juntás contactos, aunque guardar uno cuesta unos cientos de bytes. Qué se lleva un CSV de exportación, qué no, y cómo lo resolvimos en el CRM de zerosoft."
 date: "2026-06-19"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "hubspot", "lock-in", "open source"]
 ---
 
-Mirá tu factura de HubSpot. Si tu empresa va bien, subió. No porque uses más funciones: porque juntaste más contactos. Hiciste bien tu trabajo — más gente te conoce, más gente te dejó su email — y el premio es pagar más por mes. Es el único negocio donde tener más clientes propios te sale más caro.
+Si tu empresa va bien, tu factura de HubSpot probablemente subió. El motivo suele ser que juntaste más contactos, no que uses más funciones. Este post explica por qué pasa y qué conviene revisar antes de depender de un CRM.
 
-## El impuesto al contacto
+## Cuánto ocupa un contacto
 
-Un contacto es una fila en una tabla: nombre, email, teléfono, empresa, algunas fechas. Unos cientos de bytes. Cien mil contactos son ~50 MB de disco. Un VPS de $5 trae 25 GB: te entran las bases de quinientas empresas.
+Un contacto es una fila: nombre, email, teléfono, empresa y algunas fechas. Unos cientos de bytes. Cien mil contactos ocupan unos 50 MB. Un VPS de $5 trae 25 GB de disco.
 
-Ahora mirá la página de precios: Marketing Hub Professional arranca en ~$890 por mes e incluye 2.000 marketing contacts. ¿Te pasaste? Los contactos extra se compran en bloques pagos. Tu factura está indexada al tamaño de tu propia base. No pagás por tecnología: pagás alquiler por tus propios datos, y el alquiler sube cada vez que tu negocio va bien.
+Marketing Hub Professional arranca en unos $890 por mes e incluye 2.000 contactos de marketing. Los que pasan de ahí se compran en bloques. La factura queda atada al tamaño de tu propia base.
 
-> Cuando tu factura crece con tus contactos, no estás pagando software. Estás pagando peaje por hablar con tu propia gente.
+## Lo que no se lleva el CSV
 
-## El verdadero lock-in no es el CSV
+HubSpot te deja exportar un CSV con nombres y emails. Lo que suele quedar afuera:
 
-Sí, HubSpot te deja exportar un CSV con nombres y emails. Eso no es libertad: es una cortesía. Lo que el CSV no se lleva es la memoria:
+- **El historial**: qué emails abrió cada contacto, qué páginas visitó, de qué campaña vino.
+- **Las asociaciones**: a qué empresa pertenece, en qué deals estuvo, qué tickets abrió.
+- **Los workflows**: secuencias y automatizaciones que hay que reconstruir a mano del otro lado.
 
-- **El historial**: qué emails abrió cada contacto, qué páginas visitó, por qué campaña llegó. La línea de tiempo completa de la relación.
-- **Las asociaciones**: qué contacto pertenece a qué empresa, en qué deals estuvo, qué tickets abrió.
-- **Los workflows**: las secuencias, los nurtures, las automatizaciones que construiste durante años. Eso no se exporta: se reconstruye, a mano, del otro lado.
+Una prueba útil: ¿podés irte llevándote todo, no solo la lista? Si la respuesta es no, conviene saberlo antes de cargar diez años de relación con clientes.
 
-Te podés ir, pero te vas sin memoria. El test honesto es este: ¿puedo irme en 10 minutos llevándome todo, no solo la lista? Si la respuesta es no, tus contactos no son tuyos. Son del CRM y vos los estás alquilando.
+## Cómo lo resolvimos en el CRM
 
-## Lo que estamos construyendo
+- **API pública** para contactos, empresas, deals, actividades, tareas, pipelines, productos, cotizaciones y tags.
+- **Exportación** de contactos, empresas y deals en CSV o JSON, desde Configuración.
+- **Contactos sin cargo extra.** En tu servidor no hay límite. En zerosoft Cloud se cobra por uso (emails, almacenamiento), no por contacto ni por asiento.
+- **Importación desde HubSpot** con un preset de columnas para su exportación. La guía está en [cómo sacar tus contactos de HubSpot](/blog/migrar-contactos-de-hubspot-por-csv).
 
-Nuestro CRM llega en Q1 2027 y nace con las reglas que Link ya aplica hoy:
-
-- **API-first**: la API pública sale documentada el día uno, como hicimos con la API v1 de Link. Todo lo que hace la interfaz, lo hace curl.
-- **Export completo, siempre**: JSON, CSV o API. Todo, incluido el historial. Sin pedir permiso, sin ticket de soporte.
-- **Contactos ilimitados**: porque un contacto es una fila y las filas no cuestan nada. Tu factura no crece cuando crecés vos.
-- **El mismo contrato de siempre**: código abierto, self-host a $0 en tu VPS, o cloud hosteado al costo real de la infraestructura.
-
-Mientras tanto, Link ya está live — short links, analytics sin cookies, QR, API documentada en /docs — y funciona con exactamente este principio: tus datos salen tan fácil como entran.
-
-Los contactos son tuyos porque la relación es tuya. El CRM tiene que ser una herramienta que usás, no una bóveda que te cobra por mirar lo tuyo.
+El código es abierto (AGPLv3). Si un día no te sirve, la base de datos es un archivo SQLite en tu servidor.

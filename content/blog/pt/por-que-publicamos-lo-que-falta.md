@@ -1,24 +1,24 @@
 ---
 title: "Por que publicamos o que falta"
-description: "O nosso README lista as lacunas conhecidas de cada produto, ao lado dos recursos. Sem calendário do Outlook, sem bot com LLM, sem coedição em tempo real. Por que marketing honesto é uma política para nós, não um humor."
+description: "O README lista as lacunas conhecidas de cada produto ao lado dos recursos. Por que isso é regra para nós e como decidimos o que entra na lista."
 date: "2026-09-13"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["honestidade", "marketing", "open source"]
 ---
 
-Abra o README do Zerosoft e olhe embaixo de qualquer produto. Logo depois da lista de recursos há uma linha em itálico que começa com *Known gaps*. Não está escondida num changelog nem enterrada num tópico de fórum. Está no primeiro arquivo que qualquer pessoa lê.
+Abra o README do zerosoft e olhe embaixo de qualquer produto. Logo depois da lista de recursos há uma linha em itálico que começa com *Known gaps*. Não está escondida num changelog nem enterrada num tópico de fórum. Está no primeiro arquivo que qualquer pessoa lê.
 
 A maioria das empresas de software chamaria isso de marketing ruim. Achamos que é o único tipo que funciona no longo prazo, e transformamos isso em regra.
 
 ## O que a lista diz de verdade
 
-Estas são as lacunas, como estão publicadas, produto por produto:
+Algumas das lacunas publicadas hoje, produto por produto (a lista muda conforme fechamos itens, então o README é a fonte):
 
-- **CRM:** a sincronização do Gmail é manual, não em segundo plano. Sem templates de e-mail, sequências ou rastreamento de abertura. Sem orçamentos ou produtos. Sem formulários de leads. Sem eventos de webhook do CRM. Negócios e atividades não podem ser importados. Relatórios usam uma única moeda.
-- **Track:** sem atalhos de teclado, sem sincronização em tempo real, sem integração com Git/GitHub, sem API pública ou webhooks, sem importação do Linear.
-- **Cal:** sem calendários do Outlook ou do iCloud. Google Calendar, sim.
-- **Chat:** o bot de resposta automática faz correspondência de palavras-chave sobre respostas prontas e páginas de docs, *não é um LLM*. Sem exportação de conversas.
-- **Docs:** sem coedição em tempo real, sem exportação em JSON/Markdown, sem importação do Notion.
+- **CRM:** enviar e sincronizar email pelo Gmail exige um cliente OAuth do Google verificado; até lá, só usuários de teste conectam. As sequências rodam no cron de hora em hora. Cotações ainda não têm assinatura eletrônica nem cobrança. Os formulários não têm várias páginas, campos condicionais nem upload de arquivos. No celular, as tabelas só rolam para o lado.
+- **Track:** ainda não tem API pública, webhooks, sincronização em tempo real, integração com Git/GitHub nem importação do Linear.
+- **Cal:** só Google Calendar (Outlook e iCloud ainda não). A disponibilidade é por tipo de evento, sem horários reutilizáveis. Não tem pagamentos nem eventos em grupo.
+- **Chat:** um canal só, o widget web. Não tem notas internas na conversa nem central de ajuda.
+- **Docs:** não tem coedição em tempo real, histórico de versões, exportação nem importação do Notion. O compartilhamento ainda vale só para a API, sem página pública.
 - **O site:** a página de status lista os serviços; o monitoramento ao vivo ainda não está ligado.
 - **Enterprise:** SSO/SAML, logs de auditoria, papéis personalizados e white-label moram em `/ee` e estão em desenvolvimento.
 
@@ -34,7 +34,7 @@ Uma lacuna publicada custa o usuário que precisava dela no primeiro dia. Tudo b
 
 ### Porque a linha da IA importa agora
 
-Seria muito fácil, em 2026, dizer que o bot do Chat é "com IA". Afinal, ele responde perguntas sozinho. Mas o que ele faz é comparar palavras-chave com as suas respostas prontas e páginas de docs. É útil, previsível e barato de rodar — e não é um modelo de linguagem. Se borrássemos essa linha, cada cliente que esperava um LLM se sentiria enganado, e com razão.
+Seria muito fácil, em 2026, dizer que o bot do Chat é "com IA". Afinal, ele responde perguntas sozinho. Mas o que ele faz é comparar palavras-chave com as suas respostas prontas e páginas de docs. É útil, previsível e barato de rodar, e não é um modelo de linguagem. Se borrássemos essa linha, cada cliente que esperava um LLM se sentiria enganado, e com razão.
 
 Então o README diz com todas as letras: *não é um LLM*.
 
@@ -54,20 +54,20 @@ Calendários do Outlook no Cal, exportação em Markdown no Docs, uma API públi
 
 Publicar as lacunas é uma parte. A política completa é um punhado de regras chatas que aplicamos em todo lugar, inclusive neste blog:
 
-- **Só anunciar o que existe no código.** Se um recurso não foi mergeado, ele não está na página do produto. "Em breve" só é permitido quando está rotulado assim — por isso a nossa página do Cal diz que Outlook e iCloud vêm em breve, em vez de simplesmente listar "sincronização de calendário".
+- **Só anunciar o que existe no código.** Se um recurso não foi mergeado, ele não está na página do produto. "Em breve" só é permitido quando está rotulado assim: por isso a nossa página do Cal diz que Outlook e iCloud vêm em breve, em vez de simplesmente listar "sincronização de calendário".
 - **Dizer onde o concorrente está na frente.** O HubSpot tem um ecossistema de integrações enorme. O Linear tem uma velocidade keyboard-first e uma sincronização em tempo real que não temos. O Notion tem colaboração em tempo real e uma biblioteca de templates gigante. Fingir o contrário é subestimar o leitor.
 - **Nada de números inventados.** Sem contagem de usuários inventada, sem depoimentos que não recebemos, sem benchmarks que não rodamos. Quando damos um exemplo, dizemos que é hipotético.
-- **Nada de preços de fachada.** Self-host é grátis para sempre sob AGPLv3. O Zerosoft Cloud tem um plano gratuito generoso e depois cobra por uso, com preços transparentes publicados antes de cobrarmos qualquer coisa. Não vamos citar um valor por unidade até que ele seja real.
+- **Nada de preços de fachada.** Self-host custa $0 sob AGPLv3. O zerosoft Cloud tem um plano gratuito generoso e depois cobra por uso, com preços transparentes publicados antes de cobrarmos qualquer coisa. Não vamos citar um valor por unidade até que ele seja real.
 - **Dizer quem não deveria trocar.** Se o seu time de vendas vive de sequências de e-mail, o nosso CRM ainda não é para você. Se você precisa de SAML neste trimestre, espere. Dizer isso em voz alta faz parte do produto.
 
 ## "Isso não é ruim para o negócio?"
 
 No curto prazo, talvez. A landing page de um concorrente cheia de checkmarks parece melhor que a nossa com uma lista do que falta.
 
-Mas pense no que a página dos checkmarks otimiza: o primeiro clique. Nós otimizamos para o segundo ano. Um software para onde você levou os seus contatos, a sua agenda e os seus documentos é um software em que você precisa confiar. E confiança não se constrói com a lista de recursos — qualquer um escreve uma lista de recursos. Se constrói com a linha que vem embaixo dela.
+Mas pense no que a página dos checkmarks otimiza: o primeiro clique. Nós otimizamos para o segundo ano. Um software para onde você levou os seus contatos, a sua agenda e os seus documentos é um software em que você precisa confiar. E confiança não se constrói com a lista de recursos: qualquer um escreve uma lista de recursos. Se constrói com a linha que vem embaixo dela.
 
-Há também um motivo mais simples. O nosso código é público. Qualquer pessoa pode abrir `lib/` e conferir se o Chat chama um modelo de linguagem. Mentir sobre recursos num projeto open source não é só errado: é inútil. A única posição coerente é dizer primeiro.
+Há também um motivo mais simples. O nosso código é público. Qualquer pessoa pode abrir `lib/` e conferir o que cada app faz. Num projeto open source, exagerar um recurso é inútil: alguém vai ler o código. A única posição coerente é dizer primeiro.
 
 ## Como uma lacuna sai da lista
 
-Do mesmo jeito que entrou: em público. Um recurso é lançado, a página do produto pode anunciá-lo e a linha sai de *Known gaps*. Se você está esperando uma em especial, acompanhe o README — ou [mande um PR](/blog/como-contribuir-a-zerosoftware) e tire ela da lista você mesmo.
+Do mesmo jeito que entrou: em público. Um recurso é lançado, a página do produto pode anunciá-lo e a linha sai de *Known gaps*. Se você está esperando uma em especial, acompanhe o README, ou [mande um PR](/blog/como-contribuir-a-zerosoftware) e tire ela da lista você mesmo.

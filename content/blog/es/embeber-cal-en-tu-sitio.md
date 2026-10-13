@@ -1,12 +1,12 @@
 ---
-title: "Embebé Cal en tu sitio: inline, popup, Google Meet y recordatorios"
-description: "Guía práctica para poner tu página de reservas de Cal en tu propia web, conectar Google Calendar para tener links de Meet y asegurarte de que los links de cancelación y los recordatorios de 24 horas salgan de verdad."
+title: "Cal en tu sitio: inline, popup, Google Meet y recordatorios"
+description: "Cómo poner tu página de reservas de Cal en tu web, conectar Google Calendar para que cada reunión tenga link de Meet y verificar que salgan los links de cancelación y el recordatorio de 24 horas."
 date: "2026-09-15"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "agendar", "tutorial"]
 ---
 
-Un link de reservas en la firma del mail está bien. Una página de reservas *en tu propio sitio*, donde el visitante ya está, convierte mejor y se nota que vas en serio. Esta guía cubre el setup completo: embeber Cal inline o como popup, conectar Google Calendar para que cada reunión tenga link de Meet, y las dos cosas que todos se olvidan: el link del invitado para cancelar o reprogramar y el recordatorio de 24 horas.
+Un link de reservas en la firma del mail sirve. Una página de reservas en tu propio sitio, donde el visitante ya está, le ahorra un paso. Esta guía cubre el setup completo: embeber Cal inline o como popup, conectar Google Calendar para que cada reunión tenga link de Meet, y las dos cosas que todos se olvidan: el link del invitado para cancelar o reprogramar y el recordatorio de 24 horas.
 
 ## 1. Embebé la página de reservas
 

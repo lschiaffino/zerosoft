@@ -1,34 +1,32 @@
 ---
-title: "El lock-in no es un efecto secundario del SaaS: es el producto"
-description: "Export incompleto, formatos propietarios, integraciones que se rompen, precios que escalan con tu éxito. No son accidentes: son la estrategia."
+title: "Lock-in: cuatro tácticas del SaaS y cómo detectarlas antes de firmar"
+description: "Exportaciones incompletas, formatos propietarios, integraciones que se rompen y precios que crecen con tu base. Cómo reconocer cada una en diez minutos de prueba."
 date: "2026-06-16"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["lock-in", "saas", "open source"]
 ---
 
-Cuando evaluás una herramienta SaaS, mirás las features, el precio de entrada y la interfaz. El proveedor, en cambio, mira otra cosa: cuánto te va a costar irte. Ese número — tu costo de salida — es el activo más valioso que tiene. El lock-in no es un efecto secundario del modelo. Es el modelo.
+Al evaluar una herramienta SaaS mirás funciones, precio de entrada e interfaz. Al proveedor le importa otro número: cuánto te va a costar irte. Estas son las cuatro formas más comunes de subir ese número y cómo detectarlas antes de firmar.
 
-## Las cuatro tácticas de siempre
+## Las cuatro tácticas
 
-**1. El export incompleto.** El botón existe, así que técnicamente "podés llevarte tus datos". Lo que te llevás son los contactos. Lo que se queda: el historial de actividad, las notas, los archivos adjuntos, las automatizaciones que configuraste durante años. Te dan los ladrillos y se quedan con la casa.
+**1. Exportación incompleta.** El botón existe y te llevás los contactos. Se quedan el historial de actividad, las notas, los adjuntos y las automatizaciones.
 
-**2. Formatos propietarios.** Tus datos salen en un formato que solo esa herramienta entiende — o en un CSV tan degradado que reconstruir las relaciones entre tablas te toma semanas. Técnicamente exportable, prácticamente inútil.
+**2. Formatos propietarios.** Los datos salen en un formato que solo esa herramienta entiende, o en un CSV que pierde las relaciones entre tablas. Reconstruirlas lleva semanas.
 
-**3. Integraciones que se rompen.** Mientras estás adentro, todo se conecta con todo. El día que anunciás que te vas, descubrís que esas integraciones eran el pegamento de tu operación: el form del sitio, el sync con facturación, el webhook que dispara tu pipeline. Irse no cuesta la suscripción: cuesta rehacer media empresa.
+**3. Integraciones que se rompen.** El formulario del sitio, el sync con facturación, el webhook que alimenta tu pipeline. Mientras estás adentro, todo se conecta. Al irte, hay que rehacerlo.
 
-**4. Precios que escalan con tu éxito.** El pricing por contacto, por asiento, por "registro" tiene una propiedad elegante y perversa: tu factura crece cuando tu negocio crece. Duplicaste tu base de clientes, duplicaste tu factura. Tu crecimiento es su modelo de revenue. No pagás por más software — el software es el mismo — pagás por haberte ido bien.
+**4. Precios que crecen con tu base.** Por contacto, por asiento, por registro. Duplicás clientes y se duplica la factura, con el mismo software.
 
-## Cómo detectarlo antes de firmar
+## Cómo detectarlo
 
-No hace falta fe, hacen falta diez minutos de due diligence:
+- **Exportá el primer día.** Cargá datos de prueba y exportalos antes de migrar nada. Si lo que sale no alcanza para reconstruir tu operación, ya sabés cuánto vale el botón.
+- **Calculá el precio a 10x.** Lo que pagarías con diez veces tus usuarios o contactos.
+- **Leé los límites de la API.** Un rate limit bajo y pocos endpoints indican que los datos no están pensados para salir.
+- **Preguntá por el formato.** ¿Documentan el modelo de datos? ¿Exportan CSV, JSON, ICS, vCard?
 
-- **Exportá el día uno.** Creá datos de prueba y probá el export antes de migrar nada. Si lo que sale no alcanza para reconstruir tu operación, ya sabés lo que vale ese botón.
-- **Mirá la curva de precios a 10x.** Calculá qué pagarías con diez veces tus usuarios, contactos o registros actuales. Si el número te incomoda hoy, te va a doler en dos años.
-- **Leé los límites de la API.** Rate limits bajos y una API de juguete son una señal: no quieren que tus datos salgan por la puerta de servicio.
-- **Preguntá por el formato.** ¿Documentan su modelo de datos? ¿Exportan en formatos abiertos (CSV, JSON, ICS, vCard) o solo en el suyo?
+## Qué hacemos en zerosoft
 
-## La alternativa: ser dueño
+El código es open source: si nuestra nube no te sirve, lo corrés vos con tus datos. Un workspace self-hosteado es un archivo SQLite y una carpeta de adjuntos. Link exporta links y clics en CSV y el CRM exporta en CSV o JSON; todas las apps con API pública (Link, CRM, Cal) se pueden leer completas por REST.
 
-La única defensa estructural contra el lock-in es la propiedad. Software cuyo código podés descargar, cuya base de datos está en tu servidor — o en una nube que se cobra al costo y de la que te podés ir en una tarde.
-
-En Zerosoftware lo aplicamos así: todo el código es open source; si usás nuestra nube, pagás lo que la infraestructura cuesta, sin margen; y tus datos se exportan completos, en formatos abiertos, con un click. Si algún día hacemos las cosas mal, irte tiene que ser fácil. Quedarse debe ser una decisión, no una condena.
+Todavía hay huecos: Docs no tiene exportación a Markdown o PDF, y Track no tiene API pública. Están en la lista.

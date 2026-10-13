@@ -1,8 +1,8 @@
 ---
 title: "Como tirar seus contatos da HubSpot com um CSV"
-description: "Guia passo a passo para exportar contatos e empresas da HubSpot e importar no Zerosoft CRM: mapeamento de colunas, deduplicação por email e domínio, e o que fica para trás."
+description: "Guia passo a passo para exportar contatos e empresas da HubSpot e importar no zerosoft CRM: mapeamento de colunas, deduplicação por email e domínio, e o que fica para trás."
 date: "2026-07-24"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "hubspot", "migração"]
 ---
 
@@ -12,7 +12,7 @@ Esta é a versão honesta. O que vai, o que não vai, e a ordem que evita faxina
 
 ## O que dá para importar (e o que não dá)
 
-O importador do Zerosoft CRM (`/app/crm/settings` → Import / Export) trabalha com duas entidades:
+O importador do zerosoft CRM (`/app/crm/settings` → Import / Export) trabalha com duas entidades:
 
 - **Contatos**: nome, sobrenome, email, telefone, cargo, site, cidade, país, lifecycle stage, lead status e origem.
 - **Empresas**: nome, domínio, setor, funcionários, telefone, site, cidade, país e lifecycle stage.
@@ -35,7 +35,7 @@ Na HubSpot, exporte contatos e empresas como dois CSVs separados a partir da vis
 
 ## Passo 2: empresas primeiro
 
-A ordem importa. Quando um contato é criado sem empresa explícita, o Zerosoft olha o domínio do email e vincula o contato à empresa com exatamente esse domínio (emails pessoais como Gmail são ignorados). Se `ana@acme.com` chega quando já existe uma empresa com domínio `acme.com`, a Ana fica vinculada sozinha.
+A ordem importa. Quando um contato é criado sem empresa explícita, o zerosoft olha o domínio do email e vincula o contato à empresa com exatamente esse domínio (emails pessoais como Gmail são ignorados). Se `ana@acme.com` chega quando já existe uma empresa com domínio `acme.com`, a Ana fica vinculada sozinha.
 
 Isso só funciona se as empresas já estiverem lá. Empresas primeiro, contatos depois.
 
@@ -54,7 +54,7 @@ O que ficar em "— ignorar —" é descartado. `Record ID` e companhia podem fi
 
 ### Valores de enum: a armadilha silenciosa
 
-Lifecycle stage, lead status e origem são listas fixas no Zerosoft:
+Lifecycle stage, lead status e origem são listas fixas no zerosoft:
 
 ```
 lifecycle:   subscriber, lead, mql, sql, opportunity, customer, evangelist
@@ -62,7 +62,7 @@ lead status: new, open, in_progress, open_deal, unqualified, connected, bad_timi
 source:      organic, referral, ads, social, email, event, other
 ```
 
-O importador aceita esses valores sem diferenciar maiúsculas, então `Lead` ou `Customer` funcionam. Mas um valor que não bate exatamente fica **vazio em silêncio**, não é rejeitado. Se o seu export diz `Marketing Qualified Lead` ou `In Progress`, faça um localizar-e-substituir para `mql` ou `in_progress` no CSV antes. Senão o contato entra normalmente e o campo fica em branco — e você descobre isso três semanas depois, num relatório.
+O importador aceita esses valores sem diferenciar maiúsculas, então `Lead` ou `Customer` funcionam. Mas um valor que não bate exatamente fica **vazio em silêncio**, não é rejeitado. Se o seu export diz `Marketing Qualified Lead` ou `In Progress`, faça um localizar-e-substituir para `mql` ou `in_progress` no CSV antes. Senão o contato entra normalmente e o campo fica em branco, e você descobre isso três semanas depois, num relatório.
 
 ## Passo 4: escolha o modo de deduplicação
 

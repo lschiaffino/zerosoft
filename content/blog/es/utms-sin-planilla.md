@@ -1,8 +1,8 @@
 ---
 title: "UTMs sin planilla: una convención para equipos chicos"
-description: "Una convención de UTMs simple para un equipo chico, y cómo llevarla en Link con el UTM builder, tags, creación masiva, export CSV por link y comparación de 7/30/90 días."
+description: "Una convención de UTMs corta para un equipo chico, y cómo llevarla en Link con el constructor de UTM, tags, carga masiva, exportación CSV por link y comparación de 7, 30 y 90 días."
 date: "2026-09-03"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "utm", "marketing"]
 ---
 
@@ -24,7 +24,7 @@ Esta convención entra en un post-it. Adaptá el vocabulario, pero respetá las 
 
 **`utm_medium`: qué tipo de canal.** Una lista corta y cerrada: `email`, `social`, `paid-social`, `cpc`, `referral`, `print`. Si estás por inventar un medium nuevo, probablemente querías un source nuevo.
 
-**`utm_campaign`: qué estás empujando, con fecha.** `2026-09-lanzamiento`, `2026-10-webinar-precios`. El prefijo de fecha los ordena y mata para siempre la pregunta "¿cuál lanzamiento?".
+**`utm_campaign`: qué estás empujando, con fecha.** `2026-09-lanzamiento`, `2026-10-webinar-precios`. El prefijo de fecha los ordena y elimina la pregunta "¿cuál lanzamiento?".
 
 Y las reglas:
 
@@ -38,7 +38,7 @@ Y las reglas:
 
 En **Nuevo link**, pegá el destino y abrí el **UTM builder**. Completá source, medium y campaign; la vista previa de la **URL final** te muestra exactamente cómo va a quedar el destino. Después:
 
-- **Título:** algo que un humano pueda leer en una lista. "Lanzamiento sept — post LinkedIn".
+- **Título:** algo que un humano pueda leer en una lista. "Lanzamiento sept: post LinkedIn".
 - **Tags:** el nombre de la campaña, por ejemplo `2026-09-lanzamiento`. Hasta cinco tags por link, así que podés sumar el canal o el responsable.
 - **Slug custom** si el link va a algún lugar donde la gente lo va a tipear, como una slide o un podcast.
 

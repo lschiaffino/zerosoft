@@ -1,14 +1,14 @@
 ---
-title: "Cómo armar tu página link-in-bio con Link (y qué todavía no hace)"
-description: "Tu página /@handle en cinco minutos: título, bio, avatar, botones ordenados y clicks medidos con tus propios links cortos. Más la lista honesta de lo que no hace."
+title: "Tu página link-in-bio con Link, y lo que todavía no hace"
+description: "Tu página /@handle en cinco minutos: título, bio, avatar, botones ordenados y clics medidos con tus propios links cortos. Y la lista de lo que todavía no hace."
 date: "2026-08-06"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "link in bio", "guía"]
 ---
 
-Las redes te dan un link. Uno. Así que todo internet se puso de acuerdo en el mismo parche: una paginita con una lista de botones, hosteada por una empresa a la que le encantaría cobrarte todos los meses por una lista de botones.
+Las redes sociales te dejan poner un solo link. La solución de siempre es una página con una lista de botones, normalmente de un servicio que cobra por mes.
 
-Link trae una de fábrica. Vive en `zerosoft.ai/@tuhandle`, es gratis, y cada botón pasa por uno de tus links cortos, así que los clicks caen en las mismas analytics que ya usás. Acá va cómo configurarla en cinco minutos, y exactamente dónde están sus bordes.
+Link trae una incluida. Vive en `zerosoft.ai/@tuhandle` y cada botón pasa por uno de tus links cortos, así que los clicks caen en las mismas analytics que ya usás. Acá va cómo configurarla en cinco minutos, y exactamente dónde están sus bordes.
 
 ## Qué podés personalizar
 
@@ -20,7 +20,7 @@ Primero bajemos expectativas, porque las herramientas de link-in-bio aman sobrev
 - **Botones.** Cualquiera de tus links, en el orden que elijas, hasta 50.
 - **Un switch de publicación.** Las páginas no publicadas devuelven 404.
 
-Esa es toda la lista. No hay temas, colores, tipografías, imágenes de fondo, filas de íconos sociales, videos embebidos ni CSS custom. La página usa el mismo estilo minimalista que el resto de Zerosoft. Si necesitás una página muy brandeada, una herramienta dedicada (o una página en tu propio sitio) te va a servir mejor — y igual podés apuntar sus botones a tus links cortos.
+Esa es toda la lista. No hay temas, colores, tipografías, imágenes de fondo, filas de íconos sociales, videos embebidos ni CSS custom. La página usa el mismo estilo minimalista que el resto de zerosoft. Si necesitás una página muy brandeada, una herramienta dedicada (o una página en tu propio sitio) te va a servir mejor, y igual podés apuntar sus botones a tus links cortos.
 
 ## Paso 1: creá los links primero
 
@@ -73,10 +73,10 @@ Un arreglo simple para lo segundo: creá un link corto por plataforma que apunte
 
 - **Botón de temporada arriba.** Subí el lanzamiento del momento, dejá lo permanente abajo. Reordenar son dos clicks.
 - **Promos que se vencen solas.** Creá el link de la promo con fecha de expiración y marcalo en la página. Desaparece solo.
-- **Un link por destino, para siempre.** Si el destino cambia (tienda nueva, otro host para el podcast), editá la URL del link corto. El botón, la página y cualquier QR que hayas impreso siguen andando.
+- **Un link por destino, siempre el mismo.** Si el destino cambia (tienda nueva, otro host para el podcast), editá la URL del link corto. El botón, la página y cualquier QR que hayas impreso siguen andando.
 
 ## Lo que todavía no está
 
-Para que los bordes queden claros: no hay personalización visual más allá de título, bio y avatar; no se puede subir el avatar; no hay analytics de visitas a la página; y la página vive solo en el dominio principal, no en tu dominio propio. Si alguna de estas es un deal-breaker para vos, contanos — o, como el código es abierto, mandá un pull request.
+Para que los bordes queden claros: no hay personalización visual más allá de título, bio y avatar; no se puede subir el avatar; no hay analytics de visitas a la página; y la página vive solo en el dominio principal, no en tu dominio propio. Si alguna de estas es un deal-breaker para vos, contanos, o, como el código es abierto, mandá un pull request.
 
 Una lista de botones no debería costar una suscripción. Ahora no cuesta.

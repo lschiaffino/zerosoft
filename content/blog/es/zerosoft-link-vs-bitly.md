@@ -1,12 +1,12 @@
 ---
-title: "Zerosoft Link vs Bitly: una comparación honesta (incluido cuándo quedarte)"
-description: "Dónde Bitly está claramente adelante, dónde está Link, y quién debería cambiarse o quedarse donde está. Sin teatro de precios: funciones, ecosistema, propiedad y los trade-offs de cada uno."
+title: "Link vs. Bitly: qué hace cada uno hoy (y cuándo quedarte en Bitly)"
+description: "Dónde Bitly está claramente adelante, dónde está Link y quién debería cambiarse o quedarse. Funciones, ecosistema, propiedad de los datos y los tradeoffs de cada uno."
 date: "2026-10-02"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "bitly", "comparación"]
 ---
 
-Ya escribimos sobre [lo que cobra Bitly contra lo que cuesta un redirect](/blog/bitly-cobra-35-los-bits-son-gratis). Este post no es eso. Esta es la comparación que querrías de un amigo que conoce las dos herramientas: qué hace mejor cada una, y quién debería elegir cuál. Incluidos los casos en los que la respuesta correcta es "quedate en Bitly".
+Ya escribimos sobre [lo que cobra Bitly contra lo que cuesta un redirect](/blog/bitly-cobra-35-los-bits-son-gratis). Este post compara producto: qué hace mejor cada una, y quién debería elegir cuál. Incluidos los casos en los que la respuesta correcta es "quedate en Bitly".
 
 Una aclaración de justicia: el código de Link lo conocemos línea por línea. A Bitly lo conocemos desde afuera, por su producto y su documentación pública. Los detalles de producto cambian, así que chequeá sus páginas actuales antes de decidir.
 
@@ -18,7 +18,7 @@ Arranquemos por la parte incómoda.
 
 **Reconocimiento de marca.** La gente conoce `bit.ly`. En algunos contextos un dominio familiar recibe más clicks que uno desconocido. (Tu propio dominio les gana a los dos, pero eso vale con cualquiera de las dos herramientas.)
 
-**Integraciones.** Bitly se enchufa a una lista larga de herramientas: plataformas de automatización, suites de marketing, herramientas de diseño, programadores de redes. Link tiene una API REST, los webhooks `link.created` y `link.clicked`, y nada más. Si tu flujo es "toco un botón dentro de otra app y obtengo un link de Bitly", Link todavía no hace eso. Lo tendrías que conectar vos.
+**Integraciones.** Bitly se enchufa a una lista larga de herramientas: plataformas de automatización, suites de marketing, herramientas de diseño, programadores de redes. Link tiene una API REST, los webhooks `link.created` y `link.clicked`, y Flow para conectarlo con el resto de la suite o con cualquier API. Si tu flujo es "toco un botón dentro de otra app y obtengo un link de Bitly", Link todavía no hace eso. Lo tendrías que conectar vos.
 
 **Apps móviles y extensión de navegador.** Bitly las tiene. Link es una web app; anda bien en el navegador del celular, pero no hay app nativa ni extensión.
 
@@ -32,9 +32,9 @@ Arranquemos por la parte incómoda.
 
 ## Dónde Link está adelante
 
-**Puede ser tuyo.** Link es open source (AGPLv3). Podés leer cada línea, correrlo en tu propio servidor gratis, para siempre, y guardar cada click en tu propia base de datos. O usar Zerosoft Cloud: un free tier generoso, y después pago por uso con precios publicados antes de cobrarte nada.
+**Puede ser tuyo.** Link es open source (AGPLv3). Podés leer cada línea, correrlo en tu servidor por $0 y guardar cada clic en tu propia base de datos. O usar zerosoft Cloud: plan gratis y después pago por uso.
 
-**Analytics sin cookies por diseño.** Los clicks se miden solo a partir del request HTTP: día, referrer, país, dispositivo, browser, OS. Sin cookies, sin guardar IPs, sin fingerprinting ([detalles](/blog/analytics-sin-cookies)). Menos datos de los que juntan otras herramientas, a propósito.
+**Analytics sin cookies por diseño.** Los clicks se miden solo a partir del request HTTP: día, referrer, país, dispositivo, browser, OS. No usa cookies ni fingerprinting y no guarda IPs ([detalles](/blog/analytics-sin-cookies)). Menos datos de los que juntan otras herramientas, a propósito.
 
 **Controles que suelen ser upsell.** Links con contraseña, fecha de vencimiento y límite de clicks, cada uno con una página clara para el visitante cuando el link se cierra ([casos de uso acá](/blog/links-con-password-vencimiento-y-limite)). Tipo de redirect por link (301 o 302). Campos de preview social (Open Graph) por link.
 
@@ -65,7 +65,7 @@ En serio, si alguno de estos sos vos, no te cambies por cambiarte:
 - **Developers** que quieren API y webhooks primero, o meter el acortado de links en su propio producto, y valoran poder leer el código.
 - **Organizaciones que cuidan la privacidad** y prefieren no tener que explicarle cookies de tracking a nadie.
 - **Quien quiera self-hostear:** acortadores internos, entornos regulados, o gente a la que simplemente le gusta ser dueña de su stack.
-- **Equipos que ya usan Zerosoft**, o que están consolidando varios SaaS en un solo workspace.
+- **Equipos que ya usan zerosoft**, o que están consolidando varios SaaS en un solo workspace.
 - **Quien necesite contraseñas, vencimientos o límites de clicks** en links del día a día.
 
 ## Una forma sensata de decidir

@@ -2,7 +2,7 @@
 title: "Round-robin com o Cal: um só link para o time inteiro"
 description: "Como compartilhar um único link de agendamento entre seu time de vendas ou suporte com o Cal, e como o Cal escolhe o host de cada reunião: cursor, ordem do pool, conflitos e tudo."
 date: "2026-07-18"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "agendamento", "equipes"]
 ---
 
@@ -74,7 +74,7 @@ Tudo o que vem depois segue o host **atribuído**, não o dono do event type:
 
 ## Detalhes que vale saber
 
-**A disponibilidade é por event type, não por host.** As horas semanais configuradas no event type (no fuso horário do dono) valem para o pool inteiro. O Cal não lê o horário de trabalho pessoal de cada host. Se o Bruno só trabalha de manhã, ele precisa bloquear as tardes — com blocked slots ou no Google Calendar — senão vai receber reuniões à tarde.
+**A disponibilidade é por event type, não por host.** As horas semanais configuradas no event type (no fuso horário do dono) valem para o pool inteiro. O Cal não lê o horário de trabalho pessoal de cada host. Se o Bruno só trabalha de manhã, ele precisa bloquear as tardes (com blocked slots ou no Google Calendar) senão vai receber reuniões à tarde.
 
 **Conecte todos os calendários.** Um host sem Google Calendar conectado parece livre para o Cal sempre que não tiver uma reserva do Cal ou um blocked slot. É o jeito mais comum de o round-robin dar errado: não é o algoritmo, são os dados que faltam.
 

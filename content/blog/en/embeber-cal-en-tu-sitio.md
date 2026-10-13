@@ -1,12 +1,12 @@
 ---
-title: "Embed Cal on your site: inline, popup, Google Meet and reminders"
-description: "A hands-on guide to putting your Cal booking page on your own website, connecting Google Calendar for Meet links, and making sure cancel links and 24-hour reminders actually go out."
+title: "Embedding Cal on your site: inline, popup, Google Meet and reminders"
+description: "How to put your Cal booking page on your own site, connect Google Calendar for Meet links, and check that cancel links and 24-hour reminders go out."
 date: "2026-09-15"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "scheduling", "tutorial"]
 ---
 
-A booking link in your email signature is fine. A booking page *on your own site*, where the visitor already is, converts better and looks like you mean it. This guide covers the full setup: embedding Cal inline or as a popup, connecting Google Calendar so every meeting gets a Meet link, and the two things people forget — the guest's cancel/reschedule link and the 24-hour reminder.
+A booking link in your email signature is fine. A booking page *on your own site*, where the visitor already is, converts better and looks like you mean it. This guide covers the full setup: embedding Cal inline or as a popup, connecting Google Calendar so every meeting gets a Meet link, and the two things people forget. The guest's cancel/reschedule link and the 24-hour reminder.
 
 ## 1. Embed the booking page
 
@@ -61,7 +61,7 @@ The script only listens to messages coming from the booking page's own origin an
 
 Without a connected calendar, Cal only knows about meetings booked through Cal and the blocked slots you add by hand. Connect Google and two things change.
 
-Go to **Cal → Settings** and click **Connect Google Calendar**. Google asks for two permissions — free/busy and events — and Cal needs both. If you uncheck one, it asks you to try again.
+Go to **Cal → Settings** and click **Connect Google Calendar**. Google asks for two permissions (free/busy and events) and Cal needs both. If you uncheck one, it asks you to try again.
 
 **Busy times block slots.** Before showing availability, Cal asks Google for the free/busy of your **primary** calendar. A dentist appointment you added from your phone hides those slots from your booking page. The answer is cached for about a minute, so changes show up quickly.
 
@@ -94,7 +94,7 @@ On your side, you can cancel from the bookings list in Cal, or via the API with 
 
 Cal sends the guest a reminder **24 hours before** the meeting, in their language, with the reschedule/cancel link. Two pieces have to be in place for that to happen.
 
-**Email delivery.** Cal sends email through Resend. Set `RESEND_API_KEY` and `EMAIL_FROM` (an address on a domain you've verified with Resend). Without the key, emails are printed to the server console instead of being sent — handy in development, a silent failure in production.
+**Email delivery.** Cal sends email through Resend. Set `RESEND_API_KEY` and `EMAIL_FROM` (an address on a domain you've verified with Resend). Without the key, emails are printed to the server console instead of being sent: handy in development, a silent failure in production.
 
 **The cron.** Reminders are queued in the database and sent by a periodic job at `/api/cron/tick`, which also handles webhook retries. On Vercel, the included `vercel.json` runs it hourly. Elsewhere, schedule it yourself:
 

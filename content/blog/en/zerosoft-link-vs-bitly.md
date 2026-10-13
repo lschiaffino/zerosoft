@@ -1,8 +1,8 @@
 ---
-title: "Zerosoft Link vs Bitly: an honest comparison (including when to stay)"
-description: "Where Bitly is clearly ahead, where Link is, and who should switch or stay put. No price theatrics: features, ecosystem, ownership and the trade-offs of each."
+title: "Link vs Bitly: what each does today, and when to stay with Bitly"
+description: "Where Bitly is ahead, where Link is, and who should switch or stay: features, ecosystem, ownership and trade-offs."
 date: "2026-10-02"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "bitly", "comparison"]
 ---
 
@@ -32,7 +32,7 @@ Let's start with the uncomfortable part.
 
 ## Where Link is ahead
 
-**You can own it.** Link is open source (AGPLv3). You can read every line, run it on your own server for free, forever, and keep every click in your own database. Or use Zerosoft Cloud: a generous free tier, then pay-per-usage with prices published before we ever charge you.
+**You can own it.** Link is open source (AGPLv3). You can read every line, run it on your own server at no cost, and keep every click in your own database. Or use zerosoft Cloud: a free tier, then per-workspace usage pricing with free seats.
 
 **Cookie-free analytics by design.** Clicks are measured from the HTTP request alone: day, referrer, country, device, browser, OS. No cookies, no IP stored, no fingerprinting ([details](/blog/analytics-sin-cookies)). Less data than some tools collect, on purpose.
 
@@ -65,7 +65,7 @@ Honestly, if one of these is you, don't switch for the sake of it:
 - **Developers** who want an API and webhooks first, or want to embed link shortening in their own product, and value reading the code.
 - **Privacy-minded organizations** that would rather not explain tracking cookies to anyone.
 - **Anyone who wants to self-host:** internal shorteners, regulated environments, or just people who like owning their stack.
-- **Teams already on Zerosoft**, or consolidating several SaaS tools into one workspace.
+- **Teams already on zerosoft**, or consolidating several SaaS tools into one workspace.
 - **People who need passwords, expirations or click limits** on everyday links.
 
 ## A sane way to decide

@@ -1,22 +1,22 @@
 ---
-title: "Backups that actually work for a self-hosted Zerosoft"
-description: "Your whole Zerosoft is one SQLite file, an uploads folder and an .env. Here's how to copy them consistently while the app runs, get them off the server, and prove you can restore them."
+title: "Backing up a self-hosted zerosoft: one database, one folder, one .env"
+description: "A self-hosted zerosoft is a SQLite file, an uploads folder and an .env. How to copy them while the app runs, store them off the server and test a restore."
 date: "2026-10-12"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["self-hosting", "backups", "sqlite"]
 ---
 
-We've said it a few times on this blog: in Zerosoft, the backup is "just a file". That's true in spirit and slightly dangerous in practice. A SQLite database that's being written to is not a file you can blindly `cp` and trust.
+We've said it a few times on this blog: in zerosoft, the backup is "just a file". That's true in spirit and slightly dangerous in practice. A SQLite database that's being written to is not a file you can blindly `cp` and trust.
 
 This is the practical version: what to back up, how to copy it consistently while the app is running, where to send it, and how to know the backup actually restores. Fifteen minutes of setup, ten minutes a quarter.
 
 ## What you're backing up
 
-A self-hosted Zerosoft with Docker has exactly three things that matter:
+A self-hosted zerosoft with Docker has exactly three things that matter:
 
-1. **The database.** One SQLite file, `zerosoftware.db`, at `/app/data` inside the container, stored in the `zerosoft-data` volume. Links, clicks, contacts, deals, issues, bookings, conversations, docs, users, teams, API keys — all of it.
+1. **The database.** One SQLite file, `zerosoftware.db`, at `/app/data` inside the container, stored in the `zerosoft-data` volume. Links, clicks, contacts, deals, issues, bookings, conversations, docs, users, teams, API keys: all of it.
 2. **Uploads.** Attachments from Chat, Track and CRM tasks, at `/app/public/uploads`, stored in the `zerosoft-uploads` volume.
-3. **Your `.env`.** Easy to forget, and it matters more than it looks — more on that below.
+3. **Your `.env`.** Easy to forget, and it matters more than it looks: more on that below.
 
 Without Docker it's the same idea: `data/zerosoftware.db` and `public/uploads/` in the app directory.
 
@@ -28,7 +28,7 @@ docker volume ls | grep zerosoft
 
 ## Why plain cp isn't enough
 
-Zerosoft opens its local database in **WAL mode** (`PRAGMA journal_mode = WAL`). In WAL mode, new writes go first to a side file, `zerosoftware.db-wal`, and are folded back into the main file later, at a checkpoint. While the app is running, you'll typically see three files: `zerosoftware.db`, `-wal` and `-shm`.
+zerosoft opens its local database in **WAL mode** (`PRAGMA journal_mode = WAL`). In WAL mode, new writes go first to a side file, `zerosoftware.db-wal`, and are folded back into the main file later, at a checkpoint. While the app is running, you'll typically see three files: `zerosoftware.db`, `-wal` and `-shm`.
 
 So if you `cp zerosoftware.db` while the app is running:
 
@@ -44,7 +44,7 @@ SQLite ships two ways to take a consistent snapshot of a live database:
 - **`.backup`** (the `sqlite3` CLI's online backup) copies the database page by page into a new file, producing a consistent snapshot even while the app keeps writing.
 - **`VACUUM INTO '/path/file.db'`** writes a fresh, compacted copy of the database as of a single transaction. It does a bit more work and gives you a smaller file. The target file must not exist yet.
 
-Either is correct. Both include whatever is in the WAL. The Zerosoft image doesn't include the `sqlite3` CLI, so the simplest path is a throwaway Alpine container that mounts the volume:
+Either is correct. Both include whatever is in the WAL. The zerosoft image doesn't include the `sqlite3` CLI, so the simplest path is a throwaway Alpine container that mounts the volume:
 
 ```bash
 #!/bin/sh
@@ -83,9 +83,9 @@ Prefer `VACUUM INTO`? Swap the `.backup` line for `sqlite3 /data/zerosoftware.db
 
 ## Don't forget the .env
 
-Zerosoft encrypts OAuth tokens (Gmail and Google Calendar integrations) and webhook secrets in the database with AES-256-GCM. The key comes from `ENCRYPTION_KEY`, or from `NEXTAUTH_SECRET` if that's unset.
+zerosoft encrypts OAuth tokens (Gmail and Google Calendar integrations) and webhook secrets in the database with AES-256-GCM. The key comes from `ENCRYPTION_KEY`, or from `NEXTAUTH_SECRET` if that's unset.
 
-What that means for backups: restore the database on a server with a *different* secret and everything still loads — but those encrypted values can't be decrypted. Integrations have to be reconnected, and webhook signing secrets are lost. Back up your `.env` too, separately and encrypted (it holds your Google client secret), in your password manager or secrets vault. Not as a plain file next to the database dumps.
+What that means for backups: restore the database on a server with a *different* secret and everything still loads, but those encrypted values can't be decrypted. Integrations have to be reconnected, and webhook signing secrets are lost. Back up your `.env` too, separately and encrypted (it holds your Google client secret), in your password manager or secrets vault. Not as a plain file next to the database dumps.
 
 ## Get it off the server
 
@@ -99,9 +99,9 @@ rclone copy /var/backups/zerosoft offsite:zerosoft-backups
 restic -r s3:https://<endpoint>/<bucket> backup /var/backups/zerosoft
 ```
 
-Add that line to the end of the backup script. Keep longer retention offsite than locally — a few weeks of dailies plus some monthlies is plenty for most small teams. And make sure the server's credentials can *write* backups but not delete old ones, if your storage supports it; ransomware loves a backup it can erase.
+Add that line to the end of the backup script. Keep longer retention offsite than locally: a few weeks of dailies plus some monthlies is plenty for most small teams. And make sure the server's credentials can *write* backups but not delete old ones, if your storage supports it; ransomware loves a backup it can erase.
 
-If you want something closer to continuous, Litestream streams SQLite WAL changes to object storage. We mention it because it fits SQLite well, but we haven't validated it against Zerosoft specifically — test the restore before you rely on it.
+If you want something closer to continuous, Litestream streams SQLite WAL changes to object storage. We mention it because it fits SQLite well, but we haven't validated it against zerosoft specifically: test the restore before you rely on it.
 
 ## Restore, for real
 
@@ -126,7 +126,7 @@ Two details that bite people:
 - **Delete the old `-wal` and `-shm`.** A leftover WAL from the previous database must never be replayed on top of the restored file.
 - **Ownership.** The app runs as user `zerosoft` (uid 1001). Files restored as root may be readable but not writable, and the app will fail on the first write.
 
-Database migrations run automatically when the app starts, so restoring an older backup onto a newer version of Zerosoft brings its schema up to date. The other direction — a newer database on older code — isn't something to count on.
+Database migrations run automatically when the app starts, so restoring an older backup onto a newer version of zerosoft brings its schema up to date. The other direction (a newer database on older code) isn't something to count on.
 
 ## The drill nobody does
 
@@ -141,7 +141,7 @@ Do the counts look like your real numbers? Does the uploads tarball open? Better
 
 ## If you use Turso instead
 
-Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` and the database isn't on your server at all — it's a remote libSQL database, which is what our own cloud runs on. Turso has its own backup and restore features; check what your plan includes. We'd still keep a copy you control:
+Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` and the database isn't on your server at all. It's a remote libSQL database, which is what our own cloud runs on. Turso has its own backup and restore features; check what your plan includes. We'd still keep a copy you control:
 
 ```bash
 turso db shell <your-db> .dump > zerosoft-$(date +%F).sql
@@ -158,4 +158,4 @@ Uploads are still yours to back up either way (on your disk, or in Vercel Blob i
 - Offsite copy, with retention.
 - A restore drill on the calendar.
 
-That's the whole runbook. It's short because the architecture is small — [one process, one file](/blog/sqlite-es-suficiente). The only hard part is doing the drill.
+That's the whole runbook. It's short because the architecture is small: [one process, one file](/blog/sqlite-es-suficiente). The only hard part is doing the drill.

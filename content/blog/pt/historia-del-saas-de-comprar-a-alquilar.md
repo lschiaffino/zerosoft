@@ -1,12 +1,12 @@
 ---
-title: "A verdadeira história do SaaS: de comprar software a alugá-lo para sempre"
-description: "Antes você comprava um CD e o software era seu. Hoje você aluga as suas próprias ferramentas de trabalho, mês a mês, sem data de saída. Como aconteceu e como termina."
+title: "A história do SaaS: de comprar software a alugá-lo todo mês"
+description: "Antes você comprava um CD e o software era seu. Hoje você aluga as ferramentas de trabalho mês a mês. Como essa mudança aconteceu e o que a está desfazendo."
 date: "2026-07-07"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["saas", "história"]
 ---
 
-Houve uma época em que o software se comprava como se compra um martelo. Você pagava uma vez, levava uma caixa com um CD, e era seu. Para sempre. Se a empresa que o fazia desaparecesse no dia seguinte, o seu martelo continuava funcionando.
+Houve uma época em que o software se comprava como se compra um martelo. Você pagava uma vez, levava uma caixa com um CD, e era seu. Se a empresa que o fazia desaparecesse no dia seguinte, o seu martelo continuava funcionando.
 
 Essa época acabou. E não foi por acaso.
 
@@ -18,9 +18,9 @@ O poder estava do lado do comprador: a decisão de pagar se renovava apenas se o
 
 ## Ato 2: a nuvem mudou tudo (2000–2015)
 
-A Salesforce teve a ideia que definiu duas décadas: se o software roda nos nossos servidores, não há nada para comprar — há algo para alugar. Nasceu o SaaS: pagamento mensal, acesso pelo browser, atualizações automáticas.
+A Salesforce teve a ideia que definiu duas décadas: se o software roda nos nossos servidores, não há nada para comprar, há algo para alugar. Nasceu o SaaS: pagamento mensal, acesso pelo browser, atualizações automáticas.
 
-No começo foi genuinamente melhor. Sem instalações, sem servidores próprios, sem TI. O problema veio depois, quando todos perceberam o que isso significava para o fornecedor: receita recorrente previsível. A métrica favorita de Wall Street. O objetivo deixou de ser "fazer um produto tão bom que comprem a próxima versão" e passou a ser "fazer com que seja impossível sair".
+No começo foi genuinamente melhor. Nada de instalar, manter servidores ou depender de TI. O problema veio depois, quando todos perceberam o que isso significava para o fornecedor: receita recorrente previsível. A métrica favorita de Wall Street. O objetivo deixou de ser "fazer um produto tão bom que comprem a próxima versão" e passou a ser "fazer com que seja impossível sair".
 
 ## Ato 3: a era do lock-in (2015–hoje)
 
@@ -38,6 +38,6 @@ O aluguel continuou como se nada tivesse acontecido. Até agora.
 
 ## Como a história termina
 
-Termina como começou: com o software sendo seu de novo. Não numa caixa com um CD, mas melhor: código aberto que você pode rodar onde quiser, ou rodar na nossa nuvem pagando apenas o que a infraestrutura custa.
+Com o software sendo seu de novo. Desta vez sem caixa nem CD: código aberto que você roda onde quiser, ou numa nuvem que cobra pelo uso.
 
-De alugar para sempre a ser dono de novo. Esse é o novo mundo. E se você olhar a história, não é novo: é o software voltando à sua natureza.
+Visto de longe, o aluguel mensal foi um desvio de umas duas décadas na história do software.

@@ -1,14 +1,14 @@
 ---
-title: "Static lists, dynamic lists and custom fields, without making a mess"
-description: "How to segment contacts in Zerosoft CRM with static lists, dynamic lists, saved views and custom fields: what each one is good for, what it can't do, and a few rules to keep the data clean."
+title: "Static lists, dynamic lists and custom fields in zerosoft CRM"
+description: "How to segment contacts with static lists, dynamic lists, saved views and custom fields: what each is for, its limits, and rules to keep the data clean."
 date: "2026-09-20"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "segmentation", "how-to"]
 ---
 
 Every CRM eventually grows a junk drawer. A field called "Notes 2". A select with the options "Yes", "yes" and "Y". Thirty lists named "Webinar", "Webinar March", "webinar march FINAL". None of it was a bad idea at the time. Together, they make segmentation slower than exporting to a spreadsheet, which is exactly what people end up doing.
 
-Zerosoft CRM gives you three tools to slice your contacts: static lists, dynamic lists and saved views, plus custom fields to slice by. They overlap a little, and each has limits worth knowing. Here's when to use which.
+zerosoft CRM gives you three tools to slice your contacts: static lists, dynamic lists and saved views, plus custom fields to slice by. They overlap a little, and each has limits worth knowing. Here's when to use which.
 
 ## The three tools, in one paragraph each
 
@@ -28,7 +28,7 @@ So the rule of thumb is simple:
 - Segment depends on a custom field, an owner, a date, or is about companies or deals → **saved view**.
 - Segment is a list of specific people that no filter describes → **static list**.
 
-One more thing lists don't do: they're not mailing lists. Zerosoft CRM doesn't send marketing campaigns or sequences. A list is for organizing, counting and triggering work, not for blasting email.
+One more thing lists don't do: they're not mailing lists. zerosoft CRM doesn't send marketing campaigns or sequences. A list is for organizing, counting and triggering work, not for blasting email.
 
 ## Custom fields: what exists
 

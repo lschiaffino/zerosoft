@@ -2,7 +2,7 @@
 title: "Como montar sua página de link na bio com o Link (e o que ela ainda não faz)"
 description: "Sua página /@handle em cinco minutos: título, bio, avatar, botões ordenados e cliques medidos pelos seus próprios links curtos. Mais a lista honesta do que ela não faz."
 date: "2026-08-06"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "link na bio", "guia"]
 ---
 
@@ -20,7 +20,7 @@ Primeiro vamos alinhar expectativas, porque ferramentas de link na bio adoram pr
 - **Botões.** Qualquer um dos seus links, na ordem que você escolher, até 50.
 - **Uma chave de publicação.** Páginas não publicadas retornam 404.
 
-Essa é a lista completa. Não há temas, cores, fontes, imagens de fundo, fileiras de ícones sociais, vídeos incorporados nem CSS customizado. A página usa o mesmo estilo minimalista do resto da Zerosoft. Se você precisa de uma página cheia de identidade visual, uma ferramenta dedicada (ou uma página no seu próprio site) vai te atender melhor — e os botões dela ainda podem apontar para os seus links curtos.
+Essa é a lista completa. Não há temas, cores, fontes, imagens de fundo, fileiras de ícones sociais, vídeos incorporados nem CSS customizado. A página usa o mesmo estilo minimalista do resto da zerosoft. Se você precisa de uma página cheia de identidade visual, uma ferramenta dedicada (ou uma página no seu próprio site) vai te atender melhor, e os botões dela ainda podem apontar para os seus links curtos.
 
 ## Passo 1: crie os links antes
 
@@ -73,10 +73,10 @@ Uma solução simples para a segunda: crie um link curto por plataforma apontand
 
 - **Botão da temporada no topo.** Suba o lançamento do momento, deixe o conteúdo permanente embaixo. Reordenar são dois cliques.
 - **Promoções que expiram sozinhas.** Crie o link da promoção com data de expiração e marque-o na página. Ele some sozinho.
-- **Um link por destino, para sempre.** Se o destino mudar (loja nova, outro host para o podcast), edite a URL do link curto. O botão, a página e qualquer QR que você tenha impresso continuam funcionando.
+- **Um link por destino, que não muda.** Se o destino mudar (loja nova, outro host para o podcast), edite a URL do link curto. O botão, a página e qualquer QR que você tenha impresso continuam funcionando.
 
 ## O que ainda não existe
 
-Para deixar os limites claros: não há personalização visual além de título, bio e avatar; não dá para fazer upload do avatar; não há analytics de visitas à página; e a página vive só no domínio principal, não no seu domínio próprio. Se algum desses pontos for decisivo para você, conte para a gente — ou, como o código é aberto, mande um pull request.
+Para deixar os limites claros: não há personalização visual além de título, bio e avatar; não dá para fazer upload do avatar; não há analytics de visitas à página; e a página vive só no domínio principal, não no seu domínio próprio. Se algum desses pontos for decisivo para você, conte para a gente, ou, como o código é aberto, mande um pull request.
 
 Uma lista de botões não deveria custar uma assinatura. Agora não custa.

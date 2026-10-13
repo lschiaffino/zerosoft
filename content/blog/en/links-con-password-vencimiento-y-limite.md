@@ -1,12 +1,12 @@
 ---
-title: "Links with a password, an expiration date or a click limit: when to use each"
-description: "Practical use cases for password-protected, expiring and max-click links in Link, exactly what visitors see when one of them closes, and how QR codes in SVG and PNG fit in."
+title: "Password, expiry and click limits on short links: when to use each"
+description: "Use cases for password-protected, expiring and capped links in Link, what visitors see when a link closes, and where QR codes fit in."
 date: "2026-09-18"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "qr", "use cases"]
 ---
 
-Most short links live forever and let anyone through. That's the right default. But every so often you want a link that knows how to say no: only to people with a password, only until Friday, only for the first hundred.
+Most short links never expire and let anyone through. That's the right default. But every so often you want a link that knows how to say no: only to people with a password, only until Friday, only for the first hundred.
 
 Link has three switches for that, under **Advanced options** when you create or edit a link: **Password protection**, **Expires at** and **Max clicks**. They're free, they combine, and they're simple enough that it's worth knowing exactly how they behave before you print one on a poster.
 

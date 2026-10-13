@@ -25,7 +25,7 @@ export default function LinkMockup() {
           <span>{t('navQr')}</span>
           <span>{t('navSettings')}</span>
         </nav>
-        <span className="mk-side-foot">zerosoft — v1.0</span>
+        <span className="mk-side-foot">zerosoft · v1.0</span>
       </aside>
 
       <div className="mk-main">

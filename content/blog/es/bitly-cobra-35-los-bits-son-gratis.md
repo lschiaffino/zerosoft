@@ -1,34 +1,30 @@
 ---
-title: "Bitly cobra $35. Los bits son gratis."
-description: "Desgranamos el plan pago de Bitly ítem por ítem y lo contrastamos con el costo real de servir redirects. La diferencia no es ingeniería: es margen."
+title: "Qué incluye el plan de $35 de Bitly y cuánto cuesta servirlo"
+description: "El plan Core de Bitly, ítem por ítem, al lado de lo que cuesta guardar un link, servir un redirect y contar un clic."
 date: "2026-06-26"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["bitly", "link", "precios"]
 ---
 
-Abrí la página de precios de Bitly. El plan Core: $35 por mes, facturado anual. ¿Qué comprás exactamente con eso? Lo fuimos ítem por ítem, con la calculadora en la mano. Spoiler: la tecnología de esa lista cuesta menos que el café que estás tomando.
+El plan Core de Bitly cuesta $35 por mes. Repasamos qué incluye y cuánto cuesta servir cada cosa.
 
-## Qué incluyen los $35, desgranado
+## Qué incluyen los $35
 
-- **Unos 1.500 links con tu marca por mes.** Un link es una fila en una tabla: slug, URL destino, fecha, flags. ~100 bytes. Los 1.500 del mes son 150KB — menos que una foto de tu celular. Costo marginal: $0.
-- **Redirects ilimitados.** Cada click es un `SELECT`, un `INSERT` y una respuesta 302 de ~300 bytes. Es la workload más liviana que existe en la web. Un millón de redirects al mes mueven menos de 1GB de tráfico. Centavos, siendo generosos.
-- **QR codes.** Un SVG o PNG generado al vuelo a partir del string del link. No hay cómputo ni almacenamiento que valga mencionar. Costo: $0.
-- **Analytics de clicks.** Contador por día, referrer, país, dispositivo. Cada click es una fila de ~200 bytes. Cien mil clicks por mes durante un año: 240MB de disco. Un VPS de $5 trae 25GB.
-- **Un dominio propio.** Aviso: lo registrás vos, al registrador, por unos $10 al año. Bitly no paga ni un centavo de eso.
-- **UTM builder.** Un formulario que concatena strings con `?utm_source=...`. Literalmente eso.
+- **Unos 1.500 links con tu marca por mes.** Un link es una fila: slug, URL de destino, fecha y algunos flags. Unos 100 bytes. Los 1.500 del mes ocupan 150 KB.
+- **Redirects.** Cada clic es un `SELECT`, un `INSERT` y una respuesta 302 de unos 300 bytes. Un millón de redirects por mes mueve menos de 1 GB de tráfico.
+- **Códigos QR.** Un SVG o PNG generado a partir del link. Sin almacenamiento ni cómputo relevantes.
+- **Métricas de clics** por día, referrer, país y dispositivo. Cada clic es una fila de unos 200 bytes: cien mil clics por mes durante un año son 240 MB. Un VPS de $5 trae 25 GB de disco.
+- **Un dominio propio.** El dominio lo registrás y lo pagás vos, unos $10 por año.
+- **Constructor de UTM.** Un formulario que agrega `?utm_source=...` a una URL.
 
-## La suma que no cierra
+## La cuenta
 
-Infraestructura total para un usuario intenso: menos de $1 por mes. Ya hicimos la cuenta completa, línea por línea, en otro post.
+Para un usuario intenso, la infraestructura cuesta menos de $1 por mes. El detalle está en [cuánto cuesta correr un acortador](/blog/cuanto-cuesta-correr-un-link-shortener).
 
-$35 dividido $1 es un margen del 3.400%. No es un precio de tecnología; es el precio de la ausencia de alternativa. Los $34 restantes pagan el equipo de ventas, los anuncios que te trajeron hasta ahí y una costumbre de veinte años de que "los links con marca se pagan".
+El resto del precio paga ventas, publicidad y la costumbre de que los links con marca se pagan.
 
-> Cuando el precio de algo es 35 veces su costo, no estás comprando tecnología. Estás comprando costumbre.
+## Link
 
-## La alternativa ya existe
+Link es nuestro acortador: alias propios, dominios propios, métricas por día, referrer, país, dispositivo, navegador y sistema (sin cookies), QR en SVG y PNG, links con contraseña, vencimiento o límite de clics, tags, constructor de UTM, importación desde Bitly, API REST y webhooks.
 
-**Link** es nuestro acortador: alias custom, analytics por día, referrer, país, dispositivo, browser y OS — sin cookies —, QR en SVG y PNG, links con password, expiración, límite de clicks, tags, UTM builder y una API pública con API keys. Todo lo del checklist de Bitly, y más.
-
-El código es abierto: descargalo y corrélo en tu VPS. Self-hosteado cuesta $0, para siempre. Y si preferís que lo corramos nosotros, con login, backups y uptime, pagás lo que la nube cuesta. Al costo. Sin margen.
-
-Bitly cobra $35. Los bits son gratis. Ahora los links también.
+Es open source y lo corrés por $0. En zerosoft Cloud tenés un plan gratis y después pagás por uso (clics, almacenamiento). Lo que Link todavía no tiene (carpetas, QR con logo, ruteo por país) está en [Link vs Bitly](/blog/zerosoft-link-vs-bitly).

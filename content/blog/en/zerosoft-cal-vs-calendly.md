@@ -1,8 +1,8 @@
 ---
-title: "Zerosoft Cal vs Calendly: an honest comparison"
-description: "Where Calendly is clearly ahead, where Cal holds its own, and who should switch — or stay put. No invented benchmarks, just what each one does today."
+title: "Cal vs Calendly: what each does today"
+description: "Where Calendly is ahead, where Cal holds up, and who should switch or stay. No invented benchmarks."
 date: "2026-09-29"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "calendly", "comparison"]
 ---
 
@@ -25,7 +25,7 @@ Let's start here, because it's the part vendor comparisons skip.
 
 **Payments.** Calendly can collect payment at booking time. Cal has **no payments**. If you're a coach, consultant or tutor who charges per session, that alone settles it.
 
-**Integrations ecosystem.** Calendly has native integrations with major CRMs, marketing tools and an app marketplace, plus browser extensions. Cal has `booking.created`, `booking.rescheduled` and `booking.cancelled` webhooks, a REST API, and native ties to Zerosoft CRM. Anything else, you build or wire up yourself.
+**Integrations ecosystem.** Calendly has native integrations with major CRMs, marketing tools and an app marketplace, plus browser extensions. Cal has `booking.created`, `booking.rescheduled` and `booking.cancelled` webhooks, a REST API, and native ties to zerosoft CRM. Anything else, you build or wire up yourself.
 
 **Mobile apps.** Calendly has iOS and Android apps. Cal doesn't. The booking page and the dashboard work in a mobile browser, but there's no native app.
 
@@ -51,19 +51,19 @@ None of the following is unique in the world. It's what you get, for free, with 
 
 **Embed anywhere.** One script tag, inline or popup, auto-height, and a `zs-cal:booked` event your page can listen to. [Here's the setup](/blog/embeber-cal-en-tu-sitio).
 
-**API and webhooks for everyone.** `/api/v1/calendar/*` to list event types, list and create bookings and cancel them, plus signed webhooks. Same personal API keys as the rest of Zerosoft, documented at [/docs](/docs). No enterprise tier required.
+**API and webhooks for everyone.** `/api/v1/calendar/*` to list event types, list and create bookings and cancel them, plus signed webhooks. Same personal API keys as the rest of zerosoft, documented at [/docs](/docs). No enterprise tier required.
 
 **Self-hosting.** The core is AGPLv3. You can run Cal on your own server with a local SQLite file, keep every booking in a database you control, and read every line that touches your calendar. If your company has opinions about where meeting data lives, that matters.
 
-**It plugs into the rest of Zerosoft.** From a contact in Zerosoft CRM, you can grab a booking link pre-filled with their name and email.
+**It plugs into the rest of zerosoft.** From a contact in zerosoft CRM, you can grab a booking link pre-filled with their name and email.
 
 ## Pricing, without made-up numbers
 
 Calendly has a free plan and per-seat paid plans; team features like round-robin and routing sit on the higher tiers. Check their pricing page for current numbers, they change.
 
-Cal is free to self-host, forever, every feature in the core. On Zerosoft Cloud there's a generous free tier, then pay-per-usage with transparent prices published before we ever charge you. Not per seat: adding a fifth teammate to a round-robin pool doesn't change the bill by itself.
+Cal costs $0 to self-host, with every core feature. On zerosoft Cloud there's a free tier, then per-workspace usage pricing (seats are free) published before we ever charge you. Not per seat: adding a fifth teammate to a round-robin pool doesn't change the bill by itself.
 
-The honest framing: if Cal is missing something you need, the price difference doesn't matter. If it isn't, paying per seat for a booking link is hard to justify — [we've made that argument before](/blog/calendly-y-el-impuesto-a-agendar).
+The honest framing: if Cal is missing something you need, the price difference doesn't matter. If it isn't, paying per seat for a booking link is hard to justify: [we've made that argument before](/blog/calendly-y-el-impuesto-a-agendar).
 
 ## Who should stay on Calendly
 
@@ -83,7 +83,7 @@ If one of those is you, don't switch. Seriously.
 - **Developers** who want an API and webhooks without a sales call, or want to self-host.
 - Teams serving **Spanish and Portuguese** speakers who want booking pages and emails in their language.
 - Agencies and freelancers who want booking embedded on their own site.
-- Anyone already using **Zerosoft CRM**.
+- Anyone already using **zerosoft CRM**.
 
 ## Try it before deciding
 

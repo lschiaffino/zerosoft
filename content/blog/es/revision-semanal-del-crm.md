@@ -1,14 +1,14 @@
 ---
 title: "La revisión semanal del CRM en 30 minutos"
-description: "Un ritual semanal para equipos de ventas chicos: un panel, algunas vistas guardadas, dos listas dinámicas y un reporte que rota. Qué mirar, en qué orden y qué hacer con lo que encontrás."
+description: "Una rutina semanal para equipos de ventas chicos: un panel, algunas vistas guardadas, dos listas dinámicas y un reporte que rota. Qué mirar, en qué orden y qué hacer con lo que encontrás."
 date: "2026-09-06"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["crm", "reportes", "playbook"]
 ---
 
 La mayoría de los equipos mira su CRM en dos modos: a las apuradas, el día antes de una reunión de directorio, y nunca, el resto del tiempo. Ninguno funciona. El primero produce números en los que nadie confía; el segundo produce un CRM que nadie actualiza, que es justamente cómo terminás en el primero.
 
-La solución es aburrida y efectiva: treinta minutos, una vez por semana, mismo día, con una agenda que no cambia. Esta es la que correríamos nosotros, armada sobre lo que Zerosoft CRM tiene de verdad: paneles, reportes, vistas guardadas y listas dinámicas.
+La solución es aburrida y efectiva: treinta minutos, una vez por semana, mismo día, con una agenda que no cambia. Esta es la que correríamos nosotros, armada sobre lo que zerosoft CRM tiene de verdad: paneles, reportes, vistas guardadas y listas dinámicas.
 
 ## Armalo una vez (unos 20 minutos)
 

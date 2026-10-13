@@ -1,8 +1,8 @@
 ---
-title: "Zerosoft Cal vs. Calendly: uma comparação honesta"
+title: "zerosoft Cal vs. Calendly: uma comparação honesta"
 description: "Onde o Calendly está claramente à frente, onde o Cal se garante e quem deveria trocar, ou ficar onde está. Sem benchmarks inventados: só o que cada um faz hoje."
 date: "2026-09-29"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["cal", "calendly", "comparativo"]
 ---
 
@@ -25,11 +25,11 @@ Começamos por aqui, porque é a parte que as comparações de fornecedor pulam.
 
 **Pagamentos.** O Calendly pode cobrar no momento da reserva. O Cal **não tem pagamentos**. Se você é coach, consultor ou professor e cobra por sessão, só isso já resolve a questão.
 
-**Ecossistema de integrações.** O Calendly tem integrações nativas com os grandes CRMs, ferramentas de marketing e um marketplace de apps, além de extensões de navegador. O Cal tem webhooks `booking.created`, `booking.rescheduled` e `booking.cancelled`, uma API REST e integração nativa com o Zerosoft CRM. Para todo o resto, você monta ou conecta por conta própria.
+**Ecossistema de integrações.** O Calendly tem integrações nativas com os grandes CRMs, ferramentas de marketing e um marketplace de apps, além de extensões de navegador. O Cal tem webhooks `booking.created`, `booking.rescheduled` e `booking.cancelled`, uma API REST e integração nativa com o zerosoft CRM. Para todo o resto, você monta ou conecta por conta própria.
 
 **Apps móveis.** O Calendly tem apps para iOS e Android. O Cal não. A página de agendamento e o painel funcionam no navegador do celular, mas não há app nativo.
 
-**Workflows e lembretes.** O Calendly permite montar sequências de lembretes e follow-ups, incluindo SMS nos planos pagos. O Cal envia uma confirmação, os emails de remarcação ou cancelamento e **um** lembrete 24 horas antes. Sem SMS, sem horários personalizados, sem follow-ups.
+**Workflows e lembretes.** O Calendly permite montar sequências de lembretes e follow-ups, incluindo SMS nos planos pagos. O Cal envia uma confirmação, os emails de remarcação ou cancelamento e **um** lembrete 24 horas antes. Não tem SMS, horários de lembrete personalizados nem follow-ups.
 
 **Tipos de reunião.** O Calendly suporta eventos coletivos (vários hosts na mesma call), eventos em grupo (muitos convidados num horário) e enquetes de horário. O Cal suporta eventos um a um, opcionalmente com um pool de hosts em [round-robin](/blog/round-robin-con-cal). Ainda não há eventos coletivos, em grupo nem enquetes.
 
@@ -51,17 +51,17 @@ Nada do que vem a seguir é único no mundo. É o que você recebe de graça, co
 
 **Incorporável em qualquer lugar.** Uma tag de script, inline ou popup, altura automática e um evento `zs-cal:booked` que sua página pode escutar. [Aqui está o setup](/blog/embeber-cal-en-tu-sitio).
 
-**API e webhooks para todos.** `/api/v1/calendar/*` para listar event types, listar e criar reservas e cancelá-las, mais webhooks assinados. As mesmas API keys pessoais do resto do Zerosoft, documentadas em [/docs](/docs). Sem plano enterprise.
+**API e webhooks para todos.** `/api/v1/calendar/*` para listar event types, listar e criar reservas e cancelá-las, mais webhooks assinados. As mesmas API keys pessoais do resto do zerosoft, documentadas em [/docs](/docs). Sem plano enterprise.
 
 **Self-hosting.** O núcleo é AGPLv3. Você pode rodar o Cal no seu próprio servidor com um arquivo SQLite local, manter cada reserva num banco que você controla e ler cada linha que toca o seu calendário. Se a sua empresa tem opinião sobre onde vivem os dados das reuniões, isso pesa.
 
-**Conecta com o resto do Zerosoft.** A partir de um contato no Zerosoft CRM, você gera um link de agendamento com nome e email já preenchidos.
+**Conecta com o resto do zerosoft.** A partir de um contato no zerosoft CRM, você gera um link de agendamento com nome e email já preenchidos.
 
 ## Preços, sem números inventados
 
 O Calendly tem um plano grátis e planos pagos por assento; recursos de time como round-robin e roteamento ficam nos planos mais altos. Confira a página de preços deles para os números atuais, que mudam.
 
-O Cal é grátis para self-hosting, para sempre, com todos os recursos do núcleo. No Zerosoft Cloud há um plano grátis generoso e depois pagamento por uso, com preços transparentes publicados antes de cobrarmos qualquer coisa. Não é por assento: colocar uma quinta pessoa no pool de round-robin não muda a fatura por si só.
+Hospedar o Cal custa $0, com todos os recursos do núcleo. No zerosoft Cloud há um plano grátis para começar e depois você paga pelas reservas que usar. Não é por assento: colocar uma quinta pessoa no pool de round-robin não muda a fatura por si só.
 
 O enquadramento honesto: se falta ao Cal algo de que você precisa, a diferença de preço não importa. Se não falta, pagar por assento por um link de agendamento é difícil de justificar; [já defendemos isso antes](/blog/calendly-y-el-impuesto-a-agendar).
 
@@ -83,7 +83,7 @@ Se um desses é você, não troque. Sério.
 - **Desenvolvedores** que querem API e webhooks sem uma call de vendas, ou querem fazer self-hosting.
 - Times que atendem falantes de **espanhol e português** e querem páginas de agendamento e emails no idioma deles.
 - Agências e freelancers que querem o agendamento incorporado no próprio site.
-- Quem já usa o **Zerosoft CRM**.
+- Quem já usa o **zerosoft CRM**.
 
 ## Teste antes de decidir
 

@@ -1,12 +1,12 @@
 ---
-title: "Zerosoft Chat vs Intercom: an honest comparison"
-description: "Intercom is far ahead on AI, channels, integrations and help center. Chat is a self-hostable webchat inbox with SLAs and CSAT. What each does, and who should not switch."
+title: "Chat vs Intercom: what each does today"
+description: "Intercom is far ahead on AI, channels, integrations and help center. Chat is a self-hostable webchat inbox with SLAs and CSAT. Who should switch, and who shouldn't."
 date: "2026-09-23"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["chat", "intercom", "comparison"]
 ---
 
-Let's get the uncomfortable part out of the way: Intercom and Zerosoft Chat are not the same category of product anymore. Intercom has become an AI-first customer service platform. Chat is a webchat widget with a shared inbox and the support basics done properly. Comparing them feature by feature would be silly — so instead, here's where each one actually stands, and an honest answer to "should I switch?"
+Let's get the uncomfortable part out of the way: Intercom and zerosoft Chat are not the same category of product anymore. Intercom has become an AI-first customer service platform. Chat is a webchat widget with a shared inbox and the support basics done properly. Comparing them feature by feature would be silly, so instead, here's where each one actually stands, and an honest answer to "should I switch?"
 
 ## The short version
 
@@ -15,9 +15,9 @@ Let's get the uncomfortable part out of the way: Intercom and Zerosoft Chat are 
 
 ## Where Intercom is clearly ahead
 
-**AI.** This is the big one. Intercom's AI agent reads your content and answers customers in natural language, resolving many conversations end to end. Chat's bot is **keyword matching, not an LLM**: it scores the visitor's words against your canned responses or your Docs pages, replies once per conversation with the best match (or just a greeting), and then stays out of the way. It's predictable and it never makes things up, but it isn't in the same league, and we won't pretend it is.
+**AI.** This is the big one. Intercom's AI agent reads your content and answers customers in natural language, resolving many conversations end to end. In Chat, the bot answers with an AI model, using your Docs pages and canned responses as context, and hands off to a person when it isn't sure (with AI turned off, it falls back to keyword matching and replies once). zerosoft Agents adds tools on top (CRM, Cal, Track, Flow). Intercom's AI is more mature and has more channels, and we won't pretend otherwise.
 
-**Channels.** Intercom handles conversations across multiple channels — email, messaging apps, social and more — in one inbox. Chat is a website widget. That's it, for now.
+**Channels.** Intercom handles conversations across multiple channels (email, messaging apps, social and more) in one inbox. Chat is a website widget. That's it, for now.
 
 **Help center.** Intercom ships a public help center with articles, collections and search. Chat doesn't. You can point Chat's bot at your Docs pages, but Docs is an internal knowledge tool, not a public, SEO-ready help site.
 
@@ -29,7 +29,7 @@ Let's get the uncomfortable part out of the way: Intercom and Zerosoft Chat are 
 
 **Ticketing, workflows and reporting depth.** Intercom has tickets, visual workflow builders, and detailed reporting. Chat's reports are a single, focused panel: average first response, percentage within the first-response SLA, average resolution time, resolved count, and CSAT.
 
-**Maturity.** Years of production use at very large companies, security certifications, enterprise features. Our enterprise pieces — SSO/SAML, audit logs, custom roles, and white-label for the widget — are in development in `/ee`, not shipped.
+**Maturity.** Years of production use at very large companies, security certifications, enterprise features. Our enterprise pieces (SSO/SAML, audit logs, custom roles, and white-label for the widget) are in development in `/ee`, not shipped.
 
 ## Where Chat holds up
 
@@ -42,20 +42,20 @@ Let's get the uncomfortable part out of the way: Intercom and Zerosoft Chat are 
 - **Canned responses:** type `/` in the reply box to search and insert.
 - **Office hours:** per-day schedule and timezone; outside hours the widget shows an away banner with when you're back.
 - **CSAT:** a 1–5 rating with optional comment, asked when a conversation is resolved.
-- **People:** a list of visitors with their conversations and notes. If a visitor's email matches a contact in Zerosoft CRM, the conversation shows that contact.
+- **People:** a list of visitors with their conversations and notes. If a visitor's email matches a contact in zerosoft CRM, the conversation shows that contact.
 
 **You own it.** AGPLv3, self-hostable, conversations in your own database. For teams with data-residency concerns, or who simply don't want their customer conversations in yet another vendor's cloud, that matters.
 
 **The suite.** Chat shares login, team and data with CRM, Docs, Track, Cal and Link. Your Docs pages can feed the bot; your CRM contacts show up next to the chat.
 
-**Pricing that doesn't punish growth.** Intercom combines per-seat pricing with usage-based charges for its AI agent; check their pricing page for current numbers, because they change. Chat self-hosted is free, forever. Zerosoft Cloud has a generous free tier and then pay-per-usage, with prices published before we ever charge you.
+**Pricing that doesn't punish growth.** Intercom combines per-seat pricing with usage-based charges for its AI agent; check their pricing page for current numbers, because they change. Chat self-hosted costs $0. zerosoft Cloud has a free tier, then charges per workspace for usage (clicks, bookings, emails, storage), with free seats.
 
 ## Who should stay on Intercom
 
 Honestly, many teams. Stay if:
 
-- You rely on an AI agent to resolve a meaningful share of conversations. Chat's keyword bot won't replace that.
-- You support customers on more than one channel — email, WhatsApp, social — and want them in one place.
+- You rely on an AI agent to resolve a meaningful share of conversations. Chat's bot is simpler and less proven.
+- You support customers on more than one channel (email, WhatsApp, social) and want them in one place.
 - You need a public help center, product tours or outbound messaging.
 - You support users inside a native mobile app.
 - Your support stack depends on integrations (CRM sync, ticketing, data warehouses) or on Intercom's API.
@@ -67,7 +67,7 @@ For those teams, moving to Chat would be a step backwards.
 
 - Small teams (two to ten people) answering website chat, where the job is "reply fast and don't drop anything".
 - Companies that want support conversations on their own server, under an open-source license.
-- Teams already using Zerosoft CRM or Docs who want the chat next to their contacts and knowledge.
+- Teams already using zerosoft CRM or Docs who want the chat next to their contacts and knowledge.
 - Anyone who has looked at a per-seat-plus-per-resolution bill and decided their volume doesn't justify it.
 
 ## How to try it
@@ -76,4 +76,4 @@ Create a widget in **Chat**, copy the embed snippet, and put it on a staging pag
 
 ## The bottom line
 
-Intercom is the more capable product by a wide margin, especially on AI and channels. Chat is a focused, honest, self-hostable webchat inbox with the support fundamentals — SLAs, rules, CSAT — built in. Pick the one that matches the job you actually have.
+Intercom is the more capable product by a wide margin, especially on AI and channels. Chat is a focused, honest, self-hostable webchat inbox with the support fundamentals (SLAs, rules, CSAT) built in. Pick the one that matches the job you actually have.

@@ -1,8 +1,8 @@
 ---
-title: "Zerosoft Link vs Bitly: uma comparação honesta (inclusive quando ficar)"
+title: "zerosoft Link vs Bitly: uma comparação honesta (inclusive quando ficar)"
 description: "Onde o Bitly está claramente à frente, onde o Link está, e quem deveria trocar ou ficar onde está. Sem teatro de preços: funcionalidades, ecossistema, propriedade e os trade-offs de cada um."
 date: "2026-10-02"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "bitly", "comparação"]
 ---
 
@@ -32,9 +32,9 @@ Vamos começar pela parte desconfortável.
 
 ## Onde o Link está à frente
 
-**Pode ser seu.** O Link é open source (AGPLv3). Você pode ler cada linha, rodá-lo no seu próprio servidor de graça, para sempre, e guardar cada clique no seu próprio banco de dados. Ou usar o Zerosoft Cloud: um free tier generoso, e depois pagamento por uso com preços publicados antes de qualquer cobrança.
+**Pode ser seu.** O Link é open source (AGPLv3). Você pode ler cada linha, rodá-lo no seu próprio servidor por $0 e guardar cada clique no seu próprio banco de dados. Ou usar o zerosoft Cloud: um plano grátis para começar e depois pagamento pelos cliques que usar.
 
-**Analytics sem cookies por design.** Os cliques são medidos só a partir da requisição HTTP: dia, referrer, país, dispositivo, navegador, sistema operacional. Sem cookies, sem guardar IPs, sem fingerprinting ([detalhes](/blog/analytics-sin-cookies)). Menos dados do que outras ferramentas coletam, de propósito.
+**Analytics sem cookies por design.** Os cliques são medidos só a partir da requisição HTTP: dia, referrer, país, dispositivo, navegador, sistema operacional. Sem cookies, IPs guardados nem fingerprinting ([detalhes](/blog/analytics-sin-cookies)). Menos dados do que outras ferramentas coletam, de propósito.
 
 **Controles que costumam ser upsell.** Links com senha, data de expiração e limite de cliques, cada um com uma página clara para o visitante quando o link fecha ([casos de uso aqui](/blog/links-con-password-vencimiento-y-limite)). Tipo de redirect por link (301 ou 302). Campos de preview social (Open Graph) por link.
 
@@ -65,7 +65,7 @@ Sério, se você se encaixa em algum destes, não troque só por trocar:
 - **Desenvolvedores** que querem API e webhooks em primeiro lugar, ou embutir encurtamento de links no próprio produto, e valorizam poder ler o código.
 - **Organizações atentas à privacidade** que preferem não ter que explicar cookies de rastreamento para ninguém.
 - **Quem quer self-hostear:** encurtadores internos, ambientes regulados, ou gente que simplesmente gosta de ser dona da própria stack.
-- **Times que já usam a Zerosoft**, ou que estão consolidando vários SaaS num só workspace.
+- **Times que já usam a zerosoft**, ou que estão consolidando vários SaaS num só workspace.
 - **Quem precisa de senhas, expirações ou limites de cliques** em links do dia a dia.
 
 ## Um jeito sensato de decidir

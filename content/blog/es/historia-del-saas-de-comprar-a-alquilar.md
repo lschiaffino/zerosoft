@@ -1,43 +1,35 @@
 ---
-title: "La verdadera historia del SaaS: de comprar software a alquilarlo para siempre"
-description: "Antes comprabas un CD y el software era tuyo. Hoy alquilás tu propia herramienta de trabajo, mes a mes, sin fecha de salida. Cómo pasó y cómo termina."
+title: "Breve historia del SaaS: de comprar software a alquilarlo"
+description: "De la licencia perpetua en un CD a la suscripción mensual sin fecha de salida. Cómo cambió el poder entre quien vende y quien usa, y qué cambia con el código abierto."
 date: "2026-07-07"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["saas", "historia"]
 ---
 
-Hubo una época en que el software se compraba como se compra un martillo. Pagabas una vez, te llevabas una caja con un CD, y era tuyo. Para siempre. Si la empresa que lo hacía desaparecía al día siguiente, tu martillo seguía funcionando.
+Durante años, el software se compraba como un martillo: pagabas una vez, te llevabas un CD y era tuyo. Si la empresa desaparecía al día siguiente, el programa seguía funcionando. Hoy casi todo se alquila por mes. Este post repasa cómo pasó.
 
-Esa época terminó. Y no fue por accidente.
+## 1980–2000: la licencia perpetua
 
-## Acto 1: la licencia perpetua (1980–2000)
+Licencia perpetua y, a veces, un contrato de soporte anual. El proveedor sacaba versiones nuevas cada pocos años y vos decidías si valía la pena actualizar. Si no, te quedabas con la versión vieja.
 
-El modelo era simple: licencia perpetua más, quizás, un contrato de soporte anual. Los números eran claros para los dos lados. El vendor vendía versiones nuevas cada pocos años; vos decidías si valían la pena. Si no, te quedabas con la versión vieja, que seguía siendo tuya.
+El poder estaba del lado del comprador: pagaba de nuevo solo si el software mejoraba.
 
-El poder estaba del lado del comprador: la decisión de pagar se renovaba solo si el software mejoraba.
+## 2000–2015: la nube
 
-## Acto 2: la nube lo cambió todo (2000–2015)
+Salesforce instaló una idea que definió dos décadas: si el software corre en nuestros servidores, no hay nada que comprar, hay algo que alquilar. Pago mensual, acceso desde el navegador y actualizaciones automáticas.
 
-Salesforce tuvo la idea que definió dos décadas: si el software corre en nuestros servidores, no hay nada que comprar — hay algo que alquilar. Nació el SaaS: pago mensual, acceso por browser, actualizaciones automáticas.
+Al principio fue mejor para todos: sin instalaciones ni servidores propios. Para el proveedor, además, significó ingreso recurrente y predecible. El objetivo pasó de "que compren la próxima versión" a "que no se vayan".
 
-Al principio fue genuinamente mejor. Sin instalaciones, sin servidores propios, sin IT. El problema vino después, cuando todos notaron lo que significaba para el vendor: ingreso recurrente predecible. La métrica favorita de Wall Street. El objetivo dejó de ser "hacer un producto tan bueno que compren la próxima versión" y pasó a ser "hacer que sea imposible irse".
+## 2015–hoy: retener
 
-## Acto 3: la era del lock-in (2015–hoy)
+El SaaS maduro aprendió a retener: precios por usuario que crecen solos, funciones básicas que pasan al plan enterprise, exportaciones incompletas, integraciones que se rompen si te vas.
 
-El SaaS maduro se especializó en retener, no en mejorar. Precios por usuario que escalan solos. Features básicas movidas al plan enterprise. Exportadores de datos que justo no exportan lo que necesitás. Integraciones que se rompen si te vas.
+Una empresa mediana paga hoy decenas o cientos de suscripciones, muchas con subas en cada renovación. Dejar de pagar significa perder la herramienta y, a veces, los datos.
 
-El resultado: una empresa mediana paga hoy cientos de suscripciones. Nadie sabe exactamente cuántas. Cada una sube 10% al año. Y dejar de pagar significa perder la herramienta *y* tus datos.
+## Lo que cambió abajo
 
-Compraste un martillo todos los meses durante años. Y no tenés ningún martillo.
+Mientras tanto, hacer y correr software se abarató. Los servidores cuestan poco, el open source cubre casi todos los componentes y las herramientas de IA bajaron el costo de escribir código. El precio del alquiler no acompañó.
 
-## Acto 4: el costo colapsó
+## Lo que proponemos
 
-Mientras tanto, pasó algo que la industria prefirió no mencionar: el costo de hacer y correr software colapsó. Los servidores cuestan centavos. El open source resolvió casi todos los componentes. Y la IA bajó el costo de escribir código a una fracción.
-
-El alquiler se mantuvo como si nada hubiera pasado. Hasta ahora.
-
-## Cómo termina la historia
-
-Termina como empezó: con el software siendo tuyo otra vez. No en una caja con un CD, sino mejor: código abierto que podés correr donde quieras, o correr en nuestra nube pagando solo lo que la infraestructura cuesta.
-
-De alquilar para siempre a ser dueño otra vez. Ese es el nuevo mundo. Y si mirás la historia, no es nuevo: es el software volviendo a su naturaleza.
+Volver a que el software sea tuyo, con una diferencia respecto del CD: el código es abierto. Lo corrés donde quieras, o lo corremos nosotros en zerosoft Cloud, con un plan gratis y pago por uso después. Si nos vamos, el código queda.

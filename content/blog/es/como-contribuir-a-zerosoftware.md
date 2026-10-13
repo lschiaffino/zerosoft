@@ -1,16 +1,16 @@
 ---
-title: "Cómo contribuir a Zerosoftware (sin pedir permiso)"
-description: "El código es abierto, el roadmap es público y este blog sale en tres idiomas. Así podés sumarte: issues, PRs, traducciones, documentación e ideas de producto."
+title: "Cómo contribuir a zerosoft"
+description: "El código es abierto, el roadmap es público y el blog sale en tres idiomas. Cómo sumarte con issues, PRs, traducciones, documentación e ideas de producto."
 date: "2026-06-07"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["open source", "comunidad", "contribuir"]
 ---
 
-Zerosoftware no es una empresa a la que le comprás: es un proyecto al que te podés sumar. El código de Link es open source, el roadmap es público y este blog se escribe en tres idiomas. Todo eso se mantiene gracias a gente que apareció un día y dijo "esto lo puedo hacer mejor". Si sos una de esas personas, este post es para vos.
+Además de usar zerosoft, te podés sumar a hacerlo. El código de las once apps es open source, el roadmap es público y este blog sale en tres idiomas. Este post explica cómo ayudar: reportar bugs, mandar código, traducir, documentar o proponer funciones.
 
 ## Reportá lo que está roto
 
-La contribución más subestimada del open source no es código: es un buen issue. Si algo falla, contalo:
+La contribución más subestimada del open source es un buen issue. Si algo falla, contalo:
 
 - **Qué hiciste**, paso por paso, hasta que se rompió.
 - **Qué esperabas** que pase y qué pasó en realidad.
@@ -26,11 +26,11 @@ El repo es público y los PRs se revisan en serio. Antes de abrir uno:
 2. **Respetá el estilo del proyecto.** El código se lee mucho más de lo que se escribe: nombrá las cosas como las nombramos nosotros, comentá lo que nosotros comentamos, nada más.
 3. **Un PR, un cambio.** Si arreglás un bug y de paso reformateás medio repo, tu PR es inreviewable. Dos PRs, mejor.
 
-No hace falta que seas senior. Buena parte de los PRs que entran son typos, validaciones, tests y casos borde que nadie había probado. Link corre sobre SQLite: lo descargás, lo corrés y tenés el entorno local funcionando en una tarde.
+No hace falta que seas senior. Buena parte de los PRs que entran son typos, validaciones, tests y casos borde que nadie había probado. zerosoft corre sobre SQLite: lo descargás, lo corrés y tenés el entorno local funcionando en una tarde.
 
 ## Traducciones y documentación
 
-Zerosoftware existe en tres idiomas: español, inglés y portugués. La interfaz, la documentación en /docs y este blog. Es mucho texto, y siempre hay alguna frase que suena a traducción automática disfrazada.
+zerosoft existe en tres idiomas: español, inglés y portugués. La interfaz, la documentación en /docs y este blog. Es mucho texto, y siempre hay alguna frase que suena a traducción automática disfrazada.
 
 Si hablás dos de esos idiomas, tu contribución es directa: marcá la frase que suena rara y proponé una mejor. Las traducciones no las hace un equipo de localización en California: las hace gente que leyó algo y se le torció la cara.
 
@@ -44,4 +44,4 @@ Lo que no prometemos: fechas exactas, features a pedido, soporte 24/7. Somos un 
 
 ## El trato
 
-Contribuir a Zerosoftware tiene una garantía que ningún SaaS puede firmar: lo que construyás es tuyo para siempre. El código no se cierra, la licencia no cambia y, si mañana desaparecemos, el software queda. Hecho de ceros, mantenido por personas. Sumate.
+Lo que aportás queda bajo AGPLv3: lo publicado no se puede cerrar y, si mañana desaparecemos, el software queda.

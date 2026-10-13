@@ -1,12 +1,12 @@
 ---
 title: "Analytics sem cookies: o que um clique já conta"
-description: "Os analytics do Link não usam cookies, nem JavaScript, nem fingerprinting. Tudo o que sabemos sobre um clique vem da requisição HTTP que o navegador ia mandar de qualquer jeito."
+description: "Os analytics do Link funcionam sem cookies e sem fingerprinting. Tudo o que registramos de um clique vem da requisição HTTP que o navegador já envia."
 date: "2026-06-24"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["analytics", "privacidade", "link", "open source"]
 ---
 
-Um clique num link curto é uma conversa entre um navegador e o nosso servidor. Antes de qualquer analytics existir, essa conversa já acontece: o navegador pede o redirect, o servidor responde com um 302. Analytics sem cookies é simplesmente ouvir com atenção essa conversa, em vez de grampear a sala.
+Um clique num link curto é uma requisição HTTP: o navegador pede o redirect e o servidor responde com um 302. Os analytics do Link leem o que já vem nessa requisição (país, referrer, dispositivo, navegador) e não colocam nada no navegador de quem clicou.
 
 ## A requisição conta a história
 
@@ -32,7 +32,7 @@ E esta é a lista que importa mais: o que não guardamos.
 
 - **Nada de IPs.** Usados em memória, descartados, nunca escritos em disco.
 - **Nada de cookies.** Não criamos nenhum, em nenhum domínio.
-- **Nada de fingerprinting.** Sem truques de canvas, sem enumeração de fontes, sem mágica com tamanho de tela.
+- **Nada de fingerprinting.** Nada de truques com canvas, lista de fontes ou tamanho de tela.
 - **Nada de IDs de usuário, sessões ou identidade entre cliques.** Não conseguimos saber se uma pessoa clicou dez vezes ou dez pessoas clicaram uma. Nem queremos.
 
 O dashboard e o `GET /api/v1/links/:id/stats` mostram cliques por dia, referrer, país, dispositivo, navegador e SO. Esse é o dataset inteiro. É agregado por construção, não por política.

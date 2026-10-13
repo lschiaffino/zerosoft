@@ -1,12 +1,12 @@
 ---
-title: "Por qué solo tenemos 'Continuar con Google'"
-description: "No es pereza: las contraseñas son el eslabón más débil de la seguridad, y delegar el login es delegarlo en quien lo hace mejor. Los trade-offs, sin vueltas."
+title: "Por qué el login de zerosoft Cloud es solo con Google"
+description: "Las contraseñas reutilizadas y robadas son el origen de la mayoría de los accesos indebidos. Por qué delegamos el login en Google, qué ganás y qué perdés con eso."
 date: "2026-06-13"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["seguridad", "oauth", "login"]
 ---
 
-Cuando entrás a Link hay un solo botón: **Continuar con Google**. No hay formulario de registro, no hay email + contraseña, no hay "olvidé mi contraseña". No es una decisión de diseño perezosa. Es una decisión de seguridad, y vale la pena explicarla.
+Para entrar a zerosoft Cloud hay un solo botón: **Continuar con Google**. No hay formulario de registro, ni contraseña, ni "olvidé mi contraseña". Lo decidimos por seguridad, y este post explica el razonamiento y lo que cuesta.
 
 ## La contraseña es el eslabón débil
 
@@ -18,7 +18,7 @@ Los datos hace años que cuentan la misma historia:
 
 El problema es estructural. Cada servicio que te pide crear una contraseña te pide dos cosas: que vos elijas una buena y que ellos la guarden bien. Una de las dos falla siempre. Y cuando falla, el atacante no prueba esa contraseña solo acá: la prueba en tu email, tu banco y tu laburo.
 
-Mientras tanto, del otro lado del botón hay miles de ingenieros de seguridad, detección de logins anómalos, 2FA, passkeys y modelos antiphishing que, según los propios números publicados de Google, bloquean el 99,9% de los ataques automatizados. Ninguna startup puede igualar eso. Nosotros tampoco. Entonces no competimos: delegamos.
+Del otro lado del botón hay un equipo de seguridad enorme, detección de logins anómalos, 2FA, passkeys y filtros contra phishing. Ninguna startup puede igualar eso, nosotros tampoco. Así que delegamos.
 
 ## Qué significa para vos
 
@@ -28,14 +28,14 @@ Mientras tanto, del otro lado del botón hay miles de ingenieros de seguridad, d
 
 ## Los trade-offs, honestamente
 
-Sería deshonesto vender esto como pura ventaja. No lo es:
+También tiene costos:
 
-- **Necesitás una cuenta de Google.** Si no tenés o no querés tener una, hoy no podés usar el cloud de Zerosoftware. El self-host, en cambio, no te pide login.
-- **Dependemos de la disponibilidad de Google.** Si su auth cae, el login cae. Tus links y la API con API keys siguen funcionando — el redirect no depende del login — pero el panel sí.
-- **Google se entera de que iniciás sesión acá.** Pedimos solo email y nombre; no ve tu actividad ni tus datos. Pero ese metadato existe, y si te incomoda, la respuesta es el self-host.
+- **Necesitás una cuenta de Google.** Si no tenés o no querés tener una, hoy no podés usar zerosoft. En self-host el login también es con Google, pero con tu propio cliente de OAuth.
+- **Dependemos de la disponibilidad de Google.** Si su auth cae, el login cae. Tus links y la API con API keys siguen funcionando, el redirect no depende del login, pero el panel sí.
+- **Google se entera de que iniciás sesión acá.** Pedimos solo email y nombre; no ve tu actividad ni tus datos. Pero ese metadato existe.
 
 ## ¿Vamos a agregar más providers?
 
-Sí, cuando sumen sin romper la propiedad clave: que no exista ningún secreto compartido en nuestros servidores. GitHub y Microsoft cumplen. Las passkeys cumplen todavía mejor — son el futuro obvio del login — y probablemente sean lo próximo.
+Sí, cuando sumen sin romper la propiedad clave: que no exista ningún secreto compartido en nuestros servidores. GitHub y Microsoft cumplen. Las passkeys cumplen todavía mejor y probablemente sean lo próximo.
 
 ¿Email + contraseña? No. Ese formulario no vuelve. La forma más segura de guardar contraseñas es no guardarlas.

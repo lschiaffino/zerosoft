@@ -1,14 +1,14 @@
 ---
-title: "La API REST v1 en la práctica: claves personales, curl y errores reales"
-description: "Creá una key zs_, acortá links, sacá estadísticas de clicks y cargá contactos y deals desde un script. Cada ejemplo coincide con el código, incluido qué pasa cuando algo sale mal."
+title: "La API REST v1 en la práctica: claves personales, curl y errores"
+description: "Creá una clave zs_, acortá links, leé estadísticas de clics y cargá contactos y deals desde un script. Cada ejemplo está chequeado contra el código, incluidos los errores."
 date: "2026-08-13"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["api", "desarrolladores", "tutorial"]
 ---
 
-Ya escribimos sobre [por qué documentamos todas las APIs](/blog/apis-abiertas-por-que-documentamos-todo). Este es el lado práctico: un recorrido por la API REST v1 de Zerosoft con comandos `curl` para copiar y pegar, para Link y para el CRM, más los errores con los que te vas a cruzar de verdad.
+Ya escribimos sobre [por qué documentamos todas las APIs](/blog/apis-abiertas-por-que-documentamos-todo). Este es el lado práctico: la API REST v1 con comandos `curl` para copiar y pegar, para Link y para el CRM, y los errores que te vas a cruzar.
 
-Todo lo que sigue lo chequeamos contra los handlers de `app/api/v1`, no solo contra la página de docs. La URL base es `https://zerosoft.ai/api/v1` en Zerosoft Cloud, o `https://tu-host/api/v1` si hacés self-host.
+Todo lo que sigue lo chequeamos contra los handlers de `app/api/v1`, no solo contra la página de docs. La URL base es `https://zerosoft.ai/api/v1` en zerosoft Cloud, o `https://tu-host/api/v1` si hacés self-host.
 
 ## Conseguí una key
 
@@ -75,7 +75,7 @@ curl -X POST "$ZS/crm/contacts" \
 # 201 → { "id": "...", "first_name": "Ana", "last_name": "Garcia", "lifecycle_stage": "lead", ... }
 ```
 
-Actualizá con `PATCH` — todos los campos son opcionales:
+Actualizá con `PATCH`: todos los campos son opcionales:
 
 ```bash
 curl -X PATCH "$ZS/crm/contacts/CONTACT_ID" \
@@ -118,7 +118,7 @@ curl "$ZS/crm/tasks?bucket=overdue" -H "Authorization: Bearer $ZS_KEY"
 
 `bucket` acepta `overdue`, `today`, `upcoming` o `done`. Las fechas van como `YYYY-MM-DD`, opcionalmente con hora.
 
-También hay endpoints de Cal (tipos de evento, reservas, cancelar) bajo `/calendar` — están en las [docs](/docs).
+También hay endpoints de Cal (tipos de evento, reservas, cancelar) bajo `/calendar`: están en las [docs](/docs).
 
 ## Errores: una sola forma para todo
 
@@ -155,4 +155,4 @@ Para importaciones masivas, mantenete bastante por debajo de 100 por minuto y nu
 
 ## Lo que (todavía) no está
 
-Siendo honestos con los bordes: todavía no hay API para Track, Chat ni Docs, el CRM no emite eventos de webhook, y no hay OAuth para apps de terceros — las keys son personales. Si el dashboard puede hacer algo que la API no, eso es un hueco, no una decisión de diseño. Abrí un issue.
+Los bordes: todavía no hay API para Track, Chat ni Docs, y no hay OAuth para apps de terceros (las claves son personales). Si el dashboard puede hacer algo que la API no, eso es un hueco, no una decisión de diseño. Abrí un issue.

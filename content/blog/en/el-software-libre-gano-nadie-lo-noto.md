@@ -1,38 +1,29 @@
 ---
-title: "Free software won. Nobody noticed."
-description: "Linux, Postgres, nginx, Kubernetes: the world already runs on open source. The only layer that stayed proprietary is the one users touch. That last mile is what we are here to close."
+title: "Open source runs the servers. The apps on top are still rented."
+description: "Linux, Postgres, nginx and Kubernetes already run the internet. The tools office workers use every day are the part that stayed closed. That's the layer we're building."
 date: "2026-05-28"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["open source", "linux", "saas"]
 ---
 
-If you are reading this, your request traveled through a Linux server, passed through an nginx, queried a Postgres database and probably came out of a container orchestrated by Kubernetes. The world already runs on free software. It has for a long time — so long that it stopped being news.
+The request that loaded this page went through a Linux server and an nginx proxy, probably read from Postgres and ran in a container. Most of the internet's infrastructure is open source, and has been for so long that nobody mentions it.
 
-The numbers are boringly conclusive:
+The evidence is public:
 
-- Over 80% of web servers — and effectively 100% of the world's 500 fastest supercomputers — run Linux.
-- More than 90% of cloud infrastructure is built on open source software.
-- Postgres, MySQL, Redis, nginx, Kubernetes, Docker, Git: the entire stack the internet is built with is free.
-- Synopsys code audits have been reporting for years that over 90% of commercial codebases contain open source components.
+- Every one of the TOP500 supercomputers runs Linux.
+- Postgres, MySQL, Redis, nginx, Kubernetes, Docker and Git are all open source.
+- Synopsys code audits have reported for years that more than 90% of commercial codebases include open source components.
 
-The battle for the server is over. Free software won so completely that nobody celebrates it: it is simply the air the industry breathes.
+## The layer that stayed closed
 
-## The layer that got left out
+The exception is the layer people actually click on: the link shortener, the CRM, the calendar, the project board, the support chat. Those stayed proprietary and billed monthly.
 
-There is one visible exception: the layer users actually touch. The link shortener, the CRM, the calendar, the project board, the team chat. That last mile stayed proprietary, closed, and billed monthly.
+They're built on the same open stack (Linux, Postgres, nginx) and sold as closed boxes. So the hard part, infrastructure, costs nothing, and the simple part, a form over a table, costs tens of dollars per user per month.
 
-The irony is hard to ignore: those products are built entirely on free software — they run on Linux, store data in Postgres, serve traffic through nginx — yet they are sold as black boxes. The modern SaaS is open source underneath and rent on top.
+That's not a technical accident. Engineers built infrastructure for themselves and gained from sharing it. The application layer is where the subscription business lived, and end users don't audit code.
 
-The result jumps out of any IT budget: the infrastructure, which is the technically hard part, is free. The office tools, which are the technically simple part, cost tens of dollars per user per month. The software price map is exactly upside down.
+## What we're building
 
-This is not a technical accident. Infrastructure was liberated because engineers built it for themselves, and sharing was a competitive advantage. The application layer stayed captured because that is where the business model lived: end users don't audit code, they pay subscriptions.
+zerosoft is that application layer, open source. Eleven apps today: CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal and Board, under AGPLv3. Self-hosting costs $0. zerosoft Cloud has a free tier and then charges per workspace for usage (clicks, bookings, emails, storage), with free seats.
 
-## The last mile
-
-That is what we are here to close. Work tools — the ones used every day by people who don't write code — are the last mile of free software.
-
-We started with **Link**: short links with custom aliases, cookie-less analytics, QR codes in SVG and PNG, password-protected and expiring links, and a public v1 API. It is available now, the code is open, and the cloud is billed at cost. Next come Track (Q4 2026), CRM (Q1 2027) and Cal (Q2 2027), under the same contract: self-host for $0 or cloud at cost, no margin.
-
-Free software doesn't need to be discovered. It needs to be finished. The infrastructure is already free; what touches people is not — yet.
-
-> The last mile of open source doesn't run in a datacenter. It runs in your browser tab.
+The infrastructure is already open. We're working on the part people see.

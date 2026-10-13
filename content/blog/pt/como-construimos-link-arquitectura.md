@@ -1,8 +1,8 @@
 ---
 title: "Como construímos o Link: a arquitetura completa cabe numa página"
-description: "Next.js, SQLite e um route handler que responde em milissegundos. Sem Redis, sem Kafka, sem microsserviços. Assim é feito um encurtador honesto."
+description: "Next.js, SQLite e um route handler que responde em milissegundos. A arquitetura inteira do encurtador, sem filas nem cache externo."
 date: "2026-06-25"
-author: "Zerosoftware"
+author: "zerosoft"
 tags: ["link", "arquitetura", "open source"]
 ---
 
@@ -40,7 +40,7 @@ O banco é SQLite com better-sqlite3, em modo WAL. Para essa carga é uma decis�
 
 ## Analytics sem cookies
 
-Sem tracker, sem pixel, sem fingerprint. Tudo sai dos headers que o navegador já manda em cada request:
+Não usamos tracker, pixel nem fingerprint. Tudo sai dos headers que o navegador já manda em cada request:
 
 ```ts
 function recordClick(req: NextRequest, linkId: string) {
@@ -58,7 +58,7 @@ function recordClick(req: NextRequest, linkId: string) {
 }
 ```
 
-Guardamos o domínio do referrer, não a URL completa. O país vem do header do edge, não de geolocalizar o IP — que sequer armazenamos.
+Guardamos o domínio do referrer, não a URL completa. O país vem do header do edge, não de geolocalizar o IP, que sequer armazenamos.
 
 ## QR on-demand
 
@@ -70,4 +70,4 @@ Os QRs não são gerados com antecedência nem guardados: são calculados a cada
 - **Kafka / filas de eventos:** o `INSERT` de analytics faz parte do request e custa menos de um milissegundo. Uma fila é a solução para um problema que não temos.
 - **Microsserviços:** um encurtador é um processo. Dividi-lo em cinco transforma cada deploy numa coreografia e cada bug numa investigação distribuída.
 
-Arquitetura entediante é uma feature: menos peças para falhar às 3 da manhã. Todo o código é aberto — audite cada linha.
+Arquitetura entediante é uma feature: menos peças para falhar às 3 da manhã. Todo o código é aberto: audite cada linha.

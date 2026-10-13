@@ -163,7 +163,7 @@ export async function notifyBooking(
     title: eventType.title,
     description: manage && kind !== 'cancelled' ? `Reschedule or cancel: ${manage}` : undefined,
     location: booking.meeting_url || eventType.location || undefined,
-    organizer: { name: host?.name ?? 'Zerosoft Cal', email: host?.email ?? 'calendar@zerosoft.ai' },
+    organizer: { name: host?.name ?? 'zerosoft Cal', email: host?.email ?? 'calendar@zerosoft.ai' },
     attendee: { name: booking.invitee_name, email: booking.invitee_email },
   });
   const attachments = [
