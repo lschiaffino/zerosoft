@@ -148,6 +148,20 @@
         "title2": "Pay nothing.",
         "sub": "Free, open, already live. Your first short link is ten seconds away.",
         "button": "Launch Link →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Paste a URL",
+          "d": "One link, or up to 200 at once. Already on Bitly? Import your links through its API or a CSV."
+        },
+        "s2": {
+          "t": "Make it yours",
+          "d": "Pick the alias, use your own domain, add UTM tags, a QR code, a password, an expiry date or a click limit."
+        },
+        "s3": {
+          "t": "Share and measure",
+          "d": "Cookie-less analytics by day, referrer, country, device, browser and OS. Export to CSV or fire a webhook on every click."
+        }
       }
     },
     "track": {
@@ -233,6 +247,20 @@
         "title2": "Move nothing else.",
         "sub": "Track is live. Open it, create a project and move your first card today — for $0.",
         "button": "Launch Track →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Set up a project",
+          "d": "Create a project with your own statuses and invite the team to the shared workspace."
+        },
+        "s2": {
+          "t": "Write the work",
+          "d": "Issues with sub-issues, relations, priorities and estimates. Group them into cycles to plan each sprint."
+        },
+        "s3": {
+          "t": "Ship it",
+          "d": "Follow progress on a list, board, calendar or Gantt timeline. Comments, activity and an inbox keep everyone in sync."
+        }
       }
     },
     "crm": {
@@ -318,6 +346,20 @@
         "title2": "Not your wallet.",
         "sub": "CRM is live. Open it, import your CSV and run your pipeline today — for $0.",
         "button": "Launch CRM →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Bring your contacts",
+          "d": "Import contacts and companies from any CSV, mapping each column to a field, with duplicates detected for you."
+        },
+        "s2": {
+          "t": "Run your pipeline",
+          "d": "Move deals across the stages of one or several pipelines on a kanban board. Log calls, notes and tasks on each timeline."
+        },
+        "s3": {
+          "t": "Automate and report",
+          "d": "Workflows send emails, create tasks or call webhooks when something changes. Reports and dashboards show where the money is."
+        }
       }
     },
     "cal": {
@@ -403,6 +445,20 @@
         "title2": "Bill nobody.",
         "sub": "Cal is live. Create an event type and share your link today — for $0.",
         "button": "Launch Cal →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Create an event type",
+          "d": "Set the duration, the questions you need answered, your weekly availability, buffers and minimum notice."
+        },
+        "s2": {
+          "t": "Share your page",
+          "d": "Send your booking link or embed it on your site, inline or as a popup. Round-robin spreads meetings across the team."
+        },
+        "s3": {
+          "t": "Let them book",
+          "d": "The meeting lands in Google Calendar with a Meet link. Everyone gets the invite and a 24h reminder; guests can reschedule or cancel on their own."
+        }
       }
     },
     "docs": {
@@ -488,6 +544,20 @@
         "title2": "Pay nothing.",
         "sub": "Docs is live. Start your team wiki today — for $0.",
         "button": "Launch Docs →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Create a page",
+          "d": "Start from a blank page or a template, and nest pages inside pages to build your wiki."
+        },
+        "s2": {
+          "t": "Write in blocks",
+          "d": "Headings, lists, to-dos and more from the slash menu. Link other pages with [[ and leave comments."
+        },
+        "s3": {
+          "t": "Share it",
+          "d": "Keep a page private, open it to the team, to one person, or publish it with a public link."
+        }
       }
     },
     "chat": {
@@ -573,6 +643,20 @@
         "title2": "Pay nothing.",
         "sub": "Chat is live. Put the widget on your site today — for $0.",
         "button": "Launch Chat →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Add the widget",
+          "d": "Copy one script tag into your site. Visitors get a webchat that respects your office hours."
+        },
+        "s2": {
+          "t": "Work one inbox",
+          "d": "Every conversation lands in a shared inbox, with states, priorities, assignment rules and SLA timers."
+        },
+        "s3": {
+          "t": "Answer faster",
+          "d": "Canned responses for the usual questions and an auto-answer bot that matches them by keyword. CSAT tells you how it went."
+        }
       }
     }
   },
@@ -583,12 +667,12 @@
     "manifesto": "Read the manifesto",
     "browserUrl": "zerosoft.ai/app",
     "featuresLabel": "01 — Features",
-    "compareLabel": "02 — The math",
+    "compareLabel": "03 — The math",
     "compareToday": "Today you pay",
     "compareZero": "With Zerosoft",
     "compareTeam": "Team of 10",
     "compareYear": "/ year",
-    "modelLabel": "03 — Three ways to have it",
+    "modelLabel": "04 — Three ways to have it",
     "model": {
       "a": {
         "title": "Self-host it",
@@ -609,9 +693,20 @@
         "priceNote": "/ commercial license + support"
       }
     },
-    "faqLabel": "04 — FAQ",
+    "faqLabel": "05 — FAQ",
     "faqTitle": "Fair questions.",
-    "faqTitleDim": "Zero fine print."
+    "faqTitleDim": "Zero fine print.",
+    "alternative": "The open-source alternative to {rival}",
+    "selfHost": "Self-host",
+    "apiDocs": "API docs",
+    "howLabel": "02 — How it works",
+    "howTitle": "Up and running",
+    "howTitleDim": "in three steps.",
+    "suiteLabel": "06 — Part of the suite",
+    "suiteTitle": "One workspace.",
+    "suiteTitleDim": "Six apps, same login.",
+    "previewNote": "Interactive preview of the product UI.",
+    "compareSave": "You keep"
   },
   "mockups": {
     "link": {
