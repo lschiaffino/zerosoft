@@ -54,6 +54,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const before = (await getDb().prepare('SELECT status FROM calendar_bookings WHERE id = ?').get(params.id)) as
       | { status: string }
       | undefined;
+    // Una reserva esperando pago solo se puede cancelar; se confirma con el pago.
+    if (before?.status === 'pending' && parsed.data.status && parsed.data.status !== 'cancelled') {
+      return crmError(409, 'not_confirmed');
+    }
     const booking = await updateBooking(params.id, parsed.data);
     if (!booking) return notFound();
     if (before?.status === 'confirmed' && booking.status === 'cancelled') {

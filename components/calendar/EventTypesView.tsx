@@ -41,13 +41,6 @@ function slugify(s: string): string {
     .slice(0, 60);
 }
 
-/** Lunes a viernes, 9 a 17: disponibilidad inicial de un event type nuevo. */
-export const DEFAULT_HOURS = [1, 2, 3, 4, 5].map((dayOfWeek) => ({
-  dayOfWeek,
-  startTime: '09:00',
-  endTime: '17:00',
-}));
-
 async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -282,12 +275,8 @@ function NewEventTypeModal({
     }).catch(() => null);
     if (res && res.status === 201) {
       const et = (await res.json()) as { id: string; title: string; slug: string; duration_min: number; color: string };
-      // Disponibilidad inicial: sin reglas el link no tendría horarios.
-      await fetch(`/api/calendar/event-types/${et.id}/availability`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ rules: DEFAULT_HOURS }),
-      }).catch(() => null);
+      // La disponibilidad inicial es el horario por defecto del workspace (el
+      // servidor lo asigna al crear y lo crea, lunes a viernes 9 a 17, si no hay).
       setBusy(false);
       reset();
       onClose();

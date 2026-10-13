@@ -10,6 +10,7 @@ import StatusBadge from './StatusBadge';
 import { AssigneeMenu, DoneCheckbox, DueDateMenu, PriorityMenu, QuickAdd, StatusMenu } from './InlineEditors';
 import { isPendingIssue, type ProjectMap } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
+import type { IssueSelection } from './BulkEdit';
 
 export type SortField = 'identifier' | 'title' | 'priority' | 'created' | null;
 
@@ -57,6 +58,8 @@ interface IssuesTableProps {
   hideColumns?: OptionalColumn[];
   /** Muestra la cabecera de columnas (por defecto sí). */
   showHeader?: boolean;
+  /** Selección múltiple para edición masiva (checkbox, shift+clic, X). */
+  selection?: IssueSelection & { label: string; allLabel: string };
 }
 
 function parseLabels(raw: string): IssueLabel[] {
@@ -85,6 +88,7 @@ export default function IssuesTable({
   quickAdd,
   hideColumns = [],
   showHeader = true,
+  selection,
 }: IssuesTableProps) {
   const sorted = useMemo(() => {
     if (!sort) return issues;
@@ -116,7 +120,7 @@ export default function IssuesTable({
 
   const show = (c: OptionalColumn) => !hideColumns.includes(c) && (c !== 'project' || Boolean(labels.project));
   const columnCount =
-    (editing ? 1 : 0) + 5 + (['assignee', 'cycle', 'labels', 'created', 'project'] as OptionalColumn[]).filter(show).length;
+    (editing ? 1 : 0) + (selection ? 1 : 0) + 5 + (['assignee', 'cycle', 'labels', 'created', 'project'] as OptionalColumn[]).filter(show).length;
 
   const header = (field: SortField, label: string, className?: string) => (
     <th
@@ -135,6 +139,21 @@ export default function IssuesTable({
         {showHeader && (
           <thead>
             <tr>
+              {selection && (
+                <th className="track-col-select">
+                  <input
+                    type="checkbox"
+                    className="track-select-box"
+                    aria-label={selection.allLabel}
+                    checked={sorted.length > 0 && selection.selected.size === sorted.length}
+                    ref={(el) => {
+                      if (el) el.indeterminate = selection.selected.size > 0 && selection.selected.size < sorted.length;
+                    }}
+                    onChange={() => selection.toggleAll()}
+                    data-testid="track-select-all"
+                  />
+                </th>
+              )}
               {editing && (
                 <th className="track-col-check">
                   <span className="track-sr-only">{editing.ui.inline.markDone}</span>
@@ -181,8 +200,34 @@ export default function IssuesTable({
                 key={issue.id}
                 data-issue-row={pending ? undefined : ''}
                 data-href={pending ? undefined : `/app/track/issues/${issue.id}`}
-                className={[pending ? 'is-pending' : '', editing && completed ? 'is-completed' : ''].filter(Boolean).join(' ') || undefined}
+                data-issue-id={pending || !selection ? undefined : issue.id}
+                className={
+                  [
+                    pending ? 'is-pending' : '',
+                    editing && completed ? 'is-completed' : '',
+                    selection?.selected.has(issue.id) ? 'is-selected' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ') || undefined
+                }
               >
+                {selection && (
+                  <td className="track-col-select">
+                    <input
+                      type="checkbox"
+                      className="track-select-box"
+                      aria-label={`${selection.label} ${issue.identifier}`}
+                      checked={selection.selected.has(issue.id)}
+                      disabled={pending}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selection.toggle(issue.id, e.shiftKey);
+                      }}
+                      onChange={() => undefined}
+                      data-testid="track-select-row"
+                    />
+                  </td>
+                )}
                 {editing && (
                   <td className="track-col-check">
                     <DoneCheckbox

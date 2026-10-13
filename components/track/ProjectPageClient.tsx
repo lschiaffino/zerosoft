@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import type { TrackProjectRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
@@ -23,11 +24,16 @@ import { TrackToast, useToday } from './InlineEditors';
 import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } from './useIssueStore';
 import { parseQuickTitle } from '@/lib/track-tasks';
 import type { TrackUiLabels } from './ui-labels';
+import { BulkBar, useIssueSelection, type BulkPatch } from './BulkEdit';
+import { useWorkspaceLabels } from './LabelPicker';
+import TriagePanel from './TriagePanel';
 
 interface ProjectPageClientProps {
   locale: string;
   projectId: string;
   userId: string;
+  /** Owner/admin del workspace: puede borrar en masa. */
+  isAdmin?: boolean;
   labels: PageLabels;
 }
 
@@ -160,7 +166,8 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-export default function ProjectPageClient({ locale, projectId, userId, labels }: ProjectPageClientProps) {
+export default function ProjectPageClient({ locale, projectId, userId, isAdmin = false, labels }: ProjectPageClientProps) {
+  const t = useTranslations('track');
   const router = useRouter();
   const searchParams = useSearchParams();
   // La URL se sincroniza con router.replace en cada cambio de vista/filtros;
@@ -185,6 +192,10 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [activeViewId, setActiveViewId] = useState<string | undefined>();
   const [modalOpen, setModalOpen] = useState(false);
+  const [tab, setTab] = useState<'issues' | 'triage'>(() => (searchParams.get('tab') === 'triage' ? 'triage' : 'issues'));
+  const [triageIssues, setTriageIssues] = useState<TrackIssueWithStatus[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [workspaceLabels] = useWorkspaceLabels();
   const today = useToday();
 
   const projectMap = useMemo<ProjectMap>(
@@ -201,11 +212,16 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
   });
   const { issues, setIssues } = store;
 
+  // Filtro por label: los labels del workspace (más los que traigan los issues cargados).
   const issueLabels = useMemo(() => {
     const map = new Map<string, IssueLabel>();
-    issues.forEach((i) => parseLabels(i.labels).forEach((l) => map.set(l.id, l)));
+    workspaceLabels.forEach((l) => map.set(l.id, { id: l.id, name: l.name, color: l.color }));
+    issues.forEach((i) => parseLabels(i.labels).forEach((l) => map.has(l.id) || map.set(l.id, l)));
     return Array.from(map.values());
-  }, [issues]);
+  }, [issues, workspaceLabels]);
+
+  const issueIds = useMemo(() => issues.map((i) => i.id), [issues]);
+  const selection = useIssueSelection(issueIds);
 
   const fetchIssues = useCallback(
     async (page: number, append: boolean) => {
@@ -288,6 +304,44 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
     fetchIssues(1, false);
   }, [filters, sort, fetchIssues, loading]);
 
+  const loadTriage = useCallback(async () => {
+    const data = await api<{ rows: TrackIssueWithStatus[] }>(`/api/track/projects/${projectId}/triage`).catch(() => null);
+    if (data) setTriageIssues(data.rows);
+  }, [projectId]);
+
+  useEffect(() => {
+    void loadTriage();
+  }, [loadTriage]);
+
+  const toggleTriage = async (enabled: boolean) => {
+    setProject((prev) => (prev ? { ...prev, triage_enabled: enabled ? 1 : 0 } : prev));
+    const updated = await api<TrackProjectRow>(`/api/track/projects/${projectId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ triageEnabled: enabled }),
+    }).catch(() => null);
+    if (updated) setProject(updated);
+  };
+
+  const runBulk = async (body: Record<string, unknown>) => {
+    const res = await fetch('/api/track/issues/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, issueIds: Array.from(selection.selected) }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setNotice(t('bulk.error'));
+      return;
+    }
+    const data = (await res.json()) as { updated: string[]; skipped: unknown[] };
+    setNotice(data.skipped.length ? t('bulk.skipped', { count: data.skipped.length }) : null);
+    if (body.action === 'delete') {
+      selection.clear();
+      setIssuesTotal((n) => Math.max(0, n - data.updated.length));
+    }
+    await fetchIssues(1, false);
+  };
+
   const reloadCycles = useCallback(async () => {
     const rows = await api<{ rows: CycleWithProgress[] }>(`/api/track/projects/${projectId}/cycles`)
       .then((r) => r.rows)
@@ -315,9 +369,10 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
   useEffect(() => {
     const sp = filtersToParams(filters, sort);
     sp.set('view', view);
+    if (tab === 'triage') sp.set('tab', 'triage');
     const qs = sp.toString();
     router.replace(`/app/track/projects/${projectId}?${qs}`, { scroll: false });
-  }, [filters, sort, view, projectId, locale, router]);
+  }, [filters, sort, view, tab, projectId, locale, router]);
 
   const handleViewChange = (v: ViewType) => {
     setView(v);
@@ -462,6 +517,18 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
 
       {settingsOpen && (
         <section className="panel track-settings-panel" aria-label={labels.settings}>
+          <label className="track-triage-toggle">
+            <input
+              type="checkbox"
+              checked={Boolean(project.triage_enabled)}
+              onChange={(e) => void toggleTriage(e.target.checked)}
+              data-testid="track-triage-toggle"
+            />
+            <span>
+              <strong>{t('triage.enable')}</strong>
+              <span className="muted">{t('triage.enableHelp')}</span>
+            </span>
+          </label>
           <p className="section-label">{labels.workflowStatuses}</p>
           <StatusesSettings
             projectId={projectId}
@@ -474,6 +541,44 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
         </section>
       )}
 
+      {(project.triage_enabled || triageIssues.length > 0) && (
+        <div className="track-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'issues'}
+            className={`track-tab${tab === 'issues' ? ' is-active' : ''}`}
+            onClick={() => setTab('issues')}
+          >
+            {labels.issues}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'triage'}
+            className={`track-tab${tab === 'triage' ? ' is-active' : ''}`}
+            onClick={() => setTab('triage')}
+            data-testid="track-triage-tab"
+          >
+            {t('triage.tab')}
+            {triageIssues.length > 0 && <span className="track-tab-count mono">{triageIssues.length}</span>}
+          </button>
+        </div>
+      )}
+
+      {tab === 'triage' ? (
+        <TriagePanel
+          projectId={projectId}
+          issues={triageIssues}
+          statuses={statuses}
+          locale={locale}
+          onResolved={() => {
+            void loadTriage();
+            void fetchIssues(1, false);
+          }}
+        />
+      ) : (
+      <>
       <div className="track-toolbar track-toolbar-wrap">
         <div className="track-toolbar-left">
           <ViewSwitcher active={view} onChange={handleViewChange} labels={labels.viewSwitcher} />
@@ -523,6 +628,7 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
             editing={{ ...editing, projects: projectMap }}
             quickAdd={{ onCreate: (title) => quickCreate(title) }}
             hideColumns={cycles.length > 0 ? [] : ['cycle']}
+            selection={{ ...selection, label: t('bulk.select'), allLabel: t('bulk.selectAll') }}
           />
         )}
         {view === 'board' && (
@@ -587,6 +693,24 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
         </div>
       )}
 
+      </>
+      )}
+
+      {tab === 'issues' && view === 'list' && (
+        <BulkBar
+          count={selection.selected.size}
+          statuses={statuses}
+          members={members}
+          cycles={cycles}
+          labels={workspaceLabels}
+          priorities={labels.priorities}
+          canDelete={isAdmin}
+          onApply={(patch: BulkPatch) => runBulk({ action: 'update', patch })}
+          onDelete={() => runBulk({ action: 'delete' })}
+          onClear={selection.clear}
+        />
+      )}
+
       <CyclesPanel
         projectId={projectId}
         cycles={cycles}
@@ -606,6 +730,7 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
       />
 
       <TrackToast message={store.error} onDismiss={store.clearError} dismissLabel={labels.ui.inline.dismiss} />
+      <TrackToast message={store.error ? null : notice} onDismiss={() => setNotice(null)} dismissLabel={labels.ui.inline.dismiss} />
 
       <SaveViewDialog
         open={saveDialogOpen}

@@ -45,6 +45,10 @@ export function bookingPayload(booking: CalendarBookingRow, eventType: Pick<Even
     meetingUrl: booking.meeting_url,
     rescheduledFrom: booking.rescheduled_from,
     cancelReason: booking.cancel_reason,
+    payment:
+      booking.payment_status && booking.payment_status !== 'none'
+        ? { status: booking.payment_status, amountCents: booking.amount_cents, currency: booking.currency }
+        : null,
     eventType: { id: eventType.id, slug: eventType.slug, title: eventType.title },
   };
 }
@@ -63,11 +67,17 @@ export async function afterBookingRescheduled(
   booking: CalendarBookingRow,
   previousHostId: string | null,
   locale?: string,
+  opts: { byHost?: boolean } = {},
 ): Promise<CalendarBookingRow> {
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) return booking;
   const synced = await safely('google-move', () => syncGoogleEventTime(booking, eventType, previousHostId), booking);
-  await safely('notify-rescheduled', () => notifyBooking(synced, 'rescheduled', { locale }), undefined);
+  // Si la movió el anfitrión, solo se avisa al invitado (el anfitrión ya lo sabe).
+  await safely(
+    'notify-rescheduled',
+    () => notifyBooking(synced, 'rescheduled', { locale, skipHost: opts.byHost }),
+    undefined,
+  );
   await safely('crm-rescheduled', () => recordBookingInCrm(eventType.user_id, 'rescheduled', synced, eventType.title), undefined);
   await emitEvent(eventType.user_id, 'booking.rescheduled', bookingPayload(synced, eventType));
   return synced;

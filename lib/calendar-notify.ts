@@ -137,7 +137,7 @@ function stripTags(html: string): string {
 export async function notifyBooking(
   booking: CalendarBookingRow,
   kind: Kind,
-  opts: { locale?: string; reason?: string | null } = {},
+  opts: { locale?: string; reason?: string | null; skipHost?: boolean } = {},
 ): Promise<void> {
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) return;
@@ -200,7 +200,7 @@ export async function notifyBooking(
   });
 
   // Host
-  if (host) {
+  if (host && !opts.skipHost) {
     const hostParagraphs = [
       `${fill(L.hi, { name: escapeHtml(host.name ?? host.email) })} ${fill(copy.hostLine, vars)}`,
       ...details(booking.timezone),

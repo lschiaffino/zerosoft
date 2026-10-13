@@ -10,6 +10,7 @@ import { isValidUrl, normalizeUrl, shortUrl } from './utils';
 import { isAppHost } from './hosts';
 import { getVerifiedDomainByHost } from './link-domains';
 import { emitEvent } from './events';
+import { linkTargetingSchema, normalizeTargeting, parseTargeting, type LinkTargeting } from './link-targeting';
 
 /** LinkRow + el hostname de su dominio propio (null = dominio por defecto). */
 export type LinkWithDomain = LinkRow & { domain_hostname?: string | null };
@@ -185,6 +186,10 @@ export interface LinkDto {
   utm: { source: string | null; medium: string | null; campaign: string | null };
   og: { title: string | null; description: string | null; image: string | null };
   clicks: number;
+  /** Visitas que llegaron escaneando el QR (también cuentan en clicks). */
+  qr_scans: number;
+  /** Segmentación por país/dispositivo, A/B y deep links (null = sin reglas). */
+  targeting: LinkTargeting | null;
   created_at: string;
   updated_at: string;
 }
@@ -206,6 +211,8 @@ export function toLinkDto(link: LinkWithDomain): LinkDto {
     utm: { source: link.utm_source, medium: link.utm_medium, campaign: link.utm_campaign },
     og: { title: link.og_title, description: link.og_description, image: link.og_image },
     clicks: link.clicks,
+    qr_scans: link.qr_scans ?? 0,
+    targeting: parseTargeting(link.targeting),
     created_at: link.created_at,
     updated_at: link.updated_at,
   };
@@ -460,6 +467,7 @@ export const linkPatchSchema = z.object({
   ogTitle: z.string().max(200).nullable().optional(),
   ogDescription: z.string().max(500).nullable().optional(),
   ogImage: z.string().max(500).nullable().optional(),
+  targeting: linkTargetingSchema.nullable().optional(),
 });
 
 export type LinkPatch = z.infer<typeof linkPatchSchema>;
@@ -534,6 +542,17 @@ export async function applyLinkPatch(
   if (p.ogImage !== undefined) {
     sets.push('og_image = ?');
     args.push(p.ogImage?.trim() || null);
+  }
+  if (p.targeting !== undefined) {
+    if (p.targeting === null) {
+      sets.push('targeting = ?');
+      args.push(null);
+    } else {
+      const t = normalizeTargeting(p.targeting);
+      if (!t.ok) return { error: t.error, status: 400 };
+      sets.push('targeting = ?');
+      args.push(t.value ? JSON.stringify(t.value) : null);
+    }
   }
 
   if (sets.length > 0) {

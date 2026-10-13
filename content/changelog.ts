@@ -26,6 +26,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-cal-track-link',
+    date: '2026-10-13',
+    title: {
+      en: 'Cal schedules and payments, Track with GitHub, Link analytics',
+      es: 'Horarios y cobros en Cal, Track con GitHub, analytics en Link',
+      pt: 'Horários e cobranças no Cal, Track com GitHub, analytics no Link',
+    },
+    items: [
+      { product: 'cal', en: 'Reusable availability schedules with date overrides. Bookings admin with search, filters, no-show, cancel with reason and host reschedule. Reminder workflows per event type. Paid events with your own Stripe account.', es: 'Horarios de disponibilidad reutilizables con excepciones por fecha. Administración de reservas con búsqueda, filtros, no-show, cancelación con motivo y reprogramación del anfitrión. Recordatorios configurables por tipo de evento. Eventos pagos con tu propia cuenta de Stripe.', pt: 'Horários de disponibilidade reutilizáveis com exceções por data. Administração de reservas com busca, filtros, no-show, cancelamento com motivo e reagendamento pelo anfitrião. Lembretes configuráveis por tipo de evento. Eventos pagos com sua própria conta Stripe.' },
+      { product: 'track', en: 'GitHub: pull requests and commits that mention an issue link to it and move it to started or done. Workspace labels, bulk edit (x, shift-click) and a triage queue for issues that come from outside.', es: 'GitHub: los pull requests y commits que mencionan un issue se vinculan y lo mueven a en curso o hecho. Labels del workspace, edición en bloque (x, shift-click) y una cola de triage para lo que llega de afuera.', pt: 'GitHub: pull requests e commits que mencionam uma issue ficam vinculados e a movem para em andamento ou concluída. Labels do workspace, edição em massa (x, shift-click) e uma fila de triagem para o que chega de fora.' },
+      { product: 'link', en: 'Workspace analytics with clicks, QR scans, top links, referrers, countries and devices, plus CSV. Country and device targeting, weighted A/B destinations and app deep links. QR codes with your colors and logo.', es: 'Analytics del workspace con clics, escaneos de QR, top links, referrers, países y dispositivos, y CSV. Destinos por país y dispositivo, A/B con pesos y deep links a apps. QR con tus colores y logo.', pt: 'Analytics do workspace com cliques, leituras de QR, top links, referrers, países e dispositivos, e CSV. Destinos por país e dispositivo, A/B com pesos e deep links para apps. QR com suas cores e logo.' },
+    ],
+  },
+  {
     id: '2026-10-13-flow-robots-integrations',
     date: '2026-10-13',
     title: {
