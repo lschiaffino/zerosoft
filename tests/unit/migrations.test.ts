@@ -57,4 +57,29 @@ describe('migraciones versionadas', () => {
     ).rows.map((r) => r.name);
     expect(indexes).toEqual(expect.arrayContaining(['idx_chat_widgets_user', 'idx_chat_widgets_team']));
   });
+
+  it("017_flow_feedback_product agrega 'flow' al CHECK de feedback conservando filas e índices", async () => {
+    const client = freshClient();
+    const idx = MIGRATIONS.findIndex((m) => m.id === '017_flow_feedback_product');
+    await runMigrations(client, MIGRATIONS.slice(0, idx));
+    await client.execute(
+      "INSERT INTO feedback (id, kind, product, message) VALUES ('f1', 'idea', 'crm', 'hola')",
+    );
+    await expect(
+      client.execute("INSERT INTO feedback (id, kind, product, message) VALUES ('f2', 'idea', 'flow', 'x')"),
+    ).rejects.toThrow(/CHECK/);
+    await client.execute('PRAGMA foreign_keys = ON');
+    await runMigrations(client);
+    const rows = (await client.execute('SELECT id, product FROM feedback')).rows;
+    expect(rows.map((r) => [r.id, r.product])).toEqual([['f1', 'crm']]);
+    await client.execute("INSERT INTO feedback (id, kind, product, message) VALUES ('f2', 'idea', 'flow', 'x')");
+    await expect(
+      client.execute("INSERT INTO feedback (id, kind, product, message) VALUES ('f3', 'idea', 'nope', 'x')"),
+    ).rejects.toThrow(/CHECK/);
+    const indexes = (
+      await client.execute("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'feedback'")
+    ).rows.map((r) => r.name);
+    expect(indexes).toContain('idx_feedback_created');
+    expect((await client.execute('PRAGMA foreign_key_check')).rows).toEqual([]);
+  });
 });

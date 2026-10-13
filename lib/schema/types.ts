@@ -767,3 +767,76 @@ export interface AiUsageRow {
   output_tokens: number;
   created_at: string;
 }
+
+// ---------- Flow (automatizaciones) ----------
+
+export interface FlowFlowRow {
+  id: string;
+  user_id: string; // workspace (dueño)
+  name: string;
+  description: string;
+  enabled: number; // 0 | 1
+  graph: string; // JSON FlowGraph
+  version: number;
+  trigger_type: string | null;
+  trigger_event: string | null;
+  next_run_at: string | null; // ISO
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type FlowRunStatus = 'queued' | 'running' | 'success' | 'failed' | 'waiting';
+
+export interface FlowRunRow {
+  id: string;
+  flow_id: string;
+  user_id: string;
+  trigger_type: string;
+  status: FlowRunStatus;
+  input: string; // JSON
+  context: string; // JSON (salidas de nodos, para reanudar)
+  error: string | null;
+  chain_depth: number;
+  chain_seen: string; // JSON string[]
+  step_count: number;
+  locked_until: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export type FlowStepStatus = 'running' | 'success' | 'failed' | 'skipped' | 'waiting';
+
+export interface FlowStepRow {
+  id: string;
+  run_id: string;
+  node_id: string;
+  node_type: string;
+  status: FlowStepStatus;
+  input: string | null;
+  output: string | null;
+  error: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface FlowJobRow {
+  id: string;
+  run_id: string;
+  node_id: string;
+  run_at: string;
+  attempts: number;
+  locked_until: string | null;
+  payload: string; // JSON
+  created_at: string;
+}
+
+export interface FlowWebhookRow {
+  id: string;
+  flow_id: string;
+  user_id: string;
+  node_id: string;
+  token: string;
+  created_at: string;
+}

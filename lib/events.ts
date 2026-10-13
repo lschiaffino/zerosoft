@@ -1,0 +1,54 @@
+/**
+ * Bus de eventos interno. Cada cambio relevante de las apps (reservas, links,
+ * contactos, deals, issues, chat, docs) pasa por acá:
+ *   1. webhooks salientes (lib/webhooks.ts) — mismo comportamiento de siempre,
+ *      solo para los eventos de WEBHOOK_EVENTS;
+ *   2. disparadores de Flow (lib/flow.ts) — encola una corrida por cada flow
+ *      habilitado con un trigger de ese evento.
+ * Nunca lanza: un evento no puede romper la operación que lo originó.
+ */
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { emitWebhook, WEBHOOK_EVENTS, type WebhookEvent } from './webhooks';
+import type { FlowEventType } from './flow-schema';
+
+export type { FlowEventType as EventType } from './flow-schema';
+
+/**
+ * Cadena de ejecución de Flow: un flow que crea un contacto emite
+ * contact.created y puede disparar otro flow (o a sí mismo). La corrida guarda
+ * su profundidad y los flows ya vistos; los eventos emitidos dentro heredan
+ * esa cadena. Ver lib/flow.ts (enqueueEventRuns) y MAX_FLOW_CHAIN_DEPTH.
+ */
+export interface FlowChain {
+  depth: number;
+  seen: readonly string[];
+}
+
+export const flowChain = new AsyncLocalStorage<FlowChain>();
+
+export interface EmitOptions {
+  /** Datos extra solo para Flow (no cambian el payload del webhook). */
+  extra?: Record<string, unknown>;
+}
+
+export async function emitEvent(
+  workspaceId: string,
+  type: FlowEventType,
+  data: unknown,
+  opts: EmitOptions = {},
+): Promise<void> {
+  if ((WEBHOOK_EVENTS as readonly string[]).includes(type)) {
+    await emitWebhook(workspaceId, type as WebhookEvent, data);
+  }
+  try {
+    const { enqueueEventRuns } = await import('./flow');
+    const payload =
+      data && typeof data === 'object' && !Array.isArray(data)
+        ? { ...(data as Record<string, unknown>), ...(opts.extra ?? {}) }
+        : { data, ...(opts.extra ?? {}) };
+    await enqueueEventRuns(workspaceId, type, payload);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[events] flow enqueue failed', err);
+  }
+}

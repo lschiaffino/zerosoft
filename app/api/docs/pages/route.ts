@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { emitEvent } from '@/lib/events';
 import { getCurrentUser } from '@/lib/session';
 import { createDocPage, listDocPages } from '@/lib/docs';
 import { docPageCreateSchema } from '@/lib/docs-schema';
@@ -23,5 +24,6 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return invalidBody(parsed.error);
 
   const page = await createDocPage(user.id, parsed.data);
+  after(() => emitEvent(user.id, 'page.created', { page: { id: page.id, title: page.title, parentId: page.parent_id } }));
   return NextResponse.json(page, { status: 201 });
 }

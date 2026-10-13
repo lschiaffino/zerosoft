@@ -1,5 +1,5 @@
 import { after, NextRequest, NextResponse } from 'next/server';
-import { emitWebhook } from '@/lib/webhooks';
+import { emitEvent } from '@/lib/events';
 import { gateCookieName, getLinkForHost, isExpired, isValidGateToken } from '@/lib/links';
 import { isAppHost } from '@/lib/hosts';
 import { getVerifiedDomainByHost } from '@/lib/link-domains';
@@ -55,10 +55,16 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   await recordClick(link.id, ctx);
   // El webhook sale después de responder: el redirect no espera a nadie.
   after(() =>
-    emitWebhook(link.user_id, 'link.clicked', {
-      link: { id: link.id, slug: link.slug, domain: link.domain_hostname ?? null, url: link.url },
-      click: { ...ctx, at: new Date().toISOString() },
-    }),
+    emitEvent(
+      link.user_id,
+      'link.clicked',
+      {
+        link: { id: link.id, slug: link.slug, domain: link.domain_hostname ?? null, url: link.url },
+        click: { ...ctx, at: new Date().toISOString() },
+      },
+      // Solo para Flow (el webhook no cambia): total de clicks con este.
+      { extra: { clicks: link.clicks + 1 } },
+    ),
   );
   return NextResponse.redirect(link.url, link.redirect_type === 301 ? 301 : 302);
 }

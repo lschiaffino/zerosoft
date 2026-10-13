@@ -5,7 +5,8 @@
  */
 import { assertRefs, CrmRefError, ownedContactIds } from './crm-refs';
 import { dayRangeUtc, getUserTimeZone } from './user-tz';
-import { emitWebhook, type WebhookEvent } from './webhooks';
+import type { WebhookEvent } from './webhooks';
+import { emitEvent } from './events';
 import {
   ensureMigrated,
   getClient,
@@ -236,7 +237,7 @@ async function fireEvent(
         .get(event.entityId, userId)) as ({ user_id: string; custom?: string } & Record<string, unknown>) | undefined;
       if (row) {
         const { user_id: _owner, ...data } = row;
-        await emitWebhook(userId, hook, {
+        await emitEvent(userId, hook, {
           ...data,
           custom: parseCustom((data.custom as string | undefined) ?? null),
           ...(event.payload ? { change: event.payload } : {}),
