@@ -8,7 +8,7 @@
       "label": "0.02 — Products",
       "title1": "Everything you use.",
       "title2": "Zero you pay for.",
-      "sub": "Six tools run the modern company: links, customers, projects, time, docs and support. We rebuilt all six in the open. The core costs zero, it is yours, and every one of them is already live."
+      "sub": "The tools that run a company — customers, support, automations, AI agents, tasks, links — and the ones you use alone: notes, docs, whiteboards, your calendar. We rebuilt them in the open. The core costs zero and it is yours."
     },
     "compare": {
       "label": "0.03 — The math",
@@ -62,7 +62,7 @@
       "label": "0.05 — Join us",
       "title1": "Stop paying",
       "title2": "for bits.",
-      "sub": "All six are live and free to start. Get in now: you pay only for what scales.",
+      "sub": "All of them are live and free to start. Get in now: you pay only for what scales.",
       "button": "Open the app →"
     },
     "link": {
@@ -704,7 +704,7 @@
     "howTitleDim": "in three steps.",
     "suiteLabel": "06 — Part of the suite",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Six apps, same login.",
+    "suiteTitleDim": "Ten apps, same login.",
     "previewNote": "Interactive preview of the product UI.",
     "compareSave": "You keep"
   },
