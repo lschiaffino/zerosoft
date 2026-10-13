@@ -57,6 +57,7 @@ export interface SidebarLabels {
   };
   track: {
     overview: string;
+    myTasks: string;
     projects: string;
     issues: string;
     cycles: string;
@@ -276,12 +277,17 @@ export default function AppSidebar({
   ];
 
   const trackNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/track', label: labels.track.overview, active: pathname === '/app/track', icon: 'overview' }] },
+    {
+      items: [
+        { href: '/app/track', label: labels.track.overview, active: pathname === '/app/track', icon: 'overview' },
+        { href: '/app/track/my-tasks', label: labels.track.myTasks, active: pathname.startsWith('/app/track/my-tasks'), icon: 'myTasks' },
+      ],
+    },
     {
       section: labels.records,
       items: [
         { href: '/app/track/projects', label: labels.track.projects, active: pathname.startsWith('/app/track/projects'), icon: 'lists' },
-        { href: '/app/track/issues', label: labels.track.issues, active: pathname.startsWith('/app/track/issues') && !pathname.startsWith('/app/track/inbox'), icon: 'tasks' },
+        { href: '/app/track/issues', label: labels.track.issues, active: pathname.startsWith('/app/track/issues'), icon: 'tasks' },
       ],
     },
     {

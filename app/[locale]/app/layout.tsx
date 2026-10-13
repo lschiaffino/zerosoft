@@ -11,6 +11,7 @@ import '@/styles/crm.css';
 import '@/styles/docs.css';
 import '@/styles/calendar.css';
 import '@/styles/track.css';
+import '@/styles/track-quick.css';
 import '@/styles/chat.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
@@ -110,6 +111,7 @@ export default async function AppLayout(
           },
           track: {
             overview: tTrack('sidebar.overview'),
+            myTasks: tTrack('sidebar.myTasks'),
             projects: tTrack('sidebar.projects'),
             issues: tTrack('sidebar.issues'),
             cycles: tTrack('sidebar.cycles'),
@@ -155,6 +157,7 @@ export default async function AppLayout(
             { href: '/app/calendar/bookings', label: tCalendar('sidebar.bookings') },
             { href: '/app/calendar/settings', label: tCalendar('sidebar.settings') },
             { href: '/app/track', label: tTrack('sidebar.overview') },
+            { href: '/app/track/my-tasks', label: tTrack('sidebar.myTasks') },
             { href: '/app/track/projects', label: tTrack('sidebar.projects') },
             { href: '/app/track/issues', label: tTrack('sidebar.issues') },
             { href: '/app/track/inbox', label: tTrack('sidebar.inbox') },

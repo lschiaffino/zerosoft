@@ -5,9 +5,29 @@ import { Link } from '@/i18n/navigation';
 import { formatDate } from '@/lib/utils';
 import type { TrackIssueWithStatus } from '@/lib/track-data';
 import type { IssueLabel } from '@/lib/track-schema';
+import type { IssuePatch } from '@/lib/track-tasks';
 import StatusBadge from './StatusBadge';
+import { AssigneeMenu, DoneCheckbox, DueDateMenu, PriorityMenu, QuickAdd, StatusMenu } from './InlineEditors';
+import { isPendingIssue, type ProjectMap } from './useIssueStore';
+import type { TrackUiLabels } from './ui-labels';
 
 export type SortField = 'identifier' | 'title' | 'priority' | 'created' | null;
+
+export type OptionalColumn = 'assignee' | 'cycle' | 'labels' | 'created' | 'project';
+
+export interface IssuesTableEditing {
+  projects: ProjectMap;
+  onUpdate: (issueId: string, patch: IssuePatch) => void;
+  onToggleDone: (issue: TrackIssueWithStatus) => void;
+  ui: TrackUiLabels;
+  today: string;
+}
+
+export interface IssuesTableQuickAdd {
+  onCreate: (title: string, projectId: string) => void;
+  projects?: Array<{ id: string; name: string }>;
+  defaultProjectId?: string;
+}
 
 interface IssuesTableProps {
   issues: TrackIssueWithStatus[];
@@ -25,10 +45,18 @@ interface IssuesTableProps {
     noAssignee: string;
     empty: string;
     hasSubtasks: string;
+    project?: string;
   };
   sort?: SortField;
   sortDir?: 'asc' | 'desc';
   onSort?: (field: SortField) => void;
+  /** Si está presente, las celdas se vuelven editables inline. */
+  editing?: IssuesTableEditing;
+  /** Fila "+ New task" al final de la lista. */
+  quickAdd?: IssuesTableQuickAdd;
+  hideColumns?: OptionalColumn[];
+  /** Muestra la cabecera de columnas (por defecto sí). */
+  showHeader?: boolean;
 }
 
 function parseLabels(raw: string): IssueLabel[] {
@@ -53,6 +81,10 @@ export default function IssuesTable({
   sort = null,
   sortDir = 'asc',
   onSort,
+  editing,
+  quickAdd,
+  hideColumns = [],
+  showHeader = true,
 }: IssuesTableProps) {
   const sorted = useMemo(() => {
     if (!sort) return issues;
@@ -71,7 +103,7 @@ export default function IssuesTable({
     });
   }, [issues, sort, sortDir]);
 
-  if (sorted.length === 0) {
+  if (sorted.length === 0 && !quickAdd) {
     return (
       <div className="track-empty">
         <p className="track-empty-zeros mono" aria-hidden>
@@ -82,9 +114,13 @@ export default function IssuesTable({
     );
   }
 
-  const header = (field: SortField, label: string) => (
+  const show = (c: OptionalColumn) => !hideColumns.includes(c) && (c !== 'project' || Boolean(labels.project));
+  const columnCount =
+    (editing ? 1 : 0) + 5 + (['assignee', 'cycle', 'labels', 'created', 'project'] as OptionalColumn[]).filter(show).length;
+
+  const header = (field: SortField, label: string, className?: string) => (
     <th
-      className={field ? 'track-sortable' : undefined}
+      className={[field && onSort ? 'track-sortable' : '', className ?? ''].filter(Boolean).join(' ') || undefined}
       onClick={field && onSort ? () => onSort(field) : undefined}
       aria-sort={sort === field ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
@@ -94,77 +130,179 @@ export default function IssuesTable({
   );
 
   return (
-    <div className="track-table-wrap">
+    <div className={`track-table-wrap${editing ? ' is-editable' : ''}`}>
       <table className="track-table">
-        <thead>
-          <tr>
-            {header('identifier', labels.identifier)}
-            {header('title', labels.title)}
-            <th>{labels.status}</th>
-            {header('priority', labels.priority)}
-            <th className="hide-sm">{labels.assignee}</th>
-            <th className="hide-sm">{labels.cycle}</th>
-            <th className="hide-sm">{labels.dueDate}</th>
-            <th className="hide-sm">{labels.labels}</th>
-            {header('created', labels.created)}
-          </tr>
-        </thead>
+        {showHeader && (
+          <thead>
+            <tr>
+              {editing && (
+                <th className="track-col-check">
+                  <span className="track-sr-only">{editing.ui.inline.markDone}</span>
+                </th>
+              )}
+              {header('identifier', labels.identifier, 'track-col-id')}
+              {header('title', labels.title)}
+              {show('project') && <th className="hide-sm">{labels.project}</th>}
+              <th>{labels.status}</th>
+              {header('priority', labels.priority, 'hide-sm')}
+              {show('assignee') && <th className="hide-sm">{labels.assignee}</th>}
+              {show('cycle') && <th className="hide-sm">{labels.cycle}</th>}
+              <th className="hide-sm">{labels.dueDate}</th>
+              {show('labels') && <th className="hide-sm">{labels.labels}</th>}
+              {show('created') && header('created', labels.created, 'hide-sm')}
+            </tr>
+          </thead>
+        )}
         <tbody>
+          {sorted.length === 0 && (
+            <tr>
+              <td colSpan={columnCount} className="track-table-empty">
+                {labels.empty}
+              </td>
+            </tr>
+          )}
           {sorted.map((issue) => {
             const issueLabels = parseLabels(issue.labels);
-            return (
-              <tr key={issue.id}>
-                <td>
-                  <Link href={`/app/track/issues/${issue.id}`}>
-                    <span className="track-identifier">{issue.identifier}</span>
-                  </Link>
-                </td>
-                <td>
-                  <Link href={`/app/track/issues/${issue.id}`}>
-                    <span className="track-issue-title">{issue.title || '—'}</span>
-                    {issue.child_count > 0 && (
-                      <span className="track-subtask-indicator" title={labels.hasSubtasks}>
-                        ⊞ {issue.child_count}
-                      </span>
-                    )}
-                  </Link>
-                </td>
-                <td>
-                  <StatusBadge name={issue.status_name} color={issue.status_color} />
-                </td>
-                <td className="hide-sm">
-                  <span className="track-priority">
-                    <PriorityDot priority={issue.priority} />
-                    {issue.priority}
+            const pending = isPendingIssue(issue);
+            const ctx = editing?.projects[issue.project_id];
+            const completed = issue.status_category === 'done' || issue.status_category === 'cancelled';
+            const titleContent = (
+              <>
+                <span className="track-issue-title">{issue.title || '—'}</span>
+                {issue.child_count > 0 && (
+                  <span className="track-subtask-indicator" title={labels.hasSubtasks}>
+                    ⊞ {issue.child_count}
                   </span>
+                )}
+              </>
+            );
+            return (
+              <tr
+                key={issue.id}
+                className={[pending ? 'is-pending' : '', editing && completed ? 'is-completed' : ''].filter(Boolean).join(' ') || undefined}
+              >
+                {editing && (
+                  <td className="track-col-check">
+                    <DoneCheckbox
+                      category={issue.status_category}
+                      disabled={pending}
+                      onToggle={() => editing.onToggleDone(issue)}
+                      labels={editing.ui.inline}
+                    />
+                  </td>
+                )}
+                <td className="track-col-id">
+                  {pending ? (
+                    <span className="track-identifier">{issue.identifier}</span>
+                  ) : (
+                    <Link href={`/app/track/issues/${issue.id}`} tabIndex={editing ? -1 : undefined}>
+                      <span className="track-identifier">{issue.identifier}</span>
+                    </Link>
+                  )}
+                </td>
+                <td className="track-col-title">
+                  {pending ? titleContent : <Link href={`/app/track/issues/${issue.id}`}>{titleContent}</Link>}
+                </td>
+                {show('project') && <td className="hide-sm track-cell-dim">{ctx?.name ?? '—'}</td>}
+                <td>
+                  {editing ? (
+                    <StatusMenu
+                      statusId={issue.status_id}
+                      statusName={issue.status_name}
+                      statusColor={issue.status_color}
+                      statusCategory={issue.status_category}
+                      statuses={ctx?.statuses ?? []}
+                      disabled={pending}
+                      label={editing.ui.inline.status}
+                      onChange={(statusId) => editing.onUpdate(issue.id, { statusId })}
+                    />
+                  ) : (
+                    <StatusBadge name={issue.status_name} color={issue.status_color} />
+                  )}
                 </td>
                 <td className="hide-sm">
-                  {issue.assignee_name ?? issue.assignee_email ?? labels.noAssignee}
-                </td>
-                <td className="hide-sm">{issue.cycle_name ?? '—'}</td>
-                <td className="hide-sm">{issue.due_date ? formatDate(issue.due_date, locale) : '—'}</td>
-                <td className="hide-sm">
-                  {issueLabels.length > 0 ? (
-                    <span className="track-label-chips">
-                      {issueLabels.map((l) => (
-                        <span
-                          key={l.id}
-                          className="track-label-chip"
-                          style={{ background: l.color, color: '#fff' }}
-                          title={l.name}
-                        >
-                          {l.name}
-                        </span>
-                      ))}
+                  {editing ? (
+                    <PriorityMenu
+                      priority={issue.priority}
+                      priorities={editing.ui.priorities}
+                      disabled={pending}
+                      label={editing.ui.inline.priority}
+                      onChange={(priority) => editing.onUpdate(issue.id, { priority })}
+                    />
+                  ) : (
+                    <span className="track-priority">
+                      <PriorityDot priority={issue.priority} />
+                      {issue.priority}
                     </span>
+                  )}
+                </td>
+                {show('assignee') && (
+                  <td className="hide-sm">
+                    {editing ? (
+                      <AssigneeMenu
+                        assigneeId={issue.assignee_id}
+                        assigneeName={issue.assignee_name}
+                        assigneeEmail={issue.assignee_email}
+                        members={ctx?.members ?? []}
+                        disabled={pending}
+                        label={editing.ui.inline.assignee}
+                        noAssignee={labels.noAssignee}
+                        onChange={(assigneeId) => editing.onUpdate(issue.id, { assigneeId })}
+                      />
+                    ) : (
+                      issue.assignee_name ?? issue.assignee_email ?? labels.noAssignee
+                    )}
+                  </td>
+                )}
+                {show('cycle') && <td className="hide-sm">{issue.cycle_name ?? '—'}</td>}
+                <td className="hide-sm">
+                  {editing ? (
+                    <DueDateMenu
+                      dueDate={issue.due_date}
+                      locale={locale}
+                      today={editing.today}
+                      disabled={pending}
+                      labels={editing.ui.inline}
+                      onChange={(dueDate) => editing.onUpdate(issue.id, { dueDate })}
+                    />
+                  ) : issue.due_date ? (
+                    formatDate(issue.due_date, locale)
                   ) : (
                     '—'
                   )}
                 </td>
-                <td className="hide-sm">{formatDate(issue.created_at, locale)}</td>
+                {show('labels') && (
+                  <td className="hide-sm">
+                    {issueLabels.length > 0 ? (
+                      <span className="track-label-chips">
+                        {issueLabels.map((l) => (
+                          <span key={l.id} className="track-label-tag" title={l.name}>
+                            <span className="track-label-tag-dot" style={{ background: l.color }} aria-hidden />
+                            {l.name}
+                          </span>
+                        ))}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                )}
+                {show('created') && <td className="hide-sm track-cell-dim">{formatDate(issue.created_at, locale)}</td>}
               </tr>
             );
           })}
+          {quickAdd && editing && (
+            <tr className="track-quick-add-tr">
+              <td colSpan={columnCount}>
+                <QuickAdd
+                  labels={editing.ui.quick}
+                  onCreate={quickAdd.onCreate}
+                  projects={quickAdd.projects}
+                  defaultProjectId={quickAdd.defaultProjectId}
+                />
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
