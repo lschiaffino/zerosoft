@@ -660,3 +660,215 @@ test('Chat: nota interna visible para agentes, nunca para el visitante', async (
   expect(text).toContain('Necesito ayuda');
   expect(text).not.toContain('Cliente VIP');
 });
+
+// ---------- Cal D9: horarios, reservas del anfitrión, recordatorios y cobro ----------
+test.describe('cal d9', () => {
+  /** Próxima fecha (UTC) con ese día de semana, al menos 3 días adelante. */
+  const nextDow = (dow: number) => {
+    const d = new Date(Date.now() + 3 * 86_400_000);
+    while (d.getUTCDay() !== dow) d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  };
+
+  test('horario con excepción por fecha cambia los slots del evento', async ({ request, page }) => {
+    const created = await request.post('/api/calendar/schedules', {
+      data: {
+        name: `E2E ${uid()}`,
+        timezone: 'UTC',
+        rules: [1, 2, 3, 4, 5].map((dayOfWeek) => ({ dayOfWeek, startTime: '09:00', endTime: '12:00' })),
+      },
+    });
+    expect(created.status()).toBe(201);
+    const schedule = await created.json();
+    const slug = `d9-${uid()}`;
+    const et = await (
+      await request.post('/api/calendar/event-types', { data: { slug, title: 'D9', durationMin: 60, scheduleId: schedule.id } })
+    ).json();
+    const monday = nextDow(1);
+    const slots = async () =>
+      (await (await request.get(`/api/calendar/event-types/${et.id}/slots?date=${monday}&timezone=UTC`)).json()).slots as unknown[];
+    expect(await slots()).toHaveLength(3);
+    await request.patch(`/api/calendar/schedules/${schedule.id}`, { data: { overrides: [{ date: monday }] } });
+    expect(await slots()).toHaveLength(0);
+
+    await page.goto('/en/app/calendar/availability', { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: new RegExp(schedule.name) }).click();
+    await expect(page.locator('.cal-override-row input[type="date"]')).toHaveValue(monday, { timeout: 20_000 });
+  });
+
+  test('el anfitrión busca, reprograma y cancela con motivo desde Reservas', async ({ request, page }) => {
+    const slug = `d9b-${uid()}`;
+    const et = await (await request.post('/api/calendar/event-types', { data: { slug, title: 'D9 admin', durationMin: 60 } })).json();
+    const rules = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, startTime: '00:00', endTime: '23:59' }));
+    await request.post(`/api/calendar/event-types/${et.id}/availability`, { data: { rules } });
+    const day = nextDow(3);
+    const name = `Guest ${uid()}`;
+    // Primer horario libre (el usuario demo puede tener otras reservas ese día).
+    const free = (await (await request.get(`/api/calendar/event-types/${et.id}/slots?date=${day}&timezone=UTC`)).json())
+      .slots as Array<{ start: string }>;
+    const booking = await request.post('/api/calendar/bookings', {
+      data: { eventTypeId: et.id, email: 'd9@example.com', name, start: free[0].start, timezone: 'UTC' },
+    });
+    expect(booking.status()).toBe(201);
+
+    await page.goto('/en/app/calendar/bookings', { waitUntil: 'networkidle' });
+    await page.getByRole('searchbox', { name: 'Search by name or email' }).fill(name);
+    const row = page.locator('.booking-card-item', { hasText: name });
+    await expect(row).toHaveCount(1, { timeout: 20_000 });
+    await row.getByRole('button', { name: 'Reschedule' }).click();
+    await row.locator('.cal-bk-panel input[type="date"]').fill(day);
+    await row.locator('.cal-bk-slots .btn').nth(2).click();
+    await expect(page.getByText('Booking moved. The guest got an email.')).toBeVisible({ timeout: 20_000 });
+
+    await row.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await row.locator('.cal-bk-panel textarea').fill('Host is sick');
+    await row.getByRole('button', { name: 'Cancel booking' }).click();
+    await expect(row.locator('.cal-bk-status')).toHaveText(/Cancelled/, { timeout: 20_000 });
+  });
+
+  test('recordatorios y precio se guardan desde el tipo de evento', async ({ request, page }) => {
+    const slug = `d9w-${uid()}`;
+    const et = await (await request.post('/api/calendar/event-types', { data: { slug, title: 'D9 wf', durationMin: 30 } })).json();
+    await page.goto(`/en/app/calendar/event-types/${et.id}`, { waitUntil: 'networkidle' });
+    const reminders = page.locator('section.panel', { hasText: 'Reminders' });
+    await reminders.getByRole('button', { name: '+ Add step' }).click();
+    await reminders.getByRole('button', { name: 'Save' }).click();
+    await expect(reminders.getByRole('button', { name: /Saved/ })).toBeVisible({ timeout: 20_000 });
+    const steps = (await (await request.get(`/api/calendar/event-types/${et.id}/workflows`)).json()).steps;
+    expect(steps).toEqual([expect.objectContaining({ recipient: 'guest', offsetMin: -60, subject: 'Reminder: {{event.title}}' })]);
+
+    const payment = page.locator('section.panel', { hasText: 'Payment' });
+    await payment.getByRole('textbox').fill('25');
+    await expect(payment.getByText('To charge, connect Stripe in Settings.')).toBeVisible({ timeout: 20_000 });
+    await payment.getByRole('button', { name: 'Save' }).click();
+    await expect(payment.getByRole('button', { name: /Saved/ })).toBeVisible({ timeout: 20_000 });
+    expect((await (await request.get(`/api/calendar/event-types/${et.id}`)).json()).price_cents).toBe(2500);
+    // Sin Stripe conectado, la reserva paga se rechaza.
+    const day = nextDow(2);
+    const slotsRes = await request.get(`/api/calendar/event-types/${et.id}/slots?date=${day}&timezone=UTC`);
+    const first = ((await slotsRes.json()).slots as Array<{ start: string }>)[0];
+    const res = await request.post('/api/calendar/bookings', {
+      data: { eventTypeId: et.id, email: 'p@example.com', name: 'P', start: first.start, timezone: 'UTC' },
+    });
+    expect(res.status()).toBe(409);
+  });
+});
+
+// ---------- Track d9: labels, edición masiva, GitHub y triage ----------
+test.describe('track d9', () => {
+  test('labels del workspace, edición masiva, GitHub y triage', async ({ page, request }) => {
+    const { createHmac } = await import('crypto');
+    const p = await request.post('/api/track/projects', { data: { name: `D9 ${uid()}` } });
+    expect(p.status()).toBe(201);
+    const project = await p.json();
+    const ids: string[] = [];
+    for (const title of ['Uno', 'Dos', 'Tres']) {
+      const r = await request.post(`/api/track/projects/${project.id}/issues`, { data: { title } });
+      ids.push((await r.json()).id);
+    }
+
+    // Labels del workspace: alta por API y visibles en Ajustes.
+    const labelName = `d9-${uid()}`;
+    expect((await request.post('/api/track/labels', { data: { name: labelName, color: '#2f6fd1' } })).status()).toBe(201);
+    await page.goto('/en/app/track/settings', { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('track-labels-settings')).toContainText('Labels');
+    await expect(page.getByTestId('track-label-row').locator(`input[value="${labelName}"]`)).toBeVisible();
+
+    // Edición masiva: checkbox + shift+clic y barra de acciones.
+    await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+    const boxes = page.getByTestId('track-select-row');
+    await expect(boxes).toHaveCount(3);
+    await boxes.nth(0).click();
+    await boxes.nth(2).click({ modifiers: ['Shift'] });
+    await expect(page.getByTestId('track-bulk-bar')).toContainText('3 selected');
+    await page.getByTestId('track-bulk-priority').selectOption('urgent');
+    await expect
+      .poll(async () => {
+        const res = await request.get(`/api/track/projects/${project.id}/issues?priority=urgent`);
+        return (await res.json()).total;
+      }, { timeout: 20_000 })
+      .toBe(3);
+    await page.getByTestId('track-bulk-labels').selectOption({ label: `Add ${labelName}` });
+    await expect
+      .poll(async () => (await (await request.get(`/api/track/issues/${ids[0]}`)).json()).labels, { timeout: 20_000 })
+      .toContain(labelName);
+
+    // GitHub: conectar, entregar un PR firmado y ver el vínculo en el issue.
+    const conn = await request.put('/api/track/github', { data: { repos: ['acme/web'], regenerateSecret: true } });
+    expect(conn.status()).toBe(200);
+    const { config, secret } = await conn.json();
+    const issue = await (await request.get(`/api/track/issues/${ids[0]}`)).json();
+    const body = JSON.stringify({
+      action: 'opened',
+      repository: { full_name: 'acme/web' },
+      pull_request: {
+        number: 7,
+        html_url: 'https://github.com/acme/web/pull/7',
+        title: `Arreglo ${issue.identifier}`,
+        body: '',
+        head: { ref: 'fix' },
+        user: { login: 'octo' },
+      },
+    });
+    const sig = `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
+    const headers = { 'content-type': 'application/json', 'x-github-event': 'pull_request' };
+    const hook = await request.post(`/api/track/github/webhook/${config.id}`, {
+      data: body,
+      headers: { ...headers, 'x-hub-signature-256': sig },
+    });
+    expect(hook.status()).toBe(200);
+    const bad = await request.post(`/api/track/github/webhook/${config.id}`, {
+      data: body,
+      headers: { ...headers, 'x-hub-signature-256': 'sha256=00' },
+    });
+    expect(bad.status()).toBe(401);
+    await page.goto(`/en/app/track/issues/${ids[0]}`, { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('track-issue-github')).toContainText('#7');
+    await expect(page.getByTestId('track-copy-branch')).toHaveAttribute('data-branch', /-uno$/);
+
+    // Triage: se activa desde la configuración del proyecto.
+    await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+    await page.getByTestId('track-project-settings').click();
+    await page.getByTestId('track-triage-toggle').check();
+    await page.getByTestId('track-triage-tab').click();
+    await expect(page.getByText('No issues waiting for triage.')).toBeVisible();
+  });
+});
+
+// ---------- link d9: analytics del workspace, segmentación y QR con marca ----------
+test.describe('link d9', () => {
+  test('QR cuenta escaneos aparte y el dashboard los muestra', async ({ request, page }) => {
+    const slug = `qr${uid()}`;
+    const link = await (await request.post('/api/links', { data: { url: 'https://example.com/qr', slug } })).json();
+    const scan = await request.get(`/${slug}?qr=1`, { maxRedirects: 0 });
+    expect([301, 302, 307, 308]).toContain(scan.status());
+    await expect.poll(async () => (await (await request.get(`/api/links/${link.id}`)).json()).qr_scans).toBe(1);
+
+    await page.goto('/en/app/links/analytics', { waitUntil: 'networkidle' });
+    await expect(page.getByRole('heading', { name: 'Analytics' })).toBeVisible();
+    await expect(page.getByTestId('analytics-scans')).not.toHaveText('0');
+    const csv = await request.get('/api/links/analytics/export.csv');
+    expect(csv.headers()['content-type']).toContain('text/csv');
+    expect(await csv.text()).toContain(slug);
+  });
+
+  test('segmentación por dispositivo y diseño del QR', async ({ request, page }) => {
+    const slug = `tg${uid()}`;
+    const link = await (await request.post('/api/links', { data: { url: 'https://example.com/main', slug } })).json();
+    const patched = await request.patch(`/api/links/${link.id}`, {
+      data: { targeting: { rules: [{ devices: ['android'], url: 'https://example.com/android' }] } },
+    });
+    expect(patched.status()).toBe(200);
+    const android = await request.get(`/${slug}`, {
+      maxRedirects: 0,
+      headers: { 'user-agent': 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36' },
+    });
+    expect(android.headers()['location']).toBe('https://example.com/android');
+
+    await page.goto(`/en/app/links/${link.id}`, { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('tg-rule')).toHaveCount(1);
+    await expect(page.getByTestId('qr-preview').locator('svg')).toBeVisible();
+    await page.getByRole('button', { name: 'Save design' }).click();
+    await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible();
+  });
+});

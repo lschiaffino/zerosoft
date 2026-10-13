@@ -41,6 +41,7 @@ export const projectUpdateSchema = z.object({
   icon: shortText.optional(),
   color: color,
   status: z.enum(['active', 'archived']).optional(),
+  triageEnabled: z.boolean().optional(),
 });
 
 // ---------- Statuses ----------
@@ -92,6 +93,15 @@ export const issueLabelSchema = z.object({
   color: hexColor,
 });
 
+/** Label en un payload de issue: id de un label del workspace o nombre (se crea si no existe). */
+export const issueLabelInputSchema = z
+  .object({
+    id: id.optional(),
+    name: z.string().trim().min(1).max(50).optional(),
+    color: hexColor.optional(),
+  })
+  .refine((l) => Boolean(l.id || l.name), { message: 'invalid_label' });
+
 export const issueCreateSchema = z.object({
   title: shortText.optional(),
   description: z.unknown().optional(),
@@ -103,11 +113,67 @@ export const issueCreateSchema = z.object({
   parentId: id.nullish(),
   startDate: isoDate.nullish(),
   dueDate: isoDate.nullish(),
-  labels: z.array(issueLabelSchema).max(10).optional(),
+  labels: z.array(issueLabelInputSchema).max(10).optional(),
 });
 
 export const issueUpdateSchema = issueCreateSchema.partial().extend({
   title: shortText.optional(),
+});
+
+// ---------- Labels del workspace ----------
+
+export const labelCreateSchema = z.object({
+  name: z.string().trim().min(1).max(50),
+  color: hexColor.optional(),
+});
+
+export const labelUpdateSchema = labelCreateSchema.partial();
+
+// ---------- Bulk edit ----------
+
+export const bulkIssuesSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('update'),
+    issueIds: z.array(id).min(1).max(200),
+    patch: z
+      .object({
+        statusId: id.optional(),
+        priority: issuePriority.optional(),
+        assigneeId: id.nullable().optional(),
+        cycleId: id.nullable().optional(),
+        addLabelIds: z.array(id).max(10).optional(),
+        removeLabelIds: z.array(id).max(10).optional(),
+      })
+      .refine((p) => Object.values(p).some((v) => v !== undefined), { message: 'empty_patch' }),
+  }),
+  z.object({
+    action: z.literal('delete'),
+    issueIds: z.array(id).min(1).max(200),
+  }),
+]);
+
+// ---------- Triage ----------
+
+export const triageActionSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('accept'), statusId: id.optional() }),
+  z.object({ action: z.literal('decline'), reason: shortText.optional() }),
+  z.object({ action: z.literal('duplicate'), duplicateOfId: id }),
+]);
+
+// ---------- GitHub ----------
+
+const repoName = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, { message: 'invalid_repo' });
+
+export const githubConfigSchema = z.object({
+  repos: z.array(repoName).min(1).max(50),
+  onPrOpen: z.enum(['in_progress', 'none']).default('in_progress'),
+  onPrMerge: z.enum(['done', 'none']).default('done'),
+  /** Secreto nuevo (opcional al editar; obligatorio al conectar si no se genera). */
+  secret: z.string().trim().min(16).max(200).optional(),
+  regenerateSecret: z.boolean().optional(),
 });
 
 // ---------- Comments ----------
@@ -160,3 +226,7 @@ export type RelationCreatePayload = z.infer<typeof relationCreateSchema>;
 export type IssueViewCreatePayload = z.infer<typeof issueViewCreateSchema>;
 export type IssueViewUpdatePayload = z.infer<typeof issueViewUpdateSchema>;
 export type IssueLabel = z.infer<typeof issueLabelSchema>;
+export type IssueLabelInput = z.infer<typeof issueLabelInputSchema>;
+export type BulkIssuesPayload = z.infer<typeof bulkIssuesSchema>;
+export type TriageActionPayload = z.infer<typeof triageActionSchema>;
+export type GithubConfigPayload = z.infer<typeof githubConfigSchema>;

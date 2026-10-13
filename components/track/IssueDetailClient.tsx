@@ -7,6 +7,7 @@ import StatusBadge from './StatusBadge';
 import IssuePropertiesPanel from './IssuePropertiesPanel';
 import IssueActivityTimeline from './IssueActivityTimeline';
 import QuickIssueModal from './QuickIssueModal';
+import { CopyBranchButton, IssueGithubPanel } from './IssueGithub';
 import { useToday } from './InlineEditors';
 import type { IssueDraft } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
@@ -328,7 +329,8 @@ export default function IssueDetailClient({
           {issueLabels.length > 0 && (
             <span className="track-label-chips">
               {issueLabels.map((l) => (
-                <span key={l.id} className="track-label-chip" style={{ background: l.color, color: '#fff' }}>
+                <span key={l.id} className="track-label-tag">
+                  <span className="track-label-tag-dot" style={{ background: l.color }} aria-hidden />
                   {l.name}
                 </span>
               ))}
@@ -336,6 +338,7 @@ export default function IssueDetailClient({
           )}
         </div>
         <div className="track-detail-actions">
+          <CopyBranchButton issueId={issue.id} />
           {(doneStatus || openStatus) && (
             <button type="button" className="btn btn-outline" onClick={handleCloseReopen}>
               {isClosed ? labels.actions.reopen : labels.actions.close}
@@ -393,6 +396,8 @@ export default function IssueDetailClient({
               </ul>
             )}
           </section>
+
+          <IssueGithubPanel issueId={issue.id} />
 
           <section className="panel">
             <p className="section-label">{labels.attachments.title}</p>

@@ -1599,6 +1599,363 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  // ---------- Cal (fase D9) ----------
+  {
+    // Cal: horarios reutilizables (nombre, zona, horas semanales) asignables a
+    // tipos de evento + excepciones por fecha. No destructiva: la
+    // disponibilidad por evento (calendar_availability) queda intacta; cada
+    // conjunto distinto de reglas de un usuario pasa a un horario y el evento
+    // apunta a él. El más usado queda como horario por defecto.
+    id: '027_cal_schedules',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS calendar_schedules (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          is_default INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_schedules_user ON calendar_schedules(user_id, is_default DESC, name);
+
+        CREATE TABLE IF NOT EXISTS calendar_schedule_rules (
+          id TEXT PRIMARY KEY,
+          schedule_id TEXT NOT NULL REFERENCES calendar_schedules(id) ON DELETE CASCADE,
+          day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+          start_time TEXT NOT NULL,
+          end_time TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_schedule_rules_schedule ON calendar_schedule_rules(schedule_id, day_of_week);
+
+        -- start_time/end_time NULL = día no disponible; con horas, reemplazan
+        -- las horas semanales de esa fecha (puede haber varios rangos).
+        CREATE TABLE IF NOT EXISTS calendar_schedule_overrides (
+          id TEXT PRIMARY KEY,
+          schedule_id TEXT NOT NULL REFERENCES calendar_schedules(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          start_time TEXT,
+          end_time TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_schedule_overrides_schedule ON calendar_schedule_overrides(schedule_id, date);
+      `);
+      await addColumn(
+        client,
+        'ALTER TABLE calendar_event_types ADD COLUMN schedule_id TEXT REFERENCES calendar_schedules(id) ON DELETE SET NULL',
+      );
+
+      const users = (
+        await client.execute(
+          `SELECT DISTINCT e.user_id FROM calendar_event_types e
+           WHERE e.schedule_id IS NULL
+             AND EXISTS (SELECT 1 FROM calendar_availability a WHERE a.event_type_id = e.id)
+             AND NOT EXISTS (SELECT 1 FROM calendar_schedules s WHERE s.user_id = e.user_id)`,
+        )
+      ).rows.map((r) => String(r.user_id));
+      for (const userId of users) {
+        const tzRow = (await client.execute({ sql: 'SELECT timezone FROM calendar_users WHERE user_id = ?', args: [userId] }))
+          .rows[0];
+        const tz = tzRow ? String(tzRow.timezone) : 'UTC';
+        const rules = (
+          await client.execute({
+            sql: `SELECT e.id AS event_type_id, e.title, a.day_of_week, a.start_time, a.end_time
+                  FROM calendar_event_types e JOIN calendar_availability a ON a.event_type_id = e.id
+                  WHERE e.user_id = ? AND e.schedule_id IS NULL
+                  ORDER BY e.created_at, e.id, a.day_of_week, a.start_time, a.end_time`,
+            args: [userId],
+          })
+        ).rows;
+        // Firma de cada evento = sus reglas ordenadas; eventos con la misma
+        // firma comparten horario.
+        const byEvent = new Map<string, { title: string; rules: Array<[number, string, string]> }>();
+        for (const r of rules) {
+          const key = String(r.event_type_id);
+          const entry = byEvent.get(key) ?? { title: String(r.title), rules: [] };
+          entry.rules.push([Number(r.day_of_week), String(r.start_time), String(r.end_time)]);
+          byEvent.set(key, entry);
+        }
+        const groups = new Map<string, { title: string; rules: Array<[number, string, string]>; events: string[] }>();
+        for (const [eventId, entry] of byEvent) {
+          const sig = JSON.stringify(entry.rules);
+          const g = groups.get(sig) ?? { title: entry.title, rules: entry.rules, events: [] };
+          g.events.push(eventId);
+          groups.set(sig, g);
+        }
+        const ordered = [...groups.values()].sort((a, b) => b.events.length - a.events.length);
+        for (let i = 0; i < ordered.length; i++) {
+          const g = ordered[i];
+          const scheduleId = crypto.randomUUID();
+          await client.execute({
+            sql: 'INSERT INTO calendar_schedules (id, user_id, name, timezone, is_default) VALUES (?, ?, ?, ?, ?)',
+            args: [scheduleId, userId, i === 0 ? 'Horario principal' : g.title.slice(0, 80), tz, i === 0 ? 1 : 0],
+          });
+          for (const [dow, start, end] of g.rules) {
+            await client.execute({
+              sql: 'INSERT INTO calendar_schedule_rules (id, schedule_id, day_of_week, start_time, end_time) VALUES (?, ?, ?, ?, ?)',
+              args: [crypto.randomUUID(), scheduleId, dow, start, end],
+            });
+          }
+          for (const eventId of g.events) {
+            await client.execute({
+              sql: 'UPDATE calendar_event_types SET schedule_id = ? WHERE id = ? AND schedule_id IS NULL',
+              args: [scheduleId, eventId],
+            });
+          }
+        }
+      }
+    },
+  },
+  {
+    // Cal: workflows de recordatorio por tipo de evento. Cada paso manda un
+    // email (invitado o anfitrión) offset_min minutos antes (<0) o después
+    // (>0) del inicio. Las corridas se programan por reserva y las despacha
+    // el cron de recordatorios.
+    id: '027_cal_workflows',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS calendar_workflow_steps (
+          id TEXT PRIMARY KEY,
+          event_type_id TEXT NOT NULL REFERENCES calendar_event_types(id) ON DELETE CASCADE,
+          position INTEGER NOT NULL DEFAULT 0,
+          recipient TEXT NOT NULL CHECK (recipient IN ('guest', 'host')),
+          offset_min INTEGER NOT NULL,
+          subject TEXT NOT NULL,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_workflow_steps_event ON calendar_workflow_steps(event_type_id, position);
+
+        CREATE TABLE IF NOT EXISTS calendar_workflow_runs (
+          id TEXT PRIMARY KEY,
+          step_id TEXT NOT NULL REFERENCES calendar_workflow_steps(id) ON DELETE CASCADE,
+          booking_id TEXT NOT NULL REFERENCES calendar_bookings(id) ON DELETE CASCADE,
+          send_at TEXT NOT NULL,
+          sent_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (step_id, booking_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_workflow_runs_due ON calendar_workflow_runs(sent_at, send_at);
+        CREATE INDEX IF NOT EXISTS idx_calendar_workflow_runs_booking ON calendar_workflow_runs(booking_id);
+      `);
+    },
+  },
+  {
+    // Cal: cobro con Stripe Checkout. Clave secreta del workspace cifrada
+    // (lib/secret-box.ts), precio por tipo de evento y reservas 'pending'
+    // (hold sin pagar que vence). Agregar 'pending' al CHECK de status exige
+    // reconstruir calendar_bookings: se copia el CREATE actual de
+    // sqlite_master (conserva las columnas agregadas con ALTER) y sus índices.
+    id: '027_cal_payments',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS calendar_payment_settings (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          stripe_secret_key TEXT NOT NULL DEFAULT '',
+          stripe_webhook_secret TEXT NOT NULL DEFAULT '',
+          webhook_token TEXT NOT NULL UNIQUE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+      await addColumn(client, 'ALTER TABLE calendar_event_types ADD COLUMN price_cents INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE calendar_event_types ADD COLUMN currency TEXT NOT NULL DEFAULT 'usd'");
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN hold_expires_at TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN stripe_session_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN amount_cents INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN currency TEXT NOT NULL DEFAULT ''");
+
+      const tableSql = async () =>
+        String(
+          (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'calendar_bookings'"))
+            .rows[0]?.sql ?? '',
+        );
+      const sql = await tableSql();
+      if (sql && !/'pending'/.test(sql)) {
+        const createNew = sql
+          .replace(/^CREATE TABLE\s+(IF NOT EXISTS\s+)?["`]?calendar_bookings["`]?/i, 'CREATE TABLE calendar_bookings_new')
+          .replace(
+            /CHECK\s*\(\s*status\s+IN\s*\(([^)]*)\)\s*\)/i,
+            (_m, list: string) => `CHECK (status IN (${list}, 'pending'))`,
+          );
+        const indexes = (
+          await client.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'calendar_bookings' AND sql IS NOT NULL",
+          )
+        ).rows.map((r) =>
+          String(r.sql).replace(
+            /^CREATE (UNIQUE )?INDEX\s+(IF NOT EXISTS\s+)?/i,
+            (_m, u?: string) => `CREATE ${u ?? ''}INDEX IF NOT EXISTS `,
+          ),
+        );
+        try {
+          await client.migrate([
+            'DROP TABLE IF EXISTS calendar_bookings_new',
+            createNew,
+            'INSERT INTO calendar_bookings_new SELECT * FROM calendar_bookings',
+            'DROP TABLE calendar_bookings',
+            'ALTER TABLE calendar_bookings_new RENAME TO calendar_bookings',
+            ...indexes,
+          ]);
+        } catch (err) {
+          // Otra instancia ya reconstruyó la tabla (carrera al arrancar).
+          if (!/'pending'/.test(await tableSql())) throw err;
+        }
+      }
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_calendar_bookings_pending ON calendar_bookings(status, hold_expires_at)',
+      );
+    },
+  },
+  // ---------- Track d9 (027_track_*) ----------
+  {
+    // Track: labels del workspace (workspace_id = team activo o, en el
+    // workspace personal, el id del dueño). Los labels libres que ya tenían
+    // los issues (JSON en track_issues.labels) se copian como labels del
+    // workspace, deduplicados por nombre; el JSON del issue se conserva y solo
+    // se reescriben los ids para apuntar al label del workspace.
+    id: '027_track_labels',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_labels (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          color TEXT NOT NULL DEFAULT '#666666',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_track_labels_name ON track_labels(workspace_id, name COLLATE NOCASE);
+      `);
+      const rows = (
+        await client.execute(
+          `SELECT i.id, i.labels, COALESCE(p.team_id, p.owner_id) AS ws
+           FROM track_issues i JOIN track_projects p ON p.id = i.project_id
+           WHERE i.labels IS NOT NULL AND i.labels != '[]' AND COALESCE(p.team_id, p.owner_id) IS NOT NULL`,
+        )
+      ).rows;
+      const byName = new Map<string, { id: string; name: string; color: string }>();
+      const existing = (await client.execute('SELECT id, workspace_id, name, color FROM track_labels')).rows;
+      for (const r of existing) {
+        byName.set(`${r.workspace_id}\u0000${String(r.name).toLowerCase()}`, {
+          id: String(r.id),
+          name: String(r.name),
+          color: String(r.color),
+        });
+      }
+      const usedIds = new Set(existing.map((r) => String(r.id)));
+      for (const r of rows) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(String(r.labels));
+        } catch {
+          continue;
+        }
+        if (!Array.isArray(parsed)) continue;
+        const ws = String(r.ws);
+        const next: Array<{ id: string; name: string; color: string }> = [];
+        for (const l of parsed as Array<Record<string, unknown>>) {
+          const name = String(l?.name ?? '').trim().slice(0, 50);
+          if (!name) continue;
+          const key = `${ws}\u0000${name.toLowerCase()}`;
+          let label = byName.get(key);
+          if (!label) {
+            const raw = typeof l.id === 'string' && l.id && !usedIds.has(l.id) ? l.id : crypto.randomUUID();
+            label = { id: raw, name, color: typeof l.color === 'string' && l.color ? l.color.slice(0, 20) : '#666666' };
+            await client.execute({
+              sql: 'INSERT OR IGNORE INTO track_labels (id, workspace_id, name, color) VALUES (?, ?, ?, ?)',
+              args: [label.id, ws, label.name, label.color],
+            });
+            usedIds.add(label.id);
+            byName.set(key, label);
+          }
+          if (!next.some((x) => x.id === label!.id)) next.push(label);
+        }
+        await client.execute({
+          sql: 'UPDATE track_issues SET labels = ? WHERE id = ?',
+          args: [JSON.stringify(next), String(r.id)],
+        });
+      }
+    },
+  },
+  {
+    // Track: integración con GitHub por webhook (sin GitHub App). Un webhook
+    // por workspace: secreto cifrado (lib/secret-box), repos aceptados y qué
+    // hacer al abrir / mergear un PR. track_issue_links guarda PRs y commits
+    // vinculados a issues.
+    id: '027_track_github',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_github (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL UNIQUE,
+          owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          secret TEXT NOT NULL,
+          repos TEXT NOT NULL DEFAULT '[]',
+          on_pr_open TEXT NOT NULL DEFAULT 'in_progress',
+          on_pr_merge TEXT NOT NULL DEFAULT 'done',
+          last_delivery_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS track_issue_links (
+          id TEXT PRIMARY KEY,
+          issue_id TEXT NOT NULL REFERENCES track_issues(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL CHECK (kind IN ('pr', 'commit')),
+          repo TEXT NOT NULL,
+          ref TEXT NOT NULL,
+          url TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          state TEXT NOT NULL DEFAULT 'open',
+          branch TEXT,
+          author TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (issue_id, kind, repo, ref)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_issue_links_issue ON track_issue_links(issue_id, created_at DESC);
+      `);
+    },
+  },
+  {
+    // Track: triage. Issues creados desde afuera (API, Chat, Flow, GitHub)
+    // entran a una cola por proyecto si el proyecto tiene triage activo.
+    id: '027_track_triage',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE track_projects ADD COLUMN triage_enabled INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE track_issues ADD COLUMN source TEXT NOT NULL DEFAULT 'app'");
+      await addColumn(client, 'ALTER TABLE track_issues ADD COLUMN triage INTEGER NOT NULL DEFAULT 0');
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_track_issues_triage ON track_issues(project_id, triage, created_at DESC)',
+      );
+    },
+  },
+  {
+    // Link: segmentación por país/dispositivo, A/B y deep links (JSON en la
+    // misma fila del link: el redirect sigue siendo una sola query), origen de
+    // cada visita (link | qr) y variante servida, escaneos QR separados y
+    // estilo de QR por link (tabla aparte: el logo no viaja en el hot path).
+    // Índice (link_id, ts, source) para el dashboard del workspace.
+    id: '027_link_targeting_qr',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN targeting TEXT');
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN qr_scans INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE clicks ADD COLUMN source TEXT NOT NULL DEFAULT 'link'");
+      await addColumn(client, 'ALTER TABLE clicks ADD COLUMN variant TEXT');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_clicks_link_ts_source ON clicks(link_id, ts, source);
+        CREATE TABLE IF NOT EXISTS link_qr_styles (
+          link_id TEXT PRIMARY KEY REFERENCES links(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          fg TEXT NOT NULL DEFAULT '#000000',
+          bg TEXT NOT NULL DEFAULT '#ffffff',
+          dots TEXT NOT NULL DEFAULT 'square',
+          logo TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

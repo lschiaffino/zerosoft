@@ -36,6 +36,7 @@ import type {
   StatusUpdatePayload,
   StatusesReorderPayload,
 } from './track-schema';
+import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
 
 // ---------- Tipos públicos ----------
 
@@ -148,12 +149,6 @@ function blocksToJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function labelsToJson(value: unknown): string {
-  if (value == null) return '[]';
-  if (typeof value === 'string') return value;
-  return JSON.stringify(value);
-}
-
 function toArray<T>(value: T | T[] | undefined): T[] | undefined {
   if (value === undefined) return undefined;
   if (Array.isArray(value)) return value.length ? value : undefined;
@@ -239,7 +234,7 @@ export async function listProjects(
   const rows = (await db
     .prepare(
       `SELECT p.*,
-        (SELECT COUNT(*) FROM track_issues i WHERE i.project_id = p.id AND i.status_id IN (
+        (SELECT COUNT(*) FROM track_issues i WHERE i.project_id = p.id AND i.triage = 0 AND i.status_id IN (
           SELECT s.id FROM track_statuses s WHERE s.project_id = p.id AND s.category IN ('backlog','todo','in_progress')
         )) AS open_issues
        FROM track_projects p
@@ -347,6 +342,10 @@ export async function updateProject(
   if (payload.status !== undefined) {
     fields.push('status = ?');
     args.push(payload.status);
+  }
+  if (payload.triageEnabled !== undefined) {
+    fields.push('triage_enabled = ?');
+    args.push(payload.triageEnabled ? 1 : 0);
   }
 
   if (fields.length > 0) {
@@ -676,7 +675,7 @@ export async function listIssues(
   const pageSize = Math.min(Math.max(options.pageSize ?? 50, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
 
-  const where: string[] = ['i.project_id = ?'];
+  const where: string[] = ['i.project_id = ?', 'i.triage = 0'];
   const args: Array<string | number> = [projectId];
 
   const statusIds = toArray(options.statusId);
@@ -759,7 +758,7 @@ export async function listAllIssues(
   const projectWhere = scope.where;
   const projectArg = scope.arg;
 
-  const where: string[] = ['i.project_id IN (SELECT id FROM track_projects WHERE ' + projectWhere + ')'];
+  const where: string[] = ['i.project_id IN (SELECT id FROM track_projects WHERE ' + projectWhere + ')', 'i.triage = 0'];
   const args: Array<string | number> = [projectArg];
 
   if (options.projectId) {
@@ -851,6 +850,7 @@ export async function listMyIssues(
   const where = [
     `i.project_id IN (SELECT id FROM track_projects WHERE ${scope.where} AND status = 'active')`,
     'i.assignee_id = ?',
+    'i.triage = 0',
   ];
   if (!options.includeCompleted) {
     where.push("(s.category IS NULL OR s.category NOT IN ('done', 'cancelled'))");
@@ -881,13 +881,27 @@ export async function getIssueByIdentifier(
     | undefined;
 }
 
+/**
+ * Origen del issue. 'app' = creado por un miembro desde la app; el resto
+ * (API, Chat, Flow, GitHub, agentes) entra a triage si el proyecto lo tiene
+ * activo. Por defecto se asume origen externo.
+ */
+export type TrackIssueSource = 'app' | 'api' | 'chat' | 'flow' | 'github' | 'agent';
+
 export async function createIssue(
   projectId: string,
   creatorId: string,
   payload: IssueCreatePayload,
+  opts: { source?: TrackIssueSource } = {},
 ): Promise<TrackIssueWithStatus> {
   const db = getDb();
   const id = crypto.randomUUID();
+  const source: TrackIssueSource = opts.source ?? 'api';
+  const projectRow = await getProject(projectId);
+  const triage = source !== 'app' && projectRow?.triage_enabled ? 1 : 0;
+  const ws = projectRow ? projectWorkspaceId(projectRow) : null;
+  const labelsJson =
+    payload.labels && ws ? JSON.stringify(await normalizeIssueLabels(ws, payload.labels)) : '[]';
   let identifier = await nextIdentifier(projectId);
   const now = nowIso();
 
@@ -909,7 +923,7 @@ export async function createIssue(
     try {
       await db
         .prepare(
-          'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, start_date, due_date, labels, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO track_issues (id, project_id, identifier, title, description, status_id, priority, assignee_id, creator_id, cycle_id, estimate, parent_id, start_date, due_date, labels, source, triage, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           id,
@@ -926,7 +940,9 @@ export async function createIssue(
           payload.parentId ?? null,
           payload.startDate ?? null,
           payload.dueDate ?? null,
-          labelsToJson(payload.labels),
+          labelsJson,
+          source,
+          triage,
           now,
           now,
         );
@@ -938,7 +954,7 @@ export async function createIssue(
     }
   }
 
-  await createIssueActivity(id, creatorId, 'created', {});
+  await createIssueActivity(id, creatorId, 'created', source === 'app' ? {} : { source });
   if (payload.parentId) {
     await createIssueActivity(id, creatorId, 'subtask_added', { parentId: payload.parentId });
   }
@@ -1056,9 +1072,14 @@ export async function updateIssue(
     fields.push('start_date = ?');
     args.push(payload.startDate ?? null);
   }
-  if (payload.labels !== undefined && labelsToJson(payload.labels) !== existing.labels) {
-    fields.push('labels = ?');
-    args.push(labelsToJson(payload.labels));
+  if (payload.labels !== undefined) {
+    const project = await getProject(existing.project_id);
+    const ws = project ? projectWorkspaceId(project) : null;
+    const next = ws ? JSON.stringify(await normalizeIssueLabels(ws, payload.labels)) : '[]';
+    if (next !== existing.labels) {
+      fields.push('labels = ?');
+      args.push(next);
+    }
   }
 
   if (fields.length > 0) {

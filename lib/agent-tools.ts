@@ -425,7 +425,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
                 title: input.title,
                 description: [{ type: 'text', text: body }],
                 priority: input.priority ?? 'medium',
-              });
+              }, { source: ctx.channel === 'chat' ? 'chat' : 'agent' });
               return { issueId: issue.id, identifier: issue.identifier, title: issue.title };
             },
           ),

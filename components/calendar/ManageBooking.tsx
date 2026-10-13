@@ -18,6 +18,8 @@ interface Props {
     name: string;
     email: string;
   };
+  /** Vuelve de Stripe Checkout con el pago hecho. */
+  paidNotice?: boolean;
 }
 
 function formatRange(start: string, end: string, timezone: string, locale: string): string {
@@ -33,7 +35,7 @@ function formatRange(start: string, end: string, timezone: string, locale: strin
 }
 
 /** Página del invitado para ver, cancelar o reprogramar su reserva (sin cuenta). */
-export default function ManageBooking({ token, locale, eventType, weekStart, booking }: Props) {
+export default function ManageBooking({ token, locale, eventType, weekStart, booking, paidNotice = false }: Props) {
   const t = useTranslations('calendar');
   const [mode, setMode] = useState<'view' | 'cancel' | 'reschedule' | 'cancelled'>(
     booking.status === 'cancelled' ? 'cancelled' : 'view',
@@ -89,8 +91,12 @@ export default function ManageBooking({ token, locale, eventType, weekStart, boo
         </p>
         {eventType.location && <p className="booking-confirm-detail muted">{eventType.location}</p>}
 
+        {paidNotice && booking.status === 'confirmed' && <p className="booking-confirm-detail">{t('manage.paid')}</p>}
+
         {mode === 'cancelled' ? (
           <p className="booking-confirm-detail">{t('manage.cancelled')}</p>
+        ) : booking.status === 'pending' ? (
+          <p className="booking-confirm-detail">{t('manage.pending')}</p>
         ) : past ? (
           <p className="booking-confirm-detail muted">{t('manage.past')}</p>
         ) : mode === 'cancel' ? (

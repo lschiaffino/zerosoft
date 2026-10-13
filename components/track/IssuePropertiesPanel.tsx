@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
-import StatusBadge from './StatusBadge';
+import LabelPicker from './LabelPicker';
 
 interface IssuePropertiesPanelProps {
   issue: TrackIssueWithStatus;
@@ -27,8 +27,6 @@ interface IssuePropertiesPanelProps {
   onChange?: () => void;
 }
 
-const LABEL_COLORS = ['#000000', '#333333', '#666666', '#999999', '#bbbbbb'];
-
 function parseLabels(raw: string): IssueLabel[] {
   try {
     const parsed = JSON.parse(raw);
@@ -38,19 +36,14 @@ function parseLabels(raw: string): IssueLabel[] {
   }
 }
 
-function labelsToJson(value: unknown): string {
-  if (value == null) return '[]';
-  if (typeof value === 'string') return value;
-  return JSON.stringify(value);
-}
-
-async function patchIssue(issueId: string, body: Record<string, unknown>): Promise<void> {
+async function patchIssue(issueId: string, body: Record<string, unknown>): Promise<TrackIssueWithStatus> {
   const res = await fetch(`/api/track/issues/${issueId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error('update failed');
+  return (await res.json()) as TrackIssueWithStatus;
 }
 
 export default function IssuePropertiesPanel({
@@ -63,7 +56,6 @@ export default function IssuePropertiesPanel({
   onChange,
 }: IssuePropertiesPanelProps) {
   const [localIssue, setLocalIssue] = useState(issue);
-  const [labelInput, setLabelInput] = useState('');
 
   const issueLabels = parseLabels(localIssue.labels);
 
@@ -72,7 +64,6 @@ export default function IssuePropertiesPanel({
     if ('priority' in patch) out.priority = patch.priority as typeof localIssue.priority;
     if ('dueDate' in patch) out.due_date = (patch.dueDate as string | null) ?? null;
     if ('estimate' in patch) out.estimate = (patch.estimate as number | null) ?? null;
-    if ('labels' in patch) out.labels = labelsToJson(patch.labels);
     return out;
   };
 
@@ -115,14 +106,13 @@ export default function IssuePropertiesPanel({
     );
   };
 
-  const addLabel = (name: string, color: string) => {
-    const next = [...issueLabels, { id: crypto.randomUUID(), name, color }];
-    update({ labels: next }, { labels: JSON.stringify(next) });
-  };
-
-  const removeLabel = (id: string) => {
-    const next = issueLabels.filter((l) => l.id !== id);
-    update({ labels: next }, { labels: JSON.stringify(next) });
+  // Los labels se normalizan en el server (labels del workspace): usamos la respuesta.
+  const setLabels = async (next: Array<{ id: string } | { name: string }>) => {
+    const keep = new Set(next.flatMap((l) => ('id' in l ? [l.id] : [])));
+    setLocalIssue((prev) => ({ ...prev, labels: JSON.stringify(issueLabels.filter((l) => keep.has(l.id))) }));
+    const updated = await patchIssue(localIssue.id, { labels: next });
+    setLocalIssue((prev) => ({ ...prev, labels: updated.labels }));
+    onChange?.();
   };
 
   return (
@@ -183,48 +173,7 @@ export default function IssuePropertiesPanel({
       </div>
       <div className="track-property track-property-stack">
         <label>{labels.labels}</label>
-        <div className="track-label-input">
-          {issueLabels.map((l) => (
-            <span key={l.id} className="track-label-chip" style={{ background: l.color, color: '#fff' }}>
-              {l.name}
-              <button type="button" onClick={() => removeLabel(l.id)} aria-label="remove">
-                ×
-              </button>
-            </span>
-          ))}
-          <input
-            type="text"
-            value={labelInput}
-            onChange={(e) => setLabelInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                const name = labelInput.trim();
-                if (!name || issueLabels.length >= 10) return;
-                addLabel(name, LABEL_COLORS[issueLabels.length % LABEL_COLORS.length]);
-                setLabelInput('');
-              }
-            }}
-            placeholder="Add label"
-          />
-        </div>
-        <div className="track-label-colors">
-          {LABEL_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className="track-label-color"
-              style={{ background: c }}
-              onClick={() => {
-                const name = labelInput.trim();
-                if (!name || issueLabels.length >= 10) return;
-                addLabel(name, c);
-                setLabelInput('');
-              }}
-              aria-label={`color ${c}`}
-            />
-          ))}
-        </div>
+        <LabelPicker value={issueLabels} onChange={(next) => void setLabels(next)} />
       </div>
       <div className="track-property">
         <label>{labels.estimate}</label>
