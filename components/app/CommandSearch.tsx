@@ -66,6 +66,7 @@ export default function CommandSearch() {
       { group, label: tNotes('actions.newNote'), meta: '', href: '/app/notes?new=1' },
       { group, label: tBoard('list.new'), meta: '', href: '/app/board?new=1' },
       { group, label: t('newAgent'), meta: '', href: '/app/agents' },
+      { group, label: t('newRobot'), meta: '', href: '/app/robots?new=1' },
     ];
   }, [t, tNotes, tBoard]);
 

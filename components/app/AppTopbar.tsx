@@ -18,6 +18,7 @@ const PRODUCT_NAMES: Record<string, string> = {
   notes: 'Notes',
   board: 'Board',
   agents: 'Agents',
+  robots: 'Robots',
 };
 
 export function productFromPath(pathname: string): keyof typeof PRODUCT_NAMES {
@@ -30,6 +31,7 @@ export function productFromPath(pathname: string): keyof typeof PRODUCT_NAMES {
   if (pathname.includes('/app/notes')) return 'notes';
   if (pathname.includes('/app/board')) return 'board';
   if (pathname.includes('/app/agents')) return 'agents';
+  if (pathname.includes('/app/robots')) return 'robots';
   return 'link';
 }
 

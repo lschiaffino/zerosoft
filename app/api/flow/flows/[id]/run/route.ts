@@ -5,7 +5,7 @@ import { canEditFlows, flowError, forbidden, notFound, runFlowNow, unauthorized 
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /** "Test run": corre el flow ahora con datos de prueba y devuelve los pasos. */
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {

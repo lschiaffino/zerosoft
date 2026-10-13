@@ -4,7 +4,7 @@ import { routing } from './routing';
 
 // Namespaces cargados por idioma. Cada feature puede agregar el suyo
 // (messages/<locale>/<namespace>.json); si no existe, se omite sin romper.
-const NAMESPACES = ['common', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'agents', 'notes', 'board', 'pages', 'legal', 'feedback', 'changelog', 'videos', 'roadmap', 'tools'];
+const NAMESPACES = ['common', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'agents', 'robots', 'notes', 'board', 'pages', 'legal', 'feedback', 'changelog', 'videos', 'roadmap', 'tools'];
 
 async function loadNamespace(locale: string, ns: string) {
   try {

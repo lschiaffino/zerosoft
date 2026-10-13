@@ -1005,3 +1005,44 @@ export interface AgentFeedbackRow {
   created_by: string | null;
   created_at: string;
 }
+
+// ---------- Robots ----------
+
+export type RobotRunStatus = 'queued' | 'running' | 'success' | 'failed';
+export type RobotRunTrigger = 'manual' | 'flow' | 'schedule';
+
+export interface RobotRow {
+  id: string;
+  user_id: string; // workspace (dueño)
+  name: string;
+  description: string;
+  steps: string; // JSON RobotStep[]
+  inputs: string; // JSON RobotInputDef[]
+  enabled: number; // 0 | 1 (apagado: no corre por Flow ni por schedule)
+  schedule: string | null; // JSON RobotSchedule
+  next_run_at: string | null;
+  timeout_sec: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RobotRunRow {
+  id: string;
+  robot_id: string;
+  user_id: string;
+  status: RobotRunStatus;
+  trigger: RobotRunTrigger;
+  input: string; // JSON
+  output: string; // JSON (variables extraídas)
+  error: string | null;
+  logs: string; // JSON RobotLogEntry[]
+  screenshots: string; // JSON [{ name, url }]
+  backend: string | null;
+  created_by: string | null;
+  locked_until: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+}

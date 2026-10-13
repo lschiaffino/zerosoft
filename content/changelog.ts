@@ -26,6 +26,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-robots',
+    date: '2026-10-13',
+    title: {
+      en: 'Robots: browser automations',
+      es: 'Robots: automatizaciones en el navegador',
+      pt: 'Robots: automações no navegador',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'New app: Robots, an open-source alternative to UiPath. Build step by step (open a page, click, fill, extract text or tables, take screenshots, loops and conditions), run on demand, on a schedule or from a Flow, and get the data back as JSON.',
+        es: 'App nueva: Robots, una alternativa open source a UiPath. Armalos paso a paso (abrir una página, hacer clic, completar, extraer textos o tablas, sacar capturas, loops y condiciones), correlos a mano, con horario o desde un Flow, y recibí los datos en JSON.',
+        pt: 'App novo: Robots, uma alternativa open source ao UiPath. Monte passo a passo (abrir uma página, clicar, preencher, extrair textos ou tabelas, tirar capturas, loops e condições), rode manualmente, com horário ou a partir de um Flow, e receba os dados em JSON.',
+      },
+    ],
+  },
+  {
     id: '2026-10-13-agents',
     date: '2026-10-13',
     title: {

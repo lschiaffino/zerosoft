@@ -125,6 +125,7 @@
     "app_link": { "title": "Link: crear link corto", "desc": "Crea un link corto." },
     "app_chat_message": { "title": "Chat: enviar mensaje", "desc": "Responde en una conversación de Chat como el bot." },
     "app_docs_page": { "title": "Docs: crear página", "desc": "Crea una página en Docs. Las líneas en blanco separan párrafos." },
+    "app_robot_run": { "title": "Robots: ejecutar robot", "desc": "Ejecuta un robot de navegador con estas entradas y espera los datos extraídos (hasta el timeout del robot)." },
     "ai_text": { "title": "AI: generar texto", "desc": "Escribe, resume o clasifica texto con AI. Cuenta para tu cuota de AI." }
   },
   "fields": {
@@ -172,7 +173,11 @@
     "content": "Contenido",
     "instructions": "Instrucciones",
     "prompt": "Prompt",
-    "maxTokens": "Máximo de tokens"
+    "maxTokens": "Máximo de tokens",
+    "robotId": "ID del robot",
+    "inputs": "Entradas",
+    "failOnError": "Fallar si el robot falla",
+    "failOnErrorHint": "Detener el flow cuando la corrida del robot falla"
   },
   "options": {
     "all": "Todas las condiciones",
@@ -215,7 +220,9 @@
     "issue_status_changed": "Track: issue cambió de estado",
     "conversation_created": "Chat: conversación iniciada",
     "message_received": "Chat: mensaje recibido",
-    "page_created": "Docs: página creada"
+    "page_created": "Docs: página creada",
+    "robot_run_finished": "Robots: corrida terminada",
+    "robot_run_failed": "Robots: corrida fallida"
   },
   "ops": {
     "equals": "es igual a",

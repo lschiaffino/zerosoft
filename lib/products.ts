@@ -38,6 +38,7 @@ export function isProductKey(value: string): value is SiteProductKey {
 export const APP_ONLY_PRODUCTS = {
   notes: { name: 'Notes', launch: '/app/notes' },
   board: { name: 'Board', launch: '/app/board' },
+  robots: { name: 'Robots', launch: '/app/robots' },
 } as const;
 
 export type AppOnlyProductKey = keyof typeof APP_ONLY_PRODUCTS;

@@ -125,6 +125,7 @@
     "app_link": { "title": "Link: create short link", "desc": "Creates a short link." },
     "app_chat_message": { "title": "Chat: send message", "desc": "Replies in a Chat conversation as the bot." },
     "app_docs_page": { "title": "Docs: create page", "desc": "Creates a Docs page. Blank lines separate paragraphs." },
+    "app_robot_run": { "title": "Robots: run robot", "desc": "Runs a browser robot with these inputs and waits for its extracted data (up to the robot's timeout)." },
     "ai_text": { "title": "AI: generate text", "desc": "Writes, summarizes or classifies text with AI. Counts toward your AI quota." }
   },
   "fields": {
@@ -172,7 +173,11 @@
     "content": "Content",
     "instructions": "Instructions",
     "prompt": "Prompt",
-    "maxTokens": "Max tokens"
+    "maxTokens": "Max tokens",
+    "robotId": "Robot ID",
+    "inputs": "Inputs",
+    "failOnError": "Fail if the robot fails",
+    "failOnErrorHint": "Stop the flow when the robot run fails"
   },
   "options": {
     "all": "All conditions",
@@ -215,7 +220,9 @@
     "issue_status_changed": "Track: issue changed status",
     "conversation_created": "Chat: conversation started",
     "message_received": "Chat: message received",
-    "page_created": "Docs: page created"
+    "page_created": "Docs: page created",
+    "robot_run_finished": "Robots: run finished",
+    "robot_run_failed": "Robots: run failed"
   },
   "ops": {
     "equals": "equals",

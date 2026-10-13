@@ -16,6 +16,8 @@ const PRODUCT_COLOR: Partial<Record<FeedbackProduct, string>> = {
   flow: 'var(--c-flow)',
   notes: 'var(--c-notes)',
   board: 'var(--c-board)',
+  agents: 'var(--c-agents)',
+  robots: 'var(--c-robots)',
 };
 
 /**
