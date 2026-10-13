@@ -281,3 +281,65 @@ test('Docs: en mobile el árbol se pliega y no hay scroll horizontal', async ({ 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test('Cal: crear event type desde el modal rápido (tecla C), apagarlo y borrarlo', async ({ page, request }) => {
+  const title = `Quick ${uid()}`;
+  await page.goto('/en/app/calendar/event-types');
+  await page.keyboard.press('c');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByPlaceholder('Event name, e.g. Intro call').fill(title);
+  await page.getByRole('radio', { name: '45 min' }).click();
+  await page.keyboard.press('Control+Enter');
+  await expect(page.getByRole('dialog')).toBeHidden({ timeout: 15_000 });
+  const row = page.locator('.cal-row', { hasText: title });
+  await expect(row).toBeVisible({ timeout: 15_000 });
+
+  // Arranca activo y con horario lun–vie 9–17: el link reserva sin más pasos.
+  const { rows } = await (await request.get('/api/calendar/event-types')).json();
+  const created = rows.find((r: { title: string }) => r.title === title);
+  expect(created.active).toBe(1);
+  expect(created.duration_min).toBe(45);
+  const day = new Date(Date.now() + 7 * 86_400_000);
+  while (day.getUTCDay() !== 3) day.setUTCDate(day.getUTCDate() + 1);
+  const slotsRes = await request.get(
+    `/api/calendar/event-types/${created.id}/slots?date=${day.toISOString().slice(0, 10)}&timezone=UTC`,
+  );
+  expect((await slotsRes.json()).slots.length).toBeGreaterThan(0);
+
+  // Switch en línea: apaga sin entrar al detalle.
+  await row.getByRole('switch').click();
+  await expect(row.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+  await expect
+    .poll(async () => (await (await request.get(`/api/calendar/event-types/${created.id}`)).json()).active)
+    .toBe(0);
+
+  page.once('dialog', (d) => d.accept());
+  await row.getByRole('button', { name: `Delete ${title}` }).click();
+  await expect(row).toHaveCount(0);
+  expect((await request.get(`/api/calendar/event-types/${created.id}`)).status()).toBe(404);
+});
+
+test('Cal: /event-types/new abre el modal sobre la lista', async ({ page }) => {
+  await page.goto('/en/app/calendar/event-types/new');
+  await expect(page).toHaveURL(/\/en\/app\/calendar\/event-types\?new=1$/);
+  await expect(page.getByRole('dialog')).toBeVisible();
+  // Con foco en el título (hidratado), Esc cierra.
+  await expect(page.getByPlaceholder('Event name, e.g. Intro call')).toBeFocused({ timeout: 15_000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden({ timeout: 15_000 });
+});
+
+test('Cal: routing form rápido abre el editor y se borra desde el detalle', async ({ page }) => {
+  const title = `Route ${uid()}`;
+  await page.goto('/en/app/calendar/routing');
+  await page.getByRole('button', { name: /New routing form/ }).first().click();
+  await page.getByPlaceholder('Form name, e.g. Sales or support').fill(title);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/app\/calendar\/routing\/[0-9a-f-]+$/, { timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await expect(page).toHaveURL(/\/app\/calendar\/routing$/, { timeout: 15_000 });
+  await expect(page.getByText(title)).toHaveCount(0);
+});

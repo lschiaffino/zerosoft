@@ -80,7 +80,7 @@ export default function CalendarSettingsForm({ initial, origin, locale, canEditH
             className="input mono"
             value={values.handle}
             onChange={(e) => setValues((v) => ({ ...v, handle: e.target.value.toLowerCase() }))}
-            pattern="[a-z0-9][a-z0-9-]{1,30}[a-z0-9]"
+            pattern="[a-z0-9][a-z0-9\-]{1,30}[a-z0-9]"
             disabled={!canEditHandle}
             required
           />
@@ -120,8 +120,6 @@ export default function CalendarSettingsForm({ initial, origin, locale, canEditH
               ))}
             </select>
           </label>
-        </div>
-        <div className="form-grid">
           <label className="field">
             <span className="prop-label">{t('settings.bufferBefore')}</span>
             <input className="input" type="number" min={0} value={values.bufferBeforeMin} onChange={setNum('bufferBeforeMin')} />

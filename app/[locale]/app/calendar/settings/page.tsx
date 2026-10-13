@@ -23,7 +23,7 @@ export default async function CalendarSettingsPage(props: {
   const origin = (process.env.NEXTAUTH_URL ?? `https://${h.get('host') ?? 'zerosoft.ai'}`).replace(/\/$/, '');
 
   return (
-    <div className="app-page">
+    <div className="app-page cal-page">
       <h1 className="app-title">{t('settings.title')}</h1>
       <GoogleCalendarPanel
         configured={googleOAuthConfigured()}

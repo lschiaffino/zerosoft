@@ -5,20 +5,12 @@ import { requireUser } from '@/lib/session';
 import { listEventTypes } from '@/lib/calendar';
 import { getRoutingForm } from '@/lib/calendar-routing';
 import RoutingFormEditor from '@/components/calendar/RoutingFormEditor';
+import CalDeleteButton from '@/components/calendar/CalDeleteButton';
 
 export const dynamic = 'force-dynamic';
 
-export default async function RoutingFormDetailPage(
-  props: {
-    params: Promise<{ locale: string; id: string }>;
-  }
-) {
-  const params = await props.params;
-
-  const {
-    locale,
-    id
-  } = params;
+export default async function RoutingFormDetailPage(props: { params: Promise<{ locale: string; id: string }> }) {
+  const { locale, id } = await props.params;
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'calendar' });
@@ -27,15 +19,21 @@ export default async function RoutingFormDetailPage(
   const eventTypes = await listEventTypes(user.id);
 
   return (
-    <div className="app-page">
+    <div className="app-page cal-page">
       <Link href="/app/calendar/routing" className="mono back-link">
         {t('routing.back')}
       </Link>
 
-      <header className="detail-header">
+      <header className="cal-detail-head">
         <div className="detail-title-row">
           <h1 className="detail-title">{form.title}</h1>
           {!form.active && <span className="badge">{t('routing.inactive')}</span>}
+          <span className="cal-detail-spacer" />
+          <CalDeleteButton
+            url={`/api/calendar/routing/${id}`}
+            confirmText={t('routing.deleteConfirm', { title: form.title })}
+            redirectTo="/app/calendar/routing"
+          />
         </div>
         <div className="detail-meta">
           <span className="detail-meta-item mono">/r/{form.slug}</span>

@@ -39,7 +39,7 @@ export default function GoogleCalendarPanel({ configured, connectedEmail, notice
       <p className="muted">{t('google.desc')}</p>
       {noticeText && <p className={notice === 'connected' ? 'saved-note' : 'form-error'}>{noticeText}</p>}
       {!configured ? (
-        <p className="muted mono">{t('google.notConfigured', { uri: redirectUri })}</p>
+        <p className="muted mono cal-wrap">{t('google.notConfigured', { uri: redirectUri })}</p>
       ) : connectedEmail ? (
         <div className="calendar-public-link">
           <span className="mono">{t('google.connectedAs', { email: connectedEmail })}</span>

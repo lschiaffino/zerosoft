@@ -17,7 +17,10 @@
     "remove": "Remover",
     "back": "← Voltar",
     "view": "Ver",
-    "hide": "Ocultar"
+    "hide": "Ocultar",
+    "delete": "Excluir",
+    "deleting": "Excluindo…",
+    "edit": "Editar"
   },
   "overview": {
     "title": "Agenda",
@@ -27,7 +30,7 @@
   },
   "eventTypes": {
     "title": "Tipos de evento",
-    "newCta": "+ Novo tipo de evento",
+    "newCta": "Novo tipo de evento",
     "newTitle": "Novo tipo de evento",
     "newSub": "Crie um link de reserva. Defina duração, regras e perguntas.",
     "back": "← Todos os tipos de evento",
@@ -94,7 +97,10 @@
   "bookings": {
     "title": "Reservas",
     "join": "Entrar na reunião ↗",
-    "rescheduled": "Reagendada pelo convidado"
+    "rescheduled": "Reagendada pelo convidado",
+    "emptyTitle": "Nenhum agendamento próximo",
+    "emptySub": "Compartilhe um link de agendamento e os novos aparecem aqui.",
+    "emptyCta": "Ir para tipos de evento"
   },
   "booking": {
     "timezone": "Fuso horário",
@@ -129,7 +135,7 @@
   },
   "routing": {
     "title": "Formulários de roteamento",
-    "newCta": "+ Novo formulário",
+    "newCta": "Novo formulário",
     "newTitle": "Novo formulário de roteamento",
     "newSub": "Faça algumas perguntas e direcione cada pessoa para a página de reserva certa.",
     "back": "← Todos os formulários",
@@ -163,7 +169,8 @@
     "valueTrue": "Sim",
     "valueFalse": "Não",
     "submit": "Continuar",
-    "noRoute": "Nenhuma página de reserva corresponde às suas respostas."
+    "noRoute": "Nenhuma página de reserva corresponde às suas respostas.",
+    "deleteConfirm": "Excluir “{title}”? O link público deixa de funcionar."
   },
   "errors": {
     "invalid_slug": "Slug inválido. Use apenas letras minúsculas, números e hífens.",
@@ -222,5 +229,31 @@
     "sub": "Escolha um tipo de reunião para ver os horários disponíveis.",
     "empty": "Não há tipos de reunião disponíveis no momento.",
     "minutes": "{n} min"
+  },
+  "quick": {
+    "eventCrumb": "Cal › Novo tipo de evento",
+    "titlePlaceholder": "Nome do evento, ex. Conversa inicial",
+    "slug": "URL",
+    "duration": "Duração",
+    "custom": "Outra",
+    "location": "Local",
+    "create": "Criar",
+    "hint": "⌘↵ criar · Esc fechar",
+    "defaultHours": "Agendável de segunda a sexta, 9:00–17:00. Mude quando quiser.",
+    "moreOptions": "Abrir ao criar",
+    "routingCrumb": "Cal › Novo formulário de roteamento",
+    "routingTitlePlaceholder": "Nome do formulário, ex. Vendas ou suporte",
+    "routingCreate": "Criar e adicionar perguntas"
+  },
+  "list": {
+    "copyLink": "Copiar link",
+    "copied": "Copiado",
+    "open": "Abrir página de agendamento",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "deleteConfirm": "Excluir “{title}”? A página de agendamento e todos os agendamentos são removidos. Para pausar, desative-o.",
+    "toggleOn": "Aceitando agendamentos — clique para desativar",
+    "toggleOff": "Desativado — clique para aceitar agendamentos",
+    "shortcut": "Pressione C para criar"
   }
 }

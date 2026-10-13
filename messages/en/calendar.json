@@ -17,7 +17,10 @@
     "remove": "Remove",
     "back": "← Back",
     "view": "View",
-    "hide": "Hide"
+    "hide": "Hide",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "edit": "Edit"
   },
   "overview": {
     "title": "Calendar",
@@ -27,7 +30,7 @@
   },
   "eventTypes": {
     "title": "Event types",
-    "newCta": "+ New event type",
+    "newCta": "New event type",
     "newTitle": "New event type",
     "newSub": "Create a booking link. Set duration, rules and questions.",
     "back": "← All event types",
@@ -94,7 +97,10 @@
   "bookings": {
     "title": "Bookings",
     "join": "Join meeting ↗",
-    "rescheduled": "Rescheduled by the guest"
+    "rescheduled": "Rescheduled by the guest",
+    "emptyTitle": "No upcoming bookings",
+    "emptySub": "Share a booking link and new bookings show up here.",
+    "emptyCta": "Go to event types"
   },
   "booking": {
     "timezone": "Timezone",
@@ -129,7 +135,7 @@
   },
   "routing": {
     "title": "Routing forms",
-    "newCta": "+ New routing form",
+    "newCta": "New routing form",
     "newTitle": "New routing form",
     "newSub": "Ask a few questions, then send people to the right booking page.",
     "back": "← All routing forms",
@@ -163,7 +169,8 @@
     "valueTrue": "Yes",
     "valueFalse": "No",
     "submit": "Continue",
-    "noRoute": "No booking page matches your answers."
+    "noRoute": "No booking page matches your answers.",
+    "deleteConfirm": "Delete “{title}”? Its public link stops working."
   },
   "errors": {
     "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",
@@ -222,5 +229,31 @@
     "sub": "Pick a meeting type to see available times.",
     "empty": "No meeting types are available right now.",
     "minutes": "{n} min"
+  },
+  "quick": {
+    "eventCrumb": "Cal › New event type",
+    "titlePlaceholder": "Event name, e.g. Intro call",
+    "slug": "URL",
+    "duration": "Duration",
+    "custom": "Other",
+    "location": "Location",
+    "create": "Create",
+    "hint": "⌘↵ create · Esc close",
+    "defaultHours": "Bookable Mon–Fri, 9:00–17:00. Change it anytime.",
+    "moreOptions": "Open after creating",
+    "routingCrumb": "Cal › New routing form",
+    "routingTitlePlaceholder": "Form name, e.g. Sales or support",
+    "routingCreate": "Create and add questions"
+  },
+  "list": {
+    "copyLink": "Copy link",
+    "copied": "Copied",
+    "open": "Open booking page",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete “{title}”? Its booking page and all its bookings are removed. To pause it, turn it off instead.",
+    "toggleOn": "Accepting bookings — click to turn off",
+    "toggleOff": "Off — click to accept bookings",
+    "shortcut": "Press C to create"
   }
 }
