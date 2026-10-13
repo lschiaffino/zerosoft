@@ -1,11 +1,12 @@
 /**
- * Pure, deterministic SVG generator for product Open Graph images (1200x630).
- * Same monochrome zero-only visual language as lib/blog-cover.ts:
- * a faint oversized zero, a ring of small zeros, and quiet wave rows —
- * plus the product name and the zerosoft.ai wordmark.
+ * Generador puro y determinístico de las imágenes OG (1200×630) de producto,
+ * changelog y herramientas. Mismo lenguaje que el hero del sitio: un cero
+ * grande hecho de ceros chicos, teñido con el color del producto, sobre tinta.
+ * Los ceros son trazados (lib/zero-mark.ts), no texto: no dependen de fuentes.
  */
 
 import { PRODUCT_KEYS } from './products';
+import { ZERO_H, ZERO_W, zeroPathAt } from './zero-mark';
 
 function hash(str: string): number {
   let h = 5381;
@@ -35,75 +36,71 @@ function escapeXml(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** `label` reemplaza la línea "NN / total" (p. ej. el changelog, que no es un producto). */
-export function generateProductOGSVG(product: string, name: string, num: string, label?: string): string {
+/**
+ * Los ceros chicos que dibujan un cero grande: una grilla recortada por un
+ * anillo ovalado (las mismas proporciones que el glifo de la marca).
+ */
+function zeroOfZeros(seed: number, cx: number, cy: number, height: number, color: string): string {
+  const ry = height / 2;
+  const rx = ry * (ZERO_W / ZERO_H) * 0.94;
+  const thickness = 0.3;
+  const gap = 17;
+  const glyph = 11;
+  const out: string[] = [];
+  let i = 0;
+  for (let y = cy - ry; y <= cy + ry; y += gap) {
+    for (let x = cx - rx; x <= cx + rx; x += gap) {
+      const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
+      const inner = (1 - thickness) ** 2;
+      if (d <= 1 && d >= inner) {
+        const opacity = lerp(0.45, 1, rnd(seed, i));
+        out.push(zeroPathAt(x - (glyph * ZERO_W) / ZERO_H / 2, y - glyph / 2, glyph, color, opacity));
+      } else if (d < inner && rnd(seed, i + 500) < 0.05) {
+        // Algunos ceros sueltos adentro: el campo "respira", como en el hero.
+        out.push(zeroPathAt(x - (glyph * ZERO_W) / ZERO_H / 2, y - glyph / 2, glyph, color, 0.18));
+      }
+      i++;
+    }
+  }
+  return `<g>${out.join('')}</g>`;
+}
+
+/**
+ * `label` reemplaza la línea "NN / total" (p. ej. el changelog, que no es un producto).
+ * `color` tiñe los ceros (por defecto, blanco).
+ */
+export function generateProductOGSVG(
+  product: string,
+  name: string,
+  num: string,
+  label?: string,
+  color = '#f4f4f4',
+): string {
   const seed = hash(`product:${product}`);
   const width = 1200;
   const height = 630;
-  const fontFamily = "'IBM Plex Mono', ui-monospace, monospace";
+  const fontFamily = "'Space Grotesk', 'Helvetica Neue', Arial, sans-serif";
+  const monoFamily = "'IBM Plex Mono', ui-monospace, monospace";
 
-  // 1. Faint oversized zero, centered right.
-  const bigZeroSize = height * 1.05;
-  const bigZeroX = width * 0.72;
-  const bigZero = `<text x="${bigZeroX}" y="${height / 2}" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" opacity="${lerp(0.04, 0.08, rnd(seed, 900)).toFixed(3)}" font-family="${fontFamily}" font-size="${bigZeroSize.toFixed(2)}" font-weight="500" style="pointer-events:none">0</text>`;
+  const field = zeroOfZeros(seed, width * 0.74, height / 2, height * 0.84, color);
 
-  // 2. Ring of small zeros around the big zero's silhouette.
-  const cx = bigZeroX;
-  const cy = height / 2;
-  const rx = width * 0.16;
-  const ry = height * 0.36;
-  const ringChars: string[] = [];
-  const ringCount = 26;
-  for (let i = 0; i < ringCount; i++) {
-    const a = (i / ringCount) * Math.PI * 2;
-    const x = cx + Math.cos(a) * rx + (rnd(seed, i) - 0.5) * 10;
-    const y = cy + Math.sin(a) * ry + (rnd(seed, i + 100) - 0.5) * 10;
-    const size = lerp(10, 18, rnd(seed, i + 200));
-    const opacity = lerp(0.15, 0.5, rnd(seed, i + 300));
-    ringChars.push(
-      `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" font-size="${size.toFixed(2)}" opacity="${opacity.toFixed(3)}">0</text>`,
-    );
-  }
-  const ring = `<g fill="#ffffff" font-family="${fontFamily}" font-weight="500" style="pointer-events:none">${ringChars.join('')}</g>`;
-
-  // 3. Two quiet wave rows crossing the canvas.
-  const rows: string[] = [];
-  for (let r = 0; r < 2; r++) {
-    const baseline = lerp(height * 0.2, height * 0.8, rnd(seed, 50 + r));
-    const amplitude = lerp(14, 34, rnd(seed, 60 + r));
-    const freq = lerp(0.006, 0.012, rnd(seed, 70 + r));
-    const phase = rnd(seed, 80 + r) * Math.PI * 2;
-    const chars: string[] = [];
-    const count = 34;
-    for (let i = 0; i <= count; i++) {
-      const x = (i / count) * width;
-      const dy = Math.sin(x * freq * Math.PI * 2 + phase) * amplitude;
-      chars.push(
-        `<text x="${x.toFixed(2)}" y="${(baseline + dy).toFixed(2)}" text-anchor="middle" dominant-baseline="middle">0</text>`,
-      );
-    }
-    rows.push(
-      `<g fill="#ffffff" opacity="${lerp(0.06, 0.14, rnd(seed, 90 + r)).toFixed(3)}" font-family="${fontFamily}" font-size="22" font-weight="500" style="pointer-events:none">${chars.join('')}</g>`,
-    );
-  }
-
-  // 4. Brand mark top-left, product num + name bottom-left, domain bottom-right.
-  const wordmark = `<text x="64" y="96" fill="#ffffff" opacity="0.9" font-family="${fontFamily}" font-size="40" font-weight="700">0</text>`;
+  const mark = zeroPathAt(64, 60, 40, '#ffffff');
   const total = String(PRODUCT_KEYS.length).padStart(2, '0');
-  const productNum = `<text x="64" y="${height - 196}" fill="#ffffff" opacity="0.45" font-family="${fontFamily}" font-size="24" font-weight="500">${escapeXml(label ?? `${num} / ${total}`)}</text>`;
-  const productName = `<text x="64" y="${height - 104}" fill="#ffffff" font-family="${fontFamily}" font-size="96" font-weight="700">${escapeXml(name)}</text>`;
-  const tagline = `<text x="${width - 64}" y="${height - 84}" text-anchor="end" fill="#ffffff" opacity="0.55" font-family="${fontFamily}" font-size="26" font-weight="500">zerosoft.ai</text>`;
+  const line = label ?? (num ? `${num} / ${total}` : '');
+  const productNum = line
+    ? `<text x="64" y="${height - 196}" fill="#ffffff" opacity="0.55" font-family="${monoFamily}" font-size="24" font-weight="500">${escapeXml(line)}</text>`
+    : '';
+  const productName = `<text x="64" y="${height - 104}" fill="#ffffff" font-family="${fontFamily}" font-size="104" font-weight="500" letter-spacing="-3">${escapeXml(name)}</text>`;
+  const domain = `<text x="${width - 64}" y="${height - 60}" text-anchor="end" fill="#ffffff" opacity="0.55" font-family="${monoFamily}" font-size="24" font-weight="500">zerosoft.ai</text>`;
 
   return (
     `<svg role="img" aria-label="${escapeXml(`zerosoft.ai ${name}`)}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">` +
     `<rect width="${width}" height="${height}" fill="#0a0a0a"/>` +
-    bigZero +
-    ring +
-    rows.join('') +
-    wordmark +
+    field +
+    mark +
     productNum +
     productName +
-    tagline +
+    domain +
     `</svg>`
   );
 }

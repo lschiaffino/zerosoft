@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl';
+import ZeroMark from '@/components/zero/ZeroMark';
 
 export default function DocsMockup() {
   const t = useTranslations('pages.mockups.docs');
@@ -7,7 +8,7 @@ export default function DocsMockup() {
     <div className="mk mk-docs">
       <aside className="mk-side">
         <div className="mk-brand">
-          <span className="mk-zero">0</span>
+          <ZeroMark size={16} />
           <span>Docs</span>
         </div>
         <nav className="mk-nav" aria-hidden="true">
@@ -19,7 +20,6 @@ export default function DocsMockup() {
 
       <div className="mk-main">
         <div className="mk-doc">
-          <span className="mk-doc-icon">📄</span>
           <h4 className="mk-doc-title">{t('title')}</h4>
           <div className="mk-doc-line" style={{ width: '92%' }} />
           <div className="mk-doc-line" style={{ width: '88%' }} />
@@ -29,9 +29,9 @@ export default function DocsMockup() {
           <div className="mk-doc-line" style={{ width: '80%' }} />
           <div className="mk-doc-line" style={{ width: '76%' }} />
           <div className="mk-doc-list">
-            <span>○ {t('item1')}</span>
-            <span>○ {t('item2')}</span>
-            <span>○ {t('item3')}</span>
+            <span>☐ {t('item1')}</span>
+            <span>☑ {t('item2')}</span>
+            <span>☐ {t('item3')}</span>
           </div>
         </div>
       </div>

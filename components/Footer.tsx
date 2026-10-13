@@ -3,6 +3,8 @@ import { Link } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
 import Icon from './site/Icon';
 import { GITHUB_URL, PRODUCT_NAMES, SITE_PRODUCTS } from './site/catalog';
+import ZeroMark from './zero/ZeroMark';
+import ProductZero from './zero/ProductZero';
 
 export default async function Footer({ locale }: { locale: string }) {
   const t = await getTranslations({ locale, namespace: 'common.footer' });
@@ -14,7 +16,7 @@ export default async function Footer({ locale }: { locale: string }) {
       <div className="footer-grid">
         <div className="footer-brand">
           <Link href="/" className="brand" aria-label="zerosoft.ai">
-            <span className="brand-zero">0</span>
+            <ZeroMark size={22} />
             <span className="brand-name">zerosoft.ai</span>
           </Link>
           <p>{tm('tagline')}</p>
@@ -30,8 +32,8 @@ export default async function Footer({ locale }: { locale: string }) {
           <ul>
             {SITE_PRODUCTS.map((k) => (
               <li key={k}>
-                <Link href={`/products/${k}`} className={`card-${k}`}>
-                  <span className="footer-dot" aria-hidden="true" />
+                <Link href={`/products/${k}`}>
+                  <ProductZero product={k} size={11} />
                   {PRODUCT_NAMES[k]}
                 </Link>
               </li>

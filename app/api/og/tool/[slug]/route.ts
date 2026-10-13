@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { generateProductOGSVG } from '@/lib/product-og';
+import { PRODUCT_CONFIG } from '@/lib/products';
 import { getTool, TOOLS } from '@/lib/tools/registry';
 
 export const dynamic = 'force-static';
@@ -23,7 +24,8 @@ export async function GET(_req: Request, props: { params: Promise<{ slug: string
   const { slug } = await props.params;
   const tool = getTool(slug);
   const name = tool ? shortName(tool.slug) : 'Free tools';
-  const svg = generateProductOGSVG(`tool:${slug}`, name, '', 'free · no sign-up');
+  const color = tool ? PRODUCT_CONFIG[tool.accent].color : undefined;
+  const svg = generateProductOGSVG(`tool:${slug}`, name, '', 'free · no sign-up', color);
   return new NextResponse(svg, {
     headers: { 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' },
   });

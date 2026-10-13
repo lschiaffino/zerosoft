@@ -41,10 +41,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
     },
     description: t('description'),
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
-    icons: {
-      icon:
-        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='82' font-size='96' text-anchor='middle' font-family='monospace'%3E0%3C/text%3E%3C/svg%3E",
-    },
+    // Favicon y apple-icon: app/icon.svg y app/apple-icon.tsx (el cero de lib/zero-mark.ts).
   };
 }
 

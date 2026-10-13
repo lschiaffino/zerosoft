@@ -1,8 +1,8 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import Reveal from '@/components/Reveal';
 import ZeroField from '@/components/ZeroField';
 import Icon from '@/components/site/Icon';
+import ZeroCounter from '@/components/zero/ZeroCounter';
 import { jsonLd, localizedAlternates, siteUrl, TOOL_GROUPS, TOOLS, type ToolDef } from '@/lib/tools/registry';
 import '@/styles/pages.css';
 import '@/styles/tools.css';
@@ -52,10 +52,9 @@ export default async function ToolsHubPage(props: { params: Promise<{ locale: st
   return (
     <main className="tools-hub">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
-      <section className="page-hero page-hero--fade">
+      <section className="page-hero">
         <ZeroField align="right" sizeFactor={0.9} />
         <div className="container">
-          <p className="section-label">{t('hub.label')}</p>
           <h1 className="page-hero-title tools-hero-title">
             {t('hub.title1')}
             <br />
@@ -69,7 +68,7 @@ export default async function ToolsHubPage(props: { params: Promise<{ locale: st
         {TOOL_GROUPS.map((g) => {
           const items = TOOLS.filter((tool) => tool.group === g);
           return (
-            <Reveal as="section" key={g} className="tools-group" aria-labelledby={`tools-${g}`}>
+            <section key={g} className="tools-group" aria-labelledby={`tools-${g}`}>
               <header className="tools-group-head">
                 <h2 id={`tools-${g}`}>{t(`hub.groups.${g}.title`)}</h2>
                 <p>{t(`hub.groups.${g}.desc`)}</p>
@@ -80,7 +79,7 @@ export default async function ToolsHubPage(props: { params: Promise<{ locale: st
                   return (
                     <li key={tool.slug} className={`tools-row card-${tool.accent}`}>
                       <Link href={`/tools/${tool.slug}`} className="tools-row-link">
-                        <span className="tools-num">{String(n).padStart(2, '0')}</span>
+                        <ZeroCounter n={n} className="tools-num" />
                         <span className="tools-name">{t(`items.${tool.slug}.name`)}</span>
                         <span className="tools-line">{t(`items.${tool.slug}.short`)}</span>
                         <span className="tools-kind">{t(`common.kind.${kindKey(tool)}`)}</span>
@@ -90,7 +89,7 @@ export default async function ToolsHubPage(props: { params: Promise<{ locale: st
                   );
                 })}
               </ul>
-            </Reveal>
+            </section>
           );
         })}
         <div className="tools-foot">

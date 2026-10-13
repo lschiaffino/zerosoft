@@ -2,7 +2,6 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getAllPosts } from '@/lib/blog';
 import { formatDate } from '@/lib/utils';
-import Reveal from '@/components/Reveal';
 import BlogCover from '@/components/BlogCover';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -29,7 +28,6 @@ export default async function BlogIndexPage(props: { params: Promise<{ locale: s
 
   return (
     <main className="container" style={{ paddingTop: 100, paddingBottom: 140 }}>
-      <p className="section-label">{t('label')}</p>
       <h1 className="section-title">
         {t('title')}
         <br />
@@ -41,8 +39,7 @@ export default async function BlogIndexPage(props: { params: Promise<{ locale: s
       ) : (
         <div className="blog-index-grid">
           {posts.map((post) => (
-            <Reveal key={post.slug}>
-              <Link href={`/blog/${post.slug}`} className="blog-card">
+            <Link key={post.slug} href={`/blog/${post.slug}`} className="blog-card">
                 <div className="blog-card-cover" aria-hidden="true">
                   <BlogCover slug={post.slug} title={post.title} variant="card" />
                 </div>
@@ -53,8 +50,7 @@ export default async function BlogIndexPage(props: { params: Promise<{ locale: s
                   <h2 className="blog-card-title">{post.title}</h2>
                   <p className="blog-card-desc">{post.description}</p>
                 </div>
-              </Link>
-            </Reveal>
+            </Link>
           ))}
         </div>
       )}

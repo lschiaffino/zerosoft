@@ -1,5 +1,4 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import Reveal from '@/components/Reveal';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -34,15 +33,13 @@ export default async function StatusPage(props: { params: Promise<{ locale: stri
     <main>
       {/* HERO */}
       <section className="doc-hero container">
-        <p className="section-label">{t('label')}</p>
         <h1 className="doc-title">{t('title')}</h1>
         <p className="doc-intro">{t('sub')}</p>
       </section>
 
       {/* SERVICES */}
       <section className="container" style={{ paddingTop: 0, paddingBottom: 90 }}>
-        <p className="section-label">{t('servicesLabel')}</p>
-        <Reveal className="status-rows">
+        <div className="status-rows">
           {SERVICES.map((s) => (
             <div className="status-row" key={s}>
               <span className="status-name">{t(`${s}.name`)}</span>
@@ -54,18 +51,17 @@ export default async function StatusPage(props: { params: Promise<{ locale: stri
               </span>
             </div>
           ))}
-        </Reveal>
+        </div>
       </section>
 
       {/* MONITORING */}
       <section className="container" style={{ paddingTop: 0 }}>
-        <p className="section-label">{t('monitoringLabel')}</p>
-        <Reveal className="incident">
+        <div className="incident">
           <div className="incident-top">
             <h3 className="incident-title">{t('monitoringTitle')}</h3>
           </div>
           <p>{t('monitoringBody')}</p>
-        </Reveal>
+        </div>
         <p className="status-note">{t('contact')}</p>
       </section>
     </main>

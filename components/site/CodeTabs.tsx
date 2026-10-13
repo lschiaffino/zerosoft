@@ -31,11 +31,6 @@ export default function CodeTabs({
   return (
     <div className="code-win">
       <div className="code-win-bar">
-        <span className="code-win-dots" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
         <div className="cw-tabs" role="tablist" aria-label={title} onKeyDown={onKey}>
           {tabs.map((label, i) => (
             <button

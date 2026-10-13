@@ -26,7 +26,12 @@
       "cal": "Páginas de agendamento sincronizadas com o Google Agenda",
       "track": "Issues, ciclos, quadros e Gantt",
       "chat": "Widget de chat e caixa de entrada compartilhada",
-      "docs": "Páginas aninhadas com editor de blocos"
+      "docs": "Páginas aninhadas com editor de blocos",
+      "agents": "Agentes de IA com conhecimento e ferramentas",
+      "flow": "Automações visuais, webhooks e horários",
+      "robots": "Automação de navegador e extração de dados",
+      "notes": "Notas, cadernos, checklists e clipper web",
+      "board": "Quadro branco infinito compartilhado"
     }
   },
   "sidebar": {
@@ -127,6 +132,21 @@
       "tag": "O que vem",
       "desc": "Design. Formulários. Analytics. Se o mundo usa, vamos libertar. Isso é só o começo.",
       "status": "Sempre"
+    },
+    "agents": {
+      "desc": "Agentes de IA que respondem e agem."
+    },
+    "flow": {
+      "desc": "Automações entre todos os seus apps."
+    },
+    "robots": {
+      "desc": "Robôs que usam o navegador por você."
+    },
+    "notes": {
+      "desc": "Suas notas, rápidas e privadas."
+    },
+    "board": {
+      "desc": "Um quadro branco infinito para o seu time."
     }
   },
   "model": {
@@ -208,8 +228,6 @@
   },
   "home": {
     "hero": {
-      "kicker": "O software morreu.",
-      "kickerLink": "Leia o manifesto",
       "title1": "Onze apps. Uma suíte.",
       "title2": "Zero licenças.",
       "sub": "Alternativas open source a HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, UiPath e Bitly, com agentes de IA incluídos. Hospede grátis, para sempre, ou comece grátis no Zerosoft Cloud.",
@@ -227,11 +245,9 @@
     },
     "replaces": "Substitui",
     "suite": {
-      "label": "0.01 — A suíte",
       "title": "Tudo o que o seu time usa.",
       "titleDim": "Um lugar, uma licença.",
       "explore": "Conheça o {name}",
-      "vs": "vs {rival}",
       "link": {
         "line": "Links curtos com métricas reais.",
         "b1": "Domínios próprios e QR codes",
@@ -276,19 +292,24 @@
       "teamsDesc": "Vender, atender e entregar, em equipe.",
       "personalTitle": "Para você",
       "personalDesc": "Escrever, planejar e cuidar do seu tempo.",
-      "soon": "Em breve",
       "replaces": "Substitui {rival}",
-      "upcoming": {
-        "agents": "Agentes de IA que respondem e agem.",
-        "flow": "Automações entre todos os apps.",
-        "robots": "Robôs que usam o navegador por você.",
-        "notes": "Notas rápidas, cadernos e busca.",
-        "board": "Um quadro branco infinito."
+      "agents": {
+        "line": "Agentes de IA que respondem e agem."
       },
-      "new": "Novo"
+      "flow": {
+        "line": "Automações entre todos os apps."
+      },
+      "robots": {
+        "line": "Robôs que usam o navegador por você."
+      },
+      "notes": {
+        "line": "Notas rápidas, cadernos e busca."
+      },
+      "board": {
+        "line": "Um quadro branco infinito."
+      }
     },
     "stack": {
-      "label": "0.02 — Substitua seu stack",
       "title": "{total} por ano.",
       "titleDim": "Ou $0.",
       "sub": "O que um time de 10 pessoas paga a preço de tabela pelas seis ferramentas que o Zerosoft substitui, contra hospedar você mesmo o core open source.",
@@ -304,7 +325,6 @@
       "footnote": "Preços de tabela citados nas nossas páginas de produto, cobrança mensal, para 10 usuários (o Bitly Core é um plano mensal fixo). Os fornecedores mudam seus preços — confira nos sites deles. O Zerosoft não tem afiliação com nenhuma empresa citada."
     },
     "oss": {
-      "label": "0.03 — Open source",
       "title": "Hospede com um só comando.",
       "titleDim": "Grátis para sempre. Sem chave de licença.",
       "p": "O core de cada app é AGPLv3: todos os recursos do core, sem teste grátis, sem limites. Rode com Docker em qualquer VPS pequena. Seus dados ficam em um arquivo SQLite e um volume de anexos: faça backup deles e você tem tudo.",
@@ -317,7 +337,7 @@
       "compose": "docker-compose.yml"
     },
     "dev": {
-      "label": "0.04 — Desenvolvedores",
+      "label": "Desenvolvedores",
       "title": "Uma API de verdade.",
       "titleDim": "E webhooks assinados.",
       "p": "Crie uma chave pessoal nas configurações e fale com o Link, o CRM e o Cal via REST. Assine eventos e verifique cada entrega com uma assinatura HMAC.",
@@ -332,14 +352,8 @@
       "response": "Resposta",
       "webhook": "Webhook"
     },
-    "model": {
-      "label": "0.05 — O modelo"
-    },
-    "manifesto": {
-      "label": "0.06 — Manifesto"
-    },
+    "manifesto": {},
     "faq": {
-      "label": "0.07 — Perguntas",
       "title": "Perguntas justas.",
       "titleDim": "Zero letras miúdas.",
       "q1": "É grátis mesmo?",
@@ -356,7 +370,6 @@
       "a6": "Ainda não. SSO/SAML, logs de auditoria, papéis personalizados e white-label estão em desenvolvimento como parte do Enterprise. Vamos avisar aqui no dia em que saírem."
     },
     "end": {
-      "label": "0.08 — Comece",
       "title1": "O software morreu.",
       "title2": "Construa sobre o zero.",
       "sub": "Abra o app e comece grátis, ou clone o repositório e rode você mesmo. De qualquer jeito, o core custa $0."

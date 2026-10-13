@@ -1,9 +1,11 @@
 'use client';
 
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import type { ProductKey } from '@/lib/products';
+import ProductZero from '@/components/zero/ProductZero';
 
 interface ShowcaseTabsProps {
-  tabs: Array<{ key: string; label: string; tag: string }>;
+  tabs: Array<{ key: ProductKey; label: string }>;
   /** Un panel por pestaña, en el mismo orden (los mockups se renderizan en el servidor). */
   panels: ReactNode[];
 }
@@ -40,8 +42,8 @@ export default function ShowcaseTabs({ tabs, panels }: ShowcaseTabsProps) {
             className={`showcase-tab card-${tab.key}${i === active ? ' active' : ''}`}
             onClick={() => setActive(i)}
           >
+            <ProductZero product={tab.key} />
             <span className="showcase-tab-name">{tab.label}</span>
-            <span className="showcase-tab-tag">{tab.tag}</span>
           </button>
         ))}
       </div>

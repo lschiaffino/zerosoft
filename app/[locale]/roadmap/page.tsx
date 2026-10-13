@@ -31,7 +31,6 @@ export default async function RoadmapPage(props: { params: Promise<{ locale: str
   return (
     <main className="rm-main">
       <div className="doc-hero container">
-        <p className="section-label">{t('label')}</p>
         <h1 className="doc-title">
           {t('title')}
           <br />

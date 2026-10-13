@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PRODUCT_CONFIG, PRODUCT_KEYS, isProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, PRODUCT_KEYS, isProductKey, productNumber } from '@/lib/products';
 import { generateProductOGSVG } from '@/lib/product-og';
 
 export const dynamic = 'force-static';
@@ -12,7 +12,7 @@ export async function GET(_request: Request, props: { params: Promise<{ product:
   }
   const cfg = PRODUCT_CONFIG[product];
 
-  const svg = generateProductOGSVG(product, cfg.name, cfg.num);
+  const svg = generateProductOGSVG(product, cfg.name, productNumber(product), undefined, cfg.color);
 
   return new NextResponse(svg, {
     headers: {

@@ -1,7 +1,6 @@
 import type { CSSProperties } from 'react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import Reveal from '@/components/Reveal';
 import { CHANGELOG, pick, type ChangelogProduct } from '@/content/changelog';
 import '@/styles/pages.css';
 import '@/styles/changelog.css';
@@ -66,7 +65,6 @@ export default async function ChangelogPage(props: {
   return (
     <main className="cl-main">
       <div className="doc-hero container">
-        <p className="section-label">{t('label')}</p>
         <h1 className="doc-title">
           {t('title')}
           <br />
@@ -122,7 +120,7 @@ export default async function ChangelogPage(props: {
                   </time>
                 </div>
                 <span className="cl-node" aria-hidden="true" />
-                <Reveal as="article" className="cl-card">
+                <article className="cl-card">
                   <div className="cl-card-top">
                     <span className="cl-dots" aria-hidden="true">
                       {products.map((p) => (
@@ -145,7 +143,7 @@ export default async function ChangelogPage(props: {
                       </li>
                     ))}
                   </ul>
-                </Reveal>
+                </article>
               </li>
             );
           })}

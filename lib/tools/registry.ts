@@ -13,7 +13,7 @@ export type ToolGroup = 'sales' | 'marketing' | 'finance' | 'website';
 export const TOOL_GROUPS: readonly ToolGroup[] = ['sales', 'marketing', 'finance', 'website'];
 
 /** Color de la herramienta: clase .card-<accent> de globals.css. */
-export type ToolAccent = SiteProductKey | 'flow' | 'board' | 'notes' | 'agents';
+export type ToolAccent = SiteProductKey;
 
 export interface ToolDef {
   slug: string;
