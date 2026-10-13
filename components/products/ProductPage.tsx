@@ -1,8 +1,9 @@
-import type { CSSProperties } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import Reveal from '@/components/Reveal';
+import Icon from '@/components/site/Icon';
+import { FEATURE_ICONS, GITHUB_URL, HAS_API, PRODUCT_NAMES, SITE_PRODUCTS } from '@/components/site/catalog';
 import BrowserFrame from './BrowserFrame';
 import LinkMockup from './mockups/LinkMockup';
 import TrackMockup from './mockups/TrackMockup';
@@ -20,152 +21,196 @@ const MOCKUPS = {
   chat: ChatMockup,
 } as const;
 
-const FEATURE_IDS = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9'] as const;
-const FAQ_IDS = ['f1', 'f2', 'f3', 'f4', 'f5'] as const;
-
-const PRODUCT_ACCENT: Record<ProductKey, string> = {
-  link: 'var(--c-link)',
-  crm: 'var(--c-crm)',
-  cal: 'var(--c-cal)',
-  track: 'var(--c-track)',
-  chat: 'var(--c-chat)',
-  docs: 'var(--c-docs)',
+/** Ruta real de cada app, para la barra de URL del mockup. */
+const APP_PATH: Record<ProductKey, string> = {
+  link: 'links',
+  crm: 'crm',
+  cal: 'calendar',
+  track: 'track',
+  chat: 'chat',
+  docs: 'docs',
 };
 
+const FEATURE_IDS = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9'] as const;
+const FAQ_IDS = ['f1', 'f2', 'f3', 'f4', 'f5'] as const;
+const STEP_IDS = ['s1', 's2', 's3'] as const;
+
 /**
- * Full product detail page: hero, fake-UI browser shot, features,
- * price math, the three ways to have it, FAQ and final CTA.
- * All copy lives in messages/<locale>/pages.json.
+ * Página de detalle de producto: hero con el color del producto, vista del
+ * producto, features con íconos, cómo funciona, la cuenta, las tres formas de
+ * tenerlo, FAQ, el resto de la suite y CTA final.
+ * El copy vive en messages/<locale>/pages.json (products.<key> y product.*).
  */
-export default async function ProductPage({
-  locale,
-  product,
-}: {
-  locale: string;
-  product: ProductKey;
-}) {
+export default async function ProductPage({ locale, product }: { locale: string; product: ProductKey }) {
   const t = await getTranslations({ locale, namespace: 'pages' });
   const tc = await getTranslations({ locale, namespace: 'common.products' });
+  const tcm = await getTranslations({ locale, namespace: 'common' });
 
   const cfg = PRODUCT_CONFIG[product];
   const Mockup = MOCKUPS[product];
   const p = `products.${product}`;
-  const total = String(PRODUCT_KEYS.length).padStart(2, '0');
+  const rival = t(`${p}.compare.rival`);
+  const icons = FEATURE_ICONS[product];
 
   return (
-    <main className="pd-page" style={{ '--accent': PRODUCT_ACCENT[product] } as CSSProperties}>
+    <main className={`pd-page card-${product}`}>
       {/* HERO */}
-      <section className="pd-hero container">
-        <Link href="/products" className="pd-back">
-          {t('product.back')}
-        </Link>
-        <p className="pd-num">
-          {cfg.num} / {total} — {t(`${p}.hero.tag`)}
-        </p>
-        <h1 className="pd-title">{cfg.name}</h1>
-        <p className="pd-sub">{t(`${p}.hero.sub`)}</p>
-        <div className="pd-actions">
-          {cfg.available ? (
-            <Link className="btn btn-solid" href={cfg.launch}>
-              {t('product.launch', { name: cfg.name })}
+      <section className="pd2-hero">
+        <div className="container pd2-hero-inner">
+          <nav className="pd2-crumbs" aria-label="Breadcrumb">
+            <Link href="/products">{tcm('header.products')}</Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">{cfg.name}</span>
+          </nav>
+          <p className="pd2-pill">
+            <span className="pd2-pill-zero" aria-hidden="true">
+              0
+            </span>
+            {t('product.alternative', { rival })}
+            <span className="pd2-pill-status">{tc(`${product}.status`)}</span>
+          </p>
+          <h1 className="pd2-title">
+            <span className="pd2-title-name">{cfg.name}</span>
+            <span className="pd2-tagline">{tc(`${product}.desc`)}</span>
+          </h1>
+          <p className="pd2-sub">{t(`${p}.hero.sub`)}</p>
+          <div className="pd2-actions">
+            <Link className="btn btn-solid btn-lg" href={cfg.launch}>
+              {t('product.launch', { name: cfg.name })} <Icon name="arrow" size={16} />
             </Link>
-          ) : (
-            <a className="btn btn-solid" href="mailto:hola@zerosoft.ai">
-              {t('product.notify')}
+            <a className="btn btn-ghost btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
+              <Icon name="github" size={16} /> {t('product.selfHost')}
             </a>
-          )}
-          <Link className="btn btn-ghost" href="/#manifiesto">
-            {t('product.manifesto')}
-          </Link>
-          <span className="badge">{tc(`${product}.status`)}</span>
+            {HAS_API.includes(product) && (
+              <Link className="btn btn-ghost btn-lg" href="/docs">
+                <Icon name="code" size={16} /> {t('product.apiDocs')}
+              </Link>
+            )}
+          </div>
         </div>
       </section>
 
       {/* PRODUCT SHOT */}
-      <section className="pd-shot container">
+      <section className="pd2-shot container">
         <Reveal>
-          <BrowserFrame url={t('product.browserUrl')}>
+          <BrowserFrame url={`zerosoft.ai/app/${APP_PATH[product]}`}>
             <Mockup />
           </BrowserFrame>
         </Reveal>
+        <p className="pd2-shot-note">{t('product.previewNote')}</p>
       </section>
 
       {/* FEATURES */}
-      <section className="container">
-        <p className="section-label">{t('product.featuresLabel')}</p>
-        <Reveal as="div">
-          <h2 className="section-title">
-            {t(`${p}.featuresTitle`)}
-            <br />
-            <span className="dim">{t(`${p}.featuresTitleDim`)}</span>
-          </h2>
-        </Reveal>
-        <div className="feat-grid">
+      <section className="lp-section container" id="features">
+        <div className="lp-head">
+          <p className="section-label">{t('product.featuresLabel')}</p>
+          <Reveal as="h2" className="lp-title">
+            {t(`${p}.featuresTitle`)} <span className="dim">{t(`${p}.featuresTitleDim`)}</span>
+          </Reveal>
+        </div>
+        <Reveal className="pd2-feat-grid">
           {FEATURE_IDS.map((id, i) => (
-            <Reveal className="feat" key={id}>
-              <span className="feat-num">0{i + 1}</span>
+            <div className="pd2-feat" key={id}>
+              <span className="pd2-feat-icon">
+                <Icon name={icons[i]} size={19} />
+              </span>
               <h3>{t(`${p}.${id}.t`)}</h3>
               <p>{t(`${p}.${id}.d`)}</p>
-            </Reveal>
+            </div>
           ))}
+        </Reveal>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section className="lp-section lp-section-tint" id="how">
+        <div className="container">
+          <div className="lp-head">
+            <p className="section-label">{t('product.howLabel')}</p>
+            <Reveal as="h2" className="lp-title">
+              {t('product.howTitle')} <span className="dim">{t('product.howTitleDim')}</span>
+            </Reveal>
+          </div>
+          <div className="pd2-steps">
+            {STEP_IDS.map((id, i) => (
+              <Reveal as="div" className="pd2-step" key={id}>
+                <span className="pd2-step-num">{String(i + 1).padStart(2, '0')}</span>
+                <h3>{t(`${p}.steps.${id}.t`)}</h3>
+                <p>{t(`${p}.steps.${id}.d`)}</p>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* PRICE MATH */}
-      <section className="container">
-        <p className="section-label">{t('product.compareLabel')}</p>
-        <Reveal className="compare">
-          <div>
-            <p className="compare-col-title">{t('product.compareToday')}</p>
-            <div className="compare-row">
-              <span className="compare-name">{t(`${p}.compare.rival`)}</span>
-              <span className="compare-price">
-                {t(`${p}.compare.price`)} {t(`${p}.compare.per`)}
-              </span>
+      <section className="lp-section container" id="pricing">
+        <div className="lp-head">
+          <p className="section-label">{t('product.compareLabel')}</p>
+        </div>
+        <Reveal className="pd2-compare">
+          <div className="pd2-compare-today">
+            <p className="pd2-compare-label">{t('product.compareToday')}</p>
+            <div className="pd2-compare-rows">
+              <div className="pd2-compare-row">
+                <strong>{rival}</strong>
+                <span>
+                  {t(`${p}.compare.price`)} {t(`${p}.compare.per`)}
+                </span>
+              </div>
+              <div className="pd2-compare-row">
+                <strong>{t('product.compareTeam')}</strong>
+                <span className="pd2-compare-big">
+                  {t(`${p}.compare.team`)} {t('product.compareYear')}
+                </span>
+              </div>
             </div>
-            <div className="compare-row">
-              <span className="compare-name">{t('product.compareTeam')}</span>
-              <span className="compare-price">
-                {t(`${p}.compare.team`)} {t('product.compareYear')}
-              </span>
-            </div>
+            <p className="pd2-compare-note">{t(`${p}.compare.note`)}</p>
           </div>
-          <div className="compare-zero">
-            <p className="compare-col-title">{t('product.compareZero')}</p>
-            <span className="compare-zero-num">{t(`${p}.compare.zero`)}</span>
-            <p className="compare-zero-note">{t(`${p}.compare.note`)}</p>
+          <div className="pd2-compare-zero">
+            <p className="pd2-compare-label">{t('product.compareZero')}</p>
+            <span className="pd2-compare-num">{t(`${p}.compare.zero`)}</span>
+            <p>{tcm('model.a.desc')}</p>
+            <a className="btn btn-invert" href={GITHUB_URL} target="_blank" rel="noreferrer">
+              <Icon name="github" size={15} /> {t('product.selfHost')}
+            </a>
           </div>
         </Reveal>
       </section>
 
       {/* THREE WAYS */}
-      <section className="container">
-        <p className="section-label">{t('product.modelLabel')}</p>
-        <div className="model-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
-          {(['a', 'b', 'c'] as const).map((key) => (
-            <Reveal key={key} className={key === 'b' ? 'model-card model-card-dark' : 'model-card'}>
-              <p className="model-key">{key.toUpperCase()}</p>
-              <h3>{t(`product.model.${key}.title`)}</h3>
-              <p className="model-desc">{t(`product.model.${key}.desc`)}</p>
-              <p className="model-price">
-                {t(`product.model.${key}.price`)} <span>{t(`product.model.${key}.priceNote`)}</span>
-              </p>
-            </Reveal>
-          ))}
+      <section className="lp-section lp-section-tint" id="model">
+        <div className="container">
+          <div className="lp-head">
+            <p className="section-label">{t('product.modelLabel')}</p>
+          </div>
+          <div className="plans">
+            {(['a', 'b', 'c'] as const).map((key) => (
+              <Reveal key={key} className={`plan${key === 'b' ? ' plan-featured' : ''}`}>
+                <div className="plan-top">
+                  <span className="plan-icon">
+                    <Icon name={key === 'a' ? 'server' : key === 'b' ? 'globe' : 'shield'} size={18} />
+                  </span>
+                  <h3>{t(`product.model.${key}.title`)}</h3>
+                </div>
+                <p className="plan-price">
+                  {t(`product.model.${key}.price`)} <span>{t(`product.model.${key}.priceNote`)}</span>
+                </p>
+                <p className="plan-desc">{t(`product.model.${key}.desc`)}</p>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* FAQ */}
-      <section className="container">
-        <p className="section-label">{t('product.faqLabel')}</p>
-        <Reveal as="div">
-          <h2 className="section-title">
-            {t('product.faqTitle')}
-            <br />
-            <span className="dim">{t('product.faqTitleDim')}</span>
+      <section className="lp-section container pd-faq" id="faq">
+        <div>
+          <p className="section-label">{t('product.faqLabel')}</p>
+          <h2 className="lp-title">
+            {t('product.faqTitle')} <span className="dim">{t('product.faqTitleDim')}</span>
           </h2>
-        </Reveal>
-        <Reveal className="faq">
+        </div>
+        <div className="faq">
           {FAQ_IDS.map((id) => (
             <details className="faq-item" key={id}>
               <summary>
@@ -177,31 +222,51 @@ export default async function ProductPage({
               <p className="faq-a">{t(`${p}.faq.${id}.a`)}</p>
             </details>
           ))}
-        </Reveal>
+        </div>
+      </section>
+
+      {/* REST OF THE SUITE */}
+      <section className="lp-section container" style={{ paddingTop: 0 }}>
+        <div className="lp-head">
+          <p className="section-label">{t('product.suiteLabel')}</p>
+          <h2 className="lp-title">
+            {t('product.suiteTitle')} <span className="dim">{t('product.suiteTitleDim')}</span>
+          </h2>
+        </div>
+        <div className="pd2-suite">
+          {SITE_PRODUCTS.filter((k) => k !== product).map((k) => (
+            <Link key={k} href={`/products/${k}`} className={`card-${k}`}>
+              <span className="pd2-suite-name">
+                <i aria-hidden="true" />
+                {PRODUCT_NAMES[k]}
+              </span>
+              <span className="pd2-suite-tag">{tcm(`header.desc.${k}`)}</span>
+            </Link>
+          ))}
+        </div>
       </section>
 
       {/* FINAL CTA */}
-      <section className="end">
-        <span className="end-zero" aria-hidden="true">
+      <section className="lp-end">
+        <span className="lp-end-zero" aria-hidden="true">
           0
         </span>
-        <div className="end-content">
+        <div className="container lp-end-inner">
           <p className="section-label light">{t(`${p}.cta.label`)}</p>
           <h2>
             {t(`${p}.cta.title1`)}
             <br />
-            {t(`${p}.cta.title2`)}
+            <span>{t(`${p}.cta.title2`)}</span>
           </h2>
-          <p className="end-sub">{t(`${p}.cta.sub`)}</p>
-          {cfg.available ? (
-            <Link className="btn btn-invert" href={cfg.launch}>
+          <p className="lp-end-sub">{t(`${p}.cta.sub`)}</p>
+          <div className="lp-ctas lp-ctas-center">
+            <Link className="btn btn-invert-solid btn-lg" href={cfg.launch}>
               {t(`${p}.cta.button`)}
             </Link>
-          ) : (
-            <a className="btn btn-invert" href="mailto:hola@zerosoft.ai">
-              {t(`${p}.cta.button`)}
+            <a className="btn btn-invert btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
+              <Icon name="github" size={16} /> {t('product.selfHost')}
             </a>
-          )}
+          </div>
         </div>
       </section>
     </main>

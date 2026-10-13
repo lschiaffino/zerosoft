@@ -10,7 +10,23 @@
     "signIn": "Entrar",
     "dashboard": "Dashboard",
     "signOut": "Sair",
-    "join": "Junte-se"
+    "join": "Junte-se",
+    "changelog": "Changelog",
+    "github": "GitHub",
+    "startFree": "Comece grátis",
+    "menu": "Menu",
+    "allProducts": "Todos os produtos",
+    "allProductsDesc": "Compare os seis apps",
+    "selfHost": "Hospede pelo GitHub",
+    "selfHostDesc": "AGPLv3 · docker compose up",
+    "desc": {
+      "link": "Links curtos, QR codes e métricas de cliques",
+      "crm": "Contatos, negócios, pipelines e workflows",
+      "cal": "Páginas de agendamento sincronizadas com o Google Agenda",
+      "track": "Issues, ciclos, quadros e Gantt",
+      "chat": "Widget de chat e caixa de entrada compartilhada",
+      "docs": "Páginas aninhadas com editor de blocos"
+    }
   },
   "sidebar": {
     "search": "Buscar",
@@ -99,7 +115,7 @@
     },
     "docs": {
       "tag": "Docs e wiki",
-      "desc": "Notas e documentos que são seus. Exportáveis, sempre.",
+      "desc": "Notas e documentos que são seus. No seu servidor, se quiser.",
       "status": "Disponível"
     },
     "more": {
@@ -166,12 +182,164 @@
     "terms": "Termos",
     "privacy": "Privacidade",
     "security": "Segurança",
+    "colProducts": "Produtos",
+    "colDevelopers": "Desenvolvedores",
+    "apiDocs": "Docs da API",
     "changelog": "Changelog",
+    "status": "Status",
+    "github": "GitHub",
+    "selfHosting": "Self-hosting",
+    "blog": "Blog",
+    "allProducts": "Todos os produtos",
+    "oss": "Open source sob AGPLv3. Recursos Enterprise em /ee sob licença comercial.",
+    "starCta": "Dê uma estrela no GitHub",
     "feedback": "Feedback"
   },
   "showcase": {
     "label": "Por dentro",
     "title": "Seis ferramentas, um mesmo visual.",
     "titleDim": "Escolha uma e dê uma olhada."
+  },
+  "home": {
+    "hero": {
+      "kicker": "O software morreu.",
+      "kickerLink": "Leia o manifesto",
+      "title1": "Seis apps. Uma suíte.",
+      "title2": "Zero licenças.",
+      "sub": "Alternativas open source ao Bitly, HubSpot, Calendly, Linear, Intercom e Notion. Hospede de graça, para sempre — ou comece grátis no Zerosoft Cloud.",
+      "ctaStart": "Comece grátis",
+      "ctaSelfHost": "Hospede você",
+      "note1": "Sem cartão",
+      "note2": "Todos os recursos do core",
+      "note3": "AGPLv3",
+      "star": "Estrela no GitHub",
+      "license": "Open source · AGPLv3"
+    },
+    "proof": {
+      "caption": "Prévias interativas de cada app. O de verdade está a um clique.",
+      "open": "Abrir {name}"
+    },
+    "replaces": "Substitui",
+    "suite": {
+      "label": "0.01 — A suíte",
+      "title": "Tudo o que o seu time usa.",
+      "titleDim": "Um lugar, uma licença.",
+      "explore": "Conheça o {name}",
+      "vs": "vs {rival}",
+      "link": {
+        "line": "Links curtos com métricas reais.",
+        "b1": "Domínios próprios e QR codes",
+        "b2": "Métricas de cliques sem cookies",
+        "b3": "Link-in-bio e importação do Bitly"
+      },
+      "crm": {
+        "line": "Seu pipeline inteiro, de ponta a ponta.",
+        "b1": "Pipelines em um quadro kanban",
+        "b2": "Workflows, listas e relatórios",
+        "b3": "Importação CSV com deduplicação"
+      },
+      "cal": {
+        "line": "Sua disponibilidade em um link.",
+        "b1": "Sincronização com Google Agenda e Meet",
+        "b2": "Round-robin e formulários de roteamento",
+        "b3": "Lembretes e reagendamento pelo convidado"
+      },
+      "track": {
+        "line": "Issues e ciclos, no espírito do Linear.",
+        "b1": "Lista, quadro, calendário e Gantt",
+        "b2": "Ciclos, estimativas e sub-issues",
+        "b3": "Visualizações salvas e inbox"
+      },
+      "chat": {
+        "line": "Uma caixa de entrada para cada conversa com clientes.",
+        "b1": "Widget de chat incorporável",
+        "b2": "Timers de SLA e regras de atribuição",
+        "b3": "Respostas prontas, horários e CSAT"
+      },
+      "docs": {
+        "line": "Notas e wikis que são suas.",
+        "b1": "Editor de blocos com menu /",
+        "b2": "Páginas aninhadas e menções [[",
+        "b3": "Modelos, comentários e compartilhamento"
+      },
+      "one": {
+        "title": "Um login. Um workspace. Uma busca.",
+        "desc": "Convide seu time uma vez. Encontre contatos, empresas, negócios, links, docs e tarefas em uma única barra de busca, e pule entre apps sem trocar de ferramenta."
+      }
+    },
+    "stack": {
+      "label": "0.02 — Substitua seu stack",
+      "title": "{total} por ano.",
+      "titleDim": "Ou $0.",
+      "sub": "O que um time de 10 pessoas paga a preço de tabela pelas seis ferramentas que o Zerosoft substitui, contra hospedar você mesmo o core open source.",
+      "colTool": "Ferramenta",
+      "colPrice": "Preço de tabela",
+      "colYear": "Time de 10 / ano",
+      "perUser": "/ usuário / mês",
+      "perMonth": "/ mês, fixo",
+      "total": "Total por ano",
+      "zeroTitle": "Zerosoft, no seu servidor",
+      "zeroNote": "Os seis apps. Você paga só o seu próprio servidor.",
+      "cloudNote": "Zerosoft Cloud: comece grátis e depois pague pelo uso, com preços publicados antes de cobrarmos qualquer coisa.",
+      "footnote": "Preços de tabela citados nas nossas páginas de produto, cobrança mensal, para 10 usuários (o Bitly Core é um plano mensal fixo). Os fornecedores mudam seus preços — confira nos sites deles. O Zerosoft não tem afiliação com nenhuma empresa citada."
+    },
+    "oss": {
+      "label": "0.03 — Open source",
+      "title": "Hospede com um só comando.",
+      "titleDim": "Grátis para sempre. Sem chave de licença.",
+      "p": "O core de cada app é AGPLv3: todos os recursos do core, sem teste grátis, sem limites. Rode com Docker em qualquer VPS pequena. Seus dados ficam em um arquivo SQLite e um volume de anexos: faça backup deles e você tem tudo.",
+      "b1": "Core AGPLv3 com todos os recursos",
+      "b2": "Um contêiner, dois volumes",
+      "b3": "Seus dados em um arquivo SQLite que é seu",
+      "b4": "SSO, auditoria e papéis personalizados (/ee) — em desenvolvimento",
+      "cta": "Ver no GitHub",
+      "terminal": "terminal",
+      "compose": "docker-compose.yml"
+    },
+    "dev": {
+      "label": "0.04 — Desenvolvedores",
+      "title": "Uma API de verdade.",
+      "titleDim": "E webhooks assinados.",
+      "p": "Crie uma chave pessoal nas configurações e fale com o Link, o CRM e o Cal via REST. Assine eventos e verifique cada entrega com uma assinatura HMAC.",
+      "b1t": "API REST v1",
+      "b1": "Links, contatos, empresas, negócios, tarefas e pipelines do CRM, tipos de evento e agendamentos do Cal.",
+      "b2t": "Chaves pessoais",
+      "b2": "Chaves zs_… exibidas uma única vez e guardadas com hash. 100 requisições por minuto.",
+      "b3t": "Webhooks",
+      "b3": "Eventos link.created, link.clicked e booking.*, assinados com Zerosoft-Signature (HMAC-SHA256) e com novas tentativas escalonadas.",
+      "cta": "Ler a doc da API",
+      "request": "Requisição",
+      "response": "Resposta",
+      "webhook": "Webhook"
+    },
+    "model": {
+      "label": "0.05 — O modelo"
+    },
+    "manifesto": {
+      "label": "0.06 — Manifesto"
+    },
+    "faq": {
+      "label": "0.07 — Perguntas",
+      "title": "Perguntas justas.",
+      "titleDim": "Zero letras miúdas.",
+      "q1": "É grátis mesmo?",
+      "a1": "Sim. O core de cada app é open source sob AGPLv3 e hospedar você mesmo custa $0, para sempre. No Zerosoft Cloud você começa em um plano grátis; se escalar, paga pelo uso, com preços publicados antes de cobrarmos qualquer coisa.",
+      "q2": "Como vocês ganham dinheiro?",
+      "a2": "Com conveniência e com empresas. O Zerosoft Cloud cobra o uso além do plano grátis, e o Enterprise é uma licença comercial com suporte direto. Nunca cobramos pelo core.",
+      "q3": "Do que eu preciso para hospedar?",
+      "a3": "Docker e um servidor pequeno. Clone o repositório, preencha o .env e rode docker compose up -d. Os dados ficam em dois volumes: um arquivo SQLite e os seus anexos. Sem Docker: npm ci, npm run build, npm start.",
+      "q4": "Posso migrar das ferramentas que uso hoje?",
+      "a4": "O Link importa do Bitly (API ou CSV). O CRM importa contatos e empresas de qualquer CSV, com mapeamento de colunas e deduplicação. Outros importadores, como Notion e Linear, ainda não existem.",
+      "q5": "O que a AGPLv3 significa para a minha empresa?",
+      "a5": "Você pode usar, hospedar e modificar de graça. Se oferecer uma versão modificada como serviço para terceiros, precisa publicar suas mudanças. A pasta /ee tem uma licença comercial separada.",
+      "q6": "Vocês têm SSO e logs de auditoria?",
+      "a6": "Ainda não. SSO/SAML, logs de auditoria, papéis personalizados e white-label estão em desenvolvimento como parte do Enterprise. Vamos avisar aqui no dia em que saírem."
+    },
+    "end": {
+      "label": "0.08 — Comece",
+      "title1": "O software morreu.",
+      "title2": "Construa sobre o zero.",
+      "sub": "Abra o app e comece grátis, ou clone o repositório e rode você mesmo. De qualquer jeito, o core custa $0."
+    }
   }
 }

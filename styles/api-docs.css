@@ -341,3 +341,7 @@
   .code-tabs-list { order: 2; width: 100%; }
   .code-copy { order: 1; margin-left: auto; }
 }
+
+/* El contenido no debe empujar el ancho de la página en mobile. */
+.api-docs-content { min-width: 0; width: 100%; }
+.endpoint-path { overflow-wrap: anywhere; }

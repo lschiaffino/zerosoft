@@ -2,7 +2,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import ZeroField from '@/components/ZeroField';
 import Reveal from '@/components/Reveal';
-import MiniVisual from '@/components/products/MiniVisual';
+import SuiteGrid from '@/components/site/SuiteGrid';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -16,9 +16,6 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   return { title: t('meta.title'), description: t('meta.description') };
 }
 
-const CARDS = ['track', 'crm', 'cal', 'link', 'docs', 'chat'] as const;
-const NAMES = { track: 'Track', crm: 'CRM', cal: 'Cal', link: 'Link', docs: 'Docs', chat: 'Chat' } as const;
-const NUMS = { track: '01', crm: '02', cal: '03', link: '04', docs: '05', chat: '06' } as const;
 const ROADMAP = ['i1', 'i2', 'i3', 'i4'] as const;
 const COMPARE_ROWS = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'] as const;
 /** Roadmap items already shipped (rendered with the solid "done" style). */
@@ -33,7 +30,7 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
 
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'pages.products' });
-  const tc = await getTranslations({ locale, namespace: 'common.products' });
+  const tc = await getTranslations({ locale, namespace: 'common.header' });
 
   return (
     <main>
@@ -53,29 +50,7 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
 
       {/* THE SIX */}
       <section className="container" style={{ paddingTop: 0 }}>
-        <div className="arsenal-grid">
-          {CARDS.map((key) => (
-            <Reveal as="article" className="pcard" key={key}>
-              <Link href={`/products/${key}`} style={{ display: 'contents' }}>
-                <div className="pcard-visual">
-                  <MiniVisual product={key} />
-                </div>
-                <div className="pcard-body">
-                  <div className="pcard-top">
-                    <span className="pcard-num">{NUMS[key]}</span>
-                    <span className="card-status">{tc(`${key}.status`)}</span>
-                  </div>
-                  <h3>{NAMES[key]}</h3>
-                  <p className="pcard-tag">{tc(`${key}.tag`)}</p>
-                  <p className="pcard-desc">{tc(`${key}.desc`)}</p>
-                  <span className="pcard-arrow" aria-hidden="true">
-                    →
-                  </span>
-                </div>
-              </Link>
-            </Reveal>
-          ))}
-        </div>
+        <SuiteGrid cta={{ label: tc('startFree'), href: '/app' }} />
       </section>
 
       {/* THE MATH */}
