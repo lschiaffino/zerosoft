@@ -693,6 +693,15 @@ export const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    // Notes y Board salieron: sus ítems del roadmap pasan a "hecho".
+    id: '018_notes_board_roadmap_done',
+    async up(client) {
+      await client.execute(
+        "UPDATE roadmap_items SET status = 'done', updated_at = datetime('now') WHERE id IN ('rm_seed_notes', 'rm_seed_board') AND status IN ('planned', 'in_progress')",
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

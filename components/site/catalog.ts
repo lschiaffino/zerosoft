@@ -67,8 +67,8 @@ export const UPCOMING: ReadonlyArray<{ key: UpcomingKey; name: string; rival: st
   { key: 'agents', name: 'Agents', rival: 'Intercom Fin', audience: 'teams' },
   { key: 'flow', name: 'Flow', rival: 'Zapier · n8n', audience: 'teams', href: '/app/flow' },
   { key: 'robots', name: 'Robots', rival: 'UiPath', audience: 'teams' },
-  { key: 'notes', name: 'Notes', rival: 'Evernote', audience: 'personal' },
-  { key: 'board', name: 'Board', rival: 'Miro', audience: 'personal' },
+  { key: 'notes', name: 'Notes', rival: 'Evernote', audience: 'personal', href: '/app/notes' },
+  { key: 'board', name: 'Board', rival: 'Miro', audience: 'personal', href: '/app/board' },
 ];
 
 /** Productos con endpoints en la API v1 pública (ver lib/api-docs.ts). */
