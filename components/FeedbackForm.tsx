@@ -13,6 +13,8 @@ const PRODUCT_COLOR: Partial<Record<FeedbackProduct, string>> = {
   track: 'var(--c-track)',
   chat: 'var(--c-chat)',
   docs: 'var(--c-docs)',
+  notes: 'var(--c-notes)',
+  board: 'var(--c-board)',
 };
 
 /**

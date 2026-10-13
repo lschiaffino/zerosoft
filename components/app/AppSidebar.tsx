@@ -70,6 +70,9 @@ export interface SidebarLabels {
     people: string;
     settings: string;
   };
+  /** Notes y Board (opcionales: los aporta su propio namespace de mensajes). */
+  notes?: { all: string; newNote: string };
+  board?: { boards: string; newBoard: string };
   notifications: {
     title: string;
     markRead: string;
@@ -99,6 +102,8 @@ const PRODUCTS = [
   { key: 'calendar', name: 'Cal', href: '/app/calendar' },
   { key: 'track', name: 'Track', href: '/app/track' },
   { key: 'chat', name: 'Chat', href: '/app/chat' },
+  { key: 'notes', name: 'Notes', href: '/app/notes' },
+  { key: 'board', name: 'Board', href: '/app/board' },
 ] as const;
 
 /** Color de cada producto (tokens --c-* de globals.css). */
@@ -109,6 +114,8 @@ const PRODUCT_COLOR: Record<string, string> = {
   calendar: 'var(--c-cal)',
   track: 'var(--c-track)',
   chat: 'var(--c-chat)',
+  notes: 'var(--c-notes)',
+  board: 'var(--c-board)',
 };
 
 /**
@@ -140,7 +147,11 @@ export default function AppSidebar({
           ? 'track'
           : pathname.includes('/app/chat')
             ? 'chat'
-            : 'link';
+            : pathname.includes('/app/notes')
+              ? 'notes'
+              : pathname.includes('/app/board')
+                ? 'board'
+                : 'link';
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -321,8 +332,20 @@ export default function AppSidebar({
     },
   ];
 
+  const notesNav: Array<{ section?: string; items: Item[] }> = [
+    { items: [{ href: '/app/notes', label: labels.notes?.all ?? 'Notes', active: pathname.startsWith('/app/notes'), icon: 'notes' }] },
+  ];
+
+  const boardNav: Array<{ section?: string; items: Item[] }> = [
+    { items: [{ href: '/app/board', label: labels.board?.boards ?? 'Boards', active: pathname.startsWith('/app/board'), icon: 'board' }] },
+  ];
+
   const nav =
-    product === 'crm'
+    product === 'notes'
+      ? notesNav
+      : product === 'board'
+        ? boardNav
+        : product === 'crm'
       ? crmNav
       : product === 'docs'
         ? docsNav
@@ -335,7 +358,11 @@ export default function AppSidebar({
               : linkNav;
 
   const newItems: Item[] =
-    product === 'crm'
+    product === 'notes'
+      ? [{ href: '/app/notes?new=1', label: labels.notes?.newNote ?? 'New note', active: false, icon: 'notes' }]
+      : product === 'board'
+        ? [{ href: '/app/board?new=1', label: labels.board?.newBoard ?? 'New board', active: false, icon: 'board' }]
+        : product === 'crm'
       ? [
           { href: '/app/crm/contacts/new', label: labels.newContact, active: false, icon: 'contacts' },
           { href: '/app/crm/companies/new', label: labels.newCompany, active: false, icon: 'companies' },

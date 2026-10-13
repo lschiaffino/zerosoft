@@ -440,6 +440,130 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Notes: notas personales (por persona dentro del workspace), con libretas,
+    // tags (JSON), fijadas, papelera y link público opcional.
+    id: '018_notes_core',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS note_notebooks (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_note_notebooks_owner ON note_notebooks(workspace_id, person_id, name)',
+      );
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS notes (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          notebook_id TEXT REFERENCES note_notebooks(id) ON DELETE SET NULL,
+          title TEXT NOT NULL DEFAULT '',
+          content TEXT NOT NULL DEFAULT '[]',
+          body_text TEXT NOT NULL DEFAULT '',
+          tags TEXT NOT NULL DEFAULT '[]',
+          pinned INTEGER NOT NULL DEFAULT 0,
+          source_url TEXT,
+          share_token TEXT UNIQUE,
+          trashed_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_notes_owner ON notes(workspace_id, person_id, trashed_at, updated_at DESC)',
+      );
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_notes_notebook ON notes(notebook_id)');
+    },
+  },
+  {
+    // Búsqueda full-text de Notes con FTS5 (libsql la trae en modo archivo y en
+    // Turso). Si el motor no la soporta, la migración no falla: lib/notes.ts
+    // detecta que falta notes_fts y cae a LIKE.
+    id: '018_notes_fts',
+    async up(client) {
+      try {
+        await client.execute(
+          "CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(note_id UNINDEXED, title, body, tokenize = 'unicode61 remove_diacritics 2')",
+        );
+      } catch {
+        return;
+      }
+      await client.execute(`
+        CREATE TRIGGER IF NOT EXISTS notes_fts_ai AFTER INSERT ON notes BEGIN
+          INSERT INTO notes_fts (note_id, title, body) VALUES (new.id, new.title, new.body_text);
+        END`);
+      await client.execute(`
+        CREATE TRIGGER IF NOT EXISTS notes_fts_au AFTER UPDATE OF title, body_text ON notes BEGIN
+          DELETE FROM notes_fts WHERE note_id = old.id;
+          INSERT INTO notes_fts (note_id, title, body) VALUES (new.id, new.title, new.body_text);
+        END`);
+      await client.execute(`
+        CREATE TRIGGER IF NOT EXISTS notes_fts_ad AFTER DELETE ON notes BEGIN
+          DELETE FROM notes_fts WHERE note_id = old.id;
+        END`);
+      // Notas previas (si las hubiera) entran al índice.
+      await client.execute(
+        'INSERT INTO notes_fts (note_id, title, body) SELECT id, title, body_text FROM notes WHERE id NOT IN (SELECT note_id FROM notes_fts)',
+      );
+    },
+  },
+  {
+    // Board: pizarras del workspace (visibles para el team). La escena de
+    // Excalidraw va como JSON con versión para last-write-wins con chequeo.
+    id: '018_board_core',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS boards (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          name TEXT NOT NULL,
+          scene TEXT NOT NULL DEFAULT '',
+          scene_bytes INTEGER NOT NULL DEFAULT 0,
+          thumbnail TEXT,
+          version INTEGER NOT NULL DEFAULT 1,
+          share_token TEXT UNIQUE,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_boards_workspace ON boards(workspace_id, updated_at DESC)');
+    },
+  },
+  {
+    // Feedback: Notes y Board como productos. Se saca el CHECK de `product`
+    // (la validación vive en zod, FEEDBACK_PRODUCTS) para que sumar productos
+    // no exija reconstruir la tabla cada vez. Mismo método que 015.
+    id: '018_notes_feedback_products',
+    async up(client) {
+      const current = await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'feedback'");
+      const sql = String(current.rows[0]?.sql ?? '');
+      const check = /\s*CHECK\s*\(\s*product\s+IN\s*\([^)]*\)\s*\)/i;
+      if (!sql || !check.test(sql)) return;
+      const newSql = sql
+        .replace(check, '')
+        .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?feedback["`]?/i, 'CREATE TABLE feedback_new');
+      const cols = (await client.execute('PRAGMA table_info(feedback)')).rows.map((r) => `"${String(r.name)}"`).join(', ');
+      const indexes = (
+        await client.execute(
+          "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'feedback' AND sql IS NOT NULL",
+        )
+      ).rows.map((r) => String(r.sql));
+      await client.migrate([
+        'DROP TABLE IF EXISTS feedback_new',
+        newSql,
+        `INSERT INTO feedback_new (${cols}) SELECT ${cols} FROM feedback`,
+        'DROP TABLE feedback',
+        'ALTER TABLE feedback_new RENAME TO feedback',
+        ...indexes,
+      ]);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

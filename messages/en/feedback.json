@@ -17,6 +17,8 @@
       "track": "Track",
       "chat": "Chat",
       "docs": "Docs",
+      "notes": "Notes",
+      "board": "Board",
       "site": "Website",
       "other": "Other"
     },

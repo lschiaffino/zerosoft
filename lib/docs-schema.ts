@@ -27,7 +27,7 @@ const docsDatabaseColumnSchema = z.object({
   options: z.array(shortText).max(30).optional(),
 });
 
-const docsBlockSchema = z.object({
+export const docsBlockSchema = z.object({
   id: z.string().min(1).max(64),
   type: docsBlockType,
   content: longText,

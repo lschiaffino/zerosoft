@@ -38,6 +38,8 @@ function useGroupLabel(t: (key: string) => string) {
  */
 export default function CommandSearch() {
   const t = useTranslations('common.sidebar');
+  const tNotes = useTranslations('notes');
+  const tBoard = useTranslations('board');
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -60,8 +62,10 @@ export default function CommandSearch() {
       { group, label: t('newLink'), meta: '', href: '/app/links/new' },
       { group, label: t('newDocPage'), meta: '', href: '/app/docs' },
       { group, label: t('newEventType'), meta: '', href: '/app/calendar/event-types/new' },
+      { group, label: tNotes('actions.newNote'), meta: '', href: '/app/notes?new=1' },
+      { group, label: tBoard('list.new'), meta: '', href: '/app/board?new=1' },
     ];
-  }, [t]);
+  }, [t, tNotes, tBoard]);
 
   useEffect(() => {
     function onOpen() {
