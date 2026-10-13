@@ -49,6 +49,7 @@
     "newEventType": "New event type",
     "newProject": "New project",
     "newWidget": "New widget",
+    "newFlow": "New flow",
     "team": "Team",
     "searchPlaceholder": "Search anything…",
     "searchEmpty": "0 results. Try something else.",
@@ -279,7 +280,8 @@
         "robots": "Bots that drive the browser for you.",
         "notes": "Quick notes, notebooks and search.",
         "board": "An infinite whiteboard."
-      }
+      },
+      "new": "New"
     },
     "stack": {
       "label": "0.02 — Replace your stack",

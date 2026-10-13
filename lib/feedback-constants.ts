@@ -1,7 +1,7 @@
 // Constantes de feedback sin dependencias de servidor (las usa el formulario cliente).
 
 export const FEEDBACK_KINDS = ['idea', 'bug', 'other'] as const;
-export const FEEDBACK_PRODUCTS = ['link', 'crm', 'cal', 'track', 'chat', 'docs', 'site', 'other'] as const;
+export const FEEDBACK_PRODUCTS = ['link', 'crm', 'cal', 'track', 'chat', 'docs', 'flow', 'site', 'other'] as const;
 export const FEEDBACK_STATUSES = ['new', 'read', 'done'] as const;
 export const FEEDBACK_MAX = 4000;
 
@@ -24,6 +24,8 @@ export function productFromPath(pathname: string): FeedbackProduct {
       return 'chat';
     case 'docs':
       return 'docs';
+    case 'flow':
+      return 'flow';
     default:
       return 'link';
   }

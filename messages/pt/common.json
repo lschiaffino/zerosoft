@@ -49,6 +49,7 @@
     "newEventType": "Novo tipo de evento",
     "newProject": "Novo projeto",
     "newWidget": "Novo widget",
+    "newFlow": "Novo flow",
     "team": "Equipe",
     "searchPlaceholder": "Busque qualquer coisa…",
     "searchEmpty": "0 resultados. Tente outra coisa.",
@@ -279,7 +280,8 @@
         "robots": "Robôs que usam o navegador por você.",
         "notes": "Notas rápidas, cadernos e busca.",
         "board": "Um quadro branco infinito."
-      }
+      },
+      "new": "Novo"
     },
     "stack": {
       "label": "0.02 — Substitua seu stack",

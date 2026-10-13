@@ -26,6 +26,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-flow',
+    date: '2026-10-13',
+    title: {
+      en: 'Flow: visual automations across every app',
+      es: 'Flow: automatizaciones visuales entre todas las apps',
+      pt: 'Flow: automações visuais entre todos os apps',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'New app: Flow, an open-source alternative to Zapier and n8n. Start from an event in any app (a booking, a click, a new deal, a task, a chat message), an incoming webhook or a schedule, then chain conditions, delays, loops, HTTP requests, emails, AI steps and native actions.',
+        es: 'App nueva: Flow, una alternativa open source a Zapier y n8n. Arrancá desde un evento de cualquier app (una reserva, un clic, un deal nuevo, una tarea, un mensaje de chat), un webhook entrante o un horario, y encadená condiciones, esperas, loops, pedidos HTTP, emails, pasos con IA y acciones nativas.',
+        pt: 'App novo: Flow, uma alternativa open source ao Zapier e ao n8n. Comece por um evento de qualquer app (uma reserva, um clique, um deal novo, uma tarefa, uma mensagem de chat), um webhook de entrada ou um horário, e encadeie condições, esperas, loops, requisições HTTP, emails, passos com IA e ações nativas.',
+      },
+      {
+        product: 'platform',
+        en: 'Visual editor with a variable picker, test runs with step-by-step logs, and five starter templates.',
+        es: 'Editor visual con selector de variables, ejecuciones de prueba con el log de cada paso y cinco plantillas para empezar.',
+        pt: 'Editor visual com seletor de variáveis, execuções de teste com o log de cada passo e cinco modelos para começar.',
+      },
+    ],
+  },
+  {
     id: '2026-10-13-roadmap',
     date: '2026-10-13',
     title: {

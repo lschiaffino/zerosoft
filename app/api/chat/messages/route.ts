@@ -14,6 +14,7 @@ import {
 } from '@/lib/chat-data';
 import { createNotification } from '@/lib/notifications';
 import { dispatchChatBot } from '@/lib/chat-bot-ai';
+import { emitEvent } from '@/lib/events';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,9 +63,11 @@ export async function POST(req: Request) {
   const visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, cleanVisitorIdentity(body.email, body.name));
 
   let conversation = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))?.conversation ?? null;
+  let isNewConversation = false;
   if (!conversation) {
     const subject = typeof body.subject === 'string' && body.subject.trim() ? body.subject.trim() : null;
     conversation = await createChatConversation(widgetId, visitor.id, subject ?? undefined);
+    isNewConversation = true;
   }
 
   if (!messageBody && (!body.fields || typeof body.fields !== 'object')) {
@@ -78,6 +81,21 @@ export async function POST(req: Request) {
 
   const finalBody = messageBody || JSON.stringify(body.fields);
   const message = await createChatMessage(conversation.id, 'visitor', { body: finalBody });
+  {
+    const conv = conversation;
+    const eventBase = {
+      conversation: { id: conv.id, subject: conv.subject, status: conv.status },
+      visitor: { id: visitor.id, name: visitor.name, email: visitor.email },
+      widget: { id: widget.id, name: widget.name },
+    };
+    after(async () => {
+      if (isNewConversation) await emitEvent(widget.user_id, 'conversation.created', eventBase);
+      await emitEvent(widget.user_id, 'message.received', {
+        ...eventBase,
+        message: { id: message.id, body: message.body, createdAt: message.created_at },
+      });
+    });
+  }
 
   // Auto-assign via assignment rules before notifying.
   const agents = await listChatAgents(widget.user_id, widget.team_id);
