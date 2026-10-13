@@ -384,6 +384,20 @@ export interface ChatVisitorWithStats extends ChatVisitorRow {
   total_messages: number;
 }
 
+/**
+ * Email y nombre que manda el widget (identify de la página que lo embebe).
+ * No están verificados: solo se aceptan si tienen forma válida y se recortan.
+ */
+export function cleanVisitorIdentity(email: unknown, name: unknown): { email: string | null; name: string | null } {
+  const e = typeof email === 'string' ? email.trim().slice(0, 254) : '';
+  // eslint-disable-next-line no-control-regex
+  const n = typeof name === 'string' ? name.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 120) : '';
+  return {
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? e.toLowerCase() : null,
+    name: n || null,
+  };
+}
+
 export async function getOrCreateChatVisitor(
   widgetId: string,
   externalId: string,

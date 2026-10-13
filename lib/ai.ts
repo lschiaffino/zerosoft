@@ -1,10 +1,12 @@
 import {
   generateText,
+  Output,
   streamText,
   type LanguageModel,
   type LanguageModelUsage,
   type ModelMessage,
 } from 'ai';
+import type { z } from 'zod';
 import { getDb } from './db';
 import { rateLimit } from './rate-limit';
 
@@ -234,6 +236,55 @@ export async function aiGenerateText(opts: AiCallOptions): Promise<AiTextResult>
   await recordFromUsage(opts.workspaceId, opts.feature, modelId, usage);
   return {
     text: result.text,
+    inputTokens: usage?.inputTokens ?? 0,
+    outputTokens: usage?.outputTokens ?? 0,
+    model: modelId,
+  };
+}
+
+export interface AiObjectOptions<T> extends Omit<AiCallOptions, 'workspaceId'> {
+  /**
+   * Workspace que paga la llamada. null = tarea de sistema de la instancia
+   * (sin workspace dueño): no hay cuota ni registro en ai_usage, solo el rate
+   * limit con la clave `ai:system:<feature>`.
+   */
+  workspaceId: string | null;
+  schema: z.ZodType<T>;
+  /** Nombre del objeto para el modelo (opcional). */
+  schemaName?: string;
+}
+
+export interface AiObjectResult<T> {
+  object: T;
+  inputTokens: number;
+  outputTokens: number;
+  model: string;
+}
+
+/**
+ * Salida estructurada (generateText + Output.object con un schema zod). El
+ * SDK valida el objeto contra el schema; si el modelo no cumple, tira.
+ */
+export async function aiGenerateObject<T>(opts: AiObjectOptions<T>): Promise<AiObjectResult<T>> {
+  if (opts.workspaceId) {
+    await assertAiAvailable(opts.workspaceId);
+  } else {
+    if (!aiEnabled()) throw new AiError('ai_disabled');
+    if (process.env.RATE_LIMIT_DISABLED !== 'true') {
+      const res = await rateLimit(`ai:system:${opts.feature}`, aiRateLimitPerMinute(), 60);
+      if (!res.ok) throw new AiError('rate_limited');
+    }
+  }
+  const { model, modelId } = resolveModel();
+  const result = await generateText({
+    model,
+    ...callSettings({ ...opts, workspaceId: opts.workspaceId ?? '' }),
+    output: Output.object({ schema: opts.schema, name: opts.schemaName }),
+  });
+  const usage = result.totalUsage;
+  if (opts.workspaceId) await recordFromUsage(opts.workspaceId, opts.feature, modelId, usage);
+  return {
+    object: result.output as T,
     inputTokens: usage?.inputTokens ?? 0,
     outputTokens: usage?.outputTokens ?? 0,
     model: modelId,

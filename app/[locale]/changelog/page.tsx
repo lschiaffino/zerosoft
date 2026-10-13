@@ -55,6 +55,7 @@ export default async function ChangelogPage(props: {
   const { product } = await props.searchParams;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'changelog' });
+  const tr = await getTranslations({ locale, namespace: 'roadmap' });
   const filter = PRODUCTS.includes(product as ChangelogProduct) ? (product as ChangelogProduct) : null;
 
   const entries = CHANGELOG.map((e) => ({
@@ -77,6 +78,9 @@ export default async function ChangelogPage(props: {
             <span className="cl-feed-glyph" aria-hidden="true" />
             {t('rss')}
           </a>
+          <Link className="btn btn-ghost btn-small" href="/roadmap">
+            {tr('seeRoadmap')}
+          </Link>
           <Link className="btn btn-ghost btn-small" href="/feedback">
             {t('feedback')}
           </Link>

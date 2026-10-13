@@ -73,6 +73,43 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     });
   }
 
+  // Identidad opcional del visitante (p. ej. la persona logueada en el sitio
+  // que embebe el widget). Se declara antes de cargar con
+  // window.zsChatSettings = { email, name } o data-email / data-name en el
+  // <script>, o después con window.zsChat.identify({ email, name }). Es
+  // información declarada por la página (no verificada): solo completa el
+  // email y el nombre del visitante en el inbox.
+  var SCRIPT_EL = document.currentScript;
+  var identity = { email: null, name: null };
+  function cleanIdentity(o) {
+    if (!o || typeof o !== 'object') return;
+    if (typeof o.email === 'string') {
+      var e = o.email.trim().slice(0, 254);
+      if (/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(e)) identity.email = e;
+    }
+    if (typeof o.name === 'string') {
+      var n = o.name.replace(/[\\u0000-\\u001f]/g, '').trim().slice(0, 120);
+      if (n) identity.name = n;
+    }
+  }
+  if (SCRIPT_EL && SCRIPT_EL.getAttribute) {
+    cleanIdentity({ email: SCRIPT_EL.getAttribute('data-email'), name: SCRIPT_EL.getAttribute('data-name') });
+  }
+  try { cleanIdentity(window.zsChatSettings); } catch (e) {}
+  var zsChat = (window.zsChat = window.zsChat || {});
+  zsChat._widgets = zsChat._widgets || {};
+  zsChat._widgets[WIDGET_ID] = { identify: cleanIdentity };
+  zsChat.identify = function (o) {
+    for (var k in zsChat._widgets) {
+      if (Object.prototype.hasOwnProperty.call(zsChat._widgets, k)) zsChat._widgets[k].identify(o);
+    }
+  };
+  function withIdentity(payload) {
+    if (identity.email) payload.email = identity.email;
+    if (identity.name) payload.name = identity.name;
+    return payload;
+  }
+
   var visitorId = getVisitorId();
   var open = false;
   var conversationId = null;
@@ -501,7 +538,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       return;
     }
     if (!body) return;
-    var payload = { widgetId: WIDGET_ID, visitorId: visitorId, body: body };
+    var payload = withIdentity({ widgetId: WIDGET_ID, visitorId: visitorId, body: body });
     api('/api/chat/messages', { method: 'POST', body: JSON.stringify(payload) })
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -524,6 +561,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     formData.append('visitorId', visitorId);
     formData.append('file', file);
     if (text) formData.append('body', text);
+    if (identity.email) formData.append('email', identity.email);
+    if (identity.name) formData.append('name', identity.name);
 
     api('/api/chat/messages/upload', { method: 'POST', body: formData })
       .then(function (r) { return r.json(); })
@@ -599,7 +638,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       if (!valid) return;
       api('/api/chat/messages', {
         method: 'POST',
-        body: JSON.stringify({ widgetId: WIDGET_ID, visitorId: visitorId, body: 'Started chat', fields: answers }),
+        body: JSON.stringify(withIdentity({ widgetId: WIDGET_ID, visitorId: visitorId, body: 'Started chat', fields: answers })),
       }).catch(function () {});
       formWrap.style.display = 'none';
       showWelcome();

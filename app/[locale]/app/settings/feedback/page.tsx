@@ -19,6 +19,7 @@ export default async function FeedbackAdminPage(props: {
   if (!isAdminEmail(user.actingUser?.email ?? user.email)) notFound();
 
   const t = await getTranslations({ locale, namespace: 'feedback.admin' });
+  const tr = await getTranslations({ locale, namespace: 'roadmap.admin' });
   const filter = FEEDBACK_STATUSES.includes(status as FeedbackStatus) ? (status as FeedbackStatus) : undefined;
   const rows = await listFeedback({ status: filter });
 
@@ -42,6 +43,9 @@ export default async function FeedbackAdminPage(props: {
             {t(`status.${s}`)}
           </Link>
         ))}
+        <Link href="/app/settings/roadmap" className="btn btn-small btn-ghost fb-admin-roadmap">
+          {tr('feedbackLink')} →
+        </Link>
       </nav>
 
       {rows.length === 0 ? (

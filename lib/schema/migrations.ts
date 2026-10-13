@@ -369,6 +369,50 @@ export const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    // Roadmap: ítems (ideas/bugs) que salen del feedback y de las
+    // conversaciones de soporte, sus señales (de dónde vino cada pedido) y los
+    // votos públicos (uno por IP hasheada por ítem).
+    id: '016_roadmap_items_signals_votes',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS roadmap_items (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          product TEXT NOT NULL DEFAULT 'other',
+          kind TEXT NOT NULL DEFAULT 'idea' CHECK (kind IN ('idea', 'bug')),
+          status TEXT NOT NULL DEFAULT 'proposed'
+            CHECK (status IN ('proposed', 'planned', 'in_progress', 'done', 'declined')),
+          votes INTEGER NOT NULL DEFAULT 0,
+          is_public INTEGER NOT NULL DEFAULT 0,
+          shipped_changelog_id TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_roadmap_items_status ON roadmap_items(status, votes DESC)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS roadmap_signals (
+          id TEXT PRIMARY KEY,
+          item_id TEXT NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+          source TEXT NOT NULL CHECK (source IN ('feedback', 'chat')),
+          source_id TEXT NOT NULL,
+          excerpt TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_roadmap_signals_item ON roadmap_signals(item_id, created_at DESC)');
+      await client.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_roadmap_signals_source ON roadmap_signals(source, source_id)',
+      );
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS roadmap_votes (
+          item_id TEXT NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+          ip_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (item_id, ip_hash)
+        )`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
