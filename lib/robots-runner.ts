@@ -9,8 +9,11 @@
  *  - none: no se pueden correr robots en este servidor (la UI lo explica).
  *
  * Elección: ROBOTS_RUNNER=sandbox|local|none. Sin variable: sandbox en Vercel
- * (VERCEL=1), none en el resto.
+ * (VERCEL=1); fuera de Vercel, local si playwright-core se puede resolver
+ * (self-host: hace falta Chromium, ver README), y si no none.
  */
+import { createRequire } from 'module';
+import path from 'path';
 import { assertPublicUrl, UnsafeUrlError } from './safe-fetch';
 import {
   robotHarness,
@@ -20,7 +23,7 @@ import {
   type InterpreterResult,
   type InterpreterStep,
 } from './robots-interpreter';
-import { MAX_EXECUTED_STEPS, MAX_LOOP_ITEMS, MAX_PAGES, MAX_SCREENSHOTS } from './robots-schema';
+import { MAX_EXECUTED_STEPS, MAX_FILE_BYTES, MAX_FILES, MAX_LOOP_ITEMS, MAX_PAGES, MAX_SCREENSHOTS } from './robots-schema';
 
 export type RobotBackendName = 'sandbox' | 'local' | 'none';
 
@@ -29,6 +32,25 @@ export interface RobotJob {
   steps: InterpreterStep[];
   inputs: Record<string, unknown>;
   timeoutMs: number;
+  /** Credenciales referenciadas en los pasos (en claro, solo para esta corrida). */
+  credentials?: Record<string, Record<string, string>>;
+  storageState?: unknown;
+  saveSession?: boolean;
+}
+
+let playwrightResolvable: boolean | null = null;
+
+/** playwright-core instalado en este servidor (self-host con `npm ci`). */
+export function hasLocalPlaywright(): boolean {
+  if (playwrightResolvable === null) {
+    try {
+      createRequire(path.join(process.cwd(), 'package.json')).resolve('playwright-core');
+      playwrightResolvable = true;
+    } catch {
+      playwrightResolvable = false;
+    }
+  }
+  return playwrightResolvable;
 }
 
 export type RobotRunnerResult = InterpreterResult;
@@ -49,7 +71,8 @@ export function robotBackendName(): RobotBackendName {
   if (testBackend !== undefined) return testBackend ? testBackend.name : 'none';
   const env = (process.env.ROBOTS_RUNNER ?? '').trim().toLowerCase();
   if (env === 'sandbox' || env === 'local' || env === 'none') return env;
-  return process.env.VERCEL === '1' ? 'sandbox' : 'none';
+  if (process.env.VERCEL === '1') return 'sandbox';
+  return hasLocalPlaywright() ? 'local' : 'none';
 }
 
 export function getRobotBackend(): RobotBackend | null {
@@ -80,6 +103,11 @@ export function harnessJob(job: RobotJob, extra: Partial<HarnessJob> = {}): Harn
     maxScreenshots: MAX_SCREENSHOTS,
     maxExecuted: MAX_EXECUTED_STEPS,
     maxLoopItems: MAX_LOOP_ITEMS,
+    maxFiles: MAX_FILES,
+    maxFileBytes: MAX_FILE_BYTES,
+    credentials: job.credentials,
+    storageState: job.storageState,
+    saveSession: job.saveSession,
     ...extra,
   };
 }

@@ -26,6 +26,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-flow-robots-integrations',
+    date: '2026-10-13',
+    title: {
+      en: 'Flow and Robots: integrations, credentials and a recorder',
+      es: 'Flow y Robots: integraciones, credenciales y un grabador',
+      pt: 'Flow e Robots: integrações, credenciais e um gravador',
+    },
+    items: [
+      { product: 'platform', en: 'Flow credentials: API keys, logins and tokens encrypted per workspace, never shown again and redacted from run logs. Native nodes for Slack, Google Sheets, Gmail, Stripe (including a signed webhook trigger), Notion, Discord and Telegram.', es: 'Credenciales en Flow: API keys, logins y tokens cifrados por workspace, que no se vuelven a mostrar y se ocultan en los logs. Nodos nativos para Slack, Google Sheets, Gmail, Stripe (con trigger de webhook firmado), Notion, Discord y Telegram.', pt: 'Credenciais no Flow: API keys, logins e tokens criptografados por workspace, que não aparecem de novo e ficam ocultos nos logs. Nós nativos para Slack, Google Sheets, Gmail, Stripe (com trigger de webhook assinado), Notion, Discord e Telegram.' },
+      { product: 'platform', en: 'Flow error handling: continue on fail or an error branch per node, an error flow per workflow and re-running a failed run from any step. New nodes to run an agent, run code in a sandbox, merge or aggregate data and call another flow. Cron schedules with time zones, version history with restore and 16 templates.', es: 'Errores en Flow: continuar si falla o rama de error por nodo, un flow de error por workflow y re-ejecutar una corrida fallida desde cualquier paso. Nodos nuevos para ejecutar un agente, correr código en un sandbox, combinar o agregar datos y llamar a otro flow. Schedules con cron y zona horaria, historial de versiones con restaurar y 16 plantillas.', pt: 'Erros no Flow: continuar se falhar ou ramo de erro por nó, um flow de erro por workflow e reexecutar uma execução com falha a partir de qualquer passo. Nós novos para executar um agente, rodar código em um sandbox, juntar ou agregar dados e chamar outro flow. Agendamentos com cron e fuso horário, histórico de versões com restaurar e 16 modelos.' },
+      { product: 'platform', en: 'Robots: a bookmarklet recorder that turns your clicks into steps, saved credentials in steps, sessions kept between runs, new download, upload, PDF and custom JavaScript steps, per-step retries, schedules every 15 minutes or by cron, and a local runner by default when self-hosting.', es: 'Robots: un grabador (bookmarklet) que convierte tus clics en pasos, credenciales guardadas en los pasos, sesiones que se mantienen entre corridas, pasos nuevos para descargar, subir archivos, PDF y JavaScript propio, reintentos por paso, schedules cada 15 minutos o por cron, y runner local por defecto en self-host.', pt: 'Robots: um gravador (bookmarklet) que transforma seus cliques em passos, credenciais salvas nos passos, sessões mantidas entre execuções, passos novos para baixar, enviar arquivos, PDF e JavaScript próprio, tentativas por passo, agendamentos a cada 15 minutos ou por cron, e runner local por padrão em self-host.' },
+    ],
+  },
+  {
     id: '2026-10-13-app-fixes',
     date: '2026-10-13',
     title: {

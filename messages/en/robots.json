@@ -13,7 +13,8 @@
     "schedule": "Schedule",
     "never": "Never run",
     "noSchedule": "Manual",
-    "adminOnly": "Only workspace admins and owners can create, edit and run robots."
+    "adminOnly": "Only workspace admins and owners can create, edit and run robots.",
+    "record": "Record steps"
   },
   "usage": {
     "title": "This month",
@@ -26,7 +27,8 @@
     "none": "Robots can't run on this server.",
     "noneHint": "Set ROBOTS_RUNNER=local and install Chromium (npx playwright-core install --with-deps chromium) to run robots on this machine, or deploy on Vercel to use Vercel Sandbox. You can still build and edit robots.",
     "sandbox": "Runs in an isolated Vercel Sandbox microVM.",
-    "local": "Runs in a local Chromium on this server."
+    "local": "Runs in a local Chromium on this server.",
+    "localHint": "Self-host: this is the default runner when playwright-core is installed. Install Chromium with npx playwright-core install --with-deps chromium."
   },
   "templates": {
     "title": "Templates",
@@ -53,7 +55,14 @@
     "delete": "Delete",
     "confirmDelete": "Delete this robot and its run history?",
     "readOnly": "Read only: only admins and owners can edit or run robots.",
-    "tabs": { "steps": "Steps", "inputs": "Inputs", "runs": "Runs", "settings": "Settings" }
+    "tabs": {
+      "steps": "Steps",
+      "inputs": "Inputs",
+      "runs": "Runs",
+      "settings": "Settings"
+    },
+    "record": "Record steps",
+    "paste": "Paste recorded steps"
   },
   "steps": {
     "empty": "No steps yet. Add the first one: usually “Go to URL”.",
@@ -75,7 +84,11 @@
       "screenshot": "Screenshot",
       "scroll": "Scroll",
       "if_exists": "If element exists",
-      "loop_over": "Loop over list"
+      "loop_over": "Loop over list",
+      "download": "Download file",
+      "upload": "Upload file",
+      "pdf": "Save as PDF",
+      "evaluate": "Run JavaScript"
     },
     "fields": {
       "url": "URL",
@@ -95,10 +108,24 @@
       "count": "Steps to skip",
       "target": "Go to step",
       "list": "List",
-      "max": "Max items"
+      "max": "Max items",
+      "filename": "File name (optional)",
+      "fileUrl": "File URL",
+      "script": "JavaScript (body of an async function, return a JSON value)",
+      "retries": "Retries",
+      "retryDelayMs": "Wait between tries (ms)"
     },
-    "modes": { "text": "Text of the first match", "attribute": "Attribute of the first match", "all": "All matches (list)" },
-    "onMissing": { "skip": "Skip the next steps", "goto": "Jump to a later step", "stop": "Finish the run", "fail": "Fail the run" },
+    "modes": {
+      "text": "Text of the first match",
+      "attribute": "Attribute of the first match",
+      "all": "All matches (list)"
+    },
+    "onMissing": {
+      "skip": "Skip the next steps",
+      "goto": "Jump to a later step",
+      "stop": "Finish the run",
+      "fail": "Fail the run"
+    },
     "templateHint": "Use {inputs} for inputs and {vars} for extracted values. Inside a loop: {loopItem}.",
     "tipsTitle": "Selector tips",
     "tips": [
@@ -106,7 +133,10 @@
       "Right-click the element → Inspect → Copy → Copy selector, then simplify it.",
       "No good selector? Leave it empty and type the visible text (e.g. “Sign in”). Text is the fallback when the selector finds nothing.",
       "Lists: an Extract with “All matches” over “.item a” returns every link text; add the attribute href to get the URLs."
-    ]
+    ],
+    "fileHint": "The file is stored and its URL goes to {example}.",
+    "credentialsTip": "Logins: use {example} with a credential saved in Flow. The value never shows in logs or screenshots.",
+    "credentialsLink": "Credentials"
   },
   "inputs": {
     "title": "Inputs",
@@ -132,8 +162,17 @@
   "runs": {
     "empty": "No runs yet.",
     "select": "Select a run to see its steps, data and screenshots.",
-    "trigger": { "manual": "Manual", "flow": "Flow", "schedule": "Schedule" },
-    "status": { "queued": "Queued", "running": "Running", "success": "Success", "failed": "Failed" },
+    "trigger": {
+      "manual": "Manual",
+      "flow": "Flow",
+      "schedule": "Schedule"
+    },
+    "status": {
+      "queued": "Queued",
+      "running": "Running",
+      "success": "Success",
+      "failed": "Failed"
+    },
     "duration": "Duration",
     "error": "Error",
     "steps": "Steps",
@@ -145,7 +184,11 @@
     "omitted": "Too large to keep without Blob storage.",
     "input": "Inputs",
     "copy": "Copy JSON",
-    "stepStatus": { "success": "OK", "failed": "Failed", "skipped": "Skipped" }
+    "stepStatus": {
+      "success": "OK",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    }
   },
   "settings": {
     "enabled": "Allow automatic runs",
@@ -153,7 +196,7 @@
     "schedule": "Schedule",
     "scheduleNone": "No schedule",
     "scheduleDaily": "Every day at",
-    "scheduleInterval": "Every N hours",
+    "scheduleInterval": "Every N hours or minutes",
     "time": "Time (HH:MM)",
     "timezone": "Time zone",
     "every": "Hours",
@@ -164,7 +207,23 @@
     "flowHint": "Add the “Robots: run robot” node and paste this ID. Flows can also react to “Robots: run finished” and “Robots: run failed”.",
     "copyId": "Copy ID",
     "copied": "Copied",
-    "responsible": "Use robots responsibly: respect each site's terms and robots.txt, don't overload servers, and don't automate logins with real credentials. Private networks, file:// URLs and downloads are blocked."
+    "responsible": "Use robots responsibly: respect each site's terms and robots.txt and don't overload servers. Keep logins in saved credentials, never in steps. Private networks and file:// URLs are blocked; downloads only through the Download step (10 MB max).",
+    "scheduleCron": "Cron",
+    "unit": "Unit",
+    "units": { "hours": "Hours", "minutes": "Minutes" },
+    "everyN": "Every",
+    "minMinutes": "Minimum 15 minutes.",
+    "cron": "Cron expression",
+    "cronHint": "5 fields: minute hour day month weekday. E.g. 0 9 * * 1-5",
+    "cronInvalid": "Invalid cron expression.",
+    "cronPreview": "Next runs",
+    "granularity": "In the cloud, schedules are checked once an hour: a run can start up to an hour after its time.",
+    "session": "Keep session between runs",
+    "sessionHint": "Keeps cookies and localStorage (encrypted) so the robot stays logged in.",
+    "sessionSaved": "A session is saved.",
+    "sessionEmpty": "No saved session.",
+    "clearSession": "Clear session",
+    "sessionCleared": "Session cleared."
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -184,6 +243,49 @@
     "busy": "Another robot is running in this workspace. Wait for it to finish.",
     "missing_input": "Fill in the required input “{name}”.",
     "no_steps": "Add at least one step before running.",
-    "disabled": "This robot is turned off for automatic runs."
+    "disabled": "This robot is turned off for automatic runs.",
+    "missing_credential": "Missing credential “{name}”. Create it in Flow > Credentials."
+  },
+  "paste": {
+    "title": "Paste recorded steps",
+    "desc": "Paste the JSON you copied from the recorder panel.",
+    "append": "Add at the end",
+    "replace": "Replace the steps",
+    "import": "Import",
+    "cancel": "Cancel",
+    "passwordNote": "Passwords arrive as {placeholder}: change LOGIN to the name of a saved credential.",
+    "imported": "{count, plural, one {# step imported} other {# steps imported}}. Save to keep them.",
+    "errors": {
+      "invalid_json": "Not valid JSON.",
+      "no_steps": "No steps in the pasted text.",
+      "invalid_steps": "Step {index} is invalid."
+    }
+  },
+  "recorder": {
+    "title": "Step recorder",
+    "subtitle": "Do the task once on the site and copy the steps into your robot.",
+    "back": "Robots",
+    "howTitle": "How it works",
+    "step1": "Drag the button to your bookmarks bar.",
+    "step2": "Open the site you want to automate and click the bookmark.",
+    "step3": "Do the task: clicks, fields, selects and Enter are recorded. If the page changes, click the bookmark again to keep going.",
+    "step4": "Click Copy steps in the panel, then use Paste recorded steps in your robot.",
+    "bookmarklet": "Record robot",
+    "dragHint": "Drag it to the bookmarks bar (don’t click it here).",
+    "copyCode": "Copy code",
+    "copyCodeHint": "Can’t drag? Paste the code into the browser console on the site.",
+    "copied": "Copied",
+    "selectorsTitle": "Selectors",
+    "selectors": "The first stable one wins: data-testid, id, name, aria-label, placeholder, visible text (clicks) and finally a short CSS path.",
+    "passwords": "Passwords are never recorded: they become {placeholder} so you can use a saved credential.",
+    "panel": {
+      "recording": "Recording",
+      "steps": "steps",
+      "copy": "Copy steps",
+      "copied": "Copied",
+      "clear": "Clear",
+      "close": "Close",
+      "hint": "Do the task as usual. When done, copy the steps."
+    }
   }
 }

@@ -148,6 +148,7 @@ export default async function AppLayout(
           },
           flow: {
             flows: tFlow('sidebar.flows'),
+            credentials: tFlow('sidebar.credentials'),
           },
           notes: { all: tNotes('sidebar.all'), newNote: tNotes('actions.newNote') },
           board: { boards: tBoard('sidebar.boards'), newBoard: tBoard('list.new') },
@@ -206,6 +207,7 @@ export default async function AppLayout(
             { href: '/app/chat/reports', label: tChat('sidebar.reports') },
             { href: '/app/chat/widgets', label: tChat('sidebar.widgets') },
             { href: '/app/flow', label: tFlow('sidebar.flows') },
+            { href: '/app/flow/credentials', label: tFlow('sidebar.credentials') },
             { href: '/app/notes', label: tNotes('sidebar.all') },
             { href: '/app/notes/clip', label: tNotes('clip.title') },
             { href: '/app/board', label: tBoard('sidebar.boards') },

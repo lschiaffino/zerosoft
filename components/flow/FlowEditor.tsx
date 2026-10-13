@@ -29,8 +29,9 @@ import {
   type FlowNodeType,
 } from '@/lib/flow-schema';
 import FlowNodeCard, { type FlowCanvasNode } from './FlowNodeCard';
-import NodeConfigPanel, { type VariableOption } from './NodeConfigPanel';
+import NodeConfigPanel, { type EditorRefs, type VariableOption } from './NodeConfigPanel';
 import RunsPanel, { type RunDetail } from './RunsPanel';
+import VersionsPanel from './VersionsPanel';
 import { CATEGORY_COLOR, CATEGORY_ORDER, flattenPaths, i18nKey } from './flow-ui';
 
 interface Props {
@@ -38,6 +39,7 @@ interface Props {
   webhooks: Array<{ nodeId: string; token: string }>;
   lastOutputs: Record<string, unknown>;
   canEdit: boolean;
+  refs: Omit<EditorRefs, 'flowId'>;
 }
 
 const nodeTypes = { flow: FlowNodeCard };
@@ -87,9 +89,31 @@ function summaryOf(type: FlowNodeType, cfg: Record<string, unknown>, t: ReturnTy
     case 'trigger.event':
       return cfg.event ? t(`events.${i18nKey(s(cfg.event))}`) : '';
     case 'trigger.schedule':
+      if (cfg.mode === 'cron') return `${s(cfg.cron)} (${s(cfg.timezone) || 'UTC'})`;
       return cfg.mode === 'interval'
         ? t('editor.everySummary', { n: Number(cfg.every) || 1, unit: t(`options.${s(cfg.unit) || 'hours'}`) })
         : t('editor.dailySummary', { time: s(cfg.time) || '09:00', tz: s(cfg.timezone) || 'UTC' });
+    case 'trigger.stripe':
+      return s(cfg.events) || t('editor.allEvents');
+    case 'app.slack':
+      return s(cfg.channel) || s(cfg.text).slice(0, 60);
+    case 'app.google_sheets':
+      return `${t(`options.${s(cfg.operation) || 'append'}`)} · ${s(cfg.range)}`;
+    case 'app.gmail':
+      return s(cfg.to) || s(cfg.subject);
+    case 'app.stripe':
+    case 'app.notion':
+      return t(`options.${s(cfg.operation) || (type === 'app.stripe' ? 'create_customer' : 'create_page')}`);
+    case 'app.discord':
+      return s(cfg.content).slice(0, 60);
+    case 'app.telegram':
+      return s(cfg.chatId) || s(cfg.text).slice(0, 60);
+    case 'ai.agent':
+      return s(cfg.message).slice(0, 60);
+    case 'data.code':
+      return s(cfg.code).split('\n')[0].slice(0, 60);
+    case 'data.merge':
+      return cfg.mode === 'aggregate' ? `${t(`options.${s(cfg.operation) || 'collect'}`)} ${s(cfg.field)}`.trim() : t('options.merge');
     case 'logic.delay':
       return `${Number(cfg.amount) || 0} ${t(`options.${s(cfg.unit) || 'minutes'}`)}`;
     case 'action.http':
@@ -173,7 +197,7 @@ function triggerSample(type: FlowNodeType, cfg: Record<string, unknown>): unknow
   }
 }
 
-function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdit }: Props) {
+function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdit, refs: baseRefs }: Props) {
   const t = useTranslations('flow');
   const rf = useReactFlow();
   const router = useRouter();
@@ -185,7 +209,9 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   const [description, setDescription] = useState(initialFlow.description);
   const [webhooks, setWebhooks] = useState(initialHooks);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<'editor' | 'runs'>('editor');
+  const [tab, setTab] = useState<'editor' | 'runs' | 'versions'>('editor');
+  const [errorFlowId, setErrorFlowId] = useState<string>(initialFlow.errorFlowId ?? '');
+  const refs = useMemo<EditorRefs>(() => ({ ...baseRefs, flowId: initialFlow.id }), [baseRefs, initialFlow.id]);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
@@ -217,6 +243,12 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
         data: { ...n.data, status: stepStatus.get(n.id), summary: summaryOf(n.data.type, n.data.config, t) },
       })),
     [nodes, stepStatus, t],
+  );
+
+  // Aristas de la rama de error: en otro color.
+  const displayEdges = useMemo(
+    () => edges.map((e) => (e.sourceHandle === 'error' ? { ...e, className: 'is-error' } : e)),
+    [edges],
   );
 
   const markDirty = useCallback(() => {
@@ -330,7 +362,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     const res = await fetch(`/api/flow/flows/${flow.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, description, graph, version: flow.version }),
+      body: JSON.stringify({ name, description, graph, version: flow.version, errorFlowId: errorFlowId || null }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as
       | { flow?: FlowDto; webhooks?: Props['webhooks']; error?: string; nodeId?: string }
@@ -348,7 +380,23 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     setDirty(false);
     setMessage({ kind: 'ok', text: t('editor.saved') });
     return true;
-  }, [readOnly, flow.id, flow.version, name, description, graph, t]);
+  }, [readOnly, flow.id, flow.version, name, description, graph, errorFlowId, t]);
+
+  /** Restaurar una versión: el canvas toma el grafo restaurado. */
+  const onRestored = useCallback(
+    (next: FlowDto, hooks: Props['webhooks']) => {
+      const canvas = toCanvas(next.graph);
+      setNodes(canvas.nodes);
+      setEdges(canvas.edges);
+      setFlow(next);
+      setWebhooks(hooks);
+      setSelectedId(null);
+      setDirty(false);
+      setTab('editor');
+      setMessage({ kind: 'ok', text: t('versions.restored', { n: next.version }) });
+    },
+    [setNodes, setEdges, t],
+  );
 
   const setEnabled = useCallback(
     async (enabled: boolean) => {
@@ -549,6 +597,15 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
           <button type="button" role="tab" aria-selected={tab === 'runs'} className={tab === 'runs' ? 'is-active' : ''} onClick={() => setTab('runs')}>
             {t('editor.runsTab')}
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'versions'}
+            className={tab === 'versions' ? 'is-active' : ''}
+            onClick={() => setTab('versions')}
+          >
+            {t('editor.versionsTab')}
+          </button>
         </div>
         <div className="flow-bar-right">
           {message && (
@@ -580,12 +637,20 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
         </div>
       </header>
 
-      {tab === 'runs' ? (
+      {tab === 'versions' ? (
+        <VersionsPanel flowId={flow.id} currentVersion={flow.version} canEdit={canEdit} dirty={dirty} onRestored={onRestored} />
+      ) : tab === 'runs' ? (
         <RunsPanel
           flowId={flow.id}
           selectedRunId={runRef.id}
           refreshKey={runRef.key}
           onSelect={setShownRun}
+          canEdit={canEdit}
+          dirty={dirty}
+          onRerun={(run) => {
+            setShownRun(run);
+            setRunRef((r) => ({ id: run.id, key: r.key + 1 }));
+          }}
         />
       ) : (
         <div className={`flow-workspace${readOnly ? ' is-readonly' : ''}`}>
@@ -627,7 +692,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
           <div className="flow-canvas" ref={wrapperRef} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
             <ReactFlow<FlowCanvasNode, Edge>
               nodes={displayNodes}
-              edges={edges}
+              edges={displayEdges}
               nodeTypes={nodeTypes}
               onNodesChange={(changes) => {
                 onNodesChange(changes);
@@ -667,6 +732,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                 config={selected.data.config}
                 readOnly={readOnly}
                 variables={variables}
+                refs={refs}
                 onChange={(cfg) => updateConfig(selected.id, cfg)}
                 onDelete={() => deleteNode(selected.id)}
                 extra={triggerExtra()}
@@ -690,6 +756,31 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                       markDirty();
                     }}
                   />
+                </div>
+                <div className="flow-field">
+                  <label className="label" htmlFor="flow-error-flow">
+                    {t('editor.errorFlow')}
+                  </label>
+                  <select
+                    id="flow-error-flow"
+                    className="select"
+                    value={errorFlowId}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      setErrorFlowId(e.target.value);
+                      markDirty();
+                    }}
+                  >
+                    <option value="">{t('editor.errorFlowNone')}</option>
+                    {refs.flows
+                      .filter((f) => f.id !== flow.id)
+                      .map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="muted flow-hint">{t('editor.errorFlowHint')}</p>
                 </div>
                 {readOnly && <p className="muted flow-hint">{t('list.adminOnly')}</p>}
                 {!readOnly && (

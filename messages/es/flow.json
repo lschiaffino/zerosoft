@@ -1,9 +1,7 @@
 {
   "title": "Flow",
   "subtitle": "Automatizaciones entre todas las apps de zerosoft y cualquier servicio con API.",
-  "sidebar": {
-    "flows": "Flows"
-  },
+  "sidebar": { "flows": "Flows", "credentials": "Credenciales" },
   "list": {
     "title": "Tus flows",
     "new": "Nuevo flow",
@@ -21,26 +19,22 @@
     "subtitle": "Flows listos. Usá uno y ajustá los detalles.",
     "use": "Usar plantilla",
     "items": {
-      "bookingToTrack": {
-        "name": "Nueva reserva en Cal → tarea en Track",
-        "desc": "Cada reserva nueva crea un issue para preparar la reunión."
-      },
-      "linkMilestone": {
-        "name": "Link con 100 clicks → mandame un email",
-        "desc": "Recibí un email en cuanto un link corto llega a 100 clicks."
-      },
-      "webhookToContact": {
-        "name": "Webhook → contacto en el CRM",
-        "desc": "Cualquier formulario o servicio que haga POST con JSON crea un contacto."
-      },
-      "dealsDigest": {
-        "name": "Resumen diario de deals nuevos",
-        "desc": "Cada mañana, un email con los deals creados en las últimas 24 horas."
-      },
-      "chatSummaryToSlack": {
-        "name": "Mensaje de Chat → resumen con AI a Slack",
-        "desc": "Resume con AI cada mensaje entrante y lo publica en un webhook de Slack."
-      }
+      "bookingToTrack": { "name": "Nueva reserva en Cal → tarea en Track", "desc": "Cada reserva nueva crea un issue para preparar la reunión." },
+      "linkMilestone": { "name": "Link con 100 clicks → mandame un email", "desc": "Recibí un email en cuanto un link corto llega a 100 clicks." },
+      "webhookToContact": { "name": "Webhook → contacto en el CRM", "desc": "Cualquier formulario o servicio que haga POST con JSON crea un contacto." },
+      "dealsDigest": { "name": "Resumen diario de deals nuevos", "desc": "Cada mañana, un email con los deals creados en las últimas 24 horas." },
+      "chatSummaryToSlack": { "name": "Mensaje de Chat → resumen con AI a Slack", "desc": "Resume con AI cada mensaje entrante y lo publica en un webhook de Slack." },
+      "leadToCrmSlack": { "name": "Lead de formulario → CRM + Slack", "desc": "Cada envío del formulario crea un contacto y avisa en tu canal de ventas." },
+      "bookingToSheets": { "name": "Nueva reserva → fila en Google Sheets", "desc": "Registra cada reserva de Cal como una fila: fecha, nombre, email y evento." },
+      "dealWonToStripe": { "name": "Deal ganado → cliente en Stripe", "desc": "Crea el cliente en Stripe apenas un deal se marca como ganado." },
+      "chatToTrack": { "name": "Bug reportado en el chat → issue en Track", "desc": "La AI detecta mensajes que reportan un bug y abre un issue de prioridad alta." },
+      "dailyDigestEmail": { "name": "Resumen diario por email", "desc": "De lunes a viernes a las 8:00, un resumen con AI de los deals nuevos, enviado desde tu Gmail." },
+      "robotToSheets": { "name": "Datos de un robot → Google Sheets", "desc": "Agrega a una planilla lo que extrae un robot (por ejemplo, un precio diario)." },
+      "stripePaymentToSlack": { "name": "Pago en Stripe → Slack", "desc": "Avisa en Slack cada pago exitoso. Verificado con la firma de Stripe." },
+      "issueToDiscord": { "name": "Issue urgente → Discord", "desc": "Manda los issues urgentes de Track a un canal de Discord." },
+      "formToTelegram": { "name": "Envío de formulario → Telegram", "desc": "Recibí cada envío de un formulario en Telegram." },
+      "bookingToNotion": { "name": "Reserva → notas de reunión en Notion", "desc": "Crea una página en una base de Notion por cada reserva nueva." },
+      "webhookAgentReply": { "name": "Pregunta por webhook → agente → Slack", "desc": "Un agente responde preguntas que llegan a un webhook y publica la respuesta en Slack." }
     }
   },
   "editor": {
@@ -95,7 +89,27 @@
     "templateHelp": "Usá '{{trigger.x}}' para los datos del disparador y '{{nodes.<id>.output.x}}' para la salida de un nodo anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length.",
     "everySummary": "Cada {n} {unit}",
     "dailySummary": "Todos los días a las {time} ({tz})",
-    "conditionsCount": "{n, plural, one {# condición} other {# condiciones}}"
+    "conditionsCount": "{n, plural, one {# condición} other {# condiciones}}",
+    "versionsTab": "Versiones",
+    "errorFlow": "Flow de error",
+    "errorFlowNone": "Ninguno",
+    "errorFlowHint": "Corre otro flow cuando una corrida falla. Recibe '{{trigger.flow}}', '{{trigger.run.error}}' y '{{trigger.failedNode}}'.",
+    "credentialNone": "Elegí una credencial",
+    "credentialMissing": "Credencial borrada",
+    "credentialEmpty": "0 credenciales de tipo {types}.",
+    "manageCredentials": "Administrar credenciales",
+    "pickFlow": "Elegí un flow",
+    "pickAgent": "Elegí un agente",
+    "noAgents": "0 agentes en este workspace.",
+    "createAgent": "Crear uno",
+    "cronHelp": "minuto hora día mes día-de-semana. Ejemplo: 0 9 * * 1-5 = días hábiles a las 9:00.",
+    "cronNext": "Próximas corridas",
+    "cronInvalid": "Expresión cron inválida.",
+    "codeUnavailable": "El código corre en un Vercel Sandbox aislado. No está disponible en este servidor: configurá FLOW_CODE_RUNNER=sandbox con credenciales de Vercel para activarlo. Mientras tanto el nodo falla con code_unavailable.",
+    "mergeHint": "Espera a que corran todos los nodos conectados y después corre una sola vez. Usá la clave '...' para copiar todos los campos de un objeto.",
+    "scheduleGranularity": "En la nube de zerosoft el programador revisa una vez por hora, así que una corrida puede arrancar hasta una hora tarde. Con self-host sigue tu cron de /api/cron/tick.",
+    "stripeHint": "Guardá el flow, copiá la URL del webhook en Stripe (Developers → Webhooks) y guardá su signing secret en la credencial. Los pedidos sin firma se rechazan.",
+    "allEvents": "Todos los eventos"
   },
   "categories": {
     "trigger": "Disparador",
@@ -103,12 +117,13 @@
     "data": "Datos",
     "action": "Acción",
     "app": "Apps",
-    "ai": "AI"
+    "ai": "AI",
+    "integration": "Integraciones"
   },
   "nodes": {
     "trigger_event": { "title": "Evento de una app", "desc": "Corre cuando pasa algo en zerosoft: una reserva, un click, un contacto nuevo, un issue, un mensaje de chat…" },
     "trigger_webhook": { "title": "Webhook entrante", "desc": "Corre cuando un servicio hace POST a la URL secreta de este flow." },
-    "trigger_schedule": { "title": "Programado", "desc": "Corre cada N minutos u horas, o todos los días a una hora en tu zona horaria." },
+    "trigger_schedule": { "title": "Programado", "desc": "Corre cada N minutos u horas, todos los días a una hora o con una expresión cron, en tu zona horaria." },
     "trigger_manual": { "title": "Manual", "desc": "Corre solo desde el botón Probar, con el JSON que le pases." },
     "logic_if": { "title": "Si", "desc": "Divide el flow en dos: verdadero y falso." },
     "logic_switch": { "title": "Switch", "desc": "Elige una rama comparando un valor con una lista de casos." },
@@ -116,7 +131,11 @@
     "logic_delay": { "title": "Esperar", "desc": "Espera antes de seguir (hasta 30 días)." },
     "logic_loop": { "title": "Loop", "desc": "Corre la rama \"cada elemento\" una vez por elemento de una lista, en orden. Después sigue por \"listo\"." },
     "data_set": { "title": "Definir campos", "desc": "Arma un objeto con campos nuevos a partir de plantillas." },
-    "data_json_parse": { "title": "Leer JSON", "desc": "Convierte texto JSON en datos para usar en los nodos siguientes." },
+    "data_json_parse": {
+      "title": "Leer JSON",
+      "desc": "Convierte texto JSON en datos para usar en los nodos siguientes.",
+      "fields": { "text": "Texto JSON" }
+    },
     "action_http": { "title": "Request HTTP", "desc": "Llama a cualquier API. Solo hosts públicos por HTTPS." },
     "action_email": { "title": "Enviar email", "desc": "Envía un email de texto." },
     "app_crm_contact": { "title": "CRM: crear contacto", "desc": "Crea un contacto (o devuelve el existente con el mismo email)." },
@@ -127,7 +146,43 @@
     "app_chat_message": { "title": "Chat: enviar mensaje", "desc": "Responde en una conversación de Chat como el bot." },
     "app_docs_page": { "title": "Docs: crear página", "desc": "Crea una página en Docs. Las líneas en blanco separan párrafos." },
     "app_robot_run": { "title": "Robots: ejecutar robot", "desc": "Ejecuta un robot de navegador con estas entradas y espera los datos extraídos (hasta el timeout del robot)." },
-    "ai_text": { "title": "AI: generar texto", "desc": "Escribe, resume o clasifica texto con AI. Cuenta para tu cuota de AI." }
+    "ai_text": { "title": "AI: generar texto", "desc": "Escribe, resume o clasifica texto con AI. Cuenta para tu cuota de AI." },
+    "trigger_stripe": { "title": "Evento de Stripe", "desc": "Corre cuando Stripe manda un evento a la URL de este flow. La firma se verifica con el webhook secret de la credencial." },
+    "logic_run_flow": {
+      "title": "Ejecutar flow",
+      "desc": "Corre otro flow con estas entradas y lo espera. Las salidas de sus nodos quedan en '{{nodes.<id>.output.outputs}}'.",
+      "fields": { "inputs": "Entradas ('{{trigger.x}}' en el otro flow)", "failOnErrorHint": "Fallar si el otro flow falla" }
+    },
+    "data_merge": {
+      "title": "Merge / Aggregate",
+      "desc": "Merge une valores de varios nodos en un objeto. Aggregate suma, promedia o junta un campo de una lista.",
+      "fields": {
+        "mode": "Modo",
+        "fields": "Campos",
+        "items": "Lista"
+      }
+    },
+    "data_code": {
+      "title": "Código",
+      "desc": "Corre JavaScript en un sandbox aislado. Los datos están en input.trigger e input.nodes. Devolvé un valor JSON.",
+      "fields": { "code": "JavaScript (cuerpo de una función async)" }
+    },
+    "app_slack": { "title": "Slack: enviar mensaje", "desc": "Publica con un bot token (cualquier canal) o con un incoming webhook." },
+    "app_google_sheets": {
+      "title": "Google Sheets",
+      "desc": "Agrega una fila o lee un rango. Funciona con un token OAuth o una cuenta de servicio.",
+      "fields": { "row": "Valores de la fila (en orden de columnas)" }
+    },
+    "app_gmail": { "title": "Gmail: enviar email", "desc": "Envía desde el Gmail conectado en el CRM por quien creó el flow (o el dueño del workspace)." },
+    "app_stripe": { "title": "Stripe", "desc": "Crea un cliente o lista los pagos recientes." },
+    "app_notion": { "title": "Notion", "desc": "Crea una página en una base o agrega texto a una página. Antes compartí la página o base con tu integración." },
+    "app_discord": { "title": "Discord: enviar mensaje", "desc": "Publica en un canal a través de un webhook." },
+    "app_telegram": { "title": "Telegram: enviar mensaje", "desc": "Manda un mensaje con tu bot a un chat, grupo o canal." },
+    "ai_agent": {
+      "title": "Ejecutar agente",
+      "desc": "Le manda un mensaje a uno de tus agentes y devuelve su respuesta. Usa las herramientas y el conocimiento del agente.",
+      "fields": { "message": "Mensaje", "conversationId": "Seguir conversación (opcional)" }
+    }
   },
   "fields": {
     "event": "Evento",
@@ -148,7 +203,7 @@
     "items": "Lista",
     "max": "Máximo de elementos",
     "fields": "Campos",
-    "text": "Texto JSON",
+    "text": "Texto",
     "method": "Método",
     "url": "URL",
     "headers": "Headers",
@@ -179,7 +234,31 @@
     "robotId": "ID del robot",
     "inputs": "Entradas",
     "failOnError": "Fallar si el robot falla",
-    "failOnErrorHint": "Detener el flow cuando la corrida del robot falla"
+    "failOnErrorHint": "Detener el flow cuando la corrida del robot falla",
+    "cron": "Expresión cron",
+    "credentialId": "Credencial",
+    "events": "Tipos de evento (vacío = todos)",
+    "flowId": "Flow",
+    "agentId": "Agente",
+    "message": "Mensaje",
+    "field": "Campo",
+    "operation": "Operación",
+    "code": "Código",
+    "timeoutSec": "Tiempo máximo (segundos, hasta 30)",
+    "channel": "Canal",
+    "spreadsheetId": "ID de la planilla",
+    "range": "Hoja o rango",
+    "row": "Fila",
+    "name": "Nombre",
+    "limit": "Cuántos",
+    "databaseId": "Base de datos",
+    "titleProperty": "Propiedad del título",
+    "properties": "Otras propiedades (JSON)",
+    "pageId": "Página",
+    "username": "Nombre visible",
+    "chatId": "ID del chat",
+    "parseMode": "Formato",
+    "onError": "Si este paso falla"
   },
   "options": {
     "all": "Todas las condiciones",
@@ -193,7 +272,25 @@
     "low": "Baja",
     "medium": "Media",
     "high": "Alta",
-    "urgent": "Urgente"
+    "urgent": "Urgente",
+    "cron": "Expresión cron",
+    "none": "Ninguno",
+    "append": "Agregar fila",
+    "read": "Leer rango",
+    "create_customer": "Crear cliente",
+    "list_payments": "Listar pagos",
+    "create_page": "Crear página en una base",
+    "append_text": "Agregar texto a una página",
+    "merge": "Merge",
+    "aggregate": "Aggregate",
+    "count": "Contar",
+    "sum": "Sumar",
+    "avg": "Promedio",
+    "min": "Mínimo",
+    "max": "Máximo",
+    "collect": "Juntar valores",
+    "unique": "Valores únicos",
+    "join": "Unir como texto"
   },
   "handles": {
     "out": "Siguiente",
@@ -202,7 +299,8 @@
     "item": "Cada elemento",
     "done": "Listo",
     "default": "Por defecto",
-    "case": "Caso {n}"
+    "case": "Caso {n}",
+    "error": "Error"
   },
   "events": {
     "booking_created": "Cal: reserva creada",
@@ -267,8 +365,16 @@
       "manual": "Prueba",
       "trigger_event": "Evento",
       "trigger_webhook": "Webhook",
-      "trigger_schedule": "Programado"
-    }
+      "trigger_schedule": "Programado",
+      "trigger_stripe": "Stripe",
+      "subflow": "Sub-flow",
+      "error": "Flow de error"
+    },
+    "rerun": "Re-ejecución",
+    "rerunOf": "Re-ejecución de {id}. Los pasos anteriores reusan su salida.",
+    "rerunFrom": "Re-ejecutar desde acá",
+    "rerunHint": "Los pasos anteriores reusan la salida de esta corrida. Usa el flow guardado.",
+    "rerunDirty": "Tenés cambios sin guardar. La re-ejecución usa la última versión guardada. ¿Seguir?"
   },
   "stepStatus": {
     "running": "Ejecutando",
@@ -296,6 +402,108 @@
     "invalid_handle": "Una conexión usa una salida que el nodo no tiene.",
     "self_loop": "Un nodo no puede conectarse consigo mismo.",
     "cycle": "Los flows no pueden tener ciclos. Usá un nodo Loop para repetir pasos.",
-    "delay_in_loop": "No se puede usar Esperar dentro de un Loop."
+    "delay_in_loop": "No se puede usar Esperar dentro de un Loop.",
+    "invalid_cron": "Expresión cron inválida.",
+    "invalid_timezone": "Zona horaria desconocida. Usá un nombre como America/Argentina/Buenos_Aires.",
+    "invalid_error_flow": "Elegí otro flow de este workspace como flow de error.",
+    "run_active": "Esta corrida todavía está en curso.",
+    "node_not_found": "Ese nodo ya no está en el flow.",
+    "node_is_trigger": "Re-ejecutá desde un paso posterior al trigger.",
+    "node_in_loop": "Los pasos dentro de un Loop no se re-ejecutan solos. Re-ejecutá desde el Loop."
+  },
+  "onError": {
+    "stop": "Detener el flow",
+    "continue": "Continuar",
+    "branch": "Usar la rama de error",
+    "stopHint": "La corrida falla acá (después de los reintentos).",
+    "continueHint": "El paso queda fallido y el flow sigue. Su salida tiene 'error'.",
+    "branchHint": "Agrega una salida Error. Conectá lo que tiene que pasar si falla."
+  },
+  "versions": {
+    "title": "Versiones",
+    "subtitle": "Se guarda una versión cada vez que cambian los nodos del flow.",
+    "loading": "Cargando…",
+    "empty": "0 versiones todavía.",
+    "current": "Actual",
+    "first": "Primera versión",
+    "noChanges": "Mismos nodos",
+    "nodes": "{n, plural, one {# nodo} other {# nodos}}",
+    "added": "+{n}: {ids}",
+    "removed": "−{n}: {ids}",
+    "changed": "{n} editados: {ids}",
+    "edges": "conexiones +{added} −{removed}",
+    "restore": "Restaurar",
+    "restoring": "Restaurando…",
+    "confirm": "¿Restaurar la versión {n}? El flow actual también queda guardado como versión.",
+    "confirmDirty": "¿Restaurar la versión {n}? Se pierden los cambios sin guardar.",
+    "error": "No se pudo restaurar esta versión.",
+    "restored": "Restaurado. Ahora en la versión {n}."
+  },
+  "credentials": {
+    "title": "Credenciales",
+    "subtitle": "API keys y tokens para las integraciones de Flow y para Robots. Se guardan cifradas y no se vuelven a mostrar.",
+    "new": "Nueva credencial",
+    "newTitle": "Nueva credencial",
+    "editTitle": "Editar {name}",
+    "name": "Nombre",
+    "nameHint": "Letras, números, - y _. Robots la usa como {example}.",
+    "type": "Tipo",
+    "value": "Detalle",
+    "updated": "Actualizada",
+    "edit": "Editar",
+    "delete": "Borrar",
+    "confirmDelete": "¿Borrar {name}? Los flows y robots que la usan van a fallar.",
+    "empty": "0 credenciales todavía.",
+    "emptyHint": "Agregá una para usar Slack, Google Sheets, Stripe, Notion, Discord o Telegram en tus flows, o logins en Robots.",
+    "listTitle": "Credenciales guardadas",
+    "adminOnly": "Solo los admins y owners del workspace pueden agregar o editar credenciales.",
+    "optional": "opcional",
+    "savedPlaceholder": "Guardado. Dejalo vacío para conservarlo.",
+    "keepHint": "Dejalo vacío para conservar el valor guardado.",
+    "security": "Los valores se cifran con AES-256-GCM, solo se descifran mientras una corrida los usa y se ocultan en los logs.",
+    "types": {
+      "api_key": "API key (header)",
+      "basic": "Usuario y contraseña",
+      "oauth_token": "Token OAuth / bearer",
+      "slack": "Slack",
+      "google": "Google",
+      "stripe": "Stripe",
+      "notion": "Notion",
+      "discord": "Discord",
+      "telegram": "Telegram"
+    },
+    "typeHints": {
+      "api_key": "Se manda como header en los pedidos HTTP, por ejemplo Authorization: Bearer TOKEN.",
+      "basic": "Basic auth de HTTP, o el login de un sitio para Robots.",
+      "oauth_token": "Access token pegado, se manda como Authorization: Bearer.",
+      "slack": "Bot token (xoxb-, con chat:write) para publicar en cualquier canal, o la URL de un incoming webhook.",
+      "google": "Access token con permiso de Sheets, o la key JSON de una cuenta de servicio (compartí la planilla con su email).",
+      "stripe": "Secret key o restricted key. Agregá el signing secret del webhook para usar el trigger de eventos de Stripe.",
+      "notion": "Token de una integración interna. Compartí las páginas o bases con la integración.",
+      "discord": "URL del webhook del canal (Ajustes del canal → Integraciones → Webhooks).",
+      "telegram": "Token del bot de @BotFather."
+    },
+    "fields": {
+      "headerName": "Header",
+      "prefix": "Prefijo",
+      "value": "Key",
+      "username": "Usuario",
+      "password": "Contraseña",
+      "accessToken": "Access token",
+      "botToken": "Bot token",
+      "webhookUrl": "URL del webhook",
+      "serviceAccountJson": "JSON de la cuenta de servicio",
+      "secretKey": "Secret key",
+      "webhookSecret": "Signing secret del webhook",
+      "token": "Token de la integración"
+    },
+    "errors": {
+      "invalid_name": "Usá de 1 a 60 letras, números, - o _.",
+      "invalid_type": "Tipo desconocido.",
+      "missing_field": "Falta {field}.",
+      "duplicate_name": "Ya existe una credencial con ese nombre.",
+      "invalid_json": "El JSON de la cuenta de servicio no es válido (necesita client_email y private_key).",
+      "invalid_input": "Datos inválidos."
+    }
   }
 }

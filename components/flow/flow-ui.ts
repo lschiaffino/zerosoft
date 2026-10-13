@@ -7,10 +7,11 @@ export const CATEGORY_COLOR: Record<NodeCategory, string> = {
   data: 'var(--c-docs)',
   action: 'var(--c-link)',
   app: 'var(--c-cal)',
+  integration: 'var(--c-agents)',
   ai: 'var(--c-chat)',
 };
 
-export const CATEGORY_ORDER: NodeCategory[] = ['trigger', 'logic', 'data', 'action', 'app', 'ai'];
+export const CATEGORY_ORDER: NodeCategory[] = ['trigger', 'logic', 'data', 'action', 'app', 'integration', 'ai'];
 
 /** next-intl usa '.' como separador: 'trigger.event' → 'trigger_event'. */
 export function i18nKey(value: string): string {

@@ -47,7 +47,11 @@ function FlowNodeCard({ data, selected, id }: NodeProps<FlowCanvasNode>) {
       {named ? (
         <div className="flow-node-outputs">
           {outputs.map((h, i) => (
-            <div className="flow-node-output" key={h} style={{ left: `${((i + 1) / (outputs.length + 1)) * 100}%` }}>
+            <div
+              className={`flow-node-output${h === 'error' ? ' is-error' : ''}`}
+              key={h}
+              style={{ left: `${((i + 1) / (outputs.length + 1)) * 100}%` }}
+            >
               <span>{handleLabel(t, h, data.config)}</span>
               <Handle type="source" id={h} position={Position.Bottom} className="flow-handle" />
             </div>

@@ -8,11 +8,15 @@
 import { getDb, type RobotRow, type RobotRunRow, type RobotRunStatus, type RobotRunTrigger } from './db';
 import { emitEvent } from './events';
 import { computeNextRun } from './flow';
+import { referencedCredentialNames, resolveCredential, secretValues } from './flow-credentials';
+import { redact } from './flow-credentials-schema';
 import { rateLimit } from './rate-limit';
 import { getRobotBackend, robotBackendName, type RobotBackendName } from './robots-runner';
+import { open, seal } from './secret-box';
 import {
   DEFAULT_TIMEOUT_SEC,
   MAX_TIMEOUT_SEC,
+  MIN_SCHEDULE_MINUTES,
   ROBOT_TEMPLATES,
   resolveInputs,
   validateInputDefs,
@@ -22,7 +26,7 @@ import {
   type RobotSchedule,
   type RobotStep,
 } from './robots-schema';
-import type { RobotLogEntry, RobotScreenshot } from './robots-interpreter';
+import type { RobotFile, RobotLogEntry, RobotScreenshot } from './robots-interpreter';
 
 export interface RobotDto {
   id: string;
@@ -34,6 +38,9 @@ export interface RobotDto {
   schedule: RobotSchedule;
   nextRunAt: string | null;
   timeoutSec: number;
+  persistSession: boolean;
+  /** Hay una sesión guardada (cookies/localStorage) para la próxima corrida. */
+  hasSession: boolean;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -91,7 +98,7 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
   }
 }
 
-export function toRobotDto(row: RobotRow): RobotDto {
+export function toRobotDto(row: RobotRow, hasSession = false): RobotDto {
   const steps = validateSteps(parseJson<unknown>(row.steps, []));
   const inputs = validateInputDefs(parseJson<unknown>(row.inputs, []));
   return {
@@ -104,6 +111,8 @@ export function toRobotDto(row: RobotRow): RobotDto {
     schedule: parseJson<RobotSchedule>(row.schedule, null),
     nextRunAt: row.next_run_at,
     timeoutSec: row.timeout_sec,
+    persistSession: row.persist_session === 1,
+    hasSession,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -160,7 +169,41 @@ export async function getRobotRow(workspaceId: string, id: string): Promise<Robo
 
 export async function getRobot(workspaceId: string, id: string): Promise<RobotDto | null> {
   const row = await getRobotRow(workspaceId, id);
-  return row ? toRobotDto(row) : null;
+  if (!row) return null;
+  const session = await getDb().prepare('SELECT 1 AS x FROM robot_sessions WHERE robot_id = ? AND user_id = ?').get(id, workspaceId);
+  return toRobotDto(row, !!session);
+}
+
+// ---------- Sesiones guardadas ----------
+
+/** Tope de la sesión guardada (cookies + localStorage) en bytes de JSON. */
+const SESSION_LIMIT = 1_000_000;
+
+async function loadSession(workspaceId: string, robotId: string): Promise<unknown> {
+  const row = (await getDb()
+    .prepare('SELECT data FROM robot_sessions WHERE robot_id = ? AND user_id = ?')
+    .get(robotId, workspaceId)) as { data: string } | undefined;
+  if (!row) return undefined;
+  const plain = open(row.data);
+  return plain ? (parseJson<unknown>(plain, undefined) ?? undefined) : undefined;
+}
+
+async function saveSession(workspaceId: string, robotId: string, state: unknown): Promise<void> {
+  const json = JSON.stringify(state ?? null);
+  if (!state || json.length > SESSION_LIMIT) return;
+  await getDb()
+    .prepare(
+      `INSERT INTO robot_sessions (robot_id, user_id, data, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT (robot_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+    )
+    .run(robotId, workspaceId, seal(json), nowIso());
+}
+
+/** "Borrar sesión": la próxima corrida arranca sin cookies ni localStorage. */
+export async function clearRobotSession(workspaceId: string, robotId: string): Promise<boolean> {
+  if (!(await getRobotRow(workspaceId, robotId))) return false;
+  await getDb().prepare('DELETE FROM robot_sessions WHERE robot_id = ? AND user_id = ?').run(robotId, workspaceId);
+  return true;
 }
 
 export async function listRobots(workspaceId: string): Promise<RobotListItem[]> {
@@ -192,7 +235,7 @@ export type RobotWriteResult =
 
 function nextRun(schedule: RobotSchedule, enabled: boolean, from = new Date()): string | null {
   if (!schedule || !enabled) return null;
-  return computeNextRun(schedule as unknown as Record<string, unknown>, from).toISOString();
+  return computeNextRun(schedule as unknown as Record<string, unknown>, from, MIN_SCHEDULE_MINUTES).toISOString();
 }
 
 export async function createRobot(
@@ -249,6 +292,7 @@ export async function updateRobot(
     enabled?: boolean;
     schedule?: RobotSchedule;
     timeoutSec?: number;
+    persistSession?: boolean;
   },
 ): Promise<RobotWriteResult> {
   const row = await getRobotRow(workspaceId, id);
@@ -273,7 +317,7 @@ export async function updateRobot(
   await getDb()
     .prepare(
       `UPDATE robots SET name = ?, description = ?, steps = ?, inputs = ?, enabled = ?, schedule = ?, next_run_at = ?,
-         timeout_sec = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+         timeout_sec = ?, persist_session = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
     )
     .run(
       patch.name?.trim() || row.name,
@@ -284,10 +328,13 @@ export async function updateRobot(
       schedule ? JSON.stringify(schedule) : null,
       next,
       timeout,
+      (patch.persistSession ?? row.persist_session === 1) ? 1 : 0,
       nowIso(),
       id,
       workspaceId,
     );
+  // Apagar "guardar sesión" borra la sesión guardada.
+  if (patch.persistSession === false) await clearRobotSession(workspaceId, id);
   return { ok: true, robot: (await getRobot(workspaceId, id))! };
 }
 
@@ -386,9 +433,48 @@ export type RunErrorCode =
   | 'rate_limited'
   | 'busy'
   | 'missing_input'
+  | 'missing_credential'
   | 'no_steps';
 
+/**
+ * Credenciales usadas en los pasos ({{credentials.<name>.campo}}), en claro
+ * para esta corrida, y sus valores secretos (para redactar logs y salidas).
+ */
+export async function resolveRobotCredentials(
+  workspaceId: string,
+  steps: readonly RobotStep[],
+): Promise<
+  | { ok: true; credentials: Record<string, Record<string, string>>; secrets: string[] }
+  | { ok: false; name: string }
+> {
+  const credentials: Record<string, Record<string, string>> = {};
+  const secrets: string[] = [];
+  for (const name of referencedCredentialNames(JSON.stringify(steps))) {
+    const cred = await resolveCredential(workspaceId, name);
+    if (!cred || cred.name !== name) return { ok: false, name };
+    credentials[name] = cred.data;
+    secrets.push(...secretValues(cred.type, cred.data));
+  }
+  return { ok: true, credentials, secrets };
+}
+
+/** Sube los archivos (download / pdf) a Blob y deja la URL en la variable. */
+async function storeFiles(files: RobotFile[], vars: Record<string, unknown>): Promise<void> {
+  const { saveUpload } = await import('./uploads');
+  for (const f of files.slice(0, 5)) {
+    try {
+      const url = await saveUpload('robots', f.filename, f.contentType, Buffer.from(f.data, 'base64'));
+      vars[f.name] = { url, filename: f.filename, size: f.size, contentType: f.contentType };
+    } catch (err) {
+      const code = err instanceof Error && 'code' in err ? String((err as { code: string }).code) : 'storage_unavailable';
+      vars[f.name] = { url: null, filename: f.filename, size: f.size, error: code };
+    }
+  }
+}
+
 export type StartRunResult = { ok: true; run: RobotRunDto } | { ok: false; error: RunErrorCode; name?: string };
+
+export type { RobotFile };
 
 /**
  * Corre un robot ahora y espera el resultado (≤ timeout del robot).
@@ -410,6 +496,8 @@ export async function startRobotRun(
   if (!backend) return { ok: false, error: 'runner_unavailable' };
   const resolved = resolveInputs(robot.inputs, values);
   if (!resolved.ok) return { ok: false, error: 'missing_input', name: resolved.name };
+  const creds = await resolveRobotCredentials(workspaceId, robot.steps);
+  if (!creds.ok) return { ok: false, error: 'missing_credential', name: creds.name };
 
   const limitMin = freeMinutesPerMonth();
   let timeoutMs = Math.min(Math.max(robot.timeoutSec, 10), MAX_TIMEOUT_SEC) * 1000;
@@ -451,9 +539,18 @@ export async function startRobotRun(
   if (claim.changes !== 1) return { ok: false, error: 'busy' };
 
   const t0 = Date.now();
-  let result;
+  const persist = row.persist_session === 1;
+  let result: Awaited<ReturnType<typeof backend.run>>;
   try {
-    result = await backend.run({ robotName: robot.name, steps: robot.steps, inputs: resolved.inputs, timeoutMs });
+    result = await backend.run({
+      robotName: robot.name,
+      steps: robot.steps,
+      inputs: resolved.inputs,
+      timeoutMs,
+      credentials: creds.credentials,
+      storageState: persist ? await loadSession(workspaceId, robot.id) : undefined,
+      saveSession: persist,
+    });
   } catch (err) {
     result = {
       status: 'failed' as const,
@@ -465,8 +562,21 @@ export async function startRobotRun(
     };
   }
   const duration = Date.now() - t0;
+  if (persist && result.storageState) await saveSession(workspaceId, robot.id, result.storageState).catch(() => {});
+  const vars: Record<string, unknown> = { ...(result.vars ?? {}) };
+  if (Array.isArray(result.files) && result.files.length) await storeFiles(result.files, vars);
+  // Credenciales: nunca quedan en logs, variables, errores ni nombres de capturas.
+  if (creds.secrets.length) {
+    result = {
+      ...result,
+      error: result.error ? redact(result.error, creds.secrets) : result.error,
+      logs: redact(result.logs ?? [], creds.secrets),
+      screenshots: (result.screenshots ?? []).map((s) => ({ ...s, name: redact(s.name, creds.secrets) })),
+    };
+    Object.assign(vars, redact(vars, creds.secrets));
+  }
   const shots = await storeScreenshots(Array.isArray(result.screenshots) ? result.screenshots : []);
-  let output = JSON.stringify(result.vars ?? {});
+  let output = JSON.stringify(vars);
   if (output.length > 200_000) output = JSON.stringify({ truncated: true, preview: output.slice(0, 2000) });
   const status: RobotRunStatus = result.status === 'success' ? 'success' : 'failed';
   await getDb()

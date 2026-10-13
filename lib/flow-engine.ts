@@ -7,14 +7,43 @@
  *   el worker (lib/flow-worker.ts) la retoma desde ese nodo.
  * - Loop: ejecuta el cuerpo (handle 'item') una vez por elemento, en serie.
  * - Tope de pasos por corrida (MAX_STEPS) y cadena de eventos (flowChain).
+ * - Errores por nodo (config.onError): stop | continue | branch (salida 'error').
+ *   Si la corrida falla y el flow tiene flow de error, se encola ese flow.
+ * - Credenciales: los valores usados se redactan en pasos, errores y contexto.
+ * - Re-ejecución desde un paso (rerunFromStep): reusa las salidas anteriores.
  * Server-only.
  */
 import { aiEnabled, aiGenerateText, AiError } from './ai';
-import { getDb, type FlowFlowRow, type FlowRunRow } from './db';
+import { getDb, type FlowFlowRow, type FlowRunRow, type FlowStepRow } from './db';
 import { sendEmail } from './email';
 import { flowChain } from './events';
-import { nowIso, parseJson } from './flow';
-import { edgeHandle, nodeOutputs, triggerNode, type FlowGraph, type FlowNode } from './flow-schema';
+import { enqueueRun, kickFlowWorker, MAX_FLOW_CHAIN_DEPTH, nowIso, parseJson } from './flow';
+import { CODE_MAX_TIMEOUT_SEC, runFlowCode } from './flow-code';
+import { resolveCredential, secretValues, type ResolvedCredential } from './flow-credentials';
+import { redact, type CredentialType } from './flow-credentials-schema';
+import { StepError } from './flow-errors';
+import {
+  authHeaders,
+  discordNode,
+  gmailNode,
+  googleSheetsNode,
+  notionNode,
+  slackNode,
+  stripeNode,
+  telegramNode,
+  type IntegrationContext,
+} from './flow-integrations';
+import {
+  edgeHandle,
+  isTriggerType,
+  nodeOutputs,
+  onErrorMode,
+  reachableFrom,
+  supportsErrorHandling,
+  triggerNode,
+  type FlowGraph,
+  type FlowNode,
+} from './flow-schema';
 import { evalConditions, renderDeep, renderString, renderValue, stringify, type Condition } from './flow-template';
 import { safeFetch, UnsafeUrlError } from './safe-fetch';
 
@@ -30,12 +59,20 @@ interface RunContext {
   nodes: Record<string, { output: unknown }>;
 }
 
+type FlowInfo = Pick<FlowFlowRow, 'id' | 'name' | 'user_id' | 'created_by' | 'error_flow_id'>;
+
 interface RunState {
   run: FlowRunRow;
-  flow: Pick<FlowFlowRow, 'id' | 'name' | 'user_id'>;
+  flow: FlowInfo;
   ctx: RunContext;
   steps: number;
   error: string | null;
+  /** Nodo que hizo fallar la corrida (para el flow de error). */
+  failedNode: string | null;
+  /** Valores de credenciales usadas en la corrida: se redactan antes de guardar. */
+  secrets: string[];
+  /** Merge ya ejecutados en esta corrida (no corren dos veces). */
+  merged: Set<string>;
 }
 
 interface LoopScope {
@@ -48,15 +85,6 @@ type NodeResult =
   | { kind: 'stop'; output: unknown }
   | { kind: 'wait'; output: unknown }
   | { kind: 'error'; error: string; retryable?: boolean };
-
-class StepError extends Error {
-  constructor(
-    public code: string,
-    public retryable = false,
-  ) {
-    super(code);
-  }
-}
 
 /** Valor serializable y acotado para guardar en la base. */
 function forStore(value: unknown): unknown {
@@ -80,15 +108,49 @@ function templateCtx(state: RunState, loop?: LoopScope): Record<string, unknown>
   };
 }
 
+/** Redacta los secretos de la corrida y acota el tamaño. */
+function store(state: RunState, value: unknown): unknown {
+  return forStore(state.secrets.length ? redact(value, state.secrets) : value);
+}
+
+function clean(state: RunState, text: string): string {
+  return state.secrets.length ? redact(text, state.secrets) : text;
+}
+
 function str(v: unknown): string {
   return stringify(v).trim();
+}
+
+// ---------- Credenciales ----------
+
+async function takeCredential(state: RunState, ref: unknown, types: readonly CredentialType[]): Promise<ResolvedCredential> {
+  const id = String(ref ?? '').trim();
+  if (!id) throw new StepError('missing_credential');
+  const cred = await resolveCredential(state.flow.user_id, id);
+  if (!cred) throw new StepError('credential_not_found');
+  if (!types.includes(cred.type)) throw new StepError('credential_wrong_type');
+  state.secrets.push(...secretValues(cred.type, cred.data));
+  return cred;
+}
+
+function integrationCtx(state: RunState, node: FlowNode): IntegrationContext {
+  return {
+    workspaceId: state.flow.user_id,
+    actorId: state.flow.created_by,
+    runId: state.run.id,
+    nodeId: node.id,
+    credential: (id, types) => takeCredential(state, id, types),
+    addSecret: (v) => {
+      if (v && v.length >= 4) state.secrets.push(v);
+    },
+  };
 }
 
 const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 
 // ---------- Nodos ----------
 
-async function httpNode(cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+async function httpNode(state: RunState, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
   const method = String(cfg.method ?? 'POST').toUpperCase();
   if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) throw new StepError('invalid_method');
   const url = renderString(cfg.url ?? '', tctx).trim();
@@ -104,6 +166,9 @@ async function httpNode(cfg: Record<string, unknown>, tctx: Record<string, unkno
     headers['content-type'] = /^\s*[[{]/.test(body) ? 'application/json' : 'text/plain';
   }
   headers['user-agent'] ??= 'Zerosoft-Flow/1';
+  if (String(cfg.credentialId ?? '').trim()) {
+    Object.assign(headers, authHeaders(await takeCredential(state, cfg.credentialId, ['api_key', 'basic', 'oauth_token'])));
+  }
   const timeoutMs = Math.min(Math.max(Number(cfg.timeoutMs) || 8000, 1000), 30_000);
   let res: Response;
   try {
@@ -126,11 +191,7 @@ async function httpNode(cfg: Record<string, unknown>, tctx: Record<string, unkno
     if (Object.keys(outHeaders).length < 30) outHeaders[k] = v;
   });
   const output = { status: res.status, ok: res.ok, headers: outHeaders, body: parsed };
-  if (!res.ok) {
-    const err = new StepError(`http_${res.status}`, res.status >= 500 || res.status === 429);
-    (err as StepError & { output?: unknown }).output = output;
-    throw err;
-  }
+  if (!res.ok) throw new StepError(`http_${res.status}`, res.status >= 500 || res.status === 429, output);
   return output;
 }
 
@@ -298,11 +359,138 @@ async function robotNode(state: RunState, cfg: Record<string, unknown>, tctx: Re
     durationMs: res.run.durationMs,
     screenshots: res.run.screenshots.filter((s) => s.url && !s.url.startsWith('data:')).map((s) => ({ name: s.name, url: s.url })),
   };
-  if (res.run.status === 'failed' && cfg.failOnError !== false) {
-    const err = new StepError('robot_failed');
-    (err as StepError & { output?: unknown }).output = output;
-    throw err;
+  if (res.run.status === 'failed' && cfg.failOnError !== false) throw new StepError('robot_failed', false, output);
+  return output;
+}
+
+// ---------- Agente, código, merge, sub-flow ----------
+
+async function agentNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+  const agentId = renderString(cfg.agentId ?? '', tctx).trim();
+  if (!agentId) throw new StepError('missing_agent');
+  const message = renderString(cfg.message ?? '', tctx).trim();
+  if (!message) throw new StepError('missing_message');
+  const { getAgentRow, sendAgentMessage, AgentError } = await import('./agents');
+  const agent = await getAgentRow(ws, agentId);
+  if (!agent) throw new StepError('agent_not_found');
+  const conversationId = renderString(cfg.conversationId ?? '', tctx).trim() || null;
+  try {
+    const res = await sendAgentMessage({ agent, channel: 'api', text: message.slice(0, 4000), conversationId });
+    return {
+      reply: res.result.text,
+      status: res.result.status,
+      handoff: res.result.handoff,
+      conversationId: res.conversation.id,
+      tools: res.result.toolCalls.map((c) => c.tool),
+    };
+  } catch (err) {
+    if (err instanceof AgentError) throw new StepError(err.message, err.message === 'rate_limited');
+    if (err instanceof AiError) throw new StepError(err.code, err.code === 'rate_limited');
+    throw new StepError('ai_error', true);
   }
+}
+
+async function codeNode(state: RunState, cfg: Record<string, unknown>) {
+  const code = String(cfg.code ?? '');
+  if (!code.trim()) throw new StepError('missing_code');
+  if (code.length > 50_000) throw new StepError('code_too_long');
+  const timeoutSec = Math.min(Math.max(Math.floor(Number(cfg.timeoutSec) || 10), 1), CODE_MAX_TIMEOUT_SEC);
+  // Lo que ve el código: trigger y salidas previas (ya redactadas).
+  const input = store(state, { trigger: state.ctx.trigger, nodes: state.ctx.nodes, flow: { id: state.flow.id, name: state.flow.name } });
+  const res = await runFlowCode({ code, input, timeoutMs: timeoutSec * 1000 });
+  if (!res.ok) throw new StepError(res.error, false, res.logs ? { logs: res.logs } : undefined);
+  return { result: res.result, logs: res.logs || undefined };
+}
+
+const AGG_OPS = ['count', 'sum', 'avg', 'min', 'max', 'collect', 'unique', 'join'] as const;
+
+/** Merge: une valores en un objeto. Aggregate: resume una lista (suma, promedio…). */
+export function mergeAggregate(cfg: Record<string, unknown>, tctx: Record<string, unknown>): unknown {
+  if (cfg.mode === 'aggregate') {
+    const raw = renderValue(cfg.items ?? '', tctx);
+    const list: unknown[] = Array.isArray(raw)
+      ? raw
+      : typeof raw === 'string' && raw.trim().startsWith('[')
+        ? parseJson<unknown[]>(raw, [])
+        : [];
+    const items = list.slice(0, 10_000);
+    const field = String(cfg.field ?? '').trim();
+    const values = field ? items.map((v) => renderValue(`{{x.${field}}}`, { x: v })) : items;
+    const nums = values.map((v) => (v === '' || v === null ? NaN : Number(v))).filter((n) => Number.isFinite(n));
+    const op = (AGG_OPS as readonly string[]).includes(String(cfg.operation)) ? String(cfg.operation) : 'collect';
+    let value: unknown;
+    switch (op) {
+      case 'count':
+        value = values.filter((v) => v !== undefined && v !== null && v !== '').length;
+        break;
+      case 'sum':
+        value = nums.reduce((a, b) => a + b, 0);
+        break;
+      case 'avg':
+        value = nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
+        break;
+      case 'min':
+        value = nums.length ? Math.min(...nums) : null;
+        break;
+      case 'max':
+        value = nums.length ? Math.max(...nums) : null;
+        break;
+      case 'unique':
+        value = [...new Map(values.map((v) => [stringify(v), v])).values()];
+        break;
+      case 'join':
+        value = values.map(stringify).join(', ');
+        break;
+      default:
+        value = values;
+    }
+    return { operation: op, field: field || null, count: items.length, value };
+  }
+  const out: Record<string, unknown> = {};
+  for (const f of Array.isArray(cfg.fields) ? (cfg.fields as Array<{ key?: string; value?: unknown }>) : []) {
+    const k = String(f?.key ?? '').trim();
+    if (!k || k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+    const v = renderValue(f?.value ?? '', tctx);
+    // Clave '...': copia las propiedades del objeto (une salidas de varios nodos).
+    if (k === '...' && v && typeof v === 'object' && !Array.isArray(v)) Object.assign(out, v);
+    else out[k] = v;
+  }
+  return out;
+}
+
+async function subflowNode(state: RunState, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+  const flowId = renderString(cfg.flowId ?? '', tctx).trim();
+  if (!flowId) throw new StepError('missing_flow');
+  const parent = flowChain.getStore();
+  const seen = [...new Set([...(parent?.seen ?? []), state.flow.id])];
+  if (seen.includes(flowId)) throw new StepError('subflow_recursion');
+  const depth = (parent?.depth ?? state.run.chain_depth) + 1;
+  if (depth > MAX_FLOW_CHAIN_DEPTH) throw new StepError('subflow_depth');
+  const row = (await getDb()
+    .prepare('SELECT id, user_id FROM flow_flows WHERE id = ? AND user_id = ?')
+    .get(flowId, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id'> | undefined;
+  if (!row) throw new StepError('flow_not_found');
+  const input: Record<string, unknown> = {};
+  for (const f of Array.isArray(cfg.inputs) ? (cfg.inputs as Array<{ key?: string; value?: unknown }>) : []) {
+    const k = String(f?.key ?? '').trim();
+    if (k && k !== '__proto__' && k !== 'constructor' && k !== 'prototype') input[k] = renderValue(f?.value ?? '', tctx);
+  }
+  const runId = await enqueueRun(row, 'subflow', input, {
+    status: 'running',
+    lockMs: 5 * 60_000,
+    chain: { depth, seen },
+    parentRunId: state.run.id,
+  });
+  if (!runId) throw new StepError('rate_limited', true);
+  const status = await executeRun(runId);
+  const sub = (await getDb().prepare('SELECT error, context FROM flow_runs WHERE id = ?').get(runId)) as
+    | { error: string | null; context: string }
+    | undefined;
+  const nodes = parseJson<{ nodes?: Record<string, { output: unknown }> }>(sub?.context, {}).nodes ?? {};
+  const outputs: Record<string, unknown> = {};
+  for (const [id, v] of Object.entries(nodes)) outputs[id] = v?.output ?? null;
+  const output = { runId, status, error: sub?.error ?? null, outputs };
+  if (status === 'failed' && cfg.failOnError !== false) throw new StepError('subflow_failed', false, output);
   return output;
 }
 
@@ -351,7 +539,7 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       }
     }
     case 'action.http':
-      return { kind: 'ok', output: await httpNode(cfg, tctx), handles: ['out'] };
+      return { kind: 'ok', output: await httpNode(state, cfg, tctx), handles: ['out'] };
     case 'action.email': {
       const to = renderString(cfg.to ?? '', tctx).trim();
       if (!EMAIL_RE.test(to)) throw new StepError('missing_recipient');
@@ -379,16 +567,48 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       return { kind: 'ok', output: await robotNode(state, cfg, tctx), handles: ['out'] };
     case 'ai.text':
       return { kind: 'ok', output: await aiNode(ws, cfg, tctx), handles: ['out'] };
+    case 'ai.agent':
+      return { kind: 'ok', output: await agentNode(ws, cfg, tctx), handles: ['out'] };
+    case 'data.code':
+      return { kind: 'ok', output: await codeNode(state, cfg), handles: ['out'] };
+    case 'data.merge':
+      return { kind: 'ok', output: mergeAggregate(cfg, tctx), handles: ['out'] };
+    case 'logic.run_flow':
+      return { kind: 'ok', output: await subflowNode(state, cfg, tctx), handles: ['out'] };
+    case 'app.slack':
+      return { kind: 'ok', output: await slackNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+    case 'app.google_sheets':
+      return { kind: 'ok', output: await googleSheetsNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+    case 'app.gmail':
+      return {
+        kind: 'ok',
+        output: await gmailNode(integrationCtx(state, node), rendered(cfg, tctx), state.flow.name),
+        handles: ['out'],
+      };
+    case 'app.stripe':
+      return { kind: 'ok', output: await stripeNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+    case 'app.notion':
+      return { kind: 'ok', output: await notionNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+    case 'app.discord':
+      return { kind: 'ok', output: await discordNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+    case 'app.telegram':
+      return { kind: 'ok', output: await telegramNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
     default:
       throw new StepError('unsupported_node');
   }
 }
 
-/** Config renderizada (para mostrar el input de cada paso). */
+/** Config con las plantillas resueltas (nodos de integraciones). */
+function rendered(cfg: Record<string, unknown>, tctx: Record<string, unknown>): Record<string, unknown> {
+  return renderDeep(cfg, tctx) as Record<string, unknown>;
+}
+
+/** Config renderizada (para mostrar el input de cada paso). El código se muestra tal cual. */
 function renderedInput(state: RunState, node: FlowNode, loop?: LoopScope): unknown {
-  if (node.type.startsWith('trigger.')) return null;
+  if (isTriggerType(node.type)) return null;
+  if (node.type === 'data.code') return store(state, { code: node.config?.code ?? '', timeoutSec: node.config?.timeoutSec ?? 10 });
   try {
-    return forStore(renderDeep(node.config ?? {}, templateCtx(state, loop)));
+    return store(state, renderDeep(node.config ?? {}, templateCtx(state, loop)));
   } catch {
     return null;
   }
@@ -413,14 +633,21 @@ async function startStep(runId: string, node: FlowNode, input: unknown): Promise
 }
 
 async function finishStep(
+  state: RunState,
   stepId: string,
   status: 'success' | 'failed' | 'skipped' | 'waiting',
   output: unknown,
   error: string | null,
 ) {
-  await getDb()
+  const db = getDb();
+  // El input se guardó al empezar: si el nodo resolvió credenciales, se redacta otra vez.
+  if (state.secrets.length) {
+    const row = (await db.prepare('SELECT input FROM flow_steps WHERE id = ?').get(stepId)) as { input: string | null } | undefined;
+    if (row?.input) await db.prepare('UPDATE flow_steps SET input = ? WHERE id = ?').run(clean(state, row.input), stepId);
+  }
+  await db
     .prepare('UPDATE flow_steps SET status = ?, output = ?, error = ?, finished_at = ? WHERE id = ?')
-    .run(status, JSON.stringify(forStore(output)), error, nowIso(), stepId);
+    .run(status, JSON.stringify(store(state, output)), error === null ? null : clean(state, error), nowIso(), stepId);
 }
 
 // ---------- Recorrido ----------
@@ -433,6 +660,28 @@ async function runChildren(state: RunState, nodeId: string, handle: string, loop
   }
 }
 
+/**
+ * Merge espera a todas sus entradas: corre una sola vez, cuando ya corrieron
+ * todos los nodos conectados a él (los que llegan antes no lo ejecutan).
+ */
+function mergeReady(state: RunState, node: FlowNode, loop?: LoopScope): boolean {
+  const key = loop ? `${node.id}@${loop.index}` : node.id;
+  if (state.merged.has(key)) return false;
+  const sources = [...new Set(state.ctx.graph.edges.filter((e) => e.target === node.id).map((e) => e.source))];
+  if (sources.some((id) => state.ctx.nodes[id] === undefined)) return false;
+  state.merged.add(key);
+  return true;
+}
+
+/** Salida con la que sigue un nodo con onError = continue. */
+function continueHandle(node: FlowNode): string | null {
+  const outs = nodeOutputs(node).filter((h) => h !== 'error');
+  if (outs.includes('out')) return 'out';
+  if (node.type === 'logic.if') return 'false';
+  if (node.type === 'logic.switch') return 'default';
+  return outs[0] ?? null;
+}
+
 async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attempt = 0): Promise<void> {
   if (state.error) return;
   const node = state.ctx.graph.nodes.find((n) => n.id === nodeId);
@@ -440,6 +689,7 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
     state.error = 'node_missing';
     return;
   }
+  if (node.type === 'data.merge' && attempt === 0 && !mergeReady(state, node, loop)) return;
   state.steps += 1;
   if (state.steps > MAX_STEPS) {
     state.error = 'step_limit';
@@ -457,9 +707,8 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
     result = await runNodeLogic(state, node, loop);
   } catch (err) {
     const e = err instanceof StepError ? err : new StepError(err instanceof Error ? err.message.slice(0, 200) : 'error');
-    const output = (e as StepError & { output?: unknown }).output ?? null;
     result = { kind: 'error', error: e.code, retryable: e.retryable };
-    if (output) state.ctx.nodes[node.id] = { output: forStore(output) };
+    if (e.output !== undefined && e.output !== null) state.ctx.nodes[node.id] = { output: store(state, e.output) };
   }
 
   if (result.kind === 'error') {
@@ -470,24 +719,35 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
         kind: 'retry',
         attempt: attempt + 1,
       });
-      await finishStep(stepId, 'failed', state.ctx.nodes[node.id]?.output ?? null, `${result.error} (retry ${attempt + 1}/${retries})`);
+      await finishStep(state, stepId, 'failed', state.ctx.nodes[node.id]?.output ?? null, `${result.error} (retry ${attempt + 1}/${retries})`);
       return;
     }
-    await finishStep(stepId, 'failed', state.ctx.nodes[node.id]?.output ?? null, result.error);
-    state.error = `${node.id}: ${result.error}`;
+    const details = state.ctx.nodes[node.id]?.output ?? null;
+    await finishStep(state, stepId, 'failed', details, result.error);
+    const mode = supportsErrorHandling(node.type) ? onErrorMode(node.config) : 'stop';
+    if (mode === 'stop') {
+      state.error = `${node.id}: ${clean(state, result.error)}`;
+      state.failedNode = node.id;
+      return;
+    }
+    // continue / branch: la salida del nodo describe el error.
+    const extra = details && typeof details === 'object' && !Array.isArray(details) ? (details as Record<string, unknown>) : details !== null ? { details } : {};
+    state.ctx.nodes[node.id] = { output: store(state, { ...extra, error: result.error, failed: true }) };
+    const handle = mode === 'branch' ? 'error' : continueHandle(node);
+    if (handle) await runChildren(state, node.id, handle, loop);
     return;
   }
 
-  state.ctx.nodes[node.id] = { output: forStore(result.output) };
+  state.ctx.nodes[node.id] = { output: store(state, result.output) };
   if (result.kind === 'stop') {
-    await finishStep(stepId, 'skipped', result.output, null);
+    await finishStep(state, stepId, 'skipped', result.output, null);
     return;
   }
   if (result.kind === 'wait') {
-    await finishStep(stepId, 'waiting', result.output, null);
+    await finishStep(state, stepId, 'waiting', result.output, null);
     return;
   }
-  await finishStep(stepId, 'success', result.output, null);
+  await finishStep(state, stepId, 'success', result.output, null);
   for (const h of result.handles) await runChildren(state, node.id, h, loop);
 }
 
@@ -507,16 +767,38 @@ async function runLoop(state: RunState, node: FlowNode, outer?: LoopScope): Prom
     await runChildren(state, node.id, 'item', { item: capped[i], index: i });
   }
   const output = { count: capped.length, total: items.length, items: capped };
-  state.ctx.nodes[node.id] = { output: forStore(output) };
+  state.ctx.nodes[node.id] = { output: store(state, output) };
   if (state.error) {
-    await finishStep(stepId, 'failed', output, 'loop_body_failed');
+    await finishStep(state, stepId, 'failed', output, 'loop_body_failed');
     return;
   }
-  await finishStep(stepId, 'success', output, null);
+  await finishStep(state, stepId, 'success', output, null);
   await runChildren(state, node.id, 'done', outer);
 }
 
 // ---------- Corridas ----------
+
+/** Corrida fallida + flow de error configurado: se encola ese flow con los detalles. */
+async function enqueueErrorFlow(state: RunState): Promise<void> {
+  const target = state.flow.error_flow_id;
+  if (!target || target === state.flow.id || state.run.trigger_type === 'error') return;
+  const seen = [...new Set([...parseJson<string[]>(state.run.chain_seen, []), state.flow.id])];
+  const depth = state.run.chain_depth + 1;
+  if (depth > MAX_FLOW_CHAIN_DEPTH || seen.includes(target)) return;
+  const row = (await getDb()
+    .prepare('SELECT id, user_id FROM flow_flows WHERE id = ? AND user_id = ?')
+    .get(target, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id'> | undefined;
+  if (!row) return;
+  const failed = state.failedNode ? state.ctx.graph.nodes.find((n) => n.id === state.failedNode) : null;
+  const input = store(state, {
+    flow: { id: state.flow.id, name: state.flow.name },
+    run: { id: state.run.id, error: state.error, triggerType: state.run.trigger_type, startedAt: state.run.started_at },
+    failedNode: failed ? { id: failed.id, type: failed.type, output: state.ctx.nodes[failed.id]?.output ?? null } : null,
+    trigger: state.ctx.trigger,
+  });
+  const id = await enqueueRun(row, 'error', input, { chain: { depth, seen }, parentRunId: state.run.id });
+  if (id) kickFlowWorker();
+}
 
 async function finalize(state: RunState): Promise<FlowRunRow['status']> {
   const db = getDb();
@@ -526,6 +808,7 @@ async function finalize(state: RunState): Promise<FlowRunRow['status']> {
   const waiting = !state.error && Number(pending.n) > 0;
   if (state.error) await db.prepare('DELETE FROM flow_jobs WHERE run_id = ?').run(state.run.id);
   const status = state.error ? 'failed' : waiting ? 'waiting' : 'success';
+  const ctx = state.secrets.length ? redact(state.ctx, state.secrets) : state.ctx;
   await db
     .prepare(
       `UPDATE flow_runs SET status = ?, error = ?, context = ?, step_count = ?, locked_until = NULL,
@@ -533,19 +816,20 @@ async function finalize(state: RunState): Promise<FlowRunRow['status']> {
     )
     .run(
       status,
-      state.error,
-      JSON.stringify(state.ctx),
+      state.error === null ? null : clean(state, state.error),
+      JSON.stringify(ctx),
       state.steps,
       waiting ? null : nowIso(),
       state.run.id,
     );
+  if (status === 'failed') await enqueueErrorFlow(state).catch(() => {});
   return status;
 }
 
 async function loadState(run: FlowRunRow): Promise<RunState | null> {
   const flow = (await getDb()
-    .prepare('SELECT id, name, user_id, graph FROM flow_flows WHERE id = ? AND user_id = ?')
-    .get(run.flow_id, run.user_id)) as (Pick<FlowFlowRow, 'id' | 'name' | 'user_id' | 'graph'>) | undefined;
+    .prepare('SELECT id, name, user_id, graph, created_by, error_flow_id FROM flow_flows WHERE id = ? AND user_id = ?')
+    .get(run.flow_id, run.user_id)) as (FlowInfo & Pick<FlowFlowRow, 'graph'>) | undefined;
   if (!flow) return null;
   const saved = parseJson<Partial<RunContext>>(run.context, {});
   const ctx: RunContext = {
@@ -554,7 +838,7 @@ async function loadState(run: FlowRunRow): Promise<RunState | null> {
     trigger: saved.trigger ?? parseJson(run.input, {}),
     nodes: saved.nodes ?? {},
   };
-  return { run, flow, ctx, steps: run.step_count, error: null };
+  return { run, flow, ctx, steps: run.step_count, error: null, failedNode: null, secrets: [], merged: new Set() };
 }
 
 function inChain<T>(run: FlowRunRow, fn: () => Promise<T>): Promise<T> {
@@ -585,7 +869,7 @@ export async function executeRun(runId: string): Promise<FlowRunRow['status']> {
     state.steps += 1;
     const stepId = await startStep(run.id, trigger, null);
     state.ctx.nodes[trigger.id] = { output: forStore(state.ctx.trigger) };
-    await finishStep(stepId, 'success', state.ctx.trigger, null);
+    await finishStep(state, stepId, 'success', state.ctx.trigger, null);
     for (const h of nodeOutputs(trigger)) await runChildren(state, trigger.id, h);
   });
   return finalize(state);
@@ -610,4 +894,77 @@ export async function resumeRun(
     else await runChildren(state, nodeId, 'out');
   });
   return finalize(state);
+}
+
+// ---------- Re-ejecución desde un paso ----------
+
+export type RerunError = 'not_found' | 'run_active' | 'node_not_found' | 'node_is_trigger' | 'node_in_loop' | 'rate_limited';
+
+/**
+ * Nueva corrida que reusa las salidas de la corrida `runId` para todo lo que
+ * está antes de `fromNodeId` y ejecuta ese nodo y lo que sigue con el grafo
+ * actual del flow (sirve para corregir un nodo y volver a probar sin repetir
+ * los pasos anteriores). No aplica a nodos dentro del cuerpo de un Loop.
+ */
+export async function rerunFromStep(
+  workspaceId: string,
+  runId: string,
+  fromNodeId: string,
+): Promise<{ ok: true; runId: string; status: FlowRunRow['status'] } | { ok: false; error: RerunError }> {
+  const db = getDb();
+  const old = (await db.prepare('SELECT * FROM flow_runs WHERE id = ? AND user_id = ?').get(runId, workspaceId)) as
+    | FlowRunRow
+    | undefined;
+  if (!old) return { ok: false, error: 'not_found' };
+  if (old.status !== 'failed' && old.status !== 'success') return { ok: false, error: 'run_active' };
+  const flow = (await db.prepare('SELECT * FROM flow_flows WHERE id = ? AND user_id = ?').get(old.flow_id, workspaceId)) as
+    | FlowFlowRow
+    | undefined;
+  if (!flow) return { ok: false, error: 'not_found' };
+  const graph = parseJson<FlowGraph>(flow.graph, { nodes: [], edges: [] });
+  const node = graph.nodes.find((n) => n.id === fromNodeId);
+  if (!node) return { ok: false, error: 'node_not_found' };
+  if (isTriggerType(node.type)) return { ok: false, error: 'node_is_trigger' };
+  for (const loop of graph.nodes.filter((n) => n.type === 'logic.loop')) {
+    if (reachableFrom(graph, loop.id, 'item').has(fromNodeId)) return { ok: false, error: 'node_in_loop' };
+  }
+  const redo = reachableFrom(graph, fromNodeId);
+  redo.add(fromNodeId);
+  const reused = (id: string) => !redo.has(id) && graph.nodes.some((n) => n.id === id);
+  const oldCtx = parseJson<Partial<RunContext>>(old.context, {});
+  const nodes: RunContext['nodes'] = {};
+  for (const [id, v] of Object.entries(oldCtx.nodes ?? {})) if (reused(id)) nodes[id] = v;
+
+  const newId = await enqueueRun(flow, old.trigger_type, parseJson(old.input, {}), {
+    status: 'running',
+    lockMs: 5 * 60_000,
+    chain: { depth: old.chain_depth, seen: parseJson<string[]>(old.chain_seen, []) },
+    rerunOf: old.id,
+  });
+  if (!newId) return { ok: false, error: 'rate_limited' };
+
+  // Pasos reusados: se copian para ver la corrida completa.
+  const steps = (await db
+    .prepare("SELECT * FROM flow_steps WHERE run_id = ? AND status = 'success' ORDER BY started_at ASC, rowid ASC")
+    .all(old.id)) as FlowStepRow[];
+  let copied = 0;
+  for (const s of steps) {
+    if (!reused(s.node_id)) continue;
+    copied += 1;
+    await db
+      .prepare(
+        `INSERT INTO flow_steps (id, run_id, node_id, node_type, status, input, output, error, started_at, finished_at)
+         VALUES (?, ?, ?, ?, 'success', ?, ?, NULL, ?, ?)`,
+      )
+      .run(crypto.randomUUID(), newId, s.node_id, s.node_type, s.input ?? null, s.output ?? null, s.started_at, s.finished_at ?? null);
+  }
+  await db
+    .prepare('UPDATE flow_runs SET context = ?, step_count = ? WHERE id = ?')
+    .run(JSON.stringify({ graph, trigger: oldCtx.trigger ?? parseJson(old.input, {}), nodes }), copied, newId);
+
+  const run = (await db.prepare('SELECT * FROM flow_runs WHERE id = ?').get(newId)) as FlowRunRow;
+  const state = await loadState(run);
+  if (!state) return { ok: false, error: 'not_found' };
+  await inChain(run, () => runNode(state, fromNodeId));
+  return { ok: true, runId: newId, status: await finalize(state) };
 }
