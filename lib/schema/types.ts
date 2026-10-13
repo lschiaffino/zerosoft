@@ -663,6 +663,66 @@ export interface CalendarEventTypeRow {
   rr_cursor: number;
   created_at: string;
   updated_at: string;
+  /** Horario reutilizable (027_cal_schedules). NULL = reglas propias en calendar_availability. */
+  schedule_id: string | null;
+  /** Precio en centavos (0 = gratis) y moneda ISO en minúsculas (027_cal_payments). */
+  price_cents: number;
+  currency: string;
+}
+
+export interface CalendarScheduleRow {
+  id: string;
+  user_id: string;
+  name: string;
+  timezone: string;
+  is_default: 0 | 1;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalendarScheduleRuleRow {
+  id: string;
+  schedule_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+}
+
+export interface CalendarScheduleOverrideRow {
+  id: string;
+  schedule_id: string;
+  date: string;
+  start_time: string | null;
+  end_time: string | null;
+}
+
+export interface CalendarWorkflowStepRow {
+  id: string;
+  event_type_id: string;
+  position: number;
+  recipient: 'guest' | 'host';
+  offset_min: number;
+  subject: string;
+  body: string;
+  created_at: string;
+}
+
+export interface CalendarWorkflowRunRow {
+  id: string;
+  step_id: string;
+  booking_id: string;
+  send_at: string;
+  sent_at: string | null;
+  created_at: string;
+}
+
+export interface CalendarPaymentSettingsRow {
+  user_id: string;
+  stripe_secret_key: string;
+  stripe_webhook_secret: string;
+  webhook_token: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CalendarAvailabilityRow {
@@ -681,7 +741,7 @@ export interface CalendarBookingRow {
   starts_at: string;
   ends_at: string;
   timezone: string;
-  status: 'confirmed' | 'cancelled' | 'no_show';
+  status: 'confirmed' | 'cancelled' | 'no_show' | 'pending';
   answers: string; // JSON object
   cancel_reason: string | null;
   host_user_id: string | null;
@@ -692,6 +752,12 @@ export interface CalendarBookingRow {
   google_event_id: string | null;
   meeting_url: string | null;
   locale: string;
+  /** none | pending | paid | expired (027_cal_payments). */
+  payment_status: 'none' | 'pending' | 'paid' | 'expired';
+  hold_expires_at: string | null;
+  stripe_session_id: string | null;
+  amount_cents: number;
+  currency: string;
 }
 
 export interface CalendarEventHostRow {

@@ -138,6 +138,17 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
     return url && /^(https?:\/\/|\/)/.test(url) ? url : null;
   }, [eventType]);
 
+  const priceLabel = useMemo(() => {
+    if (!eventType.price_cents || eventType.price_cents <= 0 || reschedule) return null;
+    try {
+      return new Intl.NumberFormat(locale, { style: 'currency', currency: (eventType.currency || 'usd').toUpperCase() }).format(
+        eventType.price_cents / 100,
+      );
+    } catch {
+      return `${(eventType.price_cents / 100).toFixed(2)} ${eventType.currency.toUpperCase()}`;
+    }
+  }, [eventType, locale, reschedule]);
+
   const [timezone, setTimezone] = useState('UTC');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -306,7 +317,13 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
     setBusy(false);
 
     if (res && (res.status === 201 || (reschedule && res.status === 200))) {
-      const data = (await res.json().catch(() => null)) as { manageToken?: string } | null;
+      const data = (await res.json().catch(() => null)) as { manageToken?: string; checkoutUrl?: string } | null;
+      // Evento pago: la reserva queda retenida y se confirma al pagar en Stripe.
+      if (data?.checkoutUrl && /^https:\/\//.test(data.checkoutUrl)) {
+        setBusy(true);
+        window.location.assign(data.checkoutUrl);
+        return;
+      }
       const token = reschedule?.token ?? data?.manageToken;
       if (token) setManageUrl(`/${locale}/book/manage/${token}`);
       setConfirmed(true);
@@ -343,6 +360,7 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
                 {eventType.duration_min} {t('eventTypes.minutes')}
               </span>
               {eventType.location && <span className="muted"> · {eventType.location}</span>}
+              {priceLabel && <span className="mono"> · {priceLabel}</span>}
             </p>
           </div>
         </header>
@@ -541,7 +559,15 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
                     {t('common.back')}
                   </button>
                   <button type="submit" className="btn btn-solid btn-small" disabled={busy}>
-                    {busy ? t('common.saving') : reschedule ? t('booking.confirmNewTime') : t('booking.confirm')}
+                    {busy
+                      ? priceLabel
+                        ? t('booking.redirecting')
+                        : t('common.saving')
+                      : reschedule
+                        ? t('booking.confirmNewTime')
+                        : priceLabel
+                          ? `${t('booking.payAndConfirm')} · ${priceLabel}`
+                          : t('booking.confirm')}
                   </button>
                 </div>
               </form>

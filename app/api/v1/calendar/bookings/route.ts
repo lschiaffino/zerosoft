@@ -8,7 +8,7 @@ import { afterBookingCreated, bookingPayload } from '@/lib/calendar-lifecycle';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** GET ?status=confirmed|cancelled|no_show&from=ISO&to=ISO — reservas de tus event types. */
+/** GET ?status=confirmed|cancelled|no_show|pending&from=ISO&to=ISO&q= — reservas de tus event types. */
 export async function GET(req: NextRequest) {
   const auth = await requireApiUser(req, 'cal:read');
   if ('res' in auth) return auth.res;
@@ -19,13 +19,14 @@ export async function GET(req: NextRequest) {
   if ((from && Number.isNaN(from.getTime())) || (to && Number.isNaN(to.getTime()))) {
     return apiError(400, 'invalid_date', 'from/to must be ISO 8601 dates.');
   }
-  if (status && !['confirmed', 'cancelled', 'no_show'].includes(status)) {
-    return apiError(400, 'invalid_status', 'status must be confirmed, cancelled or no_show.');
+  if (status && !['confirmed', 'cancelled', 'no_show', 'pending'].includes(status)) {
+    return apiError(400, 'invalid_status', 'status must be confirmed, cancelled, no_show or pending.');
   }
   const rows = await listUserBookings(auth.user.id, {
-    status: (status as 'confirmed' | 'cancelled' | 'no_show' | null) ?? undefined,
+    status: (status as 'confirmed' | 'cancelled' | 'no_show' | 'pending' | null) ?? undefined,
     from,
     to,
+    q: sp.get('q')?.slice(0, 200) || undefined,
   });
   return NextResponse.json({
     bookings: rows.map((b) =>

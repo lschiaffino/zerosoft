@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listDueReminders, markReminderSent } from '@/lib/calendar';
+import { expireUnpaidHolds, listDueReminders, markReminderSent } from '@/lib/calendar';
+import { processDueWorkflowRuns } from '@/lib/calendar-workflows';
 import { sendBookingReminder } from '@/lib/email';
 import { manageUrl } from '@/lib/calendar-notify';
 
@@ -51,7 +52,11 @@ async function run(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ total: due.length, sent, failed });
+  // Pasos de workflows por tipo de evento y holds de pago vencidos.
+  const workflows = await processDueWorkflowRuns();
+  const expiredHolds = await expireUnpaidHolds();
+
+  return NextResponse.json({ total: due.length, sent, failed, workflows, expiredHolds });
 }
 
 export async function POST(req: NextRequest) {

@@ -97,7 +97,7 @@
   "bookings": {
     "title": "Bookings",
     "join": "Join meeting ↗",
-    "rescheduled": "Rescheduled by the guest",
+    "rescheduled": "Rescheduled",
     "emptyTitle": "No upcoming bookings",
     "emptySub": "Share a booking link and new bookings show up here.",
     "emptyCta": "Go to event types"
@@ -122,7 +122,8 @@
     "status": {
       "confirmed": "Confirmed",
       "cancelled": "Cancelled",
-      "no_show": "No show"
+      "no_show": "No show",
+      "pending": "Awaiting payment"
     },
     "answers": "Answers",
     "host": "Host",
@@ -131,7 +132,10 @@
     "rescheduledTitle": "Rescheduled",
     "emailSent": "We emailed you the details and a calendar invite.",
     "manageLink": "Reschedule or cancel",
-    "confirmNewTime": "Confirm new time"
+    "confirmNewTime": "Confirm new time",
+    "price": "Price",
+    "payAndConfirm": "Pay and confirm",
+    "redirecting": "Taking you to payment…"
   },
   "routing": {
     "title": "Routing forms",
@@ -182,7 +186,13 @@
     "already_started": "This meeting already started.",
     "not_confirmed": "This booking is no longer active.",
     "rate_limited": "Too many attempts. Wait a minute and try again.",
-    "not_found": "This booking page doesn't exist anymore."
+    "not_found": "This booking page doesn't exist anymore.",
+    "payments_not_configured": "This event type is paid, but the host has not connected Stripe yet.",
+    "payment_failed": "We could not start the payment. Try again.",
+    "schedule_in_use": "Some event types use this schedule. Assign them another one before deleting it.",
+    "invalid_schedule": "That schedule does not exist.",
+    "invalid_range": "The end time must be after the start time.",
+    "invalid_key": "That key does not look like a Stripe key."
   },
   "settings": {
     "title": "Settings",
@@ -206,7 +216,9 @@
     "cancelReason": "Reason (optional)",
     "cancelConfirm": "Yes, cancel it",
     "cancelled": "This booking is cancelled. We let the host know.",
-    "past": "This meeting already started, so it can't be changed here."
+    "past": "This meeting already started, so it can't be changed here.",
+    "pending": "Your booking is waiting for payment. If you already paid, refresh this page in a few seconds.",
+    "paid": "Payment received. Your booking is confirmed."
   },
   "google": {
     "desc": "Connect your calendar so busy times block your booking pages and every booking lands in your calendar, with a Google Meet link when the event type has no other location.",
@@ -239,7 +251,7 @@
     "location": "Location",
     "create": "Create",
     "hint": "⌘↵ create · Esc close",
-    "defaultHours": "Bookable Mon–Fri, 9:00–17:00. Change it anytime.",
+    "defaultHours": "Uses your default schedule. Change it in Availability.",
     "moreOptions": "Open after creating",
     "routingCrumb": "Cal › New routing form",
     "routingTitlePlaceholder": "Form name, e.g. Sales or support",
@@ -255,5 +267,91 @@
     "toggleOn": "Accepting bookings — click to turn off",
     "toggleOff": "Off — click to accept bookings",
     "shortcut": "Press C to create"
+  },
+  "schedules": {
+    "title": "Availability",
+    "sub": "Schedules you can reuse across event types. Each one has its own time zone and date overrides.",
+    "new": "New schedule",
+    "newName": "New schedule",
+    "name": "Name",
+    "timezone": "Time zone",
+    "isDefault": "Default",
+    "makeDefault": "Use by default for new event types",
+    "weekly": "Weekly hours",
+    "unavailable": "Unavailable",
+    "addRange": "Add range",
+    "overrides": "Date overrides",
+    "overridesHint": "A date without hours is blocked. With hours, they replace that day’s weekly hours.",
+    "addOverride": "Add date",
+    "noOverrides": "No overrides.",
+    "dayOff": "All day",
+    "usedBy": "{n, plural, =0 {No event types use it} one {Used by 1 event type} other {Used by # event types}}",
+    "deleteConfirm": "Delete the “{name}” schedule?",
+    "empty": "You have no schedules yet.",
+    "pick": "Schedule",
+    "custom": "Custom hours for this event",
+    "customHint": "Hours for this event only, in the Settings time zone. Date overrides do not apply.",
+    "manage": "Edit schedules"
+  },
+  "admin": {
+    "search": "Search by name or email",
+    "status": "Status",
+    "allStatuses": "All",
+    "from": "From",
+    "to": "To",
+    "clear": "Clear",
+    "count": "{n, plural, =0 {No bookings} one {1 booking} other {# bookings}}",
+    "reschedule": "Reschedule",
+    "rescheduleHint": "Pick a new time. We email the guest the updated invite.",
+    "pickDate": "Date",
+    "noSlots": "No free times that day.",
+    "moved": "Booking moved. The guest got an email.",
+    "noShow": "No-show",
+    "cancel": "Cancel",
+    "cancelReason": "Reason (sent to the guest)",
+    "confirmCancel": "Cancel booking",
+    "keep": "Back",
+    "paid": "Paid",
+    "loading": "Loading…"
+  },
+  "workflows": {
+    "title": "Reminders",
+    "sub": "Automatic emails before or after the meeting. Once you add steps, they replace the 24-hour reminder.",
+    "add": "Add step",
+    "empty": "No steps: the guest gets a reminder 24 hours before.",
+    "to": "To",
+    "guest": "Guest",
+    "host": "Host",
+    "before": "before",
+    "after": "after",
+    "minutes": "minutes",
+    "hours": "hours",
+    "days": "days",
+    "subject": "Subject",
+    "body": "Message",
+    "variables": "Variables: {vars}",
+    "cronNote": "They go out on the hourly cron run, so they can arrive up to an hour late.",
+    "defaultSubject": "Reminder: {{event.title}}",
+    "defaultBody": "Hi {{guest.name}},\n\nSee you at {{event.title}} on {{start}}.\n\n{{link}}"
+  },
+  "payments": {
+    "title": "Payment",
+    "price": "Price",
+    "currency": "Currency",
+    "free": "0 = free",
+    "notConfigured": "To charge, connect Stripe in Settings.",
+    "hint": "The guest pays with Stripe Checkout to confirm. If they do not pay within 35 minutes, the time is released.",
+    "settingsTitle": "Stripe payments",
+    "settingsSub": "Charge for event types with your own Stripe account. The key is stored encrypted.",
+    "secretKey": "Secret key (sk_ or rk_)",
+    "webhookSecret": "Webhook signing secret (whsec_)",
+    "webhookUrl": "Webhook URL",
+    "webhookHint": "In Stripe → Developers → Webhooks, add this URL with the checkout.session.completed and checkout.session.expired events.",
+    "connected": "Connected: {hint} ({mode})",
+    "notConnected": "Not connected.",
+    "keepKey": "Leave empty to keep it",
+    "remove": "Disconnect",
+    "adminOnly": "Only the workspace owner or an admin can change this.",
+    "webhookMissing": "The signing secret is missing: without it we confirm the payment when the guest returns from Stripe."
   }
 }

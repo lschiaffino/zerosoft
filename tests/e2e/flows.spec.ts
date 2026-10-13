@@ -605,3 +605,96 @@ test('Chat: Reports tiene su propia entrada en la navegación', async ({ page })
   await expect(page).toHaveURL(/\/app\/chat\/reports/);
   await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
 });
+
+// ---------- Cal D9: horarios, reservas del anfitrión, recordatorios y cobro ----------
+test.describe('cal d9', () => {
+  /** Próxima fecha (UTC) con ese día de semana, al menos 3 días adelante. */
+  const nextDow = (dow: number) => {
+    const d = new Date(Date.now() + 3 * 86_400_000);
+    while (d.getUTCDay() !== dow) d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  };
+
+  test('horario con excepción por fecha cambia los slots del evento', async ({ request, page }) => {
+    const created = await request.post('/api/calendar/schedules', {
+      data: {
+        name: `E2E ${uid()}`,
+        timezone: 'UTC',
+        rules: [1, 2, 3, 4, 5].map((dayOfWeek) => ({ dayOfWeek, startTime: '09:00', endTime: '12:00' })),
+      },
+    });
+    expect(created.status()).toBe(201);
+    const schedule = await created.json();
+    const slug = `d9-${uid()}`;
+    const et = await (
+      await request.post('/api/calendar/event-types', { data: { slug, title: 'D9', durationMin: 60, scheduleId: schedule.id } })
+    ).json();
+    const monday = nextDow(1);
+    const slots = async () =>
+      (await (await request.get(`/api/calendar/event-types/${et.id}/slots?date=${monday}&timezone=UTC`)).json()).slots as unknown[];
+    expect(await slots()).toHaveLength(3);
+    await request.patch(`/api/calendar/schedules/${schedule.id}`, { data: { overrides: [{ date: monday }] } });
+    expect(await slots()).toHaveLength(0);
+
+    await page.goto('/en/app/calendar/availability', { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: new RegExp(schedule.name) }).click();
+    await expect(page.locator('.cal-override-row input[type="date"]')).toHaveValue(monday, { timeout: 20_000 });
+  });
+
+  test('el anfitrión busca, reprograma y cancela con motivo desde Reservas', async ({ request, page }) => {
+    const slug = `d9b-${uid()}`;
+    const et = await (await request.post('/api/calendar/event-types', { data: { slug, title: 'D9 admin', durationMin: 60 } })).json();
+    const rules = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, startTime: '00:00', endTime: '23:59' }));
+    await request.post(`/api/calendar/event-types/${et.id}/availability`, { data: { rules } });
+    const day = nextDow(3);
+    const name = `Guest ${uid()}`;
+    // Primer horario libre (el usuario demo puede tener otras reservas ese día).
+    const free = (await (await request.get(`/api/calendar/event-types/${et.id}/slots?date=${day}&timezone=UTC`)).json())
+      .slots as Array<{ start: string }>;
+    const booking = await request.post('/api/calendar/bookings', {
+      data: { eventTypeId: et.id, email: 'd9@example.com', name, start: free[0].start, timezone: 'UTC' },
+    });
+    expect(booking.status()).toBe(201);
+
+    await page.goto('/en/app/calendar/bookings', { waitUntil: 'networkidle' });
+    await page.getByRole('searchbox', { name: 'Search by name or email' }).fill(name);
+    const row = page.locator('.booking-card-item', { hasText: name });
+    await expect(row).toHaveCount(1, { timeout: 20_000 });
+    await row.getByRole('button', { name: 'Reschedule' }).click();
+    await row.locator('.cal-bk-panel input[type="date"]').fill(day);
+    await row.locator('.cal-bk-slots .btn').nth(2).click();
+    await expect(page.getByText('Booking moved. The guest got an email.')).toBeVisible({ timeout: 20_000 });
+
+    await row.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await row.locator('.cal-bk-panel textarea').fill('Host is sick');
+    await row.getByRole('button', { name: 'Cancel booking' }).click();
+    await expect(row.locator('.cal-bk-status')).toHaveText(/Cancelled/, { timeout: 20_000 });
+  });
+
+  test('recordatorios y precio se guardan desde el tipo de evento', async ({ request, page }) => {
+    const slug = `d9w-${uid()}`;
+    const et = await (await request.post('/api/calendar/event-types', { data: { slug, title: 'D9 wf', durationMin: 30 } })).json();
+    await page.goto(`/en/app/calendar/event-types/${et.id}`, { waitUntil: 'networkidle' });
+    const reminders = page.locator('section.panel', { hasText: 'Reminders' });
+    await reminders.getByRole('button', { name: '+ Add step' }).click();
+    await reminders.getByRole('button', { name: 'Save' }).click();
+    await expect(reminders.getByRole('button', { name: /Saved/ })).toBeVisible({ timeout: 20_000 });
+    const steps = (await (await request.get(`/api/calendar/event-types/${et.id}/workflows`)).json()).steps;
+    expect(steps).toEqual([expect.objectContaining({ recipient: 'guest', offsetMin: -60, subject: 'Reminder: {{event.title}}' })]);
+
+    const payment = page.locator('section.panel', { hasText: 'Payment' });
+    await payment.getByRole('textbox').fill('25');
+    await expect(payment.getByText('To charge, connect Stripe in Settings.')).toBeVisible({ timeout: 20_000 });
+    await payment.getByRole('button', { name: 'Save' }).click();
+    await expect(payment.getByRole('button', { name: /Saved/ })).toBeVisible({ timeout: 20_000 });
+    expect((await (await request.get(`/api/calendar/event-types/${et.id}`)).json()).price_cents).toBe(2500);
+    // Sin Stripe conectado, la reserva paga se rechaza.
+    const day = nextDow(2);
+    const slotsRes = await request.get(`/api/calendar/event-types/${et.id}/slots?date=${day}&timezone=UTC`);
+    const first = ((await slotsRes.json()).slots as Array<{ start: string }>)[0];
+    const res = await request.post('/api/calendar/bookings', {
+      data: { eventTypeId: et.id, email: 'p@example.com', name: 'P', start: first.start, timezone: 'UTC' },
+    });
+    expect(res.status()).toBe(409);
+  });
+});

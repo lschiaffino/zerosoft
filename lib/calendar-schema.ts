@@ -102,6 +102,10 @@ export const eventTypeCreateSchema = z.object({
   singleUse: z.boolean().optional(),
   // F3: pool de hosts (round-robin) — user_ids del team.
   hostIds: z.array(id).max(50).optional(),
+  // D9: horario reutilizable y precio (Stripe Checkout).
+  scheduleId: id.nullish(),
+  priceCents: z.number().int().min(0).max(100_000_000).optional(),
+  currency: z.enum(['usd', 'eur', 'ars', 'brl', 'mxn', 'clp', 'cop', 'gbp']).optional(),
 });
 
 export const eventTypeUpdateSchema = eventTypeCreateSchema.partial();
@@ -224,3 +228,82 @@ export type RoutingFieldCreatePayload = z.infer<typeof routingFieldCreateSchema>
 export type RoutingFieldUpdatePayload = z.infer<typeof routingFieldUpdateSchema>;
 export type RoutingRuleCreatePayload = z.infer<typeof routingRuleCreateSchema>;
 export type RoutingRuleUpdatePayload = z.infer<typeof routingRuleUpdateSchema>;
+
+// ---------- Horarios reutilizables (fase D9) ----------
+
+const scheduleRule = z
+  .object({ dayOfWeek: z.number().int().min(0).max(6), startTime: time, endTime: time })
+  .refine((r) => r.endTime > r.startTime, { message: 'invalid_range' });
+
+const isoDay = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'invalid_date' });
+
+/** Excepción por fecha: sin horas = no disponible; con horas = reemplaza las horas semanales de ese día. */
+const scheduleOverride = z
+  .object({ date: isoDay, startTime: time.nullish(), endTime: time.nullish() })
+  .refine((o) => (!o.startTime && !o.endTime) || (!!o.startTime && !!o.endTime && o.endTime > o.startTime), {
+    message: 'invalid_range',
+  });
+
+export const scheduleCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  timezone: ianaTimezone,
+  isDefault: z.boolean().optional(),
+  rules: z.array(scheduleRule).max(100).optional(),
+  overrides: z.array(scheduleOverride).max(366).optional(),
+});
+
+export const scheduleUpdateSchema = scheduleCreateSchema.partial();
+
+export type ScheduleCreatePayload = z.infer<typeof scheduleCreateSchema>;
+export type ScheduleUpdatePayload = z.infer<typeof scheduleUpdateSchema>;
+
+// ---------- Reservas: administración del anfitrión ----------
+
+export const bookingListQuerySchema = z.object({
+  q: z.string().trim().max(200).optional(),
+  status: z.enum(['confirmed', 'cancelled', 'no_show', 'pending']).optional(),
+  from: isoDay.optional(),
+  to: isoDay.optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+});
+
+export const hostRescheduleSchema = z.object({
+  start: isoDate,
+  timezone: ianaTimezone.optional(),
+});
+
+// ---------- Workflows de recordatorio ----------
+
+export const WORKFLOW_MAX_OFFSET_MIN = 60 * 24 * 30;
+
+export const workflowStepSchema = z.object({
+  recipient: z.enum(['guest', 'host']),
+  /** Minutos relativos al inicio: negativo = antes, positivo = después. */
+  offsetMin: z.number().int().min(-WORKFLOW_MAX_OFFSET_MIN).max(WORKFLOW_MAX_OFFSET_MIN),
+  subject: z.string().trim().min(1).max(200),
+  body: z.string().trim().min(1).max(5000),
+});
+
+export const workflowStepsSchema = z.object({ steps: z.array(workflowStepSchema).max(10) });
+
+export type WorkflowStepPayload = z.infer<typeof workflowStepSchema>;
+
+// ---------- Pagos ----------
+
+export const CAL_CURRENCIES = ['usd', 'eur', 'ars', 'brl', 'mxn', 'clp', 'cop', 'gbp'] as const;
+
+export const paymentSettingsSchema = z.object({
+  /** '' = borrar. Sin el campo = no cambia. */
+  stripeSecretKey: z
+    .string()
+    .trim()
+    .max(300)
+    .regex(/^$|^(sk|rk)_(test|live)_[A-Za-z0-9]+$/, { message: 'invalid_key' })
+    .optional(),
+  stripeWebhookSecret: z
+    .string()
+    .trim()
+    .max(300)
+    .regex(/^$|^whsec_[A-Za-z0-9+/=]+$/, { message: 'invalid_key' })
+    .optional(),
+});
