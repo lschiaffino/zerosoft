@@ -16,6 +16,7 @@
   "dependencies": {
     "@libsql/client": "^0.17.4",
     "@vercel/blob": "^2.8.1",
+    "ai": "^7.0.138",
     "geoip-lite": "^2.0.3",
     "gray-matter": "^4.0.3",
     "marked": "^14.1.4",

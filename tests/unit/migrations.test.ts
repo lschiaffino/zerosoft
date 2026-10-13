@@ -23,4 +23,38 @@ describe('migraciones versionadas', () => {
     const cols = (await client.execute('PRAGMA table_info(track_projects)')).rows.map((r) => r.name);
     expect(cols).toContain('owner_id');
   });
+
+  it('015_ai_chat_bot_source reconstruye chat_widgets conservando filas e índices', async () => {
+    const client = freshClient();
+    const idx = MIGRATIONS.findIndex((m) => m.id === '015_ai_chat_bot_source');
+    await runMigrations(client, MIGRATIONS.slice(0, idx));
+    await client.execute("INSERT INTO users (id, email, handle) VALUES ('u1', 'u1@test.local', 'u1')");
+    await client.execute(
+      "INSERT INTO chat_widgets (id, user_id, name, bot_enabled, bot_source) VALUES ('w1', 'u1', 'W', 1, 'docs')",
+    );
+    await expect(
+      client.execute("INSERT INTO chat_widgets (id, user_id, name, bot_source) VALUES ('w2', 'u1', 'W2', 'ai')"),
+    ).rejects.toThrow(/CHECK/);
+    // Como en producción (lib/db.ts): FKs activas. El rebuild no debe borrar
+    // en cascada las conversaciones del widget.
+    await client.execute('PRAGMA foreign_keys = ON');
+    await client.execute("INSERT INTO chat_visitors (id, widget_id, external_id) VALUES ('v1', 'w1', 'ext1')");
+    await client.execute("INSERT INTO chat_conversations (id, widget_id, visitor_id) VALUES ('c1', 'w1', 'v1')");
+
+    await runMigrations(client);
+    const convs = (await client.execute("SELECT id FROM chat_conversations WHERE widget_id = 'w1'")).rows;
+    expect(convs.map((r) => r.id)).toEqual(['c1']);
+    const fkErrors = (await client.execute('PRAGMA foreign_key_check')).rows;
+    expect(fkErrors).toEqual([]);
+    const row = (await client.execute("SELECT name, bot_enabled, bot_source FROM chat_widgets WHERE id = 'w1'")).rows[0];
+    expect(row).toMatchObject({ name: 'W', bot_enabled: 1, bot_source: 'docs' });
+    await client.execute("INSERT INTO chat_widgets (id, user_id, name, bot_source) VALUES ('w2', 'u1', 'W2', 'ai')");
+    await expect(
+      client.execute("INSERT INTO chat_widgets (id, user_id, name, bot_source) VALUES ('w3', 'u1', 'W3', 'nope')"),
+    ).rejects.toThrow(/CHECK/);
+    const indexes = (
+      await client.execute("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'chat_widgets'")
+    ).rows.map((r) => r.name);
+    expect(indexes).toEqual(expect.arrayContaining(['idx_chat_widgets_user', 'idx_chat_widgets_team']));
+  });
 });

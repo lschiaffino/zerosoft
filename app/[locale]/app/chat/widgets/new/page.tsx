@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import WidgetForm from '@/components/chat/WidgetForm';
+import { aiEnabled } from '@/lib/ai';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export default async function NewWidgetPage(
     <div className="app-page narrow">
       <h1 className="app-title">{t('widgetForm.newTitle')}</h1>
       <p className="app-sub muted">{t('widgetForm.newSub')}</p>
-      <WidgetForm />
+      <WidgetForm aiAvailable={aiEnabled()} />
     </div>
   );
 }

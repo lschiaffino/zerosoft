@@ -10,6 +10,7 @@ import { formatDate } from '@/lib/utils';
 import ApiKeysPanel from '@/components/link/ApiKeysPanel';
 import { Link } from '@/i18n/navigation';
 import { isAdminEmail } from '@/lib/feedback';
+import AiUsagePanel from '@/components/app/AiUsagePanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,11 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="panel">
+        <p className="section-label">{t('settings.aiUsage.title')}</p>
+        <AiUsagePanel workspaceId={user.id} locale={locale} />
       </section>
 
       <section className="panel">

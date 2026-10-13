@@ -655,7 +655,7 @@ export interface ChatWidgetRow {
   fields: string; // JSON ChatFieldDef[]
   bot_enabled: 0 | 1;
   bot_greeting: string | null;
-  bot_source: 'canned' | 'docs';
+  bot_source: 'canned' | 'docs' | 'ai';
   office_hours: string | null; // JSON OfficeHoursConfig
   created_at: string;
   updated_at: string;
@@ -755,5 +755,15 @@ export interface NotificationRow {
   source_type: string;
   source_id: string;
   meta: string;
+  created_at: string;
+}
+
+export interface AiUsageRow {
+  id: string;
+  user_id: string; // workspace (dueño)
+  feature: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
   created_at: string;
 }

@@ -512,6 +512,12 @@
 
 .demo-note { font-size: 0.85rem; margin-bottom: 20px; }
 
+.ai-usage-fields { margin-top: 16px; }
+.ai-usage-note { font-size: 0.85rem; margin-top: 12px; }
+.ai-usage-bar { height: 6px; margin-top: 16px; background: var(--subtle); border-radius: 999px; overflow: hidden; max-width: 480px; }
+.ai-usage-fill { display: block; height: 100%; background: var(--ink); border-radius: inherit; }
+.ai-usage-fill.full { background: var(--bad); }
+
 .apikeys { display: flex; flex-direction: column; gap: 20px; }
 .apikeys-desc { font-size: 0.9rem; }
 .apikeys-create { display: flex; gap: 10px; max-width: 480px; }
