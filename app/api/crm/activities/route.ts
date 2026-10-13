@@ -9,7 +9,7 @@ import {
   type TaskBucket,
 } from '@/lib/crm';
 import { activityCreateSchema } from '@/lib/crm-schema';
-import { crmError, invalidBody, unauthorized } from '@/lib/crm-http';
+import { catchRef, crmError, CrmRefError, invalidBody, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
   const parsed = activityCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const activity = await createActivity(user.id, parsed.data);
+  const activity = await catchRef(createActivity(user.id, parsed.data));
+  if (activity instanceof CrmRefError) return crmError(400, activity.code);
   return NextResponse.json(activity, { status: 201 });
 }

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { bulkDeleteCompanies, bulkUpdateCompanies, LIFECYCLE_STAGES } from '@/lib/crm';
-import { crmError, unauthorized } from '@/lib/crm-http';
+import { crmError, forbidden, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,5 +30,7 @@ export async function POST(req: NextRequest) {
       count: await bulkUpdateCompanies(user.id, ids, { lifecycleStage: value }),
     });
   }
+  // Borrar en masa es solo para admins.
+  if (!isWorkspaceAdmin(user)) return forbidden();
   return NextResponse.json({ count: await bulkDeleteCompanies(user.id, ids) });
 }

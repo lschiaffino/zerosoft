@@ -58,7 +58,8 @@
     "unpin": "Unpin",
     "pinned": "Pinned",
     "nextTask": "Next task",
-    "clear": "Clear filters"
+    "clear": "Clear filters",
+    "adminOnly": "Only workspace admins can change this."
   },
   "assoc": {
     "associate": "Associate",
@@ -781,6 +782,13 @@
     "invalid_stage": "That stage doesn't belong to this pipeline.",
     "import_failed": "The import failed. Check the file and try again.",
     "invalid_input": "Some fields are invalid. Check them and try again.",
+    "invalid_company": "That company doesn't exist in this workspace.",
+    "invalid_contact": "That contact doesn't exist in this workspace.",
+    "invalid_deal": "That deal doesn't exist in this workspace.",
+    "invalid_owner": "The owner must be a member of this workspace.",
+    "invalid_project": "That project doesn't exist in this workspace.",
+    "forbidden": "Only workspace admins can do this.",
+    "rate_limited": "Too many attempts. Wait a bit and try again.",
     "generic": "Something went wrong. Try again."
   },
   "filters": {

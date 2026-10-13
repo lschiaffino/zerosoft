@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { getDeal, updateDeal } from '@/lib/crm';
 import { dealUpdateSchema } from '@/lib/crm-schema';
-import { cleanRow, zodErrorCode } from '@/lib/crm-http';
+import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,7 +28,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const deal = await updateDeal(auth.user.id, params.id, parsed.data, auth.user.email);
+  const deal = await catchRef(updateDeal(auth.user.id, params.id, parsed.data, auth.user.email));
+  if (deal instanceof CrmRefError) return apiError(400, deal.code, 'A referenced record does not exist.');
   if (!deal) return apiError(404, 'not_found', 'Deal not found.');
   return NextResponse.json(cleanRow(deal));
 }

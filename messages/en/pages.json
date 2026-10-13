@@ -153,11 +153,11 @@
     "track": {
       "meta": {
         "title": "Track — Project management at zero",
-        "description": "Issues, cycles and roadmaps with the speed of Linear, without the $8 per head. Open source. Live now."
+        "description": "Issues, cycles and timelines with the speed of Linear, without the $8 per head. Open source. Live now."
       },
       "hero": {
         "tag": "Project management",
-        "sub": "Issues, cycles and roadmaps in the spirit of Linear — without the $8 per head. Board, list, calendar and Gantt. Open source. Live now."
+        "sub": "Issues, cycles and timelines in the spirit of Linear — without the $8 per head. Board, list, calendar and Gantt. Open source. Live now."
       },
       "featuresTitle": "Built for speed.",
       "featuresTitleDim": "Priced like air.",
@@ -170,8 +170,8 @@
         "d": "Work in focused one or two-week cycles. Scope, ship, review, repeat."
       },
       "f3": {
-        "t": "Roadmaps",
-        "d": "Plan quarters, not sprints. Every issue on a Gantt timeline the whole team can read."
+        "t": "Timeline",
+        "d": "Every issue with dates on a Gantt timeline the whole team can read."
       },
       "f4": {
         "t": "Sub-issues & relations",
@@ -187,7 +187,7 @@
       },
       "f7": {
         "t": "Estimates",
-        "d": "Point issues, track velocity, stop guessing deadlines."
+        "d": "Point issues so everyone knows how big the work is before it starts."
       },
       "f8": {
         "t": "Saved views & filters",
@@ -256,7 +256,7 @@
       },
       "f3": {
         "t": "Email sync",
-        "d": "Connect Gmail and conversations attach themselves to the right contact. Automatically."
+        "d": "Connect Gmail and sync your conversations with each contact in one click. They land on the right timeline."
       },
       "f4": {
         "t": "Activities",
@@ -297,7 +297,7 @@
         },
         "f2": {
           "q": "Can I migrate from HubSpot?",
-          "a": "Yes. Export contacts, companies and deals from HubSpot and import the CSVs. Pipelines and stages map one to one, and custom properties come along."
+          "a": "Yes, for your contacts and companies: export them from HubSpot as CSV and import them, mapping each column to a field. Deals are created in the pipeline you set up here."
         },
         "f3": {
           "q": "What happens if Zerosoft shuts down?",
@@ -788,7 +788,7 @@
   "docs": {
     "meta": {
       "title": "API Docs — Zerosoft",
-      "description": "The Zerosoft REST API: links, CRM, teams and docs. Personal keys, JSON responses, zero friction."
+      "description": "The Zerosoft REST API: links, CRM and Cal. Personal keys, JSON responses, zero friction."
     },
     "label": "0.05 — API",
     "title": "The Zerosoft API.",

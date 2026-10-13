@@ -5,6 +5,10 @@
 import { NextResponse } from 'next/server';
 import type { ZodError } from 'zod';
 import { getDb } from './db';
+import { CrmRefError } from './crm-refs';
+import { rateLimit } from './rate-limit';
+
+export { CrmRefError };
 
 export function unauthorized(): NextResponse {
   return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -68,4 +72,40 @@ export async function defaultPipelineId(userId: string): Promise<string | null> 
 export function cleanRow<T extends { user_id: string }>(row: T): Omit<T, 'user_id'> {
   const { user_id: _userId, ...rest } = row;
   return rest;
+}
+
+/**
+ * Resuelve la promesa; si falló por una referencia inválida (CrmRefError) la
+ * devuelve como valor para que la ruta responda 400 en vez de 500.
+ */
+export async function catchRef<T>(p: Promise<T>): Promise<T | CrmRefError> {
+  try {
+    return await p;
+  } catch (e) {
+    if (e instanceof CrmRefError) return e;
+    throw e;
+  }
+}
+
+export function forbidden(): NextResponse {
+  return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+}
+
+/**
+ * Rate limit por persona para acciones caras o abusables (envío de emails,
+ * import, ejecución manual de workflows). null = puede seguir.
+ */
+export async function limitAction(
+  personId: string,
+  action: string,
+  limit: number,
+  windowSec: number,
+): Promise<NextResponse | null> {
+  if (process.env.RATE_LIMIT_DISABLED === 'true') return null;
+  const res = await rateLimit(`crm:${action}:${personId}`, limit, windowSec);
+  if (res.ok) return null;
+  return NextResponse.json(
+    { error: 'rate_limited' },
+    { status: 429, headers: { 'retry-after': String(Math.ceil((res.resetAt - Date.now()) / 1000)) } },
+  );
 }

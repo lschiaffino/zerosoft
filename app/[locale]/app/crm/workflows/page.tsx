@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { listWorkflows } from '@/lib/crm-workflows';
 import WorkflowList from '@/components/crm/WorkflowList';
 
@@ -21,10 +21,13 @@ export default async function WorkflowsPage(props: { params: Promise<{ locale: s
     <div className="app-page">
       <div className="page-header">
         <h1 className="page-title">{t('workflows.title')}</h1>
-        <Link href="/app/crm/workflows/new" className="btn btn-solid">
-          {t('workflows.new')}
-        </Link>
+        {isWorkspaceAdmin(user) && (
+          <Link href="/app/crm/workflows/new" className="btn btn-solid">
+            {t('workflows.new')}
+          </Link>
+        )}
       </div>
+      {!isWorkspaceAdmin(user) && <p className="muted panel-desc">{t('common.adminOnly')}</p>}
       <WorkflowList
         workflows={workflows}
         labels={{

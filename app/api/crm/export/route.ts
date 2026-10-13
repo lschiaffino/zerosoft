@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { exportRows, type ExportEntity } from '@/lib/crm';
-import { crmError, unauthorized } from '@/lib/crm-http';
+import { crmError, unauthorized, forbidden } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,21 +10,21 @@ const ENTITIES: readonly ExportEntity[] = ['contacts', 'companies', 'deals', 'ac
 
 const COLUMNS: Record<ExportEntity, string[]> = {
   contacts: [
-    'id', 'user_id', 'first_name', 'last_name', 'email', 'phone', 'job_title', 'website',
+    'id', 'user_id', 'owner_id', 'owner_email', 'first_name', 'last_name', 'email', 'phone', 'job_title', 'website',
     'city', 'country', 'lifecycle_stage', 'lead_status', 'source', 'company_id', 'custom',
     'created_at', 'updated_at',
   ],
   companies: [
-    'id', 'user_id', 'name', 'domain', 'industry', 'employees', 'phone', 'website', 'city',
+    'id', 'user_id', 'owner_id', 'owner_email', 'name', 'domain', 'industry', 'employees', 'phone', 'website', 'city',
     'country', 'lifecycle_stage', 'custom', 'created_at', 'updated_at',
   ],
   deals: [
-    'id', 'user_id', 'pipeline_id', 'stage_id', 'name', 'amount', 'currency', 'close_date',
+    'id', 'user_id', 'owner_id', 'owner_email', 'pipeline_id', 'stage_id', 'name', 'amount', 'currency', 'close_date',
     'priority', 'source', 'description', 'lost_reason', 'position', 'closed_at', 'custom',
     'created_at', 'updated_at',
   ],
   activities: [
-    'id', 'user_id', 'type', 'subject', 'body', 'due_at', 'done', 'done_at', 'direction',
+    'id', 'user_id', 'owner_id', 'owner_email', 'type', 'subject', 'body', 'due_at', 'done', 'done_at', 'direction',
     'outcome', 'duration_min', 'contact_id', 'company_id', 'deal_id', 'created_at', 'updated_at',
   ],
 };
@@ -39,6 +39,7 @@ function csvCell(value: unknown): string {
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!isWorkspaceAdmin(user)) return forbidden();
 
   const sp = req.nextUrl.searchParams;
   const entity = sp.get('entity') as ExportEntity | null;

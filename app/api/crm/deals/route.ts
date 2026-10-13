@@ -2,14 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { createDeal, listDeals, listDealsForBoard } from '@/lib/crm';
 import { dealCreateSchema } from '@/lib/crm-schema';
-import {
-  crmError,
-  defaultPipelineId,
-  invalidBody,
-  pageParams,
-  sortParam,
-  unauthorized,
-} from '@/lib/crm-http';
+import { catchRef, crmError, CrmRefError, defaultPipelineId, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -53,7 +46,8 @@ export async function POST(req: NextRequest) {
   const parsed = dealCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const result = await createDeal(user.id, parsed.data);
+  const result = await catchRef(createDeal(user.id, parsed.data));
+  if (result instanceof CrmRefError) return crmError(400, result.code);
   if (!result.ok) {
     return crmError(400, result.reason === 'invalid_stage' ? 'invalid_stage' : 'invalid_input');
   }
