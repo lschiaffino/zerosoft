@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { usePathname, useRouter } from '@/i18n/navigation';
 
 interface ResultItem {
   group: string;
   label: string;
   meta: string;
   href: string;
+  /** Acción en página (evento de window) en vez de navegar. */
+  event?: string;
 }
 
 interface SearchResponse {
@@ -17,13 +19,14 @@ interface SearchResponse {
 }
 
 function useGroupOrder() {
-  return useMemo(() => ['actions', 'contacts', 'companies', 'deals', 'links', 'docs', 'tasks'], []);
+  return useMemo(() => ['track', 'actions', 'contacts', 'companies', 'deals', 'links', 'docs', 'tasks'], []);
 }
 
 function useGroupLabel(t: (key: string) => string) {
   return useCallback(
     (group: string) => {
       if (group === 'actions') return t('actions');
+      if (group === 'track') return 'Track';
       const key = `group${group.charAt(0).toUpperCase()}${group.slice(1)}`;
       return t(key);
     },
@@ -40,7 +43,10 @@ export default function CommandSearch() {
   const t = useTranslations('common.sidebar');
   const tNotes = useTranslations('notes');
   const tBoard = useTranslations('board');
+  const tTrack = useTranslations('track');
   const router = useRouter();
+  const pathname = usePathname();
+  const inTrack = pathname.startsWith('/app/track');
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [items, setItems] = useState<ResultItem[]>([]);
@@ -54,7 +60,22 @@ export default function CommandSearch() {
   // Acciones rápidas globales: se muestran cuando no hay query.
   const actionItems = useMemo<ResultItem[]>(() => {
     const group = 'actions';
-    return [
+    // Acciones de Track: dentro de Track van primero y actúan en contexto
+    // (el quick-create del proyecto/issue abierto); fuera, llevan a Track.
+    const track: ResultItem[] = [
+      {
+        group: 'track',
+        label: tTrack('cmdk.newIssue'),
+        meta: 'C',
+        href: '/app/track?newIssue=1',
+        event: inTrack ? 'zs:track-new-issue' : undefined,
+      },
+      { group: 'track', label: tTrack('cmdk.newProject'), meta: '', href: '/app/track?newProject=1' },
+      { group: 'track', label: tTrack('cmdk.myTasks'), meta: '', href: '/app/track/my-tasks' },
+      { group: 'track', label: tTrack('cmdk.allIssues'), meta: '', href: '/app/track/issues' },
+      { group: 'track', label: tTrack('cmdk.inbox'), meta: '', href: '/app/track/inbox' },
+    ];
+    const rest: ResultItem[] = [
       { group, label: t('newContact'), meta: '', href: '/app/crm/contacts/new' },
       { group, label: t('newCompany'), meta: '', href: '/app/crm/companies/new' },
       { group, label: t('newDeal'), meta: '', href: '/app/crm/deals/new' },
@@ -68,7 +89,8 @@ export default function CommandSearch() {
       { group, label: t('newAgent'), meta: '', href: '/app/agents' },
       { group, label: t('newRobot'), meta: '', href: '/app/robots?new=1' },
     ];
-  }, [t, tNotes, tBoard]);
+    return inTrack ? [...track, ...rest] : [...rest, ...track];
+  }, [t, tNotes, tBoard, tTrack, inTrack]);
 
   useEffect(() => {
     function onOpen() {
@@ -113,7 +135,9 @@ export default function CommandSearch() {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const data = (await res.json()) as SearchResponse;
-        const sorted = [...(data.items ?? [])].sort(
+        const needle = query.trim().toLowerCase();
+        const matchingActions = actionItems.filter((a) => a.label.toLowerCase().includes(needle));
+        const sorted = [...matchingActions, ...(data.items ?? [])].sort(
           (a, b) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group),
         );
         setItems(sorted);
@@ -134,6 +158,12 @@ export default function CommandSearch() {
 
   function go(item: ResultItem) {
     setOpen(false);
+    if (item.event) {
+      const name = item.event;
+      // Después de cerrar la paleta (el modal toma el foco).
+      window.setTimeout(() => window.dispatchEvent(new CustomEvent(name, { cancelable: true })), 0);
+      return;
+    }
     router.push(item.href);
   }
 

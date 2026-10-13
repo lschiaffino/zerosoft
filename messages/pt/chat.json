@@ -3,7 +3,9 @@
     "overview": "Visão geral",
     "inbox": "Caixa de entrada",
     "people": "Pessoas",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "reports": "Relatórios",
+    "widgets": "Widgets"
   },
   "overview": {
     "title": "Chat",
@@ -188,7 +190,7 @@
   },
   "settings": {
     "title": "Configurações de chat",
-    "subtitle": "SLA e satisfação de todos os widgets.",
+    "subtitle": "Widgets, código de instalação, regras, respostas prontas e SLA.",
     "avgFirstResponse": "1ª resposta média",
     "withinSla": "Dentro do SLA de 1ª resposta",
     "avgResolution": "Resolução média",
@@ -278,5 +280,9 @@
     "settings": "Widget",
     "back": "Todos os widgets",
     "conversations": "{count, plural, one {# conversa} other {# conversas}}"
+  },
+  "reports": {
+    "title": "Relatórios",
+    "subtitle": "SLA e satisfação de todos os widgets."
   }
 }

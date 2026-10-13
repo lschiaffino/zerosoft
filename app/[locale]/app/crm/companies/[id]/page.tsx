@@ -6,6 +6,7 @@ import { canSeeOwner, scopeCompanyDetail, sessionScope, scopeAnd } from '@/lib/c
 import { getDb } from '@/lib/db';
 import { listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
 import { getCompany, LIFECYCLE_STAGES, listCustomFields, listTimeline, nextTaskFor, parseCustom } from '@/lib/crm';
+import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
 import DangerDelete from '@/components/crm/DangerDelete';
 import AssociationPanel from '@/components/crm/AssociationPanel';
 import {
@@ -298,9 +299,13 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
               addLabel={t('assoc.pickContact')}
               emptyLabel={t('companies.detail.noContacts')}
             />
-            <Link href={`/app/crm/contacts/new?companyId=${company.id}`} className="kb-add">
-              {t('companies.detail.newContact')}
-            </Link>
+            <CrmQuickCreate
+              kind="contact"
+              fixedCompanyId={company.id}
+              fixedCompanyName={company.name}
+              buttonClassName="kb-add"
+              label={t('companies.detail.newContact')}
+            />
           </section>
 
           <section className="panel">
@@ -323,9 +328,13 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
               addLabel={t('assoc.pickDeal')}
               emptyLabel={t('companies.detail.noDeals')}
             />
-            <Link href="/app/crm/deals/new?full=1" className="kb-add">
-              {t('companies.detail.newDeal')}
-            </Link>
+            <CrmQuickCreate
+              kind="deal"
+              fixedCompanyId={company.id}
+              fixedCompanyName={company.name}
+              buttonClassName="kb-add"
+              label={t('companies.detail.newDeal')}
+            />
           </section>
 
           <section className="panel" data-testid="company-rollup">

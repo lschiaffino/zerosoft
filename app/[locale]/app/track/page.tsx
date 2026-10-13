@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import QuickProjectButton from '@/components/track/QuickProjectButton';
 import { requireUser } from '@/lib/session';
 import { listProjects } from '@/lib/track-data';
 import ProjectList from '@/components/track/ProjectList';
@@ -28,9 +28,7 @@ export default async function TrackOverviewPage(
           <h1>{t('overview.title')}</h1>
           <p>{t('overview.subtitle')}</p>
         </div>
-        <Link href={`/app/track/projects/new`} className="btn btn-solid">
-          {t('overview.emptyCta')}
-        </Link>
+        <QuickProjectButton listenParam />
       </div>
 
       <ProjectList

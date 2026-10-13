@@ -76,6 +76,7 @@ export interface SidebarLabels {
     overview: string;
     inbox: string;
     people: string;
+    reports: string;
     settings: string;
   };
   flow: {
@@ -359,9 +360,21 @@ export default function AppSidebar({
       ],
     },
     {
+      section: labels.insights,
+      items: [
+        { href: '/app/chat/reports', label: labels.chat.reports, active: pathname.startsWith('/app/chat/reports'), icon: 'reports' },
+      ],
+    },
+    {
       section: labels.workspace,
       items: [
-        { href: '/app/chat/settings', label: labels.chat.settings, active: pathname.startsWith('/app/chat/settings'), icon: 'settings' },
+        {
+          href: '/app/chat/settings',
+          label: labels.chat.settings,
+          // Las páginas de un widget cuelgan de Ajustes (ahí está la lista).
+          active: pathname.startsWith('/app/chat/settings') || pathname.startsWith('/app/chat/widgets'),
+          icon: 'settings',
+        },
       ],
     },
   ];

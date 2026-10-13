@@ -2,7 +2,12 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
 import { getDocPage, getDocPageAncestors, listDocComments, listDocPages, listDocShares } from '@/lib/docs';
-import { createDocPageAction, moveDocPageAction } from '@/lib/docs-actions';
+import {
+  createDocPageAction,
+  moveDocPageAction,
+  moveDocPageStepAction,
+  reorderDocPageAction,
+} from '@/lib/docs-actions';
 import DocsSidebar from '@/components/docs/DocsSidebar';
 import DocsEditorClient from '@/components/docs/DocsEditorClient';
 
@@ -39,6 +44,8 @@ export default async function DocsPageEditor(
         trashCount={trashed.length}
         createAction={createDocPageAction.bind(null, user.id, locale)}
         moveAction={moveDocPageAction.bind(null, user.id)}
+        reorderAction={reorderDocPageAction.bind(null, user.id)}
+        stepAction={moveDocPageStepAction.bind(null, user.id)}
         labels={{
           newPage: t('sidebar.newPage'),
           newSubpage: t('sidebar.newSubpage'),

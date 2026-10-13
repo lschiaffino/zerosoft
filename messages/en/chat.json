@@ -3,7 +3,9 @@
     "overview": "Overview",
     "inbox": "Inbox",
     "people": "People",
-    "settings": "Settings"
+    "settings": "Settings",
+    "reports": "Reports",
+    "widgets": "Widgets"
   },
   "overview": {
     "title": "Chat",
@@ -188,7 +190,7 @@
   },
   "settings": {
     "title": "Chat settings",
-    "subtitle": "SLA and satisfaction across all widgets.",
+    "subtitle": "Widgets, embed code, rules, canned responses and SLA.",
     "avgFirstResponse": "Avg first response",
     "withinSla": "Within first-response SLA",
     "avgResolution": "Avg resolution time",
@@ -278,5 +280,9 @@
     "settings": "Widget",
     "back": "All widgets",
     "conversations": "{count, plural, one {# conversation} other {# conversations}}"
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "SLA and satisfaction across all widgets."
   }
 }

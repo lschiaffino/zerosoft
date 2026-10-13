@@ -10,6 +10,10 @@ export interface QuickIssueDefaults {
   statusId?: string;
   assigneeId?: string | null;
   dueDate?: string | null;
+  /** Crea un sub-issue de este padre (el proyecto queda fijo). */
+  parentId?: string | null;
+  /** Texto del padre para el breadcrumb (p. ej. "TRK-12"). */
+  parentLabel?: string;
 }
 
 interface QuickIssueModalProps {
@@ -84,6 +88,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
       priority: parsed.priority ?? priority,
       assigneeId: assigneeId || null,
       dueDate: parsed.dueDate ?? (dueDate || null),
+      parentId: defaults?.parentId ?? null,
     });
     if (createMore) {
       setTitle('');
@@ -142,7 +147,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
           }}
         >
           <div className="track-qc-head">
-            {projects.length > 1 ? (
+            {projects.length > 1 && !defaults?.parentId ? (
               <select
                 className="track-qc-project"
                 aria-label={labels.modal.project}
@@ -162,8 +167,16 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
             <span className="track-qc-sep" aria-hidden>
               ›
             </span>
+            {defaults?.parentLabel && (
+              <>
+                <span className="track-qc-crumb mono">{defaults.parentLabel}</span>
+                <span className="track-qc-sep" aria-hidden>
+                  ›
+                </span>
+              </>
+            )}
             <span id="track-qc-title" className="track-qc-crumb">
-              {labels.modal.title}
+              {defaults?.parentId ? labels.modal.subTitle : labels.modal.title}
             </span>
           </div>
 

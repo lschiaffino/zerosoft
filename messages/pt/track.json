@@ -62,7 +62,8 @@
     "activeCycle": "Ciclo ativo",
     "pastCycles": "Ciclos anteriores",
     "loadMore": "Carregar mais",
-    "showing": "Mostrando {shown} de {total}"
+    "showing": "Mostrando {shown} de {total}",
+    "settings": "Configurações"
   },
   "issues": {
     "pageTitle": "Issues",
@@ -165,6 +166,21 @@
       "namePlaceholder": "Sprint 1",
       "startAt": "Início",
       "endAt": "Fim"
+    },
+    "edit": "Editar",
+    "editTitle": "Editar cycle",
+    "complete": "Concluir",
+    "completeTitle": "Concluir {name}",
+    "completeMove": "{count, plural, =0 {Não há issues pendentes.} one {O issue pendente passa para {name}.} other {Os # issues pendentes passam para {name}.}}",
+    "completeNoNext": "{count, plural, =0 {Não há issues pendentes.} one {Não há próximo cycle: o issue pendente fica sem cycle.} other {Não há próximo cycle: os # issues pendentes ficam sem cycle.}}",
+    "movedTo": "{count, plural, one {# issue movido} other {# issues movidos}} para {name}.",
+    "movedOut": "{count, plural, one {# issue ficou} other {# issues ficaram}} sem cycle.",
+    "progress": "{done}/{total} concluídos",
+    "invalidRange": "A data de fim não pode ser anterior ao início.",
+    "state": {
+      "active": "Ativo",
+      "upcoming": "Próximo",
+      "past": "Encerrado"
     }
   },
   "statuses": {
@@ -244,7 +260,9 @@
     "missing_name": "O nome é obrigatório.",
     "missing_title": "O título é obrigatório.",
     "invalid_input": "Alguns campos são inválidos. Revise e tente novamente.",
-    "generic": "Algo deu errado. Tente novamente."
+    "generic": "Algo deu errado. Tente novamente.",
+    "invalid_range": "A data de fim não pode ser anterior ao início.",
+    "last_status": "O projeto precisa de pelo menos um status."
   },
   "quick": {
     "newTask": "Nova tarefa",
@@ -257,7 +275,8 @@
     "create": "Criar issue",
     "createMore": "Criar outra",
     "submitHint": "Enter ou ⌘↵ para criar",
-    "shortcutHint": "Pressione C para criar uma issue"
+    "shortcutHint": "Pressione C para criar uma issue",
+    "subModalTitle": "Novo sub-issue"
   },
   "inline": {
     "markDone": "Marcar como concluída",
@@ -282,5 +301,25 @@
     "upcoming": "Próximas",
     "noDate": "Sem data",
     "empty": "Nada atribuído a você. Aproveite a calma."
+  },
+  "cmdk": {
+    "newIssue": "Novo issue",
+    "newProject": "Novo projeto (Track)",
+    "myTasks": "Ir para Minhas tarefas",
+    "allIssues": "Ir para todos os issues",
+    "inbox": "Ir para o inbox do Track"
+  },
+  "statusSettings": {
+    "title": "Status do workflow",
+    "name": "Nome do status",
+    "color": "Cor",
+    "category": "Categoria",
+    "moveUp": "Subir",
+    "moveDown": "Descer",
+    "delete": "Excluir",
+    "reassignTo": "Mover os issues para",
+    "confirmDelete": "Excluir status",
+    "newPlaceholder": "Novo status",
+    "add": "Adicionar"
   }
 }

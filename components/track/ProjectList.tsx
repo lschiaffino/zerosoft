@@ -1,6 +1,7 @@
 'use client';
 
 import { Link } from '@/i18n/navigation';
+import QuickProjectButton from './QuickProjectButton';
 import type { TrackProjectWithStats } from '@/lib/track-data';
 
 interface ProjectListProps {
@@ -22,9 +23,7 @@ export default function ProjectList({ projects, locale, empty, openIssuesLabel }
           0 0 0 0 0
         </p>
         <p className="muted">{empty.sub}</p>
-        <Link href={`/app/track/projects/new`} className="btn btn-solid btn-small">
-          {empty.cta}
-        </Link>
+        <QuickProjectButton className="btn btn-solid btn-small" testId="track-new-project-empty" />
       </div>
     );
   }

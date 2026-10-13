@@ -48,6 +48,11 @@ export interface DocsPage {
   content: DocsBlock[];
   is_public: boolean;
   archived: boolean;
+  /** Ajustes de página persistidos (menú "…" del editor). */
+  small_text?: boolean;
+  full_width?: boolean;
+  /** Orden manual entre hermanos (null = sin orden manual). */
+  position?: number | null;
   created_at: string;
   updated_at: string;
 }

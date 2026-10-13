@@ -7,13 +7,26 @@ import { isIP } from 'net';
  * (metadata de la nube, localhost, rangos privados).
  */
 
-function isPrivateIp(ip: string): boolean {
+/** IPv4 embebida en una IPv6 escrita en hex (`7f00:1` → 127.0.0.1). */
+function hexToIpv4(hi: string, lo: string): string {
+  const h = parseInt(hi, 16);
+  const l = parseInt(lo, 16);
+  return `${h >> 8}.${h & 255}.${l >> 8}.${l & 255}`;
+}
+
+export function isPrivateIp(ip: string): boolean {
   if (isIP(ip) === 6) {
     const v = ip.toLowerCase();
     if (v === '::1' || v === '::') return true;
-    if (v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80')) return true;
-    const mapped = v.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    return mapped ? isPrivateIp(mapped[1]) : false;
+    if (v.startsWith('fc') || v.startsWith('fd') || /^fe[89ab]/.test(v) || v.startsWith('fec')) return true;
+    // IPv4-mapped / NAT64 / IPv4-compatible: dotted (::ffff:127.0.0.1) o, como
+    // lo normaliza `new URL()`, en hex (::ffff:7f00:1). Antes la forma hex
+    // pasaba el filtro y permitía SSRF a 127.0.0.1 / 10.x / 169.254.x.
+    const dotted = v.match(/^(?:::ffff:|64:ff9b::|::)(\d+\.\d+\.\d+\.\d+)$/);
+    if (dotted) return isPrivateIp(dotted[1]);
+    const hex = v.match(/^(?:::ffff:|64:ff9b::|::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (hex) return isPrivateIp(hexToIpv4(hex[1], hex[2]));
+    return false;
   }
   const [a, b] = ip.split('.').map(Number);
   return (

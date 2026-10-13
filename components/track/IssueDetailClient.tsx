@@ -6,6 +6,10 @@ import { formatDate, relDate } from '@/lib/utils';
 import StatusBadge from './StatusBadge';
 import IssuePropertiesPanel from './IssuePropertiesPanel';
 import IssueActivityTimeline from './IssueActivityTimeline';
+import QuickIssueModal from './QuickIssueModal';
+import { useToday } from './InlineEditors';
+import type { IssueDraft } from './useIssueStore';
+import type { TrackUiLabels } from './ui-labels';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
 import type {
   IssueParentSummary,
@@ -105,6 +109,8 @@ interface IssueDetailClientProps {
   initialActivities: TrackIssueActivityWithAuthor[];
   initialRelations: TrackIssueRelationWithTarget[];
   labels: DetailLabels;
+  /** Labels del quick-create (modal de sub-issue). */
+  ui: TrackUiLabels;
 }
 
 function parseLabels(raw: string): Array<{ id: string; name: string; color: string }> {
@@ -154,7 +160,9 @@ export default function IssueDetailClient({
   initialActivities,
   initialRelations,
   labels,
+  ui,
 }: IssueDetailClientProps) {
+  const today = useToday();
   const [issue, setIssue] = useState(initialIssue);
   const [children, setChildren] = useState(initialChildren);
   const [attachments, setAttachments] = useState(initialAttachments);
@@ -164,6 +172,8 @@ export default function IssueDetailClient({
   const [showRelationForm, setShowRelationForm] = useState(false);
   const [relationInput, setRelationInput] = useState('');
   const [relationType, setRelationType] = useState<(typeof RELATION_TYPES)[number]>('related');
+  const [subOpen, setSubOpen] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
 
   const refreshIssue = useCallback(async () => {
     const res = await fetch(`/api/track/issues/${issue.id}`);
@@ -197,6 +207,28 @@ export default function IssueDetailClient({
   const doneStatus = initialStatuses.find((s) => s.category === 'done' || s.category === 'cancelled');
   const openStatus = initialStatuses.find((s) => s.category !== 'done' && s.category !== 'cancelled');
   const isClosed = issue.status_category === 'done' || issue.status_category === 'cancelled';
+
+  async function handleCreateSubIssue(projectId: string, draft: IssueDraft) {
+    setSubError(null);
+    const res = await fetch(`/api/track/projects/${projectId}/issues`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: draft.title,
+        description: draft.description?.trim() ? [{ type: 'text', text: draft.description.trim() }] : [],
+        statusId: draft.statusId || undefined,
+        priority: draft.priority,
+        assigneeId: draft.assigneeId || undefined,
+        dueDate: draft.dueDate || undefined,
+        parentId: issue.id,
+      }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setSubError(ui.inline.createError);
+      return;
+    }
+    await Promise.all([refreshChildren(), refreshActivities()]);
+  }
 
   async function handleCloseReopen() {
     const targetId = isClosed ? openStatus?.id : doneStatus?.id;
@@ -267,7 +299,7 @@ export default function IssueDetailClient({
   }
 
   return (
-    <div className="app-page track-detail">
+    <div className="app-page track-detail" data-track-project-id={issue.project_id}>
       <div className="track-detail-head">
         <div className="track-detail-meta">
           <Link href={`/app/track/projects/${issue.project_id}`}>{labels.back}</Link>
@@ -324,13 +356,20 @@ export default function IssueDetailClient({
           <section className="panel">
             <div className="track-section-header">
               <p className="section-label">{labels.subtasks.title}</p>
-              <Link
-                href={`/app/track/projects/${issue.project_id}/issues/new?parentId=${issue.id}`}
+              <button
+                type="button"
                 className="btn btn-small"
+                onClick={() => setSubOpen(true)}
+                data-testid="track-add-subissue"
               >
                 {labels.subtasks.add}
-              </Link>
+              </button>
             </div>
+            {subError && (
+              <p className="form-error" role="alert">
+                {subError}
+              </p>
+            )}
             {children.length === 0 ? (
               <p className="muted">{labels.subtasks.empty}</p>
             ) : (
@@ -506,6 +545,17 @@ export default function IssueDetailClient({
           </section>
         </aside>
       </div>
+      <QuickIssueModal
+        open={subOpen}
+        onClose={() => setSubOpen(false)}
+        projects={[
+          { id: issue.project_id, name: initialProjectName, statuses: initialStatuses, members: initialMembers },
+        ]}
+        defaults={{ projectId: issue.project_id, parentId: issue.id, parentLabel: issue.identifier }}
+        onCreate={(projectId, draft) => void handleCreateSubIssue(projectId, draft)}
+        labels={ui}
+        today={today}
+      />
     </div>
   );
 }

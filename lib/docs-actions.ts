@@ -1,7 +1,15 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createDocPage, deleteDocPage, moveDocPage, updateDocPage } from './docs';
+import {
+  createDocPage,
+  deleteDocPage,
+  moveDocPage,
+  moveDocPageStep,
+  reorderDocPage,
+  updateDocPage,
+  type DocDropPlacement,
+} from './docs';
 import { getDocTemplate } from './docs-templates';
 
 export async function createDocPageAction(ownerId: string, locale: string, parentId?: string | null) {
@@ -26,6 +34,21 @@ export async function createDocPageFromTemplateAction(
 
 export async function moveDocPageAction(ownerId: string, pageId: string, parentId: string | null) {
   await moveDocPage(ownerId, pageId, parentId);
+}
+
+export async function reorderDocPageAction(
+  ownerId: string,
+  pageId: string,
+  targetId: string,
+  placement: DocDropPlacement,
+) {
+  if (placement !== 'before' && placement !== 'after') return;
+  await reorderDocPage(ownerId, pageId, targetId, placement);
+}
+
+export async function moveDocPageStepAction(ownerId: string, pageId: string, dir: -1 | 1) {
+  if (dir !== -1 && dir !== 1) return;
+  await moveDocPageStep(ownerId, pageId, dir);
 }
 
 export async function restoreDocPageAction(ownerId: string, pageId: string) {

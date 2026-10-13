@@ -601,6 +601,10 @@ export interface DocsPageRow {
   content: string; // JSON DocsBlock[]
   is_public: 0 | 1;
   archived: 0 | 1;
+  /** Orden manual entre hermanos (NULL = sin orden manual). */
+  position?: number | null;
+  small_text?: 0 | 1;
+  full_width?: 0 | 1;
   created_at: string;
   updated_at: string;
 }

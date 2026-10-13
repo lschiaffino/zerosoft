@@ -24,6 +24,8 @@ export interface IssueDraft {
   priority?: IssuePriority;
   assigneeId?: string | null;
   dueDate?: string | null;
+  /** Sub-issue: id del issue padre. */
+  parentId?: string | null;
 }
 
 export interface IssueStore {
@@ -182,6 +184,7 @@ export function useIssueStore(
               priority: temp.priority,
               assigneeId: draft.assigneeId || undefined,
               dueDate: draft.dueDate || undefined,
+              parentId: draft.parentId || undefined,
             }),
           });
           if (!res.ok) throw new Error(`create ${res.status}`);
@@ -212,11 +215,25 @@ export function useIssueStore(
  * Atajo de teclado "C" para crear un issue. Ignora la tecla si el foco está
  * en un campo editable o si hay modificadores (para no pisar Cmd+C).
  */
+/** Evento que abre el quick-create de issues desde fuera (⌘K, botones). */
+export const TRACK_NEW_ISSUE_EVENT = 'zs:track-new-issue';
+
+/** Abre el quick-create de Track en contexto (la vista activa decide cuál). */
+export function openTrackNewIssue(): void {
+  window.dispatchEvent(new CustomEvent(TRACK_NEW_ISSUE_EVENT, { cancelable: true }));
+}
+
 export function useCreateShortcut(onCreate: () => void, enabled = true): void {
   const cb = useRef(onCreate);
   cb.current = onCreate;
   useEffect(() => {
     if (!enabled) return;
+    // ⌘K → "New issue": la vista lo maneja y el modal global (TrackShortcuts) no.
+    const onEvent = (e: Event) => {
+      e.preventDefault();
+      cb.current();
+    };
+    window.addEventListener(TRACK_NEW_ISSUE_EVENT, onEvent);
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'c' && e.key !== 'C') return;
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat || e.defaultPrevented) return;
@@ -232,6 +249,9 @@ export function useCreateShortcut(onCreate: () => void, enabled = true): void {
       cb.current();
     };
     window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    return () => {
+      window.removeEventListener('keydown', handler);
+      window.removeEventListener(TRACK_NEW_ISSUE_EVENT, onEvent);
+    };
   }, [enabled]);
 }

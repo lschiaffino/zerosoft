@@ -472,6 +472,36 @@ export async function deleteStatus(id: string): Promise<boolean> {
   return res.changes > 0;
 }
 
+export type DeleteStatusResult =
+  | { ok: true; reassigned: number }
+  | { ok: false; reason: 'not_found' | 'invalid_target' | 'last_status' };
+
+/**
+ * Borra un status reasignando sus issues a otro status del mismo proyecto
+ * (sin esto quedarían con status NULL por el ON DELETE SET NULL).
+ */
+export async function deleteStatusWithReassign(id: string, reassignTo: string): Promise<DeleteStatusResult> {
+  const status = await getStatus(id);
+  if (!status) return { ok: false, reason: 'not_found' };
+  const target = await getStatus(reassignTo);
+  if (!target || target.id === id || target.project_id !== status.project_id) {
+    return { ok: false, reason: 'invalid_target' };
+  }
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    const moved = await tdb
+      .prepare("UPDATE track_issues SET status_id = ?, updated_at = datetime('now') WHERE status_id = ? AND project_id = ?")
+      .run(target.id, id, status.project_id);
+    await tdb.prepare('DELETE FROM track_statuses WHERE id = ?').run(id);
+    await tx.commit();
+    return { ok: true, reassigned: moved.changes };
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
+}
+
 // ---------- Cycles ----------
 
 export async function listCycles(projectId: string): Promise<TrackCycleRow[]> {
@@ -530,6 +560,86 @@ export async function updateCycle(
   }
 
   return getCycle(id);
+}
+
+export interface TrackCycleWithProgress extends TrackCycleRow {
+  total: number;
+  done: number;
+}
+
+/** Cycles del proyecto con progreso (issues terminados / totales). */
+export async function listCyclesWithProgress(projectId: string): Promise<TrackCycleWithProgress[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT c.*,
+         (SELECT COUNT(*) FROM track_issues i WHERE i.cycle_id = c.id) AS total,
+         (SELECT COUNT(*) FROM track_issues i JOIN track_statuses s ON s.id = i.status_id
+            WHERE i.cycle_id = c.id AND s.category IN ('done', 'cancelled')) AS done
+       FROM track_cycles c
+       WHERE c.project_id = ?
+       ORDER BY c.start_at DESC`,
+    )
+    .all(projectId)) as TrackCycleWithProgress[];
+}
+
+/** Siguiente cycle del proyecto (empieza después que este). */
+export async function nextCycle(cycle: TrackCycleRow): Promise<TrackCycleRow | undefined> {
+  return (await getDb()
+    .prepare(
+      `SELECT * FROM track_cycles
+       WHERE project_id = ? AND id != ? AND (start_at > ? OR (start_at = ? AND created_at > ?))
+       ORDER BY start_at ASC, created_at ASC LIMIT 1`,
+    )
+    .get(cycle.project_id, cycle.id, cycle.start_at, cycle.start_at, cycle.created_at)) as TrackCycleRow | undefined;
+}
+
+export type CompleteCycleResult =
+  | { ok: true; moved: number; targetCycleId: string | null }
+  | { ok: false; reason: 'not_found' | 'invalid_target' };
+
+/**
+ * Completa un cycle: los issues sin terminar (status no done/cancelled o sin
+ * status) pasan al cycle indicado; si no se indica (undefined), al siguiente
+ * del proyecto; `null` los saca de todo cycle. Si el cycle seguía abierto, su
+ * fin pasa a hoy.
+ */
+export async function completeCycle(
+  cycleId: string,
+  targetCycleId?: string | null,
+): Promise<CompleteCycleResult> {
+  const cycle = await getCycle(cycleId);
+  if (!cycle) return { ok: false, reason: 'not_found' };
+  let target: string | null;
+  if (targetCycleId === undefined) {
+    target = (await nextCycle(cycle))?.id ?? null;
+  } else if (targetCycleId === null) {
+    target = null;
+  } else {
+    const t = await getCycle(targetCycleId);
+    if (!t || t.id === cycle.id || t.project_id !== cycle.project_id) return { ok: false, reason: 'invalid_target' };
+    target = t.id;
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const tx = await getClient().transaction();
+  const tdb = txDb(tx);
+  try {
+    const res = await tdb
+      .prepare(
+        `UPDATE track_issues SET cycle_id = ?, updated_at = datetime('now')
+         WHERE cycle_id = ? AND project_id = ?
+           AND (status_id IS NULL OR status_id NOT IN (
+             SELECT id FROM track_statuses WHERE project_id = ? AND category IN ('done', 'cancelled')))`,
+      )
+      .run(target, cycle.id, cycle.project_id, cycle.project_id);
+    if (cycle.end_at.slice(0, 10) > today) {
+      await tdb.prepare('UPDATE track_cycles SET end_at = ? WHERE id = ?').run(today, cycle.id);
+    }
+    await tx.commit();
+    return { ok: true, moved: res.changes, targetCycleId: target };
+  } catch (e) {
+    await tx.rollback();
+    throw e;
+  }
 }
 
 export async function deleteCycle(id: string): Promise<boolean> {
