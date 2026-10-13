@@ -297,6 +297,100 @@ export interface CrmEmailRow {
   body_text: string | null;
   sent_at: string;
   created_at: string;
+  message_id: string;
+  in_reply_to: string;
+  cc_emails: string;
+  /** Persona dueña del buzón (sync) o que envió el email desde el CRM. */
+  person_id: string | null;
+  activity_id: string | null;
+  tracking_token: string | null;
+  open_count: number;
+  click_count: number;
+  first_opened_at: string | null;
+  last_opened_at: string | null;
+  replied_at: string | null;
+  enrollment_id: string | null;
+  step_id: string | null;
+}
+
+export interface CrmEmailSyncRow {
+  user_id: string;
+  person_id: string;
+  history_id: string | null;
+  status: string;
+  error: string | null;
+  last_sync_at: string | null;
+  last_full_sync_at: string | null;
+  locked_until: string | null;
+  created_at: string;
+}
+
+export interface CrmEmailEventRow {
+  id: string;
+  user_id: string;
+  email_id: string;
+  kind: 'open' | 'click';
+  url: string;
+  user_agent: string;
+  created_at: string;
+}
+
+export interface CrmEmailTemplateRow {
+  id: string;
+  user_id: string;
+  created_by: string | null;
+  kind: 'template' | 'snippet';
+  name: string;
+  subject: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmSequenceRow {
+  id: string;
+  user_id: string;
+  created_by: string | null;
+  name: string;
+  timezone: string;
+  window_start: string;
+  window_end: string;
+  business_days: 0 | 1;
+  archived: 0 | 1;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmSequenceStepRow {
+  id: string;
+  sequence_id: string;
+  position: number;
+  type: 'email' | 'task' | 'wait';
+  wait_days: number;
+  template_id: string | null;
+  subject: string;
+  body: string;
+  new_thread: 0 | 1;
+}
+
+export interface CrmSequenceEnrollmentRow {
+  id: string;
+  user_id: string;
+  sequence_id: string;
+  contact_id: string;
+  sender_id: string;
+  enrolled_by: string | null;
+  status: 'active' | 'paused' | 'finished' | 'exited';
+  exit_reason: string | null;
+  current_step: number;
+  next_run_at: string | null;
+  thread_id: string;
+  last_message_id: string;
+  thread_subject: string;
+  locked_until: string | null;
+  created_at: string;
+  updated_at: string;
+  finished_at: string | null;
 }
 
 export interface CrmWorkflowRow {

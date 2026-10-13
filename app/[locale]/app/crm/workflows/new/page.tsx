@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { listLists } from '@/lib/crm';
 import WorkflowEditor from '@/components/crm/WorkflowEditor';
+import { listSequences } from '@/lib/crm-sequences';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
   if (!isWorkspaceAdmin(user)) redirect(`/${locale}/app/crm/workflows`);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const lists = await listLists(user.id);
+  const sequences = (await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }));
 
   return (
     <div className="app-page">
@@ -28,6 +30,7 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
       <WorkflowEditor
         workflow={null}
         lists={lists}
+        sequences={sequences}
         runs={[]}
         labels={{
           name: t('workflows.name'),
@@ -59,6 +62,8 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
             deal_lost: t('workflows.triggerTypes.deal_lost'),
             task_due: t('workflows.triggerTypes.task_due'),
             email_received: t('workflows.triggerTypes.email_received'),
+            email_opened: t('workflows.triggerTypes.email_opened'),
+            email_clicked: t('workflows.triggerTypes.email_clicked'),
             meeting_booked: t('workflows.triggerTypes.meeting_booked'),
             manual: t('workflows.triggerTypes.manual'),
           },
@@ -70,6 +75,7 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
             add_to_list: t('workflows.actionTypes.add_to_list'),
             webhook: t('workflows.actionTypes.webhook'),
             notify_user: t('workflows.actionTypes.notify_user'),
+            enroll_in_sequence: t('workflows.actionTypes.enroll_in_sequence'),
           },
           fromStageId: t('workflows.fromStageId'),
           toStageId: t('workflows.toStageId'),
@@ -86,6 +92,7 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
           method: t('workflows.method'),
           headers: t('workflows.headers'),
           message: t('workflows.message'),
+          sequenceId: t('workflows.sequenceId'),
         }}
       />
     </div>

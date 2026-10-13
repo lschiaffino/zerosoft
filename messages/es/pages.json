@@ -704,7 +704,7 @@
     "howTitleDim": "en tres pasos.",
     "suiteLabel": "06 — Parte de la suite",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Diez apps, el mismo login.",
+    "suiteTitleDim": "Once apps, el mismo login.",
     "previewNote": "Vista interactiva de la interfaz del producto.",
     "compareSave": "Te quedás con"
   },
@@ -1076,11 +1076,25 @@
     "activitiesListDesc": "Más recientes primero. Pasá uno solo de contactId, companyId o dealId.",
     "activitiesCreateTitle": "Registrar una actividad",
     "activitiesCreateDesc": "Registrá una nota, llamada, reunión o email en un registro. Las tareas tienen su propio endpoint.",
-    "paramContactIds": "Ids de contactos a asociar al deal.",
+    "paramContactIds": "IDs de los contactos a inscribir (1–500).",
     "paramLostReason": "Por qué se perdió (obligatorio en etapas de perdido).",
     "paramRecordFilter": "El registro cuyo timeline querés.",
     "paramActivityType": "Tipo de actividad.",
     "paramActivityBody": "Texto libre: notas, resumen de la llamada, cuerpo del email.",
-    "openapiCta": "Descargar la spec OpenAPI 3.1"
+    "openapiCta": "Descargar la spec OpenAPI 3.1",
+    "crmEmailTitle": "CRM — Templates de email y secuencias",
+    "crmEmailDesc": "Templates y snippets de email compartidos, y secuencias de ventas de varios pasos. Los emails de las secuencias salen del Gmail conectado de quien envía; los pasos corren con el programador de cada hora.",
+    "emailTemplatesListTitle": "Listar templates de email",
+    "emailTemplatesListDesc": "Templates y snippets compartidos en el workspace. Las variables van entre llaves dobles (contact.first_name, contact.company, deal.name, owner.first_name, contact.custom.x), con un valor por defecto opcional después de una barra vertical.",
+    "emailTemplatesGetTitle": "Obtener un template de email",
+    "emailTemplatesGetDesc": "Devuelve un template o snippet.",
+    "sequencesListTitle": "Listar secuencias",
+    "sequencesListDesc": "Secuencias con su cantidad de pasos e inscripciones.",
+    "sequencesEnrollTitle": "Inscribir contactos en una secuencia",
+    "sequencesEnrollDesc": "Inscribe hasta 500 contactos. Los que ya están inscriptos, se dieron de baja o no tienen email vuelven en skipped. Quien envía necesita Gmail conectado con permiso de envío.",
+    "sequencesUnenrollTitle": "Sacar un contacto de una secuencia",
+    "sequencesUnenrollDesc": "Saca al contacto de la secuencia (estado exited, motivo manual).",
+    "paramTemplateKind": "Filtrar por tipo: template o snippet.",
+    "paramSenderId": "Miembro del workspace cuyo Gmail envía los emails. Por defecto, el owner del contacto y si no quien creó la secuencia."
   }
 }

@@ -145,6 +145,10 @@ export async function recordBookingInCrm(
     entityId: contact.id,
     payload: { bookingId: booking.id, startsAt: booking.starts_at, eventTitle },
   });
+
+  // Agendar una reunión saca al contacto de sus secuencias activas.
+  const { exitEnrollmentsForContacts } = await import('./crm-sequences');
+  await exitEnrollmentsForContacts(workspaceId, [contact.id], 'meeting_booked');
 }
 
 // ---------- Chat ----------

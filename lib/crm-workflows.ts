@@ -42,6 +42,8 @@ export const TRIGGER_TYPES = [
   'deal_lost',
   'task_due',
   'email_received',
+  'email_opened',
+  'email_clicked',
   'meeting_booked',
   'manual',
 ] as const;
@@ -55,6 +57,7 @@ export const ACTION_TYPES = [
   'add_to_list',
   'webhook',
   'notify_user',
+  'enroll_in_sequence',
 ] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 
@@ -682,6 +685,18 @@ async function executeAction(
         });
         return { ok: true, type: action.type };
       }
+      case 'enroll_in_sequence': {
+        const sequenceId = safeString(cfg.sequenceId);
+        if (!sequenceId) return { ok: false, type: action.type, error: 'missing_sequence' };
+        const contactId = await resolveContactIdForEvent(userId, event);
+        if (!contactId) return { ok: false, type: action.type, error: 'missing_contact' };
+        const { enrollContacts, defaultSenderFor } = await import('./crm-sequences');
+        const senderId = safeString(cfg.senderId) || (await defaultSenderFor(userId, sequenceId, contactId));
+        const res = await enrollContacts(userId, { sequenceId, contactIds: [contactId], senderId, enrolledBy: null });
+        if (!res.ok) return { ok: false, type: action.type, error: res.error };
+        if (!res.enrolled.length) return { ok: false, type: action.type, error: res.skipped[0]?.reason ?? 'not_enrolled' };
+        return { ok: true, type: action.type, result: { enrolled: res.enrolled } };
+      }
       default:
         return { ok: false, type: action.type, error: 'unknown_action' };
     }
@@ -877,52 +892,28 @@ async function resolveContactIdForEmail(
 
 export async function sendCrmEmailAndSave(
   userId: string,
-  input: SendCrmEmailInput,
-): Promise<{ ok: boolean; email?: CrmEmailRow; activity?: { id: string }; error?: string }> {
+  input: SendCrmEmailInput & { senderId: string; tracking?: boolean; threadId?: string | null; inReplyTo?: string | null },
+): Promise<{ ok: boolean; email?: CrmEmailRow; via?: 'gmail' | 'system'; error?: string }> {
   const { recordType, recordId, to, subject, body, fromEmail } = input;
   if (!to) return { ok: false, error: 'missing_recipient' };
 
   const contactId = await resolveContactIdForEmail(userId, recordType, recordId);
   if (!contactId) return { ok: false, error: 'missing_contact' };
 
-  const sent = await sendEmail({ to, subject, text: body });
-  if (!sent.ok) return { ok: false, error: sent.error ?? 'send_failed' };
-
-  const emailId = crypto.randomUUID();
-  const ts = now();
-  const db = getDb();
-  await db
-    .prepare(
-      `INSERT INTO crm_emails
-       (id, user_id, contact_id, gmail_id, thread_id, source, direction, from_email, to_emails,
-        subject, snippet, body_text, sent_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      emailId,
-      userId,
-      contactId,
-      emailId,
-      '',
-      'zerosoft',
-      'out',
-      fromEmail,
-      to,
-      subject,
-      body.slice(0, 500),
-      body,
-      ts,
-      ts,
-    );
-
-  const activity = await createActivity(userId, {
-    type: 'email',
+  const { sendCrmEmail } = await import('./crm-email');
+  const res = await sendCrmEmail(userId, {
+    senderId: input.senderId,
+    senderEmail: fromEmail,
+    contactId,
+    to,
     subject,
     body,
-    direction: 'outbound',
-    contactId,
+    tracking: input.tracking,
+    threadId: input.threadId ?? null,
+    inReplyTo: input.inReplyTo ?? null,
+    dealId: recordType === 'deal' ? recordId : null,
+    companyId: recordType === 'company' ? recordId : null,
   });
-
-  const email = (await db.prepare('SELECT * FROM crm_emails WHERE id = ?').get(emailId)) as CrmEmailRow;
-  return { ok: true, email, activity: { id: activity.id } };
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, email: res.email, via: res.via };
 }

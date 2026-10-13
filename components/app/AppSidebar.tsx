@@ -44,6 +44,8 @@ export interface SidebarLabels {
     dashboards: string;
     workflows: string;
     settings: string;
+    sequences: string;
+    templates: string;
   };
   docs: {
     overview: string;
@@ -248,6 +250,8 @@ export default function AppSidebar({
           icon: 'tasks',
           badge: tasksDue > 0 ? tasksDue : undefined,
         },
+        { href: '/app/crm/sequences', label: labels.crm.sequences, active: pathname.startsWith('/app/crm/sequences'), icon: 'flow' },
+        { href: '/app/crm/templates', label: labels.crm.templates, active: pathname.startsWith('/app/crm/templates'), icon: 'docs' },
       ],
     },
     {
