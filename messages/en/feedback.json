@@ -20,6 +20,7 @@
       "flow": "Flow",
       "notes": "Notes",
       "board": "Board",
+      "agents": "Agents",
       "site": "Website",
       "other": "Other"
     },

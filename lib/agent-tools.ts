@@ -1,0 +1,545 @@
+/**
+ * Agents — herramientas que el modelo puede llamar. Cada una:
+ * - está acotada al workspace del agente (todo se filtra por user_id),
+ * - valida su input con zod (el SDK rechaza inputs inválidos),
+ * - nunca tira: devuelve { error: '<code>' } para que el modelo siga,
+ * - queda registrada en agent_tool_calls (input, output, error, duración).
+ * Server-only.
+ */
+import { tool, type Tool } from 'ai';
+import { z } from 'zod';
+import { getDb } from './db';
+import type { AgentChannel, AgentConversationRow, AgentToolCallRow } from './db';
+import type { AgentDto, AgentStreamEvent, AgentToolCallDto, AgentToolKey } from './agents-config';
+import { rankKnowledge, type KnowledgeDoc } from './knowledge-search';
+import { extractDocsText, listCannedResponses } from './chat-data';
+import { safeFetch, UnsafeUrlError } from './safe-fetch';
+
+export interface AgentRunContext {
+  agent: AgentDto;
+  workspaceId: string;
+  conversation: AgentConversationRow;
+  channel: AgentChannel;
+  runId: string;
+  onEvent?: (event: AgentStreamEvent) => void;
+  /** Herramientas llamadas en esta corrida (para la respuesta / la UI). */
+  toolCalls: AgentToolCallDto[];
+  /** Se marca cuando el agente deriva a un humano. */
+  handoff: boolean;
+}
+
+type ToolOutput = Record<string, unknown>;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function toJson(value: unknown, max = 8000): string {
+  const s = JSON.stringify(value ?? null) ?? 'null';
+  return s.length > max ? JSON.stringify({ truncated: true, preview: s.slice(0, max) }) : s;
+}
+
+/** Envuelve una herramienta: registro, eventos para la UI y errores como datos. */
+function logged<I>(ctx: AgentRunContext, name: AgentToolKey, fn: (input: I) => Promise<ToolOutput>) {
+  return async (input: I): Promise<ToolOutput> => {
+    const id = crypto.randomUUID();
+    const started = Date.now();
+    ctx.onEvent?.({ type: 'tool-start', id, tool: name, input });
+    let output: ToolOutput;
+    let error: string | null = null;
+    try {
+      output = await fn(input);
+      if (output && typeof output.error === 'string') error = output.error;
+    } catch (err) {
+      error = err instanceof Error && /^[a-z_]+$/.test(err.message) ? err.message : 'tool_failed';
+      output = { error };
+    }
+    const durationMs = Date.now() - started;
+    const createdAt = new Date().toISOString();
+    try {
+      await getDb()
+        .prepare(
+          `INSERT INTO agent_tool_calls (id, agent_id, user_id, conversation_id, run_id, tool, input, output, error, duration_ms, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          ctx.agent.id,
+          ctx.workspaceId,
+          ctx.conversation.id,
+          ctx.runId,
+          name,
+          toJson(input, 4000),
+          toJson(output),
+          error,
+          durationMs,
+          createdAt,
+        );
+    } catch (err) {
+      console.error('[agents] tool log failed', err);
+    }
+    ctx.toolCalls.push({ id, tool: name, input, output, error, durationMs, runId: ctx.runId, createdAt });
+    ctx.onEvent?.({ type: 'tool-end', id, tool: name, output, error, durationMs });
+    return output;
+  };
+}
+
+// ---------- Conocimiento ----------
+
+type KnowledgeKind = 'doc' | 'url' | 'canned';
+
+export async function searchAgentKnowledge(
+  agent: AgentDto,
+  workspaceId: string,
+  query: string,
+  k = 5,
+): Promise<Array<{ kind: KnowledgeKind; title: string; text: string; source?: string; score: number }>> {
+  const db = getDb();
+  const docs: Array<KnowledgeDoc<KnowledgeKind> & { chunk?: boolean; titleExtra?: string }> = [];
+  const cfg = agent.knowledge;
+  const pages = new Map<string, { id: string; title: string; content: string }>();
+  if (cfg.allPublicDocs) {
+    const rows = (await db
+      .prepare(
+        'SELECT id, title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND is_public = 1 ORDER BY updated_at DESC LIMIT 200',
+      )
+      .all(workspaceId)) as Array<{ id: string; title: string; content: string }>;
+    for (const r of rows) pages.set(r.id, r);
+  }
+  if (cfg.docsPageIds.length) {
+    const ph = cfg.docsPageIds.map(() => '?').join(', ');
+    const rows = (await db
+      .prepare(`SELECT id, title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND id IN (${ph})`)
+      .all(workspaceId, ...cfg.docsPageIds)) as Array<{ id: string; title: string; content: string }>;
+    for (const r of rows) pages.set(r.id, r);
+  }
+  for (const p of pages.values()) {
+    docs.push({ kind: 'doc', title: p.title || 'Untitled', text: extractDocsText(p.content, 12_000) });
+  }
+  const urls = (await db
+    .prepare("SELECT url, title, content FROM agent_knowledge_urls WHERE agent_id = ? AND user_id = ? AND status = 'ok'")
+    .all(agent.id, workspaceId)) as Array<{ url: string; title: string; content: string }>;
+  for (const u of urls) docs.push({ kind: 'url', title: u.title || u.url, text: u.content, source: u.url });
+  if (cfg.cannedFromWidgetId) {
+    const widget = await db
+      .prepare('SELECT id FROM chat_widgets WHERE id = ? AND user_id = ?')
+      .get(cfg.cannedFromWidgetId, workspaceId);
+    if (widget) {
+      for (const r of await listCannedResponses(cfg.cannedFromWidgetId)) {
+        docs.push({ kind: 'canned', title: r.title, text: r.body, titleExtra: r.shortcut, chunk: false });
+      }
+    }
+  }
+  return rankKnowledge(docs, query, k);
+}
+
+// ---------- Herramientas ----------
+
+export interface BuiltAgentTools {
+  tools: Record<string, Tool>;
+  enabled: AgentToolKey[];
+  /** Derivación directa (palabras clave), con el mismo registro que la herramienta. */
+  handoff: ((reason: string) => Promise<ToolOutput>) | null;
+}
+
+function hostAllowed(host: string, domains: string[]): boolean {
+  const h = host.toLowerCase().replace(/\.$/, '');
+  return domains.some((d) => h === d || h.endsWith(`.${d}`));
+}
+
+async function findContact(workspaceId: string, email: string) {
+  return (await getDb()
+    .prepare(
+      'SELECT id, first_name, last_name, email, lifecycle_stage, company_id FROM crm_contacts WHERE user_id = ? AND lower(email) = lower(?) ORDER BY created_at ASC LIMIT 1',
+    )
+    .get(workspaceId, email.trim())) as
+    | { id: string; first_name: string; last_name: string; email: string; lifecycle_stage: string; company_id: string | null }
+    | undefined;
+}
+
+export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentTools> {
+  const { agent, workspaceId } = ctx;
+  const cfg = agent.tools;
+  const on = new Set(cfg.enabled);
+  const tools: Record<string, Tool> = {};
+  const enabled: AgentToolKey[] = [];
+  const add = (key: AgentToolKey, t: Tool) => {
+    tools[key] = t;
+    enabled.push(key);
+  };
+
+  if (on.has('search_knowledge')) {
+    add(
+      'search_knowledge',
+      tool({
+        description:
+          "Search this business's knowledge base (docs pages, saved web pages and canned answers). Returns the most relevant passages. Use it before answering questions about the business.",
+        inputSchema: z.object({ query: z.string().trim().min(2).max(300).describe('What to look for, in a few keywords') }),
+        execute: logged(ctx, 'search_knowledge', async ({ query }: { query: string }) => {
+          const results = await searchAgentKnowledge(agent, workspaceId, query);
+          return {
+            results: results.map((r) => ({ title: r.title, kind: r.kind, source: r.source ?? null, text: r.text })),
+            ...(results.length === 0 ? { note: 'no relevant knowledge found' } : {}),
+          };
+        }),
+      }),
+    );
+  }
+
+  if (on.has('crm_find_contact')) {
+    add(
+      'crm_find_contact',
+      tool({
+        description:
+          "Look up the visitor in the CRM by the email address THEY gave you. Returns only whether they exist, their first name and lifecycle stage.",
+        inputSchema: z.object({ email: z.string().trim().max(200) }),
+        execute: logged(ctx, 'crm_find_contact', async ({ email }: { email: string }) => {
+          if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
+          const c = await findContact(workspaceId, email);
+          if (!c) return { found: false };
+          return { found: true, contactId: c.id, firstName: c.first_name, lifecycleStage: c.lifecycle_stage };
+        }),
+      }),
+    );
+  }
+
+  if (on.has('crm_upsert_contact')) {
+    add(
+      'crm_upsert_contact',
+      tool({
+        description:
+          'Create or update the visitor as a CRM contact (by email). Optionally attach a short note (e.g. what they need, qualification answers). Only use details the visitor gave you.',
+        inputSchema: z.object({
+          email: z.string().trim().max(200),
+          name: z.string().trim().max(120).optional(),
+          note: z.string().trim().max(2000).optional(),
+        }),
+        execute: logged(ctx, 'crm_upsert_contact', async (input: { email: string; name?: string; note?: string }) => {
+          if (!EMAIL_RE.test(input.email)) return { error: 'invalid_email' };
+          const { findOrCreateContact } = await import('./crm-integrations');
+          const { createActivity, updateContact } = await import('./crm');
+          const { contact, created } = await findOrCreateContact(workspaceId, {
+            email: input.email,
+            name: input.name ?? null,
+            source: 'other',
+          });
+          if (!created && input.name && !contact.first_name && !contact.last_name) {
+            const [firstName, ...rest] = input.name.trim().split(/\s+/);
+            await updateContact(workspaceId, contact.id, { firstName, lastName: rest.join(' ') });
+          }
+          let activityId: string | null = null;
+          if (input.note) {
+            const a = await createActivity(workspaceId, {
+              type: 'note',
+              subject: `Agent: ${agent.name}`,
+              body: input.note,
+              contactId: contact.id,
+            });
+            activityId = a.id;
+          }
+          return { contactId: contact.id, created, noteLogged: Boolean(activityId) };
+        }),
+      }),
+    );
+  }
+
+  if (on.has('crm_log_note')) {
+    add(
+      'crm_log_note',
+      tool({
+        description: "Add a note to an existing CRM contact's timeline (found by email).",
+        inputSchema: z.object({ email: z.string().trim().max(200), note: z.string().trim().min(1).max(2000) }),
+        execute: logged(ctx, 'crm_log_note', async ({ email, note }: { email: string; note: string }) => {
+          if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
+          const c = await findContact(workspaceId, email);
+          if (!c) return { error: 'contact_not_found' };
+          const { createActivity } = await import('./crm');
+          const a = await createActivity(workspaceId, {
+            type: 'note',
+            subject: `Agent: ${agent.name}`,
+            body: note,
+            contactId: c.id,
+          });
+          return { logged: true, activityId: a.id };
+        }),
+      }),
+    );
+  }
+
+  // Cal: solo con un event type configurado y del workspace.
+  const eventType = cfg.calEventTypeId
+    ? ((await getDb()
+        .prepare('SELECT id, title, duration_min, active FROM calendar_event_types WHERE id = ? AND user_id = ?')
+        .get(cfg.calEventTypeId, workspaceId)) as { id: string; title: string; duration_min: number; active: number } | undefined)
+    : undefined;
+  if (eventType && on.has('cal_get_availability')) {
+    add(
+      'cal_get_availability',
+      tool({
+        description: `List the next free slots for "${eventType.title}" (${eventType.duration_min} min). Times are ISO 8601 (UTC) plus a label in the visitor's timezone.`,
+        inputSchema: z.object({
+          timezone: z.string().trim().max(64).optional().describe("Visitor's IANA timezone if known, e.g. America/Argentina/Buenos_Aires"),
+          fromDate: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/)
+            .optional()
+            .describe('First day to look at (YYYY-MM-DD), default today'),
+        }),
+        execute: logged(ctx, 'cal_get_availability', async (input: { timezone?: string; fromDate?: string }) => {
+          const { getAvailableSlots, localDate } = await import('./calendar');
+          let tz = input.timezone || 'UTC';
+          try {
+            new Intl.DateTimeFormat('en', { timeZone: tz });
+          } catch {
+            tz = 'UTC';
+          }
+          const today = localDate(new Date(), tz);
+          const start = input.fromDate && input.fromDate > today ? input.fromDate : today;
+          const fmt = new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          });
+          const slots: Array<{ start: string; label: string }> = [];
+          const base = new Date(`${start}T12:00:00Z`);
+          for (let d = 0; d < cfg.calDays && slots.length < 12; d++) {
+            const date = new Date(base.getTime() + d * 86_400_000).toISOString().slice(0, 10);
+            for (const s of await getAvailableSlots(eventType.id, tz, date)) {
+              if (slots.length >= 12) break;
+              slots.push({ start: s.start.toISOString(), label: fmt.format(s.start) });
+            }
+          }
+          return {
+            eventType: { title: eventType.title, durationMin: eventType.duration_min },
+            timezone: tz,
+            slots,
+            ...(slots.length === 0 ? { note: `no free slots in the next ${cfg.calDays} days` } : {}),
+          };
+        }),
+      }),
+    );
+  }
+
+  if (eventType && on.has('cal_book_meeting')) {
+    add(
+      'cal_book_meeting',
+      tool({
+        description: `Book "${eventType.title}" for the visitor. Only after they explicitly confirmed one slot that cal_get_availability offered in an earlier turn, and gave their name and email. Sends the confirmation email.`,
+        inputSchema: z.object({
+          start: z.string().trim().max(40).describe('Exact ISO start of the confirmed slot, as returned by cal_get_availability'),
+          name: z.string().trim().min(1).max(120),
+          email: z.string().trim().max(200),
+          timezone: z.string().trim().max(64).optional(),
+          visitorConfirmed: z.boolean().describe('true only if the visitor explicitly confirmed this exact slot'),
+          notes: z.string().trim().max(1000).optional(),
+        }),
+        execute: logged(
+          ctx,
+          'cal_book_meeting',
+          async (input: { start: string; name: string; email: string; timezone?: string; visitorConfirmed: boolean; notes?: string }) => {
+            if (input.visitorConfirmed !== true) return { error: 'not_confirmed' };
+            if (!EMAIL_RE.test(input.email)) return { error: 'invalid_email' };
+            const startDate = new Date(input.start);
+            if (Number.isNaN(startDate.getTime())) return { error: 'invalid_start' };
+            // El horario tiene que haberse ofrecido antes (en una corrida
+            // anterior: el visitante lo vio y confirmó en otro mensaje).
+            const offered = (await getDb()
+              .prepare(
+                "SELECT output FROM agent_tool_calls WHERE conversation_id = ? AND tool = 'cal_get_availability' AND error IS NULL AND run_id != ? ORDER BY created_at DESC LIMIT 10",
+              )
+              .all(ctx.conversation.id, ctx.runId)) as Array<Pick<AgentToolCallRow, 'output'>>;
+            const iso = startDate.toISOString();
+            const wasOffered = offered.some((o) => {
+              try {
+                const out = JSON.parse(o.output ?? '{}') as { slots?: Array<{ start?: string }> };
+                return (out.slots ?? []).some((s) => s.start === iso);
+              } catch {
+                return false;
+              }
+            });
+            if (!wasOffered) return { error: 'slot_not_offered' };
+            const { findOfferedSlot, createBooking, CalendarError } = await import('./calendar');
+            const { afterBookingCreated } = await import('./calendar-lifecycle');
+            const tz = input.timezone || 'UTC';
+            // Doble chequeo: el slot sigue libre ahora mismo.
+            const slot = await findOfferedSlot(eventType.id, startDate, tz).catch(() => null);
+            if (!slot) return { error: 'slot_unavailable' };
+            try {
+              const booking = await createBooking({
+                eventTypeId: eventType.id,
+                email: input.email,
+                name: input.name,
+                start: slot.start.toISOString(),
+                timezone: tz,
+                answers: input.notes ? { notes: input.notes } : {},
+              });
+              const synced = await afterBookingCreated(booking);
+              return {
+                booked: true,
+                bookingId: synced.id,
+                startsAt: synced.starts_at,
+                endsAt: synced.ends_at,
+                meetingUrl: synced.meeting_url,
+              };
+            } catch (err) {
+              if (err instanceof CalendarError) return { error: err.code };
+              throw err;
+            }
+          },
+        ),
+      }),
+    );
+  }
+
+  if (on.has('track_create_issue') && cfg.trackProjectId) {
+    const project = (await getDb()
+      .prepare('SELECT id, name FROM track_projects WHERE id = ? AND owner_id = ?')
+      .get(cfg.trackProjectId, workspaceId)) as { id: string; name: string } | undefined;
+    if (project) {
+      add(
+        'track_create_issue',
+        tool({
+          description: `Create an issue in the "${project.name}" project for the team (bug reports, feature requests, follow-ups). Include the visitor's contact details in the description if they gave them.`,
+          inputSchema: z.object({
+            title: z.string().trim().min(3).max(200),
+            description: z.string().trim().max(4000).optional(),
+            priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+          }),
+          execute: logged(
+            ctx,
+            'track_create_issue',
+            async (input: { title: string; description?: string; priority?: 'low' | 'medium' | 'high' | 'urgent' }) => {
+              const { createIssue } = await import('./track-data');
+              const body = [input.description, `— Created by the agent "${agent.name}" (${ctx.channel})`]
+                .filter(Boolean)
+                .join('\n\n');
+              const issue = await createIssue(project.id, workspaceId, {
+                title: input.title,
+                description: [{ type: 'text', text: body }],
+                priority: input.priority ?? 'medium',
+              });
+              return { issueId: issue.id, identifier: issue.identifier, title: issue.title };
+            },
+          ),
+        }),
+      );
+    }
+  }
+
+  if (on.has('run_flow') && cfg.flowIds.length) {
+    const ph = cfg.flowIds.map(() => '?').join(', ');
+    const flows = (await getDb()
+      .prepare(`SELECT id, name, description FROM flow_flows WHERE user_id = ? AND id IN (${ph})`)
+      .all(workspaceId, ...cfg.flowIds)) as Array<{ id: string; name: string; description: string }>;
+    if (flows.length) {
+      const ids = flows.map((f) => f.id) as [string, ...string[]];
+      add(
+        'run_flow',
+        tool({
+          description: `Start one of these automations with a JSON input:\n${flows
+            .map((f) => `- ${f.id}: ${f.name}${f.description ? ` — ${f.description}` : ''}`)
+            .join('\n')}`,
+          inputSchema: z.object({
+            flowId: z.enum(ids),
+            input: z.record(z.string(), z.unknown()).optional().describe('JSON object passed to the flow as its input'),
+          }),
+          execute: logged(ctx, 'run_flow', async ({ flowId, input }: { flowId: string; input?: Record<string, unknown> }) => {
+            // Doble chequeo: solo flows configurados y del workspace.
+            if (!cfg.flowIds.includes(flowId)) return { error: 'flow_not_allowed' };
+            const { getFlowRow, enqueueRun, kickFlowWorker } = await import('./flow');
+            const row = await getFlowRow(workspaceId, flowId);
+            if (!row) return { error: 'flow_not_found' };
+            const payload = JSON.parse(JSON.stringify(input ?? {})) as Record<string, unknown>;
+            const runId = await enqueueRun(row, 'manual', {
+              ...payload,
+              agent: { id: agent.id, name: agent.name, conversationId: ctx.conversation.id, channel: ctx.channel },
+            });
+            if (!runId) return { error: 'rate_limited' };
+            kickFlowWorker();
+            return { runId, status: 'queued', flow: row.name };
+          }),
+        }),
+      );
+    }
+  }
+
+  let handoff: BuiltAgentTools['handoff'] = null;
+  if (on.has('handoff_to_human')) {
+    const run = logged(ctx, 'handoff_to_human', async ({ reason }: { reason: string }) => {
+      ctx.handoff = true;
+      await getDb()
+        .prepare('UPDATE agent_conversations SET handed_off = 1, updated_at = ? WHERE id = ?')
+        .run(new Date().toISOString(), ctx.conversation.id);
+      // Chat: lo marca lib/agents-chat.ts (mensaje de sistema + prioridad + aviso).
+      if (ctx.channel === 'public' || ctx.channel === 'api') {
+        const { createNotification } = await import('./notifications');
+        await createNotification({
+          userId: workspaceId,
+          type: 'chat_message',
+          title: `${agent.name}: a visitor needs a human`,
+          body: reason.slice(0, 140),
+          href: `/app/agents/${agent.id}?tab=conversations&c=${ctx.conversation.id}`,
+          sourceType: 'agent_conversation',
+          sourceId: ctx.conversation.id,
+          meta: { handoff: true, agentId: agent.id },
+        }).catch(() => {});
+      }
+      return { handedOff: true, tellVisitor: 'A teammate will follow up soon.' };
+    });
+    handoff = (reason: string) => run({ reason });
+    add(
+      'handoff_to_human',
+      tool({
+        description: 'Hand the conversation to a human teammate (the team gets notified).',
+        inputSchema: z.object({ reason: z.string().trim().min(1).max(300).describe('Short reason, for the team') }),
+        execute: run,
+      }),
+    );
+  }
+
+  if (on.has('http_request') && cfg.httpAllowedDomains.length) {
+    const domains = cfg.httpAllowedDomains;
+    add(
+      'http_request',
+      tool({
+        description: `Make an HTTP request to an allowed API (domains: ${domains.join(', ')}). Returns status and up to 4000 characters of the body.`,
+        inputSchema: z.object({
+          url: z.string().trim().url().max(2000),
+          method: z.enum(['GET', 'POST']).default('GET'),
+          body: z.string().max(4000).optional().describe('JSON body for POST'),
+        }),
+        execute: logged(ctx, 'http_request', async (input: { url: string; method: 'GET' | 'POST'; body?: string }) => {
+          let url: URL;
+          try {
+            url = new URL(input.url);
+          } catch {
+            return { error: 'invalid_url' };
+          }
+          if (!hostAllowed(url.hostname, domains)) return { error: 'domain_not_allowed' };
+          try {
+            const res = await safeFetch(
+              url.toString(),
+              {
+                method: input.method,
+                headers: {
+                  'user-agent': 'Zerosoft-Agents/1',
+                  ...(input.method === 'POST' ? { 'content-type': 'application/json' } : {}),
+                },
+                body: input.method === 'POST' ? (input.body ?? '{}') : undefined,
+              },
+              8000,
+            );
+            const text = (await res.text().catch(() => '')).slice(0, 4000);
+            return { status: res.status, ok: res.ok, body: text };
+          } catch (err) {
+            if (err instanceof UnsafeUrlError) return { error: err.message };
+            return { error: err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'network_error' };
+          }
+        }),
+      }),
+    );
+  }
+
+  return { tools, enabled, handoff };
+}

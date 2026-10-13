@@ -702,6 +702,186 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // Agents: agentes de AI con instrucciones, conocimiento y herramientas de
+    // la suite. user_id = workspace (dueño). Ver lib/agents*.ts.
+    id: '019_agents_tables',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS agents (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          emoji TEXT NOT NULL DEFAULT '',
+          instructions TEXT NOT NULL DEFAULT '',
+          welcome_message TEXT NOT NULL DEFAULT '',
+          model TEXT,
+          temperature REAL NOT NULL DEFAULT 0.3,
+          knowledge TEXT NOT NULL DEFAULT '{}',
+          tools TEXT NOT NULL DEFAULT '{}',
+          handoff TEXT NOT NULL DEFAULT '{}',
+          guardrails TEXT NOT NULL DEFAULT '{}',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          public_handle TEXT UNIQUE,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_agents_user ON agents(user_id, updated_at)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS agent_knowledge_urls (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          url TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          content TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'ok', 'error')),
+          error TEXT,
+          fetched_at TEXT,
+          created_at TEXT NOT NULL,
+          UNIQUE (agent_id, url)
+        )`);
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS agent_conversations (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          channel TEXT NOT NULL CHECK (channel IN ('playground', 'public', 'api', 'chat')),
+          chat_conversation_id TEXT UNIQUE,
+          visitor_key TEXT,
+          title TEXT NOT NULL DEFAULT '',
+          handed_off INTEGER NOT NULL DEFAULT 0,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_agent_conversations_agent ON agent_conversations(agent_id, updated_at DESC)',
+      );
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS agent_messages (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL REFERENCES agent_conversations(id) ON DELETE CASCADE,
+          role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+          content TEXT NOT NULL,
+          run_id TEXT,
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_agent_messages_conversation ON agent_messages(conversation_id, created_at)',
+      );
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS agent_tool_calls (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          conversation_id TEXT NOT NULL REFERENCES agent_conversations(id) ON DELETE CASCADE,
+          run_id TEXT NOT NULL,
+          tool TEXT NOT NULL,
+          input TEXT NOT NULL DEFAULT '{}',
+          output TEXT,
+          error TEXT,
+          duration_ms INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_agent_tool_calls_conversation ON agent_tool_calls(conversation_id, created_at)',
+      );
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS agent_feedback (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          conversation_id TEXT NOT NULL REFERENCES agent_conversations(id) ON DELETE CASCADE,
+          message_id TEXT NOT NULL UNIQUE,
+          rating INTEGER NOT NULL CHECK (rating IN (-1, 1)),
+          note TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_agent_feedback_agent ON agent_feedback(agent_id, created_at)');
+    },
+  },
+  {
+    // Chat: un widget puede delegar en un agente (bot_source = 'agent' +
+    // agent_id). Mismo rebuild seguro que 015_ai_chat_bot_source: reescribe solo
+    // el CHECK conservando columnas, filas e índices (client.migrate apaga las
+    // FKs durante el batch, así no se borran conversaciones en cascada).
+    id: '019_agents_chat_widget_agent',
+    async up(client) {
+      const current = await client.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'chat_widgets'",
+      );
+      const sql = String(current.rows[0]?.sql ?? '');
+      const check = /CHECK\s*\(\s*bot_source\s+IN\s*\(([^)]*)\)\s*\)/i;
+      const m = check.exec(sql);
+      if (sql && m && !/'agent'/.test(m[1])) {
+        const newSql = sql
+          .replace(check, `CHECK (bot_source IN (${m[1].trim()}, 'agent'))`)
+          .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?chat_widgets["`]?/i, 'CREATE TABLE chat_widgets_new');
+        const cols = (await client.execute('PRAGMA table_info(chat_widgets)')).rows
+          .map((r) => `"${String(r.name)}"`)
+          .join(', ');
+        const indexes = (
+          await client.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'chat_widgets' AND sql IS NOT NULL",
+          )
+        ).rows.map((r) => String(r.sql));
+        await client.migrate([
+          'DROP TABLE IF EXISTS chat_widgets_new',
+          newSql,
+          `INSERT INTO chat_widgets_new (${cols}) SELECT ${cols} FROM chat_widgets`,
+          'DROP TABLE chat_widgets',
+          'ALTER TABLE chat_widgets_new RENAME TO chat_widgets',
+          ...indexes,
+        ]);
+      }
+      const hasAgentId = (await client.execute('PRAGMA table_info(chat_widgets)')).rows.some(
+        (r) => String(r.name) === 'agent_id',
+      );
+      if (!hasAgentId) {
+        try {
+          await client.execute('ALTER TABLE chat_widgets ADD COLUMN agent_id TEXT');
+        } catch (err) {
+          // Otra instancia migrando a la vez ya la agregó.
+          if (!/duplicate column/i.test(String(err))) throw err;
+        }
+      }
+    },
+  },
+  {
+    // Feedback: 'agents' como producto (mismo rebuild que 017_flow_feedback_product).
+    id: '019_agents_feedback_product',
+    async up(client) {
+      const current = await client.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'feedback'",
+      );
+      const sql = String(current.rows[0]?.sql ?? '');
+      const check = /CHECK\s*\(\s*product\s+IN\s*\(([^)]*)\)\s*\)/i;
+      const m = check.exec(sql);
+      if (!sql || !m || /'agents'/.test(m[1])) return;
+      const newSql = sql
+        .replace(check, `CHECK (product IN (${m[1].trim()}, 'agents'))`)
+        .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?feedback["`]?/i, 'CREATE TABLE feedback_new');
+      const cols = (await client.execute('PRAGMA table_info(feedback)')).rows
+        .map((r) => `"${String(r.name)}"`)
+        .join(', ');
+      const indexes = (
+        await client.execute(
+          "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'feedback' AND sql IS NOT NULL",
+        )
+      ).rows.map((r) => String(r.sql));
+      await client.migrate([
+        'DROP TABLE IF EXISTS feedback_new',
+        newSql,
+        `INSERT INTO feedback_new (${cols}) SELECT ${cols} FROM feedback`,
+        'DROP TABLE feedback',
+        'ALTER TABLE feedback_new RENAME TO feedback',
+        ...indexes,
+      ]);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

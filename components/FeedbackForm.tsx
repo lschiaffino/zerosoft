@@ -126,7 +126,8 @@ export default function FeedbackForm({
         <span className="label">{t('productLabel')}</span>
         <span className="fb-select-wrap" style={{ '--dot': PRODUCT_COLOR[product] ?? 'var(--line)' } as CSSProperties}>
           <select className="select" value={product} onChange={(e) => setProduct(e.target.value as FeedbackProduct)}>
-            {FEEDBACK_PRODUCTS.map((p) => (
+            {/* Agents todavía no es público: solo aparece desde la app (/app/agents). */}
+            {FEEDBACK_PRODUCTS.filter((p) => p !== 'agents' || defaultProduct === 'agents').map((p) => (
               <option key={p} value={p}>
                 {t(`product.${p}`)}
               </option>

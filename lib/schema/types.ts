@@ -655,7 +655,9 @@ export interface ChatWidgetRow {
   fields: string; // JSON ChatFieldDef[]
   bot_enabled: 0 | 1;
   bot_greeting: string | null;
-  bot_source: 'canned' | 'docs' | 'ai';
+  bot_source: 'canned' | 'docs' | 'ai' | 'agent';
+  /** Agente que responde cuando bot_source = 'agent' (lib/agents-chat.ts). */
+  agent_id?: string | null;
   office_hours: string | null; // JSON OfficeHoursConfig
   created_at: string;
   updated_at: string;
@@ -916,4 +918,90 @@ export interface BoardRow {
   share_token: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ---------- Agents (agentes de AI) ----------
+
+export interface AgentRow {
+  id: string;
+  user_id: string; // workspace (dueño)
+  name: string;
+  emoji: string;
+  instructions: string;
+  welcome_message: string;
+  model: string | null; // override "proveedor/modelo"; null = el de la instancia
+  temperature: number;
+  knowledge: string; // JSON AgentKnowledgeConfig
+  tools: string; // JSON AgentToolsConfig
+  handoff: string; // JSON AgentHandoffConfig
+  guardrails: string; // JSON AgentGuardrailsConfig
+  enabled: number; // 0 | 1
+  public_handle: string | null; // /a/<handle>
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentKnowledgeUrlRow {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  url: string;
+  title: string;
+  content: string;
+  status: 'pending' | 'ok' | 'error';
+  error: string | null;
+  fetched_at: string | null;
+  created_at: string;
+}
+
+export type AgentChannel = 'playground' | 'public' | 'api' | 'chat';
+
+export interface AgentConversationRow {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  channel: AgentChannel;
+  chat_conversation_id: string | null;
+  visitor_key: string | null;
+  title: string;
+  handed_off: number; // 0 | 1
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentMessageRow {
+  id: string;
+  conversation_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  run_id: string | null;
+  created_at: string;
+}
+
+export interface AgentToolCallRow {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  conversation_id: string;
+  run_id: string;
+  tool: string;
+  input: string; // JSON
+  output: string | null; // JSON
+  error: string | null;
+  duration_ms: number;
+  created_at: string;
+}
+
+export interface AgentFeedbackRow {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  conversation_id: string;
+  message_id: string;
+  rating: number; // 1 | -1
+  note: string;
+  created_by: string | null;
+  created_at: string;
 }

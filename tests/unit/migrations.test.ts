@@ -58,6 +58,45 @@ describe('migraciones versionadas', () => {
     expect(indexes).toEqual(expect.arrayContaining(['idx_chat_widgets_user', 'idx_chat_widgets_team']));
   });
 
+  it("019_agents_chat_widget_agent agrega 'agent' + agent_id a chat_widgets sin perder conversaciones", async () => {
+    const client = freshClient();
+    const idx = MIGRATIONS.findIndex((m) => m.id === '019_agents_chat_widget_agent');
+    await runMigrations(client, MIGRATIONS.slice(0, idx));
+    await client.execute("INSERT INTO users (id, email, handle) VALUES ('u1', 'u1@test.local', 'u1')");
+    await client.execute(
+      "INSERT INTO chat_widgets (id, user_id, name, bot_enabled, bot_source) VALUES ('w1', 'u1', 'W', 1, 'ai')",
+    );
+    await expect(
+      client.execute("INSERT INTO chat_widgets (id, user_id, name, bot_source) VALUES ('w2', 'u1', 'W2', 'agent')"),
+    ).rejects.toThrow(/CHECK/);
+    await client.execute('PRAGMA foreign_keys = ON');
+    await client.execute("INSERT INTO chat_visitors (id, widget_id, external_id) VALUES ('v1', 'w1', 'ext1')");
+    await client.execute("INSERT INTO chat_conversations (id, widget_id, visitor_id) VALUES ('c1', 'w1', 'v1')");
+    await client.execute("INSERT INTO chat_messages (id, conversation_id, sender_type, body) VALUES ('m1', 'c1', 'visitor', 'hola')");
+
+    await runMigrations(client);
+    expect((await client.execute("SELECT id FROM chat_conversations WHERE widget_id = 'w1'")).rows.map((r) => r.id)).toEqual(['c1']);
+    expect((await client.execute("SELECT id FROM chat_messages WHERE conversation_id = 'c1'")).rows).toHaveLength(1);
+    expect((await client.execute('PRAGMA foreign_key_check')).rows).toEqual([]);
+    const row = (await client.execute("SELECT name, bot_enabled, bot_source, agent_id FROM chat_widgets WHERE id = 'w1'")).rows[0];
+    expect(row).toMatchObject({ name: 'W', bot_enabled: 1, bot_source: 'ai', agent_id: null });
+    await client.execute(
+      "INSERT INTO chat_widgets (id, user_id, name, bot_source, agent_id) VALUES ('w2', 'u1', 'W2', 'agent', 'a1')",
+    );
+    for (const v of ['canned', 'docs', 'ai']) {
+      await client.execute({ sql: "INSERT INTO chat_widgets (id, user_id, name, bot_source) VALUES (?, 'u1', 'X', ?)", args: [`w-${v}`, v] });
+    }
+    await expect(
+      client.execute("INSERT INTO chat_widgets (id, user_id, name, bot_source) VALUES ('w3', 'u1', 'W3', 'nope')"),
+    ).rejects.toThrow(/CHECK/);
+    const indexes = (
+      await client.execute("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'chat_widgets'")
+    ).rows.map((r) => r.name);
+    expect(indexes).toEqual(expect.arrayContaining(['idx_chat_widgets_user', 'idx_chat_widgets_team']));
+    // Idempotente: correrla de nuevo no rompe nada.
+    await MIGRATIONS[idx].up(client);
+  });
+
   it("017_flow_feedback_product agrega 'flow' al CHECK de feedback conservando filas e índices", async () => {
     const client = freshClient();
     const idx = MIGRATIONS.findIndex((m) => m.id === '017_flow_feedback_product');

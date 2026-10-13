@@ -81,11 +81,19 @@ function aiRateLimitPerMinute(): number {
 }
 
 function resolveModel(): { model: LanguageModel; modelId: string } {
+  return resolveAiModel();
+}
+
+/**
+ * Modelo a usar. `preferredId` ("proveedor/modelo", p. ej. el override de un
+ * agente) gana sobre AI_MODEL; el modelo inyectado en tests gana sobre todo.
+ */
+export function resolveAiModel(preferredId?: string | null): { model: LanguageModel; modelId: string } {
   if (modelOverride) {
     const id = typeof modelOverride === 'string' ? modelOverride : modelOverride.modelId;
     return { model: modelOverride, modelId: id };
   }
-  const id = aiModelId();
+  const id = preferredId?.trim() || aiModelId();
   return { model: id, modelId: id };
 }
 

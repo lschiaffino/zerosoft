@@ -19,6 +19,7 @@ import '@xyflow/react/dist/style.css';
 import '@/styles/flow.css';
 import '@/styles/notes.css';
 import '@/styles/board.css';
+import '@/styles/agents.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
 
@@ -51,6 +52,7 @@ export default async function AppLayout(
   const tFlow = await getTranslations({ locale, namespace: 'flow' });
   const tNotes = await getTranslations({ locale, namespace: 'notes' });
   const tBoard = await getTranslations({ locale, namespace: 'board' });
+  const tAgents = await getTranslations({ locale, namespace: 'agents' });
   const tasksDue = await countDueTasks(user.id);
 
   return (
@@ -86,6 +88,7 @@ export default async function AppLayout(
           newProject: tSide('newProject'),
           newWidget: tSide('newWidget'),
           newFlow: tSide('newFlow'),
+          newAgent: tSide('newAgent'),
           team: tSide('team'),
           link: {
             overview: tLink('tabs.overview'),
@@ -139,6 +142,9 @@ export default async function AppLayout(
           },
           notes: { all: tNotes('sidebar.all'), newNote: tNotes('actions.newNote') },
           board: { boards: tBoard('sidebar.boards'), newBoard: tBoard('list.new') },
+          agents: {
+            agents: tAgents('sidebar.agents'),
+          },
           notifications: {
             title: tTrack('notifications.title'),
             markRead: tTrack('notifications.markRead'),
@@ -184,6 +190,7 @@ export default async function AppLayout(
             { href: '/app/notes', label: tNotes('sidebar.all') },
             { href: '/app/notes/clip', label: tNotes('clip.title') },
             { href: '/app/board', label: tBoard('sidebar.boards') },
+            { href: '/app/agents', label: tAgents('sidebar.agents') },
           ]}
         />
         <main className="app-content">{children}</main>
