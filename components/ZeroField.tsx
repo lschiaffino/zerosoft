@@ -70,6 +70,9 @@ export default function ZeroField({
       let H = 0;
       let particles: Particle[] = [];
       const mouse = { x: -9999, y: -9999 };
+      // Posición del puntero en coordenadas de la ventana; se convierte a las
+      // del canvas en cada frame, así el scroll y los textos encima no la rompen.
+      const pointer = { x: -9999, y: -9999, active: false };
       let raf = 0;
       let visible = true;
 
@@ -122,7 +125,7 @@ export default function ZeroField({
 
         // En mobile la banda es horizontal (W > H), así que usamos H como
         // dimensión dominante para que el cero no se estire ni quede chico.
-        const size = Math.min(W, H) * (isMobile() ? sizeFactor * 0.75 : sizeFactor);
+        const size = Math.min(W, H) * (isMobile() ? Math.min(1, sizeFactor * 1.05) : sizeFactor);
         const { x: cx, y: cy } = glyphCenter();
 
         octx.fillStyle = '#000';
@@ -134,26 +137,32 @@ export default function ZeroField({
         const img = octx.getImageData(0, 0, W, H).data;
         const gap = Math.max(8, Math.round(size / 56));
 
-        particles = [];
+        // Al reconstruir (resize) se reubican los ceros existentes en sus
+        // nuevos lugares en vez de volver a dispersarlos.
+        const prev = particles;
+        const next: Particle[] = [];
         for (let y = 0; y < H; y += gap) {
           for (let x = 0; x < W; x += gap) {
             if (img[(y * W + x) * 4 + 3] > 120) {
-              particles.push({
+              const old = prev[next.length];
+              next.push({
                 hx: x, hy: y,
-                x: x + (Math.random() - 0.5) * W * 0.9,
-                y: y + (Math.random() - 0.5) * H * 0.9,
+                x: old ? old.x : x + (Math.random() - 0.5) * W * 0.9,
+                y: old ? old.y : y + (Math.random() - 0.5) * H * 0.9,
                 vx: 0, vy: 0,
                 s: gap * 1.15,
-                o: alpha * (0.5 + Math.random() * 0.5),
-                ph: Math.random() * Math.PI * 2,
-                k:
-                  palette.length > 1 && Math.random() < accentShare
+                o: old ? old.o : alpha * (0.5 + Math.random() * 0.5),
+                ph: old ? old.ph : Math.random() * Math.PI * 2,
+                k: old
+                  ? old.k
+                  : palette.length > 1 && Math.random() < accentShare
                     ? 1 + Math.floor(Math.random() * (palette.length - 1))
                     : 0,
               });
             }
           }
         }
+        particles = next;
       }
 
       function drawStatic() {
@@ -190,7 +199,21 @@ export default function ZeroField({
         const t = (now - t0) / 1000;
         ctx.clearRect(0, 0, W, H);
 
-        const R = 130;
+        if (pointer.active && canvas) {
+          const r = canvas.getBoundingClientRect();
+          mouse.x = pointer.x - r.left;
+          mouse.y = pointer.y - r.top;
+          // Fuera del canvas (con margen) no hay interacción.
+          if (mouse.x < -160 || mouse.y < -160 || mouse.x > W + 160 || mouse.y > H + 160) {
+            mouse.x = -9999;
+            mouse.y = -9999;
+          }
+        } else {
+          mouse.x = -9999;
+          mouse.y = -9999;
+        }
+
+        const R = Math.max(110, Math.min(170, Math.min(W, H) * 0.2));
         for (const p of particles) {
           const dx = p.x - mouse.x;
           const dy = p.y - mouse.y;
@@ -223,15 +246,20 @@ export default function ZeroField({
         raf = visible ? requestAnimationFrame(tick) : 0;
       }
 
-      const host = wrap.parentElement ?? wrap;
+      // Escuchamos en window: el texto del hero se superpone al canvas y, si
+      // escucháramos solo en el contenedor, el puntero "desaparecería" al pasar
+      // por encima de los títulos y botones.
       function onMove(e: PointerEvent) {
-        const r = canvas!.getBoundingClientRect();
-        mouse.x = e.clientX - r.left;
-        mouse.y = e.clientY - r.top;
+        pointer.x = e.clientX;
+        pointer.y = e.clientY;
+        pointer.active = true;
       }
       function onLeave() {
-        mouse.x = -9999;
-        mouse.y = -9999;
+        pointer.active = false;
+      }
+      function onTouchEnd(e: PointerEvent) {
+        // En touch el "puntero" se va al levantar el dedo.
+        if (e.pointerType !== 'mouse') pointer.active = false;
       }
 
       const ro = new ResizeObserver(() => resize());
@@ -252,8 +280,11 @@ export default function ZeroField({
       const start = () => {
         resize();
         if (!reduced && interactive) {
-          host.addEventListener('pointermove', onMove as EventListener);
-          host.addEventListener('pointerleave', onLeave);
+          window.addEventListener('pointermove', onMove, { passive: true });
+          window.addEventListener('pointerdown', onMove, { passive: true });
+          window.addEventListener('pointerup', onTouchEnd, { passive: true });
+          document.documentElement.addEventListener('pointerleave', onLeave);
+          window.addEventListener('blur', onLeave);
           raf = requestAnimationFrame(tick);
         }
       };
@@ -277,8 +308,11 @@ export default function ZeroField({
         cancelAnimationFrame(raf);
         ro.disconnect();
         io.disconnect();
-        host.removeEventListener('pointermove', onMove as EventListener);
-        host.removeEventListener('pointerleave', onLeave);
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerdown', onMove);
+        window.removeEventListener('pointerup', onTouchEnd);
+        document.documentElement.removeEventListener('pointerleave', onLeave);
+        window.removeEventListener('blur', onLeave);
         window.removeEventListener('orientationchange', onOrientation);
       };
     } catch {

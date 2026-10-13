@@ -17,7 +17,7 @@
   letter-spacing: 0.04em;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background: var(--bg);
   color: var(--ink);
   cursor: pointer;
@@ -70,7 +70,7 @@
   color: var(--bad);
   border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent);
   background: color-mix(in srgb, var(--bad) 6%, transparent);
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   padding: 10px 12px;
 }
 
@@ -110,7 +110,7 @@
   color: var(--dim);
   cursor: pointer;
   padding: 4px 6px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
 }
 .fb-modal-x:hover { color: var(--ink); background: #f5f5f5; }
 
@@ -128,7 +128,7 @@ button.side-link {
 
 .fb-page-card {
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   padding: 32px;
   background: var(--bg);
 }
@@ -162,7 +162,7 @@ button.side-link {
 /* ---------- Listado del owner ---------- */
 
 .fb-admin-filters { display: flex; gap: 8px; flex-wrap: wrap; }
-.fb-admin-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.fb-admin-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
 .fb-admin-row { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
 .fb-admin-row:last-child { border-bottom: none; }
 .fb-admin-row.is-new { box-shadow: inset 3px 0 0 var(--accent, var(--ink)); }

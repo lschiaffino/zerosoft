@@ -266,6 +266,19 @@
       "one": {
         "title": "Un login. Un workspace. Una búsqueda.",
         "desc": "Invitás a tu equipo una sola vez. Encontrás contactos, empresas, negocios, links, docs y tareas desde una sola barra de búsqueda, y saltás entre apps sin cambiar de herramienta."
+      },
+      "teamsTitle": "Para equipos",
+      "teamsDesc": "Vender, atender y entregar, en equipo.",
+      "personalTitle": "Para vos",
+      "personalDesc": "Escribir, planificar y cuidar tu tiempo.",
+      "soon": "Pronto",
+      "replaces": "Reemplaza a {rival}",
+      "upcoming": {
+        "agents": "Agentes de IA que responden y actúan.",
+        "flow": "Automatizaciones entre todas las apps.",
+        "robots": "Robots que usan el navegador por vos.",
+        "notes": "Notas rápidas, libretas y búsqueda.",
+        "board": "Una pizarra infinita."
       }
     },
     "stack": {

@@ -26,6 +26,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-design',
+    date: '2026-10-13',
+    title: {
+      en: 'A calmer website, and zeros that follow your cursor',
+      es: 'Un sitio más sobrio, y ceros que siguen tu cursor',
+      pt: 'Um site mais sóbrio, e zeros que seguem seu cursor',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'The zero made of zeros on the home page now reacts to the cursor everywhere, even over the headline, and also shows on phones.',
+        es: 'El cero hecho de ceros del home ahora reacciona al cursor en todos lados, incluso sobre el título, y también se ve en el celular.',
+        pt: 'O zero feito de zeros da home agora reage ao cursor em todo lugar, até sobre o título, e também aparece no celular.',
+      },
+      {
+        product: 'platform',
+        en: 'Fewer badges, square corners and plain lists: the suite is now split into "For teams" and "For you", with what is coming next marked as soon.',
+        es: 'Menos etiquetas, esquinas rectas y listas simples: la suite ahora se divide en "Para equipos" y "Para vos", con lo que viene marcado como pronto.',
+        pt: 'Menos etiquetas, cantos retos e listas simples: a suíte agora se divide em "Para equipes" e "Para você", com o que vem por aí marcado como em breve.',
+      },
+    ],
+  },
+  {
     id: '2026-10-13-site',
     date: '2026-10-13',
     title: {

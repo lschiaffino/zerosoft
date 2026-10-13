@@ -19,8 +19,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding-bottom: 28px;
+  gap: 4px 24px;
+  padding-bottom: 0;
   margin-bottom: 56px;
   border-bottom: 1px solid var(--line);
 }
@@ -28,22 +28,16 @@
 .cl-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 7px 13px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--ink);
-  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  gap: 7px;
+  font-size: 15px;
+  padding: 6px 0;
+  color: #8c8c8c;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
 }
-
-.cl-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--dot); display: inline-block; }
-.cl-chip:hover { border-color: var(--ink); }
-.cl-chip.active { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.cl-chip.active i { box-shadow: 0 0 0 1.5px var(--bg); }
+.cl-chip i { width: 6px; height: 6px; background: var(--dot); display: inline-block; }
+.cl-chip:hover { color: var(--ink); }
+.cl-chip.active { color: var(--ink); border-bottom-color: var(--dot, var(--ink)); }
 
 .cl-count { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: 0.06em; }
 
@@ -90,7 +84,7 @@
 
 .cl-card {
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   padding: 26px 30px 28px;
   background: var(--bg);
   transition: border-color 0.25s;
@@ -142,7 +136,7 @@
   gap: 24px;
   flex-wrap: wrap;
   border: 1px solid var(--ink);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   padding: 30px 32px;
 }
 

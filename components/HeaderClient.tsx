@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
 import Icon from './site/Icon';
-import { GITHUB_URL, PRODUCT_NAMES, SITE_PRODUCTS } from './site/catalog';
+import { AUDIENCE_PRODUCTS, GITHUB_URL, PRODUCT_NAMES, UPCOMING, type Audience } from './site/catalog';
 
 interface HeaderClientProps {
   locale: string;
@@ -34,6 +34,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   const pathname = usePathname();
   const tp = useTranslations('common.products');
   const th = useTranslations('common.header');
+  const ts = useTranslations('common.home.suite');
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -84,19 +85,34 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   };
 
   const productItems = (variant: 'mega' | 'panel') =>
-    SITE_PRODUCTS.map((key) => (
-      <Link key={key} href={`/products/${key}`} className={`hd-prod card-${key} hd-prod-${variant}`}>
-        <span className="hd-prod-icon" aria-hidden="true">
-          0
-        </span>
-        <span className="hd-prod-text">
-          <span className="hd-prod-name">
-            {PRODUCT_NAMES[key]}
-            <span className="hd-prod-tag">{tp(`${key}.tag`)}</span>
+    (['teams', 'personal'] as const satisfies readonly Audience[]).map((a) => (
+      <div key={a} className="hd-group">
+        <p className="hd-group-title">{ts(`${a}Title`)}</p>
+        {AUDIENCE_PRODUCTS[a].map((key) => (
+          <Link key={key} href={`/products/${key}`} className={`hd-prod card-${key} hd-prod-${variant}`}>
+            <span className="hd-prod-icon" aria-hidden="true">
+              0
+            </span>
+            <span className="hd-prod-text">
+              <span className="hd-prod-name">{PRODUCT_NAMES[key]}</span>
+              <span className="hd-prod-desc">{th(`desc.${key}`)}</span>
+            </span>
+          </Link>
+        ))}
+        {UPCOMING.filter((u) => u.audience === a).map((u) => (
+          <span key={u.key} className={`hd-prod is-soon card-${u.key} hd-prod-${variant}`}>
+            <span className="hd-prod-icon" aria-hidden="true">
+              0
+            </span>
+            <span className="hd-prod-text">
+              <span className="hd-prod-name">
+                {u.name} <span className="hd-prod-soon">{ts('soon')}</span>
+              </span>
+              <span className="hd-prod-desc">{ts(`upcoming.${u.key}`)}</span>
+            </span>
           </span>
-          <span className="hd-prod-desc">{th(`desc.${key}`)}</span>
-        </span>
-      </Link>
+        ))}
+      </div>
     ));
 
   return (
