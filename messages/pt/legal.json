@@ -183,7 +183,9 @@
           "Dados de integrações do Google, só se você conectá-las: do Gmail, os metadados dos e-mails trocados com seus contatos do CRM (remetente, destinatários, assunto, um trecho curto, data e identificadores), não o corpo completo das mensagens; do Google Agenda, seus horários livres e ocupados e os eventos que as reservas criam na sua agenda.",
           "Segredos de integrações: tokens OAuth do Google e segredos de assinatura de webhooks, guardados criptografados. As API keys são guardadas apenas como hashes. Um token do Bitly que você nos fornece para importar é usado nessa importação e não é guardado.",
           "Dados técnicos: endereços IP são usados brevemente para limitar requisições e aparecem nos logs de requisições do nosso provedor de hospedagem (veja Retenção). O status de entrega dos e-mails transacionais que enviamos.",
-          "Mensagens que você nos envia: e-mails para nossos endereços de suporte, privacidade, abuso ou segurança."
+          "Mensagens que você nos envia: e-mails para nossos endereços de suporte, privacidade, abuso ou segurança.",
+          "Reservas e CRM: quando alguém agenda uma reunião pelo Cal, nome, email, horário e respostas também são salvos como contato e atividade de reunião no CRM do anfitrião. Se um agente decidir, uma conversa do Chat é salva no contato do CRM do visitante.",
+          "Feedback: se você enviar feedback pelo site ou pelo app, guardamos a mensagem, o tipo e o produto escolhidos, a página em que você estava, o user agent do navegador e seu email, se você informar ou estiver logado."
         ]
       },
       "s04": {

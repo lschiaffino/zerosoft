@@ -26,6 +26,47 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-12-crm-suite',
+    date: '2026-10-12',
+    title: {
+      en: 'Cal and Chat feed the CRM, plus a complete CRM API',
+      es: 'Cal y Chat alimentan el CRM, y la API del CRM completa',
+      pt: 'Cal e Chat alimentam o CRM, e a API do CRM completa',
+    },
+    items: [
+      {
+        product: 'cal',
+        en: 'Every booking creates (or updates) the guest as a CRM contact and logs the meeting on their timeline; rescheduling and cancelling update that same activity.',
+        es: 'Cada reserva crea (o actualiza) al invitado como contacto del CRM y registra la reunión en su timeline; reprogramar y cancelar actualizan esa misma actividad.',
+        pt: 'Cada reserva cria (ou atualiza) o convidado como contato do CRM e registra a reunião na timeline; reagendar e cancelar atualizam essa mesma atividade.',
+      },
+      {
+        product: 'chat',
+        en: 'From a conversation, create the visitor as a CRM contact and save the chat to their timeline in one click.',
+        es: 'Desde una conversación, creá al visitante como contacto del CRM y guardá el chat en su timeline con un clic.',
+        pt: 'A partir de uma conversa, crie o visitante como contato do CRM e salve o chat na timeline com um clique.',
+      },
+      {
+        product: 'crm',
+        en: 'New workflow trigger: "Meeting booked (Cal)". New webhooks: contact.created/updated and deal.created/updated/stage_changed/won/lost.',
+        es: 'Nuevo trigger de workflows: "Reunión agendada (Cal)". Nuevos webhooks: contact.created/updated y deal.created/updated/stage_changed/won/lost.',
+        pt: 'Novo gatilho de workflows: "Reunião agendada (Cal)". Novos webhooks: contact.created/updated e deal.created/updated/stage_changed/won/lost.',
+      },
+      {
+        product: 'platform',
+        en: 'API v1: delete contacts, companies and deals, move deals between stages, read and log activities, ISO 8601 dates with time zones. OpenAPI 3.1 spec at /api/v1/openapi.json.',
+        es: 'API v1: borrar contactos, empresas y deals, mover deals de etapa, leer y registrar actividades, fechas ISO 8601 con zona horaria. Spec OpenAPI 3.1 en /api/v1/openapi.json.',
+        pt: 'API v1: excluir contatos, empresas e deals, mover deals de etapa, ler e registrar atividades, datas ISO 8601 com fuso horário. Spec OpenAPI 3.1 em /api/v1/openapi.json.',
+      },
+      {
+        product: 'platform',
+        en: 'Fixed the CRM examples in the API docs (they used snake_case fields the API ignores). A public changelog and a feedback form are live too.',
+        es: 'Corregimos los ejemplos del CRM en la doc de la API (usaban campos en snake_case que la API ignora). También salieron el changelog público y el formulario de feedback.',
+        pt: 'Corrigimos os exemplos do CRM na doc da API (usavam campos em snake_case que a API ignora). Também saíram o changelog público e o formulário de feedback.',
+      },
+    ],
+  },
+  {
     id: '2026-10-12-color',
     date: '2026-10-12',
     title: {

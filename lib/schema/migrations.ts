@@ -299,7 +299,7 @@ export const MIGRATIONS: Migration[] = [
   {
     // Feedback de usuarios y visitantes (ideas, bugs). user_id es opcional:
     // el formulario público acepta envíos sin cuenta.
-    id: '013_feedback',
+    id: '014_feedback',
     async up(client) {
       await client.execute(`
         CREATE TABLE IF NOT EXISTS feedback (
