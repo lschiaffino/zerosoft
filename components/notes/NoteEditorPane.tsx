@@ -64,11 +64,13 @@ export default function NoteEditorPane({
     [note.id],
   );
 
+  // El editor manda solo lo que edita (título y bloques), sin id: se usa el de la nota.
+  const noteId = note.id;
   const handleSave = useCallback(
-    (p: DocsPage) => {
-      void onSaveContent(p.id, { title: p.title, content: p.content });
+    (p: Partial<DocsPage>) => {
+      void onSaveContent(noteId, { title: p.title ?? '', content: p.content ?? [] });
     },
-    [onSaveContent],
+    [noteId, onSaveContent],
   );
 
   // Nota recién creada: foco en el título.

@@ -26,6 +26,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-quick-create',
+    date: '2026-10-13',
+    title: {
+      en: 'Create anything with C, without leaving the list',
+      es: 'Creá cualquier cosa con C, sin salir de la lista',
+      pt: 'Crie qualquer coisa com C, sem sair da lista',
+    },
+    items: [
+      { product: 'link', en: 'New link in a modal (press C or paste a URL anywhere); the short link is copied right away. Cleaner table on desktop and mobile.', es: 'Link nuevo en un modal (apretá C o pegá una URL en cualquier lado); el link corto se copia al instante. Tabla más limpia en desktop y mobile.', pt: 'Link novo em um modal (aperte C ou cole uma URL em qualquer lugar); o link curto é copiado na hora. Tabela mais limpa no desktop e no celular.' },
+      { product: 'crm', en: 'Contacts, companies, deals and tasks are created in a modal. One row of timeline tabs, a lighter reports bar and a denser settings page. Fixed duplicated "other" rows in reports.', es: 'Contactos, empresas, deals y tareas se crean en un modal. Una sola fila de pestañas en el timeline, una barra de reportes más liviana y configuración más compacta. Arreglamos filas "otros" duplicadas en reportes.', pt: 'Contatos, empresas, deals e tarefas são criados em um modal. Uma só linha de abas na timeline, barra de relatórios mais leve e configurações mais compactas. Corrigimos linhas "outros" duplicadas em relatórios.' },
+      { product: 'cal', en: 'New event types start active with Mon–Fri 9–17, so your link works right away. Delete event types, toggle them from the list, and bookings split into upcoming, past and cancelled.', es: 'Los tipos de evento nuevos arrancan activos con lunes a viernes de 9 a 17, así tu link funciona enseguida. Podés borrarlos, activarlos desde la lista, y las reservas se separan en próximas, pasadas y canceladas.', pt: 'Tipos de evento novos começam ativos com segunda a sexta das 9 às 17, então seu link funciona na hora. Dá para excluí-los, ativá-los pela lista, e as reservas se dividem em próximas, passadas e canceladas.' },
+      { product: 'chat', en: 'The conversation no longer jumps on every refresh, J/K moves between conversations, and canned responses and rules are edited in a modal.', es: 'La conversación ya no salta en cada actualización, J/K te mueve entre conversaciones, y las respuestas guardadas y reglas se editan en un modal.', pt: 'A conversa não pula mais a cada atualização, J/K navega entre conversas, e respostas salvas e regras são editadas em um modal.' },
+      { product: 'docs', en: 'Move to trash no longer deletes for good and takes subpages along. Autosave waits for the save and never loses your last edit. Collapsible page tree and a people picker for sharing.', es: 'Mover a la papelera ya no borra para siempre y se lleva las subpáginas. El autoguardado espera a guardar y no pierde tu última edición. Árbol de páginas plegable y selector de personas para compartir.', pt: 'Mover para a lixeira não exclui mais para sempre e leva as subpáginas. O salvamento automático espera salvar e não perde sua última edição. Árvore de páginas recolhível e seletor de pessoas para compartilhar.' },
+    ],
+  },
+  {
     id: '2026-10-13-notes-board',
     date: '2026-10-13',
     title: {
