@@ -6,6 +6,8 @@ import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import CommandSearch from '@/components/app/CommandSearch';
 import TimezoneCookie from '@/components/app/TimezoneCookie';
+import { SupportIdentify } from '@/components/SupportWidget';
+import { supportWidgetId } from '@/lib/support';
 import '@/styles/link.css';
 import '@/styles/crm.css';
 import '@/styles/docs.css';
@@ -168,6 +170,12 @@ export default async function AppLayout(
       </div>
       <CommandSearch />
       <TimezoneCookie />
+      {supportWidgetId() && !DEMO_MODE && (
+        <SupportIdentify
+          email={user.actingUser?.email ?? user.email}
+          name={user.actingUser?.name ?? user.name ?? null}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,77 @@
+{
+  "metaTitle": "Roadmap",
+  "metaDescription": "What we're building next at zerosoft.ai — shaped by your feedback and support conversations. Vote for what matters to you.",
+  "label": "Roadmap",
+  "title": "What's next.",
+  "titleDim": "Built from what you tell us.",
+  "intro": "Every piece of feedback and every support conversation is read and grouped into these items. Upvote what you need — it moves things up the list.",
+  "column": {
+    "planned": "Planned",
+    "in_progress": "In progress",
+    "done": "Done"
+  },
+  "columnEmpty": "Nothing here yet.",
+  "upvote": "Upvote",
+  "voted": "Voted",
+  "votes": "{count, plural, one {# vote} other {# votes}}",
+  "voteError": "Couldn't count your vote. Try again later.",
+  "shipped": "Shipped — see changelog",
+  "kind": {
+    "idea": "Idea",
+    "bug": "Fix"
+  },
+  "product": {
+    "link": "Link",
+    "crm": "CRM",
+    "cal": "Cal",
+    "track": "Track",
+    "chat": "Chat",
+    "docs": "Docs",
+    "site": "Website",
+    "other": "Platform"
+  },
+  "changelog": "Changelog",
+  "suggest": "Suggest something",
+  "ctaTitle": "Not on the list?",
+  "ctaBody": "Tell us what to build or fix. Every message is read and ends up here.",
+  "ctaButton": "Send feedback",
+  "footerLink": "Roadmap",
+  "seeRoadmap": "See the roadmap",
+  "admin": {
+    "title": "Roadmap",
+    "sub": "Items created from feedback and support chats. New items are proposed and private until you make them public.",
+    "all": "All",
+    "status": {
+      "proposed": "Proposed",
+      "planned": "Planned",
+      "in_progress": "In progress",
+      "done": "Done",
+      "declined": "Declined"
+    },
+    "empty": "No roadmap items yet. They appear as feedback and support conversations come in.",
+    "public": "Public",
+    "private": "Private",
+    "signals": "{count, plural, one {# signal} other {# signals}}",
+    "excerpts": "Linked excerpts",
+    "source": {
+      "feedback": "Feedback",
+      "chat": "Support chat"
+    },
+    "titleLabel": "Title",
+    "descriptionLabel": "Description",
+    "statusLabel": "Status",
+    "productLabel": "Product",
+    "kindLabel": "Type",
+    "changelogLabel": "Changelog entry id",
+    "changelogHint": "When done, the id of the changelog entry that shipped it.",
+    "save": "Save",
+    "saved": "Saved",
+    "error": "Something went wrong. Try again.",
+    "mergeInto": "Merge into…",
+    "merge": "Merge",
+    "mergeConfirm": "Merge this item into the selected one? Its signals and votes move over and this item is deleted.",
+    "viewPublic": "View public roadmap",
+    "feedbackLink": "Roadmap",
+    "backToFeedback": "Feedback"
+  }
+}

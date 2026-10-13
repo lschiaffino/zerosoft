@@ -2,6 +2,7 @@ import { after, NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import {
   chatAttachmentType,
+  cleanVisitorIdentity,
   createChatConversation,
   createChatMessage,
   getChatWidget,
@@ -45,7 +46,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'file_type_not_allowed' }, { status: 415 });
   }
 
-  const visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId);
+  const visitor = await getOrCreateChatVisitor(
+    widgetId,
+    visitorExternalId,
+    cleanVisitorIdentity(form.get('email'), form.get('name')),
+  );
 
   let conversation = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))
     ?.conversation ?? null;

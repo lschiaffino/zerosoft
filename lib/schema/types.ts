@@ -767,3 +767,35 @@ export interface AiUsageRow {
   output_tokens: number;
   created_at: string;
 }
+
+export type RoadmapItemStatus = 'proposed' | 'planned' | 'in_progress' | 'done' | 'declined';
+export type RoadmapItemKind = 'idea' | 'bug';
+
+export interface RoadmapItemRow {
+  id: string;
+  title: string;
+  description: string;
+  product: string; // FEEDBACK_PRODUCTS
+  kind: RoadmapItemKind;
+  status: RoadmapItemStatus;
+  votes: number; // señales + votos públicos
+  is_public: number; // 0/1: visible en /roadmap (lo aprueba un admin)
+  shipped_changelog_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoadmapSignalRow {
+  id: string;
+  item_id: string;
+  source: 'feedback' | 'chat';
+  source_id: string; // feedback.id o chat_conversations.id
+  excerpt: string;
+  created_at: string;
+}
+
+export interface RoadmapVoteRow {
+  item_id: string;
+  ip_hash: string; // HMAC-SHA256 de la IP (nunca la IP en claro)
+  created_at: string;
+}

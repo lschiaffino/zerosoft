@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import { getCurrentUser } from '@/lib/session';
 import { createFeedback, notifyFeedback, parseFeedback } from '@/lib/feedback';
+import { ingestFeedback, runAfterResponse } from '@/lib/roadmap';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,8 @@ export async function POST(req: Request) {
     userAgent: req.headers.get('user-agent'),
   });
   await notifyFeedback(row);
+  // Clasificación para el roadmap después de responder (no demora al usuario).
+  await runAfterResponse(() => ingestFeedback(row));
 
   return NextResponse.json({ ok: true, id: row.id }, { status: 201 });
 }
