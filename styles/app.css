@@ -18,7 +18,14 @@
 .app-content {
   min-width: 0;
   flex: 1;
-  padding: 0 32px 64px;
+  padding: 32px 32px 64px;
+}
+
+/* Cabecera del sidebar: switcher + campana en una fila. */
+.side-head-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .app-topbar {
@@ -131,46 +138,6 @@
 }
 
 /* ---------- App footer ---------- */
-
-.app-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 24px 32px;
-  border-top: 1px solid var(--line);
-  margin-top: auto;
-}
-
-.app-footer-product,
-.app-footer-legal {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 20px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--dim);
-}
-
-.app-footer-product a,
-.app-footer-legal a {
-  color: var(--dim);
-  transition: color 0.2s;
-}
-
-.app-footer-product a:hover,
-.app-footer-legal a:hover {
-  color: var(--ink);
-}
-
-.app-footer-zero {
-  font-family: var(--mono);
-  font-size: 18px;
-  color: var(--line);
-  user-select: none;
-}
 
 /* ---------- Sidebar ---------- */
 
@@ -411,15 +378,6 @@
 
 a.side-signout { display: block; text-decoration: none; }
 
-.side-zero {
-  text-align: center;
-  font-family: var(--mono);
-  color: var(--line);
-  font-size: 22px;
-  padding-top: 6px;
-  user-select: none;
-}
-
 /* ---------- ⌘K search overlay ---------- */
 
 .cmdk-backdrop {
@@ -538,10 +496,9 @@ a.side-signout { display: block; text-decoration: none; }
     transform: translateX(-100%);
     transition: transform 0.25s var(--ease);
     z-index: 80;
-    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.12);
   }
 
-  .side.open { transform: translateX(0); }
+  .side.open { transform: translateX(0); box-shadow: 12px 0 40px rgba(0, 0, 0, 0.12); }
 
   .side-backdrop {
     position: fixed;
@@ -550,9 +507,8 @@ a.side-signout { display: block; text-decoration: none; }
     z-index: 70;
   }
 
-  .app-content { padding: 0 16px 56px; }
+  .app-content { padding: 20px 16px 56px; }
   .app-topbar-inner { padding: 14px 16px; }
-  .app-footer { padding: 20px 16px; }
 }
 
 .side-close {
@@ -613,9 +569,8 @@ a.side-signout { display: block; text-decoration: none; }
 .side-handle {
   display: none;
   position: absolute;
-  right: -13px;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 10px;
+  bottom: 14px;
   width: 26px;
   height: 26px;
   padding: 0;
@@ -638,10 +593,10 @@ a.side-signout { display: block; text-decoration: none; }
   border-color: var(--ink);
   color: var(--ink);
   background: #fafafa;
-  transform: translateY(-50%) scale(1.08);
+  transform: scale(1.08);
 }
 .side-handle:active {
-  transform: translateY(-50%) scale(0.96);
+  transform: scale(0.96);
 }
 
 @media (min-width: 1024px) {
@@ -698,8 +653,7 @@ a.side-signout { display: block; text-decoration: none; }
   .app-frame.sidebar-collapsed .side-foot .side-link,
   .app-frame.sidebar-collapsed .side-user-meta,
   .app-frame.sidebar-collapsed .side-signout,
-  .app-frame.sidebar-collapsed .side-team,
-  .app-frame.sidebar-collapsed .side-zero { display: none; }
+  .app-frame.sidebar-collapsed .side-team { display: none; }
   .app-frame.sidebar-collapsed .side-user { padding: 4px 0; }
 
   /* Menús (switcher / new): flyout a la derecha del rail, no confinados a 64px */
@@ -1093,4 +1047,289 @@ a.side-signout { display: block; text-decoration: none; }
 
 .side-bell-footer button:hover {
   border-color: var(--ink);
+}
+
+/* ============================================================
+   UI POLISH — sistema compacto para la app (oct 2026)
+   Va al final: pisa los tamaños de sitio (.btn 15px 30px) y unifica
+   selects, filtros y badges en todos los productos.
+   ============================================================ */
+
+/* Botones de app: más chicos que los del sitio. */
+.app-content .btn { padding: 10px 18px; font-size: 12px; }
+.app-content .btn-small { padding: 7px 13px; font-size: 11px; }
+.app-content .btn-solid:disabled { background: var(--ink); color: var(--bg); opacity: 0.25; }
+
+/* Inputs de app: un poco más compactos. */
+.app-content .input,
+.app-content .select,
+.app-content .textarea { padding: 9px 12px; font-size: 13px; }
+
+/* Todos los <select> de la app con el mismo chevron. */
+.app-content select:not([multiple]) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%239a9a9a' stroke-width='1.4' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+/* Filtros: borde suave; con valor elegido, borde negro. */
+.filter-select,
+.filter-select.filter-btn {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background-color: var(--bg);
+  font-weight: 400;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  height: 34px;
+}
+.filter-select.on { border-color: var(--ink); }
+.filter-date { border-color: var(--line); height: 34px; }
+
+/* Badge editable inline (lifecycle/lead status en tablas): .cell-inline le
+   sacaba el padding y el borde, y el texto quedaba cortado. */
+.cell-inline.badge {
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  line-height: 1.4;
+  overflow: visible;
+}
+
+/* Vistas guardadas como pestañas. */
+.views-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+.view-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--dim);
+  border-radius: 7px;
+  padding: 0;
+}
+.view-tab > button,
+button.view-tab {
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 7px;
+}
+.view-tab:hover { color: var(--ink); background: #f5f5f5; }
+.view-tab.active { color: var(--ink); background: #efefef; }
+.view-tab-del { padding: 6px 8px 6px 0 !important; font-size: 10px !important; opacity: 0; }
+.view-tab:hover .view-tab-del { opacity: 0.6; }
+.view-tab-add { color: var(--dim); }
+.views-tabs .view-save { display: inline-flex; gap: 6px; }
+.views-tabs .view-save .input { width: 180px; padding: 6px 10px; font-size: 12px; }
+
+/* Toolbar de filtros en una sola fila. */
+.filter-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filter-toolbar .filter-search { flex: 0 1 280px; }
+.filter-toolbar .filter-search .input { height: 34px; padding: 6px 12px; max-width: none; }
+.filter-toolbar .filter-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.filter-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+  cursor: pointer;
+}
+.filter-more:hover, .filter-more.open { color: var(--ink); border-color: var(--ink); }
+.filter-more.on { color: var(--ink); border-style: solid; border-color: var(--ink); }
+.filter-count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 10px;
+  line-height: 18px;
+  text-align: center;
+}
+.filter-clear {
+  background: none;
+  border: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.filter-clear:hover { color: var(--ink); }
+
+.filter-more-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fcfcfc;
+}
+.filter-field { display: flex; flex-direction: column; gap: 6px; }
+.filter-field .label { margin: 0; font-size: 10px; }
+.filter-advanced { flex-basis: 100%; }
+
+@media (max-width: 720px) {
+  .filter-toolbar .filter-search { flex-basis: 100%; }
+  .filter-toolbar .filter-right { margin-left: 0; }
+}
+
+/* Encabezados usados por algunas páginas (workflows). */
+.page-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.page-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+/* Celda de acciones: era display:flex en un <td> y cortaba los bordes de la fila. */
+td.cell-actions { display: table-cell; text-align: right; white-space: nowrap; }
+td.cell-actions > * + * { margin-left: 4px; }
+.crm-table td { vertical-align: middle; }
+.crm-table .cell-name { font-weight: 500; }
+.crm-table th { white-space: nowrap; }
+
+/* Toolbar de la tabla (columnas, acciones masivas) pegada a la tabla. */
+.table-toolbar { justify-content: flex-end; margin-bottom: 8px; min-height: 30px; }
+
+/* Pestañas de vistas: siempre en mono, aunque sean <button>. */
+.view-tab, .view-tab > button, button.view-tab { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; }
+.app-page > .table-toolbar { margin-bottom: -18px; }
+
+/* Funnel: columnas fijas para que todas las barras arranquen y terminen igual. */
+@media (min-width: 721px) {
+  .breakdown-row.funnel-row { grid-template-columns: minmax(90px, 140px) 1fr 130px; }
+  .breakdown-row.funnel-row > :last-child { text-align: right; }
+}
+
+/* ---------- Board de deals: tarjetas más limpias ---------- */
+.kb-card { position: relative; gap: 6px; }
+.kb-card-amount { font-family: var(--mono); font-size: 14px; font-weight: 500; }
+.kb-card-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  min-height: 0;
+}
+.kb-card-foot:empty { display: none; }
+.kb-card-foot .badge { padding: 2px 8px; font-size: 9px; }
+.kb-card-date::before { content: '◷ '; }
+.kb-card-rotting { color: #a35a00; }
+/* "Mover a…" solo aparece al pasar el mouse (en touch queda visible). */
+.kb-card .kb-move {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  min-width: 0;
+  color: transparent;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.kb-card:hover .kb-move, .kb-card .kb-move:focus { opacity: 1; }
+@media (hover: none) { .kb-card .kb-move { opacity: 1; } }
+.kb-card .kb-move option { color: var(--ink); }
+.kb-card-name { padding-right: 34px; }
+
+/* Registros asociados (columna derecha del detalle): filas, no pastillas que
+   se desbordan de la tarjeta con emails largos. */
+.association-panel .chip-list { flex-direction: column; width: 100%; gap: 6px; }
+.association-panel .chip-contact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  width: 100%;
+  border-radius: 8px;
+  padding: 8px 6px 8px 12px;
+}
+.association-panel .chip-contact > a,
+.association-panel .chip-contact > span:first-child { grid-column: 1; font-weight: 500; overflow-wrap: anywhere; }
+.association-panel .chip-meta {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 2px 0 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.association-panel .chip-contact > a + .chip-meta::before { content: none; }
+.association-panel .chip-remove { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.association-panel .filter-select { max-width: none; }
+
+/* Etapa del deal: barra de progreso + Ganado / Perdido. */
+.stage-stepper { display: flex; gap: 3px; width: 100%; }
+.stage-step {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: none;
+  background: #f1f1f1;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.stage-step span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stage-step:first-child { border-radius: 8px 0 0 8px; }
+.stage-step:last-child { border-radius: 0 8px 8px 0; }
+.stage-step:hover:not(:disabled) { background: #e4e4e4; color: var(--ink); }
+.stage-step.done { background: #d9d9d9; color: var(--ink); }
+.stage-step.current { background: var(--ink); color: var(--bg); }
+.stage-close { display: flex; gap: 8px; margin-top: 12px; }
+.deal-stage { display: flex; flex-direction: column; gap: 4px; }
+
+/* Mobile: las pestañas del inbox de Chat scrollean dentro de su caja. */
+.chat-inbox-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.chat-inbox-tabs::-webkit-scrollbar { display: none; }
+.chat-inbox-tab { flex-shrink: 0; }
+/* Tablas de reportes: scroll propio en pantallas chicas. */
+.panel:has(> .owner-table), .panel:has(> .table) { overflow-x: auto; }
+/* Hijos de grids/flex: que puedan achicarse (si no, una tabla ancha estira la página). */
+.app-page > *, .reports > *, .report-grid > *, .overview-grid > * { min-width: 0; }
+.panel:has(> .table) { max-width: 100%; }
+
+@media (max-width: 720px) {
+  .breakdown-row { grid-template-columns: minmax(70px, 110px) 1fr auto; }
+  table.keys-table, .owner-table { display: block; overflow-x: auto; max-width: 100%; }
 }

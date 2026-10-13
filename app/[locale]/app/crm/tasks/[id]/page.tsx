@@ -1,3 +1,4 @@
+import { getUserTimeZone } from '@/lib/user-tz';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
@@ -26,11 +27,11 @@ interface TaskDetailPageProps {
   params: Promise<{ locale: string; id: string }>;
 }
 
-function formatDateTime(iso: string, locale: string): string {
+function formatDateTime(iso: string, locale: string, timeZone: string): string {
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
-    timeZone: 'UTC',
+    timeZone,
   }).format(new Date(`${iso.replace(' ', 'T')}Z`));
 }
 
@@ -49,6 +50,8 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+
+  const timeZone = await getUserTimeZone();
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   const task = await getActivity(user.id, id);
@@ -139,7 +142,7 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
           )}
           {task.due_at && (
             <span className="detail-meta-item muted">
-              {t('tasks.dueLabel')}: {formatDateTime(task.due_at, locale)}
+              {t('tasks.dueLabel')}: {formatDateTime(task.due_at, locale, timeZone)}
             </span>
           )}
         </div>
@@ -171,11 +174,11 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
             <div className="prop-table">
               <div className="prop-row">
                 <dt className="prop-label">{t('tasks.detail.created')}</dt>
-                <dd className="prop-value">{formatDateTime(task.created_at, locale)}</dd>
+                <dd className="prop-value">{formatDateTime(task.created_at, locale, timeZone)}</dd>
               </div>
               <div className="prop-row">
                 <dt className="prop-label">{t('tasks.detail.updated')}</dt>
-                <dd className="prop-value">{formatDateTime(task.updated_at, locale)}</dd>
+                <dd className="prop-value">{formatDateTime(task.updated_at, locale, timeZone)}</dd>
               </div>
             </div>
           </section>

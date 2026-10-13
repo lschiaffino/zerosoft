@@ -59,7 +59,9 @@
     "pinned": "Fijado",
     "nextTask": "Próxima tarea",
     "clear": "Limpiar filtros",
-    "adminOnly": "Solo los admins del workspace pueden cambiar esto."
+    "adminOnly": "Solo los admins del workspace pueden cambiar esto.",
+    "moreFilters": "Más filtros",
+    "sortBy": "Ordenar por"
   },
   "assoc": {
     "associate": "Asociar",

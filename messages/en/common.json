@@ -15,7 +15,7 @@
   "sidebar": {
     "search": "Search",
     "new": "New",
-    "backToSite": "← Back to site",
+    "backToSite": "Back to site",
     "docs": "Docs",
     "soon": "soon",
     "signOut": "Sign out",
@@ -72,21 +72,65 @@
     "label": "0.02 — The arsenal",
     "title": "All the software you use.",
     "titleDim": "The core, free forever.",
-    "track": { "tag": "Project management", "desc": "The speed of Linear. The price of air.", "status": "Available" },
-    "crm": { "tag": "Customers & sales", "desc": "Your full pipeline, end to end. Open source, no licenses.", "status": "Available" },
-    "cal": { "tag": "Scheduling", "desc": "Your availability, one link, done. Without paying for the privilege.", "status": "Available" },
-    "link": { "tag": "Short links", "desc": "Short links with real analytics. Yours forever.", "status": "Available" },
-    "chat": { "tag": "Customer chat", "desc": "One inbox for every conversation. Widgets, people and channels.", "status": "Available" },
-    "docs": { "tag": "Docs & wiki", "desc": "Notes and documents that are yours. Exportable, always.", "status": "Available" },
-    "more": { "title": "Everything else", "tag": "What's next", "desc": "Design. Forms. Analytics. If the world uses it, we will set it free. This is just the beginning.", "status": "Always" }
+    "track": {
+      "tag": "Project management",
+      "desc": "The speed of Linear. The price of air.",
+      "status": "Available"
+    },
+    "crm": {
+      "tag": "Customers & sales",
+      "desc": "Your full pipeline, end to end. Open source, no licenses.",
+      "status": "Available"
+    },
+    "cal": {
+      "tag": "Scheduling",
+      "desc": "Your availability, one link, done. Without paying for the privilege.",
+      "status": "Available"
+    },
+    "link": {
+      "tag": "Short links",
+      "desc": "Short links with real analytics. Yours forever.",
+      "status": "Available"
+    },
+    "chat": {
+      "tag": "Customer chat",
+      "desc": "One inbox for every conversation. Widgets, people and channels.",
+      "status": "Available"
+    },
+    "docs": {
+      "tag": "Docs & wiki",
+      "desc": "Notes and documents that are yours. Exportable, always.",
+      "status": "Available"
+    },
+    "more": {
+      "title": "Everything else",
+      "tag": "What's next",
+      "desc": "Design. Forms. Analytics. If the world uses it, we will set it free. This is just the beginning.",
+      "status": "Always"
+    }
   },
   "model": {
     "label": "0.03 — The model",
     "title": "Three ways to have it.",
     "titleDim": "The core is free in all of them.",
-    "a": { "title": "Self-host it", "desc": "The core is open source under AGPLv3, with every core feature included. Run it on your server, modify it, break it, make it yours. No trial, no license key, no limits.", "price": "$0", "priceNote": "/ forever" },
-    "b": { "title": "Zerosoft Cloud", "desc": "We run it for you: login, backups, updates and uptime. Start on a generous free plan and, as you scale, pay for usage — clicks, bookings, emails, storage, seats. Transparent prices, published before we ever charge you.", "price": "Free", "priceNote": "/ to start · usage pricing, soon" },
-    "c": { "title": "Enterprise", "desc": "SSO/SAML, audit logs, custom roles and white-label, under a commercial license. With direct support from the team, on your servers or in our cloud.", "price": "Let's talk", "priceNote": "/ commercial license + support" }
+    "a": {
+      "title": "Self-host it",
+      "desc": "The core is open source under AGPLv3, with every core feature included. Run it on your server, modify it, break it, make it yours. No trial, no license key, no limits.",
+      "price": "$0",
+      "priceNote": "/ forever"
+    },
+    "b": {
+      "title": "Zerosoft Cloud",
+      "desc": "We run it for you: login, backups, updates and uptime. Start on a generous free plan and, as you scale, pay for usage — clicks, bookings, emails, storage, seats. Transparent prices, published before we ever charge you.",
+      "price": "Free",
+      "priceNote": "/ to start · usage pricing, soon"
+    },
+    "c": {
+      "title": "Enterprise",
+      "desc": "A commercial license with direct support from the team, on your servers or in our cloud. Enterprise extras (SSO/SAML, audit logs, custom roles, white-label) are in development.",
+      "price": "Let's talk",
+      "priceNote": "/ commercial license + support"
+    }
   },
   "end": {
     "label": "0.04 — Join us",
@@ -122,5 +166,10 @@
     "terms": "Terms",
     "privacy": "Privacy",
     "security": "Security"
+  },
+  "showcase": {
+    "label": "A look inside",
+    "title": "Six tools, one look.",
+    "titleDim": "Pick one and look around."
   }
 }

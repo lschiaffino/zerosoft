@@ -203,3 +203,17 @@ describe('CRM: workflows', () => {
     expect(output.results[0].error).not.toBe('missing_recipient');
   });
 });
+
+describe('Zona horaria del usuario', () => {
+  it('"hoy" en Buenos Aires es 03:00Z → 02:59:59Z del día siguiente', async () => {
+    const { dayRangeUtc } = await import('@/lib/user-tz');
+    // 23:30 del 12/10 en Buenos Aires = 02:30Z del 13/10.
+    const at = new Date('2026-10-13T02:30:00Z');
+    expect(dayRangeUtc('America/Argentina/Buenos_Aires', at)).toEqual({
+      start: '2026-10-12 03:00:00',
+      end: '2026-10-13 02:59:59',
+    });
+    expect(dayRangeUtc('UTC', at)).toEqual({ start: '2026-10-13 00:00:00', end: '2026-10-13 23:59:59' });
+    expect(dayRangeUtc('Asia/Tokyo', at).start).toBe('2026-10-12 15:00:00');
+  });
+});

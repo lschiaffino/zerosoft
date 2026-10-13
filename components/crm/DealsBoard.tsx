@@ -334,6 +334,7 @@ export default function DealsBoard({ pipelineId, stages, locale, priorities, sou
                   <article
                     key={deal.id}
                     className={`kb-card${closed ? ' closed' : ''}`}
+                    title={!closed && typeof deal.age_days === 'number' ? t('deals.ageDays', { days: deal.age_days }) : undefined}
                     data-deal-id={deal.id}
                     onPointerDown={(e) => handlePointerDown(e, deal, col.stage.id)}
                     onPointerMove={handlePointerMove}
@@ -358,24 +359,18 @@ export default function DealsBoard({ pipelineId, stages, locale, priorities, sou
                     {(deal.company_name || deal.contact_name) && (
                       <span className="kb-card-meta">{deal.company_name ?? deal.contact_name}</span>
                     )}
-                    <div className="kb-card-badges">
-                      {deal.priority && (
-                        <span className={`badge prio-${deal.priority}`}>
-                          {priorityLabel.get(deal.priority) ?? deal.priority}
-                        </span>
+                    <div className="kb-card-foot">
+                      {deal.priority === 'high' && (
+                        <span className="badge prio-high">{priorityLabel.get(deal.priority) ?? deal.priority}</span>
                       )}
-                      {deal.close_date && <span className="badge">{fmtClose(deal.close_date)}</span>}
-                      {!closed && typeof deal.age_days === 'number' && (
-                        <span className="badge" title={t('deals.ageDays', { days: deal.age_days })}>
-                          {deal.age_days}d
+                      {deal.close_date && (
+                        <span className="kb-card-date" title={t('deals.table.closeDate')}>
+                          {fmtClose(deal.close_date)}
                         </span>
                       )}
                       {!closed && (deal.idle_days ?? 0) > 14 && (
-                        <span
-                          className="badge badge-rotting"
-                          title={t('deals.rotting', { days: deal.idle_days ?? 0 })}
-                        >
-                          ⚠ {deal.idle_days}d
+                        <span className="kb-card-rotting" title={t('deals.rotting', { days: deal.idle_days ?? 0 })}>
+                          {t('deals.rotting', { days: deal.idle_days ?? 0 })}
                         </span>
                       )}
                     </div>

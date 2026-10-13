@@ -80,23 +80,52 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
     void move(pending.id, label);
   }
 
+  const openStages = stages.filter((s) => !s.is_won && !s.is_lost);
+  const wonStage = stages.find((s) => s.is_won);
+  const lostStage = stages.find((s) => s.is_lost);
+  const currentIdx = openStages.findIndex((s) => s.id === currentStageId);
+  const closedWon = wonStage?.id === currentStageId;
+  const closedLost = lostStage?.id === currentStageId;
+
   return (
     <div className="deal-stage">
-      <select
-        className="select"
-        value={pending?.id ?? currentStageId}
-        disabled={busy}
-        aria-label={t('deals.form.stage')}
-        onChange={(e) => onSelect(e.target.value)}
-      >
-        {stages.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-            {s.is_won ? ` · ${t('deals.won')}` : s.is_lost ? ` · ${t('deals.lost')}` : ''}
-          </option>
+      <div className="stage-stepper" role="group" aria-label={t('deals.form.stage')}>
+        {openStages.map((s, i) => (
+          <button
+            key={s.id}
+            type="button"
+            className={`stage-step${closedWon || i <= currentIdx ? ' done' : ''}${s.id === currentStageId ? ' current' : ''}`}
+            aria-pressed={s.id === currentStageId}
+            disabled={busy}
+            onClick={() => onSelect(s.id)}
+            title={s.name}
+          >
+            <span>{s.name}</span>
+          </button>
         ))}
-      </select>
-
+      </div>
+      <div className="stage-close">
+        {wonStage && (
+          <button
+            type="button"
+            className={`btn btn-small ${closedWon ? 'btn-solid' : 'btn-ghost'}`}
+            disabled={busy || closedWon}
+            onClick={() => onSelect(wonStage.id)}
+          >
+            ✓ {t('deals.won')}
+          </button>
+        )}
+        {lostStage && (
+          <button
+            type="button"
+            className={`btn btn-small ${closedLost ? 'btn-solid' : 'btn-ghost'} btn-danger`}
+            disabled={busy || closedLost}
+            onClick={() => onSelect(lostStage.id)}
+          >
+            ✕ {t('deals.lost')}
+          </button>
+        )}
+      </div>
       {pending?.is_lost ? (
         <div className="stage-confirm">
           <p className="muted">{t('deals.lostDialog.sub')}</p>

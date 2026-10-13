@@ -604,7 +604,7 @@
       },
       "c": {
         "title": "Enterprise",
-        "desc": "SSO/SAML, audit logs, papéis personalizados e white-label, sob licença comercial. Com suporte direto do time, nos seus servidores ou na nossa nuvem.",
+        "desc": "Licença comercial com suporte direto do time, nos seus servidores ou na nossa nuvem. Os extras enterprise (SSO/SAML, audit logs, papéis personalizados, white-label) estão em desenvolvimento.",
         "price": "Fale conosco",
         "priceNote": "/ licença comercial + suporte"
       }

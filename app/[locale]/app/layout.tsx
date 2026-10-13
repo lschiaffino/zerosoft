@@ -4,8 +4,8 @@ import { DEMO_MODE, requireUser } from '@/lib/session';
 import { countDueTasks } from '@/lib/crm';
 import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
-import AppFooter from '@/components/app/AppFooter';
 import CommandSearch from '@/components/app/CommandSearch';
+import TimezoneCookie from '@/components/app/TimezoneCookie';
 import '@/styles/link.css';
 import '@/styles/crm.css';
 import '@/styles/docs.css';
@@ -130,11 +130,43 @@ export default async function AppLayout(
         }}
       />
       <div className="app-main-scroll">
-        <AppTopbar searchLabel={tSide('search')} />
+        <AppTopbar
+          sections={[
+            { href: '/app', label: tLink('tabs.overview') },
+            { href: '/app/links', label: tLink('tabs.links') },
+            { href: '/app/links/new', label: tLink('tabs.new') },
+            { href: '/app/links/bio', label: tLink('tabs.bio') },
+            { href: '/app/settings', label: tLink('tabs.settings') },
+            { href: '/app/crm', label: tCrm('tabs.overview') },
+            { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
+            { href: '/app/crm/companies', label: tCrm('tabs.companies') },
+            { href: '/app/crm/deals', label: tCrm('tabs.deals') },
+            { href: '/app/crm/lists', label: tCrm('tabs.lists') },
+            { href: '/app/crm/tasks', label: tCrm('tabs.tasks') },
+            { href: '/app/crm/dashboards', label: tCrm('tabs.dashboards') },
+            { href: '/app/crm/reports', label: tCrm('tabs.reports') },
+            { href: '/app/crm/workflows', label: tCrm('tabs.workflows') },
+            { href: '/app/crm/settings', label: tCrm('tabs.settings') },
+            { href: '/app/docs', label: tDocs('sidebar.overview') },
+            { href: '/app/calendar', label: tCalendar('sidebar.overview') },
+            { href: '/app/calendar/event-types', label: tCalendar('sidebar.eventTypes') },
+            { href: '/app/calendar/routing', label: tCalendar('sidebar.routing') },
+            { href: '/app/calendar/bookings', label: tCalendar('sidebar.bookings') },
+            { href: '/app/calendar/settings', label: tCalendar('sidebar.settings') },
+            { href: '/app/track', label: tTrack('sidebar.overview') },
+            { href: '/app/track/projects', label: tTrack('sidebar.projects') },
+            { href: '/app/track/issues', label: tTrack('sidebar.issues') },
+            { href: '/app/track/inbox', label: tTrack('sidebar.inbox') },
+            { href: '/app/chat', label: tChat('sidebar.overview') },
+            { href: '/app/chat/inbox', label: tChat('sidebar.inbox') },
+            { href: '/app/chat/people', label: tChat('sidebar.people') },
+            { href: '/app/chat/settings', label: tChat('sidebar.settings') },
+          ]}
+        />
         <main className="app-content">{children}</main>
-        <AppFooter backToSite={tSide('backToSite')} />
       </div>
       <CommandSearch />
+      <TimezoneCookie />
     </div>
   );
 }

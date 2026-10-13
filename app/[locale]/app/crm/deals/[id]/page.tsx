@@ -98,13 +98,24 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   });
   const fields: PropField[] = [
     { key: 'name', label: t('deals.form.name'), type: 'text', value: deal.name },
-    { key: 'amount', label: t('deals.form.amount'), type: 'number', value: String(deal.amount) },
+    {
+      key: 'amount',
+      label: t('deals.form.amount'),
+      type: 'number',
+      value: String(deal.amount),
+      display: fmtAmount(deal.amount, deal.currency),
+    },
     { key: 'currency', label: t('deals.form.currency'), type: 'text', value: deal.currency },
     {
       key: 'closeDate',
       label: t('deals.form.closeDate'),
       type: 'date',
       value: deal.close_date ?? '',
+      display: deal.close_date
+        ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(
+            new Date(`${deal.close_date.slice(0, 10)}T00:00:00Z`),
+          )
+        : undefined,
       nullOption: true,
     },
     {

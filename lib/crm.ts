@@ -4,6 +4,7 @@
  * paginación con clamp, ids crypto.randomUUID(), timestamps UTC.
  */
 import { assertRefs, CrmRefError, ownedContactIds } from './crm-refs';
+import { dayRangeUtc, getUserTimeZone } from './user-tz';
 import {
   ensureMigrated,
   getClient,
@@ -64,11 +65,9 @@ function now(): string {
 }
 
 /** Inicio y fin del día de hoy (UTC) en formato de la DB. */
-function todayRange(): { start: string; end: string } {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const day = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-  return { start: `${day} 00:00:00`, end: `${day} 23:59:59` };
+/** "Hoy" en la zona horaria de quien mira (cookie tz), como rango UTC de la DB. */
+async function todayRange(): Promise<{ start: string; end: string }> {
+  return dayRangeUtc(await getUserTimeZone());
 }
 
 function escapeLike(s: string): string {
@@ -2108,7 +2107,7 @@ export interface ListTasksFilter {
 
 export async function listTasks(userId: string, filter: TaskBucket | ListTasksFilter): Promise<ActivityListRow[]> {
   const db = getDb();
-  const { start, end } = todayRange();
+  const { start, end } = await todayRange();
   const f: ListTasksFilter = typeof filter === 'string' ? { bucket: filter } : filter;
   let cond: string;
   const args: Array<string | number> = [userId];
@@ -2169,7 +2168,7 @@ export async function searchTasks(userId: string, q: string): Promise<ActivityLi
 
 /** Tareas abiertas vencidas o que vencen hoy (badge de la sidebar). */
 export async function countDueTasks(userId: string): Promise<number> {
-  const { end } = todayRange();
+  const { end } = await todayRange();
   const row = (await getDb()
     .prepare(
       `SELECT COUNT(*) AS c FROM crm_activities
@@ -2849,7 +2848,7 @@ export async function wonLostByMonth(userId: string): Promise<WonLostMonth[]> {
 
 export async function getCrmOverview(userId: string): Promise<CrmOverview> {
   const db = getDb();
-  const { start, end } = todayRange();
+  const { start, end } = await todayRange();
   const month = start.slice(0, 7);
 
   const totalContacts = (
@@ -2900,11 +2899,11 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
   const upcomingTasks = (await db
     .prepare(
       `${ACTIVITY_SELECT}
-       WHERE a.user_id = ? AND a.type = 'task' AND a.done = 0
+       WHERE a.user_id = ? AND a.type = 'task' AND a.done = 0 AND (a.due_at IS NULL OR a.due_at >= ?)
        ORDER BY a.due_at IS NULL, a.due_at ASC, a.created_at DESC
        LIMIT 6`,
     )
-    .all(userId)) as ActivityListRow[];
+    .all(userId, start)) as ActivityListRow[];
 
   const closingThisMonth = (await db
     .prepare(
