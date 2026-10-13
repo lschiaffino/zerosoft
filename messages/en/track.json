@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "overview": "Overview",
+    "myTasks": "My tasks",
     "projects": "Projects",
     "issues": "Issues",
     "cycles": "Cycles",
@@ -244,5 +245,42 @@
     "missing_title": "Title is required.",
     "invalid_input": "Some fields are invalid. Check them and try again.",
     "generic": "Something went wrong. Try again."
+  },
+  "quick": {
+    "newTask": "New task",
+    "placeholder": "Task title, Enter to save, Esc to cancel",
+    "hint": "!high @tomorrow",
+    "project": "Project",
+    "modalTitle": "New issue",
+    "titlePlaceholder": "Issue title",
+    "descriptionPlaceholder": "Add a description…",
+    "create": "Create issue",
+    "createMore": "Create more",
+    "submitHint": "Enter or ⌘↵ to create",
+    "shortcutHint": "Press C to create an issue"
+  },
+  "inline": {
+    "markDone": "Mark as done",
+    "markOpen": "Mark as not done",
+    "noDoneStatus": "This project has no “Done” status.",
+    "saveError": "Couldn’t save the change. It was reverted.",
+    "createError": "Couldn’t create the task. Try again.",
+    "noDate": "No date",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "nextWeek": "Next week",
+    "clear": "Remove date",
+    "pickDate": "Pick a date",
+    "dragHint": "Drag to another column to change status",
+    "dismiss": "Dismiss"
+  },
+  "myTasks": {
+    "title": "My tasks",
+    "subtitle": "Everything assigned to you, across projects.",
+    "overdue": "Overdue",
+    "today": "Today",
+    "upcoming": "Upcoming",
+    "noDate": "No date",
+    "empty": "Nothing assigned to you. Enjoy the calm."
   }
 }

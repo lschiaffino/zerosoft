@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
 import { getProject, canAccessTrackProject } from '@/lib/track-data';
 import ProjectPageClient from '@/components/track/ProjectPageClient';
+import { buildTrackUiLabels } from '@/components/track/ui-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,6 +103,7 @@ export default async function ProjectPage(
           { value: 'medium', label: t('priorities.medium') },
           { value: 'low', label: t('priorities.low') },
         ],
+        ui: buildTrackUiLabels(t),
       }}
     />
   );

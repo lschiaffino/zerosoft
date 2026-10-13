@@ -21,6 +21,7 @@ const SCREENS = [
   '/en/app/crm/settings',
   '/en/app/track',
   '/en/app/track/issues',
+  '/en/app/track/my-tasks',
   '/en/app/calendar',
   '/en/app/calendar/settings',
   '/en/app/calendar/event-types',

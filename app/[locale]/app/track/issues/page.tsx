@@ -1,7 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { listAllIssues } from '@/lib/track-data';
-import IssuesTable from '@/components/track/IssuesTable';
+import { listAllIssues, listProjectMetas } from '@/lib/track-data';
+import CrossProjectIssues from '@/components/track/CrossProjectIssues';
+import { buildTrackUiLabels } from '@/components/track/ui-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,19 +19,21 @@ export default async function IssuesPage(
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
-  const { rows: issues } = await listAllIssues(user.team?.id ?? null, user.id, { pageSize: 50 });
+  const teamId = user.team?.id ?? null;
+  const [{ rows: issues }, projects] = await Promise.all([
+    listAllIssues(teamId, user.id, { pageSize: 50 }),
+    listProjectMetas(teamId, user.id),
+  ]);
 
   return (
     <div className="app-page track-page">
-      <div className="track-page-header">
-        <div>
-          <h1>{t('issues.pageTitle')}</h1>
-        </div>
-      </div>
-
-      <IssuesTable
-        issues={issues}
+      <CrossProjectIssues
+        initialIssues={issues}
+        projects={projects}
         locale={locale}
+        title={t('issues.pageTitle')}
+        newIssueLabel={t('project.newIssue')}
+        ui={buildTrackUiLabels(t)}
         labels={{
           identifier: t('issues.identifier'),
           title: t('issues.title'),
@@ -44,6 +47,7 @@ export default async function IssuesPage(
           noAssignee: t('issues.noAssignee'),
           empty: t('issues.empty'),
           hasSubtasks: t('subtasks.hasSubtasks'),
+          project: t('quick.project'),
         }}
       />
     </div>

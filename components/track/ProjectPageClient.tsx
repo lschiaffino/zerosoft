@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useRouter } from '@/i18n/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import type { TrackCycleRow, TrackProjectRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
@@ -16,6 +16,11 @@ import IssuesTable from './IssuesTable';
 import IssuesBoard from './IssuesBoard';
 import IssuesCalendar from './IssuesCalendar';
 import IssuesGantt from './IssuesGantt';
+import QuickIssueModal from './QuickIssueModal';
+import { TrackToast, useToday } from './InlineEditors';
+import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } from './useIssueStore';
+import { parseQuickTitle } from '@/lib/track-tasks';
+import type { TrackUiLabels } from './ui-labels';
 
 interface ProjectPageClientProps {
   locale: string;
@@ -92,6 +97,7 @@ export interface PageLabels {
     updateError: string;
   };
   priorities: Array<{ value: string; label: string }>;
+  ui: TrackUiLabels;
 }
 
 const SORTS = ['newest', 'oldest', 'priority', 'identifier'] as const;
@@ -153,13 +159,16 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
 export default function ProjectPageClient({ locale, projectId, userId, labels }: ProjectPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // La URL se sincroniza con router.replace en cada cambio de vista/filtros;
+  // la carga inicial solo mira los params con los que se abrió la página
+  // (si dependiera de searchParams recargaría todo, pisando ediciones).
+  const initialParams = useRef(searchParams);
 
   const [project, setProject] = useState<TrackProjectRow | null>(null);
   const [statuses, setStatuses] = useState<TrackStatusRow[]>([]);
   const [cycles, setCycles] = useState<TrackCycleRow[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [views, setViews] = useState<TrackIssueView[]>([]);
-  const [issues, setIssues] = useState<TrackIssueWithStatus[]>([]);
   const [issuesTotal, setIssuesTotal] = useState(0);
   const [issuesPage, setIssuesPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -170,6 +179,22 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
   const [sort, setSort] = useState<SortValue>(() => (searchParams.get('sort') as SortValue) ?? 'newest');
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [activeViewId, setActiveViewId] = useState<string | undefined>();
+  const [modalOpen, setModalOpen] = useState(false);
+  const today = useToday();
+
+  const projectMap = useMemo<ProjectMap>(
+    () =>
+      project
+        ? { [project.id]: { id: project.id, name: project.name, icon: project.icon, statuses, members } }
+        : {},
+    [project, statuses, members],
+  );
+  const store = useIssueStore([], projectMap, {
+    saveError: labels.ui.inline.saveError,
+    createError: labels.ui.inline.createError,
+    noDoneStatus: labels.ui.inline.noDoneStatus,
+  });
+  const { issues, setIssues } = store;
 
   const issueLabels = useMemo(() => {
     const map = new Map<string, IssueLabel>();
@@ -189,7 +214,7 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
       setIssuesTotal(data.total);
       setIssuesPage(page);
     },
-    [projectId, filters, sort],
+    [projectId, filters, sort, setIssues],
   );
 
   const handleLoadMore = async () => {
@@ -228,12 +253,12 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
 
         // Apply default view if present and no URL state
         const hasUrlState =
-          searchParams.toString().length > 0 &&
-          (searchParams.get('view') ||
-            searchParams.get('sort') ||
-            searchParams.get('statusId') ||
-            searchParams.get('priority') ||
-            searchParams.get('q'));
+          initialParams.current.toString().length > 0 &&
+          (initialParams.current.get('view') ||
+            initialParams.current.get('sort') ||
+            initialParams.current.get('statusId') ||
+            initialParams.current.get('priority') ||
+            initialParams.current.get('q'));
         if (!hasUrlState) {
           const def = v.find((x) => x.is_default);
           if (def) {
@@ -251,7 +276,7 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
     return () => {
       mounted = false;
     };
-  }, [projectId, searchParams]);
+  }, [projectId, setIssues]);
 
   useEffect(() => {
     if (loading) return;
@@ -319,25 +344,29 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
     if (activeViewId === id) setActiveViewId(undefined);
   };
 
-  const handleStatusChange = async (issueId: string, statusId: string) => {
-    await api(`/api/track/issues/${issueId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ statusId }),
+  const handleStatusChange = (issueId: string, statusId: string) => {
+    void store.update(issueId, { statusId });
+  };
+
+  const createIssue = (draft: IssueDraft) => {
+    void store.create(projectId, draft).then((created) => {
+      if (created) setIssuesTotal((n) => n + 1);
     });
-    setIssues((prev) =>
-      prev.map((i) => {
-        if (i.id !== issueId) return i;
-        const status = statuses.find((s) => s.id === statusId);
-        return {
-          ...i,
-          status_id: statusId,
-          status_name: status?.name ?? null,
-          status_color: status?.color ?? null,
-          status_category: status?.category ?? null,
-        };
-      }),
-    );
+  };
+
+  const quickCreate = (raw: string, extra: Partial<IssueDraft> = {}) => {
+    const parsed = parseQuickTitle(raw, today);
+    if (!parsed.title) return;
+    createIssue({ ...extra, title: parsed.title, priority: parsed.priority, dueDate: parsed.dueDate ?? extra.dueDate });
+  };
+
+  useCreateShortcut(() => setModalOpen(true), !loading && !modalOpen && !saveDialogOpen);
+
+  const editing = {
+    onUpdate: (issueId: string, patch: Parameters<typeof store.update>[1]) => void store.update(issueId, patch),
+    onToggleDone: (issue: TrackIssueWithStatus) => void store.toggleDone(issue),
+    ui: labels.ui,
+    today,
   };
 
   const handleDatesChange = async (issueId: string, startDate: string, dueDate: string) => {
@@ -378,9 +407,18 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
           {project.description ? <p>{project.description}</p> : null}
         </div>
         <div className="track-form-actions">
-          <Link href={`/app/track/projects/${projectId}/issues/new`} className="btn btn-solid">
+          <button
+            type="button"
+            className="btn btn-solid"
+            onClick={() => setModalOpen(true)}
+            title={labels.ui.modal.shortcutHint}
+            aria-keyshortcuts="C"
+          >
             {labels.newIssue}
-          </Link>
+            <kbd className="track-kbd" aria-hidden>
+              C
+            </kbd>
+          </button>
         </div>
       </div>
 
@@ -430,6 +468,9 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
               empty: labels.noIssues,
               noAssignee: labels.noAssignee,
             }}
+            editing={{ ...editing, projects: projectMap }}
+            quickAdd={{ onCreate: (title) => quickCreate(title) }}
+            hideColumns={cycles.length > 0 ? [] : ['cycle']}
           />
         )}
         {view === 'board' && (
@@ -439,6 +480,8 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
             locale={locale}
             onStatusChange={handleStatusChange}
             labels={{ noAssignee: labels.noAssignee, empty: labels.board.empty }}
+            editing={{ ...editing, members }}
+            onQuickCreate={(title, statusId) => quickCreate(title, { statusId })}
           />
         )}
         {view === 'calendar' && (
@@ -509,6 +552,17 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
           </ul>
         </section>
       )}
+
+      <QuickIssueModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        projects={Object.values(projectMap)}
+        onCreate={(_pid, draft) => createIssue(draft)}
+        labels={labels.ui}
+        today={today}
+      />
+
+      <TrackToast message={store.error} onDismiss={store.clearError} dismissLabel={labels.ui.inline.dismiss} />
 
       <SaveViewDialog
         open={saveDialogOpen}

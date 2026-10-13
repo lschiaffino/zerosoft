@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "overview": "Resumen",
+    "myTasks": "Mis tareas",
     "projects": "Proyectos",
     "issues": "Issues",
     "cycles": "Ciclos",
@@ -244,5 +245,42 @@
     "missing_title": "El título es obligatorio.",
     "invalid_input": "Algunos campos son inválidos. Revisalos e intentá de nuevo.",
     "generic": "Algo salió mal. Intentá de nuevo."
+  },
+  "quick": {
+    "newTask": "Nueva tarea",
+    "placeholder": "Título de la tarea, Enter para guardar, Esc para cancelar",
+    "hint": "!alta @mañana",
+    "project": "Proyecto",
+    "modalTitle": "Nuevo issue",
+    "titlePlaceholder": "Título del issue",
+    "descriptionPlaceholder": "Agregá una descripción…",
+    "create": "Crear issue",
+    "createMore": "Crear otro",
+    "submitHint": "Enter o ⌘↵ para crear",
+    "shortcutHint": "Tocá C para crear un issue"
+  },
+  "inline": {
+    "markDone": "Marcar como hecha",
+    "markOpen": "Marcar como pendiente",
+    "noDoneStatus": "Este proyecto no tiene un estado “Hecho”.",
+    "saveError": "No se pudo guardar el cambio. Se revirtió.",
+    "createError": "No se pudo crear la tarea. Probá de nuevo.",
+    "noDate": "Sin fecha",
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "nextWeek": "Próxima semana",
+    "clear": "Quitar fecha",
+    "pickDate": "Elegir fecha",
+    "dragHint": "Arrastrá a otra columna para cambiar el estado",
+    "dismiss": "Cerrar"
+  },
+  "myTasks": {
+    "title": "Mis tareas",
+    "subtitle": "Todo lo que tenés asignado, en todos los proyectos.",
+    "overdue": "Vencidas",
+    "today": "Hoy",
+    "upcoming": "Próximas",
+    "noDate": "Sin fecha",
+    "empty": "No tenés nada asignado. Disfrutá la calma."
   }
 }

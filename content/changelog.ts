@@ -26,6 +26,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-track-tasks',
+    date: '2026-10-13',
+    title: {
+      en: 'Track: add, check off and edit tasks without leaving the list',
+      es: 'Track: crear, tildar y editar tareas sin salir de la lista',
+      pt: 'Track: criar, marcar e editar tarefas sem sair da lista',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'Type a title and press Enter at the bottom of the list or any board column to add a task. Press C anywhere for a quick modal. Shortcuts like !high and @tomorrow set priority and due date.',
+        es: 'Escribí un título y apretá Enter al final de la lista o de cualquier columna del tablero para crear una tarea. Apretá C en cualquier lado para un modal rápido. Atajos como !alta y @mañana ponen prioridad y fecha.',
+        pt: 'Digite um título e aperte Enter no fim da lista ou de qualquer coluna do quadro para criar uma tarefa. Aperte C em qualquer lugar para um modal rápido. Atalhos como !alta e @amanhã definem prioridade e data.',
+      },
+      {
+        product: 'track',
+        en: 'Check tasks off from the list, change status, priority, assignee and due date in place, and drag cards between board columns. New "My tasks" view groups what is yours by overdue, today and upcoming.',
+        es: 'Tildá tareas desde la lista, cambiá estado, prioridad, responsable y fecha en el lugar, y arrastrá tarjetas entre columnas del tablero. Nueva vista "Mis tareas" con lo tuyo agrupado en vencido, hoy y próximo.',
+        pt: 'Marque tarefas pela lista, mude status, prioridade, responsável e data no lugar, e arraste cartões entre colunas do quadro. Nova visão "Minhas tarefas" com o que é seu agrupado em atrasado, hoje e próximo.',
+      },
+    ],
+  },
+  {
     id: '2026-10-13-chat-ai',
     date: '2026-10-13',
     title: {
