@@ -155,7 +155,7 @@ export default function WidgetForm({ initial, aiAvailable = false }: WidgetFormP
         .map((f) => ({ id: f.id, name: f.name.trim(), required: f.required, type: f.type })),
       botEnabled: values.botEnabled,
       botGreeting: values.botGreeting.trim() || undefined,
-      botSource: values.botSource as 'canned' | 'docs' | 'ai',
+      botSource: values.botSource as 'canned' | 'docs' | 'ai' | 'agent',
       officeHours: office.enabled
         ? { timezone: office.timezone.trim() || 'UTC', days: office.days }
         : null,
@@ -283,12 +283,15 @@ export default function WidgetForm({ initial, aiAvailable = false }: WidgetFormP
                 <option value="canned">{t('bot.sourceCanned')}</option>
                 <option value="docs">{t('bot.sourceDocs')}</option>
                 <option value="ai">{t('bot.sourceAi')}</option>
+                {initial?.bot_source === 'agent' && <option value="agent">{t('bot.sourceAgent')}</option>}
               </select>
             </label>
             {values.botSource === 'ai' && !aiAvailable && (
               <p className="muted chat-bot-hint">{t('bot.aiNotConfigured')}</p>
             )}
-            <p className="muted chat-bot-hint">{t(values.botSource === 'ai' ? 'bot.hintAi' : 'bot.hint')}</p>
+            <p className="muted chat-bot-hint">
+              {t(values.botSource === 'agent' ? 'bot.hintAgent' : values.botSource === 'ai' ? 'bot.hintAi' : 'bot.hint')}
+            </p>
           </div>
         ) : (
           <p className="muted">{t('bot.disabled')}</p>
