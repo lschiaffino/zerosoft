@@ -191,18 +191,10 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
           {labels.docs}
         </Link>
         {user ? (
-          <>
-            <Link className="nav-cta nav-cta-solid nav-cta-primary" href="/app">
-              {labels.dashboard}
-            </Link>
-            <button
-              className="nav-cta nav-cta-secondary"
-              onClick={() => signOut({ callbackUrl: '/' })}
-              title={user.email}
-            >
-              {labels.signOut}
-            </button>
-          </>
+          // Cerrar sesión vive dentro de la app (y en el menú mobile), no compite con el CTA.
+          <Link className="nav-cta nav-cta-solid nav-cta-primary" href="/app" title={user.email}>
+            {labels.dashboard}
+          </Link>
         ) : (
           <button
             className="nav-cta nav-cta-primary"

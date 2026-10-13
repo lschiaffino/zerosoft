@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/session';
 import { listTasks, listTaskProjects, type TaskBucket } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
 import { relDate } from '@/lib/utils';
+import { getUserTimeZone } from '@/lib/user-tz';
 import TasksView, { type TaskRow } from '@/components/crm/TasksView';
 import TaskProjectsManager from '@/components/crm/TaskProjectsManager';
 
@@ -40,8 +41,9 @@ export default async function TasksPage(props: TasksPageProps) {
   const projects = await listTaskProjects(user.id, true);
   const tasks = await listTasks(user.id, { bucket, ownerId, projectId });
 
+  const timeZone = await getUserTimeZone();
   const fmtDue = (iso: string): string =>
-    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(
+    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(
       new Date(`${iso.replace(' ', 'T')}Z`),
     );
 

@@ -140,6 +140,7 @@ export default async function CrmOverviewPage(
           <p className="section-label">{t('overview.wonLost')}</p>
           <WonLostChart
             data={o.wonLostByMonth}
+            locale={locale}
             wonLabel={t('overview.won')}
             lostLabel={t('overview.lost')}
           />

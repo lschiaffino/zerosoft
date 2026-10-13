@@ -459,9 +459,6 @@ export default function AppSidebar({
             {labels.signOut}
           </button>
         )}
-        <div className="side-zero" aria-hidden="true">
-          0
-        </div>
       </div>
 
       <button

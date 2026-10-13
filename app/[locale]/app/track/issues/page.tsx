@@ -24,7 +24,7 @@ export default async function IssuesPage(
     <div className="app-page track-page">
       <div className="track-page-header">
         <div>
-          <h1>{t('issues.title')}</h1>
+          <h1>{t('issues.pageTitle')}</h1>
         </div>
       </div>
 

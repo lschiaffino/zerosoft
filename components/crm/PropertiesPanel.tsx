@@ -18,6 +18,8 @@ export interface PropField {
   nullOption?: boolean;
   /** Custom field boolean: el select 'true'/'false' se guarda como boolean. */
   boolean?: boolean;
+  /** Texto a mostrar fuera de edición (ej. monto con moneda, fecha legible). */
+  display?: string;
 }
 
 export interface PropSection {
@@ -136,7 +138,7 @@ export default function PropertiesPanel({
   function FieldRow({ field }: { field: PropField }) {
     const editing = editingKey === field.key;
     const display =
-      field.type === 'select'
+      field.display ? field.display : field.type === 'select'
         ? (field.options?.find((o) => o.value === field.value)?.label ?? field.value)
         : field.value;
     return (

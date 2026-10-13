@@ -259,9 +259,9 @@ export default async function ContactsPage(props: ContactsPageProps) {
         customFields={customFields}
         views={views.map((v) => ({ id: v.id, name: v.name }))}
         activeViewId={activeView?.id ?? null}
-      />
-
-      <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+      >
+        <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+      </ContactsFilters>
 
       {tableRows.length === 0 ? (
         <div className="empty-state">

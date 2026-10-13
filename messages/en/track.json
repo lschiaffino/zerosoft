@@ -64,7 +64,7 @@
     "showing": "Showing {shown} of {total}"
   },
   "issues": {
-    "title": "Issues",
+    "pageTitle": "Issues",
     "newCta": "+ New issue",
     "newTitle": "New issue",
     "newSub": "Create an issue in this project.",

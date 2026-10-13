@@ -4,6 +4,24 @@ import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import ZeroField from '@/components/ZeroField';
 import Reveal from '@/components/Reveal';
+import BrowserFrame from '@/components/products/BrowserFrame';
+import ShowcaseTabs from '@/components/products/ShowcaseTabs';
+import LinkMockup from '@/components/products/mockups/LinkMockup';
+import TrackMockup from '@/components/products/mockups/TrackMockup';
+import CrmMockup from '@/components/products/mockups/CrmMockup';
+import CalMockup from '@/components/products/mockups/CalMockup';
+import DocsMockup from '@/components/products/mockups/DocsMockup';
+import ChatMockup from '@/components/products/mockups/ChatMockup';
+import '@/styles/pages.css';
+
+const SHOWCASE = [
+  { key: 'crm', name: 'CRM', path: 'crm', Mockup: CrmMockup },
+  { key: 'link', name: 'Link', path: 'links', Mockup: LinkMockup },
+  { key: 'cal', name: 'Cal', path: 'calendar', Mockup: CalMockup },
+  { key: 'track', name: 'Track', path: 'track', Mockup: TrackMockup },
+  { key: 'chat', name: 'Chat', path: 'chat', Mockup: ChatMockup },
+  { key: 'docs', name: 'Docs', path: 'docs', Mockup: DocsMockup },
+] as const;
 
 export default function HomePage(props: { params: Promise<{ locale: string }> }) {
   const params = use(props.params);
@@ -117,6 +135,21 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             <p className="card-desc">{t('products.more.desc')}</p>
             <span className="card-arrow" aria-hidden="true">→</span>
           </Reveal>
+        </div>
+      
+        <div className="showcase-wrap">
+          <p className="section-label">{t('showcase.label')}</p>
+          <h2 className="section-title showcase-title">
+            {t('showcase.title')} <span className="dim">{t('showcase.titleDim')}</span>
+          </h2>
+          <ShowcaseTabs
+            tabs={SHOWCASE.map((p) => ({ key: p.key, label: p.name, tag: t(`products.${p.key}.tag`) }))}
+            panels={SHOWCASE.map((p) => (
+              <BrowserFrame key={p.key} url={`zerosoft.ai/app/${p.path}`}>
+                <p.Mockup />
+              </BrowserFrame>
+            ))}
+          />
         </div>
       </section>
 

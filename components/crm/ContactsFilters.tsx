@@ -36,6 +36,8 @@ interface ContactsFiltersProps {
   customFields: CustomFieldOption[];
   views: SavedView[];
   activeViewId: string | null;
+  /** Filtro avanzado (FilterBuilder): se muestra dentro de "Más filtros". */
+  children?: React.ReactNode;
 }
 
 /**
@@ -61,6 +63,7 @@ export default function ContactsFilters({
   customFields,
   views,
   activeViewId,
+  children,
 }: ContactsFiltersProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -150,134 +153,136 @@ export default function ContactsFilters({
     ...Object.values(custom),
   ].filter(Boolean).length;
 
+  const moreActive = [source, createdFrom, createdTo, advanced, ...Object.values(custom)].filter(Boolean).length;
+  const [moreOpen, setMoreOpen] = useState(moreActive > 0);
+  const [savingOpen, setSavingOpen] = useState(false);
+
   return (
     <div className="filter-bar">
-      <form
-        className="filter-search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          go({ q: search.trim() || undefined, view: undefined });
-        }}
-      >
-        <input
-          className="input"
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t('contacts.searchPlaceholder')}
-          aria-label={t('contacts.searchPlaceholder')}
-        />
-      </form>
-
-      <div className="filter-row">
-        <div className="filter-chips">
-          <select
-            className="filter-select filter-btn"
-            value={lifecycle}
-            onChange={(e) => go({ lifecycle: e.target.value || undefined, view: undefined })}
-            aria-label={t('contacts.filterLifecycle')}
-          >
-            <option value="">{t('contacts.filterLifecycle')}</option>
-            {lifecycles.map((v) => (
-              <option key={v} value={v}>
-                {t(`enums.lifecycle.${v}`)}
-              </option>
-            ))}
-          </select>
-          <select
-            className="filter-select filter-btn"
-            value={leadStatus}
-            onChange={(e) => go({ leadStatus: e.target.value || undefined, view: undefined })}
-            aria-label={t('contacts.filterLeadStatus')}
-          >
-            <option value="">{t('contacts.filterLeadStatus')}</option>
-            {leadStatuses.map((v) => (
-              <option key={v} value={v}>
-                {t(`enums.leadStatus.${v}`)}
-              </option>
-            ))}
-          </select>
-          <select
-            className="filter-select filter-btn"
-            value={source}
-            onChange={(e) => go({ source: e.target.value || undefined, view: undefined })}
-            aria-label={t('contacts.filterSource')}
-          >
-            <option value="">{t('contacts.filterSource')}</option>
-            {sources.map((v) => (
-              <option key={v} value={v}>
-                {t(`enums.source.${v}`)}
-              </option>
-            ))}
-          </select>
-          <select
-            className="filter-select filter-btn"
-            value={owner}
-            onChange={(e) => go({ owner: e.target.value || undefined, view: undefined })}
-            aria-label={t('contacts.filterOwner')}
-          >
-            <option value="">{t('contacts.filterOwner')}</option>
-            {owners.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <div className="filter-date-group">
-            <input
-              className="input filter-date"
-              type="date"
-              value={createdFrom}
-              onChange={(e) => go({ createdFrom: e.target.value || undefined, view: undefined })}
-              aria-label={t('contacts.filterCreatedFrom')}
-              placeholder={t('contacts.filterCreatedFrom')}
-            />
-            <span className="filter-date-sep">—</span>
-            <input
-              className="input filter-date"
-              type="date"
-              value={createdTo}
-              onChange={(e) => go({ createdTo: e.target.value || undefined, view: undefined })}
-              aria-label={t('contacts.filterCreatedTo')}
-              placeholder={t('contacts.filterCreatedTo')}
-            />
-          </div>
-          {customFields.map((cf) => (
-            <select
-              key={cf.name}
-              className="filter-select filter-btn"
-              value={custom[cf.name] ?? ''}
-              onChange={(e) => setCustom(cf.name, e.target.value)}
-              aria-label={cf.label}
+      <div className="views-tabs" role="tablist" aria-label={t('contacts.savedViews.title')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!activeViewId}
+          className={`view-tab${!activeViewId ? ' active' : ''}`}
+          onClick={() => go({ view: undefined })}
+        >
+          {t('common.all')}
+        </button>
+        {views.map((v) => (
+          <span key={v.id} className={`view-tab${activeViewId === v.id ? ' active' : ''}`}>
+            <button type="button" role="tab" aria-selected={activeViewId === v.id} onClick={() => go({ view: v.id })}>
+              {v.name}
+            </button>
+            <button
+              type="button"
+              className="view-tab-del"
+              onClick={() => deleteView(v.id)}
+              title={t('contacts.savedViews.delete')}
+              aria-label={t('contacts.savedViews.delete')}
             >
-              <option value="">{cf.label}</option>
-              {cf.options.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
+              ✕
+            </button>
+          </span>
+        ))}
+        {savingOpen ? (
+          <form className="view-save" onSubmit={saveView}>
+            <input
+              className="input"
+              type="text"
+              autoFocus
+              value={viewName}
+              onChange={(e) => setViewName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Escape' && setSavingOpen(false)}
+              placeholder={t('contacts.savedViews.namePlaceholder')}
+              aria-label={t('contacts.savedViews.namePlaceholder')}
+              maxLength={200}
+            />
+            <button type="submit" className="btn btn-solid btn-small" disabled={savingView || !viewName.trim()}>
+              {t('common.save')}
+            </button>
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => setSavingOpen(false)}>
+              {t('common.cancel')}
+            </button>
+          </form>
+        ) : (
+          <button type="button" className="view-tab view-tab-add" onClick={() => setSavingOpen(true)}>
+            + {t('contacts.savedViews.saveCurrent')}
+          </button>
+        )}
+      </div>
+
+      <div className="filter-toolbar">
+        <form
+          className="filter-search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            go({ q: search.trim() || undefined, view: undefined });
+          }}
+        >
+          <input
+            className="input"
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('contacts.searchPlaceholder')}
+            aria-label={t('contacts.searchPlaceholder')}
+          />
+        </form>
+        <select
+          className={`filter-select${lifecycle ? ' on' : ''}`}
+          value={lifecycle}
+          onChange={(e) => go({ lifecycle: e.target.value || undefined, view: undefined })}
+          aria-label={t('contacts.filterLifecycle')}
+        >
+          <option value="">{t('contacts.filterLifecycle')}</option>
+          {lifecycles.map((v) => (
+            <option key={v} value={v}>
+              {t(`enums.lifecycle.${v}`)}
+            </option>
           ))}
-        </div>
+        </select>
+        <select
+          className={`filter-select${leadStatus ? ' on' : ''}`}
+          value={leadStatus}
+          onChange={(e) => go({ leadStatus: e.target.value || undefined, view: undefined })}
+          aria-label={t('contacts.filterLeadStatus')}
+        >
+          <option value="">{t('contacts.filterLeadStatus')}</option>
+          {leadStatuses.map((v) => (
+            <option key={v} value={v}>
+              {t(`enums.leadStatus.${v}`)}
+            </option>
+          ))}
+        </select>
+        <select
+          className={`filter-select${owner ? ' on' : ''}`}
+          value={owner}
+          onChange={(e) => go({ owner: e.target.value || undefined, view: undefined })}
+          aria-label={t('contacts.filterOwner')}
+        >
+          <option value="">{t('contacts.filterOwner')}</option>
+          {owners.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className={`filter-more${moreOpen ? ' open' : ''}${moreActive ? ' on' : ''}`}
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
+        >
+          {t('common.moreFilters')}
+          {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
+        </button>
 
         <div className="filter-right">
-          <select
-            className="filter-select filter-sort"
-            value={sort}
-            onChange={(e) => go({ sort: e.target.value === 'newest' ? undefined : e.target.value })}
-            aria-label="sort"
-          >
-            <option value="newest">{t('contacts.sortNewest')}</option>
-            <option value="oldest">{t('contacts.sortOldest')}</option>
-            <option value="name">{t('contacts.sortName')}</option>
-            <option value="name_desc">{t('contacts.sortNameDesc')}</option>
-            <option value="email">{t('contacts.sortEmail')}</option>
-            <option value="email_desc">{t('contacts.sortEmailDesc')}</option>
-          </select>
           {activeFilters > 0 && (
             <button
               type="button"
-              className="btn btn-ghost btn-small filter-clear"
+              className="filter-clear"
               onClick={() =>
                 go({
                   q: undefined,
@@ -294,54 +299,77 @@ export default function ContactsFilters({
               {t('common.clear')}
             </button>
           )}
+          <select
+            className="filter-select filter-sort"
+            value={sort}
+            onChange={(e) => go({ sort: e.target.value === 'newest' ? undefined : e.target.value })}
+            aria-label={t('common.sortBy')}
+          >
+            <option value="newest">{t('contacts.sortNewest')}</option>
+            <option value="oldest">{t('contacts.sortOldest')}</option>
+            <option value="name">{t('contacts.sortName')}</option>
+            <option value="name_desc">{t('contacts.sortNameDesc')}</option>
+            <option value="email">{t('contacts.sortEmail')}</option>
+            <option value="email_desc">{t('contacts.sortEmailDesc')}</option>
+          </select>
         </div>
       </div>
 
-      <div className="filter-row views-row">
-        <div className="filter-chips">
-          <button
-            type="button"
-            className={`chip${!activeViewId ? ' active' : ''}`}
-            onClick={() => go({ view: undefined })}
-          >
-            {t('common.all')}
-          </button>
-          {views.map((v) => (
-            <span key={v.id} className={`chip chip-view${activeViewId === v.id ? ' active' : ''}`}>
-              <button
-                type="button"
-                className="chip-view-name"
-                onClick={() => go({ view: v.id })}
+      {moreOpen && (
+        <div className="filter-more-panel">
+          <label className="filter-field">
+            <span className="label">{t('contacts.filterSource')}</span>
+            <select
+              className={`filter-select${source ? ' on' : ''}`}
+              value={source}
+              onChange={(e) => go({ source: e.target.value || undefined, view: undefined })}
+            >
+              <option value="">{t('common.all')}</option>
+              {sources.map((v) => (
+                <option key={v} value={v}>
+                  {t(`enums.source.${v}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="filter-field">
+            <span className="label">{t('contacts.filterCreatedFrom')}</span>
+            <input
+              className="input filter-date"
+              type="date"
+              value={createdFrom}
+              onChange={(e) => go({ createdFrom: e.target.value || undefined, view: undefined })}
+            />
+          </label>
+          <label className="filter-field">
+            <span className="label">{t('contacts.filterCreatedTo')}</span>
+            <input
+              className="input filter-date"
+              type="date"
+              value={createdTo}
+              onChange={(e) => go({ createdTo: e.target.value || undefined, view: undefined })}
+            />
+          </label>
+          {customFields.map((cf) => (
+            <label key={cf.name} className="filter-field">
+              <span className="label">{cf.label}</span>
+              <select
+                className={`filter-select${custom[cf.name] ? ' on' : ''}`}
+                value={custom[cf.name] ?? ''}
+                onChange={(e) => setCustom(cf.name, e.target.value)}
               >
-                {v.name}
-              </button>
-              <button
-                type="button"
-                className="chip-view-del"
-                onClick={() => deleteView(v.id)}
-                title={t('contacts.savedViews.delete')}
-                aria-label={t('contacts.savedViews.delete')}
-              >
-                ✕
-              </button>
-            </span>
+                <option value="">{t('common.all')}</option>
+                {cf.options.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </label>
           ))}
+          {children && <div className="filter-advanced">{children}</div>}
         </div>
-        <form className="view-save" onSubmit={saveView}>
-          <input
-            className="input"
-            type="text"
-            value={viewName}
-            onChange={(e) => setViewName(e.target.value)}
-            placeholder={t('contacts.savedViews.namePlaceholder')}
-            aria-label={t('contacts.savedViews.namePlaceholder')}
-            maxLength={200}
-          />
-          <button type="submit" className="btn btn-ghost btn-small" disabled={savingView || !viewName.trim()}>
-            {t('contacts.savedViews.saveCurrent')}
-          </button>
-        </form>
-      </div>
+      )}
     </div>
   );
 }

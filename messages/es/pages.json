@@ -604,7 +604,7 @@
       },
       "c": {
         "title": "Enterprise",
-        "desc": "SSO/SAML, audit logs, roles a medida y white-label, bajo licencia comercial. Con soporte directo del equipo, en tu servidor o en nuestra nube.",
+        "desc": "Licencia comercial con soporte directo del equipo, en tu servidor o en nuestra nube. Los extras enterprise (SSO/SAML, audit logs, roles a medida, white-label) están en desarrollo.",
         "price": "Hablemos",
         "priceNote": "/ licencia comercial + soporte"
       }

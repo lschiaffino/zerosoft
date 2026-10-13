@@ -15,7 +15,7 @@
   "sidebar": {
     "search": "Buscar",
     "new": "Nuevo",
-    "backToSite": "← Volver al sitio",
+    "backToSite": "Volver al sitio",
     "docs": "Docs",
     "soon": "pronto",
     "signOut": "Salir",
@@ -72,21 +72,65 @@
     "label": "0.02 — El arsenal",
     "title": "Todo el software que usás.",
     "titleDim": "El core, gratis para siempre.",
-    "track": { "tag": "Gestión de proyectos", "desc": "La velocidad de Linear. El precio del aire.", "status": "Disponible" },
-    "crm": { "tag": "Clientes y ventas", "desc": "Tu pipeline completo, de punta a punta. Open source, sin licencias.", "status": "Disponible" },
-    "cal": { "tag": "Agendamiento", "desc": "Tu disponibilidad, un link, listo. Sin pagar por el privilegio.", "status": "Disponible" },
-    "link": { "tag": "Links cortos", "desc": "Links cortos con métricas reales. Tuyos para siempre.", "status": "Disponible" },
-    "chat": { "tag": "Chat con clientes", "desc": "Una inbox para todas las conversaciones. Widgets, personas y canales.", "status": "Disponible" },
-    "docs": { "tag": "Docs y wiki", "desc": "Notas y documentos que son tuyos. Exportables, siempre.", "status": "Disponible" },
-    "more": { "title": "Todo lo demás", "tag": "Lo que sigue", "desc": "Diseño. Formularios. Analytics. Si el mundo lo usa, lo vamos a liberar. Esto recién empieza.", "status": "Siempre" }
+    "track": {
+      "tag": "Gestión de proyectos",
+      "desc": "La velocidad de Linear. El precio del aire.",
+      "status": "Disponible"
+    },
+    "crm": {
+      "tag": "Clientes y ventas",
+      "desc": "Tu pipeline completo, de punta a punta. Open source, sin licencias.",
+      "status": "Disponible"
+    },
+    "cal": {
+      "tag": "Agendamiento",
+      "desc": "Tu disponibilidad, un link, listo. Sin pagar por el privilegio.",
+      "status": "Disponible"
+    },
+    "link": {
+      "tag": "Links cortos",
+      "desc": "Links cortos con métricas reales. Tuyos para siempre.",
+      "status": "Disponible"
+    },
+    "chat": {
+      "tag": "Chat con clientes",
+      "desc": "Una inbox para todas las conversaciones. Widgets, personas y canales.",
+      "status": "Disponible"
+    },
+    "docs": {
+      "tag": "Docs y wiki",
+      "desc": "Notas y documentos que son tuyos. Exportables, siempre.",
+      "status": "Disponible"
+    },
+    "more": {
+      "title": "Todo lo demás",
+      "tag": "Lo que sigue",
+      "desc": "Diseño. Formularios. Analytics. Si el mundo lo usa, lo vamos a liberar. Esto recién empieza.",
+      "status": "Siempre"
+    }
   },
   "model": {
     "label": "0.03 — El modelo",
     "title": "Tres formas de tenerlo.",
     "titleDim": "El core es gratis en todas.",
-    "a": { "title": "Hostealo vos", "desc": "El core es open source bajo AGPLv3, con todas sus funciones. Corrélo en tu servidor, modificalo, rompelo, hacelo tuyo. Sin trial, sin license key, sin límites.", "price": "$0", "priceNote": "/ para siempre" },
-    "b": { "title": "Zerosoft Cloud", "desc": "Lo corremos nosotros: login, backups, actualizaciones y uptime. Arrancás con un plan gratis generoso y, cuando escalás, pagás por uso — clics, reservas, emails, almacenamiento, asientos. Precios transparentes, publicados antes de cobrarte nada.", "price": "Gratis", "priceNote": "/ para empezar · precios por uso, pronto" },
-    "c": { "title": "Enterprise", "desc": "SSO/SAML, audit logs, roles a medida y white-label, bajo licencia comercial. Con soporte directo del equipo, en tu servidor o en nuestra nube.", "price": "Hablemos", "priceNote": "/ licencia comercial + soporte" }
+    "a": {
+      "title": "Hostealo vos",
+      "desc": "El core es open source bajo AGPLv3, con todas sus funciones. Corrélo en tu servidor, modificalo, rompelo, hacelo tuyo. Sin trial, sin license key, sin límites.",
+      "price": "$0",
+      "priceNote": "/ para siempre"
+    },
+    "b": {
+      "title": "Zerosoft Cloud",
+      "desc": "Lo corremos nosotros: login, backups, actualizaciones y uptime. Arrancás con un plan gratis generoso y, cuando escalás, pagás por uso — clics, reservas, emails, almacenamiento, asientos. Precios transparentes, publicados antes de cobrarte nada.",
+      "price": "Gratis",
+      "priceNote": "/ para empezar · precios por uso, pronto"
+    },
+    "c": {
+      "title": "Enterprise",
+      "desc": "Licencia comercial con soporte directo del equipo, en tu servidor o en nuestra nube. Los extras enterprise (SSO/SAML, audit logs, roles a medida, white-label) están en desarrollo.",
+      "price": "Hablemos",
+      "priceNote": "/ licencia comercial + soporte"
+    }
   },
   "end": {
     "label": "0.04 — Sumate",
@@ -122,5 +166,10 @@
     "terms": "Términos",
     "privacy": "Privacidad",
     "security": "Seguridad"
+  },
+  "showcase": {
+    "label": "Por dentro",
+    "title": "Seis herramientas, un mismo diseño.",
+    "titleDim": "Elegí una y mirá."
   }
 }

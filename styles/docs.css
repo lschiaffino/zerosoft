@@ -555,49 +555,6 @@
   word-break: break-all;
 }
 
-/* ---------- Product mockup ---------- */
-
-.mk-docs {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  min-height: 320px;
-}
-
-.mk-docs .mk-doc {
-  padding: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.mk-docs .mk-doc-icon { font-size: 24px; }
-
-.mk-docs .mk-doc-title {
-  font-size: 1.3rem;
-  font-weight: 500;
-  margin-bottom: 8px;
-}
-
-.mk-docs .mk-doc-line {
-  height: 10px;
-  background: #e8e8e8;
-  border-radius: 4px;
-}
-
-.mk-docs .mk-doc-h {
-  height: 1px;
-  background: #e8e8e8;
-  margin: 8px 0;
-}
-
-.mk-docs .mk-doc-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-  color: #4a4a4a;
-}
-
 /* ---------- Emoji picker ---------- */
 
 .emoji-picker-wrap {

@@ -5,6 +5,8 @@ interface WonLostChartProps {
   wonLabel: string;
   lostLabel: string;
   height?: number;
+  /** Locale para el nombre de los meses del eje X. */
+  locale?: string;
 }
 
 /** Rounds up to a "nice" ceiling (1/2/5 × 10^n) so grid labels look clean. */
@@ -20,7 +22,8 @@ function niceCeil(max: number): number {
  * Hand-rolled SVG grouped bar chart (no deps): won = filled bars,
  * lost = outlined bars, one group per month. Server-renderable.
  */
-export default function WonLostChart({ data, wonLabel, lostLabel, height = 240 }: WonLostChartProps) {
+export default function WonLostChart({ data, wonLabel, lostLabel, height = 240, locale = 'en' }: WonLostChartProps) {
+  const monthFmt = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
   const W = 760;
   const H = height;
   const pad = { t: 18, r: 14, b: 30, l: 42 };
@@ -28,7 +31,8 @@ export default function WonLostChart({ data, wonLabel, lostLabel, height = 240 }
   const ih = H - pad.t - pad.b;
   const baseline = pad.t + ih;
 
-  const max = niceCeil(Math.max(...data.map((d) => Math.max(d.won, d.lost)), 0));
+  // Son conteos: el eje va en múltiplos de 4 para que las 5 líneas sean enteras.
+  const max = Math.max(4, Math.ceil(niceCeil(Math.max(...data.map((d) => Math.max(d.won, d.lost)), 0)) / 4) * 4);
   const groupW = data.length ? iw / data.length : 0;
   const barW = Math.max(Math.min(groupW / 2 - 10, 36), 6);
 
@@ -82,7 +86,7 @@ export default function WonLostChart({ data, wonLabel, lostLabel, height = 240 }
                 />
               )}
               <text className="chart-xlabel" x={cx} y={H - 8} textAnchor="middle">
-                {d.month.slice(5)}
+                {monthFmt.format(new Date(`${d.month}-01T00:00:00Z`))}
               </text>
             </g>
           );
