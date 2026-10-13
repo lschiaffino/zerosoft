@@ -26,6 +26,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-crm-forms-teams',
+    date: '2026-10-13',
+    title: {
+      en: 'CRM: forms, lead scoring and sales teams',
+      es: 'CRM: formularios, lead scoring y equipos de ventas',
+      pt: 'CRM: formulários, lead scoring e equipes de vendas',
+    },
+    items: [
+      { product: 'crm', en: 'Forms with a hosted page or an embed for your site: every submission creates or updates the contact, captures UTMs, and can set the owner, lifecycle, list, tags and sequence.', es: 'Formularios con página propia o embebidos en tu sitio: cada envío crea o actualiza el contacto, guarda los UTMs y puede asignar responsable, lifecycle, lista, tags y secuencia.', pt: 'Formulários com página própria ou incorporados no seu site: cada envio cria ou atualiza o contato, guarda os UTMs e pode definir responsável, lifecycle, lista, tags e sequência.' },
+      { product: 'crm', en: 'Lead scoring with rules on properties and recent activity (opens, clicks, meetings, forms), with a breakdown of why each contact has its score.', es: 'Lead scoring con reglas sobre propiedades y actividad reciente (aperturas, clics, reuniones, formularios), con el detalle de por qué cada contacto tiene ese puntaje.', pt: 'Lead scoring com regras sobre propriedades e atividade recente (aberturas, cliques, reuniões, formulários), com o detalhe de por que cada contato tem essa pontuação.' },
+      { product: 'crm', en: 'Sales teams: members can see all records, only theirs or their team\'s; round-robin assignment of new leads; monthly or quarterly quotas per owner; and API keys with scopes.', es: 'Equipos de ventas: los miembros pueden ver todo, solo lo suyo o lo de su equipo; reparto round-robin de leads nuevos; metas mensuales o trimestrales por responsable; y API keys con permisos.', pt: 'Equipes de vendas: membros podem ver tudo, só o seu ou o da sua equipe; distribuição round-robin de leads novos; metas mensais ou trimestrais por responsável; e chaves de API com permissões.' },
+    ],
+  },
+  {
     id: '2026-10-13-crm-model',
     date: '2026-10-13',
     title: {
