@@ -10,7 +10,23 @@
     "signIn": "Sign in",
     "dashboard": "Dashboard",
     "signOut": "Sign out",
-    "join": "Join us"
+    "join": "Join us",
+    "changelog": "Changelog",
+    "github": "GitHub",
+    "startFree": "Start free",
+    "menu": "Menu",
+    "allProducts": "All products",
+    "allProductsDesc": "Compare the six apps side by side",
+    "selfHost": "Self-host on GitHub",
+    "selfHostDesc": "AGPLv3 · docker compose up",
+    "desc": {
+      "link": "Short links, QR codes and click analytics",
+      "crm": "Contacts, deals, pipelines and workflows",
+      "cal": "Booking pages synced with Google Calendar",
+      "track": "Issues, cycles, boards and Gantt",
+      "chat": "Webchat widget and shared support inbox",
+      "docs": "Nested pages with a block editor"
+    }
   },
   "sidebar": {
     "search": "Search",
@@ -99,7 +115,7 @@
     },
     "docs": {
       "tag": "Docs & wiki",
-      "desc": "Notes and documents that are yours. Exportable, always.",
+      "desc": "Notes and documents that are yours. On your server, if you want.",
       "status": "Available"
     },
     "more": {
@@ -165,11 +181,165 @@
     "contact": "Contact",
     "terms": "Terms",
     "privacy": "Privacy",
-    "security": "Security"
+    "security": "Security",
+    "colProducts": "Products",
+    "colDevelopers": "Developers",
+    "apiDocs": "API docs",
+    "changelog": "Changelog",
+    "status": "Status",
+    "github": "GitHub",
+    "selfHosting": "Self-hosting",
+    "blog": "Blog",
+    "allProducts": "All products",
+    "oss": "Open source under AGPLv3. Enterprise features in /ee under a commercial license.",
+    "starCta": "Star on GitHub",
+    "feedback": "Feedback"
   },
   "showcase": {
     "label": "A look inside",
     "title": "Six tools, one look.",
     "titleDim": "Pick one and look around."
+  },
+  "home": {
+    "hero": {
+      "kicker": "Software is dead.",
+      "kickerLink": "Read the manifesto",
+      "title1": "Six apps. One suite.",
+      "title2": "Zero licenses.",
+      "sub": "Open-source alternatives to Bitly, HubSpot, Calendly, Linear, Intercom and Notion. Self-host them free, forever — or start free on Zerosoft Cloud.",
+      "ctaStart": "Start free",
+      "ctaSelfHost": "Self-host",
+      "note1": "No credit card",
+      "note2": "Every core feature included",
+      "note3": "AGPLv3",
+      "star": "Star on GitHub",
+      "license": "Open source · AGPLv3"
+    },
+    "proof": {
+      "caption": "Interactive previews of each app. The real thing is one click away.",
+      "open": "Open {name}"
+    },
+    "replaces": "Replaces",
+    "suite": {
+      "label": "0.01 — The suite",
+      "title": "Everything your team runs on.",
+      "titleDim": "One place, one license.",
+      "explore": "Explore {name}",
+      "vs": "vs {rival}",
+      "link": {
+        "line": "Short links with real analytics.",
+        "b1": "Custom domains and QR codes",
+        "b2": "Cookie-less click analytics",
+        "b3": "Link-in-bio and Bitly import"
+      },
+      "crm": {
+        "line": "Your whole pipeline, end to end.",
+        "b1": "Pipelines on a kanban board",
+        "b2": "Workflows, lists and reports",
+        "b3": "CSV import with dedupe"
+      },
+      "cal": {
+        "line": "Your availability as a link.",
+        "b1": "Google Calendar sync with Meet",
+        "b2": "Round-robin and routing forms",
+        "b3": "Reminders and self-serve reschedule"
+      },
+      "track": {
+        "line": "Issues and cycles, in the spirit of Linear.",
+        "b1": "List, board, calendar and Gantt",
+        "b2": "Cycles, estimates and sub-issues",
+        "b3": "Saved views and an inbox"
+      },
+      "chat": {
+        "line": "One inbox for every customer conversation.",
+        "b1": "Embeddable webchat widget",
+        "b2": "SLA timers and assignment rules",
+        "b3": "Canned responses, office hours, CSAT"
+      },
+      "docs": {
+        "line": "Notes and wikis that are yours.",
+        "b1": "Block editor with slash menu",
+        "b2": "Nested pages and [[ mentions",
+        "b3": "Templates, comments and sharing"
+      },
+      "one": {
+        "title": "One login. One workspace. One search.",
+        "desc": "Invite your team once. Find contacts, companies, deals, links, docs and tasks from a single search bar, and jump between apps without changing tools."
+      }
+    },
+    "stack": {
+      "label": "0.02 — Replace your stack",
+      "title": "{total} a year.",
+      "titleDim": "Or $0.",
+      "sub": "What a 10-person team pays at list price for the six tools Zerosoft replaces, versus self-hosting the open-source core.",
+      "colTool": "Tool",
+      "colPrice": "List price",
+      "colYear": "Team of 10 / year",
+      "perUser": "/ user / mo",
+      "perMonth": "/ mo, flat",
+      "total": "Total per year",
+      "zeroTitle": "Zerosoft, self-hosted",
+      "zeroNote": "All six apps. You only pay for your own server.",
+      "cloudNote": "Zerosoft Cloud: free to start, then usage pricing — published before we ever charge.",
+      "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat monthly plan). Vendors change their prices — check their sites. Zerosoft is not affiliated with any company named here."
+    },
+    "oss": {
+      "label": "0.03 — Open source",
+      "title": "Self-host it in one command.",
+      "titleDim": "Free forever. No license key.",
+      "p": "The core of every app is AGPLv3 — every core feature, no trial, no limits. Run it with Docker on any small VPS. Your data lives in one SQLite file and one uploads volume: back them up and you have everything.",
+      "b1": "AGPLv3 core with every core feature",
+      "b2": "One container, two volumes",
+      "b3": "Your data in one SQLite file you own",
+      "b4": "SSO, audit logs and custom roles (/ee) — in development",
+      "cta": "View on GitHub",
+      "terminal": "terminal",
+      "compose": "docker-compose.yml"
+    },
+    "dev": {
+      "label": "0.04 — Developers",
+      "title": "A real API.",
+      "titleDim": "And signed webhooks.",
+      "p": "Create a personal key in settings and talk to Link, CRM and Cal over REST. Subscribe to events and verify every delivery with an HMAC signature.",
+      "b1t": "REST API v1",
+      "b1": "Links, CRM contacts, companies, deals, tasks and pipelines, Cal event types and bookings.",
+      "b2t": "Personal API keys",
+      "b2": "zs_… keys shown once and stored hashed. 100 requests per minute.",
+      "b3t": "Webhooks",
+      "b3": "link.created, link.clicked and booking.* events, signed with Zerosoft-Signature (HMAC-SHA256) and retried with backoff.",
+      "cta": "Read the API docs",
+      "request": "Request",
+      "response": "Response",
+      "webhook": "Webhook"
+    },
+    "model": {
+      "label": "0.05 — The model"
+    },
+    "manifesto": {
+      "label": "0.06 — Manifesto"
+    },
+    "faq": {
+      "label": "0.07 — FAQ",
+      "title": "Fair questions.",
+      "titleDim": "Zero fine print.",
+      "q1": "Is it really free?",
+      "a1": "Yes. The core of every app is open source under AGPLv3 and self-hosting costs $0, forever. On Zerosoft Cloud you start on a free plan; if you scale, you pay for usage, with prices published before we ever charge you.",
+      "q2": "How do you make money?",
+      "a2": "Convenience and companies. Zerosoft Cloud charges for usage beyond the free plan, and Enterprise is a commercial license with direct support. We never charge for the core.",
+      "q3": "What do I need to self-host?",
+      "a3": "Docker and a small server. Clone the repo, fill in .env and run docker compose up -d. Data lives in two volumes: a SQLite file and your uploads. Without Docker: npm ci, npm run build, npm start.",
+      "q4": "Can I migrate from the tools I use today?",
+      "a4": "Link imports from Bitly (API or CSV). CRM imports contacts and companies from any CSV, with column mapping and dedupe. Other importers, like Notion and Linear, aren't built yet.",
+      "q5": "What does AGPLv3 mean for my company?",
+      "a5": "You can use it, self-host it and modify it for free. If you offer a modified version as a service to others, you must publish your changes. The /ee folder is under a separate commercial license.",
+      "q6": "Do you have SSO and audit logs?",
+      "a6": "Not yet. SSO/SAML, audit logs, custom roles and white-label are in development as part of Enterprise. We'll say so here the day they ship."
+    },
+    "end": {
+      "label": "0.08 — Start",
+      "title1": "Software is dead.",
+      "title2": "Build on zero.",
+      "sub": "Open the app and start free, or clone the repo and run it yourself. Either way, the core costs $0."
+    }
   }
 }

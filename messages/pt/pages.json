@@ -148,6 +148,20 @@
         "title2": "Pague nada.",
         "sub": "Grátis, aberto, já no ar. Seu primeiro link curto está a dez segundos.",
         "button": "Abrir o Link →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Cole uma URL",
+          "d": "Um link, ou até 200 de uma vez. Já usa o Bitly? Importe seus links pela API dele ou por CSV."
+        },
+        "s2": {
+          "t": "Deixe com a sua cara",
+          "d": "Escolha o alias, use seu domínio, adicione UTM, um QR code, uma senha, uma data de expiração ou um limite de cliques."
+        },
+        "s3": {
+          "t": "Compartilhe e meça",
+          "d": "Métricas sem cookies por dia, origem, país, dispositivo, navegador e sistema. Exporte em CSV ou dispare um webhook a cada clique."
+        }
       }
     },
     "track": {
@@ -233,6 +247,20 @@
         "title2": "Não mova mais nada.",
         "sub": "O Track está no ar. Abra, crie um projeto e mova seu primeiro card hoje — por $0.",
         "button": "Abrir o Track →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Monte um projeto",
+          "d": "Crie um projeto com seus próprios status e convide o time para o workspace compartilhado."
+        },
+        "s2": {
+          "t": "Escreva o trabalho",
+          "d": "Issues com sub-issues, relações, prioridades e estimativas. Agrupe em ciclos para planejar cada sprint."
+        },
+        "s3": {
+          "t": "Entregue",
+          "d": "Acompanhe o progresso em lista, quadro, calendário ou Gantt. Comentários, atividade e inbox mantêm todo mundo alinhado."
+        }
       }
     },
     "crm": {
@@ -318,6 +346,20 @@
         "title2": "Não sua carteira.",
         "sub": "O CRM já está no ar. Abra, importe seu CSV e rode seu pipeline hoje — por $0.",
         "button": "Abrir o CRM →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Traga seus contatos",
+          "d": "Importe contatos e empresas de qualquer CSV, mapeando cada coluna para um campo, com detecção de duplicados."
+        },
+        "s2": {
+          "t": "Toque seu pipeline",
+          "d": "Mova negócios entre as etapas de um ou vários pipelines em um quadro kanban. Registre ligações, notas e tarefas em cada timeline."
+        },
+        "s3": {
+          "t": "Automatize e acompanhe",
+          "d": "Workflows enviam e-mails, criam tarefas ou chamam webhooks quando algo muda. Relatórios e dashboards mostram onde está o dinheiro."
+        }
       }
     },
     "cal": {
@@ -403,6 +445,20 @@
         "title2": "Não cobre ninguém.",
         "sub": "O Cal está no ar. Crie um tipo de evento e compartilhe seu link hoje — por $0.",
         "button": "Abrir o Cal →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Crie um tipo de evento",
+          "d": "Defina a duração, as perguntas que você precisa, sua disponibilidade semanal, intervalos e antecedência mínima."
+        },
+        "s2": {
+          "t": "Compartilhe sua página",
+          "d": "Envie seu link de agendamento ou incorpore no seu site, inline ou como popup. O round-robin distribui as reuniões pelo time."
+        },
+        "s3": {
+          "t": "Deixe agendarem",
+          "d": "A reunião cai no Google Agenda com link do Meet. Todos recebem o convite e um lembrete 24 h antes; o convidado pode reagendar ou cancelar sozinho."
+        }
       }
     },
     "docs": {
@@ -488,6 +544,20 @@
         "title2": "Não pague nada.",
         "sub": "O Docs já está disponível. Comece a wiki do seu time hoje — por $0.",
         "button": "Abrir o Docs →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Crie uma página",
+          "d": "Comece do zero ou de um modelo, e aninhe páginas dentro de páginas para montar sua wiki."
+        },
+        "s2": {
+          "t": "Escreva em blocos",
+          "d": "Títulos, listas, to-dos e mais pelo menu /. Linke outras páginas com [[ e deixe comentários."
+        },
+        "s3": {
+          "t": "Compartilhe",
+          "d": "Deixe a página privada, abra para o time, para uma pessoa, ou publique com um link público."
+        }
       }
     },
     "chat": {
@@ -573,6 +643,20 @@
         "title2": "Não pague nada.",
         "sub": "O Chat já está disponível. Coloque o widget no seu site hoje — por $0.",
         "button": "Abrir o Chat →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Adicione o widget",
+          "d": "Copie uma tag de script no seu site. Seus visitantes ganham um chat que respeita seu horário de atendimento."
+        },
+        "s2": {
+          "t": "Uma só caixa de entrada",
+          "d": "Cada conversa cai em uma caixa compartilhada, com status, prioridades, regras de atribuição e timers de SLA."
+        },
+        "s3": {
+          "t": "Responda mais rápido",
+          "d": "Respostas prontas para as perguntas de sempre e um bot que as encontra por palavra-chave. O CSAT mostra como foi."
+        }
       }
     }
   },
@@ -582,13 +666,13 @@
     "notify": "Avise-me",
     "manifesto": "Ler o manifesto",
     "browserUrl": "zerosoft.ai/app",
-    "featuresLabel": "01 — Features",
-    "compareLabel": "02 — A conta",
+    "featuresLabel": "01 — Recursos",
+    "compareLabel": "03 — A conta",
     "compareToday": "Hoje você paga",
     "compareZero": "Com a Zerosoft",
     "compareTeam": "Time de 10",
     "compareYear": "/ ano",
-    "modelLabel": "03 — Três formas de ter",
+    "modelLabel": "04 — Três formas de ter",
     "model": {
       "a": {
         "title": "Hospede você mesmo",
@@ -609,9 +693,20 @@
         "priceNote": "/ licença comercial + suporte"
       }
     },
-    "faqLabel": "04 — FAQ",
+    "faqLabel": "05 — Perguntas",
     "faqTitle": "Perguntas justas.",
-    "faqTitleDim": "Zero letras miúdas."
+    "faqTitleDim": "Zero letras miúdas.",
+    "alternative": "A alternativa open source ao {rival}",
+    "selfHost": "Hospede você",
+    "apiDocs": "Docs da API",
+    "howLabel": "02 — Como funciona",
+    "howTitle": "Rodando",
+    "howTitleDim": "em três passos.",
+    "suiteLabel": "06 — Parte da suíte",
+    "suiteTitle": "Um workspace.",
+    "suiteTitleDim": "Seis apps, o mesmo login.",
+    "previewNote": "Prévia interativa da interface do produto.",
+    "compareSave": "Você economiza"
   },
   "mockups": {
     "link": {

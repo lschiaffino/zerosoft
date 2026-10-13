@@ -148,6 +148,20 @@
         "title2": "Pagá nada.",
         "sub": "Gratis, abierto, ya en el aire. Tu primer link corto está a diez segundos.",
         "button": "Usar Link →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Pegá una URL",
+          "d": "Un link, o hasta 200 de una. ¿Ya usás Bitly? Importá tus links con su API o un CSV."
+        },
+        "s2": {
+          "t": "Hacelo tuyo",
+          "d": "Elegí el alias, usá tu dominio, sumá UTM, un código QR, una contraseña, un vencimiento o un límite de clics."
+        },
+        "s3": {
+          "t": "Compartí y medí",
+          "d": "Métricas sin cookies por día, referrer, país, dispositivo, navegador y sistema. Exportá a CSV o disparás un webhook en cada clic."
+        }
       }
     },
     "track": {
@@ -233,6 +247,20 @@
         "title2": "No muevas nada más.",
         "sub": "Track está en vivo. Abrilo, creá un proyecto y mové tu primera tarjeta hoy — por $0.",
         "button": "Usar Track →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Armá un proyecto",
+          "d": "Creá un proyecto con tus propios estados e invitá al equipo al workspace compartido."
+        },
+        "s2": {
+          "t": "Escribí el trabajo",
+          "d": "Issues con sub-issues, relaciones, prioridades y estimaciones. Agrupalos en ciclos para planificar cada sprint."
+        },
+        "s3": {
+          "t": "Sacalo",
+          "d": "Seguí el avance en lista, tablero, calendario o Gantt. Comentarios, actividad e inbox mantienen a todos al día."
+        }
       }
     },
     "crm": {
@@ -318,6 +346,20 @@
         "title2": "No tu billetera.",
         "sub": "CRM ya está vivo. Abrilo, importá tu CSV y manejá tu pipeline hoy — por $0.",
         "button": "Abrir CRM →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Traé tus contactos",
+          "d": "Importá contactos y empresas desde cualquier CSV, mapeando cada columna a un campo, con detección de duplicados."
+        },
+        "s2": {
+          "t": "Mové tu pipeline",
+          "d": "Pasá negocios entre las etapas de uno o varios pipelines en un tablero kanban. Registrá llamadas, notas y tareas en cada timeline."
+        },
+        "s3": {
+          "t": "Automatizá y medí",
+          "d": "Los workflows mandan emails, crean tareas o llaman webhooks cuando algo cambia. Los reportes y dashboards te muestran dónde está la plata."
+        }
       }
     },
     "cal": {
@@ -403,6 +445,20 @@
         "title2": "No le cobres a nadie.",
         "sub": "Cal está en vivo. Creá un tipo de evento y compartí tu link hoy — por $0.",
         "button": "Usar Cal →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Creá un tipo de evento",
+          "d": "Definí la duración, las preguntas que necesitás, tu disponibilidad semanal, los buffers y la anticipación mínima."
+        },
+        "s2": {
+          "t": "Compartí tu página",
+          "d": "Mandá tu link de reservas o embebelo en tu sitio, en línea o como popup. El round-robin reparte reuniones en el equipo."
+        },
+        "s3": {
+          "t": "Que reserven",
+          "d": "La reunión cae en Google Calendar con link de Meet. Todos reciben la invitación y un recordatorio 24 h antes; el invitado puede reprogramar o cancelar solo."
+        }
       }
     },
     "docs": {
@@ -488,6 +544,20 @@
         "title2": "No pagues nada.",
         "sub": "Docs ya está disponible. Empezá tu wiki de equipo hoy — por $0.",
         "button": "Abrir Docs →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Creá una página",
+          "d": "Empezá de cero o desde una plantilla, y anidá páginas dentro de páginas para armar tu wiki."
+        },
+        "s2": {
+          "t": "Escribí en bloques",
+          "d": "Títulos, listas, to-dos y más desde el menú /. Linkeá otras páginas con [[ y dejá comentarios."
+        },
+        "s3": {
+          "t": "Compartila",
+          "d": "Dejá la página privada, abrila al equipo, a una persona, o publicala con un link público."
+        }
       }
     },
     "chat": {
@@ -573,6 +643,20 @@
         "title2": "No pagues nada.",
         "sub": "Chat ya está disponible. Poné el widget en tu sitio hoy — por $0.",
         "button": "Abrir Chat →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Sumá el widget",
+          "d": "Copiá un tag de script en tu sitio. Tus visitas tienen un chat web que respeta tus horarios de atención."
+        },
+        "s2": {
+          "t": "Un solo inbox",
+          "d": "Cada conversación cae en un inbox compartido, con estados, prioridades, reglas de asignación y timers de SLA."
+        },
+        "s3": {
+          "t": "Respondé más rápido",
+          "d": "Respuestas guardadas para lo de siempre y un bot que las sugiere por palabras clave. El CSAT te dice cómo salió."
+        }
       }
     }
   },
@@ -583,12 +667,12 @@
     "manifesto": "Leer el manifiesto",
     "browserUrl": "zerosoft.ai/app",
     "featuresLabel": "01 — Features",
-    "compareLabel": "02 — La cuenta",
+    "compareLabel": "03 — La cuenta",
     "compareToday": "Hoy pagás",
     "compareZero": "Con Zerosoft",
     "compareTeam": "Equipo de 10",
     "compareYear": "/ año",
-    "modelLabel": "03 — Tres formas de tenerlo",
+    "modelLabel": "04 — Tres formas de tenerlo",
     "model": {
       "a": {
         "title": "Hostealo vos",
@@ -609,9 +693,20 @@
         "priceNote": "/ licencia comercial + soporte"
       }
     },
-    "faqLabel": "04 — FAQ",
+    "faqLabel": "05 — Preguntas",
     "faqTitle": "Preguntas justas.",
-    "faqTitleDim": "Cero letra chica."
+    "faqTitleDim": "Cero letra chica.",
+    "alternative": "La alternativa open source a {rival}",
+    "selfHost": "Hostealo vos",
+    "apiDocs": "Docs de la API",
+    "howLabel": "02 — Cómo funciona",
+    "howTitle": "Andando",
+    "howTitleDim": "en tres pasos.",
+    "suiteLabel": "06 — Parte de la suite",
+    "suiteTitle": "Un workspace.",
+    "suiteTitleDim": "Seis apps, el mismo login.",
+    "previewNote": "Vista interactiva de la interfaz del producto.",
+    "compareSave": "Te quedás con"
   },
   "mockups": {
     "link": {
