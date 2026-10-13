@@ -45,5 +45,27 @@ export const FEATURE_ICONS: Record<ProductKey, readonly string[]> = {
   docs: ['blocks', 'tree', 'at', 'share', 'users', 'database', 'search', 'eye', 'server'],
 };
 
+/** A quién le sirve cada app: equipos (B2B) o uso personal. */
+export type Audience = 'teams' | 'personal';
+
+export const AUDIENCE_PRODUCTS: Record<Audience, readonly ProductKey[]> = {
+  teams: ['crm', 'chat', 'track', 'link'],
+  personal: ['docs', 'cal'],
+};
+
+/**
+ * Productos en construcción. Se muestran como "Pronto" y sin link: no se
+ * publicitan features hasta que estén en producción.
+ */
+export type UpcomingKey = 'agents' | 'flow' | 'robots' | 'notes' | 'board';
+
+export const UPCOMING: ReadonlyArray<{ key: UpcomingKey; name: string; rival: string; audience: Audience }> = [
+  { key: 'agents', name: 'Agents', rival: 'Intercom Fin', audience: 'teams' },
+  { key: 'flow', name: 'Flow', rival: 'Zapier · n8n', audience: 'teams' },
+  { key: 'robots', name: 'Robots', rival: 'UiPath', audience: 'teams' },
+  { key: 'notes', name: 'Notes', rival: 'Evernote', audience: 'personal' },
+  { key: 'board', name: 'Board', rival: 'Miro', audience: 'personal' },
+];
+
 /** Productos con endpoints en la API v1 pública (ver lib/api-docs.ts). */
 export const HAS_API: readonly ProductKey[] = ['link', 'crm', 'cal'];

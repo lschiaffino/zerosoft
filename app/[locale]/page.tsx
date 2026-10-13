@@ -64,11 +64,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
         </div>
         <div className="container lp-hero-inner">
           <a className="lp-kicker" href="#manifiesto">
-            <span className="lp-kicker-zero" aria-hidden="true">0</span>
-            <span>{h('hero.kicker')}</span>
-            <span className="lp-kicker-link">
-              {h('hero.kickerLink')} <Icon name="arrow" size={14} />
-            </span>
+            {h('hero.kicker')} <span className="lp-kicker-link">{h('hero.kickerLink')} →</span>
           </a>
           <h1 className="lp-h1">
             {h('hero.title1')}
@@ -84,21 +80,12 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
               <Icon name="github" size={16} /> {h('hero.ctaSelfHost')}
             </a>
           </div>
-          <ul className="lp-notes">
-            <li>
-              <Icon name="check" size={14} /> {h('hero.note1')}
-            </li>
-            <li>
-              <Icon name="check" size={14} /> {h('hero.note2')}
-            </li>
-            <li>
-              <a className="lp-gh-badge" href={GITHUB_URL} target="_blank" rel="noreferrer">
-                <Icon name="star" size={13} /> {h('hero.star')}
-                <span className="lp-gh-badge-sep" aria-hidden="true" />
-                {h('hero.note3')}
-              </a>
-            </li>
-          </ul>
+          <p className="lp-notes">
+            {h('hero.note1')} · {h('hero.note2')} ·{' '}
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+              {h('hero.note3')}
+            </a>
+          </p>
         </div>
       </section>
 

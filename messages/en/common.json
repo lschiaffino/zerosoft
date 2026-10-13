@@ -266,6 +266,19 @@
       "one": {
         "title": "One login. One workspace. One search.",
         "desc": "Invite your team once. Find contacts, companies, deals, links, docs and tasks from a single search bar, and jump between apps without changing tools."
+      },
+      "teamsTitle": "For teams",
+      "teamsDesc": "Sell, support and ship — together.",
+      "personalTitle": "For you",
+      "personalDesc": "Write, plan and keep your time.",
+      "soon": "Soon",
+      "replaces": "Replaces {rival}",
+      "upcoming": {
+        "agents": "AI agents that answer and act.",
+        "flow": "Automations across every app.",
+        "robots": "Bots that drive the browser for you.",
+        "notes": "Quick notes, notebooks and search.",
+        "board": "An infinite whiteboard."
       }
     },
     "stack": {
