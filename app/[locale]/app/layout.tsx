@@ -193,6 +193,7 @@ export default async function AppLayout(
             { href: '/app/calendar/event-types', label: tCalendar('sidebar.eventTypes') },
             { href: '/app/calendar/routing', label: tCalendar('sidebar.routing') },
             { href: '/app/calendar/bookings', label: tCalendar('sidebar.bookings') },
+            { href: '/app/calendar/availability', label: tCalendar('sidebar.availability') },
             { href: '/app/calendar/settings', label: tCalendar('sidebar.settings') },
             { href: '/app/track', label: tTrack('sidebar.overview') },
             { href: '/app/track/my-tasks', label: tTrack('sidebar.myTasks') },

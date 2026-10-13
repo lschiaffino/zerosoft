@@ -1473,6 +1473,215 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN full_width INTEGER NOT NULL DEFAULT 0');
     },
   },
+  // ---------- Cal (fase D9) ----------
+  {
+    // Cal: horarios reutilizables (nombre, zona, horas semanales) asignables a
+    // tipos de evento + excepciones por fecha. No destructiva: la
+    // disponibilidad por evento (calendar_availability) queda intacta; cada
+    // conjunto distinto de reglas de un usuario pasa a un horario y el evento
+    // apunta a él. El más usado queda como horario por defecto.
+    id: '027_cal_schedules',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS calendar_schedules (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          is_default INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_schedules_user ON calendar_schedules(user_id, is_default DESC, name);
+
+        CREATE TABLE IF NOT EXISTS calendar_schedule_rules (
+          id TEXT PRIMARY KEY,
+          schedule_id TEXT NOT NULL REFERENCES calendar_schedules(id) ON DELETE CASCADE,
+          day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+          start_time TEXT NOT NULL,
+          end_time TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_schedule_rules_schedule ON calendar_schedule_rules(schedule_id, day_of_week);
+
+        -- start_time/end_time NULL = día no disponible; con horas, reemplazan
+        -- las horas semanales de esa fecha (puede haber varios rangos).
+        CREATE TABLE IF NOT EXISTS calendar_schedule_overrides (
+          id TEXT PRIMARY KEY,
+          schedule_id TEXT NOT NULL REFERENCES calendar_schedules(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          start_time TEXT,
+          end_time TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_schedule_overrides_schedule ON calendar_schedule_overrides(schedule_id, date);
+      `);
+      await addColumn(
+        client,
+        'ALTER TABLE calendar_event_types ADD COLUMN schedule_id TEXT REFERENCES calendar_schedules(id) ON DELETE SET NULL',
+      );
+
+      const users = (
+        await client.execute(
+          `SELECT DISTINCT e.user_id FROM calendar_event_types e
+           WHERE e.schedule_id IS NULL
+             AND EXISTS (SELECT 1 FROM calendar_availability a WHERE a.event_type_id = e.id)
+             AND NOT EXISTS (SELECT 1 FROM calendar_schedules s WHERE s.user_id = e.user_id)`,
+        )
+      ).rows.map((r) => String(r.user_id));
+      for (const userId of users) {
+        const tzRow = (await client.execute({ sql: 'SELECT timezone FROM calendar_users WHERE user_id = ?', args: [userId] }))
+          .rows[0];
+        const tz = tzRow ? String(tzRow.timezone) : 'UTC';
+        const rules = (
+          await client.execute({
+            sql: `SELECT e.id AS event_type_id, e.title, a.day_of_week, a.start_time, a.end_time
+                  FROM calendar_event_types e JOIN calendar_availability a ON a.event_type_id = e.id
+                  WHERE e.user_id = ? AND e.schedule_id IS NULL
+                  ORDER BY e.created_at, e.id, a.day_of_week, a.start_time, a.end_time`,
+            args: [userId],
+          })
+        ).rows;
+        // Firma de cada evento = sus reglas ordenadas; eventos con la misma
+        // firma comparten horario.
+        const byEvent = new Map<string, { title: string; rules: Array<[number, string, string]> }>();
+        for (const r of rules) {
+          const key = String(r.event_type_id);
+          const entry = byEvent.get(key) ?? { title: String(r.title), rules: [] };
+          entry.rules.push([Number(r.day_of_week), String(r.start_time), String(r.end_time)]);
+          byEvent.set(key, entry);
+        }
+        const groups = new Map<string, { title: string; rules: Array<[number, string, string]>; events: string[] }>();
+        for (const [eventId, entry] of byEvent) {
+          const sig = JSON.stringify(entry.rules);
+          const g = groups.get(sig) ?? { title: entry.title, rules: entry.rules, events: [] };
+          g.events.push(eventId);
+          groups.set(sig, g);
+        }
+        const ordered = [...groups.values()].sort((a, b) => b.events.length - a.events.length);
+        for (let i = 0; i < ordered.length; i++) {
+          const g = ordered[i];
+          const scheduleId = crypto.randomUUID();
+          await client.execute({
+            sql: 'INSERT INTO calendar_schedules (id, user_id, name, timezone, is_default) VALUES (?, ?, ?, ?, ?)',
+            args: [scheduleId, userId, i === 0 ? 'Horario principal' : g.title.slice(0, 80), tz, i === 0 ? 1 : 0],
+          });
+          for (const [dow, start, end] of g.rules) {
+            await client.execute({
+              sql: 'INSERT INTO calendar_schedule_rules (id, schedule_id, day_of_week, start_time, end_time) VALUES (?, ?, ?, ?, ?)',
+              args: [crypto.randomUUID(), scheduleId, dow, start, end],
+            });
+          }
+          for (const eventId of g.events) {
+            await client.execute({
+              sql: 'UPDATE calendar_event_types SET schedule_id = ? WHERE id = ? AND schedule_id IS NULL',
+              args: [scheduleId, eventId],
+            });
+          }
+        }
+      }
+    },
+  },
+  {
+    // Cal: workflows de recordatorio por tipo de evento. Cada paso manda un
+    // email (invitado o anfitrión) offset_min minutos antes (<0) o después
+    // (>0) del inicio. Las corridas se programan por reserva y las despacha
+    // el cron de recordatorios.
+    id: '027_cal_workflows',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS calendar_workflow_steps (
+          id TEXT PRIMARY KEY,
+          event_type_id TEXT NOT NULL REFERENCES calendar_event_types(id) ON DELETE CASCADE,
+          position INTEGER NOT NULL DEFAULT 0,
+          recipient TEXT NOT NULL CHECK (recipient IN ('guest', 'host')),
+          offset_min INTEGER NOT NULL,
+          subject TEXT NOT NULL,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_workflow_steps_event ON calendar_workflow_steps(event_type_id, position);
+
+        CREATE TABLE IF NOT EXISTS calendar_workflow_runs (
+          id TEXT PRIMARY KEY,
+          step_id TEXT NOT NULL REFERENCES calendar_workflow_steps(id) ON DELETE CASCADE,
+          booking_id TEXT NOT NULL REFERENCES calendar_bookings(id) ON DELETE CASCADE,
+          send_at TEXT NOT NULL,
+          sent_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (step_id, booking_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_workflow_runs_due ON calendar_workflow_runs(sent_at, send_at);
+        CREATE INDEX IF NOT EXISTS idx_calendar_workflow_runs_booking ON calendar_workflow_runs(booking_id);
+      `);
+    },
+  },
+  {
+    // Cal: cobro con Stripe Checkout. Clave secreta del workspace cifrada
+    // (lib/secret-box.ts), precio por tipo de evento y reservas 'pending'
+    // (hold sin pagar que vence). Agregar 'pending' al CHECK de status exige
+    // reconstruir calendar_bookings: se copia el CREATE actual de
+    // sqlite_master (conserva las columnas agregadas con ALTER) y sus índices.
+    id: '027_cal_payments',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS calendar_payment_settings (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          stripe_secret_key TEXT NOT NULL DEFAULT '',
+          stripe_webhook_secret TEXT NOT NULL DEFAULT '',
+          webhook_token TEXT NOT NULL UNIQUE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+      await addColumn(client, 'ALTER TABLE calendar_event_types ADD COLUMN price_cents INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE calendar_event_types ADD COLUMN currency TEXT NOT NULL DEFAULT 'usd'");
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN hold_expires_at TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN stripe_session_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN amount_cents INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN currency TEXT NOT NULL DEFAULT ''");
+
+      const tableSql = async () =>
+        String(
+          (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'calendar_bookings'"))
+            .rows[0]?.sql ?? '',
+        );
+      const sql = await tableSql();
+      if (sql && !/'pending'/.test(sql)) {
+        const createNew = sql
+          .replace(/^CREATE TABLE\s+(IF NOT EXISTS\s+)?["`]?calendar_bookings["`]?/i, 'CREATE TABLE calendar_bookings_new')
+          .replace(
+            /CHECK\s*\(\s*status\s+IN\s*\(([^)]*)\)\s*\)/i,
+            (_m, list: string) => `CHECK (status IN (${list}, 'pending'))`,
+          );
+        const indexes = (
+          await client.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'calendar_bookings' AND sql IS NOT NULL",
+          )
+        ).rows.map((r) =>
+          String(r.sql).replace(
+            /^CREATE (UNIQUE )?INDEX\s+(IF NOT EXISTS\s+)?/i,
+            (_m, u?: string) => `CREATE ${u ?? ''}INDEX IF NOT EXISTS `,
+          ),
+        );
+        try {
+          await client.migrate([
+            'DROP TABLE IF EXISTS calendar_bookings_new',
+            createNew,
+            'INSERT INTO calendar_bookings_new SELECT * FROM calendar_bookings',
+            'DROP TABLE calendar_bookings',
+            'ALTER TABLE calendar_bookings_new RENAME TO calendar_bookings',
+            ...indexes,
+          ]);
+        } catch (err) {
+          // Otra instancia ya reconstruyó la tabla (carrera al arrancar).
+          if (!/'pending'/.test(await tableSql())) throw err;
+        }
+      }
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_calendar_bookings_pending ON calendar_bookings(status, hold_expires_at)',
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -313,6 +313,7 @@ export default function AppSidebar({
         { href: '/app/calendar/event-types', label: labels.calendar.eventTypes, active: pathname.startsWith('/app/calendar/event-types'), icon: 'tasks' },
         { href: '/app/calendar/routing', label: labels.calendar.routing, active: pathname.startsWith('/app/calendar/routing'), icon: 'lists' },
         { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: pathname.startsWith('/app/calendar/bookings'), icon: 'contacts' },
+        { href: '/app/calendar/availability', label: labels.calendar.availability, active: pathname.startsWith('/app/calendar/availability'), icon: 'myTasks' },
       ],
     },
     {

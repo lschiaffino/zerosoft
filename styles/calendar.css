@@ -927,3 +927,96 @@ html.zs-embed .booking-card {
 .cal-answers > div { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 12px; font-size: 13px; }
 .cal-answers dt { font-size: 11px; color: var(--dim); }
 .cal-answers dd { margin: 0; overflow-wrap: anywhere; }
+
+/* ---------- Fase D9: horarios, reservas, recordatorios, cobro ---------- */
+.cal-page-sub { margin: -8px 0 20px; max-width: 640px; }
+.cal-sched-hint { font-size: 12px; margin: 6px 0 12px; }
+.cal-panel-link { font-size: 12px; color: var(--dim); text-decoration: none; }
+.cal-panel-link:hover { color: var(--ink); }
+.cal-warn { font-size: 13px; border-left: 2px solid var(--c-cal); padding: 4px 0 4px 10px; margin: 8px 0; }
+.cal-notice { font-size: 13px; border-left: 2px solid var(--c-cal); padding: 4px 0 4px 10px; margin: 0 0 12px; }
+
+/* Horarios: lista + editor */
+.cal-sched { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; align-items: start; }
+.cal-sched-list ul { list-style: none; margin: 0 0 12px; padding: 0; border-top: 1px solid var(--line); }
+.cal-sched-list li { border-bottom: 1px solid var(--line); }
+.cal-sched-list li button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
+  padding: 10px 8px; background: none; border: 0; border-left: 2px solid transparent; cursor: pointer; text-align: left;
+  font: inherit; color: var(--ink);
+}
+.cal-sched-list li button.is-on { border-left-color: var(--c-cal); background: color-mix(in srgb, var(--c-cal) 6%, transparent); }
+.cal-sched-list li button .muted { font-size: 11px; }
+.cal-sched-name { font-weight: 500; }
+.cal-sched-editor { border: 1px solid var(--line); border-radius: var(--r-md); padding: 24px; min-width: 0; }
+.cal-sched-default { margin: 12px 0 4px; }
+.cal-sched-usage { font-size: 11px; margin: 0 0 20px; }
+.cal-week { display: flex; flex-direction: column; border-top: 1px solid var(--line); margin-bottom: 24px; }
+.cal-week-row {
+  display: grid; grid-template-columns: 140px minmax(0, 1fr) 28px; gap: 12px; align-items: start;
+  padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.cal-week-day { display: flex; align-items: center; gap: 8px; padding-top: 8px; font-size: 14px; }
+.cal-week-ranges { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cal-week-ranges > .muted { padding-top: 8px; font-size: 13px; }
+.cal-range { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.cal-range .input { width: 128px; flex: 0 1 128px; min-width: 0; }
+.cal-range .input, .cal-override-row .input { padding: 8px 10px; }
+.cal-sched-overrides-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cal-overrides { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.cal-override-row {
+  display: grid; grid-template-columns: 160px auto minmax(0, 1fr) 28px; gap: 12px; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--line);
+}
+.cal-sched-actions { justify-content: space-between; margin-top: 24px; }
+.cal-sched-summary { list-style: none; margin: 12px 0 0; padding: 0; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+
+/* Cobro */
+.cal-pay-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 12px; }
+.cal-pay-settings { margin-top: 24px; display: flex; flex-direction: column; gap: 8px; }
+.cal-pay-status { font-size: 12px; margin: 4px 0; }
+
+/* Recordatorios */
+.cal-wf-steps { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.cal-wf-step { display: flex; flex-direction: column; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.cal-wf-when { display: grid; grid-template-columns: minmax(0, 1.2fr) 72px minmax(0, 1fr) minmax(0, 1fr) 28px; gap: 8px; align-items: center; }
+.cal-wf-when .input, .cal-wf-when .select { padding: 8px 10px; }
+
+/* Reservas: filtros y acciones del anfitrión */
+.cal-bk-filters { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto auto auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+.cal-bk-filters .input, .cal-bk-filters .select { padding: 9px 12px; }
+.cal-bk-date { display: flex; flex-direction: column; gap: 4px; }
+.cal-bk-date .prop-label { font-size: 10px; }
+.cal-bk-count { font-size: 11px; margin: 8px 0 4px; }
+.cal-bk-status { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin: 0; }
+.cal-bk-status-confirmed { color: var(--ink); }
+.cal-bk-status-pending { color: var(--c-cal); }
+.cal-bk-panel { margin-top: 12px; padding: 12px 0 0; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+.cal-bk-panel-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.cal-bk-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+.cal-bk-slots .btn { min-width: 72px; }
+/* Columnas fijas para estado y acciones: las filas quedan alineadas aunque cambien los botones. */
+.cal-page .bookings-list .booking-card-main {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 150px 300px;
+}
+.cal-page .bookings-list .booking-card-actions { justify-content: flex-end; }
+@media (max-width: 760px) {
+  .cal-page .bookings-list .booking-card-main { grid-template-columns: minmax(0, 1fr); }
+  .cal-page .bookings-list .booking-card-actions { justify-content: flex-start; }
+  .cal-bk-date .input { min-width: 0; }
+}
+
+@media (max-width: 760px) {
+  .cal-sched { grid-template-columns: 1fr; gap: 16px; }
+  .cal-sched-editor { padding: 16px; }
+  .cal-week-row { grid-template-columns: 1fr 28px; }
+  .cal-week-ranges { grid-column: 1 / -1; grid-row: 2; }
+  .cal-override-row { grid-template-columns: minmax(0, 1fr) 28px; }
+  .cal-override-row .checkbox-field, .cal-override-row > .muted, .cal-override-row .cal-range { grid-column: 1 / -1; }
+  .cal-bk-filters { grid-template-columns: 1fr 1fr; }
+  .cal-bk-filters .input[type='search'] { grid-column: 1 / -1; }
+  .cal-wf-when { grid-template-columns: 1fr 72px 1fr; }
+  .cal-wf-when .cal-icon-btn { justify-self: end; }
+  .booking-card-main { grid-template-columns: 1fr; gap: 6px; }
+  .booking-card-actions { flex-wrap: wrap; }
+}

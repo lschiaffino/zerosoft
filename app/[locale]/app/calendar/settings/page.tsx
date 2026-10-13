@@ -6,6 +6,8 @@ import { GOOGLE_CALENDAR_PROVIDER } from '@/lib/google-calendar';
 import GoogleCalendarPanel from '@/components/calendar/GoogleCalendarPanel';
 import { getOrCreateCalendarUser } from '@/lib/calendar';
 import CalendarSettingsForm from '@/components/calendar/CalendarSettingsForm';
+import PaymentsSettingsPanel from '@/components/calendar/PaymentsSettingsPanel';
+import { getPaymentSettings } from '@/lib/calendar-payments';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +47,7 @@ export default async function CalendarSettingsPage(props: {
           maxBookingDays: config.max_booking_days,
         }}
       />
+      <PaymentsSettingsPanel initial={await getPaymentSettings(user.id)} origin={origin} canEdit={isWorkspaceAdmin(user)} />
     </div>
   );
 }

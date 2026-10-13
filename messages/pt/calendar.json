@@ -97,7 +97,7 @@
   "bookings": {
     "title": "Reservas",
     "join": "Entrar na reunião ↗",
-    "rescheduled": "Reagendada pelo convidado",
+    "rescheduled": "Reagendada",
     "emptyTitle": "Nenhum agendamento próximo",
     "emptySub": "Compartilhe um link de agendamento e os novos aparecem aqui.",
     "emptyCta": "Ir para tipos de evento"
@@ -122,7 +122,8 @@
     "status": {
       "confirmed": "Confirmada",
       "cancelled": "Cancelada",
-      "no_show": "Não compareceu"
+      "no_show": "Não compareceu",
+      "pending": "Aguardando pagamento"
     },
     "answers": "Respostas",
     "host": "Anfitrião",
@@ -131,7 +132,10 @@
     "rescheduledTitle": "Reagendada",
     "emailSent": "Enviamos os detalhes e um convite de calendário por email.",
     "manageLink": "Reagendar ou cancelar",
-    "confirmNewTime": "Confirmar novo horário"
+    "confirmNewTime": "Confirmar novo horário",
+    "price": "Preço",
+    "payAndConfirm": "Pagar e confirmar",
+    "redirecting": "Levando você ao pagamento…"
   },
   "routing": {
     "title": "Formulários de roteamento",
@@ -182,7 +186,13 @@
     "already_started": "Esta reunião já começou.",
     "not_confirmed": "Esta reserva não está mais ativa.",
     "rate_limited": "Muitas tentativas. Espere um minuto e tente de novo.",
-    "not_found": "Esta página de agendamento não existe mais."
+    "not_found": "Esta página de agendamento não existe mais.",
+    "payments_not_configured": "Este tipo de evento é pago, mas o anfitrião ainda não conectou o Stripe.",
+    "payment_failed": "Não conseguimos iniciar o pagamento. Tente de novo.",
+    "schedule_in_use": "Há tipos de evento usando este horário. Atribua outro antes de apagá-lo.",
+    "invalid_schedule": "Esse horário não existe.",
+    "invalid_range": "O horário de fim precisa ser depois do início.",
+    "invalid_key": "Essa chave não tem o formato do Stripe."
   },
   "settings": {
     "title": "Configurações",
@@ -206,7 +216,9 @@
     "cancelReason": "Motivo (opcional)",
     "cancelConfirm": "Sim, cancelar",
     "cancelled": "Esta reserva foi cancelada. Já avisamos o anfitrião.",
-    "past": "Esta reunião já começou, então não pode ser alterada aqui."
+    "past": "Esta reunião já começou, então não pode ser alterada aqui.",
+    "pending": "Sua reserva aguarda o pagamento. Se já pagou, atualize a página em alguns segundos.",
+    "paid": "Pagamento recebido. Sua reserva está confirmada."
   },
   "google": {
     "desc": "Conecte sua agenda para que seus horários ocupados bloqueiem suas páginas de agendamento e cada reserva entre na sua agenda, com link do Google Meet quando o evento não tiver outro local.",
@@ -239,7 +251,7 @@
     "location": "Local",
     "create": "Criar",
     "hint": "⌘↵ criar · Esc fechar",
-    "defaultHours": "Agendável de segunda a sexta, 9:00–17:00. Mude quando quiser.",
+    "defaultHours": "Usa seu horário padrão. Mude em Disponibilidade.",
     "moreOptions": "Abrir ao criar",
     "routingCrumb": "Cal › Novo formulário de roteamento",
     "routingTitlePlaceholder": "Nome do formulário, ex. Vendas ou suporte",
@@ -255,5 +267,91 @@
     "toggleOn": "Aceitando agendamentos — clique para desativar",
     "toggleOff": "Desativado — clique para aceitar agendamentos",
     "shortcut": "Pressione C para criar"
+  },
+  "schedules": {
+    "title": "Disponibilidade",
+    "sub": "Horários que você reutiliza em vários tipos de evento. Cada um tem seu fuso e exceções por data.",
+    "new": "Novo horário",
+    "newName": "Horário novo",
+    "name": "Nome",
+    "timezone": "Fuso horário",
+    "isDefault": "Padrão",
+    "makeDefault": "Usar como padrão em eventos novos",
+    "weekly": "Horas semanais",
+    "unavailable": "Indisponível",
+    "addRange": "Adicionar faixa",
+    "overrides": "Exceções por data",
+    "overridesHint": "Uma data sem horas fica bloqueada. Com horas, elas substituem as horas semanais desse dia.",
+    "addOverride": "Adicionar data",
+    "noOverrides": "Sem exceções.",
+    "dayOff": "O dia todo",
+    "usedBy": "{n, plural, =0 {Nenhum evento usa} one {Usado por 1 evento} other {Usado por # eventos}}",
+    "deleteConfirm": "Apagar o horário “{name}”?",
+    "empty": "Você ainda não tem horários.",
+    "pick": "Horário",
+    "custom": "Horas próprias deste evento",
+    "customHint": "Horas só para este evento, no fuso de Configurações. Exceções por data não se aplicam.",
+    "manage": "Editar horários"
+  },
+  "admin": {
+    "search": "Buscar por nome ou email",
+    "status": "Status",
+    "allStatuses": "Todos",
+    "from": "De",
+    "to": "Até",
+    "clear": "Limpar",
+    "count": "{n, plural, =0 {Sem reservas} one {1 reserva} other {# reservas}}",
+    "reschedule": "Reagendar",
+    "rescheduleHint": "Escolha um novo horário. Enviamos ao convidado o convite atualizado.",
+    "pickDate": "Data",
+    "noSlots": "Não há horários livres nesse dia.",
+    "moved": "Reserva movida. Avisamos o convidado.",
+    "noShow": "Não compareceu",
+    "cancel": "Cancelar",
+    "cancelReason": "Motivo (enviado ao convidado)",
+    "confirmCancel": "Cancelar reserva",
+    "keep": "Voltar",
+    "paid": "Paga",
+    "loading": "Carregando…"
+  },
+  "workflows": {
+    "title": "Lembretes",
+    "sub": "Emails automáticos antes ou depois da reunião. Ao adicionar passos, eles substituem o lembrete de 24 horas.",
+    "add": "Adicionar passo",
+    "empty": "Sem passos: o convidado recebe um lembrete 24 horas antes.",
+    "to": "Para",
+    "guest": "Convidado",
+    "host": "Anfitrião",
+    "before": "antes",
+    "after": "depois",
+    "minutes": "minutos",
+    "hours": "horas",
+    "days": "dias",
+    "subject": "Assunto",
+    "body": "Mensagem",
+    "variables": "Variáveis: {vars}",
+    "cronNote": "Saem na execução horária do cron, então podem chegar até uma hora depois.",
+    "defaultSubject": "Lembrete: {{event.title}}",
+    "defaultBody": "Olá {{guest.name}},\n\nTe esperamos em {{event.title}} em {{start}}.\n\n{{link}}"
+  },
+  "payments": {
+    "title": "Cobrança",
+    "price": "Preço",
+    "currency": "Moeda",
+    "free": "0 = grátis",
+    "notConfigured": "Para cobrar, conecte o Stripe em Configurações.",
+    "hint": "O convidado paga com Stripe Checkout para confirmar. Se não pagar em 35 minutos, o horário é liberado.",
+    "settingsTitle": "Pagamentos com Stripe",
+    "settingsSub": "Cobre seus tipos de evento com sua própria conta Stripe. A chave fica guardada criptografada.",
+    "secretKey": "Chave secreta (sk_ ou rk_)",
+    "webhookSecret": "Signing secret do webhook (whsec_)",
+    "webhookUrl": "URL do webhook",
+    "webhookHint": "No Stripe → Developers → Webhooks, adicione esta URL com os eventos checkout.session.completed e checkout.session.expired.",
+    "connected": "Conectado: {hint} ({mode})",
+    "notConnected": "Não conectado.",
+    "keepKey": "Deixe vazio para manter",
+    "remove": "Desconectar",
+    "adminOnly": "Só o owner ou um admin do workspace muda isso.",
+    "webhookMissing": "Falta o signing secret: sem ele confirmamos o pagamento quando o convidado volta do Stripe."
   }
 }
