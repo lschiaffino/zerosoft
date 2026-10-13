@@ -2,6 +2,8 @@ import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { listChatWidgets, getChatReport } from '@/lib/chat-data';
 import { formatNumber } from '@/lib/utils';
+import WidgetList from '@/components/chat/WidgetList';
+import NewWidgetButton from '@/components/chat/NewWidgetButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,53 +40,65 @@ export default async function ChatSettingsPage(
         </div>
       </div>
 
-      <section className="panel">
-        <div className="panel-head">
+      <section className="chat-section">
+        <div className="chat-section-head">
           <p className="section-label">{t('sla.title')}</p>
         </div>
-        <div className="stat-cards">
-          <div className="panel stat-card">
-            <span className="stat-num">{formatMinutes(report.avgFirstResponseMinutes, locale)}</span>
-            <span className="stat-label">{t('settings.avgFirstResponse')}</span>
+        <div className="chat-stats chat-stats-4">
+          <div className="chat-stat">
+            <span className="chat-stat-num">{formatMinutes(report.avgFirstResponseMinutes, locale)}</span>
+            <span className="chat-stat-label mono">{t('settings.avgFirstResponse')}</span>
           </div>
-          <div className="panel stat-card">
-            <span className="stat-num">
+          <div className="chat-stat">
+            <span className="chat-stat-num">
               {report.firstResponseWithinSlaPercent != null
                 ? `${formatNumber(report.firstResponseWithinSlaPercent, locale)}%`
                 : '—'}
             </span>
-            <span className="stat-label">{t('settings.withinSla')}</span>
+            <span className="chat-stat-label mono">{t('settings.withinSla')}</span>
           </div>
-          <div className="panel stat-card">
-            <span className="stat-num">{formatMinutes(report.avgResolutionMinutes, locale)}</span>
-            <span className="stat-label">{t('settings.avgResolution')}</span>
+          <div className="chat-stat">
+            <span className="chat-stat-num">{formatMinutes(report.avgResolutionMinutes, locale)}</span>
+            <span className="chat-stat-label mono">{t('settings.avgResolution')}</span>
           </div>
-          <div className="panel stat-card">
-            <span className="stat-num">{formatNumber(report.resolvedCount, locale)}</span>
-            <span className="stat-label">{t('settings.resolvedCount')}</span>
+          <div className="chat-stat">
+            <span className="chat-stat-num">{formatNumber(report.resolvedCount, locale)}</span>
+            <span className="chat-stat-label mono">{t('settings.resolvedCount')}</span>
           </div>
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel-head">
+      <section className="chat-section">
+        <div className="chat-section-head">
           <p className="section-label">{t('csat.title')}</p>
         </div>
-        <div className="stat-cards">
-          <div className="panel stat-card">
-            <span className="stat-num">
+        <div className="chat-stats chat-stats-4">
+          <div className="chat-stat">
+            <span className="chat-stat-num">
               {report.csatAverage != null
                 ? `${formatNumber(Math.round(report.csatAverage * 10) / 10, locale)} / 5`
                 : '—'}
             </span>
-            <span className="stat-label">{t('csat.average')}</span>
+            <span className="chat-stat-label mono">{t('csat.average')}</span>
           </div>
-          <div className="panel stat-card">
-            <span className="stat-num">{formatNumber(report.csatCount, locale)}</span>
-            <span className="stat-label">{t('csat.responses')}</span>
+          <div className="chat-stat">
+            <span className="chat-stat-num">{formatNumber(report.csatCount, locale)}</span>
+            <span className="chat-stat-label mono">{t('csat.responses')}</span>
           </div>
         </div>
-        <p className="muted chat-settings-note">{t('csat.note')}</p>
+        <p className="muted chat-section-sub chat-stats-note">{t('csat.note')}</p>
+      </section>
+
+      <section className="chat-section">
+        <div className="chat-section-head">
+          <p className="section-label">{t('overview.widgets')}</p>
+        </div>
+        <p className="muted chat-section-sub chat-stats-note">{t('settings.widgetsNote')}</p>
+        {widgets.length > 0 ? (
+          <WidgetList widgets={widgets} />
+        ) : (
+          <NewWidgetButton shortcut={false} />
+        )}
       </section>
     </div>
   );

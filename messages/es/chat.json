@@ -13,7 +13,13 @@
     "noWidgets": "Aún no hay widgets.",
     "newWidget": "Nuevo widget",
     "recentConversations": "Conversaciones recientes",
-    "unreadMessages": "Mensajes sin leer"
+    "unreadMessages": "Mensajes sin leer",
+    "deleteConfirm": "¿Borrar el widget “{name}”? Sus conversaciones dejan de estar disponibles desde tu sitio. No se puede deshacer.",
+    "openInbox": "Abrir inbox",
+    "openConversations": "Conversaciones abiertas",
+    "noOpen": "No hay conversaciones abiertas. Estás al día.",
+    "emptyTitle": "Creá tu primer widget",
+    "emptySub": "Un widget es la burbuja de chat que insertás en tu sitio. Creá uno, pegá el snippet y las conversaciones nuevas llegan al inbox."
   },
   "widgetForm": {
     "name": "Nombre",
@@ -49,7 +55,7 @@
     "title": "Código para embeber",
     "copy": "Copiar",
     "copied": "Copiado",
-    "instructions": "Pega este script antes del cierre </body>."
+    "instructions": "Pegá este snippet justo antes del cierre de la etiqueta body de tu sitio."
   },
   "inbox": {
     "title": "Bandeja",
@@ -65,7 +71,10 @@
     "search": "Buscar visitantes o asuntos…",
     "empty": "Ninguna conversación coincide con tus filtros.",
     "loadMore": "Cargar más",
-    "unread": "No leída"
+    "unread": "No leída",
+    "emptyOpen": "No hay conversaciones abiertas. Estás al día.",
+    "noWidgetsTitle": "Todavía no hay widgets",
+    "noWidgetsSub": "Las conversaciones llegan a través de un widget en tu sitio. Creá uno para empezar a recibir chats acá."
   },
   "conversation": {
     "open": "Abierta",
@@ -103,7 +112,8 @@
       "medium": "Media",
       "high": "Alta",
       "urgent": "Urgente"
-    }
+    },
+    "replyHint": "Responder… Enter envía · / respuestas guardadas"
   },
   "visitorPanel": {
     "title": "Visitante",
@@ -118,7 +128,8 @@
     "logToCrm": "Guardar conversación en el CRM",
     "loggedToCrm": "Guardada en el timeline del contacto ✓",
     "crmError": "No se pudo guardar en el CRM. Probá de nuevo.",
-    "needsEmail": "Pedile un email para crear el contacto en el CRM."
+    "needsEmail": "Pedile un email para crear el contacto en el CRM.",
+    "started": "Inicio"
   },
   "priorities": {
     "low": "Baja",
@@ -133,6 +144,7 @@
     "conversations": "{count, plural, one {# conversación} other {# conversaciones}}",
     "notes": "Notas",
     "editNotes": "Editar notas",
+    "notesPlaceholder": "Agregá una nota sobre esta persona… se guarda sola",
     "lastSeen": "Última vez"
   },
   "rules": {
@@ -149,7 +161,13 @@
     "matchType": "Tipo de coincidencia",
     "keyword": "Palabra clave",
     "timeRange": "Rango horario",
-    "keywordPlaceholder": "reembolso, precios…"
+    "keywordPlaceholder": "reembolso, precios…",
+    "sub": "Las reglas se evalúan de arriba hacia abajo: la primera que coincide asigna la conversación nueva.",
+    "emptySub": "Asigná conversaciones por palabra clave u horario, o repartilas en round-robin entre tu equipo.",
+    "deleteConfirm": "¿Borrar esta regla de asignación?",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "namePlaceholder": "Nombre de la regla, p. ej. Precios a ventas"
   },
   "sla": {
     "title": "SLA",
@@ -174,7 +192,8 @@
     "avgFirstResponse": "Primera respuesta prom.",
     "withinSla": "Dentro del SLA de 1ª respuesta",
     "avgResolution": "Resolución prom.",
-    "resolvedCount": "Conversaciones resueltas"
+    "resolvedCount": "Conversaciones resueltas",
+    "widgetsNote": "Cada widget tiene su aspecto, código para insertar, reglas de asignación, respuestas guardadas y SLA."
   },
   "csat": {
     "title": "CSAT",
@@ -209,7 +228,12 @@
     "shortcut": "Atajo",
     "body": "Cuerpo",
     "empty": "Aún no hay respuestas prediseñadas.",
-    "placeholder": "Escribe aquí tu mensaje guardado…"
+    "placeholder": "Escribe aquí tu mensaje guardado…",
+    "sub": "Respuestas guardadas de este widget. En una conversación, escribí / para insertar una.",
+    "emptySub": "Guardá las respuestas que escribís seguido e insertalas con / mientras respondés.",
+    "deleteConfirm": "¿Borrar la respuesta guardada {shortcut}?",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Opcional — por defecto, el atajo"
   },
   "attachments": {
     "image": "Imagen",
@@ -240,5 +264,17 @@
     "generic": "Algo salió mal. Inténtalo de nuevo.",
     "invalid_input": "Algunos campos son inválidos. Revísalos e intenta de nuevo.",
     "missing_name": "El nombre es obligatorio."
+  },
+  "quick": {
+    "create": "Crear",
+    "hint": "Enter para crear · Esc para cancelar",
+    "saveHint": "⌘↵ para guardar · Esc para cancelar",
+    "widgetPlaceholder": "Nombre del widget, p. ej. Soporte web",
+    "widgetNote": "Después vas a ver el snippet para pegar en tu sitio. Ahí también configurás bienvenida, campos, bot y horarios."
+  },
+  "widgetNav": {
+    "settings": "Widget",
+    "back": "Todos los widgets",
+    "conversations": "{count, plural, one {# conversación} other {# conversaciones}}"
   }
 }

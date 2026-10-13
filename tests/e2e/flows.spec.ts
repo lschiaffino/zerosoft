@@ -434,3 +434,74 @@ test('CRM: los widgets del dashboard no se superponen', async ({ page }) => {
     }
   }
 });
+
+// Chat — smoke e2e de los flujos rápidos (pegar en tests/e2e/flows.spec.ts;
+// usa el `uid()` y los imports que ya están arriba del archivo).
+
+test('Chat: crear widget desde el overview con "C" y abrir su configuración', async ({ page }) => {
+  await page.goto('/en/app/chat', { waitUntil: 'networkidle' });
+  const name = `E2E widget ${uid()}`;
+  const dialog = page.getByRole('dialog');
+  // El atajo se registra al hidratar: reintenta hasta que abre el modal.
+  await expect(async () => {
+    await page.keyboard.press('c');
+    await expect(dialog).toBeVisible({ timeout: 1000 });
+  }).toPass();
+  await page.keyboard.type(name);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/en\/app\/chat\/widgets\/[0-9a-f-]+$/, { timeout: 60_000 });
+  await expect(page.getByRole('heading', { name })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Canned responses' })).toBeVisible();
+});
+
+test('Chat: respuestas guardadas y reglas se crean en un modal, sin salir de la vista', async ({ request, page }) => {
+  const w = await request.post('/api/chat/widgets', { data: { name: `E2E ${uid()}` } });
+  const { id: widgetId } = await w.json();
+
+  await page.goto(`/en/app/chat/widgets/${widgetId}/canned`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Add response' }).click();
+  await page.getByRole('dialog').getByLabel('Shortcut').fill('Hola Mundo');
+  await page.getByPlaceholder('Type your saved message here…').fill('Hi! How can we help?');
+  await page.keyboard.press('Meta+Enter');
+  await expect(page.getByText('/hola-mundo')).toBeVisible();
+  // Editar: click en la fila abre el mismo modal.
+  await page.getByText('/hola-mundo').click();
+  await page.getByPlaceholder('Type your saved message here…').fill('Edited body');
+  await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Edited body')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Assignment rules' }).click();
+  await page.getByRole('button', { name: 'Add rule' }).click();
+  await page.keyboard.type('Pricing questions');
+  await page.getByRole('dialog').locator('select').first().selectOption('keyword');
+  await page.getByPlaceholder('refund, pricing…').fill('pricing');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Pricing questions')).toBeVisible();
+});
+
+test('Chat: responder con Enter (y "/" inserta una respuesta guardada) y resolver', async ({ request, page }) => {
+  const w = await request.post('/api/chat/widgets', { data: { name: `E2E ${uid()}` } });
+  const { id: widgetId } = await w.json();
+  await request.post(`/api/chat/widgets/${widgetId}/canned`, {
+    data: { shortcut: '/thanks', title: 'Thanks', body: 'Thanks for writing in!' },
+  });
+  const visitorId = `v-${uid()}`;
+  const sent = await request.post('/api/chat/messages', {
+    headers: { origin: 'https://cliente.example' },
+    data: { widgetId, visitorId, body: 'Need pricing help' },
+  });
+  const { message } = await sent.json();
+
+  await page.goto(`/en/app/chat/inbox/${message.conversation_id}`, { waitUntil: 'networkidle' });
+  const composer = page.getByRole('textbox', { name: 'Reply' });
+  await composer.fill('/than');
+  await expect(page.locator('.chat-canned-picker')).toBeVisible();
+  await composer.press('Enter'); // inserta la respuesta guardada
+  await composer.press('Enter'); // envía
+  await expect(page.locator('.chat-message.agent').getByText('Thanks for writing in!')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Resolve' }).click();
+  await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible();
+  // El hilo scrollea su propio contenedor, no la página.
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});

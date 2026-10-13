@@ -75,9 +75,9 @@ export default function SlaClient({ widgetId, initialPolicies }: SlaClientProps)
   }
 
   return (
-    <section className="panel">
-      <div className="panel-head">
-        <p className="section-label">{t('sla.policies')}</p>
+    <section className="chat-section">
+      <div className="chat-section-head">
+        <p className="muted chat-section-sub">{t('sla.policiesNote')}</p>
         <div className="chat-sla-actions">
           {saved && <span className="chat-sla-saved muted">{t('sla.saved')}</span>}
           <button
@@ -139,8 +139,6 @@ export default function SlaClient({ widgetId, initialPolicies }: SlaClientProps)
           </tbody>
         </table>
       </div>
-
-      <p className="muted chat-settings-note">{t('sla.policiesNote')}</p>
     </section>
   );
 }

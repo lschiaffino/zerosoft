@@ -1,9 +1,11 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
-import { listChatWidgets, listChatConversations } from '@/lib/chat-data';
+import { countChatConversations, listChatConversations, listChatWidgets } from '@/lib/chat-data';
 import { formatNumber } from '@/lib/utils';
 import WidgetList from '@/components/chat/WidgetList';
+import NewWidgetButton from '@/components/chat/NewWidgetButton';
+import ConversationList from '@/components/chat/ConversationList';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,11 +23,14 @@ export default async function ChatOverviewPage(
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
   const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
+  const widgetIds = widgets.map((w) => w.id);
 
-  const recentConversations = await Promise.all(
-    widgets.slice(0, 5).map((w) => listChatConversations([w.id], { status: 'open' })),
-  );
-  const openConversations = recentConversations.flat();
+  // Antes contaba solo las conversaciones abiertas de los primeros 5 widgets.
+  const [openCount, unassignedCount, recentOpen] = await Promise.all([
+    countChatConversations(widgetIds, { status: 'open' }),
+    countChatConversations(widgetIds, { status: 'open', assignedTo: 'unassigned' }),
+    listChatConversations(widgetIds, { status: 'open', limit: 5 }),
+  ]);
 
   return (
     <div className="app-page">
@@ -34,28 +39,53 @@ export default async function ChatOverviewPage(
           <h1 className="app-title">{t('overview.title')}</h1>
           <p className="app-sub muted">{t('overview.subtitle')}</p>
         </div>
-        <Link href="/app/chat/widgets/new" className="btn btn-solid btn-small">
-          {t('overview.newWidget')}
-        </Link>
+        {widgets.length > 0 && <NewWidgetButton />}
       </div>
 
-      <div className="stat-cards">
-        <div className="panel stat-card">
-          <span className="stat-num">{formatNumber(widgets.length, locale)}</span>
-          <span className="stat-label">{t('overview.widgets')}</span>
+      {widgets.length === 0 ? (
+        <div className="empty-state">
+          <p className="empty-zeros mono" aria-hidden>
+            0 0 0
+          </p>
+          <h2>{t('overview.emptyTitle')}</h2>
+          <p className="muted">{t('overview.emptySub')}</p>
+          <NewWidgetButton />
         </div>
-        <div className="panel stat-card">
-          <span className="stat-num">{formatNumber(openConversations.length, locale)}</span>
-          <span className="stat-label">{t('overview.conversations')}</span>
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="chat-stats">
+            <Link href="/app/chat/inbox" className="chat-stat">
+              <span className="chat-stat-num">{formatNumber(openCount, locale)}</span>
+              <span className="chat-stat-label mono">{t('overview.openConversations')}</span>
+            </Link>
+            <Link href="/app/chat/inbox" className="chat-stat">
+              <span className="chat-stat-num">{formatNumber(unassignedCount, locale)}</span>
+              <span className="chat-stat-label mono">{t('inbox.filters.unassigned')}</span>
+            </Link>
+            <div className="chat-stat">
+              <span className="chat-stat-num">{formatNumber(widgets.length, locale)}</span>
+              <span className="chat-stat-label mono">{t('overview.widgets')}</span>
+            </div>
+          </div>
 
-      <section className="panel">
-        <div className="panel-head">
-          <p className="section-label">{t('overview.widgets')}</p>
-        </div>
-        <WidgetList widgets={widgets} />
-      </section>
+          <section className="chat-section">
+            <div className="chat-section-head">
+              <p className="section-label">{t('overview.recentConversations')}</p>
+              <Link href="/app/chat/inbox" className="chat-section-link mono">
+                {t('overview.openInbox')} →
+              </Link>
+            </div>
+            <ConversationList conversations={recentOpen} emptyTitle={t('overview.noOpen')} />
+          </section>
+
+          <section className="chat-section">
+            <div className="chat-section-head">
+              <p className="section-label">{t('overview.widgets')}</p>
+            </div>
+            <WidgetList widgets={widgets} />
+          </section>
+        </>
+      )}
     </div>
   );
 }

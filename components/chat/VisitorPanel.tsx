@@ -8,17 +8,16 @@ import { formatDateTime } from '@/lib/datetime';
 
 interface VisitorPanelProps {
   conversation: ChatConversationWithVisitor;
-  onToggleResolved: () => void;
 }
 
 function initials(name: string | null, email: string | null): string {
-  const base = name || email || '?';
-  const parts = base.trim().split(/\s+/);
+  const base = (name || email || '?').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim() || '?';
+  const parts = base.split(/\s+/);
   if (parts.length > 1) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   return base.slice(0, 2).toUpperCase();
 }
 
-export default function VisitorPanel({ conversation, onToggleResolved }: VisitorPanelProps) {
+export default function VisitorPanel({ conversation }: VisitorPanelProps) {
   const t = useTranslations('chat');
   const locale = useLocale();
   const [collapsed, setCollapsed] = useState(false);
@@ -42,7 +41,6 @@ export default function VisitorPanel({ conversation, onToggleResolved }: Visitor
 
   const visitor = conversation.visitor;
   const contact = conversation.crm_contact;
-  const isResolved = conversation.status === 'resolved';
 
   return (
     <aside className={`chat-visitor-panel${collapsed ? ' collapsed' : ''}`}>
@@ -117,22 +115,6 @@ export default function VisitorPanel({ conversation, onToggleResolved }: Visitor
           <p className="chat-visitor-props-title mono muted">{t('conversation.subject')}</p>
           <p className="chat-visitor-subject">{conversation.subject || '—'}</p>
 
-          <div className="chat-visitor-prop-row">
-            <span className="mono muted">{t('conversation.assignedTo')}</span>
-            <span>
-              {conversation.assigned_name || conversation.assigned_email || t('conversation.unassigned')}
-            </span>
-          </div>
-          <div className="chat-visitor-prop-row">
-            <span className="mono muted">{t('conversation.priority')}</span>
-            <span>{t(`priorities.${conversation.priority}`)}</span>
-          </div>
-          <div className="chat-visitor-prop-row">
-            <span className="mono muted">{t(`conversation.${conversation.status}`)}</span>
-            <span className={`chat-status chat-status-${conversation.status}`}>
-              {t(`conversation.${conversation.status}`)}
-            </span>
-          </div>
           {conversation.status === 'snoozed' && conversation.snoozed_until && (
             <div className="chat-visitor-prop-row">
               <span className="mono muted">{t('conversation.snoozeUntil')}</span>
@@ -146,18 +128,10 @@ export default function VisitorPanel({ conversation, onToggleResolved }: Visitor
             </div>
           )}
           <div className="chat-visitor-prop-row">
-            <span className="mono muted">{t('visitorPanel.firstSeen')}</span>
+            <span className="mono muted">{t('visitorPanel.started')}</span>
             <span className="mono">{formatDateTime(conversation.created_at, locale)}</span>
           </div>
         </div>
-
-        <button
-          type="button"
-          className={`btn btn-small${isResolved ? '' : ' btn-ghost'}`}
-          onClick={onToggleResolved}
-        >
-          {isResolved ? t('conversation.reopen') : t('conversation.resolve')}
-        </button>
       </div>
     </aside>
   );

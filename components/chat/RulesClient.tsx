@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ChatAgent, ChatAssignmentRuleRow } from '@/lib/chat-data';
+import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
 
 interface RulesClientProps {
   widgetId: string;
@@ -24,14 +25,14 @@ function emptyForm(): RuleForm {
 export default function RulesClient({ widgetId, agents }: RulesClientProps) {
   const t = useTranslations('chat');
   const [rules, setRules] = useState<ChatAssignmentRuleRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RuleForm>(emptyForm());
 
   async function fetchRules() {
-    setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/chat/widgets/${widgetId}/rules`);
@@ -41,7 +42,7 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
     } catch {
       setError(t('errors.generic'));
     } finally {
-      setLoading(false);
+      setLoaded(true);
     }
   }
 
@@ -50,7 +51,10 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetId]);
 
+  useKeyShortcut('c', () => startCreate(), editingId === null);
+
   function startEdit(rule: ChatAssignmentRuleRow) {
+    setFormError(null);
     setEditingId(rule.id);
     setForm({
       name: rule.name,
@@ -62,6 +66,7 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
   }
 
   function startCreate() {
+    setFormError(null);
     setEditingId('new');
     setForm(emptyForm());
   }
@@ -74,7 +79,7 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
   async function save() {
     if (!form.name.trim()) return;
     setSaving(true);
-    setError(null);
+    setFormError(null);
     try {
       const payload = {
         name: form.name.trim(),
@@ -98,19 +103,21 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
       setEditingId(null);
       setForm(emptyForm());
     } catch {
-      setError(t('errors.generic'));
+      setFormError(t('errors.generic'));
     } finally {
       setSaving(false);
     }
   }
 
   async function remove(id: string) {
-    if (!window.confirm(t('common.delete'))) return;
+    if (!window.confirm(t('rules.deleteConfirm'))) return;
+    setRules((prev) => prev.filter((r) => r.id !== id));
     await fetch(`/api/chat/rules/${id}`, { method: 'DELETE' });
     await fetchRules();
   }
 
   async function toggleActive(rule: ChatAssignmentRuleRow) {
+    setRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, active: r.active === 1 ? 0 : 1 } : r)));
     await fetch(`/api/chat/rules/${rule.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -151,165 +158,84 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
     }
   };
 
+  const agentLabel = (id: string | null) => {
+    const a = agents.find((x) => x.id === id);
+    return a ? a.name || a.email : '—';
+  };
+
   return (
-    <section className="panel">
-      <div className="panel-head">
-        <p className="section-label">{t('rules.title')}</p>
-        <button type="button" className="btn btn-small" onClick={startCreate}>
-          {t('rules.add')}
-        </button>
+    <section className="chat-section">
+      <div className="chat-section-head">
+        <p className="muted chat-section-sub">{t('rules.sub')}</p>
+        {rules.length > 0 && (
+          <button type="button" className="btn btn-solid btn-small" onClick={startCreate}>
+            {t('rules.add')}
+            <span className="kbd-hint">C</span>
+          </button>
+        )}
       </div>
 
       {error && <p className="form-error">{error}</p>}
 
-      {editingId && (
-        <div className="chat-rule-form panel">
-          <label className="field">
-            <span className="prop-label">{t('widgetForm.name')}</span>
-            <input
-              className="input"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            />
-          </label>
-
-          <div className="chat-rule-form-row">
-            <label className="field">
-              <span className="prop-label">{t('rules.matchType')}</span>
-              <select
-                className="select"
-                value={form.matchType}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, matchType: e.target.value as RuleForm['matchType'] }))
-                }
-              >
-                <option value="all">{t('rules.matchAll')}</option>
-                <option value="keyword">{t('rules.matchKeyword')}</option>
-                <option value="time">{t('rules.matchTime')}</option>
-                <option value="round_robin">{t('rules.roundRobin')}</option>
-              </select>
-            </label>
-
-            {form.matchType !== 'round_robin' && (
-              <label className="field">
-                <span className="prop-label">{t('rules.assignTo')}</span>
-                <select
-                  className="select"
-                  value={form.assignTo}
-                  onChange={(e) => setForm((f) => ({ ...f, assignTo: e.target.value }))}
-                >
-                  <option value="">—</option>
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name || a.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </div>
-
-          {form.matchType === 'keyword' && (
-            <label className="field">
-              <span className="prop-label">{t('rules.keyword')}</span>
-              <input
-                className="input"
-                value={form.matchValue}
-                onChange={(e) => setForm((f) => ({ ...f, matchValue: e.target.value }))}
-                placeholder={t('rules.keywordPlaceholder')}
-              />
-            </label>
-          )}
-
-          {form.matchType === 'time' && (
-            <label className="field">
-              <span className="prop-label">{t('rules.timeRange')}</span>
-              <input
-                className="input"
-                value={form.matchValue}
-                onChange={(e) => setForm((f) => ({ ...f, matchValue: e.target.value }))}
-                placeholder="09:00-17:00"
-              />
-            </label>
-          )}
-
-          <label className="checkbox-field">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-            />
-            <span>{t('rules.active')}</span>
-          </label>
-
-          <div className="form-actions">
-            <button type="button" className="btn btn-small" onClick={cancelEdit} disabled={saving}>
-              {t('common.cancel')}
-            </button>
-            <button type="button" className="btn btn-solid btn-small" onClick={save} disabled={saving || !form.name.trim()}>
-              {saving ? t('common.loading') : t('common.save')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {rules.length === 0 && !loading ? (
-        <div className="chat-list-empty">
-          <p className="empty-zeros mono" aria-hidden>0 0 0</p>
-          <p className="muted">{t('rules.empty')}</p>
+      {loaded && rules.length === 0 ? (
+        <div className="empty-state chat-empty">
+          <p className="empty-zeros mono" aria-hidden>
+            0 0 0
+          </p>
+          <h2>{t('rules.empty')}</h2>
+          <p className="muted">{t('rules.emptySub')}</p>
+          <button type="button" className="btn btn-solid btn-small" onClick={startCreate}>
+            {t('rules.add')}
+          </button>
         </div>
       ) : (
         <ul className="chat-rules-list">
           {rules.map((rule, index) => (
-            <li key={rule.id} className="chat-rule-row">
-              <div className="chat-rule-info">
+            <li key={rule.id} className={`chat-rule-row${rule.active === 1 ? '' : ' is-inactive'}`}>
+              <button type="button" className="chat-rule-info" onClick={() => startEdit(rule)}>
                 <span className="chat-rule-position mono">{index + 1}</span>
-                <div className="chat-rule-main">
+                <span className="chat-rule-main">
                   <span className="chat-rule-name">{rule.name}</span>
                   <span className="chat-rule-match mono muted">
                     {matchTypeLabel(rule.match_type)}
                     {rule.match_value ? `: ${rule.match_value}` : ''}
+                    {' → '}
+                    {rule.match_type === 'round_robin' ? t('rules.roundRobin') : agentLabel(rule.assign_to)}
                   </span>
-                </div>
-              </div>
-              <div className="chat-rule-actions">
-                <span className="chat-rule-assignee mono muted">
-                  {rule.match_type === 'round_robin'
-                    ? t('rules.roundRobin')
-                    : agents.find((a) => a.id === rule.assign_to)
-                      ? agents.find((a) => a.id === rule.assign_to)!.name ||
-                        agents.find((a) => a.id === rule.assign_to)!.email
-                      : '—'}
                 </span>
-                <button
-                  type="button"
-                  className={`btn btn-small${rule.active === 1 ? '' : ' btn-ghost'}`}
-                  onClick={() => toggleActive(rule)}
-                >
+              </button>
+              <div className="chat-rule-actions">
+                <label className="chat-rule-toggle mono">
+                  <input
+                    type="checkbox"
+                    checked={rule.active === 1}
+                    onChange={() => toggleActive(rule)}
+                  />
                   {rule.active === 1 ? t('rules.active') : t('rules.inactive')}
-                </button>
+                </label>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-small"
+                  className="chat-widget-action mono"
                   onClick={() => reorder(rule.id, 'up')}
                   disabled={index === 0}
+                  aria-label={t('rules.moveUp')}
+                  title={t('rules.moveUp')}
                 >
                   ↑
                 </button>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-small"
+                  className="chat-widget-action mono"
                   onClick={() => reorder(rule.id, 'down')}
                   disabled={index === rules.length - 1}
+                  aria-label={t('rules.moveDown')}
+                  title={t('rules.moveDown')}
                 >
                   ↓
                 </button>
-                <button type="button" className="btn btn-small" onClick={() => startEdit(rule)}>
-                  {t('common.edit')}
-                </button>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-small"
+                  className="chat-widget-action chat-widget-action-danger mono"
                   onClick={() => remove(rule.id)}
                 >
                   {t('common.delete')}
@@ -319,6 +245,83 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
           ))}
         </ul>
       )}
+
+      <QuickModal
+        open={editingId !== null}
+        onClose={cancelEdit}
+        crumb={`${t('rules.title')} › ${editingId === 'new' ? t('rules.add') : t('common.edit')}`}
+        onSubmit={save}
+        submitLabel={editingId === 'new' ? t('quick.create') : t('common.save')}
+        cancelLabel={t('common.cancel')}
+        submitDisabled={!form.name.trim()}
+        busy={saving}
+        error={formError}
+        hint={t('quick.saveHint')}
+      >
+        <input
+          className="qm-title"
+          value={form.name}
+          maxLength={120}
+          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          placeholder={t('rules.namePlaceholder')}
+          aria-label={t('widgetForm.name')}
+        />
+        <div className="qm-row">
+          <label className="qm-field">
+            <span>{t('rules.matchType')}</span>
+            <select
+              value={form.matchType}
+              onChange={(e) => setForm((f) => ({ ...f, matchType: e.target.value as RuleForm['matchType'] }))}
+            >
+              <option value="all">{t('rules.matchAll')}</option>
+              <option value="keyword">{t('rules.matchKeyword')}</option>
+              <option value="time">{t('rules.matchTime')}</option>
+              <option value="round_robin">{t('rules.roundRobin')}</option>
+            </select>
+          </label>
+          {form.matchType !== 'round_robin' && (
+            <label className="qm-field">
+              <span>{t('rules.assignTo')}</span>
+              <select value={form.assignTo} onChange={(e) => setForm((f) => ({ ...f, assignTo: e.target.value }))}>
+                <option value="">—</option>
+                {agents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name || a.email}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        {form.matchType === 'keyword' && (
+          <label className="qm-field">
+            <span>{t('rules.keyword')}</span>
+            <input
+              value={form.matchValue}
+              onChange={(e) => setForm((f) => ({ ...f, matchValue: e.target.value }))}
+              placeholder={t('rules.keywordPlaceholder')}
+            />
+          </label>
+        )}
+        {form.matchType === 'time' && (
+          <label className="qm-field">
+            <span>{t('rules.timeRange')}</span>
+            <input
+              value={form.matchValue}
+              onChange={(e) => setForm((f) => ({ ...f, matchValue: e.target.value }))}
+              placeholder="09:00-17:00"
+            />
+          </label>
+        )}
+        <label className="qm-check">
+          <input
+            type="checkbox"
+            checked={form.active}
+            onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+          />
+          {t('rules.active')}
+        </label>
+      </QuickModal>
     </section>
   );
 }

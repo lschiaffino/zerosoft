@@ -13,7 +13,13 @@
     "noWidgets": "No widgets yet.",
     "newWidget": "New widget",
     "recentConversations": "Recent conversations",
-    "unreadMessages": "Unread messages"
+    "unreadMessages": "Unread messages",
+    "deleteConfirm": "Delete the widget “{name}”? Its conversations will no longer be reachable from your site. This can’t be undone.",
+    "openInbox": "Open inbox",
+    "openConversations": "Open conversations",
+    "noOpen": "No open conversations. You’re all caught up.",
+    "emptyTitle": "Create your first widget",
+    "emptySub": "A widget is the chat bubble you embed on your site. Create one, paste the snippet and new conversations land in the inbox."
   },
   "widgetForm": {
     "name": "Name",
@@ -49,7 +55,7 @@
     "title": "Embed code",
     "copy": "Copy",
     "copied": "Copied",
-    "instructions": "Paste this script tag before the closing </body> tag."
+    "instructions": "Paste this snippet right before the closing body tag of your site."
   },
   "inbox": {
     "title": "Inbox",
@@ -65,7 +71,10 @@
     "search": "Search visitors or subjects…",
     "empty": "No conversations match your filters.",
     "loadMore": "Load more",
-    "unread": "Unread"
+    "unread": "Unread",
+    "emptyOpen": "No open conversations. You’re all caught up.",
+    "noWidgetsTitle": "No widget yet",
+    "noWidgetsSub": "Conversations arrive through a widget on your site. Create one to start receiving chats here."
   },
   "conversation": {
     "open": "Open",
@@ -103,7 +112,8 @@
       "medium": "Medium",
       "high": "High",
       "urgent": "Urgent"
-    }
+    },
+    "replyHint": "Reply… Enter to send · / for canned responses"
   },
   "visitorPanel": {
     "title": "Visitor",
@@ -118,7 +128,8 @@
     "logToCrm": "Save conversation to CRM",
     "loggedToCrm": "Saved to the contact timeline ✓",
     "crmError": "Couldn't save to the CRM. Try again.",
-    "needsEmail": "Ask for an email to create a CRM contact."
+    "needsEmail": "Ask for an email to create a CRM contact.",
+    "started": "Started"
   },
   "priorities": {
     "low": "Low",
@@ -133,6 +144,7 @@
     "conversations": "{count, plural, one {# conversation} other {# conversations}}",
     "notes": "Notes",
     "editNotes": "Edit notes",
+    "notesPlaceholder": "Add a note about this person… saved automatically",
     "lastSeen": "Last seen"
   },
   "rules": {
@@ -149,7 +161,13 @@
     "matchType": "Match type",
     "keyword": "Keyword",
     "timeRange": "Time range",
-    "keywordPlaceholder": "refund, pricing…"
+    "keywordPlaceholder": "refund, pricing…",
+    "sub": "Rules run top to bottom: the first one that matches assigns the new conversation.",
+    "emptySub": "Route conversations by keyword or time of day, or spread them round-robin across your team.",
+    "deleteConfirm": "Delete this assignment rule?",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "namePlaceholder": "Rule name, e.g. Pricing questions to sales"
   },
   "sla": {
     "title": "SLA",
@@ -174,7 +192,8 @@
     "avgFirstResponse": "Avg first response",
     "withinSla": "Within first-response SLA",
     "avgResolution": "Avg resolution time",
-    "resolvedCount": "Resolved conversations"
+    "resolvedCount": "Resolved conversations",
+    "widgetsNote": "Each widget has its own look, embed code, assignment rules, canned responses and SLA policies."
   },
   "csat": {
     "title": "CSAT",
@@ -209,7 +228,12 @@
     "shortcut": "Shortcut",
     "body": "Body",
     "empty": "No canned responses yet.",
-    "placeholder": "Type your saved message here…"
+    "placeholder": "Type your saved message here…",
+    "sub": "Saved replies for this widget. In a conversation, type / to insert one.",
+    "emptySub": "Save answers you type often and insert them with / while replying.",
+    "deleteConfirm": "Delete the canned response {shortcut}?",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Optional — defaults to the shortcut"
   },
   "attachments": {
     "image": "Image",
@@ -240,5 +264,17 @@
     "generic": "Something went wrong. Try again.",
     "invalid_input": "Some fields are invalid. Check them and try again.",
     "missing_name": "Name is required."
+  },
+  "quick": {
+    "create": "Create",
+    "hint": "Enter to create · Esc to cancel",
+    "saveHint": "⌘↵ to save · Esc to cancel",
+    "widgetPlaceholder": "Widget name, e.g. Website support",
+    "widgetNote": "Next you’ll get the snippet to paste on your site. Welcome message, fields, bot and office hours can be set there too."
+  },
+  "widgetNav": {
+    "settings": "Widget",
+    "back": "All widgets",
+    "conversations": "{count, plural, one {# conversation} other {# conversations}}"
   }
 }
