@@ -37,7 +37,11 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
     <main id="top">
       {/* HERO */}
       <section className="hero" id="hero">
-        <ZeroField align="right" sizeFactor={0.92} />
+        <ZeroField
+          align="right"
+          sizeFactor={0.92}
+          accents={['47,107,255', '123,77,255', '14,159,110', '242,97,29', '226,61,127', '194,112,10']}
+        />
         <div className="hero-content">
           <h1>
             {t('hero.title1')}
@@ -111,7 +115,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
 
         <div className="product-grid">
           {(['track', 'crm', 'cal', 'link', 'docs', 'chat'] as const).map((key, i) => (
-            <Reveal as="article" className="card" key={key}>
+            <Reveal as="article" className={`card card-${key}`} key={key}>
               <Link href={`/products/${key}`} style={{ display: 'contents' }}>
                 <div className="card-top">
                   <span className="card-num">0{i + 1}</span>
@@ -145,9 +149,11 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
           <ShowcaseTabs
             tabs={SHOWCASE.map((p) => ({ key: p.key, label: p.name, tag: t(`products.${p.key}.tag`) }))}
             panels={SHOWCASE.map((p) => (
-              <BrowserFrame key={p.key} url={`zerosoft.ai/app/${p.path}`}>
-                <p.Mockup />
-              </BrowserFrame>
+              <div key={p.key} className={`showcase-frame card-${p.key}`}>
+                <BrowserFrame url={`zerosoft.ai/app/${p.path}`}>
+                  <p.Mockup />
+                </BrowserFrame>
+              </div>
             ))}
           />
         </div>

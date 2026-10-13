@@ -405,7 +405,7 @@
 }
 
 .booking-calendar-day.selected {
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   color: var(--bg);
 }
 
@@ -442,7 +442,7 @@
 .booking-slot:hover,
 .booking-slot.selected {
   border-color: var(--ink);
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   color: var(--bg);
 }
 

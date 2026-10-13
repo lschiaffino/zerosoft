@@ -1587,3 +1587,79 @@
 .product-grid .card { min-height: 300px; }
 .product-grid .card-top { margin-bottom: 0; }
 .product-grid .card h3 { margin-top: 56px; }
+
+/* ============================================================
+   COLOR en el sitio: cada producto con su color (tokens --c-*).
+   ============================================================ */
+
+.card-link { --accent: var(--c-link); }
+.card-crm { --accent: var(--c-crm); }
+.card-cal { --accent: var(--c-cal); }
+.card-track { --accent: var(--c-track); }
+.card-chat { --accent: var(--c-chat); }
+.card-docs { --accent: var(--c-docs); }
+
+/* Tarjetas del home: punto y número del color del producto; al pasar, se llenan con él. */
+.product-grid .card .card-num { color: var(--accent); font-weight: 500; }
+.product-grid .card h3::after {
+  content: '';
+  display: inline-block;
+  width: 0.22em;
+  height: 0.22em;
+  margin-left: 0.08em;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: baseline;
+}
+.product-grid .card:hover { background: var(--accent); color: #fff; }
+.product-grid .card:hover h3::after { background: #fff; }
+.product-grid .card:hover .card-num,
+.product-grid .card:hover .card-tag,
+.product-grid .card:hover .card-desc { color: rgba(255, 255, 255, 0.85); }
+.product-grid .card:hover .card-status { border-color: rgba(255, 255, 255, 0.6); color: #fff; }
+
+/* Vitrina: la pestaña activa toma el color del producto. */
+.showcase-tab.active { background: var(--accent); color: #fff; }
+.showcase-tab:not(.active) .showcase-tab-name::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* Página de producto: acentos con el color del producto. */
+.pd-page .pd-num, .pd-page .section-label { color: var(--accent); }
+.pd-page .pd-hero h1::after {
+  content: '.';
+  color: var(--accent);
+}
+.pd-page .btn-solid { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pd-page .btn-solid:hover:not(:disabled) { background: transparent; color: var(--accent); }
+.pd-page .feature-num, .pd-page .pd-feature-num { color: var(--accent); }
+
+/* Mockups con el color del producto (dentro de páginas de producto y vitrina). */
+.pd-page .mk-btn, .showcase-frame .mk-btn { background: var(--accent); }
+.pd-page .mk-badge-won, .showcase-frame .mk-badge-won { background: var(--accent); border-color: var(--accent); }
+.pd-page .mk-stage-bar i, .showcase-frame .mk-stage-bar i { background: var(--accent); }
+.pd-page .mk-cal-d.ok, .showcase-frame .mk-cal-d.ok {
+  background: color-mix(in srgb, var(--accent) 14%, white);
+  color: color-mix(in srgb, var(--accent) 80%, black);
+  font-weight: 600;
+}
+.pd-page .mk-cal-d.today, .showcase-frame .mk-cal-d.today { border-color: var(--accent); color: var(--accent); }
+.pd-page .mk-slot, .showcase-frame .mk-slot { border-color: color-mix(in srgb, var(--accent) 45%, white); color: color-mix(in srgb, var(--accent) 80%, black); }
+.pd-page .mk-slot.sel, .showcase-frame .mk-slot.sel,
+.pd-page .mk-cal-confirm, .showcase-frame .mk-cal-confirm { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pd-page .mk-msg-us, .showcase-frame .mk-msg-us { background: var(--accent); }
+.pd-page .mk-chat-send, .showcase-frame .mk-chat-send { background: var(--accent); }
+.pd-page .mk-nav span.active, .showcase-frame .mk-nav span.active {
+  background: color-mix(in srgb, var(--accent) 12%, white);
+  color: color-mix(in srgb, var(--accent) 80%, black);
+}
+.pd-page .mk-zero, .showcase-frame .mk-zero { border-color: var(--accent); color: var(--accent); }
+.pd-page .mk-ava, .showcase-frame .mk-ava { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pd-page .mk-cal-ava, .showcase-frame .mk-cal-ava { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, white); }

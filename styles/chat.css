@@ -140,7 +140,7 @@
 }
 
 .chat-inbox-tab:hover { color: var(--ink); }
-.chat-inbox-tab.active { background: var(--ink); color: var(--bg); }
+.chat-inbox-tab.active { background: var(--accent, var(--ink)); color: var(--bg); }
 
 .chat-inbox-search {
   max-width: 320px;
@@ -263,7 +263,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   flex-shrink: 0;
   margin-top: 12px;
 }
@@ -298,7 +298,7 @@
 }
 
 .chat-priority-urgent {
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   color: var(--bg);
   padding: 1px 6px;
   border-radius: 999px;
@@ -546,7 +546,7 @@
 }
 
 .chat-message.agent .chat-message-bubble {
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   color: var(--bg);
   border-color: var(--ink);
 }
@@ -992,7 +992,7 @@
 }
 
 .chat-widget-nav-link.active {
-  background: var(--ink);
+  background: var(--accent, var(--ink));
   color: var(--bg);
 }
 

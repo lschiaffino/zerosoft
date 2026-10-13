@@ -13,6 +13,10 @@ interface ZeroFieldProps {
   interactive?: boolean;
   /** Opacidad base de cada cero (0-1) */
   alpha?: number;
+  /** Colores extra ("r,g,b") para una parte de los ceros (el resto usa `color`). */
+  accents?: string[];
+  /** Fracción de ceros que toman un color de `accents` (0-1). */
+  accentShare?: number;
   className?: string;
 }
 
@@ -21,6 +25,8 @@ interface Particle {
   x: number; y: number;
   vx: number; vy: number;
   s: number; o: number; ph: number;
+  /** Índice del sprite (0 = color base, 1.. = accents). */
+  k: number;
 }
 
 /**
@@ -33,8 +39,11 @@ export default function ZeroField({
   color = '13,13,13',
   interactive = true,
   alpha = 0.9,
+  accents,
+  accentShare = 0.18,
   className = '',
 }: ZeroFieldProps) {
+  const accentKey = accents?.join('|') ?? '';
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasError, setHasError] = useState(false);
@@ -67,21 +76,25 @@ export default function ZeroField({
       // Sprite del glifo "0" pre-renderizado una vez: en el loop usamos
       // drawImage (GPU) en vez de fillText + cambios de font/fillStyle,
       // que es lo que hacía lenta la animación.
-      let sprite: HTMLCanvasElement | null = null;
+      let sprites: HTMLCanvasElement[] = [];
+      const palette = [color, ...(accentKey ? accentKey.split('|') : [])];
       const SPRITE = 96;
 
       function buildSprite() {
-        const c = document.createElement('canvas');
-        c.width = SPRITE;
-        c.height = SPRITE;
-        const cctx = c.getContext('2d');
-        if (!cctx) return;
-        cctx.fillStyle = `rgb(${color})`;
-        cctx.font = `500 ${Math.round(SPRITE * 0.82)}px "IBM Plex Mono", monospace`;
-        cctx.textAlign = 'center';
-        cctx.textBaseline = 'middle';
-        cctx.fillText('0', SPRITE / 2, SPRITE / 2 + SPRITE * 0.02);
-        sprite = c;
+        sprites = [];
+        for (const rgb of palette) {
+          const c = document.createElement('canvas');
+          c.width = SPRITE;
+          c.height = SPRITE;
+          const cctx = c.getContext('2d');
+          if (!cctx) return;
+          cctx.fillStyle = `rgb(${rgb})`;
+          cctx.font = `500 ${Math.round(SPRITE * 0.82)}px "IBM Plex Mono", monospace`;
+          cctx.textAlign = 'center';
+          cctx.textBaseline = 'middle';
+          cctx.fillText('0', SPRITE / 2, SPRITE / 2 + SPRITE * 0.02);
+          sprites.push(c);
+        }
       }
 
       function isMobile() {
@@ -133,6 +146,10 @@ export default function ZeroField({
                 s: gap * 1.15,
                 o: alpha * (0.5 + Math.random() * 0.5),
                 ph: Math.random() * Math.PI * 2,
+                k:
+                  palette.length > 1 && Math.random() < accentShare
+                    ? 1 + Math.floor(Math.random() * (palette.length - 1))
+                    : 0,
               });
             }
           }
@@ -140,12 +157,12 @@ export default function ZeroField({
       }
 
       function drawStatic() {
-        if (!ctx || !sprite) return;
+        if (!ctx || !sprites.length) return;
         ctx.clearRect(0, 0, W, H);
         for (const p of particles) {
           const half = p.s / 2;
           ctx.globalAlpha = p.o;
-          ctx.drawImage(sprite, p.hx - half, p.hy - half, p.s, p.s);
+          ctx.drawImage(sprites[p.k] ?? sprites[0], p.hx - half, p.hy - half, p.s, p.s);
         }
         ctx.globalAlpha = 1;
       }
@@ -169,7 +186,7 @@ export default function ZeroField({
       const t0 = performance.now();
 
       function tick(now: number) {
-        if (!ctx || !sprite) return;
+        if (!ctx || !sprites.length) return;
         const t = (now - t0) / 1000;
         ctx.clearRect(0, 0, W, H);
 
@@ -200,7 +217,7 @@ export default function ZeroField({
           const half = fs / 2;
 
           ctx.globalAlpha = Math.min(1, p.o + near * 0.4);
-          ctx.drawImage(sprite, p.x + wobX - half, p.y + wobY - half, fs, fs);
+          ctx.drawImage(sprites[p.k] ?? sprites[0], p.x + wobX - half, p.y + wobY - half, fs, fs);
         }
         ctx.globalAlpha = 1;
         raf = visible ? requestAnimationFrame(tick) : 0;
@@ -267,7 +284,7 @@ export default function ZeroField({
     } catch {
       setHasError(true);
     }
-  }, [align, sizeFactor, color, interactive, alpha]);
+  }, [align, sizeFactor, color, interactive, alpha, accentKey, accentShare]);
 
   return (
     <div ref={wrapRef} className={`zero-field ${className}`} aria-hidden="true">

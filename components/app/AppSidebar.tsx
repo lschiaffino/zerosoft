@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { signOut } from 'next-auth/react';
 import { Link, usePathname } from '@/i18n/navigation';
 import Icon, { type IconName } from './icons';
@@ -98,6 +98,16 @@ const PRODUCTS = [
   { key: 'track', name: 'Track', href: '/app/track' },
   { key: 'chat', name: 'Chat', href: '/app/chat' },
 ] as const;
+
+/** Color de cada producto (tokens --c-* de globals.css). */
+const PRODUCT_COLOR: Record<string, string> = {
+  link: 'var(--c-link)',
+  crm: 'var(--c-crm)',
+  docs: 'var(--c-docs)',
+  calendar: 'var(--c-cal)',
+  track: 'var(--c-track)',
+  chat: 'var(--c-chat)',
+};
 
 /**
  * Chrome de las apps: sidebar por producto estilo Twenty (switcher, búsqueda,
@@ -354,14 +364,21 @@ export default function AppSidebar({
             }}
             aria-expanded={switcherOpen}
           >
-            <span>0 {current.name}</span>
+            <span>{current.name}</span>
             <span className="caret">▾</span>
           </button>
           {switcherOpen && (
             <div className="side-menu" role="menu">
               {PRODUCTS.map((p) => (
-                <Link key={p.key} href={p.href} onClick={() => setSwitcherOpen(false)}>
-                  {p.key === product ? '●' : '○'} 0 {p.name}
+                <Link
+                  key={p.key}
+                  href={p.href}
+                  onClick={() => setSwitcherOpen(false)}
+                  data-product={p.key}
+                  style={{ '--dot': PRODUCT_COLOR[p.key] } as CSSProperties}
+                  aria-current={p.key === product ? 'true' : undefined}
+                >
+                  {p.name}
                 </Link>
               ))}
             </div>
@@ -476,6 +493,8 @@ export default function AppSidebar({
 
   return (
     <>
+      {/* Color del producto activo (SSR, sin parpadeo). */}
+      <style>{`.app-frame{--accent:${PRODUCT_COLOR[product] ?? 'var(--ink)'}}`}</style>
       <div className="app-topbar">
         <div className="app-topbar-left">
           <button type="button" className="side-close" onClick={() => setDrawerOpen(true)} aria-label="menu">

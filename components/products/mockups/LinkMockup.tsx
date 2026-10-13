@@ -58,7 +58,7 @@ export default function LinkMockup() {
                 width={28}
                 height={h}
                 rx={2}
-                fill="#0d0d0d"
+                style={{ fill: 'var(--accent, #0d0d0d)' }}
                 opacity={0.55 + (0.45 * h) / 104}
               />
             ))}

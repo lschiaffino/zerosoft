@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey } from '@/lib/products';
@@ -22,6 +23,15 @@ const MOCKUPS = {
 const FEATURE_IDS = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9'] as const;
 const FAQ_IDS = ['f1', 'f2', 'f3', 'f4', 'f5'] as const;
 
+const PRODUCT_ACCENT: Record<ProductKey, string> = {
+  link: 'var(--c-link)',
+  crm: 'var(--c-crm)',
+  cal: 'var(--c-cal)',
+  track: 'var(--c-track)',
+  chat: 'var(--c-chat)',
+  docs: 'var(--c-docs)',
+};
+
 /**
  * Full product detail page: hero, fake-UI browser shot, features,
  * price math, the three ways to have it, FAQ and final CTA.
@@ -43,7 +53,7 @@ export default async function ProductPage({
   const total = String(PRODUCT_KEYS.length).padStart(2, '0');
 
   return (
-    <main>
+    <main className="pd-page" style={{ '--accent': PRODUCT_ACCENT[product] } as CSSProperties}>
       {/* HERO */}
       <section className="pd-hero container">
         <Link href="/products" className="pd-back">

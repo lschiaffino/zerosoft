@@ -1,0 +1,167 @@
+/* ============================================================
+   COLOR — se carga último en la app. --accent lo define el producto
+   activo (AppSidebar inyecta .app-frame { --accent: var(--c-<producto>) }).
+   ============================================================ */
+
+.app-frame {
+  --accent-soft: color-mix(in srgb, var(--accent) 9%, white);
+  --accent-line: color-mix(in srgb, var(--accent) 30%, white);
+  --accent-ink: color-mix(in srgb, var(--accent) 82%, black);
+  background: #fcfcfc;
+}
+.app-main-scroll { background: var(--bg); }
+
+/* ---------- Sidebar ---------- */
+.side { background: #fafafa; }
+.side-link.active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.side-link.active svg { color: var(--accent); }
+.side-link:hover:not(.active) { background: #f0f0f0; }
+.side-badge { border-color: var(--accent-line); color: var(--accent-ink); background: var(--bg); }
+.side-link.active .side-badge { background: var(--accent); color: #fff; border-color: var(--accent); }
+.side-new-btn { background: var(--accent); }
+.side-product::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+.side-product { justify-content: flex-start; }
+.side-product .caret { margin-left: auto; }
+.side-menu a[data-product]::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot, var(--dim));
+  margin-right: 8px;
+}
+.side-menu a[data-product] { justify-content: flex-start; }
+.side-avatar { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
+
+/* Barra superior: ícono del producto en su color. */
+.app-topbar-icon { border-color: var(--accent) !important; color: var(--accent-ink); background: var(--accent-soft); }
+.app-topbar-name { color: var(--accent-ink); }
+
+/* ---------- Controles ---------- */
+.app-content .btn-solid { background: var(--accent); border-color: var(--accent); color: #fff; }
+.app-content .btn-solid:hover:not(:disabled) { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
+.app-content .btn-solid:disabled { background: var(--accent); color: #fff; opacity: 0.35; }
+.app-content .input:focus,
+.app-content .select:focus,
+.app-content .textarea:focus,
+.app-content select:focus,
+.filter-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+.filter-select.on, .filter-more.on { border-color: var(--accent); color: var(--accent-ink); background-color: var(--accent-soft); }
+.filter-count { background: var(--accent); }
+.view-tab.active { background: var(--accent-soft); color: var(--accent-ink); }
+.chip.active, .kb-view-btn.active { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
+.app-tab.active { border-bottom-color: var(--accent); }
+.app-content a.cell-name:hover, .app-content .kb-card-name:hover { color: var(--accent-ink); }
+.row-check, .app-content input[type='checkbox'] { accent-color: var(--accent); }
+
+/* ---------- Datos y gráficos ---------- */
+.chart-line { stroke: var(--accent); }
+.chart-dot { fill: var(--accent); }
+.chart-area { fill: color-mix(in srgb, var(--accent) 12%, transparent); }
+.chart-bar { fill: var(--accent); }
+.chart-bar-lost { stroke: var(--bad); fill: color-mix(in srgb, var(--bad) 12%, transparent); }
+.legend-swatch, .chart-swatch { background: var(--accent); border-color: var(--accent); }
+.legend-swatch-lost, .chart-swatch.outline { background: color-mix(in srgb, var(--bad) 12%, transparent); border-color: var(--bad); }
+.breakdown-bar { background: var(--accent); }
+.breakdown-track { background: var(--accent-soft); }
+.stat-card { position: relative; overflow: hidden; }
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent);
+  opacity: 0.85;
+}
+.stat-trend-up, .trend-up { color: var(--ok) !important; }
+.stat-trend-down, .trend-down { color: var(--bad) !important; }
+
+/* ---------- Badges con significado ---------- */
+.badge { opacity: 1; border-color: transparent; background: #f1f1f1; color: #555; }
+.badge.stage-subscriber { background: #f1f1f1; color: #6b6b6b; border-style: solid; }
+.badge.stage-lead { background: #e6f4fd; color: #0b6fa4; }
+.badge.stage-mql { background: #ecebff; color: #4b44c9; }
+.badge.stage-sql { background: #f2ebff; color: #6c37d9; border-color: transparent; }
+.badge.stage-opportunity { background: #fff3df; color: #a35a00; border-width: 1px; border-color: transparent; }
+.badge.stage-customer { background: #e3f6ea; color: #0c7a3d; border-color: transparent; }
+.badge.stage-evangelist { background: #fde8f1; color: #b8245f; border-color: transparent; }
+
+.badge.prio-low { background: #f1f1f1; color: #6b6b6b; }
+.badge.prio-medium { background: #fff3df; color: #a35a00; }
+.badge.prio-high { background: #fde7e8; color: #c22a30; border-color: transparent; }
+
+.badge.task-overdue { background: #fde7e8; color: #c22a30; border-color: transparent; }
+.badge.task-today { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+.badge.task-upcoming { background: #f1f1f1; color: #555; }
+.badge.task-done { background: #e3f6ea; color: #0c7a3d; border-style: solid; }
+.badge.kind-dynamic { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+.badge.kind-static { background: #f1f1f1; color: #555; }
+.badge.run-done { background: #e3f6ea; color: #0c7a3d; }
+.badge.run-failed { background: #fde7e8; color: #c22a30; }
+.badge.run-running, .badge.run-pending { background: #fff3df; color: #a35a00; }
+
+/* Lead status (sin clase propia: usa data-value del contenido inline). */
+.cell-inline.badge { border-color: transparent; }
+
+/* Booking status (Cal). */
+.badge.booking-status-confirmed { background: #e3f6ea; color: #0c7a3d; }
+.badge.booking-status-cancelled { background: #fde7e8; color: #c22a30; }
+.badge.booking-status-no_show { background: #fff3df; color: #a35a00; }
+
+/* ---------- CRM: board y deal ---------- */
+.kb-col-head, .kb-head { position: relative; }
+.kb-card { border-left: 3px solid var(--accent-line); }
+.kb-card:hover { border-color: var(--accent-line); border-left-color: var(--accent); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06); }
+.kb-card.closed { border-left-color: #d9d9d9; }
+.kb-card-amount { color: var(--ink); }
+.kb-card-rotting { color: var(--warn); }
+.kb-card-rotting::before { content: '● '; }
+.kb-totals strong, .kb-totals b { color: var(--accent-ink); }
+
+.stage-step.done { background: var(--accent-line); color: var(--accent-ink); }
+.stage-step.current { background: var(--accent); color: #fff; }
+.stage-step:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-ink); }
+.stage-close .btn:not(.btn-danger).btn-solid { background: var(--ok); border-color: var(--ok); }
+.stage-close .btn:not(.btn-danger):not(.btn-solid):hover:not(:disabled) { background: var(--ok); border-color: var(--ok); color: #fff; }
+.stage-close .btn-danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, white); }
+.stage-close .btn-danger.btn-solid { background: var(--bad); color: #fff; }
+
+/* ---------- Estados vacíos y alertas ---------- */
+.empty-zeros { color: var(--accent-line); }
+.form-error { color: var(--bad); }
+.next-task, .next-task-banner { border-color: var(--accent-line) !important; background: var(--accent-soft); }
+/* Sidebar colapsado: el switcher es solo el punto del color del producto. */
+.app-frame.sidebar-collapsed .side-product > span:first-child { display: none; }
+.app-frame.sidebar-collapsed .side-product { justify-content: center; }
+.app-frame.sidebar-collapsed .side-product::before { width: 10px; height: 10px; margin: 0; }
+
+/* ---------- Detalles por producto ---------- */
+.page-head .app-sub { margin-top: 4px; }
+.next-task-banner { background: var(--accent-soft); border-color: var(--accent-line); }
+.next-task-banner .next-task-label { color: var(--accent-ink); }
+.next-task-banner.overdue { background: #fdeeee; border-color: color-mix(in srgb, var(--bad) 45%, white); }
+.next-task-banner .bulk-btn { color: var(--accent-ink); border-color: var(--accent-line); background: #fff; }
+.next-task-banner .bulk-btn:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chat-priority-urgent { background: var(--bad) !important; color: #fff; }
+.chat-priority-high { color: var(--c-track); border-color: currentColor; }
+.chat-unread-dot { background: var(--accent); }
+.track-calendar-day.today .track-calendar-day-number { color: #fff; }
+.docs-tree-link.active { color: #fff; }
