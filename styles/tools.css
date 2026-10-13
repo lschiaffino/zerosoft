@@ -412,3 +412,11 @@ input[type="range"] { width: 100%; accent-color: var(--accent); height: 44px; }
   .tl-cat { grid-template-columns: 110px minmax(0, 1fr) 32px; }
   .tool-cta-actions { width: 100%; }
 }
+
+/* El título no debe pasar por encima del cero del hero. */
+.tools-hero-title { max-width: 62%; }
+.page-hero:has(.tools-hero-title) .section-label { max-width: 56%; }
+@media (max-width: 960px) {
+  .tools-hero-title { max-width: none; }
+  .page-hero:has(.tools-hero-title) .section-label { max-width: none; }
+}

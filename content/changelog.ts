@@ -26,6 +26,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-tools',
+    date: '2026-10-13',
+    title: {
+      en: 'Free tools, no sign-up',
+      es: 'Herramientas gratis, sin registro',
+      pt: 'Ferramentas grátis, sem cadastro',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'zerosoft.ai/tools: email signature, QR code, invoice and privacy policy generators, a SaaS cost calculator, a website grader, a UTM builder, and AI tools for business names, emails, ad copy, buyer personas and blog ideas.',
+        es: 'zerosoft.ai/tools: generadores de firma de email, códigos QR, facturas y política de privacidad, una calculadora de costos de SaaS, un evaluador de sitios web, un armador de UTMs, y herramientas con IA para nombres de empresa, emails, anuncios, buyer personas e ideas para el blog.',
+        pt: 'zerosoft.ai/tools: geradores de assinatura de email, QR codes, faturas e política de privacidade, uma calculadora de custos de SaaS, um avaliador de sites, um montador de UTMs, e ferramentas com IA para nomes de empresa, emails, anúncios, buyer personas e ideias para o blog.',
+      },
+    ],
+  },
+  {
     id: '2026-10-13-quick-create',
     date: '2026-10-13',
     title: {
