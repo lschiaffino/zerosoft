@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
 
+/** La tecla C abre el modal de alta rápida; reintenta hasta que la página hidrate. */
+async function openQuickCreate(page: import('@playwright/test').Page) {
+  await expect(async () => {
+    await page.keyboard.press('c');
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 20_000 });
+}
+
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 test('sitio: home y páginas de producto responden', async ({ page }) => {
@@ -201,7 +209,7 @@ test('Cal → CRM: reservar crea el contacto con la reunión en su timeline', as
 test('Link: quick-create desde la lista (tecla C) sin salir de la vista', async ({ page }) => {
   const slug = `qc${uid()}`;
   await page.goto('/en/app/links', { waitUntil: 'networkidle' });
-  await page.keyboard.press('c');
+  await openQuickCreate(page);
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await dialog.getByPlaceholder('Paste a long URL…').fill('example.com/quick-create');
@@ -213,7 +221,7 @@ test('Link: quick-create desde la lista (tecla C) sin salir de la vista', async 
   await expect(page.locator('.links-table').getByText(slug).first()).toBeVisible();
 
   // "More options" lleva al formulario completo con la URL precargada.
-  await page.keyboard.press('c');
+  await openQuickCreate(page);
   await page.getByRole('dialog').getByPlaceholder('Paste a long URL…').fill('https://example.com/full');
   await page.getByRole('link', { name: 'More options' }).click();
   await expect(page).toHaveURL(/\/en\/app\/links\/new\?url=/, { timeout: 15_000 });
@@ -222,7 +230,10 @@ test('Link: quick-create desde la lista (tecla C) sin salir de la vista', async 
 
 test('Docs: "C" crea una página, el título queda enfocado y aparece en el árbol', async ({ page }) => {
   await page.goto('/en/app/docs', { waitUntil: 'networkidle' });
-  await page.keyboard.press('c');
+  await expect(async () => {
+    await page.keyboard.press('c');
+    await page.waitForURL(/\/en\/app\/docs\/[0-9a-f-]{36}$/, { timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
   await page.waitForURL(/\/en\/app\/docs\/[0-9a-f-]{36}$/);
   const title = `E2E doc ${uid()}`;
   await expect(page.locator('.docs-title')).toBeFocused();
@@ -285,7 +296,7 @@ test('Docs: en mobile el árbol se pliega y no hay scroll horizontal', async ({ 
 test('Cal: crear event type desde el modal rápido (tecla C), apagarlo y borrarlo', async ({ page, request }) => {
   const title = `Quick ${uid()}`;
   await page.goto('/en/app/calendar/event-types');
-  await page.keyboard.press('c');
+  await openQuickCreate(page);
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByPlaceholder('Event name, e.g. Intro call').fill(title);
   await page.getByRole('radio', { name: '45 min' }).click();
@@ -350,7 +361,7 @@ test('Cal: routing form rápido abre el editor y se borra desde el detalle', asy
 test('CRM: alta rápida de contacto con la tecla C, sin salir de la lista', async ({ page }) => {
   const first = `Quick${uid()}`;
   await page.goto('/en/app/crm/contacts');
-  await page.keyboard.press('c');
+  await openQuickCreate(page);
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await dialog.getByLabel('First name').fill(first);
@@ -413,7 +424,7 @@ test('CRM: guardar un reporte es un botón chico que pide nombre en línea', asy
 test('CRM: tarea rápida con la tecla C', async ({ page }) => {
   const subject = `Task ${uid()}`;
   await page.goto('/en/app/crm/tasks');
-  await page.keyboard.press('c');
+  await openQuickCreate(page);
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Subject').fill(subject);
   await page.keyboard.press('Enter');
