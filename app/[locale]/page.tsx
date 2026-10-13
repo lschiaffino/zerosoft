@@ -6,6 +6,7 @@ import ZeroField from '@/components/ZeroField';
 import Reveal from '@/components/Reveal';
 import BrowserFrame from '@/components/products/BrowserFrame';
 import ShowcaseTabs from '@/components/products/ShowcaseTabs';
+import VideoPlayer from '@/components/VideoPlayer';
 import LinkMockup from '@/components/products/mockups/LinkMockup';
 import TrackMockup from '@/components/products/mockups/TrackMockup';
 import CrmMockup from '@/components/products/mockups/CrmMockup';
@@ -38,6 +39,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
   setRequestLocale(locale);
   const t = useTranslations('common');
   const h = useTranslations('common.home');
+  const v = useTranslations('videos');
 
   const money = new Intl.NumberFormat(locale === 'en' ? 'en-US' : locale === 'es' ? 'es-AR' : 'pt-BR', {
     style: 'currency',
@@ -143,6 +145,27 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
           </Reveal>
         </div>
         <SuiteGrid cta={{ label: t('header.allProducts'), href: '/products' }} />
+      </section>
+
+      {/* VIDEO: tour de 48 s por la app real */}
+      <section className="lp-section container" id="tour">
+        <div className="lp-head">
+          <p className="section-label">{v('embedLabel')}</p>
+          <Reveal as="h2" className="lp-title">
+            {v('items.zerosoft-intro.title')} <span className="dim">{v('embedTitleDim')}</span>
+          </Reveal>
+          <p className="lp-sub">{v('items.zerosoft-intro.desc')}</p>
+        </div>
+        <div className="lp-video">
+          <VideoPlayer
+            src="/videos/zerosoft-intro.mp4"
+            poster="/videos/zerosoft-intro.jpg"
+            title={v('items.zerosoft-intro.title')}
+          />
+          <p className="lp-video-note">
+            {v('note')} <Link href="/videos">{v('allVideos')} →</Link>
+          </p>
+        </div>
       </section>
 
       {/* STACK MATH */}

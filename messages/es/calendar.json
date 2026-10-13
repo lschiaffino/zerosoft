@@ -217,5 +217,10 @@
     "popup": "Botón popup",
     "inlineDesc": "Pegalo donde querés que aparezca el calendario. El alto se ajusta solo.",
     "popupDesc": "Agrega un botón flotante que abre la página de reserva en un modal."
+  },
+  "profile": {
+    "sub": "Elegí un tipo de reunión para ver los horarios disponibles.",
+    "empty": "No hay tipos de reunión disponibles por ahora.",
+    "minutes": "{n} min"
   }
 }

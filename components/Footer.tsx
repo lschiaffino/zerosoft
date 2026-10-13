@@ -61,6 +61,7 @@ export default async function Footer({ locale }: { locale: string }) {
           <ul>
             <li><Link href="/#manifiesto">{t('manifesto')}</Link></li>
             <li><Link href="/blog">{t('blog')}</Link></li>
+            <li><Link href="/videos">{t('videos')}</Link></li>
             <li><Link href="/feedback">{t('feedback')}</Link></li>
             <li><a href="mailto:hola@zerosoft.ai">{t('contact')}</a></li>
           </ul>

@@ -651,3 +651,26 @@ html.zs-embed .booking-card {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Perfil público /book/<handle> */
+.book-profile { max-width: 640px; margin: 0 auto; padding: 72px 20px 96px; }
+.book-profile-head { text-align: center; margin-bottom: 32px; }
+.book-profile-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: color-mix(in srgb, var(--c-cal) 12%, white); color: var(--c-cal);
+  font-family: var(--mono); font-size: 22px; margin-bottom: 12px;
+}
+.book-profile-head h1 { font-size: 28px; font-weight: 500; }
+.book-profile-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.book-profile-item {
+  display: flex; align-items: center; gap: 14px; padding: 16px 18px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.book-profile-item:hover { border-color: var(--c-cal); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06); }
+.book-profile-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.book-profile-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.book-profile-text .muted { font-size: 13px; }
+.book-profile-dur { font-size: 12px; color: var(--dim); white-space: nowrap; }
+.book-profile-empty { text-align: center; }

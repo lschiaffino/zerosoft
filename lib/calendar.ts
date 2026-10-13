@@ -188,6 +188,21 @@ export async function getEventTypeByHandle(
   return row ? decorateEventType(row) : undefined;
 }
 
+/** Perfil público /book/<handle>: la persona y sus tipos de evento activos. */
+export async function getPublicProfile(
+  handle: string,
+): Promise<{ name: string; handle: string; eventTypes: EventTypeWithRules[] } | null> {
+  const user = (await getDb()
+    .prepare('SELECT id, name, email, handle FROM users WHERE handle = ?')
+    .get(handle.toLowerCase())) as { id: string; name: string | null; email: string; handle: string } | undefined;
+  if (!user) return null;
+  return {
+    name: user.name || user.handle,
+    handle: user.handle,
+    eventTypes: await listEventTypes(user.id, { activeOnly: true }),
+  };
+}
+
 /**
  * Links viejos /book/<slug> (antes de los handles): resuelve al event type más
  * antiguo con ese slug, que es al que ya apuntaban. Devuelve el path nuevo.

@@ -217,5 +217,10 @@
     "popup": "Popup button",
     "inlineDesc": "Paste it where the calendar should appear. The height adjusts by itself.",
     "popupDesc": "Adds a floating button that opens the booking page in a modal."
+  },
+  "profile": {
+    "sub": "Pick a meeting type to see available times.",
+    "empty": "No meeting types are available right now.",
+    "minutes": "{n} min"
   }
 }

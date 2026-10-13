@@ -26,6 +26,47 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-site',
+    date: '2026-10-13',
+    title: {
+      en: 'A new website, videos of the real app and public booking profiles',
+      es: 'Sitio nuevo, videos de la app real y perfiles públicos de reservas',
+      pt: 'Site novo, vídeos do app real e perfis públicos de reservas',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Redesigned website: suite overview, what your current stack costs, self-hosting in one command, and a developer section with real API examples. The code is now public on GitHub.',
+        es: 'Sitio rediseñado: la suite de un vistazo, cuánto cuesta tu stack actual, self-hosting en un comando y una sección para developers con ejemplos reales de la API. El código ahora es público en GitHub.',
+        pt: 'Site redesenhado: a suíte num relance, quanto custa seu stack atual, self-hosting em um comando e uma seção para devs com exemplos reais da API. O código agora é público no GitHub.',
+      },
+      {
+        product: 'platform',
+        en: 'Seven short videos recorded from the real app, on /videos and on each product page. 36 new blog posts.',
+        es: 'Siete videos cortos grabados de la app real, en /videos y en cada página de producto. 36 artículos nuevos en el blog.',
+        pt: 'Sete vídeos curtos gravados do app real, em /videos e em cada página de produto. 36 novos artigos no blog.',
+      },
+      {
+        product: 'cal',
+        en: 'zerosoft.ai/book/<your-handle> now shows all your meeting types instead of a 404.',
+        es: 'zerosoft.ai/book/<tu-handle> ahora muestra todos tus tipos de reunión en vez de un 404.',
+        pt: 'zerosoft.ai/book/<seu-handle> agora mostra todos os seus tipos de reunião em vez de um 404.',
+      },
+      {
+        product: 'link',
+        en: 'API v1: edit and delete links (PATCH/DELETE /api/v1/links/{id}); rate-limited responses include Retry-After.',
+        es: 'API v1: editar y borrar links (PATCH/DELETE /api/v1/links/{id}); las respuestas con límite de uso incluyen Retry-After.',
+        pt: 'API v1: editar e excluir links (PATCH/DELETE /api/v1/links/{id}); respostas com limite de uso incluem Retry-After.',
+      },
+      {
+        product: 'docs',
+        en: 'Table cells no longer show "&amp;" instead of "&"; Docs code blocks wrap correctly. Chat no longer shows raw text keys in SLA timers and People.',
+        es: 'Las celdas de tablas ya no muestran "&amp;" en vez de "&" y los bloques de código de Docs se ven bien. Chat ya no muestra claves de texto en los timers de SLA y en People.',
+        pt: 'As células de tabelas não mostram mais "&amp;" no lugar de "&" e os blocos de código do Docs aparecem certos. O Chat não mostra mais chaves de texto nos timers de SLA e em People.',
+      },
+    ],
+  },
+  {
     id: '2026-10-12-crm-suite',
     date: '2026-10-12',
     title: {

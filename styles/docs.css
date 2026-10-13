@@ -321,6 +321,13 @@
   width: 100%;
 }
 
+/* El selector de lenguaje ocupa su propia fila: sin wrap, el flex de
+   .docs-block aplastaba el código a una columna de un carácter. */
+.docs-block-code {
+  flex-wrap: wrap;
+  gap: 0;
+}
+
 .docs-lang-input {
   width: 120px;
   font-family: var(--mono);
