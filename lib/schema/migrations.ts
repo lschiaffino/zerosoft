@@ -296,6 +296,27 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // Feedback de usuarios y visitantes (ideas, bugs). user_id es opcional:
+    // el formulario público acepta envíos sin cuenta.
+    id: '013_feedback',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS feedback (
+          id TEXT PRIMARY KEY,
+          user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          email TEXT,
+          kind TEXT NOT NULL CHECK (kind IN ('idea', 'bug', 'other')),
+          product TEXT NOT NULL CHECK (product IN ('link', 'crm', 'cal', 'track', 'chat', 'docs', 'site', 'other')),
+          message TEXT NOT NULL,
+          page_url TEXT,
+          user_agent TEXT,
+          status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'read', 'done')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at DESC)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

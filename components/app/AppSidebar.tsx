@@ -5,6 +5,7 @@ import { signOut } from 'next-auth/react';
 import { Link, usePathname } from '@/i18n/navigation';
 import Icon, { type IconName } from './icons';
 import NotificationBell from './NotificationBell';
+import FeedbackButton from './FeedbackButton';
 
 export interface SidebarLabels {
   search: string;
@@ -455,6 +456,7 @@ export default function AppSidebar({
           <Icon name="docs" />
           {labels.docsSite}
         </Link>
+        <FeedbackButton email={user.email} />
         <div className="side-user">
           {user.image ? (
             // eslint-disable-next-line @next/next/no-img-element

@@ -1,0 +1,27 @@
+{
+  "metaTitle": "Changelog",
+  "metaDescription": "Everything that shipped in zerosoft.ai — Link, CRM, Cal, Track, Chat and Docs — release by release.",
+  "label": "Changelog",
+  "title": "What's new.",
+  "titleDim": "Only what actually shipped.",
+  "intro": "Every release of zerosoft, newest first. Written from the real commit history — no roadmap promises here.",
+  "rss": "Atom feed",
+  "feedback": "Send feedback",
+  "filterAll": "All",
+  "releases": "{count, plural, one {# release} other {# releases}}",
+  "changes": "{count, plural, one {# change} other {# changes}}",
+  "product": {
+    "link": "Link",
+    "crm": "CRM",
+    "cal": "Cal",
+    "track": "Track",
+    "chat": "Chat",
+    "docs": "Docs",
+    "platform": "Platform"
+  },
+  "feedTitle": "zerosoft.ai — Changelog",
+  "endNote": "That's where it all started.",
+  "ctaTitle": "Missing something?",
+  "ctaBody": "Tell us what to build or fix next. Every message gets read.",
+  "ctaButton": "Send feedback"
+}

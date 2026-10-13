@@ -8,6 +8,8 @@ import { dnsInstructions, listDomains } from '@/lib/link-domains';
 import { listApiKeys } from '@/lib/api-auth';
 import { formatDate } from '@/lib/utils';
 import ApiKeysPanel from '@/components/link/ApiKeysPanel';
+import { Link } from '@/i18n/navigation';
+import { isAdminEmail } from '@/lib/feedback';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +22,7 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
+  const tFeedback = await getTranslations({ locale, namespace: 'feedback.admin' });
   // Members ven solo sus keys; owner/admin, las de todo el workspace.
   const keys = await listApiKeys(user.id, isWorkspaceAdmin(user) ? undefined : realUserId(user));
   const webhooks = isWorkspaceAdmin(user) ? await listWebhooks(user.id) : null;
@@ -91,6 +94,18 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
         <section className="panel">
           <p className="section-label">Webhooks</p>
           <WebhooksPanel initial={webhooks} events={WEBHOOK_EVENTS} />
+        </section>
+      )}
+
+      {isAdminEmail(user.actingUser?.email ?? user.email) && (
+        <section className="panel">
+          <p className="section-label">{tFeedback('title')}</p>
+          <p className="muted">{tFeedback('sub')}</p>
+          <div className="form-actions">
+            <Link className="btn btn-ghost btn-small" href="/app/settings/feedback">
+              {tFeedback('title')} →
+            </Link>
+          </div>
         </section>
       )}
     </div>
