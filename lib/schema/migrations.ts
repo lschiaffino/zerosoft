@@ -1473,6 +1473,32 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN full_width INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    // Link: segmentación por país/dispositivo, A/B y deep links (JSON en la
+    // misma fila del link: el redirect sigue siendo una sola query), origen de
+    // cada visita (link | qr) y variante servida, escaneos QR separados y
+    // estilo de QR por link (tabla aparte: el logo no viaja en el hot path).
+    // Índice (link_id, ts, source) para el dashboard del workspace.
+    id: '027_link_targeting_qr',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN targeting TEXT');
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN qr_scans INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE clicks ADD COLUMN source TEXT NOT NULL DEFAULT 'link'");
+      await addColumn(client, 'ALTER TABLE clicks ADD COLUMN variant TEXT');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_clicks_link_ts_source ON clicks(link_id, ts, source);
+        CREATE TABLE IF NOT EXISTS link_qr_styles (
+          link_id TEXT PRIMARY KEY REFERENCES links(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          fg TEXT NOT NULL DEFAULT '#000000',
+          bg TEXT NOT NULL DEFAULT '#ffffff',
+          dots TEXT NOT NULL DEFAULT 'square',
+          logo TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

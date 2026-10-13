@@ -26,7 +26,7 @@ export default function middleware(req: NextRequest) {
       return NextResponse.rewrite(new URL('/r/__root', req.url));
     }
     if (/^\/[A-Za-z0-9_-]{1,64}\/?$/.test(pathname) && !/^\/(en|es|pt)\/?$/.test(pathname)) {
-      return NextResponse.rewrite(new URL(`/r/${pathname.replace(/\//g, '')}`, req.url));
+      return NextResponse.rewrite(new URL(`/r/${pathname.replace(/\//g, '')}${req.nextUrl.search}`, req.url));
     }
   }
 
@@ -43,7 +43,7 @@ export default function middleware(req: NextRequest) {
   if (/^\/[A-Za-z0-9_-]{2,32}\/?$/.test(pathname)) {
     const slug = pathname.replace(/\//g, '');
     if (!RESERVED.has(slug.toLowerCase())) {
-      return NextResponse.rewrite(new URL(`/r/${slug}`, req.url));
+      return NextResponse.rewrite(new URL(`/r/${slug}${req.nextUrl.search}`, req.url));
     }
   }
 

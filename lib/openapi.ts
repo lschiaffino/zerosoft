@@ -13,6 +13,7 @@ function schemaType(type: string): Record<string, unknown> {
   if (t.startsWith('integer')) return { type: 'integer' };
   if (t.startsWith('number')) return { type: 'number' };
   if (t.startsWith('boolean')) return { type: 'boolean' };
+  if (t === 'object') return { type: 'object' };
   if (t.endsWith('[]')) return { type: 'array', items: { type: 'string' } };
   return { type: 'string' };
 }

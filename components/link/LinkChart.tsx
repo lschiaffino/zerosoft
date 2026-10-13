@@ -2,6 +2,8 @@ import type { DayCount } from '@/lib/track';
 
 interface LinkChartProps {
   data: DayCount[];
+  /** Segunda serie (misma longitud que data), dibujada como línea punteada. */
+  secondary?: DayCount[];
   height?: number;
 }
 
@@ -18,19 +20,23 @@ function niceCeil(max: number): number {
  * Hand-rolled SVG area chart (no deps): polyline + area fill,
  * horizontal grid lines, date label every 5 days. Server-renderable.
  */
-export default function LinkChart({ data, height = 240 }: LinkChartProps) {
+export default function LinkChart({ data, secondary, height = 240 }: LinkChartProps) {
   const W = 760;
   const H = height;
   const pad = { t: 18, r: 14, b: 30, l: 42 };
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
 
-  const max = niceCeil(Math.max(...data.map((d) => d.count), 0));
+  const max = niceCeil(Math.max(...data.map((d) => d.count), ...(secondary ?? []).map((d) => d.count), 0));
   const stepX = data.length > 1 ? iw / (data.length - 1) : 0;
   const pts = data.map(
     (d, i) => [pad.l + i * stepX, pad.t + ih - (d.count / max) * ih] as const,
   );
   const line = pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const line2 = (secondary ?? [])
+    .map((d, i) => `${(pad.l + i * stepX).toFixed(1)},${(pad.t + ih - (d.count / max) * ih).toFixed(1)}`)
+    .join(' ');
+  const labelEvery = Math.max(5, Math.ceil(data.length / 8));
   const baseline = pad.t + ih;
   const area = `${pad.l},${baseline} ${line} ${(pad.l + iw).toFixed(1)},${baseline}`;
 
@@ -60,6 +66,7 @@ export default function LinkChart({ data, height = 240 }: LinkChartProps) {
         <>
           <polygon className="chart-area" points={area} />
           <polyline className="chart-line" points={line} fill="none" />
+          {line2 && <polyline className="chart-line-2" points={line2} fill="none" />}
           <circle
             className="chart-dot"
             cx={pts[pts.length - 1][0]}
@@ -69,7 +76,7 @@ export default function LinkChart({ data, height = 240 }: LinkChartProps) {
         </>
       )}
       {data.map((d, i) =>
-        i % 5 === 0 || i === data.length - 1 ? (
+        (i % labelEvery === 0 && data.length - 1 - i >= labelEvery / 2) || i === data.length - 1 ? (
           <text
             key={d.date}
             className="chart-xlabel"
