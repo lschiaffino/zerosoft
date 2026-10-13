@@ -16,6 +16,8 @@ const TRIGGER_TYPES = [
   'deal_lost',
   'task_due',
   'email_received',
+  'email_opened',
+  'email_clicked',
   'meeting_booked',
   'manual',
 ] as const;
@@ -28,11 +30,14 @@ const ACTION_TYPES = [
   'add_to_list',
   'webhook',
   'notify_user',
+  'enroll_in_sequence',
 ] as const;
 
 interface WorkflowEditorProps {
   workflow: Workflow | null;
   lists: CrmListRow[];
+  /** Secuencias del workspace (acción enroll_in_sequence). */
+  sequences?: Array<{ id: string; name: string }>;
   runs: CrmWorkflowRunRow[];
   labels: {
     name: string;
@@ -67,10 +72,11 @@ interface WorkflowEditorProps {
     method: string;
     headers: string;
     message: string;
+    sequenceId?: string;
   };
 }
 
-export default function WorkflowEditor({ workflow, lists, runs, labels }: WorkflowEditorProps) {
+export default function WorkflowEditor({ workflow, lists, sequences = [], runs, labels }: WorkflowEditorProps) {
   const router = useRouter();
   const isNew = !workflow;
   const [name, setName] = useState(workflow?.name ?? '');
@@ -283,6 +289,7 @@ export default function WorkflowEditor({ workflow, lists, runs, labels }: Workfl
               type={a.type}
               config={a.config ?? {}}
               lists={lists}
+              sequences={sequences}
               labels={labels}
               onChange={(patch) => updateActionConfig(i, patch)}
             />
@@ -327,12 +334,14 @@ function ActionConfig({
   type,
   config,
   lists,
+  sequences,
   labels,
   onChange,
 }: {
   type: typeof ACTION_TYPES[number];
   config: Record<string, unknown>;
   lists: CrmListRow[];
+  sequences: Array<{ id: string; name: string }>;
   labels: WorkflowEditorProps['labels'];
   onChange: (patch: Record<string, unknown>) => void;
 }) {
@@ -487,6 +496,23 @@ function ActionConfig({
             onChange={(e) => onChange({ message: e.target.value })}
             placeholder={labels.message}
           />
+        </div>
+      );
+    case 'enroll_in_sequence':
+      return (
+        <div className="workflow-config">
+          <select
+            className="filter-select"
+            value={safeString(config.sequenceId)}
+            onChange={(e) => onChange({ sequenceId: e.target.value })}
+          >
+            <option value="">{labels.sequenceId ?? ''}</option>
+            {sequences.map((sq) => (
+              <option key={sq.id} value={sq.id}>
+                {sq.name}
+              </option>
+            ))}
+          </select>
         </div>
       );
     default:

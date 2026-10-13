@@ -20,6 +20,10 @@ export const FLOW_EVENT_TYPES = [
   'deal.stage_changed',
   'deal.won',
   'deal.lost',
+  'email.received',
+  'email.sent',
+  'email.opened',
+  'email.clicked',
   'issue.created',
   'issue.updated',
   'issue.status_changed',
@@ -55,6 +59,28 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   'deal.stage_changed': { id: 'd_1', name: '', change: { oldStageId: '', newStageId: '' } },
   'deal.won': { id: 'd_1', name: '', amount: 0 },
   'deal.lost': { id: 'd_1', name: '', amount: 0 },
+  'email.received': {
+    email: { id: 'em_1', subject: 'Re: Proposal', from: 'ada@example.com', threadId: 't_1' },
+    contactIds: ['c_1'],
+  },
+  'email.sent': {
+    email: { id: 'em_1', subject: 'Proposal', to: 'ada@example.com', threadId: 't_1', via: 'gmail' },
+    contactId: 'c_1',
+    sequence: null,
+  },
+  'email.opened': {
+    email: { id: 'em_1', subject: 'Proposal', to: 'ada@example.com', threadId: 't_1' },
+    contactId: 'c_1',
+    openCount: 1,
+    clickCount: 0,
+  },
+  'email.clicked': {
+    email: { id: 'em_1', subject: 'Proposal', to: 'ada@example.com', threadId: 't_1' },
+    contactId: 'c_1',
+    openCount: 1,
+    clickCount: 1,
+    url: 'https://example.com/pricing',
+  },
   'issue.created': {
     issue: { id: 'i_1', identifier: 'ENG-1', title: 'Bug', priority: 'medium', status: 'Todo' },
     project: { id: 'p_1', name: 'Engineering' },
@@ -221,6 +247,15 @@ export const NODE_DEFS = {
       { key: 'lastName', kind: 'text', template: true },
       { key: 'phone', kind: 'text', template: true },
       { key: 'source', kind: 'text', template: true, default: 'flow' },
+    ],
+  },
+  'app.crm_sequence': {
+    type: 'app.crm_sequence',
+    category: 'app',
+    outputs: ['out'],
+    fields: [
+      { key: 'sequenceId', kind: 'text', placeholder: 'sequence id' },
+      { key: 'email', kind: 'text', template: true, placeholder: '{{trigger.email}}' },
     ],
   },
   'app.crm_deals': {

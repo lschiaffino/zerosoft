@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { gmailAuthUrl } from '@/lib/integrations';
 
 export const runtime = 'nodejs';
@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: 'not_configured' }, { status: 500 });
   }
 
-  const state = `${user.id}.${crypto.randomUUID()}`;
+  const state = `${realUserId(user)}.${crypto.randomUUID()}`;
   const res = NextResponse.redirect(gmailAuthUrl(state));
   res.cookies.set(STATE_COOKIE, state, {
     httpOnly: true,

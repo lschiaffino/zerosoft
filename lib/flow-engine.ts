@@ -157,6 +157,22 @@ async function crmContactNode(ws: string, cfg: Record<string, unknown>, tctx: Re
   return { created: true, contact: { id: c.id, first_name: c.first_name, last_name: c.last_name, email: c.email } };
 }
 
+async function crmSequenceNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+  const sequenceId = renderString(cfg.sequenceId ?? '', tctx).trim();
+  if (!sequenceId) throw new StepError('missing_sequence');
+  const email = renderString(cfg.email ?? '', tctx).trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) throw new StepError('invalid_email');
+  const contact = (await getDb()
+    .prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = ? LIMIT 1')
+    .get(ws, email)) as { id: string } | undefined;
+  if (!contact) throw new StepError('missing_contact');
+  const { enrollContacts, defaultSenderFor } = await import('./crm-sequences');
+  const senderId = await defaultSenderFor(ws, sequenceId, contact.id);
+  const res = await enrollContacts(ws, { sequenceId, contactIds: [contact.id], senderId, enrolledBy: null });
+  if (!res.ok) throw new StepError(res.error);
+  return { enrolled: res.enrolled.length > 0, contactId: contact.id, skipped: res.skipped[0]?.reason ?? null };
+}
+
 async function crmDealsNode(ws: string, cfg: Record<string, unknown>) {
   const hours = Math.min(Math.max(Math.floor(Number(cfg.sinceHours) || 24), 1), 24 * 90);
   const deals = (await getDb()
@@ -307,6 +323,8 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
     }
     case 'app.crm_contact':
       return { kind: 'ok', output: await crmContactNode(ws, cfg, tctx), handles: ['out'] };
+    case 'app.crm_sequence':
+      return { kind: 'ok', output: await crmSequenceNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.crm_deals':
       return { kind: 'ok', output: await crmDealsNode(ws, cfg), handles: ['out'] };
     case 'app.track_issue':

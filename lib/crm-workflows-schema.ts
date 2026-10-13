@@ -51,6 +51,10 @@ export const sendCrmEmailSchema = z.object({
   to: z.string().trim().min(1).max(320),
   subject: shortText,
   body: longText,
+  /** Tracking de aperturas/clicks para este email (default: setting del workspace). */
+  tracking: z.boolean().optional(),
+  /** Responder dentro de un thread existente (thread id del timeline). */
+  threadId: z.string().max(200).optional(),
 });
 
 // ---------- Tipos inferidos ----------

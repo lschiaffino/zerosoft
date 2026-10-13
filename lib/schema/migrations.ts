@@ -891,6 +891,150 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // CRM email (bloque 2): sync incremental de Gmail, threads, tracking de
+    // aperturas/clicks, templates/snippets y secuencias.
+    id: '021_crm_email_sales',
+    async up(client) {
+      for (const sql of [
+        "ALTER TABLE crm_emails ADD COLUMN message_id TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE crm_emails ADD COLUMN in_reply_to TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE crm_emails ADD COLUMN cc_emails TEXT NOT NULL DEFAULT ''",
+        'ALTER TABLE crm_emails ADD COLUMN person_id TEXT',
+        'ALTER TABLE crm_emails ADD COLUMN activity_id TEXT',
+        'ALTER TABLE crm_emails ADD COLUMN tracking_token TEXT',
+        'ALTER TABLE crm_emails ADD COLUMN open_count INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE crm_emails ADD COLUMN click_count INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE crm_emails ADD COLUMN first_opened_at TEXT',
+        'ALTER TABLE crm_emails ADD COLUMN last_opened_at TEXT',
+        'ALTER TABLE crm_emails ADD COLUMN replied_at TEXT',
+        'ALTER TABLE crm_emails ADD COLUMN enrollment_id TEXT',
+        'ALTER TABLE crm_emails ADD COLUMN step_id TEXT',
+      ]) {
+        await addColumn(client, sql);
+      }
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_crm_emails_thread ON crm_emails(user_id, thread_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_emails_tracking ON crm_emails(tracking_token) WHERE tracking_token IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_crm_emails_step ON crm_emails(step_id) WHERE step_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS crm_email_contacts (
+          email_id TEXT NOT NULL REFERENCES crm_emails(id) ON DELETE CASCADE,
+          contact_id TEXT NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          PRIMARY KEY (email_id, contact_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_email_contacts_contact ON crm_email_contacts(user_id, contact_id);
+        INSERT OR IGNORE INTO crm_email_contacts (email_id, contact_id, user_id)
+          SELECT id, contact_id, user_id FROM crm_emails;
+
+        CREATE TABLE IF NOT EXISTS crm_email_sync (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          history_id TEXT,
+          status TEXT NOT NULL DEFAULT 'idle',
+          error TEXT,
+          last_sync_at TEXT,
+          last_full_sync_at TEXT,
+          locked_until TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, person_id)
+        );
+        INSERT OR IGNORE INTO crm_email_sync (user_id, person_id)
+          SELECT user_id, user_id FROM integrations WHERE provider = 'gmail';
+
+        CREATE TABLE IF NOT EXISTS crm_email_events (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          email_id TEXT NOT NULL REFERENCES crm_emails(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL,
+          url TEXT NOT NULL DEFAULT '',
+          user_agent TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_email_events_email ON crm_email_events(email_id, kind, created_at);
+
+        CREATE TABLE IF NOT EXISTS crm_email_settings (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          tracking_enabled INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_email_unsubscribes (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, email)
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_email_templates (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT,
+          kind TEXT NOT NULL DEFAULT 'template',
+          name TEXT NOT NULL,
+          subject TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_email_templates_user ON crm_email_templates(user_id, kind, name);
+
+        CREATE TABLE IF NOT EXISTS crm_sequences (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT,
+          name TEXT NOT NULL,
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          window_start TEXT NOT NULL DEFAULT '09:00',
+          window_end TEXT NOT NULL DEFAULT '17:00',
+          business_days INTEGER NOT NULL DEFAULT 1,
+          archived INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_sequences_user ON crm_sequences(user_id, archived, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_sequence_steps (
+          id TEXT PRIMARY KEY,
+          sequence_id TEXT NOT NULL REFERENCES crm_sequences(id) ON DELETE CASCADE,
+          position INTEGER NOT NULL DEFAULT 0,
+          type TEXT NOT NULL,
+          wait_days INTEGER NOT NULL DEFAULT 0,
+          template_id TEXT,
+          subject TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL DEFAULT '',
+          new_thread INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_sequence_steps_seq ON crm_sequence_steps(sequence_id, position);
+
+        CREATE TABLE IF NOT EXISTS crm_sequence_enrollments (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          sequence_id TEXT NOT NULL REFERENCES crm_sequences(id) ON DELETE CASCADE,
+          contact_id TEXT NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
+          sender_id TEXT NOT NULL,
+          enrolled_by TEXT,
+          status TEXT NOT NULL DEFAULT 'active',
+          exit_reason TEXT,
+          current_step INTEGER NOT NULL DEFAULT 0,
+          next_run_at TEXT,
+          thread_id TEXT NOT NULL DEFAULT '',
+          last_message_id TEXT NOT NULL DEFAULT '',
+          thread_subject TEXT NOT NULL DEFAULT '',
+          locked_until TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          finished_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_seq_enroll_due ON crm_sequence_enrollments(status, next_run_at);
+        CREATE INDEX IF NOT EXISTS idx_crm_seq_enroll_contact ON crm_sequence_enrollments(user_id, contact_id, status);
+        CREATE INDEX IF NOT EXISTS idx_crm_seq_enroll_seq ON crm_sequence_enrollments(sequence_id, status);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_seq_enroll_live ON crm_sequence_enrollments(sequence_id, contact_id)
+          WHERE status IN ('active', 'paused');
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
