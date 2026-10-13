@@ -34,6 +34,8 @@ interface ContactsTableProps {
   sort: string;
   companies?: Option[];
   locale: string;
+  /** Secuencias para la acción masiva "Inscribir en secuencia". */
+  sequences?: Array<{ id: string; name: string }>;
 }
 
 const COLS = [
@@ -56,6 +58,7 @@ export default function ContactsTable({
   sort,
   companies = [],
   locale,
+  sequences = [],
 }: ContactsTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -68,6 +71,32 @@ export default function ContactsTable({
     'zs-contacts-columns',
   );
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [bulkSequence, setBulkSequence] = useState('');
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
+
+  /** Acción masiva: inscribir los seleccionados en una secuencia. */
+  async function enrollSelected() {
+    if (!bulkSequence) return;
+    setBusy(true);
+    setBulkNotice(null);
+    const res = await fetch(`/api/crm/sequences/${bulkSequence}/enroll`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ contactIds: [...selected] }),
+    }).catch(() => null);
+    setBusy(false);
+    const data = (await res?.json().catch(() => null)) as { error?: string; enrolled?: string[]; skipped?: unknown[] } | null;
+    if (!res?.ok) {
+      setBulkNotice(data?.error && t.has(`errors.${data.error}`) ? t(`errors.${data.error}` as 'errors.generic') : t('errors.generic'));
+      return;
+    }
+    const skipped = data?.skipped?.length ?? 0;
+    setBulkNotice(
+      `${t('sequences.enrolledOk', { count: data?.enrolled?.length ?? 0 })}${skipped ? ` ${t('sequences.enrolledSkipped', { count: skipped })}` : ''}`,
+    );
+    setSelected(new Set());
+    setBulkSequence('');
+  }
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
 
@@ -309,6 +338,27 @@ export default function ContactsTable({
           >
             {t('contacts.bulk.apply')}
           </button>
+          {sequences.length > 0 && (
+            <>
+              <select
+                className="filter-select"
+                value={bulkSequence}
+                onChange={(e) => setBulkSequence(e.target.value)}
+                aria-label={t('contacts.bulk.enroll')}
+                disabled={busy}
+              >
+                <option value="">{t('contacts.bulk.enroll')}</option>
+                {sequences.map((sq) => (
+                  <option key={sq.id} value={sq.id}>
+                    {sq.name}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="bulk-btn" disabled={busy || !bulkSequence} onClick={enrollSelected}>
+                {t('sequences.enrollCta')}
+              </button>
+            </>
+          )}
           {confirmingDelete ? (
             <>
               <span className="bulk-count">
@@ -353,6 +403,12 @@ export default function ContactsTable({
             {t('contacts.bulk.clear')}
           </button>
         </div>
+      )}
+
+      {bulkNotice && selected.size === 0 && (
+        <p className="muted bulk-notice" role="status">
+          {bulkNotice}
+        </p>
       )}
 
       {previewId && (

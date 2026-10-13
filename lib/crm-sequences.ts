@@ -309,7 +309,7 @@ export type EnrollSkipReason = 'not_found' | 'no_email' | 'unsubscribed' | 'alre
 
 export type EnrollResult =
   | { ok: true; enrolled: string[]; skipped: Array<{ contactId: string; reason: EnrollSkipReason }> }
-  | { ok: false; error: 'not_found' | 'gmail_not_connected' | 'no_steps' | 'invalid_sender' };
+  | { ok: false; error: 'not_found' | 'gmail_not_connected' | 'no_steps' | 'incomplete_steps' | 'invalid_sender' };
 
 /** La persona que envía tiene que ser del workspace (owner o miembro del team). */
 async function isWorkspacePersonId(userId: string, personId: string): Promise<boolean> {
@@ -347,6 +347,10 @@ export async function enrollContacts(
   const seq = await getSequence(userId, input.sequenceId);
   if (!seq || seq.sequence.archived) return { ok: false, error: 'not_found' };
   if (!seq.steps.length) return { ok: false, error: 'no_steps' };
+  // Un email sin cuerpo ni template no se puede enviar.
+  if (seq.steps.some((s) => s.type === 'email' && !s.body.trim() && !s.template_id)) {
+    return { ok: false, error: 'incomplete_steps' };
+  }
   if (!(await isWorkspacePersonId(userId, input.senderId))) return { ok: false, error: 'invalid_sender' };
   if (seq.steps.some((s) => s.type === 'email') && !(await gmailSender(input.senderId))) {
     return { ok: false, error: 'gmail_not_connected' };

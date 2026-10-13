@@ -11,6 +11,7 @@ const MESSAGES: Record<string, string> = {
   not_found: 'Sequence not found.',
   gmail_not_connected: 'The sender has no Gmail account connected with send permission.',
   no_steps: 'The sequence has no steps.',
+  incomplete_steps: 'Every email step needs a body or a template.',
   invalid_sender: 'senderId is not a member of this workspace.',
 };
 

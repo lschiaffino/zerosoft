@@ -153,7 +153,7 @@
     },
     "label": "Legal — 02",
     "title": "Privacy Policy",
-    "updated": "Last updated: October 12, 2026",
+    "updated": "Last updated: October 13, 2026",
     "intro": "We collect the minimum, keep it no longer than needed, and never sell it. This policy explains exactly what that means, in the same plain language we use everywhere else. We review it periodically and whenever the product changes in a way that affects your data.",
     "tocTitle": "Contents",
     "sections": {
@@ -180,11 +180,12 @@
           "Link click data: when someone follows a short link we record the time, the link, the referrer's domain, the approximate country, the device type, the browser and the operating system. We do not store the IP address or the full user-agent string with the click.",
           "Booking data: when someone books through a Cal page, the name, email, answers to the host's questions, time zone and language they provide, and the booking details.",
           "Chat data: messages written in a Chat widget, the name and email if the visitor chooses to give them, attachments they upload, satisfaction ratings, and a random visitor identifier stored in the visitor's browser so the conversation continues across visits.",
-          "Google integration data, only if you connect it: for Gmail, the metadata of emails exchanged with your CRM contacts (sender, recipients, subject, a short snippet, date and message IDs), not full message bodies; for Google Calendar, your busy and free times and the events that bookings create in your calendar.",
+          "Google integration data, only if you connect it: for Gmail, the emails exchanged with your CRM contacts (sender, recipients, subject, date, message and thread IDs, and the message body — plain text plus a sanitized copy of the HTML, size-limited, without attachments or remote images), and the emails you send from the CRM through your Gmail; for Google Calendar, your busy and free times and the events that bookings create in your calendar.",
           "Integration secrets: OAuth tokens for Google, and webhook signing secrets, stored encrypted. API keys are stored only as hashes. A Bitly token you give us for an import is used for that import and not stored.",
           "Technical data: IP addresses are used briefly for rate limiting and appear in our hosting provider's request logs (see Retention). Email delivery status for the transactional emails we send.",
           "Messages you send us: emails to our support, privacy, abuse or security addresses.",
           "Bookings and CRM: when someone books a meeting through Cal, their name, email, the meeting time and their answers are also saved as a contact and a meeting activity in the host's CRM. When an agent chooses to, a Chat conversation is saved to the visitor's CRM contact.",
+          "Email tracking for emails sent from the CRM, when the account holder keeps it on (it can be turned off for the workspace or for each email): an invisible image and rewritten links record when the email is opened or a link is clicked — the time, the link and the browser user agent, not the IP address. Sequence emails include a link to unsubscribe; unsubscribing stops further sequence emails to that address.",
           "Feedback: if you send feedback through the site or the app, we keep the message, the type and product you picked, the page you were on, your browser's user agent, and your email if you give it or are signed in."
         ]
       },
@@ -195,7 +196,7 @@
           "No device fingerprinting and no cross-site tracking.",
           "No IP addresses stored with link clicks.",
           "No passwords: sign-in is delegated to Google. Link passwords are stored only as salted scrypt hashes.",
-          "No full email bodies from Gmail, and nothing from emails that do not involve your CRM contacts.",
+          "Nothing from emails that do not involve your CRM contacts, and no attachments.",
           "No payment card details: we do not charge today. When paid plans launch, payments will be handled by a payment processor that we will name here first."
         ]
       },
@@ -226,7 +227,7 @@
       "s08": {
         "h": "Google user data",
         "p": [
-          "If you connect Gmail or Google Calendar, Zerosoft requests only the access each feature needs: read-only Gmail access to show emails exchanged with your CRM contacts, and Google Calendar free/busy plus event access to avoid double bookings and to add, update or cancel the events your bookings create. You can disconnect at any time from the product settings or from your Google account.",
+          "If you connect Gmail or Google Calendar, Zerosoft requests only the access each feature needs: Gmail read access to show the emails exchanged with your CRM contacts in their timeline (and to detect replies that stop a sequence), Gmail send access to send the emails and sequence steps you write in the CRM from your own address, and Google Calendar free/busy plus event access to avoid double bookings and to add, update or cancel the events your bookings create. Gmail data is used only for these features: it is not used for advertising, not sold, and not used to train AI models. You can disconnect at any time from the product settings or from your Google account.",
           "Zerosoft's use and transfer to any other app of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements.",
           "In practice: we use Google user data only to provide and improve the user-facing features that use it; we do not transfer it to others except as needed to provide those features, to comply with the law, or as part of a merger or acquisition with notice to you; we do not use it for advertising; we do not use it to train generalized AI or machine learning models; and no human at Zerosoft reads it unless you give us explicit permission for specific messages, it is necessary for security purposes such as investigating abuse, or it is required by law."
         ]

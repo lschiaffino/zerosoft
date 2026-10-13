@@ -1,3 +1,4 @@
+import { listSequences } from '@/lib/crm-sequences';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
@@ -288,6 +289,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
             sort={sort}
             companies={companies}
             locale={locale}
+            sequences={(await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }))}
           />
           {pages > 1 && (
             <nav className="pager mono">

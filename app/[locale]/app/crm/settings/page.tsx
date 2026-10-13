@@ -1,5 +1,8 @@
 import { getTranslations } from 'next-intl/server';
-import { isWorkspaceAdmin, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { getEmailSettings } from '@/lib/crm-email';
+import { getMailboxSync } from '@/lib/crm-email-sync';
+import { scopeAllowsSend } from '@/lib/gmail';
 import { listCustomFields, listPipelinesWithStages } from '@/lib/crm';
 import { getIntegration, gmailRedirectUri } from '@/lib/integrations';
 import {
@@ -14,6 +17,7 @@ import ImportPanel from '@/components/crm/ImportPanel';
 import ExportPanel from '@/components/crm/ExportPanel';
 import GmailPanel from '@/components/crm/GmailPanel';
 import TeamPanel from '@/components/crm/TeamPanel';
+import EmailTrackingSetting from '@/components/crm/EmailTrackingSetting';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,13 +39,16 @@ export default async function CrmSettingsPage(
 
   const pipelines = await listPipelinesWithStages(user.id);
   const customFields = await listCustomFields(user.id);
-  const gmail = await getIntegration(user.id, 'gmail');
-
-  const gmailLastSync = gmail?.last_sync_at
+  // Gmail es personal: el de la persona logueada (no el del dueño del workspace).
+  const gmail = await getIntegration(realUserId(user), 'gmail');
+  const mailbox = gmail ? await getMailboxSync(user.id, realUserId(user)) : null;
+  const lastSyncRaw = mailbox?.last_sync_at ?? gmail?.last_sync_at ?? null;
+  const gmailLastSync = lastSyncRaw
     ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
-        new Date(`${gmail.last_sync_at.replace(' ', 'T')}Z`),
+        new Date(`${lastSyncRaw.replace(' ', 'T')}Z`),
       )
     : null;
+  const emailSettings = await getEmailSettings(user.id);
 
   // Teams: todo se resuelve sobre tu identidad real (no el workspace activo).
   const realUser = user.actingUser ?? user;
@@ -120,7 +127,9 @@ export default async function CrmSettingsPage(
               lastSync={gmailLastSync}
               notice={searchParams.gmail ?? null}
               redirectUri={gmailRedirectUri()}
+              canSend={gmail ? scopeAllowsSend(gmail.scope) : false}
             />
+            <EmailTrackingSetting enabled={emailSettings.trackingEnabled} canEdit={isWorkspaceAdmin(user)} />
           </section>
 
           <section className="crm-set" id="pipelines">

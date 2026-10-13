@@ -18,6 +18,8 @@ import { listEventTypes } from '@/lib/calendar';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import { getEmailSettings, listEmailTemplates, listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
+import { aiEnabled } from '@/lib/ai';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import HistoryPanel from '@/components/crm/HistoryPanel';
 import { listMembers } from '@/lib/teams';
@@ -46,7 +48,10 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
-  const timeline = await listTimeline(user.id, { dealId: id, limit: 100 });
+  const activities = await listTimeline(user.id, { dealId: id, limit: 100 });
+  const timeline = mergeTimelineWithThreads(activities, await listEmailThreads(user.id, { dealId: id, limit: 100 }));
+  const emailTemplates = await listEmailTemplates(user.id);
+  const emailSettings = await getEmailSettings(user.id);
   const nextTask = await nextTaskFor(user.id, { dealId: id });
 
   const stages = (await getDb()
@@ -280,6 +285,14 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
               items={timeline}
               emptyLabel={t('deals.detail.emptyTimeline')}
               locale={locale}
+              defaultEmail={primaryContact?.email ?? ''}
+              emailTools={{
+                templates: emailTemplates.map((x) => ({ id: x.id, kind: x.kind, name: x.name, subject: x.subject, body: x.body })),
+                aiEnabled: aiEnabled(),
+                trackingDefault: emailSettings.trackingEnabled,
+                contactId: primaryContact?.id,
+                dealId: deal.id,
+              }}
             />
           </section>
         </div>

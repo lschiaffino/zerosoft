@@ -1076,11 +1076,25 @@
     "activitiesListDesc": "Mais recentes primeiro. Passe só um entre contactId, companyId ou dealId.",
     "activitiesCreateTitle": "Registrar uma atividade",
     "activitiesCreateDesc": "Registre uma nota, ligação, reunião ou email em um registro. Tarefas têm endpoint próprio.",
-    "paramContactIds": "Ids de contatos para associar ao negócio.",
+    "paramContactIds": "IDs dos contatos a inscrever (1–500).",
     "paramLostReason": "Por que foi perdido (obrigatório em etapas de perda).",
     "paramRecordFilter": "O registro cuja timeline você quer.",
     "paramActivityType": "Tipo de atividade.",
     "paramActivityBody": "Texto livre: notas, resumo da ligação, corpo do email.",
-    "openapiCta": "Baixar a spec OpenAPI 3.1"
+    "openapiCta": "Baixar a spec OpenAPI 3.1",
+    "crmEmailTitle": "CRM — Templates de email e sequências",
+    "crmEmailDesc": "Templates e snippets de email compartilhados, e sequências de vendas com várias etapas. Os emails das sequências saem do Gmail conectado de quem envia; as etapas rodam no agendador de hora em hora.",
+    "emailTemplatesListTitle": "Listar templates de email",
+    "emailTemplatesListDesc": "Templates e snippets compartilhados no workspace. As variáveis ficam entre chaves duplas (contact.first_name, contact.company, deal.name, owner.first_name, contact.custom.x), com um valor padrão opcional depois de uma barra vertical.",
+    "emailTemplatesGetTitle": "Obter um template de email",
+    "emailTemplatesGetDesc": "Retorna um template ou snippet.",
+    "sequencesListTitle": "Listar sequências",
+    "sequencesListDesc": "Sequências com o número de etapas e inscrições.",
+    "sequencesEnrollTitle": "Inscrever contatos em uma sequência",
+    "sequencesEnrollDesc": "Inscreve até 500 contatos. Os que já estão inscritos, cancelaram a inscrição ou não têm email voltam em skipped. Quem envia precisa do Gmail conectado com permissão de envio.",
+    "sequencesUnenrollTitle": "Remover um contato de uma sequência",
+    "sequencesUnenrollDesc": "Remove o contato da sequência (status exited, motivo manual).",
+    "paramTemplateKind": "Filtrar por tipo: template ou snippet.",
+    "paramSenderId": "Membro do workspace cujo Gmail envia os emails. Por padrão, o owner do contato e depois quem criou a sequência."
   }
 }

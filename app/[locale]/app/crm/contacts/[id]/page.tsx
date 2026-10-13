@@ -11,10 +11,8 @@ import {
   getContact,
   listCompanies,
   listCustomFields,
-  listExternalEmailItems,
   listPipelinesWithStages,
   listTimeline,
-  mergeTimelineWithEmails,
   nextTaskFor,
   parseCustom,
 } from '@/lib/crm';
@@ -37,6 +35,10 @@ import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
 import { listEventTypes } from '@/lib/calendar';
 import { listMembers } from '@/lib/teams';
 import HistoryPanel from '@/components/crm/HistoryPanel';
+import SequencePanel from '@/components/crm/SequencePanel';
+import { listEmailThreads, mergeTimelineWithThreads, getEmailSettings, listEmailTemplates } from '@/lib/crm-email';
+import { listEnrollments, listSequences } from '@/lib/crm-sequences';
+import { aiEnabled } from '@/lib/ai';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,8 +76,12 @@ export default async function ContactDetailPage(
   const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
   const timeline = await listTimeline(user.id, { contactId: id, limit: 100 });
-  const emailItems = await listExternalEmailItems(user.id, { contactId: id, limit: 50 });
-  const timelineItems = mergeTimelineWithEmails(timeline, emailItems);
+  const threads = await listEmailThreads(user.id, { contactId: id, limit: 100 });
+  const timelineItems = mergeTimelineWithThreads(timeline, threads);
+  const emailTemplates = await listEmailTemplates(user.id);
+  const emailSettings = await getEmailSettings(user.id);
+  const enrollments = await listEnrollments(user.id, { contactId: id, limit: 20 });
+  const sequenceOptions = (await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }));
   const nextTask = await nextTaskFor(user.id, { contactId: id });
   const companies = (await listCompanies(user.id, { pageSize: 100, sort: 'name' })).rows;
   // Deals del usuario para el selector de asociación (id + nombre alcanzan).
@@ -270,6 +276,12 @@ export default async function ContactDetailPage(
               emptyLabel={t('contacts.detail.emptyTimeline')}
               locale={locale}
               defaultEmail={contact.email}
+              emailTools={{
+                templates: emailTemplates.map((x) => ({ id: x.id, kind: x.kind, name: x.name, subject: x.subject, body: x.body })),
+                aiEnabled: aiEnabled(),
+                trackingDefault: emailSettings.trackingEnabled,
+                contactId: contact.id,
+              }}
             />
           </section>
         </div>
@@ -329,6 +341,20 @@ export default async function ContactDetailPage(
               />
             )}
           </section>
+
+          <SequencePanel
+            contactId={contact.id}
+            sequences={sequenceOptions}
+            enrollments={enrollments.map((e) => ({
+              id: e.id,
+              sequenceId: e.sequence_id,
+              sequenceName: e.sequence_name,
+              status: e.status,
+              exitReason: e.exit_reason,
+              step: Math.min(e.current_step + 1, e.step_count),
+              stepCount: e.step_count,
+            }))}
+          />
 
           <section className="panel">
             <p className="section-label">{t('contacts.detail.lists')}</p>
