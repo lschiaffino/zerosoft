@@ -18,7 +18,10 @@
     "empty": "No pages",
     "dropTopLevel": "Drop here to make top-level",
     "collapse": "Collapse",
-    "expand": "Expand"
+    "expand": "Expand",
+    "pageActions": "Page actions",
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   },
   "editor": {
     "untitled": "Untitled page",
@@ -114,7 +117,8 @@
       "objects": "Objects",
       "symbols": "Symbols",
       "nature": "Nature",
-      "food": "Food"
+      "food": "Food",
+      "results": "Results"
     }
   },
   "share": {

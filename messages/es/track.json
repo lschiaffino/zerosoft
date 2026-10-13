@@ -62,7 +62,8 @@
     "activeCycle": "Ciclo activo",
     "pastCycles": "Ciclos anteriores",
     "loadMore": "Cargar más",
-    "showing": "Mostrando {shown} de {total}"
+    "showing": "Mostrando {shown} de {total}",
+    "settings": "Configuración"
   },
   "issues": {
     "pageTitle": "Issues",
@@ -165,6 +166,21 @@
       "namePlaceholder": "Sprint 1",
       "startAt": "Inicio",
       "endAt": "Fin"
+    },
+    "edit": "Editar",
+    "editTitle": "Editar cycle",
+    "complete": "Completar",
+    "completeTitle": "Completar {name}",
+    "completeMove": "{count, plural, =0 {No hay issues sin terminar.} one {El issue sin terminar pasa a {name}.} other {Los # issues sin terminar pasan a {name}.}}",
+    "completeNoNext": "{count, plural, =0 {No hay issues sin terminar.} one {No hay un cycle siguiente: el issue sin terminar queda sin cycle.} other {No hay un cycle siguiente: los # issues sin terminar quedan sin cycle.}}",
+    "movedTo": "{count, plural, one {# issue movido} other {# issues movidos}} a {name}.",
+    "movedOut": "{count, plural, one {# issue quedó} other {# issues quedaron}} sin cycle.",
+    "progress": "{done}/{total} terminados",
+    "invalidRange": "La fecha de fin no puede ser anterior al inicio.",
+    "state": {
+      "active": "Activo",
+      "upcoming": "Próximo",
+      "past": "Terminado"
     }
   },
   "statuses": {
@@ -244,7 +260,9 @@
     "missing_name": "El nombre es obligatorio.",
     "missing_title": "El título es obligatorio.",
     "invalid_input": "Algunos campos son inválidos. Revisalos e intentá de nuevo.",
-    "generic": "Algo salió mal. Intentá de nuevo."
+    "generic": "Algo salió mal. Intentá de nuevo.",
+    "invalid_range": "La fecha de fin no puede ser anterior al inicio.",
+    "last_status": "El proyecto necesita al menos un status."
   },
   "quick": {
     "newTask": "Nueva tarea",
@@ -257,7 +275,8 @@
     "create": "Crear issue",
     "createMore": "Crear otro",
     "submitHint": "Enter o ⌘↵ para crear",
-    "shortcutHint": "Tocá C para crear un issue"
+    "shortcutHint": "Tocá C para crear un issue",
+    "subModalTitle": "Nuevo sub-issue"
   },
   "inline": {
     "markDone": "Marcar como hecha",
@@ -282,5 +301,25 @@
     "upcoming": "Próximas",
     "noDate": "Sin fecha",
     "empty": "No tenés nada asignado. Disfrutá la calma."
+  },
+  "cmdk": {
+    "newIssue": "Nuevo issue",
+    "newProject": "Nuevo proyecto (Track)",
+    "myTasks": "Ir a Mis tareas",
+    "allIssues": "Ir a todos los issues",
+    "inbox": "Ir al inbox de Track"
+  },
+  "statusSettings": {
+    "title": "Status del workflow",
+    "name": "Nombre del status",
+    "color": "Color",
+    "category": "Categoría",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "delete": "Borrar",
+    "reassignTo": "Pasar sus issues a",
+    "confirmDelete": "Borrar status",
+    "newPlaceholder": "Nuevo status",
+    "add": "Agregar"
   }
 }

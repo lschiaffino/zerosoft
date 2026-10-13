@@ -5,12 +5,16 @@ import { useTranslations } from 'next-intl';
 
 interface EmbedCodeProps {
   widgetId: string;
+  /** Origen público resuelto en el server (mismo valor en SSR y en el cliente). */
+  origin: string;
 }
 
-export default function EmbedCode({ widgetId }: EmbedCodeProps) {
+export default function EmbedCode({ widgetId, origin }: EmbedCodeProps) {
   const t = useTranslations('chat');
   const [copied, setCopied] = useState(false);
-  const script = `<script src="${typeof window !== 'undefined' ? window.location.origin : 'https://zerosoft.ai'}/api/chat/widget.js?id=${widgetId}" async></script>`;
+  // Antes usaba window.location.origin en el cliente y un fallback distinto en
+  // el server → hydration mismatch. Ahora el origen llega del server.
+  const script = `<script src="${origin}/api/chat/widget.js?id=${widgetId}" async></script>`;
 
   async function copy() {
     try {

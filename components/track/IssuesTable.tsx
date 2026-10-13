@@ -179,6 +179,8 @@ export default function IssuesTable({
             return (
               <tr
                 key={issue.id}
+                data-issue-row={pending ? undefined : ''}
+                data-href={pending ? undefined : `/app/track/issues/${issue.id}`}
                 className={[pending ? 'is-pending' : '', editing && completed ? 'is-completed' : ''].filter(Boolean).join(' ') || undefined}
               >
                 {editing && (

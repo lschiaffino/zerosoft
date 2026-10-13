@@ -15,7 +15,7 @@ import CopyButton from '@/components/link/CopyButton';
 import LinkChart from '@/components/link/LinkChart';
 import BreakdownBars from '@/components/link/BreakdownBars';
 import QrSection from '@/components/link/QrSection';
-import EditLinkForm from '@/components/link/EditLinkForm';
+import EditLinkPanel from '@/components/link/EditLinkPanel';
 import DangerZone from '@/components/link/DangerZone';
 import CountryFilter from '@/components/link/CountryFilter';
 
@@ -102,9 +102,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
             <a href="#qr" className="btn btn-small">
               {t('table.qr')}
             </a>
-            <a href="#edit" className="btn btn-small">
-              {t('common.edit')}
-            </a>
+            <EditLinkPanel link={toLinkDto(link)} />
           </div>
         </div>
         <div className="detail-meta">
@@ -321,11 +319,6 @@ export default async function LinkDetailPage(props: DetailPageProps) {
             )}
           </>
         )}
-      </section>
-
-      <section className="panel" id="edit">
-        <p className="section-label">{t('detail.editTitle')}</p>
-        <EditLinkForm link={toLinkDto(link)} />
       </section>
 
       <section className="panel danger-panel">

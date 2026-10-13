@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { createCycle, getProject, listCycles, canAccessTrackProject } from '@/lib/track-data';
+import { createCycle, getProject, listCyclesWithProgress, canAccessTrackProject } from '@/lib/track-data';
 import { cycleCreateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
 
@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const project = await accessibleProject(params.id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
 
-  const rows = await listCycles(params.id);
+  const rows = await listCyclesWithProgress(params.id);
   return NextResponse.json({ rows });
 }
 

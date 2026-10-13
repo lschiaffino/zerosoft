@@ -16,9 +16,11 @@ function toLocalInput(iso: string): string {
 
 interface EditLinkFormProps {
   link: LinkDto;
+  /** Después de guardar OK (el panel lateral se cierra). */
+  onSaved?: () => void;
 }
 
-export default function EditLinkForm({ link }: EditLinkFormProps) {
+export default function EditLinkForm({ link, onSaved }: EditLinkFormProps) {
   const t = useTranslations('link');
   const router = useRouter();
 
@@ -79,6 +81,7 @@ export default function EditLinkForm({ link }: EditLinkFormProps) {
         setClearPassword(false);
         router.refresh();
         setTimeout(() => setSaved(false), 2000);
+        onSaved?.();
       }
     } catch {
       setError(t('errors.generic'));

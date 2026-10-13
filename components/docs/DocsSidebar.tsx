@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import { buildPageTree, type DocsPage } from '@/lib/docs-types';
 
@@ -14,7 +14,11 @@ interface DocsSidebarProps {
   /** En mobile el árbol arranca abierto (landing) o plegado (editor). */
   mobileOpenByDefault?: boolean;
   createAction: (parentId?: string | null) => void;
-  moveAction: (pageId: string, parentId: string | null) => void;
+  moveAction: (pageId: string, parentId: string | null) => void | Promise<void>;
+  /** Reordenar entre hermanas (soltar arriba/abajo de una fila). */
+  reorderAction?: (pageId: string, targetId: string, placement: 'before' | 'after') => void | Promise<void>;
+  /** "Move up / Move down" (menú de la fila y Alt+↑/↓). */
+  stepAction?: (pageId: string, dir: -1 | 1) => void | Promise<void>;
   labels: {
     newPage: string;
     newSubpage: string;
@@ -23,6 +27,16 @@ interface DocsSidebarProps {
 }
 
 type TreeNode = DocsPage & { children?: TreeNode[] };
+type DropZone = 'before' | 'inside' | 'after';
+
+/** Zona de drop según la altura del puntero: borde superior/inferior = reordenar, centro = anidar. */
+function zoneFor(e: React.DragEvent<HTMLElement>): DropZone {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  if (y < rect.height * 0.28) return 'before';
+  if (y > rect.height * 0.72) return 'after';
+  return 'inside';
+}
 
 const COLLAPSED_KEY = 'docs.sidebar.collapsed';
 
@@ -33,9 +47,14 @@ export default function DocsSidebar({
   mobileOpenByDefault = false,
   createAction,
   moveAction,
+  reorderAction,
+  stepAction,
   labels,
 }: DocsSidebarProps) {
   const t = useTranslations('docs');
+  const router = useRouter();
+  const [dropZone, setDropZone] = useState<DropZone>('inside');
+  const [menuId, setMenuId] = useState<string | null>(null);
   const tree = useMemo(() => buildPageTree(pages) as TreeNode[], [pages]);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
@@ -88,15 +107,31 @@ export default function DocsSidebar({
   useKeyShortcut('c', () => create(null), !isPending);
 
   const handleDrop = useCallback(
-    (e: React.DragEvent, targetId: string | null) => {
+    (e: React.DragEvent, targetId: string | null, zone: DropZone = 'inside') => {
       e.preventDefault();
       const pageId = e.dataTransfer.getData('text/plain');
       setDragId(null);
       setDropId(null);
       if (!pageId || pageId === targetId) return;
-      startTransition(() => moveAction(pageId, targetId));
+      startTransition(async () => {
+        if (targetId && zone !== 'inside' && reorderAction) await reorderAction(pageId, targetId, zone);
+        else await moveAction(pageId, targetId);
+        router.refresh();
+      });
     },
-    [moveAction],
+    [moveAction, reorderAction, router],
+  );
+
+  const step = useCallback(
+    (pageId: string, dir: -1 | 1) => {
+      if (!stepAction) return;
+      setMenuId(null);
+      startTransition(async () => {
+        await stepAction(pageId, dir);
+        router.refresh();
+      });
+    },
+    [stepAction, router],
   );
 
   const renderNode = (node: TreeNode, depth: number) => {
@@ -106,7 +141,8 @@ export default function DocsSidebar({
     return (
       <li key={node.id}>
         <div
-          className={`docs-tree-row${active ? ' active' : ''}${dropId === node.id ? ' drop' : ''}${dragId === node.id ? ' dragging' : ''}`}
+          className={`docs-tree-row${active ? ' active' : ''}${dropId === node.id ? ` drop drop-${dropZone}` : ''}${dragId === node.id ? ' dragging' : ''}`}
+          data-testid="docs-tree-row"
           style={{ paddingLeft: `${4 + depth * 14}px` }}
           draggable
           onDragStart={(e) => {
@@ -119,10 +155,13 @@ export default function DocsSidebar({
           }}
           onDragOver={(e) => {
             e.preventDefault();
-            if (dragId && dragId !== node.id) setDropId(node.id);
+            if (dragId && dragId !== node.id) {
+              setDropId(node.id);
+              setDropZone(reorderAction ? zoneFor(e) : 'inside');
+            }
           }}
           onDragLeave={() => setDropId((d) => (d === node.id ? null : d))}
-          onDrop={(e) => handleDrop(e, node.id)}
+          onDrop={(e) => handleDrop(e, node.id, reorderAction ? zoneFor(e) : 'inside')}
         >
           <button
             type="button"
@@ -142,10 +181,48 @@ export default function DocsSidebar({
             className="docs-tree-link"
             aria-current={active ? 'page' : undefined}
             onClick={() => setMobileOpen(false)}
+            onKeyDown={(e) => {
+              if (stepAction && e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                e.preventDefault();
+                step(node.id, e.key === 'ArrowUp' ? -1 : 1);
+              }
+            }}
+            aria-keyshortcuts={stepAction ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
           >
             <span className="docs-tree-icon">{node.icon ?? '📄'}</span>
             <span className="docs-tree-title">{node.title || t('untitled')}</span>
           </Link>
+          {stepAction && (
+            <span className="docs-tree-more-wrap">
+              <button
+                type="button"
+                className="docs-tree-more"
+                onClick={() => setMenuId((m) => (m === node.id ? null : node.id))}
+                aria-haspopup="menu"
+                aria-expanded={menuId === node.id}
+                aria-label={t('sidebar.pageActions')}
+                title={t('sidebar.pageActions')}
+              >
+                ⋯
+              </button>
+              {menuId === node.id && (
+                <span
+                  className="docs-tree-menu"
+                  role="menu"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setMenuId(null);
+                  }}
+                >
+                  <button type="button" role="menuitem" onClick={() => step(node.id, -1)} disabled={isPending}>
+                    ↑ {t('sidebar.moveUp')}
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => step(node.id, 1)} disabled={isPending}>
+                    ↓ {t('sidebar.moveDown')}
+                  </button>
+                </span>
+              )}
+            </span>
+          )}
           <button
             type="button"
             className="docs-tree-add"

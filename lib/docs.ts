@@ -38,6 +38,9 @@ function toPage(row: DocsPageRow): DocsPage {
     content: parseBlocks(row.content),
     is_public: row.is_public === 1,
     archived: row.archived === 1,
+    small_text: row.small_text === 1,
+    full_width: row.full_width === 1,
+    position: row.position ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -106,7 +109,8 @@ export async function listDocPages(
   const archived = opts.archived ? 1 : 0;
   const rows = (await getDb()
     .prepare(
-      'SELECT * FROM docs_pages WHERE user_id = ? AND archived = ? ORDER BY updated_at DESC',
+      // Orden manual primero (position), el resto como antes (más recientes arriba).
+      'SELECT * FROM docs_pages WHERE user_id = ? AND archived = ? ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC',
     )
     .all(ownerId, archived)) as DocsPageRow[];
   return rows.map(toPage);
@@ -163,6 +167,8 @@ export interface UpdateDocPageInput {
   parent_id?: string | null;
   is_public?: boolean;
   archived?: boolean;
+  small_text?: boolean;
+  full_width?: boolean;
 }
 
 export async function updateDocPage(
@@ -197,6 +203,16 @@ export async function updateDocPage(
   if (input.parent_id !== undefined) {
     updates.push('parent_id = ?');
     args.push(input.parent_id);
+    // Cambiar de padre descarta el orden manual del grupo anterior.
+    if (input.parent_id !== row.parent_id) updates.push('position = NULL');
+  }
+  if (input.small_text !== undefined) {
+    updates.push('small_text = ?');
+    args.push(input.small_text ? 1 : 0);
+  }
+  if (input.full_width !== undefined) {
+    updates.push('full_width = ?');
+    args.push(input.full_width ? 1 : 0);
   }
   if (input.is_public !== undefined) {
     updates.push('is_public = ?');
@@ -344,6 +360,67 @@ export async function moveDocPage(
   parentId: string | null,
 ): Promise<DocsPage | null> {
   return updateDocPage(ownerId, pageId, { parent_id: parentId });
+}
+
+export type DocDropPlacement = 'before' | 'after';
+
+/**
+ * Reordena una página entre sus hermanos: la ubica antes/después de `targetId`
+ * (y pasa a ser hermana de target si tenía otro padre). Reescribe `position`
+ * de todo el grupo. No toca updated_at (no es una edición de contenido).
+ */
+export async function reorderDocPage(
+  ownerId: string,
+  pageId: string,
+  targetId: string,
+  placement: DocDropPlacement,
+): Promise<boolean> {
+  if (pageId === targetId) return false;
+  const db = getDb();
+  const page = (await db.prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as DocsPageRow | undefined;
+  const target = (await db.prepare('SELECT * FROM docs_pages WHERE id = ?').get(targetId)) as DocsPageRow | undefined;
+  if (!page || !target || page.user_id !== ownerId || target.user_id !== ownerId) return false;
+  // No se puede colgar una página dentro de su propio subárbol.
+  const descendants = await collectDescendants(ownerId, pageId);
+  if (descendants.includes(targetId)) return false;
+
+  const parentId = target.parent_id;
+  const siblings = (await db
+    .prepare(
+      `SELECT id FROM docs_pages
+       WHERE user_id = ? AND archived = ? AND ${parentId ? 'parent_id = ?' : 'parent_id IS NULL'} AND id != ?
+       ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC`,
+    )
+    .all(...[ownerId, target.archived, ...(parentId ? [parentId] : []), pageId])) as Array<{ id: string }>;
+  const order = siblings.map((r) => r.id);
+  const at = order.indexOf(targetId);
+  order.splice(placement === 'before' ? at : at + 1, 0, pageId);
+
+  if (page.parent_id !== parentId) {
+    await db.prepare('UPDATE docs_pages SET parent_id = ? WHERE id = ? AND user_id = ?').run(parentId, pageId, ownerId);
+  }
+  for (const [i, id] of order.entries()) {
+    await db.prepare('UPDATE docs_pages SET position = ? WHERE id = ? AND user_id = ?').run(i, id, ownerId);
+  }
+  return true;
+}
+
+/** "Move up / Move down": intercambia la página con su hermana anterior/siguiente. */
+export async function moveDocPageStep(ownerId: string, pageId: string, dir: -1 | 1): Promise<boolean> {
+  const db = getDb();
+  const page = (await db.prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as DocsPageRow | undefined;
+  if (!page || page.user_id !== ownerId) return false;
+  const siblings = (await db
+    .prepare(
+      `SELECT id FROM docs_pages
+       WHERE user_id = ? AND archived = ? AND ${page.parent_id ? 'parent_id = ?' : 'parent_id IS NULL'}
+       ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC`,
+    )
+    .all(...[ownerId, page.archived, ...(page.parent_id ? [page.parent_id] : [])])) as Array<{ id: string }>;
+  const idx = siblings.findIndex((r) => r.id === pageId);
+  const neighbor = siblings[idx + dir];
+  if (idx === -1 || !neighbor) return false;
+  return reorderDocPage(ownerId, pageId, neighbor.id, dir === -1 ? 'before' : 'after');
 }
 
 // ---------- Shares ----------

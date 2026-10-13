@@ -20,7 +20,9 @@
     "direct": "direto",
     "other": "outros",
     "yes": "sim",
-    "no": "não"
+    "no": "não",
+    "close": "Fechar",
+    "cancel": "Cancelar"
   },
   "overview": {
     "title": "Visão geral",
@@ -370,5 +372,16 @@
     "created": "Link criado:",
     "createdCopied": "Criado e copiado:",
     "dismiss": "Fechar"
+  },
+  "bulkActions": {
+    "label": "Ações nos links selecionados",
+    "selected": "{count, plural, one {# selecionado} other {# selecionados}}",
+    "selectAll": "Selecionar todos",
+    "select": "Selecionar {slug}",
+    "tag": "Etiquetar",
+    "tagPlaceholder": "Etiqueta",
+    "applyTag": "Aplicar",
+    "clear": "Limpar seleção",
+    "confirmDelete": "{count, plural, one {Excluir # link?} other {Excluir # links?}}"
   }
 }

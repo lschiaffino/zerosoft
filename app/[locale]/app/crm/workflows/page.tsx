@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
 import { isWorkspaceAdmin, requireUser } from "@/lib/session";
-import { listWorkflows } from "@/lib/crm-workflows";
+import { listWorkflows, TRIGGER_TYPES } from "@/lib/crm-workflows";
+import WorkflowQuickCreate from "@/components/crm/WorkflowQuickCreate";
 import WorkflowList from "@/components/crm/WorkflowList";
 
 export const dynamic = "force-dynamic";
@@ -16,18 +16,17 @@ export default async function WorkflowsPage(props: {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: "crm" });
   const workflows = await listWorkflows(user.id);
+  const triggerOptions = TRIGGER_TYPES.map((tt) => ({
+    value: tt,
+    label: t(`workflows.triggerTypes.${tt}`),
+  }));
 
   return (
     <div className="app-page">
       <div className="page-head">
         <h1 className="app-title">{t("workflows.title")}</h1>
         {isWorkspaceAdmin(user) && workflows.length > 0 && (
-          <Link
-            href="/app/crm/workflows/new"
-            className="btn btn-solid btn-small"
-          >
-            {t("workflows.new")}
-          </Link>
+          <WorkflowQuickCreate triggers={triggerOptions} />
         )}
       </div>
       {!isWorkspaceAdmin(user) && (
@@ -41,12 +40,10 @@ export default async function WorkflowsPage(props: {
           <h2>{t("workflows.noWorkflows")}</h2>
           <p className="muted">{t("workflows.emptySub")}</p>
           {isWorkspaceAdmin(user) && (
-            <Link
-              href="/app/crm/workflows/new"
-              className="btn btn-solid btn-small"
-            >
-              {t("workflows.new")}
-            </Link>
+            <WorkflowQuickCreate
+              triggers={triggerOptions}
+              testId="workflow-quick-create-empty"
+            />
           )}
         </div>
       ) : (

@@ -16,6 +16,7 @@ export interface TrackUiLabels {
   };
   modal: {
     title: string;
+    subTitle: string;
     titlePlaceholder: string;
     descriptionPlaceholder: string;
     project: string;
@@ -69,6 +70,7 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
     },
     modal: {
       title: t('quick.modalTitle'),
+      subTitle: t('quick.subModalTitle'),
       titlePlaceholder: t('quick.titlePlaceholder'),
       descriptionPlaceholder: t('quick.descriptionPlaceholder'),
       project: t('quick.project'),

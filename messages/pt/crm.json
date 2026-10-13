@@ -628,7 +628,10 @@
       "always": "Sempre",
       "yes": "Se sim",
       "no": "Se não"
-    }
+    },
+    "trigger": "Gatilho",
+    "quickCreate": "Criar e configurar",
+    "quickNote": "É criado como rascunho desativado; você adiciona as ações no editor."
   },
   "history": {
     "title": "Histórico",

@@ -628,7 +628,10 @@
       "always": "Always",
       "yes": "If yes",
       "no": "If no"
-    }
+    },
+    "trigger": "Trigger",
+    "quickCreate": "Create and configure",
+    "quickNote": "It's created as a disabled draft; you add the actions in the editor."
   },
   "history": {
     "title": "History",

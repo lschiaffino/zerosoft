@@ -16,6 +16,12 @@ import { createProject, createIssue } from './track-data';
 import { createEventType, getOrCreateCalendarUser, setAvailability } from './calendar';
 
 async function seedCrm(userId: string) {
+  // Idempotente: si el workspace ya tiene pipelines (p. ej. `npm run seed`
+  // cargó el dataset demo) no creamos otro "Sales" duplicado.
+  const existing = await getDb()
+    .prepare('SELECT 1 AS x FROM crm_pipelines WHERE user_id = ? LIMIT 1')
+    .get(userId);
+  if (existing) return;
   const pipeline = await createPipeline(userId, 'Sales');
   const lead = await createStage(userId, pipeline.id, { name: 'Lead', probability: 10 });
   const contacted = await createStage(userId, pipeline.id, { name: 'Contacted', probability: 30 });

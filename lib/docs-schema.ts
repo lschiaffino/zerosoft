@@ -54,6 +54,8 @@ export const docPageUpdateSchema = z.object({
   parent_id: id.nullish(),
   is_public: z.boolean().optional(),
   archived: z.boolean().optional(),
+  small_text: z.boolean().optional(),
+  full_width: z.boolean().optional(),
 });
 
 export const docShareCreateSchema = z.object({
