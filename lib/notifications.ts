@@ -231,6 +231,50 @@ export async function createDocsMentionNotification(args: {
   });
 }
 
+/** Una página de Docs se compartió con la persona. */
+export async function createDocsShareNotification(args: {
+  pageId: string;
+  actor: Actor;
+  targetUserId: string;
+}): Promise<void> {
+  const { pageId, actor, targetUserId } = args;
+  if (targetUserId === actor.id) return;
+  const page = (await getDb().prepare('SELECT title FROM docs_pages WHERE id = ?').get(pageId)) as
+    | { title: string }
+    | undefined;
+  const title = page?.title || 'Untitled';
+  await createNotification({
+    userId: targetUserId,
+    type: 'comment',
+    title: `${actorName(actor)} shared ${title} with you`,
+    href: `/app/docs/${pageId}`,
+    sourceType: 'docs_page',
+    sourceId: pageId,
+    meta: { pageTitle: title, actorName: actorName(actor), actorId: actor.id, shared: true },
+  });
+}
+
+/** @mención en una nota interna de una conversación de Chat. */
+export async function createChatNoteMentionNotification(args: {
+  conversationId: string;
+  actor: Actor;
+  mentionedUserId: string;
+  body: string;
+}): Promise<void> {
+  const { conversationId, actor, mentionedUserId, body } = args;
+  if (mentionedUserId === actor.id) return;
+  await createNotification({
+    userId: mentionedUserId,
+    type: 'mention',
+    title: `${actorName(actor)} mentioned you in a conversation note`,
+    body: body.slice(0, 140),
+    href: `/app/chat/inbox/${conversationId}`,
+    sourceType: 'chat_conversation',
+    sourceId: conversationId,
+    meta: { actorName: actorName(actor), actorId: actor.id, note: true },
+  });
+}
+
 // Mention parsing: @email@domain.com and @Some Name (up to 3 capitalized words).
 const EMAIL_MENTION_RE = /@[\w.-]+@[\w.-]+\.\w{2,}/g;
 const NAME_MENTION_RE = /@[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,2}/g;

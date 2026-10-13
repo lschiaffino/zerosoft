@@ -50,6 +50,7 @@ const widgetBase = {
   botGreeting: longText.optional(),
   botSource: z.enum(['canned', 'docs', 'ai', 'agent']).optional(),
   officeHours: officeHoursSchema.nullable().optional(),
+  helpEnabled: z.boolean().optional(),
 };
 
 export const widgetCreateSchema = z.object({

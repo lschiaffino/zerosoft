@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { canAccessWidget } from '@/lib/chat-access';
 import { getCurrentUser } from '@/lib/session';
 import {
   deleteAssignmentRule,
@@ -17,7 +18,7 @@ async function canAccessRule(
   if (!rule) return { ok: false, rule: null };
   const widget = await getChatWidget(rule.widget_id);
   if (!widget) return { ok: false, rule: null };
-  if (widget.user_id !== user.id && widget.team_id !== user.team?.id) {
+  if (!canAccessWidget(widget, user)) {
     return { ok: false, rule: null };
   }
   return { ok: true, rule };

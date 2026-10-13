@@ -3,10 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { type DocsComment, type DocsPage, type DocsPageShare } from '@/lib/docs-types';
+import {
+  type DocsAccess,
+  type DocsComment,
+  type DocsPage,
+  type DocsPageShare,
+  type DocsShareRole,
+} from '@/lib/docs-types';
 import DocsEditor from './DocsEditor';
-import SharePanel from './SharePanel';
+import ShareDialog, { type ShareRequest } from './ShareDialog';
 import CommentsPanel from './CommentsPanel';
+import VersionsPanel from './VersionsPanel';
 
 interface CommentsLabels {
   title: string;
@@ -29,6 +36,9 @@ export default function DocsEditorClient({
   comments,
   currentUserId,
   commentsLabels,
+  access = 'owner',
+  helpBase = null,
+  feedback = null,
 }: {
   page: DocsPage;
   ancestors: DocsPage[];
@@ -36,24 +46,36 @@ export default function DocsEditorClient({
   comments: DocsComment[];
   currentUserId: string;
   commentsLabels: CommentsLabels;
+  /** 'owner' = workspace dueño; 'edit' = invitado con edición (sin compartir/publicar/papelera). */
+  access?: Exclude<DocsAccess, 'view'>;
+  helpBase?: string | null;
+  feedback?: { yes: number; no: number } | null;
 }) {
   const router = useRouter();
   const t = useTranslations('docs');
+  const isOwner = access === 'owner';
   const [saving, setSaving] = useState(false);
+  const [current, setCurrent] = useState<DocsPage>(page);
+  const [editorKey, setEditorKey] = useState(0);
   const [localShares, setLocalShares] = useState(shares);
+  const [shareOpen, setShareOpen] = useState(false);
   const [commentFocus, setCommentFocus] = useState(0);
   // Espejo local de los comentarios (el panel notifica cambios) para los
   // badges por bloque; blockFilter ancla el panel al hilo de un bloque.
   const [allComments, setAllComments] = useState<DocsComment[]>(comments);
   const [blockFilter, setBlockFilter] = useState<string | null>(null);
-  // Share y Comments viven en un panel lateral que se abre a demanda (como
-  // Notion): el editor usa todo el ancho por defecto.
-  const [side, setSide] = useState<'share' | 'comments' | null>(null);
+  // Comments y Versiones viven en un panel lateral que se abre a demanda
+  // (como Notion); Compartir es un diálogo.
+  const [side, setSide] = useState<'comments' | 'versions' | null>(null);
   const openComments = allComments.filter((c) => !c.resolved).length;
 
   useEffect(() => {
     setAllComments(comments);
   }, [comments]);
+
+  useEffect(() => {
+    setCurrent((prev) => ({ ...prev, ...page, content: prev.content }));
+  }, [page]);
 
   const commentCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -80,7 +102,7 @@ export default function DocsEditorClient({
       setSaving(true);
       const body = JSON.stringify(patch);
       try {
-        await fetch(`/api/docs/pages/${page.id}`, {
+        const res = await fetch(`/api/docs/pages/${page.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body,
@@ -88,6 +110,10 @@ export default function DocsEditorClient({
           // (keepalive tiene tope de 64KB por request).
           keepalive: body.length < 60_000,
         });
+        if (res.ok && ('published' in patch || 'is_public' in patch)) {
+          const updated = (await res.json()) as DocsPage;
+          setCurrent((prev) => ({ ...prev, published: updated.published, slug: updated.slug, is_public: updated.is_public }));
+        }
         router.refresh();
       } finally {
         setSaving(false);
@@ -97,18 +123,34 @@ export default function DocsEditorClient({
   );
 
   const handleShare = useCallback(
-    async (kind: 'public' | 'team' | 'user', targetId?: string | null) => {
+    async (req: ShareRequest): Promise<string | null> => {
       const res = await fetch(`/api/docs/pages/${page.id}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, target_id: targetId }),
+        body: JSON.stringify({ kind: req.kind, target_id: req.targetId ?? null, email: req.email, role: req.role }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        return data.error ?? 'error';
+      }
       const share = (await res.json()) as DocsPageShare;
-      setLocalShares((prev) => [share, ...prev]);
+      setLocalShares((prev) => [share, ...prev.filter((s) => s.id !== share.id)]);
       router.refresh();
+      return null;
     },
     [page.id, router],
+  );
+
+  const handleRoleChange = useCallback(
+    async (shareId: string, role: DocsShareRole) => {
+      setLocalShares((prev) => prev.map((s) => (s.id === shareId ? { ...s, role } : s)));
+      await fetch(`/api/docs/pages/${page.id}/share/${shareId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      }).catch(() => {});
+    },
+    [page.id],
   );
 
   const handleUnshare = useCallback(
@@ -150,7 +192,18 @@ export default function DocsEditorClient({
     if (res.ok) router.refresh();
   }, [page.id, router]);
 
-  const toggle = (panel: 'share' | 'comments') => setSide((cur) => (cur === panel ? null : panel));
+  // Tras restaurar una versión el editor se vuelve a montar con el contenido nuevo.
+  const onVersionRestored = useCallback(async () => {
+    const res = await fetch(`/api/docs/pages/${page.id}`);
+    if (res.ok) {
+      const fresh = (await res.json()) as DocsPage;
+      setCurrent(fresh);
+      setEditorKey((k) => k + 1);
+    }
+    router.refresh();
+  }, [page.id, router]);
+
+  const toggle = (panel: 'comments' | 'versions') => setSide((cur) => (cur === panel ? null : panel));
 
   const topActions = (
     <>
@@ -163,36 +216,78 @@ export default function DocsEditorClient({
         {t('comments.title')}
         {openComments > 0 && <span className="docs-top-count mono">{openComments}</span>}
       </button>
+      {isOwner && (
+        <button
+          type="button"
+          className={`docs-top-btn${shareOpen ? ' on' : ''}`}
+          onClick={() => setShareOpen(true)}
+          aria-haspopup="dialog"
+        >
+          {t('share.title')}
+          {(current.published || localShares.length > 0) && <span className="docs-top-dot" aria-hidden />}
+        </button>
+      )}
+    </>
+  );
+
+  const menuExtra = (close: () => void) => (
+    <>
       <button
         type="button"
-        className={`docs-top-btn${side === 'share' ? ' on' : ''}`}
-        onClick={() => toggle('share')}
-        aria-pressed={side === 'share'}
+        className="docs-page-menu-item"
+        onClick={() => {
+          close();
+          setSide('versions');
+        }}
       >
-        {t('share.title')}
-        {(page.is_public || localShares.length > 0) && <span className="docs-top-dot" aria-hidden />}
+        {t('versions.title')}
+      </button>
+      <a
+        className="docs-page-menu-item"
+        href={`/api/docs/pages/${page.id}/export?format=md`}
+        download
+        onClick={close}
+      >
+        {t('export.markdown')}
+      </a>
+      <button
+        type="button"
+        className="docs-page-menu-item"
+        onClick={() => {
+          close();
+          setSide(null);
+          // El PDF sale del diálogo de impresión (styles/docs.css → @media print).
+          setTimeout(() => window.print(), 50);
+        }}
+      >
+        {t('export.pdf')}
       </button>
     </>
   );
 
   return (
     <div className={`docs-editor-wrap${side ? ' has-side' : ''}`}>
-      {page.archived && (
+      {current.archived && (
         <div className="docs-archived-banner" role="status">
           <span>{t('editor.inTrash')}</span>
-          <button type="button" className="btn btn-small" onClick={restorePage}>
-            {t('trash.restore')}
-          </button>
+          {isOwner && (
+            <button type="button" className="btn btn-small" onClick={restorePage}>
+              {t('trash.restore')}
+            </button>
+          )}
         </div>
       )}
       <DocsEditor
-        page={page}
+        key={editorKey}
+        page={current}
         ancestors={ancestors}
         onSave={savePage}
         saving={saving}
-        onDuplicate={duplicatePage}
-        onDelete={trashPage}
+        onDuplicate={isOwner ? duplicatePage : undefined}
+        onDelete={isOwner ? trashPage : undefined}
         topActions={topActions}
+        menuExtra={menuExtra}
+        layoutToggles={isOwner}
         onAddComment={handlePageComment}
         commentCounts={commentCounts}
         onBlockComment={handleBlockComment}
@@ -201,29 +296,34 @@ export default function DocsEditorClient({
         <button type="button" className="docs-side-close" onClick={() => setSide(null)} aria-label={t('editor.closePanel')}>
           ×
         </button>
-        {side === 'share' && (
-        <SharePanel
-          page={page}
-          shares={localShares}
-          onUpdate={savePage}
-          onShare={handleShare}
-          onUnshare={handleUnshare}
-        />
-        )}
+        {side === 'versions' && <VersionsPanel pageId={page.id} canEdit onRestored={onVersionRestored} />}
         <div hidden={side !== 'comments'}>
-        <CommentsPanel
-          pageId={page.id}
-          pageOwnerId={page.user_id}
-          currentUserId={currentUserId}
-          initialComments={comments}
-          focusSignal={commentFocus}
-          blockFilter={blockFilter}
-          onClearBlockFilter={() => setBlockFilter(null)}
-          onCommentsChange={setAllComments}
-          labels={commentsLabels}
-        />
+          <CommentsPanel
+            pageId={page.id}
+            pageOwnerId={page.user_id}
+            currentUserId={currentUserId}
+            initialComments={comments}
+            focusSignal={commentFocus}
+            blockFilter={blockFilter}
+            onClearBlockFilter={() => setBlockFilter(null)}
+            onCommentsChange={setAllComments}
+            labels={commentsLabels}
+          />
         </div>
       </div>
+      {shareOpen && isOwner && (
+        <ShareDialog
+          page={current}
+          shares={localShares}
+          helpBase={helpBase}
+          feedback={feedback}
+          onUpdate={savePage}
+          onShare={handleShare}
+          onRoleChange={handleRoleChange}
+          onUnshare={handleUnshare}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </div>
   );
 }

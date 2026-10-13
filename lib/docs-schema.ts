@@ -53,15 +53,28 @@ export const docPageUpdateSchema = z.object({
   content: z.array(docsBlockSchema).optional(),
   parent_id: id.nullish(),
   is_public: z.boolean().optional(),
+  published: z.boolean().optional(),
   archived: z.boolean().optional(),
   small_text: z.boolean().optional(),
   full_width: z.boolean().optional(),
 });
 
+export const docShareRoleSchema = z.enum(['view', 'edit']);
+
+/** Compartir con un team/persona por id, o con una persona por email. */
 export const docShareCreateSchema = z.object({
   kind: z.enum(['public', 'team', 'user']),
   target_id: id.nullish(),
+  email: z.string().trim().toLowerCase().email({ message: 'invalid_email' }).max(254).optional(),
+  role: docShareRoleSchema.optional(),
 });
+
+export const docShareUpdateSchema = z.object({
+  role: docShareRoleSchema,
+});
+
+/** Campos que puede tocar alguien con un share de edición (no el dueño). */
+export const SHARED_EDITABLE_FIELDS = ['title', 'icon', 'cover_url', 'content'] as const;
 
 export const docCommentCreateSchema = z.object({
   body: z.string().trim().min(1).max(5000),

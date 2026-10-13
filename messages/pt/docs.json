@@ -21,7 +21,9 @@
     "expand": "Expandir",
     "pageActions": "Ações da página",
     "moveUp": "Mover para cima",
-    "moveDown": "Mover para baixo"
+    "moveDown": "Mover para baixo",
+    "sharedWithMe": "Compartilhadas comigo",
+    "sharedBy": "Compartilhada por {name}"
   },
   "editor": {
     "untitled": "Página sem título",
@@ -129,7 +131,7 @@
     "share": "Compartilhar",
     "teamId": "ID da equipe",
     "userId": "ID do usuário",
-    "publicHelp": "Qualquer usuário do zerosoft com o link pode lê-la pela API.",
+    "publicHelp": "Qualquer pessoa com sessão no zerosoft e o link.",
     "with": "Compartilhar com um time ou pessoa…",
     "kinds": {
       "public": "Link",
@@ -139,7 +141,30 @@
     "remove": "Parar de compartilhar",
     "noTargets": "Crie um time em Configurações para compartilhar com outras pessoas.",
     "copyLink": "Copiar link",
-    "copied": "Copiado"
+    "copied": "Copiado",
+    "userNotFound": "Não existe conta zerosoft com esse email.",
+    "error": "Não foi possível compartilhar.",
+    "invitePlaceholder": "Email, membro ou time",
+    "role": "Permissão",
+    "roles": {
+      "view": "Pode ver",
+      "edit": "Pode editar",
+      "owner": "Acesso total"
+    },
+    "invite": "Convidar",
+    "workspace": "Seu workspace",
+    "workspaceHelp": "Todos os membros do workspace",
+    "publish": "Publicar na central de ajuda",
+    "publishHelp": "Qualquer pessoa pode ler na web, sem conta.",
+    "publishNoHandle": "Configure seu handle no Calendário para ter central de ajuda.",
+    "copyPublic": "Copiar link público",
+    "feedbackStats": "{yes} acharam útil · {no} não",
+    "ai": "A IA pode usá-la",
+    "aiHelp": "O bot e os agentes do Chat a usam para responder.",
+    "openHelpCenter": "Ver central de ajuda",
+    "sharedEditBanner": "Compartilhada por {name}. Você pode editar.",
+    "readOnlyBanner": "Compartilhada por {name}. Somente leitura.",
+    "readOnly": "Somente leitura."
   },
   "templates": {
     "title": "Começar de um modelo",
@@ -165,5 +190,51 @@
     "blockThread": "Conversa do bloco",
     "showAll": "Ver todos",
     "blockTag": "Bloco"
+  },
+  "help": {
+    "notFound": "Central de ajuda não encontrada",
+    "metaTitle": "Central de ajuda de {name}",
+    "metaDescription": "Guias e respostas de {name}.",
+    "title": "Central de ajuda",
+    "searchPlaceholder": "Buscar artigos",
+    "search": "Buscar",
+    "resultsFor": "Resultados para \"{q}\"",
+    "noResults": "Nenhum artigo encontrado. Tente outras palavras.",
+    "empty": "Ainda não há artigos publicados.",
+    "untitled": "Sem título",
+    "breadcrumb": "Caminho",
+    "updated": "Atualizado em {date}",
+    "pager": "Artigos",
+    "prev": "Anterior",
+    "next": "Próximo",
+    "toc": "Nesta página",
+    "helpful": "Este artigo ajudou?",
+    "yes": "Sim",
+    "no": "Não",
+    "thanks": "Obrigado pelo retorno."
+  },
+  "versions": {
+    "title": "Histórico de versões",
+    "save": "Salvar versão",
+    "saved": "Salva",
+    "restore": "Restaurar",
+    "restoreConfirm": "Restaurar esta versão? O estado atual fica salvo no histórico.",
+    "back": "Versões",
+    "unknownAuthor": "Versão anterior",
+    "untitled": "Sem título",
+    "loading": "Carregando…",
+    "empty": "Ainda não há versões. Uma é salva ao editar, no máximo a cada 5 minutos.",
+    "kinds": {
+      "auto": "Automática",
+      "manual": "Salva manualmente",
+      "restore": "Antes de restaurar"
+    },
+    "note": "As últimas 50 versões são mantidas."
+  },
+  "export": {
+    "markdown": "Exportar como Markdown",
+    "pdf": "Exportar como PDF",
+    "markdownShort": "Markdown",
+    "pdfShort": "PDF"
   }
 }

@@ -1473,6 +1473,76 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN full_width INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    // Docs → centro de ayuda: `published` (página web pública en /h/<handle>/<slug>)
+    // separado de `is_public` (que pasa a significar "la IA del Chat puede
+    // leerla"). slug estable por workspace + feedback "¿Te sirvió?".
+    id: '025_docs_help_center',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN published INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN slug TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN published_at TEXT');
+      await client.executeMultiple(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_docs_pages_slug ON docs_pages(user_id, slug) WHERE slug IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_docs_pages_published ON docs_pages(user_id, published, archived);
+        CREATE TABLE IF NOT EXISTS docs_feedback (
+          id TEXT PRIMARY KEY,
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          helpful INTEGER NOT NULL CHECK (helpful IN (0, 1)),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_feedback_page ON docs_feedback(page_id, helpful);
+      `);
+    },
+  },
+  {
+    // Docs: rol de los shares (ver / editar) para invitar miembros.
+    id: '025_docs_share_roles',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE docs_shares ADD COLUMN role TEXT NOT NULL DEFAULT 'view'");
+    },
+  },
+  {
+    // Docs: historial de versiones (snapshots al guardar, con tope por página).
+    id: '025_docs_versions',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS docs_versions (
+          id TEXT PRIMARY KEY,
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          title TEXT NOT NULL DEFAULT '',
+          icon TEXT,
+          content TEXT NOT NULL DEFAULT '[]',
+          kind TEXT NOT NULL DEFAULT 'auto' CHECK (kind IN ('auto', 'manual', 'restore')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_versions_page ON docs_versions(page_id, created_at DESC);
+      `);
+    },
+  },
+  {
+    // Chat: notas internas (mensajes de agente que el visitante nunca ve),
+    // tags de conversación, macros (acciones en canned responses) y la
+    // pestaña de ayuda del widget (artículos publicados de Docs).
+    id: '025_chat_inbox_tools',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE chat_messages ADD COLUMN is_note INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE chat_canned_responses ADD COLUMN actions TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(client, 'ALTER TABLE chat_widgets ADD COLUMN help_enabled INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS chat_conversation_tags (
+          conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+          tag TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (conversation_id, tag)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_conversation_tags_tag ON chat_conversation_tags(tag, conversation_id);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

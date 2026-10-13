@@ -283,6 +283,55 @@
   },
   "reports": {
     "title": "Reports",
-    "subtitle": "SLA and satisfaction across all widgets."
+    "subtitle": "Conversations created in the range, by agent.",
+    "exportCsv": "Export CSV",
+    "from": "From",
+    "to": "To",
+    "apply": "Apply",
+    "lastDays": "Last {days} days",
+    "conversations": "Conversations",
+    "responses": "{count, plural, one {# response} other {# responses}}",
+    "byAgent": "By agent",
+    "empty": "No conversations in this range.",
+    "agent": "Agent",
+    "firstResponse": "First response",
+    "resolution": "Resolution",
+    "resolved": "Resolved",
+    "note": "Times are averages from when the conversation was created. CSAT from 1 to 5."
+  },
+  "tags": {
+    "title": "Tags",
+    "filter": "Filter by tag",
+    "all": "All tags",
+    "remove": "Remove #{tag}",
+    "add": "+ tag"
+  },
+  "notes": {
+    "label": "Internal note",
+    "mode": "Message type",
+    "hint": "Internal note… only your team sees it. @ to mention",
+    "add": "Add note"
+  },
+  "macros": {
+    "applied": "Macro {shortcut} applied",
+    "title": "Actions when using this reply (macro)",
+    "status": "Status",
+    "assign": "Assign to",
+    "tags": "Add tags",
+    "snooze": "Snooze",
+    "none": "No change",
+    "me": "Whoever uses it",
+    "summary": {
+      "snooze": "Snoozes {hours} h",
+      "status": "Sets {status}",
+      "unassign": "Unassigns",
+      "assign": "Assigns to {name}"
+    }
+  },
+  "help": {
+    "title": "Help",
+    "enabled": "Show help tab",
+    "hint": "The widget adds a tab with your published Docs articles and suggests them while the visitor types a question.",
+    "open": "Open help center"
   }
 }

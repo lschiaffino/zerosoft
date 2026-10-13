@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { canAccessWidget } from '@/lib/chat-access';
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { getChatVisitorWithStats, getChatWidget } from '@/lib/chat-data';
@@ -25,7 +26,7 @@ export default async function ChatVisitorPage(
   if (!visitor) notFound();
 
   const widget = await getChatWidget(visitor.widget_id);
-  if (!widget || (widget.user_id !== user.id && widget.team_id !== user.team?.id)) {
+  if (!widget || !canAccessWidget(widget, user)) {
     notFound();
   }
 

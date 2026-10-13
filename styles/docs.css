@@ -2221,3 +2221,245 @@
 }
 .docs-tree-menu button:hover,
 .docs-tree-menu button:focus-visible { background: var(--subtle); }
+
+/* ---------- Compartir (diálogo), versiones, compartidas conmigo ---------- */
+
+.docs-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10vh 16px 16px;
+  background: color-mix(in srgb, var(--ink) 24%, transparent);
+}
+.docs-dialog {
+  width: 100%;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+.docs-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.docs-dialog-head h2 { margin: 0; font-size: 15px; font-weight: 500; }
+.docs-dialog-close, .docs-access-remove {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--dim);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.docs-dialog-close:hover, .docs-access-remove:hover { background: var(--subtle); color: var(--ink); }
+.docs-dialog-section { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.docs-dialog-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; }
+.docs-dialog-link { font-size: 13px; color: var(--ink-2); }
+.docs-dialog-error { margin: 0; font-size: 13px; color: var(--bad); }
+
+.docs-invite { display: flex; gap: 8px; align-items: center; }
+.docs-invite-field { position: relative; flex: 1; min-width: 0; }
+.docs-invite input,
+.docs-invite select,
+.docs-access-row select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+.docs-invite input { width: 100%; }
+.docs-invite input:focus, .docs-invite select:focus { outline: none; border-color: var(--c-docs); }
+.docs-invite-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+.docs-invite-suggest button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.docs-invite-suggest button:hover { background: var(--subtle); }
+.docs-invite-sub { font-size: 12px; color: var(--ink-3); }
+
+.docs-access-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.docs-access-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.docs-access-who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.docs-access-who > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docs-access-role { font-size: 12px; color: var(--ink-3); padding-right: 32px; }
+
+.docs-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
+.docs-switch-text { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.docs-switch {
+  appearance: none;
+  flex-shrink: 0;
+  width: 30px;
+  height: 18px;
+  margin: 0;
+  border-radius: 9px;
+  background: var(--line);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.docs-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+.docs-switch:checked { background: var(--c-docs); }
+.docs-switch:checked::after { transform: translateX(12px); }
+.docs-switch:disabled { opacity: 0.4; cursor: not-allowed; }
+.docs-public-link { display: flex; align-items: center; gap: 8px; margin-top: -4px; }
+.docs-public-url {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.docs-feedback-stats { margin: -6px 0 0; }
+
+.docs-versions { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.docs-versions-head { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding-right: 28px; }
+.docs-versions-head:has(.docs-versions-back) { flex-direction: row; align-items: center; justify-content: space-between; }
+.docs-versions-head .section-label { margin: 0; }
+.docs-versions-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.docs-versions-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 4px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.docs-versions-row:hover { background: var(--subtle); }
+.docs-versions-when { font-size: 13px; color: var(--ink); }
+.docs-versions-who { font-size: 12px; color: var(--ink-3); }
+.docs-versions-empty, .docs-versions-note { font-size: 12px; margin: 0; }
+.docs-versions-back { border: none; background: none; font: inherit; font-size: 13px; color: var(--ink-2); cursor: pointer; padding: 0; }
+.docs-versions-meta { margin: 0; font-size: 12px; color: var(--ink-3); }
+.docs-versions-preview {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.docs-versions-preview .dbv { font-size: 13px; gap: 6px; }
+.docs-versions-title { margin: 0 0 8px; font-size: 16px; font-weight: 500; }
+
+.docs-shared { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.docs-shared-label { margin: 0 0 6px; padding: 0 8px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.docs-shared-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: var(--r-md);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 13px;
+}
+.docs-shared-row:hover { background: var(--subtle); }
+.docs-shared-row.active { background: color-mix(in srgb, var(--ink) 6%, white); font-weight: 500; }
+.docs-shared-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docs-shared-role { font-size: 11px; color: var(--ink-3); }
+
+.docs-shared-banner, .docs-readonly-note { margin: 0; font-size: 13px; color: var(--ink-3); }
+.docs-shared-banner { max-width: 720px; margin: 0 auto -8px; padding: 10px 0 0; }
+.docs-readonly-title { margin: 0; font-size: clamp(1.75rem, 3vw, 2.4rem); font-weight: 600; letter-spacing: -0.02em; }
+.docs-readonly-body { padding: 8px 0 64px; }
+
+@media (max-width: 640px) {
+  .docs-dialog-backdrop { padding: 16px; align-items: flex-end; }
+  .docs-dialog { max-height: 88vh; }
+  .docs-invite { flex-wrap: wrap; }
+  .docs-invite-field { flex-basis: 100%; }
+  .docs-invite select { flex: 1; }
+}
+
+/* ---------- Export PDF (diálogo de impresión) ---------- */
+@media print {
+  .side,
+  .app-topbar,
+  .docs-sidebar,
+  .docs-top-bar,
+  .docs-side,
+  .docs-archived-banner,
+  .docs-shared-banner,
+  .docs-block-grip,
+  .docs-block-comment-count,
+  .docs-cover-remove,
+  .powered-by,
+  #zs-chat-root { display: none !important; }
+  .app-frame, .app-main-scroll, .app-content, .docs-layout, .docs-main, .docs-editor-wrap {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    max-width: none !important;
+  }
+  .docs-editor { max-width: none !important; padding: 0 !important; }
+  .docs-block, .dbv > * { break-inside: avoid; }
+}

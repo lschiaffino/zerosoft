@@ -22,7 +22,7 @@ const nextConfig = {
     ];
     return [
       {
-        source: '/api/chat/:route(identify|messages|csat|read|typing)',
+        source: '/api/chat/:route(identify|messages|csat|read|typing|help)',
         headers: cors,
       },
       { source: '/api/chat/messages/upload', headers: cors },

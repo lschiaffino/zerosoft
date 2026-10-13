@@ -59,7 +59,7 @@ export async function retrieveKnowledge(
   const docs: Array<KnowledgeDoc<'doc' | 'canned'> & { chunk?: boolean; titleExtra?: string }> = [];
   const pages = (await getDb()
     .prepare(
-      'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND is_public = 1 ORDER BY updated_at DESC LIMIT 200',
+      'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 AND (is_public = 1 OR published = 1) ORDER BY updated_at DESC LIMIT 200',
     )
     .all(widget.user_id)) as Array<{ title: string; content: string }>;
   for (const page of pages) {
@@ -130,14 +130,14 @@ export function toModelMessages(rows: ChatMessageRow[]): ModelMessage[] {
 
 export async function recentMessages(conversationId: string, limit = HISTORY_LIMIT): Promise<ChatMessageRow[]> {
   const rows = (await getDb()
-    .prepare('SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?')
+    .prepare('SELECT * FROM chat_messages WHERE conversation_id = ? AND is_note = 0 ORDER BY created_at DESC, rowid DESC LIMIT ?')
     .all(conversationId, limit)) as ChatMessageRow[];
   return rows.reverse();
 }
 
 export async function humanHasReplied(conversationId: string): Promise<boolean> {
   const row = await getDb()
-    .prepare("SELECT 1 AS x FROM chat_messages WHERE conversation_id = ? AND sender_type = 'user' LIMIT 1")
+    .prepare("SELECT 1 AS x FROM chat_messages WHERE conversation_id = ? AND sender_type = 'user' AND is_note = 0 LIMIT 1")
     .get(conversationId);
   return Boolean(row);
 }
