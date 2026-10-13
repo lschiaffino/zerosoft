@@ -3,6 +3,7 @@ import { promisify } from 'util';
 
 const scryptAsync = promisify(scrypt) as (password: string, salt: string, keylen: number) => Promise<Buffer>;
 import { customAlphabet } from 'nanoid';
+import { z } from 'zod';
 import { getDb, type LinkRow } from './db';
 import { isValidSlug } from './reserved';
 import { isValidUrl, normalizeUrl, shortUrl } from './utils';
@@ -442,4 +443,105 @@ function csvCell(value: string): string {
   const escaped = value.replace(/"/g, '""');
   if (/[",\n\r]/.test(escaped)) return `"${escaped}"`;
   return escaped;
+}
+
+// ---------- Edición (app y API v1) ----------
+
+export const linkPatchSchema = z.object({
+  url: z.string().min(1).optional(),
+  title: z.string().max(200).nullable().optional(),
+  tags: z.array(z.string().max(40)).max(5).optional(),
+  expiresAt: z.string().nullable().optional(),
+  maxClicks: z.number().int().positive().nullable().optional(),
+  archived: z.boolean().optional(),
+  password: z.string().max(100).optional(), // '' clears, string sets
+  slug: z.string().max(32).optional(),
+  redirectType: z.union([z.literal(301), z.literal(302)]).optional(),
+  ogTitle: z.string().max(200).nullable().optional(),
+  ogDescription: z.string().max(500).nullable().optional(),
+  ogImage: z.string().max(500).nullable().optional(),
+});
+
+export type LinkPatch = z.infer<typeof linkPatchSchema>;
+
+/** Aplica un PATCH validado a un link del usuario. Devuelve el error o null. */
+export async function applyLinkPatch(
+  link: LinkWithDomain,
+  p: LinkPatch,
+): Promise<{ error: string; status: number } | null> {
+  const sets: string[] = [];
+  const args: Array<string | number | null> = [];
+
+  if (p.url !== undefined) {
+    const normalized = normalizeUrl(p.url);
+    if (!isValidUrl(normalized)) return { error: 'invalid_url', status: 400 };
+    sets.push('url = ?');
+    args.push(normalized);
+  }
+  if (p.title !== undefined) {
+    sets.push('title = ?');
+    args.push(p.title?.trim() || null);
+  }
+  if (p.tags !== undefined) {
+    sets.push('tags = ?');
+    args.push(JSON.stringify(p.tags.map((t) => t.trim()).filter(Boolean).slice(0, 5)));
+  }
+  if (p.expiresAt !== undefined) {
+    if (p.expiresAt === null) {
+      sets.push('expires_at = ?');
+      args.push(null);
+    } else {
+      const d = new Date(p.expiresAt);
+      if (Number.isNaN(d.getTime())) {
+        return { error: 'invalid_date', status: 400 };
+      }
+      sets.push('expires_at = ?');
+      args.push(d.toISOString());
+    }
+  }
+  if (p.maxClicks !== undefined) {
+    sets.push('max_clicks = ?');
+    args.push(p.maxClicks);
+  }
+  if (p.archived !== undefined) {
+    sets.push('archived = ?');
+    args.push(p.archived ? 1 : 0);
+  }
+  if (p.password !== undefined) {
+    sets.push('password_hash = ?');
+    args.push(p.password === '' ? null : await hashPassword(p.password));
+  }
+  if (p.slug !== undefined && p.slug !== link.slug) {
+    const slug = p.slug.trim();
+    if (!isValidSlug(slug)) return { error: 'invalid_slug', status: 400 };
+    const taken = await getDb().prepare('SELECT 1 AS x FROM links WHERE slug = ? AND id != ?').get(slug, link.id);
+    if (taken) return { error: 'slug_taken', status: 409 };
+    sets.push('slug = ?');
+    args.push(slug);
+  }
+  if (p.redirectType !== undefined) {
+    sets.push('redirect_type = ?');
+    args.push(p.redirectType === 301 ? 301 : 302);
+  }
+  if (p.ogTitle !== undefined) {
+    sets.push('og_title = ?');
+    args.push(p.ogTitle?.trim() || null);
+  }
+  if (p.ogDescription !== undefined) {
+    sets.push('og_description = ?');
+    args.push(p.ogDescription?.trim() || null);
+  }
+  if (p.ogImage !== undefined) {
+    sets.push('og_image = ?');
+    args.push(p.ogImage?.trim() || null);
+  }
+
+  if (sets.length > 0) {
+    sets.push(`updated_at = datetime('now')`);
+    await getDb()
+      .prepare(`UPDATE links SET ${sets.join(', ')} WHERE id = ?`)
+      .run(...args, link.id);
+  }
+
+  return null;
 }

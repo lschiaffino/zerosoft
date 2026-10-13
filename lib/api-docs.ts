@@ -148,8 +148,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     titleKey: 'linksDeleteTitle',
     descKey: 'linksDeleteDesc',
     params: [{ name: 'id', type: 'string', required: true, descriptionKey: 'paramLinkId' }],
-    response: { ok: true },
-    responseStatus: 200,
+    responseStatus: 204,
   },
   {
     id: 'links-patch',
@@ -167,7 +166,6 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       { name: 'archived', type: 'boolean', descriptionKey: 'paramLinkArchived' },
     ],
     request: { title: 'The manifesto — updated' },
-    response: { ok: true },
     responseStatus: 200,
   },
   {

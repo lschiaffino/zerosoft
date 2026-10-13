@@ -33,3 +33,20 @@ describe('links: normalización de URLs', () => {
     expect(isValidUrl(normalizeUrl(input))).toBe(valid);
   });
 });
+
+describe('links: edición compartida (app y API v1)', () => {
+  it('aplica cambios, valida la URL y no deja tomar un slug ocupado', async () => {
+    const { applyLinkPatch, createLink, getUserLink, linkPatchSchema } = await import('@/lib/links');
+    const { makeUser } = await import('./helpers');
+    const u = await makeUser('lp');
+    const a = await createLink(u.id, { url: 'https://example.com/a', slug: `a${crypto.randomUUID().slice(0, 6)}` });
+    const b = await createLink(u.id, { url: 'https://example.com/b', slug: `b${crypto.randomUUID().slice(0, 6)}` });
+    if (!a.ok || !b.ok) throw new Error('setup');
+    const linkA = (await getUserLink(u.id, a.link.id))!;
+
+    expect(await applyLinkPatch(linkA, linkPatchSchema.parse({ title: 'Nuevo', tags: ['x'] }))).toBeNull();
+    expect((await getUserLink(u.id, a.link.id))?.title).toBe('Nuevo');
+    expect(await applyLinkPatch(linkA, linkPatchSchema.parse({ url: 'no es url' }))).toEqual({ error: 'invalid_url', status: 400 });
+    expect(await applyLinkPatch(linkA, linkPatchSchema.parse({ slug: b.link.slug }))).toEqual({ error: 'slug_taken', status: 409 });
+  });
+});

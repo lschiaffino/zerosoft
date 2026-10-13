@@ -34,6 +34,12 @@ export function apiError(status: number, code: string, message: string): NextRes
 
 export type ApiAuth = { user: UserRow } | { res: NextResponse };
 
+/** 429 con Retry-After (segundos hasta que se libera la ventana). */
+function withRetryAfter(res: NextResponse, resetAt: number): NextResponse {
+  res.headers.set('retry-after', String(Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))));
+  return res;
+}
+
 /** Bearer auth + rate limit for /api/v1/* handlers. */
 export async function requireApiUser(req: Request): Promise<ApiAuth> {
   const raw = extractBearer(req);
@@ -41,13 +47,13 @@ export async function requireApiUser(req: Request): Promise<ApiAuth> {
   // Se limita antes de validar: así tampoco se pueden probar keys a fuerza bruta.
   const limited = await rateLimit(`api:${sha256(raw)}`, 100, 60);
   if (!limited.ok) {
-    return { res: apiError(429, 'rate_limited', 'Rate limit exceeded: 100 requests per minute.') };
+    return { res: withRetryAfter(apiError(429, 'rate_limited', 'Rate limit exceeded: 100 requests per minute.'), limited.resetAt) };
   }
   const user = await validateApiKey(raw);
   if (!user) {
     // Keys inválidas: además, tope por IP para frenar enumeración.
     const byIp = await rateLimit(`api-invalid:${clientIp(req)}`, 20, 60);
-    if (!byIp.ok) return { res: apiError(429, 'rate_limited', 'Too many invalid keys.') };
+    if (!byIp.ok) return { res: withRetryAfter(apiError(429, 'rate_limited', 'Too many invalid keys.'), byIp.resetAt) };
     return { res: apiError(401, 'invalid_key', 'Invalid or revoked API key.') };
   }
   return { user };
