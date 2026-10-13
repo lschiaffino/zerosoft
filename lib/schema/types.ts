@@ -149,6 +149,8 @@ export interface CrmActivityRow {
   done: 0 | 1;
   done_at: string | null;
   due_fired_at?: string | null;
+  booking_id?: string | null;
+  chat_conversation_id?: string | null;
   pinned: 0 | 1;
   direction: string;
   outcome: string;

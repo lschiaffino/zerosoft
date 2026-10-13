@@ -1,6 +1,7 @@
 import { getEventTypeById, type EventTypeWithRules } from './calendar';
 import { emitWebhook } from './webhooks';
 import { notifyBooking } from './calendar-notify';
+import { recordBookingInCrm } from './crm-integrations';
 import type { CalendarBookingRow } from './db';
 import {
   createGoogleEventForBooking,
@@ -10,7 +11,7 @@ import {
 
 /**
  * Efectos de cada cambio de una reserva, en un solo lugar: calendario externo
- * del host, emails (+ .ics) y, más adelante, webhooks. Ninguno puede romper la
+ * del host, emails (+ .ics), contacto + reunión en el CRM y webhooks. Ninguno puede romper la
  * reserva: los errores se registran y se sigue.
  */
 
@@ -53,6 +54,7 @@ export async function afterBookingCreated(booking: CalendarBookingRow, locale?: 
   if (!eventType) return booking;
   const synced = await safely('google-create', () => createGoogleEventForBooking(booking, eventType), booking);
   await safely('notify-created', () => notifyBooking(synced, 'created', { locale }), undefined);
+  await safely('crm-created', () => recordBookingInCrm(eventType.user_id, 'created', synced, eventType.title), undefined);
   await emitWebhook(eventType.user_id, 'booking.created', bookingPayload(synced, eventType));
   return synced;
 }
@@ -66,6 +68,7 @@ export async function afterBookingRescheduled(
   if (!eventType) return booking;
   const synced = await safely('google-move', () => syncGoogleEventTime(booking, eventType, previousHostId), booking);
   await safely('notify-rescheduled', () => notifyBooking(synced, 'rescheduled', { locale }), undefined);
+  await safely('crm-rescheduled', () => recordBookingInCrm(eventType.user_id, 'rescheduled', synced, eventType.title), undefined);
   await emitWebhook(eventType.user_id, 'booking.rescheduled', bookingPayload(synced, eventType));
   return synced;
 }
@@ -75,5 +78,6 @@ export async function afterBookingCancelled(booking: CalendarBookingRow, reason:
   if (!eventType) return;
   await safely('google-delete', () => deleteGoogleEventForBooking(booking, eventType), undefined);
   await safely('notify-cancelled', () => notifyBooking(booking, 'cancelled', { reason }), undefined);
+  await safely('crm-cancelled', () => recordBookingInCrm(eventType.user_id, 'cancelled', booking, eventType.title, reason), undefined);
   await emitWebhook(eventType.user_id, 'booking.cancelled', bookingPayload(booking, eventType));
 }

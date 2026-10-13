@@ -281,6 +281,20 @@ export const MIGRATIONS: Migration[] = [
          WHERE type = 'task' AND done = 0 AND due_fired_at IS NULL`,
       );
     },
+  },  {
+    // CRM ↔ suite: la actividad "meeting" sabe de qué reserva de Cal viene y la
+    // nota de chat de qué conversación (para actualizarlas, no duplicarlas).
+    id: '013_crm_activity_sources',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE crm_activities ADD COLUMN booking_id TEXT');
+      await addColumn(client, 'ALTER TABLE crm_activities ADD COLUMN chat_conversation_id TEXT');
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_crm_activities_booking ON crm_activities(user_id, booking_id) WHERE booking_id IS NOT NULL',
+      );
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_crm_activities_chat ON crm_activities(user_id, chat_conversation_id) WHERE chat_conversation_id IS NOT NULL',
+      );
+    },
   },
 ];
 

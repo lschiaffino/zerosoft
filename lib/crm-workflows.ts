@@ -42,6 +42,7 @@ export const TRIGGER_TYPES = [
   'deal_lost',
   'task_due',
   'email_received',
+  'meeting_booked',
   'manual',
 ] as const;
 export type TriggerType = (typeof TRIGGER_TYPES)[number];

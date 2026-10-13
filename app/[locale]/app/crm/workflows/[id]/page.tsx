@@ -69,6 +69,7 @@ export default async function WorkflowDetailPage(
             deal_lost: t('workflows.triggerTypes.deal_lost'),
             task_due: t('workflows.triggerTypes.task_due'),
             email_received: t('workflows.triggerTypes.email_received'),
+            meeting_booked: t('workflows.triggerTypes.meeting_booked'),
             manual: t('workflows.triggerTypes.manual'),
           },
           actionTypes: {

@@ -260,7 +260,7 @@
       },
       "f4": {
         "t": "Actividades",
-        "d": "Llamadas, reuniones, notas y tareas en una línea de tiempo por deal. Nada se cae."
+        "d": "Llamadas, reuniones, notas y tareas en un timeline por deal. Las reuniones agendadas en Cal aparecen ahí solas."
       },
       "f5": {
         "t": "Reportes",
@@ -280,7 +280,7 @@
       },
       "f9": {
         "t": "API y webhooks",
-        "d": "Una API REST para contactos, empresas, deals y tareas, más webhooks desde tus workflows. Son tus datos."
+        "d": "Una API REST para contactos, empresas, deals, actividades y tareas, más webhooks firmados cuando cambian contactos y deals. Son tus datos."
       },
       "compare": {
         "rival": "HubSpot",
@@ -949,7 +949,7 @@
     "calBookingsCancelTitle": "Cancelar una reserva",
     "calBookingsCancelDesc": "Cancela una reserva confirmada, le manda al invitado la cancelación con .ics, borra el evento de Google Calendar y emite booking.cancelled.",
     "webhooksTitle": "Webhooks",
-    "webhooksDesc": "Agregá endpoints en Dashboard → Configuración → Webhooks. Eventos: booking.created, booking.rescheduled, booking.cancelled, link.created, link.clicked. Cada request lleva Zerosoft-Signature: t=TIMESTAMP,v1=HEX, donde v1 = HMAC-SHA256(secret, \"TIMESTAMP.BODY_CRUDO\"). Rechazá timestamps viejos. Las entregas fallidas se reintentan con backoff durante ~15 horas.",
+    "webhooksDesc": "Agregá endpoints en Dashboard → Configuración → Webhooks. Eventos: booking.created, booking.rescheduled, booking.cancelled, link.created, link.clicked, contact.created, contact.updated, deal.created, deal.updated, deal.stage_changed, deal.won, deal.lost. Cada request lleva Zerosoft-Signature: t=TIMESTAMP,v1=HEX, donde v1 = HMAC-SHA256(secret, \"TIMESTAMP.BODY_CRUDO\"). Rechazá timestamps viejos. Las entregas fallidas se reintentan con backoff durante ~15 horas.",
     "webhooksPayloadTitle": "Payload del evento",
     "webhooksPayloadDesc": "Lo que recibe tu endpoint. Respondé 2xx en menos de 8 segundos.",
     "paramCalStatus": "Solo reservas con este estado.",
@@ -960,6 +960,26 @@
     "paramCalName": "Nombre del invitado.",
     "paramCalEmail": "Email del invitado: recibe la confirmación y la invitación de calendario.",
     "paramCalTimezone": "Zona horaria del invitado para los emails. Por defecto UTC.",
-    "paramCalReason": "Se le muestra al invitado en el email de cancelación."
+    "paramCalReason": "Se le muestra al invitado en el email de cancelación.",
+    "contactsDeleteTitle": "Borrar un contacto",
+    "contactsDeleteDesc": "Borra el contacto para siempre. Sus actividades quedan, sin vincular.",
+    "companiesDeleteTitle": "Borrar una empresa",
+    "companiesDeleteDesc": "Borra la empresa para siempre. Los contactos siguen existiendo sin empresa.",
+    "dealsDeleteTitle": "Borrar un deal",
+    "dealsDeleteDesc": "Borra el deal para siempre.",
+    "dealsMoveTitle": "Mover un deal de etapa",
+    "dealsMoveDesc": "Mueve el deal a otra etapa de su pipeline. Las etapas ganado/perdido lo cierran; perdido necesita lostReason. Dispara deal.stage_changed (y deal.won / deal.lost).",
+    "crmActivitiesTitle": "CRM · Actividades",
+    "crmActivitiesDesc": "El timeline de un contacto, empresa o deal: notas, llamadas, reuniones, emails y tareas. Las reuniones agendadas en Cal aparecen acá solas.",
+    "activitiesListTitle": "Listar el timeline de un registro",
+    "activitiesListDesc": "Más recientes primero. Pasá uno solo de contactId, companyId o dealId.",
+    "activitiesCreateTitle": "Registrar una actividad",
+    "activitiesCreateDesc": "Registrá una nota, llamada, reunión o email en un registro. Las tareas tienen su propio endpoint.",
+    "paramContactIds": "Ids de contactos a asociar al deal.",
+    "paramLostReason": "Por qué se perdió (obligatorio en etapas de perdido).",
+    "paramRecordFilter": "El registro cuyo timeline querés.",
+    "paramActivityType": "Tipo de actividad.",
+    "paramActivityBody": "Texto libre: notas, resumen de la llamada, cuerpo del email.",
+    "openapiCta": "Descargar la spec OpenAPI 3.1"
   }
 }

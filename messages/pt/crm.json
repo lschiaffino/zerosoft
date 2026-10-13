@@ -511,6 +511,7 @@
       "deal_lost": "Negócio perdido",
       "task_due": "Tarefa vencida",
       "email_received": "E-mail recebido",
+      "meeting_booked": "Reunião agendada (Cal)",
       "manual": "Manual"
     },
     "actionTypes": {

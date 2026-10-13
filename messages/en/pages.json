@@ -260,7 +260,7 @@
       },
       "f4": {
         "t": "Activities",
-        "d": "Calls, meetings, notes and tasks on a timeline per deal. Nothing falls through."
+        "d": "Calls, meetings, notes and tasks on a timeline per deal. Meetings booked in Cal land there on their own."
       },
       "f5": {
         "t": "Reports",
@@ -280,7 +280,7 @@
       },
       "f9": {
         "t": "API & webhooks",
-        "d": "A REST API for contacts, companies, deals and tasks, plus webhooks from your workflows. It is your data."
+        "d": "A REST API for contacts, companies, deals, activities and tasks, plus signed webhooks when contacts and deals change. It is your data."
       },
       "compare": {
         "rival": "HubSpot",
@@ -949,7 +949,7 @@
     "calBookingsCancelTitle": "Cancel a booking",
     "calBookingsCancelDesc": "Cancels a confirmed booking, emails the guest a cancellation with .ics, removes the Google Calendar event and emits booking.cancelled.",
     "webhooksTitle": "Webhooks",
-    "webhooksDesc": "Add endpoints in Dashboard → Settings → Webhooks. Events: booking.created, booking.rescheduled, booking.cancelled, link.created, link.clicked. Each request carries Zerosoft-Signature: t=TIMESTAMP,v1=HEX, where v1 = HMAC-SHA256(secret, \"TIMESTAMP.RAW_BODY\"). Reject old timestamps. Failed deliveries are retried with backoff for ~15 hours.",
+    "webhooksDesc": "Add endpoints in Dashboard → Settings → Webhooks. Events: booking.created, booking.rescheduled, booking.cancelled, link.created, link.clicked, contact.created, contact.updated, deal.created, deal.updated, deal.stage_changed, deal.won, deal.lost. Each request carries Zerosoft-Signature: t=TIMESTAMP,v1=HEX, where v1 = HMAC-SHA256(secret, \"TIMESTAMP.RAW_BODY\"). Reject old timestamps. Failed deliveries are retried with backoff for ~15 hours.",
     "webhooksPayloadTitle": "Event payload",
     "webhooksPayloadDesc": "What your endpoint receives. Respond 2xx within 8 seconds.",
     "paramCalStatus": "Only bookings with this status.",
@@ -960,6 +960,26 @@
     "paramCalName": "Guest name.",
     "paramCalEmail": "Guest email: receives the confirmation and calendar invite.",
     "paramCalTimezone": "Guest timezone for the emails. Defaults to UTC.",
-    "paramCalReason": "Shown to the guest in the cancellation email."
+    "paramCalReason": "Shown to the guest in the cancellation email.",
+    "contactsDeleteTitle": "Delete a contact",
+    "contactsDeleteDesc": "Permanently deletes the contact. Its activities stay, unlinked.",
+    "companiesDeleteTitle": "Delete a company",
+    "companiesDeleteDesc": "Permanently deletes the company. Contacts keep existing without a company.",
+    "dealsDeleteTitle": "Delete a deal",
+    "dealsDeleteDesc": "Permanently deletes the deal.",
+    "dealsMoveTitle": "Move a deal to a stage",
+    "dealsMoveDesc": "Moves the deal to another stage of its pipeline. Won/lost stages close it; a lost stage needs lostReason. Fires deal.stage_changed (and deal.won / deal.lost).",
+    "crmActivitiesTitle": "CRM · Activities",
+    "crmActivitiesDesc": "The timeline of a contact, company or deal: notes, calls, meetings, emails and tasks. Meetings booked in Cal show up here automatically.",
+    "activitiesListTitle": "List a record's timeline",
+    "activitiesListDesc": "Most recent first. Pass exactly one of contactId, companyId or dealId.",
+    "activitiesCreateTitle": "Log an activity",
+    "activitiesCreateDesc": "Log a note, call, meeting or email on a record. Tasks have their own endpoint.",
+    "paramContactIds": "Contact ids to associate with the deal.",
+    "paramLostReason": "Why it was lost (required for lost stages).",
+    "paramRecordFilter": "The record whose timeline you want.",
+    "paramActivityType": "Kind of activity.",
+    "paramActivityBody": "Free text: notes, call summary, email body.",
+    "openapiCta": "Download OpenAPI 3.1 spec"
   }
 }

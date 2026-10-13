@@ -5,6 +5,7 @@
  */
 import { assertRefs, CrmRefError, ownedContactIds } from './crm-refs';
 import { dayRangeUtc, getUserTimeZone } from './user-tz';
+import { emitWebhook, type WebhookEvent } from './webhooks';
 import {
   ensureMigrated,
   getClient,
@@ -226,7 +227,37 @@ async function fireEvent(
   } catch {
     /* no debe bloquear la operación principal */
   }
+  const hook = CRM_WEBHOOK_EVENTS[event.type];
+  if (hook) {
+    try {
+      const table = event.entity === 'contact' ? 'crm_contacts' : 'crm_deals';
+      const row = (await getDb()
+        .prepare(`SELECT * FROM ${table} WHERE id = ? AND user_id = ?`)
+        .get(event.entityId, userId)) as ({ user_id: string; custom?: string } & Record<string, unknown>) | undefined;
+      if (row) {
+        const { user_id: _owner, ...data } = row;
+        await emitWebhook(userId, hook, {
+          ...data,
+          custom: parseCustom((data.custom as string | undefined) ?? null),
+          ...(event.payload ? { change: event.payload } : {}),
+        });
+      }
+    } catch {
+      /* el webhook nunca bloquea la operación */
+    }
+  }
 }
+
+/** Eventos del CRM que también salen como webhooks (lib/webhooks.ts). */
+const CRM_WEBHOOK_EVENTS: Partial<Record<import('./crm-workflows').TriggerType, WebhookEvent>> = {
+  contact_created: 'contact.created',
+  contact_updated: 'contact.updated',
+  deal_created: 'deal.created',
+  deal_updated: 'deal.updated',
+  deal_stage_changed: 'deal.stage_changed',
+  deal_won: 'deal.won',
+  deal_lost: 'deal.lost',
+};
 
 /** Parsea la columna custom (JSON object) sin romper ante datos corruptos. */
 export function parseCustom(json: string | null): Record<string, unknown> {

@@ -260,7 +260,7 @@
       },
       "f4": {
         "t": "Atividades",
-        "d": "Ligações, reuniões, notas e tarefas numa linha do tempo por deal. Nada cai."
+        "d": "Ligações, reuniões, notas e tarefas em uma timeline por negócio. Reuniões agendadas no Cal aparecem ali sozinhas."
       },
       "f5": {
         "t": "Relatórios",
@@ -280,7 +280,7 @@
       },
       "f9": {
         "t": "API e webhooks",
-        "d": "Uma API REST para contatos, empresas, deals e tarefas, mais webhooks a partir dos seus workflows. Os dados são seus."
+        "d": "Uma API REST para contatos, empresas, negócios, atividades e tarefas, mais webhooks assinados quando contatos e negócios mudam. Os dados são seus."
       },
       "compare": {
         "rival": "HubSpot",
@@ -949,7 +949,7 @@
     "calBookingsCancelTitle": "Cancelar uma reserva",
     "calBookingsCancelDesc": "Cancela uma reserva confirmada, envia ao convidado o cancelamento com .ics, remove o evento do Google Calendar e emite booking.cancelled.",
     "webhooksTitle": "Webhooks",
-    "webhooksDesc": "Adicione endpoints em Dashboard → Configurações → Webhooks. Eventos: booking.created, booking.rescheduled, booking.cancelled, link.created, link.clicked. Cada request traz Zerosoft-Signature: t=TIMESTAMP,v1=HEX, onde v1 = HMAC-SHA256(secret, \"TIMESTAMP.BODY_CRU\"). Rejeite timestamps antigos. Entregas com falha são reenviadas com backoff por ~15 horas.",
+    "webhooksDesc": "Adicione endpoints em Dashboard → Configurações → Webhooks. Eventos: booking.created, booking.rescheduled, booking.cancelled, link.created, link.clicked, contact.created, contact.updated, deal.created, deal.updated, deal.stage_changed, deal.won, deal.lost. Cada request traz Zerosoft-Signature: t=TIMESTAMP,v1=HEX, onde v1 = HMAC-SHA256(secret, \"TIMESTAMP.BODY_CRU\"). Rejeite timestamps antigos. Entregas com falha são reenviadas com backoff por ~15 horas.",
     "webhooksPayloadTitle": "Payload do evento",
     "webhooksPayloadDesc": "O que seu endpoint recebe. Responda 2xx em até 8 segundos.",
     "paramCalStatus": "Só reservas com este status.",
@@ -960,6 +960,26 @@
     "paramCalName": "Nome do convidado.",
     "paramCalEmail": "Email do convidado: recebe a confirmação e o convite de calendário.",
     "paramCalTimezone": "Fuso do convidado para os emails. Padrão UTC.",
-    "paramCalReason": "Mostrado ao convidado no email de cancelamento."
+    "paramCalReason": "Mostrado ao convidado no email de cancelamento.",
+    "contactsDeleteTitle": "Excluir um contato",
+    "contactsDeleteDesc": "Exclui o contato para sempre. As atividades ficam, sem vínculo.",
+    "companiesDeleteTitle": "Excluir uma empresa",
+    "companiesDeleteDesc": "Exclui a empresa para sempre. Os contatos continuam existindo sem empresa.",
+    "dealsDeleteTitle": "Excluir um negócio",
+    "dealsDeleteDesc": "Exclui o negócio para sempre.",
+    "dealsMoveTitle": "Mover um negócio de etapa",
+    "dealsMoveDesc": "Move o negócio para outra etapa do pipeline. Etapas de ganho/perda o fecham; perda exige lostReason. Dispara deal.stage_changed (e deal.won / deal.lost).",
+    "crmActivitiesTitle": "CRM · Atividades",
+    "crmActivitiesDesc": "A timeline de um contato, empresa ou negócio: notas, ligações, reuniões, emails e tarefas. Reuniões agendadas no Cal aparecem aqui automaticamente.",
+    "activitiesListTitle": "Listar a timeline de um registro",
+    "activitiesListDesc": "Mais recentes primeiro. Passe só um entre contactId, companyId ou dealId.",
+    "activitiesCreateTitle": "Registrar uma atividade",
+    "activitiesCreateDesc": "Registre uma nota, ligação, reunião ou email em um registro. Tarefas têm endpoint próprio.",
+    "paramContactIds": "Ids de contatos para associar ao negócio.",
+    "paramLostReason": "Por que foi perdido (obrigatório em etapas de perda).",
+    "paramRecordFilter": "O registro cuja timeline você quer.",
+    "paramActivityType": "Tipo de atividade.",
+    "paramActivityBody": "Texto livre: notas, resumo da ligação, corpo do email.",
+    "openapiCta": "Baixar a spec OpenAPI 3.1"
   }
 }

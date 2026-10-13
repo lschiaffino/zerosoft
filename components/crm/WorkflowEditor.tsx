@@ -16,6 +16,7 @@ const TRIGGER_TYPES = [
   'deal_lost',
   'task_due',
   'email_received',
+  'meeting_booked',
   'manual',
 ] as const;
 
