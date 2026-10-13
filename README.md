@@ -23,7 +23,7 @@ Made of zeros. White background, black ink, nothing else.
   - *Known gaps:* the bot is keyword matching over canned responses and docs pages, not an LLM; no conversation export.
 - **Docs** (`/app/docs`) — the Notion alternative: block editor with slash menu and inline formatting, nested pages, `[[` page mentions, templates, comments, trash, title search, sharing (public / team / single user).
   - *Known gaps:* no realtime co-editing, no JSON/Markdown export, no Notion import.
-- **Blog** — 30 posts per locale, Markdown in `content/blog/{en,es,pt}/`.
+- **Blog** — 66 posts per locale, Markdown in `content/blog/{en,es,pt}/`.
 - **Auth** — Google OAuth via next-auth, plus a demo mode to explore the dashboard without credentials.
 
 ## Quickstart
@@ -119,7 +119,7 @@ app/                  Next.js App Router
   api/                links CRUD, keys, v1 public API (+ /api/v1/crm), auth
   r/[slug]/           the redirect engine (302 + cookie-less click tracking)
 components/           UI (ZeroField canvas, header/footer, link/* dashboard, crm/* CRM, products/* mockups)
-content/blog/         30 posts × 3 locales, Markdown with frontmatter
+content/blog/         66 posts × 3 locales, Markdown with frontmatter
 i18n/                 routing + request config (next-intl)
 lib/                  db, auth, links, crm, analytics, rate limit, blog loader
 messages/             en / es / pt UI strings
