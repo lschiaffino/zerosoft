@@ -5,6 +5,8 @@ import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { listLists } from '@/lib/crm';
 import WorkflowEditor from '@/components/crm/WorkflowEditor';
 import { listSequences } from '@/lib/crm-sequences';
+import { listForms } from '@/lib/crm-forms';
+import { listFlows } from '@/lib/flow';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +22,8 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
   const t = await getTranslations({ locale, namespace: 'crm' });
   const lists = await listLists(user.id);
   const sequences = (await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }));
+  const forms = (await listForms(user.id)).map((f) => ({ id: f.id, name: f.name }));
+  const flows = (await listFlows(user.id)).map((fl) => ({ id: fl.id, name: fl.name }));
 
   return (
     <div className="app-page">
@@ -31,6 +35,8 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
         workflow={null}
         lists={lists}
         sequences={sequences}
+        forms={forms}
+        flows={flows}
         runs={[]}
         labels={{
           name: t('workflows.name'),
@@ -66,6 +72,8 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
             email_clicked: t('workflows.triggerTypes.email_clicked'),
             meeting_booked: t('workflows.triggerTypes.meeting_booked'),
             quote_accepted: t('workflows.triggerTypes.quote_accepted'),
+            form_submitted: t('workflows.triggerTypes.form_submitted'),
+            score_changed: t('workflows.triggerTypes.score_changed'),
             manual: t('workflows.triggerTypes.manual'),
           },
           actionTypes: {
@@ -77,6 +85,8 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
             webhook: t('workflows.actionTypes.webhook'),
             notify_user: t('workflows.actionTypes.notify_user'),
             enroll_in_sequence: t('workflows.actionTypes.enroll_in_sequence'),
+            run_flow: t('workflows.actionTypes.run_flow'),
+            branch: t('workflows.actionTypes.branch'),
           },
           fromStageId: t('workflows.fromStageId'),
           toStageId: t('workflows.toStageId'),
@@ -94,6 +104,32 @@ export default async function NewWorkflowPage(props: { params: Promise<{ locale:
           headers: t('workflows.headers'),
           message: t('workflows.message'),
           sequenceId: t('workflows.sequenceId'),
+          formId: t('workflows.formId'),
+          anyForm: t('workflows.anyForm'),
+          threshold: t('workflows.threshold'),
+          direction: {
+            up: t('workflows.direction.up'),
+            down: t('workflows.direction.down'),
+            any: t('workflows.direction.any'),
+          },
+          flowId: t('workflows.flowId'),
+          runFlowHint: t('workflows.runFlowHint'),
+          branchHint: t('workflows.branchHint'),
+          op: {
+            equals: t('scoring.ops.equals'),
+            not_equals: t('scoring.ops.not_equals'),
+            contains: t('scoring.ops.contains'),
+            gt: t('scoring.ops.gt'),
+            lt: t('scoring.ops.lt'),
+            is_set: t('scoring.ops.is_set'),
+            is_not_set: t('scoring.ops.is_not_set'),
+          },
+          when: {
+            label: t('workflows.when.label'),
+            always: t('workflows.when.always'),
+            yes: t('workflows.when.yes'),
+            no: t('workflows.when.no'),
+          },
         }}
       />
     </div>

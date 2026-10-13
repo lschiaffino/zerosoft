@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { createDeal, listDeals, listDealsForBoard } from '@/lib/crm';
 import { dealCreateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, defaultPipelineId, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
@@ -19,13 +20,14 @@ export async function GET(req: NextRequest) {
   if (sp.get('board') === '1') {
     const pipelineId = sp.get('pipelineId');
     if (!pipelineId) return crmError(400, 'invalid_input');
-    return NextResponse.json({ rows: await listDealsForBoard(user.id, pipelineId) });
+    return NextResponse.json({ rows: await listDealsForBoard(user.id, pipelineId, await sessionScope(user)) });
   }
 
   const pipelineId = sp.get('pipelineId') ?? (await defaultPipelineId(user.id));
   if (!pipelineId) return NextResponse.json({ rows: [], total: 0, page, pageSize });
 
   const { rows, total } = await listDeals(user.id, {
+    ownerScope: await sessionScope(user),
     pipelineId,
     q: sp.get('q') ?? undefined,
     stageId: sp.get('stageId') ?? undefined,
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
   const parsed = dealCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const result = await catchRef(createDeal(user.id, parsed.data));
+  const result = await catchRef(createDeal(user.id, { ...parsed.data, ownerId: parsed.data.ownerId ?? realUserId(user) }));
   if (result instanceof CrmRefError) return crmError(400, result.code);
   if (!result.ok) {
     return crmError(400, result.reason === 'invalid_stage' ? 'invalid_stage' : 'invalid_input');

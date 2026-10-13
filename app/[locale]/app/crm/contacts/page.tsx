@@ -2,6 +2,7 @@ import { listSequences } from '@/lib/crm-sequences';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import {
   LEAD_STATUSES,
   LIFECYCLE_STAGES,
@@ -27,7 +28,7 @@ import { listTags, tagsForRecords } from '@/lib/crm-tags';
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
-const SORTS: readonly ContactSort[] = ['newest', 'oldest', 'name', 'name_desc', 'email', 'email_desc'];
+const SORTS: readonly ContactSort[] = ['newest', 'oldest', 'name', 'name_desc', 'email', 'email_desc', 'score', 'score_asc'];
 
 interface ContactsPageProps {
   params: Promise<{ locale: string }>;
@@ -71,6 +72,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   // Vista guardada activa: sus filtros sirven de default; los params explícitos ganan.
@@ -101,6 +103,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   );
 
   const { rows, total } = await listContacts(user.id, {
+    ownerScope: scope,
     q: q || undefined,
     lifecycle: lifecycle || undefined,
     leadStatus: leadStatus || undefined,
@@ -122,7 +125,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   ]);
   const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
 
-  const companies = (await listCompanies(user.id, { pageSize: 200, sort: 'name' })).rows.map((c) => ({
+  const companies = (await listCompanies(user.id, { pageSize: 200, sort: 'name', ownerScope: scope })).rows.map((c) => ({
     value: c.id,
     label: c.name,
   }));
@@ -170,6 +173,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
       type: 'select',
       options: SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
     },
+    { key: 'score', label: t('scoring.column'), type: 'number' },
     { key: 'created', label: t('filters.field.created'), type: 'date' },
     {
       key: 'tag',
@@ -221,6 +225,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     lifecycle: c.lifecycle_stage,
     leadStatus: c.lead_status,
     source: c.source,
+    score: c.score ?? 0,
     created: formatDate(c.created_at, locale),
     tags: rowTags.get(c.id) ?? [],
   }));

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { createTag, listTags } from '@/lib/crm-tags';
 import { tagCreateSchema } from '@/lib/crm-schema';
 import { crmError, invalidBody, unauthorized } from '@/lib/crm-http';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  return NextResponse.json({ rows: await listTags(user.id) });
+  return NextResponse.json({ rows: await listTags(user.id, undefined, await sessionScope(user)) });
 }
 
 export async function POST(req: NextRequest) {

@@ -56,6 +56,9 @@ export interface ApiKeyRow {
   created_at: string;
   last_used_at: string | null;
   revoked: 0 | 1;
+  created_by: string | null;
+  /** '*' = todos; si no, scopes separados por espacio (lib/api-scopes.ts). */
+  scopes: string;
 }
 
 // ---------- CRM ----------
@@ -77,6 +80,10 @@ export interface CrmContactRow {
   source: string;
   company_id: string | null;
   custom: string; // JSON object
+  /** Lead score (lib/crm-scoring.ts) y su desglose JSON ScoreBreakdownItem[]. */
+  score: number;
+  score_breakdown: string;
+  score_updated_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -465,6 +472,8 @@ export interface CrmSettingsRow {
   user_id: string;
   base_currency: string;
   quote_accept_moves_deal: number;
+  /** Qué ven los members: 'all' | 'mine' | 'team' (admins/owner ven todo). */
+  member_visibility: string;
   updated_at: string;
 }
 
@@ -1263,4 +1272,67 @@ export interface RobotRunRow {
   started_at: string | null;
   finished_at: string | null;
   duration_ms: number | null;
+}
+
+// ---------- CRM: formularios, scoring, equipos, cuotas ----------
+
+export interface CrmFormRow {
+  id: string;
+  user_id: string;
+  name: string;
+  slug: string | null;
+  token: string;
+  status: 'active' | 'paused' | 'archived';
+  fields: string; // JSON FormField[]
+  settings: string; // JSON FormSettings
+  submission_count: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmFormSubmissionRow {
+  id: string;
+  form_id: string;
+  user_id: string;
+  contact_id: string | null;
+  contact_created: number;
+  data: string; // JSON Record<string, string | boolean>
+  utm: string; // JSON
+  page_url: string;
+  referrer: string;
+  ip_hash: string;
+  user_agent: string;
+  created_at: string;
+}
+
+export interface CrmScoreRuleRow {
+  id: string;
+  user_id: string;
+  name: string;
+  kind: 'property' | 'activity';
+  config: string; // JSON
+  points: number;
+  enabled: number;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmSalesTeamRow {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface CrmQuotaRow {
+  id: string;
+  user_id: string;
+  person_id: string;
+  metric: 'won_value' | 'won_count' | 'meetings';
+  period: 'month' | 'quarter';
+  target: number;
+  created_at: string;
+  updated_at: string;
 }

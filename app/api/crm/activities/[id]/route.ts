@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { canSeeActivity, sessionScope } from '@/lib/crm-visibility';
 import { deleteActivity, updateActivity } from '@/lib/crm';
 import { activityUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
@@ -11,6 +12,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!(await canSeeActivity(user.id, params.id, await sessionScope(user)))) return notFound();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = activityUpdateSchema.safeParse(body);
@@ -26,6 +28,7 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!(await canSeeActivity(user.id, params.id, await sessionScope(user)))) return notFound();
   if (!(await deleteActivity(user.id, params.id))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

@@ -28,6 +28,7 @@ import {
   type DealCompanyRow,
 } from './crm-assoc';
 import { tagCondition, type TagEntity } from './crm-tags';
+import { activityScopeSql, ownerScopeSql, type OwnerScope } from './crm-visibility';
 import { baseAmountSql, getCrmSettings } from './crm-currency';
 import {
   ensureMigrated,
@@ -253,6 +254,11 @@ async function fireEvent(
     payload?: Record<string, unknown>;
   },
 ): Promise<void> {
+  // Lead scoring primero (reglas de propiedad): los workflows ven el score nuevo.
+  if (event.entity === 'contact' && (event.type === 'contact_created' || event.type === 'contact_updated')) {
+    const { recalcContactScoreSafe } = await import('./crm-scoring');
+    await recalcContactScoreSafe(userId, event.entityId);
+  }
   try {
     const mod = await import('./crm-workflows');
     await mod.runWorkflowsForEvent(userId, event);
@@ -431,7 +437,9 @@ export interface ContactFilter {
   filters?: FilterRule[];
   /** Tipos de los custom fields (para operadores correctos en reglas `custom:*`). */
   customTypes?: Record<string, FilterFieldType>;
-  sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc';
+  /** Visibilidad por owner (lib/crm-visibility.ts). null/undefined = todo. */
+  ownerScope?: OwnerScope;
+  sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc' | 'score' | 'score_asc';
   page?: number;
   pageSize?: number;
 }
@@ -446,8 +454,22 @@ const CONTACT_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   leadStatus: { expr: 'c.lead_status', type: 'select' },
   owner: { expr: 'c.owner_id', type: 'select' },
   source: { expr: 'c.source', type: 'select' },
+  score: { expr: 'c.score', type: 'number' },
   created: { expr: 'c.created_at', type: 'date' },
 };
+
+/** Agrega la condición de visibilidad por owner al WHERE. */
+function appendOwnerScope(
+  where: string[],
+  args: Array<string | number>,
+  alias: string,
+  scope: OwnerScope | undefined,
+): void {
+  const cond = ownerScopeSql(alias, scope);
+  if (!cond.sql) return;
+  where.push(cond.sql);
+  args.push(...cond.args);
+}
 
 function buildContactWhere(
   userId: string,
@@ -503,6 +525,7 @@ function buildContactWhere(
     }
   }
   appendAdvancedFilters(where, args, 'c', CONTACT_ADV_FIELDS, f.filters, f.customTypes);
+  appendOwnerScope(where, args, 'c', f.ownerScope);
   return { where: where.join(' AND '), args };
 }
 
@@ -513,6 +536,8 @@ const CONTACT_ORDER: Record<NonNullable<ContactFilter['sort']>, string> = {
   name_desc: "c.first_name COLLATE NOCASE DESC, c.last_name COLLATE NOCASE DESC, c.id",
   email: "c.email COLLATE NOCASE ASC, c.id",
   email_desc: "c.email COLLATE NOCASE DESC, c.id",
+  score: 'c.score DESC, c.created_at DESC, c.id',
+  score_asc: 'c.score ASC, c.created_at DESC, c.id',
 };
 
 export async function listContacts(
@@ -953,6 +978,7 @@ export interface CompanyFilter {
   custom?: Record<string, string>;
   filters?: FilterRule[];
   customTypes?: Record<string, FilterFieldType>;
+  ownerScope?: OwnerScope;
   sort?: 'newest' | 'oldest' | 'name' | 'name_desc';
   page?: number;
   pageSize?: number;
@@ -1017,6 +1043,7 @@ export async function listCompanies(
     }
   }
   appendAdvancedFilters(where, args, 'co', COMPANY_ADV_FIELDS, f.filters, f.customTypes);
+  appendOwnerScope(where, args, 'co', f.ownerScope);
   const whereSql = where.join(' AND ');
   const total = (
     (await db.prepare(`SELECT COUNT(*) AS c FROM crm_companies co WHERE ${whereSql}`).get(
@@ -1361,6 +1388,7 @@ export interface DealFilter {
   custom?: Record<string, string>;
   filters?: FilterRule[];
   customTypes?: Record<string, FilterFieldType>;
+  ownerScope?: OwnerScope;
   sort?: 'newest' | 'oldest' | 'amount' | 'amount_asc' | 'close_date' | 'close_date_desc';
   page?: number;
   pageSize?: number;
@@ -1439,6 +1467,7 @@ export async function listDeals(
     }
   }
   appendAdvancedFilters(where, args, 'd', DEAL_ADV_FIELDS, f.filters, f.customTypes);
+  appendOwnerScope(where, args, 'd', f.ownerScope);
   const whereSql = where.join(' AND ');
   const total = (
     (await db.prepare(`SELECT COUNT(*) AS c FROM crm_deals d WHERE ${whereSql}`).get(...args)) as {
@@ -1486,8 +1515,10 @@ export interface BoardStage {
 export async function listDealsForBoard(
   userId: string,
   pipelineId: string,
+  ownerScope?: OwnerScope,
 ): Promise<BoardStage[]> {
   const db = getDb();
+  const scope = ownerScopeSql('d', ownerScope);
   const stages = (await db
     .prepare('SELECT * FROM crm_stages WHERE pipeline_id = ? ORDER BY position ASC')
     .all(pipelineId)) as CrmStageRow[];
@@ -1505,10 +1536,10 @@ export async function listDealsForBoard(
        )
        LEFT JOIN crm_deal_companies pdc ON pdc.deal_id = d.id AND pdc.is_primary = 1
        LEFT JOIN crm_companies co ON co.id = pdc.company_id
-       WHERE d.user_id = ? AND d.pipeline_id = ?
+       WHERE d.user_id = ? AND d.pipeline_id = ?${scope.sql ? ` AND ${scope.sql}` : ''}
        ORDER BY d.position ASC`,
     )
-    .all(userId, pipelineId)) as BoardDeal[];
+    .all(userId, pipelineId, ...scope.args)) as BoardDeal[];
   return stages.map((stage) => {
     const stageDeals = deals.filter((d) => d.stage_id === stage.id);
     return {
@@ -1977,6 +2008,11 @@ export async function createActivity(
       ts,
       ts,
     );
+  // Lead scoring: reuniones, llamadas y notas cuentan como actividad del contacto.
+  if (data.contactId) {
+    const { recalcContactScoreSafe } = await import('./crm-scoring');
+    await recalcContactScoreSafe(userId, data.contactId);
+  }
   return (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
 }
 
@@ -2166,6 +2202,8 @@ export interface TimelineFilter {
   dealId?: string;
   type?: ActivityType;
   limit?: number;
+  /** Visibilidad por owner: solo actividades de registros visibles. */
+  ownerScope?: OwnerScope;
 }
 
 /** Timeline de un registro (contacto, empresa o deal), más reciente primero. */
@@ -2191,6 +2229,11 @@ export async function listTimeline(
   if (f.type) {
     where.push('a.type = ?');
     args.push(f.type);
+  }
+  const scope = activityScopeSql('a', f.ownerScope);
+  if (scope.sql) {
+    where.push(scope.sql);
+    args.push(...scope.args);
   }
   const limit = Math.min(Math.max(f.limit ?? 200, 1), 500);
   return (await db
@@ -2239,6 +2282,7 @@ export interface ListTasksFilter {
   bucket: TaskBucket;
   projectId?: string;
   ownerId?: string;
+  ownerScope?: OwnerScope;
 }
 
 export async function listTasks(userId: string, filter: TaskBucket | ListTasksFilter): Promise<ActivityListRow[]> {
@@ -2272,6 +2316,11 @@ export async function listTasks(userId: string, filter: TaskBucket | ListTasksFi
     cond += ' AND a.owner_id = ?';
     args.push(f.ownerId);
   }
+  const scope = activityScopeSql('a', f.ownerScope);
+  if (scope.sql) {
+    cond += ` AND ${scope.sql}`;
+    args.push(...scope.args);
+  }
   const order =
     f.bucket === 'done'
       ? 'a.done_at DESC, a.updated_at DESC'
@@ -2286,20 +2335,21 @@ export async function listTasks(userId: string, filter: TaskBucket | ListTasksFi
 }
 
 /** Busca tareas por subject, body o entidad asociada. */
-export async function searchTasks(userId: string, q: string): Promise<ActivityListRow[]> {
+export async function searchTasks(userId: string, q: string, ownerScope?: OwnerScope): Promise<ActivityListRow[]> {
   const db = getDb();
   const like = `%${escapeLike(q)}%`;
+  const scope = activityScopeSql('a', ownerScope);
   return (await db
     .prepare(
       `${ACTIVITY_SELECT}
        WHERE a.user_id = ? AND a.type = 'task'
          AND (a.subject LIKE ? ESCAPE '\\' OR a.body LIKE ? ESCAPE '\\'
               OR c.first_name LIKE ? ESCAPE '\\' OR c.last_name LIKE ? ESCAPE '\\'
-              OR co.name LIKE ? ESCAPE '\\' OR d.name LIKE ? ESCAPE '\\')
+              OR co.name LIKE ? ESCAPE '\\' OR d.name LIKE ? ESCAPE '\\')${scope.sql ? ` AND ${scope.sql}` : ''}
        ORDER BY a.updated_at DESC
        LIMIT 10`,
     )
-    .all(userId, like, like, like, like, like, like)) as ActivityListRow[];
+    .all(userId, like, like, like, like, like, like, ...scope.args)) as ActivityListRow[];
 }
 
 /** Tareas abiertas vencidas o que vencen hoy (badge de la sidebar). */
@@ -2692,42 +2742,25 @@ export type ExportEntity = 'contacts' | 'companies' | 'deals' | 'activities';
 export async function exportRows(
   userId: string,
   entity: ExportEntity,
+  ownerScope?: OwnerScope,
 ): Promise<Array<CrmContactRow | CrmCompanyRow | CrmDealRow | CrmActivityRow>> {
   const db = getDb();
-  switch (entity) {
-    case 'contacts':
-      return (await db
-        .prepare(
-          `SELECT x.*, u.email AS owner_email FROM crm_contacts x
-           LEFT JOIN users u ON u.id = x.owner_id
-           WHERE x.user_id = ? ORDER BY x.created_at DESC`,
-        )
-        .all(userId)) as CrmContactRow[];
-    case 'companies':
-      return (await db
-        .prepare(
-          `SELECT x.*, u.email AS owner_email FROM crm_companies x
-           LEFT JOIN users u ON u.id = x.owner_id
-           WHERE x.user_id = ? ORDER BY x.created_at DESC`,
-        )
-        .all(userId)) as CrmCompanyRow[];
-    case 'deals':
-      return (await db
-        .prepare(
-          `SELECT x.*, u.email AS owner_email FROM crm_deals x
-           LEFT JOIN users u ON u.id = x.owner_id
-           WHERE x.user_id = ? ORDER BY x.created_at DESC`,
-        )
-        .all(userId)) as CrmDealRow[];
-    case 'activities':
-      return (await db
-        .prepare(
-          `SELECT x.*, u.email AS owner_email FROM crm_activities x
-           LEFT JOIN users u ON u.id = x.owner_id
-           WHERE x.user_id = ? ORDER BY x.created_at DESC`,
-        )
-        .all(userId)) as CrmActivityRow[];
-  }
+  const table =
+    entity === 'contacts'
+      ? 'crm_contacts'
+      : entity === 'companies'
+        ? 'crm_companies'
+        : entity === 'deals'
+          ? 'crm_deals'
+          : 'crm_activities';
+  const scope = entity === 'activities' ? activityScopeSql('x', ownerScope) : ownerScopeSql('x', ownerScope);
+  return (await db
+    .prepare(
+      `SELECT x.*, u.email AS owner_email FROM ${table} x
+       LEFT JOIN users u ON u.id = x.owner_id
+       WHERE x.user_id = ?${scope.sql ? ` AND ${scope.sql}` : ''} ORDER BY x.created_at DESC`,
+    )
+    .all(userId, ...scope.args)) as Array<CrmContactRow | CrmCompanyRow | CrmDealRow | CrmActivityRow>;
 }
 
 // ============================================================
@@ -2780,26 +2813,39 @@ async function defaultPipelineId(userId: string): Promise<string | null> {
   return row?.id ?? null;
 }
 
+/** ' AND <cond>' de visibilidad por owner para el alias (o '' si no restringe). */
+function scopeAnd(alias: string, scope: OwnerScope | undefined): { sql: string; args: string[] } {
+  const c = ownerScopeSql(alias, scope);
+  return c.sql ? { sql: ` AND ${c.sql}`, args: c.args } : { sql: '', args: [] };
+}
+
+function activityScopeAnd(alias: string, scope: OwnerScope | undefined): { sql: string; args: string[] } {
+  const c = activityScopeSql(alias, scope);
+  return c.sql ? { sql: ` AND ${c.sql}`, args: c.args } : { sql: '', args: [] };
+}
+
 async function funnelForPipeline(
   userId: string,
   pipelineId: string | null,
+  ownerScope?: OwnerScope,
 ): Promise<FunnelStage[]> {
   if (!pipelineId) return [];
+  const sc = scopeAnd('d', ownerScope);
   return (await getDb()
     .prepare(
       `SELECT s.id, s.name, s.probability, s.is_won, s.is_lost,
          COUNT(d.id) AS count, COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount
        FROM crm_stages s
-       LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ?
+       LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ?${sc.sql}
        WHERE s.pipeline_id = ?
        GROUP BY s.id
        ORDER BY s.position ASC`,
     )
-    .all(userId, pipelineId)) as FunnelStage[];
+    .all(userId, ...sc.args, pipelineId)) as FunnelStage[];
 }
 
 /** Últimos 6 meses (incluido el actual) con conteo de deals won/lost por closed_at. */
-export async function wonLostByMonth(userId: string): Promise<WonLostMonth[]> {
+export async function wonLostByMonth(userId: string, ownerScope?: OwnerScope): Promise<WonLostMonth[]> {
   const db = getDb();
   const months: string[] = [];
   const d = new Date();
@@ -2809,6 +2855,7 @@ export async function wonLostByMonth(userId: string): Promise<WonLostMonth[]> {
       `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, '0')}`,
     );
   }
+  const sc = scopeAnd('d', ownerScope);
   const rows = (await db
     .prepare(
       `SELECT substr(d.closed_at, 1, 7) AS month,
@@ -2816,10 +2863,10 @@ export async function wonLostByMonth(userId: string): Promise<WonLostMonth[]> {
          SUM(CASE WHEN s.is_lost = 1 THEN 1 ELSE 0 END) AS lost
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
-       WHERE d.user_id = ? AND d.closed_at IS NOT NULL AND substr(d.closed_at, 1, 7) >= ?
+       WHERE d.user_id = ? AND d.closed_at IS NOT NULL AND substr(d.closed_at, 1, 7) >= ?${sc.sql}
        GROUP BY month`,
     )
-    .all(userId, months[0])) as Array<{ month: string; won: number; lost: number }>;
+    .all(userId, months[0], ...sc.args)) as Array<{ month: string; won: number; lost: number }>;
   const map = new Map(rows.map((r) => [r.month, r]));
   return months.map((month) => ({
     month,
@@ -2828,22 +2875,25 @@ export async function wonLostByMonth(userId: string): Promise<WonLostMonth[]> {
   }));
 }
 
-export async function getCrmOverview(userId: string): Promise<CrmOverview> {
+export async function getCrmOverview(userId: string, ownerScope?: OwnerScope): Promise<CrmOverview> {
   const db = getDb();
   const { start, end } = await todayRange();
   const month = start.slice(0, 7);
+  const cs = scopeAnd('c', ownerScope);
+  const ds = scopeAnd('d', ownerScope);
+  const as = activityScopeAnd('a', ownerScope);
 
   const totalContacts = (
-    (await db.prepare('SELECT COUNT(*) AS c FROM crm_contacts WHERE user_id = ?').get(userId)) as {
+    (await db.prepare(`SELECT COUNT(*) AS c FROM crm_contacts c WHERE c.user_id = ?${cs.sql}`).get(userId, ...cs.args)) as {
       c: number;
     }
   ).c;
 
   const open = (await db
     .prepare(
-      `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')}), 0) AS a FROM crm_deals d WHERE d.user_id = ? AND d.closed_at IS NULL`,
+      `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')}), 0) AS a FROM crm_deals d WHERE d.user_id = ? AND d.closed_at IS NULL${ds.sql}`,
     )
-    .get(userId)) as { c: number; a: number };
+    .get(userId, ...ds.args)) as { c: number; a: number };
 
   const forecastWeighted = (
     (await db
@@ -2851,9 +2901,9 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
         `SELECT COALESCE(SUM(${baseAmountSql('d')} * s.probability / 100.0), 0) AS f
          FROM crm_deals d
          JOIN crm_stages s ON s.id = d.stage_id
-         WHERE d.user_id = ? AND d.closed_at IS NULL`,
+         WHERE d.user_id = ? AND d.closed_at IS NULL${ds.sql}`,
       )
-      .get(userId)) as { f: number }
+      .get(userId, ...ds.args)) as { f: number }
   ).f;
 
   const wonThisMonth = (await db
@@ -2861,42 +2911,42 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
       `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')}), 0) AS a
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
-       WHERE d.user_id = ? AND s.is_won = 1 AND substr(d.closed_at, 1, 7) = ?`,
+       WHERE d.user_id = ? AND s.is_won = 1 AND substr(d.closed_at, 1, 7) = ?${ds.sql}`,
     )
-    .get(userId, month)) as { c: number; a: number };
+    .get(userId, month, ...ds.args)) as { c: number; a: number };
 
   const tasksDueToday = (
     (await db
       .prepare(
-        `SELECT COUNT(*) AS c FROM crm_activities
-         WHERE user_id = ? AND type = 'task' AND done = 0 AND due_at >= ? AND due_at <= ?`,
+        `SELECT COUNT(*) AS c FROM crm_activities a
+         WHERE a.user_id = ? AND a.type = 'task' AND a.done = 0 AND a.due_at >= ? AND a.due_at <= ?${as.sql}`,
       )
-      .get(userId, start, end)) as { c: number }
+      .get(userId, start, end, ...as.args)) as { c: number }
   ).c;
 
   const recentActivities = (await db
-    .prepare(`${ACTIVITY_SELECT} WHERE a.user_id = ? ORDER BY a.created_at DESC LIMIT 8`)
-    .all(userId)) as ActivityListRow[];
+    .prepare(`${ACTIVITY_SELECT} WHERE a.user_id = ?${as.sql} ORDER BY a.created_at DESC LIMIT 8`)
+    .all(userId, ...as.args)) as ActivityListRow[];
 
   const upcomingTasks = (await db
     .prepare(
       `${ACTIVITY_SELECT}
-       WHERE a.user_id = ? AND a.type = 'task' AND a.done = 0 AND (a.due_at IS NULL OR a.due_at >= ?)
+       WHERE a.user_id = ? AND a.type = 'task' AND a.done = 0 AND (a.due_at IS NULL OR a.due_at >= ?)${as.sql}
        ORDER BY a.due_at IS NULL, a.due_at ASC, a.created_at DESC
        LIMIT 6`,
     )
-    .all(userId, start)) as ActivityListRow[];
+    .all(userId, start, ...as.args)) as ActivityListRow[];
 
   const closingThisMonth = (await db
     .prepare(
       `SELECT d.id, d.name, d.amount, d.currency, d.close_date, s.name AS stage_name
        FROM crm_deals d
        LEFT JOIN crm_stages s ON s.id = d.stage_id
-       WHERE d.user_id = ? AND d.closed_at IS NULL AND substr(d.close_date, 1, 7) = ?
+       WHERE d.user_id = ? AND d.closed_at IS NULL AND substr(d.close_date, 1, 7) = ?${ds.sql}
        ORDER BY d.close_date ASC
        LIMIT 8`,
     )
-    .all(userId, month)) as ClosingDealRow[];
+    .all(userId, month, ...ds.args)) as ClosingDealRow[];
 
   return {
     totalContacts,
@@ -2906,8 +2956,8 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
     wonThisMonth: { count: wonThisMonth.c, amount: wonThisMonth.a },
     tasksDueToday,
     closingThisMonth,
-    funnel: await funnelForPipeline(userId, await defaultPipelineId(userId)),
-    wonLostByMonth: await wonLostByMonth(userId),
+    funnel: await funnelForPipeline(userId, await defaultPipelineId(userId), ownerScope),
+    wonLostByMonth: await wonLostByMonth(userId, ownerScope),
     recentActivities,
     upcomingTasks,
   };
@@ -2933,9 +2983,12 @@ export interface CrmReports {
   tasksByStatus: Array<{ status: 'done' | 'pending'; count: number }>;
 }
 
-export async function getCrmReports(userId: string): Promise<CrmReports> {
+export async function getCrmReports(userId: string, ownerScope?: OwnerScope): Promise<CrmReports> {
   const db = getDb();
   const pipelineId = await defaultPipelineId(userId);
+  const ds = scopeAnd('d', ownerScope);
+  const cs = scopeAnd('c', ownerScope);
+  const as = activityScopeAnd('a', ownerScope);
 
   const forecastByStage = pipelineId
     ? ((await db
@@ -2945,12 +2998,12 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
              COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount,
              COALESCE(SUM(${baseAmountSql('d')} * s.probability / 100.0), 0) AS forecast
            FROM crm_stages s
-           LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ? AND d.closed_at IS NULL
+           LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ? AND d.closed_at IS NULL${ds.sql}
            WHERE s.pipeline_id = ?
            GROUP BY s.id
            ORDER BY s.position ASC`,
         )
-        .all(userId, pipelineId)) as CrmReports['forecastByStage'])
+        .all(userId, ...ds.args, pipelineId)) as CrmReports['forecastByStage'])
     : [];
 
   const dealsBySource = (await db
@@ -2958,76 +3011,76 @@ export async function getCrmReports(userId: string): Promise<CrmReports> {
       `SELECT COALESCE(NULLIF(d.source, ''), 'other') AS source,
          COUNT(*) AS count, COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount
        FROM crm_deals d
-       WHERE d.user_id = ?
+       WHERE d.user_id = ?${ds.sql}
        GROUP BY 1
        ORDER BY amount DESC`,
     )
-    .all(userId)) as CrmReports['dealsBySource'];
+    .all(userId, ...ds.args)) as CrmReports['dealsBySource'];
 
   const contactsByLifecycle = (await db
     .prepare(
-      `SELECT lifecycle_stage AS lifecycle, COUNT(*) AS count
-       FROM crm_contacts
-       WHERE user_id = ?
-       GROUP BY lifecycle_stage
+      `SELECT c.lifecycle_stage AS lifecycle, COUNT(*) AS count
+       FROM crm_contacts c
+       WHERE c.user_id = ?${cs.sql}
+       GROUP BY c.lifecycle_stage
        ORDER BY count DESC`,
     )
-    .all(userId)) as CrmReports['contactsByLifecycle'];
+    .all(userId, ...cs.args)) as CrmReports['contactsByLifecycle'];
 
   const activitiesByType = (await db
     .prepare(
-      `SELECT type, COUNT(*) AS count
-       FROM crm_activities
-       WHERE user_id = ?
-       GROUP BY type
+      `SELECT a.type, COUNT(*) AS count
+       FROM crm_activities a
+       WHERE a.user_id = ?${as.sql}
+       GROUP BY a.type
        ORDER BY count DESC`,
     )
-    .all(userId)) as CrmReports['activitiesByType'];
+    .all(userId, ...as.args)) as CrmReports['activitiesByType'];
 
   const avg = (await db
     .prepare(
       `SELECT AVG(julianday(d.closed_at) - julianday(d.created_at)) AS days
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
-       WHERE d.user_id = ? AND s.is_won = 1 AND d.closed_at IS NOT NULL`,
+       WHERE d.user_id = ? AND s.is_won = 1 AND d.closed_at IS NOT NULL${ds.sql}`,
     )
-    .get(userId)) as { days: number | null };
+    .get(userId, ...ds.args)) as { days: number | null };
 
   const dealsByPriority = (await db
     .prepare(
       `SELECT d.priority AS priority, COUNT(*) AS count, COALESCE(SUM(${baseAmountSql('d')}), 0) AS amount
        FROM crm_deals d
-       WHERE d.user_id = ?
+       WHERE d.user_id = ?${ds.sql}
        GROUP BY d.priority
        ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 3 END`,
     )
-    .all(userId)) as CrmReports['dealsByPriority'];
+    .all(userId, ...ds.args)) as CrmReports['dealsByPriority'];
 
   const lostReasons = (await db
     .prepare(
       `SELECT COALESCE(NULLIF(d.lost_reason, ''), 'other') AS reason, COUNT(*) AS count
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
-       WHERE d.user_id = ? AND s.is_lost = 1
+       WHERE d.user_id = ? AND s.is_lost = 1${ds.sql}
        GROUP BY 1
        ORDER BY count DESC`,
     )
-    .all(userId)) as CrmReports['lostReasons'];
+    .all(userId, ...ds.args)) as CrmReports['lostReasons'];
 
   const tasksByStatus = (await db
     .prepare(
-      `SELECT CASE WHEN done = 1 THEN 'done' ELSE 'pending' END AS status,
+      `SELECT CASE WHEN a.done = 1 THEN 'done' ELSE 'pending' END AS status,
          COUNT(*) AS count
-       FROM crm_activities
-       WHERE user_id = ? AND type = 'task'
+       FROM crm_activities a
+       WHERE a.user_id = ? AND a.type = 'task'${as.sql}
        GROUP BY status`,
     )
-    .all(userId)) as CrmReports['tasksByStatus'];
+    .all(userId, ...as.args)) as CrmReports['tasksByStatus'];
 
   return {
-    funnel: await funnelForPipeline(userId, pipelineId),
+    funnel: await funnelForPipeline(userId, pipelineId, ownerScope),
     forecastByStage,
-    wonLostByMonth: await wonLostByMonth(userId),
+    wonLostByMonth: await wonLostByMonth(userId, ownerScope),
     dealsBySource,
     contactsByLifecycle,
     activitiesByType,
@@ -3048,33 +3101,36 @@ export interface SearchResults {
   deals: CrmDealRow[];
 }
 
-/** Búsqueda global: top 5 por entidad. */
-export async function searchAll(userId: string, q: string): Promise<SearchResults> {
+/** Búsqueda global: top 5 por entidad (respeta la visibilidad por owner). */
+export async function searchAll(userId: string, q: string, ownerScope?: OwnerScope): Promise<SearchResults> {
   const db = getDb();
   const like = `%${escapeLike(q)}%`;
+  const cs = scopeAnd('c', ownerScope);
+  const cos = scopeAnd('co', ownerScope);
+  const ds = scopeAnd('d', ownerScope);
   const contacts = (await db
     .prepare(
-      `SELECT * FROM crm_contacts
-       WHERE user_id = ? AND (first_name LIKE ? ESCAPE '\\' OR last_name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\')
-       ORDER BY created_at DESC
+      `SELECT c.* FROM crm_contacts c
+       WHERE c.user_id = ? AND (c.first_name LIKE ? ESCAPE '\\' OR c.last_name LIKE ? ESCAPE '\\' OR c.email LIKE ? ESCAPE '\\')${cs.sql}
+       ORDER BY c.created_at DESC
        LIMIT 5`,
     )
-    .all(userId, like, like, like)) as CrmContactRow[];
+    .all(userId, like, like, like, ...cs.args)) as CrmContactRow[];
   const companies = (await db
     .prepare(
-      `SELECT * FROM crm_companies
-       WHERE user_id = ? AND (name LIKE ? ESCAPE '\\' OR domain LIKE ? ESCAPE '\\')
-       ORDER BY created_at DESC
+      `SELECT co.* FROM crm_companies co
+       WHERE co.user_id = ? AND (co.name LIKE ? ESCAPE '\\' OR co.domain LIKE ? ESCAPE '\\')${cos.sql}
+       ORDER BY co.created_at DESC
        LIMIT 5`,
     )
-    .all(userId, like, like)) as CrmCompanyRow[];
+    .all(userId, like, like, ...cos.args)) as CrmCompanyRow[];
   const deals = (await db
     .prepare(
-      `SELECT * FROM crm_deals
-       WHERE user_id = ? AND name LIKE ? ESCAPE '\\'
-       ORDER BY created_at DESC
+      `SELECT d.* FROM crm_deals d
+       WHERE d.user_id = ? AND d.name LIKE ? ESCAPE '\\'${ds.sql}
+       ORDER BY d.created_at DESC
        LIMIT 5`,
     )
-    .all(userId, like)) as CrmDealRow[];
+    .all(userId, like, ...ds.args)) as CrmDealRow[];
   return { contacts, companies, deals };
 }

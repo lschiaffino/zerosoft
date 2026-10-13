@@ -7,6 +7,7 @@ import type { ZodError } from 'zod';
 import { getDb } from './db';
 import { CrmRefError } from './crm-refs';
 import { rateLimit } from './rate-limit';
+import { canSeeEntity, type OwnerScope } from './crm-visibility';
 
 export { CrmRefError };
 
@@ -85,6 +86,32 @@ export async function catchRef<T>(p: Promise<T>): Promise<T | CrmRefError> {
     if (e instanceof CrmRefError) return e;
     throw e;
   }
+}
+
+/**
+ * Visibilidad por owner (lib/crm-visibility.ts): 404 si el registro no existe
+ * o el viewer no lo ve (no se confirma que exista). null = puede seguir.
+ */
+export async function guardRecord(
+  workspaceId: string,
+  entity: 'contact' | 'company' | 'deal',
+  id: string,
+  scope: OwnerScope | undefined,
+): Promise<NextResponse | null> {
+  if (!scope) return null;
+  return (await canSeeEntity(workspaceId, entity, id, scope)) ? null : notFound();
+}
+
+/** Igual que guardRecord para la API v1 (formato de error { error: { code, message } }). */
+export async function apiGuardRecord(
+  workspaceId: string,
+  entity: 'contact' | 'company' | 'deal',
+  id: string,
+  scope: OwnerScope | undefined,
+): Promise<NextResponse | null> {
+  if (!scope) return null;
+  if (await canSeeEntity(workspaceId, entity, id, scope)) return null;
+  return NextResponse.json({ error: { code: 'not_found', message: 'Not found.' } }, { status: 404 });
 }
 
 export function forbidden(): NextResponse {

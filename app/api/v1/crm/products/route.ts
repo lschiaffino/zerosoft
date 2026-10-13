@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:read');
   if ('res' in auth) return auth.res;
 
   const sp = req.nextUrl.searchParams;
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);

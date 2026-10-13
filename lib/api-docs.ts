@@ -3,6 +3,8 @@
  * Los snippets se generan a partir de method + path + body.
  */
 
+import { API_SCOPES, type ApiScope } from './api-scopes';
+
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 export interface ApiParam {
@@ -23,6 +25,8 @@ export interface ApiEndpoint {
   request?: unknown;
   response?: unknown;
   responseStatus?: number;
+  /** Scope que exige la ruta (si no, se deduce de path + método: endpointScope). */
+  scope?: ApiScope;
 }
 
 export interface ApiSection {
@@ -47,6 +51,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'crm-quotes', titleKey: 'crmQuotesTitle', descKey: 'crmQuotesDesc' },
   { id: 'crm-associations', titleKey: 'crmAssociationsTitle', descKey: 'crmAssociationsDesc' },
   { id: 'crm-tags', titleKey: 'crmTagsTitle', descKey: 'crmTagsDesc' },
+  { id: 'crm-forms', titleKey: 'crmFormsTitle', descKey: 'crmFormsDesc' },
   { id: 'crm-email', titleKey: 'crmEmailTitle', descKey: 'crmEmailDesc' },
   { id: 'cal', titleKey: 'calTitle', descKey: 'calDesc' },
   { id: 'agents', titleKey: 'agentsTitle', descKey: 'agentsDesc' },
@@ -1215,4 +1220,81 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     descKey: 'webhooksPayloadDesc',
     request: { id: 'evt_1', type: 'booking.created', createdAt: '2026-11-01T18:00:00.000Z', data: BOOKING_EXAMPLE },
   },
+
+  // CRM: formularios
+  {
+    id: 'forms-list',
+    sectionId: 'crm-forms',
+    method: 'GET',
+    path: '/api/v1/crm/forms',
+    titleKey: 'formsListTitle',
+    descKey: 'formsListDesc',
+    response: {
+      forms: [
+        {
+          id: '{form_id}',
+          name: 'Contact us',
+          key: 'contact-us',
+          slug: 'contact-us',
+          token: 'a1b2c3d4e5f6a7b8c9d0',
+          status: 'active',
+          fields: [{ id: 'email', type: 'email', label: 'Email', property: 'email', required: true }],
+          submission_count: 42,
+        },
+      ],
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'forms-submissions',
+    sectionId: 'crm-forms',
+    method: 'GET',
+    path: '/api/v1/crm/forms/{id}/submissions',
+    titleKey: 'formsSubmissionsTitle',
+    descKey: 'formsSubmissionsDesc',
+    params: [
+      { name: 'id', type: 'string', required: true, descriptionKey: 'paramId' },
+      { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
+      { name: 'pageSize', type: 'integer', descriptionKey: 'paramPageSize' },
+    ],
+    response: {
+      submissions: [
+        {
+          id: '{submission_id}',
+          formId: '{form_id}',
+          contactId: '{contact_id}',
+          contactCreated: true,
+          values: { email: 'ana@kallpa.co', first_name: 'Ana' },
+          utm: { utm_source: 'google', utm_campaign: 'spring' },
+          pageUrl: 'https://kallpa.co/pricing?utm_source=google',
+          referrer: '',
+          createdAt: '2026-10-13 14:02:11',
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 25,
+    },
+    responseStatus: 200,
+  },
 ];
+
+/** Qué permite cada scope de API key (se muestra en la doc y en la UI de keys). */
+export const API_SCOPE_DOCS: Array<{ scope: ApiScope; descKey: string }> = API_SCOPES.map((scope) => ({
+  scope,
+  descKey: `scope_${scope.replace(':', '_')}`,
+}));
+
+/**
+ * Scope que exige un endpoint: el explícito, o se deduce del path (crm, links,
+ * calendar → cal, agents) y del método (GET = :read, el resto = :write).
+ * null para ejemplos que no son rutas v1 (webhooks).
+ */
+export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'>): ApiScope | null {
+  if (e.scope) return e.scope;
+  const m = /^\/api\/v1\/(crm|links|calendar|agents)\b/.exec(e.path);
+  if (!m) return null;
+  if (m[1] === 'agents') return 'agents:run';
+  const resource = m[1] === 'calendar' ? 'cal' : m[1];
+  return `${resource}:${e.method === 'GET' ? 'read' : 'write'}` as ApiScope;
+}

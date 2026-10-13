@@ -1191,6 +1191,22 @@
     "paramTagColor": "Cor: crm, link, cal, track, chat, docs, flow, agents, notes, board ou robots.",
     "paramTagEntity": "Tipo de registro: contact, company ou deal.",
     "paramTagIds": "Ids dos registros.",
-    "paramTagAction": "add ou remove."
+    "paramTagAction": "add ou remove.",
+    "scopeLabel": "Escopo",
+    "scopesIntro": "Cada chave tem escopos, escolhidos ao criá-la. Os de escrita incluem leitura. Chaves criadas antes dos escopos têm todos. Uma requisição sem o escopo necessário recebe 403 insufficient_scope.",
+    "scopesVisibility": "Uma chave age como a pessoa que a criou: se o seu workspace limita os membros aos próprios registros do CRM (ou aos da equipe), a API devolve só esses registros.",
+    "scope_crm_read": "Ler contatos, empresas, negócios, atividades, tarefas, pipelines, produtos, cotações, tags, templates, sequências e formulários.",
+    "scope_crm_write": "Criar, editar e excluir registros do CRM, inscrever em sequências e aplicar tags (inclui crm:read).",
+    "scope_links_read": "Listar links e ler suas estatísticas.",
+    "scope_links_write": "Criar, editar e excluir links curtos (inclui links:read).",
+    "scope_cal_read": "Listar tipos de evento e reservas.",
+    "scope_cal_write": "Criar e cancelar reservas (inclui cal:read).",
+    "scope_agents_run": "Enviar mensagens para os seus agentes de IA.",
+    "crmFormsTitle": "CRM · Formulários",
+    "crmFormsDesc": "Formulários de captura de leads e seus envios. Cada envio também cria ou atualiza um contato e registra uma atividade \"Form submitted\".",
+    "formsListTitle": "Listar formulários",
+    "formsListDesc": "Todos os formulários do workspace com campos, status e número de envios. `key` é o slug público (ou o token) usado em /f/<key> e no script de incorporação.",
+    "formsSubmissionsTitle": "Listar envios de um formulário",
+    "formsSubmissionsDesc": "Envios de um formulário, os mais recentes primeiro, com os valores, os parâmetros UTM e o contato vinculado."
   }
 }

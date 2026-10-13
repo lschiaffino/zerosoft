@@ -460,6 +460,8 @@ async function fireTrackingEvents(email: CrmEmailRow, kind: 'open' | 'click', ur
     ...(kind === 'click' ? { url } : {}),
   };
   await emitEvent(email.user_id, kind === 'open' ? 'email.opened' : 'email.clicked', data);
+  const { recalcContactScoreSafe } = await import('./crm-scoring');
+  await recalcContactScoreSafe(email.user_id, email.contact_id);
   const { runWorkflowsForEvent } = await import('./crm-workflows');
   await runWorkflowsForEvent(email.user_id, {
     type: kind === 'open' ? 'email_opened' : 'email_clicked',

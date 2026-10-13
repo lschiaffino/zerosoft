@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { deleteLineItem, updateLineItem } from '@/lib/crm-products';
 import { lineItemUpdateSchema } from '@/lib/crm-schema';
-import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
+import { catchRef, cleanRow, CrmRefError, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
+import { apiScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,8 +12,10 @@ type Ctx = { params: Promise<{ id: string; itemId: string }> };
 
 export async function PATCH(req: NextRequest, props: Ctx) {
   const { id, itemId } = await props.params;
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
+  const hidden = await apiGuardRecord(auth.user.id, 'deal', id, await apiScope(auth));
+  if (hidden) return hidden;
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = lineItemUpdateSchema.safeParse(body);
@@ -29,8 +32,10 @@ export async function PATCH(req: NextRequest, props: Ctx) {
 
 export async function DELETE(req: NextRequest, props: Ctx) {
   const { id, itemId } = await props.params;
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
+  const hidden = await apiGuardRecord(auth.user.id, 'deal', id, await apiScope(auth));
+  if (hidden) return hidden;
 
   const ok = await catchRef(deleteLineItem(auth.user.id, id, itemId));
   if (ok instanceof CrmRefError || !ok) return apiError(404, 'not_found', 'Line item not found.');

@@ -1,0 +1,107 @@
+/* ============================================================
+   CRM Forms — página pública /f/<key> (también embebida en un iframe).
+   Blanco, tinta, hairlines; radios de los tokens (≤ 4px).
+   ============================================================ */
+
+.fp {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 48px 16px 24px;
+}
+
+.fp-embed {
+  max-width: none;
+  padding: 0;
+}
+
+.fp-card {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fp-embed .fp-card {
+  border: 0;
+  padding: 4px 2px 8px;
+}
+
+.fp-head { display: flex; flex-direction: column; gap: 6px; }
+.fp-title { font-size: 1.35rem; font-weight: 600; line-height: 1.25; margin: 0; }
+.fp-desc { color: var(--dim); margin: 0; font-size: 0.95rem; line-height: 1.5; white-space: pre-line; }
+
+.fp-form { display: flex; flex-direction: column; gap: 16px; }
+.fp-field { display: flex; flex-direction: column; gap: 6px; }
+.fp-field > label { font-size: 0.85rem; font-weight: 500; }
+.fp-req { color: var(--bad); }
+
+.fp-field input:not([type='checkbox']),
+.fp-field select,
+.fp-field textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 9px 10px;
+  outline: none;
+  transition: border-color 120ms var(--ease);
+}
+
+.fp-field input:focus,
+.fp-field select:focus,
+.fp-field textarea:focus { border-color: var(--ink); }
+
+.fp-field [aria-invalid='true'] { border-color: var(--bad) !important; }
+
+.fp-check label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 400;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.fp-check input { margin-top: 2px; }
+
+.fp-err { color: var(--bad); font-size: 0.8rem; margin: 0; }
+.fp-err-main { font-size: 0.85rem; }
+
+.fp-submit {
+  align-self: flex-start;
+  font: inherit;
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: #fff;
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: var(--r-sm);
+  padding: 10px 18px;
+  cursor: pointer;
+}
+.fp-submit:disabled { opacity: 0.6; cursor: default; }
+
+.fp-done { margin: 0; font-size: 1rem; line-height: 1.5; white-space: pre-line; }
+.fp-paused { margin: 0; color: var(--dim); }
+
+/* Honeypot: fuera de la vista sin display:none (algunos bots lo detectan). */
+.fp-hp {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+@media (max-width: 480px) {
+  .fp { padding-top: 24px; }
+  .fp-card { padding: 20px 16px; }
+  .fp-submit { align-self: stretch; }
+}

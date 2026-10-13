@@ -227,7 +227,11 @@
         "chat_bot": "Bot do chat"
       },
       "quotaNote": "Quando a cota grátis acaba, os recursos de IA pausam até o mês seguinte e voltam ao comportamento sem IA."
-    }
+    },
+    "scopes": "Escopos",
+    "scopesHint": "O que esta chave pode fazer. Chaves criadas antes dos escopos têm todos.",
+    "colScopes": "Escopos",
+    "allScopes": "todos"
   },
   "gate": {
     "title": "Link protegido",

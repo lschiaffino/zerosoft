@@ -11,6 +11,7 @@
  *   un quote enviado vence (expires_at < hoy UTC). La página pública /q/<token>
  *   no muestra borradores.
  */
+import { dealScopeSql, type OwnerScope } from './crm-visibility';
 import { createHmac, randomBytes } from 'node:crypto';
 import { CrmRefError } from './crm-refs';
 import { getCurrencyContext, getCrmSettings } from './crm-currency';
@@ -532,6 +533,8 @@ export async function getQuote(userId: string, id: string, db: Db = getDb()): Pr
 export interface QuoteFilter {
   dealId?: string;
   status?: CrmQuoteStatus;
+  /** Visibilidad por owner: solo quotes de deals visibles. */
+  ownerScope?: OwnerScope;
   page?: number;
   pageSize?: number;
 }
@@ -551,6 +554,11 @@ export async function listQuotes(
   if (f.status) {
     where.push('q.status = ?');
     args.push(f.status);
+  }
+  const vis = dealScopeSql('q.deal_id', f.ownerScope);
+  if (vis.sql) {
+    where.push(vis.sql);
+    args.push(...vis.args);
   }
   const whereSql = where.join(' AND ');
   const total = ((await db.prepare(`SELECT COUNT(*) AS c FROM crm_quotes q WHERE ${whereSql}`).get(...args)) as {

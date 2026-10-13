@@ -1,11 +1,15 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { getCrmOverview, type ActivityListRow } from '@/lib/crm';
 import { getCrmSettings } from '@/lib/crm-currency';
 import { formatMoney } from '@/lib/crm-money';
 import { formatDate, formatNumber } from '@/lib/utils';
 import WonLostChart from '@/components/crm/WonLostChart';
+import QuotaProgressList from '@/components/crm/QuotaProgressList';
+import { quotaProgress } from '@/lib/crm-quotas';
+import { listMembers } from '@/lib/teams';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,10 +50,18 @@ export default async function CrmOverviewPage(
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
-  const o = await getCrmOverview(user.id);
+  const o = await getCrmOverview(user.id, scope);
   // Totales en la moneda base (los deals en otras monedas se convierten).
   const base = (await getCrmSettings(user.id)).baseCurrency;
+  const members = user.team?.id
+    ? await listMembers(user.team.id)
+    : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
+  const quotas = await quotaProgress(user.id, {
+    ownerIds: scope,
+    people: members.map((m) => ({ id: m.user_id, name: m.name || m.email })),
+  });
 
   const allZero =
     o.totalContacts === 0 &&
@@ -198,6 +210,18 @@ export default async function CrmOverviewPage(
           )}
         </section>
       </div>
+
+      {quotas.length > 0 && (
+        <section className="panel" data-testid="overview-quotas">
+          <div className="panel-head">
+            <p className="section-label">{t('quotas.title')}</p>
+            <Link href="/app/crm/settings#quotas" className="mono panel-more">
+              {t('quotas.manage')} →
+            </Link>
+          </div>
+          <QuotaProgressList items={quotas} baseCurrency={base} locale={locale} compact />
+        </section>
+      )}
 
       <section className="panel">
         <div className="panel-head">

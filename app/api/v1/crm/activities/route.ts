@@ -5,13 +5,14 @@ import { createActivity, listTimeline } from '@/lib/crm';
 import { activityCreateSchema } from '@/lib/crm-schema';
 import { ACTIVITY_TYPES, type ActivityType } from '@/lib/crm-constants';
 import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
+import { apiScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** Timeline de un registro: notas, llamadas, reuniones, emails y tareas. */
 export async function GET(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:read');
   if ('res' in auth) return auth.res;
   const sp = req.nextUrl.searchParams;
   const contactId = sp.get('contactId') ?? undefined;
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
   const typeParam = sp.get('type');
   const type = (ACTIVITY_TYPES as readonly string[]).includes(typeParam ?? '') ? (typeParam as ActivityType) : undefined;
   const limit = Math.min(Math.max(Number(sp.get('limit') ?? '50') || 50, 1), 200);
-  const rows = await listTimeline(auth.user.id, { contactId, companyId, dealId, type, limit });
+  const rows = await listTimeline(auth.user.id, { contactId, companyId, dealId, type, limit, ownerScope: await apiScope(auth) });
   return NextResponse.json({ activities: rows.map(cleanRow) });
 }
 
@@ -33,7 +34,7 @@ const v1ActivitySchema = activityCreateSchema.extend({
 });
 
 export async function POST(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
   const body: unknown = await req.json().catch(() => null);
   const parsed = v1ActivitySchema.safeParse(body);

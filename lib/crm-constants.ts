@@ -20,7 +20,7 @@ export const LEAD_STATUSES = [
   'connected',
   'bad_timing',
 ] as const;
-export const SOURCES = ['organic', 'referral', 'ads', 'social', 'email', 'event', 'other'] as const;
+export const SOURCES = ['organic', 'referral', 'ads', 'social', 'email', 'event', 'form', 'other'] as const;
 export const ACTIVITY_TYPES = ['note', 'task', 'call', 'meeting', 'email'] as const;
 export const PRIORITIES = ['low', 'medium', 'high'] as const;
 

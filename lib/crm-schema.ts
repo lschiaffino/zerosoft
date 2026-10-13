@@ -496,3 +496,28 @@ export type CustomFieldCreatePayload = z.infer<typeof customFieldCreateSchema>;
 export type CustomFieldUpdatePayload = z.infer<typeof customFieldUpdateSchema>;
 export type ImportContactsPayload = z.infer<typeof importContactsSchema>;
 export type ImportCompaniesPayload = z.infer<typeof importCompaniesSchema>;
+
+// ---------- Equipos, visibilidad, round-robin y cuotas (bloque 5) ----------
+
+export const visibilitySchema = z.object({ visibility: z.enum(['all', 'mine', 'team']) });
+
+export const salesTeamCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  members: z.array(id).max(200).optional(),
+});
+export const salesTeamUpdateSchema = salesTeamCreateSchema.partial();
+
+export const assignmentRuleSchema = z.object({
+  enabled: z.boolean(),
+  sources: z.array(z.enum(['form', 'chat', 'cal', 'import', 'api'])).max(5),
+  pool: z.array(id).max(200),
+});
+
+export const availabilitySchema = z.object({ personId: id, available: z.boolean() });
+
+export const quotaUpsertSchema = z.object({
+  personId: id,
+  metric: z.enum(['won_value', 'won_count', 'meetings']),
+  period: z.enum(['month', 'quarter']),
+  target: z.number().min(0).max(1e12),
+});

@@ -21,7 +21,7 @@ const MESSAGES: Record<string, string> = {
  */
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
   const body: unknown = await req.json().catch(() => null);
   const parsed = enrollSchema.safeParse(body);

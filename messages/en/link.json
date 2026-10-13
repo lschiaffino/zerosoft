@@ -227,7 +227,11 @@
         "chat_bot": "Chat bot"
       },
       "quotaNote": "When the free quota runs out, AI features pause until next month and fall back to non-AI behavior."
-    }
+    },
+    "scopes": "Scopes",
+    "scopesHint": "What this key can do. Keys created before scopes have all of them.",
+    "colScopes": "Scopes",
+    "allScopes": "all"
   },
   "gate": {
     "title": "Protected link",

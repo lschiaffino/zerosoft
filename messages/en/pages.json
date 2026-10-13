@@ -1191,6 +1191,22 @@
     "paramTagColor": "Color: crm, link, cal, track, chat, docs, flow, agents, notes, board or robots.",
     "paramTagEntity": "Record type: contact, company or deal.",
     "paramTagIds": "Record ids.",
-    "paramTagAction": "add or remove."
+    "paramTagAction": "add or remove.",
+    "scopeLabel": "Scope",
+    "scopesIntro": "Every key has scopes, chosen when you create it. Write scopes include read. Keys created before scopes existed have all of them. A request without the needed scope gets 403 insufficient_scope.",
+    "scopesVisibility": "A key acts as the person who created it: if your workspace limits members to their own (or their team’s) CRM records, the API returns only those records.",
+    "scope_crm_read": "Read contacts, companies, deals, activities, tasks, pipelines, products, quotes, tags, templates, sequences and forms.",
+    "scope_crm_write": "Create, update and delete CRM records, enroll in sequences, tag records (includes crm:read).",
+    "scope_links_read": "List links and read their stats.",
+    "scope_links_write": "Create, update and delete short links (includes links:read).",
+    "scope_cal_read": "List event types and bookings.",
+    "scope_cal_write": "Create and cancel bookings (includes cal:read).",
+    "scope_agents_run": "Send messages to your AI agents.",
+    "crmFormsTitle": "CRM · Forms",
+    "crmFormsDesc": "Lead capture forms and their submissions. Each submission also creates or updates a contact and logs a \"Form submitted\" activity.",
+    "formsListTitle": "List forms",
+    "formsListDesc": "All forms in the workspace with their fields, status and submission count. `key` is the public slug (or token) used in /f/<key> and the embed script.",
+    "formsSubmissionsTitle": "List form submissions",
+    "formsSubmissionsDesc": "Submissions of a form, newest first, with the submitted values, UTM parameters and the linked contact."
   }
 }

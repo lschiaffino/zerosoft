@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { listQuotes } from '@/lib/crm-products';
 import { QUOTE_STATUSES, type QuoteStatus } from '@/lib/crm-constants';
 import { formatMoney } from '@/lib/crm-money';
@@ -23,7 +24,7 @@ export default async function QuotesPage(props: QuotesPageProps) {
   const statusParam = typeof sp.status === 'string' ? sp.status : '';
   const status = (QUOTE_STATUSES as readonly string[]).includes(statusParam) ? (statusParam as QuoteStatus) : undefined;
   const page = Number(typeof sp.page === 'string' ? sp.page : '1') || 1;
-  const { rows, total } = await listQuotes(user.id, { status, page, pageSize: 50 });
+  const { rows, total } = await listQuotes(user.id, { status, page, pageSize: 50, ownerScope: await sessionScope(user) });
   const pages = Math.max(Math.ceil(total / 50), 1);
 
   const fmtDay = (d: string | null) =>

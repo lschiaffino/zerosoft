@@ -17,7 +17,7 @@ const createSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'links:write');
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'links:read');
   if ('res' in auth) return auth.res;
 
   const sp = req.nextUrl.searchParams;

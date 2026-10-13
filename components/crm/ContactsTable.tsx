@@ -20,6 +20,8 @@ export interface ContactRow {
   lifecycle: string;
   leadStatus: string;
   source: string;
+  /** Lead score (lib/crm-scoring.ts). */
+  score: number;
   created: string;
   tags?: TagDot[];
 }
@@ -51,6 +53,7 @@ const COLS = [
   { id: 'lifecycle', labelKey: 'contacts.table.lifecycle', defaultVisible: true },
   { id: 'leadStatus', labelKey: 'contacts.table.leadStatus', defaultVisible: true },
   { id: 'source', labelKey: 'contacts.table.source', defaultVisible: false },
+  { id: 'score', labelKey: 'scoring.column', defaultVisible: true },
   { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
   { id: 'created', labelKey: 'contacts.table.created', defaultVisible: true },
 ];
@@ -178,6 +181,11 @@ export default function ContactsTable({
               {visible.has('lifecycle') && <th>{t('contacts.table.lifecycle')}</th>}
               {visible.has('leadStatus') && <th>{t('contacts.table.leadStatus')}</th>}
               {visible.has('source') && <th>{t('contacts.table.source')}</th>}
+              {visible.has('score') && (
+                <th className="num">
+                  <SortTh label={t('scoring.column')} asc="score_asc" desc="score" current={sort} />
+                </th>
+              )}
               {visible.has('tags') && <th>{t('tags.column')}</th>}
               {visible.has('created') && (
                 <th>
@@ -300,6 +308,11 @@ export default function ContactsTable({
                       options={sourceOpts}
                       className="muted"
                     />
+                  </td>
+                )}
+                {visible.has('score') && (
+                  <td className="num mono cell-score" data-testid="contact-score">
+                    {row.score}
                   </td>
                 )}
                 {visible.has('tags') && (

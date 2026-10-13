@@ -3036,3 +3036,207 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
   .tags-row { grid-template-columns: 8px minmax(0, 1fr) auto; }
   .tags-row .tag-swatches, .tags-row .tags-count { grid-column: 2 / span 2; }
 }
+
+/* ============================================================
+   CRM bloques 4-5: formularios, lead scoring, acceso, round-robin y cuotas.
+   Hairlines, sin pills; radios de tokens (≤ 4px).
+   ============================================================ */
+
+/* ---------- Forms: lista ---------- */
+.forms-status { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.forms-status-active { color: var(--ok); }
+.forms-status-paused { color: var(--warn); }
+.forms-status-archived { color: var(--dim); }
+.forms-link-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.forms-url { font-size: 12px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.qm-note { font-size: 0.85rem; margin: 4px 0 0; }
+
+/* ---------- Forms: detalle ---------- */
+.forms-tabs { margin: 8px 0 20px; }
+.forms-tabs a { text-decoration: none; }
+
+.fb {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 0 32px;
+  align-items: start;
+}
+.fb-main, .fb-side { display: flex; flex-direction: column; min-width: 0; }
+.fb-section { padding: 20px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
+.fb-section:first-child { border-top: 0; padding-top: 0; }
+.fb-section-head h2 { font-size: 0.95rem; font-weight: 600; margin: 0; }
+.fb-section-head p { margin: 4px 0 0; font-size: 0.85rem; }
+
+.fb-fields { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.fb-field { border-bottom: 1px solid var(--line); padding: 8px 0; }
+.fb-field:first-child { border-top: 1px solid var(--line); }
+.fb-field-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) minmax(90px, 0.8fr) minmax(120px, 1.1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+.fb-field-row .input, .fb-field-row .filter-select { width: 100%; min-width: 0; }
+.fb-req { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; white-space: nowrap; }
+.fb-field-actions { display: flex; gap: 2px; }
+.fb-field-more { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 10px 0 4px; }
+
+.fb-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.fb-span { grid-column: 1 / -1; }
+.fb-stack { display: flex; flex-direction: column; gap: 12px; }
+.fb-inline { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fb-inline > span { font-size: 0.78rem; color: var(--dim); }
+.fb-inline .input, .fb-inline .textarea, .fb-inline .filter-select { width: 100%; }
+.fb-check { display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; cursor: pointer; }
+.fb-tags { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.fb-tags legend { font-size: 0.78rem; color: var(--dim); margin-bottom: 4px; }
+
+.fb-savebar {
+  grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  z-index: 2;
+}
+.fb-savebar .form-error { margin: 0 auto 0 0; }
+
+.forms-share { display: flex; flex-direction: column; }
+.forms-share-block { padding: 18px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.forms-share-block:first-child { border-top: 0; padding-top: 0; }
+.forms-share-block h2 { font-size: 0.95rem; margin: 0; }
+.forms-share-block p { margin: 0; font-size: 0.85rem; }
+.forms-share-row { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.forms-code {
+  flex: 1 1 320px;
+  min-width: 0;
+  font-size: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--subtle);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.forms-share-note { font-size: 0.8rem !important; }
+
+.forms-subs { display: flex; flex-direction: column; gap: 12px; }
+.forms-subs-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.forms-new { font-size: 11px; }
+.forms-sub-detail td { background: var(--subtle); }
+.forms-dl { display: grid; grid-template-columns: minmax(120px, 220px) minmax(0, 1fr); gap: 6px 16px; margin: 4px 0; font-size: 0.88rem; }
+.forms-dl dt { color: var(--dim); }
+.forms-dl dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.forms-break { overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  .fb { grid-template-columns: minmax(0, 1fr); }
+  .fb-field-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .fb-field-row .fb-label { grid-column: 1 / -1; }
+  .fb-field-more, .fb-grid { grid-template-columns: minmax(0, 1fr); }
+  .forms-dl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .forms-dl dd { margin-bottom: 6px; }
+}
+
+/* ---------- Lead scoring ---------- */
+.cell-score { width: 64px; }
+.score-panel { display: flex; flex-direction: column; gap: 14px; }
+.score-rules { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.score-rule {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+.score-rule.off { opacity: 0.5; }
+.score-points { font-size: 12px; text-align: right; }
+.score-points.pos { color: var(--ok); }
+.score-points.neg { color: var(--bad); }
+.score-actions { display: flex; gap: 4px; }
+.score-add { display: flex; flex-direction: column; gap: 8px; }
+.score-add-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.score-add-row .input { min-width: 0; flex: 1 1 140px; }
+.score-num { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; }
+.score-num .input { width: 76px; flex: 0 0 auto; }
+
+.score-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.detail-grid-3 .score-card .section-label { margin-bottom: 0; }
+.score-card-value { font-size: 1.6rem; line-height: 1; }
+.score-card-empty { margin: 8px 0 0; font-size: 0.85rem; }
+.score-breakdown { list-style: none; margin: 10px 0 0; padding: 0; }
+.score-breakdown li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+  align-items: baseline;
+}
+.score-detail { font-size: 11px; }
+
+/* ---------- Acceso: visibilidad y equipos ---------- */
+.access-panel { display: flex; flex-direction: column; gap: 22px; }
+.access-vis { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.access-radio { display: flex; gap: 8px; align-items: flex-start; font-size: 0.9rem; cursor: pointer; }
+.access-radio input { margin-top: 3px; }
+.access-note { font-size: 0.82rem; margin: 0; }
+.access-teams { display: flex; flex-direction: column; gap: 10px; }
+.access-team-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.access-team { padding: 10px 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.access-team-head { display: flex; gap: 8px; align-items: center; }
+.access-team-head .input { max-width: 280px; }
+.access-members { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.access-new { display: flex; gap: 8px; max-width: 420px; }
+
+/* ---------- Round-robin ---------- */
+.assign-panel { display: flex; flex-direction: column; gap: 18px; }
+.assign-sources { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.assign-sources legend { margin-bottom: 8px; }
+.assign-people { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.assign-person {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.assign-person.out { color: var(--dim); }
+.assign-order { width: 18px; display: inline-block; text-align: right; font-size: 11px; }
+.assign-person-actions { display: flex; align-items: center; gap: 6px; }
+.assign-ooo { font-size: 0.8rem; }
+.assign-history-list { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; }
+.assign-history-list li { padding: 5px 0; border-bottom: 1px solid var(--line); }
+
+/* ---------- Cuotas ---------- */
+.quota-panel { display: flex; flex-direction: column; gap: 14px; }
+.quota-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.quota-list.compact { gap: 10px; }
+.quota-item { display: flex; flex-direction: column; gap: 6px; }
+.quota-line { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; flex-wrap: wrap; font-size: 0.88rem; }
+.quota-who { min-width: 0; }
+.quota-nums { font-size: 12px; margin-left: auto; }
+.quota-ok { color: var(--ok); }
+.quota-behind { color: var(--warn); }
+.quota-bar { position: relative; height: 4px; background: var(--subtle); border-radius: var(--r-xs); overflow: visible; }
+.quota-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink); border-radius: var(--r-xs); }
+.quota-fill.behind { background: var(--warn); }
+.quota-mark { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--dim); }
+.report-quotas { margin-top: 24px; }
+.report-quotas .section-label { margin-bottom: 14px; }
+
+/* ---------- Workflows v2 ---------- */
+.workflow-when { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; margin-top: 6px; }
+.workflow-hint { font-size: 0.8rem; margin: 4px 0 0; }
+.access-teams .section-label, .assign-pool .section-label, .assign-history .section-label { margin-bottom: 2px; }
+.access-vis legend, .assign-sources legend { margin-bottom: 8px; }

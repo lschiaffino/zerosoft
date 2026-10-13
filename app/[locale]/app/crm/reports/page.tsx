@@ -1,5 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
+import { quotaProgress } from '@/lib/crm-quotas';
+import QuotaProgressList from '@/components/crm/QuotaProgressList';
 import { getCrmReports, listPipelinesWithStages, PRIORITIES, SOURCES } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
 import {
@@ -57,6 +60,8 @@ export default async function CrmReportsPage(
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
+  // Visibilidad por owner: un member restringido solo ve sus owners visibles.
+  const scope = await sessionScope(user);
 
   const rangeLabel: ReportRangeLabel = RANGE_LABELS.includes(one(searchParams.range) as ReportRangeLabel)
     ? (one(searchParams.range) as ReportRangeLabel)
@@ -77,13 +82,14 @@ export default async function CrmReportsPage(
       ? one(searchParams.priority)
       : undefined,
     ownerId: one(searchParams.owner),
+    ownerIds: scope ?? undefined,
   };
 
   const reportType: ReportType = REPORT_TYPES.includes(one(searchParams.report) as ReportType)
     ? (one(searchParams.report) as ReportType)
     : 'overview';
 
-  const reports = await getCrmReports(user.id);
+  const reports = await getCrmReports(user.id, scope);
   const pipelines = await listPipelinesWithStages(user.id);
 
   const defaultId = pipelines[0]?.id ?? null;
@@ -93,18 +99,20 @@ export default async function CrmReportsPage(
 
   const funnel: FunnelReportStage[] =
     selectedPipelineId && selectedPipelineId !== defaultId
-      ? await reportFunnel(user.id, selectedPipelineId)
+      ? await reportFunnel(user.id, selectedPipelineId, scope ?? undefined)
       : toFunnelReportStages(reports.funnel);
 
   const forecastByStage: ForecastReportStage[] =
     selectedPipelineId && selectedPipelineId !== defaultId
-      ? await reportForecast(user.id, selectedPipelineId)
+      ? await reportForecast(user.id, selectedPipelineId, scope ?? undefined)
       : reports.forecastByStage;
 
   const teamMembers = user.team?.id
     ? await listMembers(user.team.id)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
-  const owners = teamMembers.map((m) => ({ id: m.user_id, email: m.email, name: m.name }));
+  const owners = teamMembers
+    .filter((m) => !scope || scope.includes(m.user_id))
+    .map((m) => ({ id: m.user_id, email: m.email, name: m.name }));
 
   const [kpis, timeseries, byOwner] = await Promise.all([
     reportKpis(user.id, range, filters),
@@ -120,6 +128,10 @@ export default async function CrmReportsPage(
   ]);
 
   const [crmSettings, missing] = await Promise.all([getCrmSettings(user.id), missingRates(user.id)]);
+  const quotas = await quotaProgress(user.id, {
+    ownerIds: scope,
+    people: teamMembers.map((m) => ({ id: m.user_id, name: m.name || m.email })),
+  });
 
   return (
     <div className="app-page">
@@ -150,6 +162,12 @@ export default async function CrmReportsPage(
         activityLeaderboard={activityLeaderboard}
         conversionRate={conversionRate}
       />
+      {quotas.length > 0 && (
+        <section className="panel report-quotas" data-testid="report-quotas">
+          <p className="section-label">{t('quotas.title')}</p>
+          <QuotaProgressList items={quotas} baseCurrency={crmSettings.baseCurrency} locale={locale} />
+        </section>
+      )}
     </div>
   );
 }

@@ -421,6 +421,7 @@ export async function importContacts(
   const result = emptyResult(rows.length);
   const people = await workspacePeople(userId, getDb());
   const defs = await listCustomFields(userId, 'contacts');
+  const unowned: string[] = [];
   await ensureMigrated();
   const tx = await getClient().transaction();
   const tdb = txDb(tx);
@@ -460,7 +461,8 @@ export async function importContacts(
         await updateContact(userId, existing.id, { ...data, ...(custom ? { custom } : {}) }, tdb);
         result.updated++;
       } else {
-        await createContact(userId, { ...data, custom: customVals }, tdb);
+        const created = await createContact(userId, { ...data, custom: customVals }, tdb);
+        if (!ownerId) unowned.push(created.id);
         result.created++;
       }
     }
@@ -469,6 +471,11 @@ export async function importContacts(
   } catch (e) {
     await tx.rollback();
     throw e;
+  }
+  // Round-robin (fuente "import") para los contactos nuevos sin owner en el CSV.
+  if (unowned.length) {
+    const { assignNewLead } = await import('./crm-assignment');
+    for (const id of unowned) await assignNewLead(userId, id, 'import');
   }
   return result;
 }

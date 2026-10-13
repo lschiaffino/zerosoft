@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { exportRows, type ExportEntity } from '@/lib/crm';
 import { crmError, unauthorized, forbidden } from '@/lib/crm-http';
 
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
   if (!entity || !ENTITIES.includes(entity)) return crmError(400, 'invalid_input');
   if (format !== 'csv' && format !== 'json') return crmError(400, 'invalid_input');
 
-  const rows = await exportRows(user.id, entity);
+  const rows = await exportRows(user.id, entity, await sessionScope(user));
   const date = new Date().toISOString().slice(0, 10);
   const filename = `crm-${entity}-${date}.${format}`;
 

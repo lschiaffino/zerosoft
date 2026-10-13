@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { sessionScope, visibleIds } from '@/lib/crm-visibility';
 import { bulkDeleteCompanies, bulkUpdateCompanies, LIFECYCLE_STAGES } from '@/lib/crm';
 import { crmError, forbidden, unauthorized } from '@/lib/crm-http';
 
@@ -21,7 +22,8 @@ export async function POST(req: NextRequest) {
   const parsed = bulkSchema.safeParse(body);
   if (!parsed.success) return crmError(400, 'invalid_input');
 
-  const { action, ids, value } = parsed.data;
+  const { action, value } = parsed.data;
+  const ids = await visibleIds(user.id, 'crm_companies', parsed.data.ids, await sessionScope(user));
   if (action === 'set_lifecycle') {
     if (!value || !(LIFECYCLE_STAGES as readonly string[]).includes(value)) {
       return crmError(400, 'invalid_input');

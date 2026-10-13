@@ -22,16 +22,32 @@ export interface TagWithCount extends CrmTagRow {
   deals: number;
 }
 
-export async function listTags(userId: string, db: Db = getDb()): Promise<TagWithCount[]> {
+/**
+ * Tags del workspace con la cantidad de registros de cada entidad. Con
+ * `ownerScope` (visibilidad por owner) solo cuenta los registros visibles.
+ */
+export async function listTags(
+  userId: string,
+  db: Db = getDb(),
+  ownerScope?: string[] | null,
+): Promise<TagWithCount[]> {
+  const count = (entity: TagEntity) => {
+    const base = `SELECT COUNT(*) FROM crm_record_tags rt WHERE rt.tag_id = t.id AND rt.entity = '${entity}'`;
+    if (!ownerScope) return { sql: base, args: [] as string[] };
+    if (!ownerScope.length) return { sql: '0', args: [] as string[] };
+    const ph = ownerScope.map(() => '?').join(',');
+    return {
+      sql: `${base} AND EXISTS (SELECT 1 FROM ${TABLE[entity]} vr WHERE vr.id = rt.record_id AND COALESCE(vr.owner_id, vr.user_id) IN (${ph}))`,
+      args: [...ownerScope],
+    };
+  };
+  const [c, co, d] = [count('contact'), count('company'), count('deal')];
   return (await db
     .prepare(
-      `SELECT t.*,
-         (SELECT COUNT(*) FROM crm_record_tags rt WHERE rt.tag_id = t.id AND rt.entity = 'contact') AS contacts,
-         (SELECT COUNT(*) FROM crm_record_tags rt WHERE rt.tag_id = t.id AND rt.entity = 'company') AS companies,
-         (SELECT COUNT(*) FROM crm_record_tags rt WHERE rt.tag_id = t.id AND rt.entity = 'deal') AS deals
+      `SELECT t.*, (${c.sql}) AS contacts, (${co.sql}) AS companies, (${d.sql}) AS deals
        FROM crm_tags t WHERE t.user_id = ? ORDER BY t.name COLLATE NOCASE ASC`,
     )
-    .all(userId)) as TagWithCount[];
+    .all(...c.args, ...co.args, ...d.args, userId)) as TagWithCount[];
 }
 
 export async function getTag(userId: string, id: string, db: Db = getDb()): Promise<CrmTagRow | null> {

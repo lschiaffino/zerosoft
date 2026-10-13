@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { canSeeQuote, sessionScope } from '@/lib/crm-visibility';
 import { deleteQuote, getQuote, markQuoteSent, updateQuote } from '@/lib/crm-products';
 import { quoteUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
@@ -13,6 +14,7 @@ export async function GET(_req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!(await canSeeQuote(user.id, id, await sessionScope(user)))) return notFound();
   const quote = await getQuote(user.id, id);
   if (!quote) return notFound();
   return NextResponse.json(quote);
@@ -22,6 +24,7 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!(await canSeeQuote(user.id, id, await sessionScope(user)))) return notFound();
   const body: unknown = await req.json().catch(() => null);
   const parsed = quoteUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
@@ -50,6 +53,7 @@ export async function DELETE(_req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!(await canSeeQuote(user.id, id, await sessionScope(user)))) return notFound();
   if (!(await deleteQuote(user.id, id))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

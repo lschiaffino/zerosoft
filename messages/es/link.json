@@ -227,7 +227,11 @@
         "chat_bot": "Bot del chat"
       },
       "quotaNote": "Cuando se agota la cuota gratis, las funciones de AI se pausan hasta el mes siguiente y vuelven al comportamiento sin AI."
-    }
+    },
+    "scopes": "Scopes",
+    "scopesHint": "Qué puede hacer esta key. Las keys creadas antes de los scopes tienen todos.",
+    "colScopes": "Scopes",
+    "allScopes": "todos"
   },
   "gate": {
     "title": "Link protegido",

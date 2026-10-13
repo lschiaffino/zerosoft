@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { setRecordTags, tagsForRecords } from '@/lib/crm-tags';
 import { recordTagsSchema } from '@/lib/crm-schema';
-import { catchRef, crmError, CrmRefError, invalidBody, unauthorized } from '@/lib/crm-http';
+import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { canSeeEntity, sessionScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,7 @@ export async function PUT(req: NextRequest) {
   const parsed = recordTagsSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
   const { entity, recordId, tagIds } = parsed.data;
+  if (!(await canSeeEntity(user.id, entity, recordId, await sessionScope(user)))) return notFound();
   const res = await catchRef(setRecordTags(user.id, entity, recordId, tagIds));
   if (res instanceof CrmRefError) return crmError(400, res.code);
   const tags = await tagsForRecords(user.id, entity, [recordId]);

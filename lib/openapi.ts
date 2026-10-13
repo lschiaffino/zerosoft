@@ -2,7 +2,7 @@
  * Spec OpenAPI 3.1 generada desde lib/api-docs.ts (la misma fuente que la
  * página /docs), así la spec y la documentación no se separan nunca.
  */
-import { API_BASE_URL, API_ENDPOINTS, API_SECTIONS, type ApiEndpoint } from './api-docs';
+import { API_BASE_URL, API_ENDPOINTS, API_SECTIONS, endpointScope, type ApiEndpoint } from './api-docs';
 import docsEn from '@/messages/en/pages.json';
 
 const text = (docsEn as unknown as { docs: Record<string, string> }).docs;
@@ -47,9 +47,15 @@ function operation(e: ApiEndpoint): Record<string, unknown> {
       },
       '400': { description: 'Invalid input: { "error": { "code", "message" } }' },
       '401': { description: 'Missing or invalid API key' },
+      '403': { description: 'The API key is missing the required scope (insufficient_scope)' },
       '429': { description: 'Rate limited (100 requests/min per key)' },
     },
   };
+  const scope = endpointScope(e);
+  if (scope) {
+    op['x-required-scope'] = scope;
+    op.security = [{ bearerAuth: [scope] }];
+  }
   if (hasBody) {
     const bodyParams = params.filter((p) => !pathParams.includes(p.name));
     op.requestBody = {
@@ -85,7 +91,7 @@ export function buildOpenApiSpec(): Record<string, unknown> {
     info: {
       title: 'Zerosoft API',
       version: '1.0.0',
-      description: 'REST API for Link, CRM and Cal. Authenticate with a personal key: `Authorization: Bearer zs_…`.',
+      description: 'REST API for Link, CRM and Cal. Authenticate with a personal key: `Authorization: Bearer zs_…`. Each key has scopes (crm:read, crm:write, links:read, links:write, cal:read, cal:write, agents:run); write includes read. A key acts as the person who created it, so CRM record visibility rules apply.',
       license: { name: 'AGPL-3.0', url: 'https://www.gnu.org/licenses/agpl-3.0.html' },
     },
     servers: [{ url: origin }],

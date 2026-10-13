@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import {
   listCustomFields,
@@ -96,6 +97,7 @@ export default async function DealsPage(props: DealsPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   const pipelines = await listPipelinesWithStages(user.id);
@@ -230,6 +232,7 @@ export default async function DealsPage(props: DealsPageProps) {
     const page = Number(one(searchParams.page) ?? '1') || 1;
 
     const { rows, total } = await listDeals(user.id, {
+      ownerScope: scope,
       pipelineId: pipeline.id,
       q: q || undefined,
       stageId: stageId || undefined,
@@ -392,7 +395,7 @@ export default async function DealsPage(props: DealsPageProps) {
 
   // ---------- Vista board (con totales del pipeline) ----------
   const boardStages =
-    view === 'board' ? withAges(await listDealsForBoard(user.id, pipeline.id)) : null;
+    view === 'board' ? withAges(await listDealsForBoard(user.id, pipeline.id, scope)) : null;
   const openStages = boardStages?.filter((c) => !c.stage.is_won && !c.stage.is_lost) ?? [];
   const totals = boardStages
     ? {

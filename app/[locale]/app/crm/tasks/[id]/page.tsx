@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { canSeeActivity, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import { getActivity, listCompanies, listContacts, listTaskFiles, listTaskProjects, type ActivityListRow } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
@@ -50,20 +51,22 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
 
   const timeZone = await getUserTimeZone();
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   const task = await getActivity(user.id, id);
   if (!task || task.type !== 'task') notFound();
+  if (!(await canSeeActivity(user.id, id, scope))) notFound();
 
   const files = await listTaskFiles(id);
   const projects = await listTaskProjects(user.id, true);
-  const contacts = (await listContacts(user.id, { pageSize: 200, sort: 'name' })).rows;
-  const companies = (await listCompanies(user.id, { pageSize: 200, sort: 'name' })).rows;
+  const contacts = (await listContacts(user.id, { pageSize: 200, sort: 'name', ownerScope: scope })).rows;
+  const companies = (await listCompanies(user.id, { pageSize: 200, sort: 'name', ownerScope: scope })).rows;
   const deals = (await getDb()
-    .prepare('SELECT id, name FROM crm_deals WHERE user_id = ? ORDER BY created_at DESC LIMIT 200')
-    .all(user.id)) as Array<{ id: string; name: string }>;
+    .prepare(`SELECT id, name FROM crm_deals WHERE user_id = ?${scopeAnd('crm_deals', scope).sql} ORDER BY created_at DESC LIMIT 200`)
+    .all(user.id, ...scopeAnd('crm_deals', scope).args)) as Array<{ id: string; name: string }>;
 
   const teamMembers = user.team?.id
     ? await listMembers(user.team.id)

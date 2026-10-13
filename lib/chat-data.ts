@@ -826,6 +826,7 @@ export async function getChatConversationWithVisitor(
         co.website AS co_website, co.city AS co_city, co.country AS co_country,
         co.lifecycle_stage AS co_lifecycle_stage, co.lead_status AS co_lead_status,
         co.source AS co_source, co.company_id AS co_company_id, co.custom AS co_custom,
+        co.score AS co_score, co.score_breakdown AS co_score_breakdown, co.score_updated_at AS co_score_updated_at,
         co.created_at AS co_created_at, co.updated_at AS co_updated_at
        FROM chat_conversations c
        JOIN chat_visitors v ON v.id = c.visitor_id
@@ -867,6 +868,9 @@ export async function getChatConversationWithVisitor(
         source: row.co_source as string,
         company_id: (row.co_company_id as string | null) ?? null,
         custom: row.co_custom as string,
+        score: Number(row.co_score ?? 0),
+        score_breakdown: (row.co_score_breakdown as string | null) ?? '[]',
+        score_updated_at: (row.co_score_updated_at as string | null) ?? null,
         created_at: row.co_created_at as string,
         updated_at: row.co_updated_at as string,
       }

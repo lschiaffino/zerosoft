@@ -5,6 +5,7 @@ import { processFlowQueue } from '@/lib/flow-worker';
 import { runDueRobots } from '@/lib/robots';
 import { syncDueMailboxes } from '@/lib/crm-email-sync';
 import { processSequences } from '@/lib/crm-sequences';
+import { runNightlyScoring } from '@/lib/crm-scoring';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
@@ -31,8 +32,10 @@ export async function GET(req: NextRequest) {
   // Primero el sync (detecta respuestas → salen de la secuencia), después los envíos.
   const emailSync = await syncDueMailboxes({ limit: 25, maxMessages: 50 }).catch(() => null);
   const sequences = await processSequences({ limit: 100 }).catch(() => null);
+  // Lead scoring: recálculo completo una vez por día por workspace (ventanas de N días).
+  const scoring = await runNightlyScoring(new Date(), 10).catch(() => null);
   // Robots al final: son lo más lento y usan el tiempo que queda.
   // El tick tiene 300 s: los robots usan lo que quede (con margen).
   const robots = await runDueRobots(new Date(), 5, Math.max(0, 270_000 - (Date.now() - tickStart)));
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow, emailSync, sequences, robots });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow, emailSync, sequences, scoring, robots });
 }

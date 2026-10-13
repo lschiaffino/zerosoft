@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 /** POST { reason? } — cancela, avisa al invitado (email + .ics) y emite booking.cancelled. */
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'cal:write');
   if ('res' in auth) return auth.res;
   const { id } = await props.params;
   const booking = await ownedBooking(auth.user.id, id);
