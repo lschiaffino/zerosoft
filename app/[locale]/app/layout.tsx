@@ -199,6 +199,7 @@ export default async function AppLayout(
             { href: '/app/track/projects', label: tTrack('sidebar.projects') },
             { href: '/app/track/issues', label: tTrack('sidebar.issues') },
             { href: '/app/track/inbox', label: tTrack('sidebar.inbox') },
+            { href: '/app/track/settings', label: tTrack('sidebar.settings') },
             { href: '/app/chat', label: tChat('sidebar.overview') },
             { href: '/app/chat/inbox', label: tChat('sidebar.inbox') },
             { href: '/app/chat/people', label: tChat('sidebar.people') },

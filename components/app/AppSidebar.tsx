@@ -348,6 +348,11 @@ export default function AppSidebar({
         },
       ],
     },
+    {
+      items: [
+        { href: '/app/track/settings', label: labels.track.settings, active: pathname.startsWith('/app/track/settings'), icon: 'settings' },
+      ],
+    },
   ];
 
   const chatNav: Array<{ section?: string; items: Item[] }> = [

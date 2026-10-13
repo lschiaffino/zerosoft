@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { getProject, canAccessTrackProject } from '@/lib/track-data';
 import ProjectPageClient from '@/components/track/ProjectPageClient';
 import { buildTrackUiLabels } from '@/components/track/ui-labels';
@@ -30,6 +30,7 @@ export default async function ProjectPage(
       locale={locale}
       projectId={id}
       userId={user.id}
+      isAdmin={isWorkspaceAdmin(user)}
       labels={{
         newIssue: t('project.newIssue'),
         issues: t('project.issues'),

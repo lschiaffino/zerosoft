@@ -605,3 +605,84 @@ test('Chat: Reports tiene su propia entrada en la navegación', async ({ page })
   await expect(page).toHaveURL(/\/app\/chat\/reports/);
   await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
 });
+
+// ---------- Track d9: labels, edición masiva, GitHub y triage ----------
+test.describe('track d9', () => {
+  test('labels del workspace, edición masiva, GitHub y triage', async ({ page, request }) => {
+    const { createHmac } = await import('crypto');
+    const p = await request.post('/api/track/projects', { data: { name: `D9 ${uid()}` } });
+    expect(p.status()).toBe(201);
+    const project = await p.json();
+    const ids: string[] = [];
+    for (const title of ['Uno', 'Dos', 'Tres']) {
+      const r = await request.post(`/api/track/projects/${project.id}/issues`, { data: { title } });
+      ids.push((await r.json()).id);
+    }
+
+    // Labels del workspace: alta por API y visibles en Ajustes.
+    const labelName = `d9-${uid()}`;
+    expect((await request.post('/api/track/labels', { data: { name: labelName, color: '#2f6fd1' } })).status()).toBe(201);
+    await page.goto('/en/app/track/settings', { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('track-labels-settings')).toContainText('Labels');
+    await expect(page.getByTestId('track-label-row').locator(`input[value="${labelName}"]`)).toBeVisible();
+
+    // Edición masiva: checkbox + shift+clic y barra de acciones.
+    await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+    const boxes = page.getByTestId('track-select-row');
+    await expect(boxes).toHaveCount(3);
+    await boxes.nth(0).click();
+    await boxes.nth(2).click({ modifiers: ['Shift'] });
+    await expect(page.getByTestId('track-bulk-bar')).toContainText('3 selected');
+    await page.getByTestId('track-bulk-priority').selectOption('urgent');
+    await expect
+      .poll(async () => {
+        const res = await request.get(`/api/track/projects/${project.id}/issues?priority=urgent`);
+        return (await res.json()).total;
+      }, { timeout: 20_000 })
+      .toBe(3);
+    await page.getByTestId('track-bulk-labels').selectOption({ label: `Add ${labelName}` });
+    await expect
+      .poll(async () => (await (await request.get(`/api/track/issues/${ids[0]}`)).json()).labels, { timeout: 20_000 })
+      .toContain(labelName);
+
+    // GitHub: conectar, entregar un PR firmado y ver el vínculo en el issue.
+    const conn = await request.put('/api/track/github', { data: { repos: ['acme/web'], regenerateSecret: true } });
+    expect(conn.status()).toBe(200);
+    const { config, secret } = await conn.json();
+    const issue = await (await request.get(`/api/track/issues/${ids[0]}`)).json();
+    const body = JSON.stringify({
+      action: 'opened',
+      repository: { full_name: 'acme/web' },
+      pull_request: {
+        number: 7,
+        html_url: 'https://github.com/acme/web/pull/7',
+        title: `Arreglo ${issue.identifier}`,
+        body: '',
+        head: { ref: 'fix' },
+        user: { login: 'octo' },
+      },
+    });
+    const sig = `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
+    const headers = { 'content-type': 'application/json', 'x-github-event': 'pull_request' };
+    const hook = await request.post(`/api/track/github/webhook/${config.id}`, {
+      data: body,
+      headers: { ...headers, 'x-hub-signature-256': sig },
+    });
+    expect(hook.status()).toBe(200);
+    const bad = await request.post(`/api/track/github/webhook/${config.id}`, {
+      data: body,
+      headers: { ...headers, 'x-hub-signature-256': 'sha256=00' },
+    });
+    expect(bad.status()).toBe(401);
+    await page.goto(`/en/app/track/issues/${ids[0]}`, { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('track-issue-github')).toContainText('#7');
+    await expect(page.getByTestId('track-copy-branch')).toHaveAttribute('data-branch', /-uno$/);
+
+    // Triage: se activa desde la configuración del proyecto.
+    await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+    await page.getByTestId('track-project-settings').click();
+    await page.getByTestId('track-triage-toggle').check();
+    await page.getByTestId('track-triage-tab').click();
+    await expect(page.getByText('No issues waiting for triage.')).toBeVisible();
+  });
+});

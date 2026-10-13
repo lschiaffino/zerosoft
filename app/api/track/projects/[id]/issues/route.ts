@@ -56,7 +56,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = issueCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const issue = await createIssue(params.id, user.id, parsed.data);
+  const issue = await createIssue(params.id, user.id, parsed.data, { source: 'app' });
   after(() =>
     emitEvent(user.id, 'issue.created', {
       issue: {

@@ -764,6 +764,8 @@ export interface TrackProjectRow {
   icon: string | null;
   color: string;
   status: 'active' | 'archived';
+  /** 1 = los issues creados desde afuera entran a la cola de triage. */
+  triage_enabled?: number;
   created_at: string;
   updated_at: string;
 }
@@ -803,6 +805,10 @@ export interface TrackIssueRow {
   start_date: string | null;
   due_date: string | null;
   labels: string; // JSON TrackLabel[]
+  /** Origen: 'app' | 'api' | 'chat' | 'flow' | 'github' | 'agent'. */
+  source?: string;
+  /** 1 = pendiente en la cola de triage del proyecto. */
+  triage?: number;
   created_at: string;
   updated_at: string;
 }
