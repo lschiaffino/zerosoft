@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { canSeeOwner, ownerScopeSql, scopeContactDetail, sessionScope } from '@/lib/crm-visibility';
+import type { ScoreBreakdownItem } from '@/lib/crm-scoring-schema';
 import { getDb } from '@/lib/db';
 import {
   LEAD_STATUSES,
@@ -72,9 +74,11 @@ export default async function ContactDetailPage(
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
-  const detail = await getContact(user.id, id);
-  if (!detail) notFound();
+  const rawDetail = await getContact(user.id, id);
+  if (!rawDetail || !canSeeOwner(scope, rawDetail.contact.owner_id, user.id)) notFound();
+  const detail = scopeContactDetail(rawDetail, scope);
 
   const { contact, company, companies: contactCompanies, deals, lists } = detail;
   const [allTags, recordTags] = await Promise.all([
@@ -84,7 +88,7 @@ export default async function ContactDetailPage(
 
   const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
-  const timeline = await listTimeline(user.id, { contactId: id, limit: 100 });
+  const timeline = await listTimeline(user.id, { contactId: id, limit: 100, ownerScope: scope });
   const threads = await listEmailThreads(user.id, { contactId: id, limit: 100 });
   const timelineItems = mergeTimelineWithThreads(timeline, threads);
   const emailTemplates = await listEmailTemplates(user.id);
@@ -92,11 +96,16 @@ export default async function ContactDetailPage(
   const enrollments = await listEnrollments(user.id, { contactId: id, limit: 20 });
   const sequenceOptions = (await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }));
   const nextTask = await nextTaskFor(user.id, { contactId: id });
-  const companies = (await listCompanies(user.id, { pageSize: 100, sort: 'name' })).rows;
+  const companies = (await listCompanies(user.id, { pageSize: 100, sort: 'name', ownerScope: scope })).rows;
   // Deals del usuario para el selector de asociación (id + nombre alcanzan).
+  const dealScope = ownerScopeSql('d', scope);
   const allDeals = (await getDb()
-    .prepare('SELECT id, name FROM crm_deals WHERE user_id = ? ORDER BY created_at DESC LIMIT 200')
-    .all(user.id)) as Array<{ id: string; name: string }>;
+    .prepare(
+      `SELECT d.id, d.name FROM crm_deals d WHERE d.user_id = ?${dealScope.sql ? ` AND ${dealScope.sql}` : ''}
+       ORDER BY d.created_at DESC LIMIT 200`,
+    )
+    .all(user.id, ...dealScope.args)) as Array<{ id: string; name: string }>;
+  const scoreBreakdown = parseScoreBreakdown(contact.score_breakdown);
 
   // Pipeline default + primer stage abierto (para crear deals desde el detalle).
   const pipelines = await listPipelinesWithStages(user.id);
@@ -275,6 +284,27 @@ export default async function ContactDetailPage(
               viewAllLabel={t('contacts.detail.viewAllProperties')}
             />
           </section>
+          <section className="panel score-card" id="score" data-testid="contact-score-card">
+            <div className="score-card-head">
+              <p className="section-label">{t('scoring.column')}</p>
+              <span className="mono score-card-value">{contact.score ?? 0}</span>
+            </div>
+            {scoreBreakdown.length === 0 ? (
+              <p className="muted score-card-empty">{t('scoring.noBreakdown')}</p>
+            ) : (
+              <ul className="score-breakdown">
+                {scoreBreakdown.map((b) => (
+                  <li key={b.ruleId}>
+                    <span className={`mono score-points ${b.points >= 0 ? 'pos' : 'neg'}`}>
+                      {b.points > 0 ? `+${b.points}` : b.points}
+                    </span>
+                    <span className="score-why">{b.name || t('scoring.unnamedRule')}</span>
+                    {b.detail && <span className="mono muted score-detail">{b.detail}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
 
         <div className="detail-col">
@@ -419,4 +449,13 @@ export default async function ContactDetailPage(
       </div>
     </div>
   );
+}
+
+function parseScoreBreakdown(raw: string | null | undefined): ScoreBreakdownItem[] {
+  try {
+    const v: unknown = JSON.parse(raw ?? '[]');
+    return Array.isArray(v) ? (v as ScoreBreakdownItem[]) : [];
+  } catch {
+    return [];
+  }
 }

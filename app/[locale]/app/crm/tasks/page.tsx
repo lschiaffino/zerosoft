@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { listTasks, listTaskProjects, type TaskBucket } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
 import { relDate } from '@/lib/utils';
@@ -25,6 +26,7 @@ export default async function TasksPage(props: TasksPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   const bucketParam = typeof searchParams.bucket === 'string' ? searchParams.bucket : '';
@@ -39,7 +41,7 @@ export default async function TasksPage(props: TasksPageProps) {
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
 
   const projects = await listTaskProjects(user.id, true);
-  const tasks = await listTasks(user.id, { bucket, ownerId, projectId });
+  const tasks = await listTasks(user.id, { bucket, ownerId, projectId, ownerScope: scope });
 
   const timeZone = await getUserTimeZone();
   const fmtDue = (iso: string): string =>

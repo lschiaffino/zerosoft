@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import CodeTabs from './CodeTabs';
-import type { ApiEndpoint } from '@/lib/api-docs';
+import { endpointScope, type ApiEndpoint } from '@/lib/api-docs';
 
 interface EndpointSectionProps {
   endpoint: ApiEndpoint;
@@ -25,6 +25,11 @@ export default function EndpointSection({ endpoint, baseUrl, rootUrl, authToken 
       </div>
 
       <p className="endpoint-desc">{t(endpoint.descKey)}</p>
+      {endpointScope(endpoint) && (
+        <p className="endpoint-scope">
+          <span className="code-label">{t('scopeLabel')}</span> <code>{endpointScope(endpoint)}</code>
+        </p>
+      )}
 
       {endpoint.params && endpoint.params.length > 0 && (
         <div className="params-table-wrap">

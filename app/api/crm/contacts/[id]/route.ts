@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { deleteContact, getContact, updateContact } from '@/lib/crm';
 import { contactUpdateSchema } from '@/lib/crm-schema';
-import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
+import { sessionScope, scopeContactDetail } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,15 +12,21 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  const scope = await sessionScope(user);
+  const hidden = await guardRecord(user.id, 'contact', params.id, scope);
+  if (hidden) return hidden;
   const detail = await getContact(user.id, params.id);
   if (!detail) return notFound();
-  return NextResponse.json(detail);
+  return NextResponse.json(scopeContactDetail(detail, scope));
 }
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  const scope = await sessionScope(user);
+  const hidden = await guardRecord(user.id, 'contact', params.id, scope);
+  if (hidden) return hidden;
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = contactUpdateSchema.safeParse(body);
@@ -35,6 +42,9 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  const scope = await sessionScope(user);
+  const hidden = await guardRecord(user.id, 'contact', params.id, scope);
+  if (hidden) return hidden;
   if (!(await deleteContact(user.id, params.id))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

@@ -25,6 +25,8 @@ export interface ReportFilters {
   source?: string;
   priority?: string;
   ownerId?: string;
+  /** Visibilidad por owner (lib/crm-visibility.ts): solo estos owners. */
+  ownerIds?: string[];
 }
 
 interface OwnerMetricInput {
@@ -105,9 +107,24 @@ function bucketExpr(bucket: ReportBucket): string {
   return "strftime('%Y', created_at) || '-Q' || ((CAST(strftime('%m', created_at) AS INTEGER) + 2) / 3)";
 }
 
-function ownerClause(alias: string, ownerId?: string): { sql: string; arg: string | undefined } {
-  if (!ownerId) return { sql: '', arg: undefined };
-  return { sql: ` AND COALESCE(${alias}.owner_id, ${alias}.user_id) = ?`, arg: ownerId };
+function ownerClause(
+  alias: string,
+  filters: Pick<ReportFilters, 'ownerId' | 'ownerIds'>,
+): { sql: string; args: string[] } {
+  const parts: string[] = [];
+  const args: string[] = [];
+  if (filters.ownerId) {
+    parts.push(` AND COALESCE(${alias}.owner_id, ${alias}.user_id) = ?`);
+    args.push(filters.ownerId);
+  }
+  if (filters.ownerIds) {
+    if (!filters.ownerIds.length) parts.push(' AND 0');
+    else {
+      parts.push(` AND COALESCE(${alias}.owner_id, ${alias}.user_id) IN (${filters.ownerIds.map(() => '?').join(',')})`);
+      args.push(...filters.ownerIds);
+    }
+  }
+  return { sql: parts.join(''), args };
 }
 
 function filterClauses(filters: ReportFilters): { sql: string; args: (string | undefined)[] } {
@@ -121,10 +138,10 @@ function filterClauses(filters: ReportFilters): { sql: string; args: (string | u
     parts.push(' AND priority = ?');
     args.push(filters.priority);
   }
-  const owner = ownerClause('d', filters.ownerId);
+  const owner = ownerClause('d', filters);
   if (owner.sql) {
     parts.push(owner.sql);
-    args.push(owner.arg);
+    args.push(...owner.args);
   }
   return { sql: parts.join(''), args };
 }
@@ -140,19 +157,19 @@ export async function reportKpis(
   filters: ReportFilters,
 ): Promise<Kpis> {
   const db = getDb();
-  const ownerC = ownerClause('c', filters.ownerId);
+  const ownerC = ownerClause('c', filters);
 
   const newContacts = await count(
     db,
     `SELECT COUNT(*) AS c FROM crm_contacts c
      WHERE c.user_id = ? AND c.created_at >= datetime(?) AND c.created_at <= datetime(?, '23:59:59')${ownerC.sql}`,
-    [userId, range.from, range.to, ownerC.arg].filter((v): v is string => v !== undefined),
+    [userId, range.from, range.to, ...ownerC.args].filter((v): v is string => v !== undefined),
   );
   const prevContacts = await count(
     db,
     `SELECT COUNT(*) AS c FROM crm_contacts c
      WHERE c.user_id = ? AND c.created_at >= datetime(?) AND c.created_at <= datetime(?, '23:59:59')${ownerC.sql}`,
-    [userId, range.prevFrom, range.prevTo, ownerC.arg].filter((v): v is string => v !== undefined),
+    [userId, range.prevFrom, range.prevTo, ...ownerC.args].filter((v): v is string => v !== undefined),
   );
 
   const f = filterClauses(filters);
@@ -184,17 +201,18 @@ export async function reportKpis(
     [userId, range.prevFrom, range.prevTo, ...f.args],
   );
 
+  const actC = ownerClause('a', { ownerIds: filters.ownerIds });
   const activities = await count(
     db,
     `SELECT COUNT(*) AS c FROM crm_activities a
-     WHERE a.user_id = ? AND a.created_at >= datetime(?) AND a.created_at <= datetime(?, '23:59:59')`,
-    [userId, range.from, range.to],
+     WHERE a.user_id = ? AND a.created_at >= datetime(?) AND a.created_at <= datetime(?, '23:59:59')${actC.sql}`,
+    [userId, range.from, range.to, ...actC.args],
   );
   const prevActivities = await count(
     db,
     `SELECT COUNT(*) AS c FROM crm_activities a
-     WHERE a.user_id = ? AND a.created_at >= datetime(?) AND a.created_at <= datetime(?, '23:59:59')`,
-    [userId, range.prevFrom, range.prevTo],
+     WHERE a.user_id = ? AND a.created_at >= datetime(?) AND a.created_at <= datetime(?, '23:59:59')${actC.sql}`,
+    [userId, range.prevFrom, range.prevTo, ...actC.args],
   );
 
   return {
@@ -216,7 +234,7 @@ export async function reportTimeseries(
   filters: ReportFilters,
 ): Promise<TimeseriesPoint[]> {
   const db = getDb();
-  const ownerC = ownerClause('c', filters.ownerId);
+  const ownerC = ownerClause('c', filters);
   const f = filterClauses(filters);
   const b = bucketExpr(bucket);
 
@@ -228,7 +246,7 @@ export async function reportTimeseries(
        GROUP BY bucket ORDER BY bucket`,
     )
     .all(
-      ...[userId, range.from, range.to, ownerC.arg].filter((v): v is string => v !== undefined),
+      ...[userId, range.from, range.to, ...ownerC.args].filter((v): v is string => v !== undefined),
     )) as Array<{ bucket: string; c: number }>;
 
   const dealsRows = (await db
@@ -409,19 +427,21 @@ function normalizeSource(source: string): string {
 export async function reportFunnel(
   userId: string,
   pipelineId: string | null,
+  ownerIds?: string[],
 ): Promise<FunnelReportStage[]> {
   if (!pipelineId) return [];
+  const oc = ownerClause('d', { ownerIds });
   const rows = (await getDb()
     .prepare(
       `SELECT s.id, s.name, s.probability, s.is_won, s.is_lost,
          COUNT(d.id) AS count, COALESCE(SUM(${AMT}), 0) AS amount
        FROM crm_stages s
-       LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ?
+       LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ?${oc.sql}
        WHERE s.pipeline_id = ?
        GROUP BY s.id
        ORDER BY s.position ASC`,
     )
-    .all(userId, pipelineId)) as FunnelStage[];
+    .all(userId, ...oc.args, pipelineId)) as FunnelStage[];
 
   return rows.map((stage, i) => {
     const prev = i > 0 ? rows[i - 1] : null;
@@ -434,8 +454,10 @@ export async function reportFunnel(
 export async function reportForecast(
   userId: string,
   pipelineId: string | null,
+  ownerIds?: string[],
 ): Promise<ForecastReportStage[]> {
   if (!pipelineId) return [];
+  const oc = ownerClause('d', { ownerIds });
   return (await getDb()
     .prepare(
       `SELECT s.id, s.name, s.probability,
@@ -443,12 +465,12 @@ export async function reportForecast(
          COALESCE(SUM(${AMT}), 0) AS amount,
          COALESCE(SUM(${AMT} * s.probability / 100.0), 0) AS forecast
        FROM crm_stages s
-       LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ? AND d.closed_at IS NULL
+       LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.user_id = ? AND d.closed_at IS NULL${oc.sql}
        WHERE s.pipeline_id = ?
        GROUP BY s.id
        ORDER BY s.position ASC`,
     )
-    .all(userId, pipelineId)) as ForecastReportStage[];
+    .all(userId, ...oc.args, pipelineId)) as ForecastReportStage[];
 }
 
 export async function reportSourcePerformance(
@@ -457,7 +479,7 @@ export async function reportSourcePerformance(
   filters: ReportFilters,
 ): Promise<SourcePerformance[]> {
   const db = getDb();
-  const ownerC = ownerClause('c', filters.ownerId);
+  const ownerC = ownerClause('c', filters);
   const f = filterClauses(filters);
 
   const contactsRows = (await db
@@ -468,7 +490,7 @@ export async function reportSourcePerformance(
        GROUP BY 1`,
     )
     .all(
-      ...[userId, range.from, range.to, ownerC.arg].filter((v): v is string => v !== undefined),
+      ...[userId, range.from, range.to, ...ownerC.args].filter((v): v is string => v !== undefined),
     )) as Array<{ source: string; c: number }>;
 
   const dealsRows = (await db

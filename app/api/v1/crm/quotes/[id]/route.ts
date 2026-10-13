@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { getQuote, markQuoteSent, updateQuote, type QuoteUpdateResult } from '@/lib/crm-products';
+import { apiScope, canSeeQuote } from '@/lib/crm-visibility';
 import { quoteUpdateSchema } from '@/lib/crm-schema';
 import { zodErrorCode } from '@/lib/crm-http';
 import { publicOrigin, serializeQuote } from '../serialize';
@@ -12,8 +13,9 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:read');
   if ('res' in auth) return auth.res;
+  if (!(await canSeeQuote(auth.user.id, id, await apiScope(auth)))) return apiError(404, 'not_found', 'Quote not found.');
   const quote = await getQuote(auth.user.id, id);
   if (!quote) return apiError(404, 'not_found', 'Quote not found.');
   return NextResponse.json(serializeQuote(quote, publicOrigin(req)));
@@ -22,8 +24,9 @@ export async function GET(req: NextRequest, props: Ctx) {
 /** Edita un borrador; `status: 'sent'` lo publica (draft → sent). */
 export async function PATCH(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
+  if (!(await canSeeQuote(auth.user.id, id, await apiScope(auth)))) return apiError(404, 'not_found', 'Quote not found.');
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = quoteUpdateSchema.safeParse(body);

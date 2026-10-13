@@ -3,6 +3,7 @@
  * Usado por /app/crm/dashboards y app/api/crm/dashboards.
  */
 import { getDb, type CrmDashboardRow, type CrmDashboardWidgetRow } from './db';
+import type { OwnerScope } from './crm-visibility';
 import { listTasks, listTimeline, wonLostByMonth } from './crm';
 import { defaultPipelineId } from './crm-http';
 import {
@@ -297,11 +298,13 @@ export interface DashboardOwner {
 }
 
 /** Owners del workspace (team members o el propio usuario) para reportes por owner. */
-export async function listReportOwners(user: SessionUser): Promise<DashboardOwner[]> {
+export async function listReportOwners(user: SessionUser, scope?: OwnerScope): Promise<DashboardOwner[]> {
   const members = user.team?.id
     ? await listMembers(user.team.id)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
-  return members.map((m) => ({ id: m.user_id, email: m.email, name: m.name }));
+  return members
+    .filter((m) => !scope || scope.includes(m.user_id))
+    .map((m) => ({ id: m.user_id, email: m.email, name: m.name }));
 }
 
 /** Dataset de un widget. Reusa las funciones de lib/crm-reports (rango default 30d). */
@@ -309,28 +312,29 @@ export async function getWidgetData(
   userId: string,
   req: DashboardDataRequest,
   owners: DashboardOwner[],
+  scope?: OwnerScope,
 ): Promise<WidgetData> {
   const rangeLabel = req.range ?? '30d';
   const range = reportRange(rangeLabel);
-  const filters: ReportFilters = { pipelineId: req.pipelineId ?? undefined };
+  const filters: ReportFilters = { pipelineId: req.pipelineId ?? undefined, ownerIds: scope ?? undefined };
 
   switch (req.type) {
     case 'kpi':
       return { kpis: await reportKpis(userId, range, filters) };
     case 'funnel': {
       const pipelineId = req.pipelineId ?? (await defaultPipelineId(userId));
-      return { funnel: await reportFunnel(userId, pipelineId) };
+      return { funnel: await reportFunnel(userId, pipelineId, scope ?? undefined) };
     }
     case 'forecast': {
       const pipelineId = req.pipelineId ?? (await defaultPipelineId(userId));
-      return { forecast: await reportForecast(userId, pipelineId) };
+      return { forecast: await reportForecast(userId, pipelineId, scope ?? undefined) };
     }
     case 'timeseries':
       return {
         timeseries: await reportTimeseries(userId, range, defaultBucket(rangeLabel), filters),
       };
     case 'wonlost':
-      return { wonLost: await wonLostByMonth(userId) };
+      return { wonLost: await wonLostByMonth(userId, scope) };
     case 'source':
       return { sourcePerformance: await reportSourcePerformance(userId, range, filters) };
     case 'owner':
@@ -338,8 +342,8 @@ export async function getWidgetData(
     case 'leaderboard':
       return { leaderboard: await reportActivityLeaderboard(userId, range, owners) };
     case 'tasks':
-      return { tasks: (await listTasks(userId, 'upcoming')).slice(0, 8) };
+      return { tasks: (await listTasks(userId, { bucket: 'upcoming', ownerScope: scope })).slice(0, 8) };
     case 'recent_activity':
-      return { activities: await listTimeline(userId, { limit: 8 }) };
+      return { activities: await listTimeline(userId, { limit: 8, ownerScope: scope }) };
   }
 }

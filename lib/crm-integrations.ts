@@ -9,6 +9,7 @@
 import { getDb } from './db';
 import { createActivity, createContact, updateActivity } from './crm';
 import { isWorkspacePerson } from './crm-refs';
+import { assignNewLead, type AssignmentSource } from './crm-assignment';
 import type { CalendarBookingRow, ChatMessageRow, ChatVisitorRow, CrmContactRow } from './db';
 
 function splitName(full: string): { firstName: string; lastName: string } {
@@ -36,7 +37,14 @@ export async function findContactByEmail(userId: string, email: string): Promise
 /** Busca el contacto por email o lo crea. `created` indica si es nuevo. */
 export async function findOrCreateContact(
   userId: string,
-  input: { email: string; name?: string | null; ownerId?: string | null; source?: string },
+  input: {
+    email: string;
+    name?: string | null;
+    ownerId?: string | null;
+    source?: string;
+    /** Fuente para la asignación round-robin de leads nuevos (lib/crm-assignment.ts). */
+    assign?: AssignmentSource;
+  },
 ): Promise<{ contact: CrmContactRow; created: boolean }> {
   const existing = await findContactByEmail(userId, input.email);
   if (existing) return { contact: existing, created: false };
@@ -47,6 +55,10 @@ export async function findOrCreateContact(
     source: input.source ?? 'other',
     ownerId,
   });
+  if (input.assign) {
+    const assigned = await assignNewLead(userId, contact.id, input.assign);
+    if (assigned) return { contact: { ...contact, owner_id: assigned }, created: true };
+  }
   return { contact, created: true };
 }
 
@@ -122,6 +134,7 @@ export async function recordBookingInCrm(
     email: booking.invitee_email,
     name: booking.invitee_name,
     ownerId: booking.host_user_id,
+    assign: 'cal',
   });
   if (await activityForBooking(workspaceId, booking.id)) return;
   const activity = await createActivity(workspaceId, {
@@ -175,6 +188,7 @@ export async function logChatToCrm(
     email,
     name: input.visitor.name,
     ownerId: input.actorId,
+    assign: 'chat',
   });
 
   const transcript = input.messages

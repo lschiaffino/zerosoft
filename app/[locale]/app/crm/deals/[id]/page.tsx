@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { canSeeOwner, scopeDealDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { getDeal, listCustomFields, listTimeline, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
@@ -47,10 +48,12 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const detail = await getDeal(user.id, id);
-  if (!detail) notFound();
+  const rawDetail = await getDeal(user.id, id);
+  if (!rawDetail || !canSeeOwner(scope, rawDetail.deal.owner_id, user.id)) notFound();
+  const detail = scopeDealDetail(rawDetail, scope);
   const { deal, stage, pipeline, contacts, company, companies: dealCompanies } = detail;
   const [currencyCtx, allTags, recordTags] = await Promise.all([
     getCurrencyContext(user.id),
@@ -66,7 +69,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
-  const activities = await listTimeline(user.id, { dealId: id, limit: 100 });
+  const activities = await listTimeline(user.id, { dealId: id, limit: 100, ownerScope: scope });
   const timeline = mergeTimelineWithThreads(activities, await listEmailThreads(user.id, { dealId: id, limit: 100 }));
   const emailTemplates = await listEmailTemplates(user.id);
   const emailSettings = await getEmailSettings(user.id);
@@ -88,9 +91,9 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     (await getDb()
       .prepare(
         `SELECT id, first_name, last_name, email FROM crm_contacts
-         WHERE user_id = ? ORDER BY created_at DESC LIMIT 200`,
+         WHERE user_id = ?${scopeAnd('crm_contacts', scope).sql} ORDER BY created_at DESC LIMIT 200`,
       )
-      .all(user.id)) as Array<{
+      .all(user.id, ...scopeAnd('crm_contacts', scope).args)) as Array<{
       id: string;
       first_name: string;
       last_name: string;
@@ -102,8 +105,8 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   }));
 
   const allCompanies = (await getDb()
-    .prepare('SELECT id, name, domain FROM crm_companies WHERE user_id = ? ORDER BY name ASC LIMIT 200')
-    .all(user.id)) as Array<{ id: string; name: string; domain: string }>;
+    .prepare(`SELECT id, name, domain FROM crm_companies WHERE user_id = ?${scopeAnd('crm_companies', scope).sql} ORDER BY name ASC LIMIT 200`)
+    .all(user.id, ...scopeAnd('crm_companies', scope).args)) as Array<{ id: string; name: string; domain: string }>;
 
   const fmtAmount = (amount: number, currency: string): string =>
     new Intl.NumberFormat(locale, {

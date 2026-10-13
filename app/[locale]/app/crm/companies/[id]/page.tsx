@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { canSeeOwner, scopeCompanyDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import { listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
 import { getCompany, LIFECYCLE_STAGES, listCustomFields, listTimeline, nextTaskFor, parseCustom } from '@/lib/crm';
@@ -46,10 +47,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const detail = await getCompany(user.id, id);
-  if (!detail) notFound();
+  const rawDetail = await getCompany(user.id, id);
+  if (!rawDetail || !canSeeOwner(scope, rawDetail.company.owner_id, user.id)) notFound();
+  const detail = scopeCompanyDetail(rawDetail, scope);
   const { company, contacts, deals, parent, ancestors, children, rollup } = detail;
   const [allTags, recordTags] = await Promise.all([
     listTags(user.id),
@@ -59,7 +62,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   const teamMembers = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
-  const timeline = await listTimeline(user.id, { companyId: id, limit: 100 });
+  const timeline = await listTimeline(user.id, { companyId: id, limit: 100, ownerScope: scope });
   const threads = await listEmailThreads(user.id, { companyId: id, limit: 100 });
   const timelineItems = mergeTimelineWithThreads(timeline, threads);
   const nextTask = await nextTaskFor(user.id, { companyId: id });
@@ -76,9 +79,9 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
     (await getDb()
       .prepare(
         `SELECT id, first_name, last_name, email FROM crm_contacts
-         WHERE user_id = ? ORDER BY created_at DESC LIMIT 200`,
+         WHERE user_id = ?${scopeAnd('crm_contacts', scope).sql} ORDER BY created_at DESC LIMIT 200`,
       )
-      .all(user.id)) as Array<{
+      .all(user.id, ...scopeAnd('crm_contacts', scope).args)) as Array<{
       id: string;
       first_name: string;
       last_name: string;
@@ -91,14 +94,16 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
 
   // Empresas del workspace para madre / hijas (sin la propia).
   const allCompanies = (await getDb()
-    .prepare('SELECT id, name FROM crm_companies WHERE user_id = ? AND id != ? ORDER BY name COLLATE NOCASE ASC LIMIT 300')
-    .all(user.id, company.id)) as Array<{ id: string; name: string }>;
+    .prepare(
+      `SELECT id, name FROM crm_companies WHERE user_id = ? AND id != ?${scopeAnd('crm_companies', scope).sql} ORDER BY name COLLATE NOCASE ASC LIMIT 300`,
+    )
+    .all(user.id, company.id, ...scopeAnd('crm_companies', scope).args)) as Array<{ id: string; name: string }>;
   const fmtBase = (n: number) => formatMoney(n, rollup.currency, locale);
 
   // Deals del usuario para el selector de asociación.
   const allDeals = (await getDb()
-    .prepare('SELECT id, name FROM crm_deals WHERE user_id = ? ORDER BY created_at DESC LIMIT 200')
-    .all(user.id)) as Array<{ id: string; name: string }>;
+    .prepare(`SELECT id, name FROM crm_deals WHERE user_id = ?${scopeAnd('crm_deals', scope).sql} ORDER BY created_at DESC LIMIT 200`)
+    .all(user.id, ...scopeAnd('crm_deals', scope).args)) as Array<{ id: string; name: string }>;
 
   const lifecycleLabel = (v: string): string =>
     (LIFECYCLE_STAGES as readonly string[]).includes(v) ? t(`enums.lifecycle.${v}`) : v;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { sessionScope, visibleIds } from '@/lib/crm-visibility';
 import { mergeContacts } from '@/lib/crm';
 import { contactMergeSchema } from '@/lib/crm-schema';
 import { crmError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
@@ -16,6 +17,10 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return invalidBody(parsed.error);
 
   const { keepId, dropId } = parsed.data;
+  const scope = await sessionScope(user);
+  if ((await visibleIds(user.id, 'crm_contacts', [keepId, dropId], scope)).length < (keepId === dropId ? 1 : 2)) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
   if (keepId === dropId) return crmError(400, 'invalid_input');
 
   const merged = await mergeContacts(user.id, keepId, dropId);

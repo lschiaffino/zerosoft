@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { searchAll, searchTasks } from '@/lib/crm';
 import { searchDocPages } from '@/lib/docs';
 import { listLinks, toLinkDto } from '@/lib/links';
@@ -27,11 +28,12 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get('q')?.trim() ?? '';
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
+  const scope = await sessionScope(user);
   const [crm, links, docs, tasks] = await Promise.all([
-    searchAll(user.id, q),
+    searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     searchDocPages(user.id, q),
-    searchTasks(user.id, q),
+    searchTasks(user.id, q, scope),
   ]);
 
   const items: SearchResultItem[] = [];

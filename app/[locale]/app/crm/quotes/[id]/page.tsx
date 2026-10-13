@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { canSeeQuote, sessionScope } from '@/lib/crm-visibility';
 import { getQuote, type PublicQuote } from '@/lib/crm-products';
 import { formatMoney } from '@/lib/crm-money';
 import QuoteDocument from '@/components/crm/QuoteDocument';
@@ -27,7 +28,7 @@ export default async function QuotePage(props: QuotePageProps) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const quote = await getQuote(user.id, id);
-  if (!quote) notFound();
+  if (!quote || !(await canSeeQuote(user.id, quote.id, await sessionScope(user)))) notFound();
 
   const baseUrl = (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
   const publicUrl = `${baseUrl}/${locale}/q/${quote.token}`;

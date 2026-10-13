@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'cal:read');
   if ('res' in auth) return auth.res;
   const { id } = await props.params;
   const booking = await ownedBooking(auth.user.id, id);

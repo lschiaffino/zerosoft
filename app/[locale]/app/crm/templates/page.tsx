@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { scopeAnd, sessionScope } from '@/lib/crm-visibility';
 import { canManageOwned, listEmailTemplates } from '@/lib/crm-email';
 import { getDb } from '@/lib/db';
 import { formatDate } from '@/lib/utils';
@@ -10,6 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function TemplatesPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const actor = { isAdmin: isWorkspaceAdmin(user), personId: realUserId(user) };
   const templates = await listEmailTemplates(user.id);
@@ -17,9 +19,9 @@ export default async function TemplatesPage(props: { params: Promise<{ locale: s
   const contacts = (await getDb()
     .prepare(
       `SELECT id, first_name, last_name, email FROM crm_contacts
-       WHERE user_id = ? AND email != '' ORDER BY updated_at DESC LIMIT 100`,
+       WHERE user_id = ? AND email != ''${scopeAnd('crm_contacts', scope).sql} ORDER BY updated_at DESC LIMIT 100`,
     )
-    .all(user.id)) as Array<{ id: string; first_name: string; last_name: string; email: string }>;
+    .all(user.id, ...scopeAnd('crm_contacts', scope).args)) as Array<{ id: string; first_name: string; last_name: string; email: string }>;
 
   return (
     <div className="app-page">

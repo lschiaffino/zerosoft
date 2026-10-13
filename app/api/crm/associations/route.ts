@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session';
 import { associate, dissociate, listAssociations, type AssocObject } from '@/lib/crm-assoc';
 import { associationRemoveSchema, associationSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { canSeeBoth, canSeeEntity, scopeAssociationList, sessionScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,9 +18,11 @@ export async function GET(req: NextRequest) {
   const type = sp.get('type') as AssocObject;
   const id = sp.get('id') ?? '';
   if (!TYPES.includes(type) || !id) return crmError(400, 'invalid_input');
+  const scope = await sessionScope(user);
+  if (!(await canSeeEntity(user.id, type, id, scope))) return notFound();
   const list = await listAssociations(user.id, type, id);
   if (!list) return notFound();
-  return NextResponse.json(list);
+  return NextResponse.json(await scopeAssociationList(user.id, list, scope));
 }
 
 /** Asocia (o actualiza primaria/label) dos registros. */
@@ -29,6 +32,7 @@ export async function POST(req: NextRequest) {
   const body: unknown = await req.json().catch(() => null);
   const parsed = associationSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
+  if (!(await canSeeBoth(user.id, parsed.data, await sessionScope(user)))) return notFound();
   const res = await catchRef(associate(user.id, parsed.data));
   if (res instanceof CrmRefError) return crmError(400, res.code);
   return NextResponse.json({ ok: true });
@@ -44,6 +48,7 @@ export async function DELETE(req: NextRequest) {
     : await req.json().catch(() => null);
   const parsed = associationRemoveSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
+  if (!(await canSeeBoth(user.id, parsed.data, await sessionScope(user)))) return notFound();
   const res = await catchRef(dissociate(user.id, parsed.data));
   if (res instanceof CrmRefError) return crmError(400, res.code);
   if (!res) return notFound();

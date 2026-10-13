@@ -22,6 +22,14 @@ import TagsManager from '@/components/crm/TagsManager';
 import CurrencySettings from '@/components/crm/CurrencySettings';
 import { listTags } from '@/lib/crm-tags';
 import { getCrmSettings, listExchangeRates, missingRates } from '@/lib/crm-currency';
+import { getMemberVisibility, listSalesTeams, sessionScope } from '@/lib/crm-visibility';
+import { getAssignmentRule, listAssignmentHistory, unavailablePeople } from '@/lib/crm-assignment';
+import { listScoreRules } from '@/lib/crm-scoring';
+import { quotaProgress } from '@/lib/crm-quotas';
+import AccessPanel from '@/components/crm/AccessPanel';
+import AssignmentPanel from '@/components/crm/AssignmentPanel';
+import ScoringRulesPanel from '@/components/crm/ScoringRulesPanel';
+import QuotasPanel from '@/components/crm/QuotasPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +62,7 @@ export default async function CrmSettingsPage(
     : null;
   const emailSettings = await getEmailSettings(user.id);
   const [tags, crmSettings, rates, missing] = await Promise.all([
-    listTags(user.id),
+    listTags(user.id, undefined, await sessionScope(user)),
     getCrmSettings(user.id),
     listExchangeRates(user.id),
     missingRates(user.id),
@@ -71,6 +79,21 @@ export default async function CrmSettingsPage(
     ownedTeam ? listPendingInvites(ownedTeam.id) : Promise.resolve([]),
     listMemberTeams(realUser.id),
   ]);
+  // Personas del workspace activo (owner + members) para equipos, round-robin y cuotas.
+  const workspaceMembers = user.team?.id
+    ? await listMembers(user.team.id)
+    : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
+  const people = workspaceMembers.map((m) => ({ id: m.user_id, label: m.name || m.email }));
+  const scope = await sessionScope(user);
+  const [visibility, salesTeams, assignmentRule, away, assignmentHistory, scoreRules, quotas] = await Promise.all([
+    getMemberVisibility(user.id),
+    listSalesTeams(user.id),
+    getAssignmentRule(user.id),
+    unavailablePeople(user.id),
+    listAssignmentHistory(user.id, 15),
+    listScoreRules(user.id),
+    quotaProgress(user.id, { ownerIds: scope, people: people.map((p) => ({ id: p.id, name: p.label })) }),
+  ]);
   const baseUrl = (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
   const inviteUrls = pendingInvites.map((i) => ({
     id: i.id,
@@ -80,6 +103,10 @@ export default async function CrmSettingsPage(
 
   const sections = [
     { id: 'team', label: t('settings.team') },
+    { id: 'access', label: t('access.title') },
+    { id: 'assignment', label: t('assignment.title') },
+    { id: 'scoring', label: t('scoring.title') },
+    { id: 'quotas', label: t('quotas.title') },
     { id: 'integrations', label: t('settings.integrations') },
     { id: 'pipelines', label: t('settings.pipelines') },
     { id: 'fields', label: t('settings.customFields') },
@@ -125,6 +152,67 @@ export default async function CrmSettingsPage(
               canChangeRoles={canChangeRoles}
               activeTeamId={realUser.active_team_id ?? null}
               actingTeamName={user.actingUser && user.team ? user.team.name : null}
+            />
+          </section>
+
+          <section className="crm-set" id="access">
+            <header className="crm-set-head">
+              <h2>{t('access.title')}</h2>
+              <p className="muted">{t('access.desc')}</p>
+            </header>
+            <AccessPanel
+              visibility={visibility}
+              teams={salesTeams.map((x) => ({ id: x.id, name: x.name, members: x.members }))}
+              people={people}
+              canEdit={isWorkspaceAdmin(user)}
+            />
+          </section>
+
+          <section className="crm-set" id="assignment">
+            <header className="crm-set-head">
+              <h2>{t('assignment.title')}</h2>
+              <p className="muted">{t('assignment.desc')}</p>
+            </header>
+            <AssignmentPanel
+              rule={{ enabled: assignmentRule.enabled, sources: assignmentRule.sources, pool: assignmentRule.pool }}
+              unavailable={[...away]}
+              history={assignmentHistory.map((h) => ({
+                id: h.id,
+                contact_id: h.contact_id,
+                contact_name: h.contact_name,
+                person_id: h.person_id,
+                source: h.source,
+                created_at: h.created_at,
+              }))}
+              people={people}
+              selfId={realUserId(user)}
+              canEdit={isWorkspaceAdmin(user)}
+            />
+          </section>
+
+          <section className="crm-set" id="scoring">
+            <header className="crm-set-head">
+              <h2>{t('scoring.title')}</h2>
+              <p className="muted">{t('scoring.desc')}</p>
+            </header>
+            <ScoringRulesPanel
+              initialRules={scoreRules}
+              customFields={customFields.filter((cf) => cf.entity === 'contacts').map((cf) => ({ name: cf.name, label: cf.label }))}
+              canEdit={isWorkspaceAdmin(user)}
+            />
+          </section>
+
+          <section className="crm-set" id="quotas">
+            <header className="crm-set-head">
+              <h2>{t('quotas.title')}</h2>
+              <p className="muted">{t('quotas.desc')}</p>
+            </header>
+            <QuotasPanel
+              progress={quotas}
+              people={people}
+              baseCurrency={crmSettings.baseCurrency}
+              locale={locale}
+              canEdit={isWorkspaceAdmin(user)}
             />
           </section>
 

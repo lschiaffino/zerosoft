@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { createApiKey, listApiKeys } from '@/lib/api-auth';
+import { API_SCOPES } from '@/lib/api-scopes';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const createSchema = z.object({ name: z.string().min(1).max(80) });
+const createSchema = z.object({
+  name: z.string().min(1).max(80),
+  /** Sin scopes = todos (compatibilidad con clientes anteriores). */
+  scopes: z.array(z.enum(API_SCOPES)).min(1).max(API_SCOPES.length).optional(),
+});
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -25,6 +30,11 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'bad_request' }, { status: 400 });
 
   // The full key is returned only in this response; we store its sha256.
-  const { id, key } = await createApiKey(user.id, parsed.data.name.trim(), realUserId(user));
-  return NextResponse.json({ id, key }, { status: 201 });
+  const { id, key, scopes } = await createApiKey(
+    user.id,
+    parsed.data.name.trim(),
+    realUserId(user),
+    parsed.data.scopes ?? '*',
+  );
+  return NextResponse.json({ id, key, scopes }, { status: 201 });
 }

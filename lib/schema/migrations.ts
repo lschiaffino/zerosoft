@@ -1331,6 +1331,137 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // CRM bloque 4: formularios (hosted + embed), envíos y lead scoring.
+    id: '023_crm_forms_scoring',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_forms (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          slug TEXT,
+          token TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'archived')),
+          fields TEXT NOT NULL DEFAULT '[]',
+          settings TEXT NOT NULL DEFAULT '{}',
+          submission_count INTEGER NOT NULL DEFAULT 0,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_forms_slug ON crm_forms(slug) WHERE slug IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_crm_forms_user ON crm_forms(user_id, status, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_form_submissions (
+          id TEXT PRIMARY KEY,
+          form_id TEXT NOT NULL REFERENCES crm_forms(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          contact_id TEXT REFERENCES crm_contacts(id) ON DELETE SET NULL,
+          contact_created INTEGER NOT NULL DEFAULT 0,
+          data TEXT NOT NULL DEFAULT '{}',
+          utm TEXT NOT NULL DEFAULT '{}',
+          page_url TEXT NOT NULL DEFAULT '',
+          referrer TEXT NOT NULL DEFAULT '',
+          ip_hash TEXT NOT NULL DEFAULT '',
+          user_agent TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_form_submissions_form ON crm_form_submissions(form_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_crm_form_submissions_contact ON crm_form_submissions(user_id, contact_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS crm_score_rules (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL DEFAULT '',
+          kind TEXT NOT NULL CHECK (kind IN ('property', 'activity')),
+          config TEXT NOT NULL DEFAULT '{}',
+          points INTEGER NOT NULL DEFAULT 0,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_score_rules_user ON crm_score_rules(user_id, position);
+
+        CREATE TABLE IF NOT EXISTS crm_score_state (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          last_full_run TEXT
+        );
+      `);
+      await addColumn(client, 'ALTER TABLE crm_contacts ADD COLUMN score INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE crm_contacts ADD COLUMN score_breakdown TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, 'ALTER TABLE crm_contacts ADD COLUMN score_updated_at TEXT');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_crm_contacts_score ON crm_contacts(user_id, score)');
+    },
+  },
+  {
+    // CRM bloque 5: visibilidad por owner, equipos de venta, scopes de API
+    // keys, round-robin de leads y cuotas.
+    id: '023_crm_teams_visibility',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE crm_settings ADD COLUMN member_visibility TEXT NOT NULL DEFAULT 'all'");
+      // '*' = todos los scopes: las keys existentes siguen funcionando igual.
+      await addColumn(client, "ALTER TABLE api_keys ADD COLUMN scopes TEXT NOT NULL DEFAULT '*'");
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_sales_teams (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_sales_teams_user ON crm_sales_teams(user_id, name);
+
+        CREATE TABLE IF NOT EXISTS crm_sales_team_members (
+          team_id TEXT NOT NULL REFERENCES crm_sales_teams(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          PRIMARY KEY (team_id, person_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_sales_team_members_person ON crm_sales_team_members(user_id, person_id);
+
+        CREATE TABLE IF NOT EXISTS crm_assignment_rules (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          enabled INTEGER NOT NULL DEFAULT 0,
+          sources TEXT NOT NULL DEFAULT '[]',
+          pool TEXT NOT NULL DEFAULT '[]',
+          cursor INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_member_availability (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          available INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, person_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS crm_assignment_history (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          contact_id TEXT REFERENCES crm_contacts(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          source TEXT NOT NULL DEFAULT '',
+          method TEXT NOT NULL DEFAULT 'round_robin',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_assignment_history_user ON crm_assignment_history(user_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS crm_quotas (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          metric TEXT NOT NULL CHECK (metric IN ('won_value', 'won_count', 'meetings')),
+          period TEXT NOT NULL CHECK (period IN ('month', 'quarter')),
+          target REAL NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_quotas_unique ON crm_quotas(user_id, person_id, metric, period);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -13,7 +13,8 @@
     "templates": "Templates",
     "sequences": "Sequences",
     "products": "Products",
-    "quotes": "Quotes"
+    "quotes": "Quotes",
+    "forms": "Forms"
   },
   "switcher": {
     "product": "Product",
@@ -108,7 +109,8 @@
       "social": "Social",
       "email": "Email",
       "event": "Event",
-      "other": "Other"
+      "other": "Other",
+      "form": "Form"
     },
     "priority": {
       "low": "Low",
@@ -563,7 +565,9 @@
       "manual": "Manual",
       "email_opened": "Email opened",
       "email_clicked": "Email link clicked",
-      "quote_accepted": "Quote accepted"
+      "quote_accepted": "Quote accepted",
+      "form_submitted": "Form submitted",
+      "score_changed": "Lead score changed"
     },
     "actionTypes": {
       "send_email": "Send email",
@@ -573,7 +577,9 @@
       "add_to_list": "Add to list",
       "webhook": "Webhook",
       "notify_user": "Notify user",
-      "enroll_in_sequence": "Enroll in sequence"
+      "enroll_in_sequence": "Enroll in sequence",
+      "run_flow": "Run a Flow",
+      "branch": "If / else"
     },
     "addTrigger": "Add trigger",
     "addAction": "Add action",
@@ -605,7 +611,24 @@
     "message": "Message",
     "noWorkflows": "No workflows yet.",
     "emptySub": "Automate the busywork: when a record changes, create tasks, update fields or send webhooks.",
-    "sequenceId": "Sequence"
+    "sequenceId": "Sequence",
+    "formId": "Form",
+    "anyForm": "Any form",
+    "threshold": "Crosses score (optional)",
+    "direction": {
+      "up": "Going up",
+      "down": "Going down",
+      "any": "Either way"
+    },
+    "flowId": "Flow to run",
+    "runFlowHint": "Starts the flow with the contact, company and deal as input. Use Flow for delays and advanced logic.",
+    "branchHint": "Actions below can run only on \"Yes\" or only on \"No\".",
+    "when": {
+      "label": "Run when",
+      "always": "Always",
+      "yes": "If yes",
+      "no": "If no"
+    }
   },
   "history": {
     "title": "History",
@@ -1308,5 +1331,285 @@
     "saved": "Saved.",
     "convertedHint": "Converted to {base} with the workspace exchange rate",
     "reportNote": "Amounts in {base}. Deals in other currencies are converted with your exchange rates."
+  },
+  "forms": {
+    "title": "Forms",
+    "subtitle": "Capture leads on a hosted page or embedded in your site. Every submission creates or updates a contact.",
+    "new": "New form",
+    "name": "Form name",
+    "namePlaceholder": "Form name (e.g. Contact us)",
+    "newHint": "Starts with email, first name and last name. You can change everything in the builder.",
+    "emptyTitle": "No forms yet",
+    "emptySub": "Create a form, share its link or embed it, and new leads land in your contacts.",
+    "emptyCta": "Create your first form",
+    "table": {
+      "name": "Name",
+      "status": "Status",
+      "submissions": "Submissions",
+      "last": "Last submission",
+      "link": "Link",
+      "date": "Date",
+      "contact": "Contact"
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "archived": "Archived"
+    },
+    "submissionsCount": "{count, plural, =0 {No submissions} one {# submission} other {# submissions}}",
+    "tabs": {
+      "build": "Build",
+      "submissions": "Submissions",
+      "share": "Share & embed"
+    },
+    "share": {
+      "hosted": "Hosted page",
+      "hostedDesc": "A clean page with only your form. Share the link anywhere.",
+      "open": "Open form",
+      "embed": "Embed on your site",
+      "embedDesc": "Paste this where the form should appear. It adjusts its height automatically.",
+      "utmNote": "UTM parameters, gclid and fbclid from the page URL are captured with every submission.",
+      "iframe": "Plain iframe",
+      "iframeDesc": "If your site blocks scripts, use an iframe (fixed height)."
+    },
+    "deleteConfirm": "Delete this form and all its submissions? Contacts stay in the CRM.",
+    "errors": {
+      "slug_taken": "That URL is already used by another form.",
+      "invalid_slug": "The URL can only have lowercase letters, numbers and dashes.",
+      "invalid_field": "A field has an invalid key or property.",
+      "duplicate_field": "Two fields share the same key.",
+      "missing_options": "Dropdown fields need at least one option.",
+      "invalid_owner": "The owner is not part of this workspace.",
+      "invalid_list": "Pick a static list.",
+      "invalid_sequence": "That sequence no longer exists.",
+      "invalid_url": "The redirect URL must start with http:// or https://.",
+      "invalid_input": "Some settings are not valid."
+    },
+    "builder": {
+      "fields": "Fields",
+      "fieldsDesc": "Map each field to a contact or company property. Unmapped fields are kept with the submission.",
+      "newField": "New field",
+      "label": "Label",
+      "type": "Type",
+      "property": "Saves to",
+      "required": "Required",
+      "more": "More",
+      "key": "Key",
+      "placeholder": "Placeholder",
+      "options": "Options",
+      "optionsHint": "One option per line",
+      "urlParam": "Fill from URL parameter",
+      "defaultValue": "Fixed value",
+      "addField": "Add field",
+      "noProperty": "Don't save to a property",
+      "contact": "Contact",
+      "company": "Company",
+      "display": "Display",
+      "slug": "Custom URL",
+      "slugHint": "contact-us",
+      "title": "Title",
+      "submitText": "Button text",
+      "description": "Description",
+      "consentText": "Consent checkbox",
+      "consentPlaceholder": "I agree to receive emails…",
+      "consentRequired": "Consent is required to submit",
+      "after": "After submit",
+      "successMode": "Then",
+      "showMessage": "Show a thank-you message",
+      "redirect": "Redirect to a URL",
+      "redirectUrl": "Redirect URL",
+      "successMessage": "Thank-you message",
+      "crm": "In the CRM",
+      "crmDesc": "What happens to the contact on every submission.",
+      "dedupe": "Update the existing contact when the email matches",
+      "ownerAuto": "Round-robin or workspace owner",
+      "list": "Add to list",
+      "sequence": "Enroll in sequence",
+      "tags": "Add tags",
+      "notify": "Notifications",
+      "notifyOwner": "Notify the contact owner",
+      "notifyEmails": "Also email (comma separated)",
+      "spam": "Spam protection",
+      "spamDesc": "A hidden honeypot field and a per-IP rate limit are always on.",
+      "minSeconds": "Minimum seconds before submitting",
+      "status": "Status",
+      "saved": "Saved",
+      "preview": "Preview",
+      "readOnly": "Only admins and the form creator can edit it."
+    },
+    "types": {
+      "text": "Text",
+      "email": "Email",
+      "phone": "Phone",
+      "select": "Dropdown",
+      "checkbox": "Checkbox",
+      "textarea": "Long text",
+      "hidden": "Hidden"
+    },
+    "props": {
+      "email": "Email",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "fullName": "Full name",
+      "phone": "Phone",
+      "jobTitle": "Job title",
+      "website": "Website",
+      "city": "City",
+      "country": "Country"
+    },
+    "companyProps": {
+      "name": "Company name",
+      "domain": "Company domain",
+      "industry": "Industry",
+      "website": "Company website",
+      "phone": "Company phone",
+      "city": "Company city",
+      "country": "Company country"
+    },
+    "exportCsv": "Export CSV",
+    "noSubmissions": "No submissions yet",
+    "noSubmissionsSub": "Share the form link or embed it to start collecting leads.",
+    "contact": "Contact",
+    "newContact": "new",
+    "view": "View",
+    "consent": "Consent",
+    "page": "Page"
+  },
+  "formsPublic": {
+    "notFound": "Form not found",
+    "thanks": "Thanks! We got your submission.",
+    "rateLimited": "Too many submissions. Try again in a minute.",
+    "paused": "This form is not accepting submissions right now.",
+    "fixErrors": "Please check the highlighted fields.",
+    "error": "Something went wrong. Please try again.",
+    "choose": "Choose…",
+    "sending": "Sending…",
+    "submit": "Submit",
+    "errors": {
+      "required": "This field is required.",
+      "invalid_email": "Enter a valid email.",
+      "invalid_option": "Pick one of the options.",
+      "invalid_phone": "Enter a valid phone number."
+    }
+  },
+  "scoring": {
+    "title": "Lead scoring",
+    "desc": "Add or subtract points for properties and recent activity. Scores update on every relevant event and again every night.",
+    "column": "Score",
+    "sortHigh": "Score (high → low)",
+    "sortLow": "Score (low → high)",
+    "noBreakdown": "No scoring rule matches this contact yet.",
+    "unnamedRule": "Rule",
+    "fields": {
+      "lifecycleStage": "Lifecycle stage",
+      "leadStatus": "Lead status",
+      "source": "Source",
+      "jobTitle": "Job title",
+      "email": "Email",
+      "phone": "Phone",
+      "city": "City",
+      "country": "Country",
+      "website": "Website"
+    },
+    "ops": {
+      "equals": "is",
+      "not_equals": "is not",
+      "contains": "contains",
+      "gt": "is greater than",
+      "lt": "is less than",
+      "is_set": "is set",
+      "is_not_set": "is empty"
+    },
+    "activities": {
+      "email_opened": "Emails opened",
+      "email_clicked": "Email link clicks",
+      "email_replied": "Email replies",
+      "meeting_booked": "Meetings booked",
+      "form_submitted": "Form submissions",
+      "call_logged": "Calls logged",
+      "note_logged": "Notes logged"
+    },
+    "activityRule": "{activity} ≥ {min} in the last {days} days",
+    "invalid": "Check the rule: points and values are required.",
+    "recalculated": "Recalculated {processed} contacts, {changed} changed.",
+    "empty": "No rules yet. Every contact scores 0.",
+    "disable": "Disable",
+    "enable": "Enable",
+    "kind": "Rule type",
+    "kindProperty": "Property",
+    "kindActivity": "Activity",
+    "field": "Property",
+    "op": "Condition",
+    "value": "Value",
+    "activity": "Activity",
+    "atLeast": "at least",
+    "inLastDays": "in the last (days)",
+    "points": "Points",
+    "namePlaceholder": "Name (optional)",
+    "name": "Name",
+    "add": "Add rule",
+    "recalculate": "Recalculate all"
+  },
+  "access": {
+    "title": "Access & teams",
+    "desc": "Choose which records members see. Owners and admins always see everything.",
+    "visibility": "Members see",
+    "vis": {
+      "all": "All records",
+      "mine": "Only their own",
+      "team": "Their own and their team’s"
+    },
+    "visDesc": {
+      "all": "every contact, company and deal in the workspace",
+      "mine": "records they own",
+      "team": "records owned by anyone on their sales teams"
+    },
+    "adminsSeeAll": "Applies to lists, record pages, search, exports, reports, dashboards and API keys created by members.",
+    "teams": "Sales teams",
+    "teamsDesc": "Group members so they can see each other’s records when visibility is set to team.",
+    "noTeams": "No sales teams yet.",
+    "teamName": "Team name",
+    "teamNamePh": "e.g. Enterprise",
+    "createTeam": "Create team",
+    "deleteTeamConfirm": "Delete this team? Its members keep their records."
+  },
+  "assignment": {
+    "title": "Lead assignment",
+    "desc": "Hand out new leads in turn among the people you pick. People out of office are skipped.",
+    "enabled": "Assign new leads round-robin",
+    "sources": "Sources",
+    "source": {
+      "form": "Forms",
+      "chat": "Chat",
+      "cal": "Cal bookings",
+      "import": "CSV import",
+      "api": "API"
+    },
+    "pool": "Rotation",
+    "poolDesc": "Checked people take turns in this order. Leads that already have an owner are not reassigned.",
+    "outOfOffice": "Out of office",
+    "history": "Recent assignments",
+    "noHistory": "No leads assigned yet."
+  },
+  "quotas": {
+    "title": "Quotas",
+    "desc": "Monthly or quarterly targets per owner. Progress shows on the CRM overview and in reports.",
+    "owner": "Owner",
+    "metric": "Metric",
+    "period": "Period",
+    "target": "Target",
+    "save": "Save quota",
+    "metrics": {
+      "won_value": "Won value",
+      "won_count": "Deals won",
+      "meetings": "Meetings booked"
+    },
+    "periods": {
+      "month": "Monthly",
+      "quarter": "Quarterly"
+    },
+    "empty": "No quotas yet.",
+    "expected": "Expected by now: {pct}%",
+    "manage": "Manage"
   }
 }

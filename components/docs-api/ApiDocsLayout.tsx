@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import EndpointSection from './EndpointSection';
-import { API_BASE_URL, API_ROOT_URL, API_SECTIONS, API_ENDPOINTS } from '@/lib/api-docs';
+import { API_BASE_URL, API_ROOT_URL, API_SECTIONS, API_ENDPOINTS, API_SCOPE_DOCS } from '@/lib/api-docs';
 
 const AUTH_TOKEN = 'zs_live_9f3k...';
 
@@ -74,6 +74,28 @@ export default function ApiDocsLayout() {
                     <code>Authorization: Bearer {AUTH_TOKEN}</code>
                   </pre>
                   <p>{t('authNote')}</p>
+                  <p>{t('scopesIntro')}</p>
+                  <div className="params-table-wrap">
+                    <table className="params-table">
+                      <thead>
+                        <tr>
+                          <th>{t('scopeLabel')}</th>
+                          <th>{t('paramDescription')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {API_SCOPE_DOCS.map((sc) => (
+                          <tr key={sc.scope}>
+                            <td>
+                              <code>{sc.scope}</code>
+                            </td>
+                            <td>{t(sc.descKey)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p>{t('scopesVisibility')}</p>
                 </>
               )}
               {section.endpoints.map((endpoint) => (

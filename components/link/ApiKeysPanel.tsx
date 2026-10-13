@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ApiKeyDto } from '@/lib/api-auth';
+import { API_SCOPES, type ApiScope } from '@/lib/api-scopes';
 import CopyButton from './CopyButton';
 
 interface ApiKeysPanelProps {
@@ -24,19 +25,24 @@ export default function ApiKeysPanel({ initialKeys }: ApiKeysPanelProps) {
   const [name, setName] = useState('');
   const [newKey, setNewKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [scopes, setScopes] = useState<ApiScope[]>([...API_SCOPES]);
+
+  function toggleScope(scope: ApiScope) {
+    setScopes((prev) => (prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]));
+  }
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || busy) return;
+    if (!name.trim() || busy || scopes.length === 0) return;
     setBusy(true);
     try {
       const res = await fetch('/api/keys', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({ name: name.trim(), scopes }),
       });
       if (res.status === 201) {
-        const data = (await res.json()) as { id: string; key: string };
+        const data = (await res.json()) as { id: string; key: string; scopes: ApiScope[] };
         setNewKey(data.key);
         setKeys((prev) => [
           {
@@ -45,6 +51,7 @@ export default function ApiKeysPanel({ initialKeys }: ApiKeysPanelProps) {
             prefix: data.key.slice(0, 10),
             created_at: new Date().toISOString(),
             last_used_at: null,
+            scopes: data.scopes,
           },
           ...prev,
         ]);
@@ -79,10 +86,22 @@ export default function ApiKeysPanel({ initialKeys }: ApiKeysPanelProps) {
           aria-label={t('settings.keyName')}
           maxLength={80}
         />
-        <button type="submit" className="btn btn-solid btn-small" disabled={busy || !name.trim()}>
+        <button type="submit" className="btn btn-solid btn-small" disabled={busy || !name.trim() || scopes.length === 0}>
           {busy ? t('settings.creating') : t('settings.createKey')}
         </button>
       </form>
+      <fieldset className="apikeys-scopes">
+        <legend className="label">{t('settings.scopes')}</legend>
+        <p className="muted apikeys-scopes-hint">{t('settings.scopesHint')}</p>
+        <div className="apikeys-scopes-grid">
+          {API_SCOPES.map((scope) => (
+            <label key={scope} className="apikeys-scope">
+              <input type="checkbox" checked={scopes.includes(scope)} onChange={() => toggleScope(scope)} />
+              <span className="mono">{scope}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       {newKey && (
         <div className="key-reveal">
@@ -103,6 +122,7 @@ export default function ApiKeysPanel({ initialKeys }: ApiKeysPanelProps) {
             <tr>
               <th>{t('settings.colPrefix')}</th>
               <th>{t('settings.colName')}</th>
+              <th>{t('settings.colScopes')}</th>
               <th>{t('settings.colCreated')}</th>
               <th>{t('settings.colLastUsed')}</th>
               <th aria-label="" />
@@ -113,6 +133,9 @@ export default function ApiKeysPanel({ initialKeys }: ApiKeysPanelProps) {
               <tr key={key.id}>
                 <td className="mono">{key.prefix}…</td>
                 <td>{key.name}</td>
+                <td className="mono muted apikeys-scope-cell">
+                  {key.scopes.length === API_SCOPES.length ? t('settings.allScopes') : key.scopes.join(' ')}
+                </td>
                 <td className="mono muted">{formatTs(key.created_at, locale)}</td>
                 <td className="mono muted">
                   {key.last_used_at ? formatTs(key.last_used_at, locale) : t('settings.never')}

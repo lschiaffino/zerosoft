@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 /** GET ?status=confirmed|cancelled|no_show&from=ISO&to=ISO — reservas de tus event types. */
 export async function GET(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'cal:read');
   if ('res' in auth) return auth.res;
   const sp = req.nextUrl.searchParams;
   const status = sp.get('status');
@@ -44,7 +44,7 @@ const createSchema = z.object({
 
 /** Crea una reserva en nombre de un invitado (mismas reglas que la página pública). */
 export async function POST(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'cal:write');
   if ('res' in auth) return auth.res;
   const parsed = createSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return apiError(400, 'invalid_input', 'eventTypeId, start (ISO), name and email are required.');

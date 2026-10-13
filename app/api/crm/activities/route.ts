@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { canSeeActivityRefs, sessionScope } from '@/lib/crm-visibility';
 import {
   ACTIVITY_TYPES,
   createActivity,
@@ -9,7 +10,7 @@ import {
   type TaskBucket,
 } from '@/lib/crm';
 import { activityCreateSchema } from '@/lib/crm-schema';
-import { catchRef, crmError, CrmRefError, invalidBody, unauthorized } from '@/lib/crm-http';
+import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
     if (!BUCKETS.includes(bucket as TaskBucket)) return crmError(400, 'invalid_input');
     return NextResponse.json({
       rows: await listTasks(user.id, {
+        ownerScope: await sessionScope(user),
         bucket: bucket as TaskBucket,
         projectId: sp.get('projectId') ?? undefined,
         ownerId: sp.get('ownerId') ?? undefined,
@@ -38,6 +40,7 @@ export async function GET(req: NextRequest) {
     return crmError(400, 'invalid_input');
   }
   const rows = await listTimeline(user.id, {
+    ownerScope: await sessionScope(user),
     contactId: sp.get('contactId') ?? undefined,
     companyId: sp.get('companyId') ?? undefined,
     dealId: sp.get('dealId') ?? undefined,
@@ -54,6 +57,9 @@ export async function POST(req: NextRequest) {
   const parsed = activityCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
+  if (!(await canSeeActivityRefs(user.id, { contact_id: parsed.data.contactId, company_id: parsed.data.companyId, deal_id: parsed.data.dealId, owner_id: realUserId(user) }, await sessionScope(user)))) {
+    return notFound();
+  }
   const activity = await catchRef(createActivity(user.id, parsed.data));
   if (activity instanceof CrmRefError) return crmError(400, activity.code);
   return NextResponse.json(activity, { status: 201 });

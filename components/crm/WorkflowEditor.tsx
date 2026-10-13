@@ -20,6 +20,8 @@ const TRIGGER_TYPES = [
   'email_clicked',
   'meeting_booked',
   'quote_accepted',
+  'form_submitted',
+  'score_changed',
   'manual',
 ] as const;
 
@@ -32,13 +34,21 @@ const ACTION_TYPES = [
   'webhook',
   'notify_user',
   'enroll_in_sequence',
+  'run_flow',
+  'branch',
 ] as const;
+
+const BRANCH_OPS = ['equals', 'not_equals', 'contains', 'gt', 'lt', 'is_set', 'is_not_set'] as const;
 
 interface WorkflowEditorProps {
   workflow: Workflow | null;
   lists: CrmListRow[];
   /** Secuencias del workspace (acción enroll_in_sequence). */
   sequences?: Array<{ id: string; name: string }>;
+  /** Formularios (trigger form_submitted). */
+  forms?: Array<{ id: string; name: string }>;
+  /** Flows del workspace (acción run_flow). */
+  flows?: Array<{ id: string; name: string }>;
   runs: CrmWorkflowRunRow[];
   labels: {
     name: string;
@@ -74,10 +84,27 @@ interface WorkflowEditorProps {
     headers: string;
     message: string;
     sequenceId?: string;
+    formId?: string;
+    anyForm?: string;
+    threshold?: string;
+    direction?: Record<string, string>;
+    flowId?: string;
+    op?: Record<string, string>;
+    when?: Record<string, string>;
+    runFlowHint?: string;
+    branchHint?: string;
   };
 }
 
-export default function WorkflowEditor({ workflow, lists, sequences = [], runs, labels }: WorkflowEditorProps) {
+export default function WorkflowEditor({
+  workflow,
+  lists,
+  sequences = [],
+  forms = [],
+  flows = [],
+  runs,
+  labels,
+}: WorkflowEditorProps) {
   const router = useRouter();
   const isNew = !workflow;
   const [name, setName] = useState(workflow?.name ?? '');
@@ -230,6 +257,47 @@ export default function WorkflowEditor({ workflow, lists, sequences = [], runs, 
                 </option>
               ))}
             </select>
+            {t.type === 'form_submitted' && (
+              <div className="workflow-config-row">
+                <select
+                  className="filter-select"
+                  value={safeString(t.config?.formId)}
+                  onChange={(e) => updateTriggerConfig(i, { formId: e.target.value })}
+                  aria-label={labels.formId}
+                >
+                  <option value="">{labels.anyForm ?? ''}</option>
+                  {forms.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {t.type === 'score_changed' && (
+              <div className="workflow-config-row">
+                <input
+                  className="input"
+                  type="number"
+                  value={safeString(t.config?.threshold)}
+                  onChange={(e) => updateTriggerConfig(i, { threshold: e.target.value === '' ? '' : Number(e.target.value) })}
+                  placeholder={labels.threshold}
+                  aria-label={labels.threshold}
+                />
+                <select
+                  className="filter-select"
+                  value={safeString(t.config?.direction) || 'up'}
+                  onChange={(e) => updateTriggerConfig(i, { direction: e.target.value })}
+                  aria-label={labels.threshold}
+                >
+                  {(['up', 'down', 'any'] as const).map((d) => (
+                    <option key={d} value={d}>
+                      {labels.direction?.[d] ?? d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {t.type === 'deal_stage_changed' && (
               <div className="workflow-config-row">
                 <input
@@ -291,9 +359,24 @@ export default function WorkflowEditor({ workflow, lists, sequences = [], runs, 
               config={a.config ?? {}}
               lists={lists}
               sequences={sequences}
+              flows={flows}
               labels={labels}
               onChange={(patch) => updateActionConfig(i, patch)}
             />
+            {a.type !== 'branch' && actions.slice(0, i).some((prev) => prev.type === 'branch') && (
+              <label className="workflow-when">
+                <span className="muted">{labels.when?.label ?? ''}</span>
+                <select
+                  className="filter-select"
+                  value={safeString(a.config?.when)}
+                  onChange={(e) => updateActionConfig(i, { when: e.target.value })}
+                >
+                  <option value="">{labels.when?.always ?? 'Always'}</option>
+                  <option value="yes">{labels.when?.yes ?? 'Yes'}</option>
+                  <option value="no">{labels.when?.no ?? 'No'}</option>
+                </select>
+              </label>
+            )}
           </div>
         ))}
         <button type="button" className="btn btn-sm" onClick={addAction}>
@@ -336,6 +419,7 @@ function ActionConfig({
   config,
   lists,
   sequences,
+  flows,
   labels,
   onChange,
 }: {
@@ -343,6 +427,7 @@ function ActionConfig({
   config: Record<string, unknown>;
   lists: CrmListRow[];
   sequences: Array<{ id: string; name: string }>;
+  flows: Array<{ id: string; name: string }>;
   labels: WorkflowEditorProps['labels'];
   onChange: (patch: Record<string, unknown>) => void;
 }) {
@@ -514,6 +599,71 @@ function ActionConfig({
               </option>
             ))}
           </select>
+        </div>
+      );
+    case 'run_flow':
+      return (
+        <div className="workflow-config">
+          <select
+            className="filter-select"
+            value={safeString(config.flowId)}
+            onChange={(e) => onChange({ flowId: e.target.value })}
+            aria-label={labels.flowId}
+          >
+            <option value="">{labels.flowId ?? ''}</option>
+            {flows.map((fl) => (
+              <option key={fl.id} value={fl.id}>
+                {fl.name}
+              </option>
+            ))}
+          </select>
+          {labels.runFlowHint && <p className="muted workflow-hint">{labels.runFlowHint}</p>}
+        </div>
+      );
+    case 'branch':
+      return (
+        <div className="workflow-config">
+          <div className="workflow-config-row">
+            <select
+              className="filter-select"
+              value={safeString(config.entity) || 'contact'}
+              onChange={(e) => onChange({ entity: e.target.value })}
+              aria-label={labels.entity}
+            >
+              <option value="contact">Contact</option>
+              <option value="company">Company</option>
+              <option value="deal">Deal</option>
+            </select>
+            <input
+              className="input"
+              value={safeString(config.field)}
+              onChange={(e) => onChange({ field: e.target.value })}
+              placeholder={labels.field}
+              aria-label={labels.field}
+            />
+            <select
+              className="filter-select"
+              value={safeString(config.op) || 'equals'}
+              onChange={(e) => onChange({ op: e.target.value })}
+              aria-label="op"
+            >
+              {BRANCH_OPS.map((op) => (
+                <option key={op} value={op}>
+                  {labels.op?.[op] ?? op}
+                </option>
+              ))}
+            </select>
+            {config.op !== 'is_set' && config.op !== 'is_not_set' && (
+              <input
+                className="input"
+                value={safeString(config.value)}
+                onChange={(e) => onChange({ value: e.target.value })}
+                placeholder={labels.value}
+                aria-label={labels.value}
+              />
+            )}
+          </div>
+          {labels.branchHint && <p className="muted workflow-hint">{labels.branchHint}</p>}
         </div>
       );
     default:

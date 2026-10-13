@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 /** Pipelines del workspace con sus etapas (para elegir pipelineId/stageId al crear deals). */
 export async function GET(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:read');
   if ('res' in auth) return auth.res;
 
   const pipelines = await listPipelinesWithStages(auth.user.id);

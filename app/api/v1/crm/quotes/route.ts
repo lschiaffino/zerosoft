@@ -3,14 +3,15 @@ import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createQuote, listQuotes } from '@/lib/crm-products';
 import { quoteCreateSchema } from '@/lib/crm-schema';
 import { QUOTE_STATUSES, type QuoteStatus } from '@/lib/crm-constants';
-import { catchRef, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { apiGuardRecord, catchRef, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { apiScope } from '@/lib/crm-visibility';
 import { publicOrigin, serializeQuote } from './serialize';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:read');
   if ('res' in auth) return auth.res;
 
   const sp = req.nextUrl.searchParams;
@@ -20,6 +21,7 @@ export async function GET(req: NextRequest) {
     ? (statusParam as QuoteStatus)
     : undefined;
   const { rows, total } = await listQuotes(auth.user.id, {
+    ownerScope: await apiScope(auth),
     dealId: sp.get('dealId') ?? undefined,
     status,
     page,
@@ -30,7 +32,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);
@@ -38,7 +40,9 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
 
   const { dealId, ...data } = parsed.data;
-  const result = await catchRef(createQuote(auth.user.id, dealId, data, auth.user.id));
+  const hidden = await apiGuardRecord(auth.user.id, 'deal', dealId, await apiScope(auth));
+  if (hidden) return hidden;
+  const result = await catchRef(createQuote(auth.user.id, dealId, data, auth.personId));
   if (result instanceof CrmRefError) return apiError(400, 'invalid_deal', 'The deal does not exist.');
   if (!result.ok) return apiError(400, 'no_line_items', 'Add line items to the deal before creating a quote.');
   return NextResponse.json(serializeQuote(result.quote, publicOrigin(req)), { status: 201 });

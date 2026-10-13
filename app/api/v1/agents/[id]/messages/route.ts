@@ -18,7 +18,7 @@ const schema = z.object({
  * que usó). Para seguir la conversación, mandá el conversationId devuelto.
  */
 export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'agents:run');
   if ('res' in auth) return auth.res;
   const { id } = await props.params;
   const agent = await getAgentRow(auth.user.id, id);

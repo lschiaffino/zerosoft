@@ -1191,6 +1191,22 @@
     "paramTagColor": "Color: crm, link, cal, track, chat, docs, flow, agents, notes, board o robots.",
     "paramTagEntity": "Tipo de registro: contact, company o deal.",
     "paramTagIds": "Ids de los registros.",
-    "paramTagAction": "add o remove."
+    "paramTagAction": "add o remove.",
+    "scopeLabel": "Scope",
+    "scopesIntro": "Cada key tiene scopes, que se eligen al crearla. Los de escritura incluyen lectura. Las keys creadas antes de los scopes tienen todos. Un request sin el scope necesario recibe 403 insufficient_scope.",
+    "scopesVisibility": "Una key actúa como la persona que la creó: si tu workspace limita a los members a sus registros del CRM (o a los de su equipo), la API devuelve solo esos registros.",
+    "scope_crm_read": "Leer contactos, empresas, deals, actividades, tareas, pipelines, productos, cotizaciones, tags, templates, secuencias y formularios.",
+    "scope_crm_write": "Crear, editar y borrar registros del CRM, inscribir en secuencias y etiquetar (incluye crm:read).",
+    "scope_links_read": "Listar links y leer sus estadísticas.",
+    "scope_links_write": "Crear, editar y borrar links cortos (incluye links:read).",
+    "scope_cal_read": "Listar tipos de evento y reservas.",
+    "scope_cal_write": "Crear y cancelar reservas (incluye cal:read).",
+    "scope_agents_run": "Enviar mensajes a tus agentes de AI.",
+    "crmFormsTitle": "CRM · Formularios",
+    "crmFormsDesc": "Formularios de captura de leads y sus envíos. Cada envío también crea o actualiza un contacto y registra una actividad \"Form submitted\".",
+    "formsListTitle": "Listar formularios",
+    "formsListDesc": "Todos los formularios del workspace con sus campos, estado y cantidad de envíos. `key` es el slug público (o el token) que usan /f/<key> y el script de embed.",
+    "formsSubmissionsTitle": "Listar envíos de un formulario",
+    "formsSubmissionsDesc": "Envíos de un formulario, los más recientes primero, con los valores, los parámetros UTM y el contacto vinculado."
   }
 }

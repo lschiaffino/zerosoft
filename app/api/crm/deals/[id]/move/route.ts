@@ -3,7 +3,8 @@ import { getCurrentUser } from '@/lib/session';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { getDeal, moveDeal } from '@/lib/crm';
 import { dealMoveSchema } from '@/lib/crm-schema';
-import { crmError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { crmError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
+import { sessionScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  const scope = await sessionScope(user);
+  const hidden = await guardRecord(user.id, 'deal', params.id, scope);
+  if (hidden) return hidden;
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = dealMoveSchema.safeParse(body);

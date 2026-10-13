@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { getWidgetData, listReportOwners } from '@/lib/crm-dashboards';
 import { dashboardDataRequestSchema } from '@/lib/crm-dashboards-schema';
 import { invalidBody, unauthorized } from '@/lib/crm-http';
@@ -16,7 +17,8 @@ export async function POST(req: NextRequest) {
   const parsed = dashboardDataRequestSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const owners = await listReportOwners(user);
-  const data = await getWidgetData(user.id, parsed.data, owners);
+  const scope = await sessionScope(user);
+  const owners = await listReportOwners(user, scope);
+  const data = await getWidgetData(user.id, parsed.data, owners, scope);
   return NextResponse.json(data);
 }

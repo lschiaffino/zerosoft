@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import { LIFECYCLE_STAGES, listCompanies, listCustomFields, parseFilterRules, type FilterFieldType } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
@@ -46,6 +47,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   const q = one(searchParams.q) ?? '';
@@ -71,6 +73,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   );
 
   const { rows, total } = await listCompanies(user.id, {
+    ownerScope: scope,
     q: q || undefined,
     industry: industry || undefined,
     lifecycle: lifecycle || undefined,

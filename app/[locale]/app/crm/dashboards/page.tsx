@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { listPipelinesWithStages } from '@/lib/crm';
 import {
   addWidget,
@@ -50,6 +51,7 @@ export default async function CrmDashboardsPage(
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   let dashboards = await listDashboardsWithWidgets(user.id);
@@ -62,7 +64,7 @@ export default async function CrmDashboardsPage(
   }
 
   const pipelines = await listPipelinesWithStages(user.id);
-  const owners = await listReportOwners(user);
+  const owners = await listReportOwners(user, scope);
   const defaultPipelineId = pipelines[0]?.id ?? null;
 
   // Prefetch del dataset de cada tipo de widget (pipeline default, rango 30d).
@@ -75,6 +77,7 @@ export default async function CrmDashboardsPage(
             user.id,
             { type, pipelineId: defaultPipelineId, range: '30d' },
             owners,
+            scope,
           ),
         ] as const,
     ),

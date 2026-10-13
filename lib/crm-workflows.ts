@@ -6,6 +6,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { createNotification } from './notifications';
 import { safeFetch } from './safe-fetch';
 import { sendEmail } from './email';
+import { crossesThreshold } from './crm-scoring-schema';
 import {
   createActivity,
   getContact,
@@ -46,6 +47,8 @@ export const TRIGGER_TYPES = [
   'email_clicked',
   'meeting_booked',
   'quote_accepted',
+  'form_submitted',
+  'score_changed',
   'manual',
 ] as const;
 export type TriggerType = (typeof TRIGGER_TYPES)[number];
@@ -59,6 +62,8 @@ export const ACTION_TYPES = [
   'webhook',
   'notify_user',
   'enroll_in_sequence',
+  'run_flow',
+  'branch',
 ] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 
@@ -698,6 +703,26 @@ async function executeAction(
         if (!res.enrolled.length) return { ok: false, type: action.type, error: res.skipped[0]?.reason ?? 'not_enrolled' };
         return { ok: true, type: action.type, result: { enrolled: res.enrolled } };
       }
+      case 'run_flow': {
+        const flowId = safeString(cfg.flowId);
+        if (!flowId) return { ok: false, type: action.type, error: 'missing_flow' };
+        const { getFlowRow, enqueueRun, kickFlowWorker } = await import('./flow');
+        const flow = await getFlowRow(userId, flowId);
+        if (!flow) return { ok: false, type: action.type, error: 'flow_not_found' };
+        const runId = await enqueueRun(flow, 'manual', {
+          crm: { workflowId, event: { type: event.type, entity: event.entity, entityId: event.entityId, payload: event.payload ?? {} } },
+          contact: ctx.contact ?? null,
+          company: ctx.company ?? null,
+          deal: ctx.deal ?? null,
+        });
+        if (!runId) return { ok: false, type: action.type, error: 'rate_limited' };
+        kickFlowWorker();
+        return { ok: true, type: action.type, result: { runId } };
+      }
+      case 'branch': {
+        // Lo evalúa el runner (evaluateBranch); acá no hace nada.
+        return { ok: true, type: action.type };
+      }
       default:
         return { ok: false, type: action.type, error: 'unknown_action' };
     }
@@ -723,7 +748,81 @@ function triggerMatches(trigger: WorkflowTrigger, event: WorkflowEvent): boolean
     if (from && from !== oldStage) return false;
     if (to && to !== newStage) return false;
   }
+  if (event.type === 'form_submitted') {
+    const formId = safeString(trigger.config.formId);
+    if (formId && formId !== safeString(event.payload?.formId)) return false;
+  }
+  if (event.type === 'score_changed') {
+    const raw = trigger.config.threshold;
+    const threshold = raw === undefined || raw === null || raw === '' ? null : Number(raw);
+    const dir = safeString(trigger.config.direction);
+    const direction = dir === 'down' || dir === 'any' ? dir : 'up';
+    if (
+      !crossesThreshold(
+        Number(event.payload?.oldScore ?? 0),
+        Number(event.payload?.newScore ?? 0),
+        threshold !== null && Number.isFinite(threshold) ? threshold : null,
+        direction,
+      )
+    ) {
+      return false;
+    }
+  }
   return true;
+}
+
+// ---------- If/else (acción branch) ----------
+
+const BRANCH_OPS = ['equals', 'not_equals', 'contains', 'gt', 'lt', 'is_set', 'is_not_set'] as const;
+
+/**
+ * Evalúa la condición de una acción `branch` sobre una propiedad del registro
+ * (contacto, empresa o deal del evento; custom con 'custom.<key>').
+ */
+export async function evaluateBranch(
+  userId: string,
+  cfg: Record<string, unknown>,
+  event: WorkflowEvent,
+  ctx: ActionContext,
+): Promise<boolean> {
+  const entity = (safeString(cfg.entity) || 'contact') as 'contact' | 'company' | 'deal';
+  const field = safeString(cfg.field);
+  const op = (BRANCH_OPS as readonly string[]).includes(safeString(cfg.op)) ? safeString(cfg.op) : 'equals';
+  const expected = safeString(cfg.value).trim().toLowerCase();
+  const id =
+    entity === event.entity ? event.entityId : entity === 'contact' ? ctx.contact?.id : entity === 'company' ? ctx.company?.id : ctx.deal?.id;
+  if (!id || !field) return false;
+  const table = entity === 'contact' ? 'crm_contacts' : entity === 'company' ? 'crm_companies' : 'crm_deals';
+  const row = (await getDb().prepare(`SELECT * FROM ${table} WHERE id = ? AND user_id = ?`).get(id, userId)) as
+    | Record<string, unknown>
+    | undefined;
+  if (!row) return false;
+  let actualRaw: unknown;
+  if (field.startsWith('custom.')) actualRaw = parseJsonObject((row.custom as string) ?? '{}')[field.slice(7)];
+  else {
+    const col = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+    actualRaw = /^[a-z_]+$/.test(col) ? row[col] : undefined;
+  }
+  const actual = actualRaw === undefined || actualRaw === null ? '' : String(actualRaw).trim().toLowerCase();
+  switch (op) {
+    case 'not_equals':
+      return actual !== expected;
+    case 'contains':
+      return expected !== '' && actual.includes(expected);
+    case 'gt':
+    case 'lt': {
+      const a = Number(actual);
+      const b = Number(expected);
+      if (actual === '' || Number.isNaN(a) || Number.isNaN(b)) return false;
+      return op === 'gt' ? a > b : a < b;
+    }
+    case 'is_set':
+      return actual !== '';
+    case 'is_not_set':
+      return actual === '';
+    default:
+      return actual === expected;
+  }
 }
 
 // ---------- Runner ----------
@@ -747,7 +846,20 @@ async function runSingleWorkflow(
   const results: ActionResult[] = [];
   let failed = false;
 
+  // If/else: una acción `branch` evalúa su condición; las acciones siguientes
+  // con config.when = 'yes' | 'no' corren solo en esa rama (las demás siempre).
+  let branch: boolean | null = null;
   for (const action of workflow.actions.sort((a, b) => a.position - b.position)) {
+    if (action.type === 'branch') {
+      branch = await evaluateBranch(userId, action.config, event, ctx).catch(() => false);
+      results.push({ ok: true, type: action.type, result: { branch: branch ? 'yes' : 'no' } });
+      continue;
+    }
+    const when = safeString(action.config.when);
+    if ((when === 'yes' || when === 'no') && branch !== null && (when === 'yes') !== branch) {
+      results.push({ ok: true, type: action.type, result: { skipped: true } });
+      continue;
+    }
     const result = await executeAction(userId, workflow.id, action, event, ctx);
     results.push(result);
     if (!result.ok) failed = true;

@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);
@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, props: Ctx) {
 
 export async function DELETE(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
   if (!(await deleteTag(auth.user.id, id))) return apiError(404, 'not_found', 'Tag not found.');
   return new NextResponse(null, { status: 204 });

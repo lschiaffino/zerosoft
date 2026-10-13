@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import { createCompany, listCompanies } from '@/lib/crm';
 import { companyCreateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
   const { rows, total } = await listCompanies(user.id, {
+    ownerScope: await sessionScope(user),
     q: sp.get('q') ?? undefined,
     industry: sp.get('industry') ?? undefined,
     lifecycle: sp.get('lifecycle') ?? undefined,
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
   const parsed = companyCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const company = await catchRef(createCompany(user.id, parsed.data));
+  const company = await catchRef(createCompany(user.id, { ...parsed.data, ownerId: parsed.data.ownerId ?? realUserId(user) }));
   if (company instanceof CrmRefError) return crmError(400, company.code);
   return NextResponse.json(company, { status: 201 });
 }

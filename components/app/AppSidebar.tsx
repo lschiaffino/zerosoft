@@ -48,6 +48,7 @@ export interface SidebarLabels {
     templates: string;
     products: string;
     quotes: string;
+    forms: string;
   };
   docs: {
     overview: string;
@@ -256,6 +257,7 @@ export default function AppSidebar({
         },
         { href: '/app/crm/sequences', label: labels.crm.sequences, active: pathname.startsWith('/app/crm/sequences'), icon: 'flow' },
         { href: '/app/crm/templates', label: labels.crm.templates, active: pathname.startsWith('/app/crm/templates'), icon: 'docs' },
+        { href: '/app/crm/forms', label: labels.crm.forms, active: pathname.startsWith('/app/crm/forms'), icon: 'inbox' },
       ],
     },
     {

@@ -222,6 +222,8 @@
     "email_sent": "CRM: email enviado",
     "email_opened": "CRM: email aberto",
     "email_clicked": "CRM: clique em um link do email",
+    "form_submitted": "CRM: formulário enviado",
+    "contact_score_changed": "CRM: lead score mudou",
     "issue_created": "Track: issue criado",
     "issue_updated": "Track: issue atualizado",
     "issue_status_changed": "Track: issue mudou de status",

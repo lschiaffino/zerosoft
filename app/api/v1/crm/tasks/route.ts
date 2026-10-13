@@ -9,6 +9,7 @@ import {
 } from '@/lib/crm';
 import { activityCreateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { apiScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ const BUCKETS: readonly TaskBucket[] = ['overdue', 'today', 'upcoming', 'done'];
 const taskCreateSchema = activityCreateSchema.omit({ type: true });
 
 export async function GET(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:read');
   if ('res' in auth) return auth.res;
 
   const sp = req.nextUrl.searchParams;
@@ -27,9 +28,9 @@ export async function GET(req: NextRequest) {
     if (!BUCKETS.includes(bucket as TaskBucket)) {
       return apiError(400, 'invalid_input', 'bucket must be one of: overdue, today, upcoming, done.');
     }
-    rows = await listTasks(auth.user.id, bucket as TaskBucket);
+    rows = await listTasks(auth.user.id, { bucket: bucket as TaskBucket, ownerScope: await apiScope(auth) });
   } else {
-    rows = await listTimeline(auth.user.id, { type: 'task', limit: 500 });
+    rows = await listTimeline(auth.user.id, { type: 'task', limit: 500, ownerScope: await apiScope(auth) });
   }
 
   const { page, pageSize } = pageParams(sp);
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireApiUser(req);
+  const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);

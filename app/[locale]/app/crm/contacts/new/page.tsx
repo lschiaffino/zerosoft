@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
 import {
   LEAD_STATUSES,
   LIFECYCLE_STAGES,
@@ -36,12 +37,13 @@ export default async function NewContactPage(
   } = params;
 
   const user = await requireUser(locale);
+  const scope = await sessionScope(user);
   // Sin parámetros, /new abre el alta rápida (modal) sobre la lista; el
   // formulario completo queda en /new?full=1 o con contexto (companyId…).
   if (!searchParams.full && !searchParams.companyId) redirect(`/${locale}/app/crm/contacts?new=1`);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const companies = (await listCompanies(user.id, { pageSize: 100, sort: 'name' })).rows.map((c) => ({
+  const companies = (await listCompanies(user.id, { pageSize: 100, sort: 'name', ownerScope: scope })).rows.map((c) => ({
     id: c.id,
     name: c.name,
   }));

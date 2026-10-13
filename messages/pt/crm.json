@@ -13,7 +13,8 @@
     "templates": "Templates",
     "sequences": "Sequências",
     "products": "Produtos",
-    "quotes": "Orçamentos"
+    "quotes": "Orçamentos",
+    "forms": "Formulários"
   },
   "switcher": {
     "product": "Produto",
@@ -108,7 +109,8 @@
       "social": "Redes sociais",
       "email": "E-mail",
       "event": "Evento",
-      "other": "Outro"
+      "other": "Outro",
+      "form": "Formulário"
     },
     "priority": {
       "low": "Baixa",
@@ -563,7 +565,9 @@
       "manual": "Manual",
       "email_opened": "Email aberto",
       "email_clicked": "Clique em um link do email",
-      "quote_accepted": "Orçamento aceito"
+      "quote_accepted": "Orçamento aceito",
+      "form_submitted": "Formulário enviado",
+      "score_changed": "Lead score mudou"
     },
     "actionTypes": {
       "send_email": "Enviar e-mail",
@@ -573,7 +577,9 @@
       "add_to_list": "Adicionar à lista",
       "webhook": "Webhook",
       "notify_user": "Notificar usuário",
-      "enroll_in_sequence": "Inscrever em sequência"
+      "enroll_in_sequence": "Inscrever em sequência",
+      "run_flow": "Executar um Flow",
+      "branch": "Se / senão"
     },
     "addTrigger": "Adicionar trigger",
     "addAction": "Adicionar ação",
@@ -605,7 +611,24 @@
     "message": "Mensagem",
     "noWorkflows": "Ainda não há workflows.",
     "emptySub": "Automatize o trabalho repetitivo: quando um registro muda, crie tarefas, atualize campos ou envie webhooks.",
-    "sequenceId": "Sequência"
+    "sequenceId": "Sequência",
+    "formId": "Formulário",
+    "anyForm": "Qualquer formulário",
+    "threshold": "Cruza o score (opcional)",
+    "direction": {
+      "up": "Subindo",
+      "down": "Descendo",
+      "any": "Em qualquer sentido"
+    },
+    "flowId": "Flow a executar",
+    "runFlowHint": "Inicia o flow com o contato, a empresa e o negócio como entrada. Use o Flow para esperas e lógica avançada.",
+    "branchHint": "As ações abaixo podem rodar só em \"Sim\" ou só em \"Não\".",
+    "when": {
+      "label": "Rodar quando",
+      "always": "Sempre",
+      "yes": "Se sim",
+      "no": "Se não"
+    }
   },
   "history": {
     "title": "Histórico",
@@ -1308,5 +1331,285 @@
     "saved": "Salvo.",
     "convertedHint": "Convertido para {base} com a taxa de câmbio do workspace",
     "reportNote": "Valores em {base}. Negócios em outras moedas são convertidos com suas taxas de câmbio."
+  },
+  "forms": {
+    "title": "Formulários",
+    "subtitle": "Capture leads em uma página própria ou incorporados no seu site. Cada envio cria ou atualiza um contato.",
+    "new": "Novo formulário",
+    "name": "Nome do formulário",
+    "namePlaceholder": "Nome do formulário (ex. Fale conosco)",
+    "newHint": "Começa com email, nome e sobrenome. Você pode mudar tudo no editor.",
+    "emptyTitle": "Nenhum formulário ainda",
+    "emptySub": "Crie um formulário, compartilhe o link ou incorpore-o, e os novos leads chegam aos seus contatos.",
+    "emptyCta": "Criar o primeiro formulário",
+    "table": {
+      "name": "Nome",
+      "status": "Status",
+      "submissions": "Envios",
+      "last": "Último envio",
+      "link": "Link",
+      "date": "Data",
+      "contact": "Contato"
+    },
+    "status": {
+      "active": "Ativo",
+      "paused": "Pausado",
+      "archived": "Arquivado"
+    },
+    "submissionsCount": "{count, plural, =0 {Sem envios} one {# envio} other {# envios}}",
+    "tabs": {
+      "build": "Editor",
+      "submissions": "Envios",
+      "share": "Compartilhar e incorporar"
+    },
+    "share": {
+      "hosted": "Página própria",
+      "hostedDesc": "Uma página limpa só com o seu formulário. Compartilhe o link onde quiser.",
+      "open": "Abrir formulário",
+      "embed": "Incorporar no seu site",
+      "embedDesc": "Cole onde o formulário deve aparecer. A altura se ajusta sozinha.",
+      "utmNote": "Os parâmetros UTM, gclid e fbclid da URL da página são salvos com cada envio.",
+      "iframe": "Iframe simples",
+      "iframeDesc": "Se o seu site bloqueia scripts, use um iframe (altura fixa)."
+    },
+    "deleteConfirm": "Excluir este formulário e todos os envios? Os contatos continuam no CRM.",
+    "errors": {
+      "slug_taken": "Essa URL já é usada por outro formulário.",
+      "invalid_slug": "A URL só pode ter letras minúsculas, números e hífens.",
+      "invalid_field": "Um campo tem uma chave ou propriedade inválida.",
+      "duplicate_field": "Dois campos têm a mesma chave.",
+      "missing_options": "Listas suspensas precisam de pelo menos uma opção.",
+      "invalid_owner": "O responsável não faz parte deste workspace.",
+      "invalid_list": "Escolha uma lista estática.",
+      "invalid_sequence": "Essa sequência não existe mais.",
+      "invalid_url": "A URL de redirecionamento deve começar com http:// ou https://.",
+      "invalid_input": "Alguns ajustes não são válidos."
+    },
+    "builder": {
+      "fields": "Campos",
+      "fieldsDesc": "Mapeie cada campo para uma propriedade do contato ou da empresa. Campos não mapeados ficam salvos no envio.",
+      "newField": "Campo novo",
+      "label": "Rótulo",
+      "type": "Tipo",
+      "property": "Salva em",
+      "required": "Obrigatório",
+      "more": "Mais",
+      "key": "Chave",
+      "placeholder": "Placeholder",
+      "options": "Opções",
+      "optionsHint": "Uma opção por linha",
+      "urlParam": "Preencher com parâmetro da URL",
+      "defaultValue": "Valor fixo",
+      "addField": "Adicionar campo",
+      "noProperty": "Não salvar em uma propriedade",
+      "contact": "Contato",
+      "company": "Empresa",
+      "display": "Apresentação",
+      "slug": "URL própria",
+      "slugHint": "contato",
+      "title": "Título",
+      "submitText": "Texto do botão",
+      "description": "Descrição",
+      "consentText": "Caixa de consentimento",
+      "consentPlaceholder": "Aceito receber emails…",
+      "consentRequired": "É preciso aceitar o consentimento para enviar",
+      "after": "Depois de enviar",
+      "successMode": "Então",
+      "showMessage": "Mostrar uma mensagem de agradecimento",
+      "redirect": "Redirecionar para uma URL",
+      "redirectUrl": "URL de redirecionamento",
+      "successMessage": "Mensagem de agradecimento",
+      "crm": "No CRM",
+      "crmDesc": "O que acontece com o contato em cada envio.",
+      "dedupe": "Atualizar o contato existente quando o email coincidir",
+      "ownerAuto": "Round-robin ou dono do workspace",
+      "list": "Adicionar à lista",
+      "sequence": "Inscrever na sequência",
+      "tags": "Adicionar tags",
+      "notify": "Avisos",
+      "notifyOwner": "Avisar o responsável pelo contato",
+      "notifyEmails": "Avisar também por email (separados por vírgula)",
+      "spam": "Proteção contra spam",
+      "spamDesc": "Sempre há um campo-armadilha oculto e um limite de envios por IP.",
+      "minSeconds": "Segundos mínimos antes de enviar",
+      "status": "Status",
+      "saved": "Salvo",
+      "preview": "Pré-visualizar",
+      "readOnly": "Só os admins e quem criou o formulário podem editá-lo."
+    },
+    "types": {
+      "text": "Texto",
+      "email": "Email",
+      "phone": "Telefone",
+      "select": "Lista suspensa",
+      "checkbox": "Caixa de seleção",
+      "textarea": "Texto longo",
+      "hidden": "Oculto"
+    },
+    "props": {
+      "email": "Email",
+      "firstName": "Nome",
+      "lastName": "Sobrenome",
+      "fullName": "Nome completo",
+      "phone": "Telefone",
+      "jobTitle": "Cargo",
+      "website": "Site",
+      "city": "Cidade",
+      "country": "País"
+    },
+    "companyProps": {
+      "name": "Nome da empresa",
+      "domain": "Domínio da empresa",
+      "industry": "Setor",
+      "website": "Site da empresa",
+      "phone": "Telefone da empresa",
+      "city": "Cidade da empresa",
+      "country": "País da empresa"
+    },
+    "exportCsv": "Exportar CSV",
+    "noSubmissions": "Nenhum envio ainda",
+    "noSubmissionsSub": "Compartilhe o link ou incorpore o formulário para começar a receber leads.",
+    "contact": "Contato",
+    "newContact": "novo",
+    "view": "Ver",
+    "consent": "Consentimento",
+    "page": "Página"
+  },
+  "formsPublic": {
+    "notFound": "Formulário não encontrado",
+    "thanks": "Obrigado! Recebemos o seu envio.",
+    "rateLimited": "Envios demais. Tente de novo em um minuto.",
+    "paused": "Este formulário não está recebendo envios agora.",
+    "fixErrors": "Confira os campos destacados.",
+    "error": "Algo deu errado. Tente de novo.",
+    "choose": "Escolha…",
+    "sending": "Enviando…",
+    "submit": "Enviar",
+    "errors": {
+      "required": "Este campo é obrigatório.",
+      "invalid_email": "Digite um email válido.",
+      "invalid_option": "Escolha uma das opções.",
+      "invalid_phone": "Digite um telefone válido."
+    }
+  },
+  "scoring": {
+    "title": "Lead scoring",
+    "desc": "Some ou subtraia pontos por propriedades e atividade recente. O score é atualizado a cada evento relevante e de novo toda noite.",
+    "column": "Score",
+    "sortHigh": "Score (maior → menor)",
+    "sortLow": "Score (menor → maior)",
+    "noBreakdown": "Nenhuma regra se aplica a este contato ainda.",
+    "unnamedRule": "Regra",
+    "fields": {
+      "lifecycleStage": "Etapa do ciclo de vida",
+      "leadStatus": "Status do lead",
+      "source": "Origem",
+      "jobTitle": "Cargo",
+      "email": "Email",
+      "phone": "Telefone",
+      "city": "Cidade",
+      "country": "País",
+      "website": "Site"
+    },
+    "ops": {
+      "equals": "é",
+      "not_equals": "não é",
+      "contains": "contém",
+      "gt": "é maior que",
+      "lt": "é menor que",
+      "is_set": "tem valor",
+      "is_not_set": "está vazio"
+    },
+    "activities": {
+      "email_opened": "Emails abertos",
+      "email_clicked": "Cliques em emails",
+      "email_replied": "Respostas a emails",
+      "meeting_booked": "Reuniões agendadas",
+      "form_submitted": "Formulários enviados",
+      "call_logged": "Ligações registradas",
+      "note_logged": "Notas registradas"
+    },
+    "activityRule": "{activity} ≥ {min} nos últimos {days} dias",
+    "invalid": "Confira a regra: pontos e valores são obrigatórios.",
+    "recalculated": "{processed} contatos recalculados, {changed} mudaram.",
+    "empty": "Nenhuma regra ainda. Todos os contatos têm 0.",
+    "disable": "Desativar",
+    "enable": "Ativar",
+    "kind": "Tipo de regra",
+    "kindProperty": "Propriedade",
+    "kindActivity": "Atividade",
+    "field": "Propriedade",
+    "op": "Condição",
+    "value": "Valor",
+    "activity": "Atividade",
+    "atLeast": "pelo menos",
+    "inLastDays": "nos últimos (dias)",
+    "points": "Pontos",
+    "namePlaceholder": "Nome (opcional)",
+    "name": "Nome",
+    "add": "Adicionar regra",
+    "recalculate": "Recalcular tudo"
+  },
+  "access": {
+    "title": "Acesso e equipes",
+    "desc": "Escolha quais registros os membros veem. O dono e os admins sempre veem tudo.",
+    "visibility": "Os membros veem",
+    "vis": {
+      "all": "Todos os registros",
+      "mine": "Só os próprios",
+      "team": "Os próprios e os da equipe"
+    },
+    "visDesc": {
+      "all": "todos os contatos, empresas e negócios do workspace",
+      "mine": "os registros pelos quais são responsáveis",
+      "team": "os registros de qualquer pessoa das suas equipes de vendas"
+    },
+    "adminsSeeAll": "Vale para listas, fichas, busca, exportações, relatórios, dashboards e chaves de API criadas por membros.",
+    "teams": "Equipes de vendas",
+    "teamsDesc": "Agrupe membros para que vejam os registros uns dos outros quando a visibilidade for por equipe.",
+    "noTeams": "Nenhuma equipe de vendas ainda.",
+    "teamName": "Nome da equipe",
+    "teamNamePh": "ex. Enterprise",
+    "createTeam": "Criar equipe",
+    "deleteTeamConfirm": "Excluir esta equipe? Os membros mantêm os seus registros."
+  },
+  "assignment": {
+    "title": "Distribuição de leads",
+    "desc": "Distribua os novos leads em rodízio entre as pessoas escolhidas. Quem está fora do escritório é pulado.",
+    "enabled": "Distribuir novos leads em round-robin",
+    "sources": "Origens",
+    "source": {
+      "form": "Formulários",
+      "chat": "Chat",
+      "cal": "Reservas do Cal",
+      "import": "Importação CSV",
+      "api": "API"
+    },
+    "pool": "Rodízio",
+    "poolDesc": "As pessoas marcadas se revezam nesta ordem. Leads que já têm responsável não são redistribuídos.",
+    "outOfOffice": "Fora do escritório",
+    "history": "Distribuições recentes",
+    "noHistory": "Nenhum lead distribuído ainda."
+  },
+  "quotas": {
+    "title": "Cotas",
+    "desc": "Metas mensais ou trimestrais por responsável. O progresso aparece no resumo do CRM e nos relatórios.",
+    "owner": "Responsável",
+    "metric": "Métrica",
+    "period": "Período",
+    "target": "Meta",
+    "save": "Salvar cota",
+    "metrics": {
+      "won_value": "Valor ganho",
+      "won_count": "Negócios ganhos",
+      "meetings": "Reuniões agendadas"
+    },
+    "periods": {
+      "month": "Mensal",
+      "quarter": "Trimestral"
+    },
+    "empty": "Nenhuma cota ainda.",
+    "expected": "Esperado até agora: {pct}%",
+    "manage": "Gerenciar"
   }
 }
