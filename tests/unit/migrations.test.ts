@@ -9,6 +9,11 @@ function freshClient() {
 }
 
 describe('migraciones versionadas', () => {
+  it('los ids son únicos', () => {
+    const ids = MIGRATIONS.map((m) => m.id);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+  });
+
   it('aplica todas en una base vacía y ninguna la segunda vez', async () => {
     const client = freshClient();
     expect(await runMigrations(client)).toEqual(MIGRATIONS.map((m) => m.id));
