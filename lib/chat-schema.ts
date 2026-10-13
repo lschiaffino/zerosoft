@@ -48,7 +48,7 @@ const widgetBase = {
   fields: z.array(chatField).max(20).optional(),
   botEnabled: z.boolean().optional(),
   botGreeting: longText.optional(),
-  botSource: z.enum(['canned', 'docs']).optional(),
+  botSource: z.enum(['canned', 'docs', 'ai']).optional(),
   officeHours: officeHoursSchema.nullable().optional(),
 };
 

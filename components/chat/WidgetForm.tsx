@@ -15,6 +15,8 @@ export interface WidgetFormField {
 
 interface WidgetFormProps {
   initial?: ChatWidgetRow | null;
+  /** Si el servidor tiene AI configurada (lib/ai.ts aiEnabled). */
+  aiAvailable?: boolean;
 }
 
 function emptyField(): WidgetFormField {
@@ -86,7 +88,7 @@ function parseOfficeHours(initial: ChatWidgetRow | null | undefined): {
 
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
-export default function WidgetForm({ initial }: WidgetFormProps) {
+export default function WidgetForm({ initial, aiAvailable = false }: WidgetFormProps) {
   const t = useTranslations('chat');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -153,7 +155,7 @@ export default function WidgetForm({ initial }: WidgetFormProps) {
         .map((f) => ({ id: f.id, name: f.name.trim(), required: f.required, type: f.type })),
       botEnabled: values.botEnabled,
       botGreeting: values.botGreeting.trim() || undefined,
-      botSource: values.botSource as 'canned' | 'docs',
+      botSource: values.botSource as 'canned' | 'docs' | 'ai',
       officeHours: office.enabled
         ? { timezone: office.timezone.trim() || 'UTC', days: office.days }
         : null,
@@ -280,9 +282,13 @@ export default function WidgetForm({ initial }: WidgetFormProps) {
               <select className="select" value={values.botSource} onChange={set('botSource')}>
                 <option value="canned">{t('bot.sourceCanned')}</option>
                 <option value="docs">{t('bot.sourceDocs')}</option>
+                <option value="ai">{t('bot.sourceAi')}</option>
               </select>
             </label>
-            <p className="muted chat-bot-hint">{t('bot.hint')}</p>
+            {values.botSource === 'ai' && !aiAvailable && (
+              <p className="muted chat-bot-hint">{t('bot.aiNotConfigured')}</p>
+            )}
+            <p className="muted chat-bot-hint">{t(values.botSource === 'ai' ? 'bot.hintAi' : 'bot.hint')}</p>
           </div>
         ) : (
           <p className="muted">{t('bot.disabled')}</p>

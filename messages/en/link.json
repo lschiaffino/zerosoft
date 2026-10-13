@@ -210,7 +210,21 @@
     "colLastUsed": "Last used",
     "never": "never",
     "revoke": "Revoke",
-    "noKeys": "No keys yet."
+    "noKeys": "No keys yet.",
+    "aiUsage": {
+      "title": "AI usage",
+      "sub": "Tokens used by AI features (chat bot) in this workspace this month.",
+      "used": "Used this month",
+      "free": "Free monthly quota",
+      "unlimited": "Unlimited",
+      "overage": "Over quota",
+      "byFeature": "By feature",
+      "notConfigured": "AI is not configured on this server. Set AI_GATEWAY_API_KEY (or deploy on Vercel with AI Gateway) to enable AI features.",
+      "features": {
+        "chat_bot": "Chat bot"
+      },
+      "quotaNote": "When the free quota runs out, AI features pause until next month and fall back to non-AI behavior."
+    }
   },
   "gate": {
     "title": "Protected link",

@@ -76,7 +76,7 @@ export interface WidgetCreatePayload {
   fields?: ChatFieldDef[];
   botEnabled?: boolean;
   botGreeting?: string;
-  botSource?: 'canned' | 'docs';
+  botSource?: 'canned' | 'docs' | 'ai';
   officeHours?: OfficeHoursConfig | null;
 }
 
@@ -88,7 +88,7 @@ export interface WidgetUpdatePayload {
   fields?: ChatFieldDef[];
   botEnabled?: boolean;
   botGreeting?: string;
-  botSource?: 'canned' | 'docs';
+  botSource?: 'canned' | 'docs' | 'ai';
   officeHours?: OfficeHoursConfig | null;
 }
 
@@ -1456,14 +1456,15 @@ export async function deleteCannedResponse(id: string): Promise<boolean> {
  *   greeting (si está configurado); sin greeting ni match, el bot calla.
  * - Solo responde una vez por conversación: si ya contestó un humano o el
  *   bot, no vuelve a hablar.
- * No hay llamadas a AI externas: todo es matching local.
+ * No hay llamadas a AI externas: todo es matching local. El bot con AI
+ * (bot_source = 'ai') vive en lib/chat-bot-ai.ts y usa esto como fallback.
  */
 export interface BotReply {
   body: string;
   matchedTitle: string | null;
 }
 
-function tokenize(text: string): string[] {
+export function tokenize(text: string): string[] {
   const tokens = text
     .toLowerCase()
     .split(/[^a-z0-9áéíóúñü]+/i)
@@ -1483,12 +1484,12 @@ function scoreCandidate(tokens: string[], title: string, body: string): number {
 }
 
 // Extrae texto plano de docs_pages.content (JSON DocsBlock[]) de forma tolerante.
-function extractDocsText(content: string): string {
+export function extractDocsText(content: string, maxChars = 2000): string {
   try {
     const parsed = JSON.parse(content) as unknown;
     const texts: string[] = [];
     const walk = (value: unknown): void => {
-      if (texts.join(' ').length > 2000) return;
+      if (texts.join(' ').length > maxChars) return;
       if (typeof value === 'string') {
         texts.push(value);
         return;
@@ -1506,7 +1507,7 @@ function extractDocsText(content: string): string {
     walk(parsed);
     return texts.join(' ').replace(/\s+/g, ' ').trim();
   } catch {
-    return content.slice(0, 2000);
+    return content.slice(0, maxChars);
   }
 }
 
@@ -1519,7 +1520,10 @@ export async function findBotReply(
   const tokens = tokenize(messageBody);
   let best: { score: number; text: string; title: string } | null = null;
 
-  if (widget.bot_source === 'docs') {
+  // 'ai' sin AI disponible (o si falla) cae acá: busca en docs y canned.
+  const useDocs = widget.bot_source === 'docs' || widget.bot_source === 'ai';
+  const useCanned = widget.bot_source !== 'docs';
+  if (useDocs) {
     const pages = (await getDb()
       .prepare(
         'SELECT title, content FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT 100',
@@ -1536,7 +1540,8 @@ export async function findBotReply(
         };
       }
     }
-  } else {
+  }
+  if (useCanned) {
     const canned = await listCannedResponses(widget.id);
     for (const response of canned) {
       const score = scoreCandidate(tokens, `${response.shortcut} ${response.title}`, response.body);
@@ -1754,7 +1759,10 @@ export async function getVisitorConversationWithMessages(
   if (!visitor) return null;
 
   const conversation = await getOpenConversationByVisitor(widgetId, visitor.id);
-  const messages = conversation ? await listChatMessages(conversation.id) : [];
+  // Los mensajes de sistema son internos (p. ej. la derivación del bot AI).
+  const messages = conversation
+    ? (await listChatMessages(conversation.id)).filter((m) => m.sender_type !== 'system')
+    : [];
   const pendingCsat = await getPendingCsatConversation(widgetId, visitor.id);
 
   return {

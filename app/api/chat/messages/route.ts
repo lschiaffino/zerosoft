@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import {
   applyAssignmentRules,
@@ -9,10 +9,10 @@ import {
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
   listChatAgents,
-  maybeRunChatBot,
   updateChatConversation,
 } from '@/lib/chat-data';
 import { createNotification } from '@/lib/notifications';
+import { dispatchChatBot } from '@/lib/chat-bot-ai';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,8 +88,9 @@ export async function POST(req: Request) {
     conversation = { ...conversation, assigned_to: assignedTo };
   }
 
-  // Bot: responde al primer mensaje si nadie contestó todavía.
-  const botMessage = await maybeRunChatBot(widget, conversation, finalBody);
+  // Bot: keywords responde al instante (una vez); el bot AI responde en
+  // segundo plano (after) y el widget recibe la respuesta en su polling.
+  const botMessage = await dispatchChatBot(widget, conversation, { id: message.id, body: finalBody }, after);
 
   // Notify widget owner and assigned agent.
   const recipients = new Set<string>();

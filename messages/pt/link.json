@@ -210,7 +210,21 @@
     "colLastUsed": "Último uso",
     "never": "nunca",
     "revoke": "Revogar",
-    "noKeys": "Nenhuma chave ainda."
+    "noKeys": "Nenhuma chave ainda.",
+    "aiUsage": {
+      "title": "Uso de IA",
+      "sub": "Tokens usados pelos recursos de IA (bot do chat) neste workspace este mês.",
+      "used": "Usado este mês",
+      "free": "Cota mensal grátis",
+      "unlimited": "Ilimitada",
+      "overage": "Excedente",
+      "byFeature": "Por recurso",
+      "notConfigured": "A IA não está configurada neste servidor. Defina AI_GATEWAY_API_KEY (ou faça deploy na Vercel com AI Gateway) para ativá-la.",
+      "features": {
+        "chat_bot": "Bot do chat"
+      },
+      "quotaNote": "Quando a cota grátis acaba, os recursos de IA pausam até o mês seguinte e voltam ao comportamento sem IA."
+    }
   },
   "gate": {
     "title": "Link protegido",
