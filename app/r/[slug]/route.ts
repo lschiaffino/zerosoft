@@ -4,6 +4,13 @@ import { gateCookieName, getLinkForHost, isExpired, isValidGateToken } from '@/l
 import { isAppHost } from '@/lib/hosts';
 import { getVerifiedDomainByHost } from '@/lib/link-domains';
 import { contextFromHeaders, recordClick } from '@/lib/track';
+import {
+  deepLinkHtml,
+  newVisitorId,
+  parseTargeting,
+  resolveDestination,
+  VISITOR_COOKIE,
+} from '@/lib/link-targeting';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -52,7 +59,22 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   }
 
   const ctx = contextFromHeaders(req.headers);
-  await recordClick(link.id, ctx);
+  const source = req.nextUrl.searchParams.get('qr') === '1' ? 'qr' : 'link';
+
+  // Sin segmentación: camino rápido, sin parsear nada ni cookies.
+  const targeting = link.targeting ? parseTargeting(link.targeting) : null;
+  let visitorId: string | null = null;
+  let newVisitor = false;
+  if (targeting && targeting.ab.length > 1) {
+    visitorId = req.cookies.get(VISITOR_COOKIE)?.value ?? null;
+    if (!visitorId || !/^[a-f0-9]{8,64}$/.test(visitorId)) {
+      visitorId = newVisitorId();
+      newVisitor = true;
+    }
+  }
+  const dest = resolveDestination(link.url, targeting, ctx, `${visitorId ?? ''}:${link.id}`);
+
+  await recordClick(link.id, ctx, { source, variant: dest.variant });
   // El webhook sale después de responder: el redirect no espera a nadie.
   after(() =>
     emitEvent(
@@ -66,5 +88,21 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
       { extra: { clicks: link.clicks + 1 } },
     ),
   );
-  return NextResponse.redirect(link.url, link.redirect_type === 301 ? 301 : 302);
+
+  const res =
+    dest.kind === 'deeplink'
+      ? new NextResponse(deepLinkHtml(dest.appUrl, dest.fallbackUrl), {
+          headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+        })
+      : NextResponse.redirect(dest.url, targeting ? 302 : link.redirect_type === 301 ? 301 : 302);
+  if (newVisitor && visitorId) {
+    res.cookies.set(VISITOR_COOKIE, visitorId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 365,
+      path: '/',
+    });
+  }
+  return res;
 }

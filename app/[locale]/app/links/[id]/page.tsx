@@ -18,6 +18,8 @@ import QrSection from '@/components/link/QrSection';
 import EditLinkPanel from '@/components/link/EditLinkPanel';
 import DangerZone from '@/components/link/DangerZone';
 import CountryFilter from '@/components/link/CountryFilter';
+import TargetingPanel from '@/components/link/TargetingPanel';
+import { parseTargeting } from '@/lib/link-targeting';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,7 +121,13 @@ export default async function LinkDetailPage(props: DetailPageProps) {
       <div className="stat-cards">
         <div className="panel stat-card">
           <span className="stat-num">{formatNumber(a.total, locale)}</span>
-          <span className="stat-label">{t('detail.total')}</span>
+          <span className="stat-label">
+            {t('detail.total')}
+            <span className="mono stat-sub" data-testid="detail-qr-scans">
+              {' · '}
+              {formatNumber(link.qr_scans ?? 0, locale)} {t('detail.qrScans')}
+            </span>
+          </span>
         </div>
         <div className="panel stat-card">
           <span className="stat-num">{formatNumber(today, locale)}</span>
@@ -196,9 +204,16 @@ export default async function LinkDetailPage(props: DetailPageProps) {
           <p className="section-label">{t('detail.os')}</p>
           <BreakdownBars items={a.os} emptyLabel={noData} />
         </section>
+      </div>
+
+      <div className="detail-tools">
         <section className="panel" id="qr">
           <p className="section-label">{t('detail.qrTitle')}</p>
           <QrSection id={link.id} slug={link.slug} />
+        </section>
+        <section className="panel" id="targeting">
+          <p className="section-label">{t('targeting.title')}</p>
+          <TargetingPanel linkId={link.id} defaultUrl={link.url} initial={parseTargeting(link.targeting)} />
         </section>
       </div>
 

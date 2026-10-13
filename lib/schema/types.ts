@@ -32,6 +32,9 @@ export interface LinkRow {
   og_description: string | null;
   og_image: string | null;
   clicks: number;
+  /** JSON LinkTargeting (lib/link-targeting.ts); null = sin reglas. */
+  targeting?: string | null;
+  qr_scans?: number;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +48,10 @@ export interface ClickRow {
   device: string | null;
   browser: string | null;
   os: string | null;
+  /** 'link' (clic) | 'qr' (escaneo del QR). */
+  source?: string;
+  /** Destino servido cuando hay segmentación o A/B (etiqueta). */
+  variant?: string | null;
 }
 
 export interface ApiKeyRow {

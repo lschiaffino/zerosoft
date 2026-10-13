@@ -779,3 +779,41 @@ test.describe('track d9', () => {
     await expect(page.getByText('No issues waiting for triage.')).toBeVisible();
   });
 });
+
+// ---------- link d9: analytics del workspace, segmentación y QR con marca ----------
+test.describe('link d9', () => {
+  test('QR cuenta escaneos aparte y el dashboard los muestra', async ({ request, page }) => {
+    const slug = `qr${uid()}`;
+    const link = await (await request.post('/api/links', { data: { url: 'https://example.com/qr', slug } })).json();
+    const scan = await request.get(`/${slug}?qr=1`, { maxRedirects: 0 });
+    expect([301, 302, 307, 308]).toContain(scan.status());
+    await expect.poll(async () => (await (await request.get(`/api/links/${link.id}`)).json()).qr_scans).toBe(1);
+
+    await page.goto('/en/app/links/analytics', { waitUntil: 'networkidle' });
+    await expect(page.getByRole('heading', { name: 'Analytics' })).toBeVisible();
+    await expect(page.getByTestId('analytics-scans')).not.toHaveText('0');
+    const csv = await request.get('/api/links/analytics/export.csv');
+    expect(csv.headers()['content-type']).toContain('text/csv');
+    expect(await csv.text()).toContain(slug);
+  });
+
+  test('segmentación por dispositivo y diseño del QR', async ({ request, page }) => {
+    const slug = `tg${uid()}`;
+    const link = await (await request.post('/api/links', { data: { url: 'https://example.com/main', slug } })).json();
+    const patched = await request.patch(`/api/links/${link.id}`, {
+      data: { targeting: { rules: [{ devices: ['android'], url: 'https://example.com/android' }] } },
+    });
+    expect(patched.status()).toBe(200);
+    const android = await request.get(`/${slug}`, {
+      maxRedirects: 0,
+      headers: { 'user-agent': 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36' },
+    });
+    expect(android.headers()['location']).toBe('https://example.com/android');
+
+    await page.goto(`/en/app/links/${link.id}`, { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('tg-rule')).toHaveCount(1);
+    await expect(page.getByTestId('qr-preview').locator('svg')).toBeVisible();
+    await page.getByRole('button', { name: 'Save design' }).click();
+    await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible();
+  });
+});

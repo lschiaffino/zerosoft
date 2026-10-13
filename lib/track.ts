@@ -71,17 +71,28 @@ export function contextFromHeaders(headers: Headers): ClickContext {
   };
 }
 
-export async function recordClick(linkId: string, ctx: ClickContext): Promise<void> {
+export interface ClickOptions {
+  /** 'qr' cuando la visita viene del QR (?qr=1). */
+  source?: 'link' | 'qr';
+  /** Destino servido por la segmentación (rule:1, ab:B, app:ios). */
+  variant?: string | null;
+}
+
+/** Guarda la visita. `clicks` cuenta todas; `qr_scans` solo las del QR. */
+export async function recordClick(linkId: string, ctx: ClickContext, opts: ClickOptions = {}): Promise<void> {
   await ensureMigrated();
+  const source = opts.source === 'qr' ? 'qr' : 'link';
   const tx = await getClient().transaction();
   const tdb = txDb(tx);
   try {
     await tdb
       .prepare(
-        'INSERT INTO clicks (link_id, referrer, country, device, browser, os) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO clicks (link_id, referrer, country, device, browser, os, source, variant) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       )
-      .run(linkId, ctx.referrer, ctx.country, ctx.device, ctx.browser, ctx.os);
-    await tdb.prepare('UPDATE links SET clicks = clicks + 1 WHERE id = ?').run(linkId);
+      .run(linkId, ctx.referrer, ctx.country, ctx.device, ctx.browser, ctx.os, source, opts.variant ?? null);
+    await tdb
+      .prepare('UPDATE links SET clicks = clicks + 1, qr_scans = qr_scans + ? WHERE id = ?')
+      .run(source === 'qr' ? 1 : 0, linkId);
     await tx.commit();
   } catch (e) {
     await tx.rollback();

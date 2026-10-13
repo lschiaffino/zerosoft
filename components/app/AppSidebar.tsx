@@ -32,7 +32,7 @@ export interface SidebarLabels {
   newAgent: string;
   newRobot: string;
   team: string;
-  link: { overview: string; links: string; new: string; bio: string; settings: string };
+  link: { overview: string; links: string; new: string; bio: string; analytics: string; settings: string };
   crm: {
     overview: string;
     contacts: string;
@@ -286,11 +286,15 @@ export default function AppSidebar({
           href: '/app/links',
           label: labels.link.links,
           active:
-            pathname.startsWith('/app/links') && !pathname.startsWith('/app/links/new') && !pathname.startsWith('/app/links/bio'),
+            pathname.startsWith('/app/links') &&
+            !pathname.startsWith('/app/links/new') &&
+            !pathname.startsWith('/app/links/bio') &&
+            !pathname.startsWith('/app/links/analytics'),
           icon: 'links',
         },
         { href: '/app/links/new', label: labels.link.new, active: pathname.startsWith('/app/links/new'), icon: 'newLink' },
         { href: '/app/links/bio', label: labels.link.bio, active: pathname.startsWith('/app/links/bio'), icon: 'contacts' },
+        { href: '/app/links/analytics', label: labels.link.analytics, active: pathname.startsWith('/app/links/analytics'), icon: 'reports' },
       ],
     },
     {
