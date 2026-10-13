@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { retryDueWebhooks } from '@/lib/webhooks';
 import { fireDueTasks } from '@/lib/crm';
+import { processFlowQueue } from '@/lib/flow-worker';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
@@ -8,7 +9,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Tarea periódica única (Vercel Cron): recordatorios de Cal, reintentos de
- * webhooks y vencimiento de tareas del CRM (trigger task_due). Misma
+ * webhooks, vencimiento de tareas del CRM (trigger task_due) y la cola de
+ * Flow (schedules vencidos, corridas en cola, delays y reintentos). Misma
  * autorización que el cron de recordatorios (CRON_SECRET).
  */
 export async function GET(req: NextRequest) {
@@ -16,5 +18,6 @@ export async function GET(req: NextRequest) {
   if (!reminders.ok) return reminders;
   const webhookRetries = await retryDueWebhooks();
   const dueTasks = await fireDueTasks();
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks });
+  const flow = await processFlowQueue({ limit: 200 });
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow });
 }

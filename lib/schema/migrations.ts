@@ -440,6 +440,126 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Flow: automatizaciones visuales (grafo de nodos) entre las apps y
+    // servicios externos. user_id = workspace (dueño). Ver lib/flow*.ts.
+    id: '017_flow_tables',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS flow_flows (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          enabled INTEGER NOT NULL DEFAULT 0,
+          graph TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
+          version INTEGER NOT NULL DEFAULT 1,
+          trigger_type TEXT,
+          trigger_event TEXT,
+          next_run_at TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_flow_flows_user ON flow_flows(user_id, updated_at)');
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_flow_flows_trigger ON flow_flows(user_id, enabled, trigger_type, trigger_event)',
+      );
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_flow_flows_schedule ON flow_flows(trigger_type, enabled, next_run_at)',
+      );
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS flow_runs (
+          id TEXT PRIMARY KEY,
+          flow_id TEXT NOT NULL REFERENCES flow_flows(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          trigger_type TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'success', 'failed', 'waiting')),
+          input TEXT NOT NULL DEFAULT '{}',
+          context TEXT NOT NULL DEFAULT '{}',
+          error TEXT,
+          chain_depth INTEGER NOT NULL DEFAULT 0,
+          chain_seen TEXT NOT NULL DEFAULT '[]',
+          step_count INTEGER NOT NULL DEFAULT 0,
+          locked_until TEXT,
+          created_at TEXT NOT NULL,
+          started_at TEXT,
+          finished_at TEXT
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_flow_runs_flow ON flow_runs(flow_id, created_at DESC)');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_flow_runs_status ON flow_runs(status, created_at)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS flow_steps (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL REFERENCES flow_runs(id) ON DELETE CASCADE,
+          node_id TEXT NOT NULL,
+          node_type TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('running', 'success', 'failed', 'skipped', 'waiting')),
+          input TEXT,
+          output TEXT,
+          error TEXT,
+          started_at TEXT NOT NULL,
+          finished_at TEXT
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_flow_steps_run ON flow_steps(run_id, started_at)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS flow_jobs (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL REFERENCES flow_runs(id) ON DELETE CASCADE,
+          node_id TEXT NOT NULL,
+          run_at TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          locked_until TEXT,
+          payload TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_flow_jobs_due ON flow_jobs(run_at)');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_flow_jobs_run ON flow_jobs(run_id)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS flow_webhooks (
+          id TEXT PRIMARY KEY,
+          flow_id TEXT NOT NULL REFERENCES flow_flows(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          node_id TEXT NOT NULL,
+          token TEXT NOT NULL UNIQUE,
+          created_at TEXT NOT NULL,
+          UNIQUE (flow_id, node_id)
+        )`);
+    },
+  },
+  {
+    // Feedback: 'flow' como producto. Mismo rebuild que 015_ai_chat_bot_source
+    // (reescribe solo el CHECK y conserva columnas, filas e índices).
+    id: '017_flow_feedback_product',
+    async up(client) {
+      const current = await client.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'feedback'",
+      );
+      const sql = String(current.rows[0]?.sql ?? '');
+      const check = /CHECK\s*\(\s*product\s+IN\s*\(([^)]*)\)\s*\)/i;
+      const m = check.exec(sql);
+      if (!sql || !m || /'flow'/.test(m[1])) return;
+      const newSql = sql
+        .replace(check, `CHECK (product IN (${m[1].trim()}, 'flow'))`)
+        .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?feedback["`]?/i, 'CREATE TABLE feedback_new');
+      const cols = (await client.execute('PRAGMA table_info(feedback)')).rows
+        .map((r) => `"${String(r.name)}"`)
+        .join(', ');
+      const indexes = (
+        await client.execute(
+          "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'feedback' AND sql IS NOT NULL",
+        )
+      ).rows.map((r) => String(r.sql));
+      await client.migrate([
+        'DROP TABLE IF EXISTS feedback_new',
+        newSql,
+        `INSERT INTO feedback_new (${cols}) SELECT ${cols} FROM feedback`,
+        'DROP TABLE feedback',
+        'ALTER TABLE feedback_new RENAME TO feedback',
+        ...indexes,
+      ]);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

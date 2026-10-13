@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { emitEvent } from '@/lib/events';
 import { getCurrentUser } from '@/lib/session';
 import { createIssue, getProject, listIssues, canAccessTrackProject } from '@/lib/track-data';
 import { issueCreateSchema } from '@/lib/track-schema';
@@ -56,5 +57,18 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!parsed.success) return invalidBody(parsed.error);
 
   const issue = await createIssue(params.id, user.id, parsed.data);
+  after(() =>
+    emitEvent(user.id, 'issue.created', {
+      issue: {
+        id: issue.id,
+        identifier: issue.identifier,
+        title: issue.title,
+        priority: issue.priority,
+        status: issue.status_name ?? null,
+        assigneeId: issue.assignee_id,
+      },
+      project: { id: project.id, name: project.name },
+    }),
+  );
   return NextResponse.json(issue, { status: 201 });
 }

@@ -1,4 +1,4 @@
-import type { ProductKey } from '@/lib/products';
+import type { SiteProductKey as ProductKey } from '@/lib/products';
 
 /** Repositorio público (self-host, estrellas, issues). */
 export const GITHUB_URL = 'https://github.com/lschiaffino/zerosoft';

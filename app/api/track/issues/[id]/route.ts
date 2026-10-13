@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { emitEvent } from '@/lib/events';
 import { getCurrentUser } from '@/lib/session';
 import { deleteIssue, getIssue, getProject, updateIssue, canAccessTrackProject } from '@/lib/track-data';
 import { issueUpdateSchema } from '@/lib/track-schema';
@@ -40,6 +41,30 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!parsed.success) return invalidBody(parsed.error);
 
   const updated = await updateIssue(params.id, parsed.data, user.id);
+  if (updated) {
+    const payload = {
+      issue: {
+        id: updated.id,
+        identifier: updated.identifier,
+        title: updated.title,
+        priority: updated.priority,
+        status: updated.status_name ?? null,
+        assigneeId: updated.assignee_id,
+      },
+      project: { id: updated.project_id },
+      changes: Object.keys(parsed.data),
+    };
+    after(async () => {
+      await emitEvent(user.id, 'issue.updated', payload);
+      if (updated.status_id !== issue.status_id) {
+        await emitEvent(user.id, 'issue.status_changed', {
+          ...payload,
+          from: issue.status_name ?? null,
+          to: updated.status_name ?? null,
+        });
+      }
+    });
+  }
   return NextResponse.json(updated);
 }
 
