@@ -9,6 +9,14 @@ const STAGES = [
 
 const ROWS = ['r1', 'r2', 'r3', 'r4'] as const;
 
+/** Color del punto de estado por etapa (texto + punto, sin pastillas). */
+const STAGE_TONE: Record<(typeof ROWS)[number], string> = {
+  r1: 'is-info',
+  r2: 'is-warn',
+  r3: 'is-ok',
+  r4: '',
+};
+
 /** High-fidelity fake of CRM: pipeline summary plus contacts table. */
 export default function CrmMockup() {
   const t = useTranslations('pages.mockups.crm');
@@ -50,7 +58,8 @@ export default function CrmMockup() {
                 {t(`${r}value`)}
               </td>
               <td style={{ textAlign: 'right' }}>
-                <span className={`mk-badge ${r === 'r3' ? 'mk-badge-won' : ''}`}>
+                <span className={`mk-status ${STAGE_TONE[r]}`}>
+                  <i />
                   {t(`${r}stage`)}
                 </span>
               </td>

@@ -42,7 +42,6 @@ export default function ApiDocsLayout() {
 
       <div className="api-docs-content">
         <section className="api-docs-hero">
-          <p className="section-label">{t('label')}</p>
           <h1 className="doc-title">
             {t('title')}
             <br />

@@ -1,5 +1,13 @@
 import { useTranslations } from 'next-intl';
 
+/** Punto de color por etiqueta (texto + punto, sin pastillas). */
+const LABEL_TONE: Record<FakeIssue['label'], string> = {
+  bug: 'is-bad',
+  feature: 'is-info',
+  design: 'is-accent',
+  core: '',
+};
+
 interface FakeIssue {
   id: string;
   key: string;
@@ -11,27 +19,27 @@ const COLUMNS: { key: string; issues: FakeIssue[] }[] = [
   {
     key: 'backlog',
     issues: [
-      { id: 'ZER-118', key: 'c1', label: 'feature', who: 'AL' },
-      { id: 'ZER-121', key: 'c2', label: 'feature', who: 'MS' },
+      { id: 'PAR-118', key: 'c1', label: 'feature', who: 'LB' },
+      { id: 'PAR-121', key: 'c2', label: 'feature', who: 'MO' },
     ],
   },
   {
     key: 'todo',
     issues: [
-      { id: 'ZER-104', key: 'c3', label: 'design', who: 'JD' },
-      { id: 'ZER-097', key: 'c4', label: 'bug', who: 'AL' },
+      { id: 'PAR-104', key: 'c3', label: 'design', who: 'FR' },
+      { id: 'PAR-097', key: 'c4', label: 'bug', who: 'LB' },
     ],
   },
   {
     key: 'progress',
     issues: [
-      { id: 'ZER-133', key: 'c5', label: 'core', who: 'RK' },
-      { id: 'ZER-129', key: 'c6', label: 'design', who: 'MS' },
+      { id: 'PAR-133', key: 'c5', label: 'core', who: 'DS' },
+      { id: 'PAR-129', key: 'c6', label: 'design', who: 'FR' },
     ],
   },
   {
     key: 'done',
-    issues: [{ id: 'ZER-090', key: 'c7', label: 'core', who: 'JD' }],
+    issues: [{ id: 'PAR-090', key: 'c7', label: 'feature', who: 'MO' }],
   },
 ];
 
@@ -58,7 +66,8 @@ export default function TrackMockup() {
                 <span className="mk-issue-id">{issue.id}</span>
                 <span className="mk-issue-t">{t(`card_${issue.key}`)}</span>
                 <span className="mk-issue-foot">
-                  <span className={`mk-label mk-label-${issue.label}`}>
+                  <span className={`mk-status ${LABEL_TONE[issue.label]}`}>
+                    <i />
                     {t(`label_${issue.label}`)}
                   </span>
                   <span className="mk-ava" aria-hidden="true">

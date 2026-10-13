@@ -1,8 +1,11 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import ZeroField from '@/components/ZeroField';
-import Reveal from '@/components/Reveal';
 import SuiteGrid from '@/components/site/SuiteGrid';
+import ZeroDots from '@/components/zero/ZeroDots';
+import ZeroMark from '@/components/zero/ZeroMark';
+import ProductZero from '@/components/zero/ProductZero';
+import { PRODUCT_NAMES, SITE_PRODUCTS } from '@/components/site/catalog';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -35,10 +38,9 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
   return (
     <main>
       {/* HERO */}
-      <section className="page-hero page-hero--fade products-hero">
+      <section className="page-hero products-hero">
         <ZeroField align="right" sizeFactor={0.92} />
         <div className="container">
-          <p className="section-label">{t('hero.label')}</p>
           <h1 className="page-hero-title">
             {t('hero.title1')}
             <br />
@@ -48,15 +50,15 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
         </div>
       </section>
 
-      {/* THE SIX */}
+      {/* LA SUITE */}
       <section className="container" style={{ paddingTop: 0 }}>
         <SuiteGrid cta={{ label: tc('startFree'), href: '/app' }} />
       </section>
 
       {/* THE MATH */}
       <section className="container">
-        <p className="section-label">{t('compare.label')}</p>
-        <Reveal className="compare">
+        <ZeroDots />
+        <div className="compare">
           <div>
             <p className="compare-col-title">{t('compare.todayTitle')}</p>
             {COMPARE_ROWS.map((r) => (
@@ -71,53 +73,59 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
             <span className="compare-zero-num">{t('compare.big')}</span>
             <p className="compare-zero-note">{t('compare.note')}</p>
           </div>
-        </Reveal>
+        </div>
       </section>
 
       {/* ROADMAP */}
       <section className="container">
-        <p className="section-label">{t('roadmap.label')}</p>
-        <Reveal as="div">
-          <h2 className="section-title">
-            {t('roadmap.title')}
-            <br />
-            <span className="dim">{t('roadmap.titleDim')}</span>
-          </h2>
-        </Reveal>
+        <ZeroDots />
+        <h2 className="section-title">
+          {t('roadmap.title')}
+          <br />
+          <span className="dim">{t('roadmap.titleDim')}</span>
+        </h2>
         <div className="road">
           {ROADMAP.map((id) => (
-            <Reveal
-              className={`road-item ${ROADMAP_DONE.includes(id) ? 'done' : ''}`}
-              key={id}
-            >
+            <div className={`road-item ${ROADMAP_DONE.includes(id) ? 'done' : ''}`} key={id}>
               <span className="road-zero" aria-hidden="true">
-                0
+                <ZeroMark size={20} />
               </span>
               <p className="road-when">{t(`roadmap.${id}.when`)}</p>
               <h3 className="road-name">{t(`roadmap.${id}.name`)}</h3>
               <p className="road-what">{t(`roadmap.${id}.what`)}</p>
-              <span className="road-state badge">{t(`roadmap.${id}.state`)}</span>
-            </Reveal>
+              <span className="road-state">{t(`roadmap.${id}.state`)}</span>
+            </div>
           ))}
         </div>
       </section>
 
-      {/* FINAL CTA */}
-      <section className="end">
-        <span className="end-zero" aria-hidden="true">
+      {/* CIERRE */}
+      <section className="lp-end">
+        <span className="lp-end-zero" aria-hidden="true">
           0
         </span>
-        <div className="end-content">
-          <p className="section-label light">{t('cta.label')}</p>
+        <div className="container lp-end-inner">
           <h2>
             {t('cta.title1')}
             <br />
-            {t('cta.title2')}
+            <span>{t('cta.title2')}</span>
           </h2>
-          <p className="end-sub">{t('cta.sub')}</p>
-          <Link className="btn btn-invert" href="/app">
-            {t('cta.button')}
-          </Link>
+          <p className="lp-end-sub">{t('cta.sub')}</p>
+          <div className="lp-ctas lp-ctas-center">
+            <Link className="btn btn-invert-solid btn-lg" href="/app">
+              {t('cta.button')}
+            </Link>
+          </div>
+          <ul className="lp-end-apps" aria-label={tc('products')}>
+            {SITE_PRODUCTS.map((k) => (
+              <li key={k}>
+                <Link href={`/products/${k}`}>
+                  <ProductZero product={k} size={11} />
+                  {PRODUCT_NAMES[k]}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
     </main>

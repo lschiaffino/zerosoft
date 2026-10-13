@@ -38,7 +38,6 @@ export default async function FeedbackPage(props: {
   return (
     <main>
       <div className="doc-hero container">
-        <p className="section-label">{t('page.label')}</p>
         <h1 className="doc-title">
           {t('page.title')}
           <br />

@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl';
+import ZeroMark from '@/components/zero/ZeroMark';
 
 /** Bar heights for the fake 14-day click chart (decorative). */
 const BARS = [34, 48, 42, 60, 55, 72, 64, 80, 70, 92, 84, 98, 88, 104];
@@ -15,7 +16,7 @@ export default function LinkMockup() {
     <div className="mk mk-link">
       <aside className="mk-side">
         <div className="mk-brand">
-          <span className="mk-zero">0</span>
+          <ZeroMark size={16} />
           <span>Link</span>
         </div>
         <nav className="mk-nav" aria-hidden="true">
@@ -43,7 +44,7 @@ export default function LinkMockup() {
             <span className="mk-stat-label">{t('statLinks')}</span>
           </div>
           <div className="mk-stat">
-            <span className="mk-stat-num">zs.ai/launch</span>
+            <span className="mk-stat-num">{t('r1short')}</span>
             <span className="mk-stat-label">{t('statTop')}</span>
           </div>
         </div>

@@ -26,7 +26,12 @@
       "cal": "Booking pages synced with Google Calendar",
       "track": "Issues, cycles, boards and Gantt",
       "chat": "Webchat widget and shared support inbox",
-      "docs": "Nested pages with a block editor"
+      "docs": "Nested pages with a block editor",
+      "agents": "AI agents with knowledge and tools",
+      "flow": "Visual automations, webhooks and schedules",
+      "robots": "Browser automation and data extraction",
+      "notes": "Notes, notebooks, checklists and a web clipper",
+      "board": "Shared infinite whiteboard"
     }
   },
   "sidebar": {
@@ -127,6 +132,21 @@
       "tag": "What's next",
       "desc": "Design. Forms. Analytics. If the world uses it, we will set it free. This is just the beginning.",
       "status": "Always"
+    },
+    "agents": {
+      "desc": "AI agents that answer and act."
+    },
+    "flow": {
+      "desc": "Automations across all your apps."
+    },
+    "robots": {
+      "desc": "Robots that use the browser for you."
+    },
+    "notes": {
+      "desc": "Your notes, fast and private."
+    },
+    "board": {
+      "desc": "An infinite whiteboard for your team."
     }
   },
   "model": {
@@ -208,8 +228,6 @@
   },
   "home": {
     "hero": {
-      "kicker": "Software is dead.",
-      "kickerLink": "Read the manifesto",
       "title1": "Eleven apps. One suite.",
       "title2": "Zero licenses.",
       "sub": "Open-source alternatives to HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, UiPath and Bitly — with AI agents built in. Self-host them free, forever, or start free on Zerosoft Cloud.",
@@ -227,11 +245,9 @@
     },
     "replaces": "Replaces",
     "suite": {
-      "label": "0.01 — The suite",
       "title": "Everything your team runs on.",
       "titleDim": "One place, one license.",
       "explore": "Explore {name}",
-      "vs": "vs {rival}",
       "link": {
         "line": "Short links with real analytics.",
         "b1": "Custom domains and QR codes",
@@ -276,19 +292,24 @@
       "teamsDesc": "Sell, support and ship — together.",
       "personalTitle": "For you",
       "personalDesc": "Write, plan and keep your time.",
-      "soon": "Soon",
       "replaces": "Replaces {rival}",
-      "upcoming": {
-        "agents": "AI agents that answer and act.",
-        "flow": "Automations across every app.",
-        "robots": "Bots that drive the browser for you.",
-        "notes": "Quick notes, notebooks and search.",
-        "board": "An infinite whiteboard."
+      "agents": {
+        "line": "AI agents that answer and act."
       },
-      "new": "New"
+      "flow": {
+        "line": "Automations across every app."
+      },
+      "robots": {
+        "line": "Bots that drive the browser for you."
+      },
+      "notes": {
+        "line": "Quick notes, notebooks and search."
+      },
+      "board": {
+        "line": "An infinite whiteboard."
+      }
     },
     "stack": {
-      "label": "0.02 — Replace your stack",
       "title": "{total} a year.",
       "titleDim": "Or $0.",
       "sub": "What a 10-person team pays at list price for the six tools Zerosoft replaces, versus self-hosting the open-source core.",
@@ -304,7 +325,6 @@
       "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat monthly plan). Vendors change their prices — check their sites. Zerosoft is not affiliated with any company named here."
     },
     "oss": {
-      "label": "0.03 — Open source",
       "title": "Self-host it in one command.",
       "titleDim": "Free forever. No license key.",
       "p": "The core of every app is AGPLv3 — every core feature, no trial, no limits. Run it with Docker on any small VPS. Your data lives in one SQLite file and one uploads volume: back them up and you have everything.",
@@ -317,7 +337,7 @@
       "compose": "docker-compose.yml"
     },
     "dev": {
-      "label": "0.04 — Developers",
+      "label": "Developers",
       "title": "A real API.",
       "titleDim": "And signed webhooks.",
       "p": "Create a personal key in settings and talk to Link, CRM and Cal over REST. Subscribe to events and verify every delivery with an HMAC signature.",
@@ -332,14 +352,8 @@
       "response": "Response",
       "webhook": "Webhook"
     },
-    "model": {
-      "label": "0.05 — The model"
-    },
-    "manifesto": {
-      "label": "0.06 — Manifesto"
-    },
+    "manifesto": {},
     "faq": {
-      "label": "0.07 — FAQ",
       "title": "Fair questions.",
       "titleDim": "Zero fine print.",
       "q1": "Is it really free?",
@@ -356,7 +370,6 @@
       "a6": "Not yet. SSO/SAML, audit logs, custom roles and white-label are in development as part of Enterprise. We'll say so here the day they ship."
     },
     "end": {
-      "label": "0.08 — Start",
       "title1": "Software is dead.",
       "title2": "Build on zero.",
       "sub": "Open the app and start free, or clone the repo and run it yourself. Either way, the core costs $0."

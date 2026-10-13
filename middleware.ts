@@ -52,5 +52,5 @@ export default function middleware(req: NextRequest) {
 
 export const config = {
   // Todo excepto: api/, r/ (handler de redirects), s/ (social preview), internos de Next y archivos estáticos.
-  matcher: ['/((?!api/|r/|s/|_next/|_vercel/|.*\\..*).*)'],
+  matcher: ['/((?!api/|r/|s/|_next/|_vercel/|apple-icon|.*\\..*).*)'],
 };

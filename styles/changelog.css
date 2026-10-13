@@ -11,7 +11,6 @@
   height: 9px;
   border-radius: 50%;
   background: var(--warn);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent);
 }
 
 /* Filtros por producto */
@@ -31,7 +30,7 @@
   gap: 7px;
   font-size: 15px;
   padding: 6px 0;
-  color: #8c8c8c;
+  color: var(--ink-3);
   border-bottom: 2px solid transparent;
   transition: color 0.2s, border-color 0.2s;
 }
@@ -79,21 +78,17 @@
   background: var(--bg);
 }
 
-.cl-entry:first-child .cl-node { background: var(--ink); box-shadow: 0 0 0 5px rgba(13, 13, 13, 0.08); }
-.cl-entry:target .cl-card { border-color: var(--ink); }
+.cl-entry:first-child .cl-node { background: var(--ink); }
+.cl-entry:target .cl-card { border-top-color: var(--ink); }
 
+/* Cada versión: un filete arriba, sin caja. */
 .cl-card {
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 26px 30px 28px;
-  background: var(--bg);
-  transition: border-color 0.25s;
+  border-top: 1px solid var(--line);
+  padding: 22px 0 8px;
 }
 
-.cl-card:hover { border-color: #cfcfcf; }
-
 .cl-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.cl-dots { display: inline-flex; gap: 5px; }
+.cl-dots { display: none; }
 .cl-dots i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .cl-anchor { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; opacity: 0; transition: opacity 0.2s; }
 .cl-card:hover .cl-anchor, .cl-anchor:focus-visible { opacity: 1; }
@@ -109,7 +104,7 @@
   align-items: baseline;
   font-size: 0.97rem;
   line-height: 1.6;
-  color: #3d3d3d;
+  color: var(--ink-2);
 }
 
 .cl-tag {
@@ -135,13 +130,12 @@
   justify-content: space-between;
   gap: 24px;
   flex-wrap: wrap;
-  border: 1px solid var(--ink);
-  border-radius: var(--r-md);
-  padding: 30px 32px;
+  border-top: 1px solid var(--ink);
+  padding: 30px 0 0;
 }
 
 .cl-cta-title { font-size: 1.4rem; font-weight: 500; letter-spacing: -0.02em; }
-.cl-cta-body { margin-top: 6px; color: #4a4a4a; font-size: 0.98rem; line-height: 1.55; }
+.cl-cta-body { margin-top: 6px; color: var(--ink-2); font-size: 0.98rem; line-height: 1.55; }
 
 @media (max-width: 860px) {
   .cl-list::before { left: 5px; }
@@ -150,7 +144,7 @@
   .cl-date time { flex-direction: row; align-items: baseline; gap: 10px; }
   .cl-day { font-size: 1.5rem; }
   .cl-node { grid-column: 1; grid-row: 1; margin-top: 8px; }
-  .cl-card { grid-column: 2; padding: 20px 18px 22px; }
+  .cl-card { grid-column: 2; padding: 18px 0 6px; }
   .cl-items li { grid-template-columns: 1fr; gap: 2px; font-size: 0.92rem; }
   .cl-end { padding-left: 27px; }
   /* Filtros en una fila con scroll horizontal (sin scroll de la página) */

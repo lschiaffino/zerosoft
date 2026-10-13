@@ -32,7 +32,6 @@ export default async function SecurityPage(props: { params: Promise<{ locale: st
   return (
     <main>
       <section className="doc-hero container">
-        <p className="section-label">{t('label')}</p>
         <h1 className="doc-title">{t('title')}</h1>
         <p className="doc-updated">{t('updated')}</p>
         <p className="doc-intro">{t('intro')}</p>

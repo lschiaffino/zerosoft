@@ -26,6 +26,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-13-design-zeros',
+    date: '2026-10-13',
+    title: {
+      en: 'A new look built from zeros',
+      es: 'Un diseño nuevo hecho de ceros',
+      pt: 'Um visual novo feito de zeros',
+    },
+    items: [
+      { product: 'platform', en: 'New logo and favicon, zero dividers and numbering, and a colored zero for each app. Product pages lost the tags, cards and shadows.', es: 'Logo y favicon nuevos, separadores y numeración con ceros, y un cero de color por app. Las páginas de producto perdieron los tags, las cards y las sombras.', pt: 'Logo e favicon novos, divisores e numeração com zeros, e um zero colorido por app. As páginas de produto perderam as tags, os cards e as sombras.' },
+      { product: 'platform', en: 'Product pages for Flow, Agents, Notes, Board and Robots.', es: 'Páginas de producto para Flow, Agents, Notes, Board y Robots.', pt: 'Páginas de produto para Flow, Agents, Notes, Board e Robots.' },
+    ],
+  },
+  {
     id: '2026-10-13-crm-forms-teams',
     date: '2026-10-13',
     title: {

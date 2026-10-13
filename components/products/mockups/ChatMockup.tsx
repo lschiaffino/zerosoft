@@ -32,8 +32,10 @@ export default function ChatMockup() {
       <div className="mk-chat-main">
         <div className="mk-chat-conv-head">
           <span className="mk-chat-name">{t('r1name')}</span>
-          <span className="mk-badge">{t('badgeOpen')}</span>
-          <span className="mk-badge mk-badge-urgent">{t('badgeHigh')}</span>
+          <span className="mk-status is-ok">
+            <i />
+            {t('statusOpen')}
+          </span>
         </div>
 
         <div className="mk-chat-thread">

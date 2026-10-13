@@ -22,12 +22,12 @@ export default function CalMockup() {
     <div className="mk mk-cal">
       <div className="mk-cal-side">
         <span className="mk-cal-ava" aria-hidden="true">
-          0
+          {t('initials')}
         </span>
         <p className="mk-cal-name">{t('name')}</p>
         <p className="mk-cal-meet">{t('meeting')}</p>
         <p className="mk-cal-desc">{t('desc')}</p>
-        <span className="mk-cal-dur">● 30 min</span>
+        <span className="mk-cal-dur">30 min · {t('where')}</span>
       </div>
 
       <div className="mk-cal-mid">

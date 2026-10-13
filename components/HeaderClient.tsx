@@ -6,7 +6,9 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
 import Icon from './site/Icon';
-import { AUDIENCE_PRODUCTS, GITHUB_URL, PRODUCT_NAMES, UPCOMING, type Audience } from './site/catalog';
+import { AUDIENCE_PRODUCTS, GITHUB_URL, PRODUCT_NAMES, type Audience } from './site/catalog';
+import ZeroMark from './zero/ZeroMark';
+import ProductZero from './zero/ProductZero';
 
 interface HeaderClientProps {
   locale: string;
@@ -92,7 +94,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         {AUDIENCE_PRODUCTS[a].map((key) => (
           <Link key={key} href={`/products/${key}`} className={`hd-prod card-${key} hd-prod-${variant}`}>
             <span className="hd-prod-icon" aria-hidden="true">
-              0
+              <ProductZero product={key} size={14} />
             </span>
             <span className="hd-prod-text">
               <span className="hd-prod-name">{PRODUCT_NAMES[key]}</span>
@@ -100,30 +102,6 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
             </span>
           </Link>
         ))}
-        {UPCOMING.filter((u) => u.audience === a).map((u) => {
-          const inner = (
-            <>
-              <span className="hd-prod-icon" aria-hidden="true">
-                0
-              </span>
-              <span className="hd-prod-text">
-                <span className="hd-prod-name">
-                  {u.name} <span className="hd-prod-soon">{ts(u.href ? 'new' : 'soon')}</span>
-                </span>
-                <span className="hd-prod-desc">{ts(`upcoming.${u.key}`)}</span>
-              </span>
-            </>
-          );
-          return u.href ? (
-            <Link key={u.key} href={u.href} className={`hd-prod card-${u.key} hd-prod-${variant}`}>
-              {inner}
-            </Link>
-          ) : (
-            <span key={u.key} className={`hd-prod is-soon card-${u.key} hd-prod-${variant}`}>
-              {inner}
-            </span>
-          );
-        })}
       </div>
     ));
 
@@ -131,7 +109,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
     <header className={`site-header${scrolled ? ' is-scrolled' : ''}${menuOpen ? ' menu-open' : ''}`}>
       <div className="hd-inner">
         <Link href="/" className="brand" aria-label="zerosoft.ai">
-          <span className="brand-zero">0</span>
+          <ZeroMark size={22} />
           <span className="brand-name">zerosoft.ai</span>
         </Link>
 

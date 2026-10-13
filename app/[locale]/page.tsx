@@ -3,7 +3,6 @@ import { useTranslations } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import ZeroField from '@/components/ZeroField';
-import Reveal from '@/components/Reveal';
 import BrowserFrame from '@/components/products/BrowserFrame';
 import ShowcaseTabs from '@/components/products/ShowcaseTabs';
 import VideoPlayer from '@/components/VideoPlayer';
@@ -16,18 +15,27 @@ import ChatMockup from '@/components/products/mockups/ChatMockup';
 import Icon from '@/components/site/Icon';
 import CodeTabs from '@/components/site/CodeTabs';
 import SuiteGrid from '@/components/site/SuiteGrid';
-import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, SITE_PRODUCTS, annualCost } from '@/components/site/catalog';
-import { PRODUCT_CONFIG } from '@/lib/products';
+import AgentsMockup from '@/components/products/mockups/AgentsMockup';
+import FlowMockup from '@/components/products/mockups/FlowMockup';
+import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, RIVALS, SITE_PRODUCTS, annualCost } from '@/components/site/catalog';
+import { PRODUCT_CONFIG, PRODUCT_KEYS, productRgb } from '@/lib/products';
+import ZeroDots from '@/components/zero/ZeroDots';
+import ProductZero from '@/components/zero/ProductZero';
 import '@/styles/pages.css';
 
 const SHOWCASE = [
-  { key: 'crm', path: 'crm', Mockup: CrmMockup },
-  { key: 'link', path: 'links', Mockup: LinkMockup },
-  { key: 'cal', path: 'calendar', Mockup: CalMockup },
-  { key: 'track', path: 'track', Mockup: TrackMockup },
-  { key: 'chat', path: 'chat', Mockup: ChatMockup },
-  { key: 'docs', path: 'docs', Mockup: DocsMockup },
+  { key: 'crm', Mockup: CrmMockup },
+  { key: 'chat', Mockup: ChatMockup },
+  { key: 'agents', Mockup: AgentsMockup },
+  { key: 'flow', Mockup: FlowMockup },
+  { key: 'track', Mockup: TrackMockup },
+  { key: 'link', Mockup: LinkMockup },
+  { key: 'cal', Mockup: CalMockup },
+  { key: 'docs', Mockup: DocsMockup },
 ] as const;
+
+/** Un color por app, del catálogo (lib/products.ts): sin RGB duplicados acá. */
+const FIELD_ACCENTS = PRODUCT_KEYS.map(productRgb);
 
 /** Orden de la tabla de costos: de la más cara a la más barata. */
 const STACK_ORDER = ['crm', 'chat', 'cal', 'docs', 'track', 'link'] as const;
@@ -56,16 +64,9 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
       {/* HERO */}
       <section className="lp-hero">
         <div className="lp-hero-field" aria-hidden="true">
-          <ZeroField
-            align="right"
-            sizeFactor={0.86}
-            accents={['47,107,255', '123,77,255', '14,159,110', '242,97,29', '226,61,127', '194,112,10']}
-          />
+          <ZeroField align="right" sizeFactor={0.86} accents={FIELD_ACCENTS} />
         </div>
         <div className="container lp-hero-inner">
-          <a className="lp-kicker" href="#manifiesto">
-            {h('hero.kicker')} <span className="lp-kicker-link">{h('hero.kickerLink')} →</span>
-          </a>
           <h1 className="lp-h1">
             {h('hero.title1')}
             <br />
@@ -92,10 +93,10 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
       {/* PRODUCT PROOF */}
       <section className="lp-proof container" aria-label={t('showcase.label')}>
         <ShowcaseTabs
-          tabs={SHOWCASE.map((p) => ({ key: p.key, label: PRODUCT_NAMES[p.key], tag: t(`products.${p.key}.tag`) }))}
+          tabs={SHOWCASE.map((p) => ({ key: p.key, label: PRODUCT_NAMES[p.key] }))}
           panels={SHOWCASE.map((p) => (
             <div key={p.key} className={`showcase-frame card-${p.key}`}>
-              <BrowserFrame url={`zerosoft.ai/app/${p.path}`}>
+              <BrowserFrame url={`zerosoft.ai/app/${PRODUCT_CONFIG[p.key].path}`}>
                 <p.Mockup />
               </BrowserFrame>
               <div className="lp-proof-foot">
@@ -115,8 +116,9 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
         <ul>
           {SITE_PRODUCTS.map((k) => (
             <li key={k} className={`card-${k}`}>
-              <s>{INCUMBENTS[k].rival}</s>
+              <s>{RIVALS[k]}</s>
               <Icon name="arrow" size={12} />
+              <ProductZero product={k} size={11} />
               <span>{PRODUCT_NAMES[k]}</span>
             </li>
           ))}
@@ -125,22 +127,22 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
 
       {/* SUITE */}
       <section className="lp-section container" id="productos">
+        <ZeroDots />
         <div className="lp-head">
-          <p className="section-label">{h('suite.label')}</p>
-          <Reveal as="h2" className="lp-title">
+          <h2 className="lp-title">
             {h('suite.title')} <span className="dim">{h('suite.titleDim')}</span>
-          </Reveal>
+          </h2>
         </div>
         <SuiteGrid cta={{ label: t('header.allProducts'), href: '/products' }} />
       </section>
 
       {/* VIDEO: tour de 48 s por la app real */}
       <section className="lp-section container" id="tour">
+        <ZeroDots />
         <div className="lp-head">
-          <p className="section-label">{v('embedLabel')}</p>
-          <Reveal as="h2" className="lp-title">
+          <h2 className="lp-title">
             {v('items.zerosoft-intro.title')} <span className="dim">{v('embedTitleDim')}</span>
-          </Reveal>
+          </h2>
           <p className="lp-sub">{v('items.zerosoft-intro.desc')}</p>
         </div>
         <div className="lp-video">
@@ -159,14 +161,13 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
       <section className="lp-section lp-section-tint" id="stack">
         <div className="container">
           <div className="lp-head">
-            <p className="section-label">{h('stack.label')}</p>
-            <Reveal as="h2" className="lp-title">
+            <h2 className="lp-title">
               {h('stack.title', { total: money.format(total) })} <span className="dim">{h('stack.titleDim')}</span>
-            </Reveal>
+            </h2>
             <p className="lp-lede">{h('stack.sub')}</p>
           </div>
           <div className="stack">
-            <Reveal className="stack-table" as="div">
+            <div className="stack-table">
               <div className="stack-row stack-row-head" aria-hidden="true">
                 <span>{h('stack.colTool')}</span>
                 <span>{h('stack.colPrice')}</span>
@@ -178,7 +179,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                 return (
                   <div key={k} className={`stack-row card-${k}`}>
                     <span className="stack-tool">
-                      <i className="stack-dot" aria-hidden="true" />
+                      <ProductZero product={k} />
                       <strong>{inc.rival}</strong>
                       <span className="stack-arrow">→ {PRODUCT_NAMES[k]}</span>
                     </span>
@@ -198,8 +199,8 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                 <span />
                 <span className="stack-year">{money.format(total)}</span>
               </div>
-            </Reveal>
-            <Reveal className="stack-zero">
+            </div>
+            <div className="stack-zero">
               <p className="stack-zero-label">{h('stack.zeroTitle')}</p>
               <span className="stack-zero-num">$0</span>
               <p className="stack-zero-note">{h('stack.zeroNote')}</p>
@@ -207,7 +208,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
               <a className="btn btn-invert" href={GITHUB_URL} target="_blank" rel="noreferrer">
                 <Icon name="github" size={15} /> {h('hero.ctaSelfHost')}
               </a>
-            </Reveal>
+            </div>
           </div>
           <p className="lp-footnote">{h('stack.footnote')}</p>
         </div>
@@ -217,10 +218,9 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
       <section className="lp-section lp-dark" id="open-source">
         <div className="container lp-split">
           <div className="lp-split-text">
-            <p className="section-label light">{h('oss.label')}</p>
-            <Reveal as="h2" className="lp-title">
+            <h2 className="lp-title">
               {h('oss.title')} <span className="dim">{h('oss.titleDim')}</span>
-            </Reveal>
+            </h2>
             <p className="lp-lede">{h('oss.p')}</p>
             <ul className="lp-checks">
               {(['b1', 'b2', 'b3', 'b4'] as const).map((b) => (
@@ -240,13 +240,8 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             </div>
           </div>
           <div className="lp-split-code">
-            <Reveal className="term">
+            <div className="term">
               <div className="term-bar">
-                <span className="code-win-dots" aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                </span>
                 <span className="term-title">{h('oss.terminal')}</span>
               </div>
               <pre className="lp-code">
@@ -260,14 +255,9 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                   <span className="tk-c"># → http://localhost:3000</span>
                 </code>
               </pre>
-            </Reveal>
-            <Reveal className="term term-file">
+            </div>
+            <div className="term term-file">
               <div className="term-bar">
-                <span className="code-win-dots" aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                </span>
                 <span className="term-title">{h('oss.compose')}</span>
               </div>
               <pre className="lp-code">
@@ -289,7 +279,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                   {'      '}- zerosoft-uploads:/app/public/uploads
                 </code>
               </pre>
-            </Reveal>
+            </div>
           </div>
         </div>
       </section>
@@ -298,27 +288,15 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
       <section className="lp-section container" id="developers">
         <div className="lp-split lp-split-rev">
           <div className="lp-split-text">
-            <p className="section-label">{h('dev.label')}</p>
-            <Reveal as="h2" className="lp-title">
+            <h2 className="lp-title">
               {h('dev.title')} <span className="dim">{h('dev.titleDim')}</span>
-            </Reveal>
+            </h2>
             <p className="lp-lede">{h('dev.p')}</p>
             <ul className="dev-list">
-              {(
-                [
-                  ['b1', 'code'],
-                  ['b2', 'key'],
-                  ['b3', 'plug'],
-                ] as const
-              ).map(([b, icon]) => (
+              {(['b1', 'b2', 'b3'] as const).map((b) => (
                 <li key={b}>
-                  <span className="dev-icon">
-                    <Icon name={icon} size={18} />
-                  </span>
-                  <div>
-                    <strong>{h(`dev.${b}t`)}</strong>
-                    <p>{h(`dev.${b}`)}</p>
-                  </div>
+                  <strong>{h(`dev.${b}t`)}</strong>
+                  <p>{h(`dev.${b}`)}</p>
                 </li>
               ))}
             </ul>
@@ -326,7 +304,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
               {h('dev.cta')} <Icon name="arrow" size={14} />
             </Link>
           </div>
-          <Reveal className="lp-split-code">
+          <div className="lp-split-code">
             <CodeTabs
               id="dev-code"
               title={h('dev.label')}
@@ -378,38 +356,34 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                 </pre>,
               ]}
             />
-          </Reveal>
+          </div>
         </div>
       </section>
 
       {/* MODEL */}
-      <section className="lp-section lp-section-tint" id="modelo">
-        <div className="container">
-          <div className="lp-head">
-            <p className="section-label">{h('model.label')}</p>
-            <Reveal as="h2" className="lp-title">
-              {t('model.title')} <span className="dim">{t('model.titleDim')}</span>
-            </Reveal>
-          </div>
-          <div className="plans">
-            {(['a', 'b', 'c'] as const).map((key) => (
-              <Reveal key={key} className={`plan${key === 'b' ? ' plan-featured' : ''}`}>
-                <div className="plan-top">
-                  <span className="plan-icon">
-                    <Icon name={key === 'a' ? 'server' : key === 'b' ? 'globe' : 'shield'} size={18} />
-                  </span>
-                  <h3>{t(`model.${key}.title`)}</h3>
-                </div>
-                <p className="plan-price">
-                  {t(`model.${key}.price`)} <span>{t(`model.${key}.priceNote`)}</span>
-                </p>
-                <p className="plan-desc">{t(`model.${key}.desc`)}</p>
+      <section className="lp-section container" id="modelo">
+        <ZeroDots />
+        <div className="lp-head">
+          <h2 className="lp-title">
+            {t('model.title')} <span className="dim">{t('model.titleDim')}</span>
+          </h2>
+        </div>
+        <ol className="plan-rows">
+          {(['a', 'b', 'c'] as const).map((key) => (
+            <li className="plan-row" key={key}>
+              <p className="plan-row-price">{t(`model.${key}.price`)}</p>
+              <div className="plan-row-body">
+                <h3>{t(`model.${key}.title`)}</h3>
+                <p>{t(`model.${key}.desc`)}</p>
+              </div>
+              <div className="plan-row-side">
+                <p className="plan-row-note">{t(`model.${key}.priceNote`)}</p>
                 {key === 'a' ? (
                   <a className="btn btn-ghost" href={GITHUB_URL} target="_blank" rel="noreferrer">
                     <Icon name="github" size={15} /> {h('hero.ctaSelfHost')}
                   </a>
                 ) : key === 'b' ? (
-                  <Link className="btn btn-invert-solid" href="/app">
+                  <Link className="btn btn-solid" href="/app">
                     {h('hero.ctaStart')} <Icon name="arrow" size={14} />
                   </Link>
                 ) : (
@@ -417,29 +391,28 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                     {t(`model.c.price`)} <Icon name="arrow" size={14} />
                   </a>
                 )}
-              </Reveal>
-            ))}
-          </div>
-        </div>
+              </div>
+            </li>
+          ))}
+        </ol>
       </section>
 
       {/* MANIFESTO */}
       <section className="lp-section container lp-manifesto" id="manifiesto">
+        <ZeroDots />
         <div className="lp-manifesto-side">
-          <p className="section-label">{h('manifesto.label')}</p>
-          <p className="lp-manifesto-final">{t('manifesto.final')}</p>
+          <h2 className="lp-manifesto-final">{t('manifesto.final')}</h2>
         </div>
         <div className="lp-manifesto-body">
-          <Reveal as="p">{t.rich('manifesto.p1', { strong: (chunks) => <strong>{chunks}</strong> })}</Reveal>
-          <Reveal as="p">{t.rich('manifesto.p2', { strong: (chunks) => <strong>{chunks}</strong> })}</Reveal>
-          <Reveal as="p">{t('manifesto.p3')}</Reveal>
+          <p>{t.rich('manifesto.p1', { strong: (chunks) => <strong>{chunks}</strong> })}</p>
+          <p>{t.rich('manifesto.p2', { strong: (chunks) => <strong>{chunks}</strong> })}</p>
+          <p>{t('manifesto.p3')}</p>
         </div>
       </section>
 
       {/* FAQ */}
       <section className="lp-section container lp-faq" id="faq">
         <div className="lp-faq-side">
-          <p className="section-label">{h('faq.label')}</p>
           <h2 className="lp-title">
             {h('faq.title')} <span className="dim">{h('faq.titleDim')}</span>
           </h2>
@@ -465,7 +438,6 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
           0
         </span>
         <div className="container lp-end-inner">
-          <p className="section-label light">{h('end.label')}</p>
           <h2>
             {h('end.title1')}
             <br />
@@ -483,8 +455,8 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
           <ul className="lp-end-apps" aria-label={t('header.products')}>
             {SITE_PRODUCTS.map((k) => (
               <li key={k} className={`card-${k}`}>
-                <Link href={PRODUCT_CONFIG[k].launch}>
-                  <i aria-hidden="true" />
+                <Link href={`/products/${k}`}>
+                  <ProductZero product={k} size={11} />
                   {PRODUCT_NAMES[k]}
                 </Link>
               </li>

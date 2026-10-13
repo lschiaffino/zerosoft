@@ -1,17 +1,15 @@
 {
   "products": {
     "meta": {
-      "title": "Productos — El arsenal",
-      "description": "Link, CRM, Track, Cal, Docs y Chat: las herramientas que mueven una empresa, reconstruidas y liberadas. Open source y gratis para hostear, o en nuestra nube con plan gratis."
+      "title": "Productos",
+      "description": "Once apps para tu empresa y para vos: CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal y Board. Open source para correr en tu servidor, o en nuestra nube con un plan gratis para empezar."
     },
     "hero": {
-      "label": "0.02 — Productos",
       "title1": "Todo lo que usás.",
       "title2": "Cero de lo que pagás.",
       "sub": "Las herramientas que mueven una empresa (clientes, soporte, automatizaciones, agentes de IA, tareas, links) y las que usás solo: notas, docs, pizarras, tu agenda. Las reconstruimos a la vista. El core cuesta cero y es tuyo."
     },
     "compare": {
-      "label": "0.03 — La cuenta",
       "todayTitle": "Hoy pagás",
       "r1name": "Bitly",
       "r1price": "$35 / mes",
@@ -30,7 +28,6 @@
       "r6price": "$29 / asiento / mes"
     },
     "roadmap": {
-      "label": "0.04 — Roadmap",
       "title": "El plan, a la vista.",
       "titleDim": "Cero secretos.",
       "i1": {
@@ -59,7 +56,6 @@
       }
     },
     "cta": {
-      "label": "0.05 — Sumate",
       "title1": "Dejá de pagar",
       "title2": "por bits.",
       "sub": "Están todas en vivo y son gratis para empezar. Entrá ahora: pagás solo lo que escala.",
@@ -143,7 +139,6 @@
         }
       },
       "cta": {
-        "label": "Link — 0.05",
         "title1": "Acortá algo.",
         "title2": "Pagá nada.",
         "sub": "Gratis, abierto, ya en el aire. Tu primer link corto está a diez segundos.",
@@ -242,7 +237,6 @@
         }
       },
       "cta": {
-        "label": "Track — 0.05",
         "title1": "Mové tarjetas.",
         "title2": "No muevas nada más.",
         "sub": "Track está en vivo. Abrilo, creá un proyecto y mové tu primera tarjeta hoy — por $0.",
@@ -341,7 +335,6 @@
         }
       },
       "cta": {
-        "label": "CRM — 0.05",
         "title1": "Cerrá deals.",
         "title2": "No tu billetera.",
         "sub": "CRM ya está vivo. Abrilo, importá tu CSV y manejá tu pipeline hoy — por $0.",
@@ -440,7 +433,6 @@
         }
       },
       "cta": {
-        "label": "Cal — 0.05",
         "title1": "Agendá tiempo.",
         "title2": "No le cobres a nadie.",
         "sub": "Cal está en vivo. Creá un tipo de evento y compartí tu link hoy — por $0.",
@@ -539,7 +531,6 @@
         }
       },
       "cta": {
-        "label": "Docs — 0.05",
         "title1": "Anotalo.",
         "title2": "No pagues nada.",
         "sub": "Docs ya está disponible. Empezá tu wiki de equipo hoy — por $0.",
@@ -638,7 +629,6 @@
         }
       },
       "cta": {
-        "label": "Chat — 0.06",
         "title1": "Respondé a todos.",
         "title2": "No pagues nada.",
         "sub": "Chat ya está disponible. Poné el widget en tu sitio hoy — por $0.",
@@ -658,21 +648,395 @@
           "d": "Respuestas guardadas para lo de siempre y un bot que las sugiere por palabras clave. El CSAT te dice cómo salió."
         }
       }
+    },
+    "agents": {
+      "meta": {
+        "title": "Agents, agentes de IA open source",
+        "description": "Agentes de IA que responden con tu conocimiento y usan herramientas de CRM, Cal, Track y Flow. Una alternativa open source a Intercom Fin."
+      },
+      "hero": {
+        "sub": "Agentes de IA que atienden a tus clientes con tu propio conocimiento y actúan en el resto de la suite: cargan leads, agendan reuniones y derivan a tu equipo cuando hace falta."
+      },
+      "featuresTitle": "Un agente que responde.",
+      "featuresTitleDim": "Y que hace el trabajo.",
+      "f1": {
+        "t": "Instrucciones como un brief",
+        "d": "Escribís qué hace, cómo habla y cuándo usa cada herramienta, como se lo explicarías a alguien nuevo."
+      },
+      "f2": {
+        "t": "Tu conocimiento",
+        "d": "Busca en tus páginas de Docs, en hasta 20 sitios web y en las respuestas guardadas de Chat."
+      },
+      "f3": {
+        "t": "Herramientas de la suite",
+        "d": "Guarda leads en el CRM, ofrece horarios y agenda en Cal, carga issues en Track y corre flows."
+      },
+      "f4": {
+        "t": "Derivación a una persona",
+        "d": "Cuando el visitante lo pide o el agente duda, avisa a tu equipo y deja de responder."
+      },
+      "f5": {
+        "t": "Tres canales",
+        "d": "El widget de Chat de tu sitio, una página pública a pantalla completa y una API para tu app."
+      },
+      "f6": {
+        "t": "Playground y registro",
+        "d": "Lo probás antes de publicarlo, y cada conversación guarda qué herramientas usó y con qué datos."
+      },
+      "compare": {
+        "rival": "Intercom Fin",
+        "price": "$0,99",
+        "per": "/ resolución",
+        "teamLabel": "1.000 resoluciones al mes",
+        "team": "$11.880",
+        "zero": "$0",
+        "note": "Intercom cobra cerca de $0,99 por cada conversación que Fin resuelve, además de los asientos de Intercom. Con 1.000 resoluciones al mes son $11.880 al año. Agents en tu servidor cuesta lo que consuma tu modelo de IA."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Qué modelo de IA usa?",
+          "a": "Cualquiera del AI Gateway, con el formato proveedor/modelo (por ejemplo, anthropic/claude-sonnet-5-5). En tu servidor, el consumo lo pagás directo con tu clave."
+        },
+        "f2": {
+          "q": "¿Puede inventar respuestas?",
+          "a": "Responde con tu conocimiento y, si no está seguro, deriva a una persona. Cada respuesta queda registrada con las herramientas que usó, así la podés revisar."
+        },
+        "f3": {
+          "q": "¿Dónde habla con mis clientes?",
+          "a": "En el widget de Chat de tu sitio, en una página pública propia y por API desde tu app."
+        },
+        "f4": {
+          "q": "¿Puede cambiar mis datos?",
+          "a": "Solo con las herramientas que le prendas y solo dentro de tu workspace. Para agendar necesita un horario que él mismo ofreció y la confirmación del visitante."
+        }
+      },
+      "cta": {
+        "title1": "Que tus clientes",
+        "title2": "tengan respuesta a las 3 a.m.",
+        "sub": "Creá un agente desde una plantilla y probalo en el playground antes de publicarlo.",
+        "button": "Abrir Agents →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Escribí el brief",
+          "d": "Elegí una plantilla (soporte, ventas o calificación de leads) o empezá en blanco."
+        },
+        "s2": {
+          "t": "Dale conocimiento y herramientas",
+          "d": "Sumá páginas de Docs y sitios web, y prendé solo las herramientas que necesita."
+        },
+        "s3": {
+          "t": "Publicalo",
+          "d": "Conectalo al widget de Chat, compartí su página o llamalo por API."
+        }
+      }
+    },
+    "flow": {
+      "meta": {
+        "title": "Flow, automatizaciones open source",
+        "description": "Automatizaciones visuales entre todas las apps de zerosoft y cualquier API. Una alternativa open source a Zapier y n8n."
+      },
+      "hero": {
+        "sub": "Automatizaciones visuales entre todas las apps de zerosoft y cualquier servicio con API. Disparadores, condiciones, loops y pasos con IA en un mismo lienzo."
+      },
+      "featuresTitle": "Todo conectado.",
+      "featuresTitleDim": "Pagás el servidor, no las tareas.",
+      "f1": {
+        "t": "Disparadores de toda la suite",
+        "d": "Una reserva en Cal, un clic en Link, un contacto nuevo, un issue o un mensaje de Chat."
+      },
+      "f2": {
+        "t": "Webhooks y horarios",
+        "d": "Arrancá con un POST a una URL secreta o cada N minutos, en tu zona horaria."
+      },
+      "f3": {
+        "t": "Lógica completa",
+        "d": "Condiciones, ramas y loops sobre listas, en un lienzo donde arrastrás y conectás nodos."
+      },
+      "f4": {
+        "t": "Acciones nativas",
+        "d": "Crea contactos, inscribe en secuencias, abre issues, responde en Chat y escribe en Docs."
+      },
+      "f5": {
+        "t": "Pasos con IA",
+        "d": "Resume, clasifica o redacta texto en el medio del flow."
+      },
+      "f6": {
+        "t": "Historial de corridas",
+        "d": "Cada ejecución guarda lo que entró y salió de cada nodo, para encontrar el error rápido."
+      },
+      "compare": {
+        "rival": "Zapier",
+        "price": "$103,50",
+        "per": "/ mes, plan Team",
+        "teamLabel": "Un año",
+        "team": "$1.242",
+        "zero": "$0",
+        "note": "Zapier Team cuesta cerca de $103,50 por mes con facturación mensual e incluye 2.000 tareas; si pasás ese número, sube. Flow en tu servidor no cobra por tarea."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Qué puede disparar un flow?",
+          "a": "Un evento de cualquier app (una reserva, un clic, un contacto nuevo, un issue, un mensaje de chat), un webhook entrante, un horario o el botón Probar."
+        },
+        "f2": {
+          "q": "¿Se conecta con servicios de afuera?",
+          "a": "Sí: con pedidos HTTP a cualquier API pública por HTTPS y con webhooks entrantes. Para avisar en Slack alcanza con su webhook."
+        },
+        "f3": {
+          "q": "¿Puedo traer mis zaps?",
+          "a": "No hay importador. Las plantillas cubren los casos más comunes y armar un flow nuevo lleva minutos."
+        },
+        "f4": {
+          "q": "¿Hay un límite de ejecuciones?",
+          "a": "En tu servidor no se cobra por tarea. Hay un tope de ejecuciones por hora en cada workspace, para que un loop mal armado no sature el servidor."
+        }
+      },
+      "cta": {
+        "title1": "Conectá tus apps.",
+        "title2": "Dejá de copiar y pegar.",
+        "sub": "Empezá con una plantilla y activá tu primer flow hoy.",
+        "button": "Abrir Flow →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Elegí el disparador",
+          "d": "Un evento de la suite, un webhook entrante o un horario."
+        },
+        "s2": {
+          "t": "Encadená los pasos",
+          "d": "Sumá condiciones, loops, pedidos HTTP, emails y acciones de cada app."
+        },
+        "s3": {
+          "t": "Probalo y activalo",
+          "d": "Corré una prueba con datos reales, revisá la salida de cada nodo y prendelo."
+        }
+      }
+    },
+    "robots": {
+      "meta": {
+        "title": "Robots, automatización de navegador open source",
+        "description": "Robots que navegan, completan formularios y extraen datos en tu lugar. Una alternativa open source a UiPath."
+      },
+      "hero": {
+        "sub": "Robots de navegador que visitan páginas, hacen clic, completan formularios y extraen datos por vos. Correlos a mano, con horario o desde Flow."
+      },
+      "featuresTitle": "Un navegador que trabaja.",
+      "featuresTitleDim": "Mientras hacés otra cosa.",
+      "f1": {
+        "t": "Pasos, sin código",
+        "d": "Abrir una URL, hacer clic, completar, esperar, extraer texto o tablas y sacar capturas."
+      },
+      "f2": {
+        "t": "Entradas reutilizables",
+        "d": "Definís valores con nombre y el mismo robot sirve para otro producto u otra página."
+      },
+      "f3": {
+        "t": "Loops y condiciones",
+        "d": "Recorre listas de elementos y decide qué hacer según lo que encuentra."
+      },
+      "f4": {
+        "t": "Con horario",
+        "d": "Corre todos los días a la hora que elijas, o a mano cuando lo necesitás."
+      },
+      "f5": {
+        "t": "Conectado a Flow",
+        "d": "Un flow lo dispara, espera el resultado y usa los datos en el paso siguiente."
+      },
+      "f6": {
+        "t": "Corridas aisladas",
+        "d": "Cada corrida abre un navegador nuevo y lo cierra al terminar. En Vercel, dentro de una microVM."
+      },
+      "compare": {
+        "rival": "UiPath",
+        "price": "$25",
+        "per": "/ mes, plan Basic",
+        "teamLabel": "Un año",
+        "team": "$300",
+        "zero": "$0",
+        "note": "El plan Basic de UiPath arranca cerca de $25 por mes con hasta 2 robots; Standard y Enterprise se cotizan aparte. Robots en tu servidor cuesta $0; en Vercel pagás los minutos de Sandbox que uses."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Qué es un robot?",
+          "a": "Un navegador que sigue pasos: abrir una página, hacer clic, completar campos, leer textos o tablas y sacar capturas. Lo armás paso a paso, sin escribir código."
+        },
+        "f2": {
+          "q": "¿Dónde corre?",
+          "a": "En tu servidor con Chromium, o en una microVM aislada de Vercel Sandbox si desplegás en Vercel."
+        },
+        "f3": {
+          "q": "¿Sirve para sitios con login?",
+          "a": "Los robots están pensados para páginas públicas. Las entradas se guardan en texto plano y las ve todo el workspace, así que no cargues contraseñas."
+        },
+        "f4": {
+          "q": "¿Cómo uso lo que extrae?",
+          "a": "Cada corrida devuelve JSON. Desde Flow podés crear contactos, mandar un email o cargar un issue con esos datos."
+        }
+      },
+      "cta": {
+        "title1": "Que lo haga el robot.",
+        "title2": "Vos revisá el resultado.",
+        "sub": "Arrancá con una plantilla: leer una tabla, seguir un precio, completar un formulario o sacar una captura.",
+        "button": "Abrir Robots →"
+      },
+      "steps": {
+        "s1": {
+          "t": "Armá los pasos",
+          "d": "Empezá por Ir a URL y sumá clics, campos y extracciones."
+        },
+        "s2": {
+          "t": "Probalo",
+          "d": "Corrélo a mano y mirá qué extrajo en cada paso."
+        },
+        "s3": {
+          "t": "Programalo",
+          "d": "Ponele un horario o llamalo desde un flow."
+        }
+      }
+    },
+    "notes": {
+      "meta": {
+        "title": "Notes, notas open source",
+        "description": "Libretas, checklists, clipper web y preguntas sobre tus notas. Una alternativa open source a Evernote."
+      },
+      "hero": {
+        "sub": "Notas rápidas, libretas, checklists y búsqueda en todo el texto. Guardá páginas con el clipper y preguntale a tus notas lo que no recordás."
+      },
+      "featuresTitle": "Anotá rápido.",
+      "featuresTitleDim": "Encontralo después.",
+      "f1": {
+        "t": "Libretas, tags y fijadas",
+        "d": "Ordená como quieras y dejá arriba lo que usás todos los días."
+      },
+      "f2": {
+        "t": "Búsqueda en todo el texto",
+        "d": "Encontrá una nota por cualquier palabra que tenga adentro."
+      },
+      "f3": {
+        "t": "Checklists",
+        "d": "Listas para tildar, del súper a la apertura del local."
+      },
+      "f4": {
+        "t": "Clipper web",
+        "d": "Guardá cualquier página como nota, con el texto que seleccionaste y el link de origen."
+      },
+      "f5": {
+        "t": "Preguntale a tus notas",
+        "d": "Respuestas que salen solo de tus notas, con las fuentes a la vista."
+      },
+      "f6": {
+        "t": "Links de solo lectura",
+        "d": "Compartí una nota con quien quieras y cortá el link cuando termines."
+      },
+      "compare": {
+        "rival": "Evernote",
+        "price": "$14,99",
+        "per": "/ mes, plan Personal",
+        "teamLabel": "Un año",
+        "team": "$180",
+        "zero": "$0",
+        "note": "Evernote Personal cuesta cerca de $14,99 por mes con facturación mensual. Notes en tu servidor cuesta $0."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Quién puede leer mis notas?",
+          "a": "Solo vos. Si compartís una nota, la lee cualquiera con el link, y podés cortarlo cuando quieras."
+        },
+        "f2": {
+          "q": "¿Cómo guardo cosas de la web?",
+          "a": "Con el clipper: arrastrás un botón a la barra de favoritos y, desde cualquier página, la guardás como nota con el texto que seleccionaste."
+        },
+        "f3": {
+          "q": "¿Qué hace Preguntale a tus notas?",
+          "a": "Responde usando solo lo que está en tus notas y te muestra cuáles usó. Si ninguna menciona el tema, te lo dice."
+        },
+        "f4": {
+          "q": "¿Se maneja con teclado?",
+          "a": "Sí. Apretás N para una nota nueva y la búsqueda encuentra texto dentro de todas tus notas."
+        }
+      },
+      "cta": {
+        "title1": "Anotalo ahora.",
+        "title2": "Encontralo después.",
+        "sub": "Apretá N y escribí. Tus notas son solo tuyas.",
+        "button": "Abrir Notes →"
+      }
+    },
+    "board": {
+      "meta": {
+        "title": "Board, pizarra infinita open source",
+        "description": "Una pizarra infinita compartida con tu equipo, con guardado automático y links de solo lectura. Una alternativa open source a Miro."
+      },
+      "hero": {
+        "sub": "Una pizarra infinita para dibujar, planificar y explicar ideas con tu equipo. Se guarda sola y se comparte con un link."
+      },
+      "featuresTitle": "Pensá en grande.",
+      "featuresTitleDim": "La pizarra no se termina.",
+      "f1": {
+        "t": "Lienzo infinito",
+        "d": "Dibujá, escribí y ordená ideas sin quedarte sin espacio."
+      },
+      "f2": {
+        "t": "Para todo el workspace",
+        "d": "Cualquiera de tu equipo abre la pizarra y la edita."
+      },
+      "f3": {
+        "t": "Guardado automático",
+        "d": "Se guarda mientras trabajás y avisa si alguien la cambió en otro lado."
+      },
+      "f4": {
+        "t": "Miniaturas y duplicar",
+        "d": "Reconocé cada pizarra de un vistazo y usá una como plantilla."
+      },
+      "f5": {
+        "t": "Links de solo lectura",
+        "d": "Mostrale una pizarra a un cliente sin darle permiso para editar."
+      },
+      "f6": {
+        "t": "Imágenes",
+        "d": "Pegá capturas y fotos al lado de tus notas."
+      },
+      "compare": {
+        "rival": "Miro",
+        "price": "$10",
+        "per": "/ usuario / mes",
+        "team": "$1.200",
+        "zero": "$0",
+        "note": "Miro Starter cuesta cerca de $10 por usuario por mes con facturación mensual. Diez personas: $1.200 al año. Board en tu servidor cuesta $0."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Quién puede editar una pizarra?",
+          "a": "Todo tu workspace. Si la compartís por link, el resto solo la puede ver."
+        },
+        "f2": {
+          "q": "¿Se guarda sola?",
+          "a": "Sí, mientras dibujás. Si alguien la cambió en otro lado, te avisa y elegís qué versión conservar."
+        },
+        "f3": {
+          "q": "¿Puedo pegar imágenes?",
+          "a": "Sí. Cada pizarra tiene un límite de tamaño; si lo pasás, achicá o sacá algunas imágenes."
+        },
+        "f4": {
+          "q": "¿En qué está basada?",
+          "a": "En Excalidraw, el editor open source de pizarras a mano alzada."
+        }
+      },
+      "cta": {
+        "title1": "Dibujalo.",
+        "title2": "Así se entiende.",
+        "sub": "Abrí una pizarra nueva y compartila con tu equipo.",
+        "button": "Abrir Board →"
+      }
     }
   },
   "product": {
-    "back": "← El arsenal",
     "launch": "Usar {name} — es gratis",
-    "notify": "Avisame",
-    "manifesto": "Leer el manifiesto",
-    "browserUrl": "zerosoft.ai/app",
-    "featuresLabel": "01 — Features",
-    "compareLabel": "03 — La cuenta",
     "compareToday": "Hoy pagás",
     "compareZero": "Con Zerosoft",
     "compareTeam": "Equipo de 10",
     "compareYear": "/ año",
-    "modelLabel": "04 — Tres formas de tenerlo",
     "model": {
       "a": {
         "title": "Hostealo vos",
@@ -693,20 +1057,16 @@
         "priceNote": "/ licencia comercial + soporte"
       }
     },
-    "faqLabel": "05 — Preguntas",
     "faqTitle": "Preguntas justas.",
     "faqTitleDim": "Cero letra chica.",
     "alternative": "La alternativa open source a {rival}",
     "selfHost": "Hostealo vos",
     "apiDocs": "Docs de la API",
-    "howLabel": "02 — Cómo funciona",
     "howTitle": "Andando",
     "howTitleDim": "en tres pasos.",
-    "suiteLabel": "06 — Parte de la suite",
     "suiteTitle": "Un workspace.",
     "suiteTitleDim": "Once apps, el mismo login.",
-    "previewNote": "Vista interactiva de la interfaz del producto.",
-    "compareSave": "Te quedás con"
+    "previewNote": "Vista interactiva de la interfaz del producto."
   },
   "mockups": {
     "link": {
@@ -719,78 +1079,78 @@
       "statClicks": "Clicks totales",
       "statLinks": "Links activos",
       "statTop": "Link top",
-      "chartLabel": "Clicks — últimos 14 días",
+      "chartLabel": "Clicks de los últimos 14 días",
       "thShort": "Link corto",
       "thDest": "Destino",
       "thClicks": "Clicks",
-      "r1short": "zs.ai/launch",
-      "r1dest": "zerosoft.ai/blog/el-software-murio",
+      "r1short": "zs.ai/menu",
+      "r1dest": "laespiga.com.ar/menu-del-dia",
       "r1clicks": "4.812",
-      "r2short": "zs.ai/docs",
-      "r2dest": "zerosoft.ai/docs",
-      "r2clicks": "3.204",
-      "r3short": "zs.ai/docs",
-      "r3dest": "zerosoft.ai/docs",
+      "r2short": "zs.ai/primavera",
+      "r2dest": "viverolascasuarinas.com.ar/primavera",
+      "r2clicks": "2.960",
+      "r3short": "zs.ai/whatsapp",
+      "r3dest": "wa.me/5493415550192",
       "r3clicks": "2.118",
-      "r4short": "zs.ai/hola",
-      "r4dest": "mailto:hola@zerosoft.ai",
+      "r4short": "zs.ai/turnos",
+      "r4dest": "zerosoft.ai/cal/valeria-ruiz",
       "r4clicks": "1.346"
     },
     "track": {
-      "filter": "Filtrar issues…",
-      "new": "+ Nuevo issue",
+      "filter": "Filtrar tareas…",
+      "new": "+ Nueva tarea",
       "col_backlog": "Backlog",
       "col_todo": "Por hacer",
       "col_progress": "En curso",
       "col_done": "Hecho",
-      "card_c1": "Modo offline para mobile",
-      "card_c2": "Wizard de importación desde Linear",
-      "card_c3": "Gráfico burndown del ciclo",
-      "card_c4": "Conflictos de atajos de teclado",
-      "card_c5": "Motor de sincronización en tiempo real",
-      "card_c6": "Estado vacío del inbox de triage",
-      "card_c7": "Timeline del roadmap de proyectos",
-      "label_bug": "Bug",
-      "label_feature": "Feature",
+      "card_c1": "Cargar el catálogo en Tiendanube",
+      "card_c2": "Talles en la ficha de cada producto",
+      "card_c3": "Banner del Hot Sale",
+      "card_c4": "El checkout no calcula el envío a Mendoza",
+      "card_c5": "Cobrar con Mercado Pago",
+      "card_c6": "Fotos de la colección de verano",
+      "card_c7": "Mudar el dominio a .com.ar",
+      "label_bug": "Error",
+      "label_feature": "Tienda",
       "label_design": "Diseño",
-      "label_core": "Core"
+      "label_core": "Pagos"
     },
     "crm": {
-      "title": "Contactos",
-      "new": "+ Agregar contacto",
+      "title": "Negocios",
+      "new": "+ Nuevo negocio",
       "stage_lead": "Lead",
       "stage_qualified": "Calificado",
       "stage_proposal": "Propuesta",
       "stage_won": "Ganado",
-      "val_lead": "$48k",
-      "val_qualified": "$96k",
-      "val_proposal": "$61k",
-      "val_won": "$132k",
+      "val_lead": "$12k",
+      "val_qualified": "$26k",
+      "val_proposal": "$18k",
+      "val_won": "$41k",
       "thName": "Nombre",
       "thCompany": "Empresa",
-      "thValue": "Valor del deal",
+      "thValue": "Valor",
       "thStage": "Etapa",
-      "r1name": "Ana Duarte",
-      "r1company": "Norte Labs",
-      "r1value": "$24.000",
+      "r1name": "Lucía Benítez",
+      "r1company": "Ferretería Benítez, Rosario",
+      "r1value": "$2.400",
       "r1stage": "Calificado",
-      "r2name": "Bruno Lima",
-      "r2company": "Estudio Cero",
-      "r2value": "$18.500",
+      "r2name": "Martín Ocampo",
+      "r2company": "Vivero Las Casuarinas",
+      "r2value": "$1.150",
       "r2stage": "Propuesta",
-      "r3name": "Carla Méndez",
-      "r3company": "Andes Cloud",
-      "r3value": "$52.000",
+      "r3name": "Florencia Ríos",
+      "r3company": "Panadería La Espiga",
+      "r3value": "$3.800",
       "r3stage": "Ganado",
-      "r4name": "Diego Sanz",
-      "r4company": "Mono Studio",
-      "r4value": "$12.750",
+      "r4name": "Diego Sosa",
+      "r4company": "Taller Sosa e Hijos",
+      "r4value": "$900",
       "r4stage": "Lead"
     },
     "cal": {
-      "name": "Zerosoft",
-      "meeting": "Reunión de 30 min",
-      "desc": "Una llamada corta de presentación. Elegí el horario que te quede mejor.",
+      "name": "Lic. Valeria Ruiz",
+      "meeting": "Primera consulta nutricional",
+      "desc": "Videollamada de 30 minutos. Si tenés análisis recientes, tenelos a mano.",
       "month": "Julio 2026",
       "d1": "L",
       "d2": "M",
@@ -799,38 +1159,136 @@
       "d5": "V",
       "d6": "S",
       "d7": "D",
-      "slotsLabel": "Jue 16 — horarios",
+      "slotsLabel": "Jue 16, horarios",
       "confirm": "Confirmar",
-      "tz": "Horarios en tu zona"
+      "tz": "Hora de Argentina (GMT-3)",
+      "initials": "VR",
+      "where": "Google Meet"
     },
     "docs": {
       "navHome": "Inicio",
       "navPages": "Páginas",
       "navShared": "Compartidos",
-      "title": "Wiki de producto",
-      "item1": "Notas que son tuyas",
-      "item2": "Páginas anidadas y menciones",
-      "item3": "Compartí con tu equipo"
+      "title": "Manual de la cocina",
+      "item1": "Recetas base y porciones",
+      "item2": "Proveedores y días de pedido",
+      "item3": "Turnos del personal"
     },
     "chat": {
       "listTitle": "Bandeja",
-      "r1name": "Mara",
-      "r1msg": "¿Hacen envíos a Brasil?",
-      "r1time": "2m",
-      "r2name": "Tomás",
-      "r2msg": "El link de la factura no anda",
-      "r2time": "1h",
-      "r3name": "Ana",
-      "r3msg": "¡Gracias, funcionó!",
-      "r3time": "3h",
-      "badgeOpen": "Abierta",
-      "badgeHigh": "Alta",
-      "m1": "¡Hola! ¿Hacen envíos a Brasil?",
+      "r1name": "Carolina",
+      "r1msg": "¿Hacen envíos a Córdoba capital?",
+      "r1time": "2 min",
+      "r2name": "Julián",
+      "r2msg": "No me llegó la factura de octubre",
+      "r2time": "1 h",
+      "r3name": "Sofía",
+      "r3msg": "¡Gracias, ya me llegó!",
+      "r3time": "3 h",
+      "statusOpen": "Abierta",
+      "m1": "Hola, ¿hacen envíos a Córdoba capital?",
       "botTag": "Respuesta automática",
-      "m2": "¡Hola Mara! Sí — enviamos a todo el mundo en 3–5 días hábiles.",
-      "m3": "Perfecto. ¿Y puedo pagar con Pix?",
-      "m4": "Sí, Pix funciona en el checkout. Ya te paso el link.",
+      "m2": "Hola, Carolina. Sí, enviamos por Andreani a todo el país. A Córdoba tarda de 2 a 4 días hábiles.",
+      "m3": "Genial. ¿Puedo pagar con Mercado Pago?",
+      "m4": "Sí, aceptamos Mercado Pago y transferencia. Te paso el link de pago.",
       "replyHint": "Escribí una respuesta…"
+    },
+    "agents": {
+      "name": "Asistente de La Espiga",
+      "status": "Activo",
+      "toolsTitle": "Herramientas",
+      "tool1": "Buscar conocimiento",
+      "tool2": "Guardar en el CRM",
+      "tool3": "Agendar en Cal",
+      "tool4": "Llamar a tu API",
+      "knowledgeTitle": "Conocimiento",
+      "knowledge": "Catálogo de tortas · Horarios y envíos · laespiga.com.ar",
+      "m1": "Hola, ¿tienen torta sin TACC para el sábado?",
+      "call1": "Buscó en el conocimiento: Catálogo de tortas",
+      "m2": "Sí, la de limón y la de chocolate son sin TACC. Se encargan con 48 horas. ¿Te reservo una para el sábado?",
+      "m3": "Dale, la de limón. Soy Paula, paula.mendez@gmail.com",
+      "call2": "Guardó el contacto en el CRM: Paula Méndez",
+      "m4": "Listo, Paula. Pasá a retirarla el sábado desde las 9. Si querés cambiar algo, escribime acá.",
+      "replyHint": "Escribí un mensaje…"
+    },
+    "flow": {
+      "triggerK": "Disparador · Cal",
+      "trigger": "Nueva reserva",
+      "step1": "Crear o actualizar el contacto",
+      "ifK": "Condición",
+      "cond": "¿Es la primera consulta?",
+      "yes": "Sí",
+      "yesStep": "Mandar la bienvenida con indicaciones",
+      "no": "No",
+      "noStep": "Crear tarea de seguimiento",
+      "runsTitle": "Últimas corridas",
+      "run1": "Correcta",
+      "run1time": "hace 4 min",
+      "run2": "Correcta",
+      "run2time": "hace 2 h",
+      "run3": "Falló el email",
+      "run3time": "ayer"
+    },
+    "robots": {
+      "name": "Precios del molino",
+      "schedule": "Todos los días, 7:00",
+      "s1k": "Ir a",
+      "s1": "proveedor.com.ar/precios",
+      "s2k": "Esperar",
+      "s2": "la tabla de precios",
+      "s3k": "Extraer",
+      "s3": "la tabla como filas",
+      "s4k": "Enviar",
+      "s4": "el resultado a Flow",
+      "resultTitle": "Última corrida",
+      "resultStatus": "Hoy 7:00 · 6 s",
+      "thItem": "Producto",
+      "thPrice": "Precio",
+      "thChange": "Vs. ayer",
+      "r1item": "Harina 000 x 25 kg",
+      "r1price": "$ 18.900",
+      "r1change": "+2,1%",
+      "r2item": "Harina 0000 x 25 kg",
+      "r2price": "$ 21.400",
+      "r2change": "+1,8%",
+      "r3item": "Levadura x 500 g",
+      "r3price": "$ 4.250",
+      "r3change": "0%",
+      "r4item": "Manteca x 5 kg",
+      "r4price": "$ 32.600",
+      "r4change": "+3,0%",
+      "json": "4 filas enviadas a Flow"
+    },
+    "notes": {
+      "all": "Todas las notas",
+      "nb1": "Local",
+      "nb2": "Facultad",
+      "nb3": "Casa",
+      "search": "Buscar notas",
+      "n1title": "Lista del súper",
+      "n1snippet": "Yerba, harina 0000, manteca…",
+      "n2title": "Ideas para el local",
+      "n2snippet": "Pedir presupuesto de cartelería",
+      "n3title": "Clave del wifi",
+      "n3snippet": "Red: Espiga_Clientes",
+      "meta": "Editada hoy, 9:41 · Local",
+      "body": "Antes de diciembre: cartel nuevo, cobrar con QR y fotos para las redes.",
+      "c1": "Pedir presupuesto de cartelería",
+      "c2": "Abrir la cuenta de Mercado Pago",
+      "c3": "Sacar fotos de las tortas",
+      "tag": "local"
+    },
+    "board": {
+      "title": "Lanzamiento de la tienda online",
+      "saved": "Guardado",
+      "col1": "Antes",
+      "col2": "Durante",
+      "col3": "Después",
+      "a1": "Fotos de todos los productos",
+      "a2": "Precios con IVA incluido",
+      "b1": "Anuncio en Instagram",
+      "b2": "Envíos por Andreani",
+      "c1": "Encuesta a los primeros clientes"
     }
   },
   "status": {
@@ -838,10 +1296,8 @@
       "title": "Status",
       "description": "Qué corre zerosoft.ai y cómo vamos a reportar su salud. Sin números inventados."
     },
-    "label": "0.06 — Status",
     "title": "Status.",
     "sub": "El monitoreo en vivo todavía no está conectado. Hasta que lo esté, no te vamos a mostrar números que no medimos.",
-    "servicesLabel": "01 — Servicios",
     "s1": {
       "name": "Link",
       "desc": "Dashboard, redirects y códigos QR"
@@ -875,7 +1331,6 @@
       "desc": "Login con Google"
     },
     "noData": "Sin datos aún",
-    "monitoringLabel": "02 — Monitoreo",
     "monitoringTitle": "Próximamente.",
     "monitoringBody": "Chequeos reales de uptime y un registro público de incidentes están en camino. Si algo se rompe antes, lo vamos a decir acá, en criollo.",
     "contact": "¿Algo caído? Escribinos a hola@zerosoft.ai."
@@ -1205,7 +1660,7 @@
     "crmFormsTitle": "CRM · Formularios",
     "crmFormsDesc": "Formularios de captura de leads y sus envíos. Cada envío también crea o actualiza un contacto y registra una actividad \"Form submitted\".",
     "formsListTitle": "Listar formularios",
-    "formsListDesc": "Todos los formularios del workspace con sus campos, estado y cantidad de envíos. `key` es el slug público (o el token) que usan /f/<key> y el script de embed.",
+    "formsListDesc": "Todos los formularios del workspace con sus campos, estado y cantidad de envíos. `key` es el slug público (o el token) que usan /f/'<key>' y el script de embed.",
     "formsSubmissionsTitle": "Listar envíos de un formulario",
     "formsSubmissionsDesc": "Envíos de un formulario, los más recientes primero, con los valores, los parámetros UTM y el contacto vinculado."
   }
