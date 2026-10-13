@@ -849,12 +849,12 @@
       },
       "compare": {
         "rival": "UiPath",
-        "price": "$420",
-        "per": "/ mes, plan Pro",
+        "price": "$25",
+        "per": "/ mes, plan Basic",
         "teamLabel": "Un año",
-        "team": "$5.040",
+        "team": "$300",
         "zero": "$0",
-        "note": "El plan Pro de UiPath Automation Cloud arranca cerca de $420 por mes. Robots en tu servidor cuesta $0; en Vercel pagás los minutos de Sandbox que uses."
+        "note": "El plan Basic de UiPath arranca cerca de $25 por mes con hasta 2 robots; Standard y Enterprise se cotizan aparte. Robots en tu servidor cuesta $0; en Vercel pagás los minutos de Sandbox que uses."
       },
       "faq": {
         "f1": {
