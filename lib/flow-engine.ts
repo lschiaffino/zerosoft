@@ -250,6 +250,46 @@ async function aiNode(ws: string, cfg: Record<string, unknown>, tctx: Record<str
   }
 }
 
+/**
+ * Corre un robot y espera el resultado (sincrónico, con el timeout del robot).
+ * Las corridas de Flow ya van en segundo plano (worker), así que esperar
+ * acá es lo simple. Extiende el lock de la corrida para que el worker no la
+ * marque como colgada mientras el navegador trabaja.
+ */
+async function robotNode(state: RunState, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+  const ws = state.flow.user_id;
+  const robotId = renderString(cfg.robotId ?? '', tctx).trim();
+  if (!robotId) throw new StepError('missing_robot');
+  const inputs: Record<string, unknown> = {};
+  for (const f of Array.isArray(cfg.inputs) ? (cfg.inputs as Array<{ key?: string; value?: unknown }>) : []) {
+    const k = String(f?.key ?? '').trim();
+    if (k && k !== '__proto__' && k !== 'constructor' && k !== 'prototype') inputs[k] = renderValue(f?.value ?? '', tctx);
+  }
+  const { startRobotRun } = await import('./robots');
+  await getDb()
+    .prepare('UPDATE flow_runs SET locked_until = ? WHERE id = ?')
+    .run(new Date(Date.now() + 10 * 60_000).toISOString(), state.run.id);
+  const res = await startRobotRun(ws, robotId, inputs, { trigger: 'flow' });
+  if (!res.ok) {
+    // Ocupado o con rate limit: reintentable con los reintentos del nodo.
+    throw new StepError(`robot_${res.error}`, res.error === 'busy' || res.error === 'rate_limited');
+  }
+  const output = {
+    runId: res.run.id,
+    status: res.run.status,
+    error: res.run.error,
+    output: res.run.output,
+    durationMs: res.run.durationMs,
+    screenshots: res.run.screenshots.filter((s) => s.url && !s.url.startsWith('data:')).map((s) => ({ name: s.name, url: s.url })),
+  };
+  if (res.run.status === 'failed' && cfg.failOnError !== false) {
+    const err = new StepError('robot_failed');
+    (err as StepError & { output?: unknown }).output = output;
+    throw err;
+  }
+  return output;
+}
+
 async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): Promise<NodeResult> {
   const cfg = node.config ?? {};
   const tctx = templateCtx(state, loop);
@@ -317,6 +357,8 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       return { kind: 'ok', output: await chatMessageNode(ws, cfg, tctx), handles: ['out'] };
     case 'app.docs_page':
       return { kind: 'ok', output: await docsPageNode(ws, cfg, tctx), handles: ['out'] };
+    case 'app.robot_run':
+      return { kind: 'ok', output: await robotNode(state, cfg, tctx), handles: ['out'] };
     case 'ai.text':
       return { kind: 'ok', output: await aiNode(ws, cfg, tctx), handles: ['out'] };
     default:

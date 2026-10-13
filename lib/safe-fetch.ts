@@ -30,7 +30,11 @@ function isPrivateIp(ip: string): boolean {
 
 export class UnsafeUrlError extends Error {}
 
-export async function assertPublicUrl(raw: string): Promise<URL> {
+/**
+ * `allowHttp`: acepta http:// también en producción (Robots navega sitios
+ * públicos sin HTTPS). Los hosts privados se bloquean igual.
+ */
+export async function assertPublicUrl(raw: string, opts: { allowHttp?: boolean } = {}): Promise<URL> {
   let url: URL;
   try {
     url = new URL(raw);
@@ -40,7 +44,7 @@ export async function assertPublicUrl(raw: string): Promise<URL> {
   if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new UnsafeUrlError('invalid_url');
   // Self-host en red privada o tests: se permiten hosts internos y http.
   if (process.env.ALLOW_PRIVATE_WEBHOOKS === 'true') return url;
-  const devHttp = process.env.NODE_ENV !== 'production' && url.protocol === 'http:';
+  const devHttp = (opts.allowHttp || process.env.NODE_ENV !== 'production') && url.protocol === 'http:';
   if (url.protocol !== 'https:' && !devHttp) throw new UnsafeUrlError('https_required');
   const host = url.hostname.replace(/^\[|\]$/g, '');
   if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal')) {

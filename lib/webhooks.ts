@@ -25,6 +25,8 @@ export const WEBHOOK_EVENTS = [
   'deal.stage_changed',
   'deal.won',
   'deal.lost',
+  'robot.run.finished',
+  'robot.run.failed',
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

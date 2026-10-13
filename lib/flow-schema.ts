@@ -26,6 +26,8 @@ export const FLOW_EVENT_TYPES = [
   'conversation.created',
   'message.received',
   'page.created',
+  'robot.run.finished',
+  'robot.run.failed',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -74,6 +76,16 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     widget: { id: 'w_1', name: 'Site' },
   },
   'page.created': { page: { id: 'pg_1', title: 'Untitled' } },
+  'robot.run.finished': {
+    robot: { id: 'rb_1', name: 'Price check' },
+    run: { id: 'rr_1', status: 'success', trigger: 'schedule', durationMs: 4200, error: null },
+    output: { title: 'A Light in the Attic', price: '£51.77' },
+  },
+  'robot.run.failed': {
+    robot: { id: 'rb_1', name: 'Price check' },
+    run: { id: 'rr_1', status: 'failed', trigger: 'schedule', durationMs: 4200, error: '2: action_timeout' },
+    output: {},
+  },
 };
 
 // ---------- Catálogo de nodos ----------
@@ -266,6 +278,17 @@ export const NODE_DEFS = {
     fields: [
       { key: 'title', kind: 'text', template: true },
       { key: 'content', kind: 'textarea', template: true },
+    ],
+  },
+  'app.robot_run': {
+    type: 'app.robot_run',
+    category: 'app',
+    outputs: ['out'],
+    fields: [
+      { key: 'robotId', kind: 'text', placeholder: 'robot id' },
+      { key: 'inputs', kind: 'kv', template: true, default: [] },
+      { key: 'failOnError', kind: 'bool', default: true },
+      { key: 'retries', kind: 'number', default: 0 },
     ],
   },
   'ai.text': {

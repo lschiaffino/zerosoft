@@ -891,6 +891,69 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // Robots: automatizaciones de navegador (RPA) que corren en un Chromium
+    // aislado (Vercel Sandbox o runner local). user_id = workspace (dueño).
+    // robot_usage mide minutos por mes (cuota); robot_runtime guarda el id
+    // del snapshot del sandbox. Ver lib/robots*.ts.
+    id: '020_robots_tables',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robots (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          steps TEXT NOT NULL DEFAULT '[]',
+          inputs TEXT NOT NULL DEFAULT '[]',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          schedule TEXT,
+          next_run_at TEXT,
+          timeout_sec INTEGER NOT NULL DEFAULT 120,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robots_user ON robots(user_id, updated_at)');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robots_schedule ON robots(enabled, next_run_at)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_runs (
+          id TEXT PRIMARY KEY,
+          robot_id TEXT NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'success', 'failed')),
+          trigger TEXT NOT NULL DEFAULT 'manual',
+          input TEXT NOT NULL DEFAULT '{}',
+          output TEXT NOT NULL DEFAULT '{}',
+          error TEXT,
+          logs TEXT NOT NULL DEFAULT '[]',
+          screenshots TEXT NOT NULL DEFAULT '[]',
+          backend TEXT,
+          created_by TEXT,
+          locked_until TEXT,
+          created_at TEXT NOT NULL,
+          started_at TEXT,
+          finished_at TEXT,
+          duration_ms INTEGER
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_runs_robot ON robot_runs(robot_id, created_at)');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_runs_user ON robot_runs(user_id, status, created_at)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_usage (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          month TEXT NOT NULL,
+          runs INTEGER NOT NULL DEFAULT 0,
+          ms INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (user_id, month)
+        )`);
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_runtime (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

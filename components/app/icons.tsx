@@ -23,7 +23,8 @@ export type IconName =
   | 'flow'
   | 'notes'
   | 'board'
-  | 'agents';
+  | 'agents'
+  | 'robots';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -160,6 +161,12 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="4" y="7" width="16" height="12" rx="2" />
       <path d="M12 3v4M9 12h.01M15 12h.01M9.5 16h5" />
+    </>
+  ),
+  robots: (
+    <>
+      <rect x="3" y="4" width="18" height="14" />
+      <path d="M3 8h18M7 12l2 2-2 2M12 16h4" />
     </>
   ),
 };

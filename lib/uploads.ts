@@ -39,7 +39,7 @@ export function isAllowedUpload(filename: string, contentType: string): boolean 
 
 /** Guarda el archivo y devuelve su URL pública. `folder`: chat | track | tasks. */
 export async function saveUpload(
-  folder: 'chat' | 'track' | 'tasks',
+  folder: 'chat' | 'track' | 'tasks' | 'robots',
   filename: string,
   contentType: string,
   buffer: Buffer,

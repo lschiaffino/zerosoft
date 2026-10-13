@@ -20,6 +20,7 @@ import '@/styles/flow.css';
 import '@/styles/notes.css';
 import '@/styles/board.css';
 import '@/styles/agents.css';
+import '@/styles/robots.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
 
@@ -53,6 +54,7 @@ export default async function AppLayout(
   const tNotes = await getTranslations({ locale, namespace: 'notes' });
   const tBoard = await getTranslations({ locale, namespace: 'board' });
   const tAgents = await getTranslations({ locale, namespace: 'agents' });
+  const tRobots = await getTranslations({ locale, namespace: 'robots' });
   const tasksDue = await countDueTasks(user.id);
 
   return (
@@ -89,6 +91,7 @@ export default async function AppLayout(
           newWidget: tSide('newWidget'),
           newFlow: tSide('newFlow'),
           newAgent: tSide('newAgent'),
+          newRobot: tSide('newRobot'),
           team: tSide('team'),
           link: {
             overview: tLink('tabs.overview'),
@@ -145,6 +148,9 @@ export default async function AppLayout(
           agents: {
             agents: tAgents('sidebar.agents'),
           },
+          robots: {
+            robots: tRobots('sidebar.robots'),
+          },
           notifications: {
             title: tTrack('notifications.title'),
             markRead: tTrack('notifications.markRead'),
@@ -191,6 +197,7 @@ export default async function AppLayout(
             { href: '/app/notes/clip', label: tNotes('clip.title') },
             { href: '/app/board', label: tBoard('sidebar.boards') },
             { href: '/app/agents', label: tAgents('sidebar.agents') },
+            { href: '/app/robots', label: tRobots('sidebar.robots') },
           ]}
         />
         <main className="app-content">{children}</main>

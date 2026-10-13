@@ -2,15 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { retryDueWebhooks } from '@/lib/webhooks';
 import { fireDueTasks } from '@/lib/crm';
 import { processFlowQueue } from '@/lib/flow-worker';
+import { runDueRobots } from '@/lib/robots';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Robots programados corren dentro del tick (hasta ~5 min por corrida).
+export const maxDuration = 300;
 
 /**
  * Tarea periódica única (Vercel Cron): recordatorios de Cal, reintentos de
  * webhooks, vencimiento de tareas del CRM (trigger task_due) y la cola de
- * Flow (schedules vencidos, corridas en cola, delays y reintentos). Misma
+ * Flow (schedules vencidos, corridas en cola, delays y reintentos) y los
+ * robots programados (lib/robots.ts → runDueRobots). Misma
  * autorización que el cron de recordatorios (CRON_SECRET).
  */
 export async function GET(req: NextRequest) {
@@ -19,5 +23,6 @@ export async function GET(req: NextRequest) {
   const webhookRetries = await retryDueWebhooks();
   const dueTasks = await fireDueTasks();
   const flow = await processFlowQueue({ limit: 200 });
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow });
+  const robots = await runDueRobots();
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow, robots });
 }
