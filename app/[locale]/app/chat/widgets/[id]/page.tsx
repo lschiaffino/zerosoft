@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/session';
 import { getChatWidget, listChatConversations } from '@/lib/chat-data';
 import { formatNumber } from '@/lib/utils';
 import WidgetForm from '@/components/chat/WidgetForm';
+import { aiEnabled } from '@/lib/ai';
 import EmbedCode from '@/components/chat/EmbedCode';
 
 export const dynamic = 'force-dynamic';
@@ -64,7 +65,7 @@ export default async function EditWidgetPage(
 
       <div className="chat-edit-grid">
         <div className="chat-edit-form">
-          <WidgetForm initial={widget} />
+          <WidgetForm initial={widget} aiAvailable={aiEnabled()} />
         </div>
         <div className="chat-edit-side">
           <EmbedCode widgetId={widget.id} />

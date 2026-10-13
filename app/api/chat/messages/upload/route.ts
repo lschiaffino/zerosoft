@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import {
   chatAttachmentType,
@@ -7,10 +7,10 @@ import {
   getChatWidget,
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
-  maybeRunChatBot,
   updateChatConversation,
 } from '@/lib/chat-data';
 import { MAX_UPLOAD_SIZE, isAllowedUpload, saveUpload, UploadError } from '@/lib/uploads';
+import { dispatchChatBot } from '@/lib/chat-bot-ai';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -81,8 +81,9 @@ export async function POST(req: Request) {
     ],
   });
 
-  // Bot: responde al primer mensaje si nadie contestó todavía.
-  const botMessage = await maybeRunChatBot(widget, conversation, caption || filename);
+  // Bot: keywords responde al instante (una vez); el bot AI responde en
+  // segundo plano (after) y el widget recibe la respuesta en su polling.
+  const botMessage = await dispatchChatBot(widget, conversation, { id: message.id, body: caption || filename }, after);
 
   return NextResponse.json({ message, conversation, visitor, bot: botMessage }, { status: 201 });
 }

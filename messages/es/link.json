@@ -210,7 +210,21 @@
     "colLastUsed": "Último uso",
     "never": "nunca",
     "revoke": "Revocar",
-    "noKeys": "Todavía no hay keys."
+    "noKeys": "Todavía no hay keys.",
+    "aiUsage": {
+      "title": "Uso de AI",
+      "sub": "Tokens que usaron las funciones de AI (bot del chat) en este workspace este mes.",
+      "used": "Usado este mes",
+      "free": "Cuota mensual gratis",
+      "unlimited": "Ilimitada",
+      "overage": "Excedente",
+      "byFeature": "Por función",
+      "notConfigured": "La AI no está configurada en este servidor. Definí AI_GATEWAY_API_KEY (o deployá en Vercel con AI Gateway) para activarla.",
+      "features": {
+        "chat_bot": "Bot del chat"
+      },
+      "quotaNote": "Cuando se agota la cuota gratis, las funciones de AI se pausan hasta el mes siguiente y vuelven al comportamiento sin AI."
+    }
   },
   "gate": {
     "title": "Link protegido",

@@ -317,6 +317,58 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at DESC)');
     },
   },
+  {
+    // AI: consumo de tokens por workspace (user_id = dueño del workspace) y
+    // feature. Base de la cuota mensual gratis y de la facturación en la nube.
+    id: '015_ai_usage',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS ai_usage (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          feature TEXT NOT NULL,
+          model TEXT NOT NULL,
+          input_tokens INTEGER NOT NULL DEFAULT 0,
+          output_tokens INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_ai_usage_user_created ON ai_usage(user_id, created_at)');
+    },
+  },
+  {
+    // Chat: bot_source admite 'ai'. Las bases nuevas tienen un CHECK que no se
+    // puede alterar: se reconstruye la tabla reescribiendo solo el CHECK del
+    // SQL original (conserva columnas agregadas por otras migraciones). Las
+    // bases viejas (columna agregada por ALTER, sin CHECK) no necesitan nada.
+    id: '015_ai_chat_bot_source',
+    async up(client) {
+      const current = await client.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'chat_widgets'",
+      );
+      const sql = String(current.rows[0]?.sql ?? '');
+      const check = /CHECK\s*\(\s*bot_source\s+IN\s*\(\s*'canned'\s*,\s*'docs'\s*\)\s*\)/i;
+      if (!sql || !check.test(sql)) return;
+      const newSql = sql
+        .replace(check, "CHECK (bot_source IN ('canned', 'docs', 'ai'))")
+        .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?chat_widgets["`]?/i, 'CREATE TABLE chat_widgets_new');
+      const cols = (await client.execute('PRAGMA table_info(chat_widgets)')).rows
+        .map((r) => `"${String(r.name)}"`)
+        .join(', ');
+      const indexes = (
+        await client.execute(
+          "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'chat_widgets' AND sql IS NOT NULL",
+        )
+      ).rows.map((r) => String(r.sql));
+      await client.migrate([
+        'DROP TABLE IF EXISTS chat_widgets_new',
+        newSql,
+        `INSERT INTO chat_widgets_new (${cols}) SELECT ${cols} FROM chat_widgets`,
+        'DROP TABLE chat_widgets',
+        'ALTER TABLE chat_widgets_new RENAME TO chat_widgets',
+        ...indexes,
+      ]);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
