@@ -18,7 +18,10 @@
     "empty": "Sin páginas",
     "dropTopLevel": "Soltá acá para mover al nivel raíz",
     "collapse": "Contraer",
-    "expand": "Expandir"
+    "expand": "Expandir",
+    "pageActions": "Acciones de la página",
+    "moveUp": "Subir",
+    "moveDown": "Bajar"
   },
   "editor": {
     "untitled": "Página sin título",
@@ -114,7 +117,8 @@
       "objects": "Objetos",
       "symbols": "Símbolos",
       "nature": "Naturaleza",
-      "food": "Comida"
+      "food": "Comida",
+      "results": "Resultados"
     }
   },
   "share": {

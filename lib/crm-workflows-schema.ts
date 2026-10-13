@@ -27,12 +27,18 @@ const actionSchema = z.object({
   position: z.number().int().min(0).optional(),
 });
 
-export const workflowCreateSchema = z.object({
-  name: shortText,
-  enabled: z.boolean().optional(),
-  triggers: z.array(triggerSchema).min(1).max(10),
-  actions: z.array(actionSchema).min(1).max(20),
-});
+export const workflowCreateSchema = z
+  .object({
+    name: shortText,
+    enabled: z.boolean().optional(),
+    triggers: z.array(triggerSchema).min(1).max(10),
+    // Sin acciones solo como borrador (creación rápida: nombre + trigger → editor).
+    actions: z.array(actionSchema).max(20),
+  })
+  .refine((w) => w.actions.length > 0 || w.enabled === false, {
+    message: 'actions_required',
+    path: ['actions'],
+  });
 
 export const workflowUpdateSchema = z.object({
   name: shortText.optional(),

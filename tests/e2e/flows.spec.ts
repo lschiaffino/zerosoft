@@ -516,3 +516,92 @@ test('Chat: responder con Enter (y "/" inserta una respuesta guardada) y resolve
   // El hilo scrollea su propio contenedor, no la página.
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });
+
+// ---------- Fase C: arreglos rápidos ----------
+
+test('CRM: "Add deal" en la company abre el modal y el deal queda asociado, sin salir', async ({ request, page }) => {
+  const co = await request.post('/api/crm/companies', { data: { name: `Co ${uid()}` } });
+  const company = await co.json();
+  await page.goto(`/en/app/crm/companies/${company.id}`, { waitUntil: 'networkidle' });
+  await page.getByTestId('crm-quick-deal-company').click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByTestId('quick-deal-company')).toContainText(company.name);
+  const name = `Deal ${uid()}`;
+  await dialog.locator('.qm-title').fill(name);
+  await dialog.getByRole('button', { name: 'Create' }).click();
+  await expect(dialog).toBeHidden();
+  expect(page.url()).toContain(`/companies/${company.id}`);
+  await expect(page.getByRole('link', { name })).toBeVisible();
+});
+
+test('CRM: nuevo workflow en un modal (nombre + trigger) lleva al editor', async ({ page }) => {
+  await page.goto('/en/app/crm/workflows', { waitUntil: 'networkidle' });
+  await page.getByTestId(/workflow-quick-create/).first().click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByPlaceholder(/name/i).fill(`WF ${uid()}`);
+  await dialog.getByTestId('workflow-quick-trigger').selectOption('deal_won');
+  await dialog.getByRole('button', { name: /create/i }).click();
+  await expect(page).toHaveURL(/\/app\/crm\/workflows\/[0-9a-f-]{36}/);
+});
+
+test('Track: sub-issue, cycles y status del proyecto sin salir de la vista', async ({ request, page }) => {
+  const p = await request.post('/api/track/projects', { data: { name: `Fase C ${uid()}` } });
+  const project = await p.json();
+  const i = await request.post(`/api/track/projects/${project.id}/issues`, { data: { title: 'Padre' } });
+  const parent = await i.json();
+
+  await page.goto(`/en/app/track/issues/${parent.id}`, { waitUntil: 'networkidle' });
+  await page.getByTestId('track-add-subissue').click();
+  await page.getByRole('dialog').getByRole('textbox').first().fill('Hijo');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.track-subtask-list')).toContainText('Hijo');
+  expect(page.url()).toContain(`/issues/${parent.id}`);
+
+  await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+  await page.getByTestId('track-new-cycle').click();
+  await page.getByRole('dialog').getByRole('textbox').first().fill('Sprint E2E');
+  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByTestId('track-cycle')).toContainText('Sprint E2E');
+  await expect(page.getByTestId('track-cycle').getByRole('progressbar')).toBeVisible();
+
+  await page.getByTestId('track-project-settings').click();
+  await expect(page.getByTestId('track-status-item')).toHaveCount(5);
+});
+
+test('Track: "New project" abre un modal en el overview', async ({ page }) => {
+  await page.goto('/en/app/track', { waitUntil: 'networkidle' });
+  await page.getByTestId('track-new-project').click();
+  await page.getByRole('dialog').getByLabel('Name').fill(`Modal ${uid()}`);
+  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
+  await expect(page).toHaveURL(/\/app\/track\/projects\/[0-9a-f-]{36}/);
+});
+
+test('Link: multi-select archiva en lote y la edición abre un panel lateral', async ({ request, page }) => {
+  const tag = `bulk${uid()}`;
+  const slugs = [`m${uid()}`, `m${uid()}`];
+  const ids: string[] = [];
+  for (const slug of slugs) {
+    const r = await request.post('/api/links', { data: { url: 'https://example.com/bulk', slug, tags: [tag] } });
+    ids.push((await r.json()).id);
+  }
+  await page.goto(`/en/app/links?tag=${tag}`, { waitUntil: 'networkidle' });
+  for (const slug of slugs) await page.getByRole('checkbox', { name: `Select ${slug}` }).check();
+  await expect(page.getByTestId('links-bulk-bar')).toContainText('2 selected');
+  await page.getByTestId('links-bulk-bar').getByRole('button', { name: 'Archive', exact: true }).click();
+  await expect
+    .poll(async () => (await (await request.get(`/api/links/${ids[0]}`)).json()).archived)
+    .toBeTruthy();
+
+  await page.goto(`/en/app/links/${ids[1]}`, { waitUntil: 'networkidle' });
+  await page.getByTestId('link-edit-open').click();
+  await expect(page.getByTestId('link-edit-panel')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('link-edit-panel')).toBeHidden();
+});
+
+test('Chat: Reports tiene su propia entrada en la navegación', async ({ page }) => {
+  await page.goto('/en/app/chat', { waitUntil: 'networkidle' });
+  await page.getByRole('link', { name: 'Reports' }).first().click();
+  await expect(page).toHaveURL(/\/app\/chat\/reports/);
+  await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
+});

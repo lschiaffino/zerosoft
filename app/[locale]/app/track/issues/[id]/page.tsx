@@ -14,6 +14,7 @@ import {
   getIssueParentChain,
 } from '@/lib/track-data';
 import IssueDetailClient from '@/components/track/IssueDetailClient';
+import { buildTrackUiLabels } from '@/components/track/ui-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,7 @@ export default async function IssueDetailPage(
       initialAttachments={attachments}
       initialActivities={activities}
       initialRelations={relations}
+      ui={buildTrackUiLabels(t)}
       labels={{
         back: t('issues.back'),
         description: t('issues.form.description'),

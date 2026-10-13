@@ -25,6 +25,11 @@ interface CrmQuickCreateProps {
   /** "solid" = CTA principal del header; "ghost" = botón secundario (empty state). */
   variant?: 'solid' | 'empty';
   label?: string;
+  /** Company pre-vinculada (detalle de company): el contacto/deal nace asociado. */
+  fixedCompanyId?: string;
+  fixedCompanyName?: string;
+  /** Clase del botón disparador (por defecto el CTA sólido). */
+  buttonClassName?: string;
 }
 
 const KNOWN_ERRORS = new Set([
@@ -48,7 +53,15 @@ const LIST_PATH: Record<QuickCreateKind, string> = {
  * los links viejos a /new y el menú "New" del sidebar). El formulario completo
  * sigue disponible en /new?full=1.
  */
-export default function CrmQuickCreate({ kind, defaultPipelineId, variant = 'solid', label }: CrmQuickCreateProps) {
+export default function CrmQuickCreate({
+  kind,
+  defaultPipelineId,
+  variant = 'solid',
+  label,
+  fixedCompanyId,
+  fixedCompanyName,
+  buttonClassName,
+}: CrmQuickCreateProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const pathname = usePathname();
@@ -56,8 +69,11 @@ export default function CrmQuickCreate({ kind, defaultPipelineId, variant = 'sol
   const [open, setOpen] = useState(false);
 
   // ?new=1 → abre el modal y limpia el parámetro.
+  // Con company fija (detalle) no reaccionamos a ?new=1 ni al atajo global.
+  const primary = variant === 'solid' && !fixedCompanyId;
+
   useEffect(() => {
-    if (variant !== 'solid') return;
+    if (!primary) return;
     if (searchParams.get('new') === '1') {
       setOpen(true);
       const params = new URLSearchParams(searchParams.toString());
@@ -65,9 +81,9 @@ export default function CrmQuickCreate({ kind, defaultPipelineId, variant = 'sol
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     }
-  }, [searchParams, pathname, router, variant]);
+  }, [searchParams, pathname, router, primary]);
 
-  useKeyShortcut('c', () => setOpen(true), variant === 'solid' && !open);
+  useKeyShortcut('c', () => setOpen(true), primary && !open);
 
   const text = label ?? t(`quick.${kind}.cta`);
 
@@ -75,19 +91,25 @@ export default function CrmQuickCreate({ kind, defaultPipelineId, variant = 'sol
     <>
       <button
         type="button"
-        className="btn btn-solid btn-small"
+        className={buttonClassName ?? 'btn btn-solid btn-small'}
         onClick={() => setOpen(true)}
-        data-testid={`crm-quick-${kind}`}
+        data-testid={fixedCompanyId ? `crm-quick-${kind}-company` : `crm-quick-${kind}`}
       >
         {text}
-        {variant === 'solid' && (
+        {primary && (
           <span className="kbd-hint" aria-hidden>
             C
           </span>
         )}
       </button>
       {open && (
-        <QuickCreateForm kind={kind} defaultPipelineId={defaultPipelineId} onClose={() => setOpen(false)} />
+        <QuickCreateForm
+          kind={kind}
+          defaultPipelineId={defaultPipelineId}
+          fixedCompanyId={fixedCompanyId}
+          fixedCompanyName={fixedCompanyName}
+          onClose={() => setOpen(false)}
+        />
       )}
     </>
   );
@@ -96,10 +118,14 @@ export default function CrmQuickCreate({ kind, defaultPipelineId, variant = 'sol
 function QuickCreateForm({
   kind,
   defaultPipelineId,
+  fixedCompanyId,
+  fixedCompanyName,
   onClose,
 }: {
   kind: QuickCreateKind;
   defaultPipelineId?: string;
+  fixedCompanyId?: string;
+  fixedCompanyName?: string;
   onClose: () => void;
 }) {
   const t = useTranslations('crm');
@@ -114,9 +140,11 @@ function QuickCreateForm({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [companyId, setCompanyId] = useState('');
+  const [companyId, setCompanyId] = useState(fixedCompanyId ?? '');
   const [lifecycle, setLifecycle] = useState<string>('lead');
-  const [companies, setCompanies] = useState<Option[]>([]);
+  const [companies, setCompanies] = useState<Option[]>(
+    fixedCompanyId ? [{ id: fixedCompanyId, name: fixedCompanyName ?? '—' }] : [],
+  );
 
   // Company
   const [name, setName] = useState('');
@@ -136,7 +164,13 @@ function QuickCreateForm({
       fetch('/api/crm/companies?pageSize=100&sort=name')
         .then((r) => (r.ok ? r.json() : { rows: [] }))
         .then((d: { rows: Option[] }) => {
-          if (!cancelled) setCompanies(d.rows.map((c) => ({ id: c.id, name: c.name })));
+          if (cancelled) return;
+          const rows = d.rows.map((c) => ({ id: c.id, name: c.name }));
+          // La company fija puede no estar entre las primeras 100: la agregamos igual.
+          if (fixedCompanyId && !rows.some((c) => c.id === fixedCompanyId)) {
+            rows.unshift({ id: fixedCompanyId, name: fixedCompanyName ?? '—' });
+          }
+          setCompanies(rows);
         })
         .catch(() => null);
     }
@@ -157,7 +191,7 @@ function QuickCreateForm({
     return () => {
       cancelled = true;
     };
-  }, [kind, defaultPipelineId]);
+  }, [kind, defaultPipelineId, fixedCompanyId, fixedCompanyName]);
 
   const pipeline = pipelines.find((p) => p.id === pipelineId);
 
@@ -217,6 +251,7 @@ function QuickCreateForm({
         name: name.trim(),
         amount: amount ? Number(amount) : 0,
         closeDate: closeDate || null,
+        ...(fixedCompanyId ? { companyId: fixedCompanyId } : {}),
       };
     }
     const res = await fetch(url, {
@@ -314,7 +349,11 @@ function QuickCreateForm({
           <div className="qm-row">
             <label className="qm-field">
               <span>{t('contacts.form.company')}</span>
-              <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+              <select
+                value={companyId}
+                onChange={(e) => setCompanyId(e.target.value)}
+                disabled={!!fixedCompanyId}
+              >
                 <option value="">{t('contacts.form.noCompany')}</option>
                 {companies.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -377,6 +416,11 @@ function QuickCreateForm({
             aria-label={t('deals.form.name')}
             maxLength={500}
           />
+          {fixedCompanyId && (
+            <p className="qm-created" data-testid="quick-deal-company">
+              {t('contacts.form.company')}: <strong>{fixedCompanyName ?? '—'}</strong>
+            </p>
+          )}
           <div className="qm-row">
             {pipelines.length > 1 && (
               <label className="qm-field">

@@ -1462,6 +1462,17 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Docs: orden manual entre hermanos del árbol de páginas y ajustes de
+    // página persistidos (texto chico / ancho completo). position NULL = sin
+    // orden manual (se ordena como antes, por updated_at).
+    id: '024_docs_page_layout',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN position INTEGER');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN small_text INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN full_width INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

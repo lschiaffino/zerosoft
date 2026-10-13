@@ -545,3 +545,53 @@ export async function applyLinkPatch(
 
   return null;
 }
+
+// ---------- Acciones masivas (multi-select de la tabla) ----------
+
+export const linkBulkActionSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('archive'), ids: z.array(z.string().min(1).max(64)).min(1).max(500) }),
+  z.object({ action: z.literal('unarchive'), ids: z.array(z.string().min(1).max(64)).min(1).max(500) }),
+  z.object({ action: z.literal('delete'), ids: z.array(z.string().min(1).max(64)).min(1).max(500) }),
+  z.object({
+    action: z.literal('tag'),
+    ids: z.array(z.string().min(1).max(64)).min(1).max(500),
+    tag: z.string().trim().min(1).max(40),
+  }),
+]);
+
+export type LinkBulkAction = z.infer<typeof linkBulkActionSchema>;
+
+/**
+ * Aplica una acción a varios links del usuario. Solo toca filas con
+ * `user_id = userId`: ids ajenos se ignoran (aislamiento de workspace).
+ * Devuelve cuántos links se afectaron.
+ */
+export async function bulkLinkAction(userId: string, input: LinkBulkAction): Promise<number> {
+  const db = getDb();
+  const ids = [...new Set(input.ids)];
+  const ph = ids.map(() => '?').join(',');
+  if (input.action === 'archive' || input.action === 'unarchive') {
+    const res = await db
+      .prepare(`UPDATE links SET archived = ?, updated_at = datetime('now') WHERE user_id = ? AND id IN (${ph})`)
+      .run(input.action === 'archive' ? 1 : 0, userId, ...ids);
+    return res.changes;
+  }
+  if (input.action === 'delete') {
+    const res = await db.prepare(`DELETE FROM links WHERE user_id = ? AND id IN (${ph})`).run(userId, ...ids);
+    return res.changes;
+  }
+  // tag: se agrega a los tags existentes (máx. 5 por link, sin duplicar).
+  const rows = (await db
+    .prepare(`SELECT id, tags FROM links WHERE user_id = ? AND id IN (${ph})`)
+    .all(userId, ...ids)) as Array<{ id: string; tags: string | null }>;
+  let changed = 0;
+  for (const row of rows) {
+    const tags = parseTags(row.tags);
+    if (tags.includes(input.tag) || tags.length >= 5) continue;
+    await db
+      .prepare(`UPDATE links SET tags = ?, updated_at = datetime('now') WHERE id = ? AND user_id = ?`)
+      .run(JSON.stringify([...tags, input.tag]), row.id, userId);
+    changed++;
+  }
+  return changed;
+}

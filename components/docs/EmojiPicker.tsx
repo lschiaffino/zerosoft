@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { emojiMatches } from '@/lib/emoji-names';
 
 interface EmojiPickerProps {
   value: string;
@@ -66,11 +67,14 @@ export default function EmojiPicker({ value, onChange, children }: EmojiPickerPr
 
   const filtered = useMemo(() => {
     if (!query.trim()) return EMOJI_CATEGORIES;
-    const q = query.toLowerCase();
-    return EMOJI_CATEGORIES.map((cat) => ({
-      ...cat,
-      emojis: cat.emojis.filter((emoji) => emoji.includes(q)),
-    })).filter((cat) => cat.emojis.length > 0);
+    // Búsqueda por nombre ("rocket", "cohete"): una sola lista sin duplicados.
+    const seen = new Set<string>();
+    const emojis = EMOJI_CATEGORIES.flatMap((cat) => cat.emojis).filter((emoji) => {
+      if (seen.has(emoji) || !emojiMatches(emoji, query)) return false;
+      seen.add(emoji);
+      return true;
+    });
+    return emojis.length ? [{ key: 'results', emojis }] : [];
   }, [query]);
 
   return (

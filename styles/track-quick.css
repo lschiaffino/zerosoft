@@ -789,3 +789,141 @@ a.track-board-card-title:hover {
   .track-filter-search input[type="search"] { min-width: 0; flex: 1 1 100%; }
   .track-filter-group { width: 100%; overflow-x: auto; flex-wrap: nowrap; }
 }
+
+/* Navegación con teclado (J/K + Enter) — components/track/TrackShortcuts.tsx */
+.track-table tr.is-kb-active td {
+  background: var(--track-kb-bg, rgba(0, 0, 0, 0.05));
+}
+.track-table tr.is-kb-active td:first-child {
+  box-shadow: inset 2px 0 0 var(--c-track, #000);
+}
+.track-shortcut-error {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  cursor: pointer;
+}
+
+/* Cycles — components/track/CyclesPanel.tsx */
+.track-cycle-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.track-cycle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 220px) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--line, #e5e5e5);
+}
+.track-cycle:first-child {
+  border-top: 0;
+}
+.track-cycle-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+.track-cycle-name {
+  font-weight: 600;
+}
+.track-cycle-badge {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted, #666);
+}
+.track-cycle.is-active .track-cycle-badge {
+  color: var(--c-track, #000);
+}
+.track-cycle-dates {
+  font-size: 12px;
+  color: var(--muted, #666);
+}
+.track-cycle-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.track-cycle-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line, #e5e5e5);
+  overflow: hidden;
+}
+.track-cycle-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--c-track, #000);
+}
+.track-cycle-count {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.track-cycle-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+@media (max-width: 640px) {
+  .track-cycle {
+    grid-template-columns: 1fr;
+  }
+  .track-cycle-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* Workflow statuses — components/track/StatusesSettings.tsx */
+.track-settings-panel {
+  margin-bottom: 16px;
+}
+.track-status-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.track-status-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 0;
+}
+.track-status-color {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line, #e5e5e5);
+  background: none;
+}
+.track-status-name {
+  flex: 1;
+  min-width: 140px;
+}
+.track-status-delete {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}
+.track-status-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.track-status-add input {
+  flex: 1;
+  min-width: 160px;
+}

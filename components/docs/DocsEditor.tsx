@@ -227,8 +227,8 @@ export default function DocsEditor({
   const [title, setTitle] = useState(page.title);
   const [icon, setIcon] = useState(page.icon ?? '📄');
   const [coverUrl, setCoverUrl] = useState(page.cover_url ?? '');
-  const [smallText, setSmallText] = useState(false);
-  const [fullWidth, setFullWidth] = useState(false);
+  const [smallText, setSmallText] = useState(!!page.small_text);
+  const [fullWidth, setFullWidth] = useState(!!page.full_width);
   const [focusIndex, setFocusIndex] = useState<number>(0);
   /** Fuerza una corrida del efecto de foco aunque focusIndex/blocks no cambien de referencia. */
   const [focusTick, setFocusTick] = useState(0);
@@ -1519,7 +1519,10 @@ export default function DocsEditor({
                   type="button"
                   className="docs-page-menu-item docs-page-menu-toggle"
                   onClick={() => {
-                    setSmallText((v) => !v);
+                    // Se persiste en la página (antes se perdía al recargar).
+                    const next = !smallText;
+                    setSmallText(next);
+                    onSave({ small_text: next });
                     setMenuOpen(false);
                   }}
                 >
@@ -1530,7 +1533,9 @@ export default function DocsEditor({
                   type="button"
                   className="docs-page-menu-item docs-page-menu-toggle"
                   onClick={() => {
-                    setFullWidth((v) => !v);
+                    const next = !fullWidth;
+                    setFullWidth(next);
+                    onSave({ full_width: next });
                     setMenuOpen(false);
                   }}
                 >

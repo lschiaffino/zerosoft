@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
-import type { TrackCycleRow, TrackProjectRow, TrackStatusRow } from '@/lib/db';
+import type { TrackProjectRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
 import type { FilterState } from './IssueFilters';
 import type { ViewType } from './ViewSwitcher';
@@ -17,6 +17,8 @@ import IssuesBoard from './IssuesBoard';
 import IssuesCalendar from './IssuesCalendar';
 import IssuesGantt from './IssuesGantt';
 import QuickIssueModal from './QuickIssueModal';
+import CyclesPanel, { type CycleWithProgress } from './CyclesPanel';
+import StatusesSettings from './StatusesSettings';
 import { TrackToast, useToday } from './InlineEditors';
 import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } from './useIssueStore';
 import { parseQuickTitle } from '@/lib/track-tasks';
@@ -98,6 +100,8 @@ export interface PageLabels {
   };
   priorities: Array<{ value: string; label: string }>;
   ui: TrackUiLabels;
+  settings: string;
+  workflowStatuses: string;
 }
 
 const SORTS = ['newest', 'oldest', 'priority', 'identifier'] as const;
@@ -166,7 +170,8 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
 
   const [project, setProject] = useState<TrackProjectRow | null>(null);
   const [statuses, setStatuses] = useState<TrackStatusRow[]>([]);
-  const [cycles, setCycles] = useState<TrackCycleRow[]>([]);
+  const [cycles, setCycles] = useState<CycleWithProgress[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [views, setViews] = useState<TrackIssueView[]>([]);
   const [issuesTotal, setIssuesTotal] = useState(0);
@@ -234,7 +239,7 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
         const [p, s, c, m, v, i] = await Promise.all([
           api<TrackProjectRow>(`/api/track/projects/${projectId}`),
           api<{ rows: TrackStatusRow[] }>(`/api/track/projects/${projectId}/statuses`).then((r) => r.rows),
-          api<{ rows: TrackCycleRow[] }>(`/api/track/projects/${projectId}/cycles`).then((r) => r.rows),
+          api<{ rows: CycleWithProgress[] }>(`/api/track/projects/${projectId}/cycles`).then((r) => r.rows),
           api<{ rows: ProjectMember[] }>(`/api/track/projects/${projectId}/members`).then((r) => r.rows),
           api<{ rows: TrackIssueView[] }>(`/api/track/projects/${projectId}/views`).then((r) => r.rows),
           api<{ rows: TrackIssueWithStatus[]; total: number }>(
@@ -282,6 +287,30 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
     if (loading) return;
     fetchIssues(1, false);
   }, [filters, sort, fetchIssues, loading]);
+
+  const reloadCycles = useCallback(async () => {
+    const rows = await api<{ rows: CycleWithProgress[] }>(`/api/track/projects/${projectId}/cycles`)
+      .then((r) => r.rows)
+      .catch(() => null);
+    if (rows) setCycles(rows);
+  }, [projectId]);
+
+  // El progreso de los cycles depende del status/cycle de los issues: lo
+  // refrescamos (con debounce) cuando cambian.
+  const progressSignature = useMemo(
+    () => issues.map((i) => `${i.id}:${i.status_id}:${i.cycle_id}`).join('|'),
+    [issues],
+  );
+  const firstSignature = useRef(true);
+  useEffect(() => {
+    if (loading) return;
+    if (firstSignature.current) {
+      firstSignature.current = false;
+      return;
+    }
+    const timer = window.setTimeout(() => void reloadCycles(), 600);
+    return () => window.clearTimeout(timer);
+  }, [progressSignature, loading, reloadCycles]);
 
   useEffect(() => {
     const sp = filtersToParams(filters, sort);
@@ -409,6 +438,15 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
         <div className="track-form-actions">
           <button
             type="button"
+            className="btn"
+            onClick={() => setSettingsOpen((v) => !v)}
+            aria-expanded={settingsOpen}
+            data-testid="track-project-settings"
+          >
+            {labels.settings}
+          </button>
+          <button
+            type="button"
             className="btn btn-solid"
             onClick={() => setModalOpen(true)}
             title={labels.ui.modal.shortcutHint}
@@ -421,6 +459,20 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
           </button>
         </div>
       </div>
+
+      {settingsOpen && (
+        <section className="panel track-settings-panel" aria-label={labels.settings}>
+          <p className="section-label">{labels.workflowStatuses}</p>
+          <StatusesSettings
+            projectId={projectId}
+            statuses={statuses}
+            onChange={(next, opts) => {
+              setStatuses(next);
+              if (opts?.reloadIssues) void fetchIssues(1, false);
+            }}
+          />
+        </section>
+      )}
 
       <div className="track-toolbar track-toolbar-wrap">
         <div className="track-toolbar-left">
@@ -535,23 +587,14 @@ export default function ProjectPageClient({ locale, projectId, userId, labels }:
         </div>
       )}
 
-      {cycles.length > 0 && (
-        <section className="panel" style={{ marginTop: 32 }}>
-          <p className="section-label">{labels.cycles}</p>
-          <ul className="recent-list">
-            {cycles.map((c) => (
-              <li key={c.id}>
-                <div className="recent-row">
-                  <span className="recent-name">{c.name}</span>
-                  <span className="mono recent-date">
-                    {c.start_at.slice(0, 10)} → {c.end_at.slice(0, 10)}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <CyclesPanel
+        projectId={projectId}
+        cycles={cycles}
+        today={today}
+        onChanged={async () => {
+          await Promise.all([reloadCycles(), fetchIssues(1, false)]);
+        }}
+      />
 
       <QuickIssueModal
         open={modalOpen}

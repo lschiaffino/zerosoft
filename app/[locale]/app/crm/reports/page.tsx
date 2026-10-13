@@ -11,6 +11,7 @@ import {
   reportByOwner,
   reportConversionRate,
   reportFunnel,
+  funnelConversion,
   reportForecast,
   reportKpis,
   reportOwnerPerformance,
@@ -35,14 +36,6 @@ type ReportType = (typeof REPORT_TYPES)[number];
 
 function one(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : undefined;
-}
-
-function toFunnelReportStages(stages: Array<{ id: string; name: string; probability: number; is_won: 0 | 1; is_lost: 0 | 1; count: number; amount: number }>): FunnelReportStage[] {
-  return stages.map((stage, i) => {
-    const prev = i > 0 ? stages[i - 1] : null;
-    const conversionRate = prev && prev.count > 0 ? Math.round((stage.count / prev.count) * 100) : null;
-    return { ...stage, conversionRate };
-  });
 }
 
 export default async function CrmReportsPage(
@@ -100,7 +93,7 @@ export default async function CrmReportsPage(
   const funnel: FunnelReportStage[] =
     selectedPipelineId && selectedPipelineId !== defaultId
       ? await reportFunnel(user.id, selectedPipelineId, scope ?? undefined)
-      : toFunnelReportStages(reports.funnel);
+      : funnelConversion(reports.funnel);
 
   const forecastByStage: ForecastReportStage[] =
     selectedPipelineId && selectedPipelineId !== defaultId

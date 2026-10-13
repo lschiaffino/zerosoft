@@ -62,7 +62,8 @@
     "activeCycle": "Active cycle",
     "pastCycles": "Past cycles",
     "loadMore": "Load more",
-    "showing": "Showing {shown} of {total}"
+    "showing": "Showing {shown} of {total}",
+    "settings": "Settings"
   },
   "issues": {
     "pageTitle": "Issues",
@@ -165,6 +166,21 @@
       "namePlaceholder": "Sprint 1",
       "startAt": "Start",
       "endAt": "End"
+    },
+    "edit": "Edit",
+    "editTitle": "Edit cycle",
+    "complete": "Complete",
+    "completeTitle": "Complete {name}",
+    "completeMove": "{count, plural, =0 {There are no unfinished issues.} one {The unfinished issue moves to {name}.} other {The # unfinished issues move to {name}.}}",
+    "completeNoNext": "{count, plural, =0 {There are no unfinished issues.} one {There's no next cycle: the unfinished issue is left without a cycle.} other {There's no next cycle: the # unfinished issues are left without a cycle.}}",
+    "movedTo": "{count, plural, one {# issue moved} other {# issues moved}} to {name}.",
+    "movedOut": "{count, plural, one {# issue was} other {# issues were}} left without a cycle.",
+    "progress": "{done}/{total} done",
+    "invalidRange": "The end date can't be before the start.",
+    "state": {
+      "active": "Active",
+      "upcoming": "Upcoming",
+      "past": "Past"
     }
   },
   "statuses": {
@@ -244,7 +260,9 @@
     "missing_name": "Name is required.",
     "missing_title": "Title is required.",
     "invalid_input": "Some fields are invalid. Check them and try again.",
-    "generic": "Something went wrong. Try again."
+    "generic": "Something went wrong. Try again.",
+    "invalid_range": "The end date can't be before the start.",
+    "last_status": "The project needs at least one status."
   },
   "quick": {
     "newTask": "New task",
@@ -257,7 +275,8 @@
     "create": "Create issue",
     "createMore": "Create more",
     "submitHint": "Enter or ⌘↵ to create",
-    "shortcutHint": "Press C to create an issue"
+    "shortcutHint": "Press C to create an issue",
+    "subModalTitle": "New sub-issue"
   },
   "inline": {
     "markDone": "Mark as done",
@@ -282,5 +301,25 @@
     "upcoming": "Upcoming",
     "noDate": "No date",
     "empty": "Nothing assigned to you. Enjoy the calm."
+  },
+  "cmdk": {
+    "newIssue": "New issue",
+    "newProject": "New project (Track)",
+    "myTasks": "Go to My tasks",
+    "allIssues": "Go to all issues",
+    "inbox": "Go to Track inbox"
+  },
+  "statusSettings": {
+    "title": "Workflow statuses",
+    "name": "Status name",
+    "color": "Color",
+    "category": "Category",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "delete": "Delete",
+    "reassignTo": "Move its issues to",
+    "confirmDelete": "Delete status",
+    "newPlaceholder": "New status",
+    "add": "Add"
   }
 }

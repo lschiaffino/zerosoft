@@ -314,7 +314,14 @@ export async function reportByOwner(
        WHERE d.user_id = ? AND COALESCE(d.owner_id, d.user_id) = ? AND s.is_won = 1 AND d.closed_at >= datetime(?) AND d.closed_at <= datetime(?, '23:59:59')${fc.sql}`,
       [userId, o.id, range.from, range.to, ...fc.args],
     );
-    out.push({ ...o, contacts, deals, wonAmount, activities: 0 });
+    // Actividades registradas en el rango por este owner (misma semántica que el KPI).
+    const activities = await count(
+      db,
+      `SELECT COUNT(*) AS c FROM crm_activities a
+       WHERE a.user_id = ? AND COALESCE(a.owner_id, a.user_id) = ? AND a.created_at >= datetime(?) AND a.created_at <= datetime(?, '23:59:59')`,
+      [userId, o.id, range.from, range.to],
+    );
+    out.push({ ...o, contacts, deals, wonAmount, activities });
   }
   return out.sort((a, b) => b.wonAmount - a.wonAmount || b.deals - a.deals);
 }
@@ -443,10 +450,38 @@ export async function reportFunnel(
     )
     .all(userId, ...oc.args, pipelineId)) as FunnelStage[];
 
+  return funnelConversion(rows);
+}
+
+/**
+ * Conversión de embudo sobre conteos "acumulados": un deal en una etapa
+ * posterior (o ganado) también pasó por las anteriores. Así la conversión
+ * etapa→etapa nunca supera el 100% aunque las etapas cerradas acumulen más
+ * deals que la previa. Las etapas perdidas quedan fuera del embudo (null).
+ */
+export function funnelConversion<T extends Pick<FunnelStage, 'count' | 'is_won' | 'is_lost'>>(
+  rows: T[],
+): Array<T & { conversionRate: number | null }> {
+  const flow = rows.map((r, i) => ({ r, i })).filter(({ r }) => !r.is_lost);
+  const won = flow.filter(({ r }) => r.is_won).reduce((acc, { r }) => acc + r.count, 0);
+  const reached = new Map<number, number>();
+  let tail = won;
+  for (let k = flow.length - 1; k >= 0; k--) {
+    const { r, i } = flow[k];
+    if (r.is_won) {
+      reached.set(i, r.count);
+    } else {
+      tail += r.count;
+      reached.set(i, tail);
+    }
+  }
+  let prevReached: number | null = null;
   return rows.map((stage, i) => {
-    const prev = i > 0 ? rows[i - 1] : null;
+    if (stage.is_lost) return { ...stage, conversionRate: null };
+    const cur = reached.get(i) ?? 0;
     const conversionRate =
-      prev && prev.count > 0 ? Math.round((stage.count / prev.count) * 100) : null;
+      prevReached !== null && prevReached > 0 ? Math.min(100, Math.round((cur / prevReached) * 100)) : null;
+    if (!stage.is_won) prevReached = cur;
     return { ...stage, conversionRate };
   });
 }
@@ -572,8 +607,8 @@ export async function reportOwnerPerformance(
     const activities = await count(
       db,
       `SELECT COUNT(*) AS c FROM crm_activities a
-       WHERE a.user_id = ? AND a.done = 1 AND COALESCE(a.done_at, a.created_at) >= datetime(?) AND COALESCE(a.done_at, a.created_at) <= datetime(?, '23:59:59')`,
-      [o.id, range.from, range.to],
+       WHERE a.user_id = ? AND COALESCE(a.owner_id, a.user_id) = ? AND a.done = 1 AND COALESCE(a.done_at, a.created_at) >= datetime(?) AND COALESCE(a.done_at, a.created_at) <= datetime(?, '23:59:59')`,
+      [userId, o.id, range.from, range.to],
     );
 
     const wonDeals = wonRow.c;
@@ -601,9 +636,9 @@ export async function reportActivityLeaderboard(
 ): Promise<ActivityLeaderboard[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT user_id AS id, COUNT(*) AS c FROM crm_activities
+      `SELECT COALESCE(owner_id, user_id) AS id, COUNT(*) AS c FROM crm_activities
        WHERE user_id = ? AND done = 1 AND COALESCE(done_at, created_at) >= datetime(?) AND COALESCE(done_at, created_at) <= datetime(?, '23:59:59')
-       GROUP BY user_id`,
+       GROUP BY 1`,
     )
     .all(userId, range.from, range.to)) as Array<{ id: string; c: number }>;
 

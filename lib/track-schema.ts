@@ -60,10 +60,22 @@ export const statusesReorderSchema = z.object({
 
 // ---------- Cycles ----------
 
-export const cycleCreateSchema = z.object({
-  name,
-  startAt: isoDate,
-  endAt: isoDate,
+export const cycleCreateSchema = z
+  .object({
+    name,
+    startAt: isoDate,
+    endAt: isoDate,
+  })
+  .refine((c) => c.endAt.slice(0, 10) >= c.startAt.slice(0, 10), { message: 'invalid_range', path: ['endAt'] });
+
+/** Completar cycle: los issues sin terminar pasan al siguiente (o al indicado / a ninguno). */
+export const cycleCompleteSchema = z.object({
+  targetCycleId: id.nullish(),
+});
+
+/** Borrar status: los issues que lo usan se reasignan a otro del mismo proyecto. */
+export const statusDeleteSchema = z.object({
+  reassignTo: id,
 });
 
 export const cycleUpdateSchema = z.object({
@@ -140,6 +152,7 @@ export type StatusUpdatePayload = z.infer<typeof statusUpdateSchema>;
 export type StatusesReorderPayload = z.infer<typeof statusesReorderSchema>;
 export type CycleCreatePayload = z.infer<typeof cycleCreateSchema>;
 export type CycleUpdatePayload = z.infer<typeof cycleUpdateSchema>;
+export type CycleCompletePayload = z.infer<typeof cycleCompleteSchema>;
 export type IssueCreatePayload = z.infer<typeof issueCreateSchema>;
 export type IssueUpdatePayload = z.infer<typeof issueUpdateSchema>;
 export type CommentCreatePayload = z.infer<typeof commentCreateSchema>;

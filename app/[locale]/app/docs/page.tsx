@@ -5,6 +5,8 @@ import {
   createDocPageAction,
   createDocPageFromTemplateAction,
   moveDocPageAction,
+  moveDocPageStepAction,
+  reorderDocPageAction,
 } from '@/lib/docs-actions';
 import { getDocTemplates } from '@/lib/docs-templates';
 import { formatDateTime } from '@/lib/utils';
@@ -33,6 +35,8 @@ export default async function DocsLandingPage(props: { params: Promise<{ locale:
         mobileOpenByDefault={false}
         createAction={createAction}
         moveAction={moveDocPageAction.bind(null, user.id)}
+        reorderAction={reorderDocPageAction.bind(null, user.id)}
+        stepAction={moveDocPageStepAction.bind(null, user.id)}
         labels={{
           newPage: t('sidebar.newPage'),
           newSubpage: t('sidebar.newSubpage'),

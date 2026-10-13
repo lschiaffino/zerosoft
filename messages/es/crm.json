@@ -628,7 +628,10 @@
       "always": "Siempre",
       "yes": "Si sí",
       "no": "Si no"
-    }
+    },
+    "trigger": "Trigger",
+    "quickCreate": "Crear y configurar",
+    "quickNote": "Se crea como borrador desactivado; agregás las acciones en el editor."
   },
   "history": {
     "title": "Historial",

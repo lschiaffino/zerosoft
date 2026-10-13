@@ -740,3 +740,68 @@
   .links-page .filter-row { align-items: stretch; }
   .bio-editor-item .mono { display: none; }
 }
+
+/* Multi-select + acciones masivas — components/link/LinksTable.tsx */
+.links-table .td-check { width: 32px; padding-right: 0; }
+.links-table .td-check input { width: 16px; height: 16px; cursor: pointer; vertical-align: middle; }
+.links-table tr.row-selected td { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.links-bulk-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.links-bulk-count { font-size: 12px; margin-right: 4px; }
+.links-bulk-tag { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.links-bulk-tag input {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm, 6px);
+  font: inherit;
+  font-size: 13px;
+}
+.links-bulk-clear {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--dim, #666);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.links-bulk-bar .btn.danger { color: var(--bad, #c00); }
+
+/* Panel lateral de edición — components/link/EditLinkPanel.tsx */
+.link-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  justify-content: flex-end;
+}
+.link-drawer {
+  width: min(520px, 100%);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.08);
+}
+.link-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.link-drawer-head .section-label { margin: 0; }
+.link-drawer-body { flex: 1; overflow-y: auto; padding: 16px; }
