@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import type { FlowRunDto, FlowStepDto } from '@/lib/flow';
 import { i18nKey, formatDuration, pretty } from './flow-ui';
 
@@ -19,6 +19,7 @@ interface Props {
 export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey }: Props) {
   const t = useTranslations('flow');
   const format = useFormatter();
+  const now = useNow({ updateInterval: 30_000 });
   const [runs, setRuns] = useState<FlowRunDto[] | null>(null);
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [openStep, setOpenStep] = useState<string | null>(null);
@@ -76,7 +77,7 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey 
                   <span className="flow-run-main">
                     <span>{t(`runs.status.${r.status}`)}</span>
                     <span className="muted">
-                      {t(`runs.triggers.${i18nKey(r.triggerType)}`)} · {format.relativeTime(new Date(r.createdAt))}
+                      {t(`runs.triggers.${i18nKey(r.triggerType)}`)} · {format.relativeTime(new Date(r.createdAt), now)}
                     </span>
                   </span>
                   <span className="muted mono">{formatDuration(r.startedAt, r.finishedAt)}</span>

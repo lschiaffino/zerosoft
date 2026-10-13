@@ -66,6 +66,8 @@
     "selectNode": "Selecione um nó para configurá-lo. Arraste nós da esquerda ou clique para adicioná-los.",
     "description": "Descrição",
     "deleteNode": "Excluir nó",
+    "deleteFlow": "Excluir flow",
+    "deleteFlowConfirm": "Excluir este flow e todas as execuções? Não é possível desfazer.",
     "variables": "Variáveis",
     "insertVariable": "Inserir variável",
     "searchVariables": "Buscar variáveis",

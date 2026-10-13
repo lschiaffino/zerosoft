@@ -15,7 +15,7 @@ import {
   type Edge,
   type IsValidConnection,
 } from '@xyflow/react';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import type { FlowDto } from '@/lib/flow';
 import {
   EVENT_SAMPLES,
@@ -176,6 +176,7 @@ function triggerSample(type: FlowNodeType, cfg: Record<string, unknown>): unknow
 function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdit }: Props) {
   const t = useTranslations('flow');
   const rf = useReactFlow();
+  const router = useRouter();
   const initial = useMemo(() => toCanvas(initialFlow.graph), [initialFlow.graph]);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowCanvasNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.edges);
@@ -246,7 +247,11 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
       if (isTriggerType(type) && trigger) {
         // Un solo trigger: se reemplaza el tipo del existente.
         setNodes((list) =>
-          list.map((n) => (n.id === trigger.id ? { ...n, data: { type, config: defaultConfig(type) } } : n)),
+          list.map((n) =>
+            n.id === trigger.id
+              ? { ...n, selected: true, data: { type, config: defaultConfig(type) } }
+              : { ...n, selected: false },
+          ),
         );
         setSelectedId(trigger.id);
         markDirty();
@@ -256,7 +261,12 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
       const id = newNodeId(type, ids);
       const anchor = selected ?? nodes[nodes.length - 1];
       const pos = position ?? (anchor ? { x: anchor.position.x, y: anchor.position.y + 140 } : { x: 0, y: 0 });
-      setNodes((list) => [...list, { id, type: 'flow', position: pos, data: { type, config: defaultConfig(type) } }]);
+      // El nodo nuevo queda seleccionado (también para React Flow, que si no
+      // emite un cambio de selección vacío y cerraría el panel).
+      setNodes((list) => [
+        ...list.map((n) => (n.selected ? { ...n, selected: false } : n)),
+        { id, type: 'flow', position: pos, selected: true, data: { type, config: defaultConfig(type) } },
+      ]);
       // Conecta automáticamente desde el nodo seleccionado si tiene una sola salida.
       if (!position && anchor) {
         const outs = nodeOutputs({ type: anchor.data.type, config: anchor.data.config });
@@ -374,6 +384,18 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     window.addEventListener('beforeunload', onBefore);
     return () => window.removeEventListener('beforeunload', onBefore);
   }, [dirty]);
+
+  async function removeFlow() {
+    if (!window.confirm(t('editor.deleteFlowConfirm'))) return;
+    const res = await fetch(`/api/flow/flows/${flow.id}`, { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) {
+      setMessage({ kind: 'error', text: t('errors.generic') });
+      return;
+    }
+    setDirty(false);
+    router.replace('/app/flow');
+    router.refresh();
+  }
 
   function openTest() {
     if (trigger) setTestInput(JSON.stringify(triggerSample(trigger.data.type, trigger.data.config), null, 2));
@@ -670,6 +692,11 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                   />
                 </div>
                 {readOnly && <p className="muted flow-hint">{t('list.adminOnly')}</p>}
+                {!readOnly && (
+                  <button type="button" className="btn btn-small btn-ghost flow-delete" onClick={() => void removeFlow()}>
+                    {t('editor.deleteFlow')}
+                  </button>
+                )}
                 <p className="muted flow-hint">{t('editor.templateHelp')}</p>
               </div>
             )}

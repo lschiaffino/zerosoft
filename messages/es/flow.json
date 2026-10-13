@@ -66,6 +66,8 @@
     "selectNode": "Elegí un nodo para configurarlo. Arrastrá nodos desde la izquierda o hacé click para agregarlos.",
     "description": "Descripción",
     "deleteNode": "Eliminar nodo",
+    "deleteFlow": "Eliminar flow",
+    "deleteFlowConfirm": "¿Eliminar este flow y todas sus ejecuciones? No se puede deshacer.",
     "variables": "Variables",
     "insertVariable": "Insertar variable",
     "searchVariables": "Buscar variables",

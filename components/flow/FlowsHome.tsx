@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { FlowListItem } from '@/lib/flow';
 import { FLOW_TEMPLATES, NODE_DEFS, triggerNode, type FlowNodeType } from '@/lib/flow-schema';
@@ -16,6 +16,7 @@ interface Props {
 export default function FlowsHome({ flows: initial, canEdit }: Props) {
   const t = useTranslations('flow');
   const format = useFormatter();
+  const now = useNow({ updateInterval: 30_000 });
   const router = useRouter();
   const [flows, setFlows] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
@@ -115,7 +116,10 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
                     <>
                       <span className={`flow-dot is-${f.lastRun.status}`} aria-hidden="true" />
                       {t(`runs.status.${f.lastRun.status}`)}
-                      <span className="muted"> · {format.relativeTime(new Date(f.lastRun.createdAt))}</span>
+                      <span className="muted" suppressHydrationWarning>
+                        {' · '}
+                        {format.relativeTime(new Date(f.lastRun.createdAt), now)}
+                      </span>
                     </>
                   ) : (
                     <span className="muted">{t('list.never')}</span>

@@ -66,6 +66,8 @@
     "selectNode": "Select a node to configure it. Drag nodes from the left or click them to add.",
     "description": "Description",
     "deleteNode": "Delete node",
+    "deleteFlow": "Delete flow",
+    "deleteFlowConfirm": "Delete this flow and all its runs? This can't be undone.",
     "variables": "Variables",
     "insertVariable": "Insert variable",
     "searchVariables": "Search variables",

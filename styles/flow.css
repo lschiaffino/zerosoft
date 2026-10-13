@@ -20,7 +20,8 @@
   cursor: pointer;
 }
 
-.flow-section { display: flex; flex-direction: column; gap: 10px; }
+/* globals.css da padding vertical grande a todo <section> (sitio). */
+.flow-section { display: flex; flex-direction: column; gap: 10px; padding-top: 0; padding-bottom: 0; }
 .flow-section-title {
   font-family: var(--mono);
   font-size: 11px;
