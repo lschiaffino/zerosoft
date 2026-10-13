@@ -9,6 +9,7 @@ import {
   createPipeline,
   createStage,
   fireDueTasks,
+  getCrmReports,
   getContact,
   getList,
   mergeContacts,
@@ -215,5 +216,19 @@ describe('Zona horaria del usuario', () => {
     });
     expect(dayRangeUtc('UTC', at)).toEqual({ start: '2026-10-13 00:00:00', end: '2026-10-13 23:59:59' });
     expect(dayRangeUtc('Asia/Tokyo', at).start).toBe('2026-10-12 15:00:00');
+  });
+});
+
+describe('CRM: reportes por fuente', () => {
+  it('agrupa source vacío, NULL y "other" en una sola fila', async () => {
+    const u = await makeUser('rep');
+    const { pipelineId, stageId } = await pipelineFor(u.id);
+    await createDeal(u.id, { name: 'A', pipelineId, stageId, amount: 10, source: 'other' });
+    await createDeal(u.id, { name: 'B', pipelineId, stageId, amount: 20 });
+    await createDeal(u.id, { name: 'C', pipelineId, stageId, amount: 5, source: 'ads' });
+    const r = await getCrmReports(u.id);
+    const other = r.dealsBySource.filter((s) => s.source === 'other');
+    expect(other).toHaveLength(1);
+    expect(other[0]).toMatchObject({ count: 2, amount: 30 });
   });
 });

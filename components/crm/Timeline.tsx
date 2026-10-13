@@ -211,19 +211,42 @@ export default function Timeline({
 
   return (
     <div className="timeline-wrap">
-      <form className="tl-composer" onSubmit={submit}>
-        <div className="tl-composer-tabs">
-          {TYPES.map((v) => (
+      {/* Una sola fila de tabs (como HubSpot): filtra la lista y define qué
+          tipo de actividad crea el composer. En "All" el tipo se elige con
+          un select compacto dentro del composer. */}
+      <div className="filter-chips tl-filters" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={filter === 'all'}
+          className={`chip${filter === 'all' ? ' active' : ''}`}
+          onClick={() => setFilter('all')}
+        >
+          {t('common.all')}
+          {items.length > 0 && <span className="tl-count">{items.length}</span>}
+        </button>
+        {TYPES.map((v) => {
+          const n = items.filter((i) => i.type === v).length;
+          return (
             <button
               key={v}
               type="button"
-              className={`chip${type === v ? ' active' : ''}`}
-              onClick={() => setType(v)}
+              role="tab"
+              aria-selected={filter === v}
+              className={`chip${filter === v ? ' active' : ''}`}
+              onClick={() => {
+                setFilter(v);
+                setType(v);
+              }}
             >
               {t(`enums.activityType.${v}`)}
+              {n > 0 && <span className="tl-count">{n}</span>}
             </button>
-          ))}
-        </div>
+          );
+        })}
+      </div>
+
+      <form className="tl-composer" onSubmit={submit}>
         {type === 'email' && (
           <input
             className="input"
@@ -251,6 +274,20 @@ export default function Timeline({
         />
         <div className="tl-composer-actions">
           <div className="tl-composer-extras">
+            {filter === 'all' && (
+              <select
+                className="filter-select tl-type-select"
+                value={type}
+                onChange={(e) => setType(e.target.value as ActivityType)}
+                aria-label={t('common.activityType')}
+              >
+                {TYPES.map((v) => (
+                  <option key={v} value={v}>
+                    {t(`enums.activityType.${v}`)}
+                  </option>
+                ))}
+              </select>
+            )}
             {type === 'task' && (
               <input
                 className="input"
@@ -294,26 +331,6 @@ export default function Timeline({
         </div>
         {emailError && <p className="form-error">{emailError}</p>}
       </form>
-
-      <div className="filter-chips tl-filters">
-        <button
-          type="button"
-          className={`chip${filter === 'all' ? ' active' : ''}`}
-          onClick={() => setFilter('all')}
-        >
-          {t('common.all')}
-        </button>
-        {TYPES.map((v) => (
-          <button
-            key={v}
-            type="button"
-            className={`chip${filter === v ? ' active' : ''}`}
-            onClick={() => setFilter(v)}
-          >
-            {t(`enums.activityType.${v}`)}
-          </button>
-        ))}
-      </div>
 
       {filtered.length === 0 ? (
         <p className="muted">{emptyLabel}</p>

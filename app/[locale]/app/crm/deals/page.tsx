@@ -21,6 +21,8 @@ import DealsTable, { type DealRow } from '@/components/crm/DealsTable';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 import { AddPipelineChip } from '@/components/crm/AddPipelineStage';
 
+import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
@@ -315,6 +317,7 @@ export default async function DealsPage(props: DealsPageProps) {
               0 0 0 0 0 0 0
             </p>
             <h2>{t('deals.emptyStage')}</h2>
+            <CrmQuickCreate kind="deal" variant="empty" defaultPipelineId={pipeline.id} label={t('deals.newTitle')} />
           </div>
         ) : (
           <>
@@ -393,9 +396,7 @@ export default async function DealsPage(props: DealsPageProps) {
               {t('deals.tableView')}
             </Link>
           </div>
-          <Link href="/app/crm/deals/new" className="btn btn-solid btn-small">
-            {t('deals.newCta')}
-          </Link>
+          <CrmQuickCreate kind="deal" defaultPipelineId={pipeline.id} />
         </div>
       </div>
 

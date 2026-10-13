@@ -86,18 +86,17 @@ export default async function TasksPage(props: TasksPageProps) {
 
   return (
     <div className="app-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('tasks.title')}</h1>
-      </div>
-      <TaskProjectsManager projects={projectOptions} />
       <TasksView
+        title={t('tasks.title')}
         bucket={bucket}
         rows={rows}
         members={memberOptions}
         projects={projectOptions}
         ownerId={ownerId}
         projectId={projectId}
-      />
+      >
+        <TaskProjectsManager projects={projectOptions} />
+      </TasksView>
     </div>
   );
 }

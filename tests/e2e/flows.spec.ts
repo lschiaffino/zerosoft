@@ -343,3 +343,94 @@ test('Cal: routing form rápido abre el editor y se borra desde el detalle', asy
   await expect(page).toHaveURL(/\/app\/calendar\/routing$/, { timeout: 15_000 });
   await expect(page.getByText(title)).toHaveCount(0);
 });
+
+// CRM — smoke checks de los flujos arreglados en fase-apps-polish.
+// Pegar dentro de tests/e2e/flows.spec.ts (usa `uid` y `expect`/`test` de ahí).
+
+test('CRM: alta rápida de contacto con la tecla C, sin salir de la lista', async ({ page }) => {
+  const first = `Quick${uid()}`;
+  await page.goto('/en/app/crm/contacts');
+  await page.keyboard.press('c');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('First name').fill(first);
+  await dialog.locator('input[type=email]').fill(`${first.toLowerCase()}@example.com`);
+  await page.keyboard.press('Meta+Enter');
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts$/);
+  await expect(page.getByText(first).first()).toBeVisible();
+});
+
+test('CRM: /new abre el modal sobre la lista y "All fields" lleva al form completo', async ({ page }) => {
+  await page.goto('/en/app/crm/companies/new');
+  await expect(page).toHaveURL(/\/en\/app\/crm\/companies$/);
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  const name = `Co ${uid()}`;
+  await dialog.getByLabel('Name').fill(name);
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByText(name).first()).toBeVisible();
+
+  await page.goto('/en/app/crm/contacts?new=1');
+  await page.getByRole('dialog').getByRole('link', { name: 'All fields' }).click();
+  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts\/new\?full=1$/);
+});
+
+test('CRM: deal rápido desde el board queda en la columna del pipeline', async ({ page }) => {
+  const name = `Deal ${uid()}`;
+  await page.goto('/en/app/crm/deals');
+  await page.getByTestId('crm-quick-deal').click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Name').fill(name);
+  await dialog.locator('input[type=number]').fill('1500');
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByText(name).first()).toBeVisible();
+});
+
+test('CRM: el timeline tiene una sola fila de tabs y el tab elige el tipo', async ({ request, page }) => {
+  const email = `tl-${uid()}@example.com`;
+  const contact = await (await request.post('/api/crm/contacts', { data: { email, firstName: 'Timeline' } })).json();
+  await page.goto(`/en/app/crm/contacts/${contact.id}`);
+  await expect(page.getByRole('tablist')).toHaveCount(1);
+  await page.getByRole('tab', { name: /Call/ }).click();
+  await page.getByPlaceholder(/Subject/).first().fill('Intro call');
+  await page.getByRole('button', { name: /Log call/i }).click();
+  await expect(page.getByText('Intro call')).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Call/ })).toContainText('1');
+});
+
+test('CRM: guardar un reporte es un botón chico que pide nombre en línea', async ({ page }) => {
+  const name = `R ${uid()}`;
+  await page.goto('/en/app/crm/reports');
+  await page.getByRole('button', { name: /Save report/i }).click();
+  await page.getByPlaceholder(/Report name/i).fill(name);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name })).toBeVisible();
+});
+
+test('CRM: tarea rápida con la tecla C', async ({ page }) => {
+  const subject = `Task ${uid()}`;
+  await page.goto('/en/app/crm/tasks');
+  await page.keyboard.press('c');
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Subject').fill(subject);
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+});
+
+test('CRM: los widgets del dashboard no se superponen', async ({ page }) => {
+  await page.goto('/en/app/crm/dashboards');
+  const widgets = page.locator('.dash-widget');
+  await expect(widgets.first()).toBeVisible();
+  const boxes = await widgets.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i];
+      const b = boxes[j];
+      const overlap = a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+      expect(overlap, `widget ${i} y ${j}`).toBe(false);
+    }
+  }
+});
