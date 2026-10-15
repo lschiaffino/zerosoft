@@ -126,6 +126,17 @@ function asLocale(l: string | null | undefined): Locale {
   return l === 'es' || l === 'pt' ? l : 'en';
 }
 
+const REFUND_REASON: Record<Locale, string> = {
+  en: 'The payment arrived after the booking was released, so we refunded it in full.',
+  es: 'El pago llegó cuando la reserva ya estaba liberada, así que lo reembolsamos completo.',
+  pt: 'O pagamento chegou quando a reserva já estava liberada, então o reembolsamos por completo.',
+};
+
+/** Motivo del aviso de cancelación cuando un pago tardío se reembolsó. */
+export function refundReason(locale: string | null | undefined): string {
+  return REFUND_REASON[asLocale(locale)];
+}
+
 function fill(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{(\w+)\}/g, (_, k: string) => vars[k] ?? '');
 }

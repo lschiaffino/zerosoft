@@ -1,6 +1,6 @@
 import { getEventTypeById, type EventTypeWithRules } from './calendar';
 import { emitEvent } from './events';
-import { notifyBooking } from './calendar-notify';
+import { notifyBooking, refundReason } from './calendar-notify';
 import { recordBookingInCrm } from './crm-integrations';
 import type { CalendarBookingRow } from './db';
 import {
@@ -90,4 +90,9 @@ export async function afterBookingCancelled(booking: CalendarBookingRow, reason:
   await safely('notify-cancelled', () => notifyBooking(booking, 'cancelled', { reason }), undefined);
   await safely('crm-cancelled', () => recordBookingInCrm(eventType.user_id, 'cancelled', booking, eventType.title, reason), undefined);
   await emitEvent(eventType.user_id, 'booking.cancelled', bookingPayload(booking, eventType));
+}
+
+/** Pago que llegó tarde y se reembolsó: la reserva sigue cancelada, se avisa al invitado y al anfitrión. */
+export async function afterPaymentRefunded(booking: CalendarBookingRow): Promise<void> {
+  await safely('notify-refunded', () => notifyBooking(booking, 'cancelled', { reason: refundReason(booking.locale) }), undefined);
 }

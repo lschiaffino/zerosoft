@@ -87,13 +87,10 @@ export async function POST(req: NextRequest) {
     // Con precio: la reserva queda retenida hasta que Stripe confirme el pago.
     if (paid) {
       const locale = parsed.data.locale ?? 'en';
-      const referer = req.headers.get('referer');
-      const cancelPath = referer && referer.startsWith(appBaseUrl()) ? referer.slice(appBaseUrl().length) : `/${locale}`;
       try {
         const checkoutUrl = await createCheckoutForBooking(booking, eventType, {
           origin: appBaseUrl(),
           locale,
-          cancelPath,
         });
         return NextResponse.json(
           {

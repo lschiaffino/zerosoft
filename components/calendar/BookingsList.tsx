@@ -225,6 +225,7 @@ export default function BookingsList({ bookings, locale, initialFilters }: Props
                   <p className={`cal-bk-status mono cal-bk-status-${b.status}`}>
                     {t(`booking.status.${b.status}`)}
                     {b.payment_status === 'paid' ? ` · ${t('admin.paid')}` : ''}
+                    {b.payment_status === 'refunded' ? ` · ${t('admin.refunded')}` : ''}
                   </p>
                   <div className="booking-card-actions">
                     <button type="button" className="btn btn-ghost btn-small" onClick={() => setExpanded((p) => (p === b.id ? null : b.id))}>

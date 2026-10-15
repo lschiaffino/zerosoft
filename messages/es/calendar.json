@@ -135,7 +135,8 @@
     "confirmNewTime": "Confirmar nuevo horario",
     "price": "Precio",
     "payAndConfirm": "Pagar y confirmar",
-    "redirecting": "Te llevamos a pagar…"
+    "redirecting": "Te llevamos a pagar…",
+    "openCheckout": "Abrir el pago en otra pestaña"
   },
   "routing": {
     "title": "Formularios de routing",
@@ -207,7 +208,8 @@
     "bufferAfter": "Margen después (min)",
     "minNotice": "Aviso mínimo (horas)",
     "maxDays": "Reservable hasta (días)",
-    "copyLink": "Copiar link"
+    "copyLink": "Copiar link",
+    "webhookMissing": "Falta el signing secret: los tipos de evento pagos quedan deshabilitados hasta que lo cargues, así cada pago se confirma aunque el invitado cierre la pestaña."
   },
   "manage": {
     "title": "Tu reserva",
@@ -312,7 +314,8 @@
     "confirmCancel": "Cancelar reserva",
     "keep": "Volver",
     "paid": "Pagada",
-    "loading": "Cargando…"
+    "loading": "Cargando…",
+    "refunded": "reembolsado"
   },
   "workflows": {
     "title": "Recordatorios",
@@ -346,7 +349,7 @@
     "secretKey": "Clave secreta (sk_ o rk_)",
     "webhookSecret": "Signing secret del webhook (whsec_)",
     "webhookUrl": "URL del webhook",
-    "webhookHint": "En Stripe → Developers → Webhooks, agregá esta URL con los eventos checkout.session.completed y checkout.session.expired.",
+    "webhookHint": "En Stripe → Developers → Webhooks, agregá esta URL con los eventos checkout.session.completed, checkout.session.expired, checkout.session.async_payment_succeeded y checkout.session.async_payment_failed.",
     "connected": "Conectado: {hint} ({mode})",
     "notConnected": "Sin conectar.",
     "keepKey": "Dejalo vacío para no cambiarla",

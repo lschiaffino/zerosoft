@@ -131,6 +131,14 @@ export async function removeMember(teamId: string, userId: string): Promise<void
     await getDb()
       .prepare('UPDATE api_keys SET revoked = 1 WHERE user_id = ? AND created_by = ?')
       .run(team.owner_id, userId);
+    // Deja de ser host de los tipos de evento del workspace (no recibe más
+    // reservas ni expone su disponibilidad).
+    await getDb()
+      .prepare(
+        `DELETE FROM calendar_event_hosts WHERE user_id = ? AND event_type_id IN (
+           SELECT id FROM calendar_event_types WHERE user_id = ?)`,
+      )
+      .run(userId, team.owner_id);
   }
   // Si el usuario tenía este team como activo, vuelve a su workspace personal.
   await getDb()

@@ -32,6 +32,8 @@ async function ownsEventType(userId: string, eventTypeId: string): Promise<boole
     .get(eventTypeId, userId));
 }
 
+const REMINDER_24H_MS = 24 * 60 * 60 * 1000;
+
 // ---------- Pasos ----------
 
 /** null si el tipo de evento no es del workspace. */
@@ -93,6 +95,23 @@ export async function setWorkflowSteps(
       )
       .all(eventTypeId, new Date(now.getTime() - 30 * 86_400_000).toISOString())) as Array<{ id: string }>;
     for (const b of upcoming) await scheduleWorkflowRuns(b.id, now);
+  } else {
+    // Sin pasos vuelve el recordatorio fijo de 24h (lo mismo que
+    // scheduleBookingReminder) para las reservas confirmadas que todavía no
+    // lo tienen y a las que les falta más de un día.
+    const upcoming = (await db
+      .prepare(
+        `SELECT b.id, b.starts_at FROM calendar_bookings b
+         WHERE b.event_type_id = ? AND b.status = 'confirmed' AND b.starts_at > ?
+           AND NOT EXISTS (SELECT 1 FROM calendar_reminders r WHERE r.booking_id = b.id AND r.kind = 'reminder_24h')`,
+      )
+      .all(eventTypeId, new Date(now.getTime() + REMINDER_24H_MS).toISOString())) as Array<{ id: string; starts_at: string }>;
+    const ins = db.prepare(
+      `INSERT INTO calendar_reminders (id, booking_id, kind, send_at) VALUES (?, ?, 'reminder_24h', ?)`,
+    );
+    for (const b of upcoming) {
+      await ins.run(crypto.randomUUID(), b.id, new Date(new Date(b.starts_at).getTime() - REMINDER_24H_MS).toISOString());
+    }
   }
   return listWorkflowSteps(userId, eventTypeId);
 }
@@ -129,6 +148,11 @@ export async function scheduleWorkflowRuns(bookingId: string, now = new Date()):
 
 export async function clearPendingWorkflowRuns(bookingId: string): Promise<void> {
   await getDb().prepare('DELETE FROM calendar_workflow_runs WHERE booking_id = ? AND sent_at IS NULL').run(bookingId);
+}
+
+/** Borra todas las corridas (también las enviadas): al reprogramar, cada paso vuelve a salir para la fecha nueva. */
+export async function clearWorkflowRuns(bookingId: string): Promise<void> {
+  await getDb().prepare('DELETE FROM calendar_workflow_runs WHERE booking_id = ?').run(bookingId);
 }
 
 // ---------- Plantillas ----------
