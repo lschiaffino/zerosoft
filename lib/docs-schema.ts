@@ -3,9 +3,15 @@
  */
 import { z } from 'zod';
 
+/** Topes de un PATCH de página: el editor los chequea antes de mandar. */
+export const DOCS_BLOCK_MAX = 20000;
+export const DOCS_TITLE_MAX = 500;
+
 const id = z.string().min(1).max(64);
-const shortText = z.string().trim().max(500);
-const longText = z.string().trim().max(20000);
+const shortText = z.string().trim().max(DOCS_TITLE_MAX);
+// Sin trim: en un bloque de código la indentación inicial y los saltos finales
+// son parte del contenido.
+const blockText = z.string().max(DOCS_BLOCK_MAX);
 
 const docsBlockType = z.enum([
   'paragraph',
@@ -30,11 +36,11 @@ const docsDatabaseColumnSchema = z.object({
 export const docsBlockSchema = z.object({
   id: z.string().min(1).max(64),
   type: docsBlockType,
-  content: longText,
+  content: blockText,
   level: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   checked: z.boolean().optional(),
   language: z.string().max(40).optional(),
-  rows: z.array(z.array(longText)).optional(),
+  rows: z.array(z.array(blockText)).optional(),
   columns: z.array(docsDatabaseColumnSchema).max(30).optional(),
   view: z.enum(['table', 'gallery']).optional(),
 });
@@ -88,3 +94,16 @@ export const docCommentUpdateSchema = z.object({
 export const docMentionCreateSchema = z.object({
   user_id: id,
 });
+
+/** true si el título o algún bloque/celda supera el tope del servidor (el PATCH entero se rechazaría). */
+export function docsPatchTooLong(patch: {
+  title?: string | null;
+  content?: Array<{ content?: string | null; rows?: string[][] | null }> | null;
+}): boolean {
+  if ((patch.title ?? '').trim().length > DOCS_TITLE_MAX) return true;
+  return (patch.content ?? []).some(
+    (b) =>
+      (b.content ?? '').length > DOCS_BLOCK_MAX ||
+      (b.rows ?? []).some((r) => r.some((c) => c.length > DOCS_BLOCK_MAX)),
+  );
+}

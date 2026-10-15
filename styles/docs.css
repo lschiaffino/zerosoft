@@ -1874,6 +1874,13 @@
   color: var(--dim);
 }
 
+/* Guardado fallido: visible siempre (también en mobile) y en rojo. */
+.docs-save-status.is-error {
+  color: var(--bad);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .docs-top-btn {
   display: inline-flex;
   align-items: center;
@@ -2138,6 +2145,7 @@
 
 @media (max-width: 640px) {
   .docs-save-status { display: none; }
+  .docs-save-status.is-error { display: inline; }
   .docs-top-btn { padding: 0 6px; }
   .docs-list-row { grid-template-columns: 24px minmax(0, 1fr); }
   .docs-list-date { display: none; }

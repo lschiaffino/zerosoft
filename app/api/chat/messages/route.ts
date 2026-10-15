@@ -8,6 +8,7 @@ import {
   getOfficeHoursState,
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
+  toPublicVisitor,
   updateChatConversation,
 } from '@/lib/chat-data';
 import { afterVisitorMessage } from '@/lib/chat-visitor-message';
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ visitor: null, conversation: null, messages: [], csat: null, office });
   }
 
-  return NextResponse.json({ ...result, office });
+  return NextResponse.json({ ...result, visitor: toPublicVisitor(result.visitor), office });
 }
 
 export async function POST(req: Request) {
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json(
-    { message, conversation: result.conversation, visitor, bot: result.botMessage },
+    { message, conversation: result.conversation, visitor: toPublicVisitor(visitor), bot: result.botMessage },
     { status: 201 },
   );
 }

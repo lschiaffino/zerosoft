@@ -8,6 +8,8 @@ import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
 interface RulesClientProps {
   widgetId: string;
   agents: ChatAgent[];
+  /** Zona en la que se evalúan las reglas de horario (la del horario de atención). */
+  timeZone: string;
 }
 
 interface RuleForm {
@@ -22,7 +24,7 @@ function emptyForm(): RuleForm {
   return { name: '', matchType: 'all', matchValue: '', assignTo: '', active: true };
 }
 
-export default function RulesClient({ widgetId, agents }: RulesClientProps) {
+export default function RulesClient({ widgetId, agents, timeZone }: RulesClientProps) {
   const t = useTranslations('chat');
   const [rules, setRules] = useState<ChatAssignmentRuleRow[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -311,6 +313,7 @@ export default function RulesClient({ widgetId, agents }: RulesClientProps) {
               onChange={(e) => setForm((f) => ({ ...f, matchValue: e.target.value }))}
               placeholder="09:00-17:00"
             />
+            <small className="muted">{t('rules.timeZoneHint', { zone: timeZone })}</small>
           </label>
         )}
         <label className="qm-check">

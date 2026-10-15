@@ -4,7 +4,6 @@ import {
   getChatConversation,
   getChatVisitorByExternalId,
   getChatWidget,
-  listChatMessages,
   markMessagesRead,
 } from '@/lib/chat-data';
 
@@ -48,6 +47,7 @@ export async function POST(req: Request) {
   if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   await markMessagesRead(conversationId, 'visitor');
-  const messages = await listChatMessages(conversationId);
-  return NextResponse.json({ messages });
+  // El widget no usa la respuesta; devolver la lista exponía mensajes de sistema
+  // internos y user_id de los agentes.
+  return NextResponse.json({ ok: true });
 }

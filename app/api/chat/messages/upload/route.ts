@@ -8,6 +8,7 @@ import {
   getChatWidget,
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
+  toPublicVisitor,
   updateChatConversation,
 } from '@/lib/chat-data';
 import { CHAT_MESSAGE_MAX } from '@/lib/chat-schema';
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json(
-    { message, conversation: result.conversation, visitor, bot: result.botMessage },
+    { message, conversation: result.conversation, visitor: toPublicVisitor(visitor), bot: result.botMessage },
     { status: 201 },
   );
 }

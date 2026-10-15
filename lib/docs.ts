@@ -409,7 +409,8 @@ export async function duplicateDocPage(
       );
 
     const children = (await getDb()
-      .prepare('SELECT id FROM docs_pages WHERE parent_id = ? AND user_id = ?')
+      // Las subpáginas en la papelera no se copian (revivirían como activas).
+      .prepare('SELECT id FROM docs_pages WHERE parent_id = ? AND user_id = ? AND archived = 0')
       .all(currentId, ownerId)) as Array<{ id: string }>;
     for (const child of children) {
       await clone(child.id, newId);

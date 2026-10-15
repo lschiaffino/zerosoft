@@ -14,6 +14,7 @@ import type {
   ConversationUpdatePayload,
 } from '@/lib/chat-data';
 import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
+import { CHAT_MESSAGE_MAX, CHAT_UPLOAD_MAX, sendErrorKey } from '@/lib/chat-schema';
 import ConversationList from './ConversationList';
 import VisitorPanel from './VisitorPanel';
 
@@ -87,6 +88,8 @@ export default function ConversationClient({
   const [messages, setMessages] = useState<ChatMessageWithUser[]>(initialMessages);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  /** Error del último envío (aria-live): antes un rechazo del servidor no avisaba nada. */
+  const [sendError, setSendError] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [listRows, setListRows] = useState<ChatConversationListRow[] | null>(null);
   const router = useRouter();
@@ -276,7 +279,17 @@ export default function ConversationClient({
   async function sendReply() {
     const body = reply.trim();
     if ((!body && !selectedFile) || sending) return;
+    const tooBig = selectedFile && mode === 'reply' && selectedFile.size > CHAT_UPLOAD_MAX;
+    if (tooBig || body.length > CHAT_MESSAGE_MAX) {
+      setSendError(t(tooBig ? 'errors.fileTooLarge' : 'errors.messageTooLong'));
+      return;
+    }
+    setSendError(null);
     setSending(true);
+    const fail = async (res: Response) => {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      setSendError(t(sendErrorKey(data.error)));
+    };
     try {
       if (selectedFile && mode === 'reply') {
         const formData = new FormData();
@@ -293,6 +306,8 @@ export default function ConversationClient({
           await fetchMessages();
           await fetchList();
           await fetchConversation();
+        } else {
+          await fail(res);
         }
       } else {
         const isNote = mode === 'note';
@@ -307,8 +322,12 @@ export default function ConversationClient({
           await fetchMessages();
           await fetchList();
           if (!isNote) await fetchConversation();
+        } else {
+          await fail(res);
         }
       }
+    } catch {
+      setSendError(t('errors.generic'));
     } finally {
       setSending(false);
     }
@@ -830,6 +849,9 @@ export default function ConversationClient({
             {sending ? t('common.loading') : mode === 'note' ? t('notes.add') : t('conversation.send')}
           </button>
         </div>
+        <p className="form-error chat-composer-error" role="alert" hidden={!sendError}>
+          {sendError}
+        </p>
       </div>
 
       <VisitorPanel conversation={conversation} />

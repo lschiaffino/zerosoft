@@ -163,6 +163,7 @@
     "matchType": "Tipo de correspondência",
     "keyword": "Palavra-chave",
     "timeRange": "Intervalo de tempo",
+    "timeZoneHint": "Avaliado em {zone} (o fuso do horário de atendimento do widget).",
     "keywordPlaceholder": "reembolso, preços…",
     "sub": "As regras rodam de cima para baixo: a primeira que bater atribui a nova conversa.",
     "emptySub": "Direcione conversas por palavra-chave ou horário, ou distribua em round-robin entre o time.",
@@ -266,6 +267,9 @@
   },
   "errors": {
     "generic": "Algo deu errado. Tente novamente.",
+    "fileTooLarge": "Arquivo grande demais (máx. 10 MB).",
+    "fileTypeNotAllowed": "Este tipo de arquivo não é permitido.",
+    "messageTooLong": "Mensagem longa demais (máx. 5.000 caracteres).",
     "invalid_input": "Alguns campos são inválidos. Verifique e tente novamente.",
     "missing_name": "O nome é obrigatório."
   },

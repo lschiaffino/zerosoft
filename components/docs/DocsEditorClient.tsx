@@ -10,6 +10,7 @@ import {
   type DocsPageShare,
   type DocsShareRole,
 } from '@/lib/docs-types';
+import { docsPatchTooLong } from '@/lib/docs-schema';
 import DocsEditor from './DocsEditor';
 import ShareDialog, { type ShareRequest } from './ShareDialog';
 import CommentsPanel from './CommentsPanel';
@@ -55,6 +56,7 @@ export default function DocsEditorClient({
   const t = useTranslations('docs');
   const isOwner = access === 'owner';
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<'tooLong' | 'failed' | null>(null);
   const [current, setCurrent] = useState<DocsPage>(page);
   const [editorKey, setEditorKey] = useState(0);
   const [localShares, setLocalShares] = useState(shares);
@@ -99,6 +101,12 @@ export default function DocsEditorClient({
 
   const savePage = useCallback(
     async (patch: Partial<DocsPage>) => {
+      // El servidor rechaza el PATCH entero si un bloque pasa el tope: avisar en
+      // vez de mostrar "Guardado" y perder lo escrito.
+      if (docsPatchTooLong(patch)) {
+        setSaveError('tooLong');
+        return;
+      }
       setSaving(true);
       const body = JSON.stringify(patch);
       try {
@@ -110,11 +118,18 @@ export default function DocsEditorClient({
           // (keepalive tiene tope de 64KB por request).
           keepalive: body.length < 60_000,
         });
-        if (res.ok && ('published' in patch || 'is_public' in patch)) {
+        if (!res.ok) {
+          setSaveError('failed');
+          return;
+        }
+        setSaveError(null);
+        if ('published' in patch || 'is_public' in patch) {
           const updated = (await res.json()) as DocsPage;
           setCurrent((prev) => ({ ...prev, published: updated.published, slug: updated.slug, is_public: updated.is_public }));
         }
         router.refresh();
+      } catch {
+        setSaveError('failed');
       } finally {
         setSaving(false);
       }
@@ -283,6 +298,7 @@ export default function DocsEditorClient({
         ancestors={ancestors}
         onSave={savePage}
         saving={saving}
+        saveError={saveError}
         onDuplicate={isOwner ? duplicatePage : undefined}
         onDelete={isOwner ? trashPage : undefined}
         topActions={topActions}
