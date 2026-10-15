@@ -108,6 +108,8 @@
     "codeUnavailable": "Code runs in an isolated Vercel Sandbox. It isn't available on this server: set FLOW_CODE_RUNNER=sandbox with Vercel credentials to enable it. Until then the node fails with code_unavailable.",
     "mergeHint": "Waits until every connected node has run, then runs once. Use the key '...' to copy all fields of an object.",
     "scheduleGranularity": "On zerosoft cloud the scheduler checks once an hour, so runs can start up to an hour late. Self-hosted, it follows your cron for /api/cron/tick.",
+    "delayGranularity": "Delay resumes the run on the scheduler's next pass. On zerosoft cloud it checks once an hour, so a short wait (seconds or minutes) can last up to an hour. Self-hosted, it follows your cron for /api/cron/tick.",
+    "retryGranularity": "Each retry resumes on the scheduler's next pass (once an hour on zerosoft cloud), not a few seconds later.",
     "stripeHint": "Save the flow, copy the webhook URL into Stripe (Developers → Webhooks) and save its signing secret in the credential. Unsigned requests are rejected.",
     "allEvents": "All events"
   },
@@ -150,7 +152,7 @@
     "trigger_stripe": { "title": "Stripe event", "desc": "Runs when Stripe sends an event to this flow's URL. The signature is verified with the credential's webhook secret." },
     "logic_run_flow": {
       "title": "Run flow",
-      "desc": "Runs another flow with these inputs and waits for it. Its node outputs are in '{{nodes.<id>.output.outputs}}'.",
+      "desc": "Runs another flow with these inputs and waits for it. That flow can't use Delay or retries: if it ends up waiting, the step fails with subflow_waiting. Its node outputs are in '{{nodes.<id>.output.outputs}}'.",
       "fields": { "inputs": "Inputs ('{{trigger.x}}' in the other flow)", "failOnErrorHint": "Fail if the other flow fails" }
     },
     "data_merge": {

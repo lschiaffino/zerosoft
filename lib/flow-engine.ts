@@ -17,7 +17,7 @@ import { aiEnabled, aiGenerateText, AiError } from './ai';
 import { getDb, type FlowFlowRow, type FlowRunRow, type FlowStepRow } from './db';
 import { sendEmail } from './email';
 import { flowChain } from './events';
-import { enqueueRun, kickFlowWorker, MAX_FLOW_CHAIN_DEPTH, nowIso, parseJson } from './flow';
+import { enqueueRun, INPUT_TOO_LARGE_KEY, kickFlowWorker, MAX_FLOW_CHAIN_DEPTH, nowIso, parseJson } from './flow';
 import { CODE_MAX_TIMEOUT_SEC, runFlowCode } from './flow-code';
 import { resolveCredential, secretValues, type ResolvedCredential } from './flow-credentials';
 import { redact, type CredentialType } from './flow-credentials-schema';
@@ -54,12 +54,23 @@ const MAX_RETRIES = 5;
 const STORE_LIMIT = 64_000;
 /** Tope por salida de nodo en memoria (lo que leen los nodos siguientes). */
 const MEMORY_LIMIT = 5_000_000;
+/**
+ * Tope por salida al persistir el contexto de la corrida (lo que se retoma
+ * después de un Esperar o un reintento y lo que reusa "Re-ejecutar desde aquí").
+ */
+const CONTEXT_LIMIT = 1_000_000;
+/** Tope total de las salidas persistidas: pasado este tamaño, el resto se guarda con STORE_LIMIT. */
+const CONTEXT_TOTAL_LIMIT = 8_000_000;
 const HTTP_BODY_LIMIT = 1_000_000;
 
 interface RunContext {
   graph: FlowGraph;
   trigger: unknown;
   nodes: Record<string, { output: unknown }>;
+  /** Merge ya ejecutados (se persiste: un resume no los vuelve a correr). */
+  merged?: string[];
+  /** Nodos con un Esperar o un reintento agendado (todavía no terminaron). */
+  pending?: string[];
 }
 
 type FlowInfo = Pick<FlowFlowRow, 'id' | 'name' | 'user_id' | 'created_by' | 'error_flow_id'>;
@@ -76,6 +87,8 @@ interface RunState {
   secrets: string[];
   /** Merge ya ejecutados en esta corrida (no corren dos veces). */
   merged: Set<string>;
+  /** Nodos en espera (Esperar o reintento agendado): un Merge no los da por terminados. */
+  pending: Set<string>;
 }
 
 interface LoopScope {
@@ -123,6 +136,36 @@ function store(state: RunState, value: unknown): unknown {
  */
 function keep(state: RunState, value: unknown): unknown {
   return forStore(state.secrets.length ? redact(value, state.secrets) : value, MEMORY_LIMIT);
+}
+
+/** Marcador de una salida que no entró al persistirla (forStore). */
+function isTruncated(v: unknown): boolean {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  const o = v as Record<string, unknown>;
+  return o.truncated === true && typeof o.preview === 'string' && Object.keys(o).length === 2;
+}
+
+function configText(v: unknown, out: string[] = []): string[] {
+  if (typeof v === 'string') out.push(v);
+  else if (Array.isArray(v)) for (const x of v) configText(x, out);
+  else if (v && typeof v === 'object') for (const x of Object.values(v)) configText(x, out);
+  return out;
+}
+
+/**
+ * El nodo lee la salida de otro que quedó truncada al persistirse (después de
+ * una espera o al re-ejecutar): mejor fallar explícito que seguir con datos vacíos.
+ */
+function readsTruncated(state: RunState, node: FlowNode): boolean {
+  const ids = Object.entries(state.ctx.nodes)
+    .filter(([, v]) => isTruncated(v?.output))
+    .map(([id]) => id);
+  if (!ids.length) return false;
+  const text = configText(node.config ?? {}).join('\n');
+  return ids.some((id) => {
+    const esc = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`nodes\\s*(\\.\\s*${esc}(?![\\w-])|\\[\\s*['"\`]${esc}['"\`]\\s*\\])`).test(text);
+  });
 }
 
 function clean(state: RunState, text: string): string {
@@ -496,7 +539,16 @@ async function subflowNode(state: RunState, cfg: Record<string, unknown>, tctx: 
     parentRunId: state.run.id,
   });
   if (!runId) throw new StepError('rate_limited', true);
-  const status = await executeRun(runId);
+  let status = await executeRun(runId);
+  if (status === 'waiting') {
+    // El paso espera al otro flow en la misma ejecución: no puede quedar en espera
+    // (Esperar o reintentos). Se cancela para que no siga solo más tarde.
+    await getDb().prepare('DELETE FROM flow_jobs WHERE run_id = ?').run(runId);
+    await getDb()
+      .prepare("UPDATE flow_runs SET status = 'failed', error = 'subflow_waiting', finished_at = ?, locked_until = NULL WHERE id = ?")
+      .run(nowIso(), runId);
+    status = 'failed';
+  }
   const sub = (await getDb().prepare('SELECT error, context FROM flow_runs WHERE id = ?').get(runId)) as
     | { error: string | null; context: string }
     | undefined;
@@ -504,7 +556,9 @@ async function subflowNode(state: RunState, cfg: Record<string, unknown>, tctx: 
   const outputs: Record<string, unknown> = {};
   for (const [id, v] of Object.entries(nodes)) outputs[id] = v?.output ?? null;
   const output = { runId, status, error: sub?.error ?? null, outputs };
-  if (status === 'failed' && cfg.failOnError !== false) throw new StepError('subflow_failed', false, output);
+  if (status === 'failed' && cfg.failOnError !== false) {
+    throw new StepError(output.error === 'subflow_waiting' ? 'subflow_waiting' : 'subflow_failed', false, output);
+  }
   return output;
 }
 
@@ -512,6 +566,7 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
   const cfg = node.config ?? {};
   const tctx = templateCtx(state, loop);
   const ws = state.flow.user_id;
+  if (readsTruncated(state, node)) throw new StepError('context_truncated');
   switch (node.type) {
     case 'logic.if': {
       const pass = evalConditions(cfg.conditions as Condition[], cfg.combine as 'all' | 'any', tctx);
@@ -682,7 +737,7 @@ function mergeReady(state: RunState, node: FlowNode, loop?: LoopScope): boolean 
   const key = loop ? `${node.id}@${loop.index}` : node.id;
   if (state.merged.has(key)) return false;
   const sources = [...new Set(state.ctx.graph.edges.filter((e) => e.target === node.id).map((e) => e.source))];
-  if (sources.some((id) => state.ctx.nodes[id] === undefined)) return false;
+  if (sources.some((id) => state.ctx.nodes[id] === undefined || state.pending.has(id))) return false;
   state.merged.add(key);
   return true;
 }
@@ -704,6 +759,7 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
     return;
   }
   if (node.type === 'data.merge' && attempt === 0 && !mergeReady(state, node, loop)) return;
+  if (attempt > 0) state.pending.delete(node.id);
   state.steps += 1;
   if (state.steps > MAX_STEPS) {
     state.error = 'step_limit';
@@ -717,12 +773,13 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
 
   const stepId = await startStep(state.run.id, node, renderedInput(state, node, loop));
   let result: NodeResult;
+  let errorOutput: unknown = null;
   try {
     result = await runNodeLogic(state, node, loop);
   } catch (err) {
     const e = err instanceof StepError ? err : new StepError(err instanceof Error ? err.message.slice(0, 200) : 'error');
     result = { kind: 'error', error: e.code, retryable: e.retryable };
-    if (e.output !== undefined && e.output !== null) state.ctx.nodes[node.id] = { output: keep(state, e.output) };
+    if (e.output !== undefined && e.output !== null) errorOutput = keep(state, e.output);
   }
 
   if (result.kind === 'error') {
@@ -733,10 +790,15 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
         kind: 'retry',
         attempt: attempt + 1,
       });
-      await finishStep(state, stepId, 'failed', state.ctx.nodes[node.id]?.output ?? null, `${result.error} (retry ${attempt + 1}/${retries})`);
+      // La salida del intento fallido queda solo en el paso: en el contexto el
+      // nodo sigue pendiente, así un Merge no corre con datos de error.
+      delete state.ctx.nodes[node.id];
+      state.pending.add(node.id);
+      await finishStep(state, stepId, 'failed', errorOutput, `${result.error} (retry ${attempt + 1}/${retries})`);
       return;
     }
-    const details = state.ctx.nodes[node.id]?.output ?? null;
+    if (errorOutput !== null) state.ctx.nodes[node.id] = { output: errorOutput };
+    const details = errorOutput;
     await finishStep(state, stepId, 'failed', details, result.error);
     const mode = supportsErrorHandling(node.type) ? onErrorMode(node.config) : 'stop';
     if (mode === 'stop') {
@@ -758,6 +820,7 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
     return;
   }
   if (result.kind === 'wait') {
+    state.pending.add(node.id);
     await finishStep(state, stepId, 'waiting', result.output, null);
     return;
   }
@@ -768,6 +831,12 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
 async function runLoop(state: RunState, node: FlowNode, outer?: LoopScope): Promise<void> {
   const cfg = node.config ?? {};
   const stepId = await startStep(state.run.id, node, renderedInput(state, node, outer));
+  if (readsTruncated(state, node)) {
+    await finishStep(state, stepId, 'failed', null, 'context_truncated');
+    state.error = `${node.id}: context_truncated`;
+    state.failedNode = node.id;
+    return;
+  }
   const raw = renderValue(cfg.items ?? '', templateCtx(state, outer));
   let items: unknown[];
   if (Array.isArray(raw)) items = raw;
@@ -822,10 +891,17 @@ async function finalize(state: RunState): Promise<FlowRunRow['status']> {
   const waiting = !state.error && Number(pending.n) > 0;
   if (state.error) await db.prepare('DELETE FROM flow_jobs WHERE run_id = ?').run(state.run.id);
   const status = state.error ? 'failed' : waiting ? 'waiting' : 'success';
-  // Al persistir, cada salida se acota a STORE_LIMIT (en memoria iban completas).
+  // Al persistir, cada salida se acota a CONTEXT_LIMIT (y, pasado el tope total,
+  // a STORE_LIMIT): es lo que leen los nodos al retomar después de una espera.
   const nodes: RunContext['nodes'] = {};
-  for (const [id, v] of Object.entries(state.ctx.nodes)) nodes[id] = { output: store(state, v?.output) };
-  const persisted: RunContext = { ...state.ctx, nodes };
+  let budget = CONTEXT_TOTAL_LIMIT;
+  for (const [id, v] of Object.entries(state.ctx.nodes)) {
+    const value = state.secrets.length ? redact(v?.output, state.secrets) : v?.output;
+    const output = forStore(value, budget >= CONTEXT_LIMIT ? CONTEXT_LIMIT : STORE_LIMIT);
+    budget -= JSON.stringify(output ?? null).length;
+    nodes[id] = { output };
+  }
+  const persisted: RunContext = { ...state.ctx, nodes, merged: [...state.merged], pending: [...state.pending] };
   const ctx = state.secrets.length ? redact(persisted, state.secrets) : persisted;
   await db
     .prepare(
@@ -856,7 +932,17 @@ async function loadState(run: FlowRunRow): Promise<RunState | null> {
     trigger: saved.trigger ?? parseJson(run.input, {}),
     nodes: saved.nodes ?? {},
   };
-  return { run, flow, ctx, steps: run.step_count, error: null, failedNode: null, secrets: [], merged: new Set() };
+  return {
+    run,
+    flow,
+    ctx,
+    steps: run.step_count,
+    error: null,
+    failedNode: null,
+    secrets: [],
+    merged: new Set(saved.merged ?? []),
+    pending: new Set(saved.pending ?? []),
+  };
 }
 
 function inChain<T>(run: FlowRunRow, fn: () => Promise<T>): Promise<T> {
@@ -884,6 +970,11 @@ export async function executeRun(runId: string): Promise<FlowRunRow['status']> {
       state.error = 'no_trigger';
       return;
     }
+    const input = state.ctx.trigger;
+    if (input && typeof input === 'object' && INPUT_TOO_LARGE_KEY in input) {
+      state.error = 'input_too_large';
+      return;
+    }
     state.steps += 1;
     const stepId = await startStep(run.id, trigger, null);
     state.ctx.nodes[trigger.id] = { output: forStore(state.ctx.trigger, MEMORY_LIMIT) };
@@ -909,7 +1000,10 @@ export async function resumeRun(
   await getDb().prepare("UPDATE flow_runs SET status = 'running' WHERE id = ?").run(runId);
   await inChain(run, async () => {
     if (payload.kind === 'retry') await runNode(state, nodeId, undefined, Number(payload.attempt) || 1);
-    else await runChildren(state, nodeId, 'out');
+    else {
+      state.pending.delete(nodeId);
+      await runChildren(state, nodeId, 'out');
+    }
   });
   return finalize(state);
 }
