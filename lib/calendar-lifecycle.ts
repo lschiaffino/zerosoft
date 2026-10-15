@@ -1,6 +1,6 @@
 import { getEventTypeById, type EventTypeWithRules } from './calendar';
 import { emitEvent } from './events';
-import { notifyBooking, refundReason } from './calendar-notify';
+import { cancelReasonWithRefund, notifyBooking, refundReason } from './calendar-notify';
 import { recordBookingInCrm } from './crm-integrations';
 import type { CalendarBookingRow } from './db';
 import {
@@ -87,7 +87,9 @@ export async function afterBookingCancelled(booking: CalendarBookingRow, reason:
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) return;
   await safely('google-delete', () => deleteGoogleEventForBooking(booking, eventType), undefined);
-  await safely('notify-cancelled', () => notifyBooking(booking, 'cancelled', { reason }), undefined);
+  // Reserva paga reembolsada al cancelarla: el aviso lo dice.
+  const notice = booking.payment_status === 'refunded' ? cancelReasonWithRefund(reason, booking.locale) : reason;
+  await safely('notify-cancelled', () => notifyBooking(booking, 'cancelled', { reason: notice }), undefined);
   await safely('crm-cancelled', () => recordBookingInCrm(eventType.user_id, 'cancelled', booking, eventType.title, reason), undefined);
   await emitEvent(eventType.user_id, 'booking.cancelled', bookingPayload(booking, eventType));
 }

@@ -137,6 +137,18 @@ export function refundReason(locale: string | null | undefined): string {
   return REFUND_REASON[asLocale(locale)];
 }
 
+const CANCEL_REFUND_NOTE: Record<Locale, string> = {
+  en: 'The payment was refunded in full.',
+  es: 'El pago se reembolsó completo.',
+  pt: 'O pagamento foi reembolsado por completo.',
+};
+
+/** Motivo del aviso de cancelación de una reserva paga que se reembolsó al cancelarla. */
+export function cancelReasonWithRefund(reason: string | null, locale: string | null | undefined): string {
+  const note = CANCEL_REFUND_NOTE[asLocale(locale)];
+  return reason ? `${reason} — ${note}` : note;
+}
+
 function fill(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{(\w+)\}/g, (_, k: string) => vars[k] ?? '');
 }

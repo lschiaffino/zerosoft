@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { CalendarAvailabilityRow } from '@/lib/db';
+import { scheduleDisplayName } from '@/lib/calendar-schedule-name';
 import AvailabilityEditor from './AvailabilityEditor';
 
 interface ScheduleOption {
@@ -60,7 +61,7 @@ export default function EventSchedulePanel({ eventTypeId, schedules, scheduleId,
           <select className="select" value={value} disabled={busy} onChange={(e) => choose(e.target.value)}>
             {schedules.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name} · {s.timezone}
+                {scheduleDisplayName(s.name, t('schedules.defaultName'))} · {s.timezone}
               </option>
             ))}
             <option value={CUSTOM}>{t('schedules.custom')}</option>

@@ -171,12 +171,15 @@ describe('workflows: programación y envío', () => {
     const logs: string[] = [];
     vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => void logs.push(a.join(' ')));
 
-    // Una semana después: vencen los tres pasos.
+    // Un minuto antes de la reunión vencen los dos pasos "antes"; una semana
+    // después, el de "después".
+    const justBefore = new Date(Date.parse(`${day}T10:00:00Z`) - 60_000);
     const later = new Date(Date.parse(`${day}T10:00:00Z`) + 7 * 86_400_000);
-    const first = await processDueWorkflowRuns(later);
+    const first = await processDueWorkflowRuns(justBefore);
+    const second = await processDueWorkflowRuns(later);
     // (La base es compartida: puede haber corridas vencidas de otros tests.)
-    expect(first.failed).toBe(0);
-    expect(first.sent).toBeGreaterThanOrEqual(3);
+    expect(first.failed + second.failed).toBe(0);
+    expect(first.sent + second.sent).toBeGreaterThanOrEqual(3);
     const out = logs.join('\n');
     expect(out).toContain('En 1h: Demo');
     expect(out).toContain('Mañana con Gabi <b>');
@@ -191,6 +194,28 @@ describe('workflows: programación y envío', () => {
     const b2 = await createBooking({ eventTypeId: et.id, email: 'h@x.com', name: 'H', start: `${day}T12:00:00.000Z` });
     await updateBooking(b2.id, { status: 'cancelled' });
     expect((await processDueWorkflowRuns(later)).total).toBe(0);
+  });
+
+  it('un paso "antes" que el cron levanta con la reunión ya empezada se descarta sin enviar', async () => {
+    const { u, et } = await setup('wf5');
+    await setWorkflowSteps(u.id, et.id, [
+      { recipient: 'guest' as const, offsetMin: -15, subject: 'Empieza en 15 min', body: 'Ya casi' },
+      { recipient: 'guest' as const, offsetMin: 30, subject: 'Gracias wf5', body: 'Gracias' },
+    ]);
+    const day = nextDow(6);
+    const b = await createBooking({ eventTypeId: et.id, email: 'late@x.com', name: 'L', start: `${day}T10:00:00.000Z` });
+    const logs: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => void logs.push(a.join(' ')));
+    // El cron horario corre 17 minutos después del inicio.
+    const res = await processDueWorkflowRuns(new Date(Date.parse(`${day}T10:17:00Z`)));
+    expect(res.skipped).toBeGreaterThanOrEqual(1);
+    expect(logs.join('\n')).not.toContain('Empieza en 15 min');
+    const runs = await runsOf(b.id);
+    expect(runs[0].sent_at).not.toBeNull();
+    // El paso "después" sigue pendiente y sale en su momento.
+    expect(runs[1].sent_at).toBeNull();
+    await processDueWorkflowRuns(new Date(Date.parse(`${day}T11:17:00Z`)));
+    expect(logs.join('\n')).toContain('Gracias wf5');
   });
 
   it('aislamiento: otro workspace no lee ni cambia los pasos (lib y API)', async () => {

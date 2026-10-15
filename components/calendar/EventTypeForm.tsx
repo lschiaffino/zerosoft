@@ -328,10 +328,6 @@ export default function EventTypeForm({ initial, teamMembers, teamId, initialHos
             />
           </label>
           <label className="field checkbox-field">
-            <input type="checkbox" checked={values.allowGuests} onChange={set('allowGuests')} />
-            <span className="prop-label">{t('form.allowGuests')}</span>
-          </label>
-          <label className="field checkbox-field">
             <input type="checkbox" checked={values.singleUse} onChange={set('singleUse')} />
             <span className="prop-label">{t('form.singleUse')}</span>
           </label>

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createEventType,
+  createBooking,
   expireUnpaidHolds,
   findOfferedSlot,
   getOrCreateCalendarUser,
@@ -29,6 +30,7 @@ const bookingsRoute = await import('@/app/api/calendar/bookings/route');
 const webhookRoute = await import('@/app/api/calendar/payments/webhook/[token]/route');
 const paymentsRoute = await import('@/app/api/calendar/payments/route');
 const bookingAdminRoute = await import('@/app/api/calendar/bookings/[id]/route');
+const manageRoute = await import('@/app/api/calendar/bookings/manage/[token]/route');
 
 const KEY = 'sk_test_51abcDEF123456';
 const WHSEC = 'whsec_testsecret123';
@@ -57,7 +59,7 @@ function stripeFetch(input: string | URL | Request, init?: RequestInit): Promise
   const exp = /checkout\/sessions\/([^/?]+)\/expire$/.exec(url);
   if (exp && init?.method === 'POST') return Promise.resolve(Response.json({ id: exp[1], status: 'expired' }));
   const m = /checkout\/sessions\/([^/?]+)$/.exec(url);
-  if (m) return Promise.resolve(Response.json({ id: m[1], payment_status: sessionPaid ? 'paid' : 'unpaid' }));
+  if (m) return Promise.resolve(Response.json({ id: m[1], payment_status: sessionPaid ? 'paid' : 'unpaid', payment_intent: `pi_${m[1]}` }));
   return Promise.resolve(Response.json({ error: { message: 'nope' } }, { status: 404 }));
 }
 
@@ -450,5 +452,122 @@ describe('volver de Checkout sin pagar', () => {
     expect(stripeCalls.some((c) => c.url.endsWith(`/checkout/sessions/${row.stripe_session_id}/expire`))).toBe(true);
     // El mismo invitado puede volver a elegir el mismo horario.
     expect((await book(et.id, `${day}T10:00:00.000Z`)).status).toBe(201);
+  });
+});
+
+function cancelAsHost(id: string, body: Record<string, unknown> = { status: 'cancelled' }) {
+  return bookingAdminRoute.PATCH(
+    new Request('http://x', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }) as never,
+    { params: Promise.resolve({ id }) },
+  );
+}
+
+/** Reserva paga y confirmada por el webhook. */
+async function paidBooking(label: string, day: string) {
+  const ctx = await paidEventType(label);
+  const data = (await (await book(ctx.et.id, `${day}T10:00:00.000Z`)).json()) as { id: string; manageToken: string };
+  expect(await outcomeOf(await webhook(ctx.token, sessionEvent('checkout.session.completed', await bookingRow(data.id))))).toBe('confirmed');
+  return { ...ctx, data };
+}
+
+describe('cancelar una reserva paga', () => {
+  it('el anfitrión cancela: se reembolsa una sola vez y queda refunded', async () => {
+    const { u, data } = await paidBooking('pay14', nextDow(4, 11));
+    const row = await bookingRow(data.id);
+    session.user = u;
+    const res = await cancelAsHost(data.id, { status: 'cancelled', cancelReason: 'Me surgió algo' });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { payment_status: string }).payment_status).toBe('refunded');
+    const refunds = stripeCalls.filter((c) => c.url.endsWith('/refunds'));
+    expect(refunds).toHaveLength(1);
+    expect(new URLSearchParams(refunds[0].body).get('payment_intent')).toBe(`pi_${row.stripe_session_id}`);
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'cancelled', payment_status: 'refunded' });
+    // Repetir la cancelación no reembolsa de nuevo.
+    expect((await cancelAsHost(data.id)).status).toBe(200);
+    expect(stripeCalls.filter((c) => c.url.endsWith('/refunds'))).toHaveLength(1);
+  });
+
+  it('el invitado cancela desde su link de gestión: también se reembolsa', async () => {
+    const { data } = await paidBooking('pay15', nextDow(5, 11));
+    const res = await manageRoute.POST(
+      new Request('http://x', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'cancel' }) }) as never,
+      { params: Promise.resolve({ token: data.manageToken }) },
+    );
+    expect(res.status).toBe(200);
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'cancelled', payment_status: 'refunded' });
+    expect(stripeCalls.filter((c) => c.url.endsWith('/refunds'))).toHaveLength(1);
+  });
+
+  it('si Stripe falla, la cancelación sigue y el pago queda en paid', async () => {
+    const { u, data } = await paidBooking('pay16', nextDow(6, 11));
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: { message: 'boom' } }, { status: 500 })));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    session.user = u;
+    expect((await cancelAsHost(data.id)).status).toBe(200);
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'cancelled', payment_status: 'paid' });
+  });
+});
+
+describe('medio asíncrono y el inicio de la reunión', () => {
+  it('el hold no se estira más allá del inicio y un pago acreditado con la reunión empezada se reembolsa', async () => {
+    const { et, token } = await paidEventType('pay17');
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const data = (await (await book(et.id, `${tomorrow}T10:00:00.000Z`)).json()) as { id: string };
+    const row = await bookingRow(data.id);
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row, { payment_status: 'unpaid' })))).toBe('held');
+    expect((await bookingRow(data.id)).hold_expires_at).toBe(row.starts_at);
+
+    // El boleto se acredita cuando la reunión ya pasó (y el cron no corrió).
+    const past = (ms: number) => new Date(Date.now() - ms).toISOString();
+    await getDb()
+      .prepare('UPDATE calendar_bookings SET starts_at = ?, ends_at = ?, hold_expires_at = ? WHERE id = ?')
+      .run(past(2 * 3_600_000), past(3_600_000), past(2 * 3_600_000), data.id);
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.async_payment_succeeded', row)))).toBe('refunded');
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'cancelled', payment_status: 'refunded' });
+  });
+});
+
+describe('hold vencido que el cron todavía no limpió', () => {
+  it('un pago tardío no confirma encima de otra reserva solapada: se reembolsa', async () => {
+    const { u, et, token } = await paidEventType('pay18');
+    const day = nextDow(1, 11);
+    const data = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string };
+    const row = await bookingRow(data.id);
+    await getDb()
+      .prepare('UPDATE calendar_bookings SET hold_expires_at = ? WHERE id = ?')
+      .run(new Date(Date.now() - 60_000).toISOString(), data.id);
+    // Otro tipo de evento gratis del mismo anfitrión, con otro inicio que se solapa.
+    const free = await createEventType(u.id, { slug: 'pay18-free', title: 'Libre', durationMin: 60, scheduleId: et.schedule_id ?? undefined });
+    const other = await createBooking({ eventTypeId: free.id, email: 'o@x.com', name: 'O', start: `${day}T10:30:00.000Z` });
+    expect(other.status).toBe('confirmed');
+
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row)))).toBe('refunded');
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'cancelled', payment_status: 'refunded' });
+  });
+
+  it('con el horario libre, el pago tardío confirma igual', async () => {
+    const { et, token } = await paidEventType('pay19');
+    const day = nextDow(2, 12);
+    const data = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string };
+    const row = await bookingRow(data.id);
+    await getDb()
+      .prepare('UPDATE calendar_bookings SET hold_expires_at = ? WHERE id = ?')
+      .run(new Date(Date.now() - 60_000).toISOString(), data.id);
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row)))).toBe('confirmed');
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'confirmed', payment_status: 'paid' });
+  });
+});
+
+describe('link de un solo uso con precio', () => {
+  it('mientras hay un hold vivo no acepta otra reserva; si el hold vence, sí', async () => {
+    const { u, et } = await paidEventType('pay20');
+    await updateEventType(u.id, et.id, { singleUse: true });
+    const day = nextDow(3, 12);
+    const first = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string };
+    const second = await book(et.id, `${day}T14:00:00.000Z`, 'other@x.com');
+    expect(second.status).toBe(410);
+    await expireUnpaidHolds(new Date(Date.now() + 36 * 60_000));
+    expect((await bookingRow(first.id)).status).toBe('cancelled');
+    expect((await book(et.id, `${day}T14:00:00.000Z`, 'other@x.com')).status).toBe(201);
   });
 });

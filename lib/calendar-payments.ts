@@ -343,8 +343,12 @@ export async function handleStripeWebhook(
   }
   if (event.type === 'checkout.session.completed' && session.payment_status === 'unpaid') {
     // Medio asíncrono: el pago entra horas o días después; el hold se estira
-    // para que el cron no libere el horario mientras tanto.
-    const until = new Date((nowSec ? nowSec * 1000 : Date.now()) + ASYNC_HOLD_HOURS * 3_600_000).toISOString();
+    // para que el cron no libere el horario mientras tanto, pero nunca más
+    // allá del inicio: un pago que se acredita con la reunión ya empezada no
+    // la confirma, se reembolsa (settleLatePayment).
+    const until = new Date(
+      Math.min((nowSec ? nowSec * 1000 : Date.now()) + ASYNC_HOLD_HOURS * 3_600_000, Date.parse(booking.starts_at)),
+    ).toISOString();
     await getDb()
       .prepare("UPDATE calendar_bookings SET hold_expires_at = ? WHERE id = ? AND status = 'pending'")
       .run(until, booking.id);
@@ -396,5 +400,35 @@ export async function reconcileCheckout(booking: CalendarBookingRow, sessionId: 
   if (!key) return null;
   const session = await stripeRequest(key, 'GET', `/checkout/sessions/${encodeURIComponent(sessionId)}`);
   if (session.payment_status !== 'paid') return null;
-  return confirmPendingBooking(booking.id, { sessionId });
+  // Hold vencido sin limpiar: confirmPendingBooking lo vence y, si el horario
+  // sigue libre, el pago lo revive (si no, lo reembolsa el webhook).
+  return (await confirmPendingBooking(booking.id, { sessionId })) ?? revivePaidBooking(booking.id, { sessionId });
+}
+
+/**
+ * Cancelación de una reserva ya pagada (anfitrión, invitado o API): se
+ * reembolsa el pago completo y queda 'refunded'. Best effort: si Stripe
+ * falla, la reserva sigue cancelada con el pago en 'paid' (el anfitrión ve
+ * "cancelada · pagado" y puede reembolsar desde Stripe). Devuelve la fila
+ * actualizada.
+ */
+export async function refundCancelledBooking(booking: CalendarBookingRow): Promise<CalendarBookingRow> {
+  if (booking.status !== 'cancelled' || booking.payment_status !== 'paid' || !booking.stripe_session_id) return booking;
+  const owner = (await getDb()
+    .prepare('SELECT e.user_id FROM calendar_event_types e WHERE e.id = ?')
+    .get(booking.event_type_id)) as { user_id: string } | undefined;
+  const key = owner ? await stripeKeyFor(owner.user_id) : '';
+  if (!key) return booking;
+  try {
+    const session = await stripeRequest(key, 'GET', `/checkout/sessions/${encodeURIComponent(booking.stripe_session_id)}`);
+    await refundSession(key, session);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[cal:refund-cancelled]', err);
+    return booking;
+  }
+  await getDb()
+    .prepare("UPDATE calendar_bookings SET payment_status = 'refunded', updated_at = datetime('now') WHERE id = ? AND payment_status = 'paid'")
+    .run(booking.id);
+  return (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(booking.id)) as CalendarBookingRow;
 }

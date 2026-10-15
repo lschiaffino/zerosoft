@@ -139,6 +139,16 @@ export async function updateCalendarUser(
   await getDb()
     .prepare(`UPDATE calendar_users SET ${sets.join(', ')} WHERE id = ?`)
     .run(...values);
+  // El horario por defecto se crea con la zona del workspace (UTC hasta que
+  // la configuran): si sigue en la zona anterior, se muda con ella para que
+  // la página pública no ofrezca horas corridas.
+  if (payload.timezone !== undefined && payload.timezone !== user.timezone) {
+    await getDb()
+      .prepare(
+        'UPDATE calendar_schedules SET timezone = ?, updated_at = ? WHERE user_id = ? AND is_default = 1 AND timezone = ?',
+      )
+      .run(payload.timezone, now(), userId, user.timezone);
+  }
   return (await getDb().prepare('SELECT * FROM calendar_users WHERE id = ?').get(user.id)) as CalendarUserRow;
 }
 
@@ -417,6 +427,16 @@ export async function updateEventType(
 export async function deleteEventType(userId: string, id: string): Promise<boolean> {
   const existing = await getEventType(userId, id);
   if (!existing) return false;
+  // Las reservas caen en cascada con el tipo de evento: con reservas por
+  // venir (confirmadas o esperando un pago) se cancelan antes, así los
+  // invitados reciben el aviso, se reembolsa lo cobrado y Google se limpia.
+  const upcoming = await getDb()
+    .prepare(
+      `SELECT 1 AS one FROM calendar_bookings
+       WHERE event_type_id = ? AND status IN ('confirmed', 'pending') AND ends_at > ? LIMIT 1`,
+    )
+    .get(id, new Date().toISOString());
+  if (upcoming) throw new CalendarError('has_upcoming_bookings', 409);
   await getDb().prepare('DELETE FROM calendar_event_types WHERE id = ?').run(id);
   return true;
 }
@@ -748,6 +768,17 @@ export async function createBooking(
   const eventType = await getEventTypeById(payload.eventTypeId);
   if (!eventType) throw new CalendarError('not_found', 404);
   if (eventType.single_use === 1 && eventType.used_at) throw new CalendarError('link_expired', 410);
+  // Un solo uso con precio: used_at se marca al pagar, así que mientras un
+  // hold siga vivo el link ya está tomado (si no, dos personas pagarían).
+  if (eventType.single_use === 1) {
+    const taken = await getDb()
+      .prepare(
+        `SELECT 1 AS one FROM calendar_bookings
+         WHERE event_type_id = ? AND (status = 'confirmed' OR (status = 'pending' AND hold_expires_at > ?)) LIMIT 1`,
+      )
+      .get(eventType.id, new Date().toISOString());
+    if (taken) throw new CalendarError('link_expired', 410);
+  }
 
   const start = new Date(payload.start);
   if (Number.isNaN(start.getTime())) throw new CalendarError('invalid_input', 400);
@@ -820,7 +851,9 @@ async function onBookingConfirmed(id: string, eventType: CalendarEventTypeRow, s
 
 /**
  * Confirma una reserva 'pending' (pago recibido). Idempotente: devuelve null
- * si ya no estaba pendiente (otro webhook la confirmó o venció).
+ * si ya no estaba pendiente (otro webhook la confirmó o venció). Un hold ya
+ * vencido que el cron todavía no limpió dejó de ocupar el horario: se vence
+ * acá y el pago pasa por revivePaidBooking, que revalida el horario.
  */
 export async function confirmPendingBooking(
   id: string,
@@ -833,9 +866,9 @@ export async function confirmPendingBooking(
         .prepare(
           `UPDATE calendar_bookings SET status = 'confirmed', payment_status = 'paid', hold_expires_at = NULL,
              stripe_session_id = COALESCE(?, stripe_session_id), updated_at = ?
-           WHERE id = ? AND status = 'pending'`,
+           WHERE id = ? AND status = 'pending' AND (hold_expires_at IS NULL OR hold_expires_at > ?)`,
         )
-        .run(payment.sessionId ?? null, now(), id)
+        .run(payment.sessionId ?? null, now(), id, new Date().toISOString())
     ).changes;
   } catch (err) {
     // El horario ya lo ocupa otra reserva confirmada: el hold no se puede
@@ -849,7 +882,15 @@ export async function confirmPendingBooking(
       .run(now(), id);
     return null;
   }
-  if (changes === 0) return null;
+  if (changes === 0) {
+    await getDb()
+      .prepare(
+        `UPDATE calendar_bookings SET status = 'cancelled', payment_status = 'expired', cancel_reason = 'payment_expired', updated_at = ?
+         WHERE id = ? AND status = 'pending' AND hold_expires_at <= ?`,
+      )
+      .run(now(), id, new Date().toISOString());
+    return null;
+  }
   const booking = (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(id)) as CalendarBookingRow;
   const eventType = await getEventTypeById(booking.event_type_id);
   if (eventType) await onBookingConfirmed(id, eventType, new Date(booking.starts_at));
@@ -1227,10 +1268,11 @@ export async function listBusyRanges(
   const db = getDb();
   const bookings = (await db
     .prepare(
+      // host_user_id se completa siempre (backfill en la migración): filtrar
+      // por la columna, sin COALESCE, deja usar el índice (host, inicio).
       `SELECT b.starts_at, b.ends_at FROM calendar_bookings b
-       JOIN calendar_event_types e ON e.id = b.event_type_id
-       WHERE COALESCE(b.host_user_id, e.user_id) = ?
-         AND (b.status = 'confirmed' OR (b.status = 'pending' AND b.hold_expires_at > ?))
+       WHERE b.host_user_id = ? AND b.status IN ('confirmed', 'pending')
+         AND (b.status = 'confirmed' OR b.hold_expires_at > ?)
          AND b.starts_at < ? AND b.ends_at > ? AND b.id != ?`,
     )
     .all(userId, new Date().toISOString(), iso(to), iso(from), opts.excludeBookingId ?? '')) as Array<{

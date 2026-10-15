@@ -41,6 +41,11 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   if (!user) return unauthorized();
   // Borrar configuración compartida del workspace: solo owner/admin.
   if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  if (!(await deleteEventType(user.id, params.id))) return notFound();
+  try {
+    if (!(await deleteEventType(user.id, params.id))) return notFound();
+  } catch (err) {
+    if (err instanceof CalendarError) return crmError(err.status, err.code);
+    return crmError(500, 'generic');
+  }
   return new NextResponse(null, { status: 204 });
 }

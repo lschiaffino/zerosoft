@@ -9,6 +9,7 @@ import {
 } from '@/lib/calendar';
 import { bookingManageSchema } from '@/lib/calendar-schema';
 import { afterBookingCancelled, afterBookingRescheduled } from '@/lib/calendar-lifecycle';
+import { refundCancelledBooking } from '@/lib/calendar-payments';
 import { crmError, invalidBody, notFound } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
@@ -37,7 +38,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
         status: 'cancelled',
         cancelReason: parsed.data.reason ? `Guest: ${parsed.data.reason}` : 'Cancelled by guest',
       });
-      if (updated) await afterBookingCancelled(updated, parsed.data.reason ?? null);
+      // Cancelar antes del inicio reembolsa el pago completo (si lo hubo).
+      if (updated) await afterBookingCancelled(await refundCancelledBooking(updated), parsed.data.reason ?? null);
       return NextResponse.json({ status: 'cancelled' });
     }
 
