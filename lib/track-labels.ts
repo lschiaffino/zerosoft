@@ -7,6 +7,7 @@
  */
 import { getDb } from './db';
 import type { TrackProjectRow } from './db';
+import { safeHexColor } from './track-color';
 import type { IssueLabel } from './track-schema';
 
 export interface TrackLabel {
@@ -30,8 +31,7 @@ export const DEFAULT_LABEL_COLOR = '#666666';
  * color por defecto.
  */
 export function safeLabelColor(color: string | null | undefined): string {
-  const c = (color ?? '').trim();
-  return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(c) ? c : DEFAULT_LABEL_COLOR;
+  return safeHexColor(color, DEFAULT_LABEL_COLOR);
 }
 
 export function projectWorkspaceId(project: Pick<TrackProjectRow, 'team_id' | 'owner_id'>): string | null {

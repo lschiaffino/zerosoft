@@ -4,7 +4,9 @@
  * Nota: el módulo `lib/track.ts` ya existe para el tracking de clicks de
  * links, por lo que este feature vive en `lib/track-data.ts`.
  */
+import { after } from 'next/server';
 import { getDb, getClient, txDb, getUserById } from './db';
+import { emitEvent } from './events';
 import type {
   TrackCycleRow,
   TrackIssueActivityRow,
@@ -36,6 +38,7 @@ import type {
   StatusUpdatePayload,
   StatusesReorderPayload,
 } from './track-schema';
+import { safeHexColor } from './track-color';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
 
 // ---------- Tipos públicos ----------
@@ -281,7 +284,7 @@ export async function createProject(
       slug,
       payload.description?.trim() ?? '',
       payload.icon?.trim() ?? null,
-      payload.color?.trim() ?? '#000000',
+      safeHexColor(payload.color, '#000000'),
       'active',
       now,
       now,
@@ -337,7 +340,7 @@ export async function updateProject(
   }
   if (payload.color !== undefined) {
     fields.push('color = ?');
-    args.push(payload.color?.trim() ?? '#000000');
+    args.push(safeHexColor(payload.color, '#000000'));
   }
   if (payload.status !== undefined) {
     fields.push('status = ?');
@@ -396,7 +399,7 @@ export async function createStatus(
       id,
       projectId,
       payload.name.trim(),
-      payload.color?.trim() ?? '#666666',
+      safeHexColor(payload.color, '#666666'),
       payload.position ?? max.p + 1,
       payload.category ?? 'todo',
     );
@@ -421,7 +424,7 @@ export async function updateStatus(
   }
   if (payload.color !== undefined) {
     fields.push('color = ?');
-    args.push(payload.color?.trim() ?? '#666666');
+    args.push(safeHexColor(payload.color, '#666666'));
   }
   if (payload.position !== undefined) {
     fields.push('position = ?');
@@ -665,6 +668,13 @@ function issueSelect(extraWhere = ''): string {
     LEFT JOIN track_cycles c ON c.id = i.cycle_id
     ${extraWhere}
   `;
+}
+
+/** Cola de triage del proyecto (más nuevos primero), en una sola query. */
+export async function listProjectTriageIssues(projectId: string, limit = 200): Promise<TrackIssueWithStatus[]> {
+  return (await getDb()
+    .prepare(`${issueSelect('WHERE i.project_id = ? AND i.triage = 1')} ORDER BY i.created_at DESC LIMIT ?`)
+    .all(projectId, limit)) as TrackIssueWithStatus[];
 }
 
 export async function listIssues(
@@ -995,10 +1005,18 @@ export async function createIssue(
   return created;
 }
 
+/** Origen de un cambio automático (hoy solo GitHub): se guarda en la actividad. */
+export interface IssueChangeVia {
+  source: 'github';
+  author?: string | null;
+  ref?: string | null;
+}
+
 export async function updateIssue(
   id: string,
   payload: IssueUpdatePayload,
   actorId?: string,
+  opts: { via?: IssueChangeVia } = {},
 ): Promise<TrackIssueWithStatus | undefined> {
   const db = getDb();
   const existing = await getIssue(id);
@@ -1105,14 +1123,23 @@ export async function updateIssue(
     await db.prepare(`UPDATE track_issues SET ${fields.join(', ')} WHERE id = ?`).run(...args);
 
     if (actorId) {
+      const viaMeta = opts.via
+        ? { via: opts.via.source, viaAuthor: opts.via.author ?? '', viaRef: opts.via.ref ?? '' }
+        : {};
       for (const activity of activities) {
-        await createIssueActivity(id, actorId, activity.type, activity.meta);
+        await createIssueActivity(id, actorId, activity.type, { ...activity.meta, ...viaMeta });
       }
 
-      const [actor, project] = await Promise.all([
+      const [owner, project] = await Promise.all([
         getUserById(actorId),
         getProject(existing.project_id),
       ]);
+      // Un cambio automático (GitHub) no se notifica a nombre del owner: el
+      // actor es la integración, así que el owner también recibe el aviso.
+      const actor =
+        owner && opts.via
+          ? { id: '', email: '', name: `GitHub${opts.via.author ? ` (@${opts.via.author})` : ''}` }
+          : owner;
       if (actor && project) {
         if (newAssigneeId) {
           await createIssueAssignedNotification({
@@ -1135,20 +1162,80 @@ export async function updateIssue(
     }
   }
 
-  return getIssue(id);
+  const updated = await getIssue(id);
+  if (updated && fields.length > 0) {
+    scheduleIssueEvents(
+      existing,
+      updated,
+      Object.keys(payload).filter((k) => payload[k as keyof IssueUpdatePayload] !== undefined),
+    );
+  }
+  return updated;
+}
+
+/**
+ * Emite issue.updated (y issue.status_changed si cambió el status) para
+ * webhooks y disparadores de Flow. Vive en updateIssue para que todos los
+ * caminos lo usen: detalle, edición masiva, triage y GitHub. Corre después de
+ * responder (after) si hay request; si no, en segundo plano.
+ */
+function scheduleIssueEvents(before: TrackIssueWithStatus, updated: TrackIssueWithStatus, changes: string[]): void {
+  const job = async () => {
+    const project = await getProject(updated.project_id);
+    if (!project?.owner_id) return;
+    const payload = {
+      issue: {
+        id: updated.id,
+        identifier: updated.identifier,
+        title: updated.title,
+        priority: updated.priority,
+        status: updated.status_name ?? null,
+        assigneeId: updated.assignee_id,
+      },
+      project: { id: project.id, name: project.name },
+      changes,
+    };
+    await emitEvent(project.owner_id, 'issue.updated', payload);
+    if (updated.status_id !== before.status_id) {
+      await emitEvent(project.owner_id, 'issue.status_changed', {
+        ...payload,
+        from: before.status_name ?? null,
+        to: updated.status_name ?? null,
+      });
+    }
+  };
+  try {
+    after(job);
+  } catch {
+    void job().catch(() => {});
+  }
+}
+
+/** El issue y todos sus descendientes (subtasks de subtasks incluidas). */
+const ISSUE_TREE_CTE = `WITH RECURSIVE tree(id) AS (
+  SELECT id FROM track_issues WHERE id = ?
+  UNION
+  SELECT c.id FROM track_issues c JOIN tree ON c.parent_id = tree.id
+)`;
+
+/**
+ * Borra el issue con todos sus descendientes (parent_id es ON DELETE SET NULL,
+ * así que sin esto los nietos quedarían sueltos). Devuelve los ids borrados;
+ * vacío si el issue no existía.
+ */
+export async function deleteIssueTree(id: string): Promise<string[]> {
+  const db = getDb();
+  const ids = ((await db.prepare(`${ISSUE_TREE_CTE} SELECT id FROM tree`).all(id)) as Array<{ id: string }>).map(
+    (r) => r.id,
+  );
+  if (ids.length === 0) return [];
+  // Un solo DELETE: atómico, y las filas hijas de otras tablas se borran por FK.
+  await db.prepare(`DELETE FROM track_issues WHERE id IN (${ISSUE_TREE_CTE} SELECT id FROM tree)`).run(id);
+  return ids;
 }
 
 export async function deleteIssue(id: string): Promise<boolean> {
-  const db = getDb();
-  // Eliminar descendientes en cascada (las filas hijas se borran por FK).
-  const children = (await db
-    .prepare('SELECT id FROM track_issues WHERE parent_id = ?')
-    .all(id)) as Array<{ id: string }>;
-  for (const child of children) {
-    await db.prepare('DELETE FROM track_issues WHERE id = ?').run(child.id);
-  }
-  const res = await db.prepare('DELETE FROM track_issues WHERE id = ?').run(id);
-  return res.changes > 0;
+  return (await deleteIssueTree(id)).length > 0;
 }
 
 export async function listIssueChildren(issueId: string): Promise<TrackIssueWithStatus[]> {
@@ -1512,17 +1599,33 @@ export async function createIssueRelation(
   return listIssueRelations(issueId);
 }
 
+/** ¿Ya hay una relación entre los dos issues (en cualquier dirección)? */
+export async function hasIssueRelation(issueId: string, otherIssueId: string): Promise<boolean> {
+  const row = await getDb()
+    .prepare(
+      `SELECT id FROM track_issue_relations
+       WHERE (issue_id = ? AND related_issue_id = ?) OR (issue_id = ? AND related_issue_id = ?) LIMIT 1`,
+    )
+    .get(issueId, otherIssueId, otherIssueId, issueId);
+  return !!row;
+}
+
 export async function deleteIssueRelation(id: string, issueId: string, userId: string): Promise<boolean> {
   const db = getDb();
   const row = (await db
     .prepare('SELECT issue_id, related_issue_id, type FROM track_issue_relations WHERE id = ?')
     .get(id)) as { issue_id: string; related_issue_id: string; type: string } | undefined;
-  if (!row) return false;
+  // La relación tiene que colgar del issue de la URL (el único validado contra
+  // el workspace): si no, se podría borrar una relación ajena por id.
+  if (!row || (row.issue_id !== issueId && row.related_issue_id !== issueId)) return false;
   const otherIssueId = row.issue_id === issueId ? row.related_issue_id : row.issue_id;
   const related = (await db.prepare('SELECT identifier, title FROM track_issues WHERE id = ?').get(otherIssueId)) as
     | { identifier: string; title: string }
     | undefined;
-  const res = await db.prepare('DELETE FROM track_issue_relations WHERE id = ?').run(id);
+  const res = await db
+    .prepare('DELETE FROM track_issue_relations WHERE id = ? AND (issue_id = ? OR related_issue_id = ?)')
+    .run(id, issueId, issueId);
+  if (res.changes === 0) return false;
   const actorIssueId = row.issue_id === issueId ? issueId : row.issue_id;
   await createIssueActivity(actorIssueId, userId, 'relation_removed', {
     relatedIssueId: otherIssueId,

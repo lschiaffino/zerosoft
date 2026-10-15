@@ -8,7 +8,7 @@ import IssuePropertiesPanel from './IssuePropertiesPanel';
 import IssueActivityTimeline from './IssueActivityTimeline';
 import QuickIssueModal from './QuickIssueModal';
 import { CopyBranchButton, IssueGithubPanel } from './IssueGithub';
-import { useToday } from './InlineEditors';
+import { TrackToast, useToday } from './InlineEditors';
 import type { IssueDraft } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
@@ -48,6 +48,9 @@ interface DetailLabels {
     empty: string;
     delete: string;
     size: string;
+    tooLarge: string;
+    typeNotAllowed: string;
+    uploadError: string;
   };
   activity: {
     title: string;
@@ -88,6 +91,10 @@ interface DetailLabels {
     empty: string;
     selectIssue: string;
     selectType: string;
+    notFound: string;
+    duplicate: string;
+    self: string;
+    error: string;
   };
   actions: {
     close: string;
@@ -175,6 +182,9 @@ export default function IssueDetailClient({
   const [relationType, setRelationType] = useState<(typeof RELATION_TYPES)[number]>('related');
   const [subOpen, setSubOpen] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [relationError, setRelationError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const refreshIssue = useCallback(async () => {
     const res = await fetch(`/api/track/issues/${issue.id}`);
@@ -246,14 +256,26 @@ export default function IssueDetailClient({
   }
 
   async function handleUpload(file: File) {
-    if (file.size > 10 * 1024 * 1024) return;
+    setAttachmentError(null);
+    if (file.size > 10 * 1024 * 1024) {
+      setAttachmentError(labels.attachments.tooLarge);
+      return;
+    }
     setUploading(true);
     const form = new FormData();
     form.append('file', file);
     try {
-      const res = await fetch(`/api/track/issues/${issue.id}/attachments`, { method: 'POST', body: form });
-      if (res.ok) {
+      const res = await fetch(`/api/track/issues/${issue.id}/attachments`, { method: 'POST', body: form }).catch(
+        () => null,
+      );
+      if (res?.ok) {
         await Promise.all([refreshAttachments(), refreshActivities()]);
+      } else if (res?.status === 413) {
+        setAttachmentError(labels.attachments.tooLarge);
+      } else if (res?.status === 415) {
+        setAttachmentError(labels.attachments.typeNotAllowed);
+      } else {
+        setAttachmentError(labels.attachments.uploadError);
       }
     } finally {
       setUploading(false);
@@ -268,16 +290,28 @@ export default function IssueDetailClient({
   async function handleAddRelation(e: React.FormEvent) {
     e.preventDefault();
     if (!relationInput.trim()) return;
+    setRelationError(null);
     const res = await fetch(`/api/track/issues/${issue.id}/relations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ relatedIssueId: relationInput.trim(), type: relationType }),
-    });
-    if (res.ok) {
+    }).catch(() => null);
+    if (res?.ok) {
       setRelationInput('');
       setShowRelationForm(false);
       await Promise.all([refreshRelations(), refreshActivities()]);
+      return;
     }
+    const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : undefined;
+    setRelationError(
+      res?.status === 404
+        ? labels.relations.notFound
+        : code === 'duplicate_relation'
+          ? labels.relations.duplicate
+          : code === 'invalid_relation'
+            ? labels.relations.self
+            : labels.relations.error,
+    );
   }
 
   async function handleDeleteRelation(relationId: string) {
@@ -413,6 +447,11 @@ export default function IssueDetailClient({
               />
               <span className="btn btn-small">{uploading ? '…' : labels.attachments.upload}</span>
             </label>
+            {attachmentError && (
+              <p className="form-error" role="alert">
+                {attachmentError}
+              </p>
+            )}
             {attachments.length === 0 ? (
               <p className="muted">{labels.attachments.empty}</p>
             ) : (
@@ -519,6 +558,11 @@ export default function IssueDetailClient({
                 {labels.relations.add}
               </button>
             )}
+            {relationError && (
+              <p className="form-error" role="alert">
+                {relationError}
+              </p>
+            )}
           </section>
 
           <section className="panel">
@@ -529,6 +573,7 @@ export default function IssueDetailClient({
               activities={activities}
               members={initialMembers}
               labels={labels.activity}
+              attachments={attachments}
               onChange={refreshActivities}
             />
           </section>
@@ -546,6 +591,7 @@ export default function IssueDetailClient({
               labels={labels.properties}
               priorities={labels.priorities}
               onChange={handleIssueChange}
+              onError={() => setSaveError(ui.inline.saveError)}
             />
           </section>
         </aside>
@@ -561,6 +607,7 @@ export default function IssueDetailClient({
         labels={ui}
         today={today}
       />
+      <TrackToast message={saveError} onDismiss={() => setSaveError(null)} dismissLabel={ui.inline.dismiss} />
     </div>
   );
 }

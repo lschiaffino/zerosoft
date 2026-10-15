@@ -1,5 +1,4 @@
-import { after, NextRequest, NextResponse } from 'next/server';
-import { emitEvent } from '@/lib/events';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { validateIssueRefs } from '@/lib/track-bulk';
 import { deleteIssue, getIssue, getProject, updateIssue, canAccessTrackProject } from '@/lib/track-data';
@@ -45,31 +44,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const invalid = await validateIssueRefs(project, parsed.data, { ownerId: user.id, issueId: issue.id });
   if (invalid) return trackError(400, invalid);
 
+  // updateIssue emite issue.updated / issue.status_changed (after).
   const updated = await updateIssue(params.id, parsed.data, realUserId(user));
-  if (updated) {
-    const payload = {
-      issue: {
-        id: updated.id,
-        identifier: updated.identifier,
-        title: updated.title,
-        priority: updated.priority,
-        status: updated.status_name ?? null,
-        assigneeId: updated.assignee_id,
-      },
-      project: { id: updated.project_id },
-      changes: Object.keys(parsed.data),
-    };
-    after(async () => {
-      await emitEvent(user.id, 'issue.updated', payload);
-      if (updated.status_id !== issue.status_id) {
-        await emitEvent(user.id, 'issue.status_changed', {
-          ...payload,
-          from: issue.status_name ?? null,
-          to: updated.status_name ?? null,
-        });
-      }
-    });
-  }
   return NextResponse.json(updated);
 }
 

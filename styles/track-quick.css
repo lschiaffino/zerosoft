@@ -1269,7 +1269,8 @@ a.track-board-card-title:hover {
   text-align: left;
   cursor: pointer;
 }
-.track-label-options button:hover {
+.track-label-options button:hover,
+.track-label-options button.is-active {
   background: rgba(0, 0, 0, 0.04);
 }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { Link } from '@/i18n/navigation';
+import { safeHexColor } from '@/lib/track-color';
 import QuickProjectButton from './QuickProjectButton';
 import type { TrackProjectWithStats } from '@/lib/track-data';
 
@@ -35,7 +36,7 @@ export default function ProjectList({ projects, locale, empty, openIssuesLabel }
           <div className="track-card-head">
             <span
               className="track-card-icon"
-              style={{ background: p.color || '#000000' }}
+              style={{ background: safeHexColor(p.color, '#000000') }}
               aria-hidden
             >
               {p.icon || '◆'}

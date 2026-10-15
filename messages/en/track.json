@@ -117,7 +117,10 @@
     "drop": "Drop a file here",
     "empty": "No attachments yet.",
     "delete": "Delete",
-    "size": "Size"
+    "size": "Size",
+    "tooLarge": "The file is larger than 10 MB.",
+    "typeNotAllowed": "This file type isn’t allowed.",
+    "uploadError": "Couldn’t upload the file. Try again."
   },
   "activity": {
     "title": "Activity",
@@ -156,7 +159,11 @@
     "duplicatedBy": "duplicated by",
     "empty": "No relations yet.",
     "selectIssue": "Issue ID or identifier",
-    "selectType": "Type"
+    "selectType": "Type",
+    "notFound": "No issue found with that ID or identifier.",
+    "duplicate": "These issues are already related.",
+    "self": "An issue can’t be related to itself.",
+    "error": "Couldn’t add the relation. Try again."
   },
   "actions": {
     "close": "Close issue",

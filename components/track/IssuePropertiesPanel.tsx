@@ -25,6 +25,8 @@ interface IssuePropertiesPanelProps {
   };
   priorities: Array<{ value: string; label: string }>;
   onChange?: () => void;
+  /** Un cambio no se pudo guardar (ya se revirtió en el panel). */
+  onError?: () => void;
 }
 
 function parseLabels(raw: string): IssueLabel[] {
@@ -54,6 +56,7 @@ export default function IssuePropertiesPanel({
   labels,
   priorities,
   onChange,
+  onError,
 }: IssuePropertiesPanelProps) {
   const [localIssue, setLocalIssue] = useState(issue);
 
@@ -68,8 +71,16 @@ export default function IssuePropertiesPanel({
   };
 
   const update = async (patch: Record<string, unknown>, optimistic?: Partial<TrackIssueWithStatus>) => {
+    const previous = localIssue;
     setLocalIssue((prev) => ({ ...prev, ...applyOptimistic(patch), ...optimistic }));
-    await patchIssue(localIssue.id, patch);
+    try {
+      await patchIssue(localIssue.id, patch);
+    } catch {
+      // El server lo rechazó (p. ej. status o assignee que ya no existen): volver atrás y avisar.
+      setLocalIssue(previous);
+      onError?.();
+      return;
+    }
     onChange?.();
   };
 
@@ -109,8 +120,16 @@ export default function IssuePropertiesPanel({
   // Los labels se normalizan en el server (labels del workspace): usamos la respuesta.
   const setLabels = async (next: Array<{ id: string } | { name: string }>) => {
     const keep = new Set(next.flatMap((l) => ('id' in l ? [l.id] : [])));
+    const previousLabels = localIssue.labels;
     setLocalIssue((prev) => ({ ...prev, labels: JSON.stringify(issueLabels.filter((l) => keep.has(l.id))) }));
-    const updated = await patchIssue(localIssue.id, { labels: next });
+    let updated: TrackIssueWithStatus;
+    try {
+      updated = await patchIssue(localIssue.id, { labels: next });
+    } catch {
+      setLocalIssue((prev) => ({ ...prev, labels: previousLabels }));
+      onError?.();
+      return;
+    }
     setLocalIssue((prev) => ({ ...prev, labels: updated.labels }));
     onChange?.();
   };

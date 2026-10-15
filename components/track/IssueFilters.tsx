@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
+import { safeHexColor } from '@/lib/track-color';
 
 export interface FilterState {
   statusId: string[];
@@ -81,7 +82,7 @@ function MultiSelect({
                   else onChange(values.filter((v) => v !== o.value));
                 }}
               />
-              {o.color && <span className="track-filter-dot" style={{ background: o.color }} />}
+              {o.color && <span className="track-filter-dot" style={{ background: safeHexColor(o.color, '#999999') }} />}
               <span>{o.label}</span>
             </label>
           ))}

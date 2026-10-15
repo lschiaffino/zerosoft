@@ -98,6 +98,9 @@ export default async function IssueDetailPage(
           empty: t('attachments.empty'),
           delete: t('attachments.delete'),
           size: t('attachments.size'),
+          tooLarge: t('attachments.tooLarge'),
+          typeNotAllowed: t('attachments.typeNotAllowed'),
+          uploadError: t('attachments.uploadError'),
         },
         activity: {
           title: t('activity.title'),
@@ -138,6 +141,10 @@ export default async function IssueDetailPage(
           empty: t('relations.empty') ?? 'No relations yet.',
           selectIssue: t('relations.selectIssue') ?? 'Issue ID or identifier',
           selectType: t('relations.selectType') ?? 'Type',
+          notFound: t('relations.notFound'),
+          duplicate: t('relations.duplicate'),
+          self: t('relations.self'),
+          error: t('relations.error'),
         },
         actions: {
           close: t('actions.close'),

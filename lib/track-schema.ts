@@ -13,12 +13,15 @@ const slug = z
   .min(1)
   .max(64)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, { message: 'invalid_slug' });
-const color = z.string().trim().max(20).optional();
-/** Color de label: solo hex (#rgb o #rrggbb). Se renderiza en style={{ background }}. */
+/**
+ * Color de label, proyecto o status: solo hex (#rgb o #rrggbb). Se renderiza
+ * en style={{ background }}, así que nada de `url(...)` ni otros valores CSS.
+ */
 const hexColor = z
   .string()
   .trim()
   .regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i, { message: 'invalid_color' });
+const color = hexColor.optional();
 const isoDate = z
   .string()
   .trim()
