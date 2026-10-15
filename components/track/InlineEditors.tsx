@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import type { TrackStatusRow } from '@/lib/db';
 import type { ProjectMember } from '@/lib/track-data';
+import { safeHexColor } from '@/lib/track-color';
 import { addDays, formatDay, isCompletedCategory, toIsoDay, type IssuePriority } from '@/lib/track-tasks';
 import type { TrackUiLabels } from './ui-labels';
 
@@ -33,7 +34,7 @@ export function PriorityIcon({ priority }: { priority: string }) {
 }
 
 export function StatusDot({ color, category }: { color: string | null; category: string | null }) {
-  const c = color || '#999999';
+  const c = safeHexColor(color, '#999999');
   const done = category === 'done';
   const cancelled = category === 'cancelled';
   const progress = category === 'in_progress';

@@ -303,6 +303,7 @@ interface WorkspaceIssue {
   project_id: string;
   identifier: string;
   status_category: TrackStatusRow['category'] | null;
+  triage: number;
 }
 
 async function workspacePrefixes(workspaceId: string): Promise<string[]> {
@@ -317,7 +318,7 @@ async function findWorkspaceIssues(workspaceId: string, identifiers: string[]): 
   const ph = identifiers.map(() => '?').join(', ');
   return (await getDb()
     .prepare(
-      `SELECT i.id, i.project_id, i.identifier, s.category AS status_category
+      `SELECT i.id, i.project_id, i.identifier, i.triage, s.category AS status_category
        FROM track_issues i
        JOIN track_projects p ON p.id = i.project_id
        LEFT JOIN track_statuses s ON s.id = i.status_id
@@ -330,13 +331,19 @@ async function moveIssueToCategory(
   issue: WorkspaceIssue,
   category: 'in_progress' | 'done',
   actorId: string,
+  via: { author: string | null; ref: string },
 ): Promise<boolean> {
+  // Un issue en triage todavía no se aceptó: se vincula el PR pero no se le
+  // cambia el status (si no, quedaría Done y oculto en la cola de triage).
+  if (issue.triage) return false;
   const status = (await getDb()
     .prepare('SELECT id FROM track_statuses WHERE project_id = ? AND category = ? ORDER BY position ASC LIMIT 1')
     .get(issue.project_id, category)) as { id: string } | undefined;
   if (!status) return false;
   const { updateIssue } = await import('./track-data');
-  await updateIssue(issue.id, { statusId: status.id }, actorId);
+  // actorId (el owner) es solo el user_id técnico de la actividad; se firma
+  // como GitHub con el autor del PR.
+  await updateIssue(issue.id, { statusId: status.id }, actorId, { via: { source: 'github', ...via } });
   return true;
 }
 
@@ -444,7 +451,8 @@ export async function handleGithubWebhook(
       });
       if (!movable.has(issue.identifier.toUpperCase())) continue;
       const target = plannedCategory(issue.status_category, kind, config);
-      if (target && (await moveIssueToCategory(issue, target, row.owner_id))) moved++;
+      const via = { author: pr.user?.login ?? null, ref: `#${pr.number}` };
+      if (target && (await moveIssueToCategory(issue, target, row.owner_id, via))) moved++;
     }
     return { status: 200, body: { linked: issues.length, moved } };
   }

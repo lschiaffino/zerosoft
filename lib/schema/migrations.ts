@@ -2034,6 +2034,33 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE link_domains ADD COLUMN verify_token TEXT');
     },
   },
+  {
+    // Track: igual que 028_track_label_colors para proyectos y statuses (su
+    // color también se pinta en style={{ background }}): lo que no es hex
+    // vuelve al color por defecto.
+    id: '029_track_project_status_colors',
+    async up(client) {
+      const isHex = (c: unknown) => typeof c === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(c.trim());
+      for (const [table, fallback] of [
+        ['track_projects', '#000000'],
+        ['track_statuses', '#666666'],
+      ] as const) {
+        const rows = (await client.execute(`SELECT id, color FROM ${table}`)).rows;
+        for (const r of rows) {
+          if (r.color === null || isHex(r.color)) continue;
+          await client.execute({ sql: `UPDATE ${table} SET color = ? WHERE id = ?`, args: [fallback, String(r.id)] });
+        }
+      }
+    },
+  },
+  {
+    // Track: child_count (subconsulta por fila), el borrado de subtasks y la
+    // lista de hijos filtran por parent_id; sin índice era un scan completo.
+    id: '029_track_issues_parent_index',
+    async up(client) {
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_track_issues_parent ON track_issues(parent_id)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

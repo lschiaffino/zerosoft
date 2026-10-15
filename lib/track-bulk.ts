@@ -15,10 +15,11 @@ import type { TrackProjectRow } from './db';
 import {
   canAccessTrackProject,
   createIssueRelation,
-  deleteIssue,
+  deleteIssueTree,
   getIssue,
   getProject,
   listProjectMembers,
+  listProjectTriageIssues,
   updateIssue,
   type TrackIssueWithStatus,
 } from './track-data';
@@ -120,8 +121,14 @@ export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): 
   const projects = new Map<string, TrackProjectRow | null>();
   const members = new Map<string, Set<string>>();
   const ids = Array.from(new Set(payload.issueIds));
+  // Subtasks que ya se borraron junto con un padre seleccionado.
+  const deleted = new Set<string>();
 
   for (const id of ids) {
+    if (deleted.has(id)) {
+      result.updated.push(id);
+      continue;
+    }
     const found = await accessible(id, scope, projects);
     if (!found) {
       result.skipped.push({ id, reason: 'not_found' });
@@ -130,7 +137,7 @@ export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): 
     const { issue, project } = found;
 
     if (payload.action === 'delete') {
-      await deleteIssue(issue.id);
+      for (const gone of await deleteIssueTree(issue.id)) deleted.add(gone);
       result.updated.push(issue.id);
       continue;
     }
@@ -163,15 +170,7 @@ export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): 
 // ---------- Triage ----------
 
 export async function listTriageIssues(projectId: string): Promise<TrackIssueWithStatus[]> {
-  const rows = (await getDb()
-    .prepare('SELECT id FROM track_issues WHERE project_id = ? AND triage = 1 ORDER BY created_at DESC LIMIT 200')
-    .all(projectId)) as Array<{ id: string }>;
-  const out: TrackIssueWithStatus[] = [];
-  for (const r of rows) {
-    const issue = await getIssue(r.id);
-    if (issue) out.push(issue);
-  }
-  return out;
+  return listProjectTriageIssues(projectId, 200);
 }
 
 export async function countTriage(projectId: string): Promise<number> {
@@ -197,7 +196,7 @@ async function firstStatusOf(projectId: string, category: string): Promise<strin
  * Busca un issue por identifier (sin distinguir mayúsculas) en cualquier
  * proyecto del workspace al que pertenece `projectId`.
  */
-async function findWorkspaceIssueByIdentifier(
+export async function findWorkspaceIssueByIdentifier(
   projectId: string,
   identifier: string,
 ): Promise<TrackIssueWithStatus | undefined> {

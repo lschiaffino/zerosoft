@@ -117,7 +117,10 @@
     "drop": "Solte um arquivo aqui",
     "empty": "Ainda não há anexos.",
     "delete": "Excluir",
-    "size": "Tamanho"
+    "size": "Tamanho",
+    "tooLarge": "O arquivo tem mais de 10 MB.",
+    "typeNotAllowed": "Esse tipo de arquivo não é permitido.",
+    "uploadError": "Não foi possível enviar o arquivo. Tente de novo."
   },
   "activity": {
     "title": "Atividade",
@@ -156,7 +159,11 @@
     "duplicatedBy": "duplicado por",
     "empty": "Ainda não há relações.",
     "selectIssue": "ID ou identificador do issue",
-    "selectType": "Tipo"
+    "selectType": "Tipo",
+    "notFound": "Nenhum issue encontrado com esse ID ou identifier.",
+    "duplicate": "Esses issues já estão relacionados.",
+    "self": "Um issue não pode ser relacionado consigo mesmo.",
+    "error": "Não foi possível adicionar a relação. Tente de novo."
   },
   "actions": {
     "close": "Fechar issue",
