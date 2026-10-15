@@ -26,7 +26,7 @@ export default async function DocsLandingPage(props: { params: Promise<{ locale:
   const shared = await listSharedWithMe(realUserId(user), user.id);
   const templates = getDocTemplates(locale);
   const t = await getTranslations({ locale, namespace: 'docs' });
-  const createAction = createDocPageAction.bind(null, user.id, locale);
+  const createAction = createDocPageAction.bind(null, locale);
 
   return (
     <div className="docs-layout">
@@ -36,9 +36,9 @@ export default async function DocsLandingPage(props: { params: Promise<{ locale:
         shared={shared}
         mobileOpenByDefault={false}
         createAction={createAction}
-        moveAction={moveDocPageAction.bind(null, user.id)}
-        reorderAction={reorderDocPageAction.bind(null, user.id)}
-        stepAction={moveDocPageStepAction.bind(null, user.id)}
+        moveAction={moveDocPageAction}
+        reorderAction={reorderDocPageAction}
+        stepAction={moveDocPageStepAction}
         labels={{
           newPage: t('sidebar.newPage'),
           newSubpage: t('sidebar.newSubpage'),
@@ -96,7 +96,7 @@ export default async function DocsLandingPage(props: { params: Promise<{ locale:
           <p className="section-label">{t('templates.title')}</p>
           <div className="docs-templates">
             {templates.map((tpl) => (
-              <form key={tpl.key} action={createDocPageFromTemplateAction.bind(null, user.id, locale, tpl.key)}>
+              <form key={tpl.key} action={createDocPageFromTemplateAction.bind(null, locale, tpl.key)}>
                 <button type="submit" className="docs-template-card">
                   <span className="docs-template-icon">{tpl.icon}</span>
                   <span className="docs-template-name">{tpl.title || t('templates.untitled')}</span>

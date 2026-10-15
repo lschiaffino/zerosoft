@@ -94,8 +94,30 @@ export interface DocsActor {
  *   que es miembro; gana el rol más alto ('edit' > 'view').
  * - Publicada en el centro de ayuda: cualquiera autenticado puede leerla.
  * `is_public` ya NO da lectura: solo habilita a la IA del Chat.
+ *
+ * `includePublished: false` ignora la publicación: el centro de ayuda solo
+ * expone el contenido actual, no el historial, los comentarios ni las
+ * menciones (eso exige ser owner o tener un share explícito).
+ * `includePublicLink: false` ignora además el share "cualquiera con el link"
+ * (para escrituras como comentar o resolver hilos).
  */
-export async function getDocAccess(page: DocsPageRow, actor: DocsActor): Promise<DocsAccess | null> {
+export interface DocAccessOptions {
+  includePublished?: boolean;
+  includePublicLink?: boolean;
+}
+
+/** Historial y comentarios: owner o share explícito (no alcanza con publicada). */
+export const DOC_INTERNAL_READ: DocAccessOptions = { includePublished: false };
+/** Comentar, resolver y mencionar: share de persona/team (ni publicada ni link público). */
+export const DOC_INTERNAL_WRITE: DocAccessOptions = { includePublished: false, includePublicLink: false };
+
+export async function getDocAccess(
+  page: DocsPageRow,
+  actor: DocsActor,
+  opts: DocAccessOptions = {},
+): Promise<DocsAccess | null> {
+  const includePublished = opts.includePublished ?? true;
+  const includePublicLink = opts.includePublicLink ?? true;
   if (page.user_id === actor.id) return 'owner';
   const userId = actor.actingUser?.id ?? actor.id;
   const shares = (await getDb()
@@ -104,14 +126,14 @@ export async function getDocAccess(page: DocsPageRow, actor: DocsActor): Promise
   let access: DocsAccess | null = null;
   for (const share of shares) {
     let match = false;
-    if (share.kind === 'public') match = true;
+    if (share.kind === 'public') match = includePublicLink;
     else if (share.kind === 'user' && share.target_id === userId) match = true;
     else if (share.kind === 'team' && share.target_id) match = await isMember(share.target_id, userId);
     if (!match) continue;
     if (share.role === 'edit' && share.kind !== 'public') return 'edit';
     access = 'view';
   }
-  if (!access && page.published === 1 && page.archived === 0) access = 'view';
+  if (!access && includePublished && page.published === 1 && page.archived === 0) access = 'view';
   return access;
 }
 
@@ -119,18 +141,23 @@ export async function getDocAccess(page: DocsPageRow, actor: DocsActor): Promise
 export async function resolveDocAccess(
   actor: DocsActor,
   pageId: string,
+  opts: DocAccessOptions = {},
 ): Promise<{ row: DocsPageRow; access: DocsAccess } | null> {
   const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as
     | DocsPageRow
     | undefined;
   if (!row) return null;
-  const access = await getDocAccess(row, actor);
+  const access = await getDocAccess(row, actor, opts);
   return access ? { row, access } : null;
 }
 
 /** Verifica si el actor puede leer una página (ver getDocAccess). */
-export async function canReadPage(page: DocsPageRow, actor: DocsActor): Promise<boolean> {
-  return (await getDocAccess(page, actor)) !== null;
+export async function canReadPage(
+  page: DocsPageRow,
+  actor: DocsActor,
+  opts: DocAccessOptions = {},
+): Promise<boolean> {
+  return (await getDocAccess(page, actor, opts)) !== null;
 }
 
 export async function canEditPage(page: DocsPageRow, actor: DocsActor): Promise<boolean> {
@@ -181,7 +208,14 @@ export async function createDocPage(
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const title = (input.title ?? '').trim();
-  const parentId = input.parent_id ?? null;
+  let parentId = input.parent_id ?? null;
+  if (parentId) {
+    // Solo se cuelga de páginas del mismo workspace.
+    const parent = (await getDb()
+      .prepare('SELECT user_id FROM docs_pages WHERE id = ?')
+      .get(parentId)) as { user_id: string } | undefined;
+    if (!parent || parent.user_id !== ownerId) parentId = null;
+  }
   const icon = input.icon ?? null;
   const coverUrl = input.cover_url ?? null;
   const content = stringifyBlocks(sanitizeBlocks(input.content ?? defaultBlocks()));
@@ -219,6 +253,18 @@ export async function updateDocPage(
     .prepare('SELECT * FROM docs_pages WHERE id = ?')
     .get(pageId)) as DocsPageRow | undefined;
   if (!row || row.user_id !== ownerId) return null;
+
+  // Re-parentar: el nuevo padre tiene que ser del mismo workspace y no puede
+  // ser la propia página ni una de sus descendientes (armaría un ciclo y el
+  // subárbol desaparecería del árbol y del centro de ayuda).
+  if (input.parent_id != null && input.parent_id !== row.parent_id) {
+    if (input.parent_id === pageId) return null;
+    const parent = (await getDb()
+      .prepare('SELECT user_id FROM docs_pages WHERE id = ?')
+      .get(input.parent_id)) as { user_id: string } | undefined;
+    if (!parent || parent.user_id !== ownerId) return null;
+    if ((await collectDescendants(ownerId, pageId)).includes(input.parent_id)) return null;
+  }
 
   const updates: string[] = [];
   const args: (string | number | null)[] = [];
@@ -380,12 +426,16 @@ export async function duplicateDocPage(
 export async function collectDescendants(ownerId: string, rootId: string): Promise<string[]> {
   const ids: string[] = [rootId];
   const queue: string[] = [rootId];
+  // Defensa ante datos con ciclos de parent_id (no recorrer para siempre).
+  const seen = new Set<string>([rootId]);
   while (queue.length > 0) {
     const parentId = queue.shift()!;
     const rows = (await getDb()
       .prepare('SELECT id FROM docs_pages WHERE user_id = ? AND parent_id = ?')
       .all(ownerId, parentId)) as Array<{ id: string }>;
     for (const row of rows) {
+      if (seen.has(row.id)) continue;
+      seen.add(row.id);
       ids.push(row.id);
       queue.push(row.id);
     }

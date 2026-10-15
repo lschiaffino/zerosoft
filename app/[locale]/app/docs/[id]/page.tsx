@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { getUserById } from '@/lib/db';
 import {
+  DOC_INTERNAL_READ,
+  getDocAccess,
   getDocPageAncestors,
   listDocComments,
   listDocPages,
@@ -46,6 +48,9 @@ export default async function DocsPageEditor(
   const { row, access } = resolved;
   const page = toDocPage(row);
   const isOwner = access === 'owner';
+  // El historial no se expone a quien solo llega porque la página está publicada.
+  const canSeeVersions =
+    access !== 'view' || (await getDocAccess(row, user, DOC_INTERNAL_READ)) !== null;
 
   const [allPages, trashed, shared, comments] = await Promise.all([
     listDocPages(user.id, { archived: false }),
@@ -70,10 +75,10 @@ export default async function DocsPageEditor(
         currentId={id}
         trashCount={trashed.length}
         shared={shared}
-        createAction={createDocPageAction.bind(null, user.id, locale)}
-        moveAction={moveDocPageAction.bind(null, user.id)}
-        reorderAction={reorderDocPageAction.bind(null, user.id)}
-        stepAction={moveDocPageStepAction.bind(null, user.id)}
+        createAction={createDocPageAction.bind(null, locale)}
+        moveAction={moveDocPageAction}
+        reorderAction={reorderDocPageAction}
+        stepAction={moveDocPageStepAction}
         labels={{
           newPage: t('sidebar.newPage'),
           newSubpage: t('sidebar.newSubpage'),
@@ -85,6 +90,7 @@ export default async function DocsPageEditor(
           <DocsReadOnlyView
             page={{ ...page, content: sanitizeBlocks(page.content) }}
             sharedBy={sharedBy}
+            showVersions={canSeeVersions}
           />
         ) : (
           <>

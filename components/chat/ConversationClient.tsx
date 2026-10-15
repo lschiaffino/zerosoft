@@ -149,6 +149,19 @@ export default function ConversationClient({
     }
   }
 
+  // Estado, asignación y prioridad pueden cambiarlos otros agentes (o una
+  // respuesta que reabre la conversación): se refrescan junto con el hilo.
+  async function fetchConversation() {
+    try {
+      const res = await fetch(`/api/chat/conversations/${conversationId}`);
+      if (!res.ok) return;
+      const data = (await res.json()) as Partial<ChatConversationWithVisitor>;
+      setConversation((prev) => ({ ...prev, ...data }));
+    } catch {
+      // ignore polling errors
+    }
+  }
+
   async function fetchList() {
     try {
       // Todas las conversaciones del workspace (como el inbox), no solo las
@@ -218,6 +231,7 @@ export default function ConversationClient({
       if (document.visibilityState !== 'visible') return;
       fetchMessages();
       fetchTyping();
+      fetchConversation();
       tick += 1;
       if (tick % 5 === 0) fetchList();
     }, 3000);
@@ -278,6 +292,7 @@ export default function ConversationClient({
           if (fileInputRef.current) fileInputRef.current.value = '';
           await fetchMessages();
           await fetchList();
+          await fetchConversation();
         }
       } else {
         const isNote = mode === 'note';
@@ -291,6 +306,7 @@ export default function ConversationClient({
           setMentions([]);
           await fetchMessages();
           await fetchList();
+          if (!isNote) await fetchConversation();
         }
       }
     } finally {

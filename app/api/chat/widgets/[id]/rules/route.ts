@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { createAssignmentRule, getChatWidget, listAssignmentRules } from '@/lib/chat-data';
+import { createAssignmentRule, getChatWidget, isChatAgentOfWidget, listAssignmentRules } from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,11 +48,16 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
+  const assignTo = typeof body.assignTo === 'string' && body.assignTo ? body.assignTo : null;
+  if (assignTo && !(await isChatAgentOfWidget(widget!, assignTo))) {
+    return NextResponse.json({ error: 'invalid_assignee' }, { status: 400 });
+  }
+
   const rule = await createAssignmentRule(params.id, {
     name,
     matchType,
     matchValue: typeof body.matchValue === 'string' ? body.matchValue : null,
-    assignTo: typeof body.assignTo === 'string' ? body.assignTo : null,
+    assignTo,
     position: typeof body.position === 'number' ? body.position : undefined,
     active: typeof body.active === 'boolean' ? body.active : undefined,
   });

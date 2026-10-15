@@ -73,6 +73,26 @@ export const conversationPatchSchema = z.object({
   snoozedUntil: z.string().trim().max(40).nullable().optional(), // ISO datetime
 });
 
+// ---------- Mensajes ----------
+
+/** Tope de largo de un mensaje (visitante y agente). */
+export const CHAT_MESSAGE_MAX = 5000;
+
+/**
+ * Límites del POST público del visitante (sin auth: el widgetId es público).
+ * Solo acota tamaños; widgetId/visitorId y el resto se validan en la ruta.
+ */
+export const visitorMessageLimitsSchema = z
+  .object({
+    body: z.string().max(CHAT_MESSAGE_MAX).optional(),
+    subject: z.string().max(200).optional(),
+    fields: z
+      .record(z.string().max(64), z.string().max(1000))
+      .refine((o) => Object.keys(o).length <= 20, { message: 'too_many_fields' })
+      .optional(),
+  })
+  .passthrough();
+
 // ---------- CSAT (público) ----------
 
 export const csatSubmitSchema = z.object({

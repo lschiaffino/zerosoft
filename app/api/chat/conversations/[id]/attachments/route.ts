@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { canAccessConversation } from '@/lib/chat-access';
 import {
   chatAttachmentType,
   createChatMessage,
   recordFirstResponse,
+  reopenIfResolved,
 } from '@/lib/chat-data';
 import { MAX_UPLOAD_SIZE, saveUpload, UploadError } from '@/lib/uploads';
 
@@ -17,7 +18,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const { ok } = await canAccessConversation(params.id, user);
+  const { ok, conversation } = await canAccessConversation(params.id, user);
   if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   const form = await req.formData().catch(() => null);
@@ -45,7 +46,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
 
   const message = await createChatMessage(params.id, 'user', {
     body: caption,
-    userId: user.id,
+    userId: realUserId(user),
     attachments: [
       {
         name: filename,
@@ -58,6 +59,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   });
 
   await recordFirstResponse(params.id);
+  if (conversation) await reopenIfResolved(conversation);
 
   return NextResponse.json(message, { status: 201 });
 }

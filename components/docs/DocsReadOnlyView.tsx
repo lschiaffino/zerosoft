@@ -7,7 +7,16 @@ import DocsBlocksView from './DocsBlocksView';
 import VersionsPanel from './VersionsPanel';
 
 /** Página compartida con permiso de lectura: sin editor, con export y versiones (solo ver). */
-export default function DocsReadOnlyView({ page, sharedBy }: { page: DocsPage; sharedBy: string | null }) {
+export default function DocsReadOnlyView({
+  page,
+  sharedBy,
+  showVersions = true,
+}: {
+  page: DocsPage;
+  sharedBy: string | null;
+  /** Falso cuando el acceso viene solo de estar publicada en el centro de ayuda. */
+  showVersions?: boolean;
+}) {
   const t = useTranslations('docs');
   const [versions, setVersions] = useState(false);
 
@@ -19,9 +28,11 @@ export default function DocsReadOnlyView({ page, sharedBy }: { page: DocsPage; s
             {sharedBy ? t('share.readOnlyBanner', { name: sharedBy }) : t('share.readOnly')}
           </p>
           <div className="docs-page-actions">
-            <button type="button" className={`docs-top-btn${versions ? ' on' : ''}`} onClick={() => setVersions((v) => !v)}>
-              {t('versions.title')}
-            </button>
+            {showVersions && (
+              <button type="button" className={`docs-top-btn${versions ? ' on' : ''}`} onClick={() => setVersions((v) => !v)}>
+                {t('versions.title')}
+              </button>
+            )}
             <a className="docs-top-btn" href={`/api/docs/pages/${page.id}/export?format=md`} download>
               {t('export.markdownShort')}
             </a>
@@ -42,7 +53,7 @@ export default function DocsReadOnlyView({ page, sharedBy }: { page: DocsPage; s
         <button type="button" className="docs-side-close" onClick={() => setVersions(false)} aria-label={t('editor.closePanel')}>
           ×
         </button>
-        {versions && <VersionsPanel pageId={page.id} canEdit={false} onRestored={() => {}} />}
+        {versions && showVersions && <VersionsPanel pageId={page.id} canEdit={false} onRestored={() => {}} />}
       </div>
     </div>
   );

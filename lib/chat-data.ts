@@ -1019,6 +1019,13 @@ export async function updateChatConversation(
   return getChatConversation(id);
 }
 
+/** Una respuesta del agente a una conversación resuelta la vuelve a abrir. */
+export async function reopenIfResolved(conversation: Pick<ChatConversationRow, 'id' | 'status'>): Promise<void> {
+  if (conversation.status === 'resolved') {
+    await updateChatConversation(conversation.id, { status: 'open' });
+  }
+}
+
 export async function touchChatConversation(id: string): Promise<void> {
   await getDb().prepare('UPDATE chat_conversations SET updated_at = ? WHERE id = ?').run(nowIso(), id);
 }
@@ -1055,6 +1062,11 @@ export async function listChatAgents(
     )
     .all(teamId)) as ChatAgent[];
   return rows;
+}
+
+/** El usuario atiende el widget (owner en un workspace personal o miembro del team). */
+export async function isChatAgentOfWidget(widget: ChatWidgetRow, userId: string): Promise<boolean> {
+  return (await listChatAgents(widget.user_id, widget.team_id)).some((a) => a.id === userId);
 }
 
 // ---------- Assignment rules ----------
@@ -1238,22 +1250,31 @@ export async function applyAssignmentRules(
     }
     if (!matched) continue;
 
-    let assignTo: string | null = rule.assign_to;
+    // Una regla que apunta a alguien que ya no es agente del widget no asigna.
+    let assignTo: string | null =
+      rule.assign_to && teamMembers.some((m) => m.id === rule.assign_to) ? rule.assign_to : null;
 
     if (rule.match_type === 'round_robin' && teamMembers.length > 0) {
+      // Rota por carga ACTIVA (open/pending), no por el histórico: si no, un
+      // agente nuevo absorbería todas las entrantes hasta emparejar el total.
+      // Empate: a quien le tocó hace más tiempo (o nunca).
       const rows = (await db
         .prepare(
-          `SELECT assigned_to, COUNT(*) AS c
+          `SELECT assigned_to,
+                  SUM(CASE WHEN status IN ('open', 'pending') THEN 1 ELSE 0 END) AS active,
+                  MAX(created_at) AS last_at
            FROM chat_conversations
-           WHERE widget_id = ? AND assigned_to IS NOT NULL
+           WHERE widget_id = ? AND assigned_to IS NOT NULL AND id != ?
            GROUP BY assigned_to`,
         )
-        .all(widgetId)) as Array<{ assigned_to: string; c: number }>;
-      const counts = new Map(rows.map((r) => [r.assigned_to, r.c]));
+        .all(widgetId, conversationId)) as Array<{ assigned_to: string; active: number; last_at: string | null }>;
+      const stats = new Map(rows.map((r) => [r.assigned_to, r]));
       const sorted = [...teamMembers].sort((a, b) => {
-        const ca = counts.get(a.id) ?? 0;
-        const cb = counts.get(b.id) ?? 0;
-        return ca - cb;
+        const sa = stats.get(a.id);
+        const sb = stats.get(b.id);
+        const diff = Number(sa?.active ?? 0) - Number(sb?.active ?? 0);
+        if (diff !== 0) return diff;
+        return (sa?.last_at ?? '').localeCompare(sb?.last_at ?? '');
       });
       assignTo = sorted[0]?.id ?? null;
     }
