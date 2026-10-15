@@ -264,6 +264,7 @@ export default function BookingsList({ bookings, locale, initialFilters }: Props
 
                 {panel?.id === b.id && panel.kind === 'cancel' && (
                   <CancelPanel
+                    paid={b.payment_status === 'paid'}
                     busy={busy === b.id}
                     onClose={() => setPanel(null)}
                     onConfirm={async (reason) => {
@@ -323,10 +324,12 @@ export default function BookingsList({ bookings, locale, initialFilters }: Props
 }
 
 function CancelPanel({
+  paid,
   busy,
   onClose,
   onConfirm,
 }: {
+  paid: boolean;
   busy: boolean;
   onClose: () => void;
   onConfirm: (reason: string) => void;
@@ -339,6 +342,7 @@ function CancelPanel({
         <span className="prop-label">{t('admin.cancelReason')}</span>
         <textarea className="textarea" rows={2} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
       </label>
+      {paid && <p className="muted">{t('admin.refundOnCancel')}</p>}
       <div className="cal-bk-panel-actions">
         <button type="button" className="btn btn-ghost btn-small" onClick={onClose}>
           {t('admin.keep')}

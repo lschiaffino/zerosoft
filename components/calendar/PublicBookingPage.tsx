@@ -359,6 +359,11 @@ export default function PublicBookingPage({
     return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(d);
   }
 
+  /** Fecha completa del día para lectores de pantalla (el botón solo muestra el número). */
+  function dayLabel(d: Date): string {
+    return new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+  }
+
   return (
     <div className="booking-page">
       <div className="booking-card">
@@ -440,6 +445,8 @@ export default function PublicBookingPage({
                   type="button"
                   className="btn btn-ghost btn-small"
                   onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+                  aria-label={t('booking.prevMonth')}
+                  title={t('booking.prevMonth')}
                 >
                   ‹
                 </button>
@@ -448,6 +455,8 @@ export default function PublicBookingPage({
                   type="button"
                   className="btn btn-ghost btn-small"
                   onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+                  aria-label={t('booking.nextMonth')}
+                  title={t('booking.nextMonth')}
                 >
                   ›
                 </button>
@@ -470,6 +479,8 @@ export default function PublicBookingPage({
                       className={`booking-calendar-day${selected ? ' selected' : ''}${disabled ? ' disabled' : ''}${!current ? ' off' : ''}`}
                       disabled={disabled}
                       onClick={() => selectDate(iso)}
+                      aria-label={dayLabel(date)}
+                      aria-pressed={selected}
                     >
                       {date.getDate()}
                     </button>
@@ -493,6 +504,7 @@ export default function PublicBookingPage({
                         type="button"
                         className={`booking-slot${selectedSlot?.start === slot.start ? ' selected' : ''}`}
                         onClick={() => selectSlot(slot)}
+                        aria-pressed={selectedSlot?.start === slot.start}
                       >
                         {formatSlotTime(slot.start, timezone, locale)}
                       </button>

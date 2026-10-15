@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ScheduleDetail, ScheduleOverride, ScheduleRule } from '@/lib/calendar-schedules';
+import { scheduleDisplayName } from '@/lib/calendar-schedule-name';
 
 interface Props {
   initial: ScheduleDetail[];
@@ -22,10 +23,11 @@ interface Draft {
 /** Orden de días que ve la gente: lunes primero. */
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
 
-function toDraft(s: ScheduleDetail): Draft {
+/** `defaultName`: nombre traducido del horario por defecto (se guarda así al editarlo). */
+function toDraft(s: ScheduleDetail, defaultName: string): Draft {
   return {
     id: s.id,
-    name: s.name,
+    name: scheduleDisplayName(s.name, defaultName),
     timezone: s.timezone,
     isDefault: s.is_default === 1,
     rules: s.rules,
@@ -40,7 +42,7 @@ function today(): string {
 
 export default function SchedulesView({ initial, defaultTimezone }: Props) {
   const t = useTranslations('calendar');
-  const [schedules, setSchedules] = useState<Draft[]>(initial.map(toDraft));
+  const [schedules, setSchedules] = useState<Draft[]>(initial.map((s) => toDraft(s, t('schedules.defaultName'))));
   const [selectedId, setSelectedId] = useState<string | null>(initial[0]?.id ?? null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -81,7 +83,7 @@ export default function SchedulesView({ initial, defaultTimezone }: Props) {
     }).catch(() => null);
     setBusy(false);
     if (res && res.status === 201) {
-      const created = toDraft((await res.json()) as ScheduleDetail);
+      const created = toDraft((await res.json()) as ScheduleDetail, t('schedules.defaultName'));
       setSchedules((prev) => [...prev, created]);
       setSelectedId(created.id);
       return;
@@ -106,7 +108,7 @@ export default function SchedulesView({ initial, defaultTimezone }: Props) {
     }).catch(() => null);
     setBusy(false);
     if (res && res.ok) {
-      const updated = toDraft((await res.json()) as ScheduleDetail);
+      const updated = toDraft((await res.json()) as ScheduleDetail, t('schedules.defaultName'));
       setSchedules((prev) =>
         prev.map((s) =>
           s.id === updated.id ? updated : updated.isDefault ? { ...s, isDefault: false } : s,

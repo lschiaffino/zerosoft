@@ -11,6 +11,7 @@ import {
   type CalendarScheduleOverrideRow,
 } from './db';
 import type { ScheduleCreatePayload, ScheduleUpdatePayload } from './calendar-schema';
+import { DEFAULT_SCHEDULE_NAME } from './calendar-schedule-name';
 
 export interface ScheduleRule {
   dayOfWeek: number;
@@ -226,7 +227,7 @@ export async function deleteSchedule(userId: string, id: string): Promise<boolea
 export async function ensureDefaultSchedule(userId: string, timezone = 'UTC'): Promise<CalendarScheduleRow> {
   const existing = await getDefaultSchedule(userId);
   if (existing) return existing;
-  const created = await createSchedule(userId, { name: 'Horario principal', timezone, isDefault: true });
+  const created = await createSchedule(userId, { name: DEFAULT_SCHEDULE_NAME, timezone, isDefault: true });
   return created;
 }
 

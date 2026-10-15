@@ -5,11 +5,15 @@ import path from 'path';
 import {
   CalendarError,
   computeDaySlots,
+  createBooking,
   createEventType,
+  deleteEventType,
   getAvailableSlots,
   getEventType,
   getOrCreateCalendarUser,
   setAvailability,
+  updateBooking,
+  updateCalendarUser,
   updateEventType,
 } from '@/lib/calendar';
 import {
@@ -234,6 +238,38 @@ describe('horarios en la base', () => {
     await updateEventType(u.id, et.id, { scheduleId: s2.id });
     expect(await deleteSchedule(u.id, s1.id)).toBe(true);
     expect((await getSchedule(u.id, s2.id))?.is_default).toBe(1);
+  });
+
+  it('cambiar la zona del workspace muda el horario por defecto que seguía en la zona anterior', async () => {
+    const u = await makeUser('sch4');
+    await getOrCreateCalendarUser(u.id);
+    const et = await createEventType(u.id, { slug: 'tz', title: 'TZ', durationMin: 60 });
+    const custom = await createSchedule(u.id, { name: 'Tokio', timezone: 'Asia/Tokyo', rules: weekdays('09:00', '10:00') });
+    await updateCalendarUser(u.id, { timezone: 'America/Argentina/Buenos_Aires' });
+    const [def] = (await listSchedules(u.id)).filter((s) => s.is_default === 1);
+    expect(def.timezone).toBe('America/Argentina/Buenos_Aires');
+    expect((await getSchedule(u.id, custom.id))?.timezone).toBe('Asia/Tokyo');
+    // 09:00 hora de Buenos Aires = 12:00 UTC.
+    const monday = nextDow(1);
+    expect(iso(await getAvailableSlots(et.id, 'UTC', monday))[0]).toBe(`${monday}T12:00:00.000Z`);
+
+    // Si el anfitrión ya le puso otra zona al horario, no se toca.
+    await updateSchedule(u.id, def.id, { timezone: 'Europe/Madrid' });
+    await updateCalendarUser(u.id, { timezone: 'UTC' });
+    expect((await getSchedule(u.id, def.id))?.timezone).toBe('Europe/Madrid');
+  });
+});
+
+describe('borrar un tipo de evento', () => {
+  it('con reservas por venir no se borra (409); con solo canceladas, sí', async () => {
+    const u = await makeUser('deltype');
+    await getOrCreateCalendarUser(u.id);
+    const et = await createEventType(u.id, { slug: 'del', title: 'Del', durationMin: 60 });
+    const b = await createBooking({ eventTypeId: et.id, email: 'g@x.com', name: 'G', start: `${nextDow(2)}T10:00:00.000Z` });
+    await expect(deleteEventType(u.id, et.id)).rejects.toMatchObject({ code: 'has_upcoming_bookings', status: 409 });
+    expect(await getEventType(u.id, et.id)).toBeDefined();
+    await updateBooking(b.id, { status: 'cancelled' });
+    expect(await deleteEventType(u.id, et.id)).toBe(true);
   });
 });
 

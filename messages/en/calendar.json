@@ -136,7 +136,9 @@
     "price": "Price",
     "payAndConfirm": "Pay and confirm",
     "redirecting": "Taking you to payment…",
-    "openCheckout": "Open the payment in a new tab"
+    "openCheckout": "Open the payment in a new tab",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month"
   },
   "routing": {
     "title": "Routing forms",
@@ -193,7 +195,8 @@
     "schedule_in_use": "Some event types use this schedule. Assign them another one before deleting it.",
     "invalid_schedule": "That schedule does not exist.",
     "invalid_range": "The end time must be after the start time.",
-    "invalid_key": "That key does not look like a Stripe key."
+    "invalid_key": "That key does not look like a Stripe key.",
+    "has_upcoming_bookings": "This event type has upcoming bookings. Cancel them (guests are notified and payments refunded) or turn it off before deleting it."
   },
   "settings": {
     "title": "Settings",
@@ -293,7 +296,8 @@
     "pick": "Schedule",
     "custom": "Custom hours for this event",
     "customHint": "Hours for this event only, in the Settings time zone. Date overrides do not apply.",
-    "manage": "Edit schedules"
+    "manage": "Edit schedules",
+    "defaultName": "Main schedule"
   },
   "admin": {
     "search": "Search by name or email",
@@ -315,7 +319,8 @@
     "keep": "Back",
     "paid": "Paid",
     "loading": "Loading…",
-    "refunded": "refunded"
+    "refunded": "refunded",
+    "refundOnCancel": "This booking was paid: cancelling refunds the payment in full."
   },
   "workflows": {
     "title": "Reminders",

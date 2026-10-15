@@ -136,7 +136,9 @@
     "price": "Precio",
     "payAndConfirm": "Pagar y confirmar",
     "redirecting": "Te llevamos a pagar…",
-    "openCheckout": "Abrir el pago en otra pestaña"
+    "openCheckout": "Abrir el pago en otra pestaña",
+    "prevMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente"
   },
   "routing": {
     "title": "Formularios de routing",
@@ -193,7 +195,8 @@
     "schedule_in_use": "Hay tipos de evento que usan este horario. Asignales otro antes de borrarlo.",
     "invalid_schedule": "Ese horario no existe.",
     "invalid_range": "La hora de fin tiene que ser posterior a la de inicio.",
-    "invalid_key": "Esa clave no tiene el formato de Stripe."
+    "invalid_key": "Esa clave no tiene el formato de Stripe.",
+    "has_upcoming_bookings": "Este tipo de evento tiene reservas por venir. Cancelalas (se avisa a los invitados y se reembolsan los pagos) o apagalo antes de borrarlo."
   },
   "settings": {
     "title": "Configuración",
@@ -293,7 +296,8 @@
     "pick": "Horario",
     "custom": "Horas propias de este evento",
     "customHint": "Horas solo para este evento, en la zona de Configuración. No usan excepciones por fecha.",
-    "manage": "Editar horarios"
+    "manage": "Editar horarios",
+    "defaultName": "Horario principal"
   },
   "admin": {
     "search": "Buscar por nombre o email",
@@ -315,7 +319,8 @@
     "keep": "Volver",
     "paid": "Pagada",
     "loading": "Cargando…",
-    "refunded": "reembolsado"
+    "refunded": "reembolsado",
+    "refundOnCancel": "Esta reserva está paga: al cancelarla se reembolsa el pago completo."
   },
   "workflows": {
     "title": "Recordatorios",

@@ -177,6 +177,7 @@ export function renderWorkflowTemplate(tpl: string, vars: Record<string, string>
 interface DueRunRow {
   id: string;
   booking_id: string;
+  send_at: string;
   recipient: 'guest' | 'host';
   subject: string;
   body: string;
@@ -203,10 +204,10 @@ function baseUrl(): string {
 export async function processDueWorkflowRuns(
   now = new Date(),
   limit = 100,
-): Promise<{ total: number; sent: number; failed: number }> {
+): Promise<{ total: number; sent: number; failed: number; skipped: number }> {
   const due = (await getDb()
     .prepare(
-      `SELECT r.id, r.booking_id, s.recipient, s.subject, s.body,
+      `SELECT r.id, r.booking_id, r.send_at, s.recipient, s.subject, s.body,
               b.invitee_name, b.invitee_email, b.starts_at, b.timezone, b.locale, b.manage_token, b.meeting_url, b.host_user_id,
               e.user_id AS owner_id, e.title AS event_title, e.location AS event_location, e.brand_color, e.logo_url,
               cu.timezone AS host_timezone
@@ -223,7 +224,15 @@ export async function processDueWorkflowRuns(
 
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
   for (const run of due) {
+    // Un paso "antes" que el cron levanta con la reunión ya empezada (corre
+    // cada hora) llegaría tarde: se descarta sin enviar.
+    if (Date.parse(run.send_at) < Date.parse(run.starts_at) && Date.parse(run.starts_at) <= now.getTime()) {
+      await markRunSent(run.id);
+      skipped += 1;
+      continue;
+    }
     const host = await getUserById(run.host_user_id ?? run.owner_id);
     const toGuest = run.recipient === 'guest';
     const to = toGuest ? run.invitee_email : host?.email;
@@ -268,7 +277,7 @@ export async function processDueWorkflowRuns(
       failed += 1;
     }
   }
-  return { total: due.length, sent, failed };
+  return { total: due.length, sent, failed, skipped };
 }
 
 async function markRunSent(id: string): Promise<void> {
