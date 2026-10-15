@@ -232,4 +232,44 @@ describe('Track GitHub: config y webhook', () => {
     expect((await getIssue(fresh.id))?.status_id).toBe(statusesBefore);
     expect((await listStatuses(project.id)).length).toBeGreaterThan(0);
   });
+
+  it('webhook: menciones sin palabra clave no cambian status y edited no reabre un PR mergeado', async () => {
+    const a = await makeUser('ghm');
+    const project = await createProject(a.id, null, { name: 'Api', slug: `ghm-${crypto.randomUUID().slice(0, 6)}` });
+    const main = await createIssue(project.id, a.id, { title: 'Principal', description: [] }, { source: 'app' });
+    const blocker = await createIssue(project.id, a.id, { title: 'Bloqueante', description: [] }, { source: 'app' });
+    const before = (await getIssue(blocker.id))?.status_id;
+
+    session.user = { ...a, team: null, role: 'owner' };
+    const conf = (await (await configRoute.PUT(put({ repos: ['acme/api'] }))).json()) as {
+      secret: string;
+      config: { id: string };
+    };
+    const pr = (action: string, extra: Record<string, unknown> = {}) => ({
+      action,
+      repository: { full_name: 'acme/api' },
+      pull_request: {
+        number: 7,
+        html_url: 'https://github.com/acme/api/pull/7',
+        title: 'Arreglo',
+        body: `Bloqueado por ${blocker.identifier}`,
+        head: { ref: main.identifier.toLowerCase() },
+        merged: false,
+        state: 'open',
+        ...extra,
+      },
+    });
+
+    const merged = await delivery(conf.config.id, 'pull_request', pr('closed', { merged: true, state: 'closed' }), conf.secret);
+    expect(await merged.json()).toEqual({ linked: 2, moved: 1 });
+    expect((await getIssue(main.id))?.status_category).toBe('done');
+    expect((await getIssue(blocker.id))?.status_id).toBe(before);
+
+    await delivery(conf.config.id, 'pull_request', pr('edited', { merged: true, state: 'closed' }), conf.secret);
+    await delivery(conf.config.id, 'pull_request', pr('labeled', { merged: true, state: 'closed' }), conf.secret);
+    const links = (await (
+      await issueGithubRoute.GET(new NextRequest('http://x') as never, { params: Promise.resolve({ id: main.id }) })
+    ).json()) as { rows: Array<{ state: string }> };
+    expect(links.rows.map((r) => r.state)).toEqual(['merged']);
+  });
 });

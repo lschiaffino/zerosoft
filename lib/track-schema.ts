@@ -14,7 +14,11 @@ const slug = z
   .max(64)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, { message: 'invalid_slug' });
 const color = z.string().trim().max(20).optional();
-const hexColor = z.string().trim().max(20);
+/** Color de label: solo hex (#rgb o #rrggbb). Se renderiza en style={{ background }}. */
+const hexColor = z
+  .string()
+  .trim()
+  .regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i, { message: 'invalid_color' });
 const isoDate = z
   .string()
   .trim()
@@ -157,7 +161,13 @@ export const bulkIssuesSchema = z.discriminatedUnion('action', [
 export const triageActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('accept'), statusId: id.optional() }),
   z.object({ action: z.literal('decline'), reason: shortText.optional() }),
-  z.object({ action: z.literal('duplicate'), duplicateOfId: id }),
+  // El original se indica por id o por identifier (ZER-12), que se busca en
+  // todo el workspace. Si no llega ninguno, resolveTriage responde invalid_duplicate.
+  z.object({
+    action: z.literal('duplicate'),
+    duplicateOfId: id.optional(),
+    duplicateOfIdentifier: z.string().trim().min(1).max(80).optional(),
+  }),
 ]);
 
 // ---------- GitHub ----------

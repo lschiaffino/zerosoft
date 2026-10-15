@@ -1,9 +1,10 @@
 import { after, NextRequest, NextResponse } from 'next/server';
 import { emitEvent } from '@/lib/events';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { validateIssueRefs } from '@/lib/track-bulk';
 import { createIssue, getProject, listIssues, canAccessTrackProject } from '@/lib/track-data';
 import { issueCreateSchema } from '@/lib/track-schema';
-import { invalidBody, notFound, pageParams, sortParam, stringArrayParam, unauthorized } from '@/lib/track-http';
+import { invalidBody, notFound, pageParams, sortParam, stringArrayParam, trackError, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -56,7 +57,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = issueCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const issue = await createIssue(params.id, user.id, parsed.data, { source: 'app' });
+  const invalid = await validateIssueRefs(project, parsed.data, { ownerId: user.id });
+  if (invalid) return trackError(400, invalid);
+
+  const issue = await createIssue(params.id, realUserId(user), parsed.data, { source: 'app' });
   after(() =>
     emitEvent(user.id, 'issue.created', {
       issue: {

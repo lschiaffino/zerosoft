@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { MAX_UPLOAD_SIZE, saveUpload, UploadError } from '@/lib/uploads';
 import { createIssueAttachment, deleteIssueAttachment, getIssue, getProject, listIssueAttachments, canAccessTrackProject } from '@/lib/track-data';
 import { notFound, unauthorized } from '@/lib/track-http';
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     throw err;
   }
 
-  const row = await createIssueAttachment(params.id, user.id, {
+  const row = await createIssueAttachment(params.id, realUserId(user), {
     filename,
     contentType,
     size: file.size,

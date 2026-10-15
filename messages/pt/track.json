@@ -91,7 +91,9 @@
       "cycle": "Ciclo",
       "estimate": "Estimativa (pontos)",
       "dueDate": "Data de vencimento",
-      "labels": "Etiquetas"
+      "labels": "Etiquetas",
+      "removeLabel": "Remover label",
+      "labelsPlaceholder": "Digite e pressione Enter"
     },
     "dueDate": "Data de vencimento",
     "labels": "Etiquetas",
@@ -100,7 +102,8 @@
       "addComment": "Adicionar comentário",
       "noComments": "Ainda não há comentários.",
       "properties": "Propriedades"
-    }
+    },
+    "changeStatus": "Mudar status"
   },
   "subtasks": {
     "title": "Subtarefas",
@@ -211,7 +214,9 @@
     "labels": "Etiquetas",
     "dueDate": "Data de vencimento",
     "search": "Buscar issues…",
-    "clear": "Limpar"
+    "clear": "Limpar",
+    "dueFrom": "De",
+    "dueTo": "Até"
   },
   "savedViews": {
     "title": "Visualizações salvas",
@@ -335,8 +340,8 @@
     "color": "Cor",
     "delete": "Excluir",
     "confirmDelete": "Excluir label",
-    "deleteHelp": "Ele sai de {count} issues.",
-    "issues": "{count} issues",
+    "deleteHelp": "Ele sai de {count, plural, one {# issue} other {# issues}}.",
+    "issues": "{count, plural, one {# issue} other {# issues}}",
     "duplicate": "Já existe um label com esse nome.",
     "empty": "Ainda não há labels.",
     "error": "Não foi possível salvar o label.",
@@ -380,7 +385,10 @@
       "closed": "fechado",
       "merged": "mergeado",
       "pushed": "enviado"
-    }
+    },
+    "regenerateConfirm": "Gerar um novo secret? O atual para de funcionar na hora: as entregas do GitHub vão falhar até você colar o novo secret no webhook.",
+    "disconnectConfirm": "Desconectar o GitHub? PRs e commits deixam de ser vinculados aos issues.",
+    "moveHelp": "Só mudam de status os issues do branch, do título ou precedidos de fixes, closes ou resolves na descrição."
   },
   "bulk": {
     "selected": "{count} selecionados",
@@ -415,7 +423,7 @@
     "duplicate": "Duplicado",
     "duplicateOf": "Duplicado de",
     "duplicatePlaceholder": "ID do original, ex. ZER-12",
-    "duplicateNotFound": "Esse issue não está no projeto.",
+    "duplicateNotFound": "Esse issue não está no workspace.",
     "from": "De {source}",
     "error": "Não foi possível resolver o issue.",
     "sources": {

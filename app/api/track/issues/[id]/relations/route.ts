@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import {
   createIssueRelation,
   deleteIssueRelation,
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   // El issue relacionado también tiene que ser del workspace del usuario.
   if (!(await accessibleIssue(relatedIssueId, user.team?.id ?? null, user.id))) return notFound();
 
-  const rows = await createIssueRelation(params.id, user.id, relatedIssueId, parsed.data.type);
+  const rows = await createIssueRelation(params.id, realUserId(user), relatedIssueId, parsed.data.type);
   return NextResponse.json({ rows });
 }
 
@@ -71,7 +71,7 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const relationId = sp.get('relationId');
   if (!relationId) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
 
-  if (!(await deleteIssueRelation(relationId, params.id, user.id))) return notFound();
+  if (!(await deleteIssueRelation(relationId, params.id, realUserId(user)))) return notFound();
   const rows = await listIssueRelations(params.id);
   return NextResponse.json({ rows });
 }

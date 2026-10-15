@@ -1,9 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
 import {
-  getIssue,
-  getProject,
+  getAccessibleIssue,
   listCycles,
   listIssueActivities,
   listIssueAttachments,
@@ -31,12 +30,14 @@ export default async function IssueDetailPage(
   } = params;
 
   const user = await requireUser(locale);
-  const issue = await getIssue(id);
-  if (!issue) notFound();
+  // El issue tiene que ser de un proyecto del workspace activo: sin esto
+  // cualquiera con el UUID vería el issue, sus adjuntos y los miembros.
+  const found = await getAccessibleIssue(id, user.team?.id ?? null, user.id);
+  if (!found) notFound();
+  const { issue, project } = found;
 
   const projectId = issue.project_id;
-  const [project, statuses, cycles, members, children, parentChain, attachments, relations, activities] = await Promise.all([
-    getProject(projectId),
+  const [statuses, cycles, members, children, parentChain, attachments, relations, activities] = await Promise.all([
     listStatuses(projectId),
     listCycles(projectId),
     listProjectMembers(projectId, user.id),
@@ -52,9 +53,9 @@ export default async function IssueDetailPage(
   return (
     <IssueDetailClient
       locale={locale}
-      userId={user.id}
+      userId={realUserId(user)}
       initialIssue={issue}
-      initialProjectName={project?.name ?? projectId}
+      initialProjectName={project.name}
       initialStatuses={statuses}
       initialCycles={cycles}
       initialMembers={members}

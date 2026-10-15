@@ -1931,6 +1931,39 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Track: el color de los labels se pinta en style={{ background }}; antes
+    // se aceptaba cualquier string (p. ej. url(...)). Los que no son hex
+    // vuelven al gris por defecto, en track_labels y en la copia de cada issue.
+    id: '028_track_label_colors',
+    async up(client) {
+      const isHex = (c: unknown) => typeof c === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(c.trim());
+      const labels = (await client.execute('SELECT id, color FROM track_labels')).rows;
+      for (const r of labels) {
+        if (isHex(r.color)) continue;
+        await client.execute({ sql: "UPDATE track_labels SET color = '#666666' WHERE id = ?", args: [String(r.id)] });
+      }
+      const issues = (
+        await client.execute("SELECT id, labels FROM track_issues WHERE labels IS NOT NULL AND labels != '[]'")
+      ).rows;
+      for (const r of issues) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(String(r.labels));
+        } catch {
+          continue;
+        }
+        if (!Array.isArray(parsed)) continue;
+        const list = parsed as Array<Record<string, unknown>>;
+        if (list.every((l) => isHex(l?.color))) continue;
+        const next = list.map((l) => (isHex(l?.color) ? l : { ...l, color: '#666666' }));
+        await client.execute({
+          sql: 'UPDATE track_issues SET labels = ? WHERE id = ?',
+          args: [JSON.stringify(next), String(r.id)],
+        });
+      }
+    },
+  },
+  {
     // Link: segmentación por país/dispositivo, A/B y deep links (JSON en la
     // misma fila del link: el redirect sigue siendo una sola query), origen de
     // cada visita (link | qr) y variante servida, escaneos QR separados y

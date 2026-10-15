@@ -91,7 +91,9 @@
       "cycle": "Cycle",
       "estimate": "Estimate (points)",
       "dueDate": "Due date",
-      "labels": "Labels"
+      "labels": "Labels",
+      "removeLabel": "Remove label",
+      "labelsPlaceholder": "Type and press Enter"
     },
     "dueDate": "Due date",
     "labels": "Labels",
@@ -100,7 +102,8 @@
       "addComment": "Add comment",
       "noComments": "No comments yet.",
       "properties": "Properties"
-    }
+    },
+    "changeStatus": "Change status"
   },
   "subtasks": {
     "title": "Subtasks",
@@ -211,7 +214,9 @@
     "labels": "Labels",
     "dueDate": "Due date",
     "search": "Search issues…",
-    "clear": "Clear"
+    "clear": "Clear",
+    "dueFrom": "From",
+    "dueTo": "To"
   },
   "savedViews": {
     "title": "Saved views",
@@ -335,8 +340,8 @@
     "color": "Color",
     "delete": "Delete",
     "confirmDelete": "Delete label",
-    "deleteHelp": "It will be removed from {count} issues.",
-    "issues": "{count} issues",
+    "deleteHelp": "It will be removed from {count, plural, one {# issue} other {# issues}}.",
+    "issues": "{count, plural, one {# issue} other {# issues}}",
     "duplicate": "A label with that name already exists.",
     "empty": "No labels yet.",
     "error": "Could not save the label.",
@@ -380,7 +385,10 @@
       "closed": "closed",
       "merged": "merged",
       "pushed": "pushed"
-    }
+    },
+    "regenerateConfirm": "Generate a new secret? The current one stops working right away: GitHub deliveries will fail until you paste the new secret in the webhook.",
+    "disconnectConfirm": "Disconnect GitHub? PRs and commits will no longer be linked to issues.",
+    "moveHelp": "Only issues in the branch, in the title or after fixes, closes or resolves in the description change status."
   },
   "bulk": {
     "selected": "{count} selected",
@@ -415,7 +423,7 @@
     "duplicate": "Duplicate",
     "duplicateOf": "Duplicate of",
     "duplicatePlaceholder": "Original ID, e.g. ZER-12",
-    "duplicateNotFound": "That issue is not in this project.",
+    "duplicateNotFound": "That issue is not in this workspace.",
     "from": "From {source}",
     "error": "Could not resolve the issue.",
     "sources": {

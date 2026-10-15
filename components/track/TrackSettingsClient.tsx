@@ -202,36 +202,54 @@ export function GithubSettings({ isAdmin, locale }: { isAdmin: boolean; locale: 
   }, []);
 
   const save = async (regenerateSecret = false) => {
+    // Regenerar invalida en el acto el secret configurado en GitHub.
+    if (regenerateSecret && !window.confirm(t('github.regenerateConfirm'))) return;
     setBusy(true);
     setError(null);
     const list = repos
       .split(/[\n,]/)
       .map((r) => r.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, ''))
       .filter(Boolean);
-    const res = await send<{ config: GithubConfig; secret: string | null; error?: string }>('/api/track/github', 'PUT', {
-      repos: list,
-      onPrOpen,
-      onPrMerge,
-      regenerateSecret,
-    });
-    setBusy(false);
-    if (!res.ok) {
-      setError(
-        res.status === 403 ? t('github.adminOnly') : res.data.error === 'invalid_repo' ? t('github.invalidRepo') : t('github.error'),
-      );
-      return;
+    try {
+      const res = await send<{ config: GithubConfig; secret: string | null; error?: string }>('/api/track/github', 'PUT', {
+        repos: list,
+        onPrOpen,
+        onPrMerge,
+        regenerateSecret,
+      });
+      if (!res.ok) {
+        setError(
+          res.status === 403 ? t('github.adminOnly') : res.data.error === 'invalid_repo' ? t('github.invalidRepo') : t('github.error'),
+        );
+        return;
+      }
+      setConfig(res.data.config);
+      setRepos(res.data.config.repos.join('\n'));
+      if (res.data.secret) setSecret(res.data.secret);
+    } catch {
+      setError(t('github.error'));
+    } finally {
+      setBusy(false);
     }
-    setConfig(res.data.config);
-    setRepos(res.data.config.repos.join('\n'));
-    if (res.data.secret) setSecret(res.data.secret);
   };
 
   const disconnect = async () => {
+    if (!window.confirm(t('github.disconnectConfirm'))) return;
     setBusy(true);
-    await send('/api/track/github', 'DELETE');
-    setBusy(false);
-    setConfig(null);
-    setSecret(null);
+    setError(null);
+    try {
+      const res = await send('/api/track/github', 'DELETE');
+      if (!res.ok) {
+        setError(res.status === 403 ? t('github.adminOnly') : t('github.error'));
+        return;
+      }
+      setConfig(null);
+      setSecret(null);
+    } catch {
+      setError(t('github.error'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (config === undefined) return null;
@@ -240,6 +258,7 @@ export function GithubSettings({ isAdmin, locale }: { isAdmin: boolean; locale: 
     <section className="track-settings-section" data-testid="track-github-settings">
       <h2 className="track-settings-title">{t('github.title')}</h2>
       <p className="muted track-settings-help">{t('github.help')}</p>
+      <p className="muted track-settings-help">{t('github.moveHelp')}</p>
       {config && (
         <div className="track-github-hook">
           <p className="muted track-settings-help">{t('github.steps')}</p>
