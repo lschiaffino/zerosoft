@@ -872,6 +872,22 @@ export async function getIssue(id: string): Promise<TrackIssueWithStatus | undef
     | undefined;
 }
 
+/**
+ * Issue con su proyecto, solo si el proyecto es del workspace activo
+ * (ver canAccessTrackProject). Para páginas que cargan un issue por id.
+ */
+export async function getAccessibleIssue(
+  id: string,
+  teamId: string | null,
+  ownerId: string,
+): Promise<{ issue: TrackIssueWithStatus; project: TrackProjectRow } | null> {
+  const issue = await getIssue(id);
+  if (!issue) return null;
+  const project = await getProject(issue.project_id);
+  if (!project || !canAccessTrackProject(project, teamId, ownerId)) return null;
+  return { issue, project };
+}
+
 export async function getIssueByIdentifier(
   projectId: string,
   identifier: string,

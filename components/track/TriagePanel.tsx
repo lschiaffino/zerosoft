@@ -15,22 +15,23 @@ interface TriagePanelProps {
   onResolved: () => void;
 }
 
-async function resolve(issueId: string, body: Record<string, unknown>): Promise<boolean> {
+async function resolve(issueId: string, body: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
   const res = await fetch(`/api/track/issues/${issueId}/triage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   }).catch(() => null);
-  return Boolean(res?.ok);
+  if (res?.ok) return { ok: true };
+  const data = res ? ((await res.json().catch(() => ({}))) as { error?: string }) : {};
+  return { ok: false, error: data.error };
 }
 
 function TriageRow({
   issue,
-  projectId,
   statuses,
   locale,
   onResolved,
-}: { issue: TrackIssueWithStatus } & Omit<TriagePanelProps, 'issues'>) {
+}: { issue: TrackIssueWithStatus } & Omit<TriagePanelProps, 'issues' | 'projectId'>) {
   const t = useTranslations('track');
   const defaultStatus = statuses.find((s) => s.category === 'todo') ?? statuses[0];
   const [statusId, setStatusId] = useState(defaultStatus?.id ?? '');
@@ -43,23 +44,18 @@ function TriageRow({
   const act = async (body: Record<string, unknown>) => {
     setBusy(true);
     setError(null);
-    const ok = await resolve(issue.id, body);
+    const res = await resolve(issue.id, body);
     setBusy(false);
-    if (!ok) setError(t('triage.error'));
-    else onResolved();
+    if (res.ok) onResolved();
+    else if (body.action === 'duplicate' && res.error === 'invalid_duplicate') setError(t('triage.duplicateNotFound'));
+    else setError(t('triage.error'));
   };
 
   const markDuplicate = async () => {
     const ident = dupOf.trim().toUpperCase();
     if (!ident) return;
-    const res = await fetch(`/api/track/projects/${projectId}/issues?q=${encodeURIComponent(ident)}&pageSize=20`).catch(() => null);
-    const data = res?.ok ? ((await res.json()) as { rows: TrackIssueWithStatus[] }) : { rows: [] };
-    const original = data.rows.find((r) => r.identifier.toUpperCase() === ident);
-    if (!original) {
-      setError(t('triage.duplicateNotFound'));
-      return;
-    }
-    await act({ action: 'duplicate', duplicateOfId: original.id });
+    // El servidor busca el identifier exacto en todo el workspace.
+    await act({ action: 'duplicate', duplicateOfIdentifier: ident });
   };
 
   return (

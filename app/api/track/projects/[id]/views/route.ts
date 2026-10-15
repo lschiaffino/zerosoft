@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { createIssueView, getProject, listIssueViews, canAccessTrackProject } from '@/lib/track-data';
 import { issueViewCreateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const project = await accessibleProject(params.id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
 
-  const views = await listIssueViews(params.id, user.id);
+  const views = await listIssueViews(params.id, realUserId(user));
   return NextResponse.json({ rows: views });
 }
 
@@ -38,6 +38,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = issueViewCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const view = await createIssueView(params.id, user.id, parsed.data);
+  const view = await createIssueView(params.id, realUserId(user), parsed.data);
   return NextResponse.json(view, { status: 201 });
 }

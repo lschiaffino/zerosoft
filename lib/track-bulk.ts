@@ -51,8 +51,71 @@ async function accessible(
   return project ? { issue, project } : null;
 }
 
-export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): Promise<BulkResult> {
+export type IssueRefError = 'invalid_status' | 'invalid_cycle' | 'invalid_assignee' | 'invalid_parent';
+
+/**
+ * Valida las referencias de un payload de issue contra su proyecto: el status
+ * y el cycle tienen que ser del mismo proyecto, el assignee un miembro del
+ * proyecto y el parent un issue del mismo workspace que no genere un ciclo
+ * (el issue no puede quedar colgado de sí mismo ni de un descendiente).
+ * Devuelve el primer error o null. `issueId` es el issue que se edita (no se
+ * pasa al crear). `members` cachea los miembros por proyecto entre llamadas.
+ */
+export async function validateIssueRefs(
+  project: TrackProjectRow,
+  refs: { statusId?: string | null; cycleId?: string | null; assigneeId?: string | null; parentId?: string | null },
+  opts: { ownerId: string; issueId?: string; members?: Map<string, Set<string>> },
+): Promise<IssueRefError | null> {
   const db = getDb();
+  if (refs.statusId) {
+    const ok = await db
+      .prepare('SELECT id FROM track_statuses WHERE id = ? AND project_id = ?')
+      .get(refs.statusId, project.id);
+    if (!ok) return 'invalid_status';
+  }
+  if (refs.cycleId) {
+    const ok = await db
+      .prepare('SELECT id FROM track_cycles WHERE id = ? AND project_id = ?')
+      .get(refs.cycleId, project.id);
+    if (!ok) return 'invalid_cycle';
+  }
+  if (refs.assigneeId) {
+    const members = opts.members ?? new Map<string, Set<string>>();
+    if (!members.has(project.id)) {
+      const list = await listProjectMembers(project.id, opts.ownerId);
+      members.set(project.id, new Set(list.map((m) => m.id)));
+    }
+    if (!members.get(project.id)!.has(refs.assigneeId)) return 'invalid_assignee';
+  }
+  if (refs.parentId) {
+    if (refs.parentId === opts.issueId) return 'invalid_parent';
+    const parent = await getIssue(refs.parentId);
+    const parentProject = parent
+      ? parent.project_id === project.id
+        ? project
+        : await getProject(parent.project_id)
+      : undefined;
+    if (!parent || !parentProject || projectWorkspaceId(parentProject) !== projectWorkspaceId(project)) {
+      return 'invalid_parent';
+    }
+    if (opts.issueId) {
+      // Subir por la cadena de padres: si aparece el issue editado, sería un ciclo.
+      const seen = new Set<string>();
+      let current: string | null = parent.parent_id;
+      while (current && !seen.has(current)) {
+        if (current === opts.issueId) return 'invalid_parent';
+        seen.add(current);
+        const row = (await db.prepare('SELECT parent_id FROM track_issues WHERE id = ?').get(current)) as
+          | { parent_id: string | null }
+          | undefined;
+        current = row?.parent_id ?? null;
+      }
+    }
+  }
+  return null;
+}
+
+export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): Promise<BulkResult> {
   const result: BulkResult = { updated: [], skipped: [] };
   const projects = new Map<string, TrackProjectRow | null>();
   const members = new Map<string, Set<string>>();
@@ -73,42 +136,15 @@ export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): 
     }
 
     const p = payload.patch;
+    const invalid = await validateIssueRefs(project, p, { ownerId: scope.ownerId, members });
+    if (invalid) {
+      result.skipped.push({ id, reason: invalid });
+      continue;
+    }
     const patch: IssueUpdatePayload = {};
-    if (p.statusId !== undefined) {
-      const ok = await db
-        .prepare('SELECT id FROM track_statuses WHERE id = ? AND project_id = ?')
-        .get(p.statusId, issue.project_id);
-      if (!ok) {
-        result.skipped.push({ id, reason: 'invalid_status' });
-        continue;
-      }
-      patch.statusId = p.statusId;
-    }
-    if (p.cycleId !== undefined) {
-      if (p.cycleId !== null) {
-        const ok = await db
-          .prepare('SELECT id FROM track_cycles WHERE id = ? AND project_id = ?')
-          .get(p.cycleId, issue.project_id);
-        if (!ok) {
-          result.skipped.push({ id, reason: 'invalid_cycle' });
-          continue;
-        }
-      }
-      patch.cycleId = p.cycleId;
-    }
-    if (p.assigneeId !== undefined) {
-      if (p.assigneeId !== null) {
-        if (!members.has(project.id)) {
-          const list = await listProjectMembers(project.id, scope.ownerId);
-          members.set(project.id, new Set(list.map((m) => m.id)));
-        }
-        if (!members.get(project.id)!.has(p.assigneeId)) {
-          result.skipped.push({ id, reason: 'invalid_assignee' });
-          continue;
-        }
-      }
-      patch.assigneeId = p.assigneeId;
-    }
+    if (p.statusId !== undefined) patch.statusId = p.statusId;
+    if (p.cycleId !== undefined) patch.cycleId = p.cycleId;
+    if (p.assigneeId !== undefined) patch.assigneeId = p.assigneeId;
     if (p.priority !== undefined) patch.priority = p.priority;
     if (p.addLabelIds?.length || p.removeLabelIds?.length) {
       const ws = projectWorkspaceId(project);
@@ -158,6 +194,26 @@ async function firstStatusOf(projectId: string, category: string): Promise<strin
 }
 
 /**
+ * Busca un issue por identifier (sin distinguir mayúsculas) en cualquier
+ * proyecto del workspace al que pertenece `projectId`.
+ */
+async function findWorkspaceIssueByIdentifier(
+  projectId: string,
+  identifier: string,
+): Promise<TrackIssueWithStatus | undefined> {
+  const project = await getProject(projectId);
+  const ws = project ? projectWorkspaceId(project) : null;
+  if (!ws) return undefined;
+  const row = (await getDb()
+    .prepare(
+      `SELECT i.id FROM track_issues i JOIN track_projects p ON p.id = i.project_id
+       WHERE COALESCE(p.team_id, p.owner_id) = ? AND UPPER(i.identifier) = ? LIMIT 1`,
+    )
+    .get(ws, identifier.trim().toUpperCase())) as { id: string } | undefined;
+  return row ? getIssue(row.id) : undefined;
+}
+
+/**
  * Resuelve un issue en triage. El llamador ya validó que el issue es del
  * workspace del usuario. Para duplicate, el original tiene que ser del mismo
  * workspace y no estar en triage.
@@ -189,8 +245,12 @@ export async function resolveTriage(
   if (!cancelled) return { ok: false, reason: 'no_cancelled_status' };
 
   if (action.action === 'duplicate') {
-    if (action.duplicateOfId === issue.id) return { ok: false, reason: 'invalid_duplicate' };
-    const original = await getIssue(action.duplicateOfId);
+    const original = action.duplicateOfId
+      ? await getIssue(action.duplicateOfId)
+      : action.duplicateOfIdentifier
+        ? await findWorkspaceIssueByIdentifier(issue.project_id, action.duplicateOfIdentifier)
+        : undefined;
+    if (original?.id === issue.id) return { ok: false, reason: 'invalid_duplicate' };
     const [a, b] = await Promise.all([
       getProject(issue.project_id),
       original ? getProject(original.project_id) : Promise.resolve(undefined),

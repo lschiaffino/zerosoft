@@ -7,7 +7,9 @@
  * buscamos identificadores de issue (PREFIJO-123) en branch, título, cuerpo y
  * mensajes de commit, vinculamos el PR o commit al issue y, según la
  * configuración, movemos el issue a "en curso" al abrir el PR y a "hecho" al
- * mergearlo.
+ * mergearlo. El status solo se mueve para los issues del branch, del título o
+ * precedidos de una palabra clave (fixes, closes, resolves…) en el cuerpo: un
+ * "bloqueado por ZER-11" en la descripción vincula pero no cierra.
  */
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { getDb } from './db';
@@ -103,6 +105,37 @@ export function parseIssueIdentifiers(text: string, prefixes: string[]): string[
   }
   const out: string[] = [];
   for (const f of found.sort((a, b) => a.at - b.at)) if (!out.includes(f.id)) out.push(f.id);
+  return out;
+}
+
+/**
+ * Palabras clave que, delante de un identificador, indican que el PR lo
+ * resuelve (como en GitHub/Linear), en inglés, español y portugués.
+ */
+const CLOSING_KEYWORDS = [
+  'close', 'closes', 'closed', 'fix', 'fixes', 'fixed', 'resolve', 'resolves', 'resolved',
+  'cierra', 'cierro', 'arregla', 'arreglo', 'resuelve', 'soluciona',
+  'fecha', 'corrige', 'resolve', 'conserta',
+];
+
+/**
+ * Identificadores precedidos de una palabra clave de cierre ("Fixes ZER-1",
+ * "closes: ZER-2, ZER-3 y ZER-4"). Solo cuenta la lista que sigue a la
+ * palabra clave; el resto de las menciones no.
+ */
+export function parseClosingIdentifiers(text: string, prefixes: string[]): string[] {
+  if (!text || prefixes.length === 0) return [];
+  const kw = Array.from(new Set(CLOSING_KEYWORDS)).join('|');
+  const ref = '[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*-\\d{1,9}';
+  const re = new RegExp(
+    `(?<![A-Za-z0-9])(?:${kw})\\b\\s*:?\\s*(${ref}(?:\\s*(?:,|&|\\band\\b|\\by\\b|\\be\\b)\\s*${ref})*)`,
+    'gi',
+  );
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    for (const id of parseIssueIdentifiers(m[1], prefixes)) if (!out.includes(id)) out.push(id);
+  }
   return out;
 }
 
@@ -321,6 +354,7 @@ interface PrPayload {
     body?: string | null;
     draft?: boolean;
     merged?: boolean;
+    state?: string;
     head?: { ref?: string };
     user?: { login?: string };
   };
@@ -372,6 +406,11 @@ export async function handleGithubWebhook(
     if (!pr?.number || !pr.html_url) return { status: 400, body: { error: 'invalid_payload' } };
     const branch = pr.head?.ref ?? '';
     const ids = parseIssueIdentifiers([branch, pr.title ?? '', pr.body ?? ''].join('\n'), prefixes);
+    // Solo estos cambian de status; las demás menciones del cuerpo solo se vinculan.
+    const movable = new Set([
+      ...parseIssueIdentifiers([branch, pr.title ?? ''].join('\n'), prefixes),
+      ...parseClosingIdentifiers(pr.body ?? '', prefixes),
+    ]);
     const issues = await findWorkspaceIssues(row.workspace_id, ids);
     const action = p.action ?? '';
     const kind: GithubEventKind =
@@ -382,8 +421,15 @@ export async function handleGithubWebhook(
         : action === 'opened' || action === 'reopened' || action === 'ready_for_review'
           ? 'pr_opened'
           : 'pr_updated';
-    const state: TrackIssueLink['state'] =
-      kind === 'pr_merged' ? 'merged' : kind === 'pr_closed' ? 'closed' : pr.draft ? 'draft' : 'open';
+    // El estado del vínculo sale del PR, no de la action: GitHub manda
+    // edited/labeled/assigned también para PRs cerrados o mergeados.
+    const state: TrackIssueLink['state'] = pr.merged
+      ? 'merged'
+      : pr.state === 'closed' || kind === 'pr_closed'
+        ? 'closed'
+        : pr.draft
+          ? 'draft'
+          : 'open';
     let moved = 0;
     for (const issue of issues) {
       await upsertLink(issue.id, {
@@ -396,6 +442,7 @@ export async function handleGithubWebhook(
         branch: branch || null,
         author: pr.user?.login ?? null,
       });
+      if (!movable.has(issue.identifier.toUpperCase())) continue;
       const target = plannedCategory(issue.status_category, kind, config);
       if (target && (await moveIssueToCategory(issue, target, row.owner_id))) moved++;
     }

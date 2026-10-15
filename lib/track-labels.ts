@@ -22,6 +22,18 @@ export function trackWorkspaceId(teamId: string | null, ownerId: string): string
   return teamId ?? ownerId;
 }
 
+export const DEFAULT_LABEL_COLOR = '#666666';
+
+/**
+ * Color seguro para un label: solo hex (#rgb o #rrggbb). Cualquier otra cosa
+ * (p. ej. `url(...)`, que el navegador cargaría al pintar el fondo) vuelve al
+ * color por defecto.
+ */
+export function safeLabelColor(color: string | null | undefined): string {
+  const c = (color ?? '').trim();
+  return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(c) ? c : DEFAULT_LABEL_COLOR;
+}
+
 export function projectWorkspaceId(project: Pick<TrackProjectRow, 'team_id' | 'owner_id'>): string | null {
   return project.team_id ?? project.owner_id ?? null;
 }
@@ -82,7 +94,7 @@ export async function createLabel(
   const id = crypto.randomUUID();
   await getDb()
     .prepare('INSERT INTO track_labels (id, workspace_id, name, color) VALUES (?, ?, ?, ?)')
-    .run(id, workspaceId, name, input.color?.trim() || '#666666');
+    .run(id, workspaceId, name, safeLabelColor(input.color));
   return { ok: true, label: (await getLabel(workspaceId, id)) as TrackLabel };
 }
 
@@ -118,7 +130,7 @@ export async function updateLabel(
   const existing = await getLabel(workspaceId, id);
   if (!existing) return { ok: false, reason: 'not_found' };
   const name = input.name !== undefined ? input.name.trim().slice(0, 50) : existing.name;
-  const color = input.color !== undefined ? input.color.trim() || existing.color : existing.color;
+  const color = safeLabelColor(input.color !== undefined ? input.color.trim() || existing.color : existing.color);
   if (name.toLowerCase() !== existing.name.toLowerCase()) {
     const clash = await getLabelByName(workspaceId, name);
     if (clash && clash.id !== id) return { ok: false, reason: 'duplicate' };

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DragEvent } from 'react';
 import { Link } from '@/i18n/navigation';
 import { formatDate } from '@/lib/utils';
@@ -53,6 +54,7 @@ export default function IssuesBoard({
   editing,
   onQuickCreate,
 }: IssuesBoardProps) {
+  const t = useTranslations('track');
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStatusId, setOverStatusId] = useState<string | null>(null);
 
@@ -233,7 +235,7 @@ export default function IssuesBoard({
                         {onStatusChange && (
                           <div className="track-board-card-actions">
                             <select
-                              aria-label="Change status"
+                              aria-label={t('issues.changeStatus')}
                               value={issue.status_id ?? ''}
                               onChange={(e) => onStatusChange(issue.id, e.target.value)}
                             >

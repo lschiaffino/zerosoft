@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { createIssueComment, getIssue, getProject, listIssueComments, canAccessTrackProject } from '@/lib/track-data';
 import { commentCreateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
@@ -40,6 +40,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = commentCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const comment = await createIssueComment(params.id, user.id, parsed.data);
+  const comment = await createIssueComment(params.id, realUserId(user), parsed.data);
   return NextResponse.json(comment, { status: 201 });
 }

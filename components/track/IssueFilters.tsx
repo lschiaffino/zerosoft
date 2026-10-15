@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
 
@@ -101,6 +102,7 @@ export default function IssueFilters({
   issueLabels,
   labels,
 }: IssueFiltersProps) {
+  const t = useTranslations('track');
   const allLabels = issueLabels;
 
   const activeCount =
@@ -156,14 +158,16 @@ export default function IssueFilters({
               type="date"
               value={filters.dueAfter}
               onChange={(e) => update({ dueAfter: e.target.value })}
-              placeholder="From"
+              placeholder={t('filters.dueFrom')}
+              aria-label={`${labels.dueDate}: ${t('filters.dueFrom')}`}
             />
             <span>→</span>
             <input
               type="date"
               value={filters.dueBefore}
               onChange={(e) => update({ dueBefore: e.target.value })}
-              placeholder="To"
+              placeholder={t('filters.dueTo')}
+              aria-label={`${labels.dueDate}: ${t('filters.dueTo')}`}
             />
           </div>
         </div>
