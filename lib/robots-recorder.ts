@@ -165,7 +165,11 @@ document.addEventListener('change', function (e) {
   if (tag === 'select') { push({ type: 'select', selector: sel(el).selector, value: el.value }); return; }
   if (tag === 'textarea' || (tag === 'input' && !/^(submit|button|checkbox|radio|reset|file|hidden)$/i.test(el.type || ''))) {
     var pw = (el.type || '').toLowerCase() === 'password';
-    push({ type: 'fill', selector: sel(el).selector, value: pw ? ${JSON.stringify(PASSWORD_PLACEHOLDER)} : el.value });
+    var fill = { type: 'fill', selector: sel(el).selector, value: pw ? ${JSON.stringify(PASSWORD_PLACEHOLDER)} : el.value };
+    // Enter ya grabó fill + press: el change que dispara el navegador al confirmar no se repite.
+    var n = state.steps.length, last = state.steps[n - 1], before = state.steps[n - 2];
+    if (last && last.type === 'press' && last.key === 'Enter' && last.selector === fill.selector && before && before.type === 'fill' && before.selector === fill.selector && before.value === fill.value) return;
+    push(fill);
   }
 }, true);
 document.addEventListener('keydown', function (e) {
@@ -218,5 +222,30 @@ export function parseRecordedSteps(text: string): ParseRecordedResult {
   if (!Array.isArray(list) || list.length === 0) return { ok: false, error: 'no_steps' };
   const v = validateSteps(list);
   if (!v.ok) return { ok: false, error: 'invalid_steps', index: v.index };
-  return { ok: true, steps: v.steps };
+  return { ok: true, steps: dropRefillAfterEnter(v.steps) };
+}
+
+/**
+ * Grabaciones viejas: fill → Enter → mismo fill (el change que sigue al Enter).
+ * El último fill sobra y, si Enter envió el formulario, falla en la página nueva.
+ */
+function dropRefillAfterEnter(steps: RobotStep[]): RobotStep[] {
+  const out: RobotStep[] = [];
+  for (const s of steps) {
+    const last = out.at(-1);
+    const before = out.at(-2);
+    if (
+      s.type === 'fill' &&
+      last?.type === 'press' &&
+      last.key === 'Enter' &&
+      before?.type === 'fill' &&
+      last.selector === s.selector &&
+      before.selector === s.selector &&
+      before.value === s.value
+    ) {
+      continue;
+    }
+    out.push(s);
+  }
+  return out;
 }

@@ -507,6 +507,20 @@ export interface EnqueueOptions {
   rerunOf?: string | null;
 }
 
+/**
+ * Tope del input guardado de una corrida: holgado por encima del body máximo
+ * de un webhook (256 KB, que al serializarse puede crecer) más headers y query.
+ */
+export const MAX_RUN_INPUT = 2_000_000;
+/** Input que no entró en MAX_RUN_INPUT: la corrida falla con input_too_large (nunca arranca vacía). */
+export const INPUT_TOO_LARGE_KEY = '__flowInputTooLarge';
+
+/** Input serializado para flow_runs.input; si no entra, un marcador explícito (nunca JSON cortado). */
+function serializeRunInput(input: unknown): string {
+  const json = JSON.stringify(input ?? {});
+  return json.length <= MAX_RUN_INPUT ? json : JSON.stringify({ [INPUT_TOO_LARGE_KEY]: json.length });
+}
+
 /** Inserta una corrida en cola. null si el workspace superó el límite. */
 export async function enqueueRun(
   flow: Pick<FlowFlowRow, 'id' | 'user_id'>,
@@ -531,7 +545,7 @@ export async function enqueueRun(
       flow.user_id,
       triggerType,
       status,
-      JSON.stringify(input ?? {}).slice(0, 200_000),
+      serializeRunInput(input),
       chain.depth,
       JSON.stringify([...new Set([...chain.seen, flow.id])]),
       opts.lockMs ? new Date(Date.now() + opts.lockMs).toISOString() : null,
@@ -543,16 +557,21 @@ export async function enqueueRun(
   return id;
 }
 
+const KICK_LIMIT = 5;
+const KICK_BUDGET_MS = 20_000;
+
 /**
  * Procesa la cola poco después de responder (after) si hay request en curso;
  * si no (scripts), en segundo plano. En tests no hace nada: se llama al worker
- * explícitamente.
+ * explícitamente. Con presupuesto y pocas corridas: corre dentro de la función
+ * que encoló (que pudo gastar buena parte de su maxDuration); el resto queda
+ * para el cron.
  */
 export function kickFlowWorker(): void {
   if (process.env.FLOW_WORKER_KICK === 'false' || process.env.VITEST) return;
   const job = async () => {
     const { processFlowQueue } = await import('./flow-worker');
-    await processFlowQueue({ limit: 25 });
+    await processFlowQueue({ limit: KICK_LIMIT, budgetMs: KICK_BUDGET_MS });
   };
   try {
     after(job);
