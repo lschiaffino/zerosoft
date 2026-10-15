@@ -62,18 +62,36 @@ async function vercel(path: string, init: RequestInit = {}): Promise<Response | 
   }).catch(() => null);
 }
 
-function isApex(hostname: string): boolean {
-  return hostname.split('.').length === 2;
+/**
+ * Sufijos públicos de dos niveles (com.ar, com.br, co.uk…): el dominio
+ * registrable tiene un label más. Sin la Public Suffix List completa, cubre
+ * el patrón <com|net|org|…>.<ccTLD> de los mercados principales.
+ */
+const SECOND_LEVEL = new Set(['com', 'net', 'org', 'gob', 'gov', 'edu', 'co', 'ac', 'mil', 'nom', 'int', 'ltd', 'plc', 'or', 'ne', 'go']);
+
+/** Dominio registrable (la zona DNS donde el usuario crea los registros). */
+export function registrableDomain(hostname: string): string {
+  const labels = hostname.split('.');
+  const n = labels.length;
+  const multi = n >= 3 && labels[n - 1].length === 2 && SECOND_LEVEL.has(labels[n - 2]);
+  return labels.slice(-(multi ? 3 : 2)).join('.');
+}
+
+/** Nombre del registro relativo a la zona: '' en el apex, 'links.go' en links.go.empresa.com. */
+function recordLabel(hostname: string): string {
+  const zone = registrableDomain(hostname);
+  return hostname === zone ? '' : hostname.slice(0, -(zone.length + 1));
 }
 
 function routingInstruction(hostname: string): DnsInstruction {
   const appHost = (process.env.SHORT_DOMAIN ?? process.env.NEXTAUTH_URL ?? 'zerosoft.ai').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const label = recordLabel(hostname);
   if (vercelConfigured()) {
-    return isApex(hostname)
-      ? { type: 'A', name: '@', value: '76.76.21.21' }
-      : { type: 'CNAME', name: hostname.split('.')[0], value: 'cname.vercel-dns.com' };
+    return label
+      ? { type: 'CNAME', name: label, value: 'cname.vercel-dns.com' }
+      : { type: 'A', name: '@', value: '76.76.21.21' };
   }
-  return { type: 'CNAME', name: isApex(hostname) ? '@' : hostname.split('.')[0], value: appHost };
+  return { type: 'CNAME', name: label || '@', value: appHost };
 }
 
 /** Qué registros DNS tiene que crear el usuario: el que apunta a nosotros y el TXT de propiedad. */
@@ -82,7 +100,7 @@ export function dnsInstructions(hostname: string, token?: string | null): DnsIns
   if (token) {
     out.push({
       type: 'TXT',
-      name: isApex(hostname) ? VERIFY_PREFIX : `${VERIFY_PREFIX}.${hostname.split('.')[0]}`,
+      name: [VERIFY_PREFIX, recordLabel(hostname)].filter(Boolean).join('.'),
       value: verifyTxtValue(token),
     });
   }

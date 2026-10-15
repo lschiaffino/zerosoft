@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import type { LinkWithDomain } from './links';
 import { shortUrl } from './utils';
 
@@ -62,4 +64,17 @@ export function linkPreviewHtml(link: LinkWithDomain, slug: string, locale: stri
     </main>
   </body>
 </html>`;
+}
+
+/**
+ * Metadatos de la puerta de contraseña. Se ve sin contraseña (y es lo que
+ * leen los unfurlers de Slack o WhatsApp en un link protegido): nada que
+ * dependa del link (destino, título, og_*) puede salir acá.
+ */
+export async function gateMetadata(locale: string): Promise<Metadata> {
+  const t = await getTranslations({ locale, namespace: 'link' });
+  return {
+    title: t('gate.title'),
+    robots: { index: false, follow: false },
+  };
 }

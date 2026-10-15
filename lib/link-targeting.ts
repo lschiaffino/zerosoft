@@ -106,6 +106,17 @@ export function normalizeTargeting(
   return { ok: true, value: { rules, ab, ios: ios.value, android: android.value } };
 }
 
+/** Todas las URLs web a las que puede redirigir la segmentación (para el chequeo anti-loop). */
+export function targetingDestinations(t: LinkTargeting): string[] {
+  const out = [...t.rules.map((r) => r.url), ...t.ab.map((v) => v.url)];
+  for (const d of [t.ios, t.android]) {
+    if (!d) continue;
+    if (/^https?:/i.test(d.app)) out.push(d.app);
+    if (d.fallback) out.push(d.fallback);
+  }
+  return out;
+}
+
 /** Lee la columna links.targeting. JSON roto = sin reglas (nunca rompe el redirect). */
 export function parseTargeting(raw: string | null | undefined): LinkTargeting | null {
   if (!raw) return null;

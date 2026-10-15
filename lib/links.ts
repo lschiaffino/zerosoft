@@ -10,7 +10,13 @@ import { isValidUrl, normalizeUrl, shortDomain, shortUrl } from './utils';
 import { appHosts, isAppHost, normalizeHost } from './hosts';
 import { getVerifiedDomainByHost } from './link-domains';
 import { emitEvent } from './events';
-import { linkTargetingSchema, normalizeTargeting, parseTargeting, type LinkTargeting } from './link-targeting';
+import {
+  linkTargetingSchema,
+  normalizeTargeting,
+  parseTargeting,
+  targetingDestinations,
+  type LinkTargeting,
+} from './link-targeting';
 
 /** LinkRow + el hostname de su dominio propio (null = dominio por defecto). */
 export type LinkWithDomain = LinkRow & { domain_hostname?: string | null };
@@ -293,8 +299,8 @@ export function applyUtm(
 // ---------- Abuso ----------
 
 /**
- * La URL es un link corto nuestro (zerosoft.ai/<slug>, /r/<slug>, /s/<slug> o
- * un dominio propio verificado). Como destino arma loops de redirects que
+ * La URL es un link corto nuestro (zerosoft.ai/<slug>, /r/<slug>, /s/<slug>,
+ * /<locale>/gate/<slug> o un dominio propio verificado). Como destino arma loops de redirects que
  * inflan clicks, webhooks y gastan max_clicks.
  */
 export async function isShortLinkUrl(url: string): Promise<boolean> {
@@ -307,10 +313,10 @@ export async function isShortLinkUrl(url: string): Promise<boolean> {
   const host = normalizeHost(u.host).replace(/^www\./, '');
   const bare = host.replace(/:\d+$/, '');
   const ours = new Set([...appHosts(), normalizeHost(shortDomain())].map((h) => h.replace(/^www\./, '')));
-  const m = /^\/(?:([rs])\/)?([^/]+)\/?$/.exec(u.pathname);
+  const m = /^\/(?:([rs]|(?:en|es|pt)\/gate)\/)?([^/]+)\/?$/.exec(u.pathname);
   if (ours.has(host) || ours.has(bare)) {
     if (!m) return false;
-    // /r/<slug> y /s/<slug> siempre son links; /<slug> solo si no es una ruta del sitio.
+    // /r/<slug>, /s/<slug> y la puerta siempre son links; /<slug> solo si no es una ruta del sitio.
     return m[1] ? SLUG_REGEX.test(m[2]) : isValidSlug(m[2]);
   }
   return Boolean(m && (await getVerifiedDomainByHost(bare)));
@@ -389,6 +395,7 @@ export async function createLink(
   }
 
   let slug: string;
+  const customSlug = Boolean(input.slug && input.slug.trim());
   if (input.slug && input.slug.trim()) {
     slug = input.slug.trim();
     if (!isValidSlug(slug, Boolean(domainId))) return { ok: false, code: 'invalid_slug' };
@@ -417,30 +424,42 @@ export async function createLink(
 
   const id = crypto.randomUUID();
   const redirectType = input.redirectType === 301 ? 301 : 302;
-  await db
-    .prepare(
-      `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      id,
-      userId,
-      domainId,
-      slug,
-      utm.url,
-      input.title?.trim() || null,
-      JSON.stringify(tags),
-      input.password ? await hashPassword(input.password) : null,
-      expiresAt,
-      input.maxClicks ?? null,
-      redirectType,
-      utm.source,
-      utm.medium,
-      utm.campaign,
-      input.ogTitle?.trim() || null,
-      input.ogDescription?.trim() || null,
-      input.ogImage?.trim() || null,
-    );
+  const passwordHash = input.password ? await hashPassword(input.password) : null;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await db
+        .prepare(
+          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          userId,
+          domainId,
+          slug,
+          utm.url,
+          input.title?.trim() || null,
+          JSON.stringify(tags),
+          passwordHash,
+          expiresAt,
+          input.maxClicks ?? null,
+          redirectType,
+          utm.source,
+          utm.medium,
+          utm.campaign,
+          input.ogTitle?.trim() || null,
+          input.ogDescription?.trim() || null,
+          input.ogImage?.trim() || null,
+        );
+      break;
+    } catch (e) {
+      // Carrera con otra alta al mismo slug (doble submit, import en paralelo):
+      // el UNIQUE lo frena. Slug propio → slug_taken; generado → otro slug.
+      if (!/UNIQUE constraint failed/i.test(String(e))) throw e;
+      if (customSlug || attempt >= 2) return { ok: false, code: 'slug_taken' };
+      slug = await generateSlug(domainId);
+    }
+  }
 
   const created = (await getUserLink(userId, id))!;
   await emitEvent(userId, 'link.created', { link: toLinkDto(created) });
@@ -614,6 +633,10 @@ export async function applyLinkPatch(
     } else {
       const t = normalizeTargeting(p.targeting);
       if (!t.ok) return { error: t.error, status: 400 };
+      // Mismo anti-loop que la URL del link: ninguna variante puede volver a un link corto.
+      for (const url of t.value ? targetingDestinations(t.value) : []) {
+        if (await isShortLinkUrl(url)) return { error: 'self_link', status: 400 };
+      }
       sets.push('targeting = ?');
       args.push(t.value ? JSON.stringify(t.value) : null);
     }

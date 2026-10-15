@@ -1,5 +1,5 @@
 import { getDb } from './db';
-import { dayList, type BreakdownItem } from './track';
+import { csvSafe, dayList, type BreakdownItem } from './track';
 import { shortUrl } from './utils';
 
 /**
@@ -174,7 +174,7 @@ export async function exportWorkspaceClicks(userId: string, range: WorkspaceRang
 }
 
 function cell(v: string | null): string {
-  const s = (v ?? '').replace(/"/g, '""');
+  const s = csvSafe(v ?? '').replace(/"/g, '""');
   return /[",\n\r]/.test(s) ? `"${s}"` : s;
 }
 

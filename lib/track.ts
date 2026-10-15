@@ -223,8 +223,13 @@ export async function getClickCountries(linkId: string): Promise<string[]> {
   return rows.map((r) => r.country).filter((c): c is string => !!c);
 }
 
+/** Un valor que empieza con = + - @ (o tab/CR) se abre como fórmula en Excel/Sheets: se neutraliza con '. */
+export function csvSafe(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
 function csvCell(value: string): string {
-  const escaped = value.replace(/"/g, '""');
+  const escaped = csvSafe(value).replace(/"/g, '""');
   if (/[",\n\r]/.test(escaped)) return `"${escaped}"`;
   return escaped;
 }
