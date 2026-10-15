@@ -766,7 +766,7 @@ export interface CalendarBookingRow {
   meeting_url: string | null;
   locale: string;
   /** none | pending | paid | expired (027_cal_payments). */
-  payment_status: 'none' | 'pending' | 'paid' | 'expired';
+  payment_status: 'none' | 'pending' | 'paid' | 'expired' | 'refunded';
   hold_expires_at: string | null;
   stripe_session_id: string | null;
   amount_cents: number;

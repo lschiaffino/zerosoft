@@ -8,6 +8,7 @@ import {
 } from '@/lib/calendar';
 import { createSchedule } from '@/lib/calendar-schedules';
 import {
+  abandonCheckout,
   getPaymentSettings,
   reconcileCheckout,
   savePaymentSettings,
@@ -27,6 +28,7 @@ vi.mock('@/lib/session', () => ({
 const bookingsRoute = await import('@/app/api/calendar/bookings/route');
 const webhookRoute = await import('@/app/api/calendar/payments/webhook/[token]/route');
 const paymentsRoute = await import('@/app/api/calendar/payments/route');
+const bookingAdminRoute = await import('@/app/api/calendar/bookings/[id]/route');
 
 const KEY = 'sk_test_51abcDEF123456';
 const WHSEC = 'whsec_testsecret123';
@@ -51,6 +53,9 @@ function stripeFetch(input: string | URL | Request, init?: RequestInit): Promise
     const id = `cs_test_${sessionCounter}`;
     return Promise.resolve(Response.json({ id, url: `https://checkout.stripe.com/c/pay/${id}` }));
   }
+  if (url.endsWith('/refunds') && init?.method === 'POST') return Promise.resolve(Response.json({ id: 're_test_1', status: 'succeeded' }));
+  const exp = /checkout\/sessions\/([^/?]+)\/expire$/.exec(url);
+  if (exp && init?.method === 'POST') return Promise.resolve(Response.json({ id: exp[1], status: 'expired' }));
   const m = /checkout\/sessions\/([^/?]+)$/.exec(url);
   if (m) return Promise.resolve(Response.json({ id: m[1], payment_status: sessionPaid ? 'paid' : 'unpaid' }));
   return Promise.resolve(Response.json({ error: { message: 'nope' } }, { status: 404 }));
@@ -122,6 +127,28 @@ function webhook(token: string, event: unknown, opts: { secret?: string; t?: num
     }) as never,
     { params: Promise.resolve({ token }) },
   );
+}
+
+/** Evento de Checkout como lo manda Stripe para la sesión de una reserva. */
+function sessionEvent(type: string, row: CalendarBookingRow, object: Record<string, unknown> = {}) {
+  return {
+    type,
+    data: {
+      object: {
+        id: row.stripe_session_id,
+        payment_status: 'paid',
+        amount_total: row.amount_cents,
+        currency: row.currency,
+        payment_intent: `pi_${row.id}`,
+        metadata: { booking_id: row.id, source: 'zerosoft_cal' },
+        ...object,
+      },
+    },
+  };
+}
+
+async function outcomeOf(res: Response): Promise<string> {
+  return ((await res.json()) as { outcome: string }).outcome;
 }
 
 async function bookingRow(id: string) {
@@ -215,10 +242,7 @@ describe('reserva paga con Stripe Checkout', () => {
     expect(await findOfferedSlot(et.id, new Date(`${day}T10:00:00.000Z`), 'UTC')).toBeNull();
     expect((await book(et.id, `${day}T10:00:00.000Z`, 'other@x.com')).status).toBe(409);
 
-    const event = {
-      type: 'checkout.session.completed',
-      data: { object: { id: row.stripe_session_id, payment_status: 'paid', metadata: { booking_id: data.id } } },
-    };
+    const event = sessionEvent('checkout.session.completed', row);
     const ok = await webhook(token, event);
     expect(ok.status).toBe(200);
     expect(((await ok.json()) as { outcome: string }).outcome).toBe('confirmed');
@@ -236,7 +260,7 @@ describe('reserva paga con Stripe Checkout', () => {
     const b = await paidEventType('pay2b');
     const day = nextDow(3);
     const data = (await (await book(a.et.id, `${day}T11:00:00.000Z`)).json()) as { id: string };
-    const event = { type: 'checkout.session.completed', data: { object: { payment_status: 'paid', metadata: { booking_id: data.id } } } };
+    const event = sessionEvent('checkout.session.completed', await bookingRow(data.id));
 
     expect((await webhook(a.token, event, { secret: 'whsec_wrong' })).status).toBe(400);
     expect((await webhook(a.token, event, { t: Math.floor(Date.now() / 1000) - 3600 })).status).toBe(400);
@@ -255,13 +279,13 @@ describe('reserva paga con Stripe Checkout', () => {
     expect(await findOfferedSlot(et.id, new Date(`${day}T12:00:00.000Z`), 'UTC')).not.toBeNull();
 
     const second = (await (await book(et.id, `${day}T12:00:00.000Z`, 'h@x.com')).json()) as { id: string };
-    const res = await webhook(token, { type: 'checkout.session.expired', data: { object: { metadata: { booking_id: second.id } } } });
+    const res = await webhook(token, sessionEvent('checkout.session.expired', await bookingRow(second.id), { payment_status: 'unpaid' }));
     expect(((await res.json()) as { outcome: string }).outcome).toBe('expired');
     expect((await bookingRow(second.id)).status).toBe('cancelled');
   });
 
-  it('al volver de Checkout se confirma consultando la sesión (sin webhook)', async () => {
-    const { et } = await paidEventType('pay4', { webhook: false });
+  it('al volver de Checkout se confirma consultando la sesión (si el webhook todavía no llegó)', async () => {
+    const { et } = await paidEventType('pay4');
     const day = nextDow(5);
     const data = (await (await book(et.id, `${day}T13:00:00.000Z`)).json()) as { id: string };
     const row = await bookingRow(data.id);
@@ -279,7 +303,11 @@ describe('reserva paga con Stripe Checkout', () => {
     expect(res.status).toBe(409);
     expect(((await res.json()) as { error: string }).error).toBe('payments_not_configured');
 
+    // Solo la clave, sin signing secret: tampoco se cobra (el pago podría no confirmarse nunca).
     await savePaymentSettings(u.id, { stripeSecretKey: KEY });
+    expect((await book(et.id, `${day}T14:00:00.000Z`)).status).toBe(409);
+
+    await savePaymentSettings(u.id, { stripeWebhookSecret: WHSEC });
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: { message: 'boom' } }, { status: 500 })));
     expect((await book(et.id, `${day}T14:00:00.000Z`)).status).toBe(502);
     expect(await findOfferedSlot(et.id, new Date(`${day}T14:00:00.000Z`), 'UTC')).not.toBeNull();
@@ -288,5 +316,139 @@ describe('reserva paga con Stripe Checkout', () => {
     await updateEventType(u.id, et.id, { priceCents: 0 });
     const free = await book(et.id, `${day}T14:00:00.000Z`);
     expect(((await free.json()) as { status: string }).status).toBe('confirmed');
+  });
+});
+
+describe('webhook: la sesión tiene que ser la de la reserva', () => {
+  it('ignora Payment Links con client_reference_id, otra sesión, otro monto u otra moneda', async () => {
+    const { et, token } = await paidEventType('pay6');
+    const day = nextDow(2, 10);
+    const data = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string };
+    const row = await bookingRow(data.id);
+
+    // Payment Link de USD 1 de la misma cuenta, con ?client_reference_id=<reserva>.
+    const paymentLink = {
+      type: 'checkout.session.completed',
+      data: { object: { id: 'cs_live_link', payment_status: 'paid', amount_total: 100, currency: 'usd', client_reference_id: data.id } },
+    };
+    expect(await outcomeOf(await webhook(token, paymentLink))).toBe('ignored');
+    // metadata copiada pero sin la marca de Cal, otra sesión, otro monto u otra moneda.
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row, { metadata: { booking_id: data.id } })))).toBe('ignored');
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row, { id: 'cs_test_other' })))).toBe('ignored');
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row, { amount_total: 100 })))).toBe('ignored');
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row, { currency: 'mxn' })))).toBe('ignored');
+    // Ni expirar la reserva desde otra sesión.
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.expired', row, { id: 'cs_test_other' })))).toBe('ignored');
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'pending', payment_status: 'pending' });
+
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row)))).toBe('confirmed');
+  });
+});
+
+describe('pagos tardíos', () => {
+  it('hold vencido por el cron con el horario libre: el pago confirma igual', async () => {
+    const { et, token } = await paidEventType('pay7');
+    const day = nextDow(3, 10);
+    const data = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string };
+    const row = await bookingRow(data.id);
+    await expireUnpaidHolds(new Date(Date.now() + 36 * 60_000));
+    expect((await bookingRow(data.id)).status).toBe('cancelled');
+
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row)))).toBe('confirmed');
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'confirmed', payment_status: 'paid', cancel_reason: null });
+    expect(stripeCalls.some((c) => c.url.endsWith('/refunds'))).toBe(false);
+  });
+
+  it('hold vencido y horario ya tomado: se reembolsa una sola vez y no queda reserva', async () => {
+    const { et, token } = await paidEventType('pay8');
+    const day = nextDow(4, 10);
+    const first = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string };
+    const row = await bookingRow(first.id);
+    await expireUnpaidHolds(new Date(Date.now() + 36 * 60_000));
+    const second = (await (await book(et.id, `${day}T10:00:00.000Z`, 'other@x.com')).json()) as { id: string };
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', await bookingRow(second.id))))).toBe('confirmed');
+
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row)))).toBe('refunded');
+    const refunds = stripeCalls.filter((c) => c.url.endsWith('/refunds'));
+    expect(refunds).toHaveLength(1);
+    expect(new URLSearchParams(refunds[0].body).get('payment_intent')).toBe(`pi_${first.id}`);
+    expect(await bookingRow(first.id)).toMatchObject({ status: 'cancelled', payment_status: 'refunded' });
+    // Reintento de Stripe: no reembolsa de nuevo.
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row)))).toBe('ignored');
+    expect(stripeCalls.filter((c) => c.url.endsWith('/refunds'))).toHaveLength(1);
+  });
+
+  it('el anfitrión cancela el hold: se expira la sesión y un pago que igual llega se reembolsa', async () => {
+    const { u, et, token } = await paidEventType('pay9');
+    const day = nextDow(5, 10);
+    const data = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string };
+    const row = await bookingRow(data.id);
+    session.user = u;
+    const res = await bookingAdminRoute.PATCH(
+      new Request('http://x', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: 'cancelled' }) }) as never,
+      { params: Promise.resolve({ id: data.id }) },
+    );
+    expect(res.status).toBe(200);
+    expect(stripeCalls.some((c) => c.method === 'POST' && c.url.endsWith(`/checkout/sessions/${row.stripe_session_id}/expire`))).toBe(true);
+
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row)))).toBe('refunded');
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'cancelled', payment_status: 'refunded' });
+  });
+
+  it('medio asíncrono (sesión completa sin pagar): el hold se estira y el pago posterior confirma', async () => {
+    const { et, token } = await paidEventType('pay10');
+    const day = nextDow(6, 10);
+    const data = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string };
+    const row = await bookingRow(data.id);
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.completed', row, { payment_status: 'unpaid' })))).toBe('held');
+    expect(await expireUnpaidHolds(new Date(Date.now() + 36 * 60_000))).toBe(0);
+    expect((await bookingRow(data.id)).status).toBe('pending');
+    expect(await outcomeOf(await webhook(token, sessionEvent('checkout.session.async_payment_succeeded', row)))).toBe('confirmed');
+  });
+});
+
+describe('holds y el índice único', () => {
+  it('dos holds del mismo host al mismo horario no pueden coexistir', async () => {
+    const { u, et } = await paidEventType('pay11');
+    const day = nextDow(1, 10);
+    const data = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string };
+    const row = await bookingRow(data.id);
+    // Lo que haría una segunda request que pasó pickFreeHost a la vez.
+    await expect(
+      getDb()
+        .prepare(
+          `INSERT INTO calendar_bookings (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, status, host_user_id, payment_status, hold_expires_at)
+           VALUES (?, ?, 'race@x.com', 'R', ?, ?, 'pending', ?, 'pending', ?)`,
+        )
+        .run(crypto.randomUUID(), et.id, row.starts_at, row.ends_at, u.id, new Date(Date.now() + 30 * 60_000).toISOString()),
+    ).rejects.toThrow(/UNIQUE/);
+  });
+
+  it('un hold vencido que el cron no limpió no bloquea una reserva nueva', async () => {
+    const { et } = await paidEventType('pay12');
+    const day = nextDow(2, 11);
+    const data = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string };
+    await getDb()
+      .prepare('UPDATE calendar_bookings SET hold_expires_at = ? WHERE id = ?')
+      .run(new Date(Date.now() - 60_000).toISOString(), data.id);
+    expect((await book(et.id, `${day}T10:00:00.000Z`, 'next@x.com')).status).toBe(201);
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'cancelled', cancel_reason: 'payment_expired' });
+  });
+});
+
+describe('volver de Checkout sin pagar', () => {
+  it('cancel_url pasa por la gestión: libera el hold, expira la sesión y vuelve a la página de reserva', async () => {
+    const { u, et } = await paidEventType('pay13');
+    const day = nextDow(3, 11);
+    const data = (await (await book(et.id, `${day}T10:00:00.000Z`)).json()) as { id: string; manageToken: string };
+    const form = new URLSearchParams(stripeCalls[0].body);
+    expect(form.get('cancel_url')).toContain(`/es/book/manage/${data.manageToken}?checkout=cancelled`);
+    const row = await bookingRow(data.id);
+
+    expect(await abandonCheckout(row)).toBe(`/book/${u.handle}/${et.slug}`);
+    expect(await bookingRow(data.id)).toMatchObject({ status: 'cancelled', cancel_reason: 'payment_expired' });
+    expect(stripeCalls.some((c) => c.url.endsWith(`/checkout/sessions/${row.stripe_session_id}/expire`))).toBe(true);
+    // El mismo invitado puede volver a elegir el mismo horario.
+    expect((await book(et.id, `${day}T10:00:00.000Z`)).status).toBe(201);
   });
 });

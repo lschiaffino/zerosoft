@@ -13,6 +13,8 @@ interface Props {
   prefillEmail?: string;
   /** Modo reprogramar (link de gestión del invitado): elige solo el nuevo horario. */
   reschedule?: { token: string; name: string; email: string };
+  /** Máximo de días para reservar ya resuelto en el server (regla del evento o del workspace). */
+  maxFutureDays?: number;
 }
 
 interface Slot {
@@ -69,10 +71,10 @@ function parseFields(eventType: EventTypeWithRules): CustomField[] {
     .filter((f) => f.name && f.label);
 }
 
-function getRules(eventType: EventTypeWithRules) {
+function getRules(eventType: EventTypeWithRules, maxFutureDays?: number) {
   const rules = (eventType.bookingRulesParsed ?? {}) as Record<string, unknown>;
   return {
-    maxFutureDays: Math.max(1, Number(rules.maxFutureDays ?? 30)),
+    maxFutureDays: Math.max(1, Number(maxFutureDays ?? rules.maxFutureDays ?? 30)),
     minNoticeHours: Math.max(0, Number(rules.minNoticeHours ?? 0)),
   };
 }
@@ -123,10 +125,18 @@ function formatSlotRange(iso: string, timezone: string, locale: string): string 
   }).format(new Date(iso));
 }
 
-export default function PublicBookingPage({ eventType, locale, weekStart = 1, prefillName = '', prefillEmail = '', reschedule }: Props) {
+export default function PublicBookingPage({
+  eventType,
+  locale,
+  weekStart = 1,
+  prefillName = '',
+  prefillEmail = '',
+  reschedule,
+  maxFutureDays,
+}: Props) {
   const t = useTranslations('calendar');
   const fields = useMemo(() => parseFields(eventType), [eventType]);
-  const rules = useMemo(() => getRules(eventType), [eventType]);
+  const rules = useMemo(() => getRules(eventType, maxFutureDays), [eventType, maxFutureDays]);
 
   // Branding: brand_color validado (hex), cae al color del evento.
   const brandColor = useMemo(() => {
@@ -163,6 +173,8 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  /** Embebido: Stripe no se deja enmarcar, así que el pago se abre fuera del iframe. */
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   /** Días del mes visible con lugar (null = cargando: no se deshabilita nada). */
   const [openDays, setOpenDays] = useState<Set<string> | null>(null);
 
@@ -320,6 +332,13 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
       const data = (await res.json().catch(() => null)) as { manageToken?: string; checkoutUrl?: string } | null;
       // Evento pago: la reserva queda retenida y se confirma al pagar en Stripe.
       if (data?.checkoutUrl && /^https:\/\//.test(data.checkoutUrl)) {
+        if (window.parent !== window) {
+          // En un iframe (embed.js) la página contenedora navega a Checkout; si
+          // no hay embed.js que escuche, queda el link para abrirlo aparte.
+          window.parent.postMessage({ type: 'zs-cal:checkout', url: data.checkoutUrl }, '*');
+          setCheckoutUrl(data.checkoutUrl);
+          return;
+        }
         setBusy(true);
         window.location.assign(data.checkoutUrl);
         return;
@@ -549,6 +568,13 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
                 )}
 
                 {error && <p className="form-error">{error}</p>}
+                {checkoutUrl && (
+                  <p className="muted">
+                    <a href={checkoutUrl} target="_blank" rel="noopener noreferrer">
+                      {t('booking.openCheckout')} ↗
+                    </a>
+                  </p>
+                )}
 
                 <div className="booking-actions">
                   <button
@@ -558,7 +584,7 @@ export default function PublicBookingPage({ eventType, locale, weekStart = 1, pr
                   >
                     {t('common.back')}
                   </button>
-                  <button type="submit" className="btn btn-solid btn-small" disabled={busy}>
+                  <button type="submit" className="btn btn-solid btn-small" disabled={busy || !!checkoutUrl}>
                     {busy
                       ? priceLabel
                         ? t('booking.redirecting')

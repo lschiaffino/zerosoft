@@ -110,6 +110,38 @@ describe('workflows: programación y envío', () => {
     expect(await runsOf(b.id)).toEqual([]);
   });
 
+  it('reprogramar vuelve a mandar los pasos que ya habían salido', async () => {
+    const { u, et } = await setup('wf5');
+    await setWorkflowSteps(u.id, et.id, [STEPS[0]]);
+    const day = nextDow(3);
+    const b = await createBooking({ eventTypeId: et.id, email: 'g@x.com', name: 'Gabi', start: `${day}T10:00:00.000Z` });
+    // El recordatorio de 1h antes ya salió para la fecha original.
+    await getDb().prepare('UPDATE calendar_workflow_runs SET sent_at = ? WHERE booking_id = ?').run(new Date().toISOString(), b.id);
+
+    const later = nextDow(3, 10);
+    await rescheduleBooking(b.id, new Date(`${later}T10:00:00.000Z`));
+    expect(await runsOf(b.id)).toEqual([{ send_at: `${later}T09:00:00.000Z`, sent_at: null }]);
+  });
+
+  it('borrar todos los pasos devuelve el recordatorio de 24h a las reservas próximas', async () => {
+    const { u, et } = await setup('wf6');
+    await setWorkflowSteps(u.id, et.id, [STEPS[0]]);
+    const day = nextDow(4);
+    const b = await createBooking({ eventTypeId: et.id, email: 'g@x.com', name: 'Gabi', start: `${day}T10:00:00.000Z` });
+    const reminders = async () =>
+      (await getDb()
+        .prepare("SELECT send_at FROM calendar_reminders WHERE booking_id = ? AND kind = 'reminder_24h' AND sent_at IS NULL")
+        .all(b.id)) as Array<{ send_at: string }>;
+    expect(await reminders()).toEqual([]);
+
+    await setWorkflowSteps(u.id, et.id, []);
+    expect(await runsOf(b.id)).toEqual([]);
+    expect((await reminders()).map((r) => r.send_at)).toEqual([new Date(Date.parse(`${day}T10:00:00Z`) - 86_400_000).toISOString()]);
+    // Idempotente: no lo duplica.
+    await setWorkflowSteps(u.id, et.id, []);
+    expect(await reminders()).toHaveLength(1);
+  });
+
   it('cambiar los pasos reprograma las reservas próximas', async () => {
     const { u, et } = await setup('wf2');
     const day = nextDow(4);

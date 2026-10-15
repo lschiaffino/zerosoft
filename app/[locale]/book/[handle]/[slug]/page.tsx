@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { getEventTypeByHandle, getCalendarUser } from '@/lib/calendar';
+import { getEventTypeByHandle, getCalendarUser, effectiveMaxFutureDays } from '@/lib/calendar';
 import PublicBookingPage from '@/components/calendar/PublicBookingPage';
 import '@/styles/calendar.css';
 
@@ -49,6 +49,7 @@ export default async function BookPage(
       eventType={eventType}
       locale={locale}
       weekStart={calendarUser?.week_start ?? 1}
+      maxFutureDays={effectiveMaxFutureDays(eventType, calendarUser)}
       prefillName={prefillName}
       prefillEmail={prefillEmail}
     />

@@ -1956,6 +1956,43 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Cal: el índice único (host, inicio) cubre también los holds 'pending',
+    // así dos reservas pagas simultáneas al mismo horario no llegan las dos a
+    // Checkout. Antes se liberan los holds vencidos y los que ya chocan con
+    // una reserva confirmada u otro hold (queda el más viejo). El DROP y el
+    // CREATE van en una transacción: si hay duplicados históricos entre
+    // confirmadas, queda el índice anterior.
+    id: '028_cal_pending_slot',
+    async up(client) {
+      const ts = new Date().toISOString();
+      await client.execute({
+        sql: `UPDATE calendar_bookings SET status = 'cancelled', payment_status = 'expired', cancel_reason = 'payment_expired'
+              WHERE status = 'pending' AND hold_expires_at IS NOT NULL AND hold_expires_at <= ?`,
+        args: [ts],
+      });
+      await client.execute(
+        `UPDATE calendar_bookings SET status = 'cancelled', cancel_reason = 'slot_taken'
+         WHERE status = 'pending' AND host_user_id IS NOT NULL AND EXISTS (
+           SELECT 1 FROM calendar_bookings o
+           WHERE o.host_user_id = calendar_bookings.host_user_id AND o.starts_at = calendar_bookings.starts_at
+             AND o.id != calendar_bookings.id
+             AND (o.status = 'confirmed' OR (o.status = 'pending' AND o.rowid < calendar_bookings.rowid)))`,
+      );
+      try {
+        await client.batch(
+          [
+            'DROP INDEX IF EXISTS idx_calendar_bookings_host_slot',
+            `CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_bookings_host_slot
+             ON calendar_bookings(host_user_id, starts_at) WHERE status IN ('confirmed', 'pending')`,
+          ],
+          'write',
+        );
+      } catch {
+        // Duplicados históricos entre confirmadas: queda el índice anterior.
+      }
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
