@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { canReadPage, getDocPageRow } from '@/lib/docs';
+import { canReadPage, DOC_INTERNAL_WRITE, getDocPageRow } from '@/lib/docs';
 import { listMembers } from '@/lib/teams';
 import { createDocsMentionNotification } from '@/lib/notifications';
 import { docMentionCreateSchema } from '@/lib/docs-schema';
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const page = await getDocPageRow(params.id);
   if (!page) return notFound();
-  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }))) {
+  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }, DOC_INTERNAL_WRITE))) {
     return notFound();
   }
 

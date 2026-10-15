@@ -7,7 +7,9 @@ import {
   listChatAgents,
   listChatMessagesWithUsers,
   recordFirstResponse,
+  reopenIfResolved,
 } from '@/lib/chat-data';
+import { CHAT_MESSAGE_MAX } from '@/lib/chat-schema';
 import { createChatNoteMentionNotification } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +40,9 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   }
 
   const messageBody = typeof body.body === 'string' ? body.body.trim() : '';
-  if (!messageBody) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  if (!messageBody || messageBody.length > CHAT_MESSAGE_MAX) {
+    return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  }
   const isNote = body.note === true;
 
   const message = await createChatMessage(params.id, 'user', {
@@ -71,6 +75,9 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   } else {
     // Una nota interna no es una respuesta al visitante (no corre el SLA).
     await recordFirstResponse(params.id);
+    // Responder una conversación resuelta la reabre: el widget solo muestra
+    // conversaciones abiertas, y si no el visitante nunca vería la respuesta.
+    await reopenIfResolved(conversation);
   }
 
   return NextResponse.json(message, { status: 201 });

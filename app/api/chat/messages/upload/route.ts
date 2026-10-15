@@ -10,8 +10,9 @@ import {
   getVisitorConversationWithMessages,
   updateChatConversation,
 } from '@/lib/chat-data';
+import { CHAT_MESSAGE_MAX } from '@/lib/chat-schema';
 import { MAX_UPLOAD_SIZE, isAllowedUpload, saveUpload, UploadError } from '@/lib/uploads';
-import { dispatchChatBot } from '@/lib/chat-bot-ai';
+import { afterVisitorMessage } from '@/lib/chat-visitor-message';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,8 +55,10 @@ export async function POST(req: Request) {
 
   let conversation = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))
     ?.conversation ?? null;
+  let isNewConversation = false;
   if (!conversation) {
     conversation = await createChatConversation(widgetId, visitor.id);
+    isNewConversation = true;
   }
 
   // Un mensaje del visitante despierta una conversación snoozed.
@@ -63,7 +66,8 @@ export async function POST(req: Request) {
     conversation = (await updateChatConversation(conversation.id, { status: 'open' })) ?? conversation;
   }
 
-  const caption = typeof form.get('body') === 'string' ? (form.get('body') as string).trim() : '';
+  const caption =
+    typeof form.get('body') === 'string' ? (form.get('body') as string).trim().slice(0, CHAT_MESSAGE_MAX) : '';
   const buffer = Buffer.from(await file.arrayBuffer());
   let url: string;
   try {
@@ -86,9 +90,19 @@ export async function POST(req: Request) {
     ],
   });
 
-  // Bot: keywords responde al instante (una vez); el bot AI responde en
-  // segundo plano (after) y el widget recibe la respuesta en su polling.
-  const botMessage = await dispatchChatBot(widget, conversation, { id: message.id, body: caption || filename }, after);
+  // Eventos, reglas de asignación, bot y notificaciones: igual que un mensaje de texto.
+  const result = await afterVisitorMessage({
+    widget,
+    conversation,
+    visitor,
+    message,
+    isNewConversation,
+    text: caption || filename,
+    schedule: after,
+  });
 
-  return NextResponse.json({ message, conversation, visitor, bot: botMessage }, { status: 201 });
+  return NextResponse.json(
+    { message, conversation: result.conversation, visitor, bot: result.botMessage },
+    { status: 201 },
+  );
 }

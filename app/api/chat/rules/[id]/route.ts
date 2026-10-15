@@ -5,6 +5,7 @@ import {
   deleteAssignmentRule,
   getAssignmentRule,
   getChatWidget,
+  isChatAgentOfWidget,
   updateAssignmentRule,
 } from '@/lib/chat-data';
 
@@ -15,13 +16,13 @@ async function canAccessRule(
   user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
 ) {
   const rule = await getAssignmentRule(ruleId);
-  if (!rule) return { ok: false, rule: null };
+  if (!rule) return { ok: false, rule: null, widget: null };
   const widget = await getChatWidget(rule.widget_id);
-  if (!widget) return { ok: false, rule: null };
+  if (!widget) return { ok: false, rule: null, widget: null };
   if (!canAccessWidget(widget, user)) {
-    return { ok: false, rule: null };
+    return { ok: false, rule: null, widget: null };
   }
-  return { ok: true, rule };
+  return { ok: true, rule, widget };
 }
 
 export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
@@ -37,14 +38,22 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  const { ok } = await canAccessRule(params.id, user);
-  if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  const { ok, widget } = await canAccessRule(params.id, user);
+  if (!ok || !widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  }
+
+  if (
+    typeof body.assignTo === 'string' &&
+    body.assignTo &&
+    !(await isChatAgentOfWidget(widget, body.assignTo))
+  ) {
+    return NextResponse.json({ error: 'invalid_assignee' }, { status: 400 });
   }
 
   const matchType = body.matchType;

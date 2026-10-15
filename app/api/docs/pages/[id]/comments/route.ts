@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { canReadPage, createDocComment, getDocPageRow, listDocComments } from '@/lib/docs';
+import {
+  canReadPage,
+  createDocComment,
+  DOC_INTERNAL_READ,
+  DOC_INTERNAL_WRITE,
+  getDocPageRow,
+  listDocComments,
+} from '@/lib/docs';
 import { docCommentCreateSchema } from '@/lib/docs-schema';
 import { invalidBody, notFound, unauthorized } from '@/lib/docs-http';
 
@@ -14,7 +21,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
 
   const page = await getDocPageRow(params.id);
   if (!page) return notFound();
-  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }))) {
+  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }, DOC_INTERNAL_READ))) {
     return notFound();
   }
 
@@ -29,7 +36,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const page = await getDocPageRow(params.id);
   if (!page) return notFound();
-  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }))) {
+  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }, DOC_INTERNAL_WRITE))) {
     return notFound();
   }
 
