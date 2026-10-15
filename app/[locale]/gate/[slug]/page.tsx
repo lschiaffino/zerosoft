@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 
 interface GatePageProps {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export async function generateMetadata(props: GatePageProps) {
@@ -42,11 +43,12 @@ export default async function GatePage(props: GatePageProps) {
     slug
   } = params;
 
+  const qr = (await props.searchParams)?.qr === '1';
   const t = await getTranslations({ locale, namespace: 'link' });
   const link = await getLinkForHost((await headers()).get('host'), slug);
 
   if (!link) redirect(`/${locale}/gone?reason=notfound`);
-  if (!link.password_hash) redirect(`/${slug}`);
+  if (!link.password_hash) redirect(`/${slug}${qr ? '?qr=1' : ''}`);
 
   return (
     <main className="auth-page">
@@ -63,7 +65,7 @@ export default async function GatePage(props: GatePageProps) {
             {linkShortUrl(link).replace(/^https?:\/\//, '')}
           </span>
         </p>
-        <GateForm slug={slug} />
+        <GateForm slug={slug} qr={qr} />
       </div>
     </main>
   );

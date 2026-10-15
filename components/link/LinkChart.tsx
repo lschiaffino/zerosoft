@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import type { DayCount } from '@/lib/track';
 
 interface LinkChartProps {
@@ -21,6 +22,7 @@ function niceCeil(max: number): number {
  * horizontal grid lines, date label every 5 days. Server-renderable.
  */
 export default function LinkChart({ data, secondary, height = 240 }: LinkChartProps) {
+  const t = useTranslations('link');
   const W = 760;
   const H = height;
   const pad = { t: 18, r: 14, b: 30, l: 42 };
@@ -51,7 +53,7 @@ export default function LinkChart({ data, secondary, height = 240 }: LinkChartPr
       className="link-chart"
       viewBox={`0 0 ${W} ${H}`}
       role="img"
-      aria-label="clicks chart"
+      aria-label={t('detail.chartAria')}
       preserveAspectRatio="none"
     >
       {gridRows.map((g) => (

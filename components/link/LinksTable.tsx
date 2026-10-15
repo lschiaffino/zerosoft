@@ -14,7 +14,7 @@ export interface TableRow {
   tags: string[];
   clicks: number;
   created: string;
-  status: 'active' | 'archived' | 'expired' | 'protected';
+  status: 'active' | 'archived' | 'expired' | 'limit' | 'protected';
 }
 
 interface LinksTableProps {
@@ -92,6 +92,7 @@ export default function LinksTable({ rows }: LinksTableProps) {
     active: t('table.statusActive'),
     archived: t('table.statusArchived'),
     expired: t('table.statusExpired'),
+    limit: t('table.statusLimit'),
     protected: t('table.statusProtected'),
   };
 

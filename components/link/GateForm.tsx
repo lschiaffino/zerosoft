@@ -5,10 +5,12 @@ import { useTranslations } from 'next-intl';
 
 interface GateFormProps {
   slug: string;
+  /** La visita vino del QR (?qr=1): se reenvía para contarla como escaneo. */
+  qr?: boolean;
 }
 
 /** Password form for protected links; on success navigates to /<slug>. */
-export default function GateForm({ slug }: GateFormProps) {
+export default function GateForm({ slug, qr = false }: GateFormProps) {
   const t = useTranslations('link');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export default function GateForm({ slug }: GateFormProps) {
       });
       if (res.ok) {
         // Full reload so the redirect handler sees the freshly-set gate cookie.
-        window.location.href = `/${slug}`;
+        window.location.href = `/${slug}${qr ? '?qr=1' : ''}`;
         return;
       }
       setError(res.status === 401 ? t('gate.wrongPassword') : t('gate.error'));

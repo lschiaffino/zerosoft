@@ -44,7 +44,7 @@ export default function BulkPage() {
         | { results?: BulkResultItem[]; error?: string }
         | undefined;
       if (!res.ok || !data?.results) {
-        setError(data?.error ? t(`errors.${data.error}`) : t('errors.generic'));
+        setError(data?.error && t.has(`errors.${data.error}`) ? t(`errors.${data.error}`) : t('errors.generic'));
       } else {
         setResults(data.results);
       }

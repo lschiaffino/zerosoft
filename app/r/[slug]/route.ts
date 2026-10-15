@@ -3,7 +3,8 @@ import { emitEvent } from '@/lib/events';
 import { gateCookieName, getLinkForHost, isExpired, isValidGateToken } from '@/lib/links';
 import { isAppHost } from '@/lib/hosts';
 import { getVerifiedDomainByHost } from '@/lib/link-domains';
-import { contextFromHeaders, recordClick } from '@/lib/track';
+import { contextFromHeaders, isBotRequest, recordClick } from '@/lib/track';
+import { hasCustomPreview, linkPreviewHtml } from '@/lib/link-preview';
 import {
   deepLinkHtml,
   newVisitorId,
@@ -51,15 +52,28 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   if (isExpired(link)) return gone('expired');
   if (link.max_clicks !== null && link.clicks >= link.max_clicks) return gone('limit');
 
+  const source = req.nextUrl.searchParams.get('qr') === '1' ? 'qr' : 'link';
+
   if (link.password_hash) {
     const token = req.cookies.get(gateCookieName(slug))?.value;
     if (!isValidGateToken(slug, link.password_hash, token)) {
-      return NextResponse.redirect(new URL(`/${locale}/gate/${slug}`, origin));
+      // ?qr=1 viaja por la puerta: el escaneo se cuenta como QR al desbloquear.
+      return NextResponse.redirect(new URL(`/${locale}/gate/${slug}${source === 'qr' ? '?qr=1' : ''}`, origin));
     }
   }
 
+  // Bots, unfurlers de previews (Slack, WhatsApp, iMessage) y HEAD: no son
+  // visitas. No cuentan clicks ni gastan max_clicks ni disparan el webhook.
+  if (isBotRequest(req.headers, req.method)) {
+    if (req.method !== 'HEAD' && hasCustomPreview(link)) {
+      return new NextResponse(linkPreviewHtml(link, slug, locale), {
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+      });
+    }
+    return NextResponse.redirect(link.url, 302);
+  }
+
   const ctx = contextFromHeaders(req.headers);
-  const source = req.nextUrl.searchParams.get('qr') === '1' ? 'qr' : 'link';
 
   // Sin segmentación: camino rápido, sin parsear nada ni cookies.
   const targeting = link.targeting ? parseTargeting(link.targeting) : null;
@@ -74,7 +88,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   }
   const dest = resolveDestination(link.url, targeting, ctx, `${visitorId ?? ''}:${link.id}`);
 
-  await recordClick(link.id, ctx, { source, variant: dest.variant });
+  // Incremento atómico: si otra request se llevó el último click, no hay redirect.
+  if (!(await recordClick(link.id, ctx, { source, variant: dest.variant }))) return gone('limit');
   // El webhook sale después de responder: el redirect no espera a nadie.
   after(() =>
     emitEvent(

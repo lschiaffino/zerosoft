@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createLink, listLinks, toLinkDto } from '@/lib/links';
 import { listDomains } from '@/lib/link-domains';
+import { limitByIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,8 @@ const createSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const limited = await limitByIp(req, 'v1-link-create', 120, 60);
+  if (limited) return limited;
   const auth = await requireApiUser(req, 'links:write');
   if ('res' in auth) return auth.res;
 
@@ -40,8 +43,10 @@ export async function POST(req: NextRequest) {
       slug_taken: 'That slug is already taken.',
       invalid_date: 'The expiration date is not valid.',
       invalid_domain: 'That domain is not a verified domain of yours.',
+      self_link: 'The destination cannot be another short link of ours.',
+      quota_exceeded: 'Daily link creation quota reached. Try again later.',
     };
-    return apiError(400, result.code, messages[result.code]);
+    return apiError(result.code === 'quota_exceeded' ? 429 : 400, result.code, messages[result.code]);
   }
 
   const dto = toLinkDto(result.link);

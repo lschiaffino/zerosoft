@@ -2026,6 +2026,14 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Link: TXT de propiedad por dominio propio (anti-squatting y anti-takeover
+    // de CNAME colgante). Los ya verificados no lo necesitan.
+    id: '028_link_domain_verify_token',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE link_domains ADD COLUMN verify_token TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

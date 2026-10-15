@@ -98,7 +98,7 @@ export default function FilterBar({ q, tag, archived, sort, tags }: FilterBarPro
             className="select filter-sort"
             value={sort}
             onChange={(e) => go({ sort: e.target.value === 'clicks' ? 'clicks' : undefined })}
-            aria-label="sort"
+            aria-label={t('table.sortLabel')}
           >
             <option value="created">{t('table.sortDate')}</option>
             <option value="clicks">{t('table.sortClicks')}</option>

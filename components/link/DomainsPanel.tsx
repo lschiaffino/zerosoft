@@ -46,13 +46,13 @@ export default function DomainsPanel({ initial, canManage }: { initial: DomainVi
   async function verify(id: string) {
     setBusy(id);
     const res = await fetch(`/api/links/domains/${id}/verify`, { method: 'POST' }).catch(() => null);
-    const data = res?.ok ? ((await res.json()) as { verified: boolean }) : null;
+    const data = res?.ok ? ((await res.json()) as { verified: boolean; reason?: string }) : null;
     setBusy(null);
     if (data?.verified) {
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, verified: 1 } : r)));
       setNotice((n) => ({ ...n, [id]: t('domains.verifiedNow') }));
     } else {
-      setNotice((n) => ({ ...n, [id]: t('domains.notYet') }));
+      setNotice((n) => ({ ...n, [id]: data?.reason === 'txt_missing' ? t('domains.txtMissing') : t('domains.notYet') }));
     }
   }
 
