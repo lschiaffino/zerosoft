@@ -263,7 +263,8 @@
 /* Status badges (overrides badge opacity per state) */
 .badge.status-active { opacity: 1; border-color: var(--ink); color: var(--ink); }
 .badge.status-archived { opacity: 0.45; }
-.badge.status-expired { opacity: 0.6; border-style: dashed; }
+.badge.status-expired,
+.badge.status-limit { opacity: 0.6; border-style: dashed; }
 .badge.status-protected { opacity: 1; border-color: var(--ink); background: var(--ink); color: var(--bg); }
 
 /* ---------- Copy button ---------- */

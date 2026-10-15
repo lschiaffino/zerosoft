@@ -96,7 +96,7 @@ export default function QrSection({ id, slug }: QrSectionProps) {
 
   return (
     <div className="qr-section">
-      <div className="qr-box" aria-label="QR code" data-testid="qr-preview">
+      <div className="qr-box" aria-label={t('qr.previewAria')} data-testid="qr-preview">
         {svg ? (
           // SVG armado en el cliente con nuestra propia URL corta; el logo es un data URL raster validado.
           <div dangerouslySetInnerHTML={{ __html: svg }} />

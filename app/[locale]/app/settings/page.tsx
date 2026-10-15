@@ -27,7 +27,7 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
   // Members ven solo sus keys; owner/admin, las de todo el workspace.
   const keys = await listApiKeys(user.id, isWorkspaceAdmin(user) ? undefined : realUserId(user));
   const webhooks = isWorkspaceAdmin(user) ? await listWebhooks(user.id) : null;
-  const domains = (await listDomains(user.id)).map((d) => ({ ...d, dns: dnsInstructions(d.hostname) }));
+  const domains = (await listDomains(user.id)).map((d) => ({ ...d, dns: dnsInstructions(d.hostname, d.verified === 1 ? null : d.verify_token) }));
 
   return (
     <div className="app-page">

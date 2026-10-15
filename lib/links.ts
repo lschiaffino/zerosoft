@@ -5,9 +5,9 @@ const scryptAsync = promisify(scrypt) as (password: string, salt: string, keylen
 import { customAlphabet } from 'nanoid';
 import { z } from 'zod';
 import { getDb, type LinkRow } from './db';
-import { isValidSlug } from './reserved';
-import { isValidUrl, normalizeUrl, shortUrl } from './utils';
-import { isAppHost } from './hosts';
+import { isValidSlug, SLUG_REGEX } from './reserved';
+import { isValidUrl, normalizeUrl, shortDomain, shortUrl } from './utils';
+import { appHosts, isAppHost, normalizeHost } from './hosts';
 import { getVerifiedDomainByHost } from './link-domains';
 import { emitEvent } from './events';
 import { linkTargetingSchema, normalizeTargeting, parseTargeting, type LinkTargeting } from './link-targeting';
@@ -158,11 +158,17 @@ export function isExpired(link: LinkRow): boolean {
   return !!link.expires_at && new Date(link.expires_at).getTime() <= Date.now();
 }
 
-export type LinkStatus = 'active' | 'archived' | 'expired' | 'protected';
+/** Llegó a max_clicks: /r ya responde gone('limit'). */
+export function isLimitReached(link: Pick<LinkRow, 'max_clicks' | 'clicks'>): boolean {
+  return link.max_clicks !== null && link.clicks >= link.max_clicks;
+}
+
+export type LinkStatus = 'active' | 'archived' | 'expired' | 'limit' | 'protected';
 
 export function linkStatus(link: LinkRow): LinkStatus {
   if (link.archived === 1) return 'archived';
   if (isExpired(link)) return 'expired';
+  if (isLimitReached(link)) return 'limit';
   if (link.password_hash) return 'protected';
   return 'active';
 }
@@ -284,6 +290,50 @@ export function applyUtm(
   return { url: u.toString(), source, medium, campaign };
 }
 
+// ---------- Abuso ----------
+
+/**
+ * La URL es un link corto nuestro (zerosoft.ai/<slug>, /r/<slug>, /s/<slug> o
+ * un dominio propio verificado). Como destino arma loops de redirects que
+ * inflan clicks, webhooks y gastan max_clicks.
+ */
+export async function isShortLinkUrl(url: string): Promise<boolean> {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  const host = normalizeHost(u.host).replace(/^www\./, '');
+  const bare = host.replace(/:\d+$/, '');
+  const ours = new Set([...appHosts(), normalizeHost(shortDomain())].map((h) => h.replace(/^www\./, '')));
+  const m = /^\/(?:([rs])\/)?([^/]+)\/?$/.exec(u.pathname);
+  if (ours.has(host) || ours.has(bare)) {
+    if (!m) return false;
+    // /r/<slug> y /s/<slug> siempre son links; /<slug> solo si no es una ruta del sitio.
+    return m[1] ? SLUG_REGEX.test(m[2]) : isValidSlug(m[2]);
+  }
+  return Boolean(m && (await getVerifiedDomainByHost(bare)));
+}
+
+/** Tope de links nuevos por workspace en 24 h (LINK_DAILY_QUOTA, 0 = sin tope). */
+export function linkDailyQuota(): number {
+  const raw = Number(process.env.LINK_DAILY_QUOTA ?? 2000);
+  return Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 2000;
+}
+
+/** Cuántos links más puede crear el usuario en las últimas 24 h (Infinity sin tope). */
+export async function linkQuotaRemaining(userId: string): Promise<number> {
+  const quota = linkDailyQuota();
+  if (quota === 0) return Infinity;
+  const used = (
+    (await getDb()
+      .prepare(`SELECT COUNT(*) AS c FROM links WHERE user_id = ? AND created_at >= datetime('now', '-1 day')`)
+      .get(userId)) as { c: number }
+  ).c;
+  return Math.max(0, quota - used);
+}
+
 // ---------- Create ----------
 
 export interface CreateLinkInput {
@@ -305,7 +355,14 @@ export interface CreateLinkInput {
   ogImage?: string;
 }
 
-export type CreateLinkError = 'invalid_url' | 'invalid_slug' | 'slug_taken' | 'invalid_date' | 'invalid_domain';
+export type CreateLinkError =
+  | 'invalid_url'
+  | 'invalid_slug'
+  | 'slug_taken'
+  | 'invalid_date'
+  | 'invalid_domain'
+  | 'self_link'
+  | 'quota_exceeded';
 
 export type CreateLinkResult =
   | { ok: true; link: LinkRow }
@@ -320,6 +377,8 @@ export async function createLink(
 
   const normalized = normalizeUrl(input.url);
   if (!isValidUrl(normalized)) return { ok: false, code: 'invalid_url' };
+  if (await isShortLinkUrl(normalized)) return { ok: false, code: 'self_link' };
+  if ((await linkQuotaRemaining(userId)) <= 0) return { ok: false, code: 'quota_exceeded' };
 
   const domainId = input.domainId || null;
   if (domainId) {
@@ -483,6 +542,7 @@ export async function applyLinkPatch(
   if (p.url !== undefined) {
     const normalized = normalizeUrl(p.url);
     if (!isValidUrl(normalized)) return { error: 'invalid_url', status: 400 };
+    if (await isShortLinkUrl(normalized)) return { error: 'self_link', status: 400 };
     sets.push('url = ?');
     args.push(normalized);
   }
@@ -521,8 +581,12 @@ export async function applyLinkPatch(
   }
   if (p.slug !== undefined && p.slug !== link.slug) {
     const slug = p.slug.trim();
-    if (!isValidSlug(slug)) return { error: 'invalid_slug', status: 400 };
-    const taken = await getDb().prepare('SELECT 1 AS x FROM links WHERE slug = ? AND id != ?').get(slug, link.id);
+    // Mismas reglas que al crear: los reservados solo aplican al dominio por
+    // defecto y la colisión es por dominio (índice idx_links_domain_slug).
+    if (!isValidSlug(slug, Boolean(link.domain_id))) return { error: 'invalid_slug', status: 400 };
+    const taken = await getDb()
+      .prepare("SELECT 1 AS x FROM links WHERE slug = ? AND COALESCE(domain_id, '') = ? AND id != ?")
+      .get(slug, link.domain_id ?? '', link.id);
     if (taken) return { error: 'slug_taken', status: 409 };
     sets.push('slug = ?');
     args.push(slug);
@@ -557,9 +621,15 @@ export async function applyLinkPatch(
 
   if (sets.length > 0) {
     sets.push(`updated_at = datetime('now')`);
-    await getDb()
-      .prepare(`UPDATE links SET ${sets.join(', ')} WHERE id = ?`)
-      .run(...args, link.id);
+    try {
+      await getDb()
+        .prepare(`UPDATE links SET ${sets.join(', ')} WHERE id = ?`)
+        .run(...args, link.id);
+    } catch (e) {
+      // Carrera con otro rename/alta al mismo slug: el UNIQUE lo frena.
+      if (/UNIQUE constraint failed/i.test(String(e))) return { error: 'slug_taken', status: 409 };
+      throw e;
+    }
   }
 
   return null;

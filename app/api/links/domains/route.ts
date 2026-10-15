@@ -10,7 +10,7 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const rows = await listDomains(user.id);
-  return NextResponse.json({ rows: rows.map((d) => ({ ...d, dns: dnsInstructions(d.hostname) })) });
+  return NextResponse.json({ rows: rows.map((d) => ({ ...d, dns: dnsInstructions(d.hostname, d.verified === 1 ? null : d.verify_token) })) });
 }
 
 export async function POST(req: NextRequest) {
@@ -24,5 +24,5 @@ export async function POST(req: NextRequest) {
     const status = res.code === 'domain_taken' ? 409 : res.code === 'provider_error' ? 502 : 400;
     return NextResponse.json({ error: res.code }, { status });
   }
-  return NextResponse.json({ ...res.domain, dns: dnsInstructions(res.domain.hostname) }, { status: 201 });
+  return NextResponse.json({ ...res.domain, dns: dnsInstructions(res.domain.hostname, res.domain.verify_token) }, { status: 201 });
 }

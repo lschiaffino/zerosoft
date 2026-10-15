@@ -66,6 +66,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
     active: t('table.statusActive'),
     archived: t('table.statusArchived'),
     expired: t('table.statusExpired'),
+    limit: t('table.statusLimit'),
     protected: t('table.statusProtected'),
   };
 
@@ -204,6 +205,16 @@ export default async function LinkDetailPage(props: DetailPageProps) {
           <p className="section-label">{t('detail.os')}</p>
           <BreakdownBars items={a.os} emptyLabel={noData} />
         </section>
+        {(link.targeting || a.variants.some((v) => v.name !== 'default')) && (
+          <section className="panel" data-testid="detail-variants">
+            <p className="section-label">{t('detail.variants')}</p>
+            <BreakdownBars
+              items={a.variants}
+              emptyLabel={noData}
+              labelFor={(n) => (n === 'default' ? t('detail.variantDefault') : n === 'other' ? t('common.other') : n)}
+            />
+          </section>
+        )}
       </div>
 
       <div className="detail-tools">

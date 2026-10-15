@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { limitByIp } from '@/lib/rate-limit';
 import { getCurrentUser } from '@/lib/session';
 import { createLink, listLinks, toLinkDto } from '@/lib/links';
 
@@ -53,6 +54,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = await limitByIp(req, 'link-create', 60, 60);
+  if (limited) return limited;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -62,7 +65,7 @@ export async function POST(req: NextRequest) {
 
   const result = await createLink(user.id, parsed.data);
   if (!result.ok) {
-    const status = result.code === 'slug_taken' ? 409 : 400;
+    const status = result.code === 'slug_taken' ? 409 : result.code === 'quota_exceeded' ? 429 : 400;
     return NextResponse.json({ error: result.code }, { status });
   }
   return NextResponse.json(toLinkDto(result.link), { status: 201 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
+import { EXPORT_LIMIT } from '@/lib/link-analytics';
 import { linkShortUrl, parseTags, type LinkWithDomain } from '@/lib/links';
 
 export const runtime = 'nodejs';
@@ -59,10 +60,14 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Tope de memoria en serverless: los EXPORT_LIMIT clicks más recientes (el
+  // total sigue en clickCount de cada link).
   const clicks = (await getDb()
     .prepare(
-      `SELECT c.link_id, c.ts, c.referrer, c.country, c.device, c.browser, c.os FROM clicks c
-       JOIN links l ON l.id = c.link_id WHERE l.user_id = ? ORDER BY c.ts ASC`,
+      `SELECT * FROM (
+         SELECT c.link_id, c.ts, c.referrer, c.country, c.device, c.browser, c.os, c.source, c.variant FROM clicks c
+         JOIN links l ON l.id = c.link_id WHERE l.user_id = ? ORDER BY c.ts DESC LIMIT ${EXPORT_LIMIT}
+       ) ORDER BY ts ASC`,
     )
     .all(user.id)) as Array<{ link_id: string } & Record<string, unknown>>;
   const byLink = new Map<string, Array<Record<string, unknown>>>();

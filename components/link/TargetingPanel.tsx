@@ -22,6 +22,7 @@ interface Props {
 /** Reglas por país/dispositivo, A/B con pesos y deep links de un link. */
 export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
   const t = useTranslations('link.targeting');
+  const te = useTranslations('link.errors');
   const router = useRouter();
   const [rules, setRules] = useState<RuleDraft[]>(
     (initial?.rules ?? []).map((r) => ({ countries: r.countries.join(', '), devices: r.devices, url: r.url })),
@@ -54,6 +55,10 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
 
   async function save(targeting: ReturnType<typeof payload> | null) {
     setError(null);
+    if (targeting?.rules.some((r) => r.countries.some((c) => !/^[A-Z]{2}$/.test(c)))) {
+      setError(t('countriesInvalid'));
+      return;
+    }
     setState('saving');
     const res = await fetch(`/api/links/${linkId}`, {
       method: 'PATCH',
@@ -62,7 +67,8 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
     });
     if (!res.ok) {
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
-      setError(t('error', { code: data?.error ?? res.status }));
+      const code = data?.error;
+      setError(code && te.has(code) ? te(code) : t('error', { code: code ?? res.status }));
       setState('idle');
       return;
     }

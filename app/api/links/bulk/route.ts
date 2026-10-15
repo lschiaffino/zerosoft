@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
-import { bulkResultsToCsv, createLinksBulk } from '@/lib/links';
+import { bulkResultsToCsv, createLinksBulk, linkQuotaRemaining } from '@/lib/links';
+import { limitByIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,6 +21,8 @@ const bulkSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const limited = await limitByIp(req, 'link-bulk', 10, 600);
+  if (limited) return limited;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -37,6 +40,9 @@ export async function POST(req: NextRequest) {
   }
   if (urls.length > 200) {
     return NextResponse.json({ error: 'too_many' }, { status: 400 });
+  }
+  if ((await linkQuotaRemaining(user.id)) < urls.length) {
+    return NextResponse.json({ error: 'quota_exceeded' }, { status: 429 });
   }
 
   const result = await createLinksBulk(user.id, {

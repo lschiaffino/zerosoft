@@ -72,7 +72,9 @@
     "emptyAllTitle": "Todavía no hay nada",
     "emptyAllSub": "Creá tu primer short link y mirá cómo caen los ceros.",
     "bulkCta": "Crear en lote",
-    "clearFilters": "Limpiar filtros"
+    "clearFilters": "Limpiar filtros",
+    "statusLimit": "límite alcanzado",
+    "sortLabel": "Ordenar por"
   },
   "new": {
     "title": "Nuevo link",
@@ -174,7 +176,10 @@
     "range90": "90 días",
     "inRange": "{range} · vs anterior",
     "deltaNew": "nuevo",
-    "qrScans": "Escaneos QR"
+    "qrScans": "Escaneos QR",
+    "variants": "Destinos de la segmentación",
+    "variantDefault": "por defecto",
+    "chartAria": "Clicks por día"
   },
   "bulk": {
     "title": "Creación masiva",
@@ -266,7 +271,15 @@
     "empty": "Al menos una URL es requerida.",
     "too_many": "Demasiadas URLs. Máximo 200 por lote.",
     "generic": "Algo salió mal. Probá de nuevo.",
-    "invalid_domain": "Ese dominio todavía no está verificado."
+    "invalid_domain": "Ese dominio todavía no está verificado.",
+    "bad_request": "Algún campo no es válido. Revisá largos y formatos.",
+    "invalid_targeting_url": "Uno de los destinos de la segmentación no es una URL válida.",
+    "empty_rule": "Cada regla necesita al menos un país o un dispositivo.",
+    "ab_needs_two": "Un test A/B necesita al menos dos variantes.",
+    "ab_zero_weight": "Al menos una variante del A/B tiene que tener peso mayor a cero.",
+    "rate_limited": "Demasiados pedidos. Esperá un minuto y probá de nuevo.",
+    "self_link": "Un link corto no puede apuntar a otro link corto nuestro.",
+    "quota_exceeded": "Llegaste al límite de links nuevos de hoy. Probá de nuevo mañana."
   },
   "webhooks": {
     "desc": "Enviamos un JSON firmado (POST) a tu URL cuando pasan estos eventos. Verificá el header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") con tu secret. Las entregas fallidas se reintentan con backoff.",
@@ -297,7 +310,7 @@
     "pending": "Esperando DNS",
     "verify": "Verificar",
     "remove": "Quitar",
-    "dnsHelp": "Creá este registro en tu proveedor de DNS. Los cambios pueden tardar unos minutos.",
+    "dnsHelp": "Creá estos registros en tu proveedor de DNS: el TXT prueba que el dominio es tuyo. Los cambios pueden tardar unos minutos.",
     "type": "Tipo",
     "name": "Nombre",
     "value": "Valor",
@@ -315,7 +328,8 @@
       "provider_error": "No se pudo registrar el dominio en el hosting. Probá de nuevo.",
       "has_links": "Este dominio todavía tiene links. Movelos o borralos primero.",
       "invalid_url": "La URL no es válida."
-    }
+    },
+    "txtMissing": "Todavía no vemos el registro TXT. Revisá el nombre y el valor; el DNS puede tardar unos minutos."
   },
   "export": {
     "title": "Tus datos",
@@ -444,7 +458,8 @@
     "saving": "Guardando…",
     "saved": "Guardado",
     "clear": "Quitar todo",
-    "error": "No se pudo guardar: {code}"
+    "error": "No se pudo guardar: {code}",
+    "countriesInvalid": "Usá códigos de país de dos letras (AR, US, BR)."
   },
   "qr": {
     "design": "Diseño",
@@ -463,6 +478,7 @@
     "save": "Guardar diseño",
     "saved": "Guardado",
     "lowContrast": "Poco contraste: algunos lectores no lo van a leer.",
-    "scansNote": "El QR apunta a {url}: los escaneos se cuentan aparte de los clics."
+    "scansNote": "El QR apunta a {url}: los escaneos se cuentan aparte de los clics.",
+    "previewAria": "Código QR"
   }
 }
