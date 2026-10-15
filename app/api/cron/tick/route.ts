@@ -12,15 +12,18 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 // Robots programados corren dentro del tick (hasta ~5 min por corrida).
 export const maxDuration = 300;
+/** Hasta cuándo (desde el inicio del tick) la cola de Flow empieza corridas nuevas. */
+const FLOW_BUDGET_MS = 150_000;
 
 /**
  * Tarea periódica única (Vercel Cron): recordatorios de Cal, reintentos de
- * webhooks, vencimiento de tareas del CRM (trigger task_due) y la cola de
- * Flow (schedules vencidos, corridas en cola, delays y reintentos), el sync
- * de Gmail del CRM y los pasos de secuencias vencidos (ambos acotados y con
- * lock por fila; corre cada hora, esa es la granularidad de las secuencias),
- * y al final los robots programados (lib/robots.ts → runDueRobots). Misma
- * autorización que el cron de recordatorios (CRON_SECRET).
+ * webhooks, vencimiento de tareas del CRM (trigger task_due), el sync de
+ * Gmail del CRM y los pasos de secuencias vencidos (ambos acotados y con lock
+ * por fila; corre cada hora, esa es la granularidad de las secuencias), la
+ * cola de Flow con presupuesto de tiempo (schedules vencidos, corridas en
+ * cola, delays y reintentos) y al final los robots programados
+ * (lib/robots.ts → runDueRobots). Misma autorización que el cron de
+ * recordatorios (CRON_SECRET).
  */
 export async function GET(req: NextRequest) {
   const tickStart = Date.now();
@@ -28,12 +31,15 @@ export async function GET(req: NextRequest) {
   if (!reminders.ok) return reminders;
   const webhookRetries = await retryDueWebhooks();
   const dueTasks = await fireDueTasks();
-  const flow = await processFlowQueue({ limit: 200 });
   // Primero el sync (detecta respuestas → salen de la secuencia), después los envíos.
+  // Van antes de la cola de Flow: son acotados y no pueden quedar sin correr.
   const emailSync = await syncDueMailboxes({ limit: 25, maxMessages: 50 }).catch(() => null);
   const sequences = await processSequences({ limit: 100 }).catch(() => null);
   // Lead scoring: recálculo completo una vez por día por workspace (ventanas de N días).
   const scoring = await runNightlyScoring(new Date(), 10).catch(() => null);
+  // Flow con presupuesto: no empieza corridas nuevas pasados ~150 s del tick
+  // (lo que quede sigue en cola para el próximo tick o el worker).
+  const flow = await processFlowQueue({ limit: 200, budgetMs: Math.max(0, FLOW_BUDGET_MS - (Date.now() - tickStart)) });
   // Robots al final: son lo más lento y usan el tiempo que queda.
   // El tick tiene 300 s: los robots usan lo que quede (con margen).
   const robots = await runDueRobots(new Date(), 5, Math.max(0, 270_000 - (Date.now() - tickStart)));

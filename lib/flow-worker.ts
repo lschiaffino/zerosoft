@@ -70,8 +70,14 @@ export interface WorkerResult {
   stale: number;
 }
 
-export async function processFlowQueue(opts: { limit?: number; now?: Date } = {}): Promise<WorkerResult> {
+/**
+ * Procesa la cola. `budgetMs`: tiempo máximo para empezar corridas/jobs nuevos
+ * (el cron lo acota para no consumir todo el tick); lo que no entra queda en
+ * cola para la próxima pasada.
+ */
+export async function processFlowQueue(opts: { limit?: number; now?: Date; budgetMs?: number } = {}): Promise<WorkerResult> {
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 500);
+  const deadline = opts.budgetMs === undefined ? Infinity : Date.now() + Math.max(0, opts.budgetMs);
   const result: WorkerResult = { runs: 0, jobs: 0, schedules: 0, stale: 0 };
   result.stale = await failStaleRuns();
   result.schedules = (await enqueueDueSchedules(opts.now ?? new Date())).length;
@@ -80,6 +86,7 @@ export async function processFlowQueue(opts: { limit?: number; now?: Date } = {}
     .prepare("SELECT id FROM flow_runs WHERE status = 'queued' ORDER BY created_at LIMIT ?")
     .all(limit)) as Array<{ id: string }>;
   for (const r of queued) {
+    if (Date.now() >= deadline) break;
     if (!(await claimQueuedRun(r.id))) continue;
     try {
       await executeRun(r.id);
@@ -97,6 +104,7 @@ export async function processFlowQueue(opts: { limit?: number; now?: Date } = {}
     .prepare('SELECT * FROM flow_jobs WHERE run_at <= ? ORDER BY run_at LIMIT ?')
     .all(nowIso(), limit)) as FlowJobRow[];
   for (const job of due) {
+    if (Date.now() >= deadline) break;
     if (!(await claimJob(job.id))) continue;
     if (!(await lockWaitingRun(job.run_id))) {
       // La corrida está tomada por otro worker (o ya terminó): se libera el job.

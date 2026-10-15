@@ -582,9 +582,19 @@ export function isPrivateAddress(ip: string): boolean {
   const v = ip.toLowerCase().replace(/^\[|\]$/g, '');
   if (v.includes(':')) {
     if (v === '::1' || v === '::') return true;
-    if (v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80')) return true;
-    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(v);
-    return mapped ? isPrivateAddress(mapped[1]) : false;
+    if (v.startsWith('fc') || v.startsWith('fd') || /^fe[89ab]/.test(v) || v.startsWith('fec')) return true;
+    // IPv4-mapped / NAT64 / IPv4-compatible, con puntos o en hex como lo
+    // normaliza `new URL()` ([::ffff:169.254.169.254] → [::ffff:a9fe:a9fe]).
+    // Igual que isPrivateIp de safe-fetch, pero autocontenida (va a la VM).
+    const dotted = /^(?:::ffff:|64:ff9b::|::)(\d+\.\d+\.\d+\.\d+)$/.exec(v);
+    if (dotted) return isPrivateAddress(dotted[1]);
+    const hex = /^(?:::ffff:|64:ff9b::|::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(v);
+    if (hex) {
+      const h = parseInt(hex[1], 16);
+      const l = parseInt(hex[2], 16);
+      return isPrivateAddress(`${h >> 8}.${h & 255}.${l >> 8}.${l & 255}`);
+    }
+    return false;
   }
   const parts = v.split('.').map(Number);
   if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false;

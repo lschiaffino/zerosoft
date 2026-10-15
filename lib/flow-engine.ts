@@ -50,7 +50,10 @@ import { safeFetch, UnsafeUrlError } from './safe-fetch';
 export const MAX_STEPS = 200;
 export const MAX_LOOP_ITEMS = 100;
 const MAX_RETRIES = 5;
+/** Tope por valor al guardar en la base (pasos y contexto persistido). */
 const STORE_LIMIT = 64_000;
+/** Tope por salida de nodo en memoria (lo que leen los nodos siguientes). */
+const MEMORY_LIMIT = 5_000_000;
 const HTTP_BODY_LIMIT = 1_000_000;
 
 interface RunContext {
@@ -86,15 +89,15 @@ type NodeResult =
   | { kind: 'wait'; output: unknown }
   | { kind: 'error'; error: string; retryable?: boolean };
 
-/** Valor serializable y acotado para guardar en la base. */
-function forStore(value: unknown): unknown {
+/** Valor serializable y acotado (por defecto, para guardar en la base). */
+function forStore(value: unknown, limit = STORE_LIMIT): unknown {
   let json: string;
   try {
     json = JSON.stringify(value ?? null);
   } catch {
     return null;
   }
-  if (json.length <= STORE_LIMIT) return value ?? null;
+  if (json.length <= limit) return value ?? null;
   return { truncated: true, preview: json.slice(0, 2000) };
 }
 
@@ -108,9 +111,18 @@ function templateCtx(state: RunState, loop?: LoopScope): Record<string, unknown>
   };
 }
 
-/** Redacta los secretos de la corrida y acota el tamaño. */
+/** Redacta los secretos de la corrida y acota el tamaño para guardar en la base. */
 function store(state: RunState, value: unknown): unknown {
   return forStore(state.secrets.length ? redact(value, state.secrets) : value);
+}
+
+/**
+ * Salida de un nodo para el contexto en memoria: redactada y con un tope mucho
+ * mayor que el de la base, para que los nodos siguientes (Loop, Código…) lean
+ * los datos completos. Se trunca a STORE_LIMIT recién al persistir.
+ */
+function keep(state: RunState, value: unknown): unknown {
+  return forStore(state.secrets.length ? redact(value, state.secrets) : value, MEMORY_LIMIT);
 }
 
 function clean(state: RunState, text: string): string {
@@ -133,12 +145,13 @@ async function takeCredential(state: RunState, ref: unknown, types: readonly Cre
   return cred;
 }
 
-function integrationCtx(state: RunState, node: FlowNode): IntegrationContext {
+function integrationCtx(state: RunState, node: FlowNode, loop?: LoopScope): IntegrationContext {
   return {
     workspaceId: state.flow.user_id,
     actorId: state.flow.created_by,
     runId: state.run.id,
     nodeId: node.id,
+    loopIndex: loop?.index,
     credential: (id, types) => takeCredential(state, id, types),
     addSecret: (v) => {
       if (v && v.length >= 4) state.secrets.push(v);
@@ -395,8 +408,9 @@ async function codeNode(state: RunState, cfg: Record<string, unknown>) {
   if (!code.trim()) throw new StepError('missing_code');
   if (code.length > 50_000) throw new StepError('code_too_long');
   const timeoutSec = Math.min(Math.max(Math.floor(Number(cfg.timeoutSec) || 10), 1), CODE_MAX_TIMEOUT_SEC);
-  // Lo que ve el código: trigger y salidas previas (ya redactadas).
-  const input = store(state, { trigger: state.ctx.trigger, nodes: state.ctx.nodes, flow: { id: state.flow.id, name: state.flow.name } });
+  // Lo que ve el código: trigger y salidas previas (ya redactadas), sin truncar.
+  const all = { trigger: state.ctx.trigger, nodes: state.ctx.nodes, flow: { id: state.flow.id, name: state.flow.name } };
+  const input = state.secrets.length ? redact(all, state.secrets) : all;
   const res = await runFlowCode({ code, input, timeoutMs: timeoutSec * 1000 });
   if (!res.ok) throw new StepError(res.error, false, res.logs ? { logs: res.logs } : undefined);
   return { result: res.result, logs: res.logs || undefined };
@@ -576,23 +590,23 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
     case 'logic.run_flow':
       return { kind: 'ok', output: await subflowNode(state, cfg, tctx), handles: ['out'] };
     case 'app.slack':
-      return { kind: 'ok', output: await slackNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+      return { kind: 'ok', output: await slackNode(integrationCtx(state, node, loop), rendered(cfg, tctx)), handles: ['out'] };
     case 'app.google_sheets':
-      return { kind: 'ok', output: await googleSheetsNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+      return { kind: 'ok', output: await googleSheetsNode(integrationCtx(state, node, loop), rendered(cfg, tctx)), handles: ['out'] };
     case 'app.gmail':
       return {
         kind: 'ok',
-        output: await gmailNode(integrationCtx(state, node), rendered(cfg, tctx), state.flow.name),
+        output: await gmailNode(integrationCtx(state, node, loop), rendered(cfg, tctx), state.flow.name),
         handles: ['out'],
       };
     case 'app.stripe':
-      return { kind: 'ok', output: await stripeNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+      return { kind: 'ok', output: await stripeNode(integrationCtx(state, node, loop), rendered(cfg, tctx)), handles: ['out'] };
     case 'app.notion':
-      return { kind: 'ok', output: await notionNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+      return { kind: 'ok', output: await notionNode(integrationCtx(state, node, loop), rendered(cfg, tctx)), handles: ['out'] };
     case 'app.discord':
-      return { kind: 'ok', output: await discordNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+      return { kind: 'ok', output: await discordNode(integrationCtx(state, node, loop), rendered(cfg, tctx)), handles: ['out'] };
     case 'app.telegram':
-      return { kind: 'ok', output: await telegramNode(integrationCtx(state, node), rendered(cfg, tctx)), handles: ['out'] };
+      return { kind: 'ok', output: await telegramNode(integrationCtx(state, node, loop), rendered(cfg, tctx)), handles: ['out'] };
     default:
       throw new StepError('unsupported_node');
   }
@@ -708,7 +722,7 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
   } catch (err) {
     const e = err instanceof StepError ? err : new StepError(err instanceof Error ? err.message.slice(0, 200) : 'error');
     result = { kind: 'error', error: e.code, retryable: e.retryable };
-    if (e.output !== undefined && e.output !== null) state.ctx.nodes[node.id] = { output: store(state, e.output) };
+    if (e.output !== undefined && e.output !== null) state.ctx.nodes[node.id] = { output: keep(state, e.output) };
   }
 
   if (result.kind === 'error') {
@@ -732,13 +746,13 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
     }
     // continue / branch: la salida del nodo describe el error.
     const extra = details && typeof details === 'object' && !Array.isArray(details) ? (details as Record<string, unknown>) : details !== null ? { details } : {};
-    state.ctx.nodes[node.id] = { output: store(state, { ...extra, error: result.error, failed: true }) };
+    state.ctx.nodes[node.id] = { output: keep(state, { ...extra, error: result.error, failed: true }) };
     const handle = mode === 'branch' ? 'error' : continueHandle(node);
     if (handle) await runChildren(state, node.id, handle, loop);
     return;
   }
 
-  state.ctx.nodes[node.id] = { output: store(state, result.output) };
+  state.ctx.nodes[node.id] = { output: keep(state, result.output) };
   if (result.kind === 'stop') {
     await finishStep(state, stepId, 'skipped', result.output, null);
     return;
@@ -767,7 +781,7 @@ async function runLoop(state: RunState, node: FlowNode, outer?: LoopScope): Prom
     await runChildren(state, node.id, 'item', { item: capped[i], index: i });
   }
   const output = { count: capped.length, total: items.length, items: capped };
-  state.ctx.nodes[node.id] = { output: store(state, output) };
+  state.ctx.nodes[node.id] = { output: keep(state, output) };
   if (state.error) {
     await finishStep(state, stepId, 'failed', output, 'loop_body_failed');
     return;
@@ -793,7 +807,7 @@ async function enqueueErrorFlow(state: RunState): Promise<void> {
   const input = store(state, {
     flow: { id: state.flow.id, name: state.flow.name },
     run: { id: state.run.id, error: state.error, triggerType: state.run.trigger_type, startedAt: state.run.started_at },
-    failedNode: failed ? { id: failed.id, type: failed.type, output: state.ctx.nodes[failed.id]?.output ?? null } : null,
+    failedNode: failed ? { id: failed.id, type: failed.type, output: store(state, state.ctx.nodes[failed.id]?.output ?? null) } : null,
     trigger: state.ctx.trigger,
   });
   const id = await enqueueRun(row, 'error', input, { chain: { depth, seen }, parentRunId: state.run.id });
@@ -808,7 +822,11 @@ async function finalize(state: RunState): Promise<FlowRunRow['status']> {
   const waiting = !state.error && Number(pending.n) > 0;
   if (state.error) await db.prepare('DELETE FROM flow_jobs WHERE run_id = ?').run(state.run.id);
   const status = state.error ? 'failed' : waiting ? 'waiting' : 'success';
-  const ctx = state.secrets.length ? redact(state.ctx, state.secrets) : state.ctx;
+  // Al persistir, cada salida se acota a STORE_LIMIT (en memoria iban completas).
+  const nodes: RunContext['nodes'] = {};
+  for (const [id, v] of Object.entries(state.ctx.nodes)) nodes[id] = { output: store(state, v?.output) };
+  const persisted: RunContext = { ...state.ctx, nodes };
+  const ctx = state.secrets.length ? redact(persisted, state.secrets) : persisted;
   await db
     .prepare(
       `UPDATE flow_runs SET status = ?, error = ?, context = ?, step_count = ?, locked_until = NULL,
@@ -868,7 +886,7 @@ export async function executeRun(runId: string): Promise<FlowRunRow['status']> {
     }
     state.steps += 1;
     const stepId = await startStep(run.id, trigger, null);
-    state.ctx.nodes[trigger.id] = { output: forStore(state.ctx.trigger) };
+    state.ctx.nodes[trigger.id] = { output: forStore(state.ctx.trigger, MEMORY_LIMIT) };
     await finishStep(state, stepId, 'success', state.ctx.trigger, null);
     for (const h of nodeOutputs(trigger)) await runChildren(state, trigger.id, h);
   });

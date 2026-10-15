@@ -10,7 +10,8 @@
  * (instala dependencias del sistema + Chromium, ~1-2 min) y se guarda sin
  * vencimiento. `scripts/robots-sandbox-snapshot.ts` lo prepara por adelantado.
  *
- * Red: la VM puede salir a internet pero no a rangos privados (subnets.deny);
+ * Red: la VM puede salir a internet pero no a rangos privados (subnets.deny;
+ * si el SDK no acepta la política, la corrida falla, nunca corre sin ella);
  * además el arnés bloquea en el navegador cada host que resuelva a una IP
  * privada, igual que safeFetch.
  */
@@ -149,6 +150,13 @@ export async function createRobotsSnapshot(): Promise<string> {
   }
 }
 
+/** El SDK no aceptó la política de red (deny de rangos privados). */
+class NetworkPolicyError extends Error {
+  constructor() {
+    super('network_policy_unavailable');
+  }
+}
+
 async function createRunSandbox(snapshotId: string, timeoutMs: number): Promise<SandboxInstance> {
   const { Sandbox } = await loadSdk();
   const base = {
@@ -164,9 +172,9 @@ async function createRunSandbox(snapshotId: string, timeoutMs: number): Promise<
       networkPolicy: { subnets: { allow: ['0.0.0.0/0', '::/0'], deny: PRIVATE_CIDRS } },
     } as Parameters<SandboxModule['Sandbox']['create']>[0]);
   } catch (err) {
-    // Si la política de red no es aceptada, igual queda el bloqueo del arnés.
-    if (!/network|policy|subnet/i.test(String(err))) throw err;
-    return Sandbox.create({ ...base, networkPolicy: 'allow-all' } as Parameters<SandboxModule['Sandbox']['create']>[0]);
+    // Falla cerrado: sin la política de red no se corre (nunca 'allow-all').
+    if (/network|policy|subnet/i.test(String(err))) throw new NetworkPolicyError();
+    throw err;
   }
 }
 
@@ -179,7 +187,7 @@ export async function runInSandbox(job: RobotJob): Promise<RobotRunnerResult> {
       try {
         sbx = await createRunSandbox(snapshotId, vmTimeout);
       } catch (err) {
-        if (process.env.ROBOTS_SANDBOX_SNAPSHOT_ID) throw err;
+        if (err instanceof NetworkPolicyError || process.env.ROBOTS_SANDBOX_SNAPSHOT_ID) throw err;
         // Snapshot vencido o borrado: se rearma.
         await storeSnapshot(null);
         snapshotId = null;
@@ -217,6 +225,7 @@ export async function runInSandbox(job: RobotJob): Promise<RobotRunnerResult> {
     }
     return JSON.parse(buf.toString('utf8')) as RobotRunnerResult;
   } catch (err) {
+    if (err instanceof NetworkPolicyError) return failed('network_policy_unavailable');
     const msg = err instanceof Error ? err.message.split('\n')[0].slice(0, 200) : 'error';
     return failed(/abort|timeout/i.test(msg) ? 'timeout' : `sandbox_error: ${msg}`);
   } finally {
