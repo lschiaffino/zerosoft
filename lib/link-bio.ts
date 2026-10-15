@@ -67,6 +67,7 @@ export async function getPublicBio(handle: string): Promise<PublicBio | null> {
       `SELECT l.*, d.hostname AS domain_hostname FROM links l LEFT JOIN link_domains d ON d.id = l.domain_id
        WHERE l.user_id = ? AND l.bio_position IS NOT NULL AND l.archived = 0
          AND l.password_hash IS NULL AND (l.expires_at IS NULL OR l.expires_at > ?)
+         AND (l.max_clicks IS NULL OR l.clicks < l.max_clicks)
        ORDER BY l.bio_position ASC`,
     )
     .all(user.id, new Date().toISOString())) as LinkWithDomain[];

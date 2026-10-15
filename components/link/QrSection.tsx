@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { DEFAULT_QR_STYLE, hasEnoughContrast, QR_DOTS, renderQrSvg, type QrStyle } from '@/lib/link-qr-render';
 
@@ -30,6 +30,10 @@ export default function QrSection({ id, slug }: QrSectionProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // El estilo se carga una vez por link; el destino se vuelve a pedir cuando
+  // cambia el slug (renombrar y guardar hace router.refresh con el mismo id):
+  // si no, la vista previa y las descargas seguirían con el slug viejo.
+  const styleLoadedFor = useRef<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/links/${id}/qr?format=json`)
@@ -37,13 +41,16 @@ export default function QrSection({ id, slug }: QrSectionProps) {
       .then((data: { style: QrStyle; target: string } | null) => {
         if (cancelled || !data) return;
         setTarget(data.target);
-        setStyle(data.style);
+        if (styleLoadedFor.current !== id) {
+          styleLoadedFor.current = id;
+          setStyle(data.style);
+        }
       })
       .catch(() => null);
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, slug]);
 
   const svg = useMemo(() => (target ? renderQrSvg(target, style) : null), [target, style]);
   const svgUrl = useMemo(() => (svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : null), [svg]);

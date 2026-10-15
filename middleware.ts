@@ -15,18 +15,26 @@ const RESERVED = new Set([
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',
 ]);
 
+/** Páginas de la app que un dominio propio sí sirve: la puerta de contraseña y /gone. */
+const CUSTOM_DOMAIN_PAGES = /^\/(en|es|pt)\/(gate\/[A-Za-z0-9_-]{1,64}|gone)\/?$/;
+
 export default function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Dominio propio de Link (go.empresa.com): todo /<algo> es un link corto,
   // sin palabras reservadas. La raíz se resuelve en /r/__root (redirect
-  // configurado del dominio). El resto (gate, gone, assets) sigue normal.
+  // configurado del dominio). Además solo se sirven la puerta y /gone: el
+  // resto de la app (bio, booking, formularios, el sitio) no puede salir
+  // bajo el dominio de un cliente.
   if (!isAppHost(req.headers.get('host'))) {
     if (pathname === '/' || pathname === '') {
       return NextResponse.rewrite(new URL('/r/__root', req.url));
     }
     if (/^\/[A-Za-z0-9_-]{1,64}\/?$/.test(pathname) && !/^\/(en|es|pt)\/?$/.test(pathname)) {
       return NextResponse.rewrite(new URL(`/r/${pathname.replace(/\//g, '')}${req.nextUrl.search}`, req.url));
+    }
+    if (!CUSTOM_DOMAIN_PAGES.test(pathname)) {
+      return new NextResponse('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
     }
   }
 

@@ -110,6 +110,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
           headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
         })
       : NextResponse.redirect(dest.url, targeting ? 302 : link.redirect_type === 301 ? 301 : 302);
+  // Sin esto el navegador cachea el 301 para siempre: archivar, vencer,
+  // max_clicks, cambiar el destino y contar el click dejarían de aplicar.
+  res.headers.set('cache-control', 'no-store');
   if (newVisitor && visitorId) {
     res.cookies.set(VISITOR_COOKIE, visitorId, {
       httpOnly: true,
