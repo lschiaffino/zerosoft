@@ -55,6 +55,8 @@ interface DocsEditorProps {
   /** Guarda solo lo que edita el editor (no pisa archived/is_public). */
   onSave: (patch: Partial<DocsPage>) => void;
   saving?: boolean;
+  /** El último guardado falló: se muestra en lugar de "Guardado", con reintento. */
+  saveError?: 'tooLong' | 'failed' | null;
   onDuplicate?: () => void;
   onDelete?: () => void;
   onAddComment?: () => void;
@@ -216,6 +218,7 @@ export default function DocsEditor({
   ancestors,
   onSave,
   saving,
+  saveError,
   onDuplicate,
   onDelete,
   onAddComment,
@@ -1494,8 +1497,22 @@ export default function DocsEditor({
           </nav>
 
         <div className="docs-page-actions">
-          <span className="docs-save-status" aria-live="polite">
-            {saving || dirty ? t('editor.saving') : t('editor.saved')}
+          <span
+            className={`docs-save-status${saveError && !saving && !dirty ? ' is-error' : ''}`}
+            aria-live="polite"
+          >
+            {saving || dirty
+              ? t('editor.saving')
+              : saveError
+                ? (
+                    <>
+                      {t(saveError === 'tooLong' ? 'editor.saveTooLong' : 'editor.saveFailed')}{' '}
+                      <button type="button" className="btn btn-small" onClick={() => triggerSave()}>
+                        {t('editor.retrySave')}
+                      </button>
+                    </>
+                  )
+                : t('editor.saved')}
           </span>
           {topActions}
           <div className="docs-action-menu-wrap" ref={menuRef}>

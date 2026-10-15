@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
-import { getChatVisitorByExternalId, getChatWidget } from '@/lib/chat-data';
+import { getChatVisitorByExternalId, getChatWidget, toPublicVisitor } from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,5 +19,5 @@ export async function GET(req: Request) {
 
   const visitor = await getChatVisitorByExternalId(widgetId, externalId);
   if (!visitor) return NextResponse.json({ visitor: null });
-  return NextResponse.json({ visitor });
+  return NextResponse.json({ visitor: toPublicVisitor(visitor) });
 }

@@ -1,4 +1,5 @@
 import { getDb, getUserById } from './db';
+import { inlineHtmlToText } from './docs-markdown';
 import type {
   ChatAssignmentRuleRow,
   ChatCannedResponseRow,
@@ -586,9 +587,8 @@ export async function updateChatVisitor(
     args.push(JSON.stringify(payload.metadata ?? {}));
   }
 
+  // chat_visitors no tiene updated_at: agregarlo rompía cada guardado con 500.
   if (fields.length > 0) {
-    fields.push('updated_at = ?');
-    args.push(nowIso());
     args.push(id);
     await db.prepare(`UPDATE chat_visitors SET ${fields.join(', ')} WHERE id = ?`).run(...args);
   }
@@ -1199,12 +1199,14 @@ function matchesKeyword(body: string, value: string | null): boolean {
   return body.toLowerCase().includes(value.toLowerCase());
 }
 
-function matchesTimeRange(value: string | null): boolean {
+// El rango se interpreta en la zona del widget (horario de atención); sin zona
+// configurada, en UTC. Antes usaba la hora del proceso (UTC en Vercel).
+export function matchesTimeRange(value: string | null, timeZone: string | null, now = new Date()): boolean {
   if (!value) return false;
   const [start, end] = value.split('-');
   if (!start || !end) return false;
-  const now = new Date();
-  const current = now.getHours() * 60 + now.getMinutes();
+  const current =
+    localParts(timeZone || 'UTC', now)?.minutes ?? now.getUTCHours() * 60 + now.getUTCMinutes();
   const parse = (s: string) => {
     const [h, m] = s.trim().split(':').map(Number);
     if (Number.isNaN(h) || Number.isNaN(m)) return null;
@@ -1231,6 +1233,8 @@ export async function applyAssignmentRules(
 
   const rules = await listAssignmentRules(widgetId);
   const activeRules = rules.filter((r) => r.active === 1);
+  const widget = activeRules.some((r) => r.match_type === 'time') ? await getChatWidget(widgetId) : undefined;
+  const ruleTimeZone = parseOfficeHours(widget?.office_hours ?? null)?.timezone ?? null;
 
   for (const rule of activeRules) {
     let matched = false;
@@ -1242,7 +1246,7 @@ export async function applyAssignmentRules(
         matched = matchesKeyword(messageBody, rule.match_value);
         break;
       case 'time':
-        matched = matchesTimeRange(rule.match_value);
+        matched = matchesTimeRange(rule.match_value, ruleTimeZone);
         break;
       case 'round_robin':
         matched = true;
@@ -1550,7 +1554,8 @@ export function extractDocsText(content: string, maxChars = 2000): string {
     const walk = (value: unknown): void => {
       if (texts.join(' ').length > maxChars) return;
       if (typeof value === 'string') {
-        texts.push(value);
+        // El contenido de los bloques es HTML-lite (<strong>, &amp;): a texto plano.
+        texts.push(inlineHtmlToText(value));
         return;
       }
       if (Array.isArray(value)) {
@@ -1568,6 +1573,14 @@ export function extractDocsText(content: string, maxChars = 2000): string {
   } catch {
     return content.slice(0, maxChars);
   }
+}
+
+// Corta en el último espacio antes del límite para no partir una palabra.
+function clipAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const at = cut.lastIndexOf(' ');
+  return `${(at > max * 0.6 ? cut.slice(0, at) : cut).replace(/[\s,.;:]+$/, '')}…`;
 }
 
 export async function findBotReply(
@@ -1596,7 +1609,7 @@ export async function findBotReply(
       if (score > 0 && (!best || score > best.score)) {
         best = {
           score,
-          text: `${page.title}: ${text.slice(0, 280)}`.trim(),
+          text: `${page.title}: ${clipAtWord(text, 280)}`.trim(),
           title: page.title,
         };
       }
@@ -1759,16 +1772,22 @@ export async function setTyping(
   expiresInSeconds = 5,
 ): Promise<void> {
   const db = getDb();
-  const id = crypto.randomUUID();
+  // Id determinístico: con user_id NULL (visitante) el UNIQUE no choca nunca en
+  // SQLite y cada "escribiendo" insertaba una fila nueva. El upsert por id lo cubre.
+  const id = `${conversationId}:${senderType}:${userId ?? ''}`;
   const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
   await db
     .prepare(
       `INSERT INTO chat_typing (id, conversation_id, sender_type, user_id, expires_at)
        VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT (conversation_id, sender_type, user_id)
-       DO UPDATE SET expires_at = excluded.expires_at`,
+       ON CONFLICT (id) DO UPDATE SET expires_at = excluded.expires_at
+       ON CONFLICT (conversation_id, sender_type, user_id) DO UPDATE SET expires_at = excluded.expires_at`,
     )
     .run(id, conversationId, senderType, userId ?? null, expiresAt);
+  // Limpieza de indicadores vencidos de la conversación (filas viejas incluidas).
+  await db
+    .prepare('DELETE FROM chat_typing WHERE conversation_id = ? AND expires_at <= ?')
+    .run(conversationId, nowIso());
 }
 
 export async function listTyping(conversationId: string): Promise<ChatTypingRow[]> {
@@ -1803,6 +1822,11 @@ export async function clearTyping(
 }
 
 // ---------- Public visitor helpers ----------
+
+/** Proyección del visitante para rutas públicas: sin notas internas ni metadata. */
+export function toPublicVisitor(visitor: ChatVisitorRow): Pick<ChatVisitorRow, 'id' | 'email' | 'name'> {
+  return { id: visitor.id, email: visitor.email, name: visitor.name };
+}
 
 export interface VisitorConversationWithMessages {
   visitor: ChatVisitorRow;

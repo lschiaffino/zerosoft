@@ -78,6 +78,17 @@ export const conversationPatchSchema = z.object({
 /** Tope de largo de un mensaje (visitante y agente). */
 export const CHAT_MESSAGE_MAX = 5000;
 
+/** Tope de un adjunto (igual a MAX_UPLOAD_SIZE de lib/uploads, que es solo servidor). */
+export const CHAT_UPLOAD_MAX = 10 * 1024 * 1024;
+
+/** Clave de traducción (namespace chat) para el código de error de un envío del agente. */
+export function sendErrorKey(code: string | undefined): string {
+  if (code === 'file_too_large') return 'errors.fileTooLarge';
+  if (code === 'file_type_not_allowed') return 'errors.fileTypeNotAllowed';
+  if (code === 'invalid_input') return 'errors.invalid_input';
+  return 'errors.generic';
+}
+
 /**
  * Límites del POST público del visitante (sin auth: el widgetId es público).
  * Solo acota tamaños; widgetId/visitorId y el resto se validan en la ruta.
