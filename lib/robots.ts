@@ -110,7 +110,7 @@ export function toRobotDto(row: RobotRow, hasSession = false): RobotDto {
     enabled: row.enabled === 1,
     schedule: parseJson<RobotSchedule>(row.schedule, null),
     nextRunAt: row.next_run_at,
-    timeoutSec: row.timeout_sec,
+    timeoutSec: Math.min(row.timeout_sec, MAX_TIMEOUT_SEC),
     persistSession: row.persist_session === 1,
     hasSession,
     createdBy: row.created_by,
@@ -212,21 +212,27 @@ export async function listRobots(workspaceId: string): Promise<RobotListItem[]> 
     .prepare('SELECT * FROM robots WHERE user_id = ? ORDER BY updated_at DESC')
     .all(workspaceId)) as RobotRow[];
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const out: RobotListItem[] = [];
-  for (const row of rows) {
-    const last = (await db
-      .prepare('SELECT id, status, created_at FROM robot_runs WHERE robot_id = ? ORDER BY created_at DESC LIMIT 1')
-      .get(row.id)) as { id: string; status: RobotRunStatus; created_at: string } | undefined;
-    const count = (await db
-      .prepare('SELECT COUNT(*) AS n FROM robot_runs WHERE robot_id = ? AND created_at >= ?')
-      .get(row.id, since)) as { n: number };
-    out.push({
+  // Última corrida y conteo de 7 días de todos los robots en dos queries (sin N+1).
+  const lasts = (await db
+    .prepare(
+      `SELECT b.id AS robot_id, r.id, r.status, r.created_at FROM robots b
+       JOIN robot_runs r ON r.id = (SELECT id FROM robot_runs WHERE robot_id = b.id ORDER BY created_at DESC LIMIT 1)
+       WHERE b.user_id = ?`,
+    )
+    .all(workspaceId)) as Array<{ robot_id: string; id: string; status: RobotRunStatus; created_at: string }>;
+  const counts = (await db
+    .prepare('SELECT robot_id, COUNT(*) AS n FROM robot_runs WHERE user_id = ? AND created_at >= ? GROUP BY robot_id')
+    .all(workspaceId, since)) as Array<{ robot_id: string; n: number }>;
+  const lastBy = new Map(lasts.map((l) => [l.robot_id, l]));
+  const countBy = new Map(counts.map((c) => [c.robot_id, Number(c.n) || 0]));
+  return rows.map((row) => {
+    const last = lastBy.get(row.id);
+    return {
       ...toRobotDto(row),
       lastRun: last ? { id: last.id, status: last.status, createdAt: last.created_at } : null,
-      runs7d: Number(count.n) || 0,
-    });
-  }
-  return out;
+      runs7d: countBy.get(row.id) ?? 0,
+    };
+  });
 }
 
 export type RobotWriteResult =
@@ -624,7 +630,7 @@ export async function runDueRobots(now: Date = new Date(), limit = 5, budgetMs =
   let ran = 0;
   let attempted = 0;
   for (const row of rows) {
-    if (attempted > 0 && Date.now() - t0 + row.timeout_sec * 1000 > budgetMs) break;
+    if (attempted > 0 && Date.now() - t0 + Math.min(row.timeout_sec, MAX_TIMEOUT_SEC) * 1000 > budgetMs) break;
     const schedule = parseJson<RobotSchedule>(row.schedule, null);
     const next = nextRun(schedule, true, now);
     const res = await getDb()
@@ -634,6 +640,28 @@ export async function runDueRobots(now: Date = new Date(), limit = 5, budgetMs =
     attempted += 1;
     const r = await startRobotRun(row.user_id, row.id, undefined, { trigger: 'schedule' });
     if (r.ok) ran += 1;
+    else if (r.error !== 'not_found' && r.error !== 'disabled') await recordSkippedRun(row, r.error);
   }
   return ran;
+}
+
+/**
+ * Una corrida programada que no pudo arrancar (ocupado, sin cuota, rate limit,
+ * credencial faltante…) queda en el historial como fallida con el código y
+ * emite robot.run.failed: no se pierde en silencio.
+ */
+async function recordSkippedRun(row: RobotRow, error: RunErrorCode): Promise<void> {
+  const id = crypto.randomUUID();
+  const ts = nowIso();
+  await getDb()
+    .prepare(
+      `INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, error, created_at, started_at, finished_at, duration_ms)
+       VALUES (?, ?, ?, 'failed', 'schedule', ?, ?, ?, ?, 0)`,
+    )
+    .run(id, row.id, row.user_id, error, ts, ts, ts);
+  await emitEvent(row.user_id, 'robot.run.failed', {
+    robot: { id: row.id, name: row.name },
+    run: { id, status: 'failed', trigger: 'schedule', durationMs: 0, error },
+    output: {},
+  });
 }

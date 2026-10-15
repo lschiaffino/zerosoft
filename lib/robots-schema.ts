@@ -24,8 +24,13 @@ export const MAX_EXECUTED_STEPS = 500;
 export const MAX_PAGES = 20;
 /** Capturas por corrida. */
 export const MAX_SCREENSHOTS = 5;
-/** Tiempo máximo de una corrida (segundos). */
-export const MAX_TIMEOUT_SEC = 300;
+/**
+ * Tiempo máximo de una corrida (segundos). Las rutas que corren robots en
+ * forma sincrónica tienen maxDuration = 300 s: el resto queda para crear la
+ * VM, el margen de corte (+45 s), subir capturas/archivos y registrar el uso.
+ * Valores guardados mayores (antes el tope era 300) se acotan a este.
+ */
+export const MAX_TIMEOUT_SEC = 180;
 export const DEFAULT_TIMEOUT_SEC = 120;
 /** Variables de entrada por robot. */
 export const MAX_INPUTS = 20;
@@ -343,7 +348,8 @@ export const robotUpdateSchema = z.object({
   inputs: z.unknown().optional(),
   enabled: z.boolean().optional(),
   schedule: robotScheduleSchema.optional(),
-  timeoutSec: z.number().int().min(10).max(MAX_TIMEOUT_SEC).optional(),
+  // Hasta 300 por compatibilidad con robots viejos; se acota a MAX_TIMEOUT_SEC al guardar.
+  timeoutSec: z.number().int().min(10).max(300).optional(),
   /** Guardar cookies y localStorage entre corridas (cifrados). */
   persistSession: z.boolean().optional(),
 });

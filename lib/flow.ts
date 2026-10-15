@@ -3,7 +3,9 @@
  * corridas desde los disparadores. La ejecución vive en lib/flow-engine.ts y
  * el procesamiento de la cola en lib/flow-worker.ts. Server-only.
  *
- * user_id = workspace (dueño); created_by = persona real que lo creó.
+ * user_id = workspace (dueño); created_by = persona real que lo creó. Si otra
+ * persona cambia un nodo Gmail, pasa a ser created_by: el nodo envía desde la
+ * casilla de quien escribió el mensaje, nunca desde la de otro.
  */
 import { randomBytes } from 'crypto';
 import { after } from 'next/server';
@@ -221,17 +223,22 @@ export async function listFlows(workspaceId: string): Promise<FlowListItem[]> {
   const rows = (await getDb()
     .prepare('SELECT * FROM flow_flows WHERE user_id = ? ORDER BY updated_at DESC')
     .all(workspaceId)) as FlowFlowRow[];
-  const out: FlowListItem[] = [];
-  for (const row of rows) {
-    const last = (await getDb()
-      .prepare('SELECT id, status, created_at FROM flow_runs WHERE flow_id = ? ORDER BY created_at DESC LIMIT 1')
-      .get(row.id)) as { id: string; status: FlowRunRow['status']; created_at: string } | undefined;
-    out.push({
+  // Última corrida de cada flow en una sola query (sin una por fila).
+  const lasts = (await getDb()
+    .prepare(
+      `SELECT f.id AS flow_id, r.id, r.status, r.created_at FROM flow_flows f
+       JOIN flow_runs r ON r.id = (SELECT id FROM flow_runs WHERE flow_id = f.id ORDER BY created_at DESC LIMIT 1)
+       WHERE f.user_id = ?`,
+    )
+    .all(workspaceId)) as Array<{ flow_id: string; id: string; status: FlowRunRow['status']; created_at: string }>;
+  const lastBy = new Map(lasts.map((l) => [l.flow_id, l]));
+  return rows.map((row) => {
+    const last = lastBy.get(row.id);
+    return {
       ...toFlowDto(row),
       lastRun: last ? { id: last.id, status: last.status, createdAt: last.created_at } : null,
-    });
-  }
-  return out;
+    };
+  });
 }
 
 export async function getFlowRow(workspaceId: string, id: string): Promise<FlowFlowRow | null> {
@@ -355,6 +362,11 @@ export async function createFlow(
   return { ok: true, flow: (await getFlow(workspaceId, id))! };
 }
 
+/** Nodos Gmail del grafo (id + config) para detectar si alguien los cambió. */
+function gmailNodesKey(graph: FlowGraph): string {
+  return JSON.stringify(graph.nodes.filter((n) => n.type === 'app.gmail').map((n) => [n.id, n.config ?? {}]));
+}
+
 export async function updateFlow(
   workspaceId: string,
   id: string,
@@ -385,6 +397,11 @@ export async function updateFlow(
     }
   }
   const graphChanged = patch.graph !== undefined && JSON.stringify(graph) !== row.graph;
+  // Quien edita un nodo Gmail de otro pasa a ser el remitente (su casilla).
+  const createdBy =
+    graphChanged && actorId && actorId !== row.created_by && gmailNodesKey(graph) !== gmailNodesKey(parseGraph(row.graph))
+      ? actorId
+      : row.created_by;
   const enabled = patch.enabled ?? row.enabled === 1;
   const tf = triggerFields(graph, enabled);
   // Al editar un schedule ya programado, se conserva la próxima corrida si la
@@ -394,7 +411,7 @@ export async function updateFlow(
   const res = await getDb()
     .prepare(
       `UPDATE flow_flows SET name = ?, description = ?, enabled = ?, graph = ?, version = version + 1,
-         trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, updated_at = ?
+         trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, created_by = ?, updated_at = ?
        WHERE id = ? AND user_id = ? AND version = ?`,
     )
     .run(
@@ -406,6 +423,7 @@ export async function updateFlow(
       tf.event,
       keepNext ? row.next_run_at : tf.next,
       errorFlowId,
+      createdBy,
       nowIso(),
       id,
       workspaceId,
