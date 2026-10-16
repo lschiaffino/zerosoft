@@ -1,6 +1,6 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
-import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
+import { Archivo, JetBrains_Mono } from 'next/font/google';
 import { routing } from '@/i18n/routing';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -9,16 +9,18 @@ import SupportWidget from '@/components/SupportWidget';
 import { supportWidgetId } from '@/lib/support';
 import type { ReactNode } from 'react';
 
-const sans = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-space-grotesk',
+// Archivo variable con el eje de ancho (wdth 62–125): señalética angosta y UI normal.
+const sans = Archivo({
+  subsets: ['latin', 'latin-ext'],
+  axes: ['wdth'],
+  variable: '--font-archivo',
   display: 'swap',
 });
 
-const mono = IBM_Plex_Mono({
+// JetBrains Mono: solo datos (cero con barra vía la clase .data de styles/brand.css).
+const mono = JetBrains_Mono({
   subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-plex-mono',
+  variable: '--font-jetbrains',
   display: 'swap',
 });
 

@@ -1,11 +1,13 @@
 import { ImageResponse } from 'next/og';
-import { ZERO_PATH, ZERO_VIEWBOX } from '@/lib/zero-mark';
+import { BRAND_INK, BRAND_WHITE, STATION_RING } from '@/lib/brand';
 
 export const size = { width: 180, height: 180 };
 export const contentType = 'image/png';
 
-/** Ícono para la pantalla de inicio de iOS: el cero de la marca, blanco sobre tinta. */
+/** Ícono para la pantalla de inicio de iOS: la estación blanca sobre la banda negra. */
 export default function AppleIcon() {
+  const r = 62;
+  const w = r * STATION_RING;
   return new ImageResponse(
     (
       <div
@@ -15,11 +17,11 @@ export default function AppleIcon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#0d0d0d',
+          background: BRAND_INK,
         }}
       >
-        <svg width="92" height="110" viewBox={ZERO_VIEWBOX}>
-          <path d={ZERO_PATH} fill="#ffffff" fillRule="evenodd" />
+        <svg width="180" height="180" viewBox="0 0 180 180">
+          <circle cx="90" cy="90" r={r - w / 2} fill={BRAND_INK} stroke={BRAND_WHITE} strokeWidth={w} />
         </svg>
       </div>
     ),

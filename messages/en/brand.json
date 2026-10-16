@@ -1,0 +1,252 @@
+{
+  "meta": {
+    "title": "Brand",
+    "description": "The zerosoft brand guide: the name, the logo, the stations, the eleven lines, type, voice and the suite map. With the kit to download."
+  },
+  "nav": {
+    "label": "Guide sections",
+    "logo": "Logo",
+    "lines": "Lines",
+    "type": "Type",
+    "voice": "Voice",
+    "network": "Network",
+    "press": "Press",
+    "download": "Download kit",
+    "home": "zerosoft, home"
+  },
+  "hero": {
+    "title1": "One network.",
+    "title2": "Eleven lines.",
+    "sub": "Each app is a line with its own color. Change at any station: a booking in Cal creates the contact in CRM.",
+    "kit": "The kit has the logo and symbols as SVG and PNG (512 and 1024 px), plus both typefaces with their OFL license.",
+    "kitSize": "zip · {size}",
+    "edition": "Brand guide · October 2026"
+  },
+  "map": {
+    "title": "zerosoft network map: eleven lines and their interchange stations",
+    "hint": "Hover a line or a station to see what it connects to.",
+    "lines": {
+      "link": "Link: every link created or clicked can trigger a flow, and a flow creates links.",
+      "crm": "CRM: the center of the network. It gets contacts from Cal, Chat and Agents, and its events trigger flows.",
+      "cal": "Cal: every booking creates or updates the contact in CRM and can trigger a flow.",
+      "track": "Track: connects to GitHub through a webhook. Agents and Flow open issues.",
+      "chat": "Chat: saves the conversation on the CRM contact, answers with Docs pages and can hand off to an agent.",
+      "docs": "Docs: feeds Chat answers and Agents knowledge. Flow creates pages.",
+      "flow": "Flow: the circle line. Events from every app trigger flows, and flows act on Link, CRM, Track, Chat, Docs, Robots and Agents.",
+      "agents": "Agents: answers in Chat, creates contacts in CRM, books in Cal, opens issues in Track, reads Docs and runs flows.",
+      "robots": "Robots: Flow runs robots and the end of every run can trigger a flow.",
+      "notes": "Notes: runs on its own. It does not connect to other lines yet.",
+      "board": "Board: runs on its own. It does not connect to other lines yet."
+    },
+    "stations": {
+      "contacts": {
+        "name": "Contacts",
+        "desc": "Cal, Chat and Agents create or update the contact in CRM."
+      },
+      "crmEvents": {
+        "name": "Events",
+        "desc": "Contacts, deals and forms trigger flows. A flow creates and updates contacts."
+      },
+      "bookings": {
+        "name": "Bookings",
+        "desc": "A booking, a reschedule or a cancellation triggers a flow."
+      },
+      "messages": {
+        "name": "Messages",
+        "desc": "A new conversation or message triggers a flow. A flow replies in Chat."
+      },
+      "clicks": {
+        "name": "Clicks",
+        "desc": "A link created or clicked triggers a flow. A flow creates links."
+      },
+      "issues": {
+        "name": "Issues",
+        "desc": "Issue changes trigger flows. A flow opens issues."
+      },
+      "pages": {
+        "name": "Pages",
+        "desc": "A flow creates pages in Docs."
+      },
+      "runs": {
+        "name": "Runs",
+        "desc": "A flow runs a robot and waits for the result. The end of a run triggers flows."
+      },
+      "agentFlows": {
+        "name": "Flows",
+        "desc": "An agent runs flows, and a flow hands work to an agent."
+      },
+      "agentIssues": {
+        "name": "Agent issues",
+        "desc": "An agent opens issues in Track from a conversation."
+      },
+      "knowledge": {
+        "name": "Knowledge",
+        "desc": "An agent answers with the Docs pages you pick."
+      },
+      "answers": {
+        "name": "Answers",
+        "desc": "The Chat bot answers with published Docs pages."
+      },
+      "github": {
+        "name": "GitHub",
+        "desc": "PRs and commits that name an issue link it and move its status."
+      }
+    }
+  },
+  "name": {
+    "title": "The name",
+    "lead": "zerosoft is written in lowercase and as one word, also at the start of a sentence. The domain, zerosoft.ai, only goes where an address is needed.",
+    "yes": "Like this",
+    "no": "Not like this",
+    "productsTitle": "Products",
+    "productsBody": "Each app has a one-word name with an initial capital. Inside the site and the app it stands alone. Outside, the first time, the brand goes first.",
+    "productsInside": "Inside",
+    "productsOutside": "Outside, the first time"
+  },
+  "logo": {
+    "title": "The logo",
+    "lead": "The wordmark is zerosoft in narrow, heavy Archivo, with the o of zero turned into a station. The symbol is that station on its own.",
+    "wordmark": "Wordmark",
+    "symbol": "Symbol",
+    "onLight": "Ink on light · logo-dark.svg",
+    "onDark": "White on the black band · logo-light.svg",
+    "symbolFile": "symbol.svg",
+    "clearTitle": "Clear space",
+    "clearBody": "One station of air on every side: the diameter of the o in zero. Nothing enters that margin.",
+    "minTitle": "Minimum size",
+    "minBody": "The station is never smaller than 15 px, which puts the wordmark at 80 px wide. The symbol, at 16 px.",
+    "unit": "1 station",
+    "misuseTitle": "Incorrect use",
+    "misuse": {
+      "stretch": "Do not stretch or squeeze it.",
+      "color": "Do not paint the station with a line color: the logo is ink or white.",
+      "caps": "Do not capitalize it or rebuild it in another typeface.",
+      "effects": "Do not add shadows, outlines or gradients.",
+      "contrast": "Do not place it on a color that keeps it from reading.",
+      "glyph": "Do not replace the station with a typed zero."
+    }
+  },
+  "stations": {
+    "title": "The stations",
+    "lead": "The zero in zerosoft is a station: a white circle with a thick black ring, 0.44 of the radius. It shows up in the logo, the map, lists and images.",
+    "single": "Station",
+    "singleBody": "A stop on one line, or an item in a list.",
+    "interchange": "Interchange",
+    "interchangeBody": "Two linked rings: two apps meet there.",
+    "product": "Product mark",
+    "productBody": "The station with its ring in the color of its line.",
+    "weightsTitle": "Three weights",
+    "w16": "16 px · the line",
+    "w8": "8 px · the station ring",
+    "w4": "4 px · rules and borders",
+    "corners": "Everything else has square corners, 0 or 2 px. The circle is kept for stations."
+  },
+  "lines": {
+    "colApp": "App",
+    "title": "The eleven lines",
+    "lead": "Each app has its line color and keeps it everywhere: color tells you where you are. The line color goes on strokes, stations and fills. Text uses the ink version, which passes AA on white.",
+    "colLine": "Line",
+    "colInk": "Text",
+    "colOn": "On top",
+    "copy": "Copy {value}",
+    "copied": "Copied",
+    "onWhite": "white text",
+    "onInk": "ink text",
+    "neutralsTitle": "Neutrals",
+    "neutrals": {
+      "white": "Enamel white",
+      "enamel": "Enamel",
+      "ink": "Ink",
+      "gray1": "Gray 1",
+      "gray2": "Gray 2",
+      "gray3": "Gray 3",
+      "rule": "Rule"
+    },
+    "neutralUse": {
+      "white": "Background for everything",
+      "enamel": "Panels",
+      "ink": "Text and the signage band",
+      "gray1": "Secondary text",
+      "gray2": "Captions",
+      "gray3": "The lightest gray for text",
+      "rule": "Rules, never text"
+    }
+  },
+  "type": {
+    "title": "Type",
+    "lead": "One family for everything, Archivo, with its width axis. Narrow and heavy for signage and headings, normal width for reading and using the app. JetBrains Mono only for data.",
+    "signage": "Signage",
+    "signageSpec": "Archivo · wdth 62–75 · 800",
+    "ui": "Interface and reading",
+    "uiSpec": "Archivo · wdth 100 · 400–600",
+    "data": "Data",
+    "dataSpec": "JetBrains Mono · 400–500 · slashed zero",
+    "signageSample": "Change for Flow",
+    "uiSample": "Every booking creates the contact in CRM and stays in its history.",
+    "scaleTitle": "Scale",
+    "scale": {
+      "display": "Display",
+      "h1": "Heading 1",
+      "h2": "Heading 2",
+      "h3": "Heading 3",
+      "sign": "Line name",
+      "lead": "Lead",
+      "body": "Body",
+      "ui": "Interface",
+      "data": "Data"
+    },
+    "download": "Download {font}",
+    "license": "Both are open source, under the SIL Open Font License 1.1. They also come in the kit."
+  },
+  "voice": {
+    "title": "Voice",
+    "lead": "Dry and concrete. Name the thing, show the number and cut the rest.",
+    "yes": "Yes",
+    "no": "No",
+    "rules": {
+      "r1": {
+        "title": "Name the thing",
+        "body": "Say what happens and where, with the name of the app.",
+        "yes": "A booking in Cal creates the contact in CRM.",
+        "no": "Supercharge your workflows with smart integrations."
+      },
+      "r2": {
+        "title": "Say what it does",
+        "body": "Describe the product by what it does, without setting it against something else.",
+        "yes": "Track sorts issues and links them to your GitHub PRs.",
+        "no": "It's not a task manager, it's your new operating system."
+      },
+      "r3": {
+        "title": "Period or colon",
+        "body": "The em dash is not used. End the sentence or open with a colon.",
+        "yes": "Flow connects everything: every event can trigger a flow.",
+        "no": "Flow connects everything — every event triggers a flow."
+      },
+      "r4": {
+        "title": "One idea per sentence",
+        "body": "No “no this, no that” triads. One sentence with a fact is worth more.",
+        "yes": "The price is cost times 3, and we show both numbers.",
+        "no": "No limits. No fine print. No surprises."
+      },
+      "r5": {
+        "title": "What does not exist is not announced",
+        "body": "Anything not in production yet says “Coming soon” or does not appear.",
+        "yes": "Board does not connect to other apps yet.",
+        "no": "Board integrates with your whole stack."
+      }
+    }
+  },
+  "network": {
+    "title": "The network",
+    "lead": "Every interchange station is an integration that is in the code today. Notes and Board still run on their own.",
+    "colStation": "Station",
+    "colLines": "Lines",
+    "colWhat": "What happens"
+  },
+  "press": {
+    "title": "Press",
+    "body": "For stories, interviews or material that is not in the kit, write to us.",
+    "github": "The code, on GitHub",
+    "site": "Go to zerosoft.ai"
+  }
+}

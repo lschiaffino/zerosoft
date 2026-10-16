@@ -91,11 +91,14 @@ export default function ZeroField({
           c.height = SPRITE;
           const cctx = c.getContext('2d');
           if (!cctx) return;
-          cctx.fillStyle = `rgb(${rgb})`;
-          cctx.font = `500 ${Math.round(SPRITE * 0.82)}px "IBM Plex Mono", monospace`;
-          cctx.textAlign = 'center';
-          cctx.textBaseline = 'middle';
-          cctx.fillText('0', SPRITE / 2, SPRITE / 2 + SPRITE * 0.02);
+          // Cada partícula es una estación: un anillo grueso (0,44 del radio).
+          const r = SPRITE * 0.34;
+          const w = r * 0.44;
+          cctx.strokeStyle = `rgb(${rgb})`;
+          cctx.lineWidth = w;
+          cctx.beginPath();
+          cctx.arc(SPRITE / 2, SPRITE / 2, r - w / 2, 0, Math.PI * 2);
+          cctx.stroke();
           sprites.push(c);
         }
       }
@@ -128,11 +131,14 @@ export default function ZeroField({
         const size = Math.min(W, H) * (isMobile() ? Math.min(1, sizeFactor * 1.05) : sizeFactor);
         const { x: cx, y: cy } = glyphCenter();
 
-        octx.fillStyle = '#000';
-        octx.font = `500 ${size}px "IBM Plex Mono", monospace`;
-        octx.textAlign = 'center';
-        octx.textBaseline = 'middle';
-        octx.fillText('0', cx, cy);
+        // La forma grande también es una estación: un anillo de 0,44 del radio.
+        const ringR = size * 0.36;
+        const ringW = ringR * 0.44;
+        octx.strokeStyle = '#000';
+        octx.lineWidth = ringW;
+        octx.beginPath();
+        octx.arc(cx, cy, ringR - ringW / 2, 0, Math.PI * 2);
+        octx.stroke();
 
         const img = octx.getImageData(0, 0, W, H).data;
         const gap = Math.max(8, Math.round(size / 56));

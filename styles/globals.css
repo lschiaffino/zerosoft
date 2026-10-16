@@ -1,11 +1,11 @@
 /* ============================================
-   ZEROSOFT.AI — El software murió.
-   Blanco, negro y ceros. Nada más.
+   zerosoft: estilos globales del sitio y las apps.
+   Los tokens de marca (red de subte) están en styles/brand.css.
    ============================================ */
 
 :root {
   --bg: #ffffff;
-  --ink: #0d0d0d;
+  --ink: #111111;
   --dim: #9a9a9a;
   --line: #e8e8e8;
   /* Grises del sitio: texto secundario y terciario sobre blanco (AA). */
@@ -14,8 +14,8 @@
   /* Lo mismo sobre las bandas oscuras (#0a0a0a). */
   --on-dark-2: #b3b3b3;
   --on-dark-3: #8a8a8a;
-  --mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
-  --sans: var(--font-space-grotesk), -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+  --sans: var(--font-archivo), -apple-system, "Helvetica Neue", Arial, sans-serif;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   /* Aliases usados por los estilos de las apps (app.css, crm.css) */
   --text: var(--ink);
@@ -263,8 +263,7 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 0;
 }
 
-.brand .zero-mark { display: block; flex-shrink: 0; transition: transform 0.4s var(--ease); }
-.brand:hover .zero-mark { transform: scaleX(0.82); }
+.brand .brand-logo { display: block; flex-shrink: 0; }
 
 .brand-name {
   font-family: var(--mono);
@@ -624,7 +623,7 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
 /* ---------- Footer ---------- */
 
 .site-footer {
-  background: #0a0a0a;
+  background: var(--brand-ink);
   color: var(--on-dark-3);
 }
 

@@ -1357,10 +1357,12 @@ section.lp-section { padding-top: clamp(72px, 8vw, 120px); padding-bottom: clamp
 .lp-h1 {
   width: fit-content;
   max-width: 13ch;
-  font-size: clamp(3rem, 7.4vw, 6.6rem);
-  font-weight: 500;
-  line-height: 0.94;
-  letter-spacing: -0.055em;
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-size: clamp(3rem, 7vw, 6rem);
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.01em;
   text-wrap: balance;
 }
 
