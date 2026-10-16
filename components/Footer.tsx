@@ -3,7 +3,7 @@ import { Link } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
 import Icon from './site/Icon';
 import { GITHUB_URL, PRODUCT_NAMES, SITE_PRODUCTS } from './site/catalog';
-import ZeroMark from './zero/ZeroMark';
+import Logo from './brand/Logo';
 import ProductZero from './zero/ProductZero';
 
 export default async function Footer({ locale }: { locale: string }) {
@@ -15,9 +15,8 @@ export default async function Footer({ locale }: { locale: string }) {
     <footer className="site-footer">
       <div className="footer-grid">
         <div className="footer-brand">
-          <Link href="/" className="brand" aria-label="zerosoft.ai">
-            <ZeroMark size={22} />
-            <span className="brand-name">zerosoft.ai</span>
+          <Link href="/" className="brand" aria-label="zerosoft">
+            <Logo tone="white" height={22} title="" />
           </Link>
           <p>{tm('tagline')}</p>
           <p className="footer-tagline">{t('tagline')}</p>

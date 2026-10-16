@@ -126,7 +126,7 @@ export function generateBlogCoverSVG(
   const width = variant === 'hero' ? 1200 : 600;
   const height = variant === 'hero' ? 400 : 300;
 
-  const fontFamily = "'IBM Plex Mono', ui-monospace, monospace";
+  const fontFamily = "'JetBrains Mono', ui-monospace, monospace";
   const escapeXml = (str: string) =>
     str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 

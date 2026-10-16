@@ -4,14 +4,14 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Lint del copy del sitio público (docs/voice.md). Recorre cada string de
- * messages/<locale>/{common,pages,tools}.json y falla si aparece un patrón
+ * messages/<locale>/{common,pages,tools,brand}.json y falla si aparece un patrón
  * prohibido. Si un string necesita una excepción legítima, agregalo a ALLOW
  * con la ruta exacta ("es/pages:docs.algo") y el nombre de la regla.
  */
 
 const root = join(__dirname, '..', '..');
 const LOCALES = ['es', 'en', 'pt'] as const;
-const NAMESPACES = ['common', 'pages', 'tools'] as const;
+const NAMESPACES = ['common', 'pages', 'tools', 'brand'] as const;
 
 const RULES: Record<string, RegExp> = {
   'raya larga (—)': /—/,
@@ -36,7 +36,14 @@ const RULES: Record<string, RegExp> = {
 };
 
 /** Excepciones: "<locale>/<ns>:<ruta>" → reglas que no aplican a ese string. */
-const ALLOW: Record<string, string[]> = {};
+const ALLOW: Record<string, string[]> = Object.fromEntries(
+  // La guía de marca muestra cada patrón prohibido como ejemplo de "No".
+  LOCALES.flatMap((l) => [
+    [`${l}/brand:voice.rules.r2.no`, ['no es X, es Y']],
+    [`${l}/brand:voice.rules.r3.no`, ['raya larga (—)']],
+    [`${l}/brand:voice.rules.r4.no`, ['tríada sin X, sin Y, sin Z']],
+  ]),
+);
 
 function strings(obj: unknown, prefix: string, out: [string, string][]): [string, string][] {
   if (typeof obj === 'string') out.push([prefix, obj]);

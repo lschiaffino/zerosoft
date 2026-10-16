@@ -7,7 +7,7 @@ import { Link, usePathname } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
 import Icon from './site/Icon';
 import { AUDIENCE_PRODUCTS, GITHUB_URL, PRODUCT_NAMES, type Audience } from './site/catalog';
-import ZeroMark from './zero/ZeroMark';
+import Logo from './brand/Logo';
 import ProductZero from './zero/ProductZero';
 
 interface HeaderClientProps {
@@ -108,9 +108,8 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   return (
     <header className={`site-header${scrolled ? ' is-scrolled' : ''}${menuOpen ? ' menu-open' : ''}`}>
       <div className="hd-inner">
-        <Link href="/" className="brand" aria-label="zerosoft.ai">
-          <ZeroMark size={22} />
-          <span className="brand-name">zerosoft.ai</span>
+        <Link href="/" className="brand" aria-label="zerosoft">
+          <Logo height={22} title="" />
         </Link>
 
         <nav className="hd-nav" aria-label="Main">

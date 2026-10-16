@@ -6,6 +6,7 @@ import { Link, usePathname } from '@/i18n/navigation';
 import Icon from './icons';
 import { appProductFromPath, buildNav, buildNewItems, settingsNavItem, type SidebarLabels } from './sidebar-nav';
 import NotificationBell from './NotificationBell';
+import Logo from '@/components/brand/Logo';
 
 export type { SidebarLabels };
 
@@ -295,7 +296,7 @@ export default function AppSidebar({
           <button type="button" className="side-close" onClick={() => setDrawerOpen(true)} aria-label={labels.menu}>
             ☰
           </button>
-          <span className="brand-zero" aria-hidden="true">0</span>
+          <Logo variant="symbol" height={26} title="" className="brand-zero" />
         </div>
         <button type="button" className="side-product" onClick={() => setDrawerOpen(true)}>
           <span>{current.name}</span>

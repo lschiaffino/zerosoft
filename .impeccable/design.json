@@ -1,0 +1,724 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-16T19:52:27+00:00",
+  "title": "Design System: zerosoft",
+  "extensions": {
+    "colorMeta": {
+      "enamel-white": {
+        "role": "primary",
+        "displayName": "Enamel White",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "signage-ink": {
+        "role": "primary",
+        "displayName": "Signage Ink",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "enamel-panel": {
+        "role": "neutral",
+        "displayName": "Enamel Panel",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "gray-1": {
+        "role": "neutral",
+        "displayName": "Gray 1 (11.3:1)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "gray-2": {
+        "role": "neutral",
+        "displayName": "Gray 2 (6.7:1)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "gray-3": {
+        "role": "neutral",
+        "displayName": "Gray 3 (4.54:1, lightest text gray)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "on-ink": {
+        "role": "neutral",
+        "displayName": "On Ink",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "on-ink-2": {
+        "role": "neutral",
+        "displayName": "On Ink 2 (9.2:1 on #111)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "line-link": {
+        "role": "secondary",
+        "displayName": "Link Line",
+        "canonical": "oklch(58.1% 0.229 263.9)",
+        "tonalRamp": [
+          "oklch(15% 0.229 263.9)",
+          "oklch(25% 0.229 263.9)",
+          "oklch(35% 0.229 263.9)",
+          "oklch(45% 0.229 263.9)",
+          "oklch(55% 0.229 263.9)",
+          "oklch(70% 0.229 263.9)",
+          "oklch(85% 0.229 263.9)",
+          "oklch(95% 0.229 263.9)"
+        ],
+        "note": "Strokes, rings, fills. Never text."
+      },
+      "ink-link": {
+        "role": "secondary",
+        "displayName": "Link Ink",
+        "canonical": "oklch(56.5% 0.227 264.0)",
+        "tonalRamp": [
+          "oklch(15% 0.227 264.0)",
+          "oklch(25% 0.227 264.0)",
+          "oklch(35% 0.227 264.0)",
+          "oklch(45% 0.227 264.0)",
+          "oklch(55% 0.227 264.0)",
+          "oklch(70% 0.227 264.0)",
+          "oklch(85% 0.227 264.0)",
+          "oklch(95% 0.227 264.0)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      },
+      "line-crm": {
+        "role": "secondary",
+        "displayName": "CRM Line",
+        "canonical": "oklch(57.8% 0.247 287.9)",
+        "tonalRamp": [
+          "oklch(15% 0.247 287.9)",
+          "oklch(25% 0.247 287.9)",
+          "oklch(35% 0.247 287.9)",
+          "oklch(45% 0.247 287.9)",
+          "oklch(55% 0.247 287.9)",
+          "oklch(70% 0.247 287.9)",
+          "oklch(85% 0.247 287.9)",
+          "oklch(95% 0.247 287.9)"
+        ],
+        "note": "Strokes, rings, fills. Never text."
+      },
+      "ink-crm": {
+        "role": "secondary",
+        "displayName": "CRM Ink",
+        "canonical": "oklch(57.8% 0.247 287.9)",
+        "tonalRamp": [
+          "oklch(15% 0.247 287.9)",
+          "oklch(25% 0.247 287.9)",
+          "oklch(35% 0.247 287.9)",
+          "oklch(45% 0.247 287.9)",
+          "oklch(55% 0.247 287.9)",
+          "oklch(70% 0.247 287.9)",
+          "oklch(85% 0.247 287.9)",
+          "oklch(95% 0.247 287.9)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      },
+      "line-cal": {
+        "role": "secondary",
+        "displayName": "Cal Line",
+        "canonical": "oklch(62.2% 0.133 162.3)",
+        "tonalRamp": [
+          "oklch(15% 0.133 162.3)",
+          "oklch(25% 0.133 162.3)",
+          "oklch(35% 0.133 162.3)",
+          "oklch(45% 0.133 162.3)",
+          "oklch(55% 0.133 162.3)",
+          "oklch(70% 0.133 162.3)",
+          "oklch(85% 0.133 162.3)",
+          "oklch(95% 0.133 162.3)"
+        ],
+        "note": "Strokes, rings, fills. Never text."
+      },
+      "ink-cal": {
+        "role": "secondary",
+        "displayName": "Cal Ink",
+        "canonical": "oklch(53.9% 0.119 161.6)",
+        "tonalRamp": [
+          "oklch(15% 0.119 161.6)",
+          "oklch(25% 0.119 161.6)",
+          "oklch(35% 0.119 161.6)",
+          "oklch(45% 0.119 161.6)",
+          "oklch(55% 0.119 161.6)",
+          "oklch(70% 0.119 161.6)",
+          "oklch(85% 0.119 161.6)",
+          "oklch(95% 0.119 161.6)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      },
+      "line-track": {
+        "role": "secondary",
+        "displayName": "Track Line",
+        "canonical": "oklch(67.0% 0.193 41.4)",
+        "tonalRamp": [
+          "oklch(15% 0.193 41.4)",
+          "oklch(25% 0.193 41.4)",
+          "oklch(35% 0.193 41.4)",
+          "oklch(45% 0.193 41.4)",
+          "oklch(55% 0.193 41.4)",
+          "oklch(70% 0.193 41.4)",
+          "oklch(85% 0.193 41.4)",
+          "oklch(95% 0.193 41.4)"
+        ],
+        "note": "Strokes, rings, fills. Never text."
+      },
+      "ink-track": {
+        "role": "secondary",
+        "displayName": "Track Ink",
+        "canonical": "oklch(57.1% 0.175 41.2)",
+        "tonalRamp": [
+          "oklch(15% 0.175 41.2)",
+          "oklch(25% 0.175 41.2)",
+          "oklch(35% 0.175 41.2)",
+          "oklch(45% 0.175 41.2)",
+          "oklch(55% 0.175 41.2)",
+          "oklch(70% 0.175 41.2)",
+          "oklch(85% 0.175 41.2)",
+          "oklch(95% 0.175 41.2)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      },
+      "line-chat": {
+        "role": "secondary",
+        "displayName": "Chat Line",
+        "canonical": "oklch(62.2% 0.206 1.1)",
+        "tonalRamp": [
+          "oklch(15% 0.206 1.1)",
+          "oklch(25% 0.206 1.1)",
+          "oklch(35% 0.206 1.1)",
+          "oklch(45% 0.206 1.1)",
+          "oklch(55% 0.206 1.1)",
+          "oklch(70% 0.206 1.1)",
+          "oklch(85% 0.206 1.1)",
+          "oklch(95% 0.206 1.1)"
+        ],
+        "note": "Strokes, rings, fills. Never text."
+      },
+      "ink-chat": {
+        "role": "secondary",
+        "displayName": "Chat Ink",
+        "canonical": "oklch(57.6% 0.199 1.1)",
+        "tonalRamp": [
+          "oklch(15% 0.199 1.1)",
+          "oklch(25% 0.199 1.1)",
+          "oklch(35% 0.199 1.1)",
+          "oklch(45% 0.199 1.1)",
+          "oklch(55% 0.199 1.1)",
+          "oklch(70% 0.199 1.1)",
+          "oklch(85% 0.199 1.1)",
+          "oklch(95% 0.199 1.1)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      },
+      "line-docs": {
+        "role": "secondary",
+        "displayName": "Docs Line",
+        "canonical": "oklch(62.3% 0.141 61.8)",
+        "tonalRamp": [
+          "oklch(15% 0.141 61.8)",
+          "oklch(25% 0.141 61.8)",
+          "oklch(35% 0.141 61.8)",
+          "oklch(45% 0.141 61.8)",
+          "oklch(55% 0.141 61.8)",
+          "oklch(70% 0.141 61.8)",
+          "oklch(85% 0.141 61.8)",
+          "oklch(95% 0.141 61.8)"
+        ],
+        "note": "Strokes, rings, fills. Never text."
+      },
+      "ink-docs": {
+        "role": "secondary",
+        "displayName": "Docs Ink",
+        "canonical": "oklch(56.3% 0.131 61.1)",
+        "tonalRamp": [
+          "oklch(15% 0.131 61.1)",
+          "oklch(25% 0.131 61.1)",
+          "oklch(35% 0.131 61.1)",
+          "oklch(45% 0.131 61.1)",
+          "oklch(55% 0.131 61.1)",
+          "oklch(70% 0.131 61.1)",
+          "oklch(85% 0.131 61.1)",
+          "oklch(95% 0.131 61.1)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      },
+      "line-flow": {
+        "role": "secondary",
+        "displayName": "Flow Line",
+        "canonical": "oklch(58.8% 0.139 242.0)",
+        "tonalRamp": [
+          "oklch(15% 0.139 242.0)",
+          "oklch(25% 0.139 242.0)",
+          "oklch(35% 0.139 242.0)",
+          "oklch(45% 0.139 242.0)",
+          "oklch(55% 0.139 242.0)",
+          "oklch(70% 0.139 242.0)",
+          "oklch(85% 0.139 242.0)",
+          "oklch(95% 0.139 242.0)"
+        ],
+        "note": "Strokes, rings, fills. Never text."
+      },
+      "ink-flow": {
+        "role": "secondary",
+        "displayName": "Flow Ink",
+        "canonical": "oklch(54.9% 0.132 242.5)",
+        "tonalRamp": [
+          "oklch(15% 0.132 242.5)",
+          "oklch(25% 0.132 242.5)",
+          "oklch(35% 0.132 242.5)",
+          "oklch(45% 0.132 242.5)",
+          "oklch(55% 0.132 242.5)",
+          "oklch(70% 0.132 242.5)",
+          "oklch(85% 0.132 242.5)",
+          "oklch(95% 0.132 242.5)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      },
+      "line-agents": {
+        "role": "secondary",
+        "displayName": "Agents Line",
+        "canonical": "oklch(65.4% 0.232 28.7)",
+        "tonalRamp": [
+          "oklch(15% 0.232 28.7)",
+          "oklch(25% 0.232 28.7)",
+          "oklch(35% 0.232 28.7)",
+          "oklch(45% 0.232 28.7)",
+          "oklch(55% 0.232 28.7)",
+          "oklch(70% 0.232 28.7)",
+          "oklch(85% 0.232 28.7)",
+          "oklch(95% 0.232 28.7)"
+        ],
+        "note": "Strokes, rings, fills. Never text."
+      },
+      "ink-agents": {
+        "role": "secondary",
+        "displayName": "Agents Ink",
+        "canonical": "oklch(57.9% 0.216 28.6)",
+        "tonalRamp": [
+          "oklch(15% 0.216 28.6)",
+          "oklch(25% 0.216 28.6)",
+          "oklch(35% 0.216 28.6)",
+          "oklch(45% 0.216 28.6)",
+          "oklch(55% 0.216 28.6)",
+          "oklch(70% 0.216 28.6)",
+          "oklch(85% 0.216 28.6)",
+          "oklch(95% 0.216 28.6)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      },
+      "line-notes": {
+        "role": "secondary",
+        "displayName": "Notes Line",
+        "canonical": "oklch(79.3% 0.162 88.4)",
+        "tonalRamp": [
+          "oklch(15% 0.162 88.4)",
+          "oklch(25% 0.162 88.4)",
+          "oklch(35% 0.162 88.4)",
+          "oklch(45% 0.162 88.4)",
+          "oklch(55% 0.162 88.4)",
+          "oklch(70% 0.162 88.4)",
+          "oklch(85% 0.162 88.4)",
+          "oklch(95% 0.162 88.4)"
+        ],
+        "note": "Strokes, rings, fills. Never text. Below 3:1 on white as a stroke: always paired with its name label."
+      },
+      "ink-notes": {
+        "role": "secondary",
+        "displayName": "Notes Ink",
+        "canonical": "oklch(55.4% 0.113 84.8)",
+        "tonalRamp": [
+          "oklch(15% 0.113 84.8)",
+          "oklch(25% 0.113 84.8)",
+          "oklch(35% 0.113 84.8)",
+          "oklch(45% 0.113 84.8)",
+          "oklch(55% 0.113 84.8)",
+          "oklch(70% 0.113 84.8)",
+          "oklch(85% 0.113 84.8)",
+          "oklch(95% 0.113 84.8)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      },
+      "line-board": {
+        "role": "secondary",
+        "displayName": "Board Line",
+        "canonical": "oklch(70.3% 0.124 184.6)",
+        "tonalRamp": [
+          "oklch(15% 0.124 184.6)",
+          "oklch(25% 0.124 184.6)",
+          "oklch(35% 0.124 184.6)",
+          "oklch(45% 0.124 184.6)",
+          "oklch(55% 0.124 184.6)",
+          "oklch(70% 0.124 184.6)",
+          "oklch(85% 0.124 184.6)",
+          "oklch(95% 0.124 184.6)"
+        ],
+        "note": "Strokes, rings, fills. Never text. Below 3:1 on white as a stroke: always paired with its name label."
+      },
+      "ink-board": {
+        "role": "secondary",
+        "displayName": "Board Ink",
+        "canonical": "oklch(54.2% 0.096 184.5)",
+        "tonalRamp": [
+          "oklch(15% 0.096 184.5)",
+          "oklch(25% 0.096 184.5)",
+          "oklch(35% 0.096 184.5)",
+          "oklch(45% 0.096 184.5)",
+          "oklch(55% 0.096 184.5)",
+          "oklch(70% 0.096 184.5)",
+          "oklch(85% 0.096 184.5)",
+          "oklch(95% 0.096 184.5)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      },
+      "line-robots": {
+        "role": "secondary",
+        "displayName": "Robots Line",
+        "canonical": "oklch(55.1% 0.023 264.4)",
+        "tonalRamp": [
+          "oklch(15% 0.023 264.4)",
+          "oklch(25% 0.023 264.4)",
+          "oklch(35% 0.023 264.4)",
+          "oklch(45% 0.023 264.4)",
+          "oklch(55% 0.023 264.4)",
+          "oklch(70% 0.023 264.4)",
+          "oklch(85% 0.023 264.4)",
+          "oklch(95% 0.023 264.4)"
+        ],
+        "note": "Strokes, rings, fills. Never text."
+      },
+      "ink-robots": {
+        "role": "secondary",
+        "displayName": "Robots Ink",
+        "canonical": "oklch(55.1% 0.023 264.4)",
+        "tonalRamp": [
+          "oklch(15% 0.023 264.4)",
+          "oklch(25% 0.023 264.4)",
+          "oklch(35% 0.023 264.4)",
+          "oklch(45% 0.023 264.4)",
+          "oklch(55% 0.023 264.4)",
+          "oklch(70% 0.023 264.4)",
+          "oklch(85% 0.023 264.4)",
+          "oklch(95% 0.023 264.4)"
+        ],
+        "note": "Text version, at least 4.75:1 on white."
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display (signage)",
+        "purpose": "First-viewport headline; .lp-h1 on landing heroes."
+      },
+      "headline": {
+        "displayName": "Headline (signage)",
+        "purpose": "Section titles inside the section-sign band."
+      },
+      "title": {
+        "displayName": "Title (signage)",
+        "purpose": "Subsections."
+      },
+      "sign": {
+        "displayName": "Sign",
+        "purpose": "Line names on the network map."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Section intros, max 60ch."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Reading copy, max 65ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, band navigation, station names."
+      },
+      "data": {
+        "displayName": "Data (mono)",
+        "purpose": "HEX, OKLCH, file names, sizes and measures only."
+      }
+    },
+    "shadows": [],
+    "strokes": [
+      {
+        "name": "stroke-line",
+        "value": "16px",
+        "purpose": "Line strokes, round caps and joins."
+      },
+      {
+        "name": "stroke-ring",
+        "value": "8px",
+        "purpose": "Station rings on the map (ring = 0.44 of the outer radius)."
+      },
+      {
+        "name": "stroke-rule",
+        "value": "4px",
+        "purpose": "Heavy ink rule closing the hero."
+      },
+      {
+        "name": "divider",
+        "value": "1px solid #d9d9d6",
+        "purpose": "Table and list dividers."
+      }
+    ],
+    "focus": [
+      {
+        "name": "focus-ring",
+        "value": "outline: 3px solid #111; outline-offset: 3px",
+        "purpose": "All focusable elements; white on ink bands."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "All state transitions (0.2s buttons and links, 0.25s map dimming)."
+      },
+      {
+        "name": "line-draw",
+        "value": "stroke-dashoffset 1 to 0, 1.4s ease-out-expo, +80ms per line",
+        "purpose": "Lines draw in once on load; skipped with reduced motion."
+      },
+      {
+        "name": "station-snap",
+        "value": "visibility step-end at 900ms + 30ms per station",
+        "purpose": "Stations appear without easing after the lines."
+      },
+      {
+        "name": "dim",
+        "value": "opacity 0.14",
+        "purpose": "Non-active lines and stations while one is lit."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "420px"
+      },
+      {
+        "name": "stack",
+        "value": "900px"
+      },
+      {
+        "name": "medium",
+        "value": "1100px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid ink signage plate; inverts on hover.",
+      "html": "<button class=\"ds-btn\">Descargar kit</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 20px; border: 2px solid var(--brand-ink, #111111); border-radius: 0; background: var(--brand-ink, #111111); color: #fff; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; line-height: 1.2; cursor: pointer; transition: background 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)), color 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-btn:hover { background: #fff; color: var(--brand-ink, #111111); } .ds-btn:focus-visible { outline: 3px solid var(--brand-ink, #111111); outline-offset: 3px; }"
+    },
+    {
+      "name": "On-band Buttons",
+      "kind": "button",
+      "refersTo": "button-on-band",
+      "description": "White plate (main action) and white outline (secondary) inside the black band.",
+      "html": "<div class=\"ds-band-demo\"><button class=\"ds-btn-white\">Descargar kit</button> <button class=\"ds-btn-outline\">Ver la red</button></div>",
+      "css": ".ds-band-demo { background: var(--brand-ink, #111111); padding: 24px; display: flex; gap: 12px; } .ds-btn-white, .ds-btn-outline { min-height: 44px; padding: 10px 20px; border: 2px solid #fff; border-radius: 0; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)), color 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-btn-white { background: #fff; color: var(--brand-ink, #111111); } .ds-btn-white:hover { background: var(--brand-ink, #111111); color: #fff; } .ds-btn-outline { background: transparent; color: #fff; } .ds-btn-outline:hover { background: #fff; color: var(--brand-ink, #111111); } .ds-btn-white:focus-visible, .ds-btn-outline:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }"
+    },
+    {
+      "name": "Signage Band",
+      "kind": "nav",
+      "refersTo": "signage-band",
+      "description": "Sticky #111 band: wordmark left, links, one white action right.",
+      "html": "<header class=\"ds-band\"><span class=\"ds-band-mark\">zer<svg class=\"ds-o\" width=\"17\" height=\"17\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#111\" stroke=\"#fff\" stroke-width=\"22\"/></svg>soft</span><nav class=\"ds-band-nav\"><a href=\"#\">Logo</a><a href=\"#\">Líneas</a><a href=\"#\">Tipografía</a></nav><a class=\"ds-band-btn\" href=\"#\">Descargar kit</a></header>",
+      "css": ".ds-band { display: flex; align-items: center; gap: 36px; height: 74px; padding: 0 32px; background: var(--brand-ink, #111111); color: #fff; } .ds-band-mark { display: inline-flex; align-items: center; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-weight: 800; font-size: 26px; letter-spacing: -0.02em; } .ds-o { margin: 0 1px; } .ds-band-nav { display: flex; gap: 28px; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; } .ds-band-nav a { color: #fff; text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 6px; transition: text-decoration-color 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-band-nav a:hover { text-decoration-color: currentColor; } .ds-band-nav a:focus-visible, .ds-band-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; } .ds-band-btn { margin-left: auto; padding: 10px 20px; background: #fff; color: var(--brand-ink, #111111); border: 2px solid #fff; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; text-decoration: none; } .ds-band-btn:hover { background: var(--brand-ink, #111111); color: #fff; }"
+    },
+    {
+      "name": "Section Sign",
+      "kind": "custom",
+      "refersTo": "section-sign",
+      "description": "Full-width black band opening every section: white-ringed station plus condensed headline.",
+      "html": "<div class=\"ds-sign\"><svg width=\"28\" height=\"28\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#111111\" stroke=\"#ffffff\" stroke-width=\"22\"/></svg><h2 class=\"ds-sign-h\">Las líneas</h2></div>",
+      "css": ".ds-sign { display: flex; align-items: center; gap: 20px; min-height: 104px; padding: 0 32px; background: var(--brand-ink, #111111); color: #fff; } .ds-sign-h { margin: 0; font-family: var(--font-signage, 'Archivo', 'Arial Narrow', Arial, sans-serif); font-stretch: 75%; font-weight: 800; font-size: 48px; line-height: 1; letter-spacing: -0.005em; }"
+    },
+    {
+      "name": "Network Line",
+      "kind": "custom",
+      "refersTo": "network-map",
+      "description": "A line as on the map: 16px round-capped stroke, stations with 0.44 rings, an interchange as linked double rings, name in signage type.",
+      "html": "<svg class=\"ds-net\" viewBox=\"0 0 420 120\" role=\"img\" aria-label=\"Línea Cal\"><g class=\"ds-net-line\"><path d=\"M30 80 H250 L290 40 H390\" fill=\"none\" stroke=\"#0e9f6e\" stroke-width=\"16\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"30\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><rect x=\"150\" y=\"76\" width=\"22\" height=\"8\" fill=\"#111\"/><circle cx=\"150\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><circle cx=\"172\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><circle cx=\"390\" cy=\"40\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><text x=\"22\" y=\"52\" class=\"ds-net-label\">Cal</text></g></svg>",
+      "css": ".ds-net { width: 100%; max-width: 420px; height: auto; } .ds-net-label { font-family: var(--font-signage, 'Archivo', 'Arial Narrow', Arial, sans-serif); font-stretch: 75%; font-weight: 800; font-size: 26px; fill: #111; } .ds-net-line { transition: opacity 0.25s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-net-line:hover .ds-net-label { text-decoration: underline; text-decoration-thickness: 3px; }"
+    },
+    {
+      "name": "Product Station (LineGlyph)",
+      "kind": "chip",
+      "refersTo": "line-glyph",
+      "description": "A product's station with the ring in its line color, used as a list marker beside the product name. Never a pill.",
+      "html": "<ul class=\"ds-glyphs\"><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#2f6bff\" stroke-width=\"22\"/></svg>Link</li><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#7b4dff\" stroke-width=\"22\"/></svg>CRM</li><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#0e9f6e\" stroke-width=\"22\"/></svg>Cal</li></ul>",
+      "css": ".ds-glyphs { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px 16px; flex-wrap: wrap; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; color: var(--brand-ink, #111111); } .ds-glyphs li { display: inline-flex; align-items: center; gap: 6px; }"
+    },
+    {
+      "name": "Enamel Plate",
+      "kind": "card",
+      "refersTo": "enamel-plate",
+      "description": "Square enamel panel presenting a specimen, caption below in data size.",
+      "html": "<figure class=\"ds-plate\"><div class=\"ds-plate-art\"><svg width=\"72\" height=\"72\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"22\"/></svg></div><figcaption>La estación: anillo de 0,44 del radio.</figcaption></figure>",
+      "css": ".ds-plate { margin: 0; max-width: 320px; } .ds-plate-art { display: flex; align-items: center; justify-content: center; height: 200px; background: var(--brand-enamel, #f4f4f2); border-radius: 0; } .ds-plate figcaption { padding-top: 12px; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 13px; color: #3d3d3d; }"
+    },
+    {
+      "name": "Copy Value",
+      "kind": "input",
+      "refersTo": "copy-value",
+      "description": "HEX/OKLCH copy button in data type: underline on hover, confirmation in the Cal ink.",
+      "html": "<button class=\"ds-copy\"><span class=\"ds-copy-v\">#0E9F6E</span><span class=\"ds-copy-s\">Copiado</span></button>",
+      "css": ".ds-copy { display: flex; align-items: baseline; gap: 10px; padding: 3px 0; border: 0; background: none; color: var(--brand-ink, #111111); font-family: var(--font-data, 'JetBrains Mono', ui-monospace, Menlo, monospace); font-feature-settings: 'zero' 1, 'tnum' 1; font-size: 13px; cursor: pointer; } .ds-copy-v { text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 4px; } .ds-copy:hover .ds-copy-v { text-decoration-color: currentColor; } .ds-copy:focus-visible { outline: 3px solid var(--brand-ink, #111111); outline-offset: 3px; } .ds-copy-s { color: #008358; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Red de subte",
+    "overview": "zerosoft is drawn as a transit network. Each of the eleven apps is a line with its own color; integrations are interchange stations where two lines meet; the brand's zeros are the stations themselves, white circles with a thick black ring. The world borrows from Buenos Aires Subte signage and network diagrams: white enamel panels, a near-black signage band, condensed heavy lettering, colored strokes with round caps. It replaced the earlier black, white and oval-zeros look.\n\nThe system is flat and literal. Depth comes from the contrast between the enamel field and the black band, never from shadows. Color is wayfinding: a line color tells you which app you are on, and nothing else in the interface competes with it. Type is one family, Archivo, used at two widths: condensed (wdth 75, weight 800) for signage and headings, normal width for reading and UI. JetBrains Mono appears only where the content is data.\n\n**Scope of application.** The full world is built on the brand guidelines page (`/[locale]/brand`, branding.zerosoft.ai). The rest of the marketing site and the apps carry only the minimal application: the new wordmark and station symbol (header, footer, app topbar, OG images, kit), Archivo and JetBrains Mono as the global `--sans`/`--mono`, the signage display face on the landing hero headline (`.lp-h1`), square Archivo hero CTAs, and the home particle field redrawn as station rings. Their full redesign is a later round. The app-sidebar pattern in the direction (the sidebar as the product's line, nav items as stations, the active station filled with the line color) is **not built yet**; do not treat it as an existing component.",
+    "keyCharacteristics": [
+      "White enamel field, #111 signage band for chrome and section headers.",
+      "Eleven line colors, drawn as 16px round-capped strokes; each paired with a darkened text ink.",
+      "The station (white circle, ring 0.44 of the outer radius) is the logo's \"o\", the symbol, and every map node.",
+      "One condensed heavy grotesque for signage; normal-width Archivo for UI; mono with slashed zero for data only.",
+      "Square corners everywhere except stations. No shadows, gradients, pills or emoji."
+    ],
+    "rules": [
+      {
+        "name": "The Ink-For-Text Rule",
+        "body": "A line color is never set as text. Text in a product's color uses its `-ink` variant; text on a line fill uses its `-on` value.",
+        "section": "colors"
+      },
+      {
+        "name": "The Labeled Line Rule",
+        "body": "A line color never carries meaning alone: every line on the map has its name in signage type at a terminus, and every swatch sits beside the product name. Notes (#e6b400) and Board (#00b8a9) strokes fall below 3:1 on white, so the label is what makes them legible.",
+        "section": "colors"
+      },
+      {
+        "name": "The Logo Is Ink Rule",
+        "body": "The wordmark and the brand symbol are signage ink or white only. A line-colored ring belongs to a product symbol, never to the zerosoft mark.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mono Is Data Rule",
+        "body": "JetBrains Mono, with `\"zero\" 1`, is only for values a reader might copy or compare: HEX, OKLCH, file names, sizes, pixel measures. Labels, buttons and navigation are Archivo.",
+        "section": "typography"
+      },
+      {
+        "name": "The Two Widths Rule",
+        "body": "Signage and headings are condensed 800; everything a user reads or operates is normal width. Never set running text condensed, never set a heading at normal width.",
+        "section": "typography"
+      },
+      {
+        "name": "The Lowercase Name Rule",
+        "body": "The wordmark is always \"zerosoft\" in lowercase, outlined from the brand's own drawing with the station as its \"o\"; never retyped in another font or as a typographic zero.",
+        "section": "typography"
+      },
+      {
+        "name": "The No-Shadow Rule",
+        "body": "Nothing casts a shadow, glows or blurs. If a surface needs to separate, it changes plane (white, enamel, ink) or takes a 1px rule. The only shadow on the brand page is inside the logo-misuse specimen that shows what not to do.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Circle Is A Station Rule",
+        "body": "A circle in this world always means a station. Do not use round avatars, dots, pills or rounded cards to decorate; any circle will be read as a stop on a line.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "**Do** draw every app as a 16px round-capped stroke in its line color, and every node as a station with a 0.44 ring.",
+      "**Do** use the `-ink` variant for any text in a product's color and the `-on` value for text on a line fill.",
+      "**Do** open sections with the black section-sign band and a station, not a small label above the title.",
+      "**Do** set headings in Archivo wdth 75 weight 800 and everything operable in normal-width Archivo.",
+      "**Do** keep JetBrains Mono for values only, with the slashed zero on.",
+      "**Do** separate surfaces by plane (white, enamel #f4f4f2, ink #111) or a 1px rule.",
+      "**Do** animate lines once by drawing them and let stations snap; respect reduced motion."
+    ],
+    "donts": [
+      "**Don't** round corners on anything but stations.",
+      "**Don't** add shadows, glows, gradients or outlines to surfaces or to the logo.",
+      "**Don't** use pills, tags, emoji or decorative circles.",
+      "**Don't** set a raw line color as text, or let a line color stand without its name.",
+      "**Don't** color the zerosoft wordmark or symbol with a line color, stretch it, capitalize it, rebuild it in another font, or replace the station with a typographic zero.",
+      "**Don't** set buttons, navigation or labels in mono or uppercase with tracking.",
+      "**Don't** make lines float, pulse or loop; motion is one draw-in."
+    ]
+  }
+}

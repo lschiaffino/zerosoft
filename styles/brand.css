@@ -1,0 +1,101 @@
+/* ============================================
+   zerosoft: base de marca "Red de subte".
+   Tokens globales (se importa antes de globals.css). Las líneas --c-<key>
+   viven en globals.css (las verifica tests/unit/site-catalog.test.ts);
+   acá van sus variantes para texto (--c-<key>-ink, ≥ 4,75:1 sobre blanco)
+   y el texto que va encima de un relleno de línea (--c-<key>-on).
+   ============================================ */
+
+:root {
+  /* Neutros: panel esmaltado, banda de señalética, grises medidos sobre blanco. */
+  --brand-white: #ffffff;
+  --brand-enamel: #f4f4f2;
+  --brand-ink: #111111;
+  --brand-gray-1: #3d3d3d; /* 11,3:1 */
+  --brand-gray-2: #5c5c5c; /* 6,7:1 */
+  --brand-gray-3: #767676; /* 4,54:1, el gris más claro para texto */
+  --brand-rule: #d9d9d6;
+  --brand-on-ink: #ffffff;
+  --brand-on-ink-2: #b8b8b8; /* 9,2:1 sobre #111 */
+
+  /* Texto de cada línea (AA sobre blanco). */
+  --c-link-ink: #2c66f8;
+  --c-crm-ink: #7b4dff;
+  --c-cal-ink: #008358;
+  --c-track-ink: #c84800;
+  --c-chat-ink: #cf3172;
+  --c-docs-ink: #ab6000;
+  --c-flow-ink: #0078b7;
+  --c-agents-ink: #dd2720;
+  --c-notes-ink: #916c00;
+  --c-board-ink: #008176;
+  --c-robots-ink: #6b7280;
+
+  /* Texto sobre un relleno del color de la línea. */
+  --c-link-on: #ffffff;
+  --c-crm-on: #ffffff;
+  --c-robots-on: #ffffff;
+  --c-cal-on: #111111;
+  --c-track-on: #111111;
+  --c-chat-on: #111111;
+  --c-docs-on: #111111;
+  --c-flow-on: #111111;
+  --c-agents-on: #111111;
+  --c-notes-on: #111111;
+  --c-board-on: #111111;
+
+  /* Tipografía: Archivo (wdth 62–125) y JetBrains Mono. */
+  --font-signage: var(--font-archivo), "Arial Narrow", Arial, sans-serif;
+  --font-ui: var(--font-archivo), -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-data: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+  --wdth-signage: 75;
+  --wdth-tight: 62;
+
+  /* Escala (px a 1440): señalética, títulos, lectura, datos. */
+  --t-display: clamp(3.25rem, 6.1vw, 5.5rem); /* 88 */
+  --t-h1: clamp(2.5rem, 4.4vw, 4rem); /* 64 */
+  --t-h2: clamp(2rem, 3.4vw, 3rem); /* 48 */
+  --t-h3: 2rem; /* 32 */
+  --t-sign: 1.625rem; /* 26: nombres de línea */
+  --t-lead: 1.25rem; /* 20 */
+  --t-body: 1.0625rem; /* 17 */
+  --t-ui: 0.9375rem; /* 15 */
+  --t-data: 0.8125rem; /* 13 */
+
+  /* Espaciado: múltiplos de 8, con un medio paso. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 16px;
+  --s-4: 24px;
+  --s-5: 32px;
+  --s-6: 48px;
+  --s-7: 64px;
+  --s-8: 96px;
+  --s-9: 128px;
+
+  /* Forma: recta. El círculo es solo para estaciones. */
+  --radius-0: 0;
+  --radius-1: 2px;
+
+  /* Trazos: línea, anillo de estación, filete. */
+  --stroke-line: 16px;
+  --stroke-ring: 8px;
+  --stroke-rule: 4px;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Datos: cero con barra solo acá (tablas, HEX, medidas). */
+.data {
+  font-family: var(--font-data);
+  font-feature-settings: "zero" 1, "tnum" 1;
+}
+
+/* Texto de señalética: Archivo angosta y pesada. */
+.signage {
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 0.95;
+}

@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
+import { Archivo, JetBrains_Mono } from 'next/font/google';
 import ZeroField from '@/components/ZeroField';
 
-const sans = Space_Grotesk({ subsets: ['latin'], variable: '--font-space-grotesk', display: 'swap' });
-const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-plex-mono', display: 'swap' });
+const sans = Archivo({ subsets: ['latin'], axes: ['wdth'], variable: '--font-archivo', display: 'swap' });
+const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains', display: 'swap' });
 
 // 404 global (rutas fuera de /[locale]). Autocontenida: trae su propio html/body y las fuentes del sitio.
 export default function GlobalNotFound() {
