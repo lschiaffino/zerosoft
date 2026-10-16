@@ -1,6 +1,6 @@
 import { after, NextRequest, NextResponse } from 'next/server';
 import { emitEvent } from '@/lib/events';
-import { gateCookieName, getLinkForHost, isExpired, isValidGateToken, linkShortUrl } from '@/lib/links';
+import { gateCookieName, gateRefCookieName, getLinkForHost, isExpired, isValidGateToken, linkShortUrl } from '@/lib/links';
 import { isAppHost } from '@/lib/hosts';
 import { getVerifiedDomainByHost } from '@/lib/link-domains';
 import { contextFromHeaders, isBotRequest, recordClick } from '@/lib/track';
@@ -58,7 +58,16 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
     const token = req.cookies.get(gateCookieName(slug))?.value;
     if (!isValidGateToken(slug, link.password_hash, token)) {
       // ?qr=1 viaja por la puerta: el escaneo se cuenta como QR al desbloquear.
-      return NextResponse.redirect(new URL(`/${locale}/gate/${slug}${source === 'qr' ? '?qr=1' : ''}`, origin));
+      const toGate = NextResponse.redirect(new URL(`/${locale}/gate/${slug}${source === 'qr' ? '?qr=1' : ''}`, origin));
+      // Al volver de la puerta el Referer es la puerta: se guarda el origen real de la visita.
+      toGate.cookies.set(gateRefCookieName(slug), contextFromHeaders(req.headers).referrer, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 30,
+        path: '/',
+      });
+      return toGate;
     }
   }
 
@@ -74,6 +83,12 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   }
 
   const ctx = contextFromHeaders(req.headers);
+  // Link con contraseña que vuelve de la puerta (Referer propio): el referrer real es el de antes de la puerta.
+  const savedRef = link.password_hash ? req.cookies.get(gateRefCookieName(slug))?.value : undefined;
+  if (savedRef !== undefined && /^[a-z0-9.-]{1,253}$/i.test(savedRef)) {
+    const bareHost = (host ?? '').toLowerCase().replace(/:\d+$/, '').replace(/^www\./, '');
+    if (ctx.referrer === bareHost || isAppHost(ctx.referrer)) ctx.referrer = savedRef;
+  }
 
   // Sin segmentación: camino rápido, sin parsear nada ni cookies.
   const targeting = link.targeting ? parseTargeting(link.targeting) : null;
@@ -115,6 +130,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   // Sin esto el navegador cachea el 301 para siempre: archivar, vencer,
   // max_clicks, cambiar el destino y contar el click dejarían de aplicar.
   res.headers.set('cache-control', 'no-store');
+  if (savedRef !== undefined) res.cookies.delete({ name: gateRefCookieName(slug), path: '/' });
   if (newVisitor && visitorId) {
     res.cookies.set(VISITOR_COOKIE, visitorId, {
       httpOnly: true,

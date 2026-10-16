@@ -25,7 +25,12 @@ export async function POST(req: NextRequest) {
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
-  if (!parsed.success) return apiError(400, 'invalid_url', 'A valid "url" is required.');
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const field = issue?.path.join('.') ?? '';
+    if (!field || field === 'url') return apiError(400, 'invalid_url', 'A valid "url" is required.');
+    return apiError(400, 'bad_request', `Invalid "${field}": ${issue?.message ?? 'invalid value'}.`);
+  }
 
   let domainId: string | null = null;
   if (parsed.data.domain) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { getBioSettings, saveBioSettings } from '@/lib/link-bio';
 
 export const runtime = 'nodejs';
@@ -23,6 +23,8 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  // La página pública es la del owner (/@handle): publicarla o reescribirla es de admins.
+  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   await saveBioSettings(user.id, parsed.data);

@@ -42,6 +42,7 @@ export default function TagsInput({ tags, onChange, max = 5 }: TagsInputProps) {
         <input
           className="tags-field mono"
           value={input}
+          maxLength={40}
           onChange={(e) => {
             const v = e.target.value;
             if (v.endsWith(',')) addTag(v);

@@ -170,9 +170,12 @@ export default function BulkPage() {
                       {r.status === 'created' ? (
                         <span className="badge status-active">{t('bulk.statusCreated')}</span>
                       ) : (
-                        <span className="badge status-expired" title={r.error}>
-                          {t('bulk.statusError')}
-                        </span>
+                        <>
+                          <span className="badge status-expired">{t('bulk.statusError')}</span>{' '}
+                          <span className="muted">
+                            {r.error && t.has(`errors.${r.error}`) ? t(`errors.${r.error}`) : t('errors.generic')}
+                          </span>
+                        </>
                       )}
                     </td>
                   </tr>

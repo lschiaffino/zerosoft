@@ -75,7 +75,12 @@ export default function DomainsPanel({ initial, canManage }: { initial: DomainVi
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ rootUrl }),
     }).catch(() => null);
-    setNotice((n) => ({ ...n, [id]: res?.ok ? t('domains.rootSaved') : t('domains.errors.invalid_url') }));
+    if (res?.ok) {
+      setNotice((n) => ({ ...n, [id]: t('domains.rootSaved') }));
+      return;
+    }
+    const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : undefined;
+    setNotice((n) => ({ ...n, [id]: code === 'self_link' ? errorText(code) : t('domains.errors.invalid_url') }));
   }
 
   return (

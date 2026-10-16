@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { bioEditorLinks, getBioSettings } from '@/lib/link-bio';
 import BioEditor from '@/components/link/BioEditor';
 
@@ -16,7 +16,11 @@ export default async function BioSettingsPage(props: { params: Promise<{ locale:
     <div className="app-page narrow">
       <h1 className="app-title">{t('bio.title')}</h1>
       <p className="app-sub muted">{t('bio.sub', { handle: user.handle ?? '' })}</p>
-      <BioEditor initial={settings} handle={user.handle ?? ''} links={links} />
+      {isWorkspaceAdmin(user) ? (
+        <BioEditor initial={settings} handle={user.handle ?? ''} links={links} />
+      ) : (
+        <p className="muted">{t('errors.forbidden')}</p>
+      )}
     </div>
   );
 }

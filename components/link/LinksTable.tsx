@@ -70,7 +70,7 @@ export default function LinksTable({ rows }: LinksTableProps) {
     setTagOpen(false);
     setTag('');
     if (!res?.ok) {
-      setNotice({ kind: 'error', text: t('errors.generic') });
+      setNotice({ kind: 'error', text: t(res?.status === 403 ? 'errors.forbidden' : 'errors.generic') });
     } else {
       // Etiquetar saltea los links que ya tienen 5 tags (o ya tenían esa): se avisa.
       const affected = typeof data?.affected === 'number' ? data.affected : total;

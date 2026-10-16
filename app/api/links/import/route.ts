@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { limitByIp } from '@/lib/rate-limit';
 import { fetchBitlyLinks, importLinks, itemsFromCsv } from '@/lib/bitly-import';
 
@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   let items;
   const type = req.headers.get('content-type') ?? '';

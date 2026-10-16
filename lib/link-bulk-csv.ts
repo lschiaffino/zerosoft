@@ -19,8 +19,10 @@ export function bulkResultsToCsv(rows: BulkResultItem[]): string {
   return lines.join('\n');
 }
 
+/** Mismo criterio que csvSafe de lib/track (acá sin imports de servidor): = + - @ no abren fórmulas. */
 function csvCell(value: string): string {
-  const escaped = value.replace(/"/g, '""');
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  const escaped = safe.replace(/"/g, '""');
   if (/[",\n\r]/.test(escaped)) return `"${escaped}"`;
   return escaped;
 }
