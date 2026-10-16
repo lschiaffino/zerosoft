@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { getOrCreateCalendarUser } from '@/lib/calendar';
 import { ensureDefaultSchedule, listSchedules } from '@/lib/calendar-schedules';
+import PageHeader from '@/components/ui/PageHeader';
 import SchedulesView from '@/components/calendar/SchedulesView';
 
 export const dynamic = 'force-dynamic';
@@ -15,11 +16,8 @@ export default async function AvailabilityPage(props: { params: Promise<{ locale
   const schedules = await listSchedules(user.id);
 
   return (
-    <div className="app-page cal-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('schedules.title')}</h1>
-      </div>
-      <p className="muted cal-page-sub">{t('schedules.sub')}</p>
+    <div className="ui-page">
+      <PageHeader title={t('schedules.title')} description={t('schedules.sub')} />
       <SchedulesView initial={schedules} defaultTimezone={config.timezone} />
     </div>
   );

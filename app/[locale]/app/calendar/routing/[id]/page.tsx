@@ -1,11 +1,13 @@
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { listEventTypes } from '@/lib/calendar';
 import { getRoutingForm } from '@/lib/calendar-routing';
+import PageHeader from '@/components/ui/PageHeader';
 import RoutingFormEditor from '@/components/calendar/RoutingFormEditor';
 import CalDeleteButton from '@/components/calendar/CalDeleteButton';
+import { publicOrigin } from '@/components/calendar/event-type-items';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,32 +19,30 @@ export default async function RoutingFormDetailPage(props: { params: Promise<{ l
   const form = await getRoutingForm(user.id, id);
   if (!form) notFound();
   const eventTypes = await listEventTypes(user.id);
+  const origin = publicOrigin((await headers()).get('host'));
 
   return (
-    <div className="app-page cal-page">
-      <Link href="/app/calendar/routing" className="mono back-link">
-        {t('routing.back')}
-      </Link>
-
-      <header className="cal-detail-head">
-        <div className="detail-title-row">
-          <h1 className="detail-title">{form.title}</h1>
-          {!form.active && <span className="badge">{t('routing.inactive')}</span>}
-          <span className="cal-detail-spacer" />
+    <div className="ui-page">
+      <PageHeader
+        back={{ href: '/app/calendar/routing', label: t('routing.title') }}
+        title={
+          <span className="cal-title-row">
+            {form.title}
+            {!form.active && <span className="badge">{t('routing.inactive')}</span>}
+          </span>
+        }
+        description={t('routing.editorLead')}
+        actions={
           <CalDeleteButton
             url={`/api/calendar/routing/${id}`}
             confirmText={t('routing.deleteConfirm', { title: form.title })}
             redirectTo="/app/calendar/routing"
           />
-        </div>
-        <div className="detail-meta">
-          <span className="detail-meta-item mono">/r/{form.slug}</span>
-        </div>
-      </header>
-
+        }
+      />
       <RoutingFormEditor
         initial={form}
-        locale={locale}
+        publicBase={`${origin}/${locale}/r/${user.handle ?? ''}/`}
         eventTypes={eventTypes.map((et) => ({ id: et.id, title: et.title, slug: et.slug }))}
       />
     </div>

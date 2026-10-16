@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
+import EmptyState from '@/components/ui/EmptyState';
+import CalIcon from './cal-icons';
+import { copyText } from './CalCopyButton';
+import { slugify } from './cal-utils';
 
 export interface EventTypeListItem {
   id: string;
@@ -15,61 +19,45 @@ export interface EventTypeListItem {
 }
 
 interface EventTypesViewProps {
-  /** Título de la página (h1). */
-  title: string;
   items: EventTypeListItem[];
   handle: string;
   /** Base pública, p. ej. https://zerosoft.ai/en/book */
   bookBase: string;
   /** Abre el modal de creación al montar (deep link ?new=1). */
   openNew?: boolean;
-  /** Vista resumida (overview): sección con "Ver todo". */
-  summary?: { label: string; viewAll: string };
-  /** Contenido extra debajo de la cabecera (p. ej. stats). */
-  children?: React.ReactNode;
+  /** Cuántas filas mostrar (resumen); el resto queda en la página de la lista. */
+  limit?: number;
 }
 
 const DURATIONS = [15, 30, 45, 60];
 
-function slugify(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60);
-}
-
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-  }
-}
-
 /**
- * Lista de event types con acciones en línea (activar/apagar, copiar link,
- * abrir, editar, eliminar) y creación rápida en modal (botón o tecla C).
+ * Lista de event types con acciones en línea (copiar link, abrir, apagar,
+ * eliminar) y alta rápida en un modal (botón o tecla C): título, duración y
+ * ubicación; la URL sale del título.
  */
-export default function EventTypesView({ title, items, handle, bookBase, openNew, summary, children }: EventTypesViewProps) {
+export default function EventTypesView({ items, handle, bookBase, openNew, limit }: EventTypesViewProps) {
   const t = useTranslations('calendar');
   const router = useRouter();
   const [rows, setRows] = useState(items);
   const [modalOpen, setModalOpen] = useState(!!openNew);
   const [copied, setCopied] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; id?: string; tone?: 'error' } | null>(null);
 
   useEffect(() => setRows(items), [items]);
   useKeyShortcut('c', () => setModalOpen(true), !modalOpen);
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  // Botones de "Crear" de la página (cabecera, estado vacío) abren el mismo modal.
+  useEffect(() => {
+    const open = () => setModalOpen(true);
+    window.addEventListener('zs-cal:new-event-type', open);
+    return () => window.removeEventListener('zs-cal:new-event-type', open);
+  }, []);
 
   const publicUrl = (slug: string) => `${bookBase}/${handle}/${slug}`;
 
@@ -83,7 +71,7 @@ export default function EventTypesView({ title, items, handle, bookBase, openNew
     }).catch(() => null);
     if (!res || !res.ok) {
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, active: row.active } : r)));
-      setError(t('errors.generic'));
+      setToast({ text: t('errors.generic'), tone: 'error' });
     }
   }
 
@@ -95,7 +83,7 @@ export default function EventTypesView({ title, items, handle, bookBase, openNew
     if (!res || res.status !== 204) {
       setRows(prev);
       const code = ((await res?.json().catch(() => null)) as { error?: string } | null)?.error;
-      setError(code === 'has_upcoming_bookings' ? t('errors.has_upcoming_bookings') : t('errors.generic'));
+      setToast({ text: code === 'has_upcoming_bookings' ? t('errors.has_upcoming_bookings') : t('errors.generic'), tone: 'error' });
       return;
     }
     router.refresh();
@@ -104,112 +92,97 @@ export default function EventTypesView({ title, items, handle, bookBase, openNew
   async function copy(row: EventTypeListItem) {
     await copyText(publicUrl(row.slug));
     setCopied(row.id);
-    setTimeout(() => setCopied((c) => (c === row.id ? null : c)), 1500);
+    setTimeout(() => setCopied((c) => (c === row.id ? null : c)), 1600);
   }
 
-  const newButton = (
-    <button type="button" className="btn btn-solid btn-small" onClick={() => setModalOpen(true)} title={t('list.shortcut')}>
-      {t('eventTypes.newCta')}
-      <span className="kbd-hint" aria-hidden>
-        C
-      </span>
-    </button>
-  );
-
-  const list =
-    rows.length === 0 ? (
-      <div className="cal-empty">
-        <p className="empty-zeros mono" aria-hidden>
-          0 0 0
-        </p>
-        <h2>{t('eventTypes.emptyTitle')}</h2>
-        <p className="muted">{t('eventTypes.emptySub')}</p>
-        <button type="button" className="btn btn-solid btn-small" onClick={() => setModalOpen(true)}>
-          {t('eventTypes.emptyCta')}
-        </button>
-      </div>
-    ) : (
-      <ul className="cal-list" data-testid="cal-event-list">
-        {rows.map((et) => (
-          <li key={et.id} className={`cal-row${et.active ? '' : ' is-off'}`}>
-            <span className="calendar-event-dot" style={{ backgroundColor: et.color }} aria-hidden />
-            <Link href={`/app/calendar/event-types/${et.id}`} className="cal-row-main">
-              <span className="calendar-event-title">{et.title}</span>
-              <span className="cal-row-meta mono">
-                {et.durationMin} {t('eventTypes.minutes')} · /{handle}/{et.slug}
-              </span>
-            </Link>
-            <div className="cal-row-actions">
-              <button
-                type="button"
-                className="cal-icon-btn"
-                onClick={() => copy(et)}
-                title={t('list.copyLink')}
-                aria-label={t('list.copyLink')}
-              >
-                {copied === et.id ? t('list.copied') : t('list.copyLink')}
-              </button>
-              <a
-                className="cal-icon-btn"
-                href={publicUrl(et.slug)}
-                target="_blank"
-                rel="noreferrer"
-                title={t('list.open')}
-                aria-label={t('list.open')}
-              >
-                ↗
-              </a>
-              <button
-                type="button"
-                className="cal-icon-btn cal-icon-danger"
-                onClick={() => remove(et)}
-                title={t('list.delete')}
-                aria-label={`${t('list.delete')} ${et.title}`}
-              >
-                ×
-              </button>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={et.active}
-                className={`cal-switch${et.active ? ' is-on' : ''}`}
-                onClick={() => toggle(et)}
-                title={et.active ? t('list.toggleOn') : t('list.toggleOff')}
-                aria-label={et.active ? t('list.toggleOn') : t('list.toggleOff')}
-              >
-                <span />
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    );
+  const shown = limit ? rows.slice(0, limit) : rows;
 
   return (
     <>
-      <div className="page-head">
-        <h1 className="app-title">{title}</h1>
-        {newButton}
-      </div>
-      {children}
-      {error && (
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-      )}
-      {summary ? (
-        <div className="cal-section">
-          <div className="cal-section-head">
-            <p className="section-label">{summary.label}</p>
-            <Link href="/app/calendar/event-types" className="mono panel-more">
-              {summary.viewAll} →
-            </Link>
-          </div>
-          {list}
-        </div>
+      {rows.length === 0 ? (
+        <EmptyState
+          title={t('eventTypes.emptyTitle')}
+          body={t('eventTypes.emptySub')}
+          action={
+            <button type="button" className="btn btn-primary" onClick={() => setModalOpen(true)}>
+              {t('eventTypes.emptyCta')}
+            </button>
+          }
+          secondary={t('eventTypes.emptyAlt')}
+        />
       ) : (
-        list
+        <ul className="cal-list" data-testid="cal-event-list">
+          {shown.map((et) => (
+            <li key={et.id} className={`cal-row${et.active ? '' : ' is-off'}`}>
+              <span className="cal-swatch" style={{ background: et.color }} aria-hidden="true" />
+              <Link href={`/app/calendar/event-types/${et.id}`} className="cal-row-main">
+                <span className="cal-row-title">{et.title}</span>
+                <span className="cal-row-meta">
+                  <span>{t('editor.minutes', { n: et.durationMin })}</span>
+                  <span className="data">
+                    /{handle}/{et.slug}
+                  </span>
+                  {!et.active && <span className="badge">{t('eventTypes.inactive')}</span>}
+                </span>
+              </Link>
+              <div className="cal-row-actions">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(et)}>
+                  <CalIcon name={copied === et.id ? 'check' : 'copy'} />
+                  <span aria-live="polite">{copied === et.id ? t('list.copied') : t('list.copyLink')}</span>
+                </button>
+                <a
+                  className="btn btn-ghost btn-icon btn-sm"
+                  href={publicUrl(et.slug)}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t('list.open')}
+                  aria-label={`${t('list.open')}: ${et.title}`}
+                >
+                  <CalIcon name="external" />
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon btn-sm cal-danger-icon"
+                  onClick={() => remove(et)}
+                  title={t('list.delete')}
+                  aria-label={`${t('list.delete')} ${et.title}`}
+                >
+                  <CalIcon name="trash" />
+                </button>
+                <label className="ui-switch cal-row-switch" title={et.active ? t('list.toggleOn') : t('list.toggleOff')}>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={et.active}
+                    aria-checked={et.active}
+                    aria-label={`${t('editor.acceptsBookings')}: ${et.title}`}
+                    onChange={() => toggle(et)}
+                  />
+                </label>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
+      {limit && rows.length > limit && (
+        <Link href="/app/calendar/event-types" className="cal-more">
+          {t('overview.allEventTypes', { n: rows.length })}
+        </Link>
+      )}
+
+      {toast && (
+        <div className="ui-toasts" role="status" aria-live="polite">
+          <div className="ui-toast" data-tone={toast.tone}>
+            <span>{toast.text}</span>
+            {toast.id && (
+              <Link href={`/app/calendar/event-types/${toast.id}`} className="ui-toast-action">
+                {t('quick.openEditor')}
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       <NewEventTypeModal
         open={modalOpen}
         onClose={() => {
@@ -217,13 +190,31 @@ export default function EventTypesView({ title, items, handle, bookBase, openNew
           if (openNew) router.replace('/app/calendar/event-types');
         }}
         handle={handle}
-        onCreated={(item, openAfter) => {
+        onCreated={(item) => {
           setRows((prev) => [item, ...prev.filter((r) => r.id !== item.id)]);
-          if (openAfter) router.push(`/app/calendar/event-types/${item.id}`);
-          else router.refresh();
+          setToast({ text: t('quick.created', { title: item.title }), id: item.id });
+          router.refresh();
         }}
       />
     </>
+  );
+}
+
+/** Botón "Crear tipo de evento" para la cabecera de la página: abre el modal de la lista. */
+export function NewEventTypeButton() {
+  const t = useTranslations('calendar');
+  return (
+    <button
+      type="button"
+      className="btn btn-primary"
+      title={t('list.shortcut')}
+      onClick={() => window.dispatchEvent(new Event('zs-cal:new-event-type'))}
+    >
+      {t('eventTypes.newCta')}
+      <span className="kbd" aria-hidden="true">
+        C
+      </span>
+    </button>
   );
 }
 
@@ -236,24 +227,23 @@ function NewEventTypeModal({
   open: boolean;
   onClose: () => void;
   handle: string;
-  onCreated: (item: EventTypeListItem, openAfter: boolean) => void;
+  onCreated: (item: EventTypeListItem) => void;
 }) {
   const t = useTranslations('calendar');
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
-  const [slugTouched, setSlugTouched] = useState(false);
+  const [editingSlug, setEditingSlug] = useState(false);
   const [duration, setDuration] = useState(30);
   const [location, setLocation] = useState('');
-  const [openAfter, setOpenAfter] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const effectiveSlug = slugTouched ? slug : slugify(title);
+  const effectiveSlug = editingSlug ? slug : slugify(title);
 
   function reset() {
     setTitle('');
     setSlug('');
-    setSlugTouched(false);
+    setEditingSlug(false);
     setDuration(30);
     setLocation('');
     setError(null);
@@ -281,14 +271,16 @@ function NewEventTypeModal({
       setBusy(false);
       reset();
       onClose();
-      onCreated(
-        { id: et.id, title: et.title, slug: et.slug, durationMin: et.duration_min, color: et.color, active: true },
-        openAfter,
-      );
+      onCreated({ id: et.id, title: et.title, slug: et.slug, durationMin: et.duration_min, color: et.color, active: true });
       return;
     }
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     const code = data?.error ?? 'generic';
+    if (code === 'slug_taken' || code === 'invalid_slug') {
+      // La URL derivada choca con otra: se abre el campo para cambiarla.
+      setSlug(effectiveSlug);
+      setEditingSlug(true);
+    }
     setError(['invalid_slug', 'slug_taken', 'invalid_input'].includes(code) ? t(`errors.${code}`) : t('errors.generic'));
     setBusy(false);
   }
@@ -305,12 +297,6 @@ function NewEventTypeModal({
       busy={busy}
       error={error}
       hint={t('quick.hint')}
-      footExtra={
-        <label className="qm-check">
-          <input type="checkbox" checked={openAfter} onChange={(e) => setOpenAfter(e.target.checked)} />
-          {t('quick.moreOptions')}
-        </label>
-      }
     >
       <input
         className="qm-title"
@@ -321,37 +307,23 @@ function NewEventTypeModal({
         placeholder={t('quick.titlePlaceholder')}
         aria-label={t('form.title')}
       />
-      <label className="qm-field">
-        <span>{t('quick.slug')}</span>
-        <div className="qm-prefix">
-          <span>/{handle}/</span>
-          <input
-            className="mono"
-            value={effectiveSlug}
-            onChange={(e) => {
-              setSlugTouched(true);
-              setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'));
-            }}
-            placeholder="intro-call"
-          />
-        </div>
-      </label>
       <div className="qm-field">
-        <span>{t('quick.duration')}</span>
-        <div className="cal-seg" role="radiogroup" aria-label={t('quick.duration')}>
+        <span id="cal-qm-duration">{t('quick.duration')}</span>
+        <div className="btn-group cal-durations" role="radiogroup" aria-labelledby="cal-qm-duration">
           {DURATIONS.map((d) => (
             <button
               key={d}
               type="button"
               role="radio"
               aria-checked={duration === d}
-              className={duration === d ? 'is-on' : ''}
+              className="btn btn-sm"
               onClick={() => setDuration(d)}
             >
-              {d} {t('eventTypes.minutes')}
+              {d} min
             </button>
           ))}
           <input
+            className="input data cal-duration-other"
             type="number"
             min={1}
             max={720}
@@ -366,7 +338,36 @@ function NewEventTypeModal({
         <span>{t('quick.location')}</span>
         <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t('form.locationPlaceholder')} />
       </label>
-      <p className="cal-qm-note muted">{t('quick.defaultHours')}</p>
+      <div className="cal-qm-url">
+        {editingSlug ? (
+          <label className="qm-field">
+            <span>{t('quick.slug')}</span>
+            <div className="qm-prefix">
+              <span>/{handle}/</span>
+              <input
+                className="data"
+                value={slug}
+                autoFocus
+                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                placeholder="intro-call"
+              />
+            </div>
+          </label>
+        ) : (
+          <p className="cal-qm-note">
+            <span className="data">
+              /{handle}/{effectiveSlug || '…'}
+            </span>{' '}
+            <button type="button" className="cal-inline-link" onClick={() => {
+              setSlug(effectiveSlug);
+              setEditingSlug(true);
+            }}>
+              {t('quick.editUrl')}
+            </button>
+          </p>
+        )}
+        <p className="cal-qm-note">{t('quick.defaultHours')}</p>
+      </div>
     </QuickModal>
   );
 }

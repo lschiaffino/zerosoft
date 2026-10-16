@@ -1,117 +1,113 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getEventType, getOrCreateCalendarUser, listAvailability, listEventHosts } from '@/lib/calendar';
 import { ensureDefaultSchedule, listSchedules, type ScheduleRule } from '@/lib/calendar-schedules';
 import { getPaymentSettings } from '@/lib/calendar-payments';
 import { listWorkflowSteps } from '@/lib/calendar-workflows';
 import { listMembers } from '@/lib/teams';
-import EventTypeForm from '@/components/calendar/EventTypeForm';
-import EventSchedulePanel from '@/components/calendar/EventSchedulePanel';
-import EventPaymentPanel from '@/components/calendar/EventPaymentPanel';
-import WorkflowEditor from '@/components/calendar/WorkflowEditor';
-import CopyButton from '@/components/link/CopyButton';
-import CalEmbedCode from '@/components/calendar/CalEmbedCode';
-import CalDeleteButton from '@/components/calendar/CalDeleteButton';
+import EventTypeEditor, { type QuestionDef } from '@/components/calendar/EventTypeEditor';
 import { publicOrigin } from '@/components/calendar/event-type-items';
 
 export const dynamic = 'force-dynamic';
 
-/** "Lunes 09:00–17:00" por día (lunes primero), para mostrar un horario de un vistazo. */
-function scheduleSummary(rules: ScheduleRule[], dayName: (d: number) => string): string[] {
+/** Horas por día (lunes primero), para mostrar un horario de un vistazo. */
+function scheduleSummary(rules: ScheduleRule[], dayName: (d: number) => string) {
   return [1, 2, 3, 4, 5, 6, 0]
-    .map((d) => {
-      const ranges = rules
+    .map((d) => ({
+      day: dayName(d),
+      ranges: rules
         .filter((r) => r.dayOfWeek === d)
         .sort((a, b) => a.startTime.localeCompare(b.startTime))
-        .map((r) => `${r.startTime}–${r.endTime}`);
-      return ranges.length ? `${dayName(d)} ${ranges.join(', ')}` : '';
-    })
-    .filter(Boolean);
+        .map((r) => `${r.startTime}–${r.endTime}`)
+        .join(', '),
+    }))
+    .filter((l) => l.ranges);
 }
 
-export default async function EventTypeDetailPage(props: { params: Promise<{ locale: string; id: string }> }) {
+function questions(list: unknown): QuestionDef[] {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((f): f is Record<string, unknown> => typeof f === 'object' && f !== null)
+    .map((f) => ({
+      name: typeof f.name === 'string' ? f.name : '',
+      label: typeof f.label === 'string' ? f.label : '',
+      type: f.type === 'number' || f.type === 'boolean' ? f.type : 'text',
+      required: f.required === true,
+    }));
+}
+
+export default async function EventTypeDetailPage(props: {
+  params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const { locale, id } = await props.params;
+  const { tab } = await props.searchParams;
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'calendar' });
   const eventType = await getEventType(user.id, id);
   if (!eventType) notFound();
-  const availability = await listAvailability(id);
   const config = await getOrCreateCalendarUser(user.id);
   await ensureDefaultSchedule(user.id, config.timezone);
-  const schedules = await listSchedules(user.id);
-  const payments = await getPaymentSettings(user.id);
-  const workflowSteps = await listWorkflowSteps(user.id, id);
+  const [availability, schedules, payments, workflowSteps, hosts] = await Promise.all([
+    listAvailability(id),
+    listSchedules(user.id),
+    getPaymentSettings(user.id),
+    listWorkflowSteps(user.id, id),
+    listEventHosts(id),
+  ]);
 
   // Pool de hosts: members del team del event type o del team activo.
   const hostTeamId = eventType.team_id ?? user.team?.id ?? null;
   const teamMembers = hostTeamId ? await listMembers(hostTeamId) : undefined;
-  const hosts = await listEventHosts(id);
   const origin = publicOrigin((await headers()).get('host'));
-  const publicUrl = `${origin}/${locale}/book/${user.handle}/${eventType.slug}`;
 
   return (
-    <div className="app-page cal-page">
-      <Link href="/app/calendar/event-types" className="mono back-link">
-        {t('eventTypes.back')}
-      </Link>
-
-      <header className="cal-detail-head">
-        <div className="detail-title-row">
-          <span className="calendar-event-dot-large" style={{ backgroundColor: eventType.color }} aria-hidden />
-          <h1 className="detail-title">{eventType.title}</h1>
-          {!eventType.active && <span className="badge">{t('eventTypes.inactive')}</span>}
-          <span className="cal-detail-spacer" />
-          <a className="btn btn-small" href={publicUrl} target="_blank" rel="noreferrer">
-            {t('list.open')} ↗
-          </a>
-          <CalDeleteButton
-            url={`/api/calendar/event-types/${id}`}
-            confirmText={t('list.deleteConfirm', { title: eventType.title })}
-            redirectTo="/app/calendar/event-types"
-          />
-        </div>
-        <div className="calendar-public-link">
-          <span className="mono">{publicUrl}</span>
-          <CopyButton text={publicUrl} />
-        </div>
-      </header>
-
-      <div className="calendar-detail-grid">
-        <div className="calendar-detail-col">
-          <EventTypeForm
-            initial={eventType}
-            teamMembers={teamMembers}
-            teamId={hostTeamId}
-            initialHostIds={hosts.map((h) => h.user_id)}
-          />
-        </div>
-        <div className="calendar-detail-col">
-          <EventSchedulePanel
-            eventTypeId={id}
-            schedules={schedules.map((s) => ({
-              id: s.id,
-              name: s.name,
-              timezone: s.timezone,
-              summary: scheduleSummary(s.rules, (d) => t(`availability.day.${d}`)),
-            }))}
-            scheduleId={eventType.schedule_id}
-            customRules={availability}
-          />
-          <EventPaymentPanel
-            eventTypeId={id}
-            priceCents={eventType.price_cents}
-            currency={eventType.currency}
-            paymentsConfigured={payments.configured}
-            paymentsReady={payments.configured && payments.hasWebhookSecret}
-          />
-          <WorkflowEditor eventTypeId={id} initial={workflowSteps ?? []} />
-          <CalEmbedCode publicUrl={publicUrl} origin={origin} />
-        </div>
-      </div>
-    </div>
+    <EventTypeEditor
+      initialTab={tab}
+      eventType={{
+        id: eventType.id,
+        slug: eventType.slug,
+        title: eventType.title,
+        durationMin: eventType.duration_min,
+        location: eventType.location ?? '',
+        description: eventType.description ?? '',
+        color: /^#[0-9a-f]{6}$/i.test(eventType.color) ? eventType.color : '#111111',
+        active: eventType.active === 1,
+        bookingRules: eventType.bookingRulesParsed ?? {},
+        fields: questions(eventType.fieldsParsed),
+        brandColor: eventType.brand_color,
+        welcomeMessage: eventType.welcome_message ?? '',
+        logoUrl: eventType.logo_url ?? '',
+        singleUse: eventType.single_use === 1,
+        used: !!eventType.used_at,
+        scheduleId: eventType.schedule_id,
+        priceCents: eventType.price_cents,
+        currency: eventType.currency,
+      }}
+      schedules={schedules.map((s) => ({
+        id: s.id,
+        name: s.name,
+        timezone: s.timezone,
+        summary: scheduleSummary(s.rules, (d) => t(`availability.day.${d}`)),
+      }))}
+      customRules={availability.map((r) => ({ dayOfWeek: r.day_of_week, startTime: r.start_time, endTime: r.end_time }))}
+      defaults={{
+        bufferBeforeMin: config.buffer_before_min,
+        bufferAfterMin: config.buffer_after_min,
+        minNoticeHours: config.min_notice_hours,
+        maxFutureDays: config.max_booking_days,
+      }}
+      payments={{ configured: payments.configured, ready: payments.configured && payments.hasWebhookSecret }}
+      workflowSteps={workflowSteps ?? []}
+      teamMembers={teamMembers}
+      teamId={hostTeamId}
+      hostIds={hosts.map((h) => h.user_id)}
+      handle={user.handle ?? ''}
+      origin={origin}
+      bookBase={`${origin}/${locale}/book`}
+    />
   );
 }

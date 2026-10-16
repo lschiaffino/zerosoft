@@ -2,7 +2,8 @@ import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { listEventTypes } from '@/lib/calendar';
-import EventTypesView from '@/components/calendar/EventTypesView';
+import PageHeader from '@/components/ui/PageHeader';
+import EventTypesView, { NewEventTypeButton } from '@/components/calendar/EventTypesView';
 import { publicOrigin, toListItems } from '@/components/calendar/event-type-items';
 
 export const dynamic = 'force-dynamic';
@@ -20,9 +21,9 @@ export default async function EventTypesPage(props: {
   const origin = publicOrigin((await headers()).get('host'));
 
   return (
-    <div className="app-page cal-page">
+    <div className="ui-page">
+      <PageHeader title={t('eventTypes.title')} description={t('eventTypes.lead')} actions={<NewEventTypeButton />} />
       <EventTypesView
-        title={t('eventTypes.title')}
         items={toListItems(eventTypes)}
         handle={user.handle ?? ''}
         bookBase={`${origin}/${locale}/book`}

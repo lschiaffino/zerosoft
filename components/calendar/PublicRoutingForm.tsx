@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import { BookingInfo } from './PublicBookingPage';
 
 interface PublicField {
   name: string;
@@ -14,6 +15,7 @@ interface PublicField {
 
 interface PublicRoutingFormProps {
   locale: string;
+  hostName?: string;
   form: {
     id: string;
     slug: string;
@@ -29,7 +31,7 @@ interface PublicRoutingFormProps {
  * event type destino. Las respuestas de campos llamados `name`/`email` se
  * llevan como query params (?name=&email=) para pre-llenar el booking.
  */
-export default function PublicRoutingForm({ form }: PublicRoutingFormProps) {
+export default function PublicRoutingForm({ form, hostName }: PublicRoutingFormProps) {
   const t = useTranslations('calendar');
   const router = useRouter();
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
@@ -44,7 +46,6 @@ export default function PublicRoutingForm({ form }: PublicRoutingFormProps) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-
     const res = await fetch(`/api/calendar/routing/${form.id}/route`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -62,33 +63,22 @@ export default function PublicRoutingForm({ form }: PublicRoutingFormProps) {
       router.push(`${data.bookPath}${suffix ? `?${suffix}` : ''}`);
       return;
     }
-
     setBusy(false);
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     setError(data?.error === 'no_route' ? t('routing.noRoute') : t('errors.generic'));
   }
 
   return (
-    <div className="booking-page">
-      <div className="booking-card">
-        <header className="booking-header">
-          <span className="calendar-event-dot-large" style={{ backgroundColor: '#000000' }} aria-hidden />
-          <div>
-            <h1 className="booking-title">{form.title}</h1>
-          </div>
-        </header>
-
-        {form.description && <p className="booking-description">{form.description}</p>}
-
-        <form className="booking-form" onSubmit={submit}>
-          {form.fields.map((field) => (
-            <label key={field.name} className="field">
-              <span className="prop-label">
-                {field.label}
-                {field.required && <span className="muted"> *</span>}
-              </span>
-              {field.type === 'boolean' ? (
-                <label className="checkbox-field">
+    <div className="bk">
+      <div className="bk-card">
+        <BookingInfo hostName={hostName} title={form.title} description={form.description} />
+        <div className="bk-main">
+          <form className="bk-form" onSubmit={submit}>
+            <h2 className="bk-h2">{t('routing.publicLead')}</h2>
+            {form.fields.length === 0 && <p className="bk-note">{t('routing.publicEmpty')}</p>}
+            {form.fields.map((field) =>
+              field.type === 'boolean' ? (
+                <label key={field.name} className="ui-check">
                   <input
                     type="checkbox"
                     checked={answers[field.name] === true}
@@ -97,43 +87,54 @@ export default function PublicRoutingForm({ form }: PublicRoutingFormProps) {
                   />
                   <span>{field.label}</span>
                 </label>
-              ) : field.type === 'select' ? (
-                <select
-                  className="select"
-                  value={String(answers[field.name] ?? '')}
-                  onChange={(e) => updateAnswer(field.name, e.target.value)}
-                  required={field.required}
-                >
-                  <option value="" disabled>
-                    —
-                  </option>
-                  {field.options.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
               ) : (
-                <input
-                  className="input"
-                  type={field.name === 'email' ? 'email' : 'text'}
-                  value={String(answers[field.name] ?? '')}
-                  onChange={(e) => updateAnswer(field.name, e.target.value)}
-                  required={field.required}
-                />
-              )}
-            </label>
-          ))}
-
-          {error && <p className="form-error">{error}</p>}
-
-          <div className="booking-actions">
-            <span />
-            <button type="submit" className="btn btn-solid btn-small" disabled={busy}>
-              {busy ? t('common.saving') : t('routing.submit')}
-            </button>
-          </div>
-        </form>
+                <div key={field.name} className="ui-field">
+                  <label className="label" htmlFor={`rf-${field.name}`}>
+                    {field.label} {!field.required && <span className="ui-optional">{t('editor.optional')}</span>}
+                  </label>
+                  {field.type === 'select' ? (
+                    <select
+                      id={`rf-${field.name}`}
+                      className="select"
+                      value={String(answers[field.name] ?? '')}
+                      onChange={(e) => updateAnswer(field.name, e.target.value)}
+                      required={field.required}
+                    >
+                      <option value="" disabled>
+                        {t('routing.choose')}
+                      </option>
+                      {field.options.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      id={`rf-${field.name}`}
+                      className="input"
+                      type={field.name === 'email' ? 'email' : 'text'}
+                      autoComplete={field.name === 'email' ? 'email' : field.name === 'name' ? 'name' : undefined}
+                      value={String(answers[field.name] ?? '')}
+                      onChange={(e) => updateAnswer(field.name, e.target.value)}
+                      required={field.required}
+                    />
+                  )}
+                </div>
+              ),
+            )}
+            {error && (
+              <p className="ui-error" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="bk-actions bk-actions-end">
+              <button type="submit" className="btn btn-primary" aria-busy={busy || undefined}>
+                {t('routing.submit')}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

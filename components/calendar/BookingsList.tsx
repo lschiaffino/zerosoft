@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import EmptyState from '@/components/ui/EmptyState';
 import type { CalendarBookingRowWithEvent } from '@/lib/calendar';
 
 type Status = '' | 'confirmed' | 'pending' | 'cancelled' | 'no_show';
@@ -20,23 +20,25 @@ interface Props {
   /** Zona del calendario del workspace: la hora se muestra en esta zona (igual en SSR y en el navegador). */
   timezone: string;
   initialFilters: Filters;
+  /** Filtro por defecto (sin parámetros en la URL): desde hoy. Limpiar vuelve a este. */
+  defaultFrom: string;
 }
 
 type Panel = { id: string; kind: 'reschedule' | 'cancel' } | null;
 
-function formatDateTime(iso: string, locale: string, timeZone?: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone,
-  }).format(new Date(iso));
-}
+const STATUS_BADGE: Record<string, string> = {
+  confirmed: 'badge badge-ok',
+  pending: 'badge badge-warn',
+  cancelled: 'badge',
+  no_show: 'badge badge-bad',
+};
 
 function formatTime(iso: string, locale: string, timeZone?: string): string {
   return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }).format(new Date(iso));
+}
+
+function dayKey(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(new Date(iso));
 }
 
 function money(cents: number, currency: string, locale: string): string {
@@ -52,11 +54,7 @@ function money(cents: number, currency: string, locale: string): string {
  * etiqueta es la que definió el dueño en el campo (si sigue existiendo) y los
  * sí/no van traducidos.
  */
-function answerEntries(
-  raw: string,
-  fieldsRaw: string | null | undefined,
-  bool: { yes: string; no: string },
-): Array<[string, string, string]> {
+function answerEntries(raw: string, fieldsRaw: string | null | undefined, bool: { yes: string; no: string }): Array<[string, string, string]> {
   const labels = new Map<string, string>();
   try {
     const fields = JSON.parse(fieldsRaw || '[]') as unknown;
@@ -85,16 +83,23 @@ function localDay(d = new Date()): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export default function BookingsList({ bookings, locale, timezone, initialFilters }: Props) {
+/**
+ * Reservas del anfitrión agrupadas por día (en la zona del calendario):
+ * hora, invitado, tipo de evento, estado y acciones en una fila densa. Ver,
+ * reprogramar y cancelar se abren en línea debajo de la fila.
+ */
+export default function BookingsList({ bookings, locale, timezone, initialFilters, defaultFrom }: Props) {
   const t = useTranslations('calendar');
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [rows, setRows] = useState(bookings);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
   const first = useRef(true);
 
   // Filtros en el servidor (búsqueda con debounce); la URL refleja el filtro activo.
@@ -111,10 +116,14 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
+      setLoadError(false);
       const res = await fetch(`/api/calendar/bookings?${sp}`, { signal: ctrl.signal }).catch(() => null);
+      if (ctrl.signal.aborted) return;
       if (res && res.ok) {
         const data = (await res.json()) as { bookings: CalendarBookingRowWithEvent[] };
         setRows(data.bookings);
+      } else {
+        setLoadError(true);
       }
       setLoading(false);
       try {
@@ -127,7 +136,13 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
       clearTimeout(timer);
       ctrl.abort();
     };
-  }, [filters]);
+  }, [filters, reload]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   function set<K extends keyof Filters>(k: K, v: Filters[K]) {
     setFilters((f) => ({ ...f, [k]: v }));
@@ -157,24 +172,34 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
   }
 
   const now = new Date().toISOString();
+  const filtered = !!(filters.q || filters.status || filters.to || filters.from !== defaultFrom);
+  const dayHeading = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: timezone });
+  const todayKey = dayKey(now, timezone);
+
+  // Grupos por día, en el orden que vino del servidor.
+  const groups: Array<{ key: string; label: string; rows: CalendarBookingRowWithEvent[] }> = [];
+  for (const b of rows) {
+    const key = dayKey(b.starts_at, timezone);
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.rows.push(b);
+    else {
+      const label = dayHeading.format(new Date(b.starts_at));
+      groups.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1), rows: [b] });
+    }
+  }
 
   return (
-    <div className="bookings-list">
-      <div className="cal-bk-filters" role="search">
+    <div className="cal-bookings">
+      <div className="cal-toolbar" role="search">
         <input
-          className="input"
+          className="input cal-toolbar-search"
           type="search"
           placeholder={t('admin.search')}
           aria-label={t('admin.search')}
           value={filters.q}
           onChange={(e) => set('q', e.target.value)}
         />
-        <select
-          className="select"
-          aria-label={t('admin.status')}
-          value={filters.status}
-          onChange={(e) => set('status', e.target.value as Status)}
-        >
+        <select className="select" aria-label={t('admin.status')} value={filters.status} onChange={(e) => set('status', e.target.value as Status)}>
           <option value="">{t('admin.allStatuses')}</option>
           {(['confirmed', 'pending', 'cancelled', 'no_show'] as const).map((s) => (
             <option key={s} value={s}>
@@ -182,205 +207,240 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
             </option>
           ))}
         </select>
-        <label className="cal-bk-date">
-          <span className="prop-label">{t('admin.from')}</span>
-          <input className="input mono" type="date" value={filters.from} onChange={(e) => set('from', e.target.value)} />
-        </label>
-        <label className="cal-bk-date">
-          <span className="prop-label">{t('admin.to')}</span>
-          <input className="input mono" type="date" value={filters.to} onChange={(e) => set('to', e.target.value)} />
-        </label>
-        <button
-          type="button"
-          className="btn btn-ghost btn-small"
-          onClick={() => setFilters({ q: '', status: '', from: '', to: '' })}
-        >
-          {t('admin.clear')}
-        </button>
+        <div className="ui-input-group cal-toolbar-date">
+          <span className="ui-addon">{t('admin.from')}</span>
+          <input className="input data" type="date" aria-label={t('admin.from')} value={filters.from} onChange={(e) => set('from', e.target.value)} />
+        </div>
+        <div className="ui-input-group cal-toolbar-date">
+          <span className="ui-addon">{t('admin.to')}</span>
+          <input className="input data" type="date" aria-label={t('admin.to')} value={filters.to} onChange={(e) => set('to', e.target.value)} />
+        </div>
+        {filtered && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFilters({ q: '', status: '', from: defaultFrom, to: '' })}>
+            {t('admin.clear')}
+          </button>
+        )}
+        <p className="cal-toolbar-count" aria-live="polite">
+          {loading ? t('admin.loading') : t('admin.count', { n: rows.length })}
+        </p>
       </div>
-      <p className="muted mono cal-bk-count" aria-live="polite">
-        {loading ? t('admin.loading') : t('admin.count', { n: rows.length })}
-      </p>
-      {notice && <p className="cal-notice">{notice}</p>}
-      {error && <p className="form-error">{error}</p>}
 
-      {rows.length === 0 && !loading ? (
-        filters.q || filters.status || filters.to ? (
-          <p className="muted cal-empty-line">{t('booking.empty')}</p>
+      {notice && (
+        <div className="ui-toasts" role="status" aria-live="polite">
+          <div className="ui-toast">{notice}</div>
+        </div>
+      )}
+      {error && (
+        <p className="ui-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      {loadError ? (
+        <EmptyState
+          quiet
+          title={t('admin.loadErrorTitle')}
+          body={t('admin.loadErrorBody')}
+          action={
+            <button type="button" className="btn btn-primary" onClick={() => setReload((n) => n + 1)}>
+              {t('admin.retry')}
+            </button>
+          }
+        />
+      ) : loading && rows.length === 0 ? (
+        <div className="ui-loading-stack" aria-busy="true">
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} className="ui-skeleton ui-skeleton-row" />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        filtered ? (
+          <EmptyState
+            quiet
+            title={t('booking.empty')}
+            body={t('bookings.emptyFiltered')}
+            action={
+              <button type="button" className="btn" onClick={() => setFilters({ q: '', status: '', from: defaultFrom, to: '' })}>
+                {t('admin.clear')}
+              </button>
+            }
+          />
         ) : (
-          <div className="cal-empty">
-            <p className="empty-zeros mono" aria-hidden>
-              0 0 0
-            </p>
-            <h2>{t('bookings.emptyTitle')}</h2>
-            <p className="muted">{t('bookings.emptySub')}</p>
-            <Link href="/app/calendar/event-types" className="btn btn-solid btn-small">
-              {t('bookings.emptyCta')}
-            </Link>
-          </div>
+          <EmptyState title={t('bookings.emptyTitle')} body={t('bookings.emptySub')} action={{ label: t('bookings.emptyCta'), href: '/app/calendar/event-types' }} />
         )
       ) : (
-        <ul className="booking-cards cal-list">
-          {rows.map((b) => {
-            const started = b.starts_at < now;
-            return (
-              <li key={b.id} className="booking-card-item">
-                <div className="booking-card-main">
-                  <div className="booking-card-guest">
-                    <p className="booking-card-name">{b.invitee_name}</p>
-                    <p className="booking-card-email muted">{b.invitee_email}</p>
-                  </div>
-                  <div className="booking-card-event">
-                    <p className="booking-card-event-title">{b.event_type_title}</p>
-                    <p className="muted">
-                      {b.event_type_duration_min} {t('eventTypes.minutes')}
-                      {b.amount_cents > 0 ? ` · ${money(b.amount_cents, b.currency, locale)}` : ''}
-                    </p>
-                  </div>
-                  <div className="booking-card-time">
-                    <p>{formatDateTime(b.starts_at, locale, timezone)}</p>
-                    <p className="muted">{timezone}</p>
-                    {b.timezone && b.timezone !== timezone && (
-                      <p className="muted">
-                        {t('bookings.guestTime', { time: formatTime(b.starts_at, locale, b.timezone), timezone: b.timezone })}
-                      </p>
-                    )}
-                    {b.meeting_url && b.status === 'confirmed' && (
-                      <a className="mono" href={b.meeting_url} target="_blank" rel="noreferrer">
-                        {t('bookings.join')}
-                      </a>
-                    )}
-                    {b.rescheduled_from && <p className="muted">{t('bookings.rescheduled')}</p>}
-                  </div>
-                  <p className={`cal-bk-status mono cal-bk-status-${b.status}`}>
-                    {t(`booking.status.${b.status}`)}
-                    {b.payment_status === 'paid' ? ` · ${t('admin.paid')}` : ''}
-                    {b.payment_status === 'refunded' ? ` · ${t('admin.refunded')}` : ''}
-                  </p>
-                  <div className="booking-card-actions">
-                    <button type="button" className="btn btn-ghost btn-small" onClick={() => setExpanded((p) => (p === b.id ? null : b.id))}>
-                      {expanded === b.id ? t('common.hide') : t('common.view')}
-                    </button>
-                    {b.status === 'confirmed' && !started && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-small"
-                        onClick={() => setPanel({ id: b.id, kind: 'reschedule' })}
-                      >
-                        {t('admin.reschedule')}
-                      </button>
-                    )}
-                    {b.status === 'confirmed' && started && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-small"
-                        disabled={busy === b.id}
-                        onClick={() => void patchBooking(b.id, { status: 'no_show' })}
-                      >
-                        {t('admin.noShow')}
-                      </button>
-                    )}
-                    {(b.status === 'confirmed' || b.status === 'pending') && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-small btn-danger"
-                        onClick={() => setPanel({ id: b.id, kind: 'cancel' })}
-                      >
-                        {t('admin.cancel')}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {panel?.id === b.id && panel.kind === 'cancel' && (
-                  <CancelPanel
-                    paid={b.payment_status === 'paid'}
-                    busy={busy === b.id}
-                    onClose={() => setPanel(null)}
-                    onConfirm={async (reason) => {
-                      if (await patchBooking(b.id, { status: 'cancelled', cancelReason: reason || null })) setPanel(null);
-                    }}
-                  />
-                )}
-                {panel?.id === b.id && panel.kind === 'reschedule' && (
-                  <ReschedulePanel
-                    booking={b}
-                    locale={locale}
-                    onClose={() => setPanel(null)}
-                    onDone={(updated) => {
-                      setRows((prev) => prev.map((r) => (r.id === b.id ? { ...r, ...updated } : r)));
-                      setPanel(null);
-                      setNotice(t('admin.moved'));
-                    }}
-                    onError={(code) => setError(errorText(code))}
-                  />
-                )}
-
-                {expanded === b.id && (
-                  <div className="booking-card-detail">
-                    {b.host_email && (
-                      <p className="muted">
-                        {t('booking.host')}: {b.host_name ?? b.host_email}
-                      </p>
-                    )}
-                    {b.cancel_reason && (
-                      <p className="muted">
-                        {t('manage.cancelReason')}: {b.cancel_reason}
-                      </p>
-                    )}
-                    {b.answers && b.answers !== '{}' && (
-                      <div className="booking-answers">
-                        <p className="prop-label">{t('booking.answers')}</p>
-                        <dl className="cal-answers">
-                          {answerEntries(b.answers, b.event_type_fields, {
-                            yes: t('common.yes'),
-                            no: t('common.no'),
-                          }).map(([k, label, v]) => (
-                            <div key={k}>
-                              <dt className={label === k ? 'mono' : undefined}>{label}</dt>
-                              <dd>{v}</dd>
-                            </div>
-                          ))}
-                        </dl>
+        <div className={`cal-bk-groups${loading ? ' is-loading' : ''}`}>
+          {groups.map((g) => (
+            <section key={g.key} className="cal-bk-day" aria-label={g.label}>
+              <h2 className="cal-bk-day-title">
+                {g.label}
+                {g.key === todayKey && <span className="badge badge-ink">{t('bookings.today')}</span>}
+              </h2>
+              <ul className="cal-bk-list">
+                {g.rows.map((b) => {
+                  const started = b.starts_at < now;
+                  const open = expanded === b.id;
+                  return (
+                    <li key={b.id} className={`booking-card-item cal-bk-row${b.status === 'cancelled' ? ' is-cancelled' : ''}`}>
+                      <div className="cal-bk-main">
+                        <span className="cal-bk-time data">
+                          {formatTime(b.starts_at, locale, timezone)}
+                          <span className="cal-bk-end">{formatTime(b.ends_at, locale, timezone)}</span>
+                        </span>
+                        <span className="cal-bk-guest">
+                          <strong>{b.invitee_name}</strong>
+                          <span className="cal-muted">{b.invitee_email}</span>
+                        </span>
+                        <span className="cal-bk-event">
+                          <span>{b.event_type_title}</span>
+                          <span className="cal-muted">
+                            {t('editor.minutes', { n: b.event_type_duration_min })}
+                            {b.amount_cents > 0 && <span className="data"> · {money(b.amount_cents, b.currency, locale)}</span>}
+                            {b.rescheduled_from && ` · ${t('bookings.rescheduled')}`}
+                          </span>
+                        </span>
+                        <span className="cal-bk-state">
+                          <span className={`cal-bk-status ${STATUS_BADGE[b.status] ?? 'badge'}`}>{t(`booking.status.${b.status}`)}</span>
+                          {b.payment_status === 'paid' && <span className="badge badge-outline">{t('admin.paid')}</span>}
+                          {b.payment_status === 'refunded' && <span className="badge badge-outline">{t('admin.refunded')}</span>}
+                        </span>
+                        <span className="cal-bk-actions">
+                          {b.meeting_url && b.status === 'confirmed' && !started && (
+                            <a className="btn btn-ghost btn-sm" href={b.meeting_url} target="_blank" rel="noreferrer">
+                              {t('bookings.joinShort')}
+                            </a>
+                          )}
+                          {b.status === 'confirmed' && !started && (
+                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPanel({ id: b.id, kind: 'reschedule' })}>
+                              {t('admin.reschedule')}
+                            </button>
+                          )}
+                          {b.status === 'confirmed' && started && (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              aria-busy={busy === b.id || undefined}
+                              onClick={() => void patchBooking(b.id, { status: 'no_show' })}
+                            >
+                              {t('admin.noShow')}
+                            </button>
+                          )}
+                          {(b.status === 'confirmed' || b.status === 'pending') && (
+                            <button type="button" className="btn btn-ghost btn-sm btn-danger" onClick={() => setPanel({ id: b.id, kind: 'cancel' })}>
+                              {t('admin.cancel')}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            aria-expanded={open}
+                            aria-controls={`bk-detail-${b.id}`}
+                            onClick={() => setExpanded((p) => (p === b.id ? null : b.id))}
+                          >
+                            {open ? t('common.hide') : t('bookings.details')}
+                          </button>
+                        </span>
                       </div>
-                    )}
-                    <p className="muted mono">ID: {b.id}</p>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+
+                      {panel?.id === b.id && panel.kind === 'cancel' && (
+                        <CancelPanel
+                          paid={b.payment_status === 'paid'}
+                          busy={busy === b.id}
+                          onClose={() => setPanel(null)}
+                          onConfirm={async (reason) => {
+                            if (await patchBooking(b.id, { status: 'cancelled', cancelReason: reason || null })) setPanel(null);
+                          }}
+                        />
+                      )}
+                      {panel?.id === b.id && panel.kind === 'reschedule' && (
+                        <ReschedulePanel
+                          booking={b}
+                          locale={locale}
+                          onClose={() => setPanel(null)}
+                          onDone={(updated) => {
+                            setRows((prev) => prev.map((r) => (r.id === b.id ? { ...r, ...updated } : r)));
+                            setPanel(null);
+                            setNotice(t('admin.moved'));
+                          }}
+                          onError={(code) => setError(errorText(code))}
+                        />
+                      )}
+
+                      {open && (
+                        <dl className="cal-bk-detail" id={`bk-detail-${b.id}`}>
+                          {b.timezone && b.timezone !== timezone && (
+                            <div>
+                              <dt>{t('bookings.guestZone')}</dt>
+                              <dd>
+                                <span className="data">{formatTime(b.starts_at, locale, b.timezone)}</span> {b.timezone}
+                              </dd>
+                            </div>
+                          )}
+                          {b.host_email && (
+                            <div>
+                              <dt>{t('booking.host')}</dt>
+                              <dd>{b.host_name ?? b.host_email}</dd>
+                            </div>
+                          )}
+                          {b.meeting_url && (
+                            <div>
+                              <dt>{t('bookings.meeting')}</dt>
+                              <dd>
+                                <a className="data" href={b.meeting_url} target="_blank" rel="noreferrer">
+                                  {b.meeting_url}
+                                </a>
+                              </dd>
+                            </div>
+                          )}
+                          {b.cancel_reason && (
+                            <div>
+                              <dt>{t('manage.cancelReason')}</dt>
+                              <dd>{b.cancel_reason}</dd>
+                            </div>
+                          )}
+                          {b.answers &&
+                            b.answers !== '{}' &&
+                            answerEntries(b.answers, b.event_type_fields, { yes: t('common.yes'), no: t('common.no') }).map(([k, label, v]) => (
+                              <div key={k}>
+                                <dt className={label === k ? 'data' : undefined}>{label}</dt>
+                                <dd>{v}</dd>
+                              </div>
+                            ))}
+                          <div>
+                            <dt>ID</dt>
+                            <dd className="data">{b.id}</dd>
+                          </div>
+                        </dl>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-function CancelPanel({
-  paid,
-  busy,
-  onClose,
-  onConfirm,
-}: {
-  paid: boolean;
-  busy: boolean;
-  onClose: () => void;
-  onConfirm: (reason: string) => void;
-}) {
+function CancelPanel({ paid, busy, onClose, onConfirm }: { paid: boolean; busy: boolean; onClose: () => void; onConfirm: (reason: string) => void }) {
   const t = useTranslations('calendar');
   const [reason, setReason] = useState('');
   return (
     <div className="cal-bk-panel">
-      <label className="field">
-        <span className="prop-label">{t('admin.cancelReason')}</span>
-        <textarea className="textarea" rows={2} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
-      </label>
-      {paid && <p className="muted">{t('admin.refundOnCancel')}</p>}
+      <div className="ui-field">
+        <label className="label" htmlFor="cal-cancel-reason">
+          {t('admin.cancelReason')}
+        </label>
+        <textarea id="cal-cancel-reason" className="textarea" rows={2} maxLength={500} value={reason} autoFocus onChange={(e) => setReason(e.target.value)} />
+      </div>
+      {paid && <p className="ui-help">{t('admin.refundOnCancel')}</p>}
       <div className="cal-bk-panel-actions">
-        <button type="button" className="btn btn-ghost btn-small" onClick={onClose}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
           {t('admin.keep')}
         </button>
-        <button type="button" className="btn btn-small btn-danger" disabled={busy} onClick={() => onConfirm(reason.trim())}>
+        <button type="button" className="btn btn-primary btn-danger btn-sm" aria-busy={busy || undefined} onClick={() => onConfirm(reason.trim())}>
           {t('admin.confirmCancel')}
         </button>
       </div>
@@ -437,27 +497,35 @@ function ReschedulePanel({
 
   return (
     <div className="cal-bk-panel">
-      <p className="muted">{t('admin.rescheduleHint')}</p>
-      <label className="cal-bk-date">
-        <span className="prop-label">{t('admin.pickDate')}</span>
-        <input className="input mono" type="date" value={date} min={localDay()} onChange={(e) => setDate(e.target.value)} />
-      </label>
+      <p className="ui-help">{t('admin.rescheduleHint')}</p>
+      <div className="cal-bk-panel-row">
+        <div className="ui-field">
+          <label className="label" htmlFor={`cal-rs-${booking.id}`}>
+            {t('admin.pickDate')}
+          </label>
+          <input id={`cal-rs-${booking.id}`} className="input data" type="date" value={date} min={localDay()} onChange={(e) => setDate(e.target.value)} />
+        </div>
+        <p className="ui-help data">{tz}</p>
+      </div>
       {slots === null ? (
-        <p className="muted mono">{t('admin.loading')}</p>
+        <div className="cal-bk-slots" aria-busy="true">
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} className="ui-skeleton cal-slot-skeleton" />
+          ))}
+        </div>
       ) : slots.length === 0 ? (
-        <p className="muted">{t('admin.noSlots')}</p>
+        <p className="cal-muted">{t('admin.noSlots')}</p>
       ) : (
         <div className="cal-bk-slots">
           {slots.map((s) => (
-            <button key={s.start} type="button" className="btn btn-small" disabled={busy} onClick={() => void pick(s.start)}>
+            <button key={s.start} type="button" className="btn btn-sm data" disabled={busy} onClick={() => void pick(s.start)}>
               {formatTime(s.start, locale)}
             </button>
           ))}
         </div>
       )}
-      <p className="muted mono">{tz}</p>
       <div className="cal-bk-panel-actions">
-        <button type="button" className="btn btn-ghost btn-small" onClick={onClose}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
           {t('admin.keep')}
         </button>
       </div>

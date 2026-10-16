@@ -345,7 +345,7 @@ test('Cal: /event-types/new abre el modal sobre la lista', async ({ page }) => {
 test('Cal: routing form rápido abre el editor y se borra desde el detalle', async ({ page }) => {
   const title = `Route ${uid()}`;
   await page.goto('/en/app/calendar/routing');
-  await page.getByRole('button', { name: /New routing form/ }).first().click();
+  await page.getByRole('button', { name: /Create form/ }).first().click();
   await page.getByPlaceholder('Form name, e.g. Sales or support').fill(title);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/app\/calendar\/routing\/[0-9a-f-]+$/, { timeout: 15_000 });
@@ -697,6 +697,10 @@ test.describe('cal d9', () => {
 
     await page.goto('/en/app/calendar/availability', { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: new RegExp(schedule.name) }).click();
+    // Las excepciones van plegadas: el disclosure dice cuántas hay.
+    const overrides = page.getByRole('button', { name: /Date overrides/ });
+    await expect(overrides).toContainText('1 date');
+    if ((await overrides.getAttribute('aria-expanded')) !== 'true') await overrides.click();
     await expect(page.locator('.cal-override-row input[type="date"]')).toHaveValue(monday, { timeout: 20_000 });
   });
 
@@ -733,19 +737,16 @@ test.describe('cal d9', () => {
   test('recordatorios y precio se guardan desde el tipo de evento', async ({ request, page }) => {
     const slug = `d9w-${uid()}`;
     const et = await (await request.post('/api/calendar/event-types', { data: { slug, title: 'D9 wf', durationMin: 30 } })).json();
-    await page.goto(`/en/app/calendar/event-types/${et.id}`, { waitUntil: 'networkidle' });
-    const reminders = page.locator('section.panel', { hasText: 'Reminders' });
-    await reminders.getByRole('button', { name: '+ Add step' }).click();
-    await reminders.getByRole('button', { name: 'Save' }).click();
-    await expect(reminders.getByRole('button', { name: /Saved/ })).toBeVisible({ timeout: 20_000 });
+    await page.goto(`/en/app/calendar/event-types/${et.id}?tab=advanced`, { waitUntil: 'networkidle' });
+    await expect(page.getByRole('tab', { name: 'Advanced' })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('button', { name: 'Add step' }).click();
+    await page.getByLabel('Price').fill('25');
+    await expect(page.getByText('To charge, connect Stripe in Settings.')).toBeVisible({ timeout: 20_000 });
+    // Un solo Guardar para todo el tipo de evento.
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Changes saved' })).toBeVisible({ timeout: 20_000 });
     const steps = (await (await request.get(`/api/calendar/event-types/${et.id}/workflows`)).json()).steps;
     expect(steps).toEqual([expect.objectContaining({ recipient: 'guest', offsetMin: -60, subject: 'Reminder: {{event.title}}' })]);
-
-    const payment = page.locator('section.panel', { hasText: 'Payment' });
-    await payment.getByRole('textbox').fill('25');
-    await expect(payment.getByText('To charge, connect Stripe in Settings.')).toBeVisible({ timeout: 20_000 });
-    await payment.getByRole('button', { name: 'Save' }).click();
-    await expect(payment.getByRole('button', { name: /Saved/ })).toBeVisible({ timeout: 20_000 });
     expect((await (await request.get(`/api/calendar/event-types/${et.id}`)).json()).price_cents).toBe(2500);
     // Sin Stripe conectado, la reserva paga se rechaza.
     const day = nextDow(2);

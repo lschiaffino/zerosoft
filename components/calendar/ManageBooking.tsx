@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useTranslations } from 'next-intl';
 import type { EventTypeWithRules } from '@/lib/calendar';
-import PublicBookingPage from './PublicBookingPage';
+import PublicBookingPage, { BookingInfo } from './PublicBookingPage';
+import { brandOr, textOn } from './cal-utils';
 
 interface Props {
   token: string;
   locale: string;
   eventType: EventTypeWithRules;
   weekStart: number;
+  hostName?: string;
   /** Máximo de días para reservar (regla del evento o del workspace). */
   maxFutureDays?: number;
   booking: {
@@ -24,20 +26,8 @@ interface Props {
   paidNotice?: boolean;
 }
 
-function formatRange(start: string, end: string, timezone: string, locale: string): string {
-  const date = new Intl.DateTimeFormat(locale, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: timezone,
-  }).format(new Date(start));
-  const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone: timezone });
-  return `${date} · ${time.format(new Date(start))} – ${time.format(new Date(end))}`;
-}
-
 /** Página del invitado para ver, cancelar o reprogramar su reserva (sin cuenta). */
-export default function ManageBooking({ token, locale, eventType, weekStart, maxFutureDays, booking, paidNotice = false }: Props) {
+export default function ManageBooking({ token, locale, eventType, weekStart, hostName, maxFutureDays, booking, paidNotice = false }: Props) {
   const t = useTranslations('calendar');
   const [mode, setMode] = useState<'view' | 'cancel' | 'reschedule' | 'cancelled'>(
     booking.status === 'cancelled' ? 'cancelled' : 'view',
@@ -53,6 +43,7 @@ export default function ManageBooking({ token, locale, eventType, weekStart, max
         eventType={eventType}
         locale={locale}
         weekStart={weekStart}
+        hostName={hostName}
         maxFutureDays={maxFutureDays}
         reschedule={{ token, name: booking.name, email: booking.email }}
       />
@@ -76,58 +67,94 @@ export default function ManageBooking({ token, locale, eventType, weekStart, max
     setError(t('errors.generic'));
   }
 
+  const brand = brandOr(eventType.brand_color, brandOr(eventType.color, '#111111'));
+  const logoUrl = eventType.logo_url && /^(https?:\/\/|\/)/.test(eventType.logo_url) ? eventType.logo_url : null;
+  const tz = booking.timezone;
+  const date = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }).format(
+    new Date(booking.startsAt),
+  );
+  const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  const range = `${time.format(new Date(booking.startsAt))} – ${time.format(new Date(booking.endsAt))}`;
+  const cancelled = mode === 'cancelled';
+
   return (
-    <div className="booking-page">
-      <div className="booking-card">
-        <header className="booking-header">
-          <p className="section-label">{t('manage.title')}</p>
-          <h1 className="booking-title">{eventType.title}</h1>
-        </header>
+    <div className="bk" style={{ '--bk': brand, '--bk-on': textOn(brand) } as CSSProperties}>
+      <div className="bk-card">
+        <BookingInfo
+          logoUrl={logoUrl}
+          hostName={hostName}
+          title={eventType.title}
+          meta={[
+            { icon: 'clock', text: t('booking.minutes', { n: eventType.duration_min }) },
+            ...(eventType.location ? [{ icon: 'pin' as const, text: eventType.location }] : []),
+          ]}
+        />
+        <div className="bk-main">
+          <section className="bk-done" aria-labelledby="bk-manage-title">
+            <h2 id="bk-manage-title" className="bk-h2">
+              {t('manage.title')}
+            </h2>
+            <dl className="bk-summary">
+              <div>
+                <dt>{t('booking.when')}</dt>
+                <dd className={cancelled ? 'bk-struck' : undefined}>
+                  {date}
+                  <br />
+                  <span className="data">{range}</span> <span className="bk-muted">{tz}</span>
+                </dd>
+              </div>
+              <div>
+                <dt>{t('booking.who')}</dt>
+                <dd>
+                  {booking.name}
+                  <br />
+                  <span className="bk-muted">{booking.email}</span>
+                </dd>
+              </div>
+            </dl>
 
-        <p className={`booking-confirm-time${mode === 'cancelled' ? ' muted' : ''}`}>
-          {mode === 'cancelled' && <s>{formatRange(booking.startsAt, booking.endsAt, booking.timezone, locale)}</s>}
-          {mode !== 'cancelled' && formatRange(booking.startsAt, booking.endsAt, booking.timezone, locale)}
-        </p>
-        <p className="booking-confirm-tz muted">{booking.timezone}</p>
-        <p className="booking-confirm-detail">
-          {booking.name} · {booking.email}
-        </p>
-        {eventType.location && <p className="booking-confirm-detail muted">{eventType.location}</p>}
+            {paidNotice && booking.status === 'confirmed' && <p className="bk-status bk-status-ok">{t('manage.paid')}</p>}
 
-        {paidNotice && booking.status === 'confirmed' && <p className="booking-confirm-detail">{t('manage.paid')}</p>}
-
-        {mode === 'cancelled' ? (
-          <p className="booking-confirm-detail">{t('manage.cancelled')}</p>
-        ) : booking.status === 'pending' ? (
-          <p className="booking-confirm-detail">{t('manage.pending')}</p>
-        ) : past ? (
-          <p className="booking-confirm-detail muted">{t('manage.past')}</p>
-        ) : mode === 'cancel' ? (
-          <form className="booking-form" onSubmit={cancel}>
-            <label className="field">
-              <span className="prop-label">{t('manage.cancelReason')}</span>
-              <textarea className="input textarea" value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} />
-            </label>
-            {error && <p className="form-error">{error}</p>}
-            <div className="booking-actions">
-              <button type="button" className="btn btn-ghost btn-small" onClick={() => setMode('view')}>
-                {t('common.back')}
-              </button>
-              <button type="submit" className="btn btn-solid btn-small" disabled={busy}>
-                {busy ? t('common.saving') : t('manage.cancelConfirm')}
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="booking-actions">
-            <button type="button" className="btn btn-ghost btn-small" onClick={() => setMode('cancel')}>
-              {t('manage.cancel')}
-            </button>
-            <button type="button" className="btn btn-solid btn-small" onClick={() => setMode('reschedule')}>
-              {t('manage.reschedule')}
-            </button>
-          </div>
-        )}
+            {cancelled ? (
+              <p className="bk-status">{t('manage.cancelled')}</p>
+            ) : booking.status === 'pending' ? (
+              <p className="bk-status">{t('manage.pending')}</p>
+            ) : past ? (
+              <p className="bk-status">{t('manage.past')}</p>
+            ) : mode === 'cancel' ? (
+              <form className="bk-form" onSubmit={cancel}>
+                <div className="ui-field">
+                  <label className="label" htmlFor="bk-reason">
+                    {t('manage.cancelReason')}
+                  </label>
+                  <textarea id="bk-reason" className="textarea" rows={3} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} />
+                </div>
+                {error && (
+                  <p className="ui-error" role="alert">
+                    {error}
+                  </p>
+                )}
+                <div className="bk-actions">
+                  <button type="button" className="btn btn-ghost" onClick={() => setMode('view')}>
+                    {t('manage.keep')}
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-danger" aria-busy={busy || undefined}>
+                    {t('manage.cancelConfirm')}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="bk-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setMode('cancel')}>
+                  {t('manage.cancel')}
+                </button>
+                <button type="button" className="btn bk-cta" onClick={() => setMode('reschedule')}>
+                  {t('manage.reschedule')}
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );

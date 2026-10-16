@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getPublicProfile, legacyBookPath } from '@/lib/calendar';
+import CalIcon from '@/components/calendar/cal-icons';
 import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
@@ -30,32 +31,38 @@ export default async function BookHandlePage(props: {
   const t = await getTranslations({ locale, namespace: 'calendar.profile' });
 
   return (
-    <main className="book-profile">
-      <div className="book-profile-head">
-        <span className="book-profile-avatar" aria-hidden="true">
-          {profile.name.slice(0, 1).toUpperCase()}
-        </span>
-        <h1>{profile.name}</h1>
-        <p className="muted">{t('sub')}</p>
+    <main className="bk bk-profile">
+      <div className="bk-profile-inner">
+        <header className="bk-profile-head">
+          <span className="bk-monogram bk-monogram-lg" aria-hidden="true">
+            {profile.name.trim().slice(0, 1).toUpperCase()}
+          </span>
+          <h1 className="bk-title">{profile.name}</h1>
+          <p className="bk-muted">{t('sub')}</p>
+        </header>
+        {profile.eventTypes.length === 0 ? (
+          <p className="bk-note bk-profile-empty">{t('empty')}</p>
+        ) : (
+          <ul className="bk-profile-list">
+            {profile.eventTypes.map((et) => (
+              <li key={et.id}>
+                <Link href={`/book/${profile.handle}/${et.slug}`} className="bk-profile-item">
+                  <span className="bk-profile-swatch" style={{ background: et.brand_color || et.color || '#111111' }} aria-hidden="true" />
+                  <span className="bk-profile-text">
+                    <strong>{et.title}</strong>
+                    {et.description && <span className="bk-muted">{et.description}</span>}
+                  </span>
+                  <span className="bk-profile-dur">
+                    <CalIcon name="clock" />
+                    {t('minutes', { n: et.duration_min })}
+                  </span>
+                  <CalIcon name="next" size={16} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-      {profile.eventTypes.length === 0 ? (
-        <p className="muted book-profile-empty">{t('empty')}</p>
-      ) : (
-        <ul className="book-profile-list">
-          {profile.eventTypes.map((et) => (
-            <li key={et.id}>
-              <Link href={`/book/${profile.handle}/${et.slug}`} className="book-profile-item">
-                <span className="book-profile-dot" style={{ background: et.color || 'var(--c-cal)' }} aria-hidden="true" />
-                <span className="book-profile-text">
-                  <strong>{et.title}</strong>
-                  {et.description && <span className="muted">{et.description}</span>}
-                </span>
-                <span className="book-profile-dur mono">{t('minutes', { n: et.duration_min })}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
     </main>
   );
 }

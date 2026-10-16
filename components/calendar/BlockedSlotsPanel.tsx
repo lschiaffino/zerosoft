@@ -1,57 +1,38 @@
 'use client';
 
-import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useId, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import FormSection from '@/components/ui/FormSection';
 import type { CalendarBlockedSlotRow } from '@/lib/db';
-
-interface BlockedSlotsPanelProps {
-  initialSlots: CalendarBlockedSlotRow[];
-}
-
-function formatLocalInput(iso: string): string {
-  try {
-    const d = new Date(iso);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch {
-    return '';
-  }
-}
+import CalIcon from './cal-icons';
 
 function toIso(local: string): string {
-  if (!local) return '';
-  return new Date(local).toISOString();
+  return local ? new Date(local).toISOString() : '';
 }
 
-export default function BlockedSlotsPanel({ initialSlots }: BlockedSlotsPanelProps) {
+/** Bloqueos de la persona (vacaciones, un trámite): tapan los horarios de todos sus eventos. */
+export default function BlockedSlotsPanel({ initialSlots }: { initialSlots: CalendarBlockedSlotRow[] }) {
   const t = useTranslations('calendar');
+  const locale = useLocale();
+  const id = useId();
   const [slots, setSlots] = useState<CalendarBlockedSlotRow[]>(initialSlots);
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [reason, setReason] = useState('');
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function addSlot(e: React.FormEvent) {
-    e.preventDefault();
-    if (!startsAt || !endsAt) return;
+  const fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const range = (s: CalendarBlockedSlotRow) => `${fmt.format(new Date(s.starts_at))} – ${fmt.format(new Date(s.ends_at))}`;
+
+  async function addSlot() {
+    if (!startsAt || !endsAt) return t('blockedSlots.missing');
     // Un bloqueo con el fin antes del inicio no bloquea nada.
-    if (new Date(endsAt) <= new Date(startsAt)) {
-      setError(t('errors.invalid_range'));
-      return;
-    }
-    setError(null);
-    setBusy(true);
+    if (new Date(endsAt) <= new Date(startsAt)) return t('errors.invalid_range');
     const res = await fetch('/api/calendar/blocked-slots', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        startsAt: toIso(startsAt),
-        endsAt: toIso(endsAt),
-        reason: reason || undefined,
-      }),
+      body: JSON.stringify({ startsAt: toIso(startsAt), endsAt: toIso(endsAt), reason: reason.trim() || undefined }),
     }).catch(() => null);
-    setBusy(false);
     if (res && res.status === 201) {
       const slot = (await res.json()) as CalendarBlockedSlotRow;
       setSlots((prev) => [slot, ...prev]);
@@ -61,13 +42,13 @@ export default function BlockedSlotsPanel({ initialSlots }: BlockedSlotsPanelPro
       return;
     }
     const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : undefined;
-    setError(code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
+    return code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic');
   }
 
-  async function removeSlot(id: string) {
-    const res = await fetch(`/api/calendar/blocked-slots/${id}`, { method: 'DELETE' }).catch(() => null);
+  async function removeSlot(slotId: string) {
+    const res = await fetch(`/api/calendar/blocked-slots/${slotId}`, { method: 'DELETE' }).catch(() => null);
     if (res && res.status === 204) {
-      setSlots((prev) => prev.filter((s) => s.id !== id));
+      setSlots((prev) => prev.filter((s) => s.id !== slotId));
       setError(null);
     } else {
       setError(t('errors.generic'));
@@ -75,62 +56,66 @@ export default function BlockedSlotsPanel({ initialSlots }: BlockedSlotsPanelPro
   }
 
   return (
-    <section className="panel">
-      <p className="section-label">{t('blockedSlots.title')}</p>
-      <form className="blocked-form" onSubmit={addSlot}>
-        <input
-          className="input"
-          type="datetime-local"
-          aria-label={t('blockedSlots.from')}
-          title={t('blockedSlots.from')}
-          value={startsAt}
-          onChange={(e) => setStartsAt(e.target.value)}
-          required
-        />
-        <input
-          className="input"
-          type="datetime-local"
-          aria-label={t('blockedSlots.to')}
-          title={t('blockedSlots.to')}
-          min={startsAt || undefined}
-          value={endsAt}
-          onChange={(e) => setEndsAt(e.target.value)}
-          required
-        />
-        <input
-          className="input"
-          placeholder={t('blockedSlots.reasonPlaceholder')}
-          aria-label={t('blockedSlots.reasonPlaceholder')}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-        <button type="submit" className="btn btn-solid btn-small" disabled={busy}>
-          {t('blockedSlots.add')}
-        </button>
-      </form>
+    <FormSection
+      title={t('blockedSlots.title')}
+      description={t('blockedSlots.lead')}
+      onSubmit={addSlot}
+      submitLabel={t('blockedSlots.add')}
+      note={t('blockedSlots.note')}
+    >
+      <div className="cal-block-form">
+        <div className="ui-field">
+          <label className="label" htmlFor={`${id}-from`}>
+            {t('blockedSlots.from')}
+          </label>
+          <input id={`${id}-from`} className="input data" type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor={`${id}-to`}>
+            {t('blockedSlots.to')}
+          </label>
+          <input
+            id={`${id}-to`}
+            className="input data"
+            type="datetime-local"
+            min={startsAt || undefined}
+            value={endsAt}
+            onChange={(e) => setEndsAt(e.target.value)}
+          />
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor={`${id}-reason`}>
+            {t('blockedSlots.reason')} <span className="ui-optional">{t('editor.optional')}</span>
+          </label>
+          <input id={`${id}-reason`} className="input" value={reason} placeholder={t('blockedSlots.reasonPlaceholder')} onChange={(e) => setReason(e.target.value)} />
+        </div>
+      </div>
       {error && (
-        <p className="form-error" role="alert">
+        <p className="ui-error" role="alert">
           {error}
         </p>
       )}
-
       {slots.length === 0 ? (
-        <p className="muted">{t('blockedSlots.empty')}</p>
+        <p className="cal-muted">{t('blockedSlots.empty')}</p>
       ) : (
-        <ul className="blocked-list">
+        <ul className="cal-block-list">
           {slots.map((s) => (
-            <li key={s.id} className="blocked-row">
-              <span className="mono">
-                {formatLocalInput(s.starts_at)} → {formatLocalInput(s.ends_at)}
-              </span>
-              {s.reason && <span className="muted">{s.reason}</span>}
-              <button type="button" className="btn btn-ghost btn-small" onClick={() => removeSlot(s.id)}>
-                {t('common.remove')}
+            <li key={s.id}>
+              <span className="data">{range(s)}</span>
+              <span className="cal-muted">{s.reason}</span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon btn-sm"
+                onClick={() => removeSlot(s.id)}
+                aria-label={t('blockedSlots.remove', { range: range(s) })}
+                title={t('common.remove')}
+              >
+                <CalIcon name="trash" />
               </button>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </FormSection>
   );
 }

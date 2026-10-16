@@ -295,6 +295,16 @@ Loaded site-wide after `globals.css`. Product screens use these classes instead 
 ### App home (`/app`)
 The network map is the workspace launcher: `NetworkMap` with `hrefs` pointing each line and station into its app (no draw-in animation inside the app), next to the eleven lines as a list (glyph, name, one line). Link's numbers follow, since `/app` is also Link's overview.
 
+### Cal (`/app/calendar`, `/book`, `/r`)
+`styles/calendar.css` holds only what Cal adds on top of the UI kit.
+- **Event type editor:** one `.ui-section` form with `.ui-tabs` (General, Availability, Questions, Advanced, Share; arrow keys move between tabs, `?tab=` deep-links) and a single sticky "Save changes" foot that saves the event, its own hours and its reminders together. Validation errors switch to the tab that has them. Limits default to the calendar's values ("Use the calendar's defaults" switch); the URL slug and each question's key are derived from the title and label (`components/calendar/cal-utils.ts`).
+- **Quick create:** title, duration and location in the shared QuickModal; the URL is shown as a preview with "Change URL". A toast confirms and links to the editor.
+- **Event type colors** are 12px squares (`.cal-swatch`), never dots: a circle would read as a station.
+- **Routing form editor** is drawn as a line with three stations (`.cal-stepper`: Questions, Rules, Publish), the active one filled with the line color. Questions and rules save as you add them; Publish is a `FormSection` with one Save.
+- **Availability:** schedule list plus one editor with one Save; weekly hours are `WeeklyHours` (shared with an event's own hours); date overrides sit behind `AdvancedSection` with their count as the hint.
+- **Bookings** are grouped by day in the calendar's time zone, one dense row per booking (time in data type, guest, event, status badge, actions); reschedule, cancel and details open inline under the row.
+- **Public pages** (`.bk`) carry the workspace's brand, not zerosoft's: `--bk` is the event's brand color (or its color), `--bk-on` is white or ink by contrast (`textOn`). The color fills the selected day, the selected slot, the main button and a 4px top rule on the card; available days get a 9% tint. Logo or a square monogram, host name, then the event. No signage band, stations or condensed type there.
+
 ## Do's and Don'ts
 
 ### Do:
