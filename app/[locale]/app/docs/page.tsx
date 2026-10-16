@@ -13,11 +13,18 @@ import { formatDateTime } from '@/lib/utils';
 import { Link } from '@/i18n/navigation';
 import DocsSidebar from '@/components/docs/DocsSidebar';
 import DocsTrashList from '@/components/docs/DocsTrashList';
+import DocsAutoCreate from '@/components/docs/DocsAutoCreate';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DocsLandingPage(props: { params: Promise<{ locale: string }> }) {
+export default async function DocsLandingPage(props: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ new?: string; trash?: string }>;
+}) {
   const { locale } = await props.params;
+  const sp = await props.searchParams;
+  // ?trash=1 (sidebar › Papelera): la sección se muestra abierta aunque esté vacía.
+  const showTrash = sp.trash === '1';
 
   setRequestLocale(locale);
   const user = await requireUser(locale);
@@ -48,6 +55,7 @@ export default async function DocsLandingPage(props: { params: Promise<{ locale:
       />
 
       <div className="docs-main docs-landing">
+        {sp.new === '1' && <DocsAutoCreate action={createAction.bind(null, null)} />}
         <div className="page-head">
           <div>
             <h1 className="app-title">{t('landing.title')}</h1>
@@ -93,7 +101,7 @@ export default async function DocsLandingPage(props: { params: Promise<{ locale:
           </section>
         )}
 
-        <section className="docs-section">
+        <section className="docs-section" id="templates">
           <p className="section-label">{t('templates.title')}</p>
           <div className="docs-templates">
             {templates.map((tpl) => (
@@ -108,12 +116,12 @@ export default async function DocsLandingPage(props: { params: Promise<{ locale:
           </div>
         </section>
 
-        {trashed.length > 0 && (
-          <details className="docs-section docs-trash" id="trash">
+        {(trashed.length > 0 || showTrash) && (
+          <details className="docs-section docs-trash" id="trash" open={showTrash || undefined}>
             <summary className="section-label">
               {t('trash.title')} <span className="mono">({trashed.length})</span>
             </summary>
-            <p className="docs-trash-help muted">{t('trash.help')}</p>
+            <p className="docs-trash-help muted">{trashed.length > 0 ? t('trash.help') : t('trash.empty')}</p>
             <DocsTrashList
               pages={trashed}
               canDelete={isWorkspaceAdmin(user)}

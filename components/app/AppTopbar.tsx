@@ -1,13 +1,14 @@
 'use client';
 
 import { usePathname } from '@/i18n/navigation';
+import { appProductFromPath, type AppProduct } from './sidebar-nav';
 
 interface AppTopbarProps {
   /** Secciones de la app (ya traducidas). El título es la de prefijo más largo. */
   sections: Array<{ href: string; label: string }>;
 }
 
-const PRODUCT_NAMES: Record<string, string> = {
+const PRODUCT_NAMES: Record<AppProduct, string> = {
   link: 'Link',
   crm: 'CRM',
   docs: 'Docs',
@@ -21,18 +22,8 @@ const PRODUCT_NAMES: Record<string, string> = {
   robots: 'Robots',
 };
 
-export function productFromPath(pathname: string): keyof typeof PRODUCT_NAMES {
-  if (pathname.includes('/app/crm')) return 'crm';
-  if (pathname.includes('/app/docs')) return 'docs';
-  if (pathname.includes('/app/calendar')) return 'calendar';
-  if (pathname.includes('/app/track')) return 'track';
-  if (pathname.includes('/app/chat')) return 'chat';
-  if (pathname.includes('/app/flow')) return 'flow';
-  if (pathname.includes('/app/notes')) return 'notes';
-  if (pathname.includes('/app/board')) return 'board';
-  if (pathname.includes('/app/agents')) return 'agents';
-  if (pathname.includes('/app/robots')) return 'robots';
-  return 'link';
+export function productFromPath(pathname: string): AppProduct {
+  return appProductFromPath(pathname);
 }
 
 export default function AppTopbar({ sections }: AppTopbarProps) {

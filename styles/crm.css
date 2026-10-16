@@ -2398,6 +2398,12 @@ tr:hover .preview-btn { opacity: 1; }
   color: var(--ink);
 }
 
+.crm-settings-nav a.active {
+  background: var(--subtle);
+  color: var(--ink);
+  font-weight: 500;
+}
+
 .crm-settings-body {
   display: flex;
   flex-direction: column;

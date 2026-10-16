@@ -3,115 +3,17 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { signOut } from 'next-auth/react';
 import { Link, usePathname } from '@/i18n/navigation';
-import Icon, { type IconName } from './icons';
+import Icon from './icons';
+import { appProductFromPath, buildNav, buildNewItems, settingsNavItem, type SidebarLabels } from './sidebar-nav';
 import NotificationBell from './NotificationBell';
 import FeedbackButton from './FeedbackButton';
 
-export interface SidebarLabels {
-  search: string;
-  new: string;
-  backToSite: string;
-  docsSite: string;
-  soon: string;
-  signOut: string;
-  records: string;
-  activity: string;
-  insights: string;
-  linksSection: string;
-  workspace: string;
-  newContact: string;
-  newCompany: string;
-  newDeal: string;
-  newTask: string;
-  newLink: string;
-  newDocPage: string;
-  newEventType: string;
-  newProject: string;
-  newWidget: string;
-  newFlow: string;
-  newAgent: string;
-  newRobot: string;
-  team: string;
-  link: { overview: string; links: string; new: string; bio: string; analytics: string; settings: string };
-  crm: {
-    overview: string;
-    contacts: string;
-    companies: string;
-    deals: string;
-    tasks: string;
-    lists: string;
-    reports: string;
-    dashboards: string;
-    workflows: string;
-    settings: string;
-    sequences: string;
-    templates: string;
-    products: string;
-    quotes: string;
-    forms: string;
-  };
-  docs: {
-    overview: string;
-    pages: string;
-    new: string;
-  };
-  calendar: {
-    overview: string;
-    eventTypes: string;
-    bookings: string;
-    routing: string;
-    availability: string;
-    settings: string;
-  };
-  track: {
-    overview: string;
-    myTasks: string;
-    projects: string;
-    issues: string;
-    cycles: string;
-    settings: string;
-    inbox: string;
-  };
-  chat: {
-    overview: string;
-    inbox: string;
-    people: string;
-    reports: string;
-    settings: string;
-  };
-  flow: {
-    flows: string;
-    credentials: string;
-  };
-  /** Notes y Board (opcionales: los aporta su propio namespace de mensajes). */
-  notes?: { all: string; newNote: string };
-  board?: { boards: string; newBoard: string };
-  agents: {
-    agents: string;
-  };
-  robots: {
-    robots: string;
-  };
-  notifications: {
-    title: string;
-    markRead: string;
-    markAllRead: string;
-    empty: string;
-  };
-}
+export type { SidebarLabels };
 
 interface SideUser {
   name: string | null;
   email: string;
   image: string | null;
-}
-
-interface Item {
-  href: string;
-  label: string;
-  active: boolean;
-  icon: IconName;
-  badge?: number;
 }
 
 const PRODUCTS = [
@@ -162,27 +64,7 @@ export default function AppSidebar({
   teamName?: string | null;
 }) {
   const pathname = usePathname();
-  const product = pathname.includes('/app/crm')
-    ? 'crm'
-    : pathname.includes('/app/docs')
-      ? 'docs'
-      : pathname.includes('/app/calendar')
-        ? 'calendar'
-        : pathname.includes('/app/track')
-          ? 'track'
-          : pathname.includes('/app/chat')
-            ? 'chat'
-            : pathname.includes('/app/flow')
-              ? 'flow'
-              : pathname.includes('/app/notes')
-                ? 'notes'
-                : pathname.includes('/app/board')
-                  ? 'board'
-                  : pathname.includes('/app/agents')
-                    ? 'agents'
-                    : pathname.includes('/app/robots')
-                      ? 'robots'
-                      : 'link';
+  const product = appProductFromPath(pathname);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -212,6 +94,17 @@ export default function AppSidebar({
     setDrawerOpen(false);
   }, [pathname]);
 
+  // Una sola campana (un solo polling): en el sidebar en desktop y en la
+  // topbar en mobile (<1024px), donde el sidebar es un drawer oculto.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
   // Sidebar colapsable (solo desktop ≥1024px; persiste en localStorage).
   const [collapsed, setCollapsed] = useState(false);
 
@@ -234,247 +127,9 @@ export default function AppSidebar({
     });
   }
 
-  const crmNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/crm', label: labels.crm.overview, active: pathname === '/app/crm', icon: 'overview' }] },
-    {
-      section: labels.records,
-      items: [
-        { href: '/app/crm/contacts', label: labels.crm.contacts, active: pathname.startsWith('/app/crm/contacts'), icon: 'contacts' },
-        { href: '/app/crm/companies', label: labels.crm.companies, active: pathname.startsWith('/app/crm/companies'), icon: 'companies' },
-        { href: '/app/crm/deals', label: labels.crm.deals, active: pathname.startsWith('/app/crm/deals'), icon: 'deals' },
-        { href: '/app/crm/lists', label: labels.crm.lists, active: pathname.startsWith('/app/crm/lists'), icon: 'lists' },
-        { href: '/app/crm/products', label: labels.crm.products, active: pathname.startsWith('/app/crm/products'), icon: 'lists' },
-        { href: '/app/crm/quotes', label: labels.crm.quotes, active: pathname.startsWith('/app/crm/quotes'), icon: 'docs' },
-      ],
-    },
-    {
-      section: labels.activity,
-      items: [
-        {
-          href: '/app/crm/tasks',
-          label: labels.crm.tasks,
-          active: pathname.startsWith('/app/crm/tasks'),
-          icon: 'tasks',
-          badge: tasksDue > 0 ? tasksDue : undefined,
-        },
-        { href: '/app/crm/sequences', label: labels.crm.sequences, active: pathname.startsWith('/app/crm/sequences'), icon: 'flow' },
-        { href: '/app/crm/templates', label: labels.crm.templates, active: pathname.startsWith('/app/crm/templates'), icon: 'docs' },
-        { href: '/app/crm/forms', label: labels.crm.forms, active: pathname.startsWith('/app/crm/forms'), icon: 'inbox' },
-      ],
-    },
-    {
-      section: labels.insights,
-      items: [
-        { href: '/app/crm/dashboards', label: labels.crm.dashboards, active: pathname.startsWith('/app/crm/dashboards'), icon: 'reports' },
-        { href: '/app/crm/reports', label: labels.crm.reports, active: pathname.startsWith('/app/crm/reports'), icon: 'reports' },
-      ],
-    },
-    {
-      section: labels.workspace,
-      items: [
-        { href: '/app/crm/workflows', label: labels.crm.workflows, active: pathname.startsWith('/app/crm/workflows'), icon: 'workflows' },
-        { href: '/app/crm/settings', label: labels.crm.settings, active: pathname.startsWith('/app/crm/settings'), icon: 'settings' },
-      ],
-    },
-  ];
-
-  const linkNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app', label: labels.link.overview, active: pathname === '/app', icon: 'overview' }] },
-    {
-      section: labels.linksSection,
-      items: [
-        {
-          href: '/app/links',
-          label: labels.link.links,
-          active:
-            pathname.startsWith('/app/links') &&
-            !pathname.startsWith('/app/links/new') &&
-            !pathname.startsWith('/app/links/bio') &&
-            !pathname.startsWith('/app/links/analytics'),
-          icon: 'links',
-        },
-        { href: '/app/links/new', label: labels.link.new, active: pathname.startsWith('/app/links/new'), icon: 'newLink' },
-        { href: '/app/links/bio', label: labels.link.bio, active: pathname.startsWith('/app/links/bio'), icon: 'contacts' },
-        { href: '/app/links/analytics', label: labels.link.analytics, active: pathname.startsWith('/app/links/analytics'), icon: 'reports' },
-      ],
-    },
-    {
-      section: labels.workspace,
-      items: [
-        { href: '/app/settings', label: labels.link.settings, active: pathname.startsWith('/app/settings'), icon: 'settings' },
-      ],
-    },
-  ];
-
-  const docsNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/docs', label: labels.docs.overview, active: pathname === '/app/docs', icon: 'overview' }] },
-  ];
-
-  const calendarNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/calendar', label: labels.calendar.overview, active: pathname === '/app/calendar', icon: 'overview' }] },
-    {
-      section: labels.records,
-      items: [
-        { href: '/app/calendar/event-types', label: labels.calendar.eventTypes, active: pathname.startsWith('/app/calendar/event-types'), icon: 'tasks' },
-        { href: '/app/calendar/routing', label: labels.calendar.routing, active: pathname.startsWith('/app/calendar/routing'), icon: 'lists' },
-        { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: pathname.startsWith('/app/calendar/bookings'), icon: 'contacts' },
-        { href: '/app/calendar/availability', label: labels.calendar.availability, active: pathname.startsWith('/app/calendar/availability'), icon: 'myTasks' },
-      ],
-    },
-    {
-      items: [
-        { href: '/app/calendar/settings', label: labels.calendar.settings, active: pathname.startsWith('/app/calendar/settings'), icon: 'settings' },
-      ],
-    },
-  ];
-
-  const trackNav: Array<{ section?: string; items: Item[] }> = [
-    {
-      items: [
-        { href: '/app/track', label: labels.track.overview, active: pathname === '/app/track', icon: 'overview' },
-        { href: '/app/track/my-tasks', label: labels.track.myTasks, active: pathname.startsWith('/app/track/my-tasks'), icon: 'myTasks' },
-      ],
-    },
-    {
-      section: labels.records,
-      items: [
-        { href: '/app/track/projects', label: labels.track.projects, active: pathname.startsWith('/app/track/projects'), icon: 'lists' },
-        { href: '/app/track/issues', label: labels.track.issues, active: pathname.startsWith('/app/track/issues'), icon: 'tasks' },
-      ],
-    },
-    {
-      section: labels.activity,
-      items: [
-        {
-          href: '/app/track/inbox',
-          label: labels.track.inbox,
-          active: pathname.startsWith('/app/track/inbox'),
-          icon: 'inbox',
-          badge: unreadCount > 0 ? unreadCount : undefined,
-        },
-      ],
-    },
-    {
-      items: [
-        { href: '/app/track/settings', label: labels.track.settings, active: pathname.startsWith('/app/track/settings'), icon: 'settings' },
-      ],
-    },
-  ];
-
-  const chatNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/chat', label: labels.chat.overview, active: pathname === '/app/chat', icon: 'overview' }] },
-    {
-      section: labels.records,
-      items: [
-        { href: '/app/chat/inbox', label: labels.chat.inbox, active: pathname.startsWith('/app/chat/inbox'), icon: 'inbox' },
-        { href: '/app/chat/people', label: labels.chat.people, active: pathname.startsWith('/app/chat/people'), icon: 'contacts' },
-      ],
-    },
-    {
-      section: labels.insights,
-      items: [
-        { href: '/app/chat/reports', label: labels.chat.reports, active: pathname.startsWith('/app/chat/reports'), icon: 'reports' },
-      ],
-    },
-    {
-      section: labels.workspace,
-      items: [
-        {
-          href: '/app/chat/settings',
-          label: labels.chat.settings,
-          // Las páginas de un widget cuelgan de Ajustes (ahí está la lista).
-          active: pathname.startsWith('/app/chat/settings') || pathname.startsWith('/app/chat/widgets'),
-          icon: 'settings',
-        },
-      ],
-    },
-  ];
-
-  const flowNav: Array<{ section?: string; items: Item[] }> = [
-    {
-      items: [
-        {
-          href: '/app/flow',
-          label: labels.flow.flows,
-          active: pathname.startsWith('/app/flow') && !pathname.startsWith('/app/flow/credentials'),
-          icon: 'flow',
-        },
-        {
-          href: '/app/flow/credentials',
-          label: labels.flow.credentials,
-          active: pathname.startsWith('/app/flow/credentials'),
-          icon: 'settings',
-        },
-      ],
-    },
-  ];
-
-  const notesNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/notes', label: labels.notes?.all ?? 'Notes', active: pathname.startsWith('/app/notes'), icon: 'notes' }] },
-  ];
-
-  const boardNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/board', label: labels.board?.boards ?? 'Boards', active: pathname.startsWith('/app/board'), icon: 'board' }] },
-  ];
-
-  const agentsNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/agents', label: labels.agents.agents, active: pathname.startsWith('/app/agents'), icon: 'agents' }] },
-  ];
-
-  const robotsNav: Array<{ section?: string; items: Item[] }> = [
-    { items: [{ href: '/app/robots', label: labels.robots.robots, active: pathname.startsWith('/app/robots'), icon: 'robots' }] },
-  ];
-
-  const nav =
-    product === 'notes'
-      ? notesNav
-      : product === 'board'
-        ? boardNav
-        : product === 'crm'
-      ? crmNav
-      : product === 'docs'
-        ? docsNav
-        : product === 'calendar'
-          ? calendarNav
-          : product === 'track'
-            ? trackNav
-            : product === 'chat'
-              ? chatNav
-              : product === 'flow'
-                ? flowNav
-                : product === 'agents'
-                  ? agentsNav
-                  : product === 'robots'
-                    ? robotsNav
-                    : linkNav;
-
-  const newItems: Item[] =
-    product === 'notes'
-      ? [{ href: '/app/notes?new=1', label: labels.notes?.newNote ?? 'New note', active: false, icon: 'notes' }]
-      : product === 'board'
-        ? [{ href: '/app/board?new=1', label: labels.board?.newBoard ?? 'New board', active: false, icon: 'board' }]
-        : product === 'crm'
-      ? [
-          { href: '/app/crm/contacts/new', label: labels.newContact, active: false, icon: 'contacts' },
-          { href: '/app/crm/companies/new', label: labels.newCompany, active: false, icon: 'companies' },
-          { href: '/app/crm/deals/new', label: labels.newDeal, active: false, icon: 'deals' },
-          { href: '/app/crm/tasks', label: labels.newTask, active: false, icon: 'tasks' },
-        ]
-      : product === 'docs'
-        ? [{ href: '/app/docs', label: labels.newDocPage, active: false, icon: 'docs' }]
-        : product === 'calendar'
-          ? [{ href: '/app/calendar/event-types/new', label: labels.newEventType, active: false, icon: 'tasks' }]
-          : product === 'track'
-            ? [{ href: '/app/track/projects/new', label: labels.newProject, active: false, icon: 'lists' }]
-            : product === 'chat'
-              ? [{ href: '/app/chat/widgets/new', label: labels.newWidget, active: false, icon: 'chat' }]
-              : product === 'flow'
-                ? [{ href: '/app/flow', label: labels.newFlow, active: false, icon: 'flow' }]
-                : product === 'agents'
-                  ? [{ href: '/app/agents', label: labels.newAgent, active: false, icon: 'agents' }]
-                  : product === 'robots'
-                    ? [{ href: '/app/robots?new=1', label: labels.newRobot, active: false, icon: 'robots' }]
-                    : [{ href: '/app/links/new', label: labels.newLink, active: false, icon: 'newLink' }];
+  const nav = buildNav(product, pathname, labels, { tasksDue, unread: unreadCount });
+  const newItems = buildNewItems(product, labels);
+  const settingsItem = settingsNavItem(pathname, labels);
 
   const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
 
@@ -515,7 +170,7 @@ export default function AppSidebar({
             </div>
           )}
         </div>
-        <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />
+        {!isMobile && <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />}
         <button type="button" className="side-close" onClick={() => setDrawerOpen(false)}>
           ✕
         </button>
@@ -578,6 +233,16 @@ export default function AppSidebar({
       </nav>
 
       <div className="side-foot">
+        <Link
+          href={settingsItem.href}
+          className={`side-link${settingsItem.active ? ' active' : ''}`}
+          aria-current={settingsItem.active ? 'page' : undefined}
+          title={settingsItem.label}
+          data-testid="side-settings"
+        >
+          <Icon name={settingsItem.icon} />
+          {settingsItem.label}
+        </Link>
         <Link href="/" className="side-link" title={labels.backToSite}>
           <Icon name="back" />
           {labels.backToSite}
@@ -614,9 +279,9 @@ export default function AppSidebar({
         type="button"
         className="side-handle"
         onClick={toggleCollapsed}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={collapsed ? labels.expand : labels.collapse}
         aria-pressed={collapsed}
-        title={collapsed ? 'Expand' : 'Collapse'}
+        title={collapsed ? labels.expand : labels.collapse}
       >
         {collapsed ? '›' : '‹'}
       </button>
@@ -629,7 +294,7 @@ export default function AppSidebar({
       <style>{`.app-frame{--accent:${PRODUCT_COLOR[product] ?? 'var(--ink)'}}`}</style>
       <div className="app-topbar">
         <div className="app-topbar-left">
-          <button type="button" className="side-close" onClick={() => setDrawerOpen(true)} aria-label="menu">
+          <button type="button" className="side-close" onClick={() => setDrawerOpen(true)} aria-label={labels.menu}>
             ☰
           </button>
           <span className="brand-zero" aria-hidden="true">0</span>
@@ -639,7 +304,7 @@ export default function AppSidebar({
           <span className="caret">▾</span>
         </button>
         <div className="app-topbar-right">
-          <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />
+          {isMobile && <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />}
           <button type="button" className="side-close" onClick={openSearch} aria-label={labels.search}>
             ⌘K
           </button>

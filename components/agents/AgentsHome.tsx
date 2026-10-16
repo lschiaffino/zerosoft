@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { AGENT_TEMPLATE_KEYS, AGENT_TEMPLATES, type AgentListItem, type AgentTemplateKey } from '@/lib/agents-config';
@@ -19,6 +20,8 @@ export default function AgentsHome({ agents: initial, canEdit, aiEnabled }: Prop
   const [agents, setAgents] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const params = useSearchParams();
+  const autoCreated = useRef(false);
 
   async function create(key: string, template?: AgentTemplateKey) {
     setBusy(key);
@@ -39,6 +42,19 @@ export default function AgentsHome({ agents: initial, canEdit, aiEnabled }: Prop
     }
     router.push(`/app/agents/${res.data.id}`);
   }
+
+  // ?new=1 (sidebar / ⌘K): crea uno vacío y abre el editor (igual que Robots).
+  useEffect(() => {
+    if (params.get('new') === '1' && canEdit && !autoCreated.current) {
+      autoCreated.current = true;
+      // Saca ?new=1 de la URL: volver atrás no debe crear otro.
+      const url = new URL(window.location.href);
+      url.searchParams.delete('new');
+      window.history.replaceState(window.history.state, '', url);
+      void create('new');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, canEdit]);
 
   async function toggle(id: string, enabled: boolean) {
     setAgents((list) => list.map((a) => (a.id === id ? { ...a, enabled } : a)));

@@ -68,7 +68,13 @@
     "groupDeals": "Deals",
     "groupLinks": "Links",
     "groupDocs": "Docs",
-    "groupTasks": "Tasks"
+    "groupTasks": "Tasks",
+    "settings": "Settings",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "menu": "Menu",
+    "linkDomains": "Domains & import",
+    "docsTemplates": "Templates"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",

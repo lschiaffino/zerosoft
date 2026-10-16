@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { FlowListItem } from '@/lib/flow';
@@ -21,6 +22,8 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
   const [flows, setFlows] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const params = useSearchParams();
+  const autoCreated = useRef(false);
 
   async function create(body: Record<string, unknown>, key: string) {
     setBusy(key);
@@ -38,6 +41,19 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
     }
     router.push(`/app/flow/${data.id}`);
   }
+
+  // ?new=1 (sidebar / ⌘K): crea uno vacío y abre el editor (igual que Robots).
+  useEffect(() => {
+    if (params.get('new') === '1' && canEdit && !autoCreated.current) {
+      autoCreated.current = true;
+      // Saca ?new=1 de la URL: volver atrás no debe crear otro.
+      const url = new URL(window.location.href);
+      url.searchParams.delete('new');
+      window.history.replaceState(window.history.state, '', url);
+      void create({ name: t('editor.untitled') }, 'new');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, canEdit]);
 
   async function toggle(id: string, enabled: boolean) {
     setFlows((list) => list.map((f) => (f.id === id ? { ...f, enabled } : f)));

@@ -69,7 +69,8 @@ export default function TasksView({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [showComposer, setShowComposer] = useState(false);
+  // ?new=1 (menú "+ Nuevo" del sidebar / ⌘K): abre el composer de entrada.
+  const [showComposer, setShowComposer] = useState(() => searchParams.get('new') === '1');
 
   const [subject, setSubject] = useState('');
   const [due, setDue] = useState('');
@@ -99,6 +100,14 @@ export default function TasksView({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    setShowComposer(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('new');
+    router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ''}`);
+  }, [searchParams, pathname, router]);
 
   function setQuery(updates: Record<string, string | undefined>) {
     const params = new URLSearchParams(searchParams.toString());
