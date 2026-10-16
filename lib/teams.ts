@@ -139,6 +139,9 @@ export async function removeMember(teamId: string, userId: string): Promise<void
            SELECT id FROM calendar_event_types WHERE user_id = ?)`,
       )
       .run(userId, team.owner_id);
+    // Sus reservas por venir pasan a otro host (o al owner), con aviso.
+    const { reassignRemovedHostBookings } = await import('./calendar-lifecycle');
+    await reassignRemovedHostBookings(team.owner_id, userId);
   }
   // Si el usuario tenía este team como activo, vuelve a su workspace personal.
   await getDb()

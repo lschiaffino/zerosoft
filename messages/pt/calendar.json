@@ -198,7 +198,10 @@
     "invalid_schedule": "Esse horário não existe.",
     "invalid_range": "O horário de fim precisa ser depois do início.",
     "invalid_key": "Essa chave não tem o formato do Stripe.",
-    "has_upcoming_bookings": "Este tipo de evento tem reservas futuras. Cancele-as (os convidados são avisados e os pagamentos reembolsados) ou desative-o antes de excluí-lo."
+    "has_upcoming_bookings": "Este tipo de evento tem reservas futuras. Cancele-as (os convidados são avisados e os pagamentos reembolsados) ou desative-o antes de excluí-lo.",
+    "invalid_price": "O Stripe não consegue cobrar esse preço nessa moeda.",
+    "not_started": "Esta reunião ainda não começou.",
+    "status_changed": "A reserva mudou nesse meio-tempo. Recarregue e tente de novo."
   },
   "settings": {
     "title": "Configurações",
@@ -368,6 +371,10 @@
     "keepKey": "Deixe vazio para manter",
     "remove": "Desconectar",
     "adminOnly": "Só o owner ou um admin do workspace muda isso.",
-    "webhookMissing": "Falta o signing secret: sem ele confirmamos o pagamento quando o convidado volta do Stripe."
+    "webhookMissing": "Falta o signing secret: sem ele confirmamos o pagamento quando o convidado volta do Stripe.",
+    "invalidAmount": "Digite um valor como 15000 ou 15.000,50.",
+    "noCents": "{currency} não tem centavos: digite um valor inteiro.",
+    "belowMinimum": "O Stripe não aceita cobranças abaixo de {min}.",
+    "charges": "O convidado paga {amount}."
   }
 }

@@ -198,7 +198,10 @@
     "invalid_schedule": "That schedule does not exist.",
     "invalid_range": "The end time must be after the start time.",
     "invalid_key": "That key does not look like a Stripe key.",
-    "has_upcoming_bookings": "This event type has upcoming bookings. Cancel them (guests are notified and payments refunded) or turn it off before deleting it."
+    "has_upcoming_bookings": "This event type has upcoming bookings. Cancel them (guests are notified and payments refunded) or turn it off before deleting it.",
+    "invalid_price": "Stripe cannot charge that price in that currency.",
+    "not_started": "This meeting has not started yet.",
+    "status_changed": "This booking changed in the meantime. Reload and try again."
   },
   "settings": {
     "title": "Settings",
@@ -368,6 +371,10 @@
     "keepKey": "Leave empty to keep it",
     "remove": "Disconnect",
     "adminOnly": "Only the workspace owner or an admin can change this.",
-    "webhookMissing": "The signing secret is missing: without it we confirm the payment when the guest returns from Stripe."
+    "webhookMissing": "The signing secret is missing: without it we confirm the payment when the guest returns from Stripe.",
+    "invalidAmount": "Enter an amount like 15000 or 15,000.50.",
+    "noCents": "{currency} has no cents: enter a whole amount.",
+    "belowMinimum": "Stripe does not accept charges below {min}.",
+    "charges": "Guests pay {amount}."
   }
 }

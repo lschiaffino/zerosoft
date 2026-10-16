@@ -216,8 +216,8 @@ export async function processDueWorkflowRuns(
        JOIN calendar_bookings b ON b.id = r.booking_id
        JOIN calendar_event_types e ON e.id = b.event_type_id
        LEFT JOIN calendar_users cu ON cu.user_id = COALESCE(b.host_user_id, e.user_id)
-       WHERE r.sent_at IS NULL AND r.send_at <= ? AND b.status = 'confirmed'
-       ORDER BY r.send_at ASC
+       WHERE r.sent_at IS NULL AND r.failed_at IS NULL AND r.send_at <= ? AND b.status = 'confirmed'
+       ORDER BY r.attempts ASC, r.send_at ASC
        LIMIT ?`,
     )
     .all(now.toISOString(), limit)) as DueRunRow[];
@@ -274,10 +274,25 @@ export async function processDueWorkflowRuns(
       await markRunSent(run.id);
       sent += 1;
     } else {
+      await markRunFailed(run.id);
       failed += 1;
     }
   }
   return { total: due.length, sent, failed, skipped };
+}
+
+/** Intentos de envío de un paso antes de abandonarlo (falla siempre: email inválido, rechazo del proveedor). */
+export const MAX_WORKFLOW_RUN_ATTEMPTS = 5;
+
+/** Suma un intento fallido; al llegar al máximo el paso queda abandonado (failed_at) y deja de reintentarse. */
+async function markRunFailed(id: string): Promise<void> {
+  await getDb()
+    .prepare(
+      `UPDATE calendar_workflow_runs SET attempts = attempts + 1,
+         failed_at = CASE WHEN attempts + 1 >= ? THEN ? ELSE NULL END
+       WHERE id = ?`,
+    )
+    .run(MAX_WORKFLOW_RUN_ATTEMPTS, new Date().toISOString(), id);
 }
 
 async function markRunSent(id: string): Promise<void> {

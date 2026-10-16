@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import { isZeroDecimal, minimumPriceCents, parsePriceInput, priceInputValue, priceProblem } from '@/lib/calendar-price';
 
 const CURRENCIES = ['usd', 'eur', 'ars', 'brl', 'mxn', 'clp', 'cop', 'gbp'] as const;
 
@@ -18,16 +19,39 @@ interface Props {
 /** Precio del tipo de evento: con precio > 0 el invitado paga con Stripe Checkout para confirmar. */
 export default function EventPaymentPanel({ eventTypeId, priceCents, currency, paymentsConfigured, paymentsReady }: Props) {
   const t = useTranslations('calendar');
-  const [amount, setAmount] = useState(priceCents > 0 ? (priceCents / 100).toFixed(2) : '0');
+  const locale = useLocale();
+  const [amount, setAmount] = useState(priceInputValue(priceCents, currency || 'usd'));
   const [cur, setCur] = useState(currency || 'usd');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const format = (cents: number) => {
+    try {
+      return new Intl.NumberFormat(locale, { style: 'currency', currency: cur.toUpperCase() }).format(cents / 100);
+    } catch {
+      return `${cur.toUpperCase()} ${cents / 100}`;
+    }
+  };
+
+  /** Mensaje de error del monto escrito, o null si se puede cobrar. */
+  function amountError(cents: number | null): string | null {
+    if (cents === null) {
+      return isZeroDecimal(cur) && parsePriceInput(amount, 'usd') !== null
+        ? t('payments.noCents', { currency: cur.toUpperCase() })
+        : t('payments.invalidAmount');
+    }
+    const problem = priceProblem(cents, cur);
+    if (problem === 'zero_decimal') return t('payments.noCents', { currency: cur.toUpperCase() });
+    if (problem === 'below_minimum') return t('payments.belowMinimum', { min: format(minimumPriceCents(cur)) });
+    return null;
+  }
+
   async function save() {
-    const value = Number(amount.replace(',', '.'));
-    if (!Number.isFinite(value) || value < 0) {
-      setError(t('errors.invalid_input'));
+    const cents = parsePriceInput(amount, cur);
+    const invalid = amountError(cents);
+    if (invalid || cents === null) {
+      setError(invalid);
       return;
     }
     setBusy(true);
@@ -35,14 +59,15 @@ export default function EventPaymentPanel({ eventTypeId, priceCents, currency, p
     const res = await fetch(`/api/calendar/event-types/${eventTypeId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ priceCents: Math.round(value * 100), currency: cur }),
+      body: JSON.stringify({ priceCents: cents, currency: cur }),
     }).catch(() => null);
     setBusy(false);
     if (res && res.ok) setSaved(true);
     else setError(t('errors.generic'));
   }
 
-  const charging = Number(amount.replace(',', '.')) > 0;
+  const parsed = parsePriceInput(amount, cur);
+  const charging = parsed !== null && parsed > 0;
 
   return (
     <section className="panel">
@@ -85,7 +110,7 @@ export default function EventPaymentPanel({ eventTypeId, priceCents, currency, p
         </label>
       </div>
       <p id="cal-pay-free" className="muted mono cal-sched-hint">
-        {t('payments.free')}
+        {charging ? t('payments.charges', { amount: format(parsed) }) : t('payments.free')}
       </p>
       {charging && !paymentsReady ? (
         <p className="cal-warn">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { updateBooking, hostSlotFree, CalendarError } from '@/lib/calendar';
+import { updateBooking, hostSlotFree, ownedBooking, CalendarError } from '@/lib/calendar';
 import { bookingUpdateSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, unauthorized, crmError } from '@/lib/crm-http';
 import { getDb, type CalendarBookingRow } from '@/lib/db';
@@ -10,17 +10,9 @@ import { afterBookingCancelled } from '@/lib/calendar-lifecycle';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Dueño del event type o host asignado. */
+/** Dueño del event type o host asignado (mientras siga en el team). */
 async function ownsBooking(userId: string, bookingId: string): Promise<boolean> {
-  const row = (await getDb()
-    .prepare(
-      `SELECT e.user_id AS owner_id, b.host_user_id
-       FROM calendar_bookings b
-       JOIN calendar_event_types e ON e.id = b.event_type_id
-       WHERE b.id = ?`,
-    )
-    .get(bookingId)) as { owner_id: string; host_user_id: string | null } | undefined;
-  return row !== undefined && (row.owner_id === userId || row.host_user_id === userId);
+  return (await ownedBooking(userId, bookingId)) !== null;
 }
 
 /**
@@ -73,11 +65,19 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       | undefined;
     if (!before) return notFound();
     if (parsed.data.status && !canTransition(before.status, parsed.data.status)) return crmError(409, 'not_confirmed');
+    // Antes del inicio no hay no-show: marcarlo liberaría el horario sin avisar a nadie.
+    if (
+      parsed.data.status === 'no_show' &&
+      before.status !== 'no_show' &&
+      new Date(before.starts_at).getTime() > Date.now()
+    ) {
+      return crmError(409, 'not_started');
+    }
     // Deshacer un no-show: el horario tiene que seguir libre para el host.
     if (before.status === 'no_show' && parsed.data.status === 'confirmed' && !(await hostSlotFree(before))) {
       return crmError(409, 'slot_unavailable');
     }
-    let booking = await updateBooking(params.id, parsed.data);
+    let booking = await updateBooking(params.id, parsed.data, { fromStatus: before.status });
     if (!booking) return notFound();
     if (before.status === 'confirmed' && booking.status === 'cancelled') {
       // Reserva paga cancelada por el anfitrión: se reembolsa el pago completo.
