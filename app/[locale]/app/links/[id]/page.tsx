@@ -50,14 +50,16 @@ export default async function LinkDetailPage(props: DetailPageProps) {
   const clickPage = Math.max(Number(searchParams.page ?? '1') || 1, 1);
   const clickPageSize = Math.min(Math.max(Number(searchParams.pageSize ?? '25') || 25, 1), 100);
 
-  const a = await getAnalytics(link.id, link.created_at, range);
-  const clickResult = await listClicks(link.id, link.created_at, {
-    range,
-    country,
-    page: clickPage,
-    pageSize: clickPageSize,
-  });
-  const countries = await getClickCountries(link.id);
+  const [a, clickResult, countries] = await Promise.all([
+    getAnalytics(link.id, link.created_at, range),
+    listClicks(link.id, link.created_at, {
+      range,
+      country,
+      page: clickPage,
+      pageSize: clickPageSize,
+    }),
+    getClickCountries(link.id),
+  ]);
 
   const today = a.byDay[a.byDay.length - 1]?.count ?? 0;
   const topRef = a.referrers[0]?.name ?? '—';
@@ -234,7 +236,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
         </section>
         <section className="panel" id="targeting">
           <p className="section-label">{t('targeting.title')}</p>
-          <TargetingPanel linkId={link.id} defaultUrl={link.url} initial={parseTargeting(link.targeting)} />
+          <TargetingPanel key={link.url} linkId={link.id} defaultUrl={link.url} initial={parseTargeting(link.targeting)} />
         </section>
       </div>
 

@@ -7,15 +7,13 @@ import {
 } from '@/lib/links';
 import { linkPreviewHtml } from '@/lib/link-preview';
 import { isBotRequest } from '@/lib/track';
+import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const LOCALES = new Set(['en', 'es', 'pt']);
-
 function localeFrom(req: NextRequest): string {
-  const cookie = req.cookies.get('NEXT_LOCALE')?.value;
-  return cookie && LOCALES.has(cookie) ? cookie : 'en';
+  return requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
 }
 
 /**

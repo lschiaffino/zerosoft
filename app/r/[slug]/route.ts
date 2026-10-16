@@ -12,15 +12,13 @@ import {
   resolveDestination,
   VISITOR_COOKIE,
 } from '@/lib/link-targeting';
+import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const LOCALES = new Set(['en', 'es', 'pt']);
-
 function localeFrom(req: NextRequest): string {
-  const cookie = req.cookies.get('NEXT_LOCALE')?.value;
-  return cookie && LOCALES.has(cookie) ? cookie : 'en';
+  return requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
 }
 
 /** Origen tal como lo pidió el cliente (incluye el dominio propio). Solo Host: x-forwarded-host lo podría falsear el cliente. */

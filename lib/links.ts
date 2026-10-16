@@ -563,6 +563,15 @@ export async function applyLinkPatch(
     if (await isShortLinkUrl(normalized)) return { error: 'self_link', status: 400 };
     sets.push('url = ?');
     args.push(normalized);
+    // La variante A del A/B nace como copia del destino del link: si sigue
+    // apuntando al destino viejo, se mueve con él (si no, la mitad del
+    // tráfico quedaría yendo a la URL anterior para siempre).
+    const current = p.targeting === undefined ? parseTargeting(link.targeting) : null;
+    if (current && normalized !== link.url && current.ab.some((v) => v.url === link.url)) {
+      const ab = current.ab.map((v) => (v.url === link.url ? { ...v, url: normalized } : v));
+      sets.push('targeting = ?');
+      args.push(JSON.stringify({ ...current, ab }));
+    }
   }
   if (p.title !== undefined) {
     sets.push('title = ?');

@@ -1,5 +1,6 @@
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { DayCount } from '@/lib/track';
+import { chartDateLabel, spansYears } from '@/lib/chart-dates';
 
 interface LinkChartProps {
   data: DayCount[];
@@ -23,6 +24,7 @@ function niceCeil(max: number): number {
  */
 export default function LinkChart({ data, secondary, height = 240 }: LinkChartProps) {
   const t = useTranslations('link');
+  const locale = useLocale();
   const W = 760;
   const H = height;
   const pad = { t: 18, r: 14, b: 30, l: 42 };
@@ -48,12 +50,22 @@ export default function LinkChart({ data, secondary, height = 240 }: LinkChartPr
     return { value, y };
   });
 
+  const withYear = spansYears(data.map((d) => d.date));
+  const label = (date: string) => chartDateLabel(date, locale, withYear);
+  // Resumen para lectores de pantalla: el SVG solo no dice nada de los datos.
+  const total = data.reduce((a, d) => a + d.count, 0);
+  const peak = data.reduce<DayCount | null>((best, d) => (!best || d.count > best.count ? d : best), null);
+  const summary =
+    peak && total > 0
+      ? `${t('detail.chartAria')}. ${t('detail.chartSummary', { total, peak: peak.count, date: chartDateLabel(peak.date, locale, true) })}`
+      : t('detail.chartAria');
+
   return (
     <svg
       className="link-chart"
       viewBox={`0 0 ${W} ${H}`}
       role="img"
-      aria-label={t('detail.chartAria')}
+      aria-label={summary}
       preserveAspectRatio="none"
     >
       {gridRows.map((g) => (
@@ -86,7 +98,7 @@ export default function LinkChart({ data, secondary, height = 240 }: LinkChartPr
             y={H - 8}
             textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}
           >
-            {d.date.slice(5)}
+            {label(d.date)}
           </text>
         ) : null,
       )}
