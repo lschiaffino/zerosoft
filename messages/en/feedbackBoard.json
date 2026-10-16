@@ -1,0 +1,152 @@
+{
+  "nav": {
+    "label": "Feedback",
+    "home": "zerosoft home",
+    "sub": "feedback",
+    "board": "Ideas",
+    "roadmap": "Roadmap",
+    "changelog": "Changelog",
+    "signIn": "Sign in"
+  },
+  "meta": {
+    "title": "Feedback",
+    "description": "Ideas and requests for zerosoft. Vote for what you need, comment and follow each idea until it ships.",
+    "roadmapTitle": "Roadmap",
+    "roadmapDescription": "What is planned, in progress and launched in zerosoft.",
+    "newTitle": "Suggest an idea"
+  },
+  "hero": {
+    "title": "What we build next.",
+    "intro": "Suggest ideas, vote for the ones you need and follow their status. The most voted move up the list.",
+    "propose": "Suggest an idea"
+  },
+  "toolbar": {
+    "search": "Search ideas",
+    "allProducts": "All products",
+    "allStatuses": "All statuses",
+    "productLabel": "Product",
+    "statusLabel": "Status",
+    "sortLabel": "Sort",
+    "sort": {
+      "top": "Most voted",
+      "new": "Newest",
+      "trending": "Trending"
+    },
+    "list": "List",
+    "columns": "Columns",
+    "count": "{count, plural, one {# idea} other {# ideas}}"
+  },
+  "status": {
+    "idea": "New",
+    "considering": "Under review",
+    "planned": "Planned",
+    "in_progress": "In progress",
+    "done": "Launched",
+    "declined": "Closed"
+  },
+  "kind": {
+    "idea": "Idea",
+    "bug": "Fix"
+  },
+  "product": {
+    "link": "Link",
+    "crm": "CRM",
+    "cal": "Cal",
+    "track": "Track",
+    "chat": "Chat",
+    "docs": "Docs",
+    "flow": "Flow",
+    "agents": "Agents",
+    "notes": "Notes",
+    "board": "Board",
+    "robots": "Robots",
+    "platform": "Platform",
+    "site": "Website",
+    "other": "Other"
+  },
+  "empty": "No ideas yet. Suggest the first one.",
+  "emptySearch": "Nothing matches. Try other words or suggest the idea.",
+  "columnEmpty": "Nothing here yet.",
+  "comments": "{count, plural, one {# comment} other {# comments}}",
+  "vote": {
+    "upvote": "Vote",
+    "voted": "Voted. Click to remove your vote",
+    "error": "We could not save your vote. Try again.",
+    "loginToVote": "Sign in to vote"
+  },
+  "roadmap": {
+    "title": "Roadmap.",
+    "intro": "What we decided to build: planned, in progress and launched. It comes from the most voted ideas and from support."
+  },
+  "detail": {
+    "back": "All ideas",
+    "closedTitle": "Closed.",
+    "closedNoReason": "We are not building this for now.",
+    "shipped": "It shipped.",
+    "shippedLink": "See it in the changelog",
+    "follow": "Updates",
+    "subscribe": "Follow",
+    "unsubscribe": "Unfollow",
+    "subscribeHint": "We email you when it moves to planned, in progress or launched.",
+    "unsubscribedNotice": "Done. You will not get more updates about this idea.",
+    "timeline": "History",
+    "created": "Suggested",
+    "movedTo": "Moved to {status}",
+    "inReview": "review"
+  },
+  "comment": {
+    "title": "Comments",
+    "empty": "No comments yet.",
+    "placeholder": "Share your case: what you need and why.",
+    "send": "Comment",
+    "sending": "Sending…",
+    "officialTag": "zerosoft team",
+    "postOfficial": "Post as zerosoft team",
+    "pinned": "Pinned",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "markOfficial": "Mark as official answer",
+    "unmarkOfficial": "Remove official answer",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this comment?",
+    "loginToComment": "Sign in to comment",
+    "error": "Could not save. Try again.",
+    "anonymous": "Someone",
+    "markdownHint": "Basic Markdown: **bold**, _italic_, `code`, links."
+  },
+  "propose": {
+    "title": "Suggest an idea.",
+    "intro": "Before sending, check whether someone already suggested it: a vote counts more than a duplicate.",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Export contacts to CSV",
+    "descriptionLabel": "Details (optional)",
+    "descriptionPlaceholder": "What you need, why, and how you solve it today.",
+    "productLabel": "Product",
+    "submit": "Post idea",
+    "sending": "Posting…",
+    "similarTitle": "Similar ideas",
+    "similarHint": "Type a title and we show similar ideas you can vote for.",
+    "moderation": "Ideas go live right away. We review everything and close duplicates or off-topic posts.",
+    "loginBody": "You need an account to suggest and vote for ideas. Sign in with Google and come back here.",
+    "login": "Sign in with Google",
+    "errorInvalid": "Write a title of at least 6 characters.",
+    "errorRate": "Too many ideas in a short time. Try again later.",
+    "errorGeneric": "Could not post. Try again."
+  },
+  "launcher": {
+    "title": "Feedback",
+    "open": "Feedback and updates",
+    "close": "Close",
+    "tabs": {
+      "ideas": "Ideas",
+      "send": "Send",
+      "news": "What's new"
+    },
+    "unread": "{count, plural, one {# unread update} other {# unread updates}}",
+    "searchPlaceholder": "Search ideas to vote",
+    "searchEmpty": "No ideas with those words. Send yours from the Send tab.",
+    "newsEmpty": "Nothing new yet.",
+    "seeBoard": "See all ideas",
+    "seeChangelog": "Full changelog"
+  }
+}

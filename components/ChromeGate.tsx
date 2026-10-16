@@ -2,6 +2,7 @@
 
 import { usePathname } from '@/i18n/navigation';
 import type { ReactNode } from 'react';
+import type { HostSurface } from '@/lib/host-rewrite';
 
 /**
  * Separa el chrome del sitio (header/footer de marketing) del chrome de las
@@ -9,25 +10,41 @@ import type { ReactNode } from 'react';
  * tiene su propio chrome (sidebar) en app/[locale]/app/layout.tsx. Las páginas
  * públicas de reserva (/book, /r) son del cliente del usuario: van limpias, con
  * solo un "Powered by" discreto (y así se pueden embeber en un iframe).
+ *
+ * El board público (feedback.zerosoft.ai o /feedback-board) y la página de
+ * marca (branding.zerosoft.ai o /brand) tienen su propio chrome mínimo: acá
+ * no se pone el de marketing ni el launcher de feedback. `surface` viene del
+ * host (el layout lo resuelve en el servidor), así server y cliente coinciden
+ * aunque el middleware haya reescrito el path.
  */
 export default function ChromeGate({
   header,
   footer,
   support = null,
+  launcher = null,
+  surface = null,
   children,
 }: {
   header: ReactNode;
   footer: ReactNode;
   /** Widget de soporte propio: en el sitio y en la app, nunca en páginas públicas de clientes. */
   support?: ReactNode;
+  /** Launcher de feedback (ideas, enviar, novedades): en el sitio y en la app. */
+  launcher?: ReactNode;
+  /** Superficie del host (board, brand) o null para el sitio normal. */
+  surface?: HostSurface | null;
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  if (surface || pathname.startsWith('/feedback-board') || pathname === '/brand' || pathname.startsWith('/brand/')) {
+    return <>{children}</>;
+  }
   if (pathname.startsWith('/app')) {
     return (
       <>
         {children}
         {support}
+        {launcher}
       </>
     );
   }
@@ -66,6 +83,7 @@ export default function ChromeGate({
       {children}
       {footer}
       {support}
+      {launcher}
     </>
   );
 }

@@ -2,6 +2,8 @@ import createMiddleware from 'next-intl/middleware';
 import { NextRequest, NextResponse } from 'next/server';
 import { routing } from './i18n/routing';
 import { isAppHost } from './lib/hosts';
+import { surfaceForHost, surfaceRewritePath } from './lib/host-rewrite';
+import { requestLocale } from './lib/request-locale';
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -13,6 +15,7 @@ const RESERVED = new Set([
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',
+  'feedback-board', 'brand',
 ]);
 
 /** Páginas de la app que un dominio propio sí sirve: la puerta de contraseña y /gone. */
@@ -20,6 +23,22 @@ const CUSTOM_DOMAIN_PAGES = /^\/(en|es|pt)\/(gate\/[A-Za-z0-9_-]{1,64}|gone)\/?$
 
 export default function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Subdominios de superficie (feedback.zerosoft.ai → board público,
+  // branding.zerosoft.ai → /brand): todo path se reescribe bajo el prefijo con
+  // el locale del path, o el de la cookie NEXT_LOCALE / Accept-Language. Va
+  // antes de las reglas de dominios propios y de short links: acá no aplican.
+  const surface = surfaceForHost(req.headers.get('host'));
+  if (surface) {
+    const fallback = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
+    const target = surfaceRewritePath(surface, pathname, fallback);
+    const url = req.nextUrl.clone();
+    url.pathname = target.path;
+    const headers = new Headers(req.headers);
+    // next-intl lee el locale de este header (lo pone su propio middleware).
+    headers.set('X-NEXT-INTL-LOCALE', target.locale);
+    return NextResponse.rewrite(url, { request: { headers } });
+  }
 
   // Dominio propio de Link (go.empresa.com): todo /<algo> es un link corto,
   // sin palabras reservadas. La raíz se resuelve en /r/__root (redirect

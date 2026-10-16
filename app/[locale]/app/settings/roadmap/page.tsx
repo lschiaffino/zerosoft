@@ -5,25 +5,30 @@ import { requireUser } from '@/lib/session';
 import { isAdminEmail } from '@/lib/feedback';
 import { listRoadmapItemsAdmin, ROADMAP_STATUSES, type RoadmapStatus } from '@/lib/roadmap';
 import RoadmapAdminList from '@/components/app/RoadmapAdminList';
+import RoadmapKanban from '@/components/app/RoadmapKanban';
 import '@/styles/roadmap.css';
 
 export const dynamic = 'force-dynamic';
 
-/** Roadmap (ítems desde feedback y soporte). Solo ADMIN_EMAILS; para el resto es un 404. */
+/**
+ * Roadmap (ítems del board, el feedback y los chats de soporte). Kanban con
+ * drag and drop por defecto; ?view=list es la lista con filtros por estado.
+ * Solo ADMIN_EMAILS; para el resto es un 404.
+ */
 export default async function RoadmapAdminPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; view?: string }>;
 }) {
   const { locale } = await props.params;
-  const { status } = await props.searchParams;
+  const { status, view } = await props.searchParams;
   const user = await requireUser(locale);
   if (!isAdminEmail(user.actingUser?.email ?? user.email)) notFound();
 
   const t = await getTranslations({ locale, namespace: 'roadmap.admin' });
-  const filter = ROADMAP_STATUSES.includes(status as RoadmapStatus) ? (status as RoadmapStatus) : undefined;
-  const items = await listRoadmapItemsAdmin(filter);
-  // Para fusionar hace falta ver todos los ítems, no solo los del filtro.
-  const all = filter ? await listRoadmapItemsAdmin() : items;
+  const isList = view === 'list';
+  const filter = isList && ROADMAP_STATUSES.includes(status as RoadmapStatus) ? (status as RoadmapStatus) : undefined;
+  const all = await listRoadmapItemsAdmin();
+  const items = filter ? all.filter((i) => i.status === filter) : all;
   const targets = all.map((i) => ({ id: i.id, title: i.title }));
 
   return (
@@ -34,28 +39,37 @@ export default async function RoadmapAdminPage(props: {
       </div>
 
       <nav className="rm-admin-filters" aria-label={t('title')}>
-        <Link href="/app/settings/roadmap" className={`btn btn-small ${filter ? 'btn-ghost' : 'btn-solid'}`}>
-          {t('all')}
+        <Link href="/app/settings/roadmap" className={`btn btn-small ${isList ? 'btn-ghost' : 'btn-solid'}`}>
+          {t('viewKanban')}
         </Link>
-        {ROADMAP_STATUSES.map((s) => (
-          <Link
-            key={s}
-            href={`/app/settings/roadmap?status=${s}`}
-            className={`btn btn-small ${filter === s ? 'btn-solid' : 'btn-ghost'}`}
-          >
-            {t(`status.${s}`)}
-          </Link>
-        ))}
+        <Link href="/app/settings/roadmap?view=list" className={`btn btn-small ${isList && !filter ? 'btn-solid' : 'btn-ghost'}`}>
+          {t('viewList')}
+        </Link>
+        {isList &&
+          ROADMAP_STATUSES.map((s) => (
+            <Link
+              key={s}
+              href={`/app/settings/roadmap?view=list&status=${s}`}
+              className={`btn btn-small ${filter === s ? 'btn-solid' : 'btn-ghost'}`}
+            >
+              {t(`status.${s}`)}
+            </Link>
+          ))}
         <span className="rm-admin-spacer" />
         <Link href="/app/settings/feedback" className="btn btn-small btn-ghost">
           ← {t('backToFeedback')}
         </Link>
-        <Link href="/roadmap" className="btn btn-small btn-ghost">
+        <Link href="/app/settings/changelog" className="btn btn-small btn-ghost">
+          {t('changelogLink')}
+        </Link>
+        <Link href="/feedback-board" className="btn btn-small btn-ghost">
           {t('viewPublic')}
         </Link>
       </nav>
 
-      {items.length === 0 ? (
+      {!isList ? (
+        <RoadmapKanban initial={all} locale={locale} />
+      ) : items.length === 0 ? (
         <p className="muted mono">{t('empty')}</p>
       ) : (
         <RoadmapAdminList initial={items} targets={targets} locale={locale} />

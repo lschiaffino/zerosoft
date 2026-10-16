@@ -115,6 +115,12 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
             <Link className="btn btn-ghost btn-small" href="/app/settings/feedback">
               {tFeedback('title')} →
             </Link>
+            <Link className="btn btn-ghost btn-small" href="/app/settings/roadmap">
+              Roadmap →
+            </Link>
+            <Link className="btn btn-ghost btn-small" href="/app/settings/changelog">
+              Changelog →
+            </Link>
           </div>
         </section>
       )}
