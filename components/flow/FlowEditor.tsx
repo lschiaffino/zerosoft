@@ -51,6 +51,13 @@ const nodeTypes = { flow: FlowNodeCard };
 const TABS = ['editor', 'runs', 'versions'] as const;
 type EditorTab = (typeof TABS)[number];
 const DND_MIME = 'application/x-zerosoft-flow-node';
+/** Medidas aproximadas del cartel del nodo (styles/flow.css .flow-node), para centrarlo. */
+const NODE_W = 248;
+const NODE_H = 80;
+
+function reducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
 
 function toCanvas(graph: FlowGraph): { nodes: FlowCanvasNode[]; edges: Edge[] } {
   return {
@@ -235,6 +242,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   const [runRef, setRunRef] = useState<{ id: string | null; key: number }>({ id: null, key: 0 });
   const [shownRun, setShownRun] = useState<RunDetail | null>(null);
   const [paletteQ, setPaletteQ] = useState('');
+  const [focusId, setFocusId] = useState<string | null>(null);
   const [outputs, setOutputs] = useState<Record<string, unknown>>(lastOutputs);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const readOnly = !canEdit;
@@ -250,14 +258,22 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     return map;
   }, [shownRun]);
 
-  const displayNodes = useMemo(
-    () =>
-      nodes.map((n) => ({
-        ...n,
-        data: { ...n.data, status: stepStatus.get(n.id), summary: summaryOf(n.data.type, n.data.config, t) },
-      })),
-    [nodes, stepStatus, t],
-  );
+  // El tramo de línea de cada nodo se dibuja solo donde hay conexión: un nodo
+  // suelto es una estación sin línea y el último termina en su estación.
+  const displayNodes = useMemo(() => {
+    const into = new Set(edges.map((e) => e.target));
+    const outOf = new Set(edges.map((e) => e.source));
+    return nodes.map((n) => ({
+      ...n,
+      data: {
+        ...n.data,
+        status: stepStatus.get(n.id),
+        summary: summaryOf(n.data.type, n.data.config, t),
+        hasIn: into.has(n.id),
+        hasOut: outOf.has(n.id),
+      },
+    }));
+  }, [nodes, edges, stepStatus, t]);
 
   // Aristas de la rama de error: en otro color.
   const displayEdges = useMemo(
@@ -322,8 +338,28 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
       }
       setSelectedId(id);
       markDirty();
+      // Desde la paleta (sin posición) el nodo puede caer fuera de la vista: el canvas lo sigue.
+      if (!position) {
+        window.requestAnimationFrame(() =>
+          rf.setCenter(pos.x + NODE_W / 2, pos.y + NODE_H / 2, { zoom: rf.getZoom(), duration: reducedMotion() ? 0 : 240 }),
+        );
+      }
     },
-    [readOnly, trigger, nodes, selected, setNodes, setEdges, markDirty],
+    [readOnly, trigger, nodes, selected, setNodes, setEdges, markDirty, rf],
+  );
+
+  /** Desde Ejecuciones: vuelve al editor con el nodo elegido y centrado. */
+  const openNode = useCallback(
+    (id: string) => {
+      const node = nodes.find((n) => n.id === id);
+      if (!node) return;
+      setNodes((list) => list.map((n) => (n.selected === (n.id === id) ? n : { ...n, selected: n.id === id })));
+      setSelectedId(id);
+      // El canvas se monta de nuevo al volver a la pestaña: su fitView inicial encuadra este nodo.
+      setFocusId(id);
+      setTab('editor');
+    },
+    [nodes, setNodes],
   );
 
   const onConnect = useCallback(
@@ -663,12 +699,12 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
             </label>
             {canEdit && (
               <>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={openTest} aria-busy={running || undefined}>
+                <button type="button" className="btn btn-secondary" onClick={openTest} aria-busy={running || undefined}>
                   {t('editor.testRun')}
                 </button>
                 <button
                   type="button"
-                  className="btn btn-primary btn-sm"
+                  className="btn btn-primary"
                   onClick={() => void save()}
                   disabled={!dirty && !saving}
                   aria-busy={saving || undefined}
@@ -714,6 +750,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
               setShownRun(run);
               setRunRef((r) => ({ id: run.id, key: r.key + 1 }));
             }}
+            onOpenNode={openNode}
           />
         ) : (
           <div className={`flow-workspace${readOnly ? ' is-readonly' : ''}`}>
@@ -797,7 +834,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                 elementsSelectable
                 deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
                 fitView
-                fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
+                fitViewOptions={focusId ? { nodes: [{ id: focusId }], padding: 0.3, maxZoom: 1 } : { padding: 0.3, maxZoom: 1 }}
                 minZoom={0.25}
                 maxZoom={1.5}
                 defaultEdgeOptions={{ type: 'smoothstep' }}

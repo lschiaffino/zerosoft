@@ -2,11 +2,21 @@ import { expect, test, type Page } from '@playwright/test';
 
 const uid = () => Math.random().toString(36).slice(2, 8);
 
+// Lo que crean los tests se borra al final de cada uno: la base demo queda limpia.
+const createdFlows: string[] = [];
+const createdCredentials: string[] = [];
+
+test.afterEach(async ({ page }) => {
+  for (const id of createdFlows.splice(0)) await page.request.delete(`/api/flow/flows/${id}`).catch(() => null);
+  for (const id of createdCredentials.splice(0)) await page.request.delete(`/api/flow/credentials/${id}`).catch(() => null);
+});
+
 /** Crea un flow desde la plantilla Lead → CRM + Slack y abre el editor. */
 async function openTemplateFlow(page: Page) {
   const res = await page.request.post('/api/flow/flows', { data: { name: `E2E ${uid()}`, template: 'leadToCrmSlack' } });
   expect(res.ok()).toBeTruthy();
   const { id } = (await res.json()) as { id: string };
+  createdFlows.push(id);
   await page.goto(`/es/app/flow/${id}`);
   await expect(page.locator('.react-flow__node').first()).toBeVisible();
   return id;
@@ -49,6 +59,7 @@ test('Flow: crear una credencial sin salir del editor', async ({ page }) => {
   const select = page.locator('.flow-side').getByLabel('Credencial');
   await expect(select).not.toHaveValue('');
   await expect(select.locator('option:checked')).toContainText(/slack/);
+  createdCredentials.push(await select.inputValue());
   await expect(page.getByText('Cambios sin guardar')).toBeVisible();
 });
 

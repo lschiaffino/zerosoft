@@ -163,6 +163,31 @@ function VariablePicker({ variables, onPick, disabled }: { variables: VariableOp
   );
 }
 
+/** "Referencia: {{nodes.http_1.output}}" con copiar: así se usa la salida del nodo en variables. */
+function NodeRef({ nodeId, trigger }: { nodeId: string; trigger: boolean }) {
+  const t = useTranslations('flow.editor');
+  const [copied, setCopied] = useState(false);
+  const ref = trigger ? '{{trigger}}' : `{{nodes.${nodeId}.output}}`;
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(ref);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // Sin portapapeles: el texto queda seleccionable.
+    }
+  }
+  return (
+    <p className="flow-config-ref">
+      <span className="flow-muted">{t('nodeId')}:</span>
+      <span className="data">{ref}</span>
+      <button type="button" className="flow-link" onClick={() => void copy()} aria-label={t('copyNodeRef')}>
+        <span aria-live="polite">{copied ? t('copied') : t('copy')}</span>
+      </button>
+    </p>
+  );
+}
+
 function TemplateInput({
   value,
   onChange,
@@ -315,7 +340,22 @@ export default function NodeConfigPanel({
         const list = refs.credentials.filter((c) => types.includes(c.type));
         const current = String(value ?? '');
         const missing = current && !refs.credentials.some((c) => c.id === current);
-        const typeNames = types.map((x) => t(`credentials.types.${x}`)).join(', ');
+        const alone = list.length === 0 && !current;
+        // Solo, el botón toma el id del campo (el label lo enfoca) pero conserva su propio nombre accesible.
+        const create = !readOnly && (
+          <button
+            type="button"
+            id={alone ? id : undefined}
+            aria-label={alone ? t('editor.createCredential') : undefined}
+            className="btn btn-secondary"
+            onClick={() => setCredFor(field)}
+          >
+            <IconPlus />
+            {t('editor.createCredential')}
+          </button>
+        );
+        // Sin credenciales del tipo: solo el botón; el select y Administrar aparecen cuando hay alguna.
+        if (alone) return create || <p className="ui-help">{t('editor.credentialNone')}</p>;
         return (
           <>
             <div className="flow-cred-pick">
@@ -335,15 +375,9 @@ export default function NodeConfigPanel({
                   </option>
                 ))}
               </select>
-              {!readOnly && (
-                <button type="button" className="btn btn-secondary" onClick={() => setCredFor(field)}>
-                  <IconPlus />
-                  {t('editor.createCredential')}
-                </button>
-              )}
+              {create}
             </div>
             <p className="ui-help">
-              {list.length === 0 && `${t('editor.credentialEmpty', { types: typeNames })} `}
               <Link href="/app/flow/credentials" className="flow-link">
                 {t('editor.manageCredentials')}
               </Link>
@@ -607,14 +641,9 @@ export default function NodeConfigPanel({
   return (
     <div className="flow-config">
       <div className="flow-config-head">
-        <p className="flow-config-cat">
-          <span>{t(`categories.${def.category}`)}</span>
-          <span className="data" title={t('editor.nodeId')}>
-            {nodeId}
-          </span>
-        </p>
         <h2 className="flow-config-title">{t(`nodes.${i18nKey(type)}.title`)}</h2>
         <p className="ui-help">{t(`nodes.${i18nKey(type)}.desc`)}</p>
+        <NodeRef nodeId={nodeId} trigger={type.startsWith('trigger.')} />
       </div>
       {type === 'data.code' && !refs.codeAvailable && (
         <p className="flow-note" role="note">

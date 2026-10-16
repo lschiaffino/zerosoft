@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import { useRouter } from '@/i18n/navigation';
 import DataTable from '@/components/ui/DataTable';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeader from '@/components/ui/PageHeader';
@@ -100,14 +100,7 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
       <PageHeader
         title={t('title')}
         description={t('subtitle')}
-        actions={
-          <>
-            <Link href="/app/flow/credentials" className="btn btn-secondary">
-              {t('credentials.title')}
-            </Link>
-            {flows.length > 0 && createButton}
-          </>
-        }
+        actions={flows.length > 0 ? createButton : undefined}
       />
       {!canEdit && <p className="ui-help">{t('list.adminOnly')}</p>}
       {error && (
@@ -119,6 +112,7 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
       <section className="flow-block" aria-label={t('list.title')}>
         <DataTable
           caption={t('list.title')}
+          className="flow-table flow-table-flows"
           rows={flows}
           rowKey={(f) => f.id}
           rowHref={(f) => `/app/flow/${f.id}`}

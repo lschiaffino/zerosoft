@@ -39,7 +39,7 @@
     }
   },
   "editor": {
-    "nodeId": "ID del nodo, para usar en variables",
+    "nodeId": "Referencia",
     "copied": "Copiada",
     "retry": "Reintentar",
     "flowSettings": "Ajustes del flow",
@@ -65,7 +65,7 @@
     "search": "Buscar nodos",
     "noResults": "0 nodos coinciden.",
     "settings": "Configuración",
-    "selectNode": "Elegí un nodo para configurarlo. Arrastrá nodos desde la izquierda o hacé click para agregarlos.",
+    "selectNode": "Elegí un nodo para configurarlo, o agregá un paso desde la paleta.",
     "description": "Descripción",
     "deleteNode": "Eliminar nodo",
     "deleteFlow": "Eliminar flow",
@@ -93,7 +93,7 @@
     "condLeft": "Valor",
     "condOp": "Operador",
     "condRight": "Comparar con",
-    "canvasHint": "Agregá nodos desde la izquierda. Conectalos arrastrando desde una salida hasta el nodo siguiente.",
+    "canvasHint": "Agregá un paso desde la paleta. Para conectar dos nodos, arrastrá desde una salida hasta el nodo siguiente.",
     "templateHelp": "Usá '{{trigger.x}}' para los datos del disparador y '{{nodes.<id>.output.x}}' para la salida de un nodo anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode.",
     "everySummary": "Cada {n} {unit}",
     "dailySummary": "Todos los días a las {time} ({tz})",
@@ -104,7 +104,6 @@
     "errorFlowHint": "Corre otro flow cuando una corrida falla. Recibe '{{trigger.flow}}', '{{trigger.run.error}}' y '{{trigger.failedNode}}'.",
     "credentialNone": "Elegí una credencial",
     "credentialMissing": "Credencial borrada",
-    "credentialEmpty": "0 credenciales de tipo {types}.",
     "manageCredentials": "Administrar credenciales",
     "pickFlow": "Elegí un flow",
     "pickAgent": "Elegí un agente",
@@ -119,7 +118,8 @@
     "delayGranularity": "Esperar retoma la corrida en la próxima pasada del programador. En la nube de zerosoft revisa una vez por hora, así que una espera corta (segundos o minutos) puede durar hasta una hora. Con self-host sigue tu cron de /api/cron/tick.",
     "retryGranularity": "Cada reintento se retoma en la próxima pasada del programador (una vez por hora en la nube de zerosoft), no a los pocos segundos.",
     "stripeHint": "Guardá el flow, copiá la URL del webhook en Stripe (Developers → Webhooks) y guardá su signing secret en la credencial. Los pedidos sin firma se rechazan.",
-    "allEvents": "Todos los eventos"
+    "allEvents": "Todos los eventos",
+    "copyNodeRef": "Copiar referencia"
   },
   "categories": {
     "trigger": "Disparador",
@@ -388,7 +388,8 @@
     "rerunHint": "Los pasos anteriores reusan la salida de esta corrida. Usa el flow guardado.",
     "rerunDirty": "Tenés cambios sin guardar. La re-ejecución usa la última versión guardada. ¿Seguir?",
     "cancel": "Cancelar ejecución",
-    "cancelConfirm": "¿Cancelar esta ejecución? Los pasos pendientes (esperas y reintentos) no van a correr."
+    "cancelConfirm": "¿Cancelar esta ejecución? Los pasos pendientes (esperas y reintentos) no van a correr.",
+    "openInEditor": "Abrir en el editor"
   },
   "stepStatus": {
     "running": "Ejecutando",
@@ -396,6 +397,18 @@
     "failed": "Falló",
     "skipped": "Cortado por el filtro",
     "waiting": "En espera"
+  },
+  "stepErrors": {
+    "missing_credential": "Este paso no tiene credencial. Elegí una en el editor.",
+    "credential_not_found": "La credencial de este paso ya no existe. Elegí otra en el editor.",
+    "credential_wrong_type": "La credencial de este paso es de otro tipo. Elegí una que sirva en el editor.",
+    "invalid_credential": "El servicio rechazó la credencial. Revisala en Credenciales o elegí otra en el editor.",
+    "missing_field": "A este paso le falta un dato obligatorio. Completalo en el editor.",
+    "missing_url": "Este paso no tiene URL. Completala en el editor.",
+    "invalid_email": "El destinatario no es un email válido. Revisalo en el editor.",
+    "invalid_json": "El body no es JSON válido. Revisalo en el editor.",
+    "http": "El servicio respondió con el estado {status}. Revisá la URL y los datos que manda este paso.",
+    "rate_limited": "El servicio pidió esperar. Volvé a probar en unos minutos."
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",
@@ -444,16 +457,17 @@
     "first": "Primera versión",
     "noChanges": "Mismos nodos",
     "nodes": "{n, plural, one {# nodo} other {# nodos}}",
-    "added": "+{n}: {ids}",
-    "removed": "−{n}: {ids}",
-    "changed": "{n} editados: {ids}",
-    "edges": "conexiones +{added} −{removed}",
+    "added": "Agregados: {names}",
+    "removed": "Quitados: {names}",
+    "changed": "Editados: {names}",
     "restore": "Restaurar",
     "restoring": "Restaurando…",
     "confirm": "¿Restaurar la versión {n}? El flow actual también queda guardado como versión.",
     "confirmDirty": "¿Restaurar la versión {n}? Se pierden los cambios sin guardar.",
     "error": "No se pudo restaurar esta versión.",
-    "restored": "Restaurado. Ahora en la versión {n}."
+    "restored": "Restaurado. Ahora en la versión {n}.",
+    "edgesAdded": "{n, plural, one {Una conexión nueva} =2 {Dos conexiones nuevas} =3 {Tres conexiones nuevas} other {# conexiones nuevas}}",
+    "edgesRemoved": "{n, plural, one {Una conexión quitada} =2 {Dos conexiones quitadas} =3 {Tres conexiones quitadas} other {# conexiones quitadas}}"
   },
   "credentials": {
     "emptyTitle": "Todavía no hay credenciales",
@@ -521,6 +535,7 @@
       "duplicate_name": "Ya existe una credencial con ese nombre.",
       "invalid_json": "El JSON de la cuenta de servicio no es válido (necesita client_email y private_key).",
       "invalid_input": "Datos inválidos."
-    }
+    },
+    "oneOf": {"slack": "Completá el bot token o la URL del webhook.", "google": "Completá el access token o el JSON de la cuenta de servicio."}
   }
 }

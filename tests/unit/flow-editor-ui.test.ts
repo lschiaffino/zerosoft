@@ -3,7 +3,7 @@ import { join } from 'path';
 import { describe, expect, it } from 'vitest';
 import { NODE_DEFS, NODE_TYPES, defaultConfig, type FieldDef, type FlowNodeType } from '@/lib/flow-schema';
 import { CREDENTIAL_NAME_RE } from '@/lib/flow-credentials-schema';
-import { changedCount, interchangeLine, splitFields, suggestCredentialName } from '@/components/flow/flow-ui';
+import { changedCount, interchangeLine, splitFields, stepErrorInfo, suggestCredentialName } from '@/components/flow/flow-ui';
 
 const fields = (type: FlowNodeType) => NODE_DEFS[type].fields as readonly FieldDef[];
 const keys = (list: FieldDef[]) => list.map((f) => f.key);
@@ -101,6 +101,18 @@ describe('Flow: strings nuevas en los tres idiomas', () => {
     'credentials.create',
     'credentials.saveChanges',
     'credentials.emptyTitle',
+    'credentials.oneOf.slack',
+    'credentials.oneOf.google',
+    'editor.copyNodeRef',
+    'runs.openInEditor',
+    'versions.added',
+    'versions.edgesAdded',
+    'versions.edgesRemoved',
+    'stepErrors.missing_credential',
+    'stepErrors.missing_field',
+    'stepErrors.invalid_credential',
+    'stepErrors.http',
+    'stepErrors.rate_limited',
   ];
   it.each(['en', 'es', 'pt'])('%s', (locale) => {
     const m = load(locale);
@@ -109,5 +121,16 @@ describe('Flow: strings nuevas en los tres idiomas', () => {
       expect(typeof v, `${locale}:${p}`).toBe('string');
       expect(String(v), `${locale}:${p}`).not.toMatch(/—/);
     }
+  });
+});
+
+describe('Flow: errores de paso legibles', () => {
+  it('traduce los códigos conocidos y deja el resto como dato', () => {
+    expect(stepErrorInfo('missing_credentialid')).toMatchObject({ key: 'missing_credential', inEditor: true });
+    expect(stepErrorInfo('missing_credential (retry 1/2)')).toMatchObject({ key: 'missing_credential' });
+    expect(stepErrorInfo('missing_channel')).toMatchObject({ key: 'missing_field' });
+    expect(stepErrorInfo('http_502')).toMatchObject({ key: 'http', values: { status: '502' } });
+    expect(stepErrorInfo('slack_ratelimited')).toMatchObject({ key: 'rate_limited', inEditor: false });
+    expect(stepErrorInfo('context_truncated')).toBeNull();
   });
 });

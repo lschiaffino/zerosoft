@@ -39,7 +39,7 @@
     }
   },
   "editor": {
-    "nodeId": "ID do nó, para usar em variáveis",
+    "nodeId": "Referência",
     "copied": "Copiada",
     "retry": "Tentar de novo",
     "flowSettings": "Ajustes do flow",
@@ -65,7 +65,7 @@
     "search": "Buscar nós",
     "noResults": "0 nós encontrados.",
     "settings": "Configuração",
-    "selectNode": "Selecione um nó para configurá-lo. Arraste nós da esquerda ou clique para adicioná-los.",
+    "selectNode": "Selecione um nó para configurá-lo, ou adicione um passo pela paleta.",
     "description": "Descrição",
     "deleteNode": "Excluir nó",
     "deleteFlow": "Excluir flow",
@@ -93,7 +93,7 @@
     "condLeft": "Valor",
     "condOp": "Operador",
     "condRight": "Comparar com",
-    "canvasHint": "Adicione nós pela esquerda. Conecte-os arrastando de uma saída até o próximo nó.",
+    "canvasHint": "Adicione um passo pela paleta. Para conectar dois nós, arraste de uma saída até o próximo nó.",
     "templateHelp": "Use '{{trigger.x}}' para os dados do gatilho e '{{nodes.<id>.output.x}}' para a saída de um nó anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode.",
     "everySummary": "A cada {n} {unit}",
     "dailySummary": "Todo dia às {time} ({tz})",
@@ -104,7 +104,6 @@
     "errorFlowHint": "Roda outro flow quando uma execução falha. Recebe '{{trigger.flow}}', '{{trigger.run.error}}' e '{{trigger.failedNode}}'.",
     "credentialNone": "Escolha uma credencial",
     "credentialMissing": "Credencial apagada",
-    "credentialEmpty": "0 credenciais do tipo {types}.",
     "manageCredentials": "Gerenciar credenciais",
     "pickFlow": "Escolha um flow",
     "pickAgent": "Escolha um agente",
@@ -119,7 +118,8 @@
     "delayGranularity": "Aguardar retoma a execução na próxima passada do agendador. Na nuvem da zerosoft ele verifica uma vez por hora, então uma espera curta (segundos ou minutos) pode durar até uma hora. Em self-host segue o seu cron de /api/cron/tick.",
     "retryGranularity": "Cada nova tentativa é retomada na próxima passada do agendador (uma vez por hora na nuvem da zerosoft), não poucos segundos depois.",
     "stripeHint": "Salve o flow, copie a URL do webhook no Stripe (Developers → Webhooks) e salve o signing secret na credencial. Pedidos sem assinatura são recusados.",
-    "allEvents": "Todos os eventos"
+    "allEvents": "Todos os eventos",
+    "copyNodeRef": "Copiar referência"
   },
   "categories": {
     "trigger": "Gatilho",
@@ -388,7 +388,8 @@
     "rerunHint": "Os passos anteriores reutilizam a saída desta execução. Usa o flow salvo.",
     "rerunDirty": "Você tem alterações não salvas. A reexecução usa a última versão salva. Continuar?",
     "cancel": "Cancelar execução",
-    "cancelConfirm": "Cancelar esta execução? Os passos pendentes (esperas e novas tentativas) não vão rodar."
+    "cancelConfirm": "Cancelar esta execução? Os passos pendentes (esperas e novas tentativas) não vão rodar.",
+    "openInEditor": "Abrir no editor"
   },
   "stepStatus": {
     "running": "Executando",
@@ -396,6 +397,18 @@
     "failed": "Falhou",
     "skipped": "Parado pelo filtro",
     "waiting": "Aguardando"
+  },
+  "stepErrors": {
+    "missing_credential": "Este passo não tem credencial. Escolha uma no editor.",
+    "credential_not_found": "A credencial deste passo não existe mais. Escolha outra no editor.",
+    "credential_wrong_type": "A credencial deste passo é de outro tipo. Escolha uma compatível no editor.",
+    "invalid_credential": "O serviço recusou a credencial. Revise em Credenciais ou escolha outra no editor.",
+    "missing_field": "Falta um dado obrigatório neste passo. Preencha no editor.",
+    "missing_url": "Este passo não tem URL. Preencha no editor.",
+    "invalid_email": "O destinatário não é um email válido. Revise no editor.",
+    "invalid_json": "O body não é um JSON válido. Revise no editor.",
+    "http": "O serviço respondeu com o status {status}. Revise a URL e os dados que este passo envia.",
+    "rate_limited": "O serviço pediu para esperar. Tente de novo em alguns minutos."
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",
@@ -444,16 +457,17 @@
     "first": "Primeira versão",
     "noChanges": "Mesmos nós",
     "nodes": "{n, plural, one {# nó} other {# nós}}",
-    "added": "+{n}: {ids}",
-    "removed": "−{n}: {ids}",
-    "changed": "{n} editados: {ids}",
-    "edges": "conexões +{added} −{removed}",
+    "added": "Adicionados: {names}",
+    "removed": "Removidos: {names}",
+    "changed": "Editados: {names}",
     "restore": "Restaurar",
     "restoring": "Restaurando…",
     "confirm": "Restaurar a versão {n}? O flow atual também fica salvo como versão.",
     "confirmDirty": "Restaurar a versão {n}? As alterações não salvas serão perdidas.",
     "error": "Não foi possível restaurar esta versão.",
-    "restored": "Restaurado. Agora na versão {n}."
+    "restored": "Restaurado. Agora na versão {n}.",
+    "edgesAdded": "{n, plural, one {Uma conexão nova} =2 {Duas conexões novas} =3 {Três conexões novas} other {# conexões novas}}",
+    "edgesRemoved": "{n, plural, one {Uma conexão removida} =2 {Duas conexões removidas} =3 {Três conexões removidas} other {# conexões removidas}}"
   },
   "credentials": {
     "emptyTitle": "Ainda não há credenciais",
@@ -521,6 +535,7 @@
       "duplicate_name": "Já existe uma credencial com esse nome.",
       "invalid_json": "O JSON da conta de serviço não é válido (precisa de client_email e private_key).",
       "invalid_input": "Dados inválidos."
-    }
+    },
+    "oneOf": {"slack": "Preencha o bot token ou a URL do webhook.", "google": "Preencha o access token ou o JSON da conta de serviço."}
   }
 }

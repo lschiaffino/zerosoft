@@ -45,6 +45,10 @@
 .flow-last-run { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .flow-row-actions { display: inline-flex; justify-content: flex-end; gap: 4px; }
 
+/* Tablas de Flow: solo reglas de 1px entre filas, sin caja alrededor
+   (crm.css le da borde a todo .table-wrap). */
+.flow-page .flow-table { border: 0; border-radius: 0; }
+
 .flow-templates {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -94,6 +98,9 @@
 .flow-name:hover:not(:read-only) { border-color: var(--ui-field); }
 .flow-name:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); outline: none; }
 .flow-bar-right { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto; }
+/* Acciones principales del editor: botón de 44px con label de 15px (40px debajo de 900px). */
+.flow-bar .btn { --btn-h: 44px; --btn-px: 18px; --btn-fs: 0.9375rem; }
+.flow-bar .ui-switch { min-height: 44px; padding: 0 4px; }
 .flow-msg { max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--brand-gray-2); }
 .flow-msg:empty { display: none; }
 .flow-msg.is-ok { color: var(--ok-ink); }
@@ -185,17 +192,16 @@
 }
 .flow-node:hover { border-color: var(--ui-field); }
 .flow-node.is-selected { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-.flow-node[data-status='failed'] { border-color: var(--bad-ink); }
 .flow-node-track {
   position: absolute;
   left: 21px;
-  top: -1px;
-  bottom: -1px;
   width: 4px;
   background: var(--c-flow);
 }
-.flow-node[data-trigger] .flow-node-track { top: 35px; }
-.flow-node[data-named] .flow-node-track { bottom: auto; height: 36px; }
+/* Mitad de entrada (borde de arriba → centro de la estación) y de salida
+   (centro → borde de abajo). Cada una existe solo si hay una arista. */
+.flow-node-track-in { top: -1px; height: 36px; }
+.flow-node-track-out { top: 35px; bottom: -1px; }
 .flow-node-station {
   position: absolute;
   z-index: 1;
@@ -267,15 +273,11 @@
 .flow-side { min-height: 0; overflow-y: auto; border-left: 1px solid var(--line); background: var(--bg); }
 .flow-config { display: flex; flex-direction: column; gap: 16px; padding: 16px 20px 32px; }
 .flow-config-head { display: flex; flex-direction: column; gap: 6px; }
-.flow-config-cat {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--brand-gray-2);
-}
-.flow-config-cat .data { font-weight: 400; font-size: 0.75rem; }
+.flow-config-ref { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 0.8125rem; }
+.flow-config-ref .data { font-size: 0.75rem; color: var(--ink); overflow-wrap: anywhere; }
+.flow-config-ref .flow-link { margin-left: 0; }
+/* Mono Is Data: los textarea de JSON, código y plantillas también (ui.css solo cubre .input.data). */
+.flow-editor .textarea.data { font-family: var(--font-data); font-feature-settings: "zero" 1, "tnum" 1; font-size: 0.8125rem; }
 .flow-config-foot { padding-top: 16px; border-top: 1px solid var(--line); }
 .flow-note {
   padding: 8px 12px;
@@ -376,15 +378,20 @@
 .flow-run-detail { min-width: 0; min-height: 0; overflow-y: auto; padding: 16px 24px 32px; }
 .flow-run-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 0.875rem; }
 .flow-run-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   margin-bottom: 12px;
-  padding: 8px 12px;
-  font-size: 0.75rem;
-  line-height: 1.5;
+  padding: 10px 12px;
   color: var(--bad-ink);
   background: var(--bad-soft);
   border-radius: var(--radius-1);
   overflow-wrap: anywhere;
 }
+.flow-run-error-text { font-size: 0.875rem; line-height: 1.45; }
+.flow-run-error-code { font-size: 0.75rem; line-height: 1.4; }
+.flow-run-error .btn { margin-top: 2px; }
 
 .flow-steps { position: relative; display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .flow-step { position: relative; }
@@ -426,7 +433,6 @@
   border: 4px solid var(--brand-ink);
   border-radius: 50%;
 }
-.flow-step[data-status='failed'] .flow-step-station { border-color: var(--bad-ink); }
 .flow-step-head[aria-expanded='true'] .flow-step-station { background: var(--c-flow); }
 .flow-step-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .flow-step-name .data { margin-left: 4px; font-size: 0.75rem; }
@@ -505,6 +511,43 @@
   .flow-templates { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* Debajo de 900px las tablas se apilan: cada fila es un bloque de dos columnas. */
+@media (max-width: 899px) {
+  .flow-bar .btn { --btn-h: 40px; --btn-px: 16px; }
+  .flow-bar .ui-switch { min-height: 40px; }
+  .flow-table { overflow: visible; }
+  .flow-table .table,
+  .flow-table tbody { display: block; width: 100%; }
+  .flow-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .flow-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .flow-table tbody tr:hover { background: none; }
+  .flow-table td { display: block; height: auto; min-width: 0; padding: 0; border: 0; }
+  .flow-table .flow-ellipsis { max-width: 100%; }
+
+  /* Flows: nombre con su línea, disparador, y abajo la última corrida y el switch. */
+  .flow-table-flows td:nth-child(1),
+  .flow-table-flows td:nth-child(2) { grid-column: 1 / -1; }
+  .flow-table-flows td:nth-child(2) { font-size: 0.8125rem; color: var(--brand-gray-2); }
+  .flow-table-flows td:nth-child(3) { grid-column: 1; }
+  .flow-table-flows td:nth-child(4) { grid-column: 2; justify-self: end; }
+  .flow-table-flows .ui-switch { min-height: 40px; }
+
+  /* Credenciales: nombre, tipo y detalle a la izquierda; Editar y Borrar a la derecha. */
+  .flow-table-creds td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 600; }
+  .flow-table-creds td:nth-child(2) { grid-column: 1; grid-row: 2; font-size: 0.8125rem; }
+  .flow-table-creds td:nth-child(3) { grid-column: 1; grid-row: 3; }
+  .flow-table-creds td:nth-child(4) { grid-column: 1; grid-row: 4; font-size: 0.8125rem; }
+  .flow-table-creds td:nth-child(5) { grid-column: 2; grid-row: 1 / span 4; align-self: center; }
+  .flow-table-creds td:nth-child(5) .btn { --btn-h: 40px; }
+}
+
 @media (max-width: 720px) {
   .flow-bar { padding: 8px 12px 0; }
   .flow-tabs { margin: 4px -12px 0; }
@@ -518,8 +561,6 @@
   .flow-versions { padding: 16px; }
   .flow-template { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
   .flow-template > .flow-line-glyph { grid-column: 1 / -1; }
-  .flow-block .table th:nth-child(2), .flow-block .table td:nth-child(2),
-  .flow-block .table th:nth-child(3), .flow-block .table td:nth-child(3) { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

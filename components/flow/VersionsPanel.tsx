@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
 import type { FlowDto, FlowVersionDto } from '@/lib/flow';
+import { i18nKey } from './flow-ui';
 
 interface Props {
   flowId: string;
@@ -18,6 +19,7 @@ interface Props {
 export default function VersionsPanel({ flowId, currentVersion, canEdit, dirty, onRestored }: Props) {
   const t = useTranslations('flow.versions');
   const te = useTranslations('flow.editor');
+  const tf = useTranslations('flow');
   const format = useFormatter();
   const now = useNow({ updateInterval: 30_000 });
   const [versions, setVersions] = useState<FlowVersionDto[] | null>(null);
@@ -87,11 +89,20 @@ export default function VersionsPanel({ flowId, currentVersion, canEdit, dirty, 
       ) : (
         <ol className="flow-version-list">
           {versions.map((v, i) => {
+            // Títulos de los nodos ("Slack: enviar mensaje"), no sus ids internos.
+            const names = (ids: string[]) =>
+              ids
+                .map((id) => {
+                  const key = v.nodeTypes?.[id] ? `nodes.${i18nKey(v.nodeTypes[id])}.title` : '';
+                  return key && tf.has(key) ? tf(key) : id;
+                })
+                .join(', ');
             const parts: string[] = [];
-            if (v.diff.added.length) parts.push(t('added', { n: v.diff.added.length, ids: v.diff.added.join(', ') }));
-            if (v.diff.removed.length) parts.push(t('removed', { n: v.diff.removed.length, ids: v.diff.removed.join(', ') }));
-            if (v.diff.changed.length) parts.push(t('changed', { n: v.diff.changed.length, ids: v.diff.changed.join(', ') }));
-            if (v.diff.edgesAdded || v.diff.edgesRemoved) parts.push(t('edges', { added: v.diff.edgesAdded, removed: v.diff.edgesRemoved }));
+            if (v.diff.added.length) parts.push(t('added', { names: names(v.diff.added) }));
+            if (v.diff.removed.length) parts.push(t('removed', { names: names(v.diff.removed) }));
+            if (v.diff.changed.length) parts.push(t('changed', { names: names(v.diff.changed) }));
+            if (v.diff.edgesAdded) parts.push(t('edgesAdded', { n: v.diff.edgesAdded }));
+            if (v.diff.edgesRemoved) parts.push(t('edgesRemoved', { n: v.diff.edgesRemoved }));
             const current = i === 0;
             return (
               <li key={v.id} className="flow-version" aria-current={current ? 'true' : undefined}>

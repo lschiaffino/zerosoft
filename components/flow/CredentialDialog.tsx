@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import type { CredentialDto } from '@/lib/flow-credentials';
-import { CREDENTIAL_TYPE_KEYS, credentialFields, type CredentialType } from '@/lib/flow-credentials-schema';
+import { CREDENTIAL_ONE_OF, CREDENTIAL_TYPE_KEYS, credentialFields, type CredentialType } from '@/lib/flow-credentials-schema';
 import { suggestCredentialName } from './flow-ui';
 
 interface Props {
@@ -62,7 +62,15 @@ export default function CredentialDialog({ open, onClose, onSaved, editing = nul
     if (!nameTouched) setName(suggestCredentialName(next, existingNames));
   }
 
+  const oneOf = CREDENTIAL_ONE_OF[type];
+
   async function submit() {
+    // Slack y Google piden uno de dos campos: se avisa antes de mandar (al editar, vale el guardado).
+    if (oneOf && !oneOf.some((k) => (data[k] ?? '').trim() || editing?.secretsSet.includes(k))) {
+      setError({ text: t(`oneOf.${type}`), field: oneOf[0] });
+      document.getElementById(`cred-${oneOf[0]}`)?.focus();
+      return;
+    }
     setBusy(true);
     setError(null);
     const res = await fetch(editing ? `/api/flow/credentials/${editing.id}` : '/api/flow/credentials', {
@@ -133,10 +141,16 @@ export default function CredentialDialog({ open, onClose, onSaved, editing = nul
               </select>
               <p className="ui-help">{t(`typeHints.${type}`)}</p>
             </div>
+            {oneOf && (
+              <p className="ui-help" id="cred-one-of">
+                {t(`oneOf.${type}`)}
+              </p>
+            )}
             {credentialFields(type).map((f, i) => {
               const saved = !!editing?.secretsSet.includes(f.key);
               const id = `cred-${f.key}`;
               const invalid = error?.field === f.key;
+              const inOneOf = !!oneOf?.includes(f.key);
               const common = {
                 id,
                 className: `${f.multiline ? 'textarea' : 'input'} data`,
@@ -145,7 +159,7 @@ export default function CredentialDialog({ open, onClose, onSaved, editing = nul
                 spellCheck: false,
                 autoFocus: i === 0,
                 'aria-invalid': invalid || undefined,
-                'aria-describedby': invalid ? `${id}-error` : undefined,
+                'aria-describedby': [inOneOf && 'cred-one-of', invalid && `${id}-error`].filter(Boolean).join(' ') || undefined,
                 placeholder: f.secret && saved ? t('savedPlaceholder') : (f.placeholder ?? ''),
                 onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setData({ ...data, [f.key]: e.target.value }),
               };
@@ -153,7 +167,7 @@ export default function CredentialDialog({ open, onClose, onSaved, editing = nul
                 <div className="ui-field" key={f.key}>
                   <label className="label" htmlFor={id}>
                     {t(`fields.${f.key}`)}
-                    {f.optional && <span className="ui-optional"> · {t('optional')}</span>}
+                    {f.optional && !inOneOf && <span className="ui-optional"> · {t('optional')}</span>}
                   </label>
                   {f.multiline ? <textarea rows={5} {...common} /> : <input type={f.secret ? 'password' : 'text'} {...common} />}
                   {f.secret && saved && <p className="ui-help">{t('keepHint')}</p>}

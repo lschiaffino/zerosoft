@@ -157,3 +157,27 @@ export function pretty(value: unknown): string {
     return String(value);
   }
 }
+
+/**
+ * Código de error de un paso ("missing_credentialid (retry 1/2)", "http_502")
+ * a la clave de flow.stepErrors que dice el problema y cómo resolverlo. null
+ * si el código no es conocido: entonces solo se muestra el código.
+ * `inEditor`: se arregla en la configuración del nodo.
+ */
+export function stepErrorInfo(raw: string): { code: string; key: string; values?: Record<string, string>; inEditor: boolean } | null {
+  const code = raw.trim().match(/^[a-z0-9_]+/i)?.[0]?.toLowerCase() ?? '';
+  if (!code) return null;
+  const http = code.match(/^http_(\d{3})$/);
+  if (http) return { code, key: 'http', values: { status: http[1] }, inEditor: true };
+  if (code === 'missing_credential' || code === 'missing_credentialid') return { code, key: 'missing_credential', inEditor: true };
+  if (code === 'credential_not_found' || code === 'credential_wrong_type') return { code, key: code, inEditor: true };
+  if (code === 'invalid_credential' || /^(google_invalid_credential|telegram_invalid_token|discord_invalid_webhook|slack_invalid_auth|slack_not_authed)$/.test(code)) {
+    return { code, key: 'invalid_credential', inEditor: true };
+  }
+  if (code === 'missing_url') return { code, key: 'missing_url', inEditor: true };
+  if (code === 'invalid_email' || code === 'missing_recipient') return { code, key: 'invalid_email', inEditor: true };
+  if (code === 'invalid_json') return { code, key: 'invalid_json', inEditor: true };
+  if (code === 'rate_limited' || code === 'slack_ratelimited') return { code, key: 'rate_limited', inEditor: false };
+  if (code.startsWith('missing_')) return { code, key: 'missing_field', inEditor: true };
+  return null;
+}

@@ -69,6 +69,7 @@ export default function CredentialsManager({ credentials: initial, canEdit }: Pr
 
       <DataTable
         caption={t('listTitle')}
+        className="flow-table flow-table-creds"
         rows={list}
         rowKey={(c) => c.id}
         empty={<EmptyState title={t('emptyTitle')} body={t('emptyHint')} action={create} />}

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
 import type { FlowRunDto, FlowStepDto } from '@/lib/flow';
-import { i18nKey, formatDuration, pretty, RUN_BADGE } from './flow-ui';
+import { i18nKey, formatDuration, pretty, RUN_BADGE, stepErrorInfo } from './flow-ui';
 
 export type RunDetail = FlowRunDto & { steps: FlowStepDto[] };
 
@@ -18,10 +18,12 @@ interface Props {
   /** Hay cambios sin guardar (la re-ejecución usa el grafo guardado). */
   dirty?: boolean;
   onRerun?: (run: RunDetail) => void;
+  /** Lleva al editor con ese nodo elegido (para arreglar el paso que falló). */
+  onOpenNode?: (nodeId: string) => void;
 }
 
 /** Historial de corridas con el detalle de cada paso (input / output / error). */
-export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey, canEdit, dirty, onRerun }: Props) {
+export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey, canEdit, dirty, onRerun, onOpenNode }: Props) {
   const t = useTranslations('flow');
   const format = useFormatter();
   const now = useNow({ updateInterval: 30_000 });
@@ -104,6 +106,22 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
     if (id && id !== detail?.id) void loadRun(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRunId, runs]);
+
+  /** Error legible: qué pasó y cómo se arregla; el código crudo queda abajo, como dato. */
+  function errorBlock(raw: string, nodeId: string | null, className: string) {
+    const info = stepErrorInfo(raw);
+    return (
+      <div className={`flow-run-error ${className}`.trim()} role="note">
+        {info && <p className="flow-run-error-text">{t(`stepErrors.${info.key}`, info.values ?? {})}</p>}
+        <p className="flow-run-error-code data">{raw}</p>
+        {info?.inEditor && nodeId && onOpenNode && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => onOpenNode(nodeId)}>
+            {t('runs.openInEditor')}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (runs === null) {
     return (
@@ -201,7 +219,10 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
                 </button>
               )}
             </div>
-            {detail.error && <p className="flow-run-error data">{detail.error}</p>}
+            {/* El error se muestra una sola vez: en el paso que falló, o acá si no hay paso (flow apagado, sin trigger…). */}
+            {detail.error &&
+              !detail.steps.some((s) => s.error) &&
+              errorBlock(detail.error.replace(/^[A-Za-z0-9_-]+: /, ''), null, '')}
             {detail.rerunOf && <p className="ui-help">{t('runs.rerunOf', { id: detail.rerunOf.slice(0, 8) })}</p>}
             {rerunError && (
               <p className="ui-error" role="alert">
@@ -221,7 +242,7 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
                       <span className={`badge ${RUN_BADGE[s.status] ?? ''}`}>{t(`stepStatus.${s.status}`)}</span>
                       <span className="flow-muted data flow-step-time">{formatDuration(s.startedAt, s.finishedAt)}</span>
                     </button>
-                    {s.error && <p className="flow-run-error data flow-step-error">{s.error}</p>}
+                    {s.error && errorBlock(s.error, s.nodeType.startsWith('trigger.') ? null : s.nodeId, 'flow-step-error')}
                     {open && canEdit && (detail.status === 'failed' || detail.status === 'success') && !s.nodeType.startsWith('trigger.') && (
                       <div className="flow-step-actions">
                         <button

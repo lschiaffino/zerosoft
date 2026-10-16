@@ -13,6 +13,9 @@ export type FlowNodeData = {
   /** Estado del último paso de este nodo en la corrida mostrada. */
   status?: string;
   summary?: string;
+  /** Hay una arista que llega / sale: solo entonces se dibuja ese medio tramo de línea. */
+  hasIn?: boolean;
+  hasOut?: boolean;
 };
 
 export type FlowCanvasNode = Node<FlowNodeData, 'flow'>;
@@ -28,8 +31,10 @@ function handleLabel(t: ReturnType<typeof useTranslations>, handle: string, conf
 
 /**
  * Nodo del canvas: una estación sobre la línea de Flow con su cartel al lado.
- * La línea entra por arriba y sale por abajo pasando por la estación; si el
- * nodo toca otra app de zerosoft, el anillo toma el color de esa línea.
+ * La línea entra por arriba y sale por abajo pasando por la estación, pero
+ * cada mitad solo existe si hay una conexión: un nodo suelto es una estación
+ * sin línea y el último termina en su estación. Si el nodo toca otra app de
+ * zerosoft, el anillo toma el color de esa línea.
  */
 function FlowNodeCard({ data, selected, id }: NodeProps<FlowCanvasNode>) {
   const t = useTranslations('flow');
@@ -49,7 +54,8 @@ function FlowNodeCard({ data, selected, id }: NodeProps<FlowCanvasNode>) {
       style={style}
     >
       {!trigger && <Handle type="target" position={Position.Top} className="flow-handle flow-handle-in" />}
-      <span className="flow-node-track" aria-hidden="true" />
+      {data.hasIn && !trigger && <span className="flow-node-track flow-node-track-in" aria-hidden="true" />}
+      {data.hasOut && !named && <span className="flow-node-track flow-node-track-out" aria-hidden="true" />}
       <span className="flow-node-station" aria-hidden="true" />
       <div className="flow-node-body">
         <div className="flow-node-head">
