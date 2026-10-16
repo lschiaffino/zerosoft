@@ -110,7 +110,10 @@ export default function DocsEditorClient({
   const runSave = useCallback(
     async (patch: Partial<DocsPage>, force: boolean) => {
       setSaving(true);
-      const guarded = 'content' in patch && !force;
+      // Todo PATCH (contenido, publicar, ancho, tamaño del texto, restaurar)
+      // va con la base: si no, uno que no toca el contenido adelantaba la base
+      // a la versión ajena y el próximo guardado la pisaba sin 409.
+      const guarded = !force;
       const body = JSON.stringify(guarded ? { ...patch, base_updated_at: baseUpdatedAt.current } : patch);
       try {
         const res = await fetch(`/api/docs/pages/${page.id}`, {
@@ -133,7 +136,9 @@ export default function DocsEditorClient({
         conflictPatch.current = null;
         setSaveError(null);
         const updated = (await res.json().catch(() => null)) as DocsPage | null;
-        if (updated?.updated_at) baseUpdatedAt.current = updated.updated_at;
+        // Un "Sobrescribir" sin contenido no trae la versión ajena al editor:
+        // la base queda vieja y el próximo guardado de contenido vuelve a avisar.
+        if (updated?.updated_at && (guarded || 'content' in patch)) baseUpdatedAt.current = updated.updated_at;
         if (updated && ('published' in patch || 'is_public' in patch)) {
           setCurrent((prev) => ({ ...prev, published: updated.published, slug: updated.slug, is_public: updated.is_public }));
         }
@@ -246,16 +251,8 @@ export default function DocsEditorClient({
   }, [page.id, router]);
 
   const restorePage = useCallback(async () => {
-    const res = await fetch(`/api/docs/pages/${page.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ archived: false }),
-    });
-    if (!res.ok) return;
-    const updated = (await res.json().catch(() => null)) as DocsPage | null;
-    if (updated?.updated_at) baseUpdatedAt.current = updated.updated_at;
-    router.refresh();
-  }, [page.id, router]);
+    await savePage({ archived: false });
+  }, [savePage]);
 
   // Tras restaurar una versión el editor se vuelve a montar con el contenido nuevo.
   const onVersionRestored = useCallback(async () => {

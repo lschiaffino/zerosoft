@@ -143,6 +143,14 @@ export async function removeMember(teamId: string, userId: string): Promise<void
     const { reassignRemovedHostBookings } = await import('./calendar-lifecycle');
     await reassignRemovedHostBookings(team.owner_id, userId);
   }
+  // Sus conversaciones de Chat del team quedan sin asignar: no le llegan más
+  // los mensajes de los visitantes y las reglas las vuelven a repartir.
+  await getDb()
+    .prepare(
+      `UPDATE chat_conversations SET assigned_to = NULL
+       WHERE assigned_to = ? AND widget_id IN (SELECT id FROM chat_widgets WHERE team_id = ?)`,
+    )
+    .run(userId, teamId);
   // Si el usuario tenía este team como activo, vuelve a su workspace personal.
   await getDb()
     .prepare('UPDATE users SET active_team_id = NULL WHERE id = ? AND active_team_id = ?')

@@ -158,8 +158,27 @@ export function buildHelpCollections(rows: PublishedTreeRow[]): HelpCollection[]
     .map((root) => ({ ...summary(root), articles: descendants(root.id).map(summary) }));
 }
 
+/**
+ * Completa el excerpt de estos resúmenes leyendo el content solo de ellos (el
+ * árbol viene sin content: no se lee ni parsea cada página publicada).
+ */
+export async function withHelpExcerpts<T extends HelpArticleSummary>(ownerId: string, items: T[]): Promise<T[]> {
+  if (items.length === 0) return items;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, content FROM docs_pages WHERE user_id = ? AND id IN (${items.map(() => '?').join(', ')})`,
+    )
+    .all(ownerId, ...items.map((i) => i.id))) as Array<{ id: string; content: string }>;
+  const byId = new Map(rows.map((r) => [r.id, r.content]));
+  return items.map((i) => {
+    const content = byId.get(i.id);
+    return content != null ? { ...i, excerpt: pageExcerpt(content) } : i;
+  });
+}
+
+/** Colecciones con su excerpt; los artículos van sin excerpt (la home muestra solo el título). */
 export async function listHelpCollections(ownerId: string): Promise<HelpCollection[]> {
-  return buildHelpCollections(await publishedRows(ownerId));
+  return withHelpExcerpts(ownerId, buildHelpCollections(await publishedTreeRows(ownerId)));
 }
 
 /** Artículo publicado por slug, con su colección y anterior/siguiente. */
@@ -237,15 +256,22 @@ export async function searchHelpArticles(ownerId: string, query: string, k = 5):
   return out;
 }
 
-/** Feedback "¿Te sirvió?" (público). Solo cuenta para páginas publicadas. */
-export async function recordHelpFeedback(pageId: string, helpful: boolean): Promise<boolean> {
+/**
+ * Feedback "¿Te sirvió?" (público). Solo cuenta para páginas publicadas. Con
+ * `voter` (id anónimo del navegador) hay un voto por visitante y página: votar
+ * de nuevo cambia el voto en vez de sumar otro.
+ */
+export async function recordHelpFeedback(pageId: string, helpful: boolean, voter?: string | null): Promise<boolean> {
   const page = (await getDb()
     .prepare('SELECT id, user_id FROM docs_pages WHERE id = ? AND published = 1 AND archived = 0')
     .get(pageId)) as { id: string; user_id: string } | undefined;
   if (!page) return false;
   await getDb()
-    .prepare('INSERT INTO docs_feedback (id, page_id, user_id, helpful) VALUES (?, ?, ?, ?)')
-    .run(crypto.randomUUID(), page.id, page.user_id, helpful ? 1 : 0);
+    .prepare(
+      `INSERT INTO docs_feedback (id, page_id, user_id, helpful, voter) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (page_id, voter) WHERE voter IS NOT NULL DO UPDATE SET helpful = excluded.helpful`,
+    )
+    .run(crypto.randomUUID(), page.id, page.user_id, helpful ? 1 : 0, voter || null);
   return true;
 }
 

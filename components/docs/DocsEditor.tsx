@@ -1927,6 +1927,7 @@ export default function DocsEditor({
         createPortal(
         <UserMentionPopover
           query={userMention.query}
+          pageId={page.id}
           style={caretMenuStyle(caretMenuPos, 260, 280)}
           onSelect={onSelectUserMention}
           onClose={() => setUserMention(null)}

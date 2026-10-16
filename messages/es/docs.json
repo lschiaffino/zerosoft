@@ -218,7 +218,8 @@
     "helpful": "¿Te sirvió este artículo?",
     "yes": "Sí",
     "no": "No",
-    "thanks": "Gracias por contarnos."
+    "thanks": "Gracias por contarnos.",
+    "feedbackError": "No pudimos registrar tu respuesta. Probá de nuevo más tarde."
   },
   "versions": {
     "title": "Historial de versiones",

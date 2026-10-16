@@ -1284,7 +1284,8 @@ export async function applyAssignmentRules(
   // No pisar una asignación existente (manual o previa): las reglas solo
   // auto-asignan conversaciones sin dueño.
   const current = await getChatConversation(conversationId);
-  if (current?.assigned_to) return current.assigned_to;
+  // Si el asignado ya no es agente del widget (salió del team), se reparte de nuevo.
+  if (current?.assigned_to && teamMembers.some((m) => m.id === current.assigned_to)) return current.assigned_to;
 
   const rules = await listAssignmentRules(widgetId);
   const activeRules = rules.filter((r) => r.active === 1);

@@ -218,7 +218,8 @@
     "helpful": "Was this article helpful?",
     "yes": "Yes",
     "no": "No",
-    "thanks": "Thanks for letting us know."
+    "thanks": "Thanks for letting us know.",
+    "feedbackError": "We couldn't record your answer. Try again later."
   },
   "versions": {
     "title": "Version history",

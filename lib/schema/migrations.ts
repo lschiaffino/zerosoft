@@ -2094,6 +2094,17 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // Docs: "¿Te sirvió?" cuenta un voto por visitante (id anónimo del
+    // navegador); recargar la página ya no suma otro voto.
+    id: '033_docs_feedback_voter',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE docs_feedback ADD COLUMN voter TEXT');
+      await client.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_docs_feedback_voter ON docs_feedback(page_id, voter) WHERE voter IS NOT NULL',
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

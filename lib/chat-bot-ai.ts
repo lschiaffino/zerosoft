@@ -6,6 +6,7 @@ import {
   createChatMessage,
   extractDocsText,
   getChatConversation,
+  isChatAgentOfWidget,
   listCannedResponses,
   maybeRunChatBot,
   updateChatConversation,
@@ -185,7 +186,9 @@ export async function markHandoff(
     ...(conversation.status !== 'open' ? { status: 'open' as const } : {}),
   });
   const recipients = new Set([widget.user_id]);
-  if (conversation.assigned_to) recipients.add(conversation.assigned_to);
+  if (conversation.assigned_to && (await isChatAgentOfWidget(widget, conversation.assigned_to))) {
+    recipients.add(conversation.assigned_to);
+  }
   for (const userId of recipients) {
     await createNotification({
       userId,

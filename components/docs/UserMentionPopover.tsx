@@ -6,6 +6,8 @@ import type { DocsMentionableUser } from '@/lib/docs-types';
 
 interface UserMentionPopoverProps {
   query: string;
+  /** Página donde se menciona: lista los del workspace dueño de la página. */
+  pageId: string;
   /** Posición fija (viewport) calculada por el editor a partir del caret. */
   style?: CSSProperties;
   onSelect: (user: DocsMentionableUser) => void;
@@ -13,7 +15,7 @@ interface UserMentionPopoverProps {
 }
 
 /** Popover de @menciones: lista miembros del workspace y filtra por nombre/email. */
-export default function UserMentionPopover({ query, style, onSelect, onClose }: UserMentionPopoverProps) {
+export default function UserMentionPopover({ query, pageId, style, onSelect, onClose }: UserMentionPopoverProps) {
   const t = useTranslations('docs');
   const [members, setMembers] = useState<DocsMentionableUser[] | null>(null);
   const [active, setActive] = useState(0);
@@ -21,7 +23,7 @@ export default function UserMentionPopover({ query, style, onSelect, onClose }: 
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/docs/members')
+    fetch(`/api/docs/members?page=${encodeURIComponent(pageId)}`)
       .then((r) => (r.ok ? r.json() : { rows: [] }))
       .then((data) => {
         if (!cancelled) setMembers(data.rows ?? []);
@@ -32,7 +34,7 @@ export default function UserMentionPopover({ query, style, onSelect, onClose }: 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pageId]);
 
   const filtered = useMemo(() => {
     if (!members) return null;
