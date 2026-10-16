@@ -7,6 +7,12 @@ import { emojiMatches } from '@/lib/emoji-names';
 interface EmojiPickerProps {
   value: string;
   onChange: (emoji: string) => void;
+  /** Si está, el popover ofrece "Quitar ícono". */
+  onRemove?: () => void;
+  /** Clase del botón que abre el picker (por defecto, el ícono suelto). */
+  triggerClassName?: string;
+  /** Nombre accesible del botón (por defecto "Elegir ícono"). */
+  triggerLabel?: string;
   children: React.ReactNode;
 }
 
@@ -37,7 +43,7 @@ const EMOJI_CATEGORIES: { key: string; emojis: string[] }[] = [
   },
 ];
 
-export default function EmojiPicker({ value, onChange, children }: EmojiPickerProps) {
+export default function EmojiPicker({ value, onChange, onRemove, triggerClassName, triggerLabel, children }: EmojiPickerProps) {
   const t = useTranslations('docs');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -82,24 +88,40 @@ export default function EmojiPicker({ value, onChange, children }: EmojiPickerPr
       <button
         type="button"
         ref={triggerRef}
-        className="emoji-picker-trigger"
+        className={triggerClassName ?? 'emoji-picker-trigger'}
         onClick={() => setOpen((v) => !v)}
-        aria-label={t('emoji.pick')}
+        aria-label={triggerLabel ?? t('emoji.pick')}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
         {children}
       </button>
       {open && (
-        <div className="emoji-picker-popover">
-          <input
-            className="emoji-picker-search"
-            type="text"
-            placeholder={t('emoji.search')}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            autoFocus
-          />
+        <div className="docs-menu emoji-picker-popover" role="dialog" aria-label={t('emoji.pick')}>
+          <div className="emoji-picker-top">
+            <input
+              className="input emoji-picker-search"
+              type="search"
+              placeholder={t('emoji.search')}
+              aria-label={t('emoji.search')}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              autoFocus
+            />
+            {onRemove && value && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  onRemove();
+                  setOpen(false);
+                  setQuery('');
+                }}
+              >
+                {t('editor.removeIcon')}
+              </button>
+            )}
+          </div>
           <div className="emoji-picker-body">
             {filtered.map((cat) => (
               <div key={cat.key} className="emoji-picker-category">
@@ -110,6 +132,7 @@ export default function EmojiPicker({ value, onChange, children }: EmojiPickerPr
                       key={emoji}
                       type="button"
                       className={`emoji-picker-item${emoji === value ? ' sel' : ''}`}
+                      aria-pressed={emoji === value}
                       onClick={() => {
                         onChange(emoji);
                         setOpen(false);

@@ -83,7 +83,7 @@ export default function MentionPopover({ query, style, onSelect, onClose }: Ment
       onMouseDown={(e) => e.preventDefault()}
     >
       {loading ? (
-        <div className="docs-mention-empty">…</div>
+        <div className="docs-mention-empty" aria-busy="true"><span className="ui-skeleton ui-skeleton-text" /></div>
       ) : pages.length === 0 ? (
         <div className="docs-mention-empty">{t('mentions.noPages')}</div>
       ) : (
@@ -95,7 +95,11 @@ export default function MentionPopover({ query, style, onSelect, onClose }: Ment
             onMouseEnter={() => setActive(i)}
             onClick={() => onSelect(page)}
           >
-            <span className="docs-mention-icon">{page.icon ?? '📄'}</span>
+            {page.icon ? (
+              <span className="docs-mention-icon" aria-hidden="true">{page.icon}</span>
+            ) : (
+              <span className="docs-mention-station" aria-hidden="true" />
+            )}
             <span className="docs-mention-title">{page.title || t('untitled')}</span>
           </button>
         ))

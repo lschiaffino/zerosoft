@@ -6,8 +6,10 @@
     "newPage": "New page",
     "latest": "Latest pages",
     "emptyTitle": "No pages yet",
-    "emptySub": "Create your first page and start writing.",
-    "edited": "Edited {date}"
+    "emptySub": "Write a page from scratch or start from a template. Pages nest like folders.",
+    "edited": "Edited {date}",
+    "colPage": "Page",
+    "colEdited": "Edited"
   },
   "sidebar": {
     "overview": "Overview",
@@ -23,7 +25,8 @@
     "moveUp": "Move up",
     "moveDown": "Move down",
     "sharedWithMe": "Shared with me",
-    "sharedBy": "Shared by {name}"
+    "sharedBy": "Shared by {name}",
+    "count": "{count, plural, one {# page} other {# pages}}"
   },
   "editor": {
     "untitled": "Untitled page",
@@ -79,7 +82,7 @@
       "moveUp": "Move up",
       "moveDown": "Move down",
       "insertBelow": "Insert below",
-      "dragHandle": "Block options — drag to reorder"
+      "dragHandle": "Block options. Drag to reorder."
     },
     "commands": {
       "p": "Text",
@@ -97,7 +100,9 @@
     },
     "breadcrumb": "Breadcrumb",
     "closePanel": "Close panel",
-    "inTrash": "This page is in the trash."
+    "inTrash": "This page is in the trash.",
+    "removeIcon": "Remove icon",
+    "published": "Published"
   },
   "database": {
     "columnName": "Column {n}",
@@ -110,7 +115,7 @@
     "view": "View",
     "viewTable": "Table",
     "viewGallery": "Gallery",
-    "emptyGallery": "No rows yet — add them in table view."
+    "emptyGallery": "No rows yet. Add them in table view."
   },
   "mentions": {
     "noPages": "No pages",
@@ -171,11 +176,19 @@
     "openHelpCenter": "Open help center",
     "sharedEditBanner": "Shared by {name}. You can edit it.",
     "readOnlyBanner": "Shared by {name}. Read only.",
-    "readOnly": "Read only."
+    "readOnly": "Read only.",
+    "people": "People",
+    "publishSection": "Publish",
+    "publicLink": "Public link",
+    "openPublic": "Open",
+    "aiHint": "Chat AI",
+    "suggestions": "Suggestions",
+    "close": "Close"
   },
   "templates": {
     "title": "Start from a template",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "use": "Start from a template"
   },
   "trash": {
     "title": "Trash",
@@ -183,7 +196,8 @@
     "deleteForever": "Delete forever",
     "confirmDelete": "Delete this page forever? This cannot be undone.",
     "help": "Pages in the trash keep their subpages. Restore them or delete them forever.",
-    "empty": "The trash is empty."
+    "empty": "The trash is empty.",
+    "count": "{count, plural, one {# page} other {# pages}}"
   },
   "comments": {
     "title": "Comments",
@@ -197,7 +211,8 @@
     "commentBlock": "Comment on this block",
     "blockThread": "Block thread",
     "showAll": "Show all",
-    "blockTag": "Block"
+    "blockTag": "Block",
+    "error": "Could not post the comment. Try again."
   },
   "help": {
     "notFound": "Help center not found",
@@ -220,7 +235,12 @@
     "yes": "Yes",
     "no": "No",
     "thanks": "Thanks for letting us know.",
-    "feedbackError": "We couldn't record your answer. Try again later."
+    "feedbackError": "We couldn't record your answer. Try again later.",
+    "articleCount": "{count, plural, one {# article} other {# articles}}",
+    "noResultsTitle": "No articles match \"{q}\"",
+    "noResultsBody": "Try other words or browse every article.",
+    "allArticles": "See all articles",
+    "emptyBody": "Articles show up here once the team publishes them from Docs."
   },
   "versions": {
     "title": "Version history",
@@ -238,12 +258,20 @@
       "manual": "Saved manually",
       "restore": "Before restore"
     },
-    "note": "The last 50 versions are kept."
+    "note": "The last 50 versions are kept.",
+    "loadError": "Could not load the history.",
+    "retry": "Retry"
   },
   "export": {
     "markdown": "Export as Markdown",
     "pdf": "Export as PDF",
     "markdownShort": "Markdown",
     "pdfShort": "PDF"
+  },
+  "state": {
+    "errorTitle": "Docs did not load",
+    "errorBody": "Something failed while loading your pages. Your work is saved.",
+    "retry": "Try again",
+    "loading": "Loading pages"
   }
 }

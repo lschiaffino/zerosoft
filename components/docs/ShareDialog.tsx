@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import Icon from '@/components/app/icons';
+import AdvancedSection from '@/components/ui/AdvancedSection';
 import type { DocsMentionableUser, DocsPage, DocsPageShare, DocsShareRole } from '@/lib/docs-types';
 
 export interface ShareRequest {
@@ -34,10 +36,11 @@ type Option = { kind: 'team' | 'user'; id: string; label: string; sub: string };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Diálogo de compartir (como Notion / Google Docs):
- * - Invitar miembros o teams (o una persona por email) con "Puede ver" / "Puede editar".
- * - Publicar en el centro de ayuda (página web pública) y copiar el link.
- * - Permitir que la IA del Chat la use (antes "pública").
+ * Compartir, en dos grupos:
+ * - Personas: invitar miembros, teams o un email con "Puede ver" / "Puede editar".
+ * - Publicar: la página en el centro de ayuda (web pública) y su link. Que la
+ *   IA del Chat la use como conocimiento va en Avanzado.
+ * Es un <dialog> nativo con showModal(): foco atrapado y Esc sin código propio.
  */
 export default function ShareDialog({
   page,
@@ -51,6 +54,7 @@ export default function ShareDialog({
   onClose,
 }: ShareDialogProps) {
   const t = useTranslations('docs');
+  const uid = useId();
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [members, setMembers] = useState<DocsMentionableUser[]>([]);
   const [query, setQuery] = useState('');
@@ -60,8 +64,15 @@ export default function ShareDialog({
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<'public' | 'internal' | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    inputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -73,19 +84,10 @@ export default function ShareDialog({
       .then((r) => (r.ok ? r.json() : { rows: [] }))
       .then((d: { rows?: DocsMentionableUser[] }) => alive && setMembers((d.rows ?? []).filter((m) => m.id !== page.user_id)))
       .catch(() => {});
-    inputRef.current?.focus();
     return () => {
       alive = false;
     };
   }, [page.user_id]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const sharedKeys = new Set(shares.map((s) => `${s.kind}:${s.target_id}`));
   const options: Option[] = useMemo(() => {
@@ -101,6 +103,8 @@ export default function ShareDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, teams, query, shares]);
 
+  useEffect(() => setActiveIdx(0), [query]);
+
   const labelFor = (share: DocsPageShare): { label: string; sub: string } => {
     if (share.kind === 'team') {
       return { label: teams.find((x) => x.id === share.target_id)?.name ?? t('share.kinds.team'), sub: t('share.kinds.team') };
@@ -113,6 +117,14 @@ export default function ShareDialog({
   };
 
   const canInvite = Boolean(picked) || EMAIL_RE.test(query.trim());
+  const listOpen = suggestOpen && !picked && options.length > 0;
+  const listId = `${uid}-suggest`;
+
+  function pick(o: Option) {
+    setPicked(o);
+    setSuggestOpen(false);
+    setError(null);
+  }
 
   async function invite() {
     if (!canInvite || busy) return;
@@ -129,9 +141,12 @@ export default function ShareDialog({
     }
     setQuery('');
     setPicked(null);
+    inputRef.current?.focus();
   }
 
-  const publicUrl = helpBase && page.slug ? `${helpBase}/${page.slug}` : null;
+  const publicPath = helpBase && page.slug ? `${helpBase}/${page.slug}` : null;
+  const [origin, setOrigin] = useState('');
+  useEffect(() => setOrigin(window.location.origin), []);
 
   async function copy(text: string, which: 'public' | 'internal') {
     try {
@@ -143,21 +158,69 @@ export default function ShareDialog({
     }
   }
 
-  return (
-    <div className="docs-dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="docs-dialog" role="dialog" aria-modal="true" aria-labelledby="docs-share-title" ref={dialogRef}>
-        <div className="docs-dialog-head">
-          <h2 id="docs-share-title">{t('share.title')}</h2>
-          <button type="button" className="docs-dialog-close" onClick={onClose} aria-label={t('editor.closePanel')}>
-            ×
-          </button>
-        </div>
+  const titleId = `${uid}-title`;
+  const peopleId = `${uid}-people`;
+  const publishId = `${uid}-publish`;
+  const errorId = `${uid}-error`;
 
-        <section className="docs-dialog-section">
-          <div className="docs-invite">
+  return (
+    <dialog
+      ref={dialogRef}
+      className="ui-modal docs-share"
+      aria-labelledby={titleId}
+      onClose={onClose}
+      onCancel={(e) => {
+        // Esc con la lista de sugerencias abierta cierra solo la lista.
+        if (listOpen) {
+          e.preventDefault();
+          setSuggestOpen(false);
+        }
+      }}
+      onMouseDown={(e) => {
+        // Clic en el telón (fuera de la caja) cierra.
+        if (e.target === e.currentTarget) dialogRef.current?.close();
+      }}
+    >
+      <div className="ui-modal-head">
+        <h2 className="ui-modal-title" id={titleId}>
+          {t('share.title')}
+        </h2>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm btn-icon"
+          onClick={() => dialogRef.current?.close()}
+          aria-label={t('share.close')}
+          title={t('share.close')}
+        >
+          <Icon name="close" size={16} />
+        </button>
+      </div>
+
+      <div className="ui-modal-body docs-share-body">
+        <section className="docs-share-group" aria-labelledby={peopleId}>
+          <h3 className="docs-share-h" id={peopleId}>
+            {t('share.people')}
+          </h3>
+          <form
+            className="docs-invite"
+            onSubmit={(e) => {
+              e.preventDefault();
+              invite();
+            }}
+          >
             <div className="docs-invite-field">
               <input
                 ref={inputRef}
+                className="input"
+                type="text"
+                role="combobox"
+                aria-expanded={listOpen}
+                aria-controls={listId}
+                aria-autocomplete="list"
+                aria-activedescendant={listOpen ? `${listId}-${activeIdx}` : undefined}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? errorId : undefined}
+                autoComplete="off"
                 value={picked ? picked.label : query}
                 onChange={(e) => {
                   setPicked(null);
@@ -168,14 +231,19 @@ export default function ShareDialog({
                 onFocus={() => setSuggestOpen(true)}
                 onBlur={() => setTimeout(() => setSuggestOpen(false), 120)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (listOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
                     e.preventDefault();
-                    if (!picked && options.length > 0 && !EMAIL_RE.test(query.trim())) {
-                      setPicked(options[0]);
-                      setSuggestOpen(false);
-                    } else invite();
+                    const n = options.length;
+                    setActiveIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : -1) + n) % n);
+                    return;
+                  }
+                  if (e.key === 'Enter' && listOpen && !EMAIL_RE.test(query.trim())) {
+                    e.preventDefault();
+                    pick(options[activeIdx] ?? options[0]);
+                    return;
                   }
                   if (e.key === 'Backspace' && picked) {
+                    e.preventDefault();
                     setPicked(null);
                     setQuery('');
                   }
@@ -183,40 +251,49 @@ export default function ShareDialog({
                 placeholder={t('share.invitePlaceholder')}
                 aria-label={t('share.invitePlaceholder')}
               />
-              {suggestOpen && !picked && options.length > 0 && (
-                <ul className="docs-invite-suggest" role="listbox">
-                  {options.map((o) => (
-                    <li key={`${o.kind}:${o.id}`}>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setPicked(o);
-                          setSuggestOpen(false);
-                        }}
-                      >
-                        <span>{o.label}</span>
-                        <span className="docs-invite-sub">{o.sub}</span>
-                      </button>
+              {listOpen && (
+                <ul className="docs-menu docs-invite-suggest" role="listbox" id={listId} aria-label={t('share.suggestions')}>
+                  {options.map((o, i) => (
+                    <li
+                      key={`${o.kind}:${o.id}`}
+                      id={`${listId}-${i}`}
+                      role="option"
+                      aria-selected={i === activeIdx}
+                      className={`docs-menu-item docs-invite-option${i === activeIdx ? ' sel' : ''}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => setActiveIdx(i)}
+                      onClick={() => pick(o)}
+                    >
+                      <span className="docs-invite-label">{o.label}</span>
+                      <span className="docs-invite-sub">{o.sub}</span>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-            <select value={role} onChange={(e) => setRole(e.target.value as DocsShareRole)} aria-label={t('share.role')}>
+            <select
+              className="select docs-invite-role"
+              value={role}
+              onChange={(e) => setRole(e.target.value as DocsShareRole)}
+              aria-label={t('share.role')}
+            >
               <option value="view">{t('share.roles.view')}</option>
               <option value="edit">{t('share.roles.edit')}</option>
             </select>
-            <button type="button" className="btn btn-solid btn-small" onClick={invite} disabled={!canInvite || busy}>
+            <button type="submit" className="btn btn-primary" disabled={!canInvite || busy} aria-busy={busy || undefined}>
               {t('share.invite')}
             </button>
-          </div>
-          {error && <p className="docs-dialog-error">{error}</p>}
+          </form>
+          {error && (
+            <p className="ui-error" id={errorId} role="alert">
+              {error}
+            </p>
+          )}
 
           <ul className="docs-access-list">
             <li className="docs-access-row">
               <span className="docs-access-who">
-                <span>{t('share.workspace')}</span>
+                <span className="docs-access-name">{t('share.workspace')}</span>
                 <span className="docs-invite-sub">{t('share.workspaceHelp')}</span>
               </span>
               <span className="docs-access-role">{t('share.roles.owner')}</span>
@@ -226,16 +303,17 @@ export default function ShareDialog({
               return (
                 <li key={share.id} className="docs-access-row">
                   <span className="docs-access-who">
-                    <span>{who.label}</span>
+                    <span className="docs-access-name">{who.label}</span>
                     <span className="docs-invite-sub">{who.sub}</span>
                   </span>
                   {share.kind === 'public' ? (
                     <span className="docs-access-role">{t('share.roles.view')}</span>
                   ) : (
                     <select
+                      className="select docs-access-select"
                       value={share.role}
                       onChange={(e) => onRoleChange(share.id, e.target.value as DocsShareRole)}
-                      aria-label={t('share.role')}
+                      aria-label={`${t('share.role')}: ${who.label}`}
                     >
                       <option value="view">{t('share.roles.view')}</option>
                       <option value="edit">{t('share.roles.edit')}</option>
@@ -243,12 +321,12 @@ export default function ShareDialog({
                   )}
                   <button
                     type="button"
-                    className="docs-access-remove"
+                    className="btn btn-ghost btn-sm btn-icon"
                     onClick={() => onUnshare(share.id)}
-                    aria-label={t('share.remove')}
+                    aria-label={`${t('share.remove')}: ${who.label}`}
                     title={t('share.remove')}
                   >
-                    ×
+                    <Icon name="close" size={14} />
                   </button>
                 </li>
               );
@@ -256,65 +334,81 @@ export default function ShareDialog({
           </ul>
         </section>
 
-        <section className="docs-dialog-section">
-          <label className="docs-switch-row">
-            <span className="docs-switch-text">
-              <span>{t('share.publish')}</span>
-              <span className="docs-invite-sub">
-                {helpBase ? t('share.publishHelp') : t('share.publishNoHandle')}
-              </span>
-            </span>
+        <section className="docs-share-group" aria-labelledby={publishId}>
+          <h3 className="docs-share-h" id={publishId}>
+            {t('share.publishSection')}
+          </h3>
+          <label className="ui-switch docs-switch-row">
             <input
               type="checkbox"
-              className="docs-switch"
+              role="switch"
               checked={Boolean(page.published)}
               disabled={!helpBase}
               onChange={(e) => onUpdate({ published: e.target.checked })}
             />
+            <span className="docs-switch-text">
+              <span className="docs-switch-label">{t('share.publish')}</span>
+              <span className="ui-help">{helpBase ? t('share.publishHelp') : t('share.publishNoHandle')}</span>
+            </span>
           </label>
-          {page.published && publicUrl && (
-            <div className="docs-public-link">
-              <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="docs-public-url mono">
-                {publicUrl}
-              </a>
-              <button
-                type="button"
-                className="btn btn-small"
-                onClick={() => copy(`${window.location.origin}${publicUrl}`, 'public')}
-              >
-                {copied === 'public' ? t('share.copied') : t('share.copyPublic')}
-              </button>
+
+          {page.published && publicPath && (
+            <div className="ui-field docs-public">
+              <label className="label" htmlFor={`${uid}-url`}>
+                {t('share.publicLink')}
+              </label>
+              <div className="ui-input-group">
+                <input
+                  id={`${uid}-url`}
+                  className="input data"
+                  readOnly
+                  value={`${origin}${publicPath}`}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary docs-public-copy"
+                  onClick={() => copy(`${window.location.origin}${publicPath}`, 'public')}
+                >
+                  {copied === 'public' ? t('share.copied') : t('share.copyPublic')}
+                </button>
+              </div>
+              <span className="ui-help docs-public-meta">
+                <a href={publicPath} target="_blank" rel="noopener noreferrer" className="docs-inline-link">
+                  {t('share.openPublic')}
+                </a>
+                {feedback && feedback.yes + feedback.no > 0 && <span>{t('share.feedbackStats', feedback)}</span>}
+              </span>
             </div>
           )}
-          {page.published && feedback && feedback.yes + feedback.no > 0 && (
-            <p className="docs-invite-sub docs-feedback-stats">{t('share.feedbackStats', feedback)}</p>
-          )}
 
-          <label className="docs-switch-row">
-            <span className="docs-switch-text">
-              <span>{t('share.ai')}</span>
-              <span className="docs-invite-sub">{t('share.aiHelp')}</span>
-            </span>
-            <input
-              type="checkbox"
-              className="docs-switch"
-              checked={page.is_public}
-              onChange={(e) => onUpdate({ is_public: e.target.checked })}
-            />
-          </label>
+          <AdvancedSection storageKey="docs.share" hint={t('share.aiHint')}>
+            <label className="ui-switch docs-switch-row">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={page.is_public}
+                onChange={(e) => onUpdate({ is_public: e.target.checked })}
+              />
+              <span className="docs-switch-text">
+                <span className="docs-switch-label">{t('share.ai')}</span>
+                <span className="ui-help">{t('share.aiHelp')}</span>
+              </span>
+            </label>
+          </AdvancedSection>
         </section>
-
-        <div className="docs-dialog-foot">
-          {helpBase && (
-            <a href={helpBase} target="_blank" rel="noopener noreferrer" className="docs-dialog-link">
-              {t('share.openHelpCenter')}
-            </a>
-          )}
-          <button type="button" className="btn btn-small" onClick={() => copy(window.location.href, 'internal')}>
-            {copied === 'internal' ? t('share.copied') : t('share.copyLink')}
-          </button>
-        </div>
       </div>
-    </div>
+
+      <div className="ui-modal-foot">
+        {helpBase && (
+          <a href={helpBase} target="_blank" rel="noopener noreferrer" className="ui-foot-note docs-inline-link">
+            {t('share.openHelpCenter')}
+          </a>
+        )}
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(window.location.href, 'internal')}>
+          {copied === 'internal' ? t('share.copied') : t('share.copyLink')}
+        </button>
+      </div>
+    </dialog>
   );
 }

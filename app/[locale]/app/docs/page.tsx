@@ -10,7 +10,10 @@ import {
 } from '@/lib/docs-actions';
 import { getDocTemplates } from '@/lib/docs-templates';
 import { formatDateTime } from '@/lib/utils';
-import { Link } from '@/i18n/navigation';
+import Icon from '@/components/app/icons';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import DataTable from '@/components/ui/DataTable';
 import DocsSidebar from '@/components/docs/DocsSidebar';
 import DocsTrashList from '@/components/docs/DocsTrashList';
 import DocsAutoCreate from '@/components/docs/DocsAutoCreate';
@@ -29,18 +32,30 @@ export default async function DocsLandingPage(props: {
   setRequestLocale(locale);
   const user = await requireUser(locale);
   // Sin content: el sidebar y las listas solo muestran título, ícono y fecha.
-  const pages = await listDocPageSummaries(user.id, { archived: false });
-  const trashed = await listDocPageSummaries(user.id, { archived: true });
-  const shared = await listSharedWithMe(realUserId(user), user.id);
+  const [pages, trashed, shared] = await Promise.all([
+    listDocPageSummaries(user.id, { archived: false }),
+    listDocPageSummaries(user.id, { archived: true }),
+    listSharedWithMe(realUserId(user), user.id),
+  ]);
   const templates = getDocTemplates(locale);
   const t = await getTranslations({ locale, namespace: 'docs' });
   const createAction = createDocPageAction.bind(null, locale);
+  const recent = [...pages].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 8);
+
+  const newPageButton = (
+    <form action={createAction.bind(null, null)}>
+      <button type="submit" className="btn btn-primary" aria-keyshortcuts="C">
+        <Icon name="plus" size={15} />
+        {t('landing.newPage')}
+        <kbd className="kbd">C</kbd>
+      </button>
+    </form>
+  );
 
   return (
     <div className="docs-layout">
       <DocsSidebar
         pages={pages}
-        trashCount={trashed.length}
         shared={shared}
         mobileOpenByDefault={false}
         createAction={createAction}
@@ -54,83 +69,102 @@ export default async function DocsLandingPage(props: {
         }}
       />
 
-      <div className="docs-main docs-landing">
+      <div className="docs-main docs-landing ui-page">
         {sp.new === '1' && <DocsAutoCreate action={createAction.bind(null, null)} />}
-        <div className="page-head">
-          <div>
-            <h1 className="app-title">{t('landing.title')}</h1>
-            <p className="app-sub">{t('landing.subtitle')}</p>
-          </div>
-          <form action={createAction.bind(null, null)}>
-            <button type="submit" className="btn btn-solid btn-small" title={`${t('landing.newPage')} (C)`}>
-              + {t('landing.newPage')}
-              <span className="kbd-hint">C</span>
-            </button>
-          </form>
-        </div>
+        <PageHeader title={t('landing.title')} description={t('landing.subtitle')} actions={newPageButton} />
 
         {pages.length === 0 ? (
-          <div className="empty-state docs-empty">
-            <span className="empty-zeros mono" aria-hidden>
-              0 0 0
-            </span>
-            <h2>{t('landing.emptyTitle')}</h2>
-            <p className="muted">{t('landing.emptySub')}</p>
-            <form action={createAction.bind(null, null)}>
-              <button type="submit" className="btn btn-solid btn-small">
-                + {t('landing.newPage')}
-              </button>
-            </form>
-          </div>
+          <EmptyState
+            product="docs"
+            title={t('landing.emptyTitle')}
+            body={t('landing.emptySub')}
+            action={
+              <form action={createAction.bind(null, null)}>
+                <button type="submit" className="btn btn-primary">
+                  {t('landing.newPage')}
+                </button>
+              </form>
+            }
+            secondary={
+              <a href="#templates" className="docs-inline-link">
+                {t('templates.use')}
+              </a>
+            }
+          />
         ) : (
-          <section className="docs-section">
-            <p className="section-label">{t('landing.latest')}</p>
-            <ul className="docs-list">
-              {pages.slice(0, 10).map((page) => (
-                <li key={page.id}>
-                  <Link href={`/app/docs/${page.id}`} className="docs-list-row">
-                    <span className="docs-list-icon">{page.icon ?? '📄'}</span>
-                    <span className="docs-list-title">{page.title || t('untitled')}</span>
-                    <span className="docs-list-date mono">
-                      {t('landing.edited', { date: formatDateTime(page.updated_at, locale) })}
+          <section className="docs-section" aria-labelledby="docs-recent">
+            <h2 className="docs-section-title" id="docs-recent">
+              {t('landing.latest')}
+            </h2>
+            <DataTable
+              caption={t('landing.latest')}
+              rows={recent}
+              rowKey={(p) => p.id}
+              rowHref={(p) => `/app/docs/${p.id}`}
+              columns={[
+                {
+                  key: 'title',
+                  header: t('landing.colPage'),
+                  cell: (p) => (
+                    <span className="docs-cell-page">
+                      {p.icon && <span aria-hidden="true">{p.icon}</span>}
+                      {p.title || t('untitled')}
                     </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                  ),
+                },
+                {
+                  key: 'edited',
+                  header: t('landing.colEdited'),
+                  cell: (p) => formatDateTime(p.updated_at, locale),
+                  numeric: true,
+                  width: '200px',
+                },
+              ]}
+            />
           </section>
         )}
 
-        <section className="docs-section" id="templates">
-          <p className="section-label">{t('templates.title')}</p>
-          <div className="docs-templates">
+        <section className="docs-section" id="templates" aria-labelledby="docs-templates">
+          <h2 className="docs-section-title" id="docs-templates">
+            {t('templates.title')}
+          </h2>
+          <ul className="docs-templates">
             {templates.map((tpl) => (
-              <form key={tpl.key} action={createDocPageFromTemplateAction.bind(null, locale, tpl.key)}>
-                <button type="submit" className="docs-template-card">
-                  <span className="docs-template-icon">{tpl.icon}</span>
-                  <span className="docs-template-name">{tpl.title || t('templates.untitled')}</span>
-                  <span className="docs-template-desc">{tpl.description}</span>
-                </button>
-              </form>
+              <li key={tpl.key}>
+                <form action={createDocPageFromTemplateAction.bind(null, locale, tpl.key)}>
+                  <button type="submit" className="docs-template">
+                    <span className="docs-template-name">{tpl.title || t('templates.untitled')}</span>
+                    <span className="docs-template-desc">{tpl.description}</span>
+                  </button>
+                </form>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
 
         {(trashed.length > 0 || showTrash) && (
           <details className="docs-section docs-trash" id="trash" open={showTrash || undefined}>
-            <summary className="section-label">
-              {t('trash.title')} <span className="mono">({trashed.length})</span>
+            <summary className="docs-section-title docs-trash-summary">
+              <Icon name="chevronRight" size={14} />
+              {t('trash.title')}
+              <span className="docs-trash-count">{t('trash.count', { count: trashed.length })}</span>
             </summary>
-            <p className="docs-trash-help muted">{trashed.length > 0 ? t('trash.help') : t('trash.empty')}</p>
-            <DocsTrashList
-              pages={trashed}
-              canDelete={isWorkspaceAdmin(user)}
-              labels={{
-                restore: t('trash.restore'),
-                deleteForever: t('trash.deleteForever'),
-                confirmDelete: t('trash.confirmDelete'),
-              }}
-            />
+            {trashed.length > 0 ? (
+              <>
+                <p className="docs-trash-help">{t('trash.help')}</p>
+                <DocsTrashList
+                  pages={trashed}
+                  canDelete={isWorkspaceAdmin(user)}
+                  labels={{
+                    restore: t('trash.restore'),
+                    deleteForever: t('trash.deleteForever'),
+                    confirmDelete: t('trash.confirmDelete'),
+                  }}
+                />
+              </>
+            ) : (
+              <EmptyState quiet product="docs" title={t('trash.empty')} />
+            )}
           </details>
         )}
       </div>

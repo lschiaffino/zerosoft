@@ -48,6 +48,7 @@ import DocsBlockEditor from './DocsBlockEditor';
 import MentionPopover from './MentionPopover';
 import UserMentionPopover from './UserMentionPopover';
 import EmojiPicker from './EmojiPicker';
+import DocsGlyph, { type DocsGlyphName } from './DocsGlyphs';
 
 interface DocsEditorProps {
   page: DocsPage;
@@ -113,17 +114,17 @@ const COMMAND_KEYWORDS: Record<string, string[]> = {
   database: ['database', 'db', 'table', 'grid', 'view', 'data'],
 };
 
-const BLOCK_ICONS: Record<DocsBlockType, string> = {
-  paragraph: 'T',
-  heading: 'H',
-  bulleted_list_item: '•',
-  numbered_list_item: '1.',
-  todo: '☐',
-  quote: '"',
-  code: '</>',
-  divider: '—',
-  table: '▦',
-  database: '▤',
+const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
+  paragraph: 'paragraph',
+  heading: 'heading',
+  bulleted_list_item: 'bulleted',
+  numbered_list_item: 'numbered',
+  todo: 'todo',
+  quote: 'quote',
+  code: 'code',
+  divider: 'divider',
+  table: 'table',
+  database: 'database',
 };
 
 const LIST_TYPES: DocsBlockType[] = ['bulleted_list_item', 'numbered_list_item', 'todo'];
@@ -234,7 +235,7 @@ export default function DocsEditor({
     upgradeBlocks(page.content.length ? page.content : defaultBlocks()),
   );
   const [title, setTitle] = useState(page.title);
-  const [icon, setIcon] = useState(page.icon ?? '📄');
+  const [icon, setIcon] = useState(page.icon ?? '');
   const [coverUrl, setCoverUrl] = useState(page.cover_url ?? '');
   const [smallText, setSmallText] = useState(!!page.small_text);
   const [fullWidth, setFullWidth] = useState(!!page.full_width);
@@ -271,6 +272,7 @@ export default function DocsEditor({
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
   const titleRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
   const coverRef = useRef<HTMLDivElement>(null);
   /** Caret pendiente de aplicar después del próximo render (split/merge/conversión). */
   const pendingCaret = useRef<{ index: number; offset: number } | null>(null);
@@ -316,7 +318,7 @@ export default function DocsEditor({
   useEffect(() => {
     setBlocks(upgradeBlocks(page.content.length ? page.content : defaultBlocks()));
     setTitle(page.title);
-    setIcon(page.icon ?? '📄');
+    setIcon(page.icon ?? '');
     setCoverUrl(page.cover_url ?? '');
     setBlockMenu(null);
     setToolbar(null);
@@ -401,6 +403,7 @@ export default function DocsEditor({
 
   useEffect(() => {
     if (!menuOpen) return;
+    menuRef.current?.querySelector<HTMLElement>('[role^="menuitem"]')?.focus();
     const onClick = (e: MouseEvent) => {
       if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
     };
@@ -558,7 +561,7 @@ export default function DocsEditor({
         setDirty(false);
         onSave({
           title: nextTitle ?? title,
-          icon: nextIcon ?? icon,
+          icon: (nextIcon ?? icon) || null,
           cover_url: nextCover === '' ? null : (nextCover ?? coverUrl),
           content: nextBlocks ?? blocks,
         });
@@ -1419,6 +1422,23 @@ export default function DocsEditor({
     [blocks, page.id, triggerSave, userMention],
   );
 
+  /** Menú "…": flechas entre ítems, Esc cierra y devuelve el foco al botón. */
+  const pageMenuKeys = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role^="menuitem"]'));
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+    } else if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      items[e.key === 'Home' ? 0 : items.length - 1]?.focus();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setMenuOpen(false);
+      menuBtnRef.current?.focus();
+    } else if (e.key === 'Tab') setMenuOpen(false);
+  };
+
   const copyLink = () => {
     const url = `${window.location.origin}/app/docs/${page.id}`;
     navigator.clipboard.writeText(url);
@@ -1478,23 +1498,27 @@ export default function DocsEditor({
       {!embedded && (
       <div className="docs-top-bar">
         <nav className="docs-breadcrumb" aria-label={t('editor.breadcrumb')}>
-            <Link href="/app/docs" className="docs-breadcrumb-root">
-              Docs
-            </Link>
+          <ol>
+            <li className="docs-breadcrumb-segment">
+              <Link href="/app/docs" className="docs-breadcrumb-link">
+                Docs
+              </Link>
+            </li>
             {ancestorChain.map((a) => (
-              <span key={a.id} className="docs-breadcrumb-segment">
-                <span className="docs-breadcrumb-slash">/</span>
+              <li key={a.id} className="docs-breadcrumb-segment">
                 <Link href={`/app/docs/${a.id}`} className="docs-breadcrumb-link">
-                  <span className="docs-breadcrumb-icon">{a.icon ?? '📄'}</span>
+                  {a.icon && <span aria-hidden="true">{a.icon}</span>}
                   <span className="docs-breadcrumb-title">{a.title || t('untitled')}</span>
                 </Link>
-              </span>
+              </li>
             ))}
-            <span className="docs-breadcrumb-segment">
-              <span className="docs-breadcrumb-slash">/</span>
-              <span className="docs-breadcrumb-current">{title || t('untitled')}</span>
-            </span>
-          </nav>
+            <li className="docs-breadcrumb-segment">
+              <span className="docs-breadcrumb-current" aria-current="page">
+                {title || t('untitled')}
+              </span>
+            </li>
+          </ol>
+        </nav>
 
         <div className="docs-page-actions">
           <span
@@ -1509,7 +1533,7 @@ export default function DocsEditor({
                 ? (
                     <>
                       {t(saveError === 'tooLong' ? 'editor.saveTooLong' : 'editor.saveFailed')}{' '}
-                      <button type="button" className="btn btn-small" onClick={() => triggerSave()}>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => triggerSave()}>
                         {t('editor.retrySave')}
                       </button>
                     </>
@@ -1520,36 +1544,42 @@ export default function DocsEditor({
           <div className="docs-action-menu-wrap" ref={menuRef}>
             <button
               type="button"
-              className="docs-action-btn"
+              ref={menuBtnRef}
+              className="btn btn-ghost btn-sm btn-icon docs-action-btn"
               onClick={() => setMenuOpen((v) => !v)}
               aria-label={t('editor.pageOptions')}
+              title={t('editor.pageOptions')}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
             >
-              ···
+              <DocsGlyph name="more" size={16} />
             </button>
             {menuOpen && (
-              <div className="docs-page-menu">
-                <button type="button" className="docs-page-menu-item" onClick={copyLink}>
+              <div className="docs-menu docs-page-menu" role="menu" aria-label={t('editor.pageOptions')} onKeyDown={pageMenuKeys}>
+                <button type="button" role="menuitem" className="docs-menu-item" onClick={copyLink}>
                   {t('editor.copyLink')}
                 </button>
-                <button type="button" className="docs-page-menu-item" onClick={copyContents}>
+                <button type="button" role="menuitem" className="docs-menu-item" onClick={copyContents}>
                   {t('editor.copyContents')}
                 </button>
                 {onDuplicate && (
-                  <button type="button" className="docs-page-menu-item" onClick={onDuplicate}>
+                  <button type="button" role="menuitem" className="docs-menu-item" onClick={onDuplicate}>
                     {t('editor.duplicate')}
                   </button>
                 )}
                 {menuExtra && (
                   <>
-                    <hr className="docs-page-menu-divider" />
+                    <hr className="docs-menu-divider" />
                     {menuExtra(() => setMenuOpen(false))}
                   </>
                 )}
                 {layoutToggles && (<>
-                <hr className="docs-page-menu-divider" />
+                <hr className="docs-menu-divider" />
                 <button
                   type="button"
-                  className="docs-page-menu-item docs-page-menu-toggle"
+                  role="menuitemcheckbox"
+                  aria-checked={smallText}
+                  className="docs-menu-item docs-menu-toggle"
                   onClick={() => {
                     // Se persiste en la página (antes se perdía al recargar).
                     const next = !smallText;
@@ -1559,11 +1589,13 @@ export default function DocsEditor({
                   }}
                 >
                   {t('editor.smallText')}
-                  <span className={`docs-toggle${smallText ? ' on' : ''}`} />
+                  <span className={`docs-toggle${smallText ? ' on' : ''}`} aria-hidden="true" />
                 </button>
                 <button
                   type="button"
-                  className="docs-page-menu-item docs-page-menu-toggle"
+                  role="menuitemcheckbox"
+                  aria-checked={fullWidth}
+                  className="docs-menu-item docs-menu-toggle"
                   onClick={() => {
                     const next = !fullWidth;
                     setFullWidth(next);
@@ -1572,14 +1604,15 @@ export default function DocsEditor({
                   }}
                 >
                   {t('editor.fullWidth')}
-                  <span className={`docs-toggle${fullWidth ? ' on' : ''}`} />
+                  <span className={`docs-toggle${fullWidth ? ' on' : ''}`} aria-hidden="true" />
                 </button>
                 </>)}
-                {onDelete && <hr className="docs-page-menu-divider" />}
+                {onDelete && <hr className="docs-menu-divider" />}
                 {onDelete && (
                   <button
                     type="button"
-                    className="docs-page-menu-item docs-page-menu-danger"
+                    role="menuitem"
+                    className="docs-menu-item docs-menu-danger"
                     onClick={onDelete}
                   >
                     {t('editor.moveToTrash')}
@@ -1598,21 +1631,95 @@ export default function DocsEditor({
           {/* URL arbitraria del usuario: next/image exigiría allowlist de dominios. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={coverUrl} alt="" className="docs-cover-img" />
-          <button type="button" className="docs-cover-remove" onClick={removeCover}>
+          <button type="button" className="btn btn-secondary btn-sm docs-cover-remove" onClick={removeCover}>
             {t('editor.removeCover')}
           </button>
         </div>
       ) : null}
 
       <div className="docs-page-header">
-        {!embedded && (
-        <EmojiPicker value={icon} onChange={(next) => {
-          setIcon(next);
-          triggerSave(undefined, undefined, next);
-        }}>
-          <span className="docs-icon">{icon}</span>
-        </EmojiPicker>
+        {!embedded && icon && (
+          <EmojiPicker
+            value={icon}
+            onChange={(next) => {
+              setIcon(next);
+              triggerSave(undefined, undefined, next);
+            }}
+            onRemove={() => {
+              setIcon('');
+              triggerSave(undefined, undefined, '');
+            }}
+          >
+            <span className="docs-icon">{icon}</span>
+          </EmojiPicker>
         )}
+
+        {!embedded && (
+          <div className="docs-page-meta">
+            {!icon && (
+              <EmojiPicker
+                value=""
+                triggerClassName="btn btn-ghost btn-sm docs-meta-btn"
+                triggerLabel={t('editor.addIcon')}
+                onChange={(next) => {
+                  setIcon(next);
+                  triggerSave(undefined, undefined, next);
+                }}
+              >
+                {t('editor.addIcon')}
+              </EmojiPicker>
+            )}
+            {!coverUrl && (
+              <div className="docs-cover-anchor">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm docs-meta-btn"
+                  onClick={() => setCoverOpen(true)}
+                  aria-expanded={coverOpen}
+                  aria-haspopup="dialog"
+                >
+                  {t('editor.addCover')}
+                </button>
+                {coverOpen && (
+                  <div className="docs-menu docs-cover-popover" ref={coverRef}>
+                    <input
+                      type="url"
+                      placeholder={t('editor.coverUrlPlaceholder')}
+                      aria-label={t('editor.coverUrlPlaceholder')}
+                      className="input docs-cover-input"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') addCover((e.target as HTMLInputElement).value);
+                        if (e.key === 'Escape') setCoverOpen(false);
+                      }}
+                    />
+                    <div className="docs-cover-presets">
+                      {[
+                        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&q=80',
+                        'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200&q=80',
+                        'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=1200&q=80',
+                        'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1200&q=80',
+                      ].map((url) => (
+                        <button
+                          key={url}
+                          type="button"
+                          className="docs-cover-preset"
+                          style={{ backgroundImage: `url(${url})` }}
+                          onClick={() => addCover(url)}
+                          aria-label={t('editor.coverPreset')}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <button type="button" className="btn btn-ghost btn-sm docs-meta-btn" onClick={() => onAddComment?.()}>
+              {t('editor.addComment')}
+            </button>
+          </div>
+        )}
+
         <div
           ref={titleRef}
           className="docs-title"
@@ -1639,50 +1746,6 @@ export default function DocsEditor({
         />
       </div>
 
-      {!embedded && (
-      <div className="docs-page-meta">
-        {!coverUrl && (
-          <div className="docs-cover-anchor">
-            <button type="button" className="docs-meta-btn" onClick={() => setCoverOpen(true)}>
-              {t('editor.addCover')}
-            </button>
-          {coverOpen && (
-            <div className="docs-cover-popover" ref={coverRef}>
-              <input
-                type="text"
-                placeholder={t('editor.coverUrlPlaceholder')}
-                className="docs-cover-input"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') addCover((e.target as HTMLInputElement).value);
-                }}
-              />
-              <div className="docs-cover-presets">
-                {[
-                  'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&q=80',
-                  'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200&q=80',
-                  'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=1200&q=80',
-                  'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1200&q=80',
-                ].map((url) => (
-                  <button
-                    key={url}
-                    type="button"
-                    className="docs-cover-preset"
-                    style={{ backgroundImage: `url(${url})` }}
-                    onClick={() => addCover(url)}
-                    aria-label={t('editor.coverPreset')}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-          </div>
-        )}
-        <button type="button" className="docs-meta-btn" onClick={() => onAddComment?.()}>
-          {t('editor.addComment')}
-        </button>
-      </div>
-      )}
-
       <div className="docs-blocks" ref={blocksWrapRef}>
         {blocks.map((block, index) => {
           if (block.type === 'numbered_list_item') numberedIndex++;
@@ -1706,12 +1769,12 @@ export default function DocsEditor({
                   onClick={() => handleGripClick(index)}
                 >
                   <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden>
-                    <circle cx="2" cy="2" r="1.2" />
-                    <circle cx="8" cy="2" r="1.2" />
-                    <circle cx="2" cy="7" r="1.2" />
-                    <circle cx="8" cy="7" r="1.2" />
-                    <circle cx="2" cy="12" r="1.2" />
-                    <circle cx="8" cy="12" r="1.2" />
+                    <rect x="1" y="1" width="2.4" height="2.4" />
+                    <rect x="6.6" y="1" width="2.4" height="2.4" />
+                    <rect x="1" y="5.8" width="2.4" height="2.4" />
+                    <rect x="6.6" y="5.8" width="2.4" height="2.4" />
+                    <rect x="1" y="10.6" width="2.4" height="2.4" />
+                    <rect x="6.6" y="10.6" width="2.4" height="2.4" />
                   </svg>
                 </button>
                 {blockMenu === index && (
@@ -1724,7 +1787,9 @@ export default function DocsEditor({
                       >
                         {t('editor.blockMenu.turnInto')}
                         <span className="docs-bmenu-caret" aria-hidden>
-                          ›
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 6l6 6-6 6" />
+                          </svg>
                         </span>
                       </button>
                       {turnIntoOpen && (
@@ -1739,7 +1804,7 @@ export default function DocsEditor({
                                 convertBlock(index, cmd.type, cmd.level);
                               }}
                             >
-                              <span className="docs-command-icon">{BLOCK_ICONS[cmd.type]}</span>
+                              <span className="docs-command-icon"><DocsGlyph name={BLOCK_ICONS[cmd.type]} size={14} /></span>
                               <span className="docs-command-label">
                                 {t(`editor.commands.${cmd.key}`)}
                               </span>
@@ -1838,7 +1903,7 @@ export default function DocsEditor({
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
                     {commentCount > 0 && (
-                      <span className="docs-block-comment-count mono">{commentCount}</span>
+                      <span className="docs-block-comment-count">{commentCount}</span>
                     )}
                   </button>
                 )}
@@ -1863,7 +1928,7 @@ export default function DocsEditor({
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => insertBlock(index, 'paragraph')}
                 >
-                  +
+                  <DocsGlyph name="plus" size={12} />
                 </button>
               </div>
             </Fragment>
@@ -1894,7 +1959,7 @@ export default function DocsEditor({
               className={`docs-command-item${i === cmdSel ? ' sel' : ''}`}
               onClick={() => applyCommand(slash.index, cmd)}
             >
-              <span className="docs-command-icon">{BLOCK_ICONS[cmd.type]}</span>
+              <span className="docs-command-icon"><DocsGlyph name={BLOCK_ICONS[cmd.type]} size={14} /></span>
               <span className="docs-command-label">{cmd.label}</span>
               {cmd.shortcut && (
                 <span className="docs-command-shortcut">{cmd.shortcut}</span>

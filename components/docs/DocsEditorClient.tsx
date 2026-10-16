@@ -15,6 +15,7 @@ import DocsEditor from './DocsEditor';
 import ShareDialog, { type ShareRequest } from './ShareDialog';
 import CommentsPanel from './CommentsPanel';
 import VersionsPanel from './VersionsPanel';
+import Icon from '@/components/app/icons';
 
 interface CommentsLabels {
   title: string;
@@ -131,6 +132,8 @@ export default function DocsEditorClient({
         }
         if (!res.ok) {
           setSaveError('failed');
+          // Un interruptor optimista que no se guardó vuelve al valor del server.
+          if ('published' in patch || 'is_public' in patch) router.refresh();
           return;
         }
         conflictPatch.current = null;
@@ -188,6 +191,16 @@ export default function DocsEditorClient({
     saveChain.current = next;
     await next;
   }, [runSave]);
+
+  // Interruptores de Compartir (publicar, IA): responden al toque; el slug y
+  // el estado definitivo llegan con la respuesta del PATCH.
+  const updateSharing = useCallback(
+    (patch: Partial<DocsPage>) => {
+      setCurrent((prev) => ({ ...prev, ...patch }));
+      return savePage(patch);
+    },
+    [savePage],
+  );
 
   const handleShare = useCallback(
     async (req: ShareRequest): Promise<string | null> => {
@@ -270,24 +283,27 @@ export default function DocsEditorClient({
 
   const topActions = (
     <>
+      {current.published && (
+        <span className="badge badge-ok docs-published">{t('editor.published')}</span>
+      )}
       <button
         type="button"
-        className={`docs-top-btn${side === 'comments' ? ' on' : ''}`}
+        className="btn btn-ghost btn-sm docs-top-btn"
         onClick={() => toggle('comments')}
         aria-pressed={side === 'comments'}
       >
         {t('comments.title')}
-        {openComments > 0 && <span className="docs-top-count mono">{openComments}</span>}
+        {openComments > 0 && <span className="docs-top-count">{openComments}</span>}
       </button>
       {isOwner && (
         <button
           type="button"
-          className={`docs-top-btn${shareOpen ? ' on' : ''}`}
+          className="btn btn-secondary btn-sm docs-top-btn"
           onClick={() => setShareOpen(true)}
           aria-haspopup="dialog"
+          aria-expanded={shareOpen}
         >
           {t('share.title')}
-          {(current.published || localShares.length > 0) && <span className="docs-top-dot" aria-hidden />}
         </button>
       )}
     </>
@@ -297,7 +313,8 @@ export default function DocsEditorClient({
     <>
       <button
         type="button"
-        className="docs-page-menu-item"
+        role="menuitem"
+        className="docs-menu-item"
         onClick={() => {
           close();
           setSide('versions');
@@ -306,7 +323,8 @@ export default function DocsEditorClient({
         {t('versions.title')}
       </button>
       <a
-        className="docs-page-menu-item"
+        role="menuitem"
+        className="docs-menu-item"
         href={`/api/docs/pages/${page.id}/export?format=md`}
         download
         onClick={close}
@@ -315,7 +333,8 @@ export default function DocsEditorClient({
       </a>
       <button
         type="button"
-        className="docs-page-menu-item"
+        role="menuitem"
+        className="docs-menu-item"
         onClick={() => {
           close();
           setSide(null);
@@ -331,22 +350,22 @@ export default function DocsEditorClient({
   return (
     <div className={`docs-editor-wrap${side ? ' has-side' : ''}`}>
       {current.archived && (
-        <div className="docs-archived-banner" role="status">
+        <div className="docs-banner" role="status">
           <span>{t('editor.inTrash')}</span>
           {isOwner && (
-            <button type="button" className="btn btn-small" onClick={restorePage}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={restorePage}>
               {t('trash.restore')}
             </button>
           )}
         </div>
       )}
       {saveError === 'conflict' && (
-        <div className="docs-archived-banner" role="alert">
+        <div className="docs-banner docs-banner-bad" role="alert">
           <span>{t('editor.conflict')}</span>
-          <button type="button" className="btn btn-small" onClick={reloadAfterConflict}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={reloadAfterConflict}>
             {t('editor.conflictReload')}
           </button>
-          <button type="button" className="btn btn-small" onClick={overwriteAfterConflict}>
+          <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={overwriteAfterConflict}>
             {t('editor.conflictOverwrite')}
           </button>
         </div>
@@ -367,9 +386,19 @@ export default function DocsEditorClient({
         commentCounts={commentCounts}
         onBlockComment={handleBlockComment}
       />
-      <div className="docs-side" hidden={!side}>
-        <button type="button" className="docs-side-close" onClick={() => setSide(null)} aria-label={t('editor.closePanel')}>
-          ×
+      <aside
+        className="docs-side"
+        hidden={!side}
+        aria-label={side === 'versions' ? t('versions.title') : t('comments.title')}
+      >
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm btn-icon docs-side-close"
+          onClick={() => setSide(null)}
+          aria-label={t('editor.closePanel')}
+          title={t('editor.closePanel')}
+        >
+          <Icon name="close" size={16} />
         </button>
         {side === 'versions' && <VersionsPanel pageId={page.id} canEdit onRestored={onVersionRestored} />}
         <div hidden={side !== 'comments'}>
@@ -385,14 +414,14 @@ export default function DocsEditorClient({
             labels={commentsLabels}
           />
         </div>
-      </div>
+      </aside>
       {shareOpen && isOwner && (
         <ShareDialog
           page={current}
           shares={localShares}
           helpBase={helpBase}
           feedback={feedback}
-          onUpdate={savePage}
+          onUpdate={updateSharing}
           onShare={handleShare}
           onRoleChange={handleRoleChange}
           onUnshare={handleUnshare}

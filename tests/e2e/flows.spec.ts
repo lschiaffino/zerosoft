@@ -261,7 +261,7 @@ test('Docs: subpágina desde el árbol y papelera que arrastra a los hijos', asy
   // "Move to trash" archiva (no borra) la página y sus subpáginas.
   await page.goto(`/en/app/docs/${parent.id}`);
   await page.locator('.docs-action-btn').click();
-  await page.getByRole('button', { name: 'Move to trash' }).click();
+  await page.getByRole('menuitem', { name: 'Move to trash' }).click();
   await page.waitForURL(/\/en\/app\/docs$/);
   await expect(page.locator('.docs-tree')).not.toContainText(child.title);
   const archivedChild = await (await request.get(`/api/docs/pages/${child.id}`)).json();

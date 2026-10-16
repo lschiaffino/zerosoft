@@ -5,7 +5,9 @@ import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/serve
 import { getHelpArticle as loadHelpArticle, getHelpWorkspace as loadHelpWorkspace } from '@/lib/docs-help';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
 import { buildToc } from '@/lib/docs-toc';
+import { helpAccentStyle } from '@/lib/docs-accent';
 import DocsBlocksView from '@/components/docs/DocsBlocksView';
+import HelpHeader from '@/components/docs/HelpHeader';
 import HelpFeedback from '@/components/docs/HelpFeedback';
 import '@/styles/help.css';
 
@@ -45,74 +47,78 @@ export default async function HelpArticlePage(props: Props) {
   const blocks = sanitizeBlocks(article.content);
   const toc = buildToc(blocks);
   const base = `/${locale}/h/${ws.handle}`;
-  const style = (ws.accent ? { '--help-accent': ws.accent } : {}) as CSSProperties;
+  const style = helpAccentStyle(ws.accent) as CSSProperties;
 
   return (
     <main className="help help-article-page" style={style}>
-      <header className="help-head">
-        <a href={base} className="help-brand">
-          {ws.name}
-        </a>
-        <form action={base} method="get" className="help-search help-search-small" role="search">
-          <input type="search" name="q" placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="help-search-input" />
-        </form>
-      </header>
+      <HelpHeader locale={locale} name={ws.name} base={base} search />
 
-      <nav className="help-crumbs" aria-label={t('breadcrumb')}>
-        <a href={base}>{t('title')}</a>
-        {article.collection && (
-          <>
-            <span aria-hidden>/</span>
-            <a href={`${base}/${article.collection.slug}`}>{article.collection.title || t('untitled')}</a>
-          </>
-        )}
-      </nav>
+      <div className="help-wrap">
+        <nav className="help-crumbs" aria-label={t('breadcrumb')}>
+          <ol>
+            <li>
+              <a href={base}>{t('title')}</a>
+            </li>
+            {article.collection && (
+              <li>
+                <a href={`${base}/${article.collection.slug}`}>{article.collection.title || t('untitled')}</a>
+              </li>
+            )}
+          </ol>
+        </nav>
 
-      <div className={`help-article-grid${toc.length > 1 ? ' has-toc' : ''}`}>
-        <article className="help-article">
-          <h1 className="help-article-title">
-            {article.icon && <span className="help-icon" aria-hidden>{article.icon}</span>}
-            {article.title || t('untitled')}
-          </h1>
-          <p className="help-article-meta">
-            {t('updated', { date: format.dateTime(new Date(article.updated_at), { dateStyle: 'medium' }) })}
-          </p>
-          <DocsBlocksView blocks={blocks} className="help-body" />
-
-          <HelpFeedback pageId={article.id} />
-
-          {(article.prev || article.next) && (
-            <nav className="help-pager" aria-label={t('pager')}>
-              {article.prev ? (
-                <a href={`${base}/${article.prev.slug}`} className="help-pager-link">
-                  <span className="help-pager-dir">{t('prev')}</span>
-                  <span className="help-pager-title">{article.prev.title || t('untitled')}</span>
-                </a>
-              ) : (
-                <span />
+        <div className={`help-article-grid${toc.length > 1 ? ' has-toc' : ''}`}>
+          <article className="help-article">
+            <header className="help-article-head">
+              {article.icon && (
+                <span className="help-article-icon" aria-hidden="true">
+                  {article.icon}
+                </span>
               )}
-              {article.next && (
-                <a href={`${base}/${article.next.slug}`} className="help-pager-link help-pager-next">
-                  <span className="help-pager-dir">{t('next')}</span>
-                  <span className="help-pager-title">{article.next.title || t('untitled')}</span>
-                </a>
-              )}
-            </nav>
+              <h1 className="help-article-title">{article.title || t('untitled')}</h1>
+              <p className="help-article-meta">
+                {t('updated', { date: format.dateTime(new Date(article.updated_at), { dateStyle: 'medium' }) })}
+              </p>
+            </header>
+            <DocsBlocksView blocks={blocks} className="docs-prose help-body" />
+
+            <HelpFeedback pageId={article.id} />
+
+            {(article.prev || article.next) && (
+              <nav className="help-pager" aria-label={t('pager')}>
+                {article.prev ? (
+                  <a href={`${base}/${article.prev.slug}`} className="help-pager-link" rel="prev">
+                    <span className="help-pager-dir">{t('prev')}</span>
+                    <span className="help-pager-title">{article.prev.title || t('untitled')}</span>
+                  </a>
+                ) : (
+                  <span />
+                )}
+                {article.next && (
+                  <a href={`${base}/${article.next.slug}`} className="help-pager-link help-pager-next" rel="next">
+                    <span className="help-pager-dir">{t('next')}</span>
+                    <span className="help-pager-title">{article.next.title || t('untitled')}</span>
+                  </a>
+                )}
+              </nav>
+            )}
+          </article>
+
+          {toc.length > 1 && (
+            <aside className="help-toc" aria-labelledby="help-toc-label">
+              <p className="help-toc-label" id="help-toc-label">
+                {t('toc')}
+              </p>
+              <ul>
+                {toc.map((e) => (
+                  <li key={e.anchor} className={`help-toc-l${e.level}`}>
+                    <a href={`#${e.anchor}`}>{e.text}</a>
+                  </li>
+                ))}
+              </ul>
+            </aside>
           )}
-        </article>
-
-        {toc.length > 1 && (
-          <aside className="help-toc" aria-label={t('toc')}>
-            <p className="help-toc-label">{t('toc')}</p>
-            <ul>
-              {toc.map((e) => (
-                <li key={e.anchor} className={`help-toc-l${e.level}`}>
-                  <a href={`#${e.anchor}`}>{e.text}</a>
-                </li>
-              ))}
-            </ul>
-          </aside>
-        )}
+        </div>
       </div>
     </main>
   );

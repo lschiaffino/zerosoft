@@ -6,8 +6,10 @@
     "newPage": "Nueva página",
     "latest": "Últimas páginas",
     "emptyTitle": "Todavía no hay páginas",
-    "emptySub": "Creá tu primera página y empezá a escribir.",
-    "edited": "Editada {date}"
+    "emptySub": "Escribí una página desde cero o empezá con una plantilla. Las páginas se anidan como carpetas.",
+    "edited": "Editada {date}",
+    "colPage": "Página",
+    "colEdited": "Editada"
   },
   "sidebar": {
     "overview": "Resumen",
@@ -23,7 +25,8 @@
     "moveUp": "Subir",
     "moveDown": "Bajar",
     "sharedWithMe": "Compartidas conmigo",
-    "sharedBy": "Compartida por {name}"
+    "sharedBy": "Compartida por {name}",
+    "count": "{count, plural, one {# página} other {# páginas}}"
   },
   "editor": {
     "untitled": "Página sin título",
@@ -79,7 +82,7 @@
       "moveUp": "Subir",
       "moveDown": "Bajar",
       "insertBelow": "Insertar debajo",
-      "dragHandle": "Opciones del bloque — arrastrá para reordenar"
+      "dragHandle": "Opciones del bloque. Arrastrá para reordenar."
     },
     "commands": {
       "p": "Texto",
@@ -97,7 +100,9 @@
     },
     "breadcrumb": "Ruta",
     "closePanel": "Cerrar panel",
-    "inTrash": "Esta página está en la papelera."
+    "inTrash": "Esta página está en la papelera.",
+    "removeIcon": "Quitar ícono",
+    "published": "Publicada"
   },
   "database": {
     "columnName": "Columna {n}",
@@ -110,7 +115,7 @@
     "view": "Vista",
     "viewTable": "Tabla",
     "viewGallery": "Galería",
-    "emptyGallery": "Todavía no hay filas — agregalas en la vista tabla."
+    "emptyGallery": "Todavía no hay filas. Agregalas en la vista tabla."
   },
   "mentions": {
     "noPages": "Sin páginas",
@@ -171,11 +176,19 @@
     "openHelpCenter": "Ver centro de ayuda",
     "sharedEditBanner": "Compartida por {name}. Podés editarla.",
     "readOnlyBanner": "Compartida por {name}. Solo lectura.",
-    "readOnly": "Solo lectura."
+    "readOnly": "Solo lectura.",
+    "people": "Personas",
+    "publishSection": "Publicar",
+    "publicLink": "Link público",
+    "openPublic": "Abrir",
+    "aiHint": "IA del Chat",
+    "suggestions": "Sugerencias",
+    "close": "Cerrar"
   },
   "templates": {
     "title": "Empezar desde una plantilla",
-    "untitled": "Sin título"
+    "untitled": "Sin título",
+    "use": "Empezar desde una plantilla"
   },
   "trash": {
     "title": "Papelera",
@@ -183,7 +196,8 @@
     "deleteForever": "Eliminar para siempre",
     "confirmDelete": "¿Eliminar esta página para siempre? No se puede deshacer.",
     "help": "Las páginas en la papelera conservan sus subpáginas. Restauralas o borralas para siempre.",
-    "empty": "La papelera está vacía."
+    "empty": "La papelera está vacía.",
+    "count": "{count, plural, one {# página} other {# páginas}}"
   },
   "comments": {
     "title": "Comentarios",
@@ -197,7 +211,8 @@
     "commentBlock": "Comentar este bloque",
     "blockThread": "Hilo del bloque",
     "showAll": "Ver todos",
-    "blockTag": "Bloque"
+    "blockTag": "Bloque",
+    "error": "No se pudo publicar el comentario. Probá de nuevo."
   },
   "help": {
     "notFound": "Centro de ayuda no encontrado",
@@ -220,7 +235,12 @@
     "yes": "Sí",
     "no": "No",
     "thanks": "Gracias por contarnos.",
-    "feedbackError": "No pudimos registrar tu respuesta. Probá de nuevo más tarde."
+    "feedbackError": "No pudimos registrar tu respuesta. Probá de nuevo más tarde.",
+    "articleCount": "{count, plural, one {# artículo} other {# artículos}}",
+    "noResultsTitle": "Ningún artículo coincide con \"{q}\"",
+    "noResultsBody": "Probá con otras palabras o mirá todos los artículos.",
+    "allArticles": "Ver todos los artículos",
+    "emptyBody": "Los artículos aparecen acá cuando el equipo los publica desde Docs."
   },
   "versions": {
     "title": "Historial de versiones",
@@ -238,12 +258,20 @@
       "manual": "Guardada a mano",
       "restore": "Antes de restaurar"
     },
-    "note": "Se guardan las últimas 50 versiones."
+    "note": "Se guardan las últimas 50 versiones.",
+    "loadError": "No se pudo cargar el historial.",
+    "retry": "Reintentar"
   },
   "export": {
     "markdown": "Exportar como Markdown",
     "pdf": "Exportar como PDF",
     "markdownShort": "Markdown",
     "pdfShort": "PDF"
+  },
+  "state": {
+    "errorTitle": "Docs no cargó",
+    "errorBody": "Algo falló al cargar tus páginas. Lo que escribiste está guardado.",
+    "retry": "Reintentar",
+    "loading": "Cargando páginas"
   }
 }

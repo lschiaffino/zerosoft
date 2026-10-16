@@ -295,6 +295,13 @@ Loaded site-wide after `globals.css`. Product screens use these classes instead 
 ### App home (`/app`)
 The network map is the workspace launcher: `NetworkMap` with `hrefs` pointing each line and station into its app (no draw-in animation inside the app), next to the eleven lines as a list (glyph, name, one line). Link's numbers follow, since `/app` is also Link's overview.
 
+### Docs (`styles/docs.css`, `styles/help.css`)
+- **Page tree as a branch of the line:** a 256px column next to the shell sidebar. Each level is a 4px stroke in `--accent` and every page is a 12px station (2.6px ink ring); the open page is the filled station on an enamel row with `aria-current`. A user-chosen emoji sits after the station, never in its place; pages have no default icon. New page and Trash live in the shell sidebar, so the tree does not repeat them. Under 1024px it folds into a "Pages" toggle.
+- **Editor:** a sticky 48px bar (breadcrumb, save state, a "Published" badge, Comments, Share, the "…" menu). Reading column of 42rem: title in signage 44px, headings in signage (32/26/20px) with more space above than below, body Archivo 17px/1.65, square bullets, square ink checkboxes, 2px ink quote rule, code on enamel in JetBrains Mono. Selection is the line color at 26%.
+- **Floating menus** (page menu, block menu, `/` commands, mentions, format bar, icon picker): one piece, 1px ink border, 4px padding, 32px items, enamel hover, no shadow. Block-type icons are drawn SVGs, not glyphs.
+- **Share:** `dialog.ui-modal` with two groups, People (invite combobox with arrow keys, role select, access list) and Publish (help-center switch, public link with copy, Chat AI under Advanced).
+- **Help center** (`/h/<handle>`): the workspace's brand. Its accent arrives split by `lib/docs-accent.ts` into stroke, AA text ink and text-on-fill. Header is the workspace name as a station on its line; the hero is an enamel band with the signage headline and a 48px search; collections are stations on a vertical 8px line in the workspace color, with their articles in ruled two-column lists. Articles read at 44rem with a sticky contents rail.
+
 ## Do's and Don'ts
 
 ### Do:

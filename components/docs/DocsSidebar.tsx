@@ -1,23 +1,23 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
+import Icon from '@/components/app/icons';
 import { buildPageTree, type DocsPageSummary } from '@/lib/docs-types';
+import DocsGlyph from './DocsGlyphs';
 
 interface DocsSidebarProps {
   pages: DocsPageSummary[];
   currentId?: string;
-  /** Cantidad de páginas en la papelera (link al pie). */
-  trashCount?: number;
   /** En mobile el árbol arranca abierto (landing) o plegado (editor). */
   mobileOpenByDefault?: boolean;
   createAction: (parentId?: string | null) => void;
   moveAction: (pageId: string, parentId: string | null) => void | Promise<void>;
   /** Reordenar entre hermanas (soltar arriba/abajo de una fila). */
   reorderAction?: (pageId: string, targetId: string, placement: 'before' | 'after') => void | Promise<void>;
-  /** "Move up / Move down" (menú de la fila y Alt+↑/↓). */
+  /** "Subir / Bajar" (menú de la fila y Alt+↑/↓). */
   stepAction?: (pageId: string, dir: -1 | 1) => void | Promise<void>;
   labels: {
     newPage: string;
@@ -42,10 +42,16 @@ function zoneFor(e: React.DragEvent<HTMLElement>): DropZone {
 
 const COLLAPSED_KEY = 'docs.sidebar.collapsed';
 
+/**
+ * Árbol de páginas de Docs: un ramal de la línea del producto. Cada página es
+ * una estación sobre un trazo en el color de Docs; la página abierta es la
+ * estación rellena (igual que el ítem activo del sidebar de la app). El ícono
+ * que eligió la persona va al lado del título, nunca en lugar de la estación.
+ * Nueva página y Papelera ya están en el sidebar del shell: acá no se repiten.
+ */
 export default function DocsSidebar({
   pages,
   currentId,
-  trashCount = 0,
   mobileOpenByDefault = false,
   createAction,
   moveAction,
@@ -64,6 +70,7 @@ export default function DocsSidebar({
   const [isPending, startTransition] = useTransition();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [mobileOpen, setMobileOpen] = useState(mobileOpenByDefault);
+  const menuRef = useRef<HTMLSpanElement>(null);
 
   // Ramas plegadas: preferencia local del navegador.
   useEffect(() => {
@@ -74,6 +81,17 @@ export default function DocsSidebar({
       /* storage bloqueado */
     }
   }, []);
+
+  // Menú de fila: el foco entra al primer ítem; clic afuera lo cierra.
+  useEffect(() => {
+    if (!menuId) return;
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    const onDown = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuId(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [menuId]);
 
   // La página abierta siempre visible: despliega sus ancestros.
   const ancestorsOfCurrent = useMemo(() => {
@@ -137,16 +155,33 @@ export default function DocsSidebar({
     [stepAction, router],
   );
 
+  const closeMenu = (id: string) => {
+    setMenuId(null);
+    document.getElementById(`docs-more-${id}`)?.focus();
+  };
+
+  const menuKeys = (e: React.KeyboardEvent<HTMLElement>, id: string) => {
+    const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[next]?.focus();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeMenu(id);
+    } else if (e.key === 'Tab') setMenuId(null);
+  };
+
   const renderNode = (node: TreeNode, depth: number) => {
     const active = node.id === currentId;
     const hasChildren = !!node.children?.length;
     const open = hasChildren && (!collapsed.has(node.id) || ancestorsOfCurrent.has(node.id));
     return (
-      <li key={node.id}>
+      <li key={node.id} style={{ '--d': depth } as CSSProperties}>
         <div
           className={`docs-tree-row${active ? ' active' : ''}${dropId === node.id ? ` drop drop-${dropZone}` : ''}${dragId === node.id ? ' dragging' : ''}`}
           data-testid="docs-tree-row"
-          style={{ paddingLeft: `${4 + depth * 14}px` }}
           draggable
           onDragStart={(e) => {
             e.dataTransfer.setData('text/plain', node.id);
@@ -166,19 +201,20 @@ export default function DocsSidebar({
           onDragLeave={() => setDropId((d) => (d === node.id ? null : d))}
           onDrop={(e) => handleDrop(e, node.id, reorderAction ? zoneFor(e) : 'inside')}
         >
-          <button
-            type="button"
-            className={`docs-tree-chevron${open ? ' open' : ''}`}
-            onClick={() => hasChildren && toggle(node.id)}
-            aria-label={open ? t('sidebar.collapse') : t('sidebar.expand')}
-            aria-expanded={hasChildren ? open : undefined}
-            tabIndex={hasChildren ? 0 : -1}
-            style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
-          >
-            <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden>
-              <path d="M2 1l4 3-4 3" fill="none" stroke="currentColor" strokeWidth="1.4" />
-            </svg>
-          </button>
+          {hasChildren ? (
+            <button
+              type="button"
+              className={`docs-tree-chevron${open ? ' open' : ''}`}
+              onClick={() => toggle(node.id)}
+              aria-label={`${open ? t('sidebar.collapse') : t('sidebar.expand')}: ${node.title || t('untitled')}`}
+              aria-expanded={open}
+            >
+              <Icon name="chevronRight" size={12} />
+            </button>
+          ) : (
+            <span className="docs-tree-chevron" aria-hidden="true" />
+          )}
+          <span className="docs-tree-station" aria-hidden="true" />
           <Link
             href={`/app/docs/${node.id}`}
             className="docs-tree-link"
@@ -192,35 +228,49 @@ export default function DocsSidebar({
             }}
             aria-keyshortcuts={stepAction ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
           >
-            <span className="docs-tree-icon">{node.icon ?? '📄'}</span>
+            {node.icon && (
+              <span className="docs-tree-icon" aria-hidden="true">
+                {node.icon}
+              </span>
+            )}
             <span className="docs-tree-title">{node.title || t('untitled')}</span>
           </Link>
           {stepAction && (
-            <span className="docs-tree-more-wrap">
+            <span className="docs-tree-more-wrap" ref={menuId === node.id ? menuRef : undefined}>
               <button
                 type="button"
-                className="docs-tree-more"
+                id={`docs-more-${node.id}`}
+                className="docs-tree-btn docs-tree-more"
                 onClick={() => setMenuId((m) => (m === node.id ? null : node.id))}
                 aria-haspopup="menu"
                 aria-expanded={menuId === node.id}
                 aria-label={t('sidebar.pageActions')}
                 title={t('sidebar.pageActions')}
               >
-                ⋯
+                <DocsGlyph name="more" size={14} />
               </button>
               {menuId === node.id && (
-                <span
-                  className="docs-tree-menu"
-                  role="menu"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') setMenuId(null);
-                  }}
-                >
-                  <button type="button" role="menuitem" onClick={() => step(node.id, -1)} disabled={isPending}>
-                    ↑ {t('sidebar.moveUp')}
+                <span className="docs-menu docs-tree-menu" role="menu" onKeyDown={(e) => menuKeys(e, node.id)}>
+                  <button type="button" role="menuitem" className="docs-menu-item" onClick={() => step(node.id, -1)} disabled={isPending}>
+                    <DocsGlyph name="up" size={14} />
+                    {t('sidebar.moveUp')}
                   </button>
-                  <button type="button" role="menuitem" onClick={() => step(node.id, 1)} disabled={isPending}>
-                    ↓ {t('sidebar.moveDown')}
+                  <button type="button" role="menuitem" className="docs-menu-item" onClick={() => step(node.id, 1)} disabled={isPending}>
+                    <DocsGlyph name="down" size={14} />
+                    {t('sidebar.moveDown')}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="docs-menu-item"
+                    onClick={() => {
+                      setMenuId(null);
+                      create(node.id);
+                    }}
+                    disabled={isPending}
+                  >
+                    <Icon name="plus" size={14} />
+                    {labels.newSubpage}
                   </button>
                 </span>
               )}
@@ -228,13 +278,13 @@ export default function DocsSidebar({
           )}
           <button
             type="button"
-            className="docs-tree-add"
+            className="docs-tree-btn docs-tree-add"
             onClick={() => create(node.id)}
             disabled={isPending}
             title={labels.newSubpage}
-            aria-label={labels.newSubpage}
+            aria-label={`${labels.newSubpage}: ${node.title || t('untitled')}`}
           >
-            +
+            <Icon name="plus" size={14} />
           </button>
         </div>
         {open && <ul>{node.children!.map((c) => renderNode(c, depth + 1))}</ul>}
@@ -242,39 +292,46 @@ export default function DocsSidebar({
     );
   };
 
+  const count = t('sidebar.count', { count: pages.length });
+
   return (
-    <aside className={`docs-sidebar${mobileOpen ? ' mobile-open' : ''}`}>
+    <div className={`docs-sidebar${mobileOpen ? ' mobile-open' : ''}`}>
       <div className="docs-sidebar-head">
         <button
           type="button"
           className="docs-sidebar-toggle"
           onClick={() => setMobileOpen((v) => !v)}
           aria-expanded={mobileOpen}
+          aria-controls="docs-sidebar-body"
         >
           <span className="docs-sidebar-title">{t('sidebar.pages')}</span>
-          <span className="docs-sidebar-count mono">{pages.length}</span>
-          <svg className="docs-sidebar-caret" width="8" height="8" viewBox="0 0 8 8" aria-hidden>
-            <path d="M1 2l3 4 3-4" fill="none" stroke="currentColor" strokeWidth="1.4" />
-          </svg>
+          <span className="docs-sidebar-count">{count}</span>
+          <Icon name="chevronDown" size={14} />
         </button>
-        <span className="docs-sidebar-title docs-sidebar-title-desk">{t('sidebar.pages')}</span>
+        <p className="docs-sidebar-title docs-sidebar-title-desk">
+          {t('sidebar.pages')}
+          <span className="docs-sidebar-count">{count}</span>
+        </p>
         <button
           type="button"
-          className="docs-sidebar-new"
+          className="docs-tree-btn docs-sidebar-new"
           onClick={() => create(null)}
           title={`${labels.newPage} (C)`}
           aria-label={labels.newPage}
+          aria-keyshortcuts="C"
           disabled={isPending}
+          aria-busy={isPending || undefined}
         >
-          +
+          <Icon name="plus" size={16} />
         </button>
       </div>
 
-      <div className="docs-sidebar-body">
+      <div className="docs-sidebar-body" id="docs-sidebar-body">
         {tree.length === 0 ? (
           <div className="docs-sidebar-empty">
             <p>{labels.empty}</p>
-            <button type="button" className="btn btn-small" onClick={() => create(null)} disabled={isPending}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => create(null)} disabled={isPending}>
+              <Icon name="plus" size={14} />
               {labels.newPage}
             </button>
           </div>
@@ -297,37 +354,29 @@ export default function DocsSidebar({
         {shared.length > 0 && (
           <nav className="docs-shared" aria-label={t('sidebar.sharedWithMe')}>
             <p className="docs-shared-label">{t('sidebar.sharedWithMe')}</p>
-            <ul className="docs-tree">
+            <ul className="docs-shared-list">
               {shared.map((p) => (
                 <li key={p.id}>
                   <Link
                     href={`/app/docs/${p.id}`}
                     className={`docs-shared-row${p.id === currentId ? ' active' : ''}`}
+                    aria-current={p.id === currentId ? 'page' : undefined}
                     title={t('sidebar.sharedBy', { name: p.owner_name || p.owner_email })}
                   >
-                    <span className="docs-tree-icon" aria-hidden>{p.icon ?? '📄'}</span>
+                    {p.icon && (
+                      <span className="docs-tree-icon" aria-hidden="true">
+                        {p.icon}
+                      </span>
+                    )}
                     <span className="docs-shared-title">{p.title || t('untitled')}</span>
-                    <span className="docs-shared-role mono">{t(`share.roles.${p.role}`)}</span>
+                    <span className="docs-shared-role">{t(`share.roles.${p.role}`)}</span>
                   </Link>
                 </li>
               ))}
             </ul>
           </nav>
         )}
-
-        <div className="docs-sidebar-foot">
-          <button type="button" className="docs-sidebar-foot-link" onClick={() => create(null)} disabled={isPending}>
-            <span aria-hidden>+</span> {labels.newPage}
-            <span className="kbd-hint">C</span>
-          </button>
-          {trashCount > 0 && (
-            <Link href="/app/docs#trash" className="docs-sidebar-foot-link">
-              <span aria-hidden>⌫</span> {t('trash.title')}
-              <span className="docs-sidebar-count mono">{trashCount}</span>
-            </Link>
-          )}
-        </div>
       </div>
-    </aside>
+    </div>
   );
 }
