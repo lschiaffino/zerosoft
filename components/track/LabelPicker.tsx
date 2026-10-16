@@ -24,14 +24,28 @@ export function fetchWorkspaceLabels(refresh = false): Promise<WorkspaceLabel[]>
   return cache;
 }
 
-export function useWorkspaceLabels(): [WorkspaceLabel[], () => void] {
+/**
+ * Descarta la caché: la próxima lectura vuelve a pedir los labels. Se llama
+ * al crear, renombrar o borrar labels en Settings y al cambiar de workspace.
+ */
+export function invalidateWorkspaceLabels(): void {
+  cache = null;
+}
+
+/**
+ * Labels del workspace. Con `fresh` se vuelven a pedir al montar (la vista del
+ * proyecto, para no ofrecer labels borrados o de otro workspace).
+ */
+export function useWorkspaceLabels(fresh = false): [WorkspaceLabel[], () => void] {
   const [labels, setLabels] = useState<WorkspaceLabel[]>([]);
   useEffect(() => {
     let alive = true;
-    void fetchWorkspaceLabels().then((l) => alive && setLabels(l));
+    void fetchWorkspaceLabels(fresh).then((l) => alive && setLabels(l));
     return () => {
       alive = false;
     };
+    // Solo al montar: `fresh` no cambia durante la vida del componente.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const refresh = () => void fetchWorkspaceLabels(true).then(setLabels);
   return [labels, refresh];

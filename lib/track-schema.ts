@@ -198,7 +198,8 @@ export const commentCreateSchema = z.object({
 // ---------- Relations ----------
 
 export const relationCreateSchema = z.object({
-  relatedIssueId: id,
+  // UUID o identifier (SLUG-N); los slugs llegan a 64 caracteres.
+  relatedIssueId: z.string().trim().min(1).max(80),
   type: relationType.optional(),
 });
 

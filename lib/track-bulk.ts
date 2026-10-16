@@ -156,6 +156,11 @@ export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): 
     if (p.addLabelIds?.length || p.removeLabelIds?.length) {
       const ws = projectWorkspaceId(project);
       const add = ws ? await labelsByIds(ws, p.addLabelIds ?? []) : [];
+      // Labels borrados o de otro workspace: no se cuenta como actualizado.
+      if (p.addLabelIds?.length && add.length === 0) {
+        result.skipped.push({ id, reason: 'invalid_label' });
+        continue;
+      }
       const remove = new Set(p.removeLabelIds ?? []);
       const current = parseIssueLabels(issue.labels).filter((l) => !remove.has(l.id));
       const kept = current.length;
@@ -223,6 +228,17 @@ export async function findWorkspaceIssueByIdentifier(
 }
 
 /**
+ * Saca el issue de triage de forma atómica. Devuelve false si otro request ya
+ * lo resolvió (la copia que leyó el llamador puede estar vieja).
+ */
+async function claimTriage(issueId: string): Promise<boolean> {
+  const res = await getDb()
+    .prepare("UPDATE track_issues SET triage = 0, updated_at = datetime('now') WHERE id = ? AND triage = 1")
+    .run(issueId);
+  return res.changes > 0;
+}
+
+/**
  * Resuelve un issue en triage. El llamador ya validó que el issue es del
  * workspace del usuario. Para duplicate, el original tiene que ser del mismo
  * workspace y no estar en triage.
@@ -245,7 +261,7 @@ export async function resolveTriage(
     } else {
       statusId = (await firstStatusOf(issue.project_id, 'todo')) ?? issue.status_id;
     }
-    await db.prepare("UPDATE track_issues SET triage = 0, updated_at = datetime('now') WHERE id = ?").run(issue.id);
+    if (!(await claimTriage(issue.id))) return { ok: false, reason: 'not_in_triage' };
     if (statusId && statusId !== issue.status_id) await updateIssue(issue.id, { statusId }, actorId);
     return { ok: true, issue: (await getIssue(issue.id)) as TrackIssueWithStatus };
   }
@@ -267,13 +283,13 @@ export async function resolveTriage(
     if (!original || original.triage || !a || !b || projectWorkspaceId(a) !== projectWorkspaceId(b)) {
       return { ok: false, reason: 'invalid_duplicate' };
     }
-    await db.prepare("UPDATE track_issues SET triage = 0, updated_at = datetime('now') WHERE id = ?").run(issue.id);
+    if (!(await claimTriage(issue.id))) return { ok: false, reason: 'not_in_triage' };
     await createIssueRelation(issue.id, actorId, original.id, 'duplicates').catch(() => undefined);
     await updateIssue(issue.id, { statusId: cancelled }, actorId);
     return { ok: true, issue: (await getIssue(issue.id)) as TrackIssueWithStatus };
   }
 
-  await db.prepare("UPDATE track_issues SET triage = 0, updated_at = datetime('now') WHERE id = ?").run(issue.id);
+  if (!(await claimTriage(issue.id))) return { ok: false, reason: 'not_in_triage' };
   await updateIssue(issue.id, { statusId: cancelled }, actorId);
   return { ok: true, issue: (await getIssue(issue.id)) as TrackIssueWithStatus };
 }

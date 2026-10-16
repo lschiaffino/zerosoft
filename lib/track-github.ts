@@ -17,6 +17,8 @@ import type { TrackStatusRow } from './db';
 import { open as openSecret, seal } from './secret-box';
 import type { GithubConfigPayload } from './track-schema';
 
+export { branchNameFor } from './track-branch';
+
 // ---------- Tipos ----------
 
 export type PrOpenAction = 'in_progress' | 'none';
@@ -137,20 +139,6 @@ export function parseClosingIdentifiers(text: string, prefixes: string[]): strin
     for (const id of parseIssueIdentifiers(m[1], prefixes)) if (!out.includes(id)) out.push(id);
   }
   return out;
-}
-
-/** Nombre de branch sugerido para un issue: zer-123-arreglar-el-login. */
-export function branchNameFor(identifier: string, title: string): string {
-  const slug = title
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 50)
-    .replace(/-$/, '');
-  const id = identifier.toLowerCase();
-  return slug ? `${id}-${slug}` : id;
 }
 
 export type GithubEventKind = 'pr_opened' | 'pr_merged' | 'pr_closed' | 'pr_updated' | 'push';

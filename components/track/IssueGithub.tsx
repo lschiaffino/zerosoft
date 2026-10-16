@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { branchNameFor } from '@/lib/track-branch';
 import type { TrackIssueLink } from '@/lib/track-github';
 
-interface GithubData {
+export interface GithubData {
   branchName: string;
   rows: TrackIssueLink[];
 }
 
-function useIssueGithub(issueId: string): GithubData | null {
+/** PRs y commits vinculados: se pide una sola vez por issue y se comparte. */
+export function useIssueGithub(issueId: string): GithubData | null {
   const [data, setData] = useState<GithubData | null>(null);
   useEffect(() => {
     let alive = true;
@@ -24,21 +26,23 @@ function useIssueGithub(issueId: string): GithubData | null {
   return data;
 }
 
-/** Botón "Copiar nombre de branch" (zer-123-titulo-del-issue). */
-export function CopyBranchButton({ issueId }: { issueId: string }) {
+/**
+ * Botón "Copiar nombre de branch" (zer-123-titulo-del-issue). Se calcula en el
+ * cliente para que siga al título si se renombra el issue.
+ */
+export function CopyBranchButton({ identifier, title }: { identifier: string; title: string }) {
   const t = useTranslations('track');
-  const data = useIssueGithub(issueId);
   const [copied, setCopied] = useState(false);
-  if (!data) return null;
+  const branchName = branchNameFor(identifier, title);
   return (
     <button
       type="button"
       className="btn btn-outline"
-      title={data.branchName}
+      title={branchName}
       data-testid="track-copy-branch"
-      data-branch={data.branchName}
+      data-branch={branchName}
       onClick={() => {
-        void navigator.clipboard?.writeText(data.branchName).catch(() => undefined);
+        void navigator.clipboard?.writeText(branchName).catch(() => undefined);
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1500);
       }}
@@ -49,9 +53,8 @@ export function CopyBranchButton({ issueId }: { issueId: string }) {
 }
 
 /** PRs y commits de GitHub vinculados al issue. */
-export function IssueGithubPanel({ issueId }: { issueId: string }) {
+export function IssueGithubPanel({ data }: { data: GithubData | null }) {
   const t = useTranslations('track');
-  const data = useIssueGithub(issueId);
   if (!data) return null;
   return (
     <section className="panel" data-testid="track-issue-github">

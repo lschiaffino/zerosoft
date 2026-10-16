@@ -14,6 +14,8 @@ import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-htt
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function accessibleIssue(id: string, teamId: string | null, ownerId: string) {
   const issue = await getIssue(id);
   if (!issue) return null;
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   let relatedIssueId = parsed.data.relatedIssueId;
   // Permitir pasar un identifier (e.g. PROJ-12) además de UUID, de cualquier
   // proyecto del workspace.
-  if (!relatedIssueId.includes('-') || relatedIssueId.length < 36) {
+  if (!UUID_RE.test(relatedIssueId)) {
     const byIdentifier = await findWorkspaceIssueByIdentifier(issue.project_id, relatedIssueId);
     if (byIdentifier) relatedIssueId = byIdentifier.id;
   }
