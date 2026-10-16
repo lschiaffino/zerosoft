@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { getDb, type LinkRow } from './db';
 import { isValidSlug, SLUG_REGEX } from './reserved';
 import { isValidUrl, normalizeUrl, shortDomain, shortUrl } from './utils';
-import { appHosts, isAppHost, normalizeHost } from './hosts';
+import { appHosts, isAppHost, isOwnDeploymentHost, normalizeHost } from './hosts';
 import { getVerifiedDomainByHost } from './link-domains';
 import { emitEvent } from './events';
 import type { BulkResultItem } from './link-bulk-csv';
@@ -259,6 +259,9 @@ function gateSecret(): string {
 
 export const gateCookieName = (slug: string): string => `zs_gate_${slug}`;
 
+/** Referrer de la visita antes de pasar por la puerta (el Referer de vuelta es la puerta misma). */
+export const gateRefCookieName = (slug: string): string => `zs_gref_${slug}`;
+
 export function gateToken(slug: string, passwordHash: string): string {
   return createHmac('sha256', gateSecret()).update(`${slug}:${passwordHash}`).digest('hex');
 }
@@ -316,13 +319,27 @@ export async function isShortLinkUrl(url: string): Promise<boolean> {
   const host = normalizeHost(u.host).replace(/^www\./, '');
   const bare = host.replace(/:\d+$/, '');
   const ours = new Set([...appHosts(), normalizeHost(shortDomain())].map((h) => h.replace(/^www\./, '')));
-  const m = /^\/(?:([rs]|(?:en|es|pt)\/gate)\/)?([^/]+)\/?$/.exec(u.pathname);
-  if (ours.has(host) || ours.has(bare)) {
+  // Next decodifica los params (/r/%61bc resuelve el slug 'abc'): se valida decodificado.
+  const path = u.pathname
+    .split('/')
+    .map((seg) => {
+      try {
+        return decodeURIComponent(seg);
+      } catch {
+        return seg;
+      }
+    })
+    .join('/');
+  const m = /^\/(?:([rs]|(?:en|es|pt)\/gate)\/)?([^/]+)\/?$/.exec(path);
+  // Los *.vercel.app de deployments anteriores del proyecto sirven los mismos links (misma DB).
+  if (ours.has(host) || ours.has(bare) || isOwnDeploymentHost(bare)) {
     if (!m) return false;
     // /r/<slug>, /s/<slug> y la puerta siempre son links; /<slug> solo si no es una ruta del sitio.
     return m[1] ? SLUG_REGEX.test(m[2]) : isValidSlug(m[2]);
   }
-  return Boolean(m && (await getVerifiedDomainByHost(bare)));
+  // La raíz de un dominio propio redirige a su root_url (/r/__root): también arma loops.
+  if (!m && path !== '/') return false;
+  return Boolean(await getVerifiedDomainByHost(bare));
 }
 
 /** Tope de links nuevos por workspace en 24 h (LINK_DAILY_QUOTA, 0 = sin tope). */

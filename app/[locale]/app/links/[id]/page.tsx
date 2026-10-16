@@ -308,10 +308,10 @@ export default async function LinkDetailPage(props: DetailPageProps) {
                     <tr key={c.id}>
                       <td className="cell-date mono">{formatDateTime(c.ts, locale)}</td>
                       <td title={c.country ?? undefined}>{c.country ? labels.country(c.country) : '—'}</td>
-                      <td className="cell-url mono">{c.referrer ?? '—'}</td>
+                      <td className="cell-url mono">{c.referrer ? labels.plain(c.referrer) : '—'}</td>
                       <td>{c.device ? labels.device(c.device) : '—'}</td>
-                      <td>{c.browser ?? '—'}</td>
-                      <td>{c.os ?? '—'}</td>
+                      <td>{c.browser ? labels.plain(c.browser) : '—'}</td>
+                      <td>{c.os ? labels.plain(c.os) : '—'}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -61,7 +61,12 @@ export async function POST(req: NextRequest) {
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: 'invalid_url' }, { status: 400 });
+  if (!parsed.success) {
+    // Solo un problema en `url` es 'URL inválida'; un título o tag largo es otro campo.
+    const path = parsed.error.issues[0]?.path ?? [];
+    const code = path.length === 0 || path[0] === 'url' ? 'invalid_url' : 'bad_request';
+    return NextResponse.json({ error: code }, { status: 400 });
+  }
 
   const result = await createLink(user.id, parsed.data);
   if (!result.ok) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteDomain, setDomainRootUrl } from '@/lib/link-domains';
+import { isShortLinkUrl } from '@/lib/links';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     .object({ rootUrl: z.string().trim().url().max(2000).regex(/^https?:\/\//).nullable() })
     .safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'invalid_url' }, { status: 400 });
+  // La raíz no puede apuntar a un link corto ni a la raíz de un dominio propio (loop).
+  if (parsed.data.rootUrl && (await isShortLinkUrl(parsed.data.rootUrl))) {
+    return NextResponse.json({ error: 'self_link' }, { status: 400 });
+  }
   if (!(await setDomainRootUrl(user.id, id, parsed.data.rootUrl))) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }

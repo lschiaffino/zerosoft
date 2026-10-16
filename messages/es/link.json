@@ -29,9 +29,9 @@
     "title": "Resumen",
     "activeLinks": "Links activos",
     "totalClicks": "Clicks totales",
-    "clicksToday": "Clicks hoy",
+    "clicksToday": "Clicks hoy (UTC)",
     "topLink": "Top link",
-    "chartLabel": "Clicks — últimos 30 días",
+    "chartLabel": "Clicks — últimos 30 días (UTC)",
     "topLinks": "Top links",
     "noClicksYet": "Todavía no hay clicks. Compartí tus links y volvé.",
     "recent": "Recientes",
@@ -112,15 +112,16 @@
     "ogImageLabel": "URL de imagen OG",
     "ogImagePlaceholder": "https://ejemplo.com/imagen.png",
     "create": "Crear link",
-    "creating": "Creando…"
+    "creating": "Creando…",
+    "slugReserved": "✕ palabra reservada (usala en un dominio propio)"
   },
   "detail": {
     "back": "← Todos los links",
     "total": "Clicks totales",
-    "today": "Hoy",
+    "today": "Hoy (UTC)",
     "last7": "Últimos 7 días",
     "topRef": "Top referrer",
-    "chartLabel": "Clicks en el tiempo",
+    "chartLabel": "Clicks en el tiempo (UTC)",
     "range7": "7d",
     "range30": "30d",
     "rangeAll": "todo",
@@ -279,7 +280,9 @@
     "ab_zero_weight": "Al menos una variante del A/B tiene que tener peso mayor a cero.",
     "rate_limited": "Demasiados pedidos. Esperá un minuto y probá de nuevo.",
     "self_link": "Un link corto no puede apuntar a otro link corto nuestro.",
-    "quota_exceeded": "Llegaste al límite de links nuevos de hoy. Probá de nuevo mañana."
+    "quota_exceeded": "Llegaste al límite de links nuevos de hoy. Probá de nuevo mañana.",
+    "forbidden": "Solo los admins del workspace pueden hacer esto.",
+    "already_imported": "Ya estaba importado."
   },
   "webhooks": {
     "desc": "Enviamos un JSON firmado (POST) a tu URL cuando pasan estos eventos. Verificá el header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") con tu secret. Las entregas fallidas se reintentan con backoff.",
@@ -462,7 +465,10 @@
     "saved": "Guardado",
     "clear": "Quitar todo",
     "error": "No se pudo guardar: {code}",
-    "countriesInvalid": "Usá códigos de país de dos letras (AR, US, BR)."
+    "countriesInvalid": "Usá códigos de país de dos letras (AR, US, BR).",
+    "incompleteRow": "Cada regla y variante A/B necesita una URL de destino. Completala o quitá la fila.",
+    "clearConfirm": "¿Quitar todas las reglas, variantes A/B y deep links de este link?",
+    "ipadNote": "Los iPad con Safari se identifican como Mac, así que reciben el destino de desktop."
   },
   "qr": {
     "design": "Diseño",
@@ -492,5 +498,8 @@
     "rule": "Regla {n}",
     "ab": "Variante {v}",
     "app": "App {os}"
+  },
+  "preview": {
+    "continue": "Continuar →"
   }
 }

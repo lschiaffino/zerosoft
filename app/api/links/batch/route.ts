@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { bulkLinkAction, linkBulkActionSchema } from '@/lib/links';
 
 export const runtime = 'nodejs';
@@ -17,6 +17,10 @@ export async function POST(req: NextRequest) {
   const body: unknown = await req.json().catch(() => null);
   const parsed = linkBulkActionSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'bad_request' }, { status: 400 });
+  // Borrar en masa (con todo el historial de clicks) es solo para admins, como en CRM.
+  if (parsed.data.action === 'delete' && !isWorkspaceAdmin(user)) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
 
   const affected = await bulkLinkAction(user.id, parsed.data);
   return NextResponse.json({ ok: true, affected });

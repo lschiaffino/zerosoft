@@ -53,8 +53,20 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
     };
   }
 
+  /** Una regla con países o dispositivos (o una variante) sin URL no se descarta en silencio. */
+  function hasIncompleteRows() {
+    return (
+      rules.some((r) => !r.url.trim() && (r.countries.trim() || r.devices.length > 0)) ||
+      ab.some((v) => !v.url.trim())
+    );
+  }
+
   async function save(targeting: ReturnType<typeof payload> | null) {
     setError(null);
+    if (targeting && hasIncompleteRows()) {
+      setError(t('incompleteRow'));
+      return;
+    }
     if (targeting?.rules.some((r) => r.countries.some((c) => !/^[A-Z]{2}$/.test(c)))) {
       setError(t('countriesInvalid'));
       return;
@@ -64,7 +76,12 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ targeting }),
-    });
+    }).catch(() => null);
+    if (!res) {
+      setError(te('generic'));
+      setState('idle');
+      return;
+    }
     if (!res.ok) {
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       const code = data?.error;
@@ -77,6 +94,7 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
   }
 
   function clearAll() {
+    if (!window.confirm(t('clearConfirm'))) return;
     setRules([]);
     setAb([]);
     setIosApp('');
@@ -95,6 +113,7 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
       <div className="tg-block">
         <p className="section-label">{t('rules')}</p>
         <p className="field-hint">{t('rulesHint')}</p>
+        <p className="field-hint">{t('ipadNote')}</p>
         {rules.map((r, i) => (
           <div className="tg-row" key={i} data-testid="tg-rule">
             <input

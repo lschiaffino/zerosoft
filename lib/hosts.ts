@@ -27,6 +27,23 @@ export function appHosts(): Set<string> {
   return new Set(hosts);
 }
 
+/**
+ * ¿Es otra URL de deployment de este mismo proyecto de Vercel
+ * (<proyecto>-<hash>-<scope>.vercel.app o <proyecto>-git-<rama>-<scope>.vercel.app)?
+ * Sirven los mismos links con la misma DB. Se deriva de VERCEL_URL para no
+ * tratar como propio cualquier *.vercel.app de terceros.
+ */
+export function isOwnDeploymentHost(rawHost: string | null | undefined): boolean {
+  const bare = normalizeHost(rawHost).replace(/:\d+$/, '');
+  if (!bare.endsWith('.vercel.app')) return false;
+  const label = bare.slice(0, -'.vercel.app'.length);
+  const own = hostOf(process.env.VERCEL_URL)?.replace(/\.vercel\.app$/, '');
+  const m = own ? /^(.+?)-[a-z0-9]{8,10}-([a-z0-9-]+)$/.exec(own) : null;
+  if (!m) return false;
+  const [, project, scope] = m;
+  return label === project || (label.startsWith(`${project}-`) && label.endsWith(`-${scope}`));
+}
+
 export function normalizeHost(host: string | null | undefined): string {
   return (host ?? '').toLowerCase().replace(/\.$/, '');
 }

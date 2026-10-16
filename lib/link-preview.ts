@@ -2,6 +2,16 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import type { LinkWithDomain } from './links';
 import { shortUrl } from './utils';
+import linkEn from '@/messages/en/link.json';
+import linkEs from '@/messages/es/link.json';
+import linkPt from '@/messages/pt/link.json';
+
+/** Texto del botón de la tarjeta: es HTML crudo (sin next-intl), sale directo de messages/. */
+const CONTINUE: Record<string, string> = {
+  en: linkEn.preview.continue,
+  es: linkEs.preview.continue,
+  pt: linkPt.preview.continue,
+};
 
 function escapeHtml(text: string): string {
   return text
@@ -58,7 +68,7 @@ export function linkPreviewHtml(link: LinkWithDomain, slug: string, locale: stri
       <div class="card">
         <h1>${escapeHtml(title)}</h1>
         <p>${escapeHtml(description)}</p>
-        <a href="${escapeHtml(link.url)}">Continue →</a>
+        <a href="${escapeHtml(link.url)}">${escapeHtml(CONTINUE[locale] ?? CONTINUE.en)}</a>
         <div class="mono">${escapeHtml(shortUrl(slug, link.domain_hostname ?? null).replace(/^https?:\/\//, ''))}</div>
       </div>
     </main>

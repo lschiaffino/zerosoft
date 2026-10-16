@@ -73,11 +73,14 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
         <DomainsPanel initial={domains} canManage={isWorkspaceAdmin(user)} />
       </section>
 
-      <section className="panel">
-        <p className="section-label">{t('import.title')}</p>
-        <ImportLinksPanel />
-      </section>
+      {isWorkspaceAdmin(user) && (
+        <section className="panel">
+          <p className="section-label">{t('import.title')}</p>
+          <ImportLinksPanel />
+        </section>
+      )}
 
+      {isWorkspaceAdmin(user) && (
       <section className="panel">
         <p className="section-label">{t('export.title')}</p>
         <p className="muted">{t('export.desc')}</p>
@@ -90,6 +93,7 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
           </a>
         </div>
       </section>
+      )}
 
       <section className="panel">
         <p className="section-label">{t('settings.apiKeys')}</p>

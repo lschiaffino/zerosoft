@@ -29,9 +29,9 @@
     "title": "Overview",
     "activeLinks": "Active links",
     "totalClicks": "Total clicks",
-    "clicksToday": "Clicks today",
+    "clicksToday": "Clicks today (UTC)",
     "topLink": "Top link",
-    "chartLabel": "Clicks — last 30 days",
+    "chartLabel": "Clicks — last 30 days (UTC)",
     "topLinks": "Top links",
     "noClicksYet": "No clicks yet. Share your links and come back.",
     "recent": "Recent",
@@ -112,15 +112,16 @@
     "ogImageLabel": "OG image URL",
     "ogImagePlaceholder": "https://example.com/image.png",
     "create": "Create link",
-    "creating": "Creating…"
+    "creating": "Creating…",
+    "slugReserved": "✕ reserved word (use it on a custom domain)"
   },
   "detail": {
     "back": "← All links",
     "total": "Total clicks",
-    "today": "Today",
+    "today": "Today (UTC)",
     "last7": "Last 7 days",
     "topRef": "Top referrer",
-    "chartLabel": "Clicks over time",
+    "chartLabel": "Clicks over time (UTC)",
     "range7": "7d",
     "range30": "30d",
     "rangeAll": "all",
@@ -279,7 +280,9 @@
     "ab_zero_weight": "At least one A/B variant needs a weight above zero.",
     "rate_limited": "Too many requests. Wait a minute and try again.",
     "self_link": "A short link can't point to another short link of ours.",
-    "quota_exceeded": "You reached today's limit of new links. Try again tomorrow."
+    "quota_exceeded": "You reached today's limit of new links. Try again tomorrow.",
+    "forbidden": "Only workspace admins can do this.",
+    "already_imported": "Already imported."
   },
   "webhooks": {
     "desc": "We POST a signed JSON payload to your URL when these events happen. Verify the Zerosoft-Signature header (t=…,v1=HMAC-SHA256 of \"t.body\") with your secret. Failed deliveries are retried with backoff.",
@@ -462,7 +465,10 @@
     "saved": "Saved",
     "clear": "Clear all",
     "error": "Could not save: {code}",
-    "countriesInvalid": "Use two-letter country codes (AR, US, BR)."
+    "countriesInvalid": "Use two-letter country codes (AR, US, BR).",
+    "incompleteRow": "Every rule and A/B variant needs a destination URL. Fill it in or remove the row.",
+    "clearConfirm": "Remove all rules, A/B variants and deep links from this link?",
+    "ipadNote": "iPads with Safari identify as a Mac, so they get the desktop destination."
   },
   "qr": {
     "design": "Design",
@@ -492,5 +498,8 @@
     "rule": "Rule {n}",
     "ab": "Variant {v}",
     "app": "{os} app"
+  },
+  "preview": {
+    "continue": "Continue →"
   }
 }

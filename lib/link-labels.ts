@@ -32,8 +32,11 @@ export function breakdownLabelers(locale: string, m: BreakdownMessages): Breakdo
   } catch {
     regions = null;
   }
-  const special = (n: string): string | null =>
-    n === 'direct' ? m.direct : n === 'other' ? m.other : n === 'unknown' ? m.unknown : null;
+  // El navegador/sistema desconocido se guarda como 'Other' (ua-parser): también es especial.
+  const special = (n: string): string | null => {
+    const k = n.toLowerCase();
+    return k === 'direct' ? m.direct : k === 'other' ? m.other : k === 'unknown' ? m.unknown : null;
+  };
 
   return {
     plain: (n) => special(n) ?? n,
