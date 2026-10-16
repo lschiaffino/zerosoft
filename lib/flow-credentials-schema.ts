@@ -109,10 +109,17 @@ export function normalizeCredentialData(
   return { ok: true, data: out };
 }
 
-/** Pista visible del secreto: '••••abcd'. */
+/** Tokens con prefijo conocido y largo suficiente: sus últimos 4 caracteres no revelan nada útil. */
+const TOKEN_PREFIX_RE = /^(sk_|rk_|sk-|whsec_|xox[abpr]-|ntn_|secret_|ghp_|github_pat_|glpat-|AIza)/;
+
+/**
+ * Pista visible del secreto. Las credenciales las ve cualquier miembro: solo
+ * los tokens de API largos con prefijo conocido muestran los últimos 4
+ * ('••••abcd'); contraseñas y secretos cortos o sin prefijo, solo '••••'.
+ */
 export function maskSecret(value: string): string {
   if (!value) return '';
-  return value.length <= 8 ? '••••' : `••••${value.slice(-4)}`;
+  return value.length >= 20 && TOKEN_PREFIX_RE.test(value) ? `••••${value.slice(-4)}` : '••••';
 }
 
 // ---------- Redacción ----------
