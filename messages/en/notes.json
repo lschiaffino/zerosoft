@@ -1,8 +1,14 @@
 {
-  "meta": { "title": "Notes" },
+  "meta": {
+    "title": "Notes"
+  },
   "untitled": "Untitled",
-  "sidebar": { "all": "All notes" },
-  "actions": { "newNote": "New note" },
+  "sidebar": {
+    "all": "All notes"
+  },
+  "actions": {
+    "newNote": "New note"
+  },
   "nav": {
     "label": "Notebooks",
     "all": "All notes",
@@ -14,20 +20,34 @@
   "notebooks": {
     "new": "New notebook",
     "namePlaceholder": "Notebook name",
-    "rename": "Rename",
-    "renamePrompt": "Rename notebook",
+    "rename": "Rename notebook",
     "delete": "Delete notebook",
     "confirmDelete": "Delete “{name}”? Its notes will move to the trash.",
-    "empty": "Group notes into notebooks."
+    "empty": "Group notes into notebooks.",
+    "renameLabel": "New notebook name"
   },
   "list": {
     "search": "Search notes",
     "sortLabel": "Sort",
-    "sort": { "updated": "Last edited", "created": "Created", "title": "Title" },
+    "sort": {
+      "updated": "Last edited",
+      "created": "Created",
+      "title": "Title"
+    },
     "count": "{count, plural, =0 {No notes} one {# note} other {# notes}}",
     "noResults": "Nothing matches “{q}”.",
-    "emptyTitle": "No notes here yet.",
-    "justNow": "just now"
+    "emptyTitle": "No notes yet",
+    "justNow": "just now",
+    "loadError": "Couldn’t load the list.",
+    "retry": "Retry",
+    "loading": "Loading notes",
+    "emptyBody": "Write down whatever is on your mind. It saves as you type.",
+    "emptyClip": "Clip a web page",
+    "emptyNotebookTitle": "This notebook is empty",
+    "emptyNotebookBody": "Notes you create here stay in this notebook. You can also move a note from its toolbar.",
+    "emptyPinnedTitle": "No pinned notes",
+    "emptyPinnedBody": "Pin a note from its toolbar to keep it at the top.",
+    "searchHint": "Shortcut: /"
   },
   "trash": {
     "confirmDelete": "Delete this note forever? This can't be undone.",
@@ -36,7 +56,8 @@
     "emptyState": "The trash is empty.",
     "banner": "This note is in the trash.",
     "restore": "Restore",
-    "deleteForever": "Delete forever"
+    "deleteForever": "Delete forever",
+    "emptyStateBody": "Notes you move to the trash stay here until you restore or delete them."
   },
   "editor": {
     "emptyTitle": "Pick a note, or start a new one.",
@@ -53,7 +74,12 @@
     "removeTag": "Remove tag {tag}",
     "addTag": "Add tag",
     "source": "Source:",
-    "created": "Created {date}"
+    "created": "Created {date}",
+    "emptyHint": "N starts a new note. / searches.",
+    "openError": "Couldn’t open the note.",
+    "actionError": "Couldn’t save the change. Try again.",
+    "more": "More actions",
+    "dismiss": "Dismiss"
   },
   "share": {
     "button": "Share",
@@ -81,10 +107,7 @@
   "clip": {
     "button": "Clip pages",
     "title": "Clip page",
-    "hint": "Drag this button to your bookmarks bar. Click it on any page to save it (and any selected text) as a note.",
     "bookmarkletName": "Clip to Notes",
-    "missingUrl": "Nothing to clip. Use the bookmarklet from any web page.",
-    "openNotes": "Open Notes",
     "saved": "Saved to Notes",
     "openNote": "Open note",
     "close": "Close",
@@ -92,7 +115,19 @@
     "selection": "Text",
     "error": "Couldn't save. Try again.",
     "saving": "Saving…",
-    "save": "Save note"
+    "save": "Save note",
+    "lead": "Save any web page as a note, along with the text you have selected.",
+    "step1": "Drag the button to your bookmarks bar.",
+    "step1Hint": "If you can’t see the bar, show it with ⌘⇧B (Ctrl+Shift+B on Windows).",
+    "step2": "On any page, select some text and click Save to Notes.",
+    "step2Hint": "A small window opens with the title, link and text. Review it and save.",
+    "step3": "The note shows up in All notes, with a link to the source.",
+    "dragOnly": "Drag it to your bookmarks bar. It doesn’t clip anything here.",
+    "manual": "Can’t drag it? Create a new bookmark and paste this code as its address.",
+    "copyCode": "Copy code",
+    "copied": "Copied",
+    "source": "Source",
+    "saveHint": "⌘↵ to save"
   },
   "public": {
     "notFound": "Note not found",

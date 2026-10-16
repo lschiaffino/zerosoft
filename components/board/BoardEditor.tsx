@@ -6,11 +6,23 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { BOARD_MAX_SCENE_BYTES, type BoardDetail, type BoardScene } from '@/lib/boards-types';
 import type { CanvasApi } from './ExcalidrawCanvas';
+import NotesIcon from '@/components/notes/NotesIcon';
+import { usePopover } from '@/components/notes/usePopover';
 
 const ExcalidrawCanvas = dynamic(() => import('./ExcalidrawCanvas'), {
   ssr: false,
-  loading: () => <div className="board-loading" aria-busy="true" />,
+  loading: () => <BoardLoading />,
 });
+
+/** Mientras baja Excalidraw: el lienzo vacío con un aviso para lectores de pantalla. */
+export function BoardLoading() {
+  const t = useTranslations('board');
+  return (
+    <div className="board-loading" role="status" aria-busy="true">
+      <span className="sr-only">{t('editor.loading')}</span>
+    </div>
+  );
+}
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'conflict' | 'too_large' | 'error';
 
@@ -50,7 +62,9 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
   const [state, setState] = useState<SaveState>('saved');
   const [conflictBy, setConflictBy] = useState<string | null>(null);
   const [shareToken, setShareToken] = useState<string | null>(board.share_token);
-  const [shareOpen, setShareOpen] = useState(false);
+  const share = usePopover();
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState(false);
   const [copied, setCopied] = useState(false);
   const apiRef = useRef<CanvasApi | null>(null);
   const versionRef = useRef(board.version);
@@ -65,7 +79,6 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
   const lastThumbRef = useRef(0);
   /** El primer onChange es el estado inicial normalizado por Excalidraw: solo fija la firma. */
   const baselineRef = useRef(true);
-  const shareRef = useRef<HTMLDivElement>(null);
 
   const save = useCallback(async () => {
     if (timerRef.current) {
@@ -178,15 +191,6 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
     };
   }, [board.id]);
 
-  useEffect(() => {
-    if (!shareOpen) return;
-    function onDoc(e: MouseEvent) {
-      if (shareRef.current && !shareRef.current.contains(e.target as Node)) setShareOpen(false);
-    }
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [shareOpen]);
-
   /** "Recargar": trae la versión del servidor y descarta lo local. */
   async function reload() {
     const res = await fetch(`/api/boards/${board.id}`);
@@ -232,12 +236,21 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
   }
 
   async function setShared(shared: boolean) {
-    const res = await fetch(`/api/boards/${board.id}/share`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ shared }),
-    });
-    if (res.ok) setShareToken(((await res.json()) as { share_token: string | null }).share_token);
+    setShareBusy(true);
+    setShareError(false);
+    try {
+      const res = await fetch(`/api/boards/${board.id}/share`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ shared }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setShareToken(((await res.json()) as { share_token: string | null }).share_token);
+    } catch {
+      setShareError(true);
+    } finally {
+      setShareBusy(false);
+    }
   }
 
   const shareUrl = shareToken && typeof window !== 'undefined' ? `${window.location.origin}/b/${shareToken}` : '';
@@ -255,8 +268,9 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
   return (
     <div className="board-editor">
       <div className="board-bar">
-        <Link href="/app/board" className="board-back">
-          ‹ {t('editor.back')}
+        <Link href="/app/board" className="board-back" aria-label={t('editor.back')}>
+          <NotesIcon name="back" size={14} />
+          <span className="board-back-label">{t('editor.back')}</span>
         </Link>
         <input
           className="board-name"
@@ -265,35 +279,38 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
           onChange={(e) => setName(e.target.value)}
           onBlur={(e) => void saveName(e.currentTarget.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
           }}
           aria-label={t('editor.name')}
         />
-        <span className={`board-status mono${state === 'error' ? ' bad' : ''}`} aria-live="polite">
+        <span className={`board-status${state === 'error' ? ' is-error' : ''}`} aria-live="polite">
           {statusText}
         </span>
-        <div className="board-share-wrap" ref={shareRef}>
+        <div className="board-share-wrap" ref={share.wrapRef}>
           <button
+            ref={share.buttonRef}
             type="button"
-            className={`board-icon-btn${shareToken ? ' on' : ''}`}
-            onClick={() => setShareOpen((v) => !v)}
-            aria-expanded={shareOpen}
+            className={`btn btn-sm${shareToken ? ' is-on' : ''}`}
+            onClick={share.toggle}
+            aria-expanded={share.open}
+            aria-haspopup="dialog"
           >
-            {t('share.button')}
+            <NotesIcon name="share" size={14} />
+            {shareToken ? t('share.on') : t('share.button')}
           </button>
-          {shareOpen && (
+          {share.open && (
             <div className="board-pop" role="dialog" aria-label={t('share.title')}>
               <p className="board-pop-title">{t('share.title')}</p>
               <p className="board-pop-hint">{t('share.hint')}</p>
               {shareToken ? (
                 <>
                   <div className="board-share-row">
-                    <input readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} />
+                    <input className="input data" readOnly value={shareUrl} aria-label={t('share.title')} onFocus={(e) => e.currentTarget.select()} />
                     <button
                       type="button"
-                      className="btn btn-small"
+                      className="btn btn-sm"
                       onClick={() => {
-                        void navigator.clipboard.writeText(shareUrl);
+                        void navigator.clipboard?.writeText(shareUrl).catch(() => {});
                         setCopied(true);
                         setTimeout(() => setCopied(false), 1500);
                       }}
@@ -301,14 +318,19 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
                       {copied ? t('share.copied') : t('share.copy')}
                     </button>
                   </div>
-                  <button type="button" className="board-link-btn danger" onClick={() => void setShared(false)}>
+                  <button type="button" className="btn btn-sm btn-ghost btn-danger board-share-off" aria-busy={shareBusy} onClick={() => void setShared(false)}>
                     {t('share.disable')}
                   </button>
                 </>
               ) : (
-                <button type="button" className="btn btn-small btn-solid" onClick={() => void setShared(true)}>
+                <button type="button" className="btn btn-sm btn-primary board-share-on" aria-busy={shareBusy} onClick={() => void setShared(true)}>
                   {t('share.enable')}
                 </button>
+              )}
+              {shareError && (
+                <p className="ui-error" role="alert">
+                  {t('list.actionError')}
+                </p>
               )}
             </div>
           )}
@@ -318,12 +340,14 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
       {state === 'conflict' && (
         <div className="board-notice" role="alert">
           <span>{conflictBy ? t('editor.conflictBy', { name: conflictBy }) : t('editor.conflict')}</span>
-          <button type="button" className="btn btn-small btn-solid" onClick={() => void reload()}>
-            {t('editor.reload')}
-          </button>
-          <button type="button" className="btn btn-small" onClick={keepMine}>
-            {t('editor.keepMine')}
-          </button>
+          <div className="board-notice-actions">
+            <button type="button" className="btn btn-sm" onClick={keepMine}>
+              {t('editor.keepMine')}
+            </button>
+            <button type="button" className="btn btn-sm btn-primary" onClick={() => void reload()}>
+              {t('editor.reload')}
+            </button>
+          </div>
         </div>
       )}
       {state === 'too_large' && (

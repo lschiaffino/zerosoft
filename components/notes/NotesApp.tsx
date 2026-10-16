@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
+import EmptyState from '@/components/ui/EmptyState';
 import type { DocsBlock } from '@/lib/docs-types';
 import {
   blocksToText,
@@ -14,14 +16,10 @@ import {
 } from '@/lib/notes-types';
 import NoteEditorPane from './NoteEditorPane';
 import NotesAskPanel from './NotesAskPanel';
-import ClipBookmarklet from './ClipBookmarklet';
+import NotesIcon from './NotesIcon';
+import { emptyKind, filterQuery, isTypingTarget, listKey, sameFilter, stepIndex, type NotesFilter } from './notes-ui';
 
-export type NotesFilter =
-  | { kind: 'all' }
-  | { kind: 'pinned' }
-  | { kind: 'trash' }
-  | { kind: 'notebook'; id: string }
-  | { kind: 'tag'; tag: string };
+export type { NotesFilter } from './notes-ui';
 
 type Pane = 'nav' | 'list' | 'editor';
 
@@ -37,27 +35,14 @@ interface Props {
   serverNow: number;
 }
 
-function filterQuery(f: NotesFilter, q: string, sort: NotesSort): string {
-  const sp = new URLSearchParams();
-  if (f.kind === 'pinned' || f.kind === 'trash') sp.set('view', f.kind);
-  if (f.kind === 'notebook') sp.set('notebook', f.id);
-  if (f.kind === 'tag') sp.set('tag', f.tag);
-  if (q.trim()) sp.set('q', q.trim());
-  sp.set('sort', sort);
-  return sp.toString();
-}
-
-function isTypingTarget(el: EventTarget | null): boolean {
-  if (!(el instanceof HTMLElement)) return false;
-  return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
-}
+const TOAST_MS = 6000;
 
 /**
- * Notes: tres paneles (libretas · lista · editor). En pantallas chicas se ve
- * un panel por vez, con navegación hacia atrás.
+ * Notes: tres paneles (libretas · lista · editor), como Apple Notes. En
+ * pantallas chicas se ve un panel por vez, con navegación hacia atrás.
+ * Teclado: N nueva nota, / buscar, flechas para recorrer la lista.
  */
 export default function NotesApp({
-  locale,
   aiEnabled,
   initialNotes,
   initialNotebooks,
@@ -77,11 +62,16 @@ export default function NotesApp({
   const [note, setNote] = useState<NoteDetail | null>(initialNote);
   const [pane, setPane] = useState<Pane>(initialNote ? 'editor' : 'list');
   const [loading, setLoading] = useState(false);
+  const [loadedKey, setLoadedKey] = useState(() => listKey({ kind: 'all' }, 'updated'));
+  const [listError, setListError] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
-  const [newNotebook, setNewNotebook] = useState<string | null>(null);
+  const [newNotebook, setNewNotebook] = useState(false);
+  const [renamingNotebook, setRenamingNotebook] = useState<string | null>(null);
   const [focusTitle, setFocusTitle] = useState(0);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [toast, setToast] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const itemsRef = useRef<HTMLDivElement>(null);
   const firstLoad = useRef(true);
   const reqSeq = useRef(0);
   /** POSTs de notas recién creadas aún en vuelo (id → ok). */
@@ -94,14 +84,27 @@ export default function NotesApp({
     return () => clearInterval(h);
   }, []);
 
+  useEffect(() => {
+    if (!toast) return;
+    const h = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(h);
+  }, [toast]);
+
   const refreshList = useCallback(async () => {
     const seq = ++reqSeq.current;
+    const key = listKey(filter, sort);
     setLoading(true);
     try {
       const res = await fetch(`/api/notes?${filterQuery(filter, q, sort)}`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(String(res.status));
       const data = (await res.json()) as { notes: NoteSummary[] };
-      if (seq === reqSeq.current) setNotes(data.notes);
+      if (seq === reqSeq.current) {
+        setNotes(data.notes);
+        setLoadedKey(key);
+        setListError(false);
+      }
+    } catch {
+      if (seq === reqSeq.current) setListError(true);
     } finally {
       if (seq === reqSeq.current) setLoading(false);
     }
@@ -109,8 +112,8 @@ export default function NotesApp({
 
   const refreshSide = useCallback(async () => {
     const [nb, tg] = await Promise.all([
-      fetch('/api/notes/notebooks').then((r) => (r.ok ? r.json() : null)),
-      fetch('/api/notes/tags').then((r) => (r.ok ? r.json() : null)),
+      fetch('/api/notes/notebooks').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch('/api/notes/tags').then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]);
     if (nb) setNotebooks(nb.notebooks);
     if (tg) setTags(tg.tags);
@@ -135,13 +138,20 @@ export default function NotesApp({
     window.history.replaceState(null, '', url.toString());
   }, [note]);
 
-  const openNote = useCallback(async (id: string) => {
-    const res = await fetch(`/api/notes/${id}`);
-    if (!res.ok) return;
-    setNote((await res.json()) as NoteDetail);
-    setPane('editor');
-    setStatus('idle');
-  }, []);
+  const openNote = useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(`/api/notes/${id}`);
+        if (!res.ok) throw new Error(String(res.status));
+        setNote((await res.json()) as NoteDetail);
+        setPane('editor');
+        setStatus('idle');
+      } catch {
+        setToast(t('editor.openError'));
+      }
+    },
+    [t],
+  );
 
   /**
    * Creación instantánea (optimista): la nota se abre y enfoca al toque con un
@@ -198,6 +208,7 @@ export default function NotesApp({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat || isTypingTarget(e.target)) return;
+      if (document.querySelector('dialog[open]')) return;
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         void createNote();
@@ -223,56 +234,64 @@ export default function NotesApp({
   }, [startNew, createNote]);
 
   /** Autosave del editor (DocsEditor ya hace debounce de 600 ms). */
-  const saveContent = useCallback(async (id: string, patch: { title: string; content: DocsBlock[] }) => {
-    setStatus('saving');
-    const creating = pendingCreates.current.get(id);
-    if (creating && !(await creating)) {
-      setStatus('error');
-      return;
-    }
-    const snippet = makeSnippet(blocksToText(patch.content).replace(/<[^>]*>/g, ''));
-    const now = new Date().toISOString();
-    setNotes((prev) => {
-      const idx = prev.findIndex((n) => n.id === id);
-      if (idx < 0) return prev;
-      const updated = { ...prev[idx], title: patch.title, snippet, updated_at: now };
-      const rest = prev.filter((n) => n.id !== id);
-      return sort === 'updated' ? [updated, ...rest] : prev.map((n) => (n.id === id ? updated : n));
-    });
-    try {
-      const res = await fetch(`/api/notes/${id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(patch),
+  const saveContent = useCallback(
+    async (id: string, patch: { title: string; content: DocsBlock[] }) => {
+      setStatus('saving');
+      const creating = pendingCreates.current.get(id);
+      if (creating && !(await creating)) {
+        setStatus('error');
+        return;
+      }
+      const snippet = makeSnippet(blocksToText(patch.content).replace(/<[^>]*>/g, ''));
+      const nowIso = new Date().toISOString();
+      setNotes((prev) => {
+        const idx = prev.findIndex((n) => n.id === id);
+        if (idx < 0) return prev;
+        const updated = { ...prev[idx], title: patch.title, snippet, updated_at: nowIso };
+        const rest = prev.filter((n) => n.id !== id);
+        return sort === 'updated' ? [updated, ...rest] : prev.map((n) => (n.id === id ? updated : n));
       });
-      setStatus(res.ok ? 'saved' : 'error');
-    } catch {
-      setStatus('error');
-    }
-  }, [sort]);
+      try {
+        const res = await fetch(`/api/notes/${id}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(patch),
+        });
+        setStatus(res.ok ? 'saved' : 'error');
+      } catch {
+        setStatus('error');
+      }
+    },
+    [sort],
+  );
 
-  /** Cambios de metadatos (tags, libreta, fijada, papelera). */
+  /** Cambios de metadatos (tags, libreta, fijada, papelera). null = falló (con aviso). */
   const patchNote = useCallback(
     async (id: string, patch: Record<string, unknown>) => {
       await pendingCreates.current.get(id);
-      const res = await fetch(`/api/notes/${id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) return null;
-      const updated = (await res.json()) as NoteDetail;
-      setNote((cur) => (cur && cur.id === id ? { ...updated, content: cur.content, title: cur.title } : cur));
-      void refreshList();
-      void refreshSide();
-      return updated;
+      try {
+        const res = await fetch(`/api/notes/${id}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(patch),
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        const updated = (await res.json()) as NoteDetail;
+        setNote((cur) => (cur && cur.id === id ? { ...updated, content: cur.content, title: cur.title } : cur));
+        void refreshList();
+        void refreshSide();
+        return updated;
+      } catch {
+        setToast(t('editor.actionError'));
+        return null;
+      }
     },
-    [refreshList, refreshSide],
+    [refreshList, refreshSide, t],
   );
 
   const trash = useCallback(
     async (id: string) => {
-      await patchNote(id, { trashed: true });
+      if (!(await patchNote(id, { trashed: true }))) return;
       setNote(null);
       setPane('list');
     },
@@ -290,8 +309,11 @@ export default function NotesApp({
   const deleteForever = useCallback(
     async (id: string) => {
       if (!confirm(t('trash.confirmDelete'))) return;
-      const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
-      if (!res.ok) return;
+      const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' }).catch(() => null);
+      if (!res?.ok) {
+        setToast(t('editor.actionError'));
+        return;
+      }
       setNote(null);
       setNotes((prev) => prev.filter((n) => n.id !== id));
       setPane('list');
@@ -301,40 +323,49 @@ export default function NotesApp({
 
   const emptyTrash = useCallback(async () => {
     if (!confirm(t('trash.confirmEmpty'))) return;
-    const res = await fetch('/api/notes/trash', { method: 'DELETE' });
-    if (!res.ok) return;
+    const res = await fetch('/api/notes/trash', { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) {
+      setToast(t('editor.actionError'));
+      return;
+    }
     setNotes([]);
     setNote(null);
   }, [t]);
 
   const addNotebook = useCallback(
     async (name: string) => {
-      setNewNotebook(null);
+      setNewNotebook(false);
       if (!name.trim()) return;
       const res = await fetch('/api/notes/notebooks', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name }),
-      });
-      if (!res.ok) return;
+      }).catch(() => null);
+      if (!res?.ok) {
+        setToast(t('editor.actionError'));
+        return;
+      }
       const nb = (await res.json()) as NotebookInfo;
       setNotebooks((prev) => [...prev, nb].sort((a, b) => a.name.localeCompare(b.name)));
       setFilter({ kind: 'notebook', id: nb.id });
       setPane('list');
     },
-    [],
+    [t],
   );
 
   const renameNotebook = useCallback(
-    async (nb: NotebookInfo) => {
-      const name = prompt(t('notebooks.renamePrompt'), nb.name);
-      if (!name?.trim() || name.trim() === nb.name) return;
+    async (nb: NotebookInfo, raw: string) => {
+      setRenamingNotebook(null);
+      const name = raw.trim();
+      if (!name || name === nb.name) return;
+      setNotebooks((prev) => prev.map((x) => (x.id === nb.id ? { ...x, name } : x)));
       const res = await fetch(`/api/notes/notebooks/${nb.id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() }),
-      });
-      if (res.ok) void refreshSide();
+        body: JSON.stringify({ name }),
+      }).catch(() => null);
+      if (!res?.ok) setToast(t('editor.actionError'));
+      void refreshSide();
     },
     [refreshSide, t],
   );
@@ -342,8 +373,11 @@ export default function NotesApp({
   const deleteNotebook = useCallback(
     async (nb: NotebookInfo) => {
       if (!confirm(t('notebooks.confirmDelete', { name: nb.name }))) return;
-      const res = await fetch(`/api/notes/notebooks/${nb.id}`, { method: 'DELETE' });
-      if (!res.ok) return;
+      const res = await fetch(`/api/notes/notebooks/${nb.id}`, { method: 'DELETE' }).catch(() => null);
+      if (!res?.ok) {
+        setToast(t('editor.actionError'));
+        return;
+      }
       setFilter({ kind: 'all' });
       if (note?.notebook_id === nb.id) setNote(null);
       void refreshSide();
@@ -356,10 +390,7 @@ export default function NotesApp({
     setPane('list');
   }
 
-  const isActive = (f: NotesFilter) =>
-    f.kind === filter.kind &&
-    (f.kind !== 'notebook' || (filter.kind === 'notebook' && filter.id === f.id)) &&
-    (f.kind !== 'tag' || (filter.kind === 'tag' && filter.tag === f.tag));
+  const isActive = (f: NotesFilter) => sameFilter(f, filter);
 
   const listTitle = useMemo(() => {
     if (filter.kind === 'pinned') return t('nav.pinned');
@@ -377,126 +408,217 @@ export default function NotesApp({
     return format.dateTime(d, { day: 'numeric', month: 'short', year: d.getFullYear() === new Date(now).getFullYear() ? undefined : 'numeric' });
   };
 
+  /** Flechas en la lista: mueven el foco y abren la nota, como en Apple Notes. */
+  function onListKey(e: React.KeyboardEvent) {
+    const items = Array.from(itemsRef.current?.querySelectorAll<HTMLButtonElement>('.notes-item') ?? []);
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next = stepIndex(current, e.key, items.length);
+    if (next == null) return;
+    e.preventDefault();
+    items[next].focus();
+    const id = items[next].dataset.id;
+    if (id && id !== note?.id) void openNote(id);
+  }
+
+  const showSkeleton = loading && loadedKey !== listKey(filter, sort);
+  const empty = emptyKind(filter, q);
+  const navItem = (f: NotesFilter, label: string, icon?: 'pin' | 'trash') => (
+    <button
+      type="button"
+      className="notes-nav-item"
+      aria-current={isActive(f) ? 'true' : undefined}
+      onClick={() => choose(f)}
+    >
+      {icon && <NotesIcon name={icon} size={14} />}
+      <span className="notes-nav-name">{label}</span>
+    </button>
+  );
+
   return (
     <div className="notes-app" data-pane={pane}>
       {/* ---------- Libretas / filtros ---------- */}
       <aside className="notes-nav" aria-label={t('nav.label')}>
-        <button type="button" className="notes-new btn btn-solid" onClick={() => void createNote()}>
-          {t('actions.newNote')}
-          <kbd>N</kbd>
-        </button>
-        <nav className="notes-nav-list">
-          <button type="button" className={`notes-nav-item${isActive({ kind: 'all' }) ? ' active' : ''}`} onClick={() => choose({ kind: 'all' })}>
-            {t('nav.all')}
+        <div className="notes-nav-top">
+          <button type="button" className="btn btn-primary btn-block notes-new" onClick={() => void createNote()}>
+            <NotesIcon name="plus" size={14} />
+            {t('actions.newNote')}
+            <kbd className="kbd">N</kbd>
           </button>
-          <button type="button" className={`notes-nav-item${isActive({ kind: 'pinned' }) ? ' active' : ''}`} onClick={() => choose({ kind: 'pinned' })}>
-            {t('nav.pinned')}
-          </button>
+        </div>
+        <nav className="notes-nav-list" aria-label={t('nav.label')}>
+          {navItem({ kind: 'all' }, t('nav.all'))}
+          {navItem({ kind: 'pinned' }, t('nav.pinned'), 'pin')}
 
           <div className="notes-nav-section">
-            <span>{t('nav.notebooks')}</span>
-            <button type="button" className="notes-icon-btn" onClick={() => setNewNotebook('')} aria-label={t('notebooks.new')} title={t('notebooks.new')}>
-              +
+            <h2>{t('nav.notebooks')}</h2>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm btn-icon"
+              onClick={() => setNewNotebook(true)}
+              aria-label={t('notebooks.new')}
+              title={t('notebooks.new')}
+            >
+              <NotesIcon name="plus" size={14} />
             </button>
           </div>
-          {newNotebook !== null && (
+          {newNotebook && (
             <input
-              className="notes-inline-input"
+              className="input notes-nav-input"
               autoFocus
               placeholder={t('notebooks.namePlaceholder')}
+              aria-label={t('notebooks.namePlaceholder')}
               maxLength={80}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void addNotebook(e.currentTarget.value);
-                if (e.key === 'Escape') setNewNotebook(null);
+                if (e.key === 'Escape') setNewNotebook(false);
               }}
               onBlur={(e) => void addNotebook(e.currentTarget.value)}
             />
           )}
-          {notebooks.map((nb) => (
-            <div key={nb.id} className={`notes-nav-row${isActive({ kind: 'notebook', id: nb.id }) ? ' active' : ''}`}>
-              <button type="button" className="notes-nav-item" onClick={() => choose({ kind: 'notebook', id: nb.id })}>
-                <span className="notes-nav-name">{nb.name}</span>
-                <span className="notes-count mono">{nb.count}</span>
-              </button>
-              <span className="notes-nav-actions">
-                <button type="button" className="notes-icon-btn" onClick={() => void renameNotebook(nb)} aria-label={t('notebooks.rename')} title={t('notebooks.rename')}>
-                  ✎
+          {notebooks.map((nb) =>
+            renamingNotebook === nb.id ? (
+              <input
+                key={nb.id}
+                className="input notes-nav-input"
+                autoFocus
+                defaultValue={nb.name}
+                aria-label={t('notebooks.renameLabel')}
+                maxLength={80}
+                onFocus={(e) => e.currentTarget.select()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void renameNotebook(nb, e.currentTarget.value);
+                  if (e.key === 'Escape') setRenamingNotebook(null);
+                }}
+                onBlur={(e) => void renameNotebook(nb, e.currentTarget.value)}
+              />
+            ) : (
+              <div key={nb.id} className="notes-nav-row">
+                <button
+                  type="button"
+                  className="notes-nav-item"
+                  aria-current={isActive({ kind: 'notebook', id: nb.id }) ? 'true' : undefined}
+                  onClick={() => choose({ kind: 'notebook', id: nb.id })}
+                >
+                  <span className="notes-nav-name">{nb.name}</span>
+                  <span className="notes-count num">{nb.count}</span>
                 </button>
-                <button type="button" className="notes-icon-btn" onClick={() => void deleteNotebook(nb)} aria-label={t('notebooks.delete')} title={t('notebooks.delete')}>
-                  ×
-                </button>
-              </span>
-            </div>
-          ))}
-          {notebooks.length === 0 && newNotebook === null && <p className="notes-nav-hint">{t('notebooks.empty')}</p>}
+                <span className="notes-nav-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm btn-icon"
+                    onClick={() => setRenamingNotebook(nb.id)}
+                    aria-label={`${t('notebooks.rename')}: ${nb.name}`}
+                    title={t('notebooks.rename')}
+                  >
+                    <NotesIcon name="pencil" size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm btn-icon"
+                    onClick={() => void deleteNotebook(nb)}
+                    aria-label={`${t('notebooks.delete')}: ${nb.name}`}
+                    title={t('notebooks.delete')}
+                  >
+                    <NotesIcon name="trash" size={13} />
+                  </button>
+                </span>
+              </div>
+            ),
+          )}
+          {notebooks.length === 0 && !newNotebook && <p className="notes-nav-hint">{t('notebooks.empty')}</p>}
 
           {tags.length > 0 && (
             <>
               <div className="notes-nav-section">
-                <span>{t('nav.tags')}</span>
+                <h2>{t('nav.tags')}</h2>
               </div>
-              <div className="notes-nav-tags">
-                {tags.map((tg) => (
-                  <button
-                    key={tg.tag}
-                    type="button"
-                    className={`notes-tag${isActive({ kind: 'tag', tag: tg.tag }) ? ' active' : ''}`}
-                    onClick={() => choose({ kind: 'tag', tag: tg.tag })}
-                  >
-                    #{tg.tag}
-                    <span className="mono">{tg.count}</span>
-                  </button>
-                ))}
-              </div>
+              {tags.map((tg) => (
+                <button
+                  key={tg.tag}
+                  type="button"
+                  className="notes-nav-item"
+                  aria-current={isActive({ kind: 'tag', tag: tg.tag }) ? 'true' : undefined}
+                  onClick={() => choose({ kind: 'tag', tag: tg.tag })}
+                >
+                  <span className="notes-nav-name">
+                    <span className="notes-hash" aria-hidden="true">#</span>
+                    {tg.tag}
+                  </span>
+                  <span className="notes-count num">{tg.count}</span>
+                </button>
+              ))}
             </>
           )}
 
           <div className="notes-nav-spacer" />
-          <button type="button" className={`notes-nav-item${isActive({ kind: 'trash' }) ? ' active' : ''}`} onClick={() => choose({ kind: 'trash' })}>
-            {t('nav.trash')}
-          </button>
+          {navItem({ kind: 'trash' }, t('nav.trash'), 'trash')}
         </nav>
         <div className="notes-nav-foot">
           {aiEnabled && (
             <button type="button" className="notes-nav-item" onClick={() => setAskOpen(true)}>
-              {t('ask.open')}
+              <NotesIcon name="ask" size={14} />
+              <span className="notes-nav-name">{t('ask.open')}</span>
             </button>
           )}
-          <ClipBookmarklet locale={locale} />
+          <Link href="/app/notes/clip" className="notes-nav-item">
+            <NotesIcon name="clip" size={14} />
+            <span className="notes-nav-name">{t('clip.button')}</span>
+          </Link>
         </div>
       </aside>
 
       {/* ---------- Lista ---------- */}
       <div className="notes-list" role="region" aria-label={listTitle}>
         <div className="notes-list-head">
-          <button type="button" className="notes-back" onClick={() => setPane('nav')} aria-label={t('nav.label')}>
-            ‹ {t('nav.label')}
+          <button type="button" className="notes-back" onClick={() => setPane('nav')}>
+            <NotesIcon name="back" size={14} />
+            {t('nav.label')}
           </button>
           <div className="notes-list-title">
             <h1>{listTitle}</h1>
-            <span className="mono">{t('list.count', { count: notes.length })}</span>
             <button
               type="button"
-              className="notes-icon-btn notes-list-new"
+              className="btn btn-sm btn-icon notes-list-new"
               onClick={() => void createNote()}
               aria-label={t('actions.newNote')}
               title={t('actions.newNote')}
             >
-              +
+              <NotesIcon name="plus" size={14} />
             </button>
           </div>
           <div className="notes-list-tools">
-            <input
-              ref={searchRef}
-              className="notes-search"
-              type="search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t('list.search')}
-              aria-label={t('list.search')}
-            />
+            <label className="notes-search">
+              <NotesIcon name="search" size={14} />
+              <input
+                ref={searchRef}
+                className="input"
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape' && q) {
+                    e.preventDefault();
+                    setQ('');
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    itemsRef.current?.querySelector<HTMLButtonElement>('.notes-item')?.focus();
+                  }
+                }}
+                placeholder={t('list.search')}
+                aria-label={t('list.search')}
+                aria-keyshortcuts="/"
+              />
+              {!q && (
+                <kbd className="kbd" title={t('list.searchHint')} aria-hidden="true">
+                  /
+                </kbd>
+              )}
+            </label>
+          </div>
+          <div className="notes-list-meta">
+            <span className="notes-list-count">{t('list.count', { count: notes.length })}</span>
             <select
-              className="notes-sort"
+              className="select notes-sort"
               value={sort}
               onChange={(e) => setSort(e.target.value as NotesSort)}
               aria-label={t('list.sortLabel')}
@@ -507,44 +629,93 @@ export default function NotesApp({
             </select>
           </div>
           {filter.kind === 'trash' && notes.length > 0 && (
-            <button type="button" className="notes-link-btn danger" onClick={() => void emptyTrash()}>
+            <button type="button" className="btn btn-sm btn-danger notes-empty-trash" onClick={() => void emptyTrash()}>
               {t('trash.empty')}
             </button>
           )}
         </div>
-        <div className={`notes-list-items${loading ? ' loading' : ''}`}>
-          {notes.length === 0 ? (
-            <div className="notes-empty">
-              {q ? (
-                <p>{t('list.noResults', { q })}</p>
-              ) : filter.kind === 'trash' ? (
-                <p>{t('trash.emptyState')}</p>
-              ) : (
-                <>
-                  <p>{t('list.emptyTitle')}</p>
-                  <button type="button" className="btn btn-solid" onClick={() => void createNote()}>
-                    {t('actions.newNote')}
-                  </button>
-                </>
-              )}
+        <div
+          ref={itemsRef}
+          className={`notes-list-items${loading && !showSkeleton ? ' is-refreshing' : ''}`}
+          aria-busy={loading}
+          onKeyDown={onListKey}
+        >
+          {listError ? (
+            <div className="notes-list-error" role="alert">
+              <p>{t('list.loadError')}</p>
+              <button type="button" className="btn btn-sm" onClick={() => void refreshList()}>
+                {t('list.retry')}
+              </button>
             </div>
+          ) : showSkeleton ? (
+            <div className="notes-skeleton" aria-label={t('list.loading')}>
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="notes-skeleton-item">
+                  <span className="ui-skeleton ui-skeleton-text" style={{ width: `${70 - i * 6}%` }} />
+                  <span className="ui-skeleton ui-skeleton-text" />
+                </div>
+              ))}
+            </div>
+          ) : notes.length === 0 ? (
+            empty === 'search' ? (
+              <p className="notes-no-results">{t('list.noResults', { q })}</p>
+            ) : empty === 'trash' ? (
+              <EmptyState quiet product="notes" className="notes-empty" title={t('trash.emptyState')} body={t('trash.emptyStateBody')} />
+            ) : (
+              <EmptyState
+                quiet
+                product="notes"
+                className="notes-empty"
+                title={
+                  empty === 'pinned'
+                    ? t('list.emptyPinnedTitle')
+                    : empty === 'notebook'
+                      ? t('list.emptyNotebookTitle')
+                      : t('list.emptyTitle')
+                }
+                body={
+                  empty === 'pinned'
+                    ? t('list.emptyPinnedBody')
+                    : empty === 'notebook'
+                      ? t('list.emptyNotebookBody')
+                      : t('list.emptyBody')
+                }
+                action={
+                  empty === 'pinned' ? undefined : (
+                    <button type="button" className="btn btn-primary" onClick={() => void createNote()}>
+                      {t('actions.newNote')}
+                    </button>
+                  )
+                }
+                secondary={empty === 'all' ? <Link href="/app/notes/clip">{t('list.emptyClip')}</Link> : undefined}
+              />
+            )
           ) : (
             notes.map((n) => (
               <button
                 key={n.id}
                 type="button"
-                className={`notes-item${note?.id === n.id ? ' active' : ''}`}
+                data-id={n.id}
+                className="notes-item"
+                aria-current={note?.id === n.id ? 'true' : undefined}
                 onClick={() => void openNote(n.id)}
               >
                 <span className="notes-item-title">
-                  {n.pinned && !n.trashed && <span className="notes-pin" aria-label={t('editor.pinned')}>●</span>}
-                  {n.title || <span className="dim">{t('untitled')}</span>}
+                  {n.pinned && !n.trashed && (
+                    <span className="notes-pin" title={t('editor.pinned')}>
+                      <NotesIcon name="pin" size={12} />
+                      <span className="sr-only">{t('editor.pinned')}</span>
+                    </span>
+                  )}
+                  {n.title || <span className="notes-untitled">{t('untitled')}</span>}
                 </span>
                 {n.snippet && <span className="notes-item-snippet">{n.snippet}</span>}
-                <span className="notes-item-meta mono">
-                  {relTime(n.updated_at)}
+                <span className="notes-item-meta">
+                  <time dateTime={n.updated_at}>{relTime(n.updated_at)}</time>
                   {n.tags.slice(0, 3).map((tg) => (
-                    <span key={tg} className="notes-item-tag">#{tg}</span>
+                    <span key={tg} className="notes-item-tag">
+                      #{tg}
+                    </span>
                   ))}
                 </span>
               </button>
@@ -571,13 +742,12 @@ export default function NotesApp({
             onShareChange={(token) => {
               setNote((cur) => (cur ? { ...cur, share_token: token, shared: token != null } : cur));
             }}
+            onError={() => setToast(t('editor.actionError'))}
           />
         ) : (
-          <div className="notes-empty notes-editor-empty">
-            <p>{t('editor.emptyTitle')}</p>
-            <button type="button" className="btn btn-solid" onClick={() => void createNote()}>
-              {t('actions.newNote')}
-            </button>
+          <div className="notes-editor-empty">
+            <p className="notes-editor-empty-title">{t('editor.emptyTitle')}</p>
+            <p className="notes-editor-empty-hint">{t('editor.emptyHint')}</p>
           </div>
         )}
       </div>
@@ -591,6 +761,17 @@ export default function NotesApp({
           }}
         />
       )}
+
+      <div className="ui-toasts" role="status" aria-live="polite">
+        {toast && (
+          <div className="ui-toast" data-tone="error">
+            {toast}
+            <button type="button" className="ui-toast-action" onClick={() => setToast(null)}>
+              {t('ask.close')}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

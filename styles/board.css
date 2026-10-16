@@ -1,29 +1,15 @@
 /* ============================================
-   BOARD — grilla de pizarras + lienzo Excalidraw
-   Hairlines, radios ≤ 6px, acento = --c-board.
+   BOARD: grilla de pizarras + lienzo Excalidraw.
+   Red de subte en modo Operate: controles de ui.css; el color de la línea
+   solo en la UI de Excalidraw (herramienta activa) y en el vacío.
    ============================================ */
 
-.board-list { --accent: var(--c-board); display: flex; flex-direction: column; gap: 24px; }
-
-
-.board-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 72px 24px;
-  border: 1px dashed var(--line);
-  border-radius: var(--r-md);
-  text-align: center;
-}
-
-.board-empty-title { font-size: 16px; font-weight: 500; }
-.board-empty .btn { margin-top: 8px; }
+/* ---------- Lista ---------- */
 
 .board-grid {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
 }
 
@@ -31,110 +17,101 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  border-radius: var(--radius-1);
   background: var(--bg);
-  transition: border-color 0.15s;
+  transition: border-color var(--ui-dur) var(--ease);
 }
 
-.board-card:hover { border-color: color-mix(in srgb, var(--c-board) 55%, white); }
+.board-card:hover,
+.board-card:focus-within { border-color: var(--ink); }
 
+/* Miniatura sobre el plano de esmalte; sin miniatura queda la placa vacía. */
 .board-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
   aspect-ratio: 16 / 10;
   border-bottom: 1px solid var(--line);
-  border-radius: var(--r-md) var(--r-md) 0 0;
-  background:
-    radial-gradient(circle, #e6e6e6 1px, transparent 1px) 0 0 / 14px 14px,
-    #fcfcfc;
+  background: var(--brand-enamel);
   overflow: hidden;
 }
 
-.board-thumb img { width: 88%; height: 88%; object-fit: contain; }
+.board-thumb img { width: 86%; height: 86%; object-fit: contain; }
 
-.board-thumb-empty {
-  width: 32%;
-  height: 32%;
-  border: 1.5px solid color-mix(in srgb, var(--c-board) 50%, white);
-  border-radius: var(--r-sm);
+.board-card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 48px 12px 12px;
 }
 
-.board-card-body { display: flex; flex-direction: column; gap: 4px; padding: 10px 40px 12px 12px; min-width: 0; }
-
 .board-card-name {
-  font-size: 14px;
-  font-weight: 500;
+  max-width: 100%;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink);
+  text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--ink);
-  text-decoration: none;
 }
 
-.board-card-meta { font-size: 10.5px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-card-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.board-card-name:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
-.board-rename {
-  width: 100%;
-  padding: 2px 4px;
-  border: 1px solid var(--ink);
-  border-radius: var(--r-xs);
-  font: inherit;
-  font-size: 14px;
-  outline: none;
-}
+/* Toda la tarjeta abre la pizarra: el link del nombre se estira sobre ella. */
+.board-card-name::after { content: ''; position: absolute; inset: 0; }
 
-.board-card-menu { position: absolute; right: 8px; bottom: 12px; }
-
-.board-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 26px;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: var(--r-sm);
-  background: none;
-  font: inherit;
-  font-size: 12px;
-  color: var(--dim);
-  cursor: pointer;
+.board-card-meta {
+  max-width: 100%;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.board-icon-btn:hover { color: var(--ink); border-color: var(--line); }
-.board-icon-btn.on { color: var(--ink); border-color: color-mix(in srgb, var(--c-board) 50%, white); background: color-mix(in srgb, var(--c-board) 10%, white); }
+.board-card-shared { margin-top: 4px; }
+.board-rename { position: relative; z-index: 2; }
+
+.board-card-menu { position: absolute; right: 8px; bottom: 10px; z-index: 2; }
 
 .board-menu {
   position: absolute;
   right: 0;
   bottom: calc(100% + 4px);
   z-index: 20;
-  min-width: 150px;
+  min-width: 160px;
   display: flex;
   flex-direction: column;
   padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
   background: var(--bg);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
 }
 
 .board-menu button {
-  padding: 7px 10px;
+  min-height: 32px;
+  padding: 0 10px;
   border: 0;
-  border-radius: var(--r-sm);
+  border-radius: var(--radius-1);
   background: none;
-  font: inherit;
-  font-size: 13px;
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  color: var(--ink);
   text-align: left;
   cursor: pointer;
 }
 
-.board-menu button:hover { background: #f4f4f4; }
-.board-menu .danger { color: var(--bad); }
+.board-menu button:hover,
+.board-menu button:focus-visible { background: var(--ui-hover); outline: none; }
+.board-menu .is-danger { color: var(--bad-ink); }
 
 /* ---------- Editor ---------- */
 
@@ -143,10 +120,9 @@
 }
 
 .board-editor {
-  --accent: var(--c-board);
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 66px);
+  height: calc(100dvh - var(--band-h));
   min-height: 420px;
 }
 
@@ -154,107 +130,107 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: 52px;
   padding: 8px 16px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
 }
 
-.board-back { font-size: 13px; color: var(--dim); text-decoration: none; white-space: nowrap; }
-.board-back:hover { color: var(--ink); }
+.board-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  font-size: 0.875rem;
+  color: var(--brand-gray-1);
+  text-decoration: none;
+  white-space: nowrap;
+}
 
+.board-back:hover { color: var(--ink); }
+.board-back:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Nombre: se lee como título y se edita en el lugar. */
 .board-name {
-  flex: 0 1 320px;
+  flex: 0 1 360px;
   min-width: 0;
-  padding: 4px 6px;
+  min-height: 32px;
+  padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: var(--r-sm);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: var(--radius-1);
   background: none;
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: var(--ink);
   outline: none;
+  transition: border-color var(--ui-dur) var(--ease);
 }
 
 .board-name:hover { border-color: var(--line); }
-.board-name:focus { border-color: var(--ink); }
+.board-name:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 
-.board-status { font-size: 11px; color: var(--dim); margin-right: auto; white-space: nowrap; }
-.board-status.bad { color: var(--bad); }
+.board-status { margin-right: auto; font-size: 0.8125rem; color: var(--brand-gray-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.board-status.is-error { color: var(--bad-ink); }
 
 .board-share-wrap { position: relative; }
+.app-frame .board-share-wrap .btn.is-on { background: var(--ui-hover); border-color: var(--ink); }
 
 .board-pop {
   position: absolute;
   right: 0;
   top: calc(100% + 6px);
   z-index: 40;
-  width: min(340px, calc(100vw - 32px));
+  width: min(360px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  padding: 16px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
   background: var(--bg);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
 }
 
-.board-pop-title { font-size: 13px; font-weight: 500; }
-.board-pop-hint { font-size: 12px; line-height: 1.5; color: #666; }
-.board-share-row { display: flex; gap: 6px; }
-
-.board-share-row input {
-  flex: 1;
-  min-width: 0;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  font: inherit;
-  font-size: 12px;
-}
-
-.board-link-btn {
-  align-self: flex-start;
-  border: 0;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-size: 12px;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.board-link-btn.danger { color: var(--bad); }
+.board-pop-title { font-size: 0.875rem; font-weight: 600; }
+.board-pop-hint { font-size: 0.8125rem; line-height: 1.45; color: var(--brand-gray-1); }
+.board-share-row { display: flex; gap: 8px; }
+.board-share-row .input { flex: 1; min-width: 0; }
+.board-share-off, .board-share-on { align-self: flex-start; }
 
 .board-notice {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
   flex-wrap: wrap;
+  gap: 8px 16px;
   padding: 8px 16px;
-  border-bottom: 1px solid color-mix(in srgb, var(--warn) 40%, white);
-  background: color-mix(in srgb, var(--warn) 9%, white);
-  font-size: 13px;
+  border-bottom: 1px solid var(--line);
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+  font-size: 0.875rem;
+  line-height: 1.4;
 }
 
+.board-notice-actions { display: flex; gap: 8px; }
+
 .board-canvas { position: relative; flex: 1; min-height: 0; }
+
 /* Acento de Board en la UI de Excalidraw (solo tema claro; el oscuro queda como viene). */
 .board-canvas .excalidraw:not(.theme--dark) {
-  --color-primary: #00a396;
-  --color-primary-darker: #008f84;
-  --color-primary-darkest: #007a71;
-  --color-primary-hover: #00968a;
+  --color-primary: var(--c-board-ink);
+  --color-primary-darker: #006f66;
+  --color-primary-darkest: #005c55;
+  --color-primary-hover: #00756b;
   --color-primary-light: color-mix(in srgb, var(--c-board) 14%, white);
   --color-primary-light-darker: color-mix(in srgb, var(--c-board) 24%, white);
 }
 
-.board-loading {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle, #e9e9e9 1px, transparent 1px) 0 0 / 16px 16px,
-    #fcfcfc;
+.board-loading { position: absolute; inset: 0; background: var(--bg); }
+
+/* El botón de feedback no tapa la barra inferior de Excalidraw en mobile. */
+@media (max-width: 730px) {
+  body:has(.board-editor) .fl-root { bottom: 88px; }
 }
 
 /* ---------- Vista pública ---------- */
@@ -269,11 +245,11 @@
   border-bottom: 1px solid var(--line);
 }
 
-.board-public-bar h1 { font-size: 15px; font-weight: 500; }
-.board-public-bar span { font-size: 11px; }
+.board-public-bar h1 { font-family: var(--font-signage); font-stretch: 75%; font-weight: 800; font-size: 1.25rem; }
+.board-public-bar span { font-size: 0.75rem; }
 .board-public + .powered-by { display: none; }
 
 @media (max-width: 1023px) {
-  .board-editor { height: calc(100dvh - 58px); }
   .board-bar { padding: 8px 12px; gap: 8px; }
+  .board-back-label { display: none; }
 }

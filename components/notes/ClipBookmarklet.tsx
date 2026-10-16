@@ -3,51 +3,68 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { clipBookmarklet } from '@/lib/notes-types';
+import NotesIcon from './NotesIcon';
 
 /**
- * "Clip page": bookmarklet para arrastrar a la barra de favoritos. React no
- * deja renderizar href="javascript:…", así que se setea por DOM.
+ * El botón "Guardar en Notas" para arrastrar a la barra de favoritos, con la
+ * alternativa de copiar el código para crear el favorito a mano.
+ * React no deja renderizar href="javascript:…", así que se setea por DOM.
  */
 export default function ClipBookmarklet({ locale }: { locale: string }) {
   const t = useTranslations('notes.clip');
-  const [open, setOpen] = useState(false);
   const linkRef = useRef<HTMLAnchorElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const [code, setCode] = useState('');
+  const [nudge, setNudge] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (open && linkRef.current) {
-      linkRef.current.setAttribute('href', clipBookmarklet(window.location.origin, locale));
-    }
-  }, [open, locale]);
+    const js = clipBookmarklet(window.location.origin, locale);
+    setCode(js);
+    linkRef.current?.setAttribute('href', js);
+  }, [locale]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Sin permiso de portapapeles: el código queda visible para copiarlo a mano.
     }
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [open]);
+  }
 
   return (
-    <div className="notes-clip" ref={wrapRef}>
-      <button type="button" className="notes-nav-item" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        {t('button')}
-      </button>
-      {open && (
-        <div className="note-pop notes-clip-pop" role="dialog" aria-label={t('title')}>
-          <p className="note-pop-title">{t('title')}</p>
-          <p className="note-pop-hint">{t('hint')}</p>
-          <a
-            ref={linkRef}
-            className="notes-bookmarklet"
-            onClick={(e) => e.preventDefault()}
-            draggable
-          >
-            {t('bookmarkletName')}
-          </a>
+    <div className="notes-bookmarklet-wrap">
+      <div className="notes-bookmarklet-row">
+        <a
+          ref={linkRef}
+          className="notes-bookmarklet"
+          draggable
+          onClick={(e) => {
+            // En esta página no hay nada que recortar: el clic explica qué hacer.
+            e.preventDefault();
+            setNudge(true);
+          }}
+          onDragStart={() => setNudge(false)}
+        >
+          <NotesIcon name="grip" size={14} />
+          {t('bookmarkletName')}
+        </a>
+        <p className="notes-bookmarklet-nudge" role="status" aria-live="polite">
+          {nudge ? t('dragOnly') : ''}
+        </p>
+      </div>
+      <div className="ui-field notes-bookmarklet-manual">
+        <p className="ui-help" id="clip-manual-help">
+          {t('manual')}
+        </p>
+        <div className="notes-pop-row">
+          <input className="input data" readOnly value={code} aria-describedby="clip-manual-help" aria-label={t('copyCode')} onFocus={(e) => e.currentTarget.select()} />
+          <button type="button" className="btn btn-sm" onClick={() => void copy()} disabled={!code}>
+            {copied ? t('copied') : t('copyCode')}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
