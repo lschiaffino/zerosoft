@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { apiError, requireApiUser } from '@/lib/api-auth';
 import { CalendarError, createBooking, findOfferedSlot, getEventType, listUserBookings } from '@/lib/calendar';
-import { ianaTimezone } from '@/lib/calendar-schema';
+import { ianaTimezone, personName } from '@/lib/calendar-schema';
 import { afterBookingCreated, bookingPayload } from '@/lib/calendar-lifecycle';
 
 export const runtime = 'nodejs';
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 const createSchema = z.object({
   eventTypeId: z.string().min(1),
   start: z.string().datetime({ offset: true }),
-  name: z.string().trim().min(1).max(200),
+  name: personName.min(1),
   email: z.string().trim().email().max(254),
   timezone: ianaTimezone.optional(),
 });

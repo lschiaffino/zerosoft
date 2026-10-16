@@ -20,7 +20,9 @@
     "hide": "Ocultar",
     "delete": "Excluir",
     "deleting": "Excluindo…",
-    "edit": "Editar"
+    "edit": "Editar",
+    "yes": "Sim",
+    "no": "Não"
   },
   "overview": {
     "title": "Agenda",
@@ -92,7 +94,9 @@
     "title": "Bloqueios",
     "add": "Bloquear",
     "reasonPlaceholder": "Motivo (opcional)",
-    "empty": "Nenhum bloqueio."
+    "empty": "Nenhum bloqueio.",
+    "from": "De",
+    "to": "Até"
   },
   "bookings": {
     "title": "Reservas",
@@ -100,7 +104,8 @@
     "rescheduled": "Reagendada",
     "emptyTitle": "Nenhum agendamento próximo",
     "emptySub": "Compartilhe um link de agendamento e os novos aparecem aqui.",
-    "emptyCta": "Ir para tipos de evento"
+    "emptyCta": "Ir para tipos de evento",
+    "guestTime": "Convidado: {time} ({timezone})"
   },
   "booking": {
     "timezone": "Fuso horário",

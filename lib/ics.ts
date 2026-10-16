@@ -26,8 +26,16 @@ function escapeText(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 }
 
+/** Caracteres de control (CR/LF incluidos): en un parámetro o un mailto abrirían una línea nueva. */
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\x00-\x1f\x7f]+/g;
+
 function escapeParam(s: string): string {
-  return `"${s.replace(/"/g, "'")}"`;
+  return `"${s.replace(CONTROL_CHARS, ' ').replace(/"/g, "'")}"`;
+}
+
+function mailto(email: string): string {
+  return `mailto:${email.replace(CONTROL_CHARS, '')}`;
 }
 
 /** Líneas de más de 75 octetos se pliegan con CRLF + espacio. */
@@ -60,9 +68,9 @@ export function buildIcs(ev: IcsEvent): string {
     `SUMMARY:${escapeText(ev.title)}`,
     ev.description ? `DESCRIPTION:${escapeText(ev.description)}` : '',
     ev.location ? `LOCATION:${escapeText(ev.location)}` : '',
-    ev.url ? `URL:${ev.url}` : '',
-    `ORGANIZER;CN=${escapeParam(ev.organizer.name)}:mailto:${ev.organizer.email}`,
-    `ATTENDEE;CN=${escapeParam(ev.attendee.name)};ROLE=REQ-PARTICIPANT;RSVP=FALSE:mailto:${ev.attendee.email}`,
+    ev.url ? `URL:${ev.url.replace(CONTROL_CHARS, '')}` : '',
+    `ORGANIZER;CN=${escapeParam(ev.organizer.name)}:${mailto(ev.organizer.email)}`,
+    `ATTENDEE;CN=${escapeParam(ev.attendee.name)};ROLE=REQ-PARTICIPANT;RSVP=FALSE:${mailto(ev.attendee.email)}`,
     `STATUS:${ev.method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED'}`,
     'END:VEVENT',
     'END:VCALENDAR',

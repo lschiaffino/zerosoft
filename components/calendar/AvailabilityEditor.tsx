@@ -34,6 +34,7 @@ export default function AvailabilityEditor({ eventTypeId, initialRules }: Availa
   const [rules, setRules] = useState<Rule[]>(parseRules(initialRules));
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function addRule(day?: number) {
     // Sin día explícito: el primer día hábil (lun→dom) que todavía no tiene horario.
@@ -56,15 +57,26 @@ export default function AvailabilityEditor({ eventTypeId, initialRules }: Availa
   }
 
   async function save() {
-    setBusy(true);
     setSaved(false);
+    // Una franja con el fin antes del inicio no genera horarios: se avisa en vez de guardarla.
+    if (rules.some((r) => r.endTime <= r.startTime)) {
+      setError(t('errors.invalid_range'));
+      return;
+    }
+    setError(null);
+    setBusy(true);
     const res = await fetch(`/api/calendar/event-types/${eventTypeId}/availability`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ rules }),
     }).catch(() => null);
     setBusy(false);
-    if (res && res.ok) setSaved(true);
+    if (res && res.ok) {
+      setSaved(true);
+      return;
+    }
+    const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : undefined;
+    setError(code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
   }
 
   return (
@@ -80,6 +92,12 @@ export default function AvailabilityEditor({ eventTypeId, initialRules }: Availa
           </button>
         </div>
       </div>
+
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
 
       {rules.length === 0 ? (
         <div className="empty-inline">

@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
 import { listEventTypes, countBookingsThisWeek, getOrCreateCalendarUser, listBlockedSlots } from '@/lib/calendar';
 import { formatNumber } from '@/lib/utils';
 import BlockedSlotsPanel from '@/components/calendar/BlockedSlotsPanel';
@@ -18,7 +18,8 @@ export default async function CalendarLandingPage(props: { params: Promise<{ loc
   const eventTypes = await listEventTypes(user.id);
   const bookingsThisWeek = await countBookingsThisWeek(user.id);
   const config = await getOrCreateCalendarUser(user.id);
-  const blockedSlots = await listBlockedSlots(user.id);
+  // Los bloqueos son de la persona (como Google Calendar), no del dueño del workspace.
+  const blockedSlots = await listBlockedSlots(realUserId(user));
   const origin = publicOrigin((await headers()).get('host'));
 
   return (

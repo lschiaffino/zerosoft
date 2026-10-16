@@ -20,7 +20,9 @@
     "hide": "Hide",
     "delete": "Delete",
     "deleting": "Deleting…",
-    "edit": "Edit"
+    "edit": "Edit",
+    "yes": "Yes",
+    "no": "No"
   },
   "overview": {
     "title": "Calendar",
@@ -92,7 +94,9 @@
     "title": "Blocked slots",
     "add": "Block",
     "reasonPlaceholder": "Reason (optional)",
-    "empty": "No blocked slots."
+    "empty": "No blocked slots.",
+    "from": "From",
+    "to": "To"
   },
   "bookings": {
     "title": "Bookings",
@@ -100,7 +104,8 @@
     "rescheduled": "Rescheduled",
     "emptyTitle": "No upcoming bookings",
     "emptySub": "Share a booking link and new bookings show up here.",
-    "emptyCta": "Go to event types"
+    "emptyCta": "Go to event types",
+    "guestTime": "Guest: {time} ({timezone})"
   },
   "booking": {
     "timezone": "Timezone",

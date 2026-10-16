@@ -23,6 +23,9 @@ const time = z
   .trim()
   .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'invalid_time' });
 const isoDate = z.string().trim().min(1);
+/** Nombre de persona en una línea: sin saltos ni caracteres de control (va a headers y al .ics). */
+// eslint-disable-next-line no-control-regex
+export const personName = shortText.regex(/^[^\x00-\x1f\x7f]*$/, { message: 'invalid_name' });
 const email = z
   .string()
   .trim()
@@ -119,32 +122,41 @@ export const availabilityCreateSchema = z.object({
   endTime: time,
 });
 
+/** Una franja semanal: el fin tiene que ser posterior al inicio (si no, no genera slots). */
+const scheduleRule = z
+  .object({ dayOfWeek: z.number().int().min(0).max(6), startTime: time, endTime: time })
+  .refine((r) => r.endTime > r.startTime, { message: 'invalid_range' });
+
 export const availabilityBatchSchema = z.object({
-  rules: z.array(
-    z.object({
-      dayOfWeek: z.number().int().min(0).max(6),
-      startTime: time,
-      endTime: time,
-    }),
-  ),
+  rules: z.array(scheduleRule).max(100),
 });
 
 // ---------- Blocked slots ----------
 
-export const blockedSlotCreateSchema = z.object({
-  startsAt: isoDate,
-  endsAt: isoDate,
+/** Fecha y hora válida, normalizada a ISO UTC (así se compara bien como texto en SQL). */
+const isoInstant = isoDate
+  .refine((v) => !Number.isNaN(new Date(v).getTime()), { message: 'invalid_date' })
+  .transform((v) => new Date(v).toISOString());
+
+const blockedSlotFields = z.object({
+  startsAt: isoInstant,
+  endsAt: isoInstant,
   reason: longText.nullish(),
 });
 
-export const blockedSlotUpdateSchema = blockedSlotCreateSchema.partial();
+export const blockedSlotCreateSchema = blockedSlotFields.refine((b) => b.endsAt > b.startsAt, {
+  message: 'invalid_range',
+  path: ['endsAt'],
+});
+
+export const blockedSlotUpdateSchema = blockedSlotFields.partial();
 
 // ---------- Bookings ----------
 
 export const bookingCreateSchema = z.object({
   eventTypeId: id,
   email: email,
-  name: shortText,
+  name: personName,
   start: isoDate,
   timezone: ianaTimezone.optional(),
   answers: z
@@ -280,10 +292,6 @@ export type RoutingRuleCreatePayload = z.infer<typeof routingRuleCreateSchema>;
 export type RoutingRuleUpdatePayload = z.infer<typeof routingRuleUpdateSchema>;
 
 // ---------- Horarios reutilizables (fase D9) ----------
-
-const scheduleRule = z
-  .object({ dayOfWeek: z.number().int().min(0).max(6), startTime: time, endTime: time })
-  .refine((r) => r.endTime > r.startTime, { message: 'invalid_range' });
 
 const isoDay = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'invalid_date' });
 

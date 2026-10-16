@@ -20,7 +20,9 @@
     "hide": "Ocultar",
     "delete": "Eliminar",
     "deleting": "Eliminando…",
-    "edit": "Editar"
+    "edit": "Editar",
+    "yes": "Sí",
+    "no": "No"
   },
   "overview": {
     "title": "Calendario",
@@ -92,7 +94,9 @@
     "title": "Bloqueos",
     "add": "Bloquear",
     "reasonPlaceholder": "Motivo (opcional)",
-    "empty": "No hay bloqueos."
+    "empty": "No hay bloqueos.",
+    "from": "Desde",
+    "to": "Hasta"
   },
   "bookings": {
     "title": "Reservas",
@@ -100,7 +104,8 @@
     "rescheduled": "Reprogramada",
     "emptyTitle": "No hay reservas próximas",
     "emptySub": "Compartí un link de reserva y las nuevas reservas aparecen acá.",
-    "emptyCta": "Ir a tipos de evento"
+    "emptyCta": "Ir a tipos de evento",
+    "guestTime": "Invitado: {time} ({timezone})"
   },
   "booking": {
     "timezone": "Zona horaria",
