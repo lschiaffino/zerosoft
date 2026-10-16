@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createBooking, createEventType, getOrCreateCalendarUser, setAvailability } from '@/lib/calendar';
+import { createBooking, createEventType, getOrCreateCalendarUser, rescheduleBooking, setAvailability } from '@/lib/calendar';
 import { createContact, listTimeline } from '@/lib/crm';
 import { findContactByEmail, logChatToCrm, recordBookingInCrm } from '@/lib/crm-integrations';
 import { createWorkflow, listWorkflowRuns } from '@/lib/crm-workflows';
-import { getDb, type CalendarBookingRow, type ChatVisitorRow } from '@/lib/db';
+import { getDb, type ChatVisitorRow } from '@/lib/db';
 import { API_ENDPOINTS } from '@/lib/api-docs';
 import {
   activityCreateSchema,
@@ -92,13 +92,9 @@ describe('Cal → CRM', () => {
     const { booking } = await bookingFor(u.id, 'ya@existe.test');
     await recordBookingInCrm(u.id, 'created', booking, 'Intro call');
 
-    const moved: CalendarBookingRow = {
-      ...booking,
-      id: crypto.randomUUID(),
-      rescheduled_from: booking.id,
-      starts_at: `${nextMonday()}T10:30:00.000Z`,
-      ends_at: `${nextMonday()}T11:00:00.000Z`,
-    };
+    // La reserva conserva su id; rescheduled_from guarda la fecha anterior.
+    const moved = await rescheduleBooking(booking.id, new Date(`${nextMonday()}T10:30:00.000Z`));
+    expect(moved.id).toBe(booking.id);
     await recordBookingInCrm(u.id, 'rescheduled', moved, 'Intro call');
     let timeline = await listTimeline(u.id, { contactId: existing.id });
     expect(timeline).toHaveLength(1);

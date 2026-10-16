@@ -39,7 +39,7 @@ async function run(req: NextRequest) {
       eventTitle: reminder.event_title,
       start: new Date(reminder.starts_at),
       timezone: reminder.timezone,
-      location: reminder.event_location,
+      location: reminder.meeting_url || reminder.event_location,
       manageUrl: reminder.manage_token ? manageUrl({ manage_token: reminder.manage_token }, reminder.locale) : null,
       locale: reminder.locale,
     });

@@ -11,10 +11,12 @@ interface Props {
   priceCents: number;
   currency: string;
   paymentsConfigured: boolean;
+  /** Clave y signing secret cargados: recién ahí los invitados pueden pagar. */
+  paymentsReady: boolean;
 }
 
 /** Precio del tipo de evento: con precio > 0 el invitado paga con Stripe Checkout para confirmar. */
-export default function EventPaymentPanel({ eventTypeId, priceCents, currency, paymentsConfigured }: Props) {
+export default function EventPaymentPanel({ eventTypeId, priceCents, currency, paymentsConfigured, paymentsReady }: Props) {
   const t = useTranslations('calendar');
   const [amount, setAmount] = useState(priceCents > 0 ? (priceCents / 100).toFixed(2) : '0');
   const [cur, setCur] = useState(currency || 'usd');
@@ -85,9 +87,9 @@ export default function EventPaymentPanel({ eventTypeId, priceCents, currency, p
       <p id="cal-pay-free" className="muted mono cal-sched-hint">
         {t('payments.free')}
       </p>
-      {charging && !paymentsConfigured ? (
+      {charging && !paymentsReady ? (
         <p className="cal-warn">
-          {t('payments.notConfigured')}{' '}
+          {t(paymentsConfigured ? 'payments.eventWebhookMissing' : 'payments.notConfigured')}{' '}
           <Link href="/app/calendar/settings" className="mono">
             {t('sidebar.settings')} →
           </Link>

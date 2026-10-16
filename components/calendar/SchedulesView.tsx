@@ -252,7 +252,7 @@ export default function SchedulesView({ initial, defaultTimezone }: Props) {
                             className="input mono"
                             type="time"
                             value={r.startTime}
-                            aria-label={`${t(`availability.day.${day}`)} start`}
+                            aria-label={t('schedules.rangeStart', { day: t(`availability.day.${day}`) })}
                             onChange={(e) => updateRule(i, { startTime: e.target.value })}
                           />
                           <span className="muted" aria-hidden>
@@ -262,7 +262,7 @@ export default function SchedulesView({ initial, defaultTimezone }: Props) {
                             className="input mono"
                             type="time"
                             value={r.endTime}
-                            aria-label={`${t(`availability.day.${day}`)} end`}
+                            aria-label={t('schedules.rangeEnd', { day: t(`availability.day.${day}`) })}
                             onChange={(e) => updateRule(i, { endTime: e.target.value })}
                           />
                           <button
@@ -313,6 +313,7 @@ export default function SchedulesView({ initial, defaultTimezone }: Props) {
                       className="input mono"
                       type="date"
                       value={o.date}
+                      aria-label={t('schedules.overrideDate', { n: i + 1 })}
                       onChange={(e) => updateOverride(i, { date: e.target.value })}
                     />
                     <label className="checkbox-field">
@@ -336,6 +337,7 @@ export default function SchedulesView({ initial, defaultTimezone }: Props) {
                           className="input mono"
                           type="time"
                           value={o.startTime ?? ''}
+                          aria-label={t('schedules.overrideStart', { n: i + 1 })}
                           onChange={(e) => updateOverride(i, { startTime: e.target.value })}
                         />
                         <span className="muted" aria-hidden>
@@ -345,6 +347,7 @@ export default function SchedulesView({ initial, defaultTimezone }: Props) {
                           className="input mono"
                           type="time"
                           value={o.endTime ?? ''}
+                          aria-label={t('schedules.overrideEnd', { n: i + 1 })}
                           onChange={(e) => updateOverride(i, { endTime: e.target.value })}
                         />
                       </div>

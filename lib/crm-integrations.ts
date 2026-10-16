@@ -94,7 +94,7 @@ async function activityForBooking(userId: string, bookingId: string): Promise<{ 
 /**
  * Refleja una reserva de Cal en el CRM del dueño del tipo de evento.
  * created → contacto (si no existe) + actividad "meeting" con la fecha de la reunión.
- * rescheduled → mueve la actividad de la reserva original a la nueva fecha.
+ * rescheduled → mueve la actividad de la reserva a la nueva fecha.
  * cancelled → marca la actividad como cancelada.
  */
 export async function recordBookingInCrm(
@@ -116,9 +116,9 @@ export async function recordBookingInCrm(
     return;
   }
 
-  const previous = kind === 'rescheduled' && booking.rescheduled_from
-    ? await activityForBooking(workspaceId, booking.rescheduled_from)
-    : null;
+  // Reprogramar conserva el id de la reserva (rescheduled_from es solo la
+  // fecha anterior): la actividad se busca por ese id y se mueve.
+  const previous = kind === 'rescheduled' ? await activityForBooking(workspaceId, booking.id) : null;
   if (previous) {
     await updateActivity(workspaceId, previous.id, {
       dueAt: toDbUtc(booking.starts_at),
@@ -126,7 +126,6 @@ export async function recordBookingInCrm(
       body: bookingBody(booking),
       outcome: 'rescheduled',
     });
-    await db.prepare('UPDATE crm_activities SET booking_id = ? WHERE id = ?').run(booking.id, previous.id);
     return;
   }
 
