@@ -110,6 +110,8 @@ export default function ConversationClient({
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [macroApplied, setMacroApplied] = useState<string | null>(null);
+  /** Macro elegida en el composer: sus acciones se aplican al enviar la respuesta. */
+  const [pendingMacro, setPendingMacro] = useState<{ id: string; shortcut: string } | null>(null);
 
   async function fetchTags() {
     try {
@@ -149,6 +151,13 @@ export default function ConversationClient({
       if (!res.ok) return;
       const data = (await res.json()) as { messages: ChatMessageWithUser[] };
       setMessages(data.messages);
+      // Lo que llega con la conversación abierta (y la pestaña visible) queda leído.
+      if (
+        document.visibilityState === 'visible' &&
+        data.messages.some((m) => m.sender_type === 'visitor' && !m.read_at)
+      ) {
+        void markRead();
+      }
     } catch {
       // ignore polling errors
     }
@@ -228,6 +237,7 @@ export default function ConversationClient({
   }
 
   useEffect(() => {
+    setPendingMacro(null);
     fetchMessages();
     fetchList();
     fetchCanned();
@@ -295,6 +305,14 @@ export default function ConversationClient({
     }
     setSendError(null);
     setSending(true);
+    const macro = pendingMacro;
+    const macroDone = () => {
+      if (!macro) return;
+      setPendingMacro(null);
+      setMacroApplied(macro.shortcut);
+      setTimeout(() => setMacroApplied(null), 3000);
+      fetchTags();
+    };
     const fail = async (res: Response) => {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       setSendError(t(sendErrorKey(data.error)));
@@ -304,6 +322,7 @@ export default function ConversationClient({
         const formData = new FormData();
         formData.append('file', selectedFile);
         if (body) formData.append('body', body);
+        if (macro) formData.append('cannedId', macro.id);
         const res = await fetch(`/api/chat/conversations/${conversationId}/attachments`, {
           method: 'POST',
           body: formData,
@@ -312,6 +331,7 @@ export default function ConversationClient({
           setReply('');
           setSelectedFile(null);
           if (fileInputRef.current) fileInputRef.current.value = '';
+          macroDone();
           await fetchMessages();
           await fetchList();
           await fetchConversation();
@@ -323,14 +343,18 @@ export default function ConversationClient({
         const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(isNote ? { body, note: true, mentions } : { body }),
+          body: JSON.stringify({
+            ...(isNote ? { body, note: true, mentions } : { body }),
+            ...(macro ? { cannedId: macro.id } : {}),
+          }),
         });
         if (res.ok) {
           setReply('');
           setMentions([]);
+          macroDone();
           await fetchMessages();
           await fetchList();
-          if (!isNote) await fetchConversation();
+          if (!isNote || macro) await fetchConversation();
         } else {
           await fail(res);
         }
@@ -401,11 +425,13 @@ export default function ConversationClient({
     setMentionIndex(0);
   }
 
-  async function insertCanned(response: ChatCannedResponseRow) {
+  function insertCanned(response: ChatCannedResponseRow) {
     const before = reply.slice(0, reply.lastIndexOf('/'));
     setReply((before + response.body).trimStart() + ' ');
     setCannedIndex(0);
-    // Macro: si la respuesta guardada tiene acciones, se aplican ya.
+    // Macro: si la respuesta guardada tiene acciones, se aplican al enviar (no
+    // al elegirla: si no, el envío reabría la conversación recién resuelta y
+    // las acciones corrían aunque el agente no mandara nada).
     let hasActions = false;
     try {
       const a = JSON.parse(response.actions || '{}') as Record<string, unknown>;
@@ -413,22 +439,7 @@ export default function ConversationClient({
     } catch {
       hasActions = false;
     }
-    if (!hasActions) return;
-    const res = await fetch(`/api/chat/conversations/${conversationId}/macro`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cannedId: response.id }),
-    });
-    if (!res.ok) return;
-    const data = (await res.json()) as { conversation: ChatConversationWithVisitor | null; tags: string[] };
-    if (data.conversation) {
-      const next = data.conversation;
-      setConversation((prev) => ({ ...prev, ...next }));
-    }
-    setTags(data.tags);
-    setMacroApplied(response.shortcut);
-    setTimeout(() => setMacroApplied(null), 3000);
-    fetchList();
+    setPendingMacro(hasActions ? { id: response.id, shortcut: response.shortcut } : null);
   }
 
   function handleComposerKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -651,6 +662,9 @@ export default function ConversationClient({
             maxLength={40}
           />
           {macroApplied && <span className="chat-macro-applied mono muted">{t('macros.applied', { shortcut: macroApplied })}</span>}
+          {pendingMacro && !macroApplied && (
+            <span className="chat-macro-applied mono muted">{t('macros.pending', { shortcut: pendingMacro.shortcut })}</span>
+          )}
         </div>
 
         <div className="chat-messages" ref={messagesRef}>
@@ -804,14 +818,17 @@ export default function ConversationClient({
               className="chat-composer-attach"
               onClick={() => fileInputRef.current?.click()}
               title={t('attachments.upload')}
+              aria-label={t('attachments.upload')}
             >
-              ⊕
+              <span aria-hidden="true">⊕</span>
             </button>
           )}
           <input
             ref={fileInputRef}
             type="file"
             className="chat-composer-file-input"
+            aria-hidden="true"
+            tabIndex={-1}
             onChange={handleFileChange}
           />
           <div className="chat-composer-field">
@@ -822,6 +839,7 @@ export default function ConversationClient({
               value={reply}
               onChange={(e) => {
                 setReply(e.target.value);
+                if (!e.target.value.trim()) setPendingMacro(null);
                 setCannedIndex(0);
                 sendTyping();
               }}

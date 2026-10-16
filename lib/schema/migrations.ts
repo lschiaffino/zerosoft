@@ -2070,6 +2070,20 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_track_issues_cycle ON track_issues(cycle_id, status_id)');
     },
   },
+  {
+    // Docs: restaurar una página de la papelera revive solo las subpáginas que
+    // se archivaron con ella, no las que ya se habían mandado a la papelera por
+    // su cuenta. Lo ya archivado debajo de un padre archivado se asume cascada
+    // (era el comportamiento previo al restaurar).
+    id: '031_docs_archived_by_parent',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN archived_by_parent INTEGER NOT NULL DEFAULT 0');
+      await client.execute(
+        `UPDATE docs_pages SET archived_by_parent = 1
+         WHERE archived = 1 AND parent_id IN (SELECT id FROM docs_pages WHERE archived = 1)`,
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

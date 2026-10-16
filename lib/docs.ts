@@ -276,6 +276,20 @@ export interface UpdateDocPageInput {
   archived?: boolean;
   small_text?: boolean;
   full_width?: boolean;
+  /**
+   * Concurrencia optimista: `updated_at` sobre el que el cliente hizo sus
+   * cambios. Si la página cambió desde entonces (otra persona guardó o se
+   * restauró una versión), se rechaza con DocsConflictError en vez de pisarla.
+   */
+  base_updated_at?: string;
+}
+
+/** La página cambió desde el `base_updated_at` que mandó el cliente. */
+export class DocsConflictError extends Error {
+  constructor() {
+    super('docs_conflict');
+    this.name = 'DocsConflictError';
+  }
 }
 
 export async function updateDocPage(
@@ -287,6 +301,8 @@ export async function updateDocPage(
     .prepare('SELECT * FROM docs_pages WHERE id = ?')
     .get(pageId)) as DocsPageRow | undefined;
   if (!row || row.user_id !== ownerId) return null;
+  const base = input.base_updated_at;
+  if (base !== undefined && row.updated_at !== base) throw new DocsConflictError();
 
   // Re-parentar: el nuevo padre tiene que ser del mismo workspace y no puede
   // ser la propia página ni una de sus descendientes (armaría un ciclo y el
@@ -352,8 +368,18 @@ export async function updateDocPage(
     }
   }
   if (input.archived !== undefined) {
-    updates.push('archived = ?');
+    // Archivada o restaurada a mano: ya no depende de la cascada de un ancestro.
+    updates.push('archived = ?', 'archived_by_parent = 0');
     args.push(input.archived ? 1 : 0);
+    // Restaurar una subpágina cuyo padre sigue en la papelera: pasa a la raíz.
+    // Si no, quedaba colgando de un padre archivado y el borrado definitivo
+    // del padre se la llevaba aunque estuviera activa.
+    if (!input.archived && row.archived === 1 && row.parent_id && input.parent_id === undefined) {
+      const parent = (await getDb()
+        .prepare('SELECT archived FROM docs_pages WHERE id = ?')
+        .get(row.parent_id)) as { archived: number } | undefined;
+      if (parent?.archived === 1) updates.push('parent_id = NULL', 'position = NULL');
+    }
   }
 
   if (updates.length === 0) return toDocPage(row);
@@ -361,19 +387,39 @@ export async function updateDocPage(
   updates.push('updated_at = ?');
   args.push(new Date().toISOString());
   args.push(pageId);
+  if (base !== undefined) args.push(base);
 
-  await getDb()
-    .prepare(`UPDATE docs_pages SET ${updates.join(', ')} WHERE id = ?`)
+  const result = await getDb()
+    .prepare(`UPDATE docs_pages SET ${updates.join(', ')} WHERE id = ?${base !== undefined ? ' AND updated_at = ?' : ''}`)
     .run(...args);
+  // Otro guardado se coló entre el SELECT y el UPDATE.
+  if (base !== undefined && result.changes === 0) throw new DocsConflictError();
 
   // Papelera: archivar/restaurar arrastra a las subpáginas (si no, quedaban
   // huérfanas en la raíz del árbol al mandar el padre a la papelera).
+  // Se marca cuáles archivó la cascada: al restaurar vuelven solo esas, no las
+  // que ya estaban en la papelera por su cuenta (podían estar publicadas).
   if (input.archived !== undefined && (row.archived === 1) !== input.archived) {
-    const ids = (await collectDescendants(ownerId, pageId)).filter((x) => x !== pageId);
-    if (ids.length > 0) {
-      await getDb()
-        .prepare(`UPDATE docs_pages SET archived = ? WHERE id IN (${ids.map(() => '?').join(',')})`)
-        .run(input.archived ? 1 : 0, ...ids);
+    if (input.archived) {
+      const ids = (await collectDescendants(ownerId, pageId)).filter((x) => x !== pageId);
+      if (ids.length > 0) {
+        await getDb()
+          .prepare(
+            `UPDATE docs_pages SET archived = 1, archived_by_parent = 1
+             WHERE archived = 0 AND id IN (${ids.map(() => '?').join(',')})`,
+          )
+          .run(...ids);
+      }
+    } else {
+      const ids = await collectCascadeArchived(ownerId, pageId);
+      if (ids.length > 0) {
+        await getDb()
+          .prepare(
+            `UPDATE docs_pages SET archived = 0, archived_by_parent = 0
+             WHERE id IN (${ids.map(() => '?').join(',')})`,
+          )
+          .run(...ids);
+      }
     }
   }
 
@@ -478,13 +524,71 @@ export async function collectDescendants(ownerId: string, rootId: string): Promi
   return ids;
 }
 
+/**
+ * Descendientes que mandó a la papelera la cascada de `rootId`: baja solo por
+ * hijos con archived_by_parent = 1 (lo archivado por su cuenta, y lo que cuelga
+ * de eso, se queda en la papelera).
+ */
+async function collectCascadeArchived(ownerId: string, rootId: string): Promise<string[]> {
+  const ids: string[] = [];
+  const queue: string[] = [rootId];
+  const seen = new Set<string>([rootId]);
+  while (queue.length > 0) {
+    const parentId = queue.shift()!;
+    const rows = (await getDb()
+      .prepare(
+        'SELECT id FROM docs_pages WHERE user_id = ? AND parent_id = ? AND archived = 1 AND archived_by_parent = 1',
+      )
+      .all(ownerId, parentId)) as Array<{ id: string }>;
+    for (const child of rows) {
+      if (seen.has(child.id)) continue;
+      seen.add(child.id);
+      ids.push(child.id);
+      queue.push(child.id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Subárbol archivado de una página archivada: baja solo por hijos archivados
+ * y despega (parent_id = NULL) a los hijos activos que encuentra.
+ */
+async function collectArchivedSubtree(ownerId: string, rootId: string): Promise<string[]> {
+  const ids: string[] = [rootId];
+  const queue: string[] = [rootId];
+  const seen = new Set<string>([rootId]);
+  while (queue.length > 0) {
+    const parentId = queue.shift()!;
+    const rows = (await getDb()
+      .prepare('SELECT id, archived FROM docs_pages WHERE user_id = ? AND parent_id = ?')
+      .all(ownerId, parentId)) as Array<{ id: string; archived: number }>;
+    for (const child of rows) {
+      if (seen.has(child.id)) continue;
+      seen.add(child.id);
+      if (child.archived !== 1) {
+        await getDb()
+          .prepare('UPDATE docs_pages SET parent_id = NULL, position = NULL WHERE id = ? AND user_id = ?')
+          .run(child.id, ownerId);
+        continue;
+      }
+      ids.push(child.id);
+      queue.push(child.id);
+    }
+  }
+  return ids;
+}
+
 export async function deleteDocPage(ownerId: string, pageId: string): Promise<boolean> {
   const row = (await getDb()
     .prepare('SELECT * FROM docs_pages WHERE id = ?')
     .get(pageId)) as DocsPageRow | undefined;
   if (!row || row.user_id !== ownerId) return false;
 
-  const ids = await collectDescendants(ownerId, pageId);
+  // Borrar para siempre desde la papelera solo se lleva lo que está en la
+  // papelera: una subpágina ya restaurada (activa) se despega a la raíz junto
+  // con su subárbol, si no el DELETE (y el ON DELETE CASCADE) la borraba.
+  const ids = row.archived === 1 ? await collectArchivedSubtree(ownerId, pageId) : await collectDescendants(ownerId, pageId);
   const placeholders = ids.map(() => '?').join(',');
   await getDb()
     .prepare(`DELETE FROM docs_pages WHERE id IN (${placeholders})`)

@@ -161,6 +161,7 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
           type="search"
           className="input chat-inbox-search"
           placeholder={t('inbox.search')}
+          aria-label={t('inbox.search')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />

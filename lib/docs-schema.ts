@@ -63,6 +63,8 @@ export const docPageUpdateSchema = z.object({
   archived: z.boolean().optional(),
   small_text: z.boolean().optional(),
   full_width: z.boolean().optional(),
+  /** updated_at sobre el que se editó (concurrencia optimista: 409 si cambió). */
+  base_updated_at: z.string().min(1).max(64).optional(),
 });
 
 export const docShareRoleSchema = z.enum(['view', 'edit']);
@@ -80,7 +82,7 @@ export const docShareUpdateSchema = z.object({
 });
 
 /** Campos que puede tocar alguien con un share de edición (no el dueño). */
-export const SHARED_EDITABLE_FIELDS = ['title', 'icon', 'cover_url', 'content'] as const;
+export const SHARED_EDITABLE_FIELDS = ['title', 'icon', 'cover_url', 'content', 'base_updated_at'] as const;
 
 export const docCommentCreateSchema = z.object({
   body: z.string().trim().min(1).max(5000),

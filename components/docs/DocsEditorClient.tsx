@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import {
@@ -56,7 +56,15 @@ export default function DocsEditorClient({
   const t = useTranslations('docs');
   const isOwner = access === 'owner';
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<'tooLong' | 'failed' | null>(null);
+  const [saveError, setSaveError] = useState<'tooLong' | 'failed' | 'conflict' | null>(null);
+  // Concurrencia optimista: updated_at de la última versión que este editor
+  // vio del server (la carga inicial o su propio último guardado). Si otra
+  // persona guarda en el medio, el PATCH vuelve 409 en vez de pisarla.
+  const baseUpdatedAt = useRef(page.updated_at);
+  /** Guardados en serie: uno en vuelo con la base vieja daría un falso 409. */
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
+  /** Último cambio de contenido rechazado por conflicto (para "Sobrescribir"). */
+  const conflictPatch = useRef<Partial<DocsPage> | null>(null);
   const [current, setCurrent] = useState<DocsPage>(page);
   const [editorKey, setEditorKey] = useState(0);
   const [localShares, setLocalShares] = useState(shares);
@@ -99,16 +107,11 @@ export default function DocsEditorClient({
     setCommentFocus((n) => n + 1);
   }, []);
 
-  const savePage = useCallback(
-    async (patch: Partial<DocsPage>) => {
-      // El servidor rechaza el PATCH entero si un bloque pasa el tope: avisar en
-      // vez de mostrar "Guardado" y perder lo escrito.
-      if (docsPatchTooLong(patch)) {
-        setSaveError('tooLong');
-        return;
-      }
+  const runSave = useCallback(
+    async (patch: Partial<DocsPage>, force: boolean) => {
       setSaving(true);
-      const body = JSON.stringify(patch);
+      const guarded = 'content' in patch && !force;
+      const body = JSON.stringify(guarded ? { ...patch, base_updated_at: baseUpdatedAt.current } : patch);
       try {
         const res = await fetch(`/api/docs/pages/${page.id}`, {
           method: 'PATCH',
@@ -118,13 +121,20 @@ export default function DocsEditorClient({
           // (keepalive tiene tope de 64KB por request).
           keepalive: body.length < 60_000,
         });
+        if (res.status === 409) {
+          conflictPatch.current = patch;
+          setSaveError('conflict');
+          return;
+        }
         if (!res.ok) {
           setSaveError('failed');
           return;
         }
+        conflictPatch.current = null;
         setSaveError(null);
-        if ('published' in patch || 'is_public' in patch) {
-          const updated = (await res.json()) as DocsPage;
+        const updated = (await res.json().catch(() => null)) as DocsPage | null;
+        if (updated?.updated_at) baseUpdatedAt.current = updated.updated_at;
+        if (updated && ('published' in patch || 'is_public' in patch)) {
           setCurrent((prev) => ({ ...prev, published: updated.published, slug: updated.slug, is_public: updated.is_public }));
         }
         router.refresh();
@@ -136,6 +146,43 @@ export default function DocsEditorClient({
     },
     [page.id, router],
   );
+
+  const savePage = useCallback(
+    async (patch: Partial<DocsPage>) => {
+      // El servidor rechaza el PATCH entero si un bloque pasa el tope: avisar en
+      // vez de mostrar "Guardado" y perder lo escrito.
+      if (docsPatchTooLong(patch)) {
+        setSaveError('tooLong');
+        return;
+      }
+      const next = saveChain.current.then(() => runSave(patch, false));
+      saveChain.current = next;
+      await next;
+    },
+    [runSave],
+  );
+
+  // Conflicto: o se trae la versión del server (descartando lo propio sin
+  // guardar) o se sobrescribe a sabiendas con lo que hay en este editor.
+  const reloadAfterConflict = useCallback(async () => {
+    const res = await fetch(`/api/docs/pages/${page.id}`);
+    if (!res.ok) return;
+    const fresh = (await res.json()) as DocsPage;
+    baseUpdatedAt.current = fresh.updated_at;
+    conflictPatch.current = null;
+    setSaveError(null);
+    setCurrent(fresh);
+    setEditorKey((k) => k + 1);
+    router.refresh();
+  }, [page.id, router]);
+
+  const overwriteAfterConflict = useCallback(async () => {
+    const patch = conflictPatch.current;
+    if (!patch) return;
+    const next = saveChain.current.then(() => runSave(patch, true));
+    saveChain.current = next;
+    await next;
+  }, [runSave]);
 
   const handleShare = useCallback(
     async (req: ShareRequest): Promise<string | null> => {
@@ -204,7 +251,10 @@ export default function DocsEditorClient({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ archived: false }),
     });
-    if (res.ok) router.refresh();
+    if (!res.ok) return;
+    const updated = (await res.json().catch(() => null)) as DocsPage | null;
+    if (updated?.updated_at) baseUpdatedAt.current = updated.updated_at;
+    router.refresh();
   }, [page.id, router]);
 
   // Tras restaurar una versión el editor se vuelve a montar con el contenido nuevo.
@@ -212,6 +262,7 @@ export default function DocsEditorClient({
     const res = await fetch(`/api/docs/pages/${page.id}`);
     if (res.ok) {
       const fresh = (await res.json()) as DocsPage;
+      baseUpdatedAt.current = fresh.updated_at;
       setCurrent(fresh);
       setEditorKey((k) => k + 1);
     }
@@ -290,6 +341,17 @@ export default function DocsEditorClient({
               {t('trash.restore')}
             </button>
           )}
+        </div>
+      )}
+      {saveError === 'conflict' && (
+        <div className="docs-archived-banner" role="alert">
+          <span>{t('editor.conflict')}</span>
+          <button type="button" className="btn btn-small" onClick={reloadAfterConflict}>
+            {t('editor.conflictReload')}
+          </button>
+          <button type="button" className="btn btn-small" onClick={overwriteAfterConflict}>
+            {t('editor.conflictOverwrite')}
+          </button>
         </div>
       )}
       <DocsEditor

@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { realUserId, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listDocPageSummaries, listSharedWithMe } from '@/lib/docs';
 import {
   createDocPageAction,
@@ -116,6 +116,7 @@ export default async function DocsLandingPage(props: { params: Promise<{ locale:
             <p className="docs-trash-help muted">{t('trash.help')}</p>
             <DocsTrashList
               pages={trashed}
+              canDelete={isWorkspaceAdmin(user)}
               labels={{
                 restore: t('trash.restore'),
                 deleteForever: t('trash.deleteForever'),

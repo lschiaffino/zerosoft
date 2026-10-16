@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, realUserId } from '@/lib/session';
-import { deleteDocPage, getDocAccess, getDocPageRow, listDocShares, toDocPage, updateDocPage } from '@/lib/docs';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
+import { DocsConflictError, deleteDocPage, getDocAccess, getDocPageRow, listDocShares, toDocPage, updateDocPage } from '@/lib/docs';
 import { SHARED_EDITABLE_FIELDS, docPageUpdateSchema } from '@/lib/docs-schema';
 import { maybeAutoSnapshot } from '@/lib/docs-versions';
-import { notFound, unauthorized, invalidBody, forbidden } from '@/lib/docs-http';
+import { notFound, unauthorized, invalidBody, forbidden, docsError } from '@/lib/docs-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,7 +42,15 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     if (Object.keys(patch).some((k) => !allowed.has(k))) return forbidden();
   }
 
-  const page = await updateDocPage(row.user_id, params.id, patch);
+  let page;
+  try {
+    page = await updateDocPage(row.user_id, params.id, patch);
+  } catch (err) {
+    // Otra persona guardó (o se restauró una versión) desde que el editor
+    // cargó la página: no pisar su contenido en silencio.
+    if (err instanceof DocsConflictError) return docsError(409, 'conflict');
+    throw err;
+  }
   if (!page) return notFound();
   if (patch.content !== undefined || patch.title !== undefined) {
     await maybeAutoSnapshot(row.user_id, params.id, realUserId(user), row).catch(() => {});
@@ -54,6 +62,9 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  // Borrar para siempre (subárbol, versiones y comentarios) es irreversible:
+  // solo admins, como en Track y Chat. Un member puede mandar a la papelera.
+  if (!isWorkspaceAdmin(user)) return forbidden();
   if (!(await deleteDocPage(user.id, params.id))) return notFound();
   return new NextResponse(null, { status: 204 });
 }
