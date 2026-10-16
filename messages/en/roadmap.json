@@ -41,14 +41,16 @@
   "seeRoadmap": "See the roadmap",
   "admin": {
     "title": "Roadmap",
-    "sub": "Items created from feedback and support chats. New items are proposed and private until you make them public.",
+    "sub": "Items from the board, feedback and support chats. Classified feedback lands in triage and stays private; drag it to New or later to publish it.",
     "all": "All",
     "status": {
-      "proposed": "Proposed",
+      "proposed": "Triage (private)",
       "planned": "Planned",
       "in_progress": "In progress",
-      "done": "Done",
-      "declined": "Declined"
+      "done": "Launched",
+      "declined": "Closed",
+      "idea": "New",
+      "considering": "Under review"
     },
     "empty": "No roadmap items yet. They appear as feedback and support conversations come in.",
     "public": "Public",
@@ -72,8 +74,18 @@
     "mergeInto": "Merge into…",
     "merge": "Merge",
     "mergeConfirm": "Merge this item into the selected one? Its signals and votes move over and this item is deleted.",
-    "viewPublic": "View public roadmap",
+    "viewPublic": "View the public board",
     "feedbackLink": "Roadmap",
-    "backToFeedback": "Feedback"
+    "backToFeedback": "Feedback",
+    "viewKanban": "Kanban",
+    "viewList": "List",
+    "changelogLink": "Changelog",
+    "declinedReasonLabel": "Reason for closing (public)",
+    "declinedReasonHint": "Shown on the idea as \"Closed\".",
+    "declinePrompt": "Reason for closing (shown on the idea):",
+    "newItemPlaceholder": "Title of a new item",
+    "create": "Create",
+    "edit": "Edit item",
+    "close": "Close"
   }
 }

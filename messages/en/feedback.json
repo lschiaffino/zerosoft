@@ -74,6 +74,12 @@
     "reopen": "Reopen",
     "anonymous": "Anonymous",
     "empty": "Nothing here yet.",
-    "openPage": "page"
+    "openPage": "page",
+    "linkedTo": "On the roadmap",
+    "promoteAttach": "Attach to an item…",
+    "attach": "Attach",
+    "promoteNew": "Promote to a new item",
+    "promoteTitle": "Title of the public item:",
+    "promoteError": "Could not promote."
   }
 }

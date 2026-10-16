@@ -2105,6 +2105,133 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // Board público de feedback (feedback.zerosoft.ai):
+    // - roadmap_items: estados públicos idea / considering (además de los
+    //   existentes; proposed queda como triage privado). Se reconstruye la
+    //   tabla para cambiar el CHECK preservando filas e índices. Columnas para
+    //   autor, motivo de cierre, contador de comentarios y fecha del último
+    //   cambio de estado.
+    // - roadmap_votes: un voto por usuario (UNIQUE item + user). Los votos por
+    //   IP anteriores quedan como legado y se siguen contando.
+    // - comentarios, eventos de estado (timeline), suscripciones y entradas
+    //   del changelog publicadas desde el admin (sin deploy).
+    // - votes se recalcula con COUNT (antes había incrementos sueltos).
+    id: '034_feedback_board',
+    async up(client) {
+      const statuses = "'proposed', 'idea', 'considering', 'planned', 'in_progress', 'done', 'declined'";
+      const current = await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'roadmap_items'");
+      const sql = String(current.rows[0]?.sql ?? '');
+      const check = /CHECK\s*\(\s*status\s+IN\s*\([^)]*\)\s*\)/i;
+      if (sql && check.test(sql) && !/'considering'/.test(sql)) {
+        const newSql = sql
+          .replace(check, `CHECK (status IN (${statuses}))`)
+          .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?roadmap_items["`]?/i, 'CREATE TABLE roadmap_items_new');
+        const cols = (await client.execute('PRAGMA table_info(roadmap_items)')).rows
+          .map((r) => `"${String(r.name)}"`)
+          .join(', ');
+        const indexes = (
+          await client.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'roadmap_items' AND sql IS NOT NULL",
+          )
+        ).rows.map((r) => String(r.sql));
+        await client.migrate([
+          'DROP TABLE IF EXISTS roadmap_items_new',
+          newSql,
+          `INSERT INTO roadmap_items_new (${cols}) SELECT ${cols} FROM roadmap_items`,
+          'DROP TABLE roadmap_items',
+          'ALTER TABLE roadmap_items_new RENAME TO roadmap_items',
+          ...indexes,
+        ]);
+      }
+      await addColumn(client, 'ALTER TABLE roadmap_items ADD COLUMN author_id TEXT REFERENCES users(id) ON DELETE SET NULL');
+      await addColumn(client, 'ALTER TABLE roadmap_items ADD COLUMN declined_reason TEXT');
+      await addColumn(client, 'ALTER TABLE roadmap_items ADD COLUMN comment_count INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE roadmap_items ADD COLUMN status_changed_at TEXT');
+      await client.execute(
+        'CREATE INDEX IF NOT EXISTS idx_roadmap_items_public ON roadmap_items(is_public, status, votes DESC)',
+      );
+
+      const votes = await client.execute('PRAGMA table_info(roadmap_votes)');
+      const hasUser = votes.rows.some((r) => String(r.name) === 'user_id');
+      if (!hasUser) {
+        await client.migrate([
+          'DROP TABLE IF EXISTS roadmap_votes_new',
+          `CREATE TABLE roadmap_votes_new (
+            id TEXT PRIMARY KEY,
+            item_id TEXT NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+            user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+            ip_hash TEXT,
+            created_at TEXT NOT NULL,
+            CHECK (user_id IS NOT NULL OR ip_hash IS NOT NULL),
+            UNIQUE (item_id, user_id),
+            UNIQUE (item_id, ip_hash)
+          )`,
+          `INSERT INTO roadmap_votes_new (id, item_id, user_id, ip_hash, created_at)
+           SELECT lower(hex(randomblob(16))), item_id, NULL, ip_hash, created_at FROM roadmap_votes`,
+          'DROP TABLE roadmap_votes',
+          'ALTER TABLE roadmap_votes_new RENAME TO roadmap_votes',
+        ]);
+      }
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_roadmap_votes_user ON roadmap_votes(user_id, item_id)');
+
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS roadmap_comments (
+          id TEXT PRIMARY KEY,
+          item_id TEXT NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+          user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          body TEXT NOT NULL,
+          is_official INTEGER NOT NULL DEFAULT 0,
+          pinned INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_roadmap_comments_item ON roadmap_comments(item_id, pinned DESC, created_at);
+        CREATE TABLE IF NOT EXISTS roadmap_status_events (
+          id TEXT PRIMARY KEY,
+          item_id TEXT NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+          from_status TEXT,
+          to_status TEXT NOT NULL,
+          note TEXT,
+          actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          changelog_id TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_roadmap_status_events_item ON roadmap_status_events(item_id, created_at);
+        CREATE TABLE IF NOT EXISTS roadmap_subscriptions (
+          item_id TEXT NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          reason TEXT NOT NULL DEFAULT 'manual' CHECK (reason IN ('author', 'vote', 'comment', 'manual')),
+          active INTEGER NOT NULL DEFAULT 1,
+          locale TEXT NOT NULL DEFAULT 'en',
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (item_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS changelog_entries (
+          id TEXT PRIMARY KEY,
+          date TEXT NOT NULL,
+          title_en TEXT NOT NULL,
+          title_es TEXT NOT NULL DEFAULT '',
+          title_pt TEXT NOT NULL DEFAULT '',
+          body_en TEXT NOT NULL DEFAULT '',
+          body_es TEXT NOT NULL DEFAULT '',
+          body_pt TEXT NOT NULL DEFAULT '',
+          products TEXT NOT NULL DEFAULT '[]',
+          published INTEGER NOT NULL DEFAULT 1,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_changelog_entries_date ON changelog_entries(published, date DESC, created_at DESC);
+      `);
+
+      await client.execute(
+        `UPDATE roadmap_items SET votes =
+           (SELECT COUNT(*) FROM roadmap_signals s WHERE s.item_id = roadmap_items.id) +
+           (SELECT COUNT(*) FROM roadmap_votes v WHERE v.item_id = roadmap_items.id)`,
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

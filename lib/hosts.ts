@@ -1,3 +1,5 @@
+import { brandingHosts, feedbackHosts } from './host-rewrite';
+
 /**
  * ¿Este host es la app (zerosoft.ai, previews, localhost) o un dominio propio
  * de Link? Sin DB ni imports de Node: lo usa el middleware.
@@ -24,6 +26,8 @@ export function appHosts(): Set<string> {
     .flatMap((v) => (v ?? '').split(','))
     .map((v) => hostOf(v.trim()))
     .filter((h): h is string => Boolean(h));
+  // Subdominios de superficie (board público, marca): son la app, no dominios de Link.
+  for (const h of [...feedbackHosts(), ...brandingHosts()]) hosts.push(h);
   return new Set(hosts);
 }
 
@@ -61,4 +65,35 @@ export function isAppHost(rawHost: string | null | undefined): boolean {
 /** Hostname válido para un dominio propio (sin puerto, sin path). */
 export function isValidHostname(host: string): boolean {
   return /^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host);
+}
+
+/**
+ * ¿Se puede volver a esta URL después del login? Solo el mismo origen, los
+ * hosts de la app (incluidos los subdominios de superficie) y deployments
+ * propios. Nunca un dominio de Link de un cliente ni un *.vercel.app ajeno.
+ */
+export function isTrustedReturnUrl(url: string, baseUrl: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+    if (u.origin === new URL(baseUrl).origin) return true;
+    const host = normalizeHost(u.host);
+    const bare = host.replace(/:\d+$/, '');
+    if (bare === 'localhost' || bare.endsWith('.localhost') || bare === '127.0.0.1') {
+      return process.env.NODE_ENV !== 'production';
+    }
+    return appHosts().has(host) || appHosts().has(bare) || isOwnDeploymentHost(host);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * callbackUrl seguro para /auth/signin: un path relativo del sitio o una URL
+ * absoluta de confianza (isTrustedReturnUrl). Si no, null.
+ */
+export function safeCallbackUrl(raw: string | null | undefined, baseUrl: string): string | null {
+  if (!raw || raw.length > 1000) return null;
+  if (raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\')) return raw;
+  return isTrustedReturnUrl(raw, baseUrl) ? raw : null;
 }

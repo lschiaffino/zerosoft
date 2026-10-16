@@ -41,14 +41,16 @@
   "seeRoadmap": "Ver el roadmap",
   "admin": {
     "title": "Roadmap",
-    "sub": "Ítems creados a partir del feedback y de los chats de soporte. Los nuevos quedan propuestos y privados hasta que los hagas públicos.",
+    "sub": "Ítems del board, del feedback y de los chats de soporte. Lo que llega por clasificación queda en triage y privado; arrastrá a Nueva o más para publicarlo.",
     "all": "Todos",
     "status": {
-      "proposed": "Propuesto",
-      "planned": "Planeado",
+      "proposed": "Triage (privado)",
+      "planned": "Planeada",
       "in_progress": "En curso",
-      "done": "Hecho",
-      "declined": "Descartado"
+      "done": "Lanzada",
+      "declined": "Cerrada",
+      "idea": "Nueva",
+      "considering": "En evaluación"
     },
     "empty": "Todavía no hay ítems. Aparecen a medida que llegan feedback y conversaciones de soporte.",
     "public": "Público",
@@ -72,8 +74,18 @@
     "mergeInto": "Fusionar con…",
     "merge": "Fusionar",
     "mergeConfirm": "¿Fusionar este ítem con el seleccionado? Sus señales y votos pasan al otro y este ítem se borra.",
-    "viewPublic": "Ver el roadmap público",
+    "viewPublic": "Ver el board público",
     "feedbackLink": "Roadmap",
-    "backToFeedback": "Feedback"
+    "backToFeedback": "Feedback",
+    "viewKanban": "Kanban",
+    "viewList": "Lista",
+    "changelogLink": "Changelog",
+    "declinedReasonLabel": "Motivo del cierre (público)",
+    "declinedReasonHint": "Se muestra en la idea como \"Cerrada\".",
+    "declinePrompt": "Motivo del cierre (se muestra en la idea):",
+    "newItemPlaceholder": "Título de un ítem nuevo",
+    "create": "Crear",
+    "edit": "Editar ítem",
+    "close": "Cerrar"
   }
 }

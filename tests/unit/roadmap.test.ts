@@ -12,7 +12,6 @@ import {
 import {
   ROADMAP_AI_FEATURE,
   getRoadmapItem,
-  hashIp,
   ingestChatConversation,
   ingestFeedback,
   listPublicRoadmap,
@@ -123,16 +122,17 @@ describe('roadmap: clasificación con AI', () => {
   });
 
   it('suma una señal y un voto al ítem existente que el modelo marca como duplicado', async () => {
+    // votes desnormalizado viejo (3) se corrige: siempre COUNT de señales + votos.
     const existing = await makeItem({ title: 'Dark mode', status: 'planned', votes: 3 });
     aiReturns({ kind: 'idea', product: 'other', title: 'Add dark mode', summary: 'Dark theme.', duplicateOf: existing.id });
     const fb = await feedback('please add a dark theme');
     const res = await ingestFeedback(fb);
     expect(res).toMatchObject({ action: 'attached', itemId: existing.id });
-    expect((await getRoadmapItem(existing.id))!.votes).toBe(4);
+    expect((await getRoadmapItem(existing.id))!.votes).toBe(1);
     expect(await signalCount(existing.id)).toBe(1);
     // Idempotente por feedback: no cuenta dos veces.
     expect((await ingestFeedback(fb)).action).toBe('duplicate_source');
-    expect((await getRoadmapItem(existing.id))!.votes).toBe(4);
+    expect((await getRoadmapItem(existing.id))!.votes).toBe(1);
   });
 
   it('ignora ids de duplicado inventados por el modelo', async () => {
@@ -258,30 +258,34 @@ describe('roadmap: público y votos', () => {
     for (const hidden of [priv.id, proposed.id, declined.id]) expect(ids).not.toContain(hidden);
   });
 
-  it('un voto por IP por ítem, guardando solo el hash de la IP', async () => {
-    const item = await makeItem({ status: 'in_progress', is_public: 1, votes: 2 });
-    const vote = (ip: string) =>
-      voteRoute(jsonReq(`http://x/api/roadmap/${item.id}/vote`, 'POST', undefined, ip), {
+  it('la ruta vieja de voto exige sesión y alterna el voto del usuario', async () => {
+    const item = await makeItem({ status: 'in_progress', is_public: 1 });
+    const vote = () =>
+      voteRoute(jsonReq(`http://x/api/roadmap/${item.id}/vote`, 'POST', undefined, '10.55.0.1'), {
         params: Promise.resolve({ id: item.id }),
       });
-    const ipA = `10.55.${Math.floor(Math.random() * 250)}.1`;
-    const r1 = await vote(ipA);
+    expect((await vote()).status).toBe(401);
+    const user = await makeUser('rm-voter');
+    session.user = user;
+    const r1 = await vote();
     expect(r1.status).toBe(200);
-    expect(await r1.json()).toEqual({ votes: 3, counted: true });
-    expect(await (await vote(ipA)).json()).toEqual({ votes: 3, counted: false });
-    expect(await (await vote(`${ipA}0`)).json()).toEqual({ votes: 4, counted: true });
-    const rows = (await getDb().prepare('SELECT ip_hash FROM roadmap_votes WHERE item_id = ?').all(item.id)) as Array<{ ip_hash: string }>;
-    expect(rows.map((r) => r.ip_hash).sort()).toEqual([hashIp(ipA), hashIp(`${ipA}0`)].sort());
-    expect(rows.some((r) => r.ip_hash.includes(ipA))).toBe(false);
+    expect(await r1.json()).toEqual({ voted: true, votes: 1 });
+    expect(await (await vote()).json()).toEqual({ voted: false, votes: 0 });
   });
 
-  it('no se puede votar ítems privados, hechos o inexistentes', async () => {
-    for (const item of [await makeItem({ is_public: 0 }), await makeItem({ status: 'done', is_public: 1 })]) {
+  it('no se puede votar ítems privados, en triage, cerrados o inexistentes', async () => {
+    session.user = await makeUser('rm-voter2');
+    for (const item of [await makeItem({ is_public: 0 }), await makeItem({ status: 'proposed', is_public: 1 })]) {
       const res = await voteRoute(jsonReq(`http://x/api/roadmap/${item.id}/vote`, 'POST', undefined, '10.56.0.1'), {
         params: Promise.resolve({ id: item.id }),
       });
       expect(res.status).toBe(404);
     }
+    const done = await makeItem({ status: 'done', is_public: 1 });
+    const closed = await voteRoute(jsonReq(`http://x/api/roadmap/${done.id}/vote`, 'POST', undefined, '10.56.0.1'), {
+      params: Promise.resolve({ id: done.id }),
+    });
+    expect(closed.status).toBe(409);
     const res = await voteRoute(jsonReq('http://x/api/roadmap/nope/vote', 'POST', undefined, '10.56.0.2'), {
       params: Promise.resolve({ id: 'nope' }),
     });

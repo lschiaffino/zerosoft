@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { FEEDBACK_STATUSES, isAdminEmail, listFeedback, type FeedbackStatus } from '@/lib/feedback';
 import FeedbackAdminList from '@/components/app/FeedbackAdminList';
+import { itemsForFeedback, listRoadmapItemsAdmin } from '@/lib/roadmap';
 import '@/styles/feedback.css';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,9 @@ export default async function FeedbackAdminPage(props: {
   const tr = await getTranslations({ locale, namespace: 'roadmap.admin' });
   const filter = FEEDBACK_STATUSES.includes(status as FeedbackStatus) ? (status as FeedbackStatus) : undefined;
   const rows = await listFeedback({ status: filter });
+  const [items, linkedMap] = await Promise.all([listRoadmapItemsAdmin(), itemsForFeedback(rows.map((r) => r.id))]);
+  const targets = items.filter((i) => i.status !== 'declined').map((i) => ({ id: i.id, title: i.title }));
+  const linked = Object.fromEntries(linkedMap);
 
   return (
     <div className="app-page">
@@ -51,7 +55,7 @@ export default async function FeedbackAdminPage(props: {
       {rows.length === 0 ? (
         <p className="muted mono">{t('empty')}</p>
       ) : (
-        <FeedbackAdminList initial={rows} locale={locale} />
+        <FeedbackAdminList initial={rows} locale={locale} targets={targets} linked={linked} />
       )}
     </div>
   );

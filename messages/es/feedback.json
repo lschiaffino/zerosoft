@@ -74,6 +74,12 @@
     "reopen": "Reabrir",
     "anonymous": "Anónimo",
     "empty": "Todavía no hay nada.",
-    "openPage": "página"
+    "openPage": "página",
+    "linkedTo": "En el roadmap",
+    "promoteAttach": "Adjuntar a un ítem…",
+    "attach": "Adjuntar",
+    "promoteNew": "Promover a ítem nuevo",
+    "promoteTitle": "Título del ítem público:",
+    "promoteError": "No se pudo promover."
   }
 }

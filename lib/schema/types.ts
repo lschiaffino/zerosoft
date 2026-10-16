@@ -1094,19 +1094,23 @@ export interface AiUsageRow {
   created_at: string;
 }
 
-export type RoadmapItemStatus = 'proposed' | 'planned' | 'in_progress' | 'done' | 'declined';
+export type RoadmapItemStatus = 'proposed' | 'idea' | 'considering' | 'planned' | 'in_progress' | 'done' | 'declined';
 export type RoadmapItemKind = 'idea' | 'bug';
 
 export interface RoadmapItemRow {
   id: string;
   title: string;
   description: string;
-  product: string; // FEEDBACK_PRODUCTS
+  product: string; // PRODUCT_KEYS (lib/product-taxonomy.ts)
   kind: RoadmapItemKind;
   status: RoadmapItemStatus;
-  votes: number; // señales + votos públicos
-  is_public: number; // 0/1: visible en /roadmap (lo aprueba un admin)
+  votes: number; // señales + votos (usuarios + IP legado), recalculado con COUNT
+  is_public: number; // 0/1: visible en el board (moderación)
   shipped_changelog_id: string | null;
+  author_id: string | null; // quien lo propuso en el board (null si vino del feedback)
+  declined_reason: string | null; // motivo visible cuando status = declined
+  comment_count: number;
+  status_changed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1120,10 +1124,60 @@ export interface RoadmapSignalRow {
   created_at: string;
 }
 
+/** Un voto por usuario por ítem; los votos por IP anteriores al board quedan como legado. */
 export interface RoadmapVoteRow {
+  id: string;
   item_id: string;
-  ip_hash: string; // HMAC-SHA256 de la IP (nunca la IP en claro)
+  user_id: string | null;
+  ip_hash: string | null; // HMAC-SHA256 de la IP (legado, nunca la IP en claro)
   created_at: string;
+}
+
+export interface RoadmapCommentRow {
+  id: string;
+  item_id: string;
+  user_id: string | null;
+  body: string; // HTML sanitizado (párrafos, links, énfasis)
+  is_official: number; // 0/1: respuesta oficial "Equipo zerosoft"
+  pinned: number; // 0/1
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoadmapStatusEventRow {
+  id: string;
+  item_id: string;
+  from_status: string | null;
+  to_status: string;
+  note: string | null;
+  actor_id: string | null;
+  changelog_id: string | null;
+  created_at: string;
+}
+
+export interface RoadmapSubscriptionRow {
+  item_id: string;
+  user_id: string;
+  reason: 'author' | 'vote' | 'comment' | 'manual';
+  active: number; // 0 = desuscripto (no se vuelve a suscribir solo)
+  locale: string; // idioma de los emails (el del board cuando se suscribió)
+  created_at: string;
+}
+
+export interface ChangelogEntryRow {
+  id: string; // ancla (#id) e id del feed
+  date: string; // yyyy-mm-dd
+  title_en: string;
+  title_es: string;
+  title_pt: string;
+  body_en: string; // markdown
+  body_es: string;
+  body_pt: string;
+  products: string; // JSON ProductKey[]
+  published: number; // 0/1
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ---------- Flow (automatizaciones) ----------

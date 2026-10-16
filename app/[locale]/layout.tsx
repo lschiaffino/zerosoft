@@ -6,7 +6,11 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ChromeGate from '@/components/ChromeGate';
 import SupportWidget from '@/components/SupportWidget';
+import FeedbackLauncher from '@/components/FeedbackLauncher';
 import { supportWidgetId } from '@/lib/support';
+import { surfaceForHost } from '@/lib/host-rewrite';
+import { headers } from 'next/headers';
+import '@/styles/board-public.css';
 import type { ReactNode } from 'react';
 
 // Archivo variable con el eje de ancho (wdth 62–125): señalética angosta y UI normal.
@@ -66,6 +70,9 @@ export default async function LocaleLayout(
   setRequestLocale(locale);
   const messages = await getMessages();
   const supportId = supportWidgetId();
+  // feedback.zerosoft.ai / branding.zerosoft.ai: chrome propio (ver ChromeGate).
+  // El layout ya es dinámico (el Header lee la sesión), leer el host no cambia eso.
+  const surface = surfaceForHost((await headers()).get('host'));
 
   return (
     <html lang={locale} className={`${sans.variable} ${mono.variable}`}>
@@ -75,6 +82,8 @@ export default async function LocaleLayout(
             header={<Header locale={locale} />}
             footer={<Footer locale={locale} />}
             support={supportId ? <SupportWidget widgetId={supportId} /> : null}
+            launcher={<FeedbackLauncher locale={locale} hasSupport={Boolean(supportId)} />}
+            surface={surface}
           >
             {children}
           </ChromeGate>

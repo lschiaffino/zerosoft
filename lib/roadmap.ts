@@ -10,11 +10,12 @@ import { FEEDBACK_PRODUCTS, type FeedbackProduct } from './feedback-constants';
 import { supportWidgetId } from './support';
 import {
   ROADMAP_KINDS,
-  ROADMAP_OPEN_STATUSES,
+  ROADMAP_NOTIFY_STATUSES,
   ROADMAP_STATUSES,
   SIGNAL_KINDS,
   type SignalKind,
 } from './roadmap-constants';
+import { notifyStatusChange } from './board-notify';
 
 /**
  * Roadmap a partir de lo que nos dice la gente.
@@ -23,10 +24,11 @@ import {
  *   praise | other. Preguntas y elogios no generan ítems.
  * - Ideas y bugs se suman como "señal" a un ítem abierto equivalente (el
  *   modelo elige el duplicado entre los existentes) o crean uno nuevo en
- *   'proposed', privado: un admin lo aprueba y lo hace público.
+ *   'proposed', privado: un admin lo aprueba y lo hace público (idea o más).
  * - Sin AI configurada hay una heurística (tipo del feedback / palabras
  *   clave, título = primeros 80 caracteres) para que igual funcione.
- * - votes = señales + votos públicos (uno por IP hasheada por ítem).
+ * - votes = señales + votos (uno por usuario; los votos por IP anteriores al
+ *   board quedan como legado). Siempre se recalcula con COUNT (recountVotes).
  */
 
 export * from './roadmap-constants';
@@ -83,7 +85,7 @@ export async function listOpenItemsForMatching(limit = CANDIDATES_MAX): Promise<
   return (await getDb()
     .prepare(
       `SELECT id, title, product FROM roadmap_items
-       WHERE status IN ('proposed', 'planned', 'in_progress')
+       WHERE status IN ('proposed', 'idea', 'considering', 'planned', 'in_progress')
        ORDER BY votes DESC, created_at DESC LIMIT ?`,
     )
     .all(limit)) as Array<Pick<RoadmapItemRow, 'id' | 'title' | 'product'>>;
@@ -92,7 +94,7 @@ export async function listOpenItemsForMatching(limit = CANDIDATES_MAX): Promise<
 function classifierInstructions(): string {
   return [
     'You triage product feedback for zerosoft, an open-source suite with these products:',
-    'link (short links + link-in-bio), crm, cal (scheduling), track (issue tracking), chat (website live chat), docs (wiki/pages), site (the marketing website), other.',
+    'link (short links + link-in-bio), crm, cal (scheduling), track (issue tracking), chat (website live chat), docs (wiki/pages), flow (automations), agents (AI agents), notes, board (whiteboard), robots (browser automations), platform (account, billing, API, cross-app), site (the marketing website), other.',
     '',
     'Classify the message:',
     '- kind: "bug" (something is broken or behaves wrongly), "idea" (a feature request or improvement), "question" (how-to / support question, nothing to build), "praise" (thanks / compliment), "other".',
@@ -247,7 +249,8 @@ async function applyClassification(
     )
     .run(crypto.randomUUID(), itemId, source, sourceId, clip(excerpt, EXCERPT_MAX), now);
   if (inserted.changes > 0) {
-    await db.prepare('UPDATE roadmap_items SET votes = votes + 1, updated_at = ? WHERE id = ?').run(now, itemId);
+    await recountVotes(itemId);
+    await db.prepare('UPDATE roadmap_items SET updated_at = ? WHERE id = ?').run(now, itemId);
   }
   return { action, itemId, classification: c };
 }
@@ -393,18 +396,27 @@ export const roadmapPatchSchema = z
       .max(120)
       .regex(/^[A-Za-z0-9_-]*$/)
       .nullable(),
+    declinedReason: z.string().trim().max(1000).nullable(),
   })
   .partial();
 
 export type RoadmapPatch = z.infer<typeof roadmapPatchSchema>;
 
-export async function updateRoadmapItem(id: string, patch: RoadmapPatch): Promise<RoadmapItemRow | undefined> {
+export async function updateRoadmapItem(
+  id: string,
+  patch: RoadmapPatch,
+  opts: { actorId?: string | null; note?: string | null; changelogId?: string | null } = {},
+): Promise<RoadmapItemRow | undefined> {
+  const before = await getRoadmapItem(id);
+  if (!before) return undefined;
   const fields: string[] = [];
   const args: Array<string | number | null> = [];
   const set = (col: string, v: string | number | null) => {
     fields.push(`${col} = ?`);
     args.push(v);
   };
+  const now = nowIso();
+  const statusChanged = patch.status !== undefined && patch.status !== before.status;
   if (patch.title !== undefined) set('title', patch.title);
   if (patch.description !== undefined) set('description', patch.description);
   if (patch.product !== undefined) set('product', patch.product);
@@ -412,17 +424,50 @@ export async function updateRoadmapItem(id: string, patch: RoadmapPatch): Promis
   if (patch.status !== undefined) set('status', patch.status);
   if (patch.isPublic !== undefined) set('is_public', patch.isPublic ? 1 : 0);
   if (patch.shippedChangelogId !== undefined) set('shipped_changelog_id', patch.shippedChangelogId || null);
+  if (patch.declinedReason !== undefined) set('declined_reason', patch.declinedReason || null);
+  if (statusChanged) set('status_changed_at', now);
   if (fields.length > 0) {
-    set('updated_at', nowIso());
+    set('updated_at', now);
     await getDb()
       .prepare(`UPDATE roadmap_items SET ${fields.join(', ')} WHERE id = ?`)
       .run(...args, id);
   }
-  return getRoadmapItem(id);
+  const after = await getRoadmapItem(id);
+  if (after && statusChanged) {
+    const note =
+      opts.note ?? (after.status === 'declined' ? after.declined_reason : null) ?? null;
+    await recordStatusEvent(id, before.status, after.status, {
+      actorId: opts.actorId ?? null,
+      note,
+      changelogId: opts.changelogId ?? (after.status === 'done' ? after.shipped_changelog_id : null),
+    });
+    // Aviso por email a autor, votantes y comentaristas (solo estados que importan).
+    if (after.is_public === 1 && ROADMAP_NOTIFY_STATUSES.includes(after.status)) {
+      const item = after;
+      await runAfterResponse(() => notifyStatusChange(item, before.status));
+    }
+  }
+  return after;
 }
 
-async function recountVotes(id: string): Promise<void> {
+export async function recordStatusEvent(
+  itemId: string,
+  from: string | null,
+  to: string,
+  opts: { actorId?: string | null; note?: string | null; changelogId?: string | null } = {},
+): Promise<void> {
   await getDb()
+    .prepare(
+      `INSERT INTO roadmap_status_events (id, item_id, from_status, to_status, note, actor_id, changelog_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(crypto.randomUUID(), itemId, from, to, opts.note ?? null, opts.actorId ?? null, opts.changelogId ?? null, nowIso());
+}
+
+/** votes = señales + votos (usuarios + IP legado). Siempre COUNT, nunca incrementos sueltos. */
+export async function recountVotes(id: string): Promise<number> {
+  const db = getDb();
+  await db
     .prepare(
       `UPDATE roadmap_items SET votes =
          (SELECT COUNT(*) FROM roadmap_signals WHERE item_id = ?) +
@@ -430,11 +475,20 @@ async function recountVotes(id: string): Promise<void> {
        WHERE id = ?`,
     )
     .run(id, id, id);
+  const row = (await db.prepare('SELECT votes FROM roadmap_items WHERE id = ?').get(id)) as { votes: number } | undefined;
+  return Number(row?.votes ?? 0);
+}
+
+export async function recountComments(id: string): Promise<void> {
+  await getDb()
+    .prepare('UPDATE roadmap_items SET comment_count = (SELECT COUNT(*) FROM roadmap_comments WHERE item_id = ?) WHERE id = ?')
+    .run(id, id);
 }
 
 /**
- * Fusiona `sourceId` en `targetId`: mueve señales y votos (sin duplicar IPs),
- * recalcula los votos del destino y borra el origen.
+ * Fusiona `sourceId` en `targetId`: mueve señales, votos (sin duplicar
+ * usuarios ni IPs), comentarios y suscripciones, recalcula los contadores del
+ * destino y borra el origen.
  */
 export async function mergeRoadmapItems(sourceId: string, targetId: string): Promise<RoadmapItemRow | undefined> {
   if (sourceId === targetId) return undefined;
@@ -444,13 +498,21 @@ export async function mergeRoadmapItems(sourceId: string, targetId: string): Pro
   await db.prepare('UPDATE roadmap_signals SET item_id = ? WHERE item_id = ?').run(targetId, sourceId);
   await db
     .prepare(
-      `INSERT OR IGNORE INTO roadmap_votes (item_id, ip_hash, created_at)
-       SELECT ?, ip_hash, created_at FROM roadmap_votes WHERE item_id = ?`,
+      `INSERT OR IGNORE INTO roadmap_votes (id, item_id, user_id, ip_hash, created_at)
+       SELECT lower(hex(randomblob(16))), ?, user_id, ip_hash, created_at FROM roadmap_votes WHERE item_id = ?`,
     )
     .run(targetId, sourceId);
   await db.prepare('DELETE FROM roadmap_votes WHERE item_id = ?').run(sourceId);
+  await db.prepare('UPDATE roadmap_comments SET item_id = ? WHERE item_id = ?').run(targetId, sourceId);
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO roadmap_subscriptions (item_id, user_id, reason, active, locale, created_at)
+       SELECT ?, user_id, reason, active, locale, created_at FROM roadmap_subscriptions WHERE item_id = ?`,
+    )
+    .run(targetId, sourceId);
   await db.prepare('DELETE FROM roadmap_items WHERE id = ?').run(sourceId);
   await recountVotes(targetId);
+  await recountComments(targetId);
   await db.prepare('UPDATE roadmap_items SET updated_at = ? WHERE id = ?').run(nowIso(), targetId);
   return getRoadmapItem(targetId);
 }
@@ -463,21 +525,79 @@ export function hashIp(ip: string): string {
   return createHmac('sha256', secret).update(`roadmap:${ip}`).digest('hex');
 }
 
-export type VoteResult = { ok: true; votes: number; counted: boolean } | { ok: false; error: 'not_found' };
+// ---------- Admin: crear ítems y promover feedback ----------
 
-/** Un voto por IP por ítem. Solo ítems públicos y abiertos a votación. */
-export async function voteRoadmapItem(id: string, ip: string): Promise<VoteResult> {
-  const item = await getRoadmapItem(id);
-  if (!item || item.is_public !== 1 || !ROADMAP_OPEN_STATUSES.includes(item.status)) {
-    return { ok: false, error: 'not_found' };
-  }
+export const roadmapCreateSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  description: z.string().trim().max(4000).default(''),
+  product: z.enum(FEEDBACK_PRODUCTS).default('other'),
+  kind: z.enum(ROADMAP_KINDS).default('idea'),
+  status: z.enum(ROADMAP_STATUSES).default('idea'),
+  isPublic: z.boolean().default(true),
+});
+
+export type RoadmapCreate = z.infer<typeof roadmapCreateSchema>;
+
+export async function createRoadmapItem(input: RoadmapCreate, actorId: string | null = null): Promise<RoadmapItemRow> {
+  const id = crypto.randomUUID();
+  const now = nowIso();
+  // proposed es triage privado: nunca público.
+  const isPublic = input.status === 'proposed' ? 0 : input.isPublic ? 1 : 0;
+  await getDb()
+    .prepare(
+      `INSERT INTO roadmap_items (id, title, description, product, kind, status, votes, is_public, status_changed_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+    )
+    .run(id, input.title, input.description, input.product, input.kind, input.status, isPublic, now, now, now);
+  await recordStatusEvent(id, null, input.status, { actorId });
+  return (await getRoadmapItem(id))!;
+}
+
+/**
+ * Vincula un feedback a un ítem como señal. Si el feedback ya era señal de
+ * otro ítem (la clasificación automática), se mueve. Recalcula los votos de
+ * los dos ítems.
+ */
+export async function attachFeedbackToItem(
+  feedback: Pick<FeedbackRow, 'id' | 'message'>,
+  itemId: string,
+): Promise<RoadmapItemRow | undefined> {
+  const item = await getRoadmapItem(itemId);
+  if (!item) return undefined;
   const db = getDb();
-  const res = await db
-    .prepare('INSERT OR IGNORE INTO roadmap_votes (item_id, ip_hash, created_at) VALUES (?, ?, ?)')
-    .run(id, hashIp(ip), nowIso());
-  if (res.changes > 0) {
-    await db.prepare('UPDATE roadmap_items SET votes = votes + 1 WHERE id = ?').run(id);
+  const existing = (await db
+    .prepare("SELECT item_id FROM roadmap_signals WHERE source = 'feedback' AND source_id = ?")
+    .get(feedback.id)) as { item_id: string } | undefined;
+  if (existing) {
+    if (existing.item_id !== itemId) {
+      await db
+        .prepare("UPDATE roadmap_signals SET item_id = ? WHERE source = 'feedback' AND source_id = ?")
+        .run(itemId, feedback.id);
+      await recountVotes(existing.item_id);
+    }
+  } else {
+    await db
+      .prepare(
+        `INSERT OR IGNORE INTO roadmap_signals (id, item_id, source, source_id, excerpt, created_at)
+         VALUES (?, ?, 'feedback', ?, ?, ?)`,
+      )
+      .run(crypto.randomUUID(), itemId, feedback.id, clip(feedback.message, EXCERPT_MAX), nowIso());
   }
-  const row = (await db.prepare('SELECT votes FROM roadmap_items WHERE id = ?').get(id)) as { votes: number };
-  return { ok: true, votes: Number(row.votes), counted: res.changes > 0 };
+  await recountVotes(itemId);
+  return getRoadmapItem(itemId);
+}
+
+/** Ítem al que está vinculado cada feedback (para el listado del admin). */
+export async function itemsForFeedback(ids: string[]): Promise<Map<string, { id: string; title: string }>> {
+  const out = new Map<string, { id: string; title: string }>();
+  if (ids.length === 0) return out;
+  const placeholders = ids.map(() => '?').join(', ');
+  const rows = (await getDb()
+    .prepare(
+      `SELECT s.source_id, i.id, i.title FROM roadmap_signals s JOIN roadmap_items i ON i.id = s.item_id
+       WHERE s.source = 'feedback' AND s.source_id IN (${placeholders})`,
+    )
+    .all(...ids)) as Array<{ source_id: string; id: string; title: string }>;
+  for (const r of rows) out.set(r.source_id, { id: r.id, title: r.title });
+  return out;
 }
