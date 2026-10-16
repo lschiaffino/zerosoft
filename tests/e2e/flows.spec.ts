@@ -536,13 +536,14 @@ test('CRM: "Add deal" en la company abre el modal y el deal queda asociado, sin 
   await expect(page.getByRole('link', { name })).toBeVisible();
 });
 
-test('CRM: nuevo workflow en un modal (nombre + trigger) lleva al editor', async ({ page }) => {
-  await page.goto('/en/app/crm/workflows', { waitUntil: 'networkidle' });
-  await page.getByTestId(/workflow-quick-create/).first().click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByPlaceholder(/name/i).fill(`WF ${uid()}`);
-  await dialog.getByTestId('workflow-quick-trigger').selectOption('deal_won');
-  await dialog.getByRole('button', { name: /create/i }).click();
+test('CRM: nuevo workflow con el asistente (disparador, acciones, revisar) lleva al editor', async ({ page }) => {
+  await page.goto('/en/app/crm/workflows/new', { waitUntil: 'networkidle' });
+  await page.getByTestId('workflow-trigger').selectOption('deal_won');
+  await page.getByTestId('workflow-wizard-next').click();
+  await expect(page.getByTestId('workflow-action')).toHaveCount(1);
+  await page.getByTestId('workflow-wizard-next').click();
+  await page.getByLabel('Workflow name').fill(`WF ${uid()}`);
+  await page.getByTestId('workflow-create').click();
   await expect(page).toHaveURL(/\/app\/crm\/workflows\/[0-9a-f-]{36}/);
 });
 

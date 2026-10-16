@@ -13,7 +13,6 @@ interface Rate {
 
 interface CurrencySettingsProps {
   baseCurrency: string;
-  quoteAcceptMovesDeal: boolean;
   rates: Rate[];
   /** Monedas usadas por deals que no tienen tipo de cambio. */
   missing: string[];
@@ -22,12 +21,11 @@ interface CurrencySettingsProps {
 }
 
 /**
- * Ajustes › Moneda: moneda base del workspace, tipos de cambio manuales
- * (1 <moneda> = X <base>) y qué pasa con el deal cuando aceptan un quote.
+ * Ajustes › Ventas › Moneda: moneda base del workspace y tipos de cambio
+ * manuales (1 <moneda> = X <base>). Cada cambio se guarda al momento.
  */
 export default function CurrencySettings({
   baseCurrency,
-  quoteAcceptMovesDeal,
   rates: initialRates,
   missing,
   canEdit,
@@ -36,7 +34,6 @@ export default function CurrencySettings({
   const t = useTranslations('crm');
   const router = useRouter();
   const [base, setBase] = useState(baseCurrency);
-  const [moves, setMoves] = useState(quoteAcceptMovesDeal);
   const [rates, setRates] = useState<Rate[]>(initialRates);
   const [newCur, setNewCur] = useState(missing[0] ?? '');
   const [newRate, setNewRate] = useState('');
@@ -50,7 +47,7 @@ export default function CurrencySettings({
     setError(code && t.has(`errors.${code}`) ? t(`errors.${code}` as 'errors.generic') : t('errors.generic'));
   }
 
-  async function saveSettings(body: { baseCurrency?: string; quoteAcceptMovesDeal?: boolean }) {
+  async function saveSettings(body: { baseCurrency: string }) {
     setBusy(true);
     setError(null);
     setSaved(false);
@@ -62,7 +59,7 @@ export default function CurrencySettings({
     setBusy(false);
     const data = (await res?.json().catch(() => null)) as { baseCurrency?: string; error?: string } | null;
     if (!res?.ok) return fail(data?.error);
-    if (body.baseCurrency) setRates((prev) => prev.filter((r) => r.currency !== body.baseCurrency));
+    setRates((prev) => prev.filter((r) => r.currency !== body.baseCurrency));
     setSaved(true);
     router.refresh();
   }
@@ -114,13 +111,13 @@ export default function CurrencySettings({
 
   return (
     <div className="currency-settings">
-      <div className="currency-row">
+      <div className="ui-field currency-base">
         <label className="label" htmlFor="crm-base-currency">
           {t('currency.base')}
         </label>
         <select
           id="crm-base-currency"
-          className="filter-select"
+          className="select"
           value={base}
           disabled={!canEdit || busy}
           onChange={(e) => {
@@ -134,32 +131,33 @@ export default function CurrencySettings({
             </option>
           ))}
         </select>
-        <span className="muted">{t('currency.baseHint')}</span>
+        <span className="ui-help">{t('currency.baseHint')}</span>
       </div>
 
       <div className="currency-rates">
-        <p className="label">{t('currency.rates')}</p>
-        <p className="muted">{t('currency.ratesHint', { base })}</p>
-        {missing.length > 0 && (
-          <p className="muted currency-missing">{t('currency.missing', { list: missing.join(', ') })}</p>
-        )}
+        <h3 className="label">{t('currency.rates')}</h3>
+        <p className="ui-help">{t('currency.ratesHint', { base })}</p>
+        {missing.length > 0 && <p className="ui-help currency-missing">{t('currency.missing', { list: missing.join(', ') })}</p>}
         {rates.length > 0 && (
-          <table className="table currency-table">
+          <div className="table-wrap">
+          <table className="table table-compact currency-table">
             <thead>
               <tr>
                 <th>{t('currency.currency')}</th>
                 <th>{t('currency.rateTo', { base })}</th>
                 <th>{t('currency.updated')}</th>
-                <th aria-label={t('common.actions')} />
+                <th scope="col">
+                  <span className="sr-only">{t('common.actions')}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {rates.map((r) => (
                 <tr key={r.currency}>
-                  <td className="mono">1 {r.currency} =</td>
+                  <td className="data">1 {r.currency} =</td>
                   <td>
                     <input
-                      className="input currency-rate-input mono"
+                      className="input data currency-rate-input"
                       type="number"
                       step="any"
                       min="0"
@@ -171,18 +169,18 @@ export default function CurrencySettings({
                         if (Number.isFinite(n) && n > 0 && n !== r.rate) void putRate(r.currency, n);
                       }}
                     />{' '}
-                    <span className="muted mono">{base}</span>
+                    <span className="data">{base}</span>
                   </td>
-                  <td className="muted mono">{fmtDate(r.updated_at)}</td>
+                  <td className="data">{fmtDate(r.updated_at)}</td>
                   <td>
                     {canEdit && (
                       <button
                         type="button"
-                        className="chip-remove"
+                        className="btn btn-ghost btn-danger btn-sm"
                         aria-label={`${t('currency.remove')} ${r.currency}`}
                         onClick={() => removeRate(r.currency)}
                       >
-                        ✕
+                        {t('currency.removeShort')}
                       </button>
                     )}
                   </td>
@@ -190,11 +188,12 @@ export default function CurrencySettings({
               ))}
             </tbody>
           </table>
+          </div>
         )}
         {canEdit && (
           <form className="currency-add" onSubmit={addRate}>
             <input
-              className="input mono currency-code"
+              className="input data currency-code"
               value={newCur}
               maxLength={3}
               placeholder="EUR"
@@ -207,39 +206,27 @@ export default function CurrencySettings({
                 <option key={c} value={c} />
               ))}
             </datalist>
-            <span className="muted mono">=</span>
+            <span className="data">=</span>
             <input
-              className="input mono currency-rate-input"
+              className="input data currency-rate-input"
               value={newRate}
               inputMode="decimal"
               placeholder="1.08"
               aria-label={t('currency.rateTo', { base })}
               onChange={(e) => setNewRate(e.target.value)}
             />
-            <span className="muted mono">{base}</span>
-            <button type="submit" className="btn btn-small" disabled={busy || !newCur || !newRate}>
+            <span className="data">{base}</span>
+            <button type="submit" className="btn btn-secondary btn-sm" disabled={busy || !newCur || !newRate}>
               {t('currency.addRate')}
             </button>
           </form>
         )}
       </div>
 
-      <label className="currency-check">
-        <input
-          type="checkbox"
-          checked={moves}
-          disabled={!canEdit || busy}
-          onChange={(e) => {
-            setMoves(e.target.checked);
-            void saveSettings({ quoteAcceptMovesDeal: e.target.checked });
-          }}
-        />{' '}
-        {t('currency.quoteMovesDeal')}
-      </label>
-
-      {!canEdit && <p className="muted">{t('common.adminOnly')}</p>}
-      {saved && !error && <p className="muted" role="status">{t('currency.saved')}</p>}
-      {error && <p className="form-error">{error}</p>}
+      {!canEdit && <p className="ui-help">{t('common.adminOnly')}</p>}
+      <p className={error ? 'ui-error' : 'ui-help'} role="status" aria-live="polite">
+        {error ?? (saved ? t('currency.saved') : null)}
+      </p>
     </div>
   );
 }

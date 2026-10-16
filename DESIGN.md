@@ -295,6 +295,12 @@ Loaded site-wide after `globals.css`. Product screens use these classes instead 
 ### App home (`/app`)
 The network map is the workspace launcher: `NetworkMap` with `hrefs` pointing each line and station into its app (no draw-in animation inside the app), next to the eleven lines as a list (glyph, name, one line). Link's numbers follow, since `/app` is also Link's overview.
 
+### Step line (CRM workflows and sequences)
+`.crm-line` in `styles/crm.css`: an ordered list drawn as the product's line. Each step (`.crm-stop`) sits on a 4px `--accent` stroke with a station (`.crm-station`, 24px white disc, 3.5px ink ring, the step number in data type). The trigger of a workflow is the filled station; wait steps and the "add" row use a small gray station. The new-workflow wizard uses the same move for its three steps (`.wf-steps`): stations joined by a 4px rule that turns into the line color once a step is done. Editors on this line end in one sticky `.crm-savebar` with the only primary button.
+
+### CRM settings and builders
+CRM settings are `SettingsTabs` in query mode (`?tab=team|sales|data|automation|integrations|import`); each tab loads only its data and each block is a `FormSection`. Old anchors (`#quotas`) redirect to their tab. The form builder splits into four `role="tab"` panels inside one `<form>` (one Save); slug, consent, dedupe and spam live in `AdvancedSection`. Quote sender and recipient collapse to a one-line summary; a sequence's schedule collapses to "Mon to Fri, 09:00 to 17:00 (tz)".
+
 ## Do's and Don'ts
 
 ### Do:

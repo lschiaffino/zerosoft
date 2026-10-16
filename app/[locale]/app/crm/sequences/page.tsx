@@ -12,7 +12,7 @@ export default async function SequencesPage(props: { params: Promise<{ locale: s
   const t = await getTranslations({ locale, namespace: 'crm' });
   const sequences = await listSequences(user.id);
   return (
-    <div className="app-page">
+    <div className="app-page ui-page">
       <SequencesIndex
         title={t('sequences.title')}
         rows={sequences.map((s) => ({

@@ -1,12 +1,13 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { canSeeQuote, sessionScope } from '@/lib/crm-visibility';
 import { getQuote, type PublicQuote } from '@/lib/crm-products';
 import { formatMoney } from '@/lib/crm-money';
 import QuoteDocument from '@/components/crm/QuoteDocument';
 import QuoteActions from '@/components/crm/QuoteActions';
+import PageHeader from '@/components/ui/PageHeader';
+import { QUOTE_TONE, badgeClass } from '@/lib/crm-ui-tones';
 import '@/styles/quote.css';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ function fmtTime(d: string | null, locale: string): string {
   );
 }
 
-/** Quote en la app: vista de documento + acciones + historial de estados. */
+/** Cotización en la app: vista de documento, acciones e historial de estados. */
 export default async function QuotePage(props: QuotePageProps) {
   const { locale, id } = await props.params;
   const user = await requireUser(locale);
@@ -73,29 +74,21 @@ export default async function QuotePage(props: QuotePageProps) {
   ];
 
   return (
-    <div className="app-page quote-app-view">
-      <div>
-        <Link href={`/app/crm/deals/${quote.deal_id}`} className="back-link">
-          ← {quote.deal_name ?? t('quotes.backToDeal')}
-        </Link>
-      </div>
-
-      <header className="detail-header">
-        <div className="detail-title-row">
-          <h1 className="detail-title">
-            <span className="mono">{quote.number}</span> · {quote.title}
-          </h1>
-          <span className={`crm-dot-status q-${quote.status}`}>{t(`enums.quoteStatus.${quote.status}`)}</span>
-        </div>
-        <div className="detail-meta">
-          <span className="detail-amount">{formatMoney(quote.total, quote.currency, locale, true)}</span>
-          {quote.deal_name && (
-            <Link href={`/app/crm/deals/${quote.deal_id}`} className="detail-meta-item cell-email">
-              {quote.deal_name}
-            </Link>
-          )}
-        </div>
-      </header>
+    <div className="app-page ui-page quote-app-view">
+      <PageHeader
+        back={{ href: `/app/crm/deals/${quote.deal_id}`, label: quote.deal_name ?? t('quotes.backToDeal') }}
+        title={
+          <>
+            <span className="data quote-number">{quote.number}</span> {quote.title}
+          </>
+        }
+        description={
+          <span className="quote-head-meta">
+            <span className={badgeClass(QUOTE_TONE, quote.status)}>{t(`enums.quoteStatus.${quote.status}`)}</span>
+            <span className="data">{formatMoney(quote.total, quote.currency, locale, true)}</span>
+          </span>
+        }
+      />
 
       <QuoteActions
         quote={{
@@ -119,17 +112,17 @@ export default async function QuotePage(props: QuotePageProps) {
       <div className="quote-layout">
         <QuoteDocument quote={doc} locale={locale} />
         <aside className="quote-side">
-          <h2 className="section-label">{t('quotes.timeline.title')}</h2>
+          <h2 className="crm-panel-title">{t('quotes.timeline.title')}</h2>
           <ol className="quote-timeline">
             {timeline.map((e) => (
               <li key={e.key} className={`q-${e.key}`}>
                 <span>{e.label}</span>
-                <span className="mono muted">{fmtTime(e.at, locale)}</span>
+                <span className="data">{fmtTime(e.at, locale)}</span>
               </li>
             ))}
           </ol>
           {quote.status !== 'draft' && (
-            <p className="muted quote-link mono" title={publicUrl}>
+            <p className="data quote-link" title={publicUrl}>
               {publicUrl}
             </p>
           )}

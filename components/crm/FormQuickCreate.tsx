@@ -18,7 +18,6 @@ export default function FormQuickCreate({ variant = 'head', label }: { variant?:
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (variant !== 'head') return;
     if (searchParams.get('new') === '1') {
       setOpen(true);
       const params = new URLSearchParams(searchParams.toString());
@@ -26,9 +25,10 @@ export default function FormQuickCreate({ variant = 'head', label }: { variant?:
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     }
-  }, [searchParams, pathname, router, variant]);
+  }, [searchParams, pathname, router]);
 
-  useKeyShortcut('c', () => setOpen(true), !open && variant === 'head');
+  // Solo hay un botón en pantalla (cabecera o estado vacío): ambos atienden C y ?new=1.
+  useKeyShortcut('c', () => setOpen(true), !open);
 
   async function submit() {
     if (!name.trim() || busy) return;
@@ -53,23 +53,21 @@ export default function FormQuickCreate({ variant = 'head', label }: { variant?:
     <>
       <button
         type="button"
-        className={variant === 'head' ? 'btn btn-solid btn-small' : 'btn btn-small'}
+        className="btn btn-primary"
         onClick={() => setOpen(true)}
         data-testid="crm-quick-form"
       >
         {label ?? t('forms.new')}
-        {variant === 'head' && (
-          <span className="kbd-hint" aria-hidden>
-            C
-          </span>
-        )}
+        <kbd className="kbd" aria-hidden="true">
+          C
+        </kbd>
       </button>
       <QuickModal
         open={open}
         onClose={() => setOpen(false)}
         crumb={`CRM › ${t('forms.new')}`}
         onSubmit={submit}
-        submitLabel={busy ? t('common.saving') : t('common.create')}
+        submitLabel={busy ? t('common.creating') : t('forms.createSubmit')}
         cancelLabel={t('common.cancel')}
         submitDisabled={!name.trim()}
         busy={busy}

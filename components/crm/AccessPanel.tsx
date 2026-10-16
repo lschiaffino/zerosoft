@@ -93,9 +93,9 @@ export default function AccessPanel({ visibility: initialVisibility, teams: init
               onChange={() => saveVisibility(v)}
               data-testid={`visibility-${v}`}
             />
-            <span>
+            <span className="access-vis-text">
               <strong>{t(`access.vis.${v}`)}</strong>
-              <span className="muted"> — {t(`access.visDesc.${v}`)}</span>
+              <span className="ui-help">{t(`access.visDesc.${v}`)}</span>
             </span>
           </label>
         ))}

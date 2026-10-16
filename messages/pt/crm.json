@@ -549,7 +549,7 @@
     "name": "Nome do workflow",
     "enabled": "Ativo",
     "disabled": "Inativo",
-    "triggers": "Triggers",
+    "triggers": "Gatilhos",
     "actions": "Ações",
     "triggerTypes": {
       "contact_created": "Contato criado",
@@ -581,7 +581,7 @@
       "run_flow": "Executar um Flow",
       "branch": "Se / senão"
     },
-    "addTrigger": "Adicionar trigger",
+    "addTrigger": "Adicionar gatilho",
     "addAction": "Adicionar ação",
     "save": "Salvar",
     "runNow": "Executar agora",
@@ -597,10 +597,7 @@
     "delete": "Excluir workflow",
     "deleteConfirm": "Excluir este workflow?",
     "emailAction": "Enviar e-mail",
-    "fromStageId": "Da etapa id",
-    "toStageId": "Para etapa id",
     "dueInDays": "Vence em dias",
-    "ownerId": "Responsável id",
     "entity": "Entidade",
     "field": "Campo",
     "value": "Valor",
@@ -630,8 +627,112 @@
       "no": "Se não"
     },
     "trigger": "Gatilho",
-    "quickCreate": "Criar e configurar",
-    "quickNote": "É criado como rascunho desativado; você adiciona as ações no editor."
+    "subtitle": "Quando algo acontece no CRM, faça o que faria à mão: criar tarefas, avisar, enviar emails.",
+    "create": "Criar workflow",
+    "createFirst": "Criar o primeiro workflow",
+    "derivedName": "{trigger}: {action}",
+    "whenTrigger": "Quando",
+    "orWhen": "Ou quando",
+    "removeTrigger": "Remover gatilho",
+    "noActions": "Adicione pelo menos uma ação.",
+    "actionN": "Ação {n}",
+    "triggerN": "Gatilho {n}",
+    "actionGroups": {
+      "basic": "Ações",
+      "advanced": "Avançado"
+    },
+    "triggerGroups": {
+      "contacts": "Contatos",
+      "deals": "Deals",
+      "email": "Email e reuniões",
+      "other": "Outros"
+    },
+    "templates": {
+      "copy": {
+        "taskSubject": "Agendar o onboarding",
+        "emailSubject": "Obrigado pelo contato",
+        "emailBody": "Olá, recebemos sua mensagem. Respondemos ainda hoje.",
+        "notifyMessage": "Chegou um novo formulário.",
+        "followUpSubject": "Ligar: abriu o email"
+      },
+      "wonTask": {
+        "title": "Tarefa ao ganhar um deal",
+        "desc": "Quando um deal é ganho, cria a tarefa de onboarding para amanhã."
+      },
+      "welcomeEmail": {
+        "title": "Email de boas-vindas",
+        "desc": "Quando entra um contato novo, envia um email."
+      },
+      "formAlert": {
+        "title": "Aviso de formulário",
+        "desc": "Quando alguém envia um formulário, avisa você no app."
+      },
+      "openFollowUp": {
+        "title": "Acompanhamento na abertura",
+        "desc": "Quando abrem seu email, cria uma tarefa para ligar."
+      }
+    },
+    "problems": {
+      "name": "Dê um nome.",
+      "trigger": "Escolha pelo menos um gatilho.",
+      "action": "Adicione pelo menos uma ação.",
+      "headers": "Os headers precisam ser um objeto JSON.",
+      "save": "Não foi possível salvar. Tente de novo."
+    },
+    "saving": "Salvando…",
+    "saved": "Alterações salvas",
+    "unsaved": "Alterações não salvas",
+    "readOnly": "Só admins do workspace podem editar workflows.",
+    "nameDerived": "Preenchido a partir do gatilho e da primeira ação.",
+    "state": "Status",
+    "wizard": {
+      "label": "Etapas",
+      "trigger": "Gatilho",
+      "actions": "Ações",
+      "review": "Revisar",
+      "pickTemplate": "Comece com um modelo",
+      "orTrigger": "Ou escolha o gatilho",
+      "thenDo": "Quando «{trigger}» acontecer, fazer:",
+      "summary": "Resumo",
+      "back": "Voltar",
+      "next": "Próximo",
+      "create": "Criar workflow",
+      "desc": "Escolha quando roda, o que faz e revise antes de criar."
+    },
+    "confirmDelete": "Excluir workflow",
+    "cancel": "Cancelar",
+    "saveWorkflow": "Salvar workflow",
+    "fromStage": "Da etapa",
+    "toStage": "Para a etapa",
+    "anyStage": "Qualquer etapa",
+    "directionLabel": "Sentido",
+    "entities": {
+      "contact": "Contato",
+      "company": "Empresa",
+      "deal": "Deal"
+    },
+    "toContact": "O contato do registro",
+    "toOther": "Outro endereço",
+    "toAddress": "Endereço",
+    "toAddressHint": "Um email fixo ou uma variável com um email do contato.",
+    "variablesHint": "Aceita variáveis do contato, da empresa e do deal.",
+    "taskTitle": "Título da tarefa",
+    "owner": "Responsável",
+    "ownerDefault": "O dono do registro",
+    "activityType": "Tipo",
+    "fieldHint": "Por exemplo lifecycle_stage ou custom.plan",
+    "pick": "Escolha uma opção",
+    "headersHint": "Opcional. Um objeto JSON.",
+    "condition": "Condição",
+    "noRunsBody": "Cada vez que disparar, a execução aparece aqui com o resultado.",
+    "runWhen": "Quando",
+    "runState": "Status",
+    "runResult": "Resultado",
+    "runActionsOk": "{ok} de {total} ações OK",
+    "updated": "Atualizado",
+    "rowActions": "Ações da linha",
+    "noTrigger": "Sem gatilho",
+    "ranNow": "«{name}» executado."
   },
   "history": {
     "title": "Histórico",
@@ -824,7 +925,20 @@
     "tags": "Tags",
     "tagsDesc": "Rótulos compartilhados para contatos, empresas e negócios. Filtre listas por tag e marque registros em massa.",
     "currency": "Moeda",
-    "currencyDesc": "A moeda base do workspace, as taxas de câmbio manuais e o que acontece quando um orçamento é aceito."
+    "currencyDesc": "A moeda base do workspace e as taxas de câmbio manuais.",
+    "tabs": {
+      "team": "Equipe",
+      "sales": "Vendas",
+      "data": "Dados",
+      "automation": "Automação",
+      "integrations": "Integrações",
+      "import": "Importar e exportar"
+    },
+    "subtitle": "Equipe, pipelines, campos e automações do CRM. Cada bloco salva sozinho.",
+    "gmailTitle": "Gmail",
+    "importDesc": "Envie um CSV de contatos, empresas ou deals.",
+    "quotesTitle": "Cotações",
+    "quotesDesc": "O que acontece com o deal quando o cliente aceita."
   },
   "importP": {
     "title": "Importar {entity}",
@@ -1096,7 +1210,7 @@
     "businessDays": "Só dias úteis (seg–sex)",
     "cronNote": "As etapas rodam de hora em hora: os emails saem dentro da hora em que vencem, sempre dentro do horário de envio.",
     "gmailNote": "Os emails saem do Gmail de quem inscreve o contato.",
-    "saved": "Salvo",
+    "saved": "Alterações salvas",
     "deleteSequence": "Excluir sequência",
     "deleteConfirm": "Excluir esta sequência e todas as inscrições?",
     "stats": {
@@ -1139,7 +1253,23 @@
     "crumbNew": "Nova sequência",
     "back": "← Sequências",
     "readOnly": "Só admins ou quem criou esta sequência podem editá-la.",
-    "noSteps": "Adicione a primeira etapa."
+    "noSteps": "Adicione a primeira etapa.",
+    "nameRequired": "Dê um nome à sequência.",
+    "unsaved": "Alterações não salvas",
+    "scheduleSummary": "{days}, {from} às {to} ({tz})",
+    "weekdays": "Segunda a sexta",
+    "everyDay": "Todos os dias",
+    "windowToLabel": "Até",
+    "statsLine": "{sent} enviados · {opened} abertos · {clicked} com clique · {replied} respondidos",
+    "content": "Conteúdo",
+    "addEmailStep": "Adicionar email",
+    "addWaitStep": "Adicionar espera",
+    "addTaskStep": "Adicionar tarefa",
+    "confirmDeleteCta": "Excluir sequência e inscrições",
+    "saveSequence": "Salvar sequência",
+    "noEnrollmentsTitle": "Ninguém inscrito ainda",
+    "createSubmit": "Criar sequência",
+    "createNote": "Começa com um email, 3 dias de espera e um segundo email. Altere no editor."
   },
   "email": {
     "messages": "{n, plural, one {# mensagem} other {# mensagens}}",
@@ -1269,7 +1399,20 @@
       "accepted": "Aceito por {name}",
       "declined": "Recusado",
       "expired": "Vencido"
-    }
+    },
+    "linkCopied": "Link copiado",
+    "saveQuote": "Salvar cotação",
+    "parties": {
+      "label": "Remetente e destinatário",
+      "summary": "De {from} para {to}",
+      "missing": "não preenchido",
+      "fromDeal": "o contato do deal"
+    },
+    "emptyFilteredTitle": "Nenhuma cotação em «{status}»",
+    "seeAll": "Ver todas",
+    "pagination": "Páginas",
+    "prevPage": "Anterior",
+    "nextPage": "Próxima"
   },
   "quotePublic": {
     "quote": "Orçamento",
@@ -1333,7 +1476,8 @@
     "quoteMovesDeal": "Quando um orçamento for aceito, mover o negócio para a etapa ganha",
     "saved": "Salvo.",
     "convertedHint": "Convertido para {base} com a taxa de câmbio do workspace",
-    "reportNote": "Valores em {base}. Negócios em outras moedas são convertidos com suas taxas de câmbio."
+    "reportNote": "Valores em {base}. Negócios em outras moedas são convertidos com suas taxas de câmbio.",
+    "removeShort": "Remover"
   },
   "forms": {
     "title": "Formulários",
@@ -1417,7 +1561,7 @@
       "consentPlaceholder": "Aceito receber emails…",
       "consentRequired": "É preciso aceitar o consentimento para enviar",
       "after": "Depois de enviar",
-      "successMode": "Então",
+      "successMode": "Quando alguém envia",
       "showMessage": "Mostrar uma mensagem de agradecimento",
       "redirect": "Redirecionar para uma URL",
       "redirectUrl": "URL de redirecionamento",
@@ -1438,7 +1582,28 @@
       "status": "Status",
       "saved": "Salvo",
       "preview": "Pré-visualizar",
-      "readOnly": "Só os admins e quem criou o formulário podem editá-lo."
+      "readOnly": "Só os admins e quem criou o formulário podem editá-lo.",
+      "tabs": {
+        "fields": "Campos",
+        "design": "Design",
+        "after": "Depois do envio",
+        "crm": "CRM e avisos"
+      },
+      "tabsLabel": "Seções do formulário",
+      "untitled": "Campo sem rótulo",
+      "keyHint": "Gerada a partir do rótulo. É o nome do campo na API e no CSV.",
+      "internalName": "Nome interno",
+      "internalNameHint": "Você vê na lista de formulários. Quem preenche vê o título.",
+      "statusHint": "Só formulários ativos aceitam envios.",
+      "designAdvancedHint": "URL própria, consentimento",
+      "slugExplain": "Vazio: o formulário usa o link gerado.",
+      "useSlug": "Usar /f/{slug}",
+      "keepAsIs": "Não alterar",
+      "noneOption": "Nenhuma",
+      "crmAdvancedHint": "Duplicados, spam",
+      "unsaved": "Alterações não salvas",
+      "confirmDelete": "Excluir formulário e envios",
+      "saveForm": "Salvar formulário"
     },
     "types": {
       "text": "Texto",
@@ -1476,7 +1641,9 @@
     "newContact": "novo",
     "view": "Ver",
     "consent": "Consentimento",
-    "page": "Página"
+    "page": "Página",
+    "createSubmit": "Criar formulário",
+    "never": "Nunca"
   },
   "formsPublic": {
     "notFound": "Formulário não encontrado",
@@ -1592,7 +1759,9 @@
     "poolDesc": "As pessoas marcadas se revezam nesta ordem. Leads que já têm responsável não são redistribuídos.",
     "outOfOffice": "Fora do escritório",
     "history": "Distribuições recentes",
-    "noHistory": "Nenhum lead distribuído ainda."
+    "noHistory": "Nenhum lead distribuído ainda.",
+    "advancedHint": "Fontes, histórico",
+    "assignedTo": "atribuído a {name} ({source})"
   },
   "quotas": {
     "title": "Cotas",
@@ -1614,5 +1783,10 @@
     "empty": "Nenhuma cota ainda.",
     "expected": "Esperado até agora: {pct}%",
     "manage": "Gerenciar"
+  },
+  "rowTools": {
+    "up": "Subir",
+    "down": "Descer",
+    "remove": "Remover"
   }
 }
