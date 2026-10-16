@@ -81,9 +81,11 @@ test('Cal: crear evento, ver slots y reservar', async ({ request, page }) => {
   expect(res?.status()).toBe(200);
   await expect(page.getByText('E2E').first()).toBeVisible();
 
-  // Los links viejos /book/<slug> redirigen al nuevo.
-  await page.goto(`/en/book/${slug}`);
-  await expect(page).toHaveURL(new RegExp(`/en/book/${handle}/${slug}$`));
+  // /book/<slug> solo redirige event types anteriores a los handles (005_user_handles);
+  // uno creado ahora no tiene link viejo y no puede secuestrar el path de un handle.
+  const legacy = await page.goto(`/en/book/${slug}`);
+  expect(legacy?.status()).toBe(404);
+  await expect(page).toHaveURL(new RegExp(`/en/book/${slug}$`));
 });
 
 test('Cal: cambiar el handle actualiza el link público', async ({ request, page }) => {
