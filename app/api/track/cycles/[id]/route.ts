@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteCycle, getCycle, getProject, canAccessTrackProject, updateCycle } from '@/lib/track-data';
 import { cycleUpdateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
@@ -51,6 +51,8 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  // Saca a todos los issues del cycle y no se puede deshacer: solo owner/admin.
+  if (!isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
 
   const cycle = await accessibleCycle(params.id, user.team?.id ?? null, user.id);
   if (!cycle) return notFound();

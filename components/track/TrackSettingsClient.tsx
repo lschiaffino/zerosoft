@@ -47,11 +47,20 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
     await load();
   };
 
-  const patch = async (id: string, body: { name?: string; color?: string }) => {
+  const patch = async (id: string, body: { name?: string; color?: string }): Promise<boolean> => {
     setError(null);
     const res = await send<TrackLabel>(`/api/track/labels/${id}`, 'PATCH', body);
-    if (!res.ok) setError(res.status === 409 ? t('labelsSettings.duplicate') : t('labelsSettings.error'));
+    if (!res.ok) {
+      setError(
+        res.status === 409
+          ? t('labelsSettings.duplicate')
+          : res.status === 403
+            ? t('labelsSettings.adminOnly')
+            : t('labelsSettings.error'),
+      );
+    }
     await load();
+    return res.ok;
   };
 
   const remove = async (id: string) => {
@@ -65,6 +74,7 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
     <section className="track-settings-section" data-testid="track-labels-settings">
       <h2 className="track-settings-title">{t('labelsSettings.title')}</h2>
       <p className="muted track-settings-help">{t('labelsSettings.help')}</p>
+      {!isAdmin && <p className="muted track-settings-help">{t('labelsSettings.adminOnly')}</p>}
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -78,8 +88,15 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
               type="color"
               className="track-status-color"
               defaultValue={/^#[0-9a-f]{6}$/i.test(l.color) ? l.color : '#666666'}
+              disabled={!isAdmin}
               onBlur={(e) => {
-                if (e.target.value !== l.color) void patch(l.id, { color: e.target.value });
+                const el = e.target;
+                if (el.value === l.color) return;
+                // Los inputs no son controlados: si el cambio se rechaza hay
+                // que volver al valor guardado a mano (load() no lo reaplica).
+                void patch(l.id, { color: el.value }).then((ok) => {
+                  if (!ok) el.value = /^#[0-9a-f]{6}$/i.test(l.color) ? l.color : '#666666';
+                });
               }}
               aria-label={t('labelsSettings.color')}
             />
@@ -88,9 +105,15 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
               defaultValue={l.name}
               maxLength={50}
               aria-label={t('labelsSettings.name')}
+              disabled={!isAdmin}
               onBlur={(e) => {
-                const v = e.target.value.trim();
-                if (v && v !== l.name) void patch(l.id, { name: v });
+                const el = e.target;
+                const v = el.value.trim();
+                if (!v) el.value = l.name;
+                if (!v || v === l.name) return;
+                void patch(l.id, { name: v }).then((ok) => {
+                  if (!ok) el.value = l.name;
+                });
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();

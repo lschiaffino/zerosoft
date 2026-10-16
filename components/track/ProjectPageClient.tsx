@@ -223,14 +223,20 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   const issueIds = useMemo(() => issues.map((i) => i.id), [issues]);
   const selection = useIssueSelection(issueIds);
 
+  // Cada carga de la página 1 invalida las anteriores: si una respuesta vieja
+  // (p. ej. la búsqueda "l" mientras ya se tipeó "login") llega tarde, se
+  // descarta en vez de pisar la lista.
+  const issuesRequest = useRef(0);
   const fetchIssues = useCallback(
     async (page: number, append: boolean) => {
+      const seq = append ? issuesRequest.current : ++issuesRequest.current;
       const sp = filtersToParams(filters, sort);
       sp.set('pageSize', String(ISSUES_PAGE_SIZE));
       sp.set('page', String(page));
       const data = await api<{ rows: TrackIssueWithStatus[]; total: number }>(
         `/api/track/projects/${projectId}/issues?${sp.toString()}`,
       );
+      if (seq !== issuesRequest.current) return;
       setIssues((prev) => (append ? [...prev, ...data.rows] : data.rows));
       setIssuesTotal(data.total);
       setIssuesPage(page);
@@ -299,10 +305,14 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     };
   }, [projectId, setIssues]);
 
+  // Con debounce: la búsqueda cambia los filtros en cada tecla.
   useEffect(() => {
     if (loading) return;
-    fetchIssues(1, false);
-  }, [filters, sort, fetchIssues, loading]);
+    const timer = setTimeout(() => {
+      fetchIssues(1, false).catch(() => setNotice(t('errors.generic')));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [filters, sort, fetchIssues, loading, t]);
 
   const loadTriage = useCallback(async () => {
     const data = await api<{ rows: TrackIssueWithStatus[] }>(`/api/track/projects/${projectId}/triage`).catch(() => null);
@@ -314,13 +324,21 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   }, [loadTriage]);
 
   const toggleTriage = async (enabled: boolean) => {
+    setNotice(null);
     setProject((prev) => (prev ? { ...prev, triage_enabled: enabled ? 1 : 0 } : prev));
     const updated = await api<TrackProjectRow>(`/api/track/projects/${projectId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ triageEnabled: enabled }),
     }).catch(() => null);
-    if (updated) setProject(updated);
+    if (updated) {
+      setProject(updated);
+      return;
+    }
+    // Falló: se vuelve al valor anterior y se avisa (si no, el checkbox
+    // queda marcado con el triage apagado en el server).
+    setProject((prev) => (prev ? { ...prev, triage_enabled: enabled ? 0 : 1 } : prev));
+    setNotice(t('triage.toggleError'));
   };
 
   const runBulk = async (body: Record<string, unknown>) => {
@@ -521,6 +539,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
             <input
               type="checkbox"
               checked={Boolean(project.triage_enabled)}
+              disabled={!isAdmin}
+              title={isAdmin ? undefined : t('triage.adminOnly')}
               onChange={(e) => void toggleTriage(e.target.checked)}
               data-testid="track-triage-toggle"
             />
@@ -533,6 +553,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
           <StatusesSettings
             projectId={projectId}
             statuses={statuses}
+            canDelete={isAdmin}
             onChange={(next, opts) => {
               setStatuses(next);
               if (opts?.reloadIssues) void fetchIssues(1, false);

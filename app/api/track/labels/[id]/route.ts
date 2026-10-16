@@ -7,10 +7,12 @@ import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-htt
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/** Renombra o recolorea el label en todo el workspace: solo owner/admin. */
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
   const parsed = labelUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   const res = await updateLabel(trackWorkspaceId(user.team?.id ?? null, user.id), id, parsed.data);
