@@ -147,9 +147,59 @@ export const bookingCreateSchema = z.object({
   name: shortText,
   start: isoDate,
   timezone: ianaTimezone.optional(),
-  answers: z.record(z.unknown()).optional(),
+  answers: z
+    .record(z.unknown())
+    .refine((a) => Object.keys(a).length <= 20, { message: 'too_many_answers' })
+    .optional(),
   locale: z.enum(['en', 'es', 'pt']).optional(),
 });
+
+const ANSWER_MAX = 2000;
+
+/**
+ * Valida las respuestas de una reserva contra los campos del tipo de evento:
+ * solo claves definidas, tipo según el campo, textos de hasta 2000 caracteres
+ * y los requeridos completos. Devuelve las respuestas normalizadas o null.
+ */
+export function validateBookingAnswers(
+  fields: Array<Record<string, unknown>>,
+  answers: Record<string, unknown> | undefined,
+): Record<string, string | number | boolean> | null {
+  const input = answers ?? {};
+  const defs = new Map<string, z.infer<typeof customField>>();
+  for (const f of fields) {
+    const parsed = customField.safeParse(f);
+    if (parsed.success) defs.set(parsed.data.name, parsed.data);
+  }
+  for (const key of Object.keys(input)) if (!defs.has(key)) return null;
+
+  const out: Record<string, string | number | boolean> = {};
+  for (const field of defs.values()) {
+    const raw = input[field.name];
+    if (raw === undefined || raw === null || raw === '') {
+      if (field.required) return null;
+      continue;
+    }
+    if (field.type === 'boolean') {
+      if (typeof raw !== 'boolean') return null;
+      if (field.required && !raw) return null;
+      out[field.name] = raw;
+    } else if (field.type === 'number') {
+      const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN;
+      if (!Number.isFinite(n)) return null;
+      out[field.name] = n;
+    } else {
+      if (typeof raw !== 'string' || raw.length > ANSWER_MAX) return null;
+      const text = raw.trim();
+      if (!text) {
+        if (field.required) return null;
+        continue;
+      }
+      out[field.name] = text;
+    }
+  }
+  return out;
+}
 
 /** Acciones del invitado desde su link de gestión. */
 export const bookingManageSchema = z.discriminatedUnion('action', [

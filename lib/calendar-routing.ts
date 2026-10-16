@@ -92,12 +92,17 @@ export async function getPublicRoutingForm(id: string): Promise<RoutingFormWithC
   return row ? decorateForm(row) : undefined;
 }
 
-/** Links viejos /r/<slug>: el form más antiguo con ese slug. */
+/**
+ * Links viejos /r/<slug>: el form más antiguo con ese slug. Solo forms creados
+ * antes de la migración de handles (los únicos que tuvieron ese link): uno
+ * nuevo no puede apropiarse de un /r/<slug> que no era suyo.
+ */
 export async function legacyRoutingPath(slug: string): Promise<string | null> {
   const row = (await getDb()
     .prepare(
       `SELECT u.handle FROM calendar_routing_forms f JOIN users u ON u.id = f.user_id
        WHERE f.slug = ? AND f.active = 1 AND u.handle IS NOT NULL
+         AND f.created_at < (SELECT applied_at FROM schema_migrations WHERE id = '005_user_handles')
        ORDER BY f.created_at ASC LIMIT 1`,
     )
     .get(slug)) as { handle: string } | undefined;

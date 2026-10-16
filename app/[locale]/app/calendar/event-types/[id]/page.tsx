@@ -106,6 +106,7 @@ export default async function EventTypeDetailPage(props: { params: Promise<{ loc
             priceCents={eventType.price_cents}
             currency={eventType.currency}
             paymentsConfigured={payments.configured}
+            paymentsReady={payments.configured && payments.hasWebhookSecret}
           />
           <WorkflowEditor eventTypeId={id} initial={workflowSteps ?? []} />
           <CalEmbedCode publicUrl={publicUrl} origin={origin} />

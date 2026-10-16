@@ -1,4 +1,4 @@
-import { getEventTypeById } from './calendar';
+import { getCalendarUser, getEventTypeById } from './calendar';
 import { getUserById, type CalendarBookingRow } from './db';
 import { escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 import { buildIcs } from './ics';
@@ -224,9 +224,14 @@ export async function notifyBooking(
 
   // Host
   if (host && !opts.skipHost) {
+    // El anfitrión ve la hora en su zona (la de su calendario o, si no tiene, la del dueño).
+    const hostTz =
+      (await getCalendarUser(host.id))?.timezone ||
+      (await getCalendarUser(eventType.user_id))?.timezone ||
+      booking.timezone;
     const hostParagraphs = [
       `${fill(L.hi, { name: escapeHtml(host.name ?? host.email) })} ${fill(copy.hostLine, vars)}`,
-      ...details(booking.timezone),
+      ...details(hostTz),
     ];
     await sendEmail({
       to: host.email,
