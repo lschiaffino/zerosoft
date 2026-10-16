@@ -100,6 +100,11 @@ export function useIssueStore(
   const issuesRef = useRef(issues);
   issuesRef.current = issues;
   const createQueue = useRef<Promise<unknown>>(Promise.resolve());
+  // PATCH en serie por issue (el server los aplica en el orden de los clics) y
+  // solo la respuesta del último pisa la fila: una respuesta vieja no tapa un
+  // cambio optimista más nuevo.
+  const patchQueues = useRef(new Map<string, Promise<unknown>>());
+  const patchSeq = useRef(new Map<string, number>());
 
   useEffect(() => {
     if (!error) return;
@@ -117,15 +122,22 @@ export function useIssueStore(
       if (!prev || isPendingIssue(prev)) return;
       const ctx = projects[prev.project_id];
       replace(issueId, (i) => applyIssuePatch(i, patch, ctx?.statuses, ctx?.members));
-      try {
+      const seq = (patchSeq.current.get(issueId) ?? 0) + 1;
+      patchSeq.current.set(issueId, seq);
+      const send = async () => {
         const res = await fetch(`/api/track/issues/${issueId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patch),
         });
         if (!res.ok) throw new Error(`patch ${res.status}`);
-        const saved = (await res.json()) as TrackIssueWithStatus;
-        replace(issueId, (i) => ({ ...i, ...saved }));
+        return (await res.json()) as TrackIssueWithStatus;
+      };
+      const request = (patchQueues.current.get(issueId) ?? Promise.resolve()).catch(() => undefined).then(send);
+      patchQueues.current.set(issueId, request);
+      try {
+        const saved = await request;
+        if (patchSeq.current.get(issueId) === seq) replace(issueId, (i) => ({ ...i, ...saved }));
       } catch {
         // Revertir solo los campos de este parche, para no pisar otros
         // cambios optimistas que hayan llegado mientras tanto.

@@ -7,6 +7,7 @@
 import { after } from 'next/server';
 import { getDb, getClient, txDb, getUserById } from './db';
 import { emitEvent } from './events';
+import { deleteUploads } from './uploads';
 import type {
   TrackCycleRow,
   TrackIssueActivityRow,
@@ -164,25 +165,29 @@ function inClause(count: number): string {
 
 async function nextIdentifier(projectId: string): Promise<string> {
   const db = getDb();
-  const prefixRow = (await db
-    .prepare('SELECT slug FROM track_projects WHERE id = ?')
-    .get(projectId)) as { slug: string } | undefined;
-  const prefix = (prefixRow?.slug ?? 'project').toUpperCase();
+  const project = (await db
+    .prepare('SELECT slug, team_id, owner_id FROM track_projects WHERE id = ?')
+    .get(projectId)) as { slug: string; team_id: string | null; owner_id: string } | undefined;
+  const prefix = (project?.slug ?? 'project').toUpperCase();
+  const workspaceId = project?.team_id ?? project?.owner_id ?? '';
 
   // El número sigue al máximo del prefijo en todo el workspace, no solo en el
   // proyecto: si un slug se liberó (rename) y otro proyecto lo reusa, sus
   // issues no repiten identificadores (GitHub y la búsqueda por identifier
-  // actúan a nivel workspace).
+  // actúan a nivel workspace). El workspace se filtra sin COALESCE y el prefijo
+  // con un rango ('PREF-' <= x < 'PREF.'), para que sirvan los índices.
   const row = (await db
     .prepare(
       `SELECT COALESCE(MAX(CAST(SUBSTR(i.identifier, ?) AS INTEGER)), 0) AS n
-       FROM track_issues i
-       WHERE i.identifier LIKE ? AND SUBSTR(i.identifier, ?) NOT GLOB '*[^0-9]*' AND i.project_id IN (
-         SELECT p.id FROM track_projects p, track_projects me
-         WHERE me.id = ? AND COALESCE(p.team_id, p.owner_id) = COALESCE(me.team_id, me.owner_id)
-       )`,
+       FROM track_projects p
+       JOIN track_issues i ON i.project_id = p.id
+       WHERE (p.team_id = ? OR (p.team_id IS NULL AND p.owner_id = ?))
+         AND i.identifier >= ? AND i.identifier < ?
+         AND SUBSTR(i.identifier, ?) NOT GLOB '*[^0-9]*'`,
     )
-    .get(prefix.length + 2, `${prefix}-%`, prefix.length + 2, projectId)) as { n: number } | undefined;
+    .get(prefix.length + 2, workspaceId, workspaceId, `${prefix}-`, `${prefix}.`, prefix.length + 2)) as
+    | { n: number }
+    | undefined;
 
   return `${prefix}-${(row?.n ?? 0) + 1}`;
 }
@@ -371,7 +376,14 @@ export async function updateProject(
 }
 
 export async function deleteProject(id: string): Promise<boolean> {
-  const res = await getDb().prepare('DELETE FROM track_projects WHERE id = ?').run(id);
+  const db = getDb();
+  const files = (await db
+    .prepare(
+      'SELECT a.url FROM track_issue_attachments a JOIN track_issues i ON i.id = a.issue_id WHERE i.project_id = ?',
+    )
+    .all(id)) as Array<{ url: string }>;
+  const res = await db.prepare('DELETE FROM track_projects WHERE id = ?').run(id);
+  if (res.changes > 0) await deleteUploads(files.map((f) => f.url));
   return res.changes > 0;
 }
 
@@ -777,7 +789,12 @@ export async function listAllIssues(
   const projectWhere = scope.where;
   const projectArg = scope.arg;
 
-  const where: string[] = ['i.project_id IN (SELECT id FROM track_projects WHERE ' + projectWhere + ')', 'i.triage = 0'];
+  // Solo proyectos activos, como listMyIssues y listProjectMetas: los de un
+  // proyecto archivado no se pueden editar desde la lista.
+  const where: string[] = [
+    `i.project_id IN (SELECT id FROM track_projects WHERE ${projectWhere} AND status = 'active')`,
+    'i.triage = 0',
+  ];
   const args: Array<string | number> = [projectArg];
 
   if (options.projectId) {
@@ -1238,8 +1255,13 @@ export async function deleteIssueTree(id: string): Promise<string[]> {
     (r) => r.id,
   );
   if (ids.length === 0) return [];
+  // Los adjuntos se borran por FK, pero sus archivos no: juntar las URLs antes.
+  const files = (await db
+    .prepare(`SELECT url FROM track_issue_attachments WHERE issue_id IN (${ISSUE_TREE_CTE} SELECT id FROM tree)`)
+    .all(id)) as Array<{ url: string }>;
   // Un solo DELETE: atómico, y las filas hijas de otras tablas se borran por FK.
   await db.prepare(`DELETE FROM track_issues WHERE id IN (${ISSUE_TREE_CTE} SELECT id FROM tree)`).run(id);
+  await deleteUploads(files.map((f) => f.url));
   return ids;
 }
 
@@ -1693,9 +1715,13 @@ export async function createIssueAttachment(
 }
 
 export async function deleteIssueAttachment(id: string, issueId: string): Promise<boolean> {
-  const res = await getDb()
-    .prepare('DELETE FROM track_issue_attachments WHERE id = ? AND issue_id = ?')
-    .run(id, issueId);
+  const db = getDb();
+  const row = (await db
+    .prepare('SELECT url FROM track_issue_attachments WHERE id = ? AND issue_id = ?')
+    .get(id, issueId)) as { url: string } | undefined;
+  if (!row) return false;
+  const res = await db.prepare('DELETE FROM track_issue_attachments WHERE id = ? AND issue_id = ?').run(id, issueId);
+  if (res.changes > 0) await deleteUploads([row.url]);
   return res.changes > 0;
 }
 

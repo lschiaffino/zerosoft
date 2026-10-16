@@ -436,6 +436,8 @@
     "duplicateNotFound": "Esse issue não está no workspace.",
     "from": "De {source}",
     "error": "Não foi possível resolver o issue.",
+    "alreadyResolved": "Outra pessoa já resolveu este issue.",
+    "banner": "Este issue está em triagem: não aparece nas listas nem em My tasks até alguém aceitá-lo.",
     "sources": {
       "api": "API",
       "chat": "Chat",
