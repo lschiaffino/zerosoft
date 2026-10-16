@@ -3,52 +3,77 @@
    Los tokens de marca (red de subte) están en styles/brand.css.
    ============================================ */
 
+/* Los neutros salen de styles/brand.css (red de subte). Estos nombres
+   (--bg, --ink, --dim, --line…) son alias históricos que usan los estilos de
+   cada producto: apuntan a los tokens de marca, no a valores propios. */
 :root {
-  --bg: #ffffff;
-  --ink: #111111;
-  --dim: #9a9a9a;
-  --line: #e8e8e8;
-  /* Grises del sitio: texto secundario y terciario sobre blanco (AA). */
-  --ink-2: #4a4a4a;
-  --ink-3: #6e6e6e;
-  /* Lo mismo sobre las bandas oscuras (#0a0a0a). */
-  --on-dark-2: #b3b3b3;
-  --on-dark-3: #8a8a8a;
-  --mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
-  --sans: var(--font-archivo), -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --bg: var(--brand-white);
+  --ink: var(--brand-ink);
+  /* Gris más claro permitido para texto (4,54:1). Antes var(--brand-on-ink-2), que no pasaba AA. */
+  --dim: var(--brand-gray-3);
+  /* Filete de 1px: divisores de tabla, listas y paneles. */
+  --line: var(--brand-rule);
+  --ink-2: var(--brand-gray-1);
+  --ink-3: var(--brand-gray-2);
+  /* Lo mismo sobre la banda de señalética (#111). */
+  --on-dark-2: var(--brand-on-ink-2);
+  --on-dark-3: #8f8f8f;
+  --mono: var(--font-data);
+  --sans: var(--font-ui);
+  --ease: var(--ease-out-expo);
   /* Aliases usados por los estilos de las apps (app.css, crm.css) */
   --text: var(--ink);
   --border: var(--line);
   --muted: var(--dim);
-  --subtle: #f5f5f5;
+  --subtle: var(--brand-enamel);
 
-  /* Color: uno por producto + semánticos. Blanco y negro siguen siendo la base;
-     el color marca dónde estás y qué significa cada cosa. */
+  /* Color: una línea por producto. Blanco esmaltado y tinta son la base;
+     el color de la línea marca dónde estás. Verificados contra
+     PRODUCT_CONFIG en tests/unit/site-catalog.test.ts. */
   --c-link: #2f6bff;
   --c-crm: #7b4dff;
   --c-cal: #0e9f6e;
   --c-track: #f2611d;
   --c-chat: #e23d7f;
   --c-docs: #c2700a;
-  /* Próximos productos */
   --c-flow: #0284c7;
   --c-agents: #ff3b30;
   --c-notes: #e6b400;
   --c-board: #00b8a9;
   --c-robots: #6b7280;
 
-  /* Forma: casi recta. Nada de pastillas ni tarjetas "infladas". */
-  --r-xs: 2px;
-  --r-sm: 3px;
-  --r-md: 4px;
+  /* Forma: recta. 2px como máximo; el círculo es solo para estaciones. */
+  --r-xs: var(--radius-1);
+  --r-sm: var(--radius-1);
+  --r-md: var(--radius-1);
+
+  /* Semánticos: el tono para rellenos y trazos, -ink para texto (AA sobre
+     blanco), -soft para el fondo de un aviso. */
   --ok: #12a150;
+  --ok-ink: #0c7a3d;
+  --ok-soft: #e6f4ec;
   --warn: #d97a00;
-  --bad: #e5484d;
-  --info: #2f6bff;
+  --warn-ink: #9a5200;
+  --warn-soft: #fbf0e0;
+  --bad: #d93a40;
+  --bad-ink: #c22a30;
+  --bad-soft: #fbe9ea;
+  --info: var(--c-link);
+  --info-ink: var(--c-link-ink);
+
+  /* Superficies de la interfaz (ver styles/ui.css). */
+  --ui-hover: #ebebe8;
+  --ui-press: #e1e1dd;
+  /* Borde de un campo: 3,2:1 sobre blanco (WCAG 1.4.11). */
+  --ui-field: #8c8c88;
+  --ui-backdrop: rgb(17 17 17 / 0.48);
+  --ui-dur: 160ms;
+
   --accent: var(--ink);
+  --accent-ink: var(--ink);
   /* Texto sobre un fondo del color del producto (ver .card-* abajo). */
   --on-accent: #ffffff;
+  --accent-on: var(--on-accent);
   --accent-soft: color-mix(in srgb, var(--accent) 10%, white);
   --accent-line: color-mix(in srgb, var(--accent) 28%, white);
 }
@@ -74,14 +99,13 @@ body {
 /* Foco visible y consistente en todo el sitio (teclado). */
 :focus-visible {
   outline: 2px solid var(--ink);
-  outline-offset: 3px;
-  border-radius: var(--r-xs);
+  outline-offset: 2px;
 }
 .lp-dark :focus-visible,
 .lp-end :focus-visible,
 .site-footer :focus-visible,
 .end :focus-visible,
-.hd-mega-cta-dark:focus-visible { outline-color: #f4f4f4; }
+.hd-mega-cta-dark:focus-visible { outline-color: var(--brand-on-ink); }
 
 /* Acento por producto: disponible en todo el sitio (header, footer, páginas). */
 /* --on-accent: el texto más legible sobre ese color (contraste WCAG medido:
@@ -102,6 +126,8 @@ body {
 
 ::selection { background: var(--ink); color: var(--bg); }
 
+html { accent-color: var(--ink); caret-color: var(--ink); }
+
 a { color: inherit; text-decoration: none; }
 
 .container {
@@ -112,124 +138,12 @@ a { color: inherit; text-decoration: none; }
   padding-right: var(--gutter);
 }
 
-.mono { font-family: var(--mono); }
+.mono { font-family: var(--mono); font-feature-settings: "zero" 1, "tnum" 1; }
 .muted { color: var(--dim); }
 
-/* ---------- Botones / formularios (sistema común) ---------- */
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  white-space: nowrap;
-  font-family: var(--mono);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 15px 30px;
-  border: 1px solid var(--ink);
-  border-radius: var(--r-sm);
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-  transition: background 0.35s var(--ease), color 0.35s var(--ease),
-              border-color 0.35s var(--ease), transform 0.35s var(--ease);
-}
-
-.btn:active { transform: scale(0.97); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.btn-solid { background: var(--ink); color: var(--bg); }
-.btn-solid:hover:not(:disabled) { background: transparent; color: var(--ink); }
-
-.btn-ghost { background: transparent; color: var(--ink); }
-.btn-ghost:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
-
-.btn-invert { border-color: #f4f4f4; color: #f4f4f4; }
-.btn-invert:hover:not(:disabled) { background: #f4f4f4; color: #0a0a0a; }
-
-.btn-small { padding: 9px 18px; font-size: 11px; }
-.btn-lg { padding: 16px 28px; font-size: 13px; }
-.btn svg { flex-shrink: 0; transition: transform 0.25s var(--ease); }
-.btn:hover svg[data-arrow], .btn:hover .icon-arrow { transform: translateX(3px); }
-
-.btn-invert-solid { background: #f4f4f4; border-color: #f4f4f4; color: #0a0a0a; }
-.btn-invert-solid:hover:not(:disabled) { background: #fff; border-color: #fff; }
-
-.btn-danger:hover:not(:disabled) { background: #b00020; border-color: #b00020; color: #fff; }
-
-.input, .select, .textarea {
-  width: 100%;
-  font-family: var(--mono);
-  font-size: 14px;
-  color: var(--ink);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  padding: 12px 14px;
-  outline: none;
-  transition: border-color 0.25s;
-}
-
-.input:focus, .select:focus, .textarea:focus { border-color: var(--ink); }
-.input::placeholder, .textarea::placeholder { color: #b8b8b8; }
-
-.label {
-  display: block;
-  font-family: var(--mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--dim);
-  margin-bottom: 8px;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  border: 1px solid currentColor;
-  border-radius: var(--r-sm);
-  padding: 4px 11px;
-  opacity: 0.6;
-  white-space: nowrap;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.table th {
-  font-family: var(--mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--dim);
-  font-weight: 400;
-  text-align: left;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
-}
-
-.table td {
-  padding: 14px;
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
-}
-
-.panel {
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 28px;
-  background: var(--bg);
-}
+/* ---------- Botones, campos, tablas ---------- */
+/* El sistema de controles (.btn, .input, .select, .textarea, .label, .badge,
+   .table, .panel y los .ui-*) vive en styles/ui.css, que se carga después. */
 
 /* ---------- Header ---------- */
 
@@ -297,7 +211,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .hd-link:hover,
-.hd-dropdown.open .hd-trigger { background: #f3f3f3; color: var(--ink); }
+.hd-dropdown.open .hd-trigger { background: var(--brand-enamel); color: var(--ink); }
 .hd-trigger svg { transition: transform 0.25s var(--ease); }
 .hd-dropdown.open .hd-trigger svg { transform: rotate(180deg); }
 
@@ -424,11 +338,11 @@ a { color: inherit; text-decoration: none; }
   gap: 4px;
   padding: 14px;
   border-radius: var(--r-md);
-  background: #f6f6f6;
+  background: var(--brand-enamel);
   transition: background 0.2s;
 }
 
-.hd-mega-cta:hover { background: #eeeeee; }
+.hd-mega-cta:hover { background: var(--ui-hover); }
 
 .hd-mega-cta-title {
   display: inline-flex;
@@ -440,7 +354,7 @@ a { color: inherit; text-decoration: none; }
 
 .hd-mega-cta-desc { font-size: 12.5px; color: var(--ink-3); }
 
-.hd-mega-cta-dark { background: var(--ink); color: #f4f4f4; }
+.hd-mega-cta-dark { background: var(--ink); color: var(--brand-on-ink); }
 .hd-mega-cta-dark:hover { background: #262626; }
 .hd-mega-cta-dark .hd-mega-cta-desc { color: var(--on-dark-2); font-size: 11.5px; }
 
@@ -571,7 +485,7 @@ a { color: inherit; text-decoration: none; }
   margin-bottom: clamp(28px, 3.4vw, 44px);
   background:
     linear-gradient(90deg, var(--accent) 0 9px, transparent 9px),
-    linear-gradient(90deg, #cfcfcf, #cfcfcf);
+    linear-gradient(90deg, var(--brand-rule), var(--brand-rule));
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 24'%3E%3Cpath d='M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z' fill-rule='evenodd'/%3E%3C/svg%3E") left center / 16.6px 10px space no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 24'%3E%3Cpath d='M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z' fill-rule='evenodd'/%3E%3C/svg%3E") left center / 16.6px 10px space no-repeat;
 }
@@ -601,14 +515,14 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #767676;
+  color: var(--brand-gray-3);
   margin-bottom: 28px;
 }
 .section-label::after { content: ''; flex: 1; height: 1px; background: currentColor; opacity: 0.25; }
 .app-frame .section-label { display: block; }
 .app-frame .section-label::after { content: none; }
 
-.section-label.light { color: #6f6f6f; }
+.section-label.light { color: var(--brand-gray-2); }
 
 .section-title {
   font-size: clamp(2.3rem, 5vw, 4.2rem);
@@ -662,7 +576,7 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
   font-family: var(--mono);
   font-size: 11.5px;
   letter-spacing: 0.04em;
-  color: #d8d8d8;
+  color: var(--brand-on-ink-2);
   transition: border-color 0.2s, color 0.2s;
 }
 
@@ -693,8 +607,8 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
 
 .footer-col a:hover { color: #fff; }
 
-.footer-brand .brand { color: #f4f4f4; }
-.footer-brand .brand-name { color: #f4f4f4; }
+.footer-brand .brand { color: var(--brand-on-ink); }
+.footer-brand .brand-name { color: var(--brand-on-ink); }
 
 .footer-bottom {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -721,10 +635,10 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
 .footer-oss { display: inline-flex; align-items: center; gap: 8px; }
 
 .site-footer .locale-switcher { border-color: rgba(255, 255, 255, 0.16); }
-.site-footer .locale-switcher a { color: #9a9a9a; }
+.site-footer .locale-switcher a { color: var(--brand-on-ink-2); }
 .site-footer .locale-switcher a + a { border-left-color: rgba(255, 255, 255, 0.16); }
 .site-footer .locale-switcher a:hover { color: #fff; }
-.site-footer .locale-switcher a.active { background: #f4f4f4; color: #0a0a0a; }
+.site-footer .locale-switcher a.active { background: var(--brand-on-ink); color: var(--brand-ink); }
 
 /* ---------- Blog ---------- */
 
@@ -743,7 +657,7 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
 
 .blog-card-cover {
   height: 170px;
-  background: #0a0a0a;
+  background: var(--brand-ink);
   border-radius: var(--r-md);
   position: relative;
   overflow: hidden;
@@ -760,7 +674,7 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
   position: relative;
   height: 220px;
   margin: 0 0 48px;
-  background: #0a0a0a;
+  background: var(--brand-ink);
   border-radius: var(--r-md);
   overflow: hidden;
 }
@@ -818,7 +732,7 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
   margin: 0 auto;
   font-size: 1.06rem;
   line-height: 1.75;
-  color: #2b2b2b;
+  color: var(--brand-gray-1);
 }
 
 .prose p { margin-bottom: 1.4em; }
@@ -835,20 +749,20 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
   border-left: 2px solid var(--ink);
   padding-left: 20px;
   margin: 2em 0;
-  color: #555;
+  color: var(--brand-gray-2);
   font-style: italic;
 }
 .prose code {
   font-family: var(--mono);
   font-size: 0.86em;
-  background: #f2f2f2;
+  background: var(--brand-enamel);
   border: 1px solid var(--line);
   border-radius: var(--r-xs);
   padding: 2px 6px;
 }
 .prose pre {
-  background: #0a0a0a;
-  color: #e8e8e8;
+  background: var(--brand-ink);
+  color: var(--brand-on-ink);
   border-radius: var(--r-md);
   padding: 22px;
   overflow-x: auto;

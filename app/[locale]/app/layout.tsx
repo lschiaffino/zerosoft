@@ -23,6 +23,7 @@ import '@/styles/agents.css';
 import '@/styles/robots.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
+import '@/styles/network.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +69,61 @@ export default async function AppLayout(
           image: user.actingUser?.image ?? user.image,
         }}
         teamName={user.actingUser && user.team ? user.team.name : null}
+        crumb={
+          <AppTopbar
+            sections={[
+              { href: '/app', label: tLink('tabs.overview') },
+              { href: '/app/links', label: tLink('tabs.links') },
+              { href: '/app/links/new', label: tLink('tabs.new') },
+              { href: '/app/links/bulk', label: tLink('bulk.title') },
+              { href: '/app/links/bio', label: tLink('tabs.bio') },
+              { href: '/app/links/analytics', label: tLink('tabs.analytics') },
+              { href: '/app/settings', label: tSide('settings') },
+              { href: '/app/crm', label: tCrm('tabs.overview') },
+              { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
+              { href: '/app/crm/companies', label: tCrm('tabs.companies') },
+              { href: '/app/crm/deals', label: tCrm('tabs.deals') },
+              { href: '/app/crm/lists', label: tCrm('tabs.lists') },
+              { href: '/app/crm/products', label: tCrm('tabs.products') },
+              { href: '/app/crm/quotes', label: tCrm('tabs.quotes') },
+              { href: '/app/crm/forms', label: tCrm('tabs.forms') },
+              { href: '/app/crm/tasks', label: tCrm('tabs.tasks') },
+              { href: '/app/crm/sequences', label: tCrm('tabs.sequences') },
+              { href: '/app/crm/templates', label: tCrm('tabs.templates') },
+              { href: '/app/crm/dashboards', label: tCrm('tabs.dashboards') },
+              { href: '/app/crm/reports', label: tCrm('tabs.reports') },
+              { href: '/app/crm/workflows', label: tCrm('tabs.workflows') },
+              { href: '/app/crm/settings', label: tCrm('tabs.settings') },
+              { href: '/app/docs', label: tDocs('sidebar.pages') },
+              { href: '/app/calendar', label: tCalendar('sidebar.overview') },
+              { href: '/app/calendar/event-types', label: tCalendar('sidebar.eventTypes') },
+              { href: '/app/calendar/routing', label: tCalendar('sidebar.routing') },
+              { href: '/app/calendar/bookings', label: tCalendar('sidebar.bookings') },
+              { href: '/app/calendar/availability', label: tCalendar('sidebar.availability') },
+              { href: '/app/calendar/settings', label: tCalendar('sidebar.settings') },
+              { href: '/app/track', label: tTrack('sidebar.overview') },
+              { href: '/app/track/my-tasks', label: tTrack('sidebar.myTasks') },
+              { href: '/app/track/projects', label: tTrack('sidebar.projects') },
+              { href: '/app/track/issues', label: tTrack('sidebar.issues') },
+              { href: '/app/track/inbox', label: tTrack('sidebar.inbox') },
+              { href: '/app/track/settings', label: tTrack('sidebar.settings') },
+              { href: '/app/chat', label: tChat('sidebar.overview') },
+              { href: '/app/chat/inbox', label: tChat('sidebar.inbox') },
+              { href: '/app/chat/people', label: tChat('sidebar.people') },
+              { href: '/app/chat/settings', label: tChat('sidebar.settings') },
+              { href: '/app/chat/reports', label: tChat('sidebar.reports') },
+              { href: '/app/chat/widgets', label: tChat('sidebar.widgets') },
+              { href: '/app/flow', label: tFlow('sidebar.flows') },
+              { href: '/app/flow/credentials', label: tFlow('sidebar.credentials') },
+              { href: '/app/notes', label: tNotes('sidebar.all') },
+              { href: '/app/notes/clip', label: tNotes('clip.title') },
+              { href: '/app/board', label: tBoard('sidebar.boards') },
+              { href: '/app/agents', label: tAgents('sidebar.agents') },
+              { href: '/app/robots', label: tRobots('sidebar.robots') },
+              { href: '/app/robots/recorder', label: tRobots('recorder.title') },
+            ]}
+          />
+        }
         labels={{
           search: tSide('search'),
           new: tSide('new'),
@@ -174,59 +230,6 @@ export default async function AppLayout(
         }}
       />
       <div className="app-main-scroll">
-        <AppTopbar
-          sections={[
-            { href: '/app', label: tLink('tabs.overview') },
-            { href: '/app/links', label: tLink('tabs.links') },
-            { href: '/app/links/new', label: tLink('tabs.new') },
-            { href: '/app/links/bulk', label: tLink('bulk.title') },
-            { href: '/app/links/bio', label: tLink('tabs.bio') },
-            { href: '/app/links/analytics', label: tLink('tabs.analytics') },
-            { href: '/app/settings', label: tSide('settings') },
-            { href: '/app/crm', label: tCrm('tabs.overview') },
-            { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
-            { href: '/app/crm/companies', label: tCrm('tabs.companies') },
-            { href: '/app/crm/deals', label: tCrm('tabs.deals') },
-            { href: '/app/crm/lists', label: tCrm('tabs.lists') },
-            { href: '/app/crm/products', label: tCrm('tabs.products') },
-            { href: '/app/crm/quotes', label: tCrm('tabs.quotes') },
-            { href: '/app/crm/forms', label: tCrm('tabs.forms') },
-            { href: '/app/crm/tasks', label: tCrm('tabs.tasks') },
-            { href: '/app/crm/sequences', label: tCrm('tabs.sequences') },
-            { href: '/app/crm/templates', label: tCrm('tabs.templates') },
-            { href: '/app/crm/dashboards', label: tCrm('tabs.dashboards') },
-            { href: '/app/crm/reports', label: tCrm('tabs.reports') },
-            { href: '/app/crm/workflows', label: tCrm('tabs.workflows') },
-            { href: '/app/crm/settings', label: tCrm('tabs.settings') },
-            { href: '/app/docs', label: tDocs('sidebar.pages') },
-            { href: '/app/calendar', label: tCalendar('sidebar.overview') },
-            { href: '/app/calendar/event-types', label: tCalendar('sidebar.eventTypes') },
-            { href: '/app/calendar/routing', label: tCalendar('sidebar.routing') },
-            { href: '/app/calendar/bookings', label: tCalendar('sidebar.bookings') },
-            { href: '/app/calendar/availability', label: tCalendar('sidebar.availability') },
-            { href: '/app/calendar/settings', label: tCalendar('sidebar.settings') },
-            { href: '/app/track', label: tTrack('sidebar.overview') },
-            { href: '/app/track/my-tasks', label: tTrack('sidebar.myTasks') },
-            { href: '/app/track/projects', label: tTrack('sidebar.projects') },
-            { href: '/app/track/issues', label: tTrack('sidebar.issues') },
-            { href: '/app/track/inbox', label: tTrack('sidebar.inbox') },
-            { href: '/app/track/settings', label: tTrack('sidebar.settings') },
-            { href: '/app/chat', label: tChat('sidebar.overview') },
-            { href: '/app/chat/inbox', label: tChat('sidebar.inbox') },
-            { href: '/app/chat/people', label: tChat('sidebar.people') },
-            { href: '/app/chat/settings', label: tChat('sidebar.settings') },
-            { href: '/app/chat/reports', label: tChat('sidebar.reports') },
-            { href: '/app/chat/widgets', label: tChat('sidebar.widgets') },
-            { href: '/app/flow', label: tFlow('sidebar.flows') },
-            { href: '/app/flow/credentials', label: tFlow('sidebar.credentials') },
-            { href: '/app/notes', label: tNotes('sidebar.all') },
-            { href: '/app/notes/clip', label: tNotes('clip.title') },
-            { href: '/app/board', label: tBoard('sidebar.boards') },
-            { href: '/app/agents', label: tAgents('sidebar.agents') },
-            { href: '/app/robots', label: tRobots('sidebar.robots') },
-            { href: '/app/robots/recorder', label: tRobots('recorder.title') },
-          ]}
-        />
         <main className="app-content">{children}</main>
       </div>
       <CommandSearch />

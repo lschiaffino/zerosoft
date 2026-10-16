@@ -136,7 +136,7 @@
 
 /* ---------- Editor ---------- */
 
-.app-main-scroll:has(.flow-editor) { height: 100vh; min-height: 0; }
+.app-main-scroll:has(.flow-editor) { height: calc(100dvh - var(--band-h)); min-height: 0; }
 .app-content:has(> .flow-editor) { padding: 0; display: flex; min-height: 0; }
 .flow-editor { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 
@@ -536,14 +536,14 @@
 }
 
 @media (max-width: 1023px) {
-  .app-main-scroll:has(.flow-editor) { height: calc(100vh - 57px); }
+  .app-main-scroll:has(.flow-editor) { height: calc(100dvh - var(--band-h)); }
   .flow-workspace, .flow-workspace.is-readonly { grid-template-columns: 1fr; grid-template-rows: auto minmax(360px, 1fr) auto; }
   .flow-palette { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; overflow-x: auto; max-height: 140px; }
   .flow-palette > .input { min-width: 160px; }
   .flow-palette-group { min-width: 170px; }
   .flow-side { border-left: 0; border-top: 1px solid var(--line); }
   .app-main-scroll:has(.flow-editor) { height: auto; }
-  .flow-editor { min-height: calc(100vh - 57px); }
+  .flow-editor { min-height: calc(100dvh - var(--band-h)); }
   .flow-runs { grid-template-columns: 1fr; }
   .flow-runs-list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 260px; }
 }

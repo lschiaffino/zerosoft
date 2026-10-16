@@ -1,6 +1,6 @@
 /* ============================================================
    CRM Forms — página pública /f/<key> (también embebida en un iframe).
-   Blanco, tinta, hairlines; radios de los tokens (≤ 4px).
+   Blanco, tinta, filetes; esquinas de 2px (tokens de styles/brand.css).
    ============================================================ */
 
 .fp {
@@ -16,7 +16,7 @@
 
 .fp-card {
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  border-radius: var(--radius-1);
   background: var(--bg);
   padding: 28px;
   display: flex;
@@ -30,13 +30,20 @@
 }
 
 .fp-head { display: flex; flex-direction: column; gap: 6px; }
-.fp-title { font-size: 1.35rem; font-weight: 600; line-height: 1.25; margin: 0; }
-.fp-desc { color: var(--dim); margin: 0; font-size: 0.95rem; line-height: 1.5; white-space: pre-line; }
+.fp-title {
+  margin: 0;
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.75rem;
+  line-height: 1.05;
+}
+.fp-desc { color: var(--brand-gray-1); margin: 0; font-size: 0.95rem; line-height: 1.5; white-space: pre-line; }
 
 .fp-form { display: flex; flex-direction: column; gap: 16px; }
 .fp-field { display: flex; flex-direction: column; gap: 6px; }
-.fp-field > label { font-size: 0.85rem; font-weight: 500; }
-.fp-req { color: var(--bad); }
+.fp-field > label { font-size: 0.8125rem; font-weight: 600; }
+.fp-req { color: var(--bad-ink); }
 
 .fp-field input:not([type='checkbox']),
 .fp-field select,
@@ -46,18 +53,20 @@
   font-size: 0.95rem;
   color: var(--ink);
   background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  padding: 9px 10px;
+  border: 1px solid var(--ui-field);
+  border-radius: var(--radius-1);
+  min-height: 40px;
+  padding: 8px 10px;
   outline: none;
-  transition: border-color 120ms var(--ease);
+  transition: border-color 120ms var(--ease), box-shadow 120ms var(--ease);
 }
 
 .fp-field input:focus,
 .fp-field select:focus,
-.fp-field textarea:focus { border-color: var(--ink); }
+.fp-field textarea:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 
-.fp-field [aria-invalid='true'] { border-color: var(--bad) !important; }
+.fp-field [aria-invalid='true'] { border-color: var(--bad-ink) !important; }
+.fp-field ::placeholder { color: var(--brand-gray-3); opacity: 1; }
 
 .fp-check label {
   display: flex;
@@ -70,25 +79,29 @@
 }
 .fp-check input { margin-top: 2px; }
 
-.fp-err { color: var(--bad); font-size: 0.8rem; margin: 0; }
+.fp-err { color: var(--bad-ink); font-size: 0.8rem; margin: 0; }
 .fp-err-main { font-size: 0.85rem; }
 
 .fp-submit {
   align-self: flex-start;
+  min-height: 44px;
   font: inherit;
-  font-weight: 500;
-  font-size: 0.95rem;
-  color: #fff;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--bg);
   background: var(--ink);
   border: 1px solid var(--ink);
-  border-radius: var(--r-sm);
-  padding: 10px 18px;
+  border-radius: var(--radius-1);
+  padding: 0 20px;
   cursor: pointer;
+  transition: background-color 160ms var(--ease);
 }
-.fp-submit:disabled { opacity: 0.6; cursor: default; }
+.fp-submit:hover:not(:disabled) { background: var(--brand-gray-1); }
+.fp-submit:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.fp-submit:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .fp-done { margin: 0; font-size: 1rem; line-height: 1.5; white-space: pre-line; }
-.fp-paused { margin: 0; color: var(--dim); }
+.fp-paused { margin: 0; color: var(--brand-gray-2); }
 
 /* Honeypot: fuera de la vista sin display:none (algunos bots lo detectan). */
 .fp-hp {

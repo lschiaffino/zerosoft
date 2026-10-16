@@ -6,6 +6,7 @@ import { expect, test } from '@playwright/test';
  */
 const SCREENS = [
   '/en',
+  '/en/app',
   '/es/products',
   '/en/blog',
   '/en/docs',
@@ -54,6 +55,29 @@ test('el sidebar tiene Ajustes globales en el pie y el colapsar traducido', asyn
   const settings = page.getByTestId('side-settings');
   await expect(settings).toHaveAttribute('href', /\/es\/app\/settings$/);
   await expect(page.locator('.side-handle')).toHaveAttribute('aria-label', 'Contraer barra lateral');
+});
+
+test('el shell: banda con switcher de líneas y la estación activa marcada', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/es/app/crm/contacts', { waitUntil: 'networkidle' });
+  const active = page.locator('.side-line [aria-current="page"]');
+  await expect(active).toHaveCount(1);
+  await expect(active).toHaveAttribute('href', /\/es\/app\/crm\/contacts$/);
+  await page.locator('.band-product').click();
+  await expect(page.getByRole('menuitem')).toHaveCount(11);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menuitem')).toHaveCount(0);
+  await expect(page.locator('.band-product')).toBeFocused();
+});
+
+test('mobile: el sidebar es un drawer que cierra con Esc', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/es/app/crm', { waitUntil: 'networkidle' });
+  await expect(page.locator('#app-side')).toBeHidden();
+  await page.locator('.band-menu').click();
+  await expect(page.locator('#app-side')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#app-side')).toBeHidden();
 });
 
 test('"+ Nuevo" crea: la tarea de CRM abre el composer y Docs crea una página', async ({ page }) => {

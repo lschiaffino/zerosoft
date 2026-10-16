@@ -132,3 +132,28 @@ describe('sidebar de la app', () => {
     }
   });
 });
+
+describe('base compartida del rediseño', () => {
+  it('los strings del shell y de components/ui existen en en/es/pt', () => {
+    for (const locale of ['en', 'es', 'pt']) {
+      const common = JSON.parse(readFileSync(join(root, 'messages', locale, 'common.json'), 'utf8'));
+      for (const key of ['home', 'switchProduct', 'closeMenu']) {
+        expect(common.sidebar[key], `${locale}: sidebar.${key}`).toBeTruthy();
+      }
+      for (const key of ['advanced', 'save', 'saving', 'saved', 'saveError', 'back', 'sections']) {
+        expect(common.ui[key], `${locale}: ui.${key}`).toBeTruthy();
+      }
+      for (const key of ['title', 'lead', 'mapTitle', 'lines', 'open', 'linkSummary']) {
+        expect(common.appHome[key], `${locale}: appHome.${key}`).toBeTruthy();
+      }
+    }
+  });
+
+  it('ui.css no trae sombras decorativas, mayúsculas ni radios de más de 2px', () => {
+    const css = readFileSync(join(root, 'styles', 'ui.css'), 'utf8');
+    expect(css).not.toMatch(/text-transform:\s*uppercase/);
+    expect(css).not.toMatch(/box-shadow:\s*\d+px\s+\d+px/);
+    expect(css).not.toMatch(/border-radius:\s*([3-9]|\d{2,})px/);
+    expect(css).not.toMatch(/gradient\(/);
+  });
+});

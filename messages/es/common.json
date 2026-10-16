@@ -74,7 +74,10 @@
     "expand": "Expandir barra lateral",
     "menu": "Menú",
     "linkDomains": "Dominios e importación",
-    "docsTemplates": "Plantillas"
+    "docsTemplates": "Plantillas",
+    "home": "Inicio de zerosoft",
+    "switchProduct": "Cambiar de app",
+    "closeMenu": "Cerrar menú"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
@@ -336,5 +339,22 @@
       "title2": "O corrélo vos.",
       "sub": "Entrá con Google y usá el plan gratis, o cloná el repo y levantalo con Docker. El core es el mismo."
     }
+  },
+  "ui": {
+    "advanced": "Avanzado",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "Cambios guardados",
+    "saveError": "No se pudo guardar. Probá de nuevo.",
+    "back": "Volver",
+    "sections": "Secciones"
+  },
+  "appHome": {
+    "title": "Tu red",
+    "lead": "Cada app es una línea. Las estaciones compartidas son las integraciones que ya funcionan entre ellas.",
+    "mapTitle": "Plano de tus apps",
+    "lines": "Líneas",
+    "open": "Abrir {name}",
+    "linkSummary": "Resumen de Link"
   }
 }

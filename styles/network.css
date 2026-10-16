@@ -1,0 +1,170 @@
+/* ============================================
+   El plano de la red (components/brand/NetworkMap).
+   Lo usan la guía de marca (/brand) y el inicio de la app (/app).
+   ============================================ */
+
+.net {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.net-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.net-path {
+  fill: none;
+  stroke-width: var(--stroke-line);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.net-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 44px;
+  pointer-events: stroke;
+}
+
+.net-ring { fill: var(--brand-white); stroke: var(--brand-ink); stroke-width: var(--stroke-ring); }
+.net-bar { fill: var(--brand-ink); }
+
+.net-label {
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 26px;
+  fill: var(--brand-ink);
+}
+
+.net-station-name {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  fill: var(--brand-gray-1);
+  paint-order: stroke;
+  stroke: var(--brand-white);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+}
+
+.net-stop { cursor: pointer; outline: none; }
+.net-stop:focus-visible { outline: none; }
+.net-focus { fill: none; stroke: var(--brand-ink); stroke-width: 3px; opacity: 0; }
+.net-stop:focus-visible .net-focus { opacity: 1; }
+.net-stop:hover .net-label,
+.net-stop:focus-visible .net-label { text-decoration: underline; text-decoration-thickness: 3px; }
+
+.net-line,
+.net-stop { transition: opacity 0.25s var(--ease-out-expo); }
+.net-line.is-dim,
+.net-stop.is-dim { opacity: 0.14; }
+
+.net-caption {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 48px;
+  margin-top: 8px;
+  font-size: var(--t-ui);
+  color: var(--brand-gray-1);
+}
+
+.net-caption-line { flex: 0 0 48px; height: 8px; transition: background 0.2s var(--ease-out-expo); }
+.net-caption-text { max-width: 72ch; }
+.net-hint-touch { display: none; }
+@media (hover: none) {
+  .net-hint-hover { display: none; }
+  .net-hint-touch { display: inline; }
+}
+
+/* Zona de toque invisible alrededor de cada estación (≥ 24 px en pantalla). */
+.net-hit-stop { fill: transparent; stroke: none; pointer-events: all; }
+
+/* La línea se dibuja una vez; las estaciones aparecen de golpe al final. */
+@media (prefers-reduced-motion: no-preference) {
+  .net-path {
+    stroke-dasharray: 1 2;
+    animation: net-draw 1.4s var(--ease-out-expo) both;
+    animation-delay: calc(var(--i) * 80ms);
+  }
+  .net-stop { animation: net-snap 1ms step-end both; animation-delay: calc(900ms + var(--i) * 30ms); }
+}
+
+@keyframes net-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes net-snap {
+  from { visibility: hidden; }
+  to { visibility: visible; }
+}
+
+
+/* ---------- Inicio de la app: el plano como launcher ---------- */
+
+.app-home-network {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+  gap: 32px;
+  align-items: start;
+  padding: 0;
+}
+.app-home-map .net-svg { max-height: calc(100dvh - 260px); }
+/* En la app el plano no se dibuja al cargar: se entra a trabajar. */
+.app-home-map .net-path,
+.app-home-map .net-stop { animation: none; }
+
+.app-home-lines ul { list-style: none; border-top: 1px solid var(--ink); }
+.app-home-line {
+  display: grid;
+  grid-template-columns: 42px 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 8px;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+  transition: background-color var(--ui-dur) var(--ease);
+}
+.app-home-line:hover { background: var(--brand-enamel); }
+.app-home-line:focus-visible { outline-offset: -2px; }
+.app-home-line-name {
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.app-home-line-desc { font-size: 0.8125rem; line-height: 1.35; color: var(--brand-gray-1); }
+.app-home-line:hover .app-home-line-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+.app-home-sub {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+@media (max-width: 1100px) {
+  .app-home-network { grid-template-columns: minmax(0, 1fr); }
+  .app-home-map .net-svg { max-height: none; }
+}
+@media (max-width: 720px) {
+  .app-home-map .net-station-name { display: none; }
+  .app-home-map .net-label { font-size: 40px; }
+  .app-home-map .net-caption { display: none; }
+  .app-home-line { grid-template-columns: 42px minmax(0, 1fr); row-gap: 2px; padding: 8px 4px; }
+  .app-home-line-desc { grid-column: 2; }
+}

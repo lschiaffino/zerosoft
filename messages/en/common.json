@@ -74,7 +74,10 @@
     "expand": "Expand sidebar",
     "menu": "Menu",
     "linkDomains": "Domains & import",
-    "docsTemplates": "Templates"
+    "docsTemplates": "Templates",
+    "home": "zerosoft home",
+    "switchProduct": "Switch app",
+    "closeMenu": "Close menu"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
@@ -336,5 +339,22 @@
       "title2": "Or run it yourself.",
       "sub": "Sign in with Google and use the free plan, or clone the repo and start it with Docker. The core is the same."
     }
+  },
+  "ui": {
+    "advanced": "Advanced",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Changes saved",
+    "saveError": "Couldn't save. Try again.",
+    "back": "Back",
+    "sections": "Sections"
+  },
+  "appHome": {
+    "title": "Your network",
+    "lead": "Each app is a line. Shared stations are the integrations that already work between them.",
+    "mapTitle": "Map of your apps",
+    "lines": "Lines",
+    "open": "Open {name}",
+    "linkSummary": "Link overview"
   }
 }

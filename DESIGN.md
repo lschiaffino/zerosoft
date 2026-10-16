@@ -83,6 +83,7 @@ typography:
     fontFeature: "\"zero\" 1, \"tnum\" 1"
 rounded:
   square: "0px"
+  control: "2px"
 spacing:
   s-1: "4px"
   s-2: "8px"
@@ -147,7 +148,7 @@ zerosoft is drawn as a transit network. Each of the eleven apps is a line with i
 
 The system is flat and literal. Depth comes from the contrast between the enamel field and the black band, never from shadows. Color is wayfinding: a line color tells you which app you are on, and nothing else in the interface competes with it. Type is one family, Archivo, used at two widths: condensed (wdth 75, weight 800) for signage and headings, normal width for reading and UI. JetBrains Mono appears only where the content is data.
 
-**Scope of application.** The full world is built on the brand guidelines page (`/[locale]/brand`, branding.zerosoft.ai). The rest of the marketing site and the apps carry only the minimal application: the new wordmark and station symbol (header, footer, app topbar, OG images, kit), Archivo and JetBrains Mono as the global `--sans`/`--mono`, the signage display face on the landing hero headline (`.lp-h1`), square Archivo hero CTAs, and the home particle field redrawn as station rings. Their full redesign is a later round. The app-sidebar pattern in the direction (the sidebar as the product's line, nav items as stations, the active station filled with the line color) is **not built yet**; do not treat it as an existing component.
+**Scope of application.** The full world is built on the brand guidelines page (`/[locale]/brand`, branding.zerosoft.ai). The rest of the marketing site and the apps carry only the minimal application: the new wordmark and station symbol (header, footer, app topbar, OG images, kit), Archivo and JetBrains Mono as the global `--sans`/`--mono`, the signage display face on the landing hero headline (`.lp-h1`), square Archivo hero CTAs, and the home particle field redrawn as station rings. Their full redesign is a later round. The app shell is built on the same world (see Components: App shell): a black signage band on top, the sidebar drawn as the product's line with nav items as stations, and a shared control set in `styles/ui.css`. Product screens inside the shell move to it product by product.
 
 **Key Characteristics:**
 - White enamel field, #111 signage band for chrome and section headers.
@@ -236,11 +237,11 @@ Square. Every container, plate, button, band, swatch and focus outline has a 0 r
 ## Components
 
 ### Buttons
-Signage-plate buttons: solid, square, inverted on hover.
-- **Shape:** square (0), 2px border in the fill color, minimum height 44px (40px under 900px).
-- **Primary:** signage ink fill, white Archivo 600 15px, 10px 20px padding.
-- **Hover / Focus:** fill and text swap (ink to white) over 0.2s on the expo-out curve; focus is a 3px ink outline offset 3px, white on the black band.
-- **On-band / Outline:** on the black band the main action is a white plate ("Descargar kit"); a transparent white-bordered variant exists for secondary actions on ink.
+`.btn` in `styles/ui.css`, one component for site and app. Archivo 600, sentence case, no tracking, 2px corners, 1px border.
+- **Variants:** `.btn-primary` (alias `.btn-solid`): ink plate, white text, one per view. `.btn-secondary` (plain `.btn`, alias `.btn-outline`): white with a 3.2:1 field border. `.btn-ghost`: text only, enamel fill on hover, for tertiary actions. `.btn-danger`: red text; `.btn-primary.btn-danger` is the red plate. `.btn-invert` and `.btn-invert-solid` sit on the black band.
+- **Sizes:** default 40px on the site, 36px inside `.app-frame`; `.btn-sm` (alias `.btn-small`) 32px / 28px in the app; `.btn-lg` 48px. `.btn-icon` is square; `.btn-block` fills the row.
+- **States:** hover lifts the plate one gray step (primary to gray-1, secondary to enamel with an ink border); press scales to 0.98; focus is a 2px ink outline offset 2px (white on the band); disabled is 40% opacity with `not-allowed`; loading is `aria-busy="true"`: the label stays, clicks stop, and a 2px line draws along the bottom edge (static under reduced motion).
+- **Copy:** a verb and an object ("Crear link", "Guardar cambios"), never "OK" or "Enviar" alone.
 
 ### Signage Band (navigation)
 The site chrome on the brand page: a sticky 74px #111 band, wordmark left, Archivo 600 15px links with a 2px underline that appears on hover, one white action pushed to the right. Under 900px the links are hidden and the band is 64px.
@@ -259,6 +260,40 @@ Square enamel panels (240px tall for logo plates, 200px for stations, 160px for 
 
 ### Tables
 Full-width, rules only: 1px rule dividers, 16px cell padding, 13px gray-2 heads, no fills or zebra striping. HEX values are copy buttons: mono data with an underline on hover and a copied confirmation in the Cal ink.
+
+### App shell
+`app/[locale]/app/layout.tsx` + `components/app/AppSidebar.tsx` + `styles/app.css`.
+- **Signage band** (`.app-band`, 48px, #111, sticky): white station home link to `/app`, the line switcher (the current product's `LineGlyph` on its line plus the name in Sign type), the current section after a slash (`AppTopbar`, on-ink-2), search with `⌘K`, notifications. Under 1024px a menu button opens the drawer and the section and search label hide.
+- **The sidebar is the product's line** (`.side`, 240px, enamel plane): a 6px vertical stroke in `--accent` runs through every nav item; each item (`.side-stop`) is a station (`.side-station`, 16px white disc with a 3.5px ink ring). The active item has `aria-current="page"`, its station filled with the line color and a white row. Section names sit beside the line in 12px gray-2. Counts are ink plates in mono.
+- **Switcher:** a menu (`role="menu"`, arrow keys, Home/End, Esc returns focus) listing the eleven lines as glyphs; the current one carries `aria-current` and a small ink square.
+- **Collapsed** (≥1024px, `.sidebar-collapsed`, 56px, remembered in localStorage `zs-side-collapsed`): only the stations, labels kept for screen readers, tooltips by `title`.
+- **Mobile drawer** (<1024px): slides from the left under the band, backdrop at 48% ink, Esc closes and returns focus to the menu button, hidden content is not focusable.
+- **Color:** AppSidebar injects `--accent` (line), `--accent-ink` (text) and `--accent-on` (text on a line fill) on `.app-frame`. Use the line for wayfinding only (active station, active tab bar, charts); actions stay ink.
+- **Heights:** `--band-h` (48px) is the only chrome above content; full-height views use `calc(100dvh - var(--band-h))`.
+
+### UI kit (`styles/ui.css`)
+Loaded site-wide after `globals.css`. Product screens use these classes instead of their own versions.
+- **Fields:** `.input`, `.select`, `.textarea` (40px site, 36px app; 1px `--ui-field` border at 3.2:1; focus thickens the border to 2px ink inside; `aria-invalid="true"` turns it red; disabled is enamel). `.label` (13px 600, sentence case), `.ui-field` wraps label + control + `.ui-help` / `.ui-error`; `.ui-fields` and `.ui-fields-2` lay out groups; `.ui-input-group` + `.ui-addon` for prefixes like a domain.
+- **Checkbox and switch:** `<label class="ui-check"><input type="checkbox">` is a 16px square, ink when checked (supports indeterminate). `<label class="ui-switch"><input type="checkbox" role="switch">` is a straight 32×18 rail with a square plate; ink when on. Radios stay native with ink `accent-color`: a radio is already a station.
+- **Badges:** `.badge` is a 22px straight plate in Archivo 12px 600, enamel by default; `.badge-ok`, `-warn`, `-bad`, `-info`, `-ink`, `-outline`. Never a pill, never uppercase. `.kbd` for shortcuts.
+- **Dense tables:** `.table` (inside `.table-wrap`): 32px header with a 1px ink rule, 36px rows with 1px rules, tabular numerals, enamel on hover, `aria-selected` rows in hover gray. `.num` right-aligns numbers; `.data` sets values in mono; `.table-compact` (32px rows); `.table-sticky` header; `.cell-link` for the row's primary link.
+- **Tabs:** `.ui-tabs` with `.ui-tab` (links with `aria-current="page"` or `role="tab"` buttons with `aria-selected`). The active tab carries a 4px bar in the line color under ink text.
+- **Modal and drawer:** native `<dialog class="ui-modal">` / `<dialog class="ui-drawer">` opened with `showModal()` (focus trap and Esc for free). 1px ink border, 48% ink backdrop, no shadow. Parts: `-head`, `-title` (signage 22px), `-body`, `-foot` (enamel, actions right, `.ui-foot-note` left). `.ui-modal-wide` for 760px. Prefer inline or a drawer before a modal.
+- **Toasts:** `.ui-toasts` (fixed bottom right, `role="status"`) holding `.ui-toast` plates: ink with white text, `data-tone="error"` in red, optional `.ui-toast-action`.
+- **Empty and loading:** `.ui-empty` (see EmptyState). `.ui-skeleton` plates in enamel that breathe to hover gray (`-text`, `-title`, `-row`, `-block`); no shimmer gradient, static under reduced motion. Skeletons, not spinners, inside content.
+- **Page:** `.ui-page` (24px rhythm), `.ui-page-header` (title in signage 32px, 4px ink rule below), `.ui-section` (form section with enamel footer), `.ui-disclosure` (Avanzado), `.ui-settings` (secondary settings nav).
+- **Tokens added in `globals.css`:** `--ui-hover`, `--ui-press`, `--ui-field`, `--ui-backdrop`, `--ui-dur` (160ms), semantic `--ok`/`--warn`/`--bad` each with `-ink` (text, AA) and `-soft` (background). Old names (`--dim`, `--line`, `--ink-2`, `--subtle`, `--r-*`) are aliases of the brand tokens; `--r-*` are all 2px.
+
+### React components (`components/ui/`)
+- **`PageHeader`** `{ title, description?, actions?, back? }`: the top of every app page. One `.btn-primary` in `actions`.
+- **`EmptyState`** `{ title, body?, action?, secondary?, product?, quiet? }`: a stretch of the line with its station, what goes here, one primary action (`{ label, href }` or your own button) and a shortcut or import in `secondary`. `quiet` drops the border inside panels.
+- **`FormSection`** `{ title, description?, onSubmit?, submitLabel?, note?, footer?, tone? }`: a settings block with its own Guardar. With `onSubmit(formData)` it renders a `<form>` and handles saving, saved and error states (return a string or `{ error }` to show it). `tone="danger"` for destructive blocks.
+- **`AdvancedSection`** `{ storageKey, label?, hint?, defaultOpen? }`: the "Avanzado" disclosure (button with `aria-expanded` + region). Remembers open or closed per `storageKey` in localStorage, wrapped in try/catch.
+- **`SettingsTabs`** `{ items, mode: 'route' | 'query', param?, layout: 'side' | 'top' }`: settings navigation. `side` is a secondary nav on the left that becomes scrolling tabs under 900px; `top` uses `.ui-tabs`. Route mode activates the longest matching `href`; query mode writes `?tab=<key>` and defaults to the first item.
+- **`DataTable`** `{ columns, rows, rowKey, rowHref?, caption?, empty?, compact?, sticky? }`: a dense `.table` for server or client components. Columns declare `numeric` or `data`; `rowHref` links the first cell. Sorting and paging stay in the page.
+
+### App home (`/app`)
+The network map is the workspace launcher: `NetworkMap` with `hrefs` pointing each line and station into its app (no draw-in animation inside the app), next to the eleven lines as a list (glyph, name, one line). Link's numbers follow, since `/app` is also Link's overview.
 
 ## Do's and Don'ts
 

@@ -1,0 +1,795 @@
+/* ============================================================
+   zerosoft UI: el set de controles de la red de subte.
+   Se carga en todo el sitio después de globals.css. Tokens en brand.css
+   (marca) y globals.css (alias y semánticos). Documentado en DESIGN.md,
+   sección Componentes.
+
+   Reglas: Archivo para todo lo operable (sentence case, sin tracking),
+   JetBrains Mono solo para datos (.data / .mono / .num), esquinas de 2px
+   como máximo, sin sombras ni gradientes; el círculo es solo una estación.
+   La tinta (#111) es la acción principal; el color de la línea (--accent)
+   marca dónde estás: pestaña activa, estación activa, gráficos.
+
+   Índice
+   1. Botones ............ .btn .btn-primary .btn-secondary .btn-ghost .btn-danger
+                           .btn-sm .btn-lg .btn-icon .btn-block · [aria-busy]
+   2. Campos ............. .input .select .textarea .label .ui-field .ui-help
+                           .ui-error .ui-input-group
+   3. Checkbox y switch .. .ui-check .ui-switch
+   4. Paneles y badges ... .panel .badge (.badge-ok/-warn/-bad/-info) .kbd
+   5. Tablas densas ...... .table .table-wrap .num .table-sticky
+   6. Tabs ............... .ui-tabs .ui-tab
+   7. Modales y drawers .. dialog.ui-modal dialog.ui-drawer
+   8. Toasts ............. .ui-toasts .ui-toast
+   9. Vacíos y carga ..... .ui-empty .ui-skeleton
+   10. Página ............ .ui-page .ui-page-header .ui-section .ui-disclosure
+                           .ui-settings
+   ============================================================ */
+
+/* ---------- 1. Botones ---------- */
+
+.btn {
+  --btn-h: 40px;
+  --btn-px: 16px;
+  --btn-fs: 0.9375rem;
+  --btn-bg: var(--bg);
+  --btn-fg: var(--ink);
+  --btn-bd: var(--ui-field);
+  --btn-bg-hover: var(--brand-enamel);
+  --btn-bd-hover: var(--ink);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--btn-h);
+  padding: 0 var(--btn-px);
+  font-family: var(--font-ui);
+  font-size: var(--btn-fs);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--btn-fg);
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-bd);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--ui-dur) var(--ease),
+    border-color var(--ui-dur) var(--ease),
+    color var(--ui-dur) var(--ease),
+    transform 120ms var(--ease);
+}
+.btn:hover:not(:disabled):not([aria-disabled='true']) { background: var(--btn-bg-hover); border-color: var(--btn-bd-hover); }
+.btn:active:not(:disabled):not([aria-disabled='true']) { transform: scale(0.98); }
+.btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.btn:disabled,
+.btn[aria-disabled='true'] { opacity: 0.4; cursor: not-allowed; }
+.btn svg { flex-shrink: 0; transition: transform var(--ui-dur) var(--ease); }
+.btn:hover svg[data-arrow], .btn:hover .icon-arrow { transform: translateX(3px); }
+
+/* En la app los controles son más densos. El color y la letra se repiten con
+   más especificidad para ganarle a reglas de producto como `.x button { color: inherit }`. */
+.app-frame .btn { --btn-h: 36px; --btn-px: 14px; --btn-fs: 0.875rem; color: var(--btn-fg); font-family: var(--font-ui); }
+
+/* Primaria: placa de tinta. Una por vista. */
+.btn-primary,
+.btn-solid {
+  --btn-bg: var(--ink);
+  --btn-fg: var(--bg);
+  --btn-bd: var(--ink);
+  --btn-bg-hover: var(--brand-gray-1);
+  --btn-bd-hover: var(--brand-gray-1);
+}
+.btn-primary:hover:not(:disabled), .btn-solid:hover:not(:disabled) { color: var(--bg); }
+
+/* Secundaria: blanca con borde (es el .btn sin variante). */
+.btn-secondary,
+.btn-outline { --btn-bg: var(--bg); --btn-fg: var(--ink); --btn-bd: var(--ui-field); }
+
+/* Ghost: solo texto; el fondo aparece al pasar. Para acciones terciarias. */
+.btn-ghost {
+  --btn-bg: transparent;
+  --btn-bd: transparent;
+  --btn-bg-hover: var(--ui-hover);
+  --btn-bd-hover: transparent;
+}
+
+/* Peligro: secundaria con texto rojo; .btn-primary.btn-danger es la placa roja. */
+.btn-danger { --btn-fg: var(--bad-ink); --btn-bd-hover: var(--bad-ink); --btn-bg-hover: var(--bad-soft); }
+.btn-danger.btn-primary,
+.btn-danger.btn-solid {
+  --btn-bg: var(--bad-ink);
+  --btn-fg: #fff;
+  --btn-bd: var(--bad-ink);
+  --btn-bg-hover: #a51f25;
+  --btn-bd-hover: #a51f25;
+}
+
+/* Sobre la banda negra. */
+.btn-invert { --btn-bg: transparent; --btn-fg: var(--brand-on-ink); --btn-bd: var(--brand-on-ink); --btn-bg-hover: var(--brand-on-ink); }
+.btn-invert:hover:not(:disabled) { color: var(--brand-ink); }
+.btn-invert-solid { --btn-bg: var(--brand-white); --btn-fg: var(--brand-ink); --btn-bd: var(--brand-white); --btn-bg-hover: var(--brand-enamel); --btn-bd-hover: var(--brand-enamel); }
+.btn-invert:focus-visible, .btn-invert-solid:focus-visible { outline-color: var(--brand-on-ink); }
+
+/* Tamaños. */
+.btn-sm, .btn-small { --btn-h: 32px; --btn-px: 12px; --btn-fs: 0.8125rem; }
+.app-frame .btn-sm, .app-frame .btn-small { --btn-h: 28px; --btn-px: 10px; --btn-fs: 0.8125rem; gap: 6px; }
+.btn-lg, .app-frame .btn-lg { --btn-h: 48px; --btn-px: 22px; --btn-fs: 1rem; }
+.btn-icon { padding: 0; width: var(--btn-h); }
+.btn-block { display: flex; width: 100%; }
+
+/* Cargando: el texto queda, la acción se bloquea y una línea se dibuja abajo. */
+.btn[aria-busy='true'] { cursor: progress; pointer-events: none; }
+.btn[aria-busy='true']::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  height: 2px;
+  background: currentColor;
+  transform-origin: left;
+  animation: ui-line-draw 1.1s var(--ease) infinite;
+}
+@keyframes ui-line-draw {
+  0% { transform: scaleX(0); opacity: 1; }
+  70% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+/* Grupo de botones pegados (segmented): bordes compartidos. */
+.btn-group { display: inline-flex; }
+.btn-group > .btn + .btn { margin-left: -1px; }
+.btn-group > .btn[aria-pressed='true'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); z-index: 1; }
+
+/* ---------- 2. Campos ---------- */
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--ui-field);
+  border-radius: var(--radius-1);
+  outline: none;
+  transition: border-color var(--ui-dur) var(--ease), box-shadow var(--ui-dur) var(--ease);
+}
+.app-frame .input,
+.app-frame .select { min-height: 36px; padding: 6px 10px; font-size: 0.875rem; }
+.app-frame .textarea { padding: 8px 10px; font-size: 0.875rem; }
+.textarea { min-height: 88px; resize: vertical; }
+.input:hover:not(:disabled):not(:focus),
+.select:hover:not(:disabled):not(:focus),
+.textarea:hover:not(:disabled):not(:focus) { border-color: var(--brand-gray-2); }
+/* Foco: el borde pasa a tinta y se engrosa hacia adentro (sin mover el layout). */
+.input:focus,
+.select:focus,
+.textarea:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.input::placeholder,
+.textarea::placeholder { color: var(--brand-gray-3); opacity: 1; }
+.input:disabled,
+.select:disabled,
+.textarea:disabled,
+.input[readonly] { background: var(--brand-enamel); color: var(--brand-gray-2); border-color: var(--line); cursor: not-allowed; }
+.input[readonly] { cursor: default; }
+.input[aria-invalid='true'],
+.select[aria-invalid='true'],
+.textarea[aria-invalid='true'] { border-color: var(--bad-ink); }
+.input[aria-invalid='true']:focus,
+.textarea[aria-invalid='true']:focus { box-shadow: inset 0 0 0 1px var(--bad-ink); }
+.input.data, .input.mono { font-family: var(--font-data); font-feature-settings: "zero" 1, "tnum" 1; }
+
+select.select,
+.app-frame select:not([multiple]):not(.ui-raw) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23111111' stroke-width='1.5' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+
+/* Rótulo de un campo: Archivo 600, sentence case. */
+.label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+.label .ui-optional { font-weight: 400; color: var(--brand-gray-2); }
+
+/* Campo completo: rótulo, control, ayuda y error. */
+.ui-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ui-field > .label { margin: 0; }
+.ui-help { font-size: 0.8125rem; line-height: 1.4; color: var(--brand-gray-2); }
+.ui-error { font-size: 0.8125rem; line-height: 1.4; color: var(--bad-ink); }
+.ui-fields { display: grid; gap: 16px; }
+.ui-fields-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 720px) { .ui-fields-2 { grid-template-columns: 1fr; } }
+
+/* Prefijo o sufijo pegado al campo (dominio, moneda, unidad). */
+.ui-input-group { display: flex; align-items: stretch; }
+.ui-input-group > .input { flex: 1; min-width: 0; }
+.ui-input-group > .ui-addon {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+  background: var(--brand-enamel);
+  border: 1px solid var(--ui-field);
+  white-space: nowrap;
+}
+.ui-input-group > .ui-addon:first-child { border-right: 0; border-radius: var(--radius-1) 0 0 var(--radius-1); }
+.ui-input-group > .ui-addon:last-child { border-left: 0; border-radius: 0 var(--radius-1) var(--radius-1) 0; }
+.ui-input-group > .input:not(:first-child) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.ui-input-group > .input:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+
+/* ---------- 3. Checkbox y switch ---------- */
+
+/* <label class="ui-check"><input type="checkbox"> Texto</label> */
+.ui-check {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ui-check input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  border: 1px solid var(--ui-field);
+  border-radius: var(--radius-1);
+  background: var(--bg) center / 12px no-repeat;
+  cursor: pointer;
+  transition: background-color var(--ui-dur) var(--ease), border-color var(--ui-dur) var(--ease);
+}
+.ui-check input[type='checkbox']:hover:not(:disabled) { border-color: var(--ink); }
+.ui-check input[type='checkbox']:checked {
+  background-color: var(--ink);
+  border-color: var(--ink);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' d='M2.5 6.2l2.4 2.4 4.6-5'/%3E%3C/svg%3E");
+}
+.ui-check input[type='checkbox']:indeterminate {
+  background-color: var(--ink);
+  border-color: var(--ink);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='%23fff' stroke-width='2' d='M3 6h6'/%3E%3C/svg%3E");
+}
+.ui-check input:disabled { background-color: var(--brand-enamel); border-color: var(--line); cursor: not-allowed; }
+.ui-check:has(input:disabled) { color: var(--brand-gray-3); cursor: not-allowed; }
+.ui-check input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* <label class="ui-switch"><input type="checkbox" role="switch"> Texto</label>
+   Riel recto; la pieza que se mueve es una placa, no un círculo. */
+.ui-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ui-switch input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--ui-field);
+  border-radius: var(--radius-1);
+  background: var(--brand-enamel);
+  cursor: pointer;
+  transition: background-color var(--ui-dur) var(--ease), border-color var(--ui-dur) var(--ease);
+}
+.ui-switch input::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--brand-gray-2);
+  transition: transform var(--ui-dur) var(--ease), background-color var(--ui-dur) var(--ease);
+}
+.ui-switch input:checked { background: var(--ink); border-color: var(--ink); }
+.ui-switch input:checked::before { transform: translateX(14px); background: var(--bg); }
+.ui-switch input:disabled { opacity: 0.4; cursor: not-allowed; }
+.ui-switch input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---------- 4. Paneles, badges, teclas ---------- */
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  padding: 24px;
+  background: var(--bg);
+}
+.panel-quiet { background: var(--brand-enamel); border-color: transparent; }
+
+/* Estado corto, recto, sin mayúsculas. Nunca una pastilla. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 7px;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  color: var(--brand-gray-1);
+  background: var(--brand-enamel);
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+}
+.badge-ok { color: var(--ok-ink); background: var(--ok-soft); }
+.badge-warn { color: var(--warn-ink); background: var(--warn-soft); }
+.badge-bad { color: var(--bad-ink); background: var(--bad-soft); }
+.badge-info { color: var(--info-ink); background: color-mix(in srgb, var(--c-link) 9%, white); }
+.badge-ink { color: var(--bg); background: var(--ink); }
+.badge-outline { background: transparent; border-color: var(--line); }
+
+.kbd, kbd.kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 5px;
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  color: inherit;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-1);
+  opacity: 0.75;
+}
+
+/* Datos: cifras alineadas, cero con barra. */
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+.data.num, .mono.num { font-feature-settings: "zero" 1, "tnum" 1; }
+
+/* ---------- 5. Tablas densas ---------- */
+
+/* Filas de 36px (cabecera de 32px), filetes de 1px, cifras tabulares.
+   Envolver en .table-wrap para scroll horizontal propio. */
+.table-wrap { width: 100%; overflow-x: auto; }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.table th {
+  height: 32px;
+  padding: 0 12px;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--brand-gray-2);
+  background: var(--bg);
+  border-bottom: 1px solid var(--ink);
+}
+.table td {
+  height: 36px;
+  padding: 6px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+}
+.table th.num, .table td.num { text-align: right; }
+.table td.data, .table td .data { font-size: 0.8125rem; }
+.table tbody tr { transition: background-color 80ms linear; }
+.table tbody tr:hover { background: var(--brand-enamel); }
+.table tbody tr[aria-selected='true'] { background: var(--ui-hover); }
+.table-compact td { height: 32px; padding: 4px 10px; }
+.table-sticky thead th { position: sticky; top: 0; z-index: 1; }
+.table a.cell-link { color: var(--ink); font-weight: 600; text-decoration: none; }
+.table a.cell-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.table-row-link { cursor: pointer; }
+
+/* ---------- 6. Tabs ---------- */
+
+/* <nav class="ui-tabs" aria-label="…"><a class="ui-tab" aria-current="page">…</a></nav>
+   o role="tablist" con <button class="ui-tab" role="tab" aria-selected="true">.
+   La activa lleva un tramo de 4px del color de la línea. */
+.ui-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ui-tabs::-webkit-scrollbar { display: none; }
+.ui-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 10px;
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--brand-gray-2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color var(--ui-dur) var(--ease);
+}
+.ui-tab:hover { color: var(--ink); }
+.ui-tab[aria-selected='true'],
+.ui-tab[aria-current='page'],
+.ui-tab.active { color: var(--ink); font-weight: 600; }
+.ui-tab[aria-selected='true']::after,
+.ui-tab[aria-current='page']::after,
+.ui-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 4px;
+  background: var(--accent);
+}
+.ui-tab:focus-visible { outline-offset: -2px; }
+.ui-tab .ui-tab-count { font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
+
+/* ---------- 7. Modales y drawers ---------- */
+
+/* <dialog class="ui-modal"> con showModal(): foco atrapado y Esc gratis.
+   Sin sombra: se separa por el telón y un borde de tinta. */
+dialog.ui-modal,
+dialog.ui-drawer {
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  padding: 0;
+  max-width: none;
+  max-height: none;
+}
+dialog.ui-modal::backdrop,
+dialog.ui-drawer::backdrop { background: var(--ui-backdrop); }
+dialog.ui-modal {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 64px);
+  margin: auto;
+}
+dialog.ui-modal.ui-modal-wide { width: min(760px, calc(100vw - 32px)); }
+dialog.ui-drawer {
+  width: min(480px, 100vw);
+  height: 100dvh;
+  margin: 0 0 0 auto;
+  border-width: 0 0 0 1px;
+  border-radius: 0;
+}
+.ui-modal-head,
+.ui-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.ui-modal-title,
+.ui-drawer-title {
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.375rem;
+  line-height: 1.1;
+}
+.ui-modal-body, .ui-drawer-body { padding: 20px; overflow-y: auto; }
+.ui-drawer { display: flex; flex-direction: column; }
+dialog.ui-drawer[open] { display: flex; }
+.ui-drawer-body { flex: 1; }
+.ui-modal-foot,
+.ui-drawer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--brand-enamel);
+}
+.ui-modal-foot .ui-foot-note { margin-right: auto; font-size: 0.8125rem; color: var(--brand-gray-2); }
+@media (prefers-reduced-motion: no-preference) {
+  dialog.ui-modal[open] { animation: ui-rise 180ms var(--ease); }
+  dialog.ui-drawer[open] { animation: ui-slide 220ms var(--ease); }
+  dialog.ui-modal[open]::backdrop, dialog.ui-drawer[open]::backdrop { animation: ui-fade 180ms var(--ease); }
+}
+@keyframes ui-rise { from { opacity: 0; transform: translateY(8px); } }
+@keyframes ui-slide { from { transform: translateX(24px); opacity: 0; } }
+@keyframes ui-fade { from { opacity: 0; } }
+
+/* ---------- 8. Toasts ---------- */
+
+/* <div class="ui-toasts" role="status" aria-live="polite"><div class="ui-toast">…</div></div>
+   Placa de señalética: tinta con texto blanco; error en rojo. */
+.ui-toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+.ui-toast {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 44px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px 10px 16px;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--brand-on-ink);
+  background: var(--brand-ink);
+  border-radius: var(--radius-1);
+  pointer-events: auto;
+}
+.ui-toast[data-tone='error'] { background: var(--bad-ink); }
+.ui-toast .ui-toast-action {
+  margin-left: auto;
+  padding: 4px 8px;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.ui-toast .ui-toast-action:focus-visible { outline-color: var(--brand-on-ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .ui-toast { animation: ui-rise 200ms var(--ease); }
+}
+
+/* ---------- 9. Vacíos y carga ---------- */
+
+/* Estado vacío: un tramo de la línea con su estación, qué es esto y una acción. */
+.ui-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 40px 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.ui-empty-quiet { border: 0; padding: 24px 0; }
+.ui-empty-glyph { display: block; margin-bottom: 4px; }
+.ui-empty-title {
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.5rem;
+  line-height: 1.05;
+}
+.ui-empty-body { max-width: 56ch; font-size: 0.9375rem; line-height: 1.5; color: var(--brand-gray-1); }
+.ui-empty-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.ui-empty-alt { font-size: 0.875rem; color: var(--brand-gray-2); }
+.ui-empty-alt a, .ui-empty-alt button {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Esqueleto: placas de esmalte que respiran. Sin brillo ni gradiente. */
+.ui-skeleton {
+  display: block;
+  height: 14px;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+.ui-skeleton-text { height: 12px; width: 60%; }
+.ui-skeleton-title { height: 24px; width: 40%; }
+.ui-skeleton-row { height: 36px; width: 100%; border-bottom: 1px solid var(--bg); }
+.ui-skeleton-block { height: 120px; width: 100%; }
+@media (prefers-reduced-motion: no-preference) {
+  .ui-skeleton { animation: ui-breathe 1.4s ease-in-out infinite; }
+}
+@keyframes ui-breathe { 50% { background: var(--ui-hover); } }
+.ui-loading-stack { display: flex; flex-direction: column; gap: 10px; }
+
+/* ---------- 10. Página ---------- */
+
+.ui-page { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.ui-page-narrow { max-width: 760px; }
+
+.ui-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding-bottom: 16px;
+  border-bottom: 4px solid var(--ink);
+}
+.ui-page-header-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ui-page-back { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--brand-gray-2); text-decoration: none; }
+.ui-page-back:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.ui-page-title {
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 2rem;
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+.ui-page-desc { max-width: 65ch; font-size: 0.9375rem; line-height: 1.45; color: var(--brand-gray-1); }
+.ui-page-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+/* Sección de formulario: título y ayuda, campos, pie con su propio Guardar. */
+.ui-section {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.ui-section-body { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.ui-section-head { display: flex; flex-direction: column; gap: 4px; }
+.ui-section-title {
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.375rem;
+  line-height: 1.1;
+}
+.ui-section-desc { max-width: 65ch; font-size: 0.875rem; line-height: 1.45; color: var(--brand-gray-1); }
+.ui-section-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 10px 24px;
+  border-top: 1px solid var(--line);
+  background: var(--brand-enamel);
+}
+.ui-section-note { font-size: 0.8125rem; color: var(--brand-gray-2); }
+.ui-section-note[data-tone='ok'] { color: var(--ok-ink); }
+.ui-section-note[data-tone='error'] { color: var(--bad-ink); }
+.ui-section-danger { border-color: var(--bad-ink); }
+.ui-section-danger .ui-section-foot { background: var(--bad-soft); border-top-color: color-mix(in srgb, var(--bad-ink) 30%, white); }
+@media (max-width: 720px) {
+  .ui-section-body { padding: 16px; }
+  .ui-section-foot { padding: 10px 16px; }
+}
+
+/* Avanzado: disclosure con su propio botón. */
+.ui-disclosure { border-top: 1px solid var(--line); }
+.ui-disclosure-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0;
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.ui-disclosure-toggle svg { transition: transform var(--ui-dur) var(--ease); }
+.ui-disclosure-toggle[aria-expanded='true'] svg { transform: rotate(90deg); }
+.ui-disclosure-toggle:hover .ui-disclosure-label { text-decoration: underline; text-underline-offset: 3px; }
+.ui-disclosure-hint { margin-left: auto; font-weight: 400; color: var(--brand-gray-2); }
+.ui-disclosure-body { display: flex; flex-direction: column; gap: 16px; padding: 4px 0 16px; }
+.ui-disclosure-body[hidden] { display: none; }
+
+/* Ajustes: navegación secundaria a la izquierda (desktop) o tabs (mobile). */
+.ui-settings {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+.ui-settings-nav { position: sticky; top: 72px; display: flex; flex-direction: column; gap: 2px; }
+.ui-settings-link {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--brand-gray-1);
+  text-decoration: none;
+  border-radius: var(--radius-1);
+  transition: background-color var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
+}
+.ui-settings-link:hover { background: var(--brand-enamel); color: var(--ink); }
+.ui-settings-link[aria-current='page'] {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--ui-hover);
+}
+.ui-settings-link:focus-visible { outline-offset: -2px; }
+.ui-settings-content { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+@media (max-width: 900px) {
+  .ui-settings { grid-template-columns: 1fr; gap: 20px; }
+  .ui-settings-nav {
+    position: static;
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--line);
+    scrollbar-width: none;
+  }
+  .ui-settings-nav::-webkit-scrollbar { display: none; }
+  .ui-settings-link { flex-shrink: 0; min-height: 40px; border-radius: 0; box-shadow: inset 0 -4px 0 transparent; background: none; white-space: nowrap; }
+  .ui-settings-link:hover { background: none; }
+  .ui-settings-link[aria-current='page'] { background: none; box-shadow: inset 0 -4px 0 var(--accent); }
+}
+
+/* Superficies del navegador dentro de la app: barras de scroll finas. */
+.app-frame { scrollbar-color: var(--brand-gray-3) transparent; scrollbar-width: thin; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .ui-tab, .input, .select, .textarea, .ui-switch input, .ui-switch input::before { transition: none; }
+  .btn[aria-busy='true']::after { animation: none; transform: none; opacity: 0.6; }
+}
+
+/* Solo para lectores de pantalla. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
