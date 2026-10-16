@@ -295,6 +295,11 @@ Loaded site-wide after `globals.css`. Product screens use these classes instead 
 ### App home (`/app`)
 The network map is the workspace launcher: `NetworkMap` with `hrefs` pointing each line and station into its app (no draw-in animation inside the app), next to the eleven lines as a list (glyph, name, one line). Link's numbers follow, since `/app` is also Link's overview.
 
+### Link (`/app/links`)
+- **Signature:** `LinkRoute` draws each link as a stretch of the Link line: the short URL and the destination are stations joined by a 6px stroke in `--accent`; with routing rules the destination becomes an interchange and the extra destinations are counted.
+- **Detail** is one header plus five tabs (`?tab=`: Resumen, Analytics, QR, Ruteo, Ajustes; `?edit=1` redirects to Ajustes). Numbers sit in a ruled strip (`.lk-stats`), never in cards. Charts and breakdown bars use the line color; the last point of a chart is a station.
+- **Create** has one entry, "Nuevo", with route tabs Un link / En lote / Importar. The basic path is URL + optional slug; everything else is in `AdvancedSection`. Custom domains have their own page at `/app/links/domains`.
+
 ## Do's and Don'ts
 
 ### Do:

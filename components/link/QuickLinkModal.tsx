@@ -1,14 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import QuickModal from '@/components/app/QuickModal';
-import TagsInput from './TagsInput';
-
-const SLUG_RE = /^[A-Za-z0-9_-]{2,32}$/;
-
-type SlugState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'reserved';
+import { useSlugCheck } from './slug-check';
 
 export interface CreatedLink {
   id: string;
@@ -25,9 +21,9 @@ interface QuickLinkModalProps {
 }
 
 /**
- * Crear un link sin salir de la lista (como Bitly/Dub): URL, slug opcional,
- * título y tags. El resto (UTM, vencimiento, contraseña, OG) queda en el
- * formulario completo, a un click desde "More options".
+ * Crear un link sin salir de la lista: el mismo camino básico que "Nuevo"
+ * (URL y slug opcional). Lo demás está a un click en "Más opciones", que abre
+ * el formulario completo con la URL precargada.
  */
 export default function QuickLinkModal(props: QuickLinkModalProps) {
   if (!props.open) return null;
@@ -39,39 +35,11 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
   const [url, setUrl] = useState(initialUrl);
   const [slug, setSlug] = useState('');
   const [domainId, setDomainId] = useState('');
-  const [title, setTitle] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
-  const [slugState, setSlugState] = useState<SlugState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const slugState = useSlugCheck(slug, domainId);
 
-  useEffect(() => {
-    const value = slug.trim();
-    if (!value) {
-      setSlugState('idle');
-      return;
-    }
-    if (!SLUG_RE.test(value)) {
-      setSlugState('invalid');
-      return;
-    }
-    setSlugState('checking');
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/links/check-slug?slug=${encodeURIComponent(value)}${domainId ? `&domainId=${encodeURIComponent(domainId)}` : ''}`,
-        );
-        const data = (await res.json()) as { available: boolean; valid: boolean };
-        // El formato ya se validó acá: si el server dice inválido es una palabra reservada.
-        setSlugState(!data.valid ? 'reserved' : data.available ? 'available' : 'taken');
-      } catch {
-        setSlugState('idle');
-      }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [slug, domainId]);
-
-  const slugHint: Record<SlugState, string | null> = {
+  const slugHint: Record<typeof slugState, string | null> = {
     idle: null,
     checking: t('new.slugChecking'),
     available: t('new.slugAvailable'),
@@ -85,10 +53,9 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
     if (!url.trim()) return;
     setBusy(true);
     try {
-      const payload: Record<string, unknown> = { url: url.trim(), tags };
+      const payload: Record<string, unknown> = { url: url.trim() };
       if (slug.trim()) payload.slug = slug.trim();
       if (domainId) payload.domainId = domainId;
-      if (title.trim()) payload.title = title.trim();
       const res = await fetch('/api/links', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -115,7 +82,7 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
     <QuickModal
       open
       onClose={onClose}
-      crumb={`Link › ${t('new.title')}`}
+      crumb={`Link / ${t('new.title')}`}
       onSubmit={submit}
       submitLabel={busy ? t('new.creating') : t('new.create')}
       cancelLabel={t('quick.cancel')}
@@ -141,57 +108,41 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
         spellCheck={false}
         data-autofocus
       />
-      <div className="qm-row">
-        <label className="qm-field">
-          <span>{t('quick.slug')}</span>
-          <div className="qm-prefix">
-            {customDomains.length > 0 ? (
-              <select
-                className="qm-domain mono"
-                value={domainId}
-                onChange={(e) => setDomainId(e.target.value)}
-                aria-label={t('domains.pick')}
-              >
-                <option value="">{domain}/</option>
-                {customDomains.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.hostname}/
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span>{domain}/</span>
-            )}
-            <input
-              className="mono"
-              type="text"
-              value={slug}
-              maxLength={32}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder={t('new.slugPlaceholder')}
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </div>
-          {slugHint[slugState] && (
-            <em className={`qm-slug-hint slug-${slugState}`}>{slugHint[slugState]}</em>
+      <label className="qm-field">
+        <span>{t('quick.slug')}</span>
+        <div className="qm-prefix">
+          {customDomains.length > 0 ? (
+            <select
+              className="qm-domain mono"
+              value={domainId}
+              onChange={(e) => setDomainId(e.target.value)}
+              aria-label={t('domains.pick')}
+            >
+              <option value="">{domain}/</option>
+              {customDomains.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.hostname}/
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span>{domain}/</span>
           )}
-        </label>
-        <label className="qm-field">
-          <span>{t('quick.title')}</span>
           <input
+            className="mono"
             type="text"
-            value={title}
-            maxLength={200}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t('new.titlePlaceholder')}
+            value={slug}
+            maxLength={32}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder={t('new.slugPlaceholder')}
+            autoComplete="off"
+            spellCheck={false}
           />
-        </label>
-      </div>
-      <div className="qm-field">
-        <span>{t('quick.tags')}</span>
-        <TagsInput tags={tags} onChange={setTags} />
-      </div>
+        </div>
+        <em className={`qm-slug-hint slug-${slugState}`} aria-live="polite">
+          {slugHint[slugState] ?? t('new.slugHelp')}
+        </em>
+      </label>
     </QuickModal>
   );
 }

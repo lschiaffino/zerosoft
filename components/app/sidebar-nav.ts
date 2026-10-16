@@ -1,4 +1,5 @@
 import type { IconName } from './icons';
+import { isNewLinkPath } from '@/lib/link-detail-tabs';
 
 /**
  * Navegación del sidebar de la app, en datos puros (sin React) para poder
@@ -358,22 +359,21 @@ export function buildNav(
               label: labels.link.links,
               active:
                 at('/app/links') &&
-                !at('/app/links/new') &&
-                !at('/app/links/bulk') &&
+                !isNewLinkPath(pathname) &&
                 !at('/app/links/bio') &&
-                !at('/app/links/analytics'),
+                !at('/app/links/analytics') &&
+                !at('/app/links/domains'),
               icon: 'links',
             },
-            { href: '/app/links/new', label: labels.link.new, active: at('/app/links/new'), icon: 'newLink' },
-            { href: '/app/links/bulk', label: labels.link.bulk, active: at('/app/links/bulk'), icon: 'bulk' },
+            // Una sola entrada para crear: Un link / En lote / Importar son pestañas de /app/links/new.
+            { href: '/app/links/new', label: labels.link.new, active: isNewLinkPath(pathname), icon: 'newLink' },
             { href: '/app/links/bio', label: labels.link.bio, active: at('/app/links/bio'), icon: 'contacts' },
             { href: '/app/links/analytics', label: labels.link.analytics, active: at('/app/links/analytics'), icon: 'reports' },
           ],
         },
         {
           section: labels.workspace,
-          // Dominios propios e import de Bitly viven en los Ajustes globales.
-          items: [{ href: '/app/settings#domains', label: labels.link.domains, active: false, icon: 'domains' }],
+          items: [{ href: '/app/links/domains', label: labels.link.domains, active: at('/app/links/domains'), icon: 'domains' }],
         },
       ];
   }

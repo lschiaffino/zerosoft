@@ -2,8 +2,10 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { linkStatus, listLinks, parseTags, userTags, type ArchivedFilter } from '@/lib/links';
-import { formatDate, shortDomain, shortUrl } from '@/lib/utils';
+import { formatDate, formatNumber, shortDomain, shortUrl } from '@/lib/utils';
 import { listDomains } from '@/lib/link-domains';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import FilterBar from '@/components/link/FilterBar';
 import LinksTable, { type TableRow } from '@/components/link/LinksTable';
 import LinksQuickCreate, { NewLinkButton } from '@/components/link/LinksQuickCreate';
@@ -21,11 +23,7 @@ function one(v: string | string[] | undefined): string | undefined {
 
 export default async function LinksPage(props: LinksPageProps) {
   const searchParams = await props.searchParams;
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
+  const { locale } = await props.params;
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
@@ -37,11 +35,12 @@ export default async function LinksPage(props: LinksPageProps) {
   const sort = one(searchParams.sort) === 'clicks' ? 'clicks' : 'created';
   const page = Number(one(searchParams.page) ?? '1') || 1;
 
-  const result = await listLinks(user.id, { q: q || undefined, tag: tag ?? undefined, archived, sort, page });
-  const tags = await userTags(user.id);
-  const customDomains = (await listDomains(user.id))
-    .filter((d) => d.verified === 1)
-    .map((d) => ({ id: d.id, hostname: d.hostname }));
+  const [result, tags, domains] = await Promise.all([
+    listLinks(user.id, { q: q || undefined, tag: tag ?? undefined, archived, sort, page }),
+    userTags(user.id),
+    listDomains(user.id),
+  ]);
+  const customDomains = domains.filter((d) => d.verified === 1).map((d) => ({ id: d.id, hostname: d.hostname }));
 
   const rows: TableRow[] = result.links.map((l) => ({
     id: l.id,
@@ -50,7 +49,7 @@ export default async function LinksPage(props: LinksPageProps) {
     url: l.url,
     title: l.title,
     tags: parseTags(l.tags),
-    clicks: l.clicks,
+    clicks: formatNumber(l.clicks, locale),
     created: formatDate(l.created_at, locale),
     status: linkStatus(l),
   }));
@@ -63,65 +62,73 @@ export default async function LinksPage(props: LinksPageProps) {
   if (sort !== 'created') query.sort = sort;
 
   const hasFilters = !!q || !!tag || archived !== '0';
+  // Sin filtros y sin filas puede ser que solo haya archivados: eso no es "todavía no hay links".
+  const neverCreated =
+    rows.length === 0 && !hasFilters && (await listLinks(user.id, { archived: 'all' })).total === 0;
 
   return (
-    <div className="app-page links-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('table.title')}</h1>
-        <div className="page-head-actions">
-          <Link href="/app/links/bulk" className="btn btn-small">
-            {t('table.bulkCta')}
-          </Link>
-          <LinksQuickCreate domain={shortDomain()} customDomains={customDomains} />
-        </div>
-      </div>
+    <div className="ui-page links-page">
+      <PageHeader
+        title={t('table.title')}
+        description={result.total > 0 ? t('table.count', { n: result.total }) : undefined}
+        actions={<LinksQuickCreate domain={shortDomain()} customDomains={customDomains} />}
+      />
 
-      <FilterBar q={q} tag={tag} archived={archived} sort={sort} tags={tags} />
-
-      {rows.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-zeros mono" aria-hidden>
-            0 0 0 0 0 0 0
-          </p>
-          <h2>{hasFilters ? t('table.emptyTitle') : t('table.emptyAllTitle')}</h2>
-          <p className="muted">{hasFilters ? t('table.emptySub') : t('table.emptyAllSub')}</p>
-          {hasFilters ? (
-            <Link href="/app/links" className="btn btn-small">
-              {t('table.clearFilters')}
-            </Link>
-          ) : (
-            <NewLinkButton label={t('table.emptyCta')} />
-          )}
-        </div>
+      {neverCreated ? (
+        <EmptyState
+          title={t('table.emptyAllTitle')}
+          body={t('table.emptyAllSub')}
+          action={<NewLinkButton label={t('table.emptyCta')} />}
+          secondary={
+            <>
+              {t('table.emptyOr')} <Link href="/app/links/import">{t('table.emptyImport')}</Link>
+            </>
+          }
+          product="link"
+        />
       ) : (
         <>
-          <LinksTable rows={rows} />
-          {pages > 1 && (
-            <nav className="pager mono">
-              {result.page > 1 ? (
-                <Link
-                  href={{ pathname: '/app/links', query: { ...query, page: String(result.page - 1) } }}
-                  className="pager-btn"
-                >
-                  {t('table.pagePrev')}
-                </Link>
-              ) : (
-                <span className="pager-btn disabled">{t('table.pagePrev')}</span>
+          <FilterBar q={q} tag={tag} archived={archived} sort={sort} tags={tags} />
+          {rows.length === 0 ? (
+            <EmptyState
+              title={t('table.emptyTitle')}
+              body={t('table.emptySub')}
+              action={{ label: t('table.clearFilters'), href: '/app/links' }}
+              product="link"
+            />
+          ) : (
+            <>
+              <LinksTable rows={rows} />
+              {pages > 1 && (
+                <nav className="lk-pager" aria-label={t('table.pagination')}>
+                  {result.page > 1 ? (
+                    <Link
+                      href={{ pathname: '/app/links', query: { ...query, page: String(result.page - 1) } }}
+                      className="btn btn-sm"
+                    >
+                      {t('table.pagePrev')}
+                    </Link>
+                  ) : (
+                    <span className="btn btn-sm" aria-disabled="true">
+                      {t('table.pagePrev')}
+                    </span>
+                  )}
+                  <span className="lk-pager-info data">{t('table.pageOf', { page: result.page, pages })}</span>
+                  {result.page < pages ? (
+                    <Link
+                      href={{ pathname: '/app/links', query: { ...query, page: String(result.page + 1) } }}
+                      className="btn btn-sm"
+                    >
+                      {t('table.pageNext')}
+                    </Link>
+                  ) : (
+                    <span className="btn btn-sm" aria-disabled="true">
+                      {t('table.pageNext')}
+                    </span>
+                  )}
+                </nav>
               )}
-              <span className="pager-info">
-                {t('table.pageOf', { page: result.page, pages })}
-              </span>
-              {result.page < pages ? (
-                <Link
-                  href={{ pathname: '/app/links', query: { ...query, page: String(result.page + 1) } }}
-                  className="pager-btn"
-                >
-                  {t('table.pageNext')}
-                </Link>
-              ) : (
-                <span className="pager-btn disabled">{t('table.pageNext')}</span>
-              )}
-            </nav>
+            </>
           )}
         </>
       )}

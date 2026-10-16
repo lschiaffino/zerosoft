@@ -2,9 +2,6 @@ import { getTranslations } from 'next-intl/server';
 import { DEMO_MODE, isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listWebhooks, WEBHOOK_EVENTS } from '@/lib/webhooks';
 import WebhooksPanel from '@/components/app/WebhooksPanel';
-import DomainsPanel from '@/components/link/DomainsPanel';
-import ImportLinksPanel from '@/components/link/ImportLinksPanel';
-import { dnsInstructions, listDomains } from '@/lib/link-domains';
 import { listApiKeys } from '@/lib/api-auth';
 import { formatDate } from '@/lib/utils';
 import ApiKeysPanel from '@/components/link/ApiKeysPanel';
@@ -27,7 +24,6 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
   // Members ven solo sus keys; owner/admin, las de todo el workspace.
   const keys = await listApiKeys(user.id, isWorkspaceAdmin(user) ? undefined : realUserId(user));
   const webhooks = isWorkspaceAdmin(user) ? await listWebhooks(user.id) : null;
-  const domains = (await listDomains(user.id)).map((d) => ({ ...d, dns: dnsInstructions(d.hostname, d.verified === 1 ? null : d.verify_token) }));
 
   return (
     <div className="app-page">
@@ -36,7 +32,7 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
       <section className="panel">
         <div className="panel-head">
           <p className="section-label">{t('settings.profile')}</p>
-          {DEMO_MODE && <span className="badge status-protected">{t('settings.demoBadge')}</span>}
+          {DEMO_MODE && <span className="badge badge-ink">{t('settings.demoBadge')}</span>}
         </div>
         {DEMO_MODE && <p className="muted demo-note">{t('settings.demoDesc')}</p>}
         <div className="profile-row">
@@ -67,18 +63,6 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
         <p className="section-label">{t('settings.aiUsage.title')}</p>
         <AiUsagePanel workspaceId={user.id} locale={locale} />
       </section>
-
-      <section className="panel" id="domains">
-        <p className="section-label">{t('domains.title')}</p>
-        <DomainsPanel initial={domains} canManage={isWorkspaceAdmin(user)} />
-      </section>
-
-      {isWorkspaceAdmin(user) && (
-        <section className="panel" id="import">
-          <p className="section-label">{t('import.title')}</p>
-          <ImportLinksPanel />
-        </section>
-      )}
 
       {isWorkspaceAdmin(user) && (
       <section className="panel">

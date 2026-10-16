@@ -3,36 +3,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import FormSection from '@/components/ui/FormSection';
+import AdvancedSection from '@/components/ui/AdvancedSection';
 import TagsInput from './TagsInput';
-
-const SLUG_RE = /^[A-Za-z0-9_-]{2,32}$/;
-
-type SlugState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'reserved';
-
-function composeUrl(url: string, source: string, medium: string, campaign: string): string | null {
-  const trimmed = url.trim();
-  if (!trimmed) return null;
-  const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const u = new URL(withProto);
-    if (source.trim()) u.searchParams.set('utm_source', source.trim());
-    if (medium.trim()) u.searchParams.set('utm_medium', medium.trim());
-    if (campaign.trim()) u.searchParams.set('utm_campaign', campaign.trim());
-    return u.toString();
-  } catch {
-    return null;
-  }
-}
+import { composeUtmUrl, SLUG_RE, useSlugCheck } from './slug-check';
 
 interface NewLinkFormProps {
   /** Dominio por defecto (zerosoft). */
   domain: string;
   /** Dominios propios verificados del workspace. */
   customDomains?: Array<{ id: string; hostname: string }>;
-  /** URL precargada (p. ej. desde "More options" del quick-create). */
+  /** URL precargada (p. ej. desde "Más opciones" del modal rápido). */
   initialUrl?: string;
 }
 
+/**
+ * Crear un link: el camino básico es la URL y, si querés, el slug (si no, se
+ * genera solo). Título, tags, UTM, redirect, vencimiento, contraseña y vista
+ * previa social viven en "Avanzado".
+ */
 export default function NewLinkForm({ domain, customDomains = [], initialUrl = '' }: NewLinkFormProps) {
   const t = useTranslations('link');
   const router = useRouter();
@@ -40,58 +29,34 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
   const [url, setUrl] = useState(initialUrl);
   const [slug, setSlug] = useState('');
   const [domainId, setDomainId] = useState<string>('');
-  const [slugState, setSlugState] = useState<SlugState>('idle');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [utmSource, setUtmSource] = useState('');
   const [utmMedium, setUtmMedium] = useState('');
   const [utmCampaign, setUtmCampaign] = useState('');
   const [redirectType, setRedirectType] = useState<301 | 302>(302);
-  const [advanced, setAdvanced] = useState(false);
-  const [ogOpen, setOgOpen] = useState(false);
   const [expiresAt, setExpiresAt] = useState('');
   const [maxClicks, setMaxClicks] = useState('');
   const [password, setPassword] = useState('');
   const [ogTitle, setOgTitle] = useState('');
   const [ogDescription, setOgDescription] = useState('');
   const [ogImage, setOgImage] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const slugState = useSlugCheck(slug, domainId);
 
-  // Debounced slug availability check.
+  // Con ?url= el foco va al slug (la URL ya está); si no, a la URL.
   useEffect(() => {
-    const value = slug.trim();
-    if (!value) {
-      setSlugState('idle');
-      return;
-    }
-    if (!SLUG_RE.test(value)) {
-      setSlugState('invalid');
-      return;
-    }
-    setSlugState('checking');
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/links/check-slug?slug=${encodeURIComponent(value)}${domainId ? `&domainId=${encodeURIComponent(domainId)}` : ''}`,
-        );
-        const data = (await res.json()) as { available: boolean; valid: boolean };
-        // El formato ya se validó acá: si el server dice inválido es una palabra reservada.
-        setSlugState(!data.valid ? 'reserved' : data.available ? 'available' : 'taken');
-      } catch {
-        setSlugState('idle');
-      }
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [slug, domainId]);
+    document.getElementById(initialUrl ? 'nl-slug' : 'nl-url')?.focus();
+  }, [initialUrl]);
 
   const finalUrl = useMemo(
-    () => composeUrl(url, utmSource, utmMedium, utmCampaign),
+    () => composeUtmUrl(url, utmSource, utmMedium, utmCampaign),
     [url, utmSource, utmMedium, utmCampaign],
   );
+  const hasUtm = !!(utmSource.trim() || utmMedium.trim() || utmCampaign.trim());
 
-  const slugHint: Record<SlugState, string | null> = {
-    idle: null,
+  const slugBad = slugState === 'taken' || slugState === 'invalid' || slugState === 'reserved';
+  const slugMessage: Record<typeof slugState, string> = {
+    idle: t('new.slugHelp'),
     checking: t('new.slugChecking'),
     available: t('new.slugAvailable'),
     taken: t('new.slugTaken'),
@@ -99,35 +64,25 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
     reserved: t('new.slugReserved'),
   };
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
+  async function create(): Promise<string | void> {
+    if (!finalUrl) return t('errors.invalid_url');
+    if (slug.trim() && !SLUG_RE.test(slug.trim())) return t('errors.invalid_slug');
 
-    if (!finalUrl) {
-      setError(t('errors.invalid_url'));
-      return;
-    }
-    if (slug.trim() && !SLUG_RE.test(slug.trim())) {
-      setError(t('errors.invalid_slug'));
-      return;
-    }
+    const payload: Record<string, unknown> = { url: url.trim(), tags, redirectType };
+    if (slug.trim()) payload.slug = slug.trim();
+    if (domainId) payload.domainId = domainId;
+    if (title.trim()) payload.title = title.trim();
+    if (utmSource.trim()) payload.utmSource = utmSource.trim();
+    if (utmMedium.trim()) payload.utmMedium = utmMedium.trim();
+    if (utmCampaign.trim()) payload.utmCampaign = utmCampaign.trim();
+    if (expiresAt) payload.expiresAt = new Date(expiresAt).toISOString();
+    if (maxClicks) payload.maxClicks = Number(maxClicks);
+    if (password) payload.password = password;
+    if (ogTitle.trim()) payload.ogTitle = ogTitle.trim();
+    if (ogDescription.trim()) payload.ogDescription = ogDescription.trim();
+    if (ogImage.trim()) payload.ogImage = ogImage.trim();
 
-    setSubmitting(true);
     try {
-      const payload: Record<string, unknown> = { url: url.trim(), tags, redirectType };
-      if (slug.trim()) payload.slug = slug.trim();
-      if (domainId) payload.domainId = domainId;
-      if (title.trim()) payload.title = title.trim();
-      if (utmSource.trim()) payload.utmSource = utmSource.trim();
-      if (utmMedium.trim()) payload.utmMedium = utmMedium.trim();
-      if (utmCampaign.trim()) payload.utmCampaign = utmCampaign.trim();
-      if (expiresAt) payload.expiresAt = new Date(expiresAt).toISOString();
-      if (maxClicks) payload.maxClicks = Number(maxClicks);
-      if (password) payload.password = password;
-      if (ogTitle.trim()) payload.ogTitle = ogTitle.trim();
-      if (ogDescription.trim()) payload.ogDescription = ogDescription.trim();
-      if (ogImage.trim()) payload.ogImage = ogImage.trim();
-
       const res = await fetch('/api/links', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -140,36 +95,48 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
       }
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       const code = data?.error;
-      setError(code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
-      setSubmitting(false);
+      return code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic');
     } catch {
-      setError(t('errors.generic'));
-      setSubmitting(false);
+      return t('errors.generic');
     }
   }
 
   return (
-    <form className="link-form" onSubmit={onSubmit}>
-      <div className="field">
-        <label className="label" htmlFor="nl-url">{t('new.urlLabel')}</label>
+    <FormSection
+      title={t('new.formTitle')}
+      description={t('new.formDesc')}
+      onSubmit={create}
+      submitLabel={t('new.create')}
+      disabled={slugBad}
+      note={t('new.formNote')}
+      className="lk-form"
+    >
+      <div className="ui-field">
+        <label className="label" htmlFor="nl-url">
+          {t('new.urlLabel')}
+        </label>
         <input
           id="nl-url"
           className="input"
           type="text"
+          inputMode="url"
           required
-          autoFocus={!initialUrl}
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder={t('new.urlPlaceholder')}
+          autoComplete="off"
+          spellCheck={false}
         />
       </div>
 
-      <div className="field">
-        <label className="label" htmlFor="nl-slug">{t('new.slugLabel')}</label>
-        <div className="slug-row">
+      <div className="ui-field">
+        <label className="label" htmlFor="nl-slug">
+          {t('new.slugLabel')} <span className="ui-optional">{t('common.optional')}</span>
+        </label>
+        <div className="ui-input-group">
           {customDomains.length > 0 ? (
             <select
-              className="input mono slug-domain-select"
+              className="select mono lk-domain-select"
               value={domainId}
               onChange={(e) => setDomainId(e.target.value)}
               aria-label={t('domains.pick')}
@@ -182,7 +149,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
               ))}
             </select>
           ) : (
-            <span className="slug-domain mono">{domain}/</span>
+            <span className="ui-addon">{domain}/</span>
           )}
           <input
             id="nl-slug"
@@ -194,122 +161,115 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
             placeholder={t('new.slugPlaceholder')}
             autoComplete="off"
             spellCheck={false}
+            aria-invalid={slugBad || undefined}
+            aria-describedby="nl-slug-help"
           />
         </div>
-        {slugHint[slugState] && (
-          <p className={`field-hint slug-${slugState}`}>{slugHint[slugState]}</p>
-        )}
+        <p id="nl-slug-help" className={slugBad ? 'ui-error' : slugState === 'available' ? 'ui-help lk-ok' : 'ui-help'} aria-live="polite">
+          {slugMessage[slugState]}
+        </p>
       </div>
 
-      <div className="field">
-        <label className="label" htmlFor="nl-title">{t('new.titleLabel')}</label>
-        <input
-          id="nl-title"
-          className="input"
-          type="text"
-          value={title}
-          maxLength={200}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t('new.titlePlaceholder')}
-        />
-      </div>
-
-      <div className="field">
-        <label className="label">{t('new.tagsLabel')}</label>
-        <TagsInput tags={tags} onChange={setTags} />
-      </div>
-
-      <div className="field">
-        <span className="label">{t('new.utmTitle')}</span>
-        <div className="utm-grid">
-          <input
-            className="input mono"
-            type="text"
-            value={utmSource}
-            maxLength={100}
-            onChange={(e) => setUtmSource(e.target.value)}
-            placeholder={t('new.utmSource')}
-            aria-label={t('new.utmSource')}
-          />
-          <input
-            className="input mono"
-            type="text"
-            value={utmMedium}
-            maxLength={100}
-            onChange={(e) => setUtmMedium(e.target.value)}
-            placeholder={t('new.utmMedium')}
-            aria-label={t('new.utmMedium')}
-          />
-          <input
-            className="input mono"
-            type="text"
-            value={utmCampaign}
-            maxLength={100}
-            onChange={(e) => setUtmCampaign(e.target.value)}
-            placeholder={t('new.utmCampaign')}
-            aria-label={t('new.utmCampaign')}
-          />
-        </div>
-        {finalUrl && (
-          <p className="field-hint utm-preview">
-            <span className="muted">{t('new.utmPreview')}:</span> {finalUrl}
-          </p>
-        )}
-      </div>
-
-      <div className="field">
-        <label className="label" htmlFor="nl-redirect">
-          {t('new.redirectTypeLabel')}
-        </label>
-        <select
-          id="nl-redirect"
-          className="input mono"
-          value={redirectType}
-          onChange={(e) => setRedirectType(Number(e.target.value) as 301 | 302)}
-        >
-          <option value={302}>{t('new.redirect302')}</option>
-          <option value={301}>{t('new.redirect301')}</option>
-        </select>
-      </div>
-
-      <button
-        type="button"
-        className="advanced-toggle mono"
-        onClick={() => setAdvanced((v) => !v)}
-        aria-expanded={advanced}
-      >
-        {advanced ? '−' : '+'} {t('new.advanced')}
-      </button>
-
-      {advanced && (
-        <div className="advanced-grid">
-          <div className="field">
-            <label className="label" htmlFor="nl-exp">{t('new.expiresLabel')}</label>
+      <AdvancedSection storageKey="link.new" hint={t('new.advancedHint')}>
+        <div className="ui-fields-2">
+          <div className="ui-field">
+            <label className="label" htmlFor="nl-title">
+              {t('new.titleLabel')}
+            </label>
             <input
-              id="nl-exp"
-              className="input mono"
-              type="datetime-local"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
+              id="nl-title"
+              className="input"
+              type="text"
+              value={title}
+              maxLength={200}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={t('new.titlePlaceholder')}
             />
           </div>
-          <div className="field">
-            <label className="label" htmlFor="nl-max">{t('new.maxClicksLabel')}</label>
+          <div className="ui-field">
+            <span className="label" id="nl-tags-label">
+              {t('new.tagsLabel')}
+            </span>
+            <TagsInput tags={tags} onChange={setTags} labelledBy="nl-tags-label" />
+          </div>
+        </div>
+
+        <fieldset className="lk-fieldset">
+          <legend className="label">{t('new.utmTitle')}</legend>
+          <div className="lk-utm">
+            {(
+              [
+                ['nl-utm-source', 'utmSource', utmSource, setUtmSource],
+                ['nl-utm-medium', 'utmMedium', utmMedium, setUtmMedium],
+                ['nl-utm-campaign', 'utmCampaign', utmCampaign, setUtmCampaign],
+              ] as const
+            ).map(([fid, key, value, set]) => (
+              <div className="ui-field" key={fid}>
+                <label className="label" htmlFor={fid}>
+                  {t(`new.${key}`)}
+                </label>
+                <input
+                  id={fid}
+                  className="input mono"
+                  type="text"
+                  value={value}
+                  maxLength={100}
+                  onChange={(e) => set(e.target.value)}
+                  placeholder={t(`new.${key}Placeholder`)}
+                />
+              </div>
+            ))}
+          </div>
+          {hasUtm && finalUrl && (
+            <p className="ui-help lk-utm-preview">
+              {t('new.utmPreview')}: <span className="data">{finalUrl}</span>
+            </p>
+          )}
+        </fieldset>
+
+        <div className="ui-fields-2">
+          <div className="ui-field">
+            <label className="label" htmlFor="nl-redirect">
+              {t('new.redirectTypeLabel')}
+            </label>
+            <select
+              id="nl-redirect"
+              className="select"
+              value={redirectType}
+              onChange={(e) => setRedirectType(Number(e.target.value) as 301 | 302)}
+            >
+              <option value={302}>{t('new.redirect302')}</option>
+              <option value={301}>{t('new.redirect301')}</option>
+            </select>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="nl-exp">
+              {t('new.expiresLabel')}
+            </label>
+            <input id="nl-exp" className="input mono" type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="nl-max">
+              {t('new.maxClicksLabel')}
+            </label>
             <input
               id="nl-max"
               className="input mono"
               type="number"
               min={1}
+              inputMode="numeric"
               value={maxClicks}
               onChange={(e) => setMaxClicks(e.target.value)}
-              placeholder="∞"
+              placeholder={t('new.maxClicksPlaceholder')}
             />
           </div>
-          <div className="field">
-            <label className="label" htmlFor="nl-pw">{t('new.passwordLabel')}</label>
+          <div className="ui-field">
+            <label className="label" htmlFor="nl-pw">
+              {t('new.passwordLabel')}
+            </label>
             <input
               id="nl-pw"
-              className="input mono"
+              className="input"
               type="password"
               value={password}
               maxLength={100}
@@ -318,34 +278,42 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
             />
           </div>
         </div>
-      )}
 
-      <button
-        type="button"
-        className="advanced-toggle mono"
-        onClick={() => setOgOpen((v) => !v)}
-        aria-expanded={ogOpen}
-      >
-        {ogOpen ? '−' : '+'} {t('new.ogTitle')}
-      </button>
-
-      {ogOpen && (
-        <div className="advanced-grid">
-          <div className="field">
-            <label className="label" htmlFor="nl-og-title">
-              {t('new.ogTitleLabel')}
-            </label>
-            <input
-              id="nl-og-title"
-              className="input"
-              type="text"
-              value={ogTitle}
-              maxLength={200}
-              onChange={(e) => setOgTitle(e.target.value)}
-              placeholder={t('new.ogTitlePlaceholder')}
-            />
+        <fieldset className="lk-fieldset">
+          <legend className="label">{t('new.ogTitle')}</legend>
+          <p className="ui-help">{t('new.ogHelp')}</p>
+          <div className="ui-fields-2">
+            <div className="ui-field">
+              <label className="label" htmlFor="nl-og-title">
+                {t('new.ogTitleLabel')}
+              </label>
+              <input
+                id="nl-og-title"
+                className="input"
+                type="text"
+                value={ogTitle}
+                maxLength={200}
+                onChange={(e) => setOgTitle(e.target.value)}
+                placeholder={t('new.ogTitlePlaceholder')}
+              />
+            </div>
+            <div className="ui-field">
+              <label className="label" htmlFor="nl-og-img">
+                {t('new.ogImageLabel')}
+              </label>
+              <input
+                id="nl-og-img"
+                className="input mono"
+                type="text"
+                inputMode="url"
+                value={ogImage}
+                maxLength={500}
+                onChange={(e) => setOgImage(e.target.value)}
+                placeholder={t('new.ogImagePlaceholder')}
+              />
+            </div>
           </div>
-          <div className="field">
+          <div className="ui-field">
             <label className="label" htmlFor="nl-og-desc">
               {t('new.ogDescriptionLabel')}
             </label>
@@ -359,32 +327,8 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
               placeholder={t('new.ogDescriptionPlaceholder')}
             />
           </div>
-          <div className="field">
-            <label className="label" htmlFor="nl-og-img">
-              {t('new.ogImageLabel')}
-            </label>
-            <input
-              id="nl-og-img"
-              className="input mono"
-              type="text"
-              value={ogImage}
-              maxLength={500}
-              onChange={(e) => setOgImage(e.target.value)}
-              placeholder={t('new.ogImagePlaceholder')}
-            />
-          </div>
-        </div>
-      )}
-
-      {error && <p className="form-error mono">{error}</p>}
-
-      <button
-        type="submit"
-        className="btn btn-solid"
-        disabled={submitting || slugState === 'taken' || slugState === 'invalid' || slugState === 'reserved'}
-      >
-        {submitting ? t('new.creating') : t('new.create')}
-      </button>
-    </form>
+        </fieldset>
+      </AdvancedSection>
+    </FormSection>
   );
 }

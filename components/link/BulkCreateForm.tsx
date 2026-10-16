@@ -1,0 +1,192 @@
+'use client';
+
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { bulkResultsToCsv, type BulkResultItem } from '@/lib/link-bulk-csv';
+import FormSection from '@/components/ui/FormSection';
+import AdvancedSection from '@/components/ui/AdvancedSection';
+import LinkIcon from './LinkIcon';
+
+/** Pegar hasta 200 URLs y acortarlas todas; tag y UTM comunes en "Avanzado". */
+export default function BulkCreateForm() {
+  const t = useTranslations('link');
+  const [urls, setUrls] = useState('');
+  const [tag, setTag] = useState('');
+  const [utmSource, setUtmSource] = useState('');
+  const [utmMedium, setUtmMedium] = useState('');
+  const [utmCampaign, setUtmCampaign] = useState('');
+  const [results, setResults] = useState<BulkResultItem[] | null>(null);
+
+  const count = urls.split('\n').filter((l) => l.trim()).length;
+
+  async function create(): Promise<string | void> {
+    setResults(null);
+    try {
+      const res = await fetch('/api/links/bulk', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          urls,
+          tag: tag.trim() || undefined,
+          utmSource: utmSource.trim() || undefined,
+          utmMedium: utmMedium.trim() || undefined,
+          utmCampaign: utmCampaign.trim() || undefined,
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as { results?: BulkResultItem[]; error?: string } | null;
+      if (!res.ok || !data?.results) {
+        return data?.error && t.has(`errors.${data.error}`) ? t(`errors.${data.error}`) : t('errors.generic');
+      }
+      setResults(data.results);
+    } catch {
+      return t('errors.generic');
+    }
+  }
+
+  // El CSV sale de los resultados en pantalla: volver a pedirlo al server
+  // crearía todos los links otra vez.
+  function downloadCsv() {
+    if (!results) return;
+    const blob = new Blob([bulkResultsToCsv(results)], { type: 'text/csv;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'links.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  const created = results?.filter((r) => r.status === 'created').length ?? 0;
+
+  return (
+    <>
+      <FormSection
+        title={t('bulk.title')}
+        description={t('bulk.sub')}
+        onSubmit={create}
+        submitLabel={count > 1 ? t('bulk.createN', { n: count }) : t('bulk.create')}
+        note={t('bulk.count', { n: count })}
+        className="lk-form"
+      >
+        <div className="ui-field">
+          <label className="label" htmlFor="bulk-urls">
+            {t('bulk.urlsLabel')}
+          </label>
+          <textarea
+            id="bulk-urls"
+            className="textarea mono"
+            rows={10}
+            value={urls}
+            onChange={(e) => setUrls(e.target.value)}
+            placeholder={t('bulk.urlsPlaceholder')}
+            required
+            spellCheck={false}
+          />
+        </div>
+
+        <AdvancedSection storageKey="link.bulk" hint={t('bulk.advancedHint')}>
+          <div className="ui-field">
+            <label className="label" htmlFor="bulk-tag">
+              {t('bulk.tagLabel')}
+            </label>
+            <input
+              id="bulk-tag"
+              className="input"
+              type="text"
+              maxLength={40}
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              placeholder={t('bulk.tagPlaceholder')}
+            />
+          </div>
+          <fieldset className="lk-fieldset">
+            <legend className="label">{t('bulk.utmTitle')}</legend>
+            <div className="lk-utm">
+              {(
+                [
+                  ['bulk-utm-source', 'utmSource', utmSource, setUtmSource],
+                  ['bulk-utm-medium', 'utmMedium', utmMedium, setUtmMedium],
+                  ['bulk-utm-campaign', 'utmCampaign', utmCampaign, setUtmCampaign],
+                ] as const
+              ).map(([fid, key, value, set]) => (
+                <div className="ui-field" key={fid}>
+                  <label className="label" htmlFor={fid}>
+                    {t(`new.${key}`)}
+                  </label>
+                  <input
+                    id={fid}
+                    className="input mono"
+                    type="text"
+                    maxLength={100}
+                    value={value}
+                    onChange={(e) => set(e.target.value)}
+                    placeholder={t(`new.${key}Placeholder`)}
+                  />
+                </div>
+              ))}
+            </div>
+          </fieldset>
+        </AdvancedSection>
+      </FormSection>
+
+      {results && (
+        <section className="panel lk-panel" aria-labelledby="bulk-results-title">
+          <div className="lk-panel-head">
+            <div>
+              <h2 className="lk-h" id="bulk-results-title">
+                {t('bulk.resultsTitle')}
+              </h2>
+              <p className="ui-help" role="status">
+                {t('bulk.resultsSummary', { created, failed: results.length - created })}
+              </p>
+            </div>
+            <button type="button" className="btn btn-sm" onClick={downloadCsv}>
+              <LinkIcon name="download" size={14} />
+              {t('bulk.downloadCsv')}
+            </button>
+          </div>
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <caption className="sr-only">{t('bulk.resultsTitle')}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t('bulk.colUrl')}</th>
+                  <th scope="col">{t('bulk.colShort')}</th>
+                  <th scope="col">{t('bulk.colStatus')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((r, i) => (
+                  <tr key={i}>
+                    <td className="data lk-cell-trunc">{r.url}</td>
+                    <td className="data">
+                      {r.short_url ? (
+                        <a href={r.short_url} target="_blank" rel="noopener noreferrer" className="cell-link">
+                          {r.short_url.replace(/^https?:\/\//, '')}
+                        </a>
+                      ) : (
+                        t('detail.none')
+                      )}
+                    </td>
+                    <td>
+                      {r.status === 'created' ? (
+                        <span className="badge badge-ok">{t('bulk.statusCreated')}</span>
+                      ) : (
+                        <span className="lk-bulk-error">
+                          <span className="badge badge-bad">{t('bulk.statusError')}</span>
+                          <span className="ui-help">
+                            {r.error && t.has(`errors.${r.error}`) ? t(`errors.${r.error}`) : t('errors.generic')}
+                          </span>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </>
+  );
+}

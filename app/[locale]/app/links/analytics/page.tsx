@@ -3,7 +3,11 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getWorkspaceAnalytics, parseWorkspaceRange } from '@/lib/link-analytics';
 import { formatNumber } from '@/lib/utils';
+import PageHeader from '@/components/ui/PageHeader';
+import DataTable from '@/components/ui/DataTable';
+import EmptyState from '@/components/ui/EmptyState';
 import LinkChart from '@/components/link/LinkChart';
+import LinkIcon from '@/components/link/LinkIcon';
 import { breakdownLabelers } from '@/lib/link-labels';
 import BreakdownBars from '@/components/link/BreakdownBars';
 
@@ -24,10 +28,11 @@ function shift(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function delta(now: number, prev: number, newLabel: string): string {
-  if (prev === 0) return now > 0 ? `↑ ${newLabel}` : '·';
+function delta(now: number, prev: number, newLabel: string): { text: string; dir: 'up' | 'down' | 'flat' } | null {
+  if (prev === 0) return now > 0 ? { text: newLabel, dir: 'up' } : null;
   const pct = Math.round(((now - prev) / prev) * 100);
-  return `${now >= prev ? '↑' : '↓'} ${Math.abs(pct)}%`;
+  if (pct === 0) return { text: '0%', dir: 'flat' };
+  return { text: `${pct > 0 ? '+' : '−'}${Math.abs(pct)}%`, dir: pct > 0 ? 'up' : 'down' };
 }
 
 export default async function LinkAnalyticsPage(props: Props) {
@@ -56,75 +61,85 @@ export default async function LinkAnalyticsPage(props: Props) {
     ab: (v) => t('labels.ab', { v }),
     app: (os) => t('labels.app', { os }),
   });
-  const label = labels.plain;
   const noData = t('analytics.noData');
   const q = `from=${range.from}&to=${range.to}`;
+  const dClicks = delta(a.clicks, a.previous.clicks, t('analytics.new'));
+  const dScans = delta(a.scans, a.previous.scans, t('analytics.new'));
 
   return (
-    <div className="app-page link-analytics">
-      <div className="page-head">
-        <h1 className="app-title">{t('analytics.title')}</h1>
-        <a href={`/api/links/analytics/export.csv?${q}`} className="btn btn-small" data-testid="analytics-export">
-          {t('analytics.exportCsv')}
-        </a>
-      </div>
+    <div className="ui-page link-analytics">
+      <PageHeader
+        title={t('analytics.title')}
+        description={t('analytics.sub')}
+        actions={
+          <a href={`/api/links/analytics/export.csv?${q}`} className="btn" data-testid="analytics-export">
+            <LinkIcon name="download" size={15} />
+            {t('analytics.exportCsv')}
+          </a>
+        }
+      />
 
-      <form className="la-range" method="get">
-        <div className="range-switch mono">
-          {presets.map((p) =>
-            p.from === range.from && p.to === range.to ? (
-              <span key={p.days} className="range-btn active">
-                {p.label}
-              </span>
-            ) : (
-              <Link
-                key={p.days}
-                href={{ pathname: '/app/links/analytics', query: { from: p.from, to: p.to } }}
-                className="range-btn"
-              >
-                {p.label}
-              </Link>
-            ),
-          )}
+      <form className="lk-toolbar" method="get">
+        <div className="btn-group lk-range" role="group" aria-label={t('detail.rangeLabel')}>
+          {presets.map((p) => (
+            <Link
+              key={p.days}
+              href={{ pathname: '/app/links/analytics', query: { from: p.from, to: p.to } }}
+              className="btn btn-sm"
+              aria-current={p.from === range.from && p.to === range.to ? 'true' : undefined}
+            >
+              {p.label}
+            </Link>
+          ))}
         </div>
-        <label className="la-date mono">
-          {t('analytics.from')}
-          <input type="date" name="from" defaultValue={range.from} className="input" />
-        </label>
-        <label className="la-date mono">
-          {t('analytics.to')}
-          <input type="date" name="to" defaultValue={range.to} className="input" />
-        </label>
-        <button type="submit" className="btn btn-small">
-          {t('analytics.apply')}
-        </button>
+        <div className="lk-dates">
+          <label className="lk-inline-field">
+            <span className="label">{t('analytics.from')}</span>
+            <input type="date" name="from" defaultValue={range.from} className="input mono" />
+          </label>
+          <label className="lk-inline-field">
+            <span className="label">{t('analytics.to')}</span>
+            <input type="date" name="to" defaultValue={range.to} className="input mono" />
+          </label>
+          <button type="submit" className="btn btn-sm">
+            {t('analytics.apply')}
+          </button>
+        </div>
       </form>
 
-      <div className="stat-cards la-stats">
-        <div className="panel stat-card">
-          <span className="stat-num" data-testid="analytics-clicks">
+      <dl className="lk-stats lk-stats-2">
+        <div className="lk-stat">
+          <dt>{t('analytics.clicks')}</dt>
+          <dd className="data num" data-testid="analytics-clicks">
             {formatNumber(a.clicks, locale)}
-          </span>
-          <span className="stat-label">
-            {t('analytics.clicks')} <span className="mono">{delta(a.clicks, a.previous.clicks, t('analytics.new'))}</span>
-          </span>
+          </dd>
+          {dClicks && (
+            <dd className="lk-stat-sub lk-delta" data-dir={dClicks.dir}>
+              {t('detail.vsPrevious', { delta: dClicks.text })}
+            </dd>
+          )}
         </div>
-        <div className="panel stat-card">
-          <span className="stat-num" data-testid="analytics-scans">
+        <div className="lk-stat">
+          <dt>{t('analytics.scans')}</dt>
+          <dd className="data num" data-testid="analytics-scans">
             {formatNumber(a.scans, locale)}
-          </span>
-          <span className="stat-label">
-            {t('analytics.scans')} <span className="mono">{delta(a.scans, a.previous.scans, t('analytics.new'))}</span>
-          </span>
+          </dd>
+          {dScans && (
+            <dd className="lk-stat-sub lk-delta" data-dir={dScans.dir}>
+              {t('detail.vsPrevious', { delta: dScans.text })}
+            </dd>
+          )}
         </div>
-      </div>
+      </dl>
 
-      <section className="panel chart-panel">
-        <div className="panel-head">
-          <p className="section-label">{t('analytics.chartLabel')}</p>
-          <div className="la-legend mono">
-            <span className="la-key la-key-1">{t('analytics.legendClicks')}</span>
-            <span className="la-key la-key-2">{t('analytics.legendScans')}</span>
+      <section className="panel lk-panel" aria-labelledby="la-chart-title">
+        <div className="lk-panel-head">
+          <h2 className="lk-h" id="la-chart-title">
+            {t('analytics.chartLabel')}
+          </h2>
+          <div className="lk-legend">
+            <span className="lk-key lk-key-1">{t('analytics.legendClicks')}</span>
+            <span className="lk-key lk-key-2">{t('analytics.legendScans')}</span>
           </div>
         </div>
         <LinkChart
@@ -133,56 +148,51 @@ export default async function LinkAnalyticsPage(props: Props) {
         />
       </section>
 
-      <section className="panel">
-        <p className="section-label">{t('analytics.topLinks')}</p>
-        {a.topLinks.length === 0 ? (
-          <p className="muted">{t('analytics.empty')}</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="table links-table la-top">
-              <thead>
-                <tr>
-                  <th>{t('analytics.colLink')}</th>
-                  <th className="num">{t('analytics.colClicks')}</th>
-                  <th className="num">{t('analytics.colScans')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {a.topLinks.map((l) => (
-                  <tr key={l.id}>
-                    <td className="cell-url">
-                      <Link href={`/app/links/${l.id}`} className="mono">
-                        {l.short_url.replace(/^https?:\/\//, '')}
-                      </Link>
-                      <span className="muted la-dest">{l.title || l.url}</span>
-                    </td>
-                    <td className="num mono">{formatNumber(l.clicks, locale)}</td>
-                    <td className="num mono">{formatNumber(l.scans, locale)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <section className="lk-section" aria-labelledby="la-top-title">
+        <h2 className="lk-h" id="la-top-title">
+          {t('analytics.topLinks')}
+        </h2>
+        <DataTable
+          caption={t('analytics.topLinks')}
+          rows={a.topLinks}
+          rowKey={(l) => l.id}
+          rowHref={(l) => `/app/links/${l.id}`}
+          compact
+          empty={<EmptyState title={t('analytics.empty')} body={t('analytics.emptyBody')} quiet product="link" />}
+          columns={[
+            {
+              key: 'link',
+              header: t('analytics.colLink'),
+              data: true,
+              cell: (l) => l.short_url.replace(/^https?:\/\//, ''),
+            },
+            {
+              key: 'dest',
+              header: t('table.destination'),
+              cell: (l) => <span className="lk-dest-text">{l.title || l.url}</span>,
+            },
+            { key: 'clicks', header: t('analytics.colClicks'), numeric: true, data: true, cell: (l) => formatNumber(l.clicks, locale) },
+            { key: 'scans', header: t('analytics.colScans'), numeric: true, data: true, cell: (l) => formatNumber(l.scans, locale) },
+          ]}
+        />
       </section>
 
-      <div className="breakdown-grid la-grid">
-        <section className="panel">
-          <p className="section-label">{t('analytics.referrers')}</p>
-          <BreakdownBars items={a.referrers} emptyLabel={noData} labelFor={label} />
-        </section>
-        <section className="panel">
-          <p className="section-label">{t('analytics.countries')}</p>
-          <BreakdownBars items={a.countries} emptyLabel={noData} labelFor={labels.country} />
-        </section>
-        <section className="panel">
-          <p className="section-label">{t('analytics.devices')}</p>
-          <BreakdownBars items={a.devices} emptyLabel={noData} labelFor={labels.device} />
-        </section>
-        <section className="panel">
-          <p className="section-label">{t('analytics.browsers')}</p>
-          <BreakdownBars items={a.browsers} emptyLabel={noData} labelFor={label} />
-        </section>
+      <div className="lk-grid-2">
+        {(
+          [
+            ['referrers', a.referrers, labels.plain],
+            ['countries', a.countries, labels.country],
+            ['devices', a.devices, labels.device],
+            ['browsers', a.browsers, labels.plain],
+          ] as const
+        ).map(([key, items, labelFor]) => (
+          <section key={key} className="panel lk-panel" aria-labelledby={`la-${key}`}>
+            <h2 className="lk-h" id={`la-${key}`}>
+              {t(`analytics.${key}`)}
+            </h2>
+            <BreakdownBars items={items} emptyLabel={noData} labelFor={labelFor} />
+          </section>
+        ))}
       </div>
     </div>
   );
