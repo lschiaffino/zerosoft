@@ -3,10 +3,11 @@
   "subtitle": "Automations across every zerosoft app and any service with an API.",
   "sidebar": { "flows": "Flows", "credentials": "Credentials" },
   "list": {
+    "emptyTemplates": "See templates",
+    "emptyTitle": "No flows yet",
     "title": "Your flows",
-    "new": "New flow",
-    "empty": "0 flows yet.",
-    "emptyHint": "Start from scratch or pick a template below.",
+    "new": "Create flow",
+    "emptyHint": "A flow is a line: one trigger and the steps after it. Start from scratch or from a template.",
     "name": "Name",
     "trigger": "Trigger",
     "lastRun": "Last run",
@@ -38,6 +39,13 @@
     }
   },
   "editor": {
+    "nodeId": "Node ID, for use in variables",
+    "copied": "Copied",
+    "retry": "Try again",
+    "flowSettings": "Flow settings",
+    "addStep": "Add step",
+    "advancedChanged": "{n, plural, one {# changed} other {# changed}}",
+    "createCredential": "Create credential",
     "back": "Back to flows",
     "nameLabel": "Flow name",
     "untitled": "Untitled flow",
@@ -349,9 +357,11 @@
     "is_false": "is false"
   },
   "runs": {
+    "loadError": "Couldn’t load the runs.",
+    "emptyBody": "Use Test run to try it with sample data, or turn it on so it runs by itself.",
+    "emptyTitle": "No runs yet",
     "title": "Runs",
     "loading": "Loading…",
-    "empty": "0 runs yet. Use Test run or turn the flow on.",
     "refresh": "Refresh",
     "selectRun": "Select a run to see its steps.",
     "input": "Input",
@@ -425,10 +435,11 @@
     "branchHint": "Adds an Error output. Connect what should happen on failure."
   },
   "versions": {
+    "loadError": "Couldn’t load the versions.",
+    "emptyTitle": "No versions yet",
     "title": "Versions",
     "subtitle": "A version is saved every time the flow's nodes change.",
     "loading": "Loading…",
-    "empty": "0 versions yet.",
     "current": "Current",
     "first": "First version",
     "noChanges": "Same nodes",
@@ -445,9 +456,11 @@
     "restored": "Restored. Now at version {n}."
   },
   "credentials": {
+    "emptyTitle": "No credentials yet",
+    "saveChanges": "Save changes",
+    "create": "Create credential",
     "title": "Credentials",
     "subtitle": "API keys and tokens for Flow integrations and Robots. Encrypted at rest and never shown again after saving.",
-    "new": "New credential",
     "newTitle": "New credential",
     "editTitle": "Edit {name}",
     "name": "Name",
@@ -458,7 +471,6 @@
     "edit": "Edit",
     "delete": "Delete",
     "confirmDelete": "Delete {name}? Flows and robots that use it will fail.",
-    "empty": "0 credentials yet.",
     "emptyHint": "Add one to use Slack, Google Sheets, Stripe, Notion, Discord or Telegram in your flows, or logins in Robots.",
     "listTitle": "Saved credentials",
     "adminOnly": "Only workspace admins and owners can add or edit credentials.",

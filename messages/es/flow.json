@@ -3,10 +3,11 @@
   "subtitle": "Automatizaciones entre todas las apps de zerosoft y cualquier servicio con API.",
   "sidebar": { "flows": "Flows", "credentials": "Credenciales" },
   "list": {
+    "emptyTemplates": "Ver plantillas",
+    "emptyTitle": "Todavía no hay flows",
     "title": "Tus flows",
-    "new": "Nuevo flow",
-    "empty": "Todavía 0 flows.",
-    "emptyHint": "Empezá de cero o elegí una plantilla de abajo.",
+    "new": "Crear flow",
+    "emptyHint": "Un flow es una línea: un disparador y los pasos que siguen. Empezá de cero o con una plantilla.",
     "name": "Nombre",
     "trigger": "Disparador",
     "lastRun": "Última ejecución",
@@ -38,6 +39,13 @@
     }
   },
   "editor": {
+    "nodeId": "ID del nodo, para usar en variables",
+    "copied": "Copiada",
+    "retry": "Reintentar",
+    "flowSettings": "Ajustes del flow",
+    "addStep": "Agregar paso",
+    "advancedChanged": "{n, plural, one {# ajustado} other {# ajustados}}",
+    "createCredential": "Crear credencial",
     "back": "Volver a los flows",
     "nameLabel": "Nombre del flow",
     "untitled": "Flow sin título",
@@ -349,9 +357,11 @@
     "is_false": "es falso"
   },
   "runs": {
+    "loadError": "No se pudieron cargar las ejecuciones.",
+    "emptyBody": "Usá Probar para correrlo con datos de prueba, o activalo para que corra solo.",
+    "emptyTitle": "Todavía no hay ejecuciones",
     "title": "Ejecuciones",
     "loading": "Cargando…",
-    "empty": "Todavía 0 ejecuciones. Usá Probar o activá el flow.",
     "refresh": "Actualizar",
     "selectRun": "Elegí una ejecución para ver sus pasos.",
     "input": "Entrada",
@@ -425,10 +435,11 @@
     "branchHint": "Agrega una salida Error. Conectá lo que tiene que pasar si falla."
   },
   "versions": {
+    "loadError": "No se pudieron cargar las versiones.",
+    "emptyTitle": "Todavía no hay versiones",
     "title": "Versiones",
     "subtitle": "Se guarda una versión cada vez que cambian los nodos del flow.",
     "loading": "Cargando…",
-    "empty": "0 versiones todavía.",
     "current": "Actual",
     "first": "Primera versión",
     "noChanges": "Mismos nodos",
@@ -445,9 +456,11 @@
     "restored": "Restaurado. Ahora en la versión {n}."
   },
   "credentials": {
+    "emptyTitle": "Todavía no hay credenciales",
+    "saveChanges": "Guardar cambios",
+    "create": "Crear credencial",
     "title": "Credenciales",
     "subtitle": "API keys y tokens para las integraciones de Flow y para Robots. Se guardan cifradas y no se vuelven a mostrar.",
-    "new": "Nueva credencial",
     "newTitle": "Nueva credencial",
     "editTitle": "Editar {name}",
     "name": "Nombre",
@@ -458,7 +471,6 @@
     "edit": "Editar",
     "delete": "Borrar",
     "confirmDelete": "¿Borrar {name}? Los flows y robots que la usan van a fallar.",
-    "empty": "0 credenciales todavía.",
     "emptyHint": "Agregá una para usar Slack, Google Sheets, Stripe, Notion, Discord o Telegram en tus flows, o logins en Robots.",
     "listTitle": "Credenciales guardadas",
     "adminOnly": "Solo los admins y owners del workspace pueden agregar o editar credenciales.",

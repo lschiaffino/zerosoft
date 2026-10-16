@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
+import EmptyState from '@/components/ui/EmptyState';
 import type { FlowRunDto, FlowStepDto } from '@/lib/flow';
-import { i18nKey, formatDuration, pretty } from './flow-ui';
+import { i18nKey, formatDuration, pretty, RUN_BADGE } from './flow-ui';
 
 export type RunDetail = FlowRunDto & { steps: FlowStepDto[] };
 
@@ -30,6 +31,7 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
   const [rerunning, setRerunning] = useState<string | null>(null);
   const [rerunError, setRerunError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   async function rerunFrom(nodeId: string) {
     if (!detail) return;
@@ -73,7 +75,13 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
   const loadRuns = useCallback(async () => {
     const res = await fetch(`/api/flow/flows/${flowId}/runs?limit=50`).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { runs?: FlowRunDto[] } | null;
-    setRuns(data?.runs ?? []);
+    if (!res?.ok || !data?.runs) {
+      setLoadError(true);
+      setRuns((r) => r ?? []);
+      return;
+    }
+    setLoadError(false);
+    setRuns(data.runs);
   }, [flowId]);
 
   const loadRun = useCallback(
@@ -97,65 +105,106 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRunId, runs]);
 
-  if (runs === null) return <p className="muted flow-pad">{t('runs.loading')}</p>;
+  if (runs === null) {
+    return (
+      <div className="flow-runs" aria-busy="true">
+        <div className="flow-runs-list">
+          <div className="ui-loading-stack flow-pad">
+            <span className="ui-skeleton ui-skeleton-row" />
+            <span className="ui-skeleton ui-skeleton-row" />
+            <span className="ui-skeleton ui-skeleton-row" />
+          </div>
+        </div>
+        <div className="flow-run-detail">
+          <div className="ui-loading-stack">
+            <span className="ui-skeleton ui-skeleton-title" />
+            <span className="ui-skeleton ui-skeleton-block" />
+          </div>
+        </div>
+        <span className="sr-only">{t('runs.loading')}</span>
+      </div>
+    );
+  }
+
+  const retry = (
+    <div className="flow-load-error" role="alert">
+      <p className="ui-error">{t('runs.loadError')}</p>
+      <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadRuns()}>
+        {t('editor.retry')}
+      </button>
+    </div>
+  );
+
+  if (runs.length === 0) {
+    return (
+      <div className="flow-runs-empty">
+        {loadError ? retry : <EmptyState product="flow" title={t('runs.emptyTitle')} body={t('runs.emptyBody')} />}
+      </div>
+    );
+  }
 
   return (
     <div className="flow-runs">
       <div className="flow-runs-list">
         <div className="flow-runs-head">
-          <h3>{t('runs.title')}</h3>
-          <button type="button" className="btn btn-small btn-ghost" onClick={() => void loadRuns()}>
+          <h2 className="flow-panel-title">{t('runs.title')}</h2>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void loadRuns()}>
             {t('runs.refresh')}
           </button>
         </div>
-        {runs.length === 0 ? (
-          <p className="muted flow-pad">{t('runs.empty')}</p>
-        ) : (
-          <ul>
-            {runs.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  className={`flow-run-item${detail?.id === r.id ? ' is-active' : ''}`}
-                  onClick={() => void loadRun(r.id)}
-                >
-                  <span className={`flow-dot is-${r.status}`} aria-hidden="true" />
-                  <span className="flow-run-main">
-                    <span>{t(`runs.status.${r.status}`)}</span>
-                    <span className="muted">
-                      {r.rerunOf ? t('runs.rerun') : t.has(`runs.triggers.${i18nKey(r.triggerType)}`) ? t(`runs.triggers.${i18nKey(r.triggerType)}`) : r.triggerType} ·{' '}
-                      {format.relativeTime(new Date(r.createdAt), now)}
-                    </span>
+        {loadError && retry}
+        <ul>
+          {runs.map((r) => (
+            <li key={r.id}>
+              <button
+                type="button"
+                className="flow-run-item"
+                aria-current={detail?.id === r.id ? 'true' : undefined}
+                onClick={() => void loadRun(r.id)}
+              >
+                <span className="flow-run-main">
+                  <span className={`badge ${RUN_BADGE[r.status] ?? ''}`}>{t(`runs.status.${r.status}`)}</span>
+                  <span className="flow-muted" suppressHydrationWarning>
+                    {r.rerunOf
+                      ? t('runs.rerun')
+                      : t.has(`runs.triggers.${i18nKey(r.triggerType)}`)
+                        ? t(`runs.triggers.${i18nKey(r.triggerType)}`)
+                        : r.triggerType}{' '}
+                    · {format.relativeTime(new Date(r.createdAt), now)}
                   </span>
-                  <span className="muted mono">{formatDuration(r.startedAt, r.finishedAt)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+                </span>
+                <span className="flow-muted data">{formatDuration(r.startedAt, r.finishedAt)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
       <div className="flow-run-detail">
         {!detail ? (
-          <p className="muted flow-pad">{t('runs.selectRun')}</p>
+          <p className="ui-help">{t('runs.selectRun')}</p>
         ) : (
           <>
             <div className="flow-run-summary">
-              <span className={`flow-dot is-${detail.status}`} aria-hidden="true" />
-              <strong>{t(`runs.status.${detail.status}`)}</strong>
-              <span className="muted">
+              <span className={`badge ${RUN_BADGE[detail.status] ?? ''}`}>{t(`runs.status.${detail.status}`)}</span>
+              <span className="flow-muted" suppressHydrationWarning>
                 {format.dateTime(new Date(detail.createdAt), { dateStyle: 'medium', timeStyle: 'medium' })}
               </span>
-              <span className="muted mono">{detail.id.slice(0, 8)}</span>
+              <span className="flow-muted data">{detail.id.slice(0, 8)}</span>
               {canEdit && (detail.status === 'queued' || detail.status === 'waiting') && (
-                <button type="button" className="btn btn-small btn-ghost" disabled={cancelling} onClick={() => void cancelRun()}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-danger btn-sm"
+                  aria-busy={cancelling || undefined}
+                  onClick={() => void cancelRun()}
+                >
                   {t('runs.cancel')}
                 </button>
               )}
             </div>
-            {detail.error && <p className="flow-error">{detail.error}</p>}
-            {detail.rerunOf && <p className="muted flow-hint">{t('runs.rerunOf', { id: detail.rerunOf.slice(0, 8) })}</p>}
+            {detail.error && <p className="flow-run-error data">{detail.error}</p>}
+            {detail.rerunOf && <p className="ui-help">{t('runs.rerunOf', { id: detail.rerunOf.slice(0, 8) })}</p>}
             {rerunError && (
-              <p className="flow-error" role="alert">
+              <p className="ui-error" role="alert">
                 {rerunError}
               </p>
             )}
@@ -163,22 +212,28 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
               {detail.steps.map((s) => {
                 const open = openStep === s.id;
                 return (
-                  <li key={s.id} className={`flow-step is-${s.status}`}>
+                  <li key={s.id} className="flow-step" data-status={s.status}>
                     <button type="button" className="flow-step-head" onClick={() => setOpenStep(open ? null : s.id)} aria-expanded={open}>
-                      <span className={`flow-dot is-${s.status}`} aria-hidden="true" />
+                      <span className="flow-step-station" aria-hidden="true" />
                       <span className="flow-step-name">
-                        {t(`nodes.${i18nKey(s.nodeType)}.title`)} <span className="mono muted">{s.nodeId}</span>
+                        {t(`nodes.${i18nKey(s.nodeType)}.title`)} <span className="flow-muted data">{s.nodeId}</span>
                       </span>
-                      <span className="muted">{t(`stepStatus.${s.status}`)}</span>
-                      <span className="muted mono">{formatDuration(s.startedAt, s.finishedAt)}</span>
+                      <span className={`badge ${RUN_BADGE[s.status] ?? ''}`}>{t(`stepStatus.${s.status}`)}</span>
+                      <span className="flow-muted data flow-step-time">{formatDuration(s.startedAt, s.finishedAt)}</span>
                     </button>
-                    {s.error && <p className="flow-error flow-step-error">{s.error}</p>}
+                    {s.error && <p className="flow-run-error data flow-step-error">{s.error}</p>}
                     {open && canEdit && (detail.status === 'failed' || detail.status === 'success') && !s.nodeType.startsWith('trigger.') && (
                       <div className="flow-step-actions">
-                        <button type="button" className="btn btn-small" disabled={rerunning !== null} onClick={() => void rerunFrom(s.nodeId)}>
-                          {rerunning === s.nodeId ? t('editor.running') : t('runs.rerunFrom')}
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={rerunning !== null && rerunning !== s.nodeId}
+                          aria-busy={rerunning === s.nodeId || undefined}
+                          onClick={() => void rerunFrom(s.nodeId)}
+                        >
+                          {t('runs.rerunFrom')}
                         </button>
-                        <span className="muted">{t('runs.rerunHint')}</span>
+                        <span className="ui-help">{t('runs.rerunHint')}</span>
                       </div>
                     )}
                     {open && (
