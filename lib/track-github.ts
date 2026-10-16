@@ -313,6 +313,12 @@ async function workspacePrefixes(workspaceId: string): Promise<string[]> {
   return rows.map((r) => r.slug.toUpperCase());
 }
 
+/**
+ * Issues del workspace con esos identificadores. Los identificadores se
+ * guardan en mayúscula (nextIdentifier usa el slug en mayúscula), así que se
+ * compara directo y la query usa UNIQUE(project_id, identifier); el filtro de
+ * workspace va sin COALESCE para poder usar idx_track_projects_team.
+ */
 async function findWorkspaceIssues(workspaceId: string, identifiers: string[]): Promise<WorkspaceIssue[]> {
   if (identifiers.length === 0) return [];
   const ph = identifiers.map(() => '?').join(', ');
@@ -322,9 +328,9 @@ async function findWorkspaceIssues(workspaceId: string, identifiers: string[]): 
        FROM track_issues i
        JOIN track_projects p ON p.id = i.project_id
        LEFT JOIN track_statuses s ON s.id = i.status_id
-       WHERE COALESCE(p.team_id, p.owner_id) = ? AND UPPER(i.identifier) IN (${ph})`,
+       WHERE (p.team_id = ? OR (p.team_id IS NULL AND p.owner_id = ?)) AND i.identifier IN (${ph})`,
     )
-    .all(workspaceId, ...identifiers.map((i) => i.toUpperCase()))) as WorkspaceIssue[];
+    .all(workspaceId, workspaceId, ...identifiers.map((i) => i.toUpperCase()))) as WorkspaceIssue[];
 }
 
 async function moveIssueToCategory(
@@ -347,6 +353,22 @@ async function moveIssueToCategory(
   return true;
 }
 
+/** Tope de identificadores que se procesan por entrega (vínculos). */
+export const MAX_LINKED_PER_DELIVERY = 50;
+/** Tope de issues a los que una entrega puede cambiarles el status. */
+export const MAX_MOVED_PER_DELIVERY = 10;
+
+/**
+ * Autores de PR con acceso al repo. Los webhooks de repo también reciben los
+ * PRs que abre cualquiera desde un fork: esos no mueven issues ni vinculan
+ * menciones sueltas hasta que alguien con acceso los mergea.
+ */
+const TRUSTED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+
+export function isTrustedPrAuthor(association: string | null | undefined): boolean {
+  return TRUSTED_ASSOCIATIONS.has(String(association ?? '').toUpperCase());
+}
+
 export interface WebhookResult {
   status: number;
   body: Record<string, unknown>;
@@ -364,6 +386,7 @@ interface PrPayload {
     state?: string;
     head?: { ref?: string };
     user?: { login?: string };
+    author_association?: string;
   };
   repository?: { full_name?: string };
 }
@@ -412,13 +435,6 @@ export async function handleGithubWebhook(
     const pr = p.pull_request;
     if (!pr?.number || !pr.html_url) return { status: 400, body: { error: 'invalid_payload' } };
     const branch = pr.head?.ref ?? '';
-    const ids = parseIssueIdentifiers([branch, pr.title ?? '', pr.body ?? ''].join('\n'), prefixes);
-    // Solo estos cambian de status; las demás menciones del cuerpo solo se vinculan.
-    const movable = new Set([
-      ...parseIssueIdentifiers([branch, pr.title ?? ''].join('\n'), prefixes),
-      ...parseClosingIdentifiers(pr.body ?? '', prefixes),
-    ]);
-    const issues = await findWorkspaceIssues(row.workspace_id, ids);
     const action = p.action ?? '';
     const kind: GithubEventKind =
       action === 'closed'
@@ -428,6 +444,26 @@ export async function handleGithubWebhook(
         : action === 'opened' || action === 'reopened' || action === 'ready_for_review'
           ? 'pr_opened'
           : 'pr_updated';
+    // Mergear exige acceso de escritura, así que un merge cuenta aunque el PR
+    // venga de un fork; antes de eso solo cuenta si el autor tiene acceso.
+    const trusted = kind === 'pr_merged' || isTrustedPrAuthor(pr.author_association);
+    // Solo estos cambian de status; las demás menciones del cuerpo solo se vinculan.
+    const movableIds = Array.from(
+      new Set([
+        ...parseIssueIdentifiers([branch, pr.title ?? ''].join('\n'), prefixes),
+        ...parseClosingIdentifiers(pr.body ?? '', prefixes),
+      ]),
+    ).slice(0, MAX_MOVED_PER_DELIVERY);
+    const movable = new Set(movableIds);
+    // Un PR de alguien sin acceso solo se vincula a los issues que nombra en
+    // branch, título o con palabra clave (con tope), y no mueve nada.
+    const ids = trusted
+      ? parseIssueIdentifiers([branch, pr.title ?? '', pr.body ?? ''].join('\n'), prefixes).slice(
+          0,
+          MAX_LINKED_PER_DELIVERY,
+        )
+      : movableIds;
+    const issues = await findWorkspaceIssues(row.workspace_id, ids);
     // El estado del vínculo sale del PR, no de la action: GitHub manda
     // edited/labeled/assigned también para PRs cerrados o mergeados.
     const state: TrackIssueLink['state'] = pr.merged
@@ -449,7 +485,7 @@ export async function handleGithubWebhook(
         branch: branch || null,
         author: pr.user?.login ?? null,
       });
-      if (!movable.has(issue.identifier.toUpperCase())) continue;
+      if (!trusted || !movable.has(issue.identifier.toUpperCase())) continue;
       const target = plannedCategory(issue.status_category, kind, config);
       const via = { author: pr.user?.login ?? null, ref: `#${pr.number}` };
       if (target && (await moveIssueToCategory(issue, target, row.owner_id, via))) moved++;
@@ -461,17 +497,28 @@ export async function handleGithubWebhook(
     const p = payload as PushPayload;
     const branch = (p.ref ?? '').replace(/^refs\/heads\//, '');
     const branchIds = parseIssueIdentifiers(branch, prefixes);
+    // Una sola query para todos los commits (antes era una por commit).
+    const commits = (p.commits ?? [])
+      .slice(0, 50)
+      .filter((c) => c.id && c.url)
+      .map((c) => ({
+        c,
+        ids: Array.from(new Set([...branchIds, ...parseIssueIdentifiers(c.message ?? '', prefixes)])),
+      }));
+    const allIds = Array.from(new Set(commits.flatMap((x) => x.ids))).slice(0, MAX_LINKED_PER_DELIVERY);
+    const byIdentifier = new Map<string, WorkspaceIssue[]>();
+    for (const issue of await findWorkspaceIssues(row.workspace_id, allIds)) {
+      const key = issue.identifier.toUpperCase();
+      byIdentifier.set(key, [...(byIdentifier.get(key) ?? []), issue]);
+    }
     let linked = 0;
-    for (const c of (p.commits ?? []).slice(0, 50)) {
-      if (!c.id || !c.url) continue;
-      const ids = Array.from(new Set([...branchIds, ...parseIssueIdentifiers(c.message ?? '', prefixes)]));
-      const issues = await findWorkspaceIssues(row.workspace_id, ids);
-      for (const issue of issues) {
+    for (const { c, ids } of commits) {
+      for (const issue of ids.flatMap((id) => byIdentifier.get(id) ?? [])) {
         await upsertLink(issue.id, {
           kind: 'commit',
           repo,
-          ref: c.id,
-          url: c.url,
+          ref: c.id as string,
+          url: c.url as string,
           title: (c.message ?? '').split('\n')[0],
           state: 'pushed',
           branch: branch || null,

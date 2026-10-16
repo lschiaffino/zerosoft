@@ -18,6 +18,8 @@ const CATEGORY_KEY: Record<Category, string> = {
 interface StatusesSettingsProps {
   projectId: string;
   statuses: TrackStatusRow[];
+  /** Borrar status es solo para owner/admin. */
+  canDelete?: boolean;
   /** Estado nuevo tras cada cambio (la vista recarga issues si hace falta). */
   onChange: (statuses: TrackStatusRow[], opts?: { reloadIssues?: boolean }) => void;
 }
@@ -26,7 +28,7 @@ interface StatusesSettingsProps {
  * Configuración de los status del workflow de un proyecto: agregar, renombrar,
  * color, categoría, reordenar (↑/↓) y borrar reasignando sus issues.
  */
-export default function StatusesSettings({ projectId, statuses, onChange }: StatusesSettingsProps) {
+export default function StatusesSettings({ projectId, statuses, canDelete = true, onChange }: StatusesSettingsProps) {
   const t = useTranslations('track');
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
@@ -159,17 +161,19 @@ export default function StatusesSettings({ projectId, statuses, onChange }: Stat
             >
               ↓
             </button>
-            <button
-              type="button"
-              className="btn btn-small"
-              disabled={statuses.length <= 1}
-              onClick={() => {
-                setDeleting(s.id);
-                setReassignTo(statuses.find((x) => x.id !== s.id)?.id ?? '');
-              }}
-            >
-              {t('statusSettings.delete')}
-            </button>
+            {canDelete && (
+              <button
+                type="button"
+                className="btn btn-small"
+                disabled={statuses.length <= 1}
+                onClick={() => {
+                  setDeleting(s.id);
+                  setReassignTo(statuses.find((x) => x.id !== s.id)?.id ?? '');
+                }}
+              >
+                {t('statusSettings.delete')}
+              </button>
+            )}
             {deleting === s.id && (
               <div className="track-status-delete" role="group" aria-label={t('statusSettings.delete')}>
                 <label>
@@ -195,6 +199,7 @@ export default function StatusesSettings({ projectId, statuses, onChange }: Stat
           </li>
         ))}
       </ul>
+      {!canDelete && <p className="muted track-settings-help">{t('statusSettings.adminOnly')}</p>}
       <form className="track-status-add" onSubmit={add}>
         <input
           value={newName}

@@ -2061,6 +2061,15 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_track_issues_parent ON track_issues(parent_id)');
     },
   },
+  {
+    // Track: el progreso de los cycles (listCyclesWithProgress) cuenta issues
+    // por cycle_id y status; sin índice cada subconsulta recorría toda la
+    // tabla (de todos los workspaces). También lo usa el ON DELETE SET NULL.
+    id: '030_track_issues_cycle_index',
+    async up(client) {
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_track_issues_cycle ON track_issues(cycle_id, status_id)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

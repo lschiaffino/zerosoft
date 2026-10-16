@@ -168,6 +168,7 @@ describe('Track GitHub: config y webhook', () => {
         body: `Cierra ${other.identifier.toLowerCase()}`,
         head: { ref: `${issue.identifier.toLowerCase()}-login` },
         user: { login: 'octo' },
+        author_association: 'MEMBER',
         merged: false,
         ...extra,
       },
@@ -271,5 +272,89 @@ describe('Track GitHub: config y webhook', () => {
       await issueGithubRoute.GET(new NextRequest('http://x') as never, { params: Promise.resolve({ id: main.id }) })
     ).json()) as { rows: Array<{ state: string }> };
     expect(links.rows.map((r) => r.state)).toEqual(['merged']);
+  });
+
+  it('webhook: un PR de alguien sin acceso (fork) no mueve issues ni vincula menciones sueltas', async () => {
+    const a = await makeUser('ghf');
+    const project = await createProject(a.id, null, { name: 'Pub', slug: `ghf-${crypto.randomUUID().slice(0, 6)}` });
+    const issues: Awaited<ReturnType<typeof createIssue>>[] = [];
+    for (let i = 0; i < 12; i++) {
+      issues.push(await createIssue(project.id, a.id, { title: `I${i}`, description: [] }, { source: 'app' }));
+    }
+    const before = await Promise.all(issues.map(async (i) => (await getIssue(i.id))?.status_id));
+
+    session.user = { ...a, team: null, role: 'owner' };
+    const conf = (await (await configRoute.PUT(put({ repos: ['acme/pub'] }))).json()) as {
+      secret: string;
+      config: { id: string };
+    };
+    const pr = (action: string, association: string, extra: Record<string, unknown> = {}) => ({
+      action,
+      repository: { full_name: 'acme/pub' },
+      pull_request: {
+        number: 9,
+        html_url: 'https://github.com/acme/pub/pull/9',
+        title: 'Spam',
+        body: `fixes ${issues.map((i) => i.identifier).join(', ')}\nver ${issues[0].identifier}`,
+        head: { ref: 'patch-1', repo: { fork: true } },
+        user: { login: 'extraño' },
+        author_association: association,
+        merged: false,
+        state: 'open',
+        ...extra,
+      },
+    });
+
+    // Contributor externo: no mueve nada; vincula solo hasta el tope de movibles.
+    const opened = await delivery(conf.config.id, 'pull_request', pr('opened', 'NONE'), conf.secret);
+    expect(await opened.json()).toEqual({ linked: 10, moved: 0 });
+    for (let i = 0; i < issues.length; i++) {
+      expect((await getIssue(issues[i].id))?.status_id).toBe(before[i]);
+    }
+
+    // Un miembro sí mueve, pero con tope por entrega.
+    const member = await delivery(conf.config.id, 'pull_request', pr('opened', 'MEMBER', { number: 10 }), conf.secret);
+    expect(await member.json()).toEqual({ linked: 12, moved: 10 });
+    expect((await getIssue(issues[11].id))?.status_id).toBe(before[11]);
+
+    // Si alguien con acceso mergea el PR externo, ahí sí cuenta.
+    const merged = await delivery(
+      conf.config.id,
+      'pull_request',
+      pr('closed', 'NONE', { merged: true, state: 'closed' }),
+      conf.secret,
+    );
+    expect(await merged.json()).toEqual({ linked: 12, moved: 10 });
+    expect((await getIssue(issues[0].id))?.status_category).toBe('done');
+  });
+
+  it('webhook push: vincula commits de varios issues con una sola búsqueda', async () => {
+    const a = await makeUser('ghp');
+    const project = await createProject(a.id, null, { name: 'Push', slug: `ghp-${crypto.randomUUID().slice(0, 6)}` });
+    const one = await createIssue(project.id, a.id, { title: 'Uno', description: [] }, { source: 'app' });
+    const two = await createIssue(project.id, a.id, { title: 'Dos', description: [] }, { source: 'app' });
+    session.user = { ...a, team: null, role: 'owner' };
+    const conf = (await (await configRoute.PUT(put({ repos: ['acme/push'] }))).json()) as {
+      secret: string;
+      config: { id: string };
+    };
+    const commit = (id: string, message: string) => ({
+      id,
+      message,
+      url: `https://github.com/acme/push/commit/${id}`,
+      author: { username: 'octo' },
+    });
+    const res = await delivery(
+      conf.config.id,
+      'push',
+      {
+        ref: `refs/heads/${one.identifier.toLowerCase()}-x`,
+        repository: { full_name: 'acme/push' },
+        commits: [commit('c1', 'a'), commit('c2', `toca ${two.identifier.toLowerCase()}`), { id: 'c3' }],
+      },
+      conf.secret,
+    );
+    // c1 → one; c2 → one + two; c3 sin url se ignora.
+    expect(await res.json()).toEqual({ linked: 3 });
   });
 });

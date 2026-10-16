@@ -330,6 +330,7 @@
     "moveDown": "Move down",
     "delete": "Delete",
     "reassignTo": "Move its issues to",
+    "adminOnly": "Only an admin can delete statuses.",
     "confirmDelete": "Delete status",
     "newPlaceholder": "New status",
     "add": "Add"
@@ -352,7 +353,7 @@
     "duplicate": "A label with that name already exists.",
     "empty": "No labels yet.",
     "error": "Could not save the label.",
-    "adminOnly": "Only an admin can delete labels."
+    "adminOnly": "Only an admin can edit or delete labels."
   },
   "github": {
     "title": "GitHub",
@@ -423,6 +424,8 @@
     "title": "Triage",
     "enable": "Triage for external issues",
     "enableHelp": "Issues created through the API, Chat, Flow or GitHub wait here until someone accepts them.",
+    "toggleError": "Could not change triage.",
+    "adminOnly": "Only an admin can turn triage on or off.",
     "empty": "No issues waiting for triage.",
     "accept": "Accept",
     "acceptAs": "Accept as",

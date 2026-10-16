@@ -158,7 +158,14 @@ export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): 
       const add = ws ? await labelsByIds(ws, p.addLabelIds ?? []) : [];
       const remove = new Set(p.removeLabelIds ?? []);
       const current = parseIssueLabels(issue.labels).filter((l) => !remove.has(l.id));
+      const kept = current.length;
       for (const l of add) if (!current.some((c) => c.id === l.id)) current.push(l);
+      // Si el label nuevo no entra (tope de 10) no se recorta en silencio
+      // contándolo como actualizado: se informa como salteado.
+      if (current.length > 10 && current.length > kept) {
+        result.skipped.push({ id, reason: 'too_many_labels' });
+        continue;
+      }
       patch.labels = current.slice(0, 10);
     }
     await updateIssue(issue.id, patch, scope.actorId);
@@ -194,7 +201,8 @@ async function firstStatusOf(projectId: string, category: string): Promise<strin
 
 /**
  * Busca un issue por identifier (sin distinguir mayúsculas) en cualquier
- * proyecto del workspace al que pertenece `projectId`.
+ * proyecto del workspace al que pertenece `projectId`. Si hay más de uno
+ * con ese identifier devuelve undefined.
  */
 export async function findWorkspaceIssueByIdentifier(
   projectId: string,
@@ -203,13 +211,15 @@ export async function findWorkspaceIssueByIdentifier(
   const project = await getProject(projectId);
   const ws = project ? projectWorkspaceId(project) : null;
   if (!ws) return undefined;
-  const row = (await getDb()
+  const rows = (await getDb()
     .prepare(
       `SELECT i.id FROM track_issues i JOIN track_projects p ON p.id = i.project_id
-       WHERE COALESCE(p.team_id, p.owner_id) = ? AND UPPER(i.identifier) = ? LIMIT 1`,
+       WHERE COALESCE(p.team_id, p.owner_id) = ? AND UPPER(i.identifier) = ? LIMIT 2`,
     )
-    .get(ws, identifier.trim().toUpperCase())) as { id: string } | undefined;
-  return row ? getIssue(row.id) : undefined;
+    .all(ws, identifier.trim().toUpperCase())) as Array<{ id: string }>;
+  // Datos viejos pueden tener el mismo identifier en dos proyectos (un slug
+  // reusado): ante la ambigüedad no se elige uno cualquiera.
+  return rows.length === 1 ? getIssue(rows[0].id) : undefined;
 }
 
 /**

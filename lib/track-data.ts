@@ -169,11 +169,20 @@ async function nextIdentifier(projectId: string): Promise<string> {
     .get(projectId)) as { slug: string } | undefined;
   const prefix = (prefixRow?.slug ?? 'project').toUpperCase();
 
+  // El número sigue al máximo del prefijo en todo el workspace, no solo en el
+  // proyecto: si un slug se liberó (rename) y otro proyecto lo reusa, sus
+  // issues no repiten identificadores (GitHub y la búsqueda por identifier
+  // actúan a nivel workspace).
   const row = (await db
     .prepare(
-      "SELECT COALESCE(MAX(CAST(SUBSTR(identifier, ?) AS INTEGER)), 0) AS n FROM track_issues WHERE project_id = ? AND identifier LIKE ?",
+      `SELECT COALESCE(MAX(CAST(SUBSTR(i.identifier, ?) AS INTEGER)), 0) AS n
+       FROM track_issues i
+       WHERE i.identifier LIKE ? AND SUBSTR(i.identifier, ?) NOT GLOB '*[^0-9]*' AND i.project_id IN (
+         SELECT p.id FROM track_projects p, track_projects me
+         WHERE me.id = ? AND COALESCE(p.team_id, p.owner_id) = COALESCE(me.team_id, me.owner_id)
+       )`,
     )
-    .get(prefix.length + 2, projectId, `${prefix}-%`)) as { n: number } | undefined;
+    .get(prefix.length + 2, `${prefix}-%`, prefix.length + 2, projectId)) as { n: number } | undefined;
 
   return `${prefix}-${(row?.n ?? 0) + 1}`;
 }

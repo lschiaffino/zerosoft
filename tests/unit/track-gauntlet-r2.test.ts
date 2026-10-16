@@ -233,6 +233,7 @@ describe('Track gauntlet r2: GitHub', () => {
         body: '',
         head: { ref: 'fix' },
         user: { login: 'octo' },
+        author_association: 'OWNER',
         merged: false,
       },
     });
