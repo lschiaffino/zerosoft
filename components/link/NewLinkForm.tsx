@@ -254,7 +254,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
             </label>
             <input
               id="nl-max"
-              className="input mono"
+              className="input mono lk-ph-ui"
               type="number"
               min={1}
               inputMode="numeric"

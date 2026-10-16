@@ -277,9 +277,13 @@
 
 /* La serie va en el color de la línea; el último punto es una estación. */
 .link-chart { width: 100%; height: auto; display: block; font-family: var(--font-data); }
+/* LinkChartView: el SVG se dibuja al tamaño de esta caja (texto siempre a 11px). */
+.link-chart-wrap { width: 100%; height: 240px; min-width: 0; }
+.link-chart-wrap > .link-chart { height: 100%; }
+@media (max-width: 600px) { .link-chart-wrap { height: 200px; } }
 .chart-grid { stroke: var(--line); stroke-width: 1; }
 .chart-ylabel { fill: var(--brand-gray-2); font-size: 11px; font-family: var(--font-data); }
-.chart-xlabel { fill: var(--brand-gray-2); font-size: 10px; font-family: var(--font-data); }
+.chart-xlabel { fill: var(--brand-gray-2); font-size: 11px; font-family: var(--font-data); }
 .chart-area { fill: color-mix(in srgb, var(--accent) 10%, transparent); }
 .chart-line { stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .chart-line-2 { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 3; stroke-linejoin: round; }
@@ -342,15 +346,15 @@ a.lk-route-name:hover { text-decoration: underline; text-underline-offset: 3px; 
 
 .lk-meta { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 0.8125rem; color: var(--brand-gray-2); }
 
-/* Tira de cifras: celdas separadas por filetes, sin tarjetas. */
+/* Tira de cifras: celdas separadas por filetes verticales, sin caja ni tarjetas. */
 .lk-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--line);
   margin: 0;
 }
 .lk-stats-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.lk-stat { display: flex; flex-direction: column; gap: 4px; padding: 16px 20px; min-width: 0; }
+.lk-stat { display: flex; flex-direction: column; gap: 4px; padding: 4px 20px; min-width: 0; }
+.lk-stat:first-child { padding-left: 0; }
 .lk-stat + .lk-stat { border-left: 1px solid var(--line); }
 .lk-stat dt { font-size: 0.8125rem; font-weight: 600; color: var(--brand-gray-2); }
 .lk-stat dd { margin: 0; }
@@ -361,6 +365,14 @@ a.lk-route-name:hover { text-decoration: underline; text-underline-offset: 3px; 
 .lk-delta[data-dir='down'] { color: var(--bad-ink); }
 
 .lk-panel { display: flex; flex-direction: column; gap: 16px; padding: 20px; min-width: 0; }
+/* Bloque sobre el campo: título y un filete arriba, sin caja. */
+.lk-block { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-top: 16px; border-top: 1px solid var(--line); }
+
+/* Leyenda: un tramo corto del trazo de cada serie. */
+.lk-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; color: var(--brand-gray-1); }
+.lk-key { display: inline-flex; align-items: center; gap: 8px; }
+.lk-key::before { content: ''; flex: 0 0 16px; width: 16px; height: 0; border-top: 3px solid var(--accent); }
+.lk-key-2::before { border-top: 2px dashed var(--ink); }
 .lk-panel-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .lk-h {
   font-family: var(--font-signage);
@@ -370,10 +382,11 @@ a.lk-route-name:hover { text-decoration: underline; text-underline-offset: 3px; 
   line-height: 1.15;
 }
 /* El <section> del sitio trae padding de página; acá las secciones son bloques de la app. */
-section.ui-section, .lk-section, .lk-domains { padding: 0; }
+.lk-section, .lk-domains { padding: 0; }
+section.lk-block { padding-bottom: 0; }
 .lk-section { display: flex; flex-direction: column; gap: 12px; }
-.lk-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.lk-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.lk-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; }
+.lk-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 32px; }
 .lk-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .lk-more { font-size: 0.8125rem; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .lk-empty-line { font-size: 0.8125rem; color: var(--brand-gray-2); }
@@ -396,6 +409,7 @@ section.ui-section, .lk-section, .lk-domains { padding: 0; }
 .lk-cell-trunc { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Lista */
+.lk-clicks-full { display: none; }
 .lk-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .lk-search { position: relative; flex: 1 1 260px; max-width: 420px; }
 .lk-search .input { padding-left: 32px; }
@@ -449,6 +463,8 @@ section.ui-section, .lk-section, .lk-domains { padding: 0; }
 .lk-toast-close { display: inline-flex; align-items: center; margin-left: 0; padding: 6px; }
 
 /* Formularios */
+/* Valor numérico en mono; el placeholder ("Sin límite") es texto y va en Archivo. */
+.input.lk-ph-ui::placeholder { font-family: var(--font-ui); }
 .lk-fieldset { display: flex; flex-direction: column; gap: 12px; border: 0; padding: 0; margin: 0; min-width: 0; }
 .lk-fieldset > legend { padding: 0; margin-bottom: 4px; }
 .lk-utm { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -568,20 +584,19 @@ section.ui-section, .lk-section, .lk-domains { padding: 0; }
 .lk-bio-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lk-bio-short { font-size: 0.8125rem; color: var(--brand-gray-2); }
 .lk-bio-move { display: flex; }
+.lk-bio-item[data-hidden]:not([data-on]) .lk-bio-label { color: var(--brand-gray-2); }
+.lk-bio-why { flex-shrink: 0; }
 
 .lk-skeleton-bar { height: 40px; width: 100%; max-width: 560px; }
 
 @media (max-width: 960px) {
-  .lk-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lk-qr { grid-template-columns: 1fr; }
   .lk-qr-preview { position: static; max-width: 320px; }
 }
 
 @media (max-width: 720px) {
-  .lk-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lk-stat:nth-child(3) { border-left: 0; }
-  .lk-stat:nth-child(n + 3) { border-top: 1px solid var(--line); }
-  .lk-stats-2 .lk-stat:nth-child(n + 3) { border-top: 0; }
+  .lk-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; }
+  .lk-stat:nth-child(odd) { border-left: 0; padding-left: 0; }
   .lk-grid-2, .lk-grid-3, .lk-utm { grid-template-columns: 1fr; }
   .lk-rule, .lk-rule-ab { grid-template-columns: 24px minmax(0, 1fr); }
   .lk-rule > :not(.lk-rule-n) { grid-column: 2; }
@@ -598,10 +613,11 @@ section.ui-section, .lk-section, .lk-domains { padding: 0; }
   .links-table thead { display: none; }
   .links-table tbody tr {
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-columns: 28px auto minmax(0, 1fr);
     grid-template-areas:
-      'check link clicks'
-      'check dest status'
+      'check link link'
+      'check dest dest'
+      'check status clicks'
       'check actions actions';
     gap: 2px 10px;
     padding: 10px 0;
@@ -610,9 +626,11 @@ section.ui-section, .lk-section, .lk-domains { padding: 0; }
   .links-table td { display: block; height: auto; padding: 0; border: 0; max-width: none; }
   .links-table .lk-col-check { grid-area: check; }
   .links-table .lk-col-link { grid-area: link; min-width: 0; }
-  .links-table .lk-col-clicks { grid-area: clicks; }
+  .links-table td.lk-col-clicks { grid-area: clicks; align-self: center; text-align: left; font-size: 0.8125rem; color: var(--brand-gray-1); }
+  .links-table .lk-clicks-n { display: none; }
+  .links-table .lk-clicks-full { display: inline; font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
   .links-table .lk-col-dest { grid-area: dest; min-width: 0; }
-  .links-table .lk-col-status { grid-area: status; text-align: right; }
+  .links-table .lk-col-status { grid-area: status; padding-top: 2px; }
   .links-table .lk-col-actions { grid-area: actions; width: auto; }
   .links-table .lk-row-actions { justify-content: flex-start; margin-left: -8px; }
   .links-table .lk-col-tags, .links-table .lk-col-date { display: none; }

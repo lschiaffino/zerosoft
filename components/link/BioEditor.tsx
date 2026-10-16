@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { BioEditorLink, BioSettings } from '@/lib/link-bio';
+import type { LinkStatus } from '@/lib/links';
 import FormSection from '@/components/ui/FormSection';
+import StatusBadge from './StatusBadge';
 import EmptyState from '@/components/ui/EmptyState';
 import { NEW_LINK_ROUTES } from '@/lib/link-detail-tabs';
 
@@ -12,6 +14,27 @@ interface Props {
   handle: string;
   /** Los elegidos (todos) + los activos más nuevos; el resto se busca. */
   links: BioEditorLink[];
+}
+
+interface SearchLink {
+  id: string;
+  title: string | null;
+  url: string;
+  short_url: string;
+  archived: boolean;
+  has_password: boolean;
+  expires_at: string | null;
+  max_clicks: number | null;
+  clicks: number;
+}
+
+/** Mismo criterio que linkStatus() del server, sobre el DTO de /api/links. */
+function searchStatus(l: SearchLink): LinkStatus {
+  if (l.archived) return 'archived';
+  if (l.expires_at && new Date(l.expires_at).getTime() <= Date.now()) return 'expired';
+  if (l.max_clicks !== null && l.clicks >= l.max_clicks) return 'limit';
+  if (l.has_password) return 'protected';
+  return 'active';
 }
 
 /** Editor de la página /@handle: perfil, publicación y links (selección + orden). Un solo Guardar. */
@@ -37,10 +60,16 @@ export default function BioEditor({ initial, handle, links: initialLinks }: Prop
     setSearchMiss(false);
     const res = await fetch(`/api/links?${new URLSearchParams({ q, pageSize: '50' })}`).catch(() => null);
     const data = res?.ok
-      ? ((await res.json().catch(() => null)) as { links?: Array<{ id: string; title: string | null; url: string; short_url: string }> } | null)
+      ? ((await res.json().catch(() => null)) as { links?: SearchLink[] } | null)
       : null;
     setSearching(false);
-    const found = (data?.links ?? []).map((l) => ({ id: l.id, label: l.title || l.url, short: l.short_url, archived: false }));
+    const found = (data?.links ?? []).map((l) => ({
+      id: l.id,
+      label: l.title || l.url,
+      short: l.short_url,
+      archived: l.archived,
+      status: searchStatus(l),
+    }));
     setSearchMiss(found.length === 0);
     setLinks((prev) => [...prev, ...found.filter((f) => !prev.some((p) => p.id === f.id))]);
   }
@@ -87,7 +116,7 @@ export default function BioEditor({ initial, handle, links: initialLinks }: Prop
           checked={values.published}
           onChange={(e) => setValues((v) => ({ ...v, published: e.target.checked }))}
         />
-        {t('bio.published')}
+        {t('bio.publish')}
       </label>
 
       <div className="ui-fields-2">
@@ -155,13 +184,27 @@ export default function BioEditor({ initial, handle, links: initialLinks }: Prop
             {ordered.map((l) => {
               const on = values.linkIds.includes(l.id);
               const pos = values.linkIds.indexOf(l.id);
+              // La página pública no muestra estos: se pueden quitar, no sumar.
+              const hidden = l.status !== 'active';
               return (
-                <li key={l.id} className="lk-bio-item" data-on={on || undefined}>
+                <li key={l.id} className="lk-bio-item" data-on={on || undefined} data-hidden={hidden || undefined}>
                   <label className="ui-check lk-bio-check">
-                    <input type="checkbox" checked={on} onChange={() => toggle(l.id)} aria-label={l.label} />
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => toggle(l.id)}
+                      disabled={hidden && !on}
+                      aria-label={l.label}
+                      aria-describedby={hidden ? `bio-why-${l.id}` : undefined}
+                    />
                     <span className="lk-bio-label">{l.label}</span>
                   </label>
-                  {l.archived && <span className="badge">{t('table.statusArchived')}</span>}
+                  {hidden && (
+                    <span id={`bio-why-${l.id}`} className="lk-bio-why">
+                      <StatusBadge status={l.status} />
+                      <span className="sr-only">{t('bio.notShown')}</span>
+                    </span>
+                  )}
                   <span className="data lk-bio-short">{l.short.replace(/^https?:\/\//, '')}</span>
                   {on && (
                     <span className="lk-bio-move">

@@ -50,6 +50,7 @@ export default async function LinksPage(props: LinksPageProps) {
     title: l.title,
     tags: parseTags(l.tags),
     clicks: formatNumber(l.clicks, locale),
+    clickCount: l.clicks,
     created: formatDate(l.created_at, locale),
     status: linkStatus(l),
   }));

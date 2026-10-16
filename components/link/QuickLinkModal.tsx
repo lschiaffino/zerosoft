@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import QuickModal from '@/components/app/QuickModal';
-import { useSlugCheck } from './slug-check';
+import { composeUtmUrl, useSlugCheck } from './slug-check';
 
 export interface CreatedLink {
   id: string;
@@ -51,6 +51,10 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
   async function submit() {
     setError(null);
     if (!url.trim()) return;
+    if (!composeUtmUrl(url, '', '', '')) {
+      setError(t('errors.invalid_url'));
+      return;
+    }
     setBusy(true);
     try {
       const payload: Record<string, unknown> = { url: url.trim() };
@@ -76,17 +80,19 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
     setBusy(false);
   }
 
+  const slugBad = slugState === 'taken' || slugState === 'invalid' || slugState === 'reserved';
   const fullFormHref = url.trim() ? `/app/links/new?url=${encodeURIComponent(url.trim())}` : '/app/links/new';
 
   return (
     <QuickModal
       open
       onClose={onClose}
-      crumb={`Link / ${t('new.title')}`}
+      crumb={t('new.title')}
+      showCrumb={false}
       onSubmit={submit}
       submitLabel={busy ? t('new.creating') : t('new.create')}
       cancelLabel={t('quick.cancel')}
-      submitDisabled={!url.trim() || slugState === 'taken' || slugState === 'invalid' || slugState === 'reserved'}
+      submitDisabled={!url.trim() || slugBad}
       busy={busy}
       error={error}
       hint={t('quick.hint')}
@@ -139,9 +145,12 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
             spellCheck={false}
           />
         </div>
-        <em className={`qm-slug-hint slug-${slugState}`} aria-live="polite">
+        <span
+          className={slugBad ? 'ui-error' : slugState === 'available' ? 'ui-help lk-ok' : 'ui-help'}
+          aria-live="polite"
+        >
           {slugHint[slugState] ?? t('new.slugHelp')}
-        </em>
+        </span>
       </label>
     </QuickModal>
   );

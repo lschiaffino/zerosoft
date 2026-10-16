@@ -34,10 +34,22 @@ export function shortUrl(slug: string, hostname: string | null = null): string {
   return `${proto}://${domain}/${slug}`;
 }
 
+/**
+ * Host que puede ser un destino real: dominio con TLD (example.com), localhost
+ * o una IP. "x" o "promo" solos no son destinos.
+ */
+export function hasRoutableHost(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/\.$/, '');
+  if (h === 'localhost') return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return true;
+  if (h.startsWith('[') && h.endsWith(']')) return true;
+  return /^([a-z0-9-]+\.)+([a-z]{2,63}|xn--[a-z0-9-]{2,59})$/.test(h);
+}
+
 export function isValidUrl(url: string): boolean {
   try {
     const u = new URL(url);
-    return u.protocol === 'http:' || u.protocol === 'https:';
+    return (u.protocol === 'http:' || u.protocol === 'https:') && hasRoutableHost(u.hostname);
   } catch {
     return false;
   }

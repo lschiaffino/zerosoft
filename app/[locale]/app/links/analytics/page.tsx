@@ -10,6 +10,7 @@ import LinkChart from '@/components/link/LinkChart';
 import LinkIcon from '@/components/link/LinkIcon';
 import { breakdownLabelers } from '@/lib/link-labels';
 import BreakdownBars from '@/components/link/BreakdownBars';
+import { periodDelta, type PeriodDelta } from '@/lib/period-delta';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,11 +29,9 @@ function shift(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function delta(now: number, prev: number, newLabel: string): { text: string; dir: 'up' | 'down' | 'flat' } | null {
-  if (prev === 0) return now > 0 ? { text: newLabel, dir: 'up' } : null;
-  const pct = Math.round(((now - prev) / prev) * 100);
-  if (pct === 0) return { text: '0%', dir: 'flat' };
-  return { text: `${pct > 0 ? '+' : '−'}${Math.abs(pct)}%`, dir: pct > 0 ? 'up' : 'down' };
+/** Días del rango (inclusive), para "vs 30 días previos". */
+function spanDays(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
 }
 
 export default async function LinkAnalyticsPage(props: Props) {
@@ -63,8 +62,15 @@ export default async function LinkAnalyticsPage(props: Props) {
   });
   const noData = t('analytics.noData');
   const q = `from=${range.from}&to=${range.to}`;
-  const dClicks = delta(a.clicks, a.previous.clicks, t('analytics.new'));
-  const dScans = delta(a.scans, a.previous.scans, t('analytics.new'));
+  const days = spanDays(range.from, range.to);
+  const deltaLine = (d: PeriodDelta | null) =>
+    d?.kind === 'none' ? (
+      <dd className="lk-stat-sub">{t('detail.noPrevious')}</dd>
+    ) : d?.kind === 'change' ? (
+      <dd className="lk-stat-sub lk-delta" data-dir={d.dir}>
+        {t('detail.vsPrevious', { delta: d.text, days })}
+      </dd>
+    ) : null;
 
   return (
     <div className="ui-page link-analytics">
@@ -113,34 +119,26 @@ export default async function LinkAnalyticsPage(props: Props) {
           <dd className="data num" data-testid="analytics-clicks">
             {formatNumber(a.clicks, locale)}
           </dd>
-          {dClicks && (
-            <dd className="lk-stat-sub lk-delta" data-dir={dClicks.dir}>
-              {t('detail.vsPrevious', { delta: dClicks.text })}
-            </dd>
-          )}
+          {deltaLine(periodDelta(a.clicks, a.previous.clicks))}
         </div>
         <div className="lk-stat">
           <dt>{t('analytics.scans')}</dt>
           <dd className="data num" data-testid="analytics-scans">
             {formatNumber(a.scans, locale)}
           </dd>
-          {dScans && (
-            <dd className="lk-stat-sub lk-delta" data-dir={dScans.dir}>
-              {t('detail.vsPrevious', { delta: dScans.text })}
-            </dd>
-          )}
+          {deltaLine(periodDelta(a.scans, a.previous.scans))}
         </div>
       </dl>
 
-      <section className="panel lk-panel" aria-labelledby="la-chart-title">
+      <section className="lk-block" aria-labelledby="la-chart-title">
         <div className="lk-panel-head">
           <h2 className="lk-h" id="la-chart-title">
             {t('analytics.chartLabel')}
           </h2>
-          <div className="lk-legend">
-            <span className="lk-key lk-key-1">{t('analytics.legendClicks')}</span>
-            <span className="lk-key lk-key-2">{t('analytics.legendScans')}</span>
-          </div>
+          <ul className="lk-legend">
+            <li className="lk-key lk-key-1">{t('analytics.legendClicks')}</li>
+            <li className="lk-key lk-key-2">{t('analytics.legendScans')}</li>
+          </ul>
         </div>
         <LinkChart
           data={a.byDay.map((d) => ({ date: d.date, count: d.clicks }))}
@@ -148,7 +146,7 @@ export default async function LinkAnalyticsPage(props: Props) {
         />
       </section>
 
-      <section className="lk-section" aria-labelledby="la-top-title">
+      <section className="lk-block" aria-labelledby="la-top-title">
         <h2 className="lk-h" id="la-top-title">
           {t('analytics.topLinks')}
         </h2>
@@ -186,7 +184,7 @@ export default async function LinkAnalyticsPage(props: Props) {
             ['browsers', a.browsers, labels.plain],
           ] as const
         ).map(([key, items, labelFor]) => (
-          <section key={key} className="panel lk-panel" aria-labelledby={`la-${key}`}>
+          <section key={key} className="lk-block" aria-labelledby={`la-${key}`}>
             <h2 className="lk-h" id={`la-${key}`}>
               {t(`analytics.${key}`)}
             </h2>

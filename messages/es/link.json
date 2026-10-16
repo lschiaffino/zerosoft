@@ -42,7 +42,7 @@
   },
   "table": {
     "title": "Links",
-    "newCta": "Crear link",
+    "newCta": "Nuevo link",
     "searchPlaceholder": "Buscá por slug, url o título…",
     "allTags": "Todos los tags",
     "archivedOff": "Activos",
@@ -81,7 +81,8 @@
     "emptyImport": "importalos desde Bitly",
     "pagination": "Páginas",
     "searchLabel": "Buscar links",
-    "tagLabel": "Filtrar por tag"
+    "tagLabel": "Filtrar por tag",
+    "clicksN": "{n, plural, one {# click} other {# clicks}}"
   },
   "new": {
     "title": "Nuevo link",
@@ -132,7 +133,7 @@
     "formNote": "Después podés cambiar todo desde Ajustes del link.",
     "slugHelp": "Vacío, se genera uno solo. 2 a 32 caracteres: letras, números, - y _.",
     "advancedHint": "Título, tags, UTM, redirect, vencimiento, contraseña",
-    "tagRemove": "Quitar {tag}",
+    "tagRemove": "Quitar tag {tag}",
     "utmSourcePlaceholder": "newsletter",
     "utmMediumPlaceholder": "email",
     "utmCampaignPlaceholder": "lanzamiento-q4",
@@ -200,7 +201,6 @@
     "noData": "Sin datos en este rango",
     "range90": "90 días",
     "inRange": "Últimos {range}",
-    "deltaNew": "nuevo",
     "qrScans": "Escaneos QR",
     "variants": "Destinos de la segmentación",
     "variantDefault": "por defecto",
@@ -216,7 +216,7 @@
     },
     "tabsLabel": "Secciones del link",
     "qrScansCount": "{n} por QR",
-    "vsPrevious": "{delta} vs anterior",
+    "vsPrevious": "{delta} vs {days} días previos",
     "none": "Ninguno",
     "seeAnalytics": "Ver analytics completo",
     "noClicksCountry": "Sin clicks de ese país en este rango.",
@@ -234,7 +234,10 @@
     "unarchiveTitle": "Desarchivar",
     "unarchiveDesc": "Vuelve a redirigir al destino.",
     "archiveButton": "Archivar link",
-    "unarchiveButton": "Desarchivar link"
+    "unarchiveButton": "Desarchivar link",
+    "noPrevious": "Sin período anterior",
+    "emptyTitle": "Todavía sin clicks",
+    "emptyBody": "Compartí <data>{short}</data> y los clicks aparecen acá."
   },
   "bulk": {
     "title": "Muchos links a la vez",
@@ -362,8 +365,8 @@
     }
   },
   "domains": {
-    "title": "Dominios propios",
-    "desc": "Usá tu propio dominio corto (go.tuempresa.com/promo). Agregalo, creá el registro DNS y verificá. El HTTPS se configura solo.",
+    "title": "Dominios",
+    "desc": "Agregalo, creá el registro DNS y verificá. El HTTPS se configura solo.",
     "hostname": "Dominio",
     "add": "Agregar dominio",
     "empty": "Todavía no hay dominios propios",
@@ -410,8 +413,8 @@
     "token": "Token de API de Bitly",
     "csv": "Archivo CSV",
     "tokenPlaceholder": "Token de acceso de Bitly",
-    "tokenHelp": "Bitly → Settings → API → Generate token. Lo usamos una vez y no lo guardamos.",
-    "csvHelp": "Bitly → Links → Export (o cualquier CSV con una columna de URL larga).",
+    "tokenHelp": "En Bitly, andá a Settings > API > Generate token. Lo usamos una vez y no lo guardamos.",
+    "csvHelp": "En Bitly, Links > Export (o cualquier CSV con una columna de URL larga).",
     "run": "Importar",
     "running": "Importando…",
     "done": "Importamos {imported} links ({kept} conservaron su back-half).",
@@ -439,7 +442,6 @@
     "pageTitle": "Título",
     "bioText": "Bio",
     "avatar": "URL del avatar (https)",
-    "published": "Publicada",
     "links": "Links en la página",
     "linksHint": "Tildá los links a mostrar y ordenalos. Los links con contraseña, archivados o vencidos no se muestran.",
     "empty": "Todavía no hay links para mostrar",
@@ -456,7 +458,9 @@
     "chosen": "{n, plural, =0 {Ningún link elegido} one {# link en la página} other {# links en la página}}",
     "searchEmpty": "Ningún link coincide.",
     "emptyBody": "Creá un link y volvé para sumarlo a la página.",
-    "emptyCta": "Crear link"
+    "emptyCta": "Crear link",
+    "publish": "Publicar página",
+    "notShown": "No se muestra en la página pública."
   },
   "quick": {
     "cancel": "Cancelar",
@@ -496,7 +500,6 @@
     "clicks": "Clics",
     "scans": "Escaneos QR",
     "prev": "vs período anterior",
-    "new": "nuevo",
     "chartLabel": "Visitas por día",
     "legendClicks": "Clics",
     "legendScans": "Escaneos QR",

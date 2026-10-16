@@ -90,34 +90,37 @@ export default function DomainsPanel({ initial, canManage }: { initial: DomainVi
     }));
   }
 
+  const addForm = canManage && (
+    <FormSection
+      title={t('domains.addTitle')}
+      description={t('domains.desc')}
+      onSubmit={add}
+      submitLabel={t('domains.add')}
+      disabled={!hostname.trim()}
+      className="lk-form"
+    >
+      <div className="ui-field">
+        <label className="label" htmlFor="domain-host">
+          {t('domains.hostname')}
+        </label>
+        <input
+          id="domain-host"
+          className="input mono lk-input-md"
+          value={hostname}
+          onChange={(e) => setHostname(e.target.value)}
+          placeholder="go.example.com"
+          autoComplete="off"
+          spellCheck={false}
+          inputMode="url"
+        />
+      </div>
+    </FormSection>
+  );
+
+  // Con dominios, primero la lista; el alta va abajo.
   return (
     <>
-      {canManage && (
-        <FormSection
-          title={t('domains.addTitle')}
-          description={t('domains.desc')}
-          onSubmit={add}
-          submitLabel={t('domains.add')}
-          disabled={!hostname.trim()}
-          className="lk-form"
-        >
-          <div className="ui-field">
-            <label className="label" htmlFor="domain-host">
-              {t('domains.hostname')}
-            </label>
-            <input
-              id="domain-host"
-              className="input mono lk-input-md"
-              value={hostname}
-              onChange={(e) => setHostname(e.target.value)}
-              placeholder="go.example.com"
-              autoComplete="off"
-              spellCheck={false}
-              inputMode="url"
-            />
-          </div>
-        </FormSection>
-      )}
+      {rows.length === 0 && addForm}
 
       <section className="lk-domains" aria-labelledby="domains-list-title">
         <h2 className="lk-h" id="domains-list-title">
@@ -232,6 +235,8 @@ export default function DomainsPanel({ initial, canManage }: { initial: DomainVi
           </ul>
         )}
       </section>
+
+      {rows.length > 0 && addForm}
     </>
   );
 }

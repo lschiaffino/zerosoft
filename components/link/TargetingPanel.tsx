@@ -98,7 +98,7 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
   const hasAny = rules.length > 0 || ab.length > 0 || !!iosApp || !!androidApp;
 
   return (
-    <FormSection title={t('title')} description={t('hint')} onSubmit={() => send(payload())} submitLabel={t('save')} className="lk-form">
+    <FormSection title={t('title')} titleHidden description={t('hint')} onSubmit={() => send(payload())} submitLabel={t('save')} className="lk-form">
       <fieldset className="lk-fieldset">
         <legend className="label">{t('rules')}</legend>
         <p className="ui-help">

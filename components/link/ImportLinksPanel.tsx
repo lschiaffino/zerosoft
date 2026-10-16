@@ -74,7 +74,7 @@ export default function ImportLinksPanel() {
             </label>
             <input
               id="import-token"
-              className="input mono"
+              className="input"
               type="password"
               value={token}
               onChange={(e) => setToken(e.target.value)}

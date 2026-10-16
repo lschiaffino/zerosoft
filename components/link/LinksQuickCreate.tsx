@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import QuickLinkModal, { type CreatedLink } from './QuickLinkModal';
+import LinkIcon from './LinkIcon';
 
 /** Evento para abrir el modal desde otros lugares de la página (empty state). */
 export const OPEN_NEW_LINK_EVENT = 'zs:new-link';
@@ -98,9 +99,7 @@ export default function LinksQuickCreate({ domain, customDomains }: LinksQuickCr
               {t('quick.view')}
             </Link>
             <button type="button" className="ui-toast-action lk-toast-close" onClick={() => setCreated(null)} aria-label={t('quick.dismiss')}>
-              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-                <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
+              <LinkIcon name="close" size={12} />
             </button>
           </div>
         )}

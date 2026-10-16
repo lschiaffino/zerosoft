@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import LinkIcon from './LinkIcon';
 
 interface TagsInputProps {
   tags: string[];
@@ -37,9 +38,7 @@ export default function TagsInput({ tags, onChange, max = 5, labelledBy, id }: T
             onClick={() => onChange(tags.filter((x) => x !== tag))}
             aria-label={t('new.tagRemove', { tag })}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-              <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
+            <LinkIcon name="close" size={12} />
           </button>
         </span>
       ))}

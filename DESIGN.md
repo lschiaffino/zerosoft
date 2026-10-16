@@ -240,7 +240,7 @@ Square. Every container, plate, button, band, swatch and focus outline has a 0 r
 `.btn` in `styles/ui.css`, one component for site and app. Archivo 600, sentence case, no tracking, 2px corners, 1px border.
 - **Variants:** `.btn-primary` (alias `.btn-solid`): ink plate, white text, one per view. `.btn-secondary` (plain `.btn`, alias `.btn-outline`): white with a 3.2:1 field border. `.btn-ghost`: text only, enamel fill on hover, for tertiary actions. `.btn-danger`: red text; `.btn-primary.btn-danger` is the red plate. `.btn-invert` and `.btn-invert-solid` sit on the black band.
 - **Sizes:** default 40px on the site, 36px inside `.app-frame`; `.btn-sm` (alias `.btn-small`) 32px / 28px in the app; `.btn-lg` 48px. `.btn-icon` is square; `.btn-block` fills the row.
-- **States:** hover lifts the plate one gray step (primary to gray-1, secondary to enamel with an ink border); press scales to 0.98; focus is a 2px ink outline offset 2px (white on the band); disabled is 40% opacity with `not-allowed`; loading is `aria-busy="true"`: the label stays, clicks stop, and a 2px line draws along the bottom edge (static under reduced motion).
+- **States:** hover inverts the primary plate (white with an ink border and ink text; the red plate darkens) and lifts the secondary to enamel with an ink border; press scales to 0.98; focus is a 2px ink outline offset 2px (white on the band); disabled is 40% opacity with `not-allowed`; loading is `aria-busy="true"`: the label stays, clicks stop, and a 2px line draws along the bottom edge (static under reduced motion).
 - **Copy:** a verb and an object ("Crear link", "Guardar cambios"), never "OK" or "Enviar" alone.
 
 ### Signage Band (navigation)

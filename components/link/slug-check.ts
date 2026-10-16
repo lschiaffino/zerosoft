@@ -1,18 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { hasRoutableHost } from '@/lib/utils';
 
 export const SLUG_RE = /^[A-Za-z0-9_-]{2,32}$/;
 
 export type SlugState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'reserved';
 
-/** URL final con los UTM aplicados (null si la URL no parsea). */
+/** URL final con los UTM aplicados (null si no parsea o el host no tiene TLD). */
 export function composeUtmUrl(url: string, source: string, medium: string, campaign: string): string | null {
   const trimmed = url.trim();
   if (!trimmed) return null;
   const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   try {
     const u = new URL(withProto);
+    if (!hasRoutableHost(u.hostname)) return null;
     if (source.trim()) u.searchParams.set('utm_source', source.trim());
     if (medium.trim()) u.searchParams.set('utm_medium', medium.trim());
     if (campaign.trim()) u.searchParams.set('utm_campaign', campaign.trim());

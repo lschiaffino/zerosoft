@@ -77,16 +77,18 @@
    más especificidad para ganarle a reglas de producto como `.x button { color: inherit }`. */
 .app-frame .btn { --btn-h: 36px; --btn-px: 14px; --btn-fs: 0.875rem; color: var(--btn-fg); font-family: var(--font-ui); }
 
-/* Primaria: placa de tinta. Una por vista. */
+/* Primaria: placa de tinta. Una por vista. Al pasar se invierte: blanca con borde de tinta. */
 .btn-primary,
 .btn-solid {
   --btn-bg: var(--ink);
   --btn-fg: var(--bg);
   --btn-bd: var(--ink);
-  --btn-bg-hover: var(--brand-gray-1);
-  --btn-bd-hover: var(--brand-gray-1);
+  --btn-bg-hover: var(--bg);
+  --btn-bd-hover: var(--ink);
+  --btn-fg-hover: var(--ink);
 }
-.btn-primary:hover:not(:disabled), .btn-solid:hover:not(:disabled) { color: var(--bg); }
+.btn-primary:hover:not(:disabled):not([aria-disabled='true']),
+.btn-solid:hover:not(:disabled):not([aria-disabled='true']) { color: var(--btn-fg-hover); }
 
 /* Secundaria: blanca con borde (es el .btn sin variante). */
 .btn-secondary,
@@ -109,6 +111,7 @@
   --btn-bd: var(--bad-ink);
   --btn-bg-hover: #a51f25;
   --btn-bd-hover: #a51f25;
+  --btn-fg-hover: #fff;
 }
 
 /* Sobre la banda negra. */
@@ -668,7 +671,9 @@ dialog.ui-drawer[open] { display: flex; }
 .ui-page-desc { max-width: 65ch; font-size: 0.9375rem; line-height: 1.45; color: var(--brand-gray-1); }
 .ui-page-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 
-/* Sección de formulario: título y ayuda, campos, pie con su propio Guardar. */
+/* Sección de formulario: título y ayuda, campos, pie con su propio Guardar.
+   Sin onSubmit es un <section>: no hereda el padding de sección del sitio. */
+section.ui-section { padding: 0; }
 .ui-section {
   border: 1px solid var(--line);
   border-radius: var(--radius-1);

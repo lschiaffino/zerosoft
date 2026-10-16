@@ -79,6 +79,7 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
   return (
     <FormSection
       title={t('detail.settingsTitle')}
+      titleHidden
       description={t('detail.settingsDesc')}
       onSubmit={save}
       submitLabel={t('detail.saveChanges')}
@@ -156,7 +157,7 @@ export default function EditLinkForm({ link }: { link: LinkDto }) {
             </label>
             <input
               id="el-max"
-              className="input mono"
+              className="input mono lk-ph-ui"
               type="number"
               min={1}
               inputMode="numeric"

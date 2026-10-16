@@ -12,6 +12,7 @@ import {
 } from '@/lib/track';
 import { formatDate, formatDateTime, formatNumber, shortUrl } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import CopyButton from '@/components/link/CopyButton';
 import LinkIcon from '@/components/link/LinkIcon';
@@ -27,6 +28,7 @@ import StatusBadge from '@/components/link/StatusBadge';
 import { parseTargeting } from '@/lib/link-targeting';
 import { breakdownLabelers } from '@/lib/link-labels';
 import { linkTabHref, parseLinkTab, type LinkTab } from '@/lib/link-detail-tabs';
+import { periodDelta } from '@/lib/period-delta';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,13 +37,7 @@ interface DetailPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-function deltaText(now: number, prev: number | null, newLabel: string): { text: string; dir: 'up' | 'down' | 'flat' } | null {
-  if (prev === null) return null;
-  if (prev === 0) return now > 0 ? { text: newLabel, dir: 'up' } : null;
-  const pct = Math.round(((now - prev) / prev) * 100);
-  if (pct === 0) return { text: '0%', dir: 'flat' };
-  return { text: `${pct > 0 ? '+' : '−'}${Math.abs(pct)}%`, dir: pct > 0 ? 'up' : 'down' };
-}
+const RANGE_DAYS: Record<AnalyticsRange, number | null> = { '7d': 7, '30d': 30, '90d': 90, all: null };
 
 export default async function LinkDetailPage(props: DetailPageProps) {
   const searchParams = await props.searchParams;
@@ -75,6 +71,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
   ]);
 
   const short = shortUrl(link.slug, link.domain_hostname ?? null);
+  const shortText = short.replace(/^https?:\/\//, '');
   const status = linkStatus(link);
   const targeting = parseTargeting(link.targeting);
   const branches = targeting
@@ -127,9 +124,23 @@ export default async function LinkDetailPage(props: DetailPageProps) {
 
   let body: React.ReactNode = null;
 
-  if (tab === 'overview' && a) {
+  if (tab === 'overview' && a && a.total === 0) {
+    // Recién creado: en vez de un gráfico plano y ceros, qué hacer para que lleguen clicks.
+    body = (
+      <EmptyState
+        title={t('detail.emptyTitle')}
+        body={t.rich('detail.emptyBody', {
+          short: shortText,
+          data: (chunks) => <span className="data">{chunks}</span>,
+        })}
+        action={<CopyButton text={short} className="btn" label={t('detail.copyShort')} />}
+        product="link"
+      />
+    );
+  } else if (tab === 'overview' && a) {
     const today = a.byDay[a.byDay.length - 1]?.count ?? 0;
-    const delta = deltaText(a.rangeTotal, a.previousTotal, t('detail.deltaNew'));
+    const delta = periodDelta(a.rangeTotal, a.previousTotal);
+    const days = RANGE_DAYS[range];
     const topRef = a.referrers[0]?.name;
     body = (
       <>
@@ -148,9 +159,10 @@ export default async function LinkDetailPage(props: DetailPageProps) {
           <div className="lk-stat">
             <dt>{t('detail.inRange', { range: rangeLabel })}</dt>
             <dd className="data num">{formatNumber(a.rangeTotal, locale)}</dd>
-            {delta && (
+            {delta?.kind === 'none' && <dd className="lk-stat-sub">{t('detail.noPrevious')}</dd>}
+            {delta?.kind === 'change' && days && (
               <dd className="lk-stat-sub lk-delta" data-dir={delta.dir}>
-                {t('detail.vsPrevious', { delta: delta.text })}
+                {t('detail.vsPrevious', { delta: delta.text, days })}
               </dd>
             )}
           </div>
@@ -162,7 +174,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
           </div>
         </dl>
 
-        <section className="panel lk-panel" aria-labelledby="lk-chart-title">
+        <section className="lk-block" aria-labelledby="lk-chart-title">
           <div className="lk-panel-head">
             <h2 className="lk-h" id="lk-chart-title">
               {t('detail.chartLabel')}
@@ -173,13 +185,13 @@ export default async function LinkDetailPage(props: DetailPageProps) {
         </section>
 
         <div className="lk-grid-2">
-          <section className="panel lk-panel" aria-labelledby="lk-ref-title">
+          <section className="lk-block" aria-labelledby="lk-ref-title">
             <h2 className="lk-h" id="lk-ref-title">
               {t('detail.referrers')}
             </h2>
             <BreakdownBars items={a.referrers.slice(0, 6)} emptyLabel={noData} labelFor={labels.plain} />
           </section>
-          <section className="panel lk-panel" aria-labelledby="lk-geo-title">
+          <section className="lk-block" aria-labelledby="lk-geo-title">
             <h2 className="lk-h" id="lk-geo-title">
               {t('detail.countries')}
             </h2>
@@ -214,41 +226,54 @@ export default async function LinkDetailPage(props: DetailPageProps) {
           </a>
         </div>
 
-        <section className="panel lk-panel" aria-labelledby="lk-chart-title">
+        <section className="lk-block" aria-labelledby="lk-chart-title">
           <h2 className="lk-h" id="lk-chart-title">
             {t('detail.chartLabel')}
           </h2>
           <LinkChart data={a.byDay} />
         </section>
 
-        <div className="lk-grid-3">
-          {(
+        {/* De dónde (listas largas, de a dos) y con qué (listas cortas, de a tres). */}
+        {(
+          [
             [
-              ['referrers', a.referrers, labels.plain],
-              ['countries', a.countries, labels.country],
-              ['devices', a.devices, labels.device],
-              ['browsers', a.browsers, labels.plain],
-              ['os', a.os, labels.plain],
-            ] as const
-          ).map(([key, items, labelFor]) => (
-            <section key={key} className="panel lk-panel" aria-labelledby={`lk-${key}`}>
-              <h2 className="lk-h" id={`lk-${key}`}>
-                {t(`detail.${key}`)}
-              </h2>
-              <BreakdownBars items={items} emptyLabel={noData} labelFor={labelFor} />
-            </section>
-          ))}
-          {(link.targeting || a.variants.some((v) => v.name !== 'default')) && (
-            <section className="panel lk-panel" data-testid="detail-variants" aria-labelledby="lk-variants">
-              <h2 className="lk-h" id="lk-variants">
-                {t('detail.variants')}
-              </h2>
-              <BreakdownBars items={a.variants} emptyLabel={noData} labelFor={labels.variant} />
-            </section>
-          )}
-        </div>
+              'lk-grid-2',
+              [
+                ['referrers', a.referrers, labels.plain],
+                ['countries', a.countries, labels.country],
+              ],
+            ],
+            [
+              'lk-grid-3',
+              [
+                ['devices', a.devices, labels.device],
+                ['browsers', a.browsers, labels.plain],
+                ['os', a.os, labels.plain],
+              ],
+            ],
+          ] as const
+        ).map(([grid, blocks]) => (
+          <div key={grid} className={grid}>
+            {blocks.map(([key, items, labelFor]) => (
+              <section key={key} className="lk-block" aria-labelledby={`lk-${key}`}>
+                <h2 className="lk-h" id={`lk-${key}`}>
+                  {t(`detail.${key}`)}
+                </h2>
+                <BreakdownBars items={items} emptyLabel={noData} labelFor={labelFor} />
+              </section>
+            ))}
+          </div>
+        ))}
+        {(link.targeting || a.variants.some((v) => v.name !== 'default')) && (
+          <section className="lk-block" data-testid="detail-variants" aria-labelledby="lk-variants">
+            <h2 className="lk-h" id="lk-variants">
+              {t('detail.variants')}
+            </h2>
+            <BreakdownBars items={a.variants} emptyLabel={noData} labelFor={labels.variant} />
+          </section>
+        )}
 
-        <section className="panel lk-panel" id="clicks" aria-labelledby="lk-log-title">
+        <section className="lk-block" id="clicks" aria-labelledby="lk-log-title">
           <div className="lk-panel-head">
             <h2 className="lk-h" id="lk-log-title">
               {t('detail.clickLogTitle')}
@@ -346,7 +371,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
     <div className="ui-page link-detail">
       <PageHeader
         back={{ href: '/app/links', label: t('detail.back') }}
-        title={link.title || short.replace(/^https?:\/\//, '')}
+        title={link.title || shortText}
         description={
           <span className="lk-meta">
             <StatusBadge status={status} />

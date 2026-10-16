@@ -42,7 +42,7 @@
   },
   "table": {
     "title": "Links",
-    "newCta": "Create link",
+    "newCta": "New link",
     "searchPlaceholder": "Search slug, url or title…",
     "allTags": "All tags",
     "archivedOff": "Active",
@@ -81,7 +81,8 @@
     "emptyImport": "import them from Bitly",
     "pagination": "Pages",
     "searchLabel": "Search links",
-    "tagLabel": "Filter by tag"
+    "tagLabel": "Filter by tag",
+    "clicksN": "{n, plural, one {# click} other {# clicks}}"
   },
   "new": {
     "title": "New link",
@@ -132,7 +133,7 @@
     "formNote": "You can change everything later in the link settings.",
     "slugHelp": "Leave empty to generate one. 2 to 32 characters: letters, numbers, - and _.",
     "advancedHint": "Title, tags, UTM, redirect, expiry, password",
-    "tagRemove": "Remove {tag}",
+    "tagRemove": "Remove tag {tag}",
     "utmSourcePlaceholder": "newsletter",
     "utmMediumPlaceholder": "email",
     "utmCampaignPlaceholder": "q4-launch",
@@ -200,7 +201,6 @@
     "noData": "No data for this range",
     "range90": "90 days",
     "inRange": "Last {range}",
-    "deltaNew": "new",
     "qrScans": "QR scans",
     "variants": "Targeting destinations",
     "variantDefault": "default",
@@ -216,7 +216,7 @@
     },
     "tabsLabel": "Link sections",
     "qrScansCount": "{n} via QR",
-    "vsPrevious": "{delta} vs previous",
+    "vsPrevious": "{delta} vs previous {days} days",
     "none": "None",
     "seeAnalytics": "See full analytics",
     "noClicksCountry": "No clicks from that country in this range.",
@@ -234,7 +234,10 @@
     "unarchiveTitle": "Unarchive",
     "unarchiveDesc": "Starts redirecting to the destination again.",
     "archiveButton": "Archive link",
-    "unarchiveButton": "Unarchive link"
+    "unarchiveButton": "Unarchive link",
+    "noPrevious": "No previous period",
+    "emptyTitle": "No clicks yet",
+    "emptyBody": "Share <data>{short}</data> and clicks show up here."
   },
   "bulk": {
     "title": "Many links at once",
@@ -362,8 +365,8 @@
     }
   },
   "domains": {
-    "title": "Custom domains",
-    "desc": "Use your own short domain (go.yourcompany.com/promo). Add it, create the DNS record, then verify. HTTPS is set up automatically.",
+    "title": "Domains",
+    "desc": "Add it, create the DNS record, then verify. HTTPS is set up automatically.",
     "hostname": "Domain",
     "add": "Add domain",
     "empty": "No custom domains yet",
@@ -410,8 +413,8 @@
     "token": "Bitly API token",
     "csv": "CSV file",
     "tokenPlaceholder": "Bitly access token",
-    "tokenHelp": "Bitly → Settings → API → Generate token. We use it once and don't store it.",
-    "csvHelp": "Bitly → Links → Export (or any CSV with a long URL column).",
+    "tokenHelp": "In Bitly, go to Settings > API > Generate token. We use it once and don't store it.",
+    "csvHelp": "In Bitly, Links > Export (or any CSV with a long URL column).",
     "run": "Import",
     "running": "Importing…",
     "done": "Imported {imported} links ({kept} kept their back-half).",
@@ -439,7 +442,6 @@
     "pageTitle": "Title",
     "bioText": "Bio",
     "avatar": "Avatar URL (https)",
-    "published": "Published",
     "links": "Links on the page",
     "linksHint": "Check the links to show and order them. Password-protected, archived and expired links are hidden.",
     "empty": "No links to show yet",
@@ -456,7 +458,9 @@
     "chosen": "{n, plural, =0 {No links chosen} one {# link on the page} other {# links on the page}}",
     "searchEmpty": "No links match.",
     "emptyBody": "Create a link and come back to add it.",
-    "emptyCta": "Create link"
+    "emptyCta": "Create link",
+    "publish": "Publish page",
+    "notShown": "Not shown on the public page."
   },
   "quick": {
     "cancel": "Cancel",
@@ -496,7 +500,6 @@
     "clicks": "Clicks",
     "scans": "QR scans",
     "prev": "vs previous period",
-    "new": "new",
     "chartLabel": "Visits per day",
     "legendClicks": "Clicks",
     "legendScans": "QR scans",

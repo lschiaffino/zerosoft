@@ -17,6 +17,8 @@ export interface TableRow {
   tags: string[];
   /** Ya formateado para el locale. */
   clicks: string;
+  /** Sin formatear: para el plural de "23 clicks" en mobile. */
+  clickCount: number;
   created: string;
   status: LinkStatus;
 }
@@ -254,7 +256,10 @@ export default function LinksTable({ rows }: { rows: TableRow[] }) {
                       ))}
                     </div>
                   </td>
-                  <td className="num data lk-col-clicks">{row.clicks}</td>
+                  <td className="num data lk-col-clicks">
+                    <span className="lk-clicks-n">{row.clicks}</span>
+                    <span className="lk-clicks-full">{t('table.clicksN', { n: row.clickCount })}</span>
+                  </td>
                   <td className="data lk-col-date">{row.created}</td>
                   <td className="lk-col-status">
                     <StatusBadge status={row.status} />
