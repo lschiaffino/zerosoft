@@ -140,7 +140,9 @@ describe('reservas: acciones del anfitrión', () => {
     expect((await patch(pastId, 'confirmed')).status).toBe(200);
 
     // No-show de bruno y otra reserva toma su horario: ya no se puede deshacer.
-    expect((await patch(bruno.id, 'no_show')).status).toBe(200);
+    // (Una reserva futura no se puede marcar no-show por la API: se fuerza el estado.)
+    expect((await patch(bruno.id, 'no_show')).status).toBe(409);
+    await getDb().prepare("UPDATE calendar_bookings SET status = 'no_show' WHERE id = ?").run(bruno.id);
     await createBooking({ eventTypeId: et.id, email: 'z@x.com', name: 'Z', start: bruno.starts_at });
     expect((await patch(bruno.id, 'confirmed')).status).toBe(409);
     expect((await row(bruno.id)).status).toBe('no_show');

@@ -1,4 +1,4 @@
-import { getEventTypeById, type EventTypeWithRules } from './calendar';
+import { getEventTypeById, reassignBookingsOfRemovedHost, type EventTypeWithRules } from './calendar';
 import { emitEvent } from './events';
 import { cancelReasonWithRefund, notifyBooking, refundReason } from './calendar-notify';
 import { recordBookingInCrm } from './crm-integrations';
@@ -72,12 +72,29 @@ export async function afterBookingRescheduled(
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) return booking;
   const synced = await safely('google-move', () => syncGoogleEventTime(booking, eventType, previousHostId), booking);
+  // Round-robin: el host original estaba ocupado en el horario nuevo y la
+  // reserva pasó a otro. El anterior recibe la cancelación (con el horario
+  // que tenía) y el nuevo la reserva, aunque la haya movido un anfitrión.
+  const hostChanged = previousHostId !== null && previousHostId !== synced.host_user_id;
   // Si la movió el anfitrión, solo se avisa al invitado (el anfitrión ya lo sabe).
   await safely(
     'notify-rescheduled',
-    () => notifyBooking(synced, 'rescheduled', { locale, skipHost: opts.byHost }),
+    () => notifyBooking(synced, 'rescheduled', { locale, skipHost: opts.byHost || hostChanged }),
     undefined,
   );
+  if (hostChanged) {
+    const oldStart = synced.rescheduled_from ?? synced.starts_at;
+    const durationMs = new Date(synced.ends_at).getTime() - new Date(synced.starts_at).getTime();
+    const previous: CalendarBookingRow = {
+      ...synced,
+      host_user_id: previousHostId,
+      starts_at: oldStart,
+      ends_at: new Date(new Date(oldStart).getTime() + durationMs).toISOString(),
+      google_event_id: null,
+    };
+    await safely('notify-host-released', () => notifyBooking(previous, 'cancelled', { locale, onlyHost: true }), undefined);
+    await safely('notify-host-assigned', () => notifyBooking(synced, 'created', { locale, onlyHost: true }), undefined);
+  }
   await safely('crm-rescheduled', () => recordBookingInCrm(eventType.user_id, 'rescheduled', synced, eventType.title), undefined);
   await emitEvent(eventType.user_id, 'booking.rescheduled', bookingPayload(synced, eventType));
   return synced;
@@ -97,4 +114,21 @@ export async function afterBookingCancelled(booking: CalendarBookingRow, reason:
 /** Pago que llegó tarde y se reembolsó: la reserva sigue cancelada, se avisa al invitado y al anfitrión. */
 export async function afterPaymentRefunded(booking: CalendarBookingRow): Promise<void> {
   await safely('notify-refunded', () => notifyBooking(booking, 'cancelled', { reason: refundReason(booking.locale) }), undefined);
+}
+
+/**
+ * Un miembro salió del team: sus reservas por venir pasan a otro host (o al
+ * dueño). El evento de Google se mueve al calendario del nuevo host y este
+ * recibe el aviso; al que salió no le llega nada más con datos del invitado.
+ */
+export async function reassignRemovedHostBookings(ownerId: string, userId: string): Promise<void> {
+  const moved = await reassignBookingsOfRemovedHost(ownerId, userId);
+  for (const booking of moved) {
+    // Un hold todavía sin pagar se avisa al confirmarse (afterBookingCreated).
+    if (booking.status !== 'confirmed') continue;
+    const eventType = await getEventTypeById(booking.event_type_id);
+    if (!eventType) continue;
+    const synced = await safely('google-reassign', () => syncGoogleEventTime(booking, eventType, userId), booking);
+    await safely('notify-host-assigned', () => notifyBooking(synced, 'created', { onlyHost: true }), undefined);
+  }
 }

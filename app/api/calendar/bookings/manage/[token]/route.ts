@@ -34,10 +34,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
 
   try {
     if (parsed.data.action === 'cancel') {
-      const updated = await updateBooking(booking.id, {
-        status: 'cancelled',
-        cancelReason: parsed.data.reason ? `Guest: ${parsed.data.reason}` : 'Cancelled by guest',
-      });
+      const updated = await updateBooking(
+        booking.id,
+        {
+          status: 'cancelled',
+          cancelReason: parsed.data.reason ? `Guest: ${parsed.data.reason}` : 'Cancelled by guest',
+        },
+        { fromStatus: 'confirmed' },
+      );
       // Cancelar antes del inicio reembolsa el pago completo (si lo hubo).
       if (updated) await afterBookingCancelled(await refundCancelledBooking(updated), parsed.data.reason ?? null);
       return NextResponse.json({ status: 'cancelled' });

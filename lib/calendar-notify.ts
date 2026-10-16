@@ -160,7 +160,7 @@ function stripTags(html: string): string {
 export async function notifyBooking(
   booking: CalendarBookingRow,
   kind: Kind,
-  opts: { locale?: string; reason?: string | null; skipHost?: boolean } = {},
+  opts: { locale?: string; reason?: string | null; skipHost?: boolean; onlyHost?: boolean } = {},
 ): Promise<void> {
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) return;
@@ -207,20 +207,22 @@ export async function notifyBooking(
     ...details(booking.timezone),
     ...(manage && kind !== 'cancelled' ? [fill(L.manage, { url: escapeHtml(manage) })] : []),
   ];
-  await sendEmail({
-    to: booking.invitee_email,
-    subject: stripTags(fill(copy.guestSubject, { ...vars, event: eventType.title })),
-    text:
-      guestParagraphs.slice(0, manage && kind !== 'cancelled' ? -1 : undefined).map(stripTags).join('\n\n') +
-      (manage && kind !== 'cancelled' ? `\n\n${fill(L.manageText, { url: manage })}` : ''),
-    html: renderBrandedHtml({
-      heading: copy.heading,
-      paragraphs: guestParagraphs,
-      brandColor: eventType.brand_color,
-      logoUrl: eventType.logo_url,
-    }),
-    attachments,
-  });
+  if (!opts.onlyHost) {
+    await sendEmail({
+      to: booking.invitee_email,
+      subject: stripTags(fill(copy.guestSubject, { ...vars, event: eventType.title })),
+      text:
+        guestParagraphs.slice(0, manage && kind !== 'cancelled' ? -1 : undefined).map(stripTags).join('\n\n') +
+        (manage && kind !== 'cancelled' ? `\n\n${fill(L.manageText, { url: manage })}` : ''),
+      html: renderBrandedHtml({
+        heading: copy.heading,
+        paragraphs: guestParagraphs,
+        brandColor: eventType.brand_color,
+        logoUrl: eventType.logo_url,
+      }),
+      attachments,
+    });
+  }
 
   // Host
   if (host && !opts.skipHost) {

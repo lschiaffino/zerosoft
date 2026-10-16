@@ -14,6 +14,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { getDb, type CalendarBookingRow, type CalendarPaymentSettingsRow } from './db';
 import { open, seal } from './secret-box';
 import { safeFetch } from './safe-fetch';
+import { isZeroDecimal } from './calendar-price';
 import {
   bookPathFor,
   confirmPendingBooking,
@@ -30,10 +31,8 @@ export const HOLD_MINUTES = 35;
 const CHECKOUT_TTL_MINUTES = 31;
 
 /** Monedas sin decimales en Stripe: unit_amount va en unidades, no en centavos. */
-const ZERO_DECIMAL = new Set(['clp']);
-
 export function stripeUnitAmount(priceCents: number, currency: string): number {
-  return ZERO_DECIMAL.has(currency.toLowerCase()) ? Math.round(priceCents / 100) : priceCents;
+  return isZeroDecimal(currency) ? Math.round(priceCents / 100) : priceCents;
 }
 
 export class PaymentError extends Error {

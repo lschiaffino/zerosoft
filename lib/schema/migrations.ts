@@ -2070,6 +2070,16 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_track_issues_cycle ON track_issues(cycle_id, status_id)');
     },
   },
+  {
+    // Cal: los pasos de workflow que fallan siempre (email que el proveedor
+    // rechaza) dejan de reintentarse después de unos intentos; sin contador
+    // ocupaban el lote del cron y frenaban los envíos de toda la instancia.
+    id: '031_cal_workflow_run_attempts',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE calendar_workflow_runs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE calendar_workflow_runs ADD COLUMN failed_at TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

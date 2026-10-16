@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { apiError, requireApiUser } from '@/lib/api-auth';
-import { getEventTypeById, ownedBooking, updateBooking } from '@/lib/calendar';
+import { CalendarError, getEventTypeById, ownedBooking, updateBooking } from '@/lib/calendar';
 import { afterBookingCancelled, bookingPayload } from '@/lib/calendar-lifecycle';
 import { refundCancelledBooking } from '@/lib/calendar-payments';
 
@@ -18,7 +18,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (booking.status !== 'confirmed') return apiError(409, 'not_confirmed', 'Only confirmed bookings can be cancelled.');
   const body = z.object({ reason: z.string().max(500).optional() }).safeParse(await req.json().catch(() => ({})));
   const reason = body.success ? (body.data.reason ?? null) : null;
-  const cancelled = await updateBooking(id, { status: 'cancelled', cancelReason: reason });
+  let cancelled;
+  try {
+    cancelled = await updateBooking(id, { status: 'cancelled', cancelReason: reason }, { fromStatus: 'confirmed' });
+  } catch (err) {
+    // Otra cancelación (o un cambio de estado) entró antes: no se cancela dos veces.
+    if (err instanceof CalendarError) return apiError(err.status, 'not_confirmed', 'Only confirmed bookings can be cancelled.');
+    throw err;
+  }
   if (!cancelled) return apiError(404, 'not_found', 'Booking not found.');
   // Reserva paga: se reembolsa el pago completo al cancelarla.
   const updated = await refundCancelledBooking(cancelled);
