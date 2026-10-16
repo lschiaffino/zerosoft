@@ -1,6 +1,8 @@
 import { createLink, linkShortUrl, slugExists } from './links';
 import { listDomains } from './link-domains';
 import { isValidSlug } from './reserved';
+import { getDb } from './db';
+import { normalizeUrl } from './utils';
 
 /**
  * Importar links desde Bitly: por API (token de acceso de Bitly, trae toda la
@@ -39,6 +41,13 @@ function splitShort(shortUrl: string): { host: string; backHalf: string } | null
   }
 }
 
+async function alreadyImported(userId: string, slug: string, domainId: string | null, url: string): Promise<boolean> {
+  const row = (await getDb()
+    .prepare("SELECT user_id, url FROM links WHERE slug = ? AND COALESCE(domain_id, '') = ?")
+    .get(slug, domainId ?? '')) as { user_id: string; url: string } | undefined;
+  return !!row && row.user_id === userId && row.url === normalizeUrl(url);
+}
+
 export async function importLinks(userId: string, items: ImportItem[]): Promise<ImportReport> {
   const report: ImportReport = { imported: 0, kept: 0, renamed: [], skipped: [], truncated: items.length > MAX_IMPORT };
   const domains = new Map(
@@ -49,7 +58,14 @@ export async function importLinks(userId: string, items: ImportItem[]): Promise<
     const parts = splitShort(item.shortUrl);
     const domainId = parts ? (domains.get(parts.host) ?? null) : null;
     const wanted = parts?.backHalf ?? '';
-    const keep = wanted && isValidSlug(wanted, Boolean(domainId)) && !(await slugExists(wanted, domainId));
+    const validSlug = Boolean(wanted) && isValidSlug(wanted, Boolean(domainId));
+    // Reimportar (o reintentar tras un corte) no duplica: si el back-half ya es
+    // de este workspace con el mismo destino, ese link ya se importó.
+    if (validSlug && (await alreadyImported(userId, wanted, domainId, item.url))) {
+      report.skipped.push({ from: item.shortUrl, reason: 'already_imported' });
+      continue;
+    }
+    const keep = validSlug && !(await slugExists(wanted, domainId));
 
     const res = await createLink(userId, {
       url: item.url,

@@ -52,9 +52,22 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   },
   'booking.rescheduled': { id: 'bk_1', startsAt: '', invitee: { name: '', email: '' }, eventType: { title: '' } },
   'booking.cancelled': { id: 'bk_1', cancelReason: '', invitee: { name: '', email: '' }, eventType: { title: '' } },
-  'link.created': { link: { id: 'lnk_1', slug: 'abc', url: 'https://example.com', shortUrl: '' } },
+  // Mismo shape que el evento real (toLinkDto en lib/links.ts).
+  'link.created': {
+    link: {
+      id: 'lnk_1',
+      slug: 'abc',
+      domain: null,
+      short_url: 'https://zerosoft.ai/abc',
+      url: 'https://example.com',
+      title: '',
+      tags: [],
+      clicks: 0,
+      created_at: '',
+    },
+  },
   'link.clicked': {
-    link: { id: 'lnk_1', slug: 'abc', domain: null, url: 'https://example.com' },
+    link: { id: 'lnk_1', slug: 'abc', domain: null, url: 'https://example.com', short_url: 'https://zerosoft.ai/abc' },
     click: { country: 'AR', device: 'desktop', at: '' },
     clicks: 100,
   },

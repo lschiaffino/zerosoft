@@ -17,6 +17,8 @@ interface Filters {
 interface Props {
   bookings: CalendarBookingRowWithEvent[];
   locale: string;
+  /** Zona del calendario del workspace: la hora se muestra en esta zona (igual en SSR y en el navegador). */
+  timezone: string;
   initialFilters: Filters;
 }
 
@@ -33,8 +35,8 @@ function formatDateTime(iso: string, locale: string, timeZone?: string): string 
   }).format(new Date(iso));
 }
 
-function formatTime(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+function formatTime(iso: string, locale: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }).format(new Date(iso));
 }
 
 function money(cents: number, currency: string, locale: string): string {
@@ -45,13 +47,36 @@ function money(cents: number, currency: string, locale: string): string {
   }
 }
 
-/** Respuestas del invitado (JSON) como pares legibles. */
-function answerEntries(raw: string): Array<[string, string]> {
+/**
+ * Respuestas del invitado (JSON) como [clave, etiqueta, valor] legibles: la
+ * etiqueta es la que definió el dueño en el campo (si sigue existiendo) y los
+ * sí/no van traducidos.
+ */
+function answerEntries(
+  raw: string,
+  fieldsRaw: string | null | undefined,
+  bool: { yes: string; no: string },
+): Array<[string, string, string]> {
+  const labels = new Map<string, string>();
+  try {
+    const fields = JSON.parse(fieldsRaw || '[]') as unknown;
+    if (Array.isArray(fields)) {
+      for (const f of fields as Array<{ name?: unknown; label?: unknown }>) {
+        if (typeof f?.name === 'string' && typeof f.label === 'string' && f.label) labels.set(f.name, f.label);
+      }
+    }
+  } catch {
+    // Sin campos legibles: se muestra la clave.
+  }
   try {
     const obj = JSON.parse(raw) as Record<string, unknown>;
-    return Object.entries(obj).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)]);
+    return Object.entries(obj).map(([k, v]) => [
+      k,
+      labels.get(k) ?? k,
+      typeof v === 'string' ? v : typeof v === 'boolean' ? (v ? bool.yes : bool.no) : JSON.stringify(v),
+    ]);
   } catch {
-    return [['-', raw]];
+    return [['-', '-', raw]];
   }
 }
 
@@ -60,7 +85,7 @@ function localDay(d = new Date()): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export default function BookingsList({ bookings, locale, initialFilters }: Props) {
+export default function BookingsList({ bookings, locale, timezone, initialFilters }: Props) {
   const t = useTranslations('calendar');
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [rows, setRows] = useState(bookings);
@@ -213,8 +238,13 @@ export default function BookingsList({ bookings, locale, initialFilters }: Props
                     </p>
                   </div>
                   <div className="booking-card-time">
-                    <p>{formatDateTime(b.starts_at, locale)}</p>
-                    <p className="muted">{b.timezone}</p>
+                    <p>{formatDateTime(b.starts_at, locale, timezone)}</p>
+                    <p className="muted">{timezone}</p>
+                    {b.timezone && b.timezone !== timezone && (
+                      <p className="muted">
+                        {t('bookings.guestTime', { time: formatTime(b.starts_at, locale, b.timezone), timezone: b.timezone })}
+                      </p>
+                    )}
                     {b.meeting_url && b.status === 'confirmed' && (
                       <a className="mono" href={b.meeting_url} target="_blank" rel="noreferrer">
                         {t('bookings.join')}
@@ -225,6 +255,7 @@ export default function BookingsList({ bookings, locale, initialFilters }: Props
                   <p className={`cal-bk-status mono cal-bk-status-${b.status}`}>
                     {t(`booking.status.${b.status}`)}
                     {b.payment_status === 'paid' ? ` · ${t('admin.paid')}` : ''}
+                    {b.payment_status === 'refunded' ? ` · ${t('admin.refunded')}` : ''}
                   </p>
                   <div className="booking-card-actions">
                     <button type="button" className="btn btn-ghost btn-small" onClick={() => setExpanded((p) => (p === b.id ? null : b.id))}>
@@ -263,6 +294,7 @@ export default function BookingsList({ bookings, locale, initialFilters }: Props
 
                 {panel?.id === b.id && panel.kind === 'cancel' && (
                   <CancelPanel
+                    paid={b.payment_status === 'paid'}
                     busy={busy === b.id}
                     onClose={() => setPanel(null)}
                     onConfirm={async (reason) => {
@@ -300,9 +332,12 @@ export default function BookingsList({ bookings, locale, initialFilters }: Props
                       <div className="booking-answers">
                         <p className="prop-label">{t('booking.answers')}</p>
                         <dl className="cal-answers">
-                          {answerEntries(b.answers).map(([k, v]) => (
+                          {answerEntries(b.answers, b.event_type_fields, {
+                            yes: t('common.yes'),
+                            no: t('common.no'),
+                          }).map(([k, label, v]) => (
                             <div key={k}>
-                              <dt className="mono">{k}</dt>
+                              <dt className={label === k ? 'mono' : undefined}>{label}</dt>
                               <dd>{v}</dd>
                             </div>
                           ))}
@@ -322,10 +357,12 @@ export default function BookingsList({ bookings, locale, initialFilters }: Props
 }
 
 function CancelPanel({
+  paid,
   busy,
   onClose,
   onConfirm,
 }: {
+  paid: boolean;
   busy: boolean;
   onClose: () => void;
   onConfirm: (reason: string) => void;
@@ -338,6 +375,7 @@ function CancelPanel({
         <span className="prop-label">{t('admin.cancelReason')}</span>
         <textarea className="textarea" rows={2} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
       </label>
+      {paid && <p className="muted">{t('admin.refundOnCancel')}</p>}
       <div className="cal-bk-panel-actions">
         <button type="button" className="btn btn-ghost btn-small" onClick={onClose}>
           {t('admin.keep')}

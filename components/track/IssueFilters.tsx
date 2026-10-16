@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
+import { safeHexColor } from '@/lib/track-color';
 
 export interface FilterState {
   statusId: string[];
@@ -80,7 +82,7 @@ function MultiSelect({
                   else onChange(values.filter((v) => v !== o.value));
                 }}
               />
-              {o.color && <span className="track-filter-dot" style={{ background: o.color }} />}
+              {o.color && <span className="track-filter-dot" style={{ background: safeHexColor(o.color, '#999999') }} />}
               <span>{o.label}</span>
             </label>
           ))}
@@ -101,6 +103,7 @@ export default function IssueFilters({
   issueLabels,
   labels,
 }: IssueFiltersProps) {
+  const t = useTranslations('track');
   const allLabels = issueLabels;
 
   const activeCount =
@@ -156,14 +159,16 @@ export default function IssueFilters({
               type="date"
               value={filters.dueAfter}
               onChange={(e) => update({ dueAfter: e.target.value })}
-              placeholder="From"
+              placeholder={t('filters.dueFrom')}
+              aria-label={`${labels.dueDate}: ${t('filters.dueFrom')}`}
             />
             <span>→</span>
             <input
               type="date"
               value={filters.dueBefore}
               onChange={(e) => update({ dueBefore: e.target.value })}
-              placeholder="To"
+              placeholder={t('filters.dueTo')}
+              aria-label={`${labels.dueDate}: ${t('filters.dueTo')}`}
             />
           </div>
         </div>

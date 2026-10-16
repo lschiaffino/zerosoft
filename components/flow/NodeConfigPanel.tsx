@@ -524,6 +524,7 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
       )}
       {type === 'data.merge' && <p className="muted flow-hint">{t('editor.mergeHint')}</p>}
       {type === 'trigger.schedule' && <p className="muted flow-hint">{t('editor.scheduleGranularity')}</p>}
+      {type === 'logic.delay' && <p className="muted flow-hint">{t('editor.delayGranularity')}</p>}
       {type === 'trigger.stripe' && <p className="muted flow-hint">{t('editor.stripeHint')}</p>}
       {extra}
       {visibleFields.map((f) => (
@@ -534,6 +535,7 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
             </label>
           )}
           {renderField(f)}
+          {f.key === 'retries' && <p className="muted flow-hint">{t('editor.retryGranularity')}</p>}
         </div>
       ))}
       {supportsErrorHandling(type) && (

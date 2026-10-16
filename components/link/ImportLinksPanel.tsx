@@ -119,7 +119,7 @@ export default function ImportLinksPanel() {
               <ul className="mono muted">
                 {report.skipped.slice(0, 200).map((r) => (
                   <li key={r.from}>
-                    {r.from} — {r.reason}
+                    {r.from} — {t.has(`errors.${r.reason}`) ? t(`errors.${r.reason}`) : t('errors.generic')}
                   </li>
                 ))}
               </ul>

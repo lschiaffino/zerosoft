@@ -1,9 +1,10 @@
 import { after, NextRequest, NextResponse } from 'next/server';
 import { emitEvent } from '@/lib/events';
-import { gateCookieName, getLinkForHost, isExpired, isValidGateToken } from '@/lib/links';
+import { gateCookieName, gateRefCookieName, getLinkForHost, isExpired, isValidGateToken, linkShortUrl } from '@/lib/links';
 import { isAppHost } from '@/lib/hosts';
 import { getVerifiedDomainByHost } from '@/lib/link-domains';
-import { contextFromHeaders, recordClick } from '@/lib/track';
+import { contextFromHeaders, isBotRequest, recordClick } from '@/lib/track';
+import { hasCustomPreview, linkPreviewHtml } from '@/lib/link-preview';
 import {
   deepLinkHtml,
   newVisitorId,
@@ -11,15 +12,13 @@ import {
   resolveDestination,
   VISITOR_COOKIE,
 } from '@/lib/link-targeting';
+import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const LOCALES = new Set(['en', 'es', 'pt']);
-
 function localeFrom(req: NextRequest): string {
-  const cookie = req.cookies.get('NEXT_LOCALE')?.value;
-  return cookie && LOCALES.has(cookie) ? cookie : 'en';
+  return requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
 }
 
 /** Origen tal como lo pidió el cliente (incluye el dominio propio). Solo Host: x-forwarded-host lo podría falsear el cliente. */
@@ -51,15 +50,43 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   if (isExpired(link)) return gone('expired');
   if (link.max_clicks !== null && link.clicks >= link.max_clicks) return gone('limit');
 
+  const source = req.nextUrl.searchParams.get('qr') === '1' ? 'qr' : 'link';
+
   if (link.password_hash) {
     const token = req.cookies.get(gateCookieName(slug))?.value;
     if (!isValidGateToken(slug, link.password_hash, token)) {
-      return NextResponse.redirect(new URL(`/${locale}/gate/${slug}`, origin));
+      // ?qr=1 viaja por la puerta: el escaneo se cuenta como QR al desbloquear.
+      const toGate = NextResponse.redirect(new URL(`/${locale}/gate/${slug}${source === 'qr' ? '?qr=1' : ''}`, origin));
+      // Al volver de la puerta el Referer es la puerta: se guarda el origen real de la visita.
+      toGate.cookies.set(gateRefCookieName(slug), contextFromHeaders(req.headers).referrer, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 30,
+        path: '/',
+      });
+      return toGate;
     }
   }
 
+  // Bots, unfurlers de previews (Slack, WhatsApp, iMessage) y HEAD: no son
+  // visitas. No cuentan clicks ni gastan max_clicks ni disparan el webhook.
+  if (isBotRequest(req.headers, req.method)) {
+    if (req.method !== 'HEAD' && hasCustomPreview(link)) {
+      return new NextResponse(linkPreviewHtml(link, slug, locale), {
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+      });
+    }
+    return NextResponse.redirect(link.url, 302);
+  }
+
   const ctx = contextFromHeaders(req.headers);
-  const source = req.nextUrl.searchParams.get('qr') === '1' ? 'qr' : 'link';
+  // Link con contraseña que vuelve de la puerta (Referer propio): el referrer real es el de antes de la puerta.
+  const savedRef = link.password_hash ? req.cookies.get(gateRefCookieName(slug))?.value : undefined;
+  if (savedRef !== undefined && /^[a-z0-9.-]{1,253}$/i.test(savedRef)) {
+    const bareHost = (host ?? '').toLowerCase().replace(/:\d+$/, '').replace(/^www\./, '');
+    if (ctx.referrer === bareHost || isAppHost(ctx.referrer)) ctx.referrer = savedRef;
+  }
 
   // Sin segmentación: camino rápido, sin parsear nada ni cookies.
   const targeting = link.targeting ? parseTargeting(link.targeting) : null;
@@ -74,18 +101,21 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   }
   const dest = resolveDestination(link.url, targeting, ctx, `${visitorId ?? ''}:${link.id}`);
 
-  await recordClick(link.id, ctx, { source, variant: dest.variant });
+  // Incremento atómico: si otra request se llevó el último click, no hay redirect.
+  const clicks = await recordClick(link.id, ctx, { source, variant: dest.variant });
+  if (clicks === null) return gone('limit');
   // El webhook sale después de responder: el redirect no espera a nadie.
   after(() =>
     emitEvent(
       link.user_id,
       'link.clicked',
       {
-        link: { id: link.id, slug: link.slug, domain: link.domain_hostname ?? null, url: link.url },
+        link: { id: link.id, slug: link.slug, domain: link.domain_hostname ?? null, url: link.url, short_url: linkShortUrl(link) },
         click: { ...ctx, at: new Date().toISOString() },
       },
-      // Solo para Flow (el webhook no cambia): total de clicks con este.
-      { extra: { clicks: link.clicks + 1 } },
+      // Solo para Flow (el webhook no cambia): total de clicks con este, el
+      // que devolvió el UPDATE atómico (no el leído antes, que se pisa entre visitas).
+      { extra: { clicks } },
     ),
   );
 
@@ -95,6 +125,10 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
           headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
         })
       : NextResponse.redirect(dest.url, targeting ? 302 : link.redirect_type === 301 ? 301 : 302);
+  // Sin esto el navegador cachea el 301 para siempre: archivar, vencer,
+  // max_clicks, cambiar el destino y contar el click dejarían de aplicar.
+  res.headers.set('cache-control', 'no-store');
+  if (savedRef !== undefined) res.cookies.delete({ name: gateRefCookieName(slug), path: '/' });
   if (newVisitor && visitorId) {
     res.cookies.set(VISITOR_COOKIE, visitorId, {
       httpOnly: true,

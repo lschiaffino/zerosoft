@@ -8,7 +8,7 @@ import TagsInput from './TagsInput';
 
 const SLUG_RE = /^[A-Za-z0-9_-]{2,32}$/;
 
-type SlugState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
+type SlugState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'reserved';
 
 export interface CreatedLink {
   id: string;
@@ -62,7 +62,8 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
           `/api/links/check-slug?slug=${encodeURIComponent(value)}${domainId ? `&domainId=${encodeURIComponent(domainId)}` : ''}`,
         );
         const data = (await res.json()) as { available: boolean; valid: boolean };
-        setSlugState(data.valid && data.available ? 'available' : 'taken');
+        // El formato ya se validó acá: si el server dice inválido es una palabra reservada.
+        setSlugState(!data.valid ? 'reserved' : data.available ? 'available' : 'taken');
       } catch {
         setSlugState('idle');
       }
@@ -76,6 +77,7 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
     available: t('new.slugAvailable'),
     taken: t('new.slugTaken'),
     invalid: t('new.slugInvalid'),
+    reserved: t('new.slugReserved'),
   };
 
   async function submit() {
@@ -117,7 +119,7 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
       onSubmit={submit}
       submitLabel={busy ? t('new.creating') : t('new.create')}
       cancelLabel={t('quick.cancel')}
-      submitDisabled={!url.trim() || slugState === 'taken' || slugState === 'invalid'}
+      submitDisabled={!url.trim() || slugState === 'taken' || slugState === 'invalid' || slugState === 'reserved'}
       busy={busy}
       error={error}
       hint={t('quick.hint')}
@@ -164,6 +166,7 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
               className="mono"
               type="text"
               value={slug}
+              maxLength={32}
               onChange={(e) => setSlug(e.target.value)}
               placeholder={t('new.slugPlaceholder')}
               autoComplete="off"
@@ -179,6 +182,7 @@ function QuickLinkModalBody({ onClose, onCreated, domain, customDomains = [], in
           <input
             type="text"
             value={title}
+            maxLength={200}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t('new.titlePlaceholder')}
           />

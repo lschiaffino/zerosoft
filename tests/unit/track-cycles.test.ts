@@ -17,6 +17,7 @@ const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown>
 vi.mock('@/lib/session', () => ({
   getCurrentUser: async () => session.user,
   realUserId: (u: { id: string; actingUser?: { id: string } }) => u.actingUser?.id ?? u.id,
+  isWorkspaceAdmin: (u: { role?: string }) => u.role === 'owner' || u.role === 'admin',
 }));
 
 const cycleRoute = await import('@/app/api/track/cycles/[id]/route');
@@ -126,13 +127,13 @@ describe('Track statuses: borrar con reasignación', () => {
     const { u, st, project } = await setup();
     const stranger = await makeUser('stranger');
 
-    session.user = { ...stranger, team: null };
+    session.user = { ...stranger, team: null, role: 'owner' };
     expect((await statusRoute.PATCH(json('http://x/api', 'PATCH', { name: 'x' }), params(st('todo').id))).status).toBe(404);
     expect(
       (await statusRoute.DELETE(json('http://x/api', 'DELETE', { reassignTo: st('done').id }), params(st('todo').id))).status,
     ).toBe(404);
 
-    session.user = { ...u, team: null };
+    session.user = { ...u, team: null, role: 'owner' };
     const ren = await statusRoute.PATCH(json('http://x/api', 'PATCH', { name: 'Por hacer', category: 'backlog' }), params(st('todo').id));
     expect(ren.status).toBe(200);
     expect(await ren.json()).toMatchObject({ name: 'Por hacer', category: 'backlog' });

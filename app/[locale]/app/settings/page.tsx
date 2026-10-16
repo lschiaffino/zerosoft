@@ -27,7 +27,7 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
   // Members ven solo sus keys; owner/admin, las de todo el workspace.
   const keys = await listApiKeys(user.id, isWorkspaceAdmin(user) ? undefined : realUserId(user));
   const webhooks = isWorkspaceAdmin(user) ? await listWebhooks(user.id) : null;
-  const domains = (await listDomains(user.id)).map((d) => ({ ...d, dns: dnsInstructions(d.hostname) }));
+  const domains = (await listDomains(user.id)).map((d) => ({ ...d, dns: dnsInstructions(d.hostname, d.verified === 1 ? null : d.verify_token) }));
 
   return (
     <div className="app-page">
@@ -73,11 +73,14 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
         <DomainsPanel initial={domains} canManage={isWorkspaceAdmin(user)} />
       </section>
 
-      <section className="panel">
-        <p className="section-label">{t('import.title')}</p>
-        <ImportLinksPanel />
-      </section>
+      {isWorkspaceAdmin(user) && (
+        <section className="panel">
+          <p className="section-label">{t('import.title')}</p>
+          <ImportLinksPanel />
+        </section>
+      )}
 
+      {isWorkspaceAdmin(user) && (
       <section className="panel">
         <p className="section-label">{t('export.title')}</p>
         <p className="muted">{t('export.desc')}</p>
@@ -90,6 +93,7 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
           </a>
         </div>
       </section>
+      )}
 
       <section className="panel">
         <p className="section-label">{t('settings.apiKeys')}</p>

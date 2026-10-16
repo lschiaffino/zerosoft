@@ -14,6 +14,7 @@ import type {
   ConversationUpdatePayload,
 } from '@/lib/chat-data';
 import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
+import { CHAT_MESSAGE_MAX, CHAT_UPLOAD_MAX, sendErrorKey } from '@/lib/chat-schema';
 import ConversationList from './ConversationList';
 import VisitorPanel from './VisitorPanel';
 
@@ -87,6 +88,10 @@ export default function ConversationClient({
   const [messages, setMessages] = useState<ChatMessageWithUser[]>(initialMessages);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  /** Error del último envío (aria-live): antes un rechazo del servidor no avisaba nada. */
+  const [sendError, setSendError] = useState<string | null>(null);
+  /** Error al cambiar estado, prioridad o asignación (antes el select volvía atrás sin aviso). */
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [listRows, setListRows] = useState<ChatConversationListRow[] | null>(null);
   const router = useRouter();
@@ -105,6 +110,8 @@ export default function ConversationClient({
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [macroApplied, setMacroApplied] = useState<string | null>(null);
+  /** Macro elegida en el composer: sus acciones se aplican al enviar la respuesta. */
+  const [pendingMacro, setPendingMacro] = useState<{ id: string; shortcut: string } | null>(null);
 
   async function fetchTags() {
     try {
@@ -144,6 +151,26 @@ export default function ConversationClient({
       if (!res.ok) return;
       const data = (await res.json()) as { messages: ChatMessageWithUser[] };
       setMessages(data.messages);
+      // Lo que llega con la conversación abierta (y la pestaña visible) queda leído.
+      if (
+        document.visibilityState === 'visible' &&
+        data.messages.some((m) => m.sender_type === 'visitor' && !m.read_at)
+      ) {
+        void markRead();
+      }
+    } catch {
+      // ignore polling errors
+    }
+  }
+
+  // Estado, asignación y prioridad pueden cambiarlos otros agentes (o una
+  // respuesta que reabre la conversación): se refrescan junto con el hilo.
+  async function fetchConversation() {
+    try {
+      const res = await fetch(`/api/chat/conversations/${conversationId}`);
+      if (!res.ok) return;
+      const data = (await res.json()) as Partial<ChatConversationWithVisitor>;
+      setConversation((prev) => ({ ...prev, ...data }));
     } catch {
       // ignore polling errors
     }
@@ -197,6 +224,8 @@ export default function ConversationClient({
   }
 
   async function sendTyping() {
+    // Una nota interna no es una respuesta: el visitante no debe ver "escribiendo…".
+    if (mode !== 'reply') return;
     const now = Date.now();
     if (now - typingSentAt.current < 2000) return;
     typingSentAt.current = now;
@@ -208,6 +237,7 @@ export default function ConversationClient({
   }
 
   useEffect(() => {
+    setPendingMacro(null);
     fetchMessages();
     fetchList();
     fetchCanned();
@@ -218,6 +248,7 @@ export default function ConversationClient({
       if (document.visibilityState !== 'visible') return;
       fetchMessages();
       fetchTyping();
+      fetchConversation();
       tick += 1;
       if (tick % 5 === 0) fetchList();
     }, 3000);
@@ -253,7 +284,12 @@ export default function ConversationClient({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      setUpdateError(t(sendErrorKey(data.error)));
+      return;
+    }
+    setUpdateError(null);
     const updated = (await res.json()) as ChatConversationWithVisitor;
     setConversation((prev) => ({ ...prev, ...updated }));
     fetchList();
@@ -262,12 +298,32 @@ export default function ConversationClient({
   async function sendReply() {
     const body = reply.trim();
     if ((!body && !selectedFile) || sending) return;
+    const tooBig = selectedFile && mode === 'reply' && selectedFile.size > CHAT_UPLOAD_MAX;
+    if (tooBig || body.length > CHAT_MESSAGE_MAX) {
+      setSendError(t(tooBig ? 'errors.fileTooLarge' : 'errors.messageTooLong'));
+      return;
+    }
+    setSendError(null);
     setSending(true);
+    // Una macro (responder/resolver) no corre con una nota interna.
+    const macro = mode === 'note' ? null : pendingMacro;
+    const macroDone = () => {
+      if (!macro) return;
+      setPendingMacro(null);
+      setMacroApplied(macro.shortcut);
+      setTimeout(() => setMacroApplied(null), 3000);
+      fetchTags();
+    };
+    const fail = async (res: Response) => {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      setSendError(t(sendErrorKey(data.error)));
+    };
     try {
       if (selectedFile && mode === 'reply') {
         const formData = new FormData();
         formData.append('file', selectedFile);
         if (body) formData.append('body', body);
+        if (macro) formData.append('cannedId', macro.id);
         const res = await fetch(`/api/chat/conversations/${conversationId}/attachments`, {
           method: 'POST',
           body: formData,
@@ -276,23 +332,41 @@ export default function ConversationClient({
           setReply('');
           setSelectedFile(null);
           if (fileInputRef.current) fileInputRef.current.value = '';
+          macroDone();
           await fetchMessages();
           await fetchList();
+          await fetchConversation();
+        } else {
+          await fail(res);
         }
       } else {
         const isNote = mode === 'note';
+        // Solo las menciones que siguen en el texto (si se borró "@Ana", no se la notifica).
+        const liveMentions = mentions.filter((id) => {
+          const agent = agents.find((a) => a.id === id);
+          return agent ? body.includes(`@${agent.name || agent.email}`) : false;
+        });
         const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(isNote ? { body, note: true, mentions } : { body }),
+          body: JSON.stringify({
+            ...(isNote ? { body, note: true, mentions: liveMentions } : { body }),
+            ...(macro ? { cannedId: macro.id } : {}),
+          }),
         });
         if (res.ok) {
           setReply('');
           setMentions([]);
+          macroDone();
           await fetchMessages();
           await fetchList();
+          if (!isNote || macro) await fetchConversation();
+        } else {
+          await fail(res);
         }
       }
+    } catch {
+      setSendError(t('errors.generic'));
     } finally {
       setSending(false);
     }
@@ -357,11 +431,13 @@ export default function ConversationClient({
     setMentionIndex(0);
   }
 
-  async function insertCanned(response: ChatCannedResponseRow) {
+  function insertCanned(response: ChatCannedResponseRow) {
     const before = reply.slice(0, reply.lastIndexOf('/'));
     setReply((before + response.body).trimStart() + ' ');
     setCannedIndex(0);
-    // Macro: si la respuesta guardada tiene acciones, se aplican ya.
+    // Macro: si la respuesta guardada tiene acciones, se aplican al enviar (no
+    // al elegirla: si no, el envío reabría la conversación recién resuelta y
+    // las acciones corrían aunque el agente no mandara nada).
     let hasActions = false;
     try {
       const a = JSON.parse(response.actions || '{}') as Record<string, unknown>;
@@ -369,22 +445,7 @@ export default function ConversationClient({
     } catch {
       hasActions = false;
     }
-    if (!hasActions) return;
-    const res = await fetch(`/api/chat/conversations/${conversationId}/macro`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cannedId: response.id }),
-    });
-    if (!res.ok) return;
-    const data = (await res.json()) as { conversation: ChatConversationWithVisitor | null; tags: string[] };
-    if (data.conversation) {
-      const next = data.conversation;
-      setConversation((prev) => ({ ...prev, ...next }));
-    }
-    setTags(data.tags);
-    setMacroApplied(response.shortcut);
-    setTimeout(() => setMacroApplied(null), 3000);
-    fetchList();
+    setPendingMacro(hasActions ? { id: response.id, shortcut: response.shortcut } : null);
   }
 
   function handleComposerKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -492,8 +553,9 @@ export default function ConversationClient({
 
           <div className="chat-conversation-header-actions">
             <div className="chat-header-field">
-              <label className="mono muted">{t('conversation.statusLabel')}</label>
+              <label className="mono muted" htmlFor="chat-header-status">{t('conversation.statusLabel')}</label>
               <select
+                id="chat-header-status"
                 className="select chat-header-select"
                 value={conversation.status}
                 onChange={(e) => changeStatus(e.target.value)}
@@ -506,8 +568,9 @@ export default function ConversationClient({
 
             {conversation.status === 'snoozed' && (
               <div className="chat-header-field">
-                <label className="mono muted">{t('conversation.snoozeUntil')}</label>
+                <label className="mono muted" htmlFor="chat-header-snooze">{t('conversation.snoozeUntil')}</label>
                 <select
+                  id="chat-header-snooze"
                   className="select chat-header-select"
                   value=""
                   onChange={(e) => {
@@ -532,8 +595,9 @@ export default function ConversationClient({
             )}
 
             <div className="chat-header-field">
-              <label className="mono muted">{t('conversation.priority')}</label>
+              <label className="mono muted" htmlFor="chat-header-priority">{t('conversation.priority')}</label>
               <select
+                id="chat-header-priority"
                 className="select chat-header-select"
                 value={conversation.priority}
                 onChange={(e) =>
@@ -547,8 +611,9 @@ export default function ConversationClient({
             </div>
 
             <div className="chat-header-field">
-              <label className="mono muted">{t('conversation.assignedTo')}</label>
+              <label className="mono muted" htmlFor="chat-header-assignee">{t('conversation.assignedTo')}</label>
               <select
+                id="chat-header-assignee"
                 className="select chat-header-select"
                 value={conversation.assigned_to ?? ''}
                 onChange={(e) =>
@@ -570,6 +635,9 @@ export default function ConversationClient({
               {isResolved ? t('conversation.reopen') : t('conversation.resolve')}
             </button>
           </div>
+          <p className="form-error" role="alert" hidden={!updateError}>
+            {updateError}
+          </p>
         </header>
 
         <div className="chat-tags-row">
@@ -600,6 +668,9 @@ export default function ConversationClient({
             maxLength={40}
           />
           {macroApplied && <span className="chat-macro-applied mono muted">{t('macros.applied', { shortcut: macroApplied })}</span>}
+          {pendingMacro && !macroApplied && (
+            <span className="chat-macro-applied mono muted">{t('macros.pending', { shortcut: pendingMacro.shortcut })}</span>
+          )}
         </div>
 
         <div className="chat-messages" ref={messagesRef}>
@@ -735,7 +806,13 @@ export default function ConversationClient({
             className={`chat-composer-mode${mode === 'note' ? ' active note' : ''}`}
             onClick={() => {
               setMode('note');
+              setPendingMacro(null);
               clearSelectedFile();
+              // Si venía escribiendo una respuesta, el visitante deja de ver el indicador.
+              if (typingSentAt.current > 0) {
+                typingSentAt.current = 0;
+                fetch(`/api/chat/conversations/${conversationId}/typing`, { method: 'DELETE' }).catch(() => {});
+              }
             }}
           >
             {t('notes.label')}
@@ -748,14 +825,17 @@ export default function ConversationClient({
               className="chat-composer-attach"
               onClick={() => fileInputRef.current?.click()}
               title={t('attachments.upload')}
+              aria-label={t('attachments.upload')}
             >
-              ⊕
+              <span aria-hidden="true">⊕</span>
             </button>
           )}
           <input
             ref={fileInputRef}
             type="file"
             className="chat-composer-file-input"
+            aria-hidden="true"
+            tabIndex={-1}
             onChange={handleFileChange}
           />
           <div className="chat-composer-field">
@@ -766,6 +846,7 @@ export default function ConversationClient({
               value={reply}
               onChange={(e) => {
                 setReply(e.target.value);
+                if (!e.target.value.trim()) setPendingMacro(null);
                 setCannedIndex(0);
                 sendTyping();
               }}
@@ -814,6 +895,9 @@ export default function ConversationClient({
             {sending ? t('common.loading') : mode === 'note' ? t('notes.add') : t('conversation.send')}
           </button>
         </div>
+        <p className="form-error chat-composer-error" role="alert" hidden={!sendError}>
+          {sendError}
+        </p>
       </div>
 
       <VisitorPanel conversation={conversation} />

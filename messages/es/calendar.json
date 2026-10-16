@@ -20,7 +20,9 @@
     "hide": "Ocultar",
     "delete": "Eliminar",
     "deleting": "Eliminando…",
-    "edit": "Editar"
+    "edit": "Editar",
+    "yes": "Sí",
+    "no": "No"
   },
   "overview": {
     "title": "Calendario",
@@ -92,7 +94,9 @@
     "title": "Bloqueos",
     "add": "Bloquear",
     "reasonPlaceholder": "Motivo (opcional)",
-    "empty": "No hay bloqueos."
+    "empty": "No hay bloqueos.",
+    "from": "Desde",
+    "to": "Hasta"
   },
   "bookings": {
     "title": "Reservas",
@@ -100,7 +104,8 @@
     "rescheduled": "Reprogramada",
     "emptyTitle": "No hay reservas próximas",
     "emptySub": "Compartí un link de reserva y las nuevas reservas aparecen acá.",
-    "emptyCta": "Ir a tipos de evento"
+    "emptyCta": "Ir a tipos de evento",
+    "guestTime": "Invitado: {time} ({timezone})"
   },
   "booking": {
     "timezone": "Zona horaria",
@@ -129,13 +134,18 @@
     "host": "Anfitrión",
     "expiredTitle": "Link expirado",
     "expiredSub": "Este link de reserva de un solo uso ya fue utilizado.",
+    "unavailableTitle": "No disponible por ahora",
+    "unavailableSub": "Este tipo de evento no está tomando reservas en este momento. Probá más tarde o contactá al anfitrión.",
     "rescheduledTitle": "Reprogramada",
     "emailSent": "Te enviamos los detalles y una invitación de calendario por email.",
     "manageLink": "Reprogramar o cancelar",
     "confirmNewTime": "Confirmar nuevo horario",
     "price": "Precio",
     "payAndConfirm": "Pagar y confirmar",
-    "redirecting": "Te llevamos a pagar…"
+    "redirecting": "Te llevamos a pagar…",
+    "openCheckout": "Abrir el pago en otra pestaña",
+    "prevMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente"
   },
   "routing": {
     "title": "Formularios de routing",
@@ -192,7 +202,11 @@
     "schedule_in_use": "Hay tipos de evento que usan este horario. Asignales otro antes de borrarlo.",
     "invalid_schedule": "Ese horario no existe.",
     "invalid_range": "La hora de fin tiene que ser posterior a la de inicio.",
-    "invalid_key": "Esa clave no tiene el formato de Stripe."
+    "invalid_key": "Esa clave no tiene el formato de Stripe.",
+    "has_upcoming_bookings": "Este tipo de evento tiene reservas por venir. Cancelalas (se avisa a los invitados y se reembolsan los pagos) o apagalo antes de borrarlo.",
+    "invalid_price": "Stripe no puede cobrar ese precio en esa moneda.",
+    "not_started": "Esta reunión todavía no empezó.",
+    "status_changed": "La reserva cambió mientras tanto. Recargá e intentá de nuevo."
   },
   "settings": {
     "title": "Configuración",
@@ -207,7 +221,8 @@
     "bufferAfter": "Margen después (min)",
     "minNotice": "Aviso mínimo (horas)",
     "maxDays": "Reservable hasta (días)",
-    "copyLink": "Copiar link"
+    "copyLink": "Copiar link",
+    "webhookMissing": "Falta el signing secret: los tipos de evento pagos quedan deshabilitados hasta que lo cargues, así cada pago se confirma aunque el invitado cierre la pestaña."
   },
   "manage": {
     "title": "Tu reserva",
@@ -280,6 +295,11 @@
     "weekly": "Horas semanales",
     "unavailable": "No disponible",
     "addRange": "Agregar rango",
+    "rangeStart": "{day}: hora de inicio",
+    "rangeEnd": "{day}: hora de fin",
+    "overrideDate": "Excepción {n}: fecha",
+    "overrideStart": "Excepción {n}: hora de inicio",
+    "overrideEnd": "Excepción {n}: hora de fin",
     "overrides": "Excepciones por fecha",
     "overridesHint": "Un día sin horas queda bloqueado. Con horas, reemplazan las horas semanales de ese día.",
     "addOverride": "Agregar fecha",
@@ -291,7 +311,8 @@
     "pick": "Horario",
     "custom": "Horas propias de este evento",
     "customHint": "Horas solo para este evento, en la zona de Configuración. No usan excepciones por fecha.",
-    "manage": "Editar horarios"
+    "manage": "Editar horarios",
+    "defaultName": "Horario principal"
   },
   "admin": {
     "search": "Buscar por nombre o email",
@@ -312,7 +333,9 @@
     "confirmCancel": "Cancelar reserva",
     "keep": "Volver",
     "paid": "Pagada",
-    "loading": "Cargando…"
+    "loading": "Cargando…",
+    "refunded": "reembolsado",
+    "refundOnCancel": "Esta reserva está paga: al cancelarla se reembolsa el pago completo."
   },
   "workflows": {
     "title": "Recordatorios",
@@ -340,18 +363,23 @@
     "currency": "Moneda",
     "free": "0 = gratis",
     "notConfigured": "Para cobrar, conectá Stripe en Configuración.",
+    "eventWebhookMissing": "Stripe está conectado pero falta el signing secret del webhook: hasta que lo cargues en Configuración, los invitados no pueden reservar este tipo de evento pago.",
     "hint": "El invitado paga con Stripe Checkout para confirmar. Si no paga en 35 minutos, el horario se libera.",
     "settingsTitle": "Pagos con Stripe",
     "settingsSub": "Cobrá tus tipos de evento con tu propia cuenta de Stripe. La clave se guarda cifrada.",
     "secretKey": "Clave secreta (sk_ o rk_)",
     "webhookSecret": "Signing secret del webhook (whsec_)",
     "webhookUrl": "URL del webhook",
-    "webhookHint": "En Stripe → Developers → Webhooks, agregá esta URL con los eventos checkout.session.completed y checkout.session.expired.",
+    "webhookHint": "En Stripe → Developers → Webhooks, agregá esta URL con los eventos checkout.session.completed, checkout.session.expired, checkout.session.async_payment_succeeded y checkout.session.async_payment_failed.",
     "connected": "Conectado: {hint} ({mode})",
     "notConnected": "Sin conectar.",
     "keepKey": "Dejalo vacío para no cambiarla",
     "remove": "Desconectar",
     "adminOnly": "Solo el owner o un admin del workspace cambia esto.",
-    "webhookMissing": "Falta el signing secret: sin él confirmamos el pago cuando el invitado vuelve de Stripe."
+    "webhookMissing": "Falta el signing secret: sin él confirmamos el pago cuando el invitado vuelve de Stripe.",
+    "invalidAmount": "Escribí un monto como 15000 o 15.000,50.",
+    "noCents": "{currency} no tiene centavos: escribí un monto entero.",
+    "belowMinimum": "Stripe no acepta cobros menores a {min}.",
+    "charges": "El invitado paga {amount}."
   }
 }

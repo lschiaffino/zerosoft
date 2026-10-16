@@ -10,6 +10,8 @@ interface Props {
   locale: string;
   eventType: EventTypeWithRules;
   weekStart: number;
+  /** Máximo de días para reservar (regla del evento o del workspace). */
+  maxFutureDays?: number;
   booking: {
     startsAt: string;
     endsAt: string;
@@ -35,7 +37,7 @@ function formatRange(start: string, end: string, timezone: string, locale: strin
 }
 
 /** Página del invitado para ver, cancelar o reprogramar su reserva (sin cuenta). */
-export default function ManageBooking({ token, locale, eventType, weekStart, booking, paidNotice = false }: Props) {
+export default function ManageBooking({ token, locale, eventType, weekStart, maxFutureDays, booking, paidNotice = false }: Props) {
   const t = useTranslations('calendar');
   const [mode, setMode] = useState<'view' | 'cancel' | 'reschedule' | 'cancelled'>(
     booking.status === 'cancelled' ? 'cancelled' : 'view',
@@ -51,6 +53,7 @@ export default function ManageBooking({ token, locale, eventType, weekStart, boo
         eventType={eventType}
         locale={locale}
         weekStart={weekStart}
+        maxFutureDays={maxFutureDays}
         reschedule={{ token, name: booking.name, email: booking.email }}
       />
     );

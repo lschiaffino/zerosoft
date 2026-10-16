@@ -1,4 +1,5 @@
 import { getDb, getUserById } from './db';
+import { inlineHtmlToText } from './docs-markdown';
 import type {
   ChatAssignmentRuleRow,
   ChatCannedResponseRow,
@@ -405,6 +406,40 @@ export function cleanVisitorIdentity(email: unknown, name: unknown): { email: st
   };
 }
 
+export interface VisitorFormAnswers {
+  /** Respuestas con la etiqueta del campo del widget, en el orden del formulario. */
+  entries: Array<{ id: string; label: string; value: string }>;
+  /** Primer campo de tipo email válido: identidad del visitante. */
+  email: string | null;
+}
+
+/**
+ * Respuestas del formulario pre-chat del widget, validadas contra los campos
+ * configurados (ids desconocidos se descartan) y con sus etiquetas.
+ */
+export function visitorFormAnswers(widget: Pick<ChatWidgetRow, 'fields'>, raw: unknown): VisitorFormAnswers {
+  const result: VisitorFormAnswers = { entries: [], email: null };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return result;
+  const defs = parseJson<unknown>(widget.fields ?? '[]', []);
+  if (!Array.isArray(defs)) return result;
+  const values = raw as Record<string, unknown>;
+  for (const def of defs as ChatFieldDef[]) {
+    if (!def || typeof def.id !== 'string') continue;
+    const v = values[def.id];
+    const value = typeof v === 'string' ? v.trim().slice(0, 1000) : '';
+    if (!value) continue;
+    const label = typeof def.name === 'string' && def.name.trim() ? def.name.trim() : def.id;
+    result.entries.push({ id: def.id, label, value });
+    if (def.type === 'email' && !result.email) result.email = cleanVisitorIdentity(value, null).email;
+  }
+  return result;
+}
+
+/** Texto legible de las respuestas del formulario ("Empresa: Acme"). */
+export function formatVisitorFormAnswers(answers: VisitorFormAnswers): string {
+  return answers.entries.map((e) => `${e.label}: ${e.value}`).join('\n');
+}
+
 export async function getOrCreateChatVisitor(
   widgetId: string,
   externalId: string,
@@ -425,20 +460,24 @@ export async function getOrCreateChatVisitor(
     return existing;
   }
 
-  const id = crypto.randomUUID();
+  // Dos requests en paralelo del mismo visitante (formulario pre-chat + primer
+  // mensaje) pasan los dos por el SELECT: el segundo INSERT no debe dar 500.
   await db
     .prepare(
-      'INSERT INTO chat_visitors (id, widget_id, external_id, email, name, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      `INSERT INTO chat_visitors (id, widget_id, external_id, email, name, created_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(widget_id, external_id) DO NOTHING`,
     )
     .run(
-      id,
+      crypto.randomUUID(),
       widgetId,
       externalId,
       payload?.email ?? null,
       payload?.name ?? null,
       nowIso(),
     );
-  return (await db.prepare('SELECT * FROM chat_visitors WHERE id = ?').get(id)) as ChatVisitorRow;
+  return (await db
+    .prepare('SELECT * FROM chat_visitors WHERE widget_id = ? AND external_id = ?')
+    .get(widgetId, externalId)) as ChatVisitorRow;
 }
 
 export async function getChatVisitorByExternalId(
@@ -586,9 +625,8 @@ export async function updateChatVisitor(
     args.push(JSON.stringify(payload.metadata ?? {}));
   }
 
+  // chat_visitors no tiene updated_at: agregarlo rompía cada guardado con 500.
   if (fields.length > 0) {
-    fields.push('updated_at = ?');
-    args.push(nowIso());
     args.push(id);
     await db.prepare(`UPDATE chat_visitors SET ${fields.join(', ')} WHERE id = ?`).run(...args);
   }
@@ -696,6 +734,24 @@ export async function reopenExpiredSnoozes(widgetIds: string[]): Promise<void> {
     .run(nowIso(), nowIso(), ...widgetIds);
 }
 
+const SNOOZE_SWEEP_INTERVAL_MS = 60_000;
+const lastSnoozeSweep = new Map<string, number>();
+
+/**
+ * Igual que reopenExpiredSnoozes pero como mucho una vez por minuto por widget:
+ * el inbox lo dispara en cada poll de cada agente y sin cambios era una
+ * escritura inútil. Se llama antes de listar y contar, así ambos ven lo mismo.
+ */
+export async function reopenExpiredSnoozesThrottled(
+  widgetIds: string[],
+  now: number = Date.now(),
+): Promise<void> {
+  const due = widgetIds.filter((id) => now - (lastSnoozeSweep.get(id) ?? 0) >= SNOOZE_SWEEP_INTERVAL_MS);
+  if (due.length === 0) return;
+  for (const id of due) lastSnoozeSweep.set(id, now);
+  await reopenExpiredSnoozes(due);
+}
+
 export interface ChatConversationListRow extends ChatConversationRow, SlaComputedFields {
   visitor_email: string | null;
   visitor_name: string | null;
@@ -725,7 +781,6 @@ export async function listChatConversations(
 ): Promise<ChatConversationListRow[]> {
   if (widgetIds.length === 0) return [];
   const db = getDb();
-  await reopenExpiredSnoozes(widgetIds);
   const where: string[] = [`c.widget_id IN ${inClause(widgetIds.length)}`];
   const args: Array<string | number> = [...widgetIds];
 
@@ -1019,6 +1074,13 @@ export async function updateChatConversation(
   return getChatConversation(id);
 }
 
+/** Una respuesta del agente a una conversación resuelta la vuelve a abrir. */
+export async function reopenIfResolved(conversation: Pick<ChatConversationRow, 'id' | 'status'>): Promise<void> {
+  if (conversation.status === 'resolved') {
+    await updateChatConversation(conversation.id, { status: 'open' });
+  }
+}
+
 export async function touchChatConversation(id: string): Promise<void> {
   await getDb().prepare('UPDATE chat_conversations SET updated_at = ? WHERE id = ?').run(nowIso(), id);
 }
@@ -1055,6 +1117,11 @@ export async function listChatAgents(
     )
     .all(teamId)) as ChatAgent[];
   return rows;
+}
+
+/** El usuario atiende el widget (owner en un workspace personal o miembro del team). */
+export async function isChatAgentOfWidget(widget: ChatWidgetRow, userId: string): Promise<boolean> {
+  return (await listChatAgents(widget.user_id, widget.team_id)).some((a) => a.id === userId);
 }
 
 // ---------- Assignment rules ----------
@@ -1187,12 +1254,14 @@ function matchesKeyword(body: string, value: string | null): boolean {
   return body.toLowerCase().includes(value.toLowerCase());
 }
 
-function matchesTimeRange(value: string | null): boolean {
+// El rango se interpreta en la zona del widget (horario de atención); sin zona
+// configurada, en UTC. Antes usaba la hora del proceso (UTC en Vercel).
+export function matchesTimeRange(value: string | null, timeZone: string | null, now = new Date()): boolean {
   if (!value) return false;
   const [start, end] = value.split('-');
   if (!start || !end) return false;
-  const now = new Date();
-  const current = now.getHours() * 60 + now.getMinutes();
+  const current =
+    localParts(timeZone || 'UTC', now)?.minutes ?? now.getUTCHours() * 60 + now.getUTCMinutes();
   const parse = (s: string) => {
     const [h, m] = s.trim().split(':').map(Number);
     if (Number.isNaN(h) || Number.isNaN(m)) return null;
@@ -1215,10 +1284,13 @@ export async function applyAssignmentRules(
   // No pisar una asignación existente (manual o previa): las reglas solo
   // auto-asignan conversaciones sin dueño.
   const current = await getChatConversation(conversationId);
-  if (current?.assigned_to) return current.assigned_to;
+  // Si el asignado ya no es agente del widget (salió del team), se reparte de nuevo.
+  if (current?.assigned_to && teamMembers.some((m) => m.id === current.assigned_to)) return current.assigned_to;
 
   const rules = await listAssignmentRules(widgetId);
   const activeRules = rules.filter((r) => r.active === 1);
+  const widget = activeRules.some((r) => r.match_type === 'time') ? await getChatWidget(widgetId) : undefined;
+  const ruleTimeZone = parseOfficeHours(widget?.office_hours ?? null)?.timezone ?? null;
 
   for (const rule of activeRules) {
     let matched = false;
@@ -1230,7 +1302,7 @@ export async function applyAssignmentRules(
         matched = matchesKeyword(messageBody, rule.match_value);
         break;
       case 'time':
-        matched = matchesTimeRange(rule.match_value);
+        matched = matchesTimeRange(rule.match_value, ruleTimeZone);
         break;
       case 'round_robin':
         matched = true;
@@ -1238,22 +1310,31 @@ export async function applyAssignmentRules(
     }
     if (!matched) continue;
 
-    let assignTo: string | null = rule.assign_to;
+    // Una regla que apunta a alguien que ya no es agente del widget no asigna.
+    let assignTo: string | null =
+      rule.assign_to && teamMembers.some((m) => m.id === rule.assign_to) ? rule.assign_to : null;
 
     if (rule.match_type === 'round_robin' && teamMembers.length > 0) {
+      // Rota por carga ACTIVA (open/pending), no por el histórico: si no, un
+      // agente nuevo absorbería todas las entrantes hasta emparejar el total.
+      // Empate: a quien le tocó hace más tiempo (o nunca).
       const rows = (await db
         .prepare(
-          `SELECT assigned_to, COUNT(*) AS c
+          `SELECT assigned_to,
+                  SUM(CASE WHEN status IN ('open', 'pending') THEN 1 ELSE 0 END) AS active,
+                  MAX(created_at) AS last_at
            FROM chat_conversations
-           WHERE widget_id = ? AND assigned_to IS NOT NULL
+           WHERE widget_id = ? AND assigned_to IS NOT NULL AND id != ?
            GROUP BY assigned_to`,
         )
-        .all(widgetId)) as Array<{ assigned_to: string; c: number }>;
-      const counts = new Map(rows.map((r) => [r.assigned_to, r.c]));
+        .all(widgetId, conversationId)) as Array<{ assigned_to: string; active: number; last_at: string | null }>;
+      const stats = new Map(rows.map((r) => [r.assigned_to, r]));
       const sorted = [...teamMembers].sort((a, b) => {
-        const ca = counts.get(a.id) ?? 0;
-        const cb = counts.get(b.id) ?? 0;
-        return ca - cb;
+        const sa = stats.get(a.id);
+        const sb = stats.get(b.id);
+        const diff = Number(sa?.active ?? 0) - Number(sb?.active ?? 0);
+        if (diff !== 0) return diff;
+        return (sa?.last_at ?? '').localeCompare(sb?.last_at ?? '');
       });
       assignTo = sorted[0]?.id ?? null;
     }
@@ -1529,7 +1610,8 @@ export function extractDocsText(content: string, maxChars = 2000): string {
     const walk = (value: unknown): void => {
       if (texts.join(' ').length > maxChars) return;
       if (typeof value === 'string') {
-        texts.push(value);
+        // El contenido de los bloques es HTML-lite (<strong>, &amp;): a texto plano.
+        texts.push(inlineHtmlToText(value));
         return;
       }
       if (Array.isArray(value)) {
@@ -1547,6 +1629,14 @@ export function extractDocsText(content: string, maxChars = 2000): string {
   } catch {
     return content.slice(0, maxChars);
   }
+}
+
+// Corta en el último espacio antes del límite para no partir una palabra.
+function clipAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const at = cut.lastIndexOf(' ');
+  return `${(at > max * 0.6 ? cut.slice(0, at) : cut).replace(/[\s,.;:]+$/, '')}…`;
 }
 
 export async function findBotReply(
@@ -1575,7 +1665,7 @@ export async function findBotReply(
       if (score > 0 && (!best || score > best.score)) {
         best = {
           score,
-          text: `${page.title}: ${text.slice(0, 280)}`.trim(),
+          text: `${page.title}: ${clipAtWord(text, 280)}`.trim(),
           title: page.title,
         };
       }
@@ -1738,16 +1828,22 @@ export async function setTyping(
   expiresInSeconds = 5,
 ): Promise<void> {
   const db = getDb();
-  const id = crypto.randomUUID();
+  // Id determinístico: con user_id NULL (visitante) el UNIQUE no choca nunca en
+  // SQLite y cada "escribiendo" insertaba una fila nueva. El upsert por id lo cubre.
+  const id = `${conversationId}:${senderType}:${userId ?? ''}`;
   const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
   await db
     .prepare(
       `INSERT INTO chat_typing (id, conversation_id, sender_type, user_id, expires_at)
        VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT (conversation_id, sender_type, user_id)
-       DO UPDATE SET expires_at = excluded.expires_at`,
+       ON CONFLICT (id) DO UPDATE SET expires_at = excluded.expires_at
+       ON CONFLICT (conversation_id, sender_type, user_id) DO UPDATE SET expires_at = excluded.expires_at`,
     )
     .run(id, conversationId, senderType, userId ?? null, expiresAt);
+  // Limpieza de indicadores vencidos de la conversación (filas viejas incluidas).
+  await db
+    .prepare('DELETE FROM chat_typing WHERE conversation_id = ? AND expires_at <= ?')
+    .run(conversationId, nowIso());
 }
 
 export async function listTyping(conversationId: string): Promise<ChatTypingRow[]> {
@@ -1782,6 +1878,37 @@ export async function clearTyping(
 }
 
 // ---------- Public visitor helpers ----------
+
+/** Proyección del visitante para rutas públicas: sin notas internas ni metadata. */
+export function toPublicVisitor(visitor: ChatVisitorRow): Pick<ChatVisitorRow, 'id' | 'email' | 'name'> {
+  return { id: visitor.id, email: visitor.email, name: visitor.name };
+}
+
+export type PublicChatMessage = Pick<ChatMessageRow, 'id' | 'conversation_id' | 'sender_type' | 'body' | 'read_at' | 'created_at'> & {
+  attachments: ChatAttachment[];
+};
+
+/**
+ * Proyección del mensaje para rutas públicas (widget): attachments ya parseado
+ * (en la base es texto JSON y el widget espera un array) y sin el user id del agente.
+ */
+export function toPublicMessage(message: ChatMessageRow): PublicChatMessage {
+  const parsed = parseJson<unknown>(message.attachments ?? '[]', []);
+  return {
+    id: message.id,
+    conversation_id: message.conversation_id,
+    sender_type: message.sender_type,
+    body: message.body,
+    attachments: Array.isArray(parsed) ? (parsed as ChatAttachment[]) : [],
+    read_at: message.read_at,
+    created_at: message.created_at,
+  };
+}
+
+/** Proyección del indicador de escribiendo para rutas públicas: sin ids de agentes. */
+export function toPublicTyping(rows: ChatTypingRow[]): Array<Pick<ChatTypingRow, 'sender_type'>> {
+  return rows.map((r) => ({ sender_type: r.sender_type }));
+}
 
 export interface VisitorConversationWithMessages {
   visitor: ChatVisitorRow;

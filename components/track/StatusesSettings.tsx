@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TrackStatusRow } from '@/lib/db';
 
@@ -18,6 +18,8 @@ const CATEGORY_KEY: Record<Category, string> = {
 interface StatusesSettingsProps {
   projectId: string;
   statuses: TrackStatusRow[];
+  /** Borrar status es solo para owner/admin. */
+  canDelete?: boolean;
   /** Estado nuevo tras cada cambio (la vista recarga issues si hace falta). */
   onChange: (statuses: TrackStatusRow[], opts?: { reloadIssues?: boolean }) => void;
 }
@@ -26,7 +28,7 @@ interface StatusesSettingsProps {
  * Configuración de los status del workflow de un proyecto: agregar, renombrar,
  * color, categoría, reordenar (↑/↓) y borrar reasignando sus issues.
  */
-export default function StatusesSettings({ projectId, statuses, onChange }: StatusesSettingsProps) {
+export default function StatusesSettings({ projectId, statuses, canDelete = true, onChange }: StatusesSettingsProps) {
   const t = useTranslations('track');
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
@@ -34,6 +36,8 @@ export default function StatusesSettings({ projectId, statuses, onChange }: Stat
   const [deleting, setDeleting] = useState<string | null>(null);
   const [reassignTo, setReassignTo] = useState('');
   const [busy, setBusy] = useState(false);
+  // Color guardado antes de empezar a editar, para revertir si falla el PATCH.
+  const colorBefore = useRef(new Map<string, string>());
 
   async function call(url: string, init: RequestInit): Promise<Response | null> {
     setError(null);
@@ -42,11 +46,21 @@ export default function StatusesSettings({ projectId, statuses, onChange }: Stat
     return res?.ok ? res : null;
   }
 
-  async function patch(id: string, body: Record<string, unknown>) {
+  async function patch(id: string, body: Record<string, unknown>): Promise<boolean> {
     const res = await call(`/api/track/statuses/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
-    if (!res) return;
+    if (!res) return false;
     const saved = (await res.json()) as TrackStatusRow;
     onChange(statuses.map((s) => (s.id === id ? saved : s)), { reloadIssues: true });
+    return true;
+  }
+
+  async function saveColor(id: string, color: string) {
+    const before = colorBefore.current.get(id);
+    colorBefore.current.delete(id);
+    if (before === undefined || before === color) return;
+    if (!(await patch(id, { color }))) {
+      onChange(statuses.map((x) => (x.id === id ? { ...x, color: before } : x)));
+    }
   }
 
   async function move(index: number, dir: -1 | 1) {
@@ -111,8 +125,11 @@ export default function StatusesSettings({ projectId, statuses, onChange }: Stat
               type="color"
               className="track-status-color"
               value={/^#[0-9a-f]{6}$/i.test(s.color) ? s.color : '#666666'}
-              onChange={(e) => onChange(statuses.map((x) => (x.id === s.id ? { ...x, color: e.target.value } : x)))}
-              onBlur={(e) => void patch(s.id, { color: e.target.value })}
+              onChange={(e) => {
+                if (!colorBefore.current.has(s.id)) colorBefore.current.set(s.id, s.color);
+                onChange(statuses.map((x) => (x.id === s.id ? { ...x, color: e.target.value } : x)));
+              }}
+              onBlur={(e) => void saveColor(s.id, e.target.value)}
               aria-label={t('statusSettings.color')}
             />
             <input
@@ -120,9 +137,14 @@ export default function StatusesSettings({ projectId, statuses, onChange }: Stat
               defaultValue={s.name}
               aria-label={t('statusSettings.name')}
               maxLength={200}
-              onBlur={(e) => {
-                const v = e.target.value.trim();
-                if (v && v !== s.name) void patch(s.id, { name: v });
+              onBlur={async (e) => {
+                const el = e.target;
+                const v = el.value.trim();
+                if (!v) {
+                  el.value = s.name;
+                  return;
+                }
+                if (v !== s.name && !(await patch(s.id, { name: v }))) el.value = s.name;
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
@@ -159,17 +181,19 @@ export default function StatusesSettings({ projectId, statuses, onChange }: Stat
             >
               ↓
             </button>
-            <button
-              type="button"
-              className="btn btn-small"
-              disabled={statuses.length <= 1}
-              onClick={() => {
-                setDeleting(s.id);
-                setReassignTo(statuses.find((x) => x.id !== s.id)?.id ?? '');
-              }}
-            >
-              {t('statusSettings.delete')}
-            </button>
+            {canDelete && (
+              <button
+                type="button"
+                className="btn btn-small"
+                disabled={statuses.length <= 1}
+                onClick={() => {
+                  setDeleting(s.id);
+                  setReassignTo(statuses.find((x) => x.id !== s.id)?.id ?? '');
+                }}
+              >
+                {t('statusSettings.delete')}
+              </button>
+            )}
             {deleting === s.id && (
               <div className="track-status-delete" role="group" aria-label={t('statusSettings.delete')}>
                 <label>
@@ -195,6 +219,7 @@ export default function StatusesSettings({ projectId, statuses, onChange }: Stat
           </li>
         ))}
       </ul>
+      {!canDelete && <p className="muted track-settings-help">{t('statusSettings.adminOnly')}</p>}
       <form className="track-status-add" onSubmit={add}>
         <input
           value={newName}

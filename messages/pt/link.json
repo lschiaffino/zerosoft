@@ -29,9 +29,9 @@
     "title": "Visão geral",
     "activeLinks": "Links ativos",
     "totalClicks": "Cliques totais",
-    "clicksToday": "Cliques hoje",
+    "clicksToday": "Cliques hoje (UTC)",
     "topLink": "Top link",
-    "chartLabel": "Cliques — últimos 30 dias",
+    "chartLabel": "Cliques — últimos 30 dias (UTC)",
     "topLinks": "Top links",
     "noClicksYet": "Ainda não há cliques. Compartilhe seus links e volte.",
     "recent": "Recentes",
@@ -72,7 +72,9 @@
     "emptyAllTitle": "Nada por aqui ainda",
     "emptyAllSub": "Crie seu primeiro short link e veja os zeros chegarem.",
     "bulkCta": "Criar em lote",
-    "clearFilters": "Limpar filtros"
+    "clearFilters": "Limpar filtros",
+    "statusLimit": "limite atingido",
+    "sortLabel": "Ordenar por"
   },
   "new": {
     "title": "Novo link",
@@ -110,15 +112,16 @@
     "ogImageLabel": "URL da imagem OG",
     "ogImagePlaceholder": "https://exemplo.com/imagem.png",
     "create": "Criar link",
-    "creating": "Criando…"
+    "creating": "Criando…",
+    "slugReserved": "✕ palavra reservada (use em um domínio próprio)"
   },
   "detail": {
     "back": "← Todos os links",
     "total": "Cliques totais",
-    "today": "Hoje",
+    "today": "Hoje (UTC)",
     "last7": "Últimos 7 dias",
     "topRef": "Top referrer",
-    "chartLabel": "Cliques ao longo do tempo",
+    "chartLabel": "Cliques ao longo do tempo (UTC)",
     "range7": "7d",
     "range30": "30d",
     "rangeAll": "tudo",
@@ -174,7 +177,11 @@
     "range90": "90 dias",
     "inRange": "{range} · vs anterior",
     "deltaNew": "novo",
-    "qrScans": "Leituras de QR"
+    "qrScans": "Leituras de QR",
+    "variants": "Destinos da segmentação",
+    "variantDefault": "padrão",
+    "chartAria": "Cliques por dia",
+    "chartSummary": "{total} no total. Pico: {peak} em {date}."
   },
   "bulk": {
     "title": "Criação em massa",
@@ -266,7 +273,17 @@
     "empty": "Pelo menos uma URL é obrigatória.",
     "too_many": "URLs demais. Máximo de 200 por lote.",
     "generic": "Algo deu errado. Tente de novo.",
-    "invalid_domain": "Esse domínio ainda não foi verificado."
+    "invalid_domain": "Esse domínio ainda não foi verificado.",
+    "bad_request": "Algum campo não é válido. Confira tamanhos e formatos.",
+    "invalid_targeting_url": "Um dos destinos da segmentação não é uma URL válida.",
+    "empty_rule": "Cada regra precisa de pelo menos um país ou dispositivo.",
+    "ab_needs_two": "Um teste A/B precisa de pelo menos duas variantes.",
+    "ab_zero_weight": "Pelo menos uma variante do A/B precisa ter peso maior que zero.",
+    "rate_limited": "Pedidos demais. Espere um minuto e tente de novo.",
+    "self_link": "Um link curto não pode apontar para outro link curto nosso.",
+    "quota_exceeded": "Você atingiu o limite de novos links de hoje. Tente de novo amanhã.",
+    "forbidden": "Só os admins do workspace podem fazer isso.",
+    "already_imported": "Já estava importado."
   },
   "webhooks": {
     "desc": "Enviamos um JSON assinado (POST) para sua URL quando esses eventos acontecem. Verifique o header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") com seu secret. Entregas com falha são reenviadas com backoff.",
@@ -297,7 +314,7 @@
     "pending": "Aguardando DNS",
     "verify": "Verificar",
     "remove": "Remover",
-    "dnsHelp": "Crie este registro no seu provedor de DNS. As mudanças podem levar alguns minutos.",
+    "dnsHelp": "Crie estes registros no seu provedor de DNS: o TXT prova que o domínio é seu. As mudanças podem levar alguns minutos.",
     "type": "Tipo",
     "name": "Nome",
     "value": "Valor",
@@ -314,8 +331,11 @@
       "app_host": "Esse é o domínio do Zerosoft.",
       "provider_error": "Não foi possível registrar o domínio na hospedagem. Tente de novo.",
       "has_links": "Este domínio ainda tem links. Mova ou exclua-os primeiro.",
+      "too_many_pending": "Você tem 5 domínios aguardando verificação. Verifique ou remova algum primeiro.",
+      "rate_limited": "Domínios demais adicionados. Espere um pouco e tente de novo.",
       "invalid_url": "A URL não é válida."
-    }
+    },
+    "txtMissing": "Ainda não vemos o registro TXT. Confira o nome e o valor; o DNS pode levar alguns minutos."
   },
   "export": {
     "title": "Seus dados",
@@ -361,7 +381,9 @@
     "save": "Salvar",
     "saved": "Salvo ✓",
     "view": "Ver página ↗",
-    "error": "Confira os campos (o avatar precisa ser uma URL https)."
+    "error": "Confira os campos (o avatar precisa ser uma URL https).",
+    "search": "Buscar",
+    "searchPlaceholder": "Buscar outros links por título, slug ou URL"
   },
   "quick": {
     "cancel": "Cancelar",
@@ -384,7 +406,8 @@
     "tagPlaceholder": "Etiqueta",
     "applyTag": "Aplicar",
     "clear": "Limpar seleção",
-    "confirmDelete": "{count, plural, one {Excluir # link?} other {Excluir # links?}}"
+    "confirmDelete": "{count, plural, one {Excluir # link?} other {Excluir # links?}}",
+    "tagPartial": "{affected} de {total} receberam a etiqueta. O resto já tinha essa etiqueta ou 5 etiquetas."
   },
   "analytics": {
     "title": "Analytics",
@@ -444,7 +467,11 @@
     "saving": "Salvando…",
     "saved": "Salvo",
     "clear": "Remover tudo",
-    "error": "Não foi possível salvar: {code}"
+    "error": "Não foi possível salvar: {code}",
+    "countriesInvalid": "Use códigos de país de duas letras (BR, US, PT).",
+    "incompleteRow": "Cada regra e variante A/B precisa de uma URL de destino. Preencha ou remova a linha.",
+    "clearConfirm": "Remover todas as regras, variantes A/B e deep links deste link?",
+    "ipadNote": "iPads com Safari se identificam como Mac, então recebem o destino de desktop."
   },
   "qr": {
     "design": "Design",
@@ -463,6 +490,19 @@
     "save": "Salvar design",
     "saved": "Salvo",
     "lowContrast": "Pouco contraste: alguns leitores não vão ler.",
-    "scansNote": "O QR aponta para {url}: as leituras contam separado dos cliques."
+    "scansNote": "O QR aponta para {url}: as leituras contam separado dos cliques.",
+    "previewAria": "Código QR"
+  },
+  "labels": {
+    "unknown": "Desconhecido",
+    "desktop": "Desktop",
+    "mobile": "Celular",
+    "tablet": "Tablet",
+    "rule": "Regra {n}",
+    "ab": "Variante {v}",
+    "app": "App {os}"
+  },
+  "preview": {
+    "continue": "Continuar →"
   }
 }

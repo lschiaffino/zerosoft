@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { relDate } from '@/lib/utils';
+import type { TrackIssueAttachmentRow } from '@/lib/db';
 import type { TrackIssueActivityWithAuthor, ProjectMember } from '@/lib/track-data';
 
 interface ActivityLabels {
@@ -37,6 +38,8 @@ interface IssueActivityTimelineProps {
   activities: TrackIssueActivityWithAuthor[];
   members: ProjectMember[];
   labels: ActivityLabels;
+  /** Adjuntos actuales del issue (para enlazar las entradas "subió X"). */
+  attachments?: Array<Pick<TrackIssueAttachmentRow, 'id' | 'url'>>;
   onChange?: () => void;
 }
 
@@ -54,7 +57,13 @@ function Avatar({ name }: { name: string | null }) {
   return <span className="track-avatar">{initial}</span>;
 }
 
-function userName(activity: TrackIssueActivityWithAuthor): string {
+function userName(activity: TrackIssueActivityWithAuthor, meta: Record<string, unknown> = parseMeta(activity.meta)): string {
+  // Cambios automáticos de GitHub: se firman con el autor del PR, no con el
+  // owner del workspace (que solo es el user_id técnico de la fila).
+  if (meta.via === 'github') {
+    const author = typeof meta.viaAuthor === 'string' && meta.viaAuthor ? ` (@${meta.viaAuthor})` : '';
+    return `GitHub${author}`;
+  }
   return activity.user_name ?? activity.user_email ?? '?';
 }
 
@@ -92,8 +101,10 @@ export default function IssueActivityTimeline({
   activities,
   members,
   labels,
+  attachments = [],
   onChange,
 }: IssueActivityTimelineProps) {
+  const attachmentUrls = useMemo(() => new Map(attachments.map((a) => [a.id, a.url])), [attachments]);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
@@ -188,7 +199,7 @@ export default function IssueActivityTimeline({
 
   function renderActivity(activity: TrackIssueActivityWithAuthor) {
     const meta = parseMeta(activity.meta);
-    const name = userName(activity);
+    const name = userName(activity, meta);
 
     switch (activity.type) {
       case 'created':
@@ -283,12 +294,14 @@ export default function IssueActivityTimeline({
       case 'attachment_added': {
         const attachmentId = String(meta.attachmentId ?? '');
         const filename = String(meta.filename ?? '');
+        // Se enlaza al archivo real; si el adjunto ya se borró, queda solo el nombre.
+        const url = attachmentUrls.get(attachmentId);
         return (
           <span>
             {labels.attachmentAdded.replace('{user}', name).replace('{filename}', filename)}{' '}
-            {attachmentId && (
+            {url && (
               <a
-                href={`/api/track/issues/${issueId}/attachments?fileId=${attachmentId}`}
+                href={url}
                 target="_blank"
                 rel="noreferrer"
                 className="track-activity-link"
@@ -362,7 +375,7 @@ export default function IssueActivityTimeline({
         <div className="track-activity-list">
           {sorted.map((activity) => (
             <div key={activity.id} className="track-activity-item">
-              <Avatar name={activity.user_name} />
+              <Avatar name={userName(activity)} />
               <div className="track-activity-body">
                 <div className="track-activity-text">{renderActivity(activity)}</div>
                 <time className="track-activity-time" dateTime={activity.created_at}>

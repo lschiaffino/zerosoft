@@ -6,6 +6,7 @@ import {
   createChatMessage,
   extractDocsText,
   getChatConversation,
+  isChatAgentOfWidget,
   listCannedResponses,
   maybeRunChatBot,
   updateChatConversation,
@@ -155,9 +156,12 @@ export async function setBotTyping(conversationId: string): Promise<void> {
   const expiresAt = new Date(Date.now() + BOT_TYPING_SECONDS * 1000).toISOString();
   await getDb()
     .prepare(
-      "INSERT INTO chat_typing (id, conversation_id, sender_type, user_id, expires_at) VALUES (?, ?, 'user', NULL, ?)",
+      // Id determinístico (como setTyping): con user_id NULL el UNIQUE no choca y
+      // cada llamada sumaba una fila.
+      `INSERT INTO chat_typing (id, conversation_id, sender_type, user_id, expires_at) VALUES (?, ?, 'user', NULL, ?)
+       ON CONFLICT (id) DO UPDATE SET expires_at = excluded.expires_at`,
     )
-    .run(crypto.randomUUID(), conversationId, expiresAt);
+    .run(`${conversationId}:user:`, conversationId, expiresAt);
 }
 
 export async function clearBotTyping(conversationId: string): Promise<void> {
@@ -182,7 +186,9 @@ export async function markHandoff(
     ...(conversation.status !== 'open' ? { status: 'open' as const } : {}),
   });
   const recipients = new Set([widget.user_id]);
-  if (conversation.assigned_to) recipients.add(conversation.assigned_to);
+  if (conversation.assigned_to && (await isChatAgentOfWidget(widget, conversation.assigned_to))) {
+    recipients.add(conversation.assigned_to);
+  }
   for (const userId of recipients) {
     await createNotification({
       userId,

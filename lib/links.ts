@@ -5,12 +5,19 @@ const scryptAsync = promisify(scrypt) as (password: string, salt: string, keylen
 import { customAlphabet } from 'nanoid';
 import { z } from 'zod';
 import { getDb, type LinkRow } from './db';
-import { isValidSlug } from './reserved';
-import { isValidUrl, normalizeUrl, shortUrl } from './utils';
-import { isAppHost } from './hosts';
+import { isValidSlug, SLUG_REGEX } from './reserved';
+import { isValidUrl, normalizeUrl, shortDomain, shortUrl } from './utils';
+import { appHosts, isAppHost, isOwnDeploymentHost, normalizeHost } from './hosts';
 import { getVerifiedDomainByHost } from './link-domains';
 import { emitEvent } from './events';
-import { linkTargetingSchema, normalizeTargeting, parseTargeting, type LinkTargeting } from './link-targeting';
+import type { BulkResultItem } from './link-bulk-csv';
+import {
+  linkTargetingSchema,
+  normalizeTargeting,
+  parseTargeting,
+  targetingDestinations,
+  type LinkTargeting,
+} from './link-targeting';
 
 /** LinkRow + el hostname de su dominio propio (null = dominio por defecto). */
 export type LinkWithDomain = LinkRow & { domain_hostname?: string | null };
@@ -142,14 +149,16 @@ export async function listLinks(
 
 /** All distinct tags used by a user's links (for filter chips). */
 export async function userTags(userId: string): Promise<string[]> {
+  // DISTINCT en la base: no viaja una fila por link (un workspace puede tener
+  // decenas de miles) solo para armar los chips. JSON roto cuenta como sin tags.
   const rows = (await getDb()
-    .prepare('SELECT tags FROM links WHERE user_id = ?')
-    .all(userId)) as Array<{
-    tags: string;
-  }>;
-  const set = new Set<string>();
-  for (const row of rows) for (const tag of parseTags(row.tags)) set.add(tag);
-  return [...set].sort();
+    .prepare(
+      `SELECT DISTINCT j.value AS tag FROM links l,
+         json_each(CASE WHEN json_valid(l.tags) THEN l.tags ELSE '[]' END) j
+       WHERE l.user_id = ? AND j.type = 'text' LIMIT 500`,
+    )
+    .all(userId)) as Array<{ tag: string }>;
+  return rows.map((r) => r.tag).sort();
 }
 
 // ---------- Status ----------
@@ -158,11 +167,17 @@ export function isExpired(link: LinkRow): boolean {
   return !!link.expires_at && new Date(link.expires_at).getTime() <= Date.now();
 }
 
-export type LinkStatus = 'active' | 'archived' | 'expired' | 'protected';
+/** Llegó a max_clicks: /r ya responde gone('limit'). */
+export function isLimitReached(link: Pick<LinkRow, 'max_clicks' | 'clicks'>): boolean {
+  return link.max_clicks !== null && link.clicks >= link.max_clicks;
+}
+
+export type LinkStatus = 'active' | 'archived' | 'expired' | 'limit' | 'protected';
 
 export function linkStatus(link: LinkRow): LinkStatus {
   if (link.archived === 1) return 'archived';
   if (isExpired(link)) return 'expired';
+  if (isLimitReached(link)) return 'limit';
   if (link.password_hash) return 'protected';
   return 'active';
 }
@@ -244,6 +259,9 @@ function gateSecret(): string {
 
 export const gateCookieName = (slug: string): string => `zs_gate_${slug}`;
 
+/** Referrer de la visita antes de pasar por la puerta (el Referer de vuelta es la puerta misma). */
+export const gateRefCookieName = (slug: string): string => `zs_gref_${slug}`;
+
 export function gateToken(slug: string, passwordHash: string): string {
   return createHmac('sha256', gateSecret()).update(`${slug}:${passwordHash}`).digest('hex');
 }
@@ -284,6 +302,64 @@ export function applyUtm(
   return { url: u.toString(), source, medium, campaign };
 }
 
+// ---------- Abuso ----------
+
+/**
+ * La URL es un link corto nuestro (zerosoft.ai/<slug>, /r/<slug>, /s/<slug>,
+ * /<locale>/gate/<slug> o un dominio propio verificado). Como destino arma loops de redirects que
+ * inflan clicks, webhooks y gastan max_clicks.
+ */
+export async function isShortLinkUrl(url: string): Promise<boolean> {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  const host = normalizeHost(u.host).replace(/^www\./, '');
+  const bare = host.replace(/:\d+$/, '');
+  const ours = new Set([...appHosts(), normalizeHost(shortDomain())].map((h) => h.replace(/^www\./, '')));
+  // Next decodifica los params (/r/%61bc resuelve el slug 'abc'): se valida decodificado.
+  const path = u.pathname
+    .split('/')
+    .map((seg) => {
+      try {
+        return decodeURIComponent(seg);
+      } catch {
+        return seg;
+      }
+    })
+    .join('/');
+  const m = /^\/(?:([rs]|(?:en|es|pt)\/gate)\/)?([^/]+)\/?$/.exec(path);
+  // Los *.vercel.app de deployments anteriores del proyecto sirven los mismos links (misma DB).
+  if (ours.has(host) || ours.has(bare) || isOwnDeploymentHost(bare)) {
+    if (!m) return false;
+    // /r/<slug>, /s/<slug> y la puerta siempre son links; /<slug> solo si no es una ruta del sitio.
+    return m[1] ? SLUG_REGEX.test(m[2]) : isValidSlug(m[2]);
+  }
+  // La raíz de un dominio propio redirige a su root_url (/r/__root): también arma loops.
+  if (!m && path !== '/') return false;
+  return Boolean(await getVerifiedDomainByHost(bare));
+}
+
+/** Tope de links nuevos por workspace en 24 h (LINK_DAILY_QUOTA, 0 = sin tope). */
+export function linkDailyQuota(): number {
+  const raw = Number(process.env.LINK_DAILY_QUOTA ?? 2000);
+  return Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 2000;
+}
+
+/** Cuántos links más puede crear el usuario en las últimas 24 h (Infinity sin tope). */
+export async function linkQuotaRemaining(userId: string): Promise<number> {
+  const quota = linkDailyQuota();
+  if (quota === 0) return Infinity;
+  const used = (
+    (await getDb()
+      .prepare(`SELECT COUNT(*) AS c FROM links WHERE user_id = ? AND created_at >= datetime('now', '-1 day')`)
+      .get(userId)) as { c: number }
+  ).c;
+  return Math.max(0, quota - used);
+}
+
 // ---------- Create ----------
 
 export interface CreateLinkInput {
@@ -305,7 +381,14 @@ export interface CreateLinkInput {
   ogImage?: string;
 }
 
-export type CreateLinkError = 'invalid_url' | 'invalid_slug' | 'slug_taken' | 'invalid_date' | 'invalid_domain';
+export type CreateLinkError =
+  | 'invalid_url'
+  | 'invalid_slug'
+  | 'slug_taken'
+  | 'invalid_date'
+  | 'invalid_domain'
+  | 'self_link'
+  | 'quota_exceeded';
 
 export type CreateLinkResult =
   | { ok: true; link: LinkRow }
@@ -320,6 +403,8 @@ export async function createLink(
 
   const normalized = normalizeUrl(input.url);
   if (!isValidUrl(normalized)) return { ok: false, code: 'invalid_url' };
+  if (await isShortLinkUrl(normalized)) return { ok: false, code: 'self_link' };
+  if ((await linkQuotaRemaining(userId)) <= 0) return { ok: false, code: 'quota_exceeded' };
 
   const domainId = input.domainId || null;
   if (domainId) {
@@ -330,6 +415,7 @@ export async function createLink(
   }
 
   let slug: string;
+  const customSlug = Boolean(input.slug && input.slug.trim());
   if (input.slug && input.slug.trim()) {
     slug = input.slug.trim();
     if (!isValidSlug(slug, Boolean(domainId))) return { ok: false, code: 'invalid_slug' };
@@ -358,30 +444,42 @@ export async function createLink(
 
   const id = crypto.randomUUID();
   const redirectType = input.redirectType === 301 ? 301 : 302;
-  await db
-    .prepare(
-      `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      id,
-      userId,
-      domainId,
-      slug,
-      utm.url,
-      input.title?.trim() || null,
-      JSON.stringify(tags),
-      input.password ? await hashPassword(input.password) : null,
-      expiresAt,
-      input.maxClicks ?? null,
-      redirectType,
-      utm.source,
-      utm.medium,
-      utm.campaign,
-      input.ogTitle?.trim() || null,
-      input.ogDescription?.trim() || null,
-      input.ogImage?.trim() || null,
-    );
+  const passwordHash = input.password ? await hashPassword(input.password) : null;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await db
+        .prepare(
+          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          userId,
+          domainId,
+          slug,
+          utm.url,
+          input.title?.trim() || null,
+          JSON.stringify(tags),
+          passwordHash,
+          expiresAt,
+          input.maxClicks ?? null,
+          redirectType,
+          utm.source,
+          utm.medium,
+          utm.campaign,
+          input.ogTitle?.trim() || null,
+          input.ogDescription?.trim() || null,
+          input.ogImage?.trim() || null,
+        );
+      break;
+    } catch (e) {
+      // Carrera con otra alta al mismo slug (doble submit, import en paralelo):
+      // el UNIQUE lo frena. Slug propio → slug_taken; generado → otro slug.
+      if (!/UNIQUE constraint failed/i.test(String(e))) throw e;
+      if (customSlug || attempt >= 2) return { ok: false, code: 'slug_taken' };
+      slug = await generateSlug(domainId);
+    }
+  }
 
   const created = (await getUserLink(userId, id))!;
   await emitEvent(userId, 'link.created', { link: toLinkDto(created) });
@@ -398,12 +496,7 @@ export interface BulkCreateInput {
   utmCampaign?: string;
 }
 
-export interface BulkResultItem {
-  url: string;
-  short_url: string;
-  status: 'created' | 'error';
-  error?: string;
-}
+export { bulkResultsToCsv, type BulkResultItem } from './link-bulk-csv';
 
 /** Creates many links in one call. Returns per-line results preserving order. */
 export async function createLinksBulk(
@@ -434,22 +527,6 @@ export async function createLinksBulk(
   }
 
   return results;
-}
-
-export function bulkResultsToCsv(rows: BulkResultItem[]): string {
-  const lines = ['original_url,short_url,status'];
-  for (const row of rows) {
-    lines.push(
-      [csvCell(row.url), csvCell(row.short_url), csvCell(row.error ?? row.status)].join(','),
-    );
-  }
-  return lines.join('\n');
-}
-
-function csvCell(value: string): string {
-  const escaped = value.replace(/"/g, '""');
-  if (/[",\n\r]/.test(escaped)) return `"${escaped}"`;
-  return escaped;
 }
 
 // ---------- Edición (app y API v1) ----------
@@ -483,8 +560,18 @@ export async function applyLinkPatch(
   if (p.url !== undefined) {
     const normalized = normalizeUrl(p.url);
     if (!isValidUrl(normalized)) return { error: 'invalid_url', status: 400 };
+    if (await isShortLinkUrl(normalized)) return { error: 'self_link', status: 400 };
     sets.push('url = ?');
     args.push(normalized);
+    // La variante A del A/B nace como copia del destino del link: si sigue
+    // apuntando al destino viejo, se mueve con él (si no, la mitad del
+    // tráfico quedaría yendo a la URL anterior para siempre).
+    const current = p.targeting === undefined ? parseTargeting(link.targeting) : null;
+    if (current && normalized !== link.url && current.ab.some((v) => v.url === link.url)) {
+      const ab = current.ab.map((v) => (v.url === link.url ? { ...v, url: normalized } : v));
+      sets.push('targeting = ?');
+      args.push(JSON.stringify({ ...current, ab }));
+    }
   }
   if (p.title !== undefined) {
     sets.push('title = ?');
@@ -521,8 +608,12 @@ export async function applyLinkPatch(
   }
   if (p.slug !== undefined && p.slug !== link.slug) {
     const slug = p.slug.trim();
-    if (!isValidSlug(slug)) return { error: 'invalid_slug', status: 400 };
-    const taken = await getDb().prepare('SELECT 1 AS x FROM links WHERE slug = ? AND id != ?').get(slug, link.id);
+    // Mismas reglas que al crear: los reservados solo aplican al dominio por
+    // defecto y la colisión es por dominio (índice idx_links_domain_slug).
+    if (!isValidSlug(slug, Boolean(link.domain_id))) return { error: 'invalid_slug', status: 400 };
+    const taken = await getDb()
+      .prepare("SELECT 1 AS x FROM links WHERE slug = ? AND COALESCE(domain_id, '') = ? AND id != ?")
+      .get(slug, link.domain_id ?? '', link.id);
     if (taken) return { error: 'slug_taken', status: 409 };
     sets.push('slug = ?');
     args.push(slug);
@@ -550,6 +641,10 @@ export async function applyLinkPatch(
     } else {
       const t = normalizeTargeting(p.targeting);
       if (!t.ok) return { error: t.error, status: 400 };
+      // Mismo anti-loop que la URL del link: ninguna variante puede volver a un link corto.
+      for (const url of t.value ? targetingDestinations(t.value) : []) {
+        if (await isShortLinkUrl(url)) return { error: 'self_link', status: 400 };
+      }
       sets.push('targeting = ?');
       args.push(t.value ? JSON.stringify(t.value) : null);
     }
@@ -557,9 +652,15 @@ export async function applyLinkPatch(
 
   if (sets.length > 0) {
     sets.push(`updated_at = datetime('now')`);
-    await getDb()
-      .prepare(`UPDATE links SET ${sets.join(', ')} WHERE id = ?`)
-      .run(...args, link.id);
+    try {
+      await getDb()
+        .prepare(`UPDATE links SET ${sets.join(', ')} WHERE id = ?`)
+        .run(...args, link.id);
+    } catch (e) {
+      // Carrera con otro rename/alta al mismo slug: el UNIQUE lo frena.
+      if (/UNIQUE constraint failed/i.test(String(e))) return { error: 'slug_taken', status: 409 };
+      throw e;
+    }
   }
 
   return null;

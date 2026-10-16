@@ -32,6 +32,8 @@ async function ownsEventType(userId: string, eventTypeId: string): Promise<boole
     .get(eventTypeId, userId));
 }
 
+const REMINDER_24H_MS = 24 * 60 * 60 * 1000;
+
 // ---------- Pasos ----------
 
 /** null si el tipo de evento no es del workspace. */
@@ -93,6 +95,23 @@ export async function setWorkflowSteps(
       )
       .all(eventTypeId, new Date(now.getTime() - 30 * 86_400_000).toISOString())) as Array<{ id: string }>;
     for (const b of upcoming) await scheduleWorkflowRuns(b.id, now);
+  } else {
+    // Sin pasos vuelve el recordatorio fijo de 24h (lo mismo que
+    // scheduleBookingReminder) para las reservas confirmadas que todavía no
+    // lo tienen y a las que les falta más de un día.
+    const upcoming = (await db
+      .prepare(
+        `SELECT b.id, b.starts_at FROM calendar_bookings b
+         WHERE b.event_type_id = ? AND b.status = 'confirmed' AND b.starts_at > ?
+           AND NOT EXISTS (SELECT 1 FROM calendar_reminders r WHERE r.booking_id = b.id AND r.kind = 'reminder_24h')`,
+      )
+      .all(eventTypeId, new Date(now.getTime() + REMINDER_24H_MS).toISOString())) as Array<{ id: string; starts_at: string }>;
+    const ins = db.prepare(
+      `INSERT INTO calendar_reminders (id, booking_id, kind, send_at) VALUES (?, ?, 'reminder_24h', ?)`,
+    );
+    for (const b of upcoming) {
+      await ins.run(crypto.randomUUID(), b.id, new Date(new Date(b.starts_at).getTime() - REMINDER_24H_MS).toISOString());
+    }
   }
   return listWorkflowSteps(userId, eventTypeId);
 }
@@ -131,6 +150,11 @@ export async function clearPendingWorkflowRuns(bookingId: string): Promise<void>
   await getDb().prepare('DELETE FROM calendar_workflow_runs WHERE booking_id = ? AND sent_at IS NULL').run(bookingId);
 }
 
+/** Borra todas las corridas (también las enviadas): al reprogramar, cada paso vuelve a salir para la fecha nueva. */
+export async function clearWorkflowRuns(bookingId: string): Promise<void> {
+  await getDb().prepare('DELETE FROM calendar_workflow_runs WHERE booking_id = ?').run(bookingId);
+}
+
 // ---------- Plantillas ----------
 
 export const WORKFLOW_VARIABLES = [
@@ -153,6 +177,7 @@ export function renderWorkflowTemplate(tpl: string, vars: Record<string, string>
 interface DueRunRow {
   id: string;
   booking_id: string;
+  send_at: string;
   recipient: 'guest' | 'host';
   subject: string;
   body: string;
@@ -179,10 +204,10 @@ function baseUrl(): string {
 export async function processDueWorkflowRuns(
   now = new Date(),
   limit = 100,
-): Promise<{ total: number; sent: number; failed: number }> {
+): Promise<{ total: number; sent: number; failed: number; skipped: number }> {
   const due = (await getDb()
     .prepare(
-      `SELECT r.id, r.booking_id, s.recipient, s.subject, s.body,
+      `SELECT r.id, r.booking_id, r.send_at, s.recipient, s.subject, s.body,
               b.invitee_name, b.invitee_email, b.starts_at, b.timezone, b.locale, b.manage_token, b.meeting_url, b.host_user_id,
               e.user_id AS owner_id, e.title AS event_title, e.location AS event_location, e.brand_color, e.logo_url,
               cu.timezone AS host_timezone
@@ -191,15 +216,23 @@ export async function processDueWorkflowRuns(
        JOIN calendar_bookings b ON b.id = r.booking_id
        JOIN calendar_event_types e ON e.id = b.event_type_id
        LEFT JOIN calendar_users cu ON cu.user_id = COALESCE(b.host_user_id, e.user_id)
-       WHERE r.sent_at IS NULL AND r.send_at <= ? AND b.status = 'confirmed'
-       ORDER BY r.send_at ASC
+       WHERE r.sent_at IS NULL AND r.failed_at IS NULL AND r.send_at <= ? AND b.status = 'confirmed'
+       ORDER BY r.attempts ASC, r.send_at ASC
        LIMIT ?`,
     )
     .all(now.toISOString(), limit)) as DueRunRow[];
 
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
   for (const run of due) {
+    // Un paso "antes" que el cron levanta con la reunión ya empezada (corre
+    // cada hora) llegaría tarde: se descarta sin enviar.
+    if (Date.parse(run.send_at) < Date.parse(run.starts_at) && Date.parse(run.starts_at) <= now.getTime()) {
+      await markRunSent(run.id);
+      skipped += 1;
+      continue;
+    }
     const host = await getUserById(run.host_user_id ?? run.owner_id);
     const toGuest = run.recipient === 'guest';
     const to = toGuest ? run.invitee_email : host?.email;
@@ -241,10 +274,25 @@ export async function processDueWorkflowRuns(
       await markRunSent(run.id);
       sent += 1;
     } else {
+      await markRunFailed(run.id);
       failed += 1;
     }
   }
-  return { total: due.length, sent, failed };
+  return { total: due.length, sent, failed, skipped };
+}
+
+/** Intentos de envío de un paso antes de abandonarlo (falla siempre: email inválido, rechazo del proveedor). */
+export const MAX_WORKFLOW_RUN_ATTEMPTS = 5;
+
+/** Suma un intento fallido; al llegar al máximo el paso queda abandonado (failed_at) y deja de reintentarse. */
+async function markRunFailed(id: string): Promise<void> {
+  await getDb()
+    .prepare(
+      `UPDATE calendar_workflow_runs SET attempts = attempts + 1,
+         failed_at = CASE WHEN attempts + 1 >= ? THEN ? ELSE NULL END
+       WHERE id = ?`,
+    )
+    .run(MAX_WORKFLOW_RUN_ATTEMPTS, new Date().toISOString(), id);
 }
 
 async function markRunSent(id: string): Promise<void> {

@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { listUserBookings } from '@/lib/calendar';
+import { bookingDateBounds, listUserBookings, localDate } from '@/lib/calendar';
 import { bookingListQuerySchema } from '@/lib/calendar-schema';
 import BookingsList from '@/components/calendar/BookingsList';
 
@@ -21,12 +21,15 @@ export default async function BookingsPage(props: {
     hasFilters ? { q: sp.q, status: sp.status || undefined, from: sp.from || undefined, to: sp.to || undefined } : {},
   );
   const f = parsed.success ? parsed.data : {};
-  const from = hasFilters ? f.from : new Date().toISOString().slice(0, 10);
+  // Días en la zona del calendario del workspace (también el "hoy" por defecto).
+  const { timezone } = await bookingDateBounds(user.id, undefined, undefined);
+  const from = hasFilters ? f.from : localDate(new Date(), timezone);
+  const bounds = await bookingDateBounds(user.id, from, f.to);
   const bookings = await listUserBookings(user.id, {
     q: f.q,
     status: f.status,
-    from: from ? new Date(`${from}T00:00:00.000Z`) : undefined,
-    to: f.to ? new Date(`${f.to}T23:59:59.999Z`) : undefined,
+    from: bounds.from,
+    to: bounds.to,
     // Con fecha "desde": la más cercana primero (como la API).
     order: from ? 'asc' : 'desc',
   });
@@ -40,6 +43,7 @@ export default async function BookingsPage(props: {
       <BookingsList
         bookings={bookings}
         locale={locale}
+        timezone={timezone}
         initialFilters={{ q: f.q ?? '', status: f.status ?? '', from: from ?? '', to: f.to ?? '' }}
       />
     </div>

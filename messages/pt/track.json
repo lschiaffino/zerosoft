@@ -91,7 +91,9 @@
       "cycle": "Ciclo",
       "estimate": "Estimativa (pontos)",
       "dueDate": "Data de vencimento",
-      "labels": "Etiquetas"
+      "labels": "Etiquetas",
+      "removeLabel": "Remover label",
+      "labelsPlaceholder": "Digite e pressione Enter"
     },
     "dueDate": "Data de vencimento",
     "labels": "Etiquetas",
@@ -100,7 +102,8 @@
       "addComment": "Adicionar comentário",
       "noComments": "Ainda não há comentários.",
       "properties": "Propriedades"
-    }
+    },
+    "changeStatus": "Mudar status"
   },
   "subtasks": {
     "title": "Subtarefas",
@@ -114,7 +117,10 @@
     "drop": "Solte um arquivo aqui",
     "empty": "Ainda não há anexos.",
     "delete": "Excluir",
-    "size": "Tamanho"
+    "size": "Tamanho",
+    "tooLarge": "O arquivo tem mais de 10 MB.",
+    "typeNotAllowed": "Esse tipo de arquivo não é permitido.",
+    "uploadError": "Não foi possível enviar o arquivo. Tente de novo."
   },
   "activity": {
     "title": "Atividade",
@@ -153,7 +159,11 @@
     "duplicatedBy": "duplicado por",
     "empty": "Ainda não há relações.",
     "selectIssue": "ID ou identificador do issue",
-    "selectType": "Tipo"
+    "selectType": "Tipo",
+    "notFound": "Nenhum issue encontrado com esse ID ou identifier.",
+    "duplicate": "Esses issues já estão relacionados.",
+    "self": "Um issue não pode ser relacionado consigo mesmo.",
+    "error": "Não foi possível adicionar a relação. Tente de novo."
   },
   "actions": {
     "close": "Fechar issue",
@@ -211,7 +221,9 @@
     "labels": "Etiquetas",
     "dueDate": "Data de vencimento",
     "search": "Buscar issues…",
-    "clear": "Limpar"
+    "clear": "Limpar",
+    "dueFrom": "De",
+    "dueTo": "Até"
   },
   "savedViews": {
     "title": "Visualizações salvas",
@@ -318,6 +330,7 @@
     "moveDown": "Descer",
     "delete": "Excluir",
     "reassignTo": "Mover os issues para",
+    "adminOnly": "Só um admin pode excluir status.",
     "confirmDelete": "Excluir status",
     "newPlaceholder": "Novo status",
     "add": "Adicionar"
@@ -335,12 +348,12 @@
     "color": "Cor",
     "delete": "Excluir",
     "confirmDelete": "Excluir label",
-    "deleteHelp": "Ele sai de {count} issues.",
-    "issues": "{count} issues",
+    "deleteHelp": "Ele sai de {count, plural, one {# issue} other {# issues}}.",
+    "issues": "{count, plural, one {# issue} other {# issues}}",
     "duplicate": "Já existe um label com esse nome.",
     "empty": "Ainda não há labels.",
     "error": "Não foi possível salvar o label.",
-    "adminOnly": "Só um admin pode excluir labels."
+    "adminOnly": "Só um admin pode editar ou excluir labels."
   },
   "github": {
     "title": "GitHub",
@@ -380,7 +393,10 @@
       "closed": "fechado",
       "merged": "mergeado",
       "pushed": "enviado"
-    }
+    },
+    "regenerateConfirm": "Gerar um novo secret? O atual para de funcionar na hora: as entregas do GitHub vão falhar até você colar o novo secret no webhook.",
+    "disconnectConfirm": "Desconectar o GitHub? PRs e commits deixam de ser vinculados aos issues.",
+    "moveHelp": "Só mudam de status os issues do branch, do título ou precedidos de fixes, closes ou resolves na descrição."
   },
   "bulk": {
     "selected": "{count} selecionados",
@@ -408,6 +424,8 @@
     "title": "Triage",
     "enable": "Triage para issues externos",
     "enableHelp": "Issues criados pela API, Chat, Flow ou GitHub esperam aqui até alguém aceitar.",
+    "toggleError": "Não foi possível mudar o triage.",
+    "adminOnly": "Só um admin pode ligar ou desligar o triage.",
     "empty": "Nenhum issue esperando triage.",
     "accept": "Aceitar",
     "acceptAs": "Aceitar como",
@@ -415,9 +433,11 @@
     "duplicate": "Duplicado",
     "duplicateOf": "Duplicado de",
     "duplicatePlaceholder": "ID do original, ex. ZER-12",
-    "duplicateNotFound": "Esse issue não está no projeto.",
+    "duplicateNotFound": "Esse issue não está no workspace.",
     "from": "De {source}",
     "error": "Não foi possível resolver o issue.",
+    "alreadyResolved": "Outra pessoa já resolveu este issue.",
+    "banner": "Este issue está em triagem: não aparece nas listas nem em My tasks até alguém aceitá-lo.",
     "sources": {
       "api": "API",
       "chat": "Chat",

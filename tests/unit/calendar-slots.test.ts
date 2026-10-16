@@ -1,17 +1,31 @@
 import { describe, expect, it } from 'vitest';
 import {
+  countBookingsThisWeek,
   createBlockedSlot,
   createBooking,
   createEventType,
+  effectiveMaxFutureDays,
   getAvailableDays,
   getAvailableSlots,
   getBookingByManageToken,
   getOrCreateCalendarUser,
+  listEventHosts,
+  registerBusyProvider,
   rescheduleBooking,
   setAvailability,
   setEventHosts,
+  updateEventType,
 } from '@/lib/calendar';
+import { addMember, createTeam, removeMember } from '@/lib/teams';
+import { getDb } from '@/lib/db';
 import { makeUser } from './helpers';
+
+/** Llamadas a calendarios externos por usuario (para contar round-trips del motor). */
+const externalCalls = new Map<string, number>();
+registerBusyProvider(async (userId) => {
+  externalCalls.set(userId, (externalCalls.get(userId) ?? 0) + 1);
+  return [];
+});
 
 /** Una fecha (YYYY-MM-DD, UTC) N días en el futuro que cae en lunes. */
 function nextMonday(minDaysAhead = 2): string {
@@ -127,5 +141,83 @@ describe('Cal: días disponibles del mes', () => {
     const days = await getAvailableDays(et.id, 'UTC', monday.slice(0, 7));
     expect(days).toContain(monday);
     for (const d of days) expect(new Date(`${d}T12:00:00Z`).getUTCDay()).toBe(1);
+  });
+});
+
+describe('Cal: días del mes en una sola carga', () => {
+  it('consulta la ocupación una vez por host y coincide con los slots de cada día', async () => {
+    const { user, et } = await setup();
+    const h2 = await makeUser('host-m');
+    await setEventHosts(et.id, [user.id, h2.id]);
+    const monday = nextMonday();
+    await createBooking({ eventTypeId: et.id, email: 'a@x.com', name: 'A', start: `${monday}T09:00:00.000Z` });
+    const month = monday.slice(0, 7);
+    externalCalls.clear();
+    const days = await getAvailableDays(et.id, 'UTC', month);
+    expect(externalCalls.get(user.id)).toBe(1);
+    expect(externalCalls.get(h2.id)).toBe(1);
+
+    const [y, m] = month.split('-').map(Number);
+    const expected: string[] = [];
+    const today = new Date().toISOString().slice(0, 10);
+    for (let d = 1; d <= new Date(Date.UTC(y, m, 0)).getUTCDate(); d++) {
+      const date = `${month}-${String(d).padStart(2, '0')}`;
+      if (date >= today && (await getAvailableSlots(et.id, 'UTC', date)).length > 0) expected.push(date);
+    }
+    expect(days).toEqual(expected);
+  });
+});
+
+describe('Cal: máximo de días para reservar', () => {
+  it('sin regla propia del evento usa el ajuste del workspace', async () => {
+    const { user, et } = await setup();
+    const calUser = await getOrCreateCalendarUser(user.id);
+    expect(effectiveMaxFutureDays(et, { ...calUser, max_booking_days: 90 })).toBe(90);
+    expect(effectiveMaxFutureDays({ ...et, bookingRulesParsed: { maxFutureDays: 7 } }, { ...calUser, max_booking_days: 90 })).toBe(7);
+    expect(effectiveMaxFutureDays(et, undefined)).toBe(30);
+  });
+});
+
+describe('Cal: reservas de esta semana', () => {
+  it('cuenta también las del domingo', async () => {
+    const { user, et } = await setup();
+    const now = new Date();
+    const sunday = new Date(now);
+    sunday.setUTCDate(now.getUTCDate() + ((7 - now.getUTCDay()) % 7));
+    sunday.setUTCHours(15, 0, 0, 0);
+    const before = await countBookingsThisWeek(user.id);
+    await getDb()
+      .prepare(
+        `INSERT INTO calendar_bookings (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, status, host_user_id)
+         VALUES (?, ?, 's@x.com', 'S', ?, ?, 'confirmed', ?)`,
+      )
+      .run(crypto.randomUUID(), et.id, sunday.toISOString(), new Date(sunday.getTime() + 1_800_000).toISOString(), user.id);
+    expect(await countBookingsThisWeek(user.id)).toBe(before + 1);
+  });
+});
+
+describe('Cal: team y hosts del tipo de evento', () => {
+  it('solo acepta el team del workspace y hosts que sean miembros', async () => {
+    const owner = await makeUser('own');
+    const team = await createTeam(owner.id, 'Ventas');
+    const member = await makeUser('mem');
+    await addMember(team.id, member.id);
+    const stranger = await makeUser('ajeno');
+    const foreignTeam = await createTeam(stranger.id, 'Otro');
+    await getOrCreateCalendarUser(owner.id);
+
+    const reject = (p: Promise<unknown>) => expect(p).rejects.toMatchObject({ code: 'invalid_input', status: 400 });
+    await reject(createEventType(owner.id, { slug: 'x1', title: 'X', durationMin: 30, teamId: foreignTeam.id }));
+    await reject(createEventType(owner.id, { slug: 'x2', title: 'X', durationMin: 30, hostIds: [stranger.id] }));
+
+    const et = await createEventType(owner.id, { slug: 'x3', title: 'X', durationMin: 30, teamId: team.id, hostIds: [owner.id, member.id] });
+    expect((await listEventHosts(et.id)).map((h) => h.user_id)).toEqual([owner.id, member.id]);
+    await reject(updateEventType(owner.id, et.id, { teamId: foreignTeam.id }));
+    await reject(updateEventType(owner.id, et.id, { hostIds: [member.id, stranger.id] }));
+    await expect(updateEventType(owner.id, et.id, { hostIds: [member.id] })).resolves.toMatchObject({ team_id: team.id });
+
+    // Al salir del team deja de ser host.
+    await removeMember(team.id, member.id);
+    expect(await listEventHosts(et.id)).toEqual([]);
   });
 });

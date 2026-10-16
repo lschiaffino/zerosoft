@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getEventType, listAvailability, setAvailability } from '@/lib/calendar';
 import { availabilityBatchSchema } from '@/lib/calendar-schema';
-import { invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { crmError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = availabilityBatchSchema.safeParse(body);
-  if (!parsed.success) return invalidBody(parsed.error);
+  if (!parsed.success) {
+    if (parsed.error.issues.some((i) => i.message === 'invalid_range')) return crmError(400, 'invalid_range');
+    return invalidBody(parsed.error);
+  }
 
   const rules = await setAvailability(params.id, parsed.data);
   return NextResponse.json({ rules });

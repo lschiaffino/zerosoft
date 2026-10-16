@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { deleteIssueView, getIssueView, updateIssueView } from '@/lib/track-data';
 import { issueViewUpdateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const view = await accessibleView(params.id, user.id);
+  const view = await accessibleView(params.id, realUserId(user));
   if (!view) return notFound();
 
   return NextResponse.json(view);
@@ -30,7 +30,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const view = await accessibleView(params.id, user.id);
+  const view = await accessibleView(params.id, realUserId(user));
   if (!view) return notFound();
 
   const body: unknown = await req.json().catch(() => null);
@@ -46,7 +46,7 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const view = await accessibleView(params.id, user.id);
+  const view = await accessibleView(params.id, realUserId(user));
   if (!view) return notFound();
 
   await deleteIssueView(params.id);

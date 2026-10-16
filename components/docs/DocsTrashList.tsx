@@ -3,10 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { DocsPage } from '@/lib/docs-types';
+import type { DocsPageSummary } from '@/lib/docs-types';
 
 interface DocsTrashListProps {
-  pages: DocsPage[];
+  pages: DocsPageSummary[];
+  /** Borrar para siempre es solo para admins del workspace. */
+  canDelete?: boolean;
   labels: {
     restore: string;
     deleteForever: string;
@@ -14,7 +16,7 @@ interface DocsTrashListProps {
   };
 }
 
-export default function DocsTrashList({ pages, labels }: DocsTrashListProps) {
+export default function DocsTrashList({ pages, canDelete = true, labels }: DocsTrashListProps) {
   const t = useTranslations('docs');
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -60,14 +62,16 @@ export default function DocsTrashList({ pages, labels }: DocsTrashListProps) {
             >
               {labels.restore}
             </button>
-            <button
-              type="button"
-              className="btn btn-small docs-trash-delete"
-              disabled={pendingId === page.id}
-              onClick={() => deleteForever(page.id)}
-            >
-              {labels.deleteForever}
-            </button>
+            {canDelete && (
+              <button
+                type="button"
+                className="btn btn-small docs-trash-delete"
+                disabled={pendingId === page.id}
+                onClick={() => deleteForever(page.id)}
+              >
+                {labels.deleteForever}
+              </button>
+            )}
           </span>
         </li>
       ))}

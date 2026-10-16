@@ -4,34 +4,17 @@ import ZeroField from '@/components/ZeroField';
 import GateForm from '@/components/link/GateForm';
 import { headers } from 'next/headers';
 import { getLinkForHost, linkShortUrl } from '@/lib/links';
+import { gateMetadata } from '@/lib/link-preview';
 
 export const dynamic = 'force-dynamic';
 
 interface GatePageProps {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export async function generateMetadata(props: GatePageProps) {
-  const params = await props.params;
-
-  const {
-    slug
-  } = params;
-
-  const link = await getLinkForHost((await headers()).get('host'), slug);
-  if (!link) return {};
-  return {
-    title: link.og_title?.trim() || link.title?.trim() || `${slug} — zerosoft.ai`,
-    description: link.og_description?.trim() || link.url,
-    openGraph: link.og_image?.trim()
-      ? {
-          title: link.og_title?.trim() || link.title?.trim() || `${slug} — zerosoft.ai`,
-          description: link.og_description?.trim() || link.url,
-          images: [link.og_image.trim()],
-          url: linkShortUrl(link),
-        }
-      : undefined,
-  };
+  return gateMetadata((await props.params).locale);
 }
 
 export default async function GatePage(props: GatePageProps) {
@@ -42,11 +25,12 @@ export default async function GatePage(props: GatePageProps) {
     slug
   } = params;
 
+  const qr = (await props.searchParams)?.qr === '1';
   const t = await getTranslations({ locale, namespace: 'link' });
   const link = await getLinkForHost((await headers()).get('host'), slug);
 
   if (!link) redirect(`/${locale}/gone?reason=notfound`);
-  if (!link.password_hash) redirect(`/${slug}`);
+  if (!link.password_hash) redirect(`/${slug}${qr ? '?qr=1' : ''}`);
 
   return (
     <main className="auth-page">
@@ -63,7 +47,7 @@ export default async function GatePage(props: GatePageProps) {
             {linkShortUrl(link).replace(/^https?:\/\//, '')}
           </span>
         </p>
-        <GateForm slug={slug} />
+        <GateForm slug={slug} qr={qr} />
       </div>
     </main>
   );

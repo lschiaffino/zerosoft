@@ -3,7 +3,9 @@
  * corridas desde los disparadores. La ejecución vive en lib/flow-engine.ts y
  * el procesamiento de la cola en lib/flow-worker.ts. Server-only.
  *
- * user_id = workspace (dueño); created_by = persona real que lo creó.
+ * user_id = workspace (dueño); created_by = persona real que lo creó. Si otra
+ * persona cambia un nodo Gmail, pasa a ser created_by: el nodo envía desde la
+ * casilla de quien escribió el mensaje, nunca desde la de otro.
  */
 import { randomBytes } from 'crypto';
 import { after } from 'next/server';
@@ -144,6 +146,21 @@ function toStepDto(row: FlowStepRow): FlowStepDto {
 
 // ---------- Schedules ----------
 
+/** Igualdad estructural de valores JSON (sin depender del orden de las claves). */
+export function sameJson(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(norm)
+      : v && typeof v === 'object'
+        ? Object.fromEntries(
+            Object.keys(v as Record<string, unknown>)
+              .sort()
+              .map((k) => [k, norm((v as Record<string, unknown>)[k])]),
+          )
+        : v;
+  return JSON.stringify(norm(a) ?? null) === JSON.stringify(norm(b) ?? null);
+}
+
 /**
  * Próxima ejecución de un trigger.schedule (o del schedule de un robot)
  * después de `from`. `minMinutes`: intervalo mínimo entre corridas.
@@ -221,17 +238,22 @@ export async function listFlows(workspaceId: string): Promise<FlowListItem[]> {
   const rows = (await getDb()
     .prepare('SELECT * FROM flow_flows WHERE user_id = ? ORDER BY updated_at DESC')
     .all(workspaceId)) as FlowFlowRow[];
-  const out: FlowListItem[] = [];
-  for (const row of rows) {
-    const last = (await getDb()
-      .prepare('SELECT id, status, created_at FROM flow_runs WHERE flow_id = ? ORDER BY created_at DESC LIMIT 1')
-      .get(row.id)) as { id: string; status: FlowRunRow['status']; created_at: string } | undefined;
-    out.push({
+  // Última corrida de cada flow en una sola query (sin una por fila).
+  const lasts = (await getDb()
+    .prepare(
+      `SELECT f.id AS flow_id, r.id, r.status, r.created_at FROM flow_flows f
+       JOIN flow_runs r ON r.id = (SELECT id FROM flow_runs WHERE flow_id = f.id ORDER BY created_at DESC LIMIT 1)
+       WHERE f.user_id = ?`,
+    )
+    .all(workspaceId)) as Array<{ flow_id: string; id: string; status: FlowRunRow['status']; created_at: string }>;
+  const lastBy = new Map(lasts.map((l) => [l.flow_id, l]));
+  return rows.map((row) => {
+    const last = lastBy.get(row.id);
+    return {
       ...toFlowDto(row),
       lastRun: last ? { id: last.id, status: last.status, createdAt: last.created_at } : null,
-    });
-  }
-  return out;
+    };
+  });
 }
 
 export async function getFlowRow(workspaceId: string, id: string): Promise<FlowFlowRow | null> {
@@ -355,6 +377,11 @@ export async function createFlow(
   return { ok: true, flow: (await getFlow(workspaceId, id))! };
 }
 
+/** Nodos Gmail del grafo (id + config) para detectar si alguien los cambió. */
+function gmailNodesKey(graph: FlowGraph): string {
+  return JSON.stringify(graph.nodes.filter((n) => n.type === 'app.gmail').map((n) => [n.id, n.config ?? {}]));
+}
+
 export async function updateFlow(
   workspaceId: string,
   id: string,
@@ -385,16 +412,29 @@ export async function updateFlow(
     }
   }
   const graphChanged = patch.graph !== undefined && JSON.stringify(graph) !== row.graph;
+  // Quien edita un nodo Gmail de otro pasa a ser el remitente (su casilla).
+  const createdBy =
+    graphChanged && actorId && actorId !== row.created_by && gmailNodesKey(graph) !== gmailNodesKey(parseGraph(row.graph))
+      ? actorId
+      : row.created_by;
   const enabled = patch.enabled ?? row.enabled === 1;
   const tf = triggerFields(graph, enabled);
   // Al editar un schedule ya programado, se conserva la próxima corrida si la
-  // config no cambió (evita correrlo de nuevo al guardar).
+  // config del trigger no cambió (el editor manda el grafo entero en cada
+  // guardado: recalcular desde ahora postergaría los intervalos).
+  const oldTrigger = triggerNode(parseGraph(row.graph));
+  const newTrigger = triggerNode(graph);
   const keepNext =
-    tf.type === 'trigger.schedule' && enabled && row.enabled === 1 && patch.graph === undefined && row.next_run_at;
+    tf.type === 'trigger.schedule' &&
+    enabled &&
+    row.enabled === 1 &&
+    row.next_run_at &&
+    oldTrigger?.type === newTrigger?.type &&
+    sameJson(oldTrigger?.config ?? {}, newTrigger?.config ?? {});
   const res = await getDb()
     .prepare(
       `UPDATE flow_flows SET name = ?, description = ?, enabled = ?, graph = ?, version = version + 1,
-         trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, updated_at = ?
+         trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, created_by = ?, updated_at = ?
        WHERE id = ? AND user_id = ? AND version = ?`,
     )
     .run(
@@ -406,6 +446,7 @@ export async function updateFlow(
       tf.event,
       keepNext ? row.next_run_at : tf.next,
       errorFlowId,
+      createdBy,
       nowIso(),
       id,
       workspaceId,
@@ -450,6 +491,30 @@ export async function getRunWithSteps(
   return { ...toRunDto(row), steps: steps.map(toStepDto) };
 }
 
+/**
+ * Cancela una corrida en cola o en espera: borra sus jobs (Esperar, reintentos)
+ * y la marca fallida con 'cancelled'. Una corrida que ya está ejecutándose o
+ * terminó no se toca.
+ */
+export async function cancelRun(
+  workspaceId: string,
+  runId: string,
+): Promise<{ ok: true } | { ok: false; error: 'not_found' | 'run_not_cancellable' }> {
+  const db = getDb();
+  const res = await db
+    .prepare(
+      `UPDATE flow_runs SET status = 'failed', error = 'cancelled', finished_at = ?, locked_until = NULL
+       WHERE id = ? AND user_id = ? AND status IN ('queued', 'waiting')`,
+    )
+    .run(nowIso(), runId, workspaceId);
+  if (res.changes === 0) {
+    const row = await db.prepare('SELECT 1 FROM flow_runs WHERE id = ? AND user_id = ?').get(runId, workspaceId);
+    return { ok: false, error: row ? 'run_not_cancellable' : 'not_found' };
+  }
+  await db.prepare('DELETE FROM flow_jobs WHERE run_id = ?').run(runId);
+  return { ok: true };
+}
+
 /** Última salida de cada nodo del flow (para el selector de variables). */
 export async function lastOutputs(workspaceId: string, flowId: string): Promise<Record<string, unknown>> {
   const run = (await getDb()
@@ -458,8 +523,14 @@ export async function lastOutputs(workspaceId: string, flowId: string): Promise<
     )
     .get(flowId, workspaceId)) as { id: string } | undefined;
   if (!run) return {};
+  // Una fila por nodo (la última): con Loops una corrida tiene cientos de pasos.
   const steps = (await getDb()
-    .prepare("SELECT node_id, output FROM flow_steps WHERE run_id = ? AND status = 'success' ORDER BY started_at ASC")
+    .prepare(
+      `SELECT node_id, output FROM (
+         SELECT node_id, output, ROW_NUMBER() OVER (PARTITION BY node_id ORDER BY started_at DESC, rowid DESC) AS rn
+         FROM flow_steps WHERE run_id = ? AND status = 'success'
+       ) WHERE rn = 1`,
+    )
     .all(run.id)) as Array<{ node_id: string; output: string | null }>;
   const out: Record<string, unknown> = {};
   for (const s of steps) out[s.node_id] = parseJson(s.output, null);
@@ -489,6 +560,20 @@ export interface EnqueueOptions {
   rerunOf?: string | null;
 }
 
+/**
+ * Tope del input guardado de una corrida: holgado por encima del body máximo
+ * de un webhook (256 KB, que al serializarse puede crecer) más headers y query.
+ */
+export const MAX_RUN_INPUT = 2_000_000;
+/** Input que no entró en MAX_RUN_INPUT: la corrida falla con input_too_large (nunca arranca vacía). */
+export const INPUT_TOO_LARGE_KEY = '__flowInputTooLarge';
+
+/** Input serializado para flow_runs.input; si no entra, un marcador explícito (nunca JSON cortado). */
+function serializeRunInput(input: unknown): string {
+  const json = JSON.stringify(input ?? {});
+  return json.length <= MAX_RUN_INPUT ? json : JSON.stringify({ [INPUT_TOO_LARGE_KEY]: json.length });
+}
+
 /** Inserta una corrida en cola. null si el workspace superó el límite. */
 export async function enqueueRun(
   flow: Pick<FlowFlowRow, 'id' | 'user_id'>,
@@ -513,7 +598,7 @@ export async function enqueueRun(
       flow.user_id,
       triggerType,
       status,
-      JSON.stringify(input ?? {}).slice(0, 200_000),
+      serializeRunInput(input),
       chain.depth,
       JSON.stringify([...new Set([...chain.seen, flow.id])]),
       opts.lockMs ? new Date(Date.now() + opts.lockMs).toISOString() : null,
@@ -526,15 +611,38 @@ export async function enqueueRun(
 }
 
 /**
+ * Corrida automática (schedule o evento) que no se encoló por el tope de
+ * corridas del workspace: queda en el historial como fallida con
+ * 'rate_limited' en lugar de perderse sin rastro. Como mucho una por flow y
+ * hora (el registro no puede convertirse en otra fuente de escrituras).
+ */
+async function recordRateLimitedRun(flow: Pick<FlowFlowRow, 'id' | 'user_id'>, triggerType: string, input: unknown): Promise<void> {
+  if (process.env.RATE_LIMIT_DISABLED !== 'true' && !(await rateLimit(`flow-skipped:${flow.id}`, 1, 3600)).ok) return;
+  const ts = nowIso();
+  await getDb()
+    .prepare(
+      `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, error, chain_depth, chain_seen,
+         created_at, started_at, finished_at)
+       VALUES (?, ?, ?, ?, 'failed', ?, 'rate_limited', 0, ?, ?, ?, ?)`,
+    )
+    .run(crypto.randomUUID(), flow.id, flow.user_id, triggerType, serializeRunInput(input), JSON.stringify([flow.id]), ts, ts, ts);
+}
+
+const KICK_LIMIT = 5;
+const KICK_BUDGET_MS = 20_000;
+
+/**
  * Procesa la cola poco después de responder (after) si hay request en curso;
  * si no (scripts), en segundo plano. En tests no hace nada: se llama al worker
- * explícitamente.
+ * explícitamente. Con presupuesto y pocas corridas: corre dentro de la función
+ * que encoló (que pudo gastar buena parte de su maxDuration); el resto queda
+ * para el cron.
  */
 export function kickFlowWorker(): void {
   if (process.env.FLOW_WORKER_KICK === 'false' || process.env.VITEST) return;
   const job = async () => {
     const { processFlowQueue } = await import('./flow-worker');
-    await processFlowQueue({ limit: 25 });
+    await processFlowQueue({ limit: KICK_LIMIT, budgetMs: KICK_BUDGET_MS });
   };
   try {
     after(job);
@@ -576,6 +684,7 @@ export async function enqueueEventRuns(
     const input = { ...data, event: { type, at: nowIso() } };
     const id = await enqueueRun(row, 'trigger.event', input, { chain: { depth, seen: parent?.seen ?? [] } });
     if (id) ids.push(id);
+    else await recordRateLimitedRun(row, 'trigger.event', input);
   }
   if (ids.length) kickFlowWorker();
   return ids;
@@ -610,8 +719,20 @@ export async function enqueueWebhookRun(
     const cred = await resolveCredential(hook.user_id, String(trigger.config.credentialId ?? ''));
     const secret = cred?.type === 'stripe' ? cred.data.webhookSecret : '';
     if (!secret || !verifyStripeSignature(raw.body, raw.signature, secret)) return { ok: false, error: 'invalid_signature' };
-    const event = (data.body && typeof data.body === 'object' ? data.body : {}) as { type?: string };
+    const event = (data.body && typeof data.body === 'object' ? data.body : {}) as { id?: unknown; type?: string };
     if (!stripeEventAllowed(trigger.config.events, String(event.type ?? ''))) return { ok: true, runId: null, ignored: true };
+    // Stripe puede entregar el mismo evento más de una vez (y reintenta hasta 3 días):
+    // si este flow ya tiene una corrida con ese event.id, no se vuelve a correr.
+    if (typeof event.id === 'string' && event.id) {
+      const since = new Date(Date.now() - 4 * 86_400_000).toISOString();
+      const dup = await getDb()
+        .prepare(
+          `SELECT 1 FROM flow_runs WHERE flow_id = ? AND trigger_type = 'trigger.stripe' AND created_at > ?
+             AND json_valid(input) AND json_extract(input, '$.id') = ? LIMIT 1`,
+        )
+        .get(hook.id, since, event.id);
+      if (dup) return { ok: true, runId: null, ignored: true };
+    }
     const runId = await enqueueRun({ id: hook.id, user_id: hook.user_id }, 'trigger.stripe', event);
     if (!runId) return { ok: false, error: 'rate_limited' };
     kickFlowWorker();
@@ -643,8 +764,10 @@ export async function enqueueDueSchedules(now: Date = new Date(), limit = 100): 
       .prepare('UPDATE flow_flows SET next_run_at = ? WHERE id = ? AND next_run_at = ?')
       .run(next, row.id, row.next_run_at);
     if (res.changes !== 1) continue;
-    const id = await enqueueRun(row, 'trigger.schedule', { scheduledAt: row.next_run_at, firedAt: now.toISOString() });
+    const input = { scheduledAt: row.next_run_at, firedAt: now.toISOString() };
+    const id = await enqueueRun(row, 'trigger.schedule', input);
     if (id) ids.push(id);
+    else await recordRateLimitedRun(row, 'trigger.schedule', input);
   }
   return ids;
 }

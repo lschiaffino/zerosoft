@@ -1,5 +1,5 @@
 import UAParser from 'ua-parser-js';
-import { ensureMigrated, getClient, getDb, txDb, type ClickRow } from './db';
+import { ensureMigrated, getClient, getDb, type ClickRow } from './db';
 
 // geoip-lite preloads su .dat con fs al importarse: en Vercel el bundle no lo
 // incluye y rompe el módulo entero (ENOENT). Se carga lazy y a prueba de fallos —
@@ -71,6 +71,19 @@ export function contextFromHeaders(headers: Headers): ClickContext {
   };
 }
 
+// Crawlers y unfurlers de previews (Slack, WhatsApp, iMessage, redes, buscadores):
+// piden el link para armar la tarjeta, no son visitas. No cuentan como click.
+const BOT_UA =
+  /\bbot\b|bot\/|bot-|crawler|spider|slurp|facebookexternalhit|facebookcatalog|meta-externalagent|slackbot|slack-imgproxy|whatsapp|telegrambot|discordbot|twitterbot|linkedinbot|skypeuripreview|embedly|redditbot|applebot|googlebot|bingbot|yandex|baiduspider|duckduckbot|bytespider|vkshare|quora link preview|outbrain|nuzzel|bitlybot|mastodon|iframely|google web preview|curl\/|wget\/|python-requests|go-http-client|okhttp/i;
+
+/** true si la request es de un bot o un unfurler de previews (o un HEAD): no es una visita. */
+export function isBotRequest(headers: Headers, method = 'GET'): boolean {
+  if (method.toUpperCase() === 'HEAD') return true;
+  const ua = headers.get('user-agent') ?? '';
+  if (!ua.trim()) return true;
+  return BOT_UA.test(ua);
+}
+
 export interface ClickOptions {
   /** 'qr' cuando la visita viene del QR (?qr=1). */
   source?: 'link' | 'qr';
@@ -78,32 +91,42 @@ export interface ClickOptions {
   variant?: string | null;
 }
 
-/** Guarda la visita. `clicks` cuenta todas; `qr_scans` solo las del QR. */
-export async function recordClick(linkId: string, ctx: ClickContext, opts: ClickOptions = {}): Promise<void> {
+/**
+ * Guarda la visita. `clicks` cuenta todas; `qr_scans` solo las del QR.
+ * El incremento es condicional y atómico respecto de max_clicks: devuelve
+ * null (sin registrar nada) si el link ya llegó al límite, aunque varias
+ * requests concurrentes hayan pasado el chequeo previo. Si no, el total de
+ * clicks con este, leído en la misma transacción (cada visita ve un número
+ * distinto: los disparadores "llegó a N clicks" saltan una sola vez).
+ */
+export async function recordClick(linkId: string, ctx: ClickContext, opts: ClickOptions = {}): Promise<number | null> {
   await ensureMigrated();
   const source = opts.source === 'qr' ? 'qr' : 'link';
-  const tx = await getClient().transaction();
-  const tdb = txDb(tx);
-  try {
-    await tdb
-      .prepare(
-        'INSERT INTO clicks (link_id, referrer, country, device, browser, os, source, variant) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      )
-      .run(linkId, ctx.referrer, ctx.country, ctx.device, ctx.browser, ctx.os, source, opts.variant ?? null);
-    await tdb
-      .prepare('UPDATE links SET clicks = clicks + 1, qr_scans = qr_scans + ? WHERE id = ?')
-      .run(source === 'qr' ? 1 : 0, linkId);
-    await tx.commit();
-  } catch (e) {
-    await tx.rollback();
-    throw e;
-  }
+  // Un batch es una sola transacción: el INSERT solo corre si el UPDATE
+  // condicional tocó la fila (changes() = 1), sin ventana entre chequeo y acción.
+  const [update, , total] = await getClient().batch(
+    [
+      {
+        sql: 'UPDATE links SET clicks = clicks + 1, qr_scans = qr_scans + ? WHERE id = ? AND (max_clicks IS NULL OR clicks < max_clicks)',
+        args: [source === 'qr' ? 1 : 0, linkId],
+      },
+      {
+        sql: `INSERT INTO clicks (link_id, referrer, country, device, browser, os, source, variant)
+              SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1`,
+        args: [linkId, ctx.referrer, ctx.country, ctx.device, ctx.browser, ctx.os, source, opts.variant ?? null],
+      },
+      { sql: 'SELECT clicks FROM links WHERE id = ?', args: [linkId] },
+    ],
+    'write',
+  );
+  if (update.rowsAffected !== 1) return null;
+  return Number(total.rows[0]?.clicks ?? 0);
 }
 
 export async function todayClicksForLink(linkId: string): Promise<number> {
   return (
     (await getDb()
-      .prepare(`SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND date(ts) = date('now')`)
+      .prepare(`SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND ts >= date('now')`)
       .get(linkId)) as { c: number }
   ).c;
 }
@@ -132,7 +155,7 @@ export async function listClicks(
   const db = getDb();
   const start = rangeStart(params.range, createdAt);
 
-  const where: string[] = ['link_id = ? AND date(ts) >= ?'];
+  const where: string[] = ['link_id = ? AND ts >= ?'];
   const args: Array<string | number> = [linkId, start];
 
   if (params.country) {
@@ -157,14 +180,18 @@ export async function listClicks(
   return { clicks, total, page, pageSize };
 }
 
-/** All individual clicks for the given range/country, ordered newest first. */
+/** Tope de filas de un export de clicks (memoria y tiempo en serverless). */
+export const EXPORT_LIMIT = 100_000;
+
+/** Los clicks del rango/país, del más nuevo al más viejo (como mucho `limit`). */
 export async function exportClicks(
   linkId: string,
   createdAt: string,
   params: Pick<ListClicksParams, 'range' | 'country'>,
+  limit: number = EXPORT_LIMIT,
 ): Promise<ClickRow[]> {
   const start = rangeStart(params.range, createdAt);
-  const where: string[] = ['link_id = ? AND date(ts) >= ?'];
+  const where: string[] = ['link_id = ? AND ts >= ?'];
   const args: Array<string | number> = [linkId, start];
 
   if (params.country) {
@@ -173,12 +200,12 @@ export async function exportClicks(
   }
 
   return (await getDb()
-    .prepare(`SELECT * FROM clicks WHERE ${where.join(' AND ')} ORDER BY ts DESC`)
-    .all(...args)) as ClickRow[];
+    .prepare(`SELECT * FROM clicks WHERE ${where.join(' AND ')} ORDER BY ts DESC LIMIT ?`)
+    .all(...args, limit)) as ClickRow[];
 }
 
 export function clicksToCsv(clicks: ClickRow[]): string {
-  const lines = ['timestamp,country,referrer,device,browser,os'];
+  const lines = ['timestamp,country,referrer,device,browser,os,source,variant'];
   for (const c of clicks) {
     lines.push(
       [
@@ -188,6 +215,8 @@ export function clicksToCsv(clicks: ClickRow[]): string {
         csvCell(c.device ?? ''),
         csvCell(c.browser ?? ''),
         csvCell(c.os ?? ''),
+        csvCell(c.source ?? 'link'),
+        csvCell(c.variant ?? ''),
       ].join(','),
     );
   }
@@ -202,8 +231,13 @@ export async function getClickCountries(linkId: string): Promise<string[]> {
   return rows.map((r) => r.country).filter((c): c is string => !!c);
 }
 
+/** Un valor que empieza con = + - @ (o tab/CR) se abre como fórmula en Excel/Sheets: se neutraliza con '. */
+export function csvSafe(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
 function csvCell(value: string): string {
-  const escaped = value.replace(/"/g, '""');
+  const escaped = csvSafe(value).replace(/"/g, '""');
   if (/[",\n\r]/.test(escaped)) return `"${escaped}"`;
   return escaped;
 }
@@ -262,6 +296,8 @@ export interface AnalyticsResult {
   devices: BreakdownItem[];
   browsers: BreakdownItem[];
   os: BreakdownItem[];
+  /** Destino servido por la segmentación (ab:A, rule:1, app:ios); vacío sin targeting. */
+  variants: BreakdownItem[];
 }
 
 export function rangeStart(range: AnalyticsRange, createdAt: string): string {
@@ -270,7 +306,7 @@ export function rangeStart(range: AnalyticsRange, createdAt: string): string {
   return addDays(end, -(RANGE_DAYS[range] - 1));
 }
 
-type BreakdownColumn = 'referrer' | 'country' | 'device' | 'browser' | 'os';
+type BreakdownColumn = 'referrer' | 'country' | 'device' | 'browser' | 'os' | 'variant';
 
 /** Top N values of a clicks column, folding the rest into "other". */
 async function breakdown(
@@ -283,7 +319,7 @@ async function breakdown(
   const rows = (await getDb()
     .prepare(
       `SELECT COALESCE(${column}, ?) AS name, COUNT(*) AS c FROM clicks
-       WHERE link_id = ? AND date(ts) >= ? GROUP BY ${column} ORDER BY c DESC`,
+       WHERE link_id = ? AND ts >= ? GROUP BY ${column} ORDER BY c DESC`,
     )
     .all(fallback, linkId, start)) as Array<{ name: string; c: number }>;
   const top = rows.slice(0, limit).map((r) => ({ name: r.name, count: r.c }));
@@ -296,7 +332,7 @@ async function byDayFor(linkId: string, start: string, end: string): Promise<Day
   const rows = (await getDb()
     .prepare(
       `SELECT date(ts) AS d, COUNT(*) AS c FROM clicks
-       WHERE link_id = ? AND date(ts) >= ? GROUP BY date(ts)`,
+       WHERE link_id = ? AND ts >= ? GROUP BY date(ts)`,
     )
     .all(linkId, start)) as Array<{ d: string; c: number }>;
   const map = new Map(rows.map((r) => [r.d, r.c]));
@@ -312,38 +348,32 @@ export async function getAnalytics(
   const end = todayUtc();
   const start = rangeStart(range, createdAt);
 
-  const total = (
-    (await db.prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ?').get(linkId)) as {
-      c: number;
-    }
-  ).c;
-  const rangeTotal = (
-    (await db
-      .prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND date(ts) >= ?')
-      .get(linkId, start)) as { c: number }
-  ).c;
+  const count = async (sql: string, ...args: string[]) =>
+    ((await db.prepare(sql).get(...args)) as { c: number }).c;
 
-  let previousTotal: number | null = null;
-  if (range !== 'all') {
-    const prevStart = addDays(start, -RANGE_DAYS[range]);
-    previousTotal = (
-      (await db
-        .prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND date(ts) >= ? AND date(ts) < ?')
-        .get(linkId, prevStart, start)) as { c: number }
-    ).c;
-  }
+  // Consultas independientes en paralelo: con Turso cada una es un viaje de red.
+  const [total, rangeTotal, previousTotal, byDay, referrers, countries, devices, browsers, os, variants] =
+    await Promise.all([
+      count('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ?', linkId),
+      count('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND ts >= ?', linkId, start),
+      range === 'all'
+        ? Promise.resolve(null)
+        : count(
+            'SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND ts >= ? AND ts < ?',
+            linkId,
+            addDays(start, -RANGE_DAYS[range]),
+            start,
+          ),
+      byDayFor(linkId, start, end),
+      breakdown(linkId, 'referrer', start, 'direct'),
+      breakdown(linkId, 'country', start, 'unknown'),
+      breakdown(linkId, 'device', start, 'unknown'),
+      breakdown(linkId, 'browser', start, 'unknown'),
+      breakdown(linkId, 'os', start, 'unknown'),
+      breakdown(linkId, 'variant', start, 'default'),
+    ]);
 
-  return {
-    total,
-    rangeTotal,
-    previousTotal,
-    byDay: await byDayFor(linkId, start, end),
-    referrers: await breakdown(linkId, 'referrer', start, 'direct'),
-    countries: await breakdown(linkId, 'country', start, 'unknown'),
-    devices: await breakdown(linkId, 'device', start, 'unknown'),
-    browsers: await breakdown(linkId, 'browser', start, 'unknown'),
-    os: await breakdown(linkId, 'os', start, 'unknown'),
-  };
+  return { total, rangeTotal, previousTotal, byDay, referrers, countries, devices, browsers, os, variants };
 }
 
 // ---------- User-level overview ----------
@@ -385,7 +415,7 @@ export async function getUserOverview(userId: string): Promise<UserOverview> {
     (await db
       .prepare(
         `SELECT COUNT(*) AS c FROM clicks c JOIN links l ON c.link_id = l.id
-         WHERE l.user_id = ? AND date(c.ts) = date('now')`,
+         WHERE l.user_id = ? AND c.ts >= date('now')`,
       )
       .get(userId)) as { c: number }
   ).c;
@@ -401,7 +431,7 @@ export async function getUserOverview(userId: string): Promise<UserOverview> {
   const rows = (await db
     .prepare(
       `SELECT date(c.ts) AS d, COUNT(*) AS c FROM clicks c JOIN links l ON c.link_id = l.id
-       WHERE l.user_id = ? AND date(c.ts) >= ? GROUP BY date(c.ts)`,
+       WHERE l.user_id = ? AND c.ts >= ? GROUP BY date(c.ts)`,
     )
     .all(userId, start)) as Array<{ d: string; c: number }>;
   const map = new Map(rows.map((r) => [r.d, r.c]));

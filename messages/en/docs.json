@@ -30,6 +30,13 @@
     "placeholder": "Type '/' for commands",
     "saved": "Saved",
     "saving": "Saving…",
+    "saveTooLong": "Not saved: a block is over 20,000 characters. Split it into smaller blocks.",
+    "saveFailed": "Couldn't save your changes.",
+    "retrySave": "Retry",
+    "saveConflict": "Not saved: someone else made newer changes.",
+    "conflict": "Someone else edited this page while you were typing. Your latest changes weren't saved.",
+    "conflictReload": "Load the new version",
+    "conflictOverwrite": "Overwrite with my changes",
     "pageOptions": "Page options",
     "copyLink": "Copy link",
     "copyContents": "Copy page contents",
@@ -211,7 +218,8 @@
     "helpful": "Was this article helpful?",
     "yes": "Yes",
     "no": "No",
-    "thanks": "Thanks for letting us know."
+    "thanks": "Thanks for letting us know.",
+    "feedbackError": "We couldn't record your answer. Try again later."
   },
   "versions": {
     "title": "Version history",

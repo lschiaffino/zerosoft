@@ -3,13 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-
-interface BulkResultItem {
-  url: string;
-  short_url: string;
-  status: 'created' | 'error';
-  error?: string;
-}
+import { bulkResultsToCsv, type BulkResultItem } from '@/lib/link-bulk-csv';
 
 export default function BulkPage() {
   const t = useTranslations('link');
@@ -44,7 +38,7 @@ export default function BulkPage() {
         | { results?: BulkResultItem[]; error?: string }
         | undefined;
       if (!res.ok || !data?.results) {
-        setError(data?.error ? t(`errors.${data.error}`) : t('errors.generic'));
+        setError(data?.error && t.has(`errors.${data.error}`) ? t(`errors.${data.error}`) : t('errors.generic'));
       } else {
         setResults(data.results);
       }
@@ -54,29 +48,17 @@ export default function BulkPage() {
     setSubmitting(false);
   }
 
+  // El CSV sale de los resultados en pantalla: volver a pedirlo al server
+  // crearía todos los links otra vez.
   function downloadCsv() {
     if (!results) return;
-    fetch('/api/links/bulk', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        urls,
-        tag: tag.trim() || undefined,
-        utmSource: utmSource.trim() || undefined,
-        utmMedium: utmMedium.trim() || undefined,
-        utmCampaign: utmCampaign.trim() || undefined,
-        download: true,
-      }),
-    })
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'links.csv';
-        a.click();
-        window.URL.revokeObjectURL(url);
-      });
+    const blob = new Blob([bulkResultsToCsv(results)], { type: 'text/csv;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'links.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
   }
 
   return (
@@ -188,9 +170,12 @@ export default function BulkPage() {
                       {r.status === 'created' ? (
                         <span className="badge status-active">{t('bulk.statusCreated')}</span>
                       ) : (
-                        <span className="badge status-expired" title={r.error}>
-                          {t('bulk.statusError')}
-                        </span>
+                        <>
+                          <span className="badge status-expired">{t('bulk.statusError')}</span>{' '}
+                          <span className="muted">
+                            {r.error && t.has(`errors.${r.error}`) ? t(`errors.${r.error}`) : t('errors.generic')}
+                          </span>
+                        </>
                       )}
                     </td>
                   </tr>

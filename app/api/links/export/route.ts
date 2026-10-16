@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { getDb } from '@/lib/db';
+import { EXPORT_LIMIT } from '@/lib/link-analytics';
 import { linkShortUrl, parseTags, type LinkWithDomain } from '@/lib/links';
+import { csvSafe } from '@/lib/track';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 function csvCell(v: unknown): string {
-  const s = v === null || v === undefined ? '' : String(v);
+  // Título y tags vienen de miembros o del import: =HYPERLINK(...) no se abre como fórmula.
+  const s = csvSafe(v === null || v === undefined ? '' : String(v));
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
@@ -18,6 +21,7 @@ function csvCell(v: unknown): string {
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const format = req.nextUrl.searchParams.get('format') === 'json' ? 'json' : 'csv';
 
   const links = (await getDb()
@@ -59,10 +63,14 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Tope de memoria en serverless: los EXPORT_LIMIT clicks más recientes (el
+  // total sigue en clickCount de cada link).
   const clicks = (await getDb()
     .prepare(
-      `SELECT c.link_id, c.ts, c.referrer, c.country, c.device, c.browser, c.os FROM clicks c
-       JOIN links l ON l.id = c.link_id WHERE l.user_id = ? ORDER BY c.ts ASC`,
+      `SELECT * FROM (
+         SELECT c.link_id, c.ts, c.referrer, c.country, c.device, c.browser, c.os, c.source, c.variant FROM clicks c
+         JOIN links l ON l.id = c.link_id WHERE l.user_id = ? ORDER BY c.ts DESC LIMIT ${EXPORT_LIMIT}
+       ) ORDER BY ts ASC`,
     )
     .all(user.id)) as Array<{ link_id: string } & Record<string, unknown>>;
   const byLink = new Map<string, Array<Record<string, unknown>>>();

@@ -58,7 +58,8 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
   const updated = await updateChatVisitor(params.id, {
     name: typeof body.name === 'string' ? body.name : undefined,
     email: typeof body.email === 'string' ? body.email : undefined,
-    notes: typeof body.notes === 'string' ? body.notes : undefined,
+    // null borra la nota.
+    notes: typeof body.notes === 'string' || body.notes === null ? body.notes : undefined,
     metadata,
   });
 

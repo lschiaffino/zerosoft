@@ -94,7 +94,8 @@ export default function EventTypesView({ title, items, handle, bookBase, openNew
     const res = await fetch(`/api/calendar/event-types/${row.id}`, { method: 'DELETE' }).catch(() => null);
     if (!res || res.status !== 204) {
       setRows(prev);
-      setError(t('errors.generic'));
+      const code = ((await res?.json().catch(() => null)) as { error?: string } | null)?.error;
+      setError(code === 'has_upcoming_bookings' ? t('errors.has_upcoming_bookings') : t('errors.generic'));
       return;
     }
     router.refresh();

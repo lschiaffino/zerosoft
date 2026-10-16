@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TrackLabel } from '@/lib/track-labels';
+import { invalidateWorkspaceLabels } from './LabelPicker';
 import type { GithubConfig } from '@/lib/track-github';
 
 const LABEL_COLORS = ['#666666', '#d14343', '#d9822b', '#3f8f4f', '#2f6fd1', '#7a4fd1'];
@@ -29,6 +30,8 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
   const load = async () => {
     const res = await send<{ rows: TrackLabel[] }>('/api/track/labels?counts=1', 'GET');
     setLabels(res.ok ? res.data.rows : []);
+    // Pickers y edición masiva leen otra caché: que la recarguen.
+    invalidateWorkspaceLabels();
   };
   useEffect(() => {
     void load();
@@ -47,11 +50,20 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
     await load();
   };
 
-  const patch = async (id: string, body: { name?: string; color?: string }) => {
+  const patch = async (id: string, body: { name?: string; color?: string }): Promise<boolean> => {
     setError(null);
     const res = await send<TrackLabel>(`/api/track/labels/${id}`, 'PATCH', body);
-    if (!res.ok) setError(res.status === 409 ? t('labelsSettings.duplicate') : t('labelsSettings.error'));
+    if (!res.ok) {
+      setError(
+        res.status === 409
+          ? t('labelsSettings.duplicate')
+          : res.status === 403
+            ? t('labelsSettings.adminOnly')
+            : t('labelsSettings.error'),
+      );
+    }
     await load();
+    return res.ok;
   };
 
   const remove = async (id: string) => {
@@ -65,6 +77,7 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
     <section className="track-settings-section" data-testid="track-labels-settings">
       <h2 className="track-settings-title">{t('labelsSettings.title')}</h2>
       <p className="muted track-settings-help">{t('labelsSettings.help')}</p>
+      {!isAdmin && <p className="muted track-settings-help">{t('labelsSettings.adminOnly')}</p>}
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -78,8 +91,15 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
               type="color"
               className="track-status-color"
               defaultValue={/^#[0-9a-f]{6}$/i.test(l.color) ? l.color : '#666666'}
+              disabled={!isAdmin}
               onBlur={(e) => {
-                if (e.target.value !== l.color) void patch(l.id, { color: e.target.value });
+                const el = e.target;
+                if (el.value === l.color) return;
+                // Los inputs no son controlados: si el cambio se rechaza hay
+                // que volver al valor guardado a mano (load() no lo reaplica).
+                void patch(l.id, { color: el.value }).then((ok) => {
+                  if (!ok) el.value = /^#[0-9a-f]{6}$/i.test(l.color) ? l.color : '#666666';
+                });
               }}
               aria-label={t('labelsSettings.color')}
             />
@@ -88,9 +108,15 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
               defaultValue={l.name}
               maxLength={50}
               aria-label={t('labelsSettings.name')}
+              disabled={!isAdmin}
               onBlur={(e) => {
-                const v = e.target.value.trim();
-                if (v && v !== l.name) void patch(l.id, { name: v });
+                const el = e.target;
+                const v = el.value.trim();
+                if (!v) el.value = l.name;
+                if (!v || v === l.name) return;
+                void patch(l.id, { name: v }).then((ok) => {
+                  if (!ok) el.value = l.name;
+                });
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
@@ -202,36 +228,54 @@ export function GithubSettings({ isAdmin, locale }: { isAdmin: boolean; locale: 
   }, []);
 
   const save = async (regenerateSecret = false) => {
+    // Regenerar invalida en el acto el secret configurado en GitHub.
+    if (regenerateSecret && !window.confirm(t('github.regenerateConfirm'))) return;
     setBusy(true);
     setError(null);
     const list = repos
       .split(/[\n,]/)
       .map((r) => r.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, ''))
       .filter(Boolean);
-    const res = await send<{ config: GithubConfig; secret: string | null; error?: string }>('/api/track/github', 'PUT', {
-      repos: list,
-      onPrOpen,
-      onPrMerge,
-      regenerateSecret,
-    });
-    setBusy(false);
-    if (!res.ok) {
-      setError(
-        res.status === 403 ? t('github.adminOnly') : res.data.error === 'invalid_repo' ? t('github.invalidRepo') : t('github.error'),
-      );
-      return;
+    try {
+      const res = await send<{ config: GithubConfig; secret: string | null; error?: string }>('/api/track/github', 'PUT', {
+        repos: list,
+        onPrOpen,
+        onPrMerge,
+        regenerateSecret,
+      });
+      if (!res.ok) {
+        setError(
+          res.status === 403 ? t('github.adminOnly') : res.data.error === 'invalid_repo' ? t('github.invalidRepo') : t('github.error'),
+        );
+        return;
+      }
+      setConfig(res.data.config);
+      setRepos(res.data.config.repos.join('\n'));
+      if (res.data.secret) setSecret(res.data.secret);
+    } catch {
+      setError(t('github.error'));
+    } finally {
+      setBusy(false);
     }
-    setConfig(res.data.config);
-    setRepos(res.data.config.repos.join('\n'));
-    if (res.data.secret) setSecret(res.data.secret);
   };
 
   const disconnect = async () => {
+    if (!window.confirm(t('github.disconnectConfirm'))) return;
     setBusy(true);
-    await send('/api/track/github', 'DELETE');
-    setBusy(false);
-    setConfig(null);
-    setSecret(null);
+    setError(null);
+    try {
+      const res = await send('/api/track/github', 'DELETE');
+      if (!res.ok) {
+        setError(res.status === 403 ? t('github.adminOnly') : t('github.error'));
+        return;
+      }
+      setConfig(null);
+      setSecret(null);
+    } catch {
+      setError(t('github.error'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (config === undefined) return null;
@@ -240,6 +284,7 @@ export function GithubSettings({ isAdmin, locale }: { isAdmin: boolean; locale: 
     <section className="track-settings-section" data-testid="track-github-settings">
       <h2 className="track-settings-title">{t('github.title')}</h2>
       <p className="muted track-settings-help">{t('github.help')}</p>
+      <p className="muted track-settings-help">{t('github.moveHelp')}</p>
       {config && (
         <div className="track-github-hook">
           <p className="muted track-settings-help">{t('github.steps')}</p>

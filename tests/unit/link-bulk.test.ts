@@ -8,6 +8,7 @@ const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown>
 vi.mock('@/lib/session', () => ({
   getCurrentUser: async () => session.user,
   realUserId: (u: { id: string }) => u.id,
+  isWorkspaceAdmin: (u: { role?: string }) => u.role === 'owner' || u.role === 'admin',
 }));
 
 const batchRoute = await import('@/app/api/links/batch/route');
@@ -62,7 +63,7 @@ describe('Link: acciones masivas', () => {
     session.user = null;
     expect((await batchRoute.POST(post({ action: 'archive', ids: [a1.id] }))).status).toBe(401);
 
-    session.user = { ...b, team: null };
+    session.user = { ...b, team: null, role: 'owner' };
     expect((await batchRoute.POST(post({ action: 'nuke', ids: [a1.id] }))).status).toBe(400);
     expect((await batchRoute.POST(post({ action: 'tag', ids: [a1.id] }))).status).toBe(400); // falta tag
     const res = await batchRoute.POST(post({ action: 'delete', ids: [a1.id, b1.id] }));

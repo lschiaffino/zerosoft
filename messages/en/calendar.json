@@ -20,7 +20,9 @@
     "hide": "Hide",
     "delete": "Delete",
     "deleting": "Deleting…",
-    "edit": "Edit"
+    "edit": "Edit",
+    "yes": "Yes",
+    "no": "No"
   },
   "overview": {
     "title": "Calendar",
@@ -92,7 +94,9 @@
     "title": "Blocked slots",
     "add": "Block",
     "reasonPlaceholder": "Reason (optional)",
-    "empty": "No blocked slots."
+    "empty": "No blocked slots.",
+    "from": "From",
+    "to": "To"
   },
   "bookings": {
     "title": "Bookings",
@@ -100,7 +104,8 @@
     "rescheduled": "Rescheduled",
     "emptyTitle": "No upcoming bookings",
     "emptySub": "Share a booking link and new bookings show up here.",
-    "emptyCta": "Go to event types"
+    "emptyCta": "Go to event types",
+    "guestTime": "Guest: {time} ({timezone})"
   },
   "booking": {
     "timezone": "Timezone",
@@ -129,13 +134,18 @@
     "host": "Host",
     "expiredTitle": "Link expired",
     "expiredSub": "This single-use booking link has already been used.",
+    "unavailableTitle": "Not available right now",
+    "unavailableSub": "This event type can't take bookings at the moment. Please try again later or contact the host.",
     "rescheduledTitle": "Rescheduled",
     "emailSent": "We emailed you the details and a calendar invite.",
     "manageLink": "Reschedule or cancel",
     "confirmNewTime": "Confirm new time",
     "price": "Price",
     "payAndConfirm": "Pay and confirm",
-    "redirecting": "Taking you to payment…"
+    "redirecting": "Taking you to payment…",
+    "openCheckout": "Open the payment in a new tab",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month"
   },
   "routing": {
     "title": "Routing forms",
@@ -192,7 +202,11 @@
     "schedule_in_use": "Some event types use this schedule. Assign them another one before deleting it.",
     "invalid_schedule": "That schedule does not exist.",
     "invalid_range": "The end time must be after the start time.",
-    "invalid_key": "That key does not look like a Stripe key."
+    "invalid_key": "That key does not look like a Stripe key.",
+    "has_upcoming_bookings": "This event type has upcoming bookings. Cancel them (guests are notified and payments refunded) or turn it off before deleting it.",
+    "invalid_price": "Stripe cannot charge that price in that currency.",
+    "not_started": "This meeting has not started yet.",
+    "status_changed": "This booking changed in the meantime. Reload and try again."
   },
   "settings": {
     "title": "Settings",
@@ -207,7 +221,8 @@
     "bufferAfter": "Buffer after (min)",
     "minNotice": "Minimum notice (hours)",
     "maxDays": "Bookable up to (days ahead)",
-    "copyLink": "Copy link"
+    "copyLink": "Copy link",
+    "webhookMissing": "The signing secret is missing: paid event types stay disabled until you add it, so every payment is confirmed even if the guest closes the tab."
   },
   "manage": {
     "title": "Your booking",
@@ -280,6 +295,11 @@
     "weekly": "Weekly hours",
     "unavailable": "Unavailable",
     "addRange": "Add range",
+    "rangeStart": "{day}: start time",
+    "rangeEnd": "{day}: end time",
+    "overrideDate": "Override {n}: date",
+    "overrideStart": "Override {n}: start time",
+    "overrideEnd": "Override {n}: end time",
     "overrides": "Date overrides",
     "overridesHint": "A date without hours is blocked. With hours, they replace that day’s weekly hours.",
     "addOverride": "Add date",
@@ -291,7 +311,8 @@
     "pick": "Schedule",
     "custom": "Custom hours for this event",
     "customHint": "Hours for this event only, in the Settings time zone. Date overrides do not apply.",
-    "manage": "Edit schedules"
+    "manage": "Edit schedules",
+    "defaultName": "Main schedule"
   },
   "admin": {
     "search": "Search by name or email",
@@ -312,7 +333,9 @@
     "confirmCancel": "Cancel booking",
     "keep": "Back",
     "paid": "Paid",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "refunded": "refunded",
+    "refundOnCancel": "This booking was paid: cancelling refunds the payment in full."
   },
   "workflows": {
     "title": "Reminders",
@@ -340,18 +363,23 @@
     "currency": "Currency",
     "free": "0 = free",
     "notConfigured": "To charge, connect Stripe in Settings.",
+    "eventWebhookMissing": "Stripe is connected but the webhook signing secret is missing: until you add it in Settings, guests can't book this paid event type.",
     "hint": "The guest pays with Stripe Checkout to confirm. If they do not pay within 35 minutes, the time is released.",
     "settingsTitle": "Stripe payments",
     "settingsSub": "Charge for event types with your own Stripe account. The key is stored encrypted.",
     "secretKey": "Secret key (sk_ or rk_)",
     "webhookSecret": "Webhook signing secret (whsec_)",
     "webhookUrl": "Webhook URL",
-    "webhookHint": "In Stripe → Developers → Webhooks, add this URL with the checkout.session.completed and checkout.session.expired events.",
+    "webhookHint": "In Stripe → Developers → Webhooks, add this URL with the checkout.session.completed, checkout.session.expired, checkout.session.async_payment_succeeded and checkout.session.async_payment_failed events.",
     "connected": "Connected: {hint} ({mode})",
     "notConnected": "Not connected.",
     "keepKey": "Leave empty to keep it",
     "remove": "Disconnect",
     "adminOnly": "Only the workspace owner or an admin can change this.",
-    "webhookMissing": "The signing secret is missing: without it we confirm the payment when the guest returns from Stripe."
+    "webhookMissing": "The signing secret is missing: without it we confirm the payment when the guest returns from Stripe.",
+    "invalidAmount": "Enter an amount like 15000 or 15,000.50.",
+    "noCents": "{currency} has no cents: enter a whole amount.",
+    "belowMinimum": "Stripe does not accept charges below {min}.",
+    "charges": "Guests pay {amount}."
   }
 }

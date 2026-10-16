@@ -74,7 +74,7 @@ export default function EditLinkForm({ link, onSaved }: EditLinkFormProps) {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        setError(data?.error ? t(`errors.${data.error}`) : t('errors.generic'));
+        setError(data?.error && t.has(`errors.${data.error}`) ? t(`errors.${data.error}`) : t('errors.generic'));
       } else {
         setSaved(true);
         setPassword('');

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { listChatWidgets, listChatConversations, countChatConversations } from '@/lib/chat-data';
+import {
+  listChatWidgets,
+  listChatConversations,
+  countChatConversations,
+  reopenExpiredSnoozesThrottled,
+} from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +48,8 @@ export async function GET(req: Request) {
     offset,
   };
 
+  // Antes de listar y contar: si no, el total podía no incluir una conversación recién reabierta.
+  await reopenExpiredSnoozesThrottled(widgetIds);
   const [rows, total] = await Promise.all([
     listChatConversations(widgetIds, options),
     countChatConversations(widgetIds, options),

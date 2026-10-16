@@ -582,9 +582,19 @@ export function isPrivateAddress(ip: string): boolean {
   const v = ip.toLowerCase().replace(/^\[|\]$/g, '');
   if (v.includes(':')) {
     if (v === '::1' || v === '::') return true;
-    if (v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80')) return true;
-    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(v);
-    return mapped ? isPrivateAddress(mapped[1]) : false;
+    if (v.startsWith('fc') || v.startsWith('fd') || /^fe[89ab]/.test(v) || v.startsWith('fec')) return true;
+    // IPv4-mapped / NAT64 / IPv4-compatible, con puntos o en hex como lo
+    // normaliza `new URL()` ([::ffff:169.254.169.254] → [::ffff:a9fe:a9fe]).
+    // Igual que isPrivateIp de safe-fetch, pero autocontenida (va a la VM).
+    const dotted = /^(?:::ffff:|64:ff9b::|::)(\d+\.\d+\.\d+\.\d+)$/.exec(v);
+    if (dotted) return isPrivateAddress(dotted[1]);
+    const hex = /^(?:::ffff:|64:ff9b::|::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(v);
+    if (hex) {
+      const h = parseInt(hex[1], 16);
+      const l = parseInt(hex[2], 16);
+      return isPrivateAddress(`${h >> 8}.${h & 255}.${l >> 8}.${l & 255}`);
+    }
+    return false;
   }
   const parts = v.split('.').map(Number);
   if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false;
@@ -634,6 +644,11 @@ export interface HarnessChromium {
         abort(code?: string): Promise<void>;
         continue(): Promise<void>;
       }) => Promise<void>): Promise<void>;
+      /** Playwright ≥ 1.48: los WebSocket no pasan por route(). */
+      routeWebSocket?(
+        pattern: RegExp,
+        handler: (ws: { url(): string; close(opts?: { code?: number; reason?: string }): Promise<void>; connectToServer(): unknown }) => unknown,
+      ): Promise<void>;
       on(event: 'page', cb: (p: { close(): Promise<void> }) => void): void;
       newPage(): Promise<unknown>;
       storageState(): Promise<unknown>;
@@ -660,7 +675,8 @@ export async function robotHarness(
     browser = await chromium.launch({
       headless: true,
       executablePath: job.executablePath || undefined,
-      args: job.args ?? [],
+      // WebRTC sin UDP directo: no abre conexiones a la red interna por fuera de route().
+      args: [...(job.args ?? []), '--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],
       timeout: 30_000,
     });
     const b = browser;
@@ -697,6 +713,26 @@ export async function robotHarness(
       if (await verdict) return route.abort('blockedbyclient');
       return route.continue();
     });
+    // Los WebSocket (ws/wss) no pasan por route(): misma verificación de host.
+    if (typeof context.routeWebSocket === 'function') {
+      await context.routeWebSocket(/.*/, async (ws) => {
+        let origin = '';
+        try {
+          const u = new URL(ws.url());
+          if (u.protocol !== 'ws:' && u.protocol !== 'wss:') return ws.close({ code: 1008, reason: 'blocked' });
+          origin = `${u.protocol === 'wss:' ? 'https:' : 'http:'}//${u.host}`;
+        } catch {
+          return ws.close({ code: 1008, reason: 'blocked' });
+        }
+        let verdict = verdicts.get(origin);
+        if (!verdict) {
+          verdict = checkUrl(`${origin}/`).catch(() => 'unresolvable_host');
+          verdicts.set(origin, verdict);
+        }
+        if (await verdict) return ws.close({ code: 1008, reason: 'blocked' });
+        ws.connectToServer();
+      });
+    }
     let opened = 0;
     context.on('page', (p) => {
       opened += 1;

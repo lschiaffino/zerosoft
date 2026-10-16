@@ -7,7 +7,8 @@ export const dynamic = 'force-static';
  *   <script src="https://zerosoft.ai/api/calendar/embed.js" data-url="https://zerosoft.ai/en/book/ana/intro" async></script>
  * data-mode="inline" (default): iframe en el lugar del script, alto automático.
  * data-mode="popup": botón flotante (data-label) que abre la reserva en un modal.
- * El iframe avisa su alto y cuándo se confirmó la reserva vía postMessage.
+ * El iframe avisa su alto, cuándo se confirmó la reserva y, en eventos pagos,
+ * la URL de Stripe Checkout (que no se puede abrir dentro de un iframe).
  */
 const SCRIPT = `(function () {
   var script = document.currentScript;
@@ -35,6 +36,11 @@ const SCRIPT = `(function () {
     window.addEventListener('message', function (e) {
       if (e.origin !== origin || e.source !== f.contentWindow || !e.data) return;
       if (e.data.type === 'zs-cal:height' && mode === 'inline') f.style.height = Math.ceil(e.data.height) + 'px';
+      // Stripe Checkout no se deja enmarcar: la página contenedora navega al pago.
+      if (e.data.type === 'zs-cal:checkout' && typeof e.data.url === 'string' && /^https:\\/\\/checkout\\.stripe\\.com\\//.test(e.data.url)) {
+        window.location.assign(e.data.url);
+        return;
+      }
       if (e.data.type === 'zs-cal:booked') {
         try { script.dispatchEvent(new CustomEvent('zs-cal:booked', { detail: e.data, bubbles: true })); } catch (x) {}
         if (done) done();

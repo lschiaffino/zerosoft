@@ -13,17 +13,20 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   if (limited) return limited;
   try {
     const eventType = await getEventTypeById(params.id);
-    if (!eventType || eventType.active !== 1) return notFound();
+    if (!eventType) return notFound();
 
     const { searchParams } = new URL(_req.url);
     const date = searchParams.get('date') ?? '';
     const tzParsed = ianaTimezone.safeParse(searchParams.get('timezone') ?? 'UTC');
     const timezone = tzParsed.success ? tzParsed.data : 'UTC';
 
-    // Reprogramación: el horario actual del propio booking no cuenta como ocupado.
+    // Reprogramación: el horario actual del propio booking no cuenta como
+    // ocupado, y se puede mover aunque el evento ya no acepte reservas nuevas.
     const rescheduleToken = searchParams.get('reschedule');
     const own = rescheduleToken ? await getBookingByManageToken(rescheduleToken) : undefined;
-    const excludeBookingId = own && own.event_type_id === params.id ? own.id : undefined;
+    const excludeBookingId =
+      own && own.event_type_id === params.id && own.status === 'confirmed' ? own.id : undefined;
+    if (eventType.active !== 1 && !excludeBookingId) return notFound();
 
     // ?month=YYYY-MM → días del mes con lugar (para deshabilitar el resto en el calendario).
     const month = searchParams.get('month');

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { safeHexColor } from '@/lib/track-color';
 import type { IssueLabel } from '@/lib/track-schema';
 
 export interface WorkspaceLabel {
@@ -23,14 +24,28 @@ export function fetchWorkspaceLabels(refresh = false): Promise<WorkspaceLabel[]>
   return cache;
 }
 
-export function useWorkspaceLabels(): [WorkspaceLabel[], () => void] {
+/**
+ * Descarta la caché: la próxima lectura vuelve a pedir los labels. Se llama
+ * al crear, renombrar o borrar labels en Settings y al cambiar de workspace.
+ */
+export function invalidateWorkspaceLabels(): void {
+  cache = null;
+}
+
+/**
+ * Labels del workspace. Con `fresh` se vuelven a pedir al montar (la vista del
+ * proyecto, para no ofrecer labels borrados o de otro workspace).
+ */
+export function useWorkspaceLabels(fresh = false): [WorkspaceLabel[], () => void] {
   const [labels, setLabels] = useState<WorkspaceLabel[]>([]);
   useEffect(() => {
     let alive = true;
-    void fetchWorkspaceLabels().then((l) => alive && setLabels(l));
+    void fetchWorkspaceLabels(fresh).then((l) => alive && setLabels(l));
     return () => {
       alive = false;
     };
+    // Solo al montar: `fresh` no cambia durante la vida del componente.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const refresh = () => void fetchWorkspaceLabels(true).then(setLabels);
   return [labels, refresh];
@@ -48,6 +63,8 @@ export default function LabelPicker({ value, onChange }: LabelPickerProps) {
   const [all, refresh] = useWorkspaceLabels();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const listId = useId();
 
   const selected = new Set(value.map((l) => l.id));
   const q = query.trim().toLowerCase();
@@ -71,13 +88,25 @@ export default function LabelPicker({ value, onChange }: LabelPickerProps) {
     window.setTimeout(refresh, 400);
   };
 
+  // Combobox WAI-ARIA: el foco queda en el input y la opción activa se
+  // anuncia con aria-activedescendant (flechas para moverse, Enter elige).
+  const canCreate = Boolean(q) && !exact;
+  const itemCount = options.length + (canCreate ? 1 : 0);
+  const expanded = open && itemCount > 0;
+  const optionId = (i: number) => `${listId}-opt-${i}`;
+  const choose = (i: number) => {
+    if (i < options.length) add(options[i].id);
+    else if (canCreate) create();
+    setActive(-1);
+  };
+
   return (
     <div className="track-label-picker" data-testid="track-label-picker">
       {value.length > 0 && (
         <span className="track-label-chips">
           {value.map((l) => (
             <span key={l.id} className="track-label-tag">
-              <span className="track-label-tag-dot" style={{ background: l.color }} aria-hidden />
+              <span className="track-label-tag-dot" style={{ background: safeHexColor(l.color, '#666666') }} aria-hidden />
               {l.name}
               <button
                 type="button"
@@ -93,38 +122,74 @@ export default function LabelPicker({ value, onChange }: LabelPickerProps) {
       )}
       <input
         type="text"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={expanded}
+        aria-controls={listId}
+        aria-activedescendant={expanded && active >= 0 ? optionId(active) : undefined}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
+          setActive(-1);
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
         onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!open) setOpen(true);
+            if (itemCount === 0) return;
+            const step = e.key === 'ArrowDown' ? 1 : -1;
+            setActive((i) => (i < 0 ? (step > 0 ? 0 : itemCount - 1) : (i + step + itemCount) % itemCount));
+            return;
+          }
           if (e.key === 'Enter') {
             e.preventDefault();
-            if (options[0] && (exact || !q || options[0].name.toLowerCase() === q)) add(options[0].id);
+            if (expanded && active >= 0) choose(active);
+            else if (options[0] && (exact || !q || options[0].name.toLowerCase() === q)) add(options[0].id);
             else if (q) create();
           }
-          if (e.key === 'Escape') setOpen(false);
+          if (e.key === 'Escape') {
+            setOpen(false);
+            setActive(-1);
+          }
         }}
         placeholder={t('labelsSettings.newPlaceholder')}
         aria-label={t('issues.labels')}
         maxLength={50}
       />
-      {open && (options.length > 0 || (q && !exact)) && (
-        <ul className="track-label-options" role="listbox">
-          {options.map((l) => (
-            <li key={l.id}>
-              <button type="button" role="option" aria-selected={false} onMouseDown={(e) => e.preventDefault()} onClick={() => add(l.id)}>
-                <span className="track-label-tag-dot" style={{ background: l.color }} aria-hidden />
+      {expanded && (
+        <ul className="track-label-options" role="listbox" id={listId} aria-label={t('issues.labels')}>
+          {options.map((l, i) => (
+            <li key={l.id} role="presentation">
+              <button
+                type="button"
+                id={optionId(i)}
+                role="option"
+                tabIndex={-1}
+                aria-selected={i === active}
+                className={i === active ? 'is-active' : undefined}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => add(l.id)}
+              >
+                <span className="track-label-tag-dot" style={{ background: safeHexColor(l.color, '#666666') }} aria-hidden />
                 {l.name}
               </button>
             </li>
           ))}
-          {q && !exact && (
-            <li>
-              <button type="button" role="option" aria-selected={false} onMouseDown={(e) => e.preventDefault()} onClick={create}>
+          {canCreate && (
+            <li role="presentation">
+              <button
+                type="button"
+                id={optionId(options.length)}
+                role="option"
+                tabIndex={-1}
+                aria-selected={active === options.length}
+                className={active === options.length ? 'is-active' : undefined}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={create}
+              >
                 {t('bulk.addLabel', { name: query.trim() })}
               </button>
             </li>

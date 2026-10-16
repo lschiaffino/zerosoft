@@ -23,6 +23,9 @@ const time = z
   .trim()
   .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'invalid_time' });
 const isoDate = z.string().trim().min(1);
+/** Nombre de persona en una línea: sin saltos ni caracteres de control (va a headers y al .ics). */
+// eslint-disable-next-line no-control-regex
+export const personName = shortText.regex(/^[^\x00-\x1f\x7f]*$/, { message: 'invalid_name' });
 const email = z
   .string()
   .trim()
@@ -119,37 +122,96 @@ export const availabilityCreateSchema = z.object({
   endTime: time,
 });
 
+/** Una franja semanal: el fin tiene que ser posterior al inicio (si no, no genera slots). */
+const scheduleRule = z
+  .object({ dayOfWeek: z.number().int().min(0).max(6), startTime: time, endTime: time })
+  .refine((r) => r.endTime > r.startTime, { message: 'invalid_range' });
+
 export const availabilityBatchSchema = z.object({
-  rules: z.array(
-    z.object({
-      dayOfWeek: z.number().int().min(0).max(6),
-      startTime: time,
-      endTime: time,
-    }),
-  ),
+  rules: z.array(scheduleRule).max(100),
 });
 
 // ---------- Blocked slots ----------
 
-export const blockedSlotCreateSchema = z.object({
-  startsAt: isoDate,
-  endsAt: isoDate,
+/** Fecha y hora válida, normalizada a ISO UTC (así se compara bien como texto en SQL). */
+const isoInstant = isoDate
+  .refine((v) => !Number.isNaN(new Date(v).getTime()), { message: 'invalid_date' })
+  .transform((v) => new Date(v).toISOString());
+
+const blockedSlotFields = z.object({
+  startsAt: isoInstant,
+  endsAt: isoInstant,
   reason: longText.nullish(),
 });
 
-export const blockedSlotUpdateSchema = blockedSlotCreateSchema.partial();
+export const blockedSlotCreateSchema = blockedSlotFields.refine((b) => b.endsAt > b.startsAt, {
+  message: 'invalid_range',
+  path: ['endsAt'],
+});
+
+export const blockedSlotUpdateSchema = blockedSlotFields.partial();
 
 // ---------- Bookings ----------
 
 export const bookingCreateSchema = z.object({
   eventTypeId: id,
   email: email,
-  name: shortText,
+  name: personName,
   start: isoDate,
   timezone: ianaTimezone.optional(),
-  answers: z.record(z.unknown()).optional(),
+  answers: z
+    .record(z.unknown())
+    .refine((a) => Object.keys(a).length <= 20, { message: 'too_many_answers' })
+    .optional(),
   locale: z.enum(['en', 'es', 'pt']).optional(),
 });
+
+const ANSWER_MAX = 2000;
+
+/**
+ * Valida las respuestas de una reserva contra los campos del tipo de evento:
+ * solo claves definidas, tipo según el campo, textos de hasta 2000 caracteres
+ * y los requeridos completos. Devuelve las respuestas normalizadas o null.
+ */
+export function validateBookingAnswers(
+  fields: Array<Record<string, unknown>>,
+  answers: Record<string, unknown> | undefined,
+): Record<string, string | number | boolean> | null {
+  const input = answers ?? {};
+  const defs = new Map<string, z.infer<typeof customField>>();
+  for (const f of fields) {
+    const parsed = customField.safeParse(f);
+    if (parsed.success) defs.set(parsed.data.name, parsed.data);
+  }
+  for (const key of Object.keys(input)) if (!defs.has(key)) return null;
+
+  const out: Record<string, string | number | boolean> = {};
+  for (const field of defs.values()) {
+    const raw = input[field.name];
+    if (raw === undefined || raw === null || raw === '') {
+      if (field.required) return null;
+      continue;
+    }
+    if (field.type === 'boolean') {
+      if (typeof raw !== 'boolean') return null;
+      if (field.required && !raw) return null;
+      out[field.name] = raw;
+    } else if (field.type === 'number') {
+      const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN;
+      if (!Number.isFinite(n)) return null;
+      out[field.name] = n;
+    } else {
+      if (typeof raw !== 'string' || raw.length > ANSWER_MAX) return null;
+      const text = raw.trim();
+      if (!text) {
+        if (field.required) return null;
+        continue;
+      }
+      out[field.name] = text;
+    }
+  }
+  return out;
+}
 
 /** Acciones del invitado desde su link de gestión. */
 export const bookingManageSchema = z.discriminatedUnion('action', [
@@ -230,10 +292,6 @@ export type RoutingRuleCreatePayload = z.infer<typeof routingRuleCreateSchema>;
 export type RoutingRuleUpdatePayload = z.infer<typeof routingRuleUpdateSchema>;
 
 // ---------- Horarios reutilizables (fase D9) ----------
-
-const scheduleRule = z
-  .object({ dayOfWeek: z.number().int().min(0).max(6), startTime: time, endTime: time })
-  .refine((r) => r.endTime > r.startTime, { message: 'invalid_range' });
 
 const isoDay = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'invalid_date' });
 

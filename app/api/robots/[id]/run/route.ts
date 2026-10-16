@@ -6,7 +6,7 @@ import { canEditRobots, forbidden, realUserId, robotError, runErrorStatus, unaut
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// Corrida sincrónica: arranque del sandbox + hasta 5 min de navegador.
+// Corrida sincrónica: arranque del sandbox + hasta MAX_TIMEOUT_SEC (180 s) de navegador.
 export const maxDuration = 300;
 
 /** "Run": corre el robot ahora con estas entradas y devuelve la corrida. */

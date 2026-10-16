@@ -30,9 +30,13 @@ test('Cal: el invitado reprograma desde su link y el horario viejo queda libre',
 
   // Elegir el mismo día y el último slot ofrecido.
   await page.locator('select').first().selectOption('UTC');
-  const dayNum = String(Number(day.slice(8, 10)));
-  if (Number(day.slice(8, 10)) < new Date().getUTCDate()) await page.getByRole('button', { name: '›' }).click();
-  await page.getByRole('button', { name: dayNum, exact: true }).click();
+  // Los días del calendario llevan la fecha completa como aria-label.
+  const [y, m, d] = day.split('-').map(Number);
+  const dayLabel = new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(
+    new Date(y, m - 1, d),
+  );
+  if (d < new Date().getUTCDate()) await page.getByRole('button', { name: 'Next month' }).click();
+  await page.getByRole('button', { name: dayLabel, exact: true }).click();
   const slotButtons = page.locator('button.booking-slot');
   await expect(slotButtons.first()).toBeVisible();
   await slotButtons.last().click();

@@ -1,25 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { updateBooking, CalendarError } from '@/lib/calendar';
+import { updateBooking, hostSlotFree, ownedBooking, CalendarError } from '@/lib/calendar';
 import { bookingUpdateSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, unauthorized, crmError } from '@/lib/crm-http';
-import { getDb } from '@/lib/db';
+import { getDb, type CalendarBookingRow } from '@/lib/db';
+import { expireCheckoutForBooking, refundCancelledBooking } from '@/lib/calendar-payments';
 import { afterBookingCancelled } from '@/lib/calendar-lifecycle';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Dueño del event type o host asignado. */
+/** Dueño del event type o host asignado (mientras siga en el team). */
 async function ownsBooking(userId: string, bookingId: string): Promise<boolean> {
-  const row = (await getDb()
-    .prepare(
-      `SELECT e.user_id AS owner_id, b.host_user_id
-       FROM calendar_bookings b
-       JOIN calendar_event_types e ON e.id = b.event_type_id
-       WHERE b.id = ?`,
-    )
-    .get(bookingId)) as { owner_id: string; host_user_id: string | null } | undefined;
-  return row !== undefined && (row.owner_id === userId || row.host_user_id === userId);
+  return (await ownedBooking(userId, bookingId)) !== null;
+}
+
+/**
+ * Transiciones de estado que puede hacer el anfitrión. Una reserva esperando
+ * pago solo se cancela (se confirma con el pago); una cancelada no vuelve,
+ * porque su horario pudo tomarlo otra persona y sus avisos ya no existen.
+ */
+const TRANSITIONS: Record<string, string[]> = {
+  pending: ['cancelled'],
+  confirmed: ['confirmed', 'cancelled', 'no_show'],
+  no_show: ['no_show', 'confirmed', 'cancelled'],
+  cancelled: ['cancelled'],
+};
+
+function canTransition(from: string, to: string): boolean {
+  return TRANSITIONS[from]?.includes(to) ?? false;
 }
 
 export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -51,18 +60,32 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!parsed.success) return invalidBody(parsed.error);
 
   try {
-    const before = (await getDb().prepare('SELECT status FROM calendar_bookings WHERE id = ?').get(params.id)) as
-      | { status: string }
+    const before = (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(params.id)) as
+      | CalendarBookingRow
       | undefined;
-    // Una reserva esperando pago solo se puede cancelar; se confirma con el pago.
-    if (before?.status === 'pending' && parsed.data.status && parsed.data.status !== 'cancelled') {
-      return crmError(409, 'not_confirmed');
+    if (!before) return notFound();
+    if (parsed.data.status && !canTransition(before.status, parsed.data.status)) return crmError(409, 'not_confirmed');
+    // Antes del inicio no hay no-show: marcarlo liberaría el horario sin avisar a nadie.
+    if (
+      parsed.data.status === 'no_show' &&
+      before.status !== 'no_show' &&
+      new Date(before.starts_at).getTime() > Date.now()
+    ) {
+      return crmError(409, 'not_started');
     }
-    const booking = await updateBooking(params.id, parsed.data);
+    // Deshacer un no-show: el horario tiene que seguir libre para el host.
+    if (before.status === 'no_show' && parsed.data.status === 'confirmed' && !(await hostSlotFree(before))) {
+      return crmError(409, 'slot_unavailable');
+    }
+    let booking = await updateBooking(params.id, parsed.data, { fromStatus: before.status });
     if (!booking) return notFound();
-    if (before?.status === 'confirmed' && booking.status === 'cancelled') {
+    if (before.status === 'confirmed' && booking.status === 'cancelled') {
+      // Reserva paga cancelada por el anfitrión: se reembolsa el pago completo.
+      booking = await refundCancelledBooking(booking);
       await afterBookingCancelled(booking, parsed.data.cancelReason ?? null);
     }
+    // Hold cancelado por el anfitrión: la sesión de Checkout deja de aceptar el pago.
+    if (before.status === 'pending' && booking.status === 'cancelled') await expireCheckoutForBooking(before);
     return NextResponse.json(booking);
   } catch (err) {
     if (err instanceof CalendarError) return crmError(err.status, err.code);

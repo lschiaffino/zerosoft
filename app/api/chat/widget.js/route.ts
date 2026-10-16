@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getChatWidget } from '@/lib/chat-data';
+import { CHAT_MESSAGE_MAX } from '@/lib/chat-schema';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var HELP = ${JSON.stringify(widget!.help_enabled === 1)};
   var STORAGE_KEY = 'zs_chat_visitor_' + WIDGET_ID;
   var MAX_FILE_SIZE = 10 * 1024 * 1024;
+  var MAX_MESSAGE = ${CHAT_MESSAGE_MAX};
 
   function uuid() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -49,7 +51,29 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   }
 
   function api(path, opts) {
-    return fetch(ORIGIN + path, Object.assign({ headers: { 'content-type': 'application/json' } }, opts));
+    opts = opts || {};
+    // Con FormData el navegador pone multipart/form-data con su boundary: no pisarlo.
+    var isForm = typeof FormData !== 'undefined' && opts.body instanceof FormData;
+    return fetch(ORIGIN + path, Object.assign(isForm ? {} : { headers: { 'content-type': 'application/json' } }, opts));
+  }
+
+  // attachments puede llegar como array o (respuestas viejas) como texto JSON.
+  function messageAttachments(m) {
+    var a = m && m.attachments;
+    if (typeof a === 'string') {
+      try { a = JSON.parse(a); } catch (e) { a = []; }
+    }
+    return Array.isArray(a) ? a : [];
+  }
+
+  // Solo URLs http(s) o rutas del propio server (las de /uploads): nada de
+  // javascript:, data:, etc. en el href/src de un adjunto.
+  function safeUrl(u) {
+    if (typeof u !== 'string') return null;
+    if (/^https?:/i.test(u)) return u;
+    // '/x' sí; '//host' o '/\\host' no (son URLs a otro origen). 92 = barra invertida.
+    if (u.charAt(0) === '/' && u.charAt(1) !== '/' && u.charCodeAt(1) !== 92) return ORIGIN + u;
+    return null;
   }
 
   function dom(tag, attrs, children) {
@@ -67,12 +91,6 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     var units = ['B', 'KB', 'MB', 'GB'];
     var i = Math.floor(Math.log(n) / Math.log(1024));
     return (n / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
-  }
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function (m) {
-      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
-    });
   }
 
   // Identidad opcional del visitante (p. ej. la persona logueada en el sitio
@@ -122,6 +140,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var selectedFile = null;
   var uploading = false;
   var messageReadMap = {};
+  var visitorBubbles = {};
+  var formRequest = null;
 
   var root = dom('div', {
     id: 'zs-chat-root',
@@ -233,6 +253,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var input = dom('input', {
     type: 'text',
     placeholder: 'Type a message…',
+    'aria-label': 'Message',
+    maxlength: String(MAX_MESSAGE),
     style: 'flex:1;border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:8px 10px;outline:none;',
   });
   var send = dom('button', {
@@ -244,6 +266,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   inputWrap.appendChild(fileInput);
   inputWrap.appendChild(input);
   inputWrap.appendChild(send);
+  // Error al enviar (429, demasiado largo, sin red): el texto vuelve al input.
+  var sendError = dom('div', { role: 'alert', style: 'display:none;padding:0 12px 8px;background:#fff;color:#b00020;font-size:12px;' });
 
   var formWrap = dom('div', { style: 'padding:16px;border-bottom:1px solid rgba(0,0,0,0.06);background:#fff;display:none;' });
 
@@ -275,6 +299,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   chatPane.appendChild(previewWrap);
   chatPane.appendChild(suggestWrap);
   chatPane.appendChild(inputWrap);
+  chatPane.appendChild(sendError);
   box.appendChild(chatPane);
   box.appendChild(helpPane);
 
@@ -380,21 +405,23 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   root.appendChild(box);
 
   function renderAttachment(a) {
+    var url = safeUrl(a.url);
+    if (!url) return dom('span', { style: 'font-size:12px;' }, ['📎 ' + (a.name || 'file')]);
     if (a.type === 'image') {
-      return dom('a', { href: a.url, target: '_blank', rel: 'noopener noreferrer', style: 'display:block;max-width:200px;' }, [
-        dom('img', { src: a.url, alt: a.name, style: 'max-width:100%;max-height:160px;border-radius:8px;display:block;' }),
+      return dom('a', { href: url, target: '_blank', rel: 'noopener noreferrer', style: 'display:block;max-width:200px;' }, [
+        dom('img', { src: url, alt: a.name, style: 'max-width:100%;max-height:160px;border-radius:8px;display:block;' }),
       ]);
     }
     if (a.type === 'audio') {
-      return dom('audio', { src: a.url, controls: true, preload: 'metadata', style: 'max-width:220px;display:block;' });
+      return dom('audio', { src: url, controls: true, preload: 'metadata', style: 'max-width:220px;display:block;' });
     }
     return dom('a', {
-      href: a.url,
+      href: url,
       target: '_blank',
       rel: 'noopener noreferrer',
       style:
         'display:flex;align-items:center;gap:6px;padding:8px 10px;background:rgba(0,0,0,0.04);border-radius:8px;color:#111;text-decoration:none;font-size:12px;max-width:240px;',
-    }, ['📎 ' + escapeHtml(a.name) + ' (' + formatBytes(a.size) + ')']);
+    }, ['📎 ' + a.name + ' (' + formatBytes(a.size) + ')']);
   }
 
   function appendMessage(m) {
@@ -414,24 +441,37 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       var p = dom('p', { style: 'margin:0 0 4px;white-space:pre-wrap;word-break:break-word;' }, [m.body]);
       bubble.appendChild(p);
     }
-    var attachments = Array.isArray(m.attachments) ? m.attachments : [];
+    var attachments = messageAttachments(m);
     attachments.forEach(function (a) {
       var el = renderAttachment(a);
       el.style.marginTop = '6px';
       bubble.appendChild(el);
     });
 
-    if (isVisitor && m.read_at) {
-      var readLabel = dom('div', {
-        style: 'font-size:10px;opacity:0.8;text-align:right;margin-top:4px;',
-      }, ['Read']);
-      bubble.appendChild(readLabel);
-      if (m.id) messageReadMap[m.id] = true;
-    }
+    if (isVisitor && m.id) visitorBubbles[m.id] = bubble;
+    if (isVisitor && m.read_at) markBubbleRead(m.id, bubble);
 
     wrap.appendChild(bubble);
     messages.appendChild(wrap);
     messages.scrollTop = messages.scrollHeight;
+  }
+
+  function markBubbleRead(id, bubble) {
+    if (bubble.getAttribute('data-read')) return;
+    bubble.setAttribute('data-read', '1');
+    bubble.appendChild(dom('div', {
+      style: 'font-size:10px;opacity:0.8;text-align:right;margin-top:4px;',
+    }, ['Read']));
+    if (id) messageReadMap[id] = true;
+  }
+
+  // El poll trae read_at de mensajes ya mostrados: se marca la burbuja existente.
+  function updateReadReceipts(list) {
+    (list || []).forEach(function (m) {
+      if (m.sender_type === 'visitor' && m.read_at && m.id && visitorBubbles[m.id]) {
+        markBubbleRead(m.id, visitorBubbles[m.id]);
+      }
+    });
   }
 
   function showWelcome() {
@@ -586,6 +626,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     updatePreview();
   }
 
+  function showUploadError(msg) {
+    previewBody.appendChild(dom('span', { role: 'alert', style: 'color:#b00020;display:block;margin-top:2px;' }, [msg]));
+  }
+
   function loadMessages() {
     api('/api/chat/messages?widgetId=' + encodeURIComponent(WIDGET_ID) + '&visitorId=' + encodeURIComponent(visitorId), { method: 'GET' })
       .then(function (r) { return r.json(); })
@@ -595,7 +639,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         updateCsat(data.csat);
         if (!data.visitor) return;
         conversationId = data.conversation ? data.conversation.id : null;
+        // Con una conversación abierta el formulario pre-chat ya se completó.
+        if (conversationId) formWrap.style.display = 'none';
         messages.innerHTML = '';
+        visitorBubbles = {};
         if (!conversationId) showWelcome();
         else {
           data.messages.forEach(function (m) {
@@ -627,6 +674,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
             return seen;
           });
         }
+        updateReadReceipts(data.messages);
         newMessages.forEach(function (m) {
           appendMessage(m);
           lastMessageId = m.id;
@@ -667,7 +715,25 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       .catch(function () {});
   }
 
+  function showSendError(msg, body) {
+    // Se devuelve el texto al input (si el visitante no escribió otra cosa).
+    if (body && !input.value) input.value = body;
+    sendError.textContent = msg;
+    sendError.style.display = 'block';
+  }
+
   function sendMessage(body) {
+    // El formulario pre-chat todavía está creando la conversación: esperar, si
+    // no se crean dos conversaciones (o choca el alta del visitante).
+    if (formRequest) {
+      var waiting = formRequest;
+      waiting.then(function () {
+        if (formRequest === waiting) formRequest = null;
+        sendMessage(body);
+      });
+      return;
+    }
+    sendError.style.display = 'none';
     if (selectedFile) {
       sendFile(selectedFile, body);
       return;
@@ -675,17 +741,35 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     if (!body) return;
     var payload = withIdentity({ widgetId: WIDGET_ID, visitorId: visitorId, body: body });
     api('/api/chat/messages', { method: 'POST', body: JSON.stringify(payload) })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
+      .then(function (r) {
+        return r.json().catch(function () { return null; }).then(function (data) {
+          return { ok: r.ok, status: r.status, data: data };
+        });
+      })
+      .then(function (res) {
+        var data = res.data;
+        if (!res.ok || !data) {
+          showSendError(
+            res.status === 429
+              ? 'Too many messages. Wait a moment and try again.'
+              : res.status === 400 && body.length > MAX_MESSAGE
+                ? 'Message too long (max ' + MAX_MESSAGE + ' characters)'
+                : 'Could not send your message. Try again.',
+            body,
+          );
+          return;
+        }
         if (data.conversation) conversationId = data.conversation.id;
-        appendMessage({ body: body, sender_type: 'visitor' });
+        appendMessage({ id: data.message && data.message.id, body: body, sender_type: 'visitor', read_at: data.message && data.message.read_at });
         if (data.message && data.message.id) lastMessageId = data.message.id;
         if (data.bot) {
           appendMessage(data.bot);
           if (data.bot.id) lastMessageId = data.bot.id;
         }
       })
-      .catch(function () {});
+      .catch(function () {
+        showSendError('Could not send your message. Try again.', body);
+      });
   }
 
   function sendFile(file, text) {
@@ -700,14 +784,29 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     if (identity.name) formData.append('name', identity.name);
 
     api('/api/chat/messages/upload', { method: 'POST', body: formData })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
+      .then(function (r) {
+        return r.json().catch(function () { return null; }).then(function (data) {
+          return { ok: r.ok, status: r.status, data: data };
+        });
+      })
+      .then(function (res) {
         uploading = false;
+        var data = res.data;
+        if (!res.ok || !data || !data.message) {
+          // Se conserva la vista previa para que el visitante pueda reintentar.
+          showUploadError(
+            res.status === 413
+              ? 'File too large (max 10 MB)'
+              : res.status === 415
+                ? 'This file type is not allowed'
+                : 'Could not send the file. Try again.',
+          );
+          return;
+        }
         clearPreview();
         if (data.conversation) conversationId = data.conversation.id;
-        var attachments = Array.isArray(data.message.attachments) ? data.message.attachments : [];
-        appendMessage({ body: data.message.body || '', sender_type: 'visitor', attachments: attachments });
-        if (data.message && data.message.id) lastMessageId = data.message.id;
+        appendMessage({ id: data.message.id, body: data.message.body || '', sender_type: 'visitor', attachments: messageAttachments(data.message) });
+        if (data.message.id) lastMessageId = data.message.id;
         if (data.bot) {
           appendMessage(data.bot);
           if (data.bot.id) lastMessageId = data.bot.id;
@@ -715,6 +814,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       })
       .catch(function () {
         uploading = false;
+        showUploadError('Could not send the file. Try again.');
       });
   }
 
@@ -773,12 +873,29 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         answers[item.id] = val;
       });
       if (!valid) return;
-      api('/api/chat/messages', {
-        method: 'POST',
-        body: JSON.stringify(withIdentity({ widgetId: WIDGET_ID, visitorId: visitorId, body: 'Started chat', fields: answers })),
-      }).catch(function () {});
       formWrap.style.display = 'none';
       showWelcome();
+      // Las respuestas se guardan en el server con las etiquetas de cada campo.
+      formRequest = api('/api/chat/messages', {
+        method: 'POST',
+        body: JSON.stringify(withIdentity({ widgetId: WIDGET_ID, visitorId: visitorId, fields: answers })),
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data) return;
+          // Sin conversationId el polling no arranca y no llegan las respuestas del agente.
+          if (data.conversation) conversationId = data.conversation.id;
+          if (data.message) {
+            appendMessage(data.message);
+            if (data.message.id) lastMessageId = data.message.id;
+          }
+          if (data.bot) {
+            appendMessage(data.bot);
+            if (data.bot.id) lastMessageId = data.bot.id;
+          }
+        })
+        .catch(function () {})
+        .then(function () { formRequest = null; });
     });
   } else {
     showWelcome();

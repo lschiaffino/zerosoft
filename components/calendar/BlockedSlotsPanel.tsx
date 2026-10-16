@@ -30,10 +30,17 @@ export default function BlockedSlotsPanel({ initialSlots }: BlockedSlotsPanelPro
   const [endsAt, setEndsAt] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function addSlot(e: React.FormEvent) {
     e.preventDefault();
     if (!startsAt || !endsAt) return;
+    // Un bloqueo con el fin antes del inicio no bloquea nada.
+    if (new Date(endsAt) <= new Date(startsAt)) {
+      setError(t('errors.invalid_range'));
+      return;
+    }
+    setError(null);
     setBusy(true);
     const res = await fetch('/api/calendar/blocked-slots', {
       method: 'POST',
@@ -51,13 +58,19 @@ export default function BlockedSlotsPanel({ initialSlots }: BlockedSlotsPanelPro
       setStartsAt('');
       setEndsAt('');
       setReason('');
+      return;
     }
+    const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : undefined;
+    setError(code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
   }
 
   async function removeSlot(id: string) {
     const res = await fetch(`/api/calendar/blocked-slots/${id}`, { method: 'DELETE' }).catch(() => null);
     if (res && res.status === 204) {
       setSlots((prev) => prev.filter((s) => s.id !== id));
+      setError(null);
+    } else {
+      setError(t('errors.generic'));
     }
   }
 
@@ -68,6 +81,8 @@ export default function BlockedSlotsPanel({ initialSlots }: BlockedSlotsPanelPro
         <input
           className="input"
           type="datetime-local"
+          aria-label={t('blockedSlots.from')}
+          title={t('blockedSlots.from')}
           value={startsAt}
           onChange={(e) => setStartsAt(e.target.value)}
           required
@@ -75,6 +90,9 @@ export default function BlockedSlotsPanel({ initialSlots }: BlockedSlotsPanelPro
         <input
           className="input"
           type="datetime-local"
+          aria-label={t('blockedSlots.to')}
+          title={t('blockedSlots.to')}
+          min={startsAt || undefined}
           value={endsAt}
           onChange={(e) => setEndsAt(e.target.value)}
           required
@@ -82,6 +100,7 @@ export default function BlockedSlotsPanel({ initialSlots }: BlockedSlotsPanelPro
         <input
           className="input"
           placeholder={t('blockedSlots.reasonPlaceholder')}
+          aria-label={t('blockedSlots.reasonPlaceholder')}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
         />
@@ -89,6 +108,11 @@ export default function BlockedSlotsPanel({ initialSlots }: BlockedSlotsPanelPro
           {t('blockedSlots.add')}
         </button>
       </form>
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
 
       {slots.length === 0 ? (
         <p className="muted">{t('blockedSlots.empty')}</p>

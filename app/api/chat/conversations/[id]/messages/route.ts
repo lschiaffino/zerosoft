@@ -3,11 +3,15 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import { canAccessConversation } from '@/lib/chat-access';
 import {
   createChatMessage,
+  getCannedResponse,
   getChatWidget,
   listChatAgents,
   listChatMessagesWithUsers,
   recordFirstResponse,
+  reopenIfResolved,
 } from '@/lib/chat-data';
+import { applyCannedMacro } from '@/lib/chat-inbox';
+import { CHAT_MESSAGE_MAX } from '@/lib/chat-schema';
 import { createChatNoteMentionNotification } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -38,16 +42,17 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   }
 
   const messageBody = typeof body.body === 'string' ? body.body.trim() : '';
-  if (!messageBody) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  if (!messageBody || messageBody.length > CHAT_MESSAGE_MAX) {
+    return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  }
   const isNote = body.note === true;
 
+  // Los adjuntos solo entran por /attachments (que sube el archivo y arma la
+  // URL); acá se ignoran para no guardar URLs arbitrarias (javascript:, etc.).
   const message = await createChatMessage(params.id, 'user', {
     body: messageBody,
     userId: realUserId(user),
     isNote,
-    attachments: Array.isArray(body.attachments)
-      ? (body.attachments as Parameters<typeof createChatMessage>[2]['attachments'])
-      : undefined,
   });
 
   if (isNote) {
@@ -71,6 +76,18 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   } else {
     // Una nota interna no es una respuesta al visitante (no corre el SLA).
     await recordFirstResponse(params.id);
+    // Responder una conversación resuelta la reabre: el widget solo muestra
+    // conversaciones abiertas, y si no el visitante nunca vería la respuesta.
+    await reopenIfResolved(conversation);
+  }
+
+  // Macro elegida en el composer: sus acciones se aplican al enviar (y después
+  // de reabrir), así "responder y resolver" deja la conversación resuelta.
+  if (typeof body.cannedId === 'string' && body.cannedId) {
+    const canned = await getCannedResponse(body.cannedId);
+    if (canned && canned.widget_id === conversation.widget_id) {
+      await applyCannedMacro(params.id, canned, realUserId(user));
+    }
   }
 
   return NextResponse.json(message, { status: 201 });

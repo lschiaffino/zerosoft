@@ -86,7 +86,7 @@
     "condOp": "Operator",
     "condRight": "Compare with",
     "canvasHint": "Add nodes from the left. Connect them by dragging from an output to the next node.",
-    "templateHelp": "Use '{{trigger.x}}' for trigger data and '{{nodes.<id>.output.x}}' for the output of an earlier node. Filters: json, join, lines, map:field, default:value, upper, lower, length.",
+    "templateHelp": "Use '{{trigger.x}}' for trigger data and '{{nodes.<id>.output.x}}' for the output of an earlier node. Filters: json, join, lines, map:field, default:value, upper, lower, length, urlencode.",
     "everySummary": "Every {n} {unit}",
     "dailySummary": "Daily at {time} ({tz})",
     "conditionsCount": "{n, plural, one {# condition} other {# conditions}}",
@@ -108,6 +108,8 @@
     "codeUnavailable": "Code runs in an isolated Vercel Sandbox. It isn't available on this server: set FLOW_CODE_RUNNER=sandbox with Vercel credentials to enable it. Until then the node fails with code_unavailable.",
     "mergeHint": "Waits until every connected node has run, then runs once. Use the key '...' to copy all fields of an object.",
     "scheduleGranularity": "On zerosoft cloud the scheduler checks once an hour, so runs can start up to an hour late. Self-hosted, it follows your cron for /api/cron/tick.",
+    "delayGranularity": "Delay resumes the run on the scheduler's next pass. On zerosoft cloud it checks once an hour, so a short wait (seconds or minutes) can last up to an hour. Self-hosted, it follows your cron for /api/cron/tick.",
+    "retryGranularity": "Each retry resumes on the scheduler's next pass (once an hour on zerosoft cloud), not a few seconds later.",
     "stripeHint": "Save the flow, copy the webhook URL into Stripe (Developers → Webhooks) and save its signing secret in the credential. Unsigned requests are rejected.",
     "allEvents": "All events"
   },
@@ -150,7 +152,7 @@
     "trigger_stripe": { "title": "Stripe event", "desc": "Runs when Stripe sends an event to this flow's URL. The signature is verified with the credential's webhook secret." },
     "logic_run_flow": {
       "title": "Run flow",
-      "desc": "Runs another flow with these inputs and waits for it. Its node outputs are in '{{nodes.<id>.output.outputs}}'.",
+      "desc": "Runs another flow with these inputs and waits for it. That flow can't use Delay or retries: if it ends up waiting, the step fails with subflow_waiting. Its node outputs are in '{{nodes.<id>.output.outputs}}'.",
       "fields": { "inputs": "Inputs ('{{trigger.x}}' in the other flow)", "failOnErrorHint": "Fail if the other flow fails" }
     },
     "data_merge": {
@@ -374,7 +376,9 @@
     "rerunOf": "Re-run of {id}. Earlier steps reuse their previous output.",
     "rerunFrom": "Re-run from here",
     "rerunHint": "Earlier steps reuse this run's output. Uses the saved flow.",
-    "rerunDirty": "You have unsaved changes. The re-run uses the last saved version. Continue?"
+    "rerunDirty": "You have unsaved changes. The re-run uses the last saved version. Continue?",
+    "cancel": "Cancel run",
+    "cancelConfirm": "Cancel this run? Pending steps (waits and retries) won't run."
   },
   "stepStatus": {
     "running": "Running",
@@ -409,7 +413,8 @@
     "run_active": "This run is still in progress.",
     "node_not_found": "That node is no longer in the flow.",
     "node_is_trigger": "Re-run from a step after the trigger.",
-    "node_in_loop": "Steps inside a Loop can't be re-run on their own. Re-run from the Loop."
+    "node_in_loop": "Steps inside a Loop can't be re-run on their own. Re-run from the Loop.",
+    "run_not_cancellable": "The run is already running or finished, so it can't be cancelled."
   },
   "onError": {
     "stop": "Stop the flow",

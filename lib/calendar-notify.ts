@@ -1,4 +1,4 @@
-import { getEventTypeById } from './calendar';
+import { getCalendarUser, getEventTypeById } from './calendar';
 import { getUserById, type CalendarBookingRow } from './db';
 import { escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 import { buildIcs } from './ics';
@@ -126,6 +126,29 @@ function asLocale(l: string | null | undefined): Locale {
   return l === 'es' || l === 'pt' ? l : 'en';
 }
 
+const REFUND_REASON: Record<Locale, string> = {
+  en: 'The payment arrived after the booking was released, so we refunded it in full.',
+  es: 'El pago llegó cuando la reserva ya estaba liberada, así que lo reembolsamos completo.',
+  pt: 'O pagamento chegou quando a reserva já estava liberada, então o reembolsamos por completo.',
+};
+
+/** Motivo del aviso de cancelación cuando un pago tardío se reembolsó. */
+export function refundReason(locale: string | null | undefined): string {
+  return REFUND_REASON[asLocale(locale)];
+}
+
+const CANCEL_REFUND_NOTE: Record<Locale, string> = {
+  en: 'The payment was refunded in full.',
+  es: 'El pago se reembolsó completo.',
+  pt: 'O pagamento foi reembolsado por completo.',
+};
+
+/** Motivo del aviso de cancelación de una reserva paga que se reembolsó al cancelarla. */
+export function cancelReasonWithRefund(reason: string | null, locale: string | null | undefined): string {
+  const note = CANCEL_REFUND_NOTE[asLocale(locale)];
+  return reason ? `${reason} — ${note}` : note;
+}
+
 function fill(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{(\w+)\}/g, (_, k: string) => vars[k] ?? '');
 }
@@ -137,7 +160,7 @@ function stripTags(html: string): string {
 export async function notifyBooking(
   booking: CalendarBookingRow,
   kind: Kind,
-  opts: { locale?: string; reason?: string | null; skipHost?: boolean } = {},
+  opts: { locale?: string; reason?: string | null; skipHost?: boolean; onlyHost?: boolean } = {},
 ): Promise<void> {
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) return;
@@ -184,26 +207,33 @@ export async function notifyBooking(
     ...details(booking.timezone),
     ...(manage && kind !== 'cancelled' ? [fill(L.manage, { url: escapeHtml(manage) })] : []),
   ];
-  await sendEmail({
-    to: booking.invitee_email,
-    subject: stripTags(fill(copy.guestSubject, { ...vars, event: eventType.title })),
-    text:
-      guestParagraphs.slice(0, manage && kind !== 'cancelled' ? -1 : undefined).map(stripTags).join('\n\n') +
-      (manage && kind !== 'cancelled' ? `\n\n${fill(L.manageText, { url: manage })}` : ''),
-    html: renderBrandedHtml({
-      heading: copy.heading,
-      paragraphs: guestParagraphs,
-      brandColor: eventType.brand_color,
-      logoUrl: eventType.logo_url,
-    }),
-    attachments,
-  });
+  if (!opts.onlyHost) {
+    await sendEmail({
+      to: booking.invitee_email,
+      subject: stripTags(fill(copy.guestSubject, { ...vars, event: eventType.title })),
+      text:
+        guestParagraphs.slice(0, manage && kind !== 'cancelled' ? -1 : undefined).map(stripTags).join('\n\n') +
+        (manage && kind !== 'cancelled' ? `\n\n${fill(L.manageText, { url: manage })}` : ''),
+      html: renderBrandedHtml({
+        heading: copy.heading,
+        paragraphs: guestParagraphs,
+        brandColor: eventType.brand_color,
+        logoUrl: eventType.logo_url,
+      }),
+      attachments,
+    });
+  }
 
   // Host
   if (host && !opts.skipHost) {
+    // El anfitrión ve la hora en su zona (la de su calendario o, si no tiene, la del dueño).
+    const hostTz =
+      (await getCalendarUser(host.id))?.timezone ||
+      (await getCalendarUser(eventType.user_id))?.timezone ||
+      booking.timezone;
     const hostParagraphs = [
       `${fill(L.hi, { name: escapeHtml(host.name ?? host.email) })} ${fill(copy.hostLine, vars)}`,
-      ...details(booking.timezone),
+      ...details(hostTz),
     ];
     await sendEmail({
       to: host.email,

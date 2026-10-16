@@ -106,6 +106,17 @@ export function normalizeTargeting(
   return { ok: true, value: { rules, ab, ios: ios.value, android: android.value } };
 }
 
+/** Todas las URLs web a las que puede redirigir la segmentación (para el chequeo anti-loop). */
+export function targetingDestinations(t: LinkTargeting): string[] {
+  const out = [...t.rules.map((r) => r.url), ...t.ab.map((v) => v.url)];
+  for (const d of [t.ios, t.android]) {
+    if (!d) continue;
+    if (/^https?:/i.test(d.app)) out.push(d.app);
+    if (d.fallback) out.push(d.fallback);
+  }
+  return out;
+}
+
 /** Lee la columna links.targeting. JSON roto = sin reglas (nunca rompe el redirect). */
 export function parseTargeting(raw: string | null | undefined): LinkTargeting | null {
   if (!raw) return null;
@@ -128,10 +139,14 @@ export interface VisitorContext {
   device: string;
 }
 
-/** iOS / Android por sistema operativo; todo lo demás cuenta como desktop. */
+/**
+ * iOS / Android por sistema operativo; todo lo demás cuenta como desktop. El
+ * iPad (iPadOS 13+) manda por defecto el UA de Mac: del lado del servidor no se
+ * distingue y cae en desktop (se avisa en el panel de segmentación).
+ */
 export function deviceClass(ctx: Pick<VisitorContext, 'os'>): DeviceTarget {
   const os = ctx.os.toLowerCase();
-  if (os === 'ios' || os === 'ipados') return 'ios';
+  if (os === 'ios') return 'ios';
   if (os === 'android') return 'android';
   return 'desktop';
 }

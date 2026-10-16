@@ -21,6 +21,8 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
 
   const [tab, setTab] = useState<FilterTab>('open');
   const [q, setQ] = useState('');
+  // El buscador filtra con debounce: no un fetch por tecla.
+  const [debouncedQ, setDebouncedQ] = useState('');
   const [tag, setTag] = useState('');
   const [tags, setTags] = useState<Array<{ tag: string; count: number }>>([]);
   const [rows, setRows] = useState<ChatConversationListRow[]>([]);
@@ -31,11 +33,18 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
   const searchRef = useRef<HTMLInputElement>(null);
   const rowsCount = useRef(0);
   rowsCount.current = rows.length;
+  /** Id del último fetch de la lista: una respuesta vieja no pisa a la nueva. */
+  const requestSeq = useRef(0);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQ(q.trim()), 250);
+    return () => clearTimeout(id);
+  }, [q]);
 
   const filters = useMemo(() => {
     const base: Record<string, string> = {};
     if (widgetIds.length > 0) base.widgetIds = widgetIds.join(',');
-    if (q.trim()) base.q = q.trim();
+    if (debouncedQ) base.q = debouncedQ;
     if (tag) base.tag = tag;
     if (tab === 'open' || tab === 'pending' || tab === 'snoozed' || tab === 'resolved') {
       base.status = tab;
@@ -43,7 +52,7 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
     if (tab === 'unassigned') base.assignedTo = 'unassigned';
     if (tab === 'mine') base.assignedTo = currentUserId;
     return base;
-  }, [tab, q, tag, widgetIds, currentUserId]);
+  }, [tab, debouncedQ, tag, widgetIds, currentUserId]);
 
   useEffect(() => {
     if (widgetIds.length === 0) return;
@@ -54,6 +63,7 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
   }, [widgetIds.length]);
 
   async function fetchRows(offset: number, append: boolean) {
+    const seq = ++requestSeq.current;
     if (widgetIds.length === 0) {
       setRows([]);
       setTotal(0);
@@ -66,13 +76,16 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
       const res = await fetch(`/api/chat/conversations?${params.toString()}`);
       if (!res.ok) throw new Error('fetch_failed');
       const data = (await res.json()) as { rows: ChatConversationListRow[]; total: number };
+      if (seq !== requestSeq.current) return;
       setRows((prev) => (append ? [...prev, ...data.rows] : data.rows));
       setTotal(data.total);
     } catch {
-      setError(t('errors.generic'));
+      if (seq === requestSeq.current) setError(t('errors.generic'));
     } finally {
-      setLoading(false);
-      setLoaded(true);
+      if (seq === requestSeq.current) {
+        setLoading(false);
+        setLoaded(true);
+      }
     }
   }
 
@@ -87,11 +100,13 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
     if (widgetIds.length === 0) return;
     const id = setInterval(() => {
       if (document.visibilityState !== 'visible' || rowsCount.current > PAGE_SIZE) return;
+      // Si arrancó otro fetch (cambio de filtros, "Load more") se descarta.
+      const seq = requestSeq.current;
       const params = new URLSearchParams({ ...filters, limit: String(PAGE_SIZE), offset: '0' });
       fetch(`/api/chat/conversations?${params.toString()}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data: { rows: ChatConversationListRow[]; total: number } | null) => {
-          if (!data) return;
+          if (!data || seq !== requestSeq.current) return;
           setRows(data.rows);
           setTotal(data.total);
         })
@@ -161,6 +176,7 @@ export default function InboxClient({ widgetIds, currentUserId }: InboxClientPro
           type="search"
           className="input chat-inbox-search"
           placeholder={t('inbox.search')}
+          aria-label={t('inbox.search')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />

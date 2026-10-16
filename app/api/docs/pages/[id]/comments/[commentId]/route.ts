@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import {
   canReadPage,
+  DOC_INTERNAL_WRITE,
   deleteDocComment,
   getDocComment,
   getDocPageRow,
@@ -23,7 +24,7 @@ export async function PATCH(
 
   const page = await getDocPageRow(params.id);
   if (!page) return notFound();
-  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }))) {
+  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }, DOC_INTERNAL_WRITE))) {
     return notFound();
   }
 

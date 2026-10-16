@@ -30,6 +30,13 @@
     "placeholder": "Escribí '/' para ver comandos",
     "saved": "Guardado",
     "saving": "Guardando…",
+    "saveTooLong": "Sin guardar: un bloque supera los 20.000 caracteres. Dividilo en bloques más chicos.",
+    "saveFailed": "No se pudieron guardar los cambios.",
+    "retrySave": "Reintentar",
+    "saveConflict": "Sin guardar: hay cambios nuevos de otra persona.",
+    "conflict": "Otra persona editó esta página mientras escribías. Tus últimos cambios no se guardaron.",
+    "conflictReload": "Ver la versión nueva",
+    "conflictOverwrite": "Sobrescribir con mis cambios",
     "pageOptions": "Opciones de página",
     "copyLink": "Copiar enlace",
     "copyContents": "Copiar contenido de la página",
@@ -211,7 +218,8 @@
     "helpful": "¿Te sirvió este artículo?",
     "yes": "Sí",
     "no": "No",
-    "thanks": "Gracias por contarnos."
+    "thanks": "Gracias por contarnos.",
+    "feedbackError": "No pudimos registrar tu respuesta. Probá de nuevo más tarde."
   },
   "versions": {
     "title": "Historial de versiones",

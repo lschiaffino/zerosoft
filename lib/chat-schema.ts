@@ -73,6 +73,38 @@ export const conversationPatchSchema = z.object({
   snoozedUntil: z.string().trim().max(40).nullable().optional(), // ISO datetime
 });
 
+// ---------- Mensajes ----------
+
+/** Tope de largo de un mensaje (visitante y agente). */
+export const CHAT_MESSAGE_MAX = 5000;
+
+/** Tope de un adjunto (igual a MAX_UPLOAD_SIZE de lib/uploads, que es solo servidor). */
+export const CHAT_UPLOAD_MAX = 10 * 1024 * 1024;
+
+/** Clave de traducción (namespace chat) para el código de error de un envío del agente. */
+export function sendErrorKey(code: string | undefined): string {
+  if (code === 'file_too_large') return 'errors.fileTooLarge';
+  if (code === 'file_type_not_allowed') return 'errors.fileTypeNotAllowed';
+  if (code === 'invalid_input') return 'errors.invalid_input';
+  if (code === 'invalid_assignee') return 'errors.invalid_assignee';
+  return 'errors.generic';
+}
+
+/**
+ * Límites del POST público del visitante (sin auth: el widgetId es público).
+ * Solo acota tamaños; widgetId/visitorId y el resto se validan en la ruta.
+ */
+export const visitorMessageLimitsSchema = z
+  .object({
+    body: z.string().max(CHAT_MESSAGE_MAX).optional(),
+    subject: z.string().max(200).optional(),
+    fields: z
+      .record(z.string().max(64), z.string().max(1000))
+      .refine((o) => Object.keys(o).length <= 20, { message: 'too_many_fields' })
+      .optional(),
+  })
+  .passthrough();
+
 // ---------- CSAT (público) ----------
 
 export const csatSubmitSchema = z.object({

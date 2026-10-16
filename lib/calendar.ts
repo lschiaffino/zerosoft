@@ -13,6 +13,7 @@ import {
   type CalendarReminderRow,
 } from './db';
 import { googleBusyRanges } from './google-calendar';
+import { priceProblem } from './calendar-price';
 import type {
   CalendarConfigUpdatePayload,
   EventTypeCreatePayload,
@@ -31,7 +32,7 @@ import {
   type ScheduleOverride,
   type ScheduleRule,
 } from './calendar-schedules';
-import { clearPendingWorkflowRuns, hasWorkflowSteps, scheduleWorkflowRuns } from './calendar-workflows';
+import { clearPendingWorkflowRuns, clearWorkflowRuns, hasWorkflowSteps, scheduleWorkflowRuns } from './calendar-workflows';
 
 // ---------- Helpers ----------
 
@@ -51,7 +52,9 @@ function weekRange(): { start: string; end: string } {
   const sun = new Date(mon);
   sun.setUTCDate(mon.getUTCDate() + 6);
   sun.setUTCHours(23, 59, 59, 999);
-  const fmt = (d: Date) => d.toISOString().replace('T', ' ').replace(/\..*$/, '');
+  // Mismo formato que starts_at (toISOString): comparar contra 'YYYY-MM-DD HH:MM:SS'
+  // deja afuera el domingo, porque 'T' ordena después que ' '.
+  const fmt = (d: Date) => d.toISOString();
   return { start: fmt(mon), end: fmt(sun) };
 }
 
@@ -137,6 +140,16 @@ export async function updateCalendarUser(
   await getDb()
     .prepare(`UPDATE calendar_users SET ${sets.join(', ')} WHERE id = ?`)
     .run(...values);
+  // El horario por defecto se crea con la zona del workspace (UTC hasta que
+  // la configuran): si sigue en la zona anterior, se muda con ella para que
+  // la página pública no ofrezca horas corridas.
+  if (payload.timezone !== undefined && payload.timezone !== user.timezone) {
+    await getDb()
+      .prepare(
+        'UPDATE calendar_schedules SET timezone = ?, updated_at = ? WHERE user_id = ? AND is_default = 1 AND timezone = ?',
+      )
+      .run(payload.timezone, now(), userId, user.timezone);
+  }
   return (await getDb().prepare('SELECT * FROM calendar_users WHERE id = ?').get(user.id)) as CalendarUserRow;
 }
 
@@ -197,7 +210,11 @@ export async function getEventTypeByHandle(
   return row ? decorateEventType(row) : undefined;
 }
 
-/** Perfil público /book/<handle>: la persona y sus tipos de evento activos. */
+/**
+ * Perfil público /book/<handle>: la persona y sus tipos de evento activos.
+ * Los links de un solo uso son privados (se mandan a una persona puntual):
+ * no se listan, ni antes ni después de usarse.
+ */
 export async function getPublicProfile(
   handle: string,
 ): Promise<{ name: string; handle: string; eventTypes: EventTypeWithRules[] } | null> {
@@ -208,23 +225,37 @@ export async function getPublicProfile(
   return {
     name: user.name || user.handle,
     handle: user.handle,
-    eventTypes: await listEventTypes(user.id, { activeOnly: true }),
+    eventTypes: (await listEventTypes(user.id, { activeOnly: true })).filter((e) => e.single_use !== 1),
   };
 }
 
 /**
  * Links viejos /book/<slug> (antes de los handles): resuelve al event type más
  * antiguo con ese slug, que es al que ya apuntaban. Devuelve el path nuevo.
+ * Solo cuentan los event types creados antes de la migración de handles (los
+ * únicos que tuvieron un link /book/<slug>), y nunca si <slug> es el handle de
+ * alguien: si no, cualquier cuenta podría tapar el perfil de otra creando un
+ * evento con ese slug.
  */
 export async function legacyBookPath(slug: string): Promise<string | null> {
+  if (await handleTaken(slug)) return null;
   const row = (await getDb()
     .prepare(
       `SELECT u.handle FROM calendar_event_types e JOIN users u ON u.id = e.user_id
        WHERE e.slug = ? AND e.active = 1 AND u.handle IS NOT NULL
+         AND e.created_at < (SELECT applied_at FROM schema_migrations WHERE id = '005_user_handles')
        ORDER BY e.created_at ASC LIMIT 1`,
     )
     .get(slug)) as { handle: string } | undefined;
   return row ? `/book/${row.handle}/${slug}` : null;
+}
+
+/** Hay un usuario con ese handle público. */
+export async function handleTaken(handle: string): Promise<boolean> {
+  const row = (await getDb().prepare('SELECT 1 AS one FROM users WHERE handle = ?').get(handle.toLowerCase())) as
+    | { one: number }
+    | undefined;
+  return row?.one === 1;
 }
 
 /** Path público de un event type (sin locale). */
@@ -250,6 +281,11 @@ async function slugExists(
   return row?.one === 1;
 }
 
+/** Un precio que Stripe no puede cobrar (centavos en CLP, debajo del mínimo) no se guarda. */
+function assertChargeablePrice(priceCents: number, currency: string): void {
+  if (priceProblem(priceCents, currency)) throw new CalendarError('invalid_price', 400);
+}
+
 export async function createEventType(
   userId: string,
   payload: EventTypeCreatePayload,
@@ -257,6 +293,7 @@ export async function createEventType(
   if (await slugExists(userId, payload.slug)) {
     throw new CalendarError('slug_taken', 409);
   }
+  assertChargeablePrice(payload.priceCents ?? 0, payload.currency ?? 'usd');
   const id = crypto.randomUUID();
   const ts = now();
   const active = booleanToInt(payload.active) ?? 1;
@@ -273,6 +310,8 @@ export async function createEventType(
     const calUser = await getOrCreateCalendarUser(userId);
     scheduleId = (await ensureDefaultSchedule(userId, calUser.timezone)).id;
   }
+
+  await assertTeamAndHosts(userId, payload.teamId, payload.hostIds);
 
   await getDb()
     .prepare(
@@ -318,6 +357,10 @@ export async function updateEventType(
   if (!existing) return undefined;
   if (payload.slug && payload.slug !== existing.slug && (await slugExists(userId, payload.slug, id))) {
     throw new CalendarError('slug_taken', 409);
+  }
+  await assertTeamAndHosts(userId, payload.teamId, payload.hostIds);
+  if (payload.priceCents !== undefined || payload.currency !== undefined) {
+    assertChargeablePrice(payload.priceCents ?? existing.price_cents, payload.currency ?? existing.currency);
   }
 
   const sets: string[] = [];
@@ -412,11 +455,48 @@ export async function updateEventType(
 export async function deleteEventType(userId: string, id: string): Promise<boolean> {
   const existing = await getEventType(userId, id);
   if (!existing) return false;
+  // Las reservas caen en cascada con el tipo de evento: con reservas por
+  // venir (confirmadas o esperando un pago) se cancelan antes, así los
+  // invitados reciben el aviso, se reembolsa lo cobrado y Google se limpia.
+  const upcoming = await getDb()
+    .prepare(
+      `SELECT 1 AS one FROM calendar_bookings
+       WHERE event_type_id = ? AND status IN ('confirmed', 'pending') AND ends_at > ? LIMIT 1`,
+    )
+    .get(id, new Date().toISOString());
+  if (upcoming) throw new CalendarError('has_upcoming_bookings', 409);
   await getDb().prepare('DELETE FROM calendar_event_types WHERE id = ?').run(id);
   return true;
 }
 
 // ---------- Hosts (team scheduling / round-robin) ----------
+
+/**
+ * El team de un event type tiene que ser del workspace (su owner es `userId`)
+ * y cada host, el owner o un miembro de alguno de sus teams. Sin esto, un
+ * PATCH podría listar los miembros de otro workspace o asignarles reservas.
+ */
+async function assertTeamAndHosts(
+  userId: string,
+  teamId: string | null | undefined,
+  hostIds: string[] | undefined,
+): Promise<void> {
+  const db = getDb();
+  if (teamId) {
+    const team = await db.prepare('SELECT 1 AS one FROM teams WHERE id = ? AND owner_id = ?').get(teamId, userId);
+    if (!team) throw new CalendarError('invalid_input', 400);
+  }
+  for (const hostId of new Set(hostIds ?? [])) {
+    if (hostId === userId) continue;
+    const member = await db
+      .prepare(
+        `SELECT 1 AS one FROM team_members m JOIN teams t ON t.id = m.team_id
+         WHERE t.owner_id = ? AND m.user_id = ?`,
+      )
+      .get(userId, hostId);
+    if (!member) throw new CalendarError('invalid_input', 400);
+  }
+}
 
 export interface EventHostWithUser extends CalendarEventHostRow {
   email: string;
@@ -546,6 +626,10 @@ export async function updateBlockedSlot(
 ): Promise<CalendarBlockedSlotRow | undefined> {
   const existing = await getBlockedSlot(userId, id);
   if (!existing) return undefined;
+  // Un bloqueo con el fin antes del inicio no bloquea nada.
+  if (new Date(payload.endsAt ?? existing.ends_at) <= new Date(payload.startsAt ?? existing.starts_at)) {
+    throw new CalendarError('invalid_range', 400);
+  }
   const sets: string[] = [];
   const values: (string | number | null)[] = [];
 
@@ -598,7 +682,11 @@ export async function countBookingsThisWeek(userId: string): Promise<number> {
   return Number(row?.c ?? 0);
 }
 
-/** Días (YYYY-MM-DD) de un mes con al menos un slot libre, en la zona del invitado. */
+/**
+ * Días (YYYY-MM-DD) de un mes con al menos un slot libre, en la zona del
+ * invitado. Carga el event type, el horario y la ocupación de todo el mes una
+ * sola vez y calcula cada día en memoria.
+ */
 export async function getAvailableDays(
   eventTypeId: string,
   timezone: string,
@@ -609,13 +697,25 @@ export async function getAvailableDays(
   if (!m) return [];
   const year = Number(m[1]);
   const mon = Number(m[2]);
+  if (mon < 1 || mon > 12) return [];
+  const ctx = await loadSlotContext(eventTypeId, opts.excludeBookingId);
+  if (!ctx) return [];
   const daysInMonth = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+  const first = `${m[1]}-${m[2]}-01`;
+  const monthStart = localToUtc(first, '00:00:00', timezone);
+  const monthEnd = localToUtc(addDays(first, daysInMonth), '00:00:00', timezone);
+  const busyByHost = await busyForHosts(
+    ctx,
+    new Date(monthStart.getTime() - 24 * 60 * 60 * 1000),
+    new Date(monthEnd.getTime() + 24 * 60 * 60 * 1000),
+    opts,
+  );
   const today = localDate(new Date(), timezone);
   const days: string[] = [];
   for (let d = 1; d <= daysInMonth; d++) {
     const date = `${m[1]}-${m[2]}-${String(d).padStart(2, '0')}`;
     if (date < today) continue;
-    if ((await getAvailableSlots(eventTypeId, timezone, date, opts)).length > 0) days.push(date);
+    if (slotsForDay(ctx, timezone, date, busyByHost).length > 0) days.push(date);
   }
   return days;
 }
@@ -639,24 +739,82 @@ export async function findOfferedSlot(
   return slots.find((s) => Math.abs(s.start.getTime() - start.getTime()) < 60_000) ?? null;
 }
 
-/** Primer host libre para [start, end), recorriendo el pool desde el cursor round-robin. */
+/**
+ * Primer host libre para [start, end), recorriendo el pool desde el cursor
+ * round-robin. `preferHost` (el host actual de una reserva que se mueve) se
+ * prueba primero si sigue en el pool: reprogramar no la reasigna sin motivo.
+ */
 async function pickFreeHost(
   eventType: EventTypeWithRules,
   slot: TimeRange,
   excludeBookingId?: string,
+  preferHost?: string | null,
 ): Promise<string | null> {
-  const hosts = await candidateHosts(eventType);
+  const pool = await candidateHosts(eventType);
+  const rotated = pool.map((_, i) => pool[(eventType.rr_cursor + i) % pool.length]);
+  const hosts =
+    preferHost && rotated.includes(preferHost) ? [preferHost, ...rotated.filter((h) => h !== preferHost)] : rotated;
   const calendarUser = await getCalendarUser(eventType.user_id);
   const buffered = applyBuffer(slot, eventType, calendarUser);
   const from = new Date(slot.start.getTime() - 24 * 60 * 60 * 1000);
   const to = new Date(slot.end.getTime() + 24 * 60 * 60 * 1000);
-  for (let i = 0; i < hosts.length; i++) {
-    const host = hosts[(eventType.rr_cursor + i) % hosts.length];
+  for (const host of hosts) {
     const busy = await listBusyRanges(host, from, to, { excludeBookingId });
     if (!hasOverlap(buffered, busy)) return host;
   }
   return null;
 }
+
+/** El host asignado sigue libre en el horario de la reserva (sin contarla a ella). */
+export async function hostSlotFree(booking: CalendarBookingRow): Promise<boolean> {
+  const eventType = await getEventTypeById(booking.event_type_id);
+  if (!eventType) return false;
+  const slot = { start: new Date(booking.starts_at), end: new Date(booking.ends_at) };
+  const calendarUser = await getCalendarUser(eventType.user_id);
+  const busy = await listBusyRanges(
+    booking.host_user_id ?? eventType.user_id,
+    new Date(slot.start.getTime() - 24 * 60 * 60 * 1000),
+    new Date(slot.end.getTime() + 24 * 60 * 60 * 1000),
+    // Sin calendarios externos: la propia reserva sigue en el Google Calendar del host.
+    { excludeBookingId: booking.id, internalOnly: true },
+  );
+  return !hasOverlap(applyBuffer(slot, eventType, calendarUser), busy);
+}
+
+/**
+ * Condición SQL (para un WHERE) de que el host no tiene otra reserva viva que
+ * se superponga con [start, end) ya con buffers. Va en el mismo INSERT/UPDATE
+ * que toma el horario: la verificación y la escritura son atómicas, así dos
+ * requests simultáneas con inicios distintos no se superponen (el índice
+ * único solo cubre inicios idénticos). Args: host, ahora, fin, inicio, id excluido.
+ */
+const HOST_FREE_SQL = `NOT EXISTS (
+  SELECT 1 FROM calendar_bookings o
+  WHERE o.host_user_id = ? AND o.status IN ('confirmed', 'pending')
+    AND (o.status = 'confirmed' OR o.hold_expires_at > ?)
+    AND o.starts_at < ? AND o.ends_at > ? AND o.id != ?
+)`;
+
+async function hostFreeArgs(
+  eventType: EventTypeWithRules,
+  hostUserId: string,
+  slot: TimeRange,
+  excludeId: string,
+): Promise<string[]> {
+  const buffered = applyBuffer(slot, eventType, await getCalendarUser(eventType.user_id));
+  return [hostUserId, new Date().toISOString(), iso(buffered.end), iso(buffered.start), excludeId];
+}
+
+/**
+ * Condición SQL de que un link de un solo uso sigue libre: sin reserva
+ * confirmada ni hold vivo del evento. Va en el mismo INSERT que toma el
+ * horario, así dos reservas simultáneas a horarios distintos no entran las
+ * dos. Args: event type, ahora.
+ */
+const SINGLE_USE_FREE_SQL = `NOT EXISTS (
+  SELECT 1 FROM calendar_bookings s
+  WHERE s.event_type_id = ? AND (s.status = 'confirmed' OR (s.status = 'pending' AND s.hold_expires_at > ?))
+)`;
 
 function isUniqueViolation(err: unknown): boolean {
   return /UNIQUE constraint failed/i.test(String(err));
@@ -677,6 +835,32 @@ export interface BookingHold {
   currency: string;
 }
 
+/**
+ * Un hold vencido que el cron todavía no canceló ya no ocupa el horario
+ * (listBusyRanges lo ignora), pero sí el índice único (host, inicio): se vence
+ * antes de escribir una reserva en ese host e inicio. `exceptId`: la reserva
+ * que se está escribiendo, que nunca se toca.
+ */
+async function releaseExpiredHoldAt(hostUserId: string, start: Date, exceptId = ''): Promise<void> {
+  await getDb()
+    .prepare(
+      `UPDATE calendar_bookings SET status = 'cancelled', payment_status = 'expired', cancel_reason = 'payment_expired', updated_at = ?
+       WHERE host_user_id = ? AND starts_at = ? AND status = 'pending' AND hold_expires_at <= ? AND id != ?`,
+    )
+    .run(now(), hostUserId, start.toISOString(), new Date().toISOString(), exceptId);
+}
+
+/** El link de un solo uso ya tiene una reserva confirmada o un hold vivo. */
+async function singleUseTaken(eventTypeId: string): Promise<boolean> {
+  const taken = await getDb()
+    .prepare(
+      `SELECT 1 AS one FROM calendar_bookings
+       WHERE event_type_id = ? AND (status = 'confirmed' OR (status = 'pending' AND hold_expires_at > ?)) LIMIT 1`,
+    )
+    .get(eventTypeId, new Date().toISOString());
+  return taken !== undefined;
+}
+
 export async function createBooking(
   payload: BookingCreatePayload,
   opts: { hold?: BookingHold } = {},
@@ -684,6 +868,9 @@ export async function createBooking(
   const eventType = await getEventTypeById(payload.eventTypeId);
   if (!eventType) throw new CalendarError('not_found', 404);
   if (eventType.single_use === 1 && eventType.used_at) throw new CalendarError('link_expired', 410);
+  // Un solo uso con precio: used_at se marca al pagar, así que mientras un
+  // hold siga vivo el link ya está tomado (si no, dos personas pagarían).
+  if (eventType.single_use === 1 && (await singleUseTaken(eventType.id))) throw new CalendarError('link_expired', 410);
 
   const start = new Date(payload.start);
   if (Number.isNaN(start.getTime())) throw new CalendarError('invalid_input', 400);
@@ -691,15 +878,20 @@ export async function createBooking(
   const end = new Date(start.getTime() + eventType.duration_min * 60_000);
   const hostUserId = await pickFreeHost(eventType, { start, end });
   if (!hostUserId) throw new CalendarError('slot_unavailable', 409);
+  await releaseExpiredHoldAt(hostUserId, start);
   const id = crypto.randomUUID();
   const ts = now();
+  const freeArgs = await hostFreeArgs(eventType, hostUserId, { start, end }, id);
+  const singleUse = eventType.single_use === 1;
+  let inserted: number;
   try {
-    await getDb()
+    inserted = (await getDb()
       .prepare(
         `INSERT INTO calendar_bookings
          (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at, timezone, status, answers, host_user_id, manage_token, locale, created_at, updated_at,
           payment_status, hold_expires_at, amount_cents, currency)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE ${HOST_FREE_SQL}${singleUse ? ` AND ${SINGLE_USE_FREE_SQL}` : ''}`,
       )
       .run(
         id,
@@ -720,11 +912,19 @@ export async function createBooking(
         opts.hold ? opts.hold.expiresAt.toISOString() : null,
         opts.hold?.amountCents ?? 0,
         opts.hold?.currency ?? '',
-      );
+        ...freeArgs,
+        ...(singleUse ? [eventType.id, new Date().toISOString()] : []),
+      )).changes;
   } catch (err) {
     // Otra request reservó el mismo host a la misma hora un instante antes.
     if (isUniqueViolation(err)) throw new CalendarError('slot_unavailable', 409);
     throw err;
+  }
+  if (inserted === 0) {
+    // Otra reserva del link de un solo uso entró entre la lectura y el INSERT.
+    if (singleUse && (await singleUseTaken(eventType.id))) throw new CalendarError('link_expired', 410);
+    // Otra reserva superpuesta (con otro inicio) entró entre la lectura y el INSERT.
+    throw new CalendarError('slot_unavailable', 409);
   }
   if ((await listEventHosts(eventType.id)).length > 0) {
     await getDb()
@@ -748,24 +948,128 @@ async function onBookingConfirmed(id: string, eventType: CalendarEventTypeRow, s
 
 /**
  * Confirma una reserva 'pending' (pago recibido). Idempotente: devuelve null
- * si ya no estaba pendiente (otro webhook la confirmó o venció).
+ * si ya no estaba pendiente (otro webhook la confirmó o venció). Un hold ya
+ * vencido que el cron todavía no limpió dejó de ocupar el horario: se vence
+ * acá y el pago pasa por revivePaidBooking, que revalida el horario.
  */
 export async function confirmPendingBooking(
   id: string,
   payment: { sessionId?: string | null } = {},
 ): Promise<CalendarBookingRow | null> {
-  const res = await getDb()
-    .prepare(
-      `UPDATE calendar_bookings SET status = 'confirmed', payment_status = 'paid', hold_expires_at = NULL,
-         stripe_session_id = COALESCE(?, stripe_session_id), updated_at = ?
-       WHERE id = ? AND status = 'pending'`,
-    )
-    .run(payment.sessionId ?? null, now(), id);
-  if (res.changes === 0) return null;
+  const pending = (await getDb().prepare('SELECT event_type_id FROM calendar_bookings WHERE id = ?').get(id)) as
+    | { event_type_id: string }
+    | undefined;
+  const singleUse = pending ? (await getEventTypeById(pending.event_type_id))?.single_use === 1 : false;
+  // Link de un solo uso: no se confirma si otra reserva ya lo consumió.
+  const linkFree = `NOT EXISTS (
+    SELECT 1 FROM calendar_bookings o
+    WHERE o.event_type_id = calendar_bookings.event_type_id AND o.id != calendar_bookings.id AND o.status = 'confirmed'
+  )`;
+  let changes: number;
+  try {
+    changes = (
+      await getDb()
+        .prepare(
+          `UPDATE calendar_bookings SET status = 'confirmed', payment_status = 'paid', hold_expires_at = NULL,
+             stripe_session_id = COALESCE(?, stripe_session_id), updated_at = ?
+           WHERE id = ? AND status = 'pending' AND (hold_expires_at IS NULL OR hold_expires_at > ?)${singleUse ? ` AND ${linkFree}` : ''}`,
+        )
+        .run(payment.sessionId ?? null, now(), id, new Date().toISOString())
+    ).changes;
+  } catch (err) {
+    // El horario ya lo ocupa otra reserva confirmada: el hold no se puede
+    // confirmar y queda cancelado (quien cobra decide el reembolso).
+    if (!isUniqueViolation(err)) throw err;
+    await getDb()
+      .prepare(
+        `UPDATE calendar_bookings SET status = 'cancelled', cancel_reason = 'slot_taken', hold_expires_at = NULL, updated_at = ?
+         WHERE id = ? AND status = 'pending'`,
+      )
+      .run(now(), id);
+    return null;
+  }
+  if (changes === 0) {
+    await getDb()
+      .prepare(
+        `UPDATE calendar_bookings SET status = 'cancelled', payment_status = 'expired', cancel_reason = 'payment_expired', updated_at = ?
+         WHERE id = ? AND status = 'pending' AND hold_expires_at <= ?`,
+      )
+      .run(now(), id, new Date().toISOString());
+    if (singleUse) {
+      // Sigue pendiente con el hold vivo: el link lo consumió otra reserva.
+      // Queda cancelada y el pago se reembolsa (settleLatePayment).
+      await getDb()
+        .prepare(
+          `UPDATE calendar_bookings SET status = 'cancelled', cancel_reason = 'link_used', hold_expires_at = NULL, updated_at = ?
+           WHERE id = ? AND status = 'pending'`,
+        )
+        .run(now(), id);
+    }
+    return null;
+  }
   const booking = (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(id)) as CalendarBookingRow;
   const eventType = await getEventTypeById(booking.event_type_id);
   if (eventType) await onBookingConfirmed(id, eventType, new Date(booking.starts_at));
   return booking;
+}
+
+/**
+ * Pago que llegó después de que el hold venciera (cron, checkout expirado o
+ * webhook demorado): si el horario sigue libre para algún host del evento, la
+ * reserva se confirma de nuevo. Devuelve null si ya no hay lugar.
+ */
+export async function revivePaidBooking(
+  id: string,
+  payment: { sessionId?: string | null } = {},
+): Promise<CalendarBookingRow | null> {
+  const booking = (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(id)) as
+    | CalendarBookingRow
+    | undefined;
+  if (!booking || booking.status !== 'cancelled' || booking.cancel_reason !== 'payment_expired') return null;
+  const eventType = await getEventTypeById(booking.event_type_id);
+  if (!eventType) return null;
+  const start = new Date(booking.starts_at);
+  if (start.getTime() < Date.now()) return null;
+  const hostUserId = await pickFreeHost(eventType, { start, end: new Date(booking.ends_at) }, id, booking.host_user_id);
+  if (!hostUserId) return null;
+  // Link de un solo uso: si otra reserva ya lo consumió, el pago no revive
+  // esta (cae al reembolso). Se reclama el link de forma atómica antes de
+  // confirmar y se libera si la confirmación no prospera.
+  let claimed: string | null = null;
+  if (eventType.single_use === 1) {
+    claimed = now();
+    const claim = await getDb()
+      .prepare('UPDATE calendar_event_types SET used_at = ? WHERE id = ? AND used_at IS NULL')
+      .run(claimed, eventType.id);
+    if (claim.changes === 0) return null;
+  }
+  const release = async () => {
+    if (claimed === null) return;
+    await getDb()
+      .prepare('UPDATE calendar_event_types SET used_at = NULL WHERE id = ? AND used_at = ?')
+      .run(eventType.id, claimed);
+  };
+  try {
+    await releaseExpiredHoldAt(hostUserId, start, id);
+    const freeArgs = await hostFreeArgs(eventType, hostUserId, { start, end: new Date(booking.ends_at) }, id);
+    const res = await getDb()
+      .prepare(
+        `UPDATE calendar_bookings SET status = 'confirmed', payment_status = 'paid', hold_expires_at = NULL, cancel_reason = NULL,
+           host_user_id = ?, stripe_session_id = COALESCE(?, stripe_session_id), updated_at = ?
+         WHERE id = ? AND status = 'cancelled' AND cancel_reason = 'payment_expired' AND ${HOST_FREE_SQL}`,
+      )
+      .run(hostUserId, payment.sessionId ?? null, now(), id, ...freeArgs);
+    if (res.changes === 0) {
+      await release();
+      return null;
+    }
+  } catch (err) {
+    await release();
+    if (isUniqueViolation(err)) return null;
+    throw err;
+  }
+  await onBookingConfirmed(id, eventType, start);
+  return (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(id)) as CalendarBookingRow;
 }
 
 /** Vence los holds sin pagar: liberan el horario. Devuelve cuántos venció. */
@@ -790,15 +1094,87 @@ export async function expirePendingBooking(id: string): Promise<boolean> {
   return res.changes > 0;
 }
 
-/** Reserva de un event type del usuario (como dueño o host asignado). */
+/**
+ * Condición SQL (alias b = reserva, e = event type) de que el host asignado
+ * sigue siendo miembro de un team del dueño del evento: quien salió del team
+ * ya no ve ni gestiona las reservas que tuvo asignadas.
+ */
+export const HOST_STILL_MEMBER_SQL = `EXISTS (
+  SELECT 1 FROM team_members m JOIN teams t ON t.id = m.team_id
+  WHERE t.owner_id = e.user_id AND m.user_id = b.host_user_id
+)`;
+
+/** Reserva de un event type del usuario (como dueño o host asignado que sigue en el team). */
 export async function ownedBooking(userId: string, id: string): Promise<CalendarBookingRow | null> {
   const row = (await getDb()
     .prepare(
       `SELECT b.* FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
-       WHERE b.id = ? AND (e.user_id = ? OR b.host_user_id = ?)`,
+       WHERE b.id = ? AND (e.user_id = ? OR (b.host_user_id = ? AND ${HOST_STILL_MEMBER_SQL}))`,
     )
     .get(id, userId, userId)) as CalendarBookingRow | undefined;
   return row ?? null;
+}
+
+/**
+ * Un miembro salió del team del dueño: sus reservas por venir (confirmadas o
+ * esperando pago) de los eventos del dueño pasan a otro host libre del pool o,
+ * si no hay, al dueño. Devuelve las reservas reasignadas (ya actualizadas).
+ */
+export async function reassignBookingsOfRemovedHost(ownerId: string, userId: string): Promise<CalendarBookingRow[]> {
+  if (ownerId === userId) return [];
+  const rows = (await getDb()
+    .prepare(
+      `SELECT b.* FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
+       WHERE e.user_id = ? AND b.host_user_id = ? AND b.status IN ('confirmed', 'pending') AND b.ends_at > ?`,
+    )
+    .all(ownerId, userId, new Date().toISOString())) as CalendarBookingRow[];
+  const moved: CalendarBookingRow[] = [];
+  for (const booking of rows) {
+    const eventType = await getEventTypeById(booking.event_type_id);
+    if (!eventType) continue;
+    const slot = { start: new Date(booking.starts_at), end: new Date(booking.ends_at) };
+    const free = await pickFreeHost(eventType, slot, booking.id);
+    let changes = 0;
+    if (free && free !== userId) {
+      await releaseExpiredHoldAt(free, slot.start, booking.id);
+      const freeArgs = await hostFreeArgs(eventType, free, slot, booking.id);
+      try {
+        changes = (
+          await getDb()
+            .prepare(
+              `UPDATE calendar_bookings SET host_user_id = ?, updated_at = ?
+               WHERE id = ? AND host_user_id = ? AND ${HOST_FREE_SQL}`,
+            )
+            .run(free, now(), booking.id, userId, ...freeArgs)
+        ).changes;
+      } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+      }
+    }
+    if (changes === 0) {
+      // Nadie libre: queda para el dueño aunque se superponga (tiene que
+      // enterarse). Si el dueño ya tiene otra reserva con el mismo inicio, el
+      // host queda vacío, que también resuelve al dueño.
+      try {
+        changes = (
+          await getDb()
+            .prepare('UPDATE calendar_bookings SET host_user_id = ?, updated_at = ? WHERE id = ? AND host_user_id = ?')
+            .run(ownerId, now(), booking.id, userId)
+        ).changes;
+      } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+        changes = (
+          await getDb()
+            .prepare('UPDATE calendar_bookings SET host_user_id = NULL, updated_at = ? WHERE id = ? AND host_user_id = ?')
+            .run(now(), booking.id, userId)
+        ).changes;
+      }
+    }
+    if (changes > 0) {
+      moved.push((await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(booking.id)) as CalendarBookingRow);
+    }
+  }
+  return moved;
 }
 
 export async function getBookingByManageToken(token: string): Promise<CalendarBookingRow | undefined> {
@@ -823,28 +1199,50 @@ export async function rescheduleBooking(id: string, newStart: Date): Promise<Cal
   if (Number.isNaN(newStart.getTime()) || newStart.getTime() < Date.now()) throw new CalendarError('invalid_input', 400);
 
   const newEnd = new Date(newStart.getTime() + eventType.duration_min * 60_000);
-  const hostUserId = await pickFreeHost(eventType, { start: newStart, end: newEnd }, id);
+  const hostUserId = await pickFreeHost(eventType, { start: newStart, end: newEnd }, id, booking.host_user_id);
   if (!hostUserId) throw new CalendarError('slot_unavailable', 409);
+  await releaseExpiredHoldAt(hostUserId, newStart, id);
+  const freeArgs = await hostFreeArgs(eventType, hostUserId, { start: newStart, end: newEnd }, id);
+  let changes: number;
   try {
-    await getDb()
-      .prepare(
-        `UPDATE calendar_bookings SET starts_at = ?, ends_at = ?, host_user_id = ?, rescheduled_from = ?, updated_at = ?
-         WHERE id = ?`,
-      )
-      .run(newStart.toISOString(), newEnd.toISOString(), hostUserId, booking.starts_at, now(), id);
+    // status = 'confirmed' en el mismo UPDATE: una cancelación simultánea gana
+    // y la reserva cancelada no se "reprograma" (ni dispara avisos).
+    changes = (
+      await getDb()
+        .prepare(
+          `UPDATE calendar_bookings SET starts_at = ?, ends_at = ?, host_user_id = ?, rescheduled_from = ?, updated_at = ?
+           WHERE id = ? AND status = 'confirmed' AND ${HOST_FREE_SQL}`,
+        )
+        .run(newStart.toISOString(), newEnd.toISOString(), hostUserId, booking.starts_at, now(), id, ...freeArgs)
+    ).changes;
   } catch (err) {
     if (isUniqueViolation(err)) throw new CalendarError('slot_unavailable', 409);
     throw err;
   }
+  if (changes === 0) {
+    const current = (await getDb().prepare('SELECT status FROM calendar_bookings WHERE id = ?').get(id)) as
+      | { status: string }
+      | undefined;
+    if (current?.status !== 'confirmed') throw new CalendarError('not_confirmed', 409);
+    throw new CalendarError('slot_unavailable', 409);
+  }
   await getDb().prepare('DELETE FROM calendar_reminders WHERE booking_id = ? AND sent_at IS NULL').run(id);
-  await clearPendingWorkflowRuns(id);
+  // Todas las corridas, también las enviadas: con la fecha nueva cada paso
+  // vuelve a salir (scheduleWorkflowRuns es idempotente por paso y reserva).
+  await clearWorkflowRuns(id);
   await scheduleBookingReminder(id, newStart);
   return (await getDb().prepare('SELECT * FROM calendar_bookings WHERE id = ?').get(id)) as CalendarBookingRow;
 }
 
+/**
+ * `fromStatus`: el estado que leyó quien decide el cambio. La transición solo
+ * se aplica si la reserva sigue así (un webhook de pago o una cancelación
+ * simultánea pudo cambiarla); si no, CalendarError 'status_changed' (409).
+ */
 export async function updateBooking(
   id: string,
   payload: BookingUpdatePayload,
+  opts: { fromStatus?: string } = {},
 ): Promise<CalendarBookingRow | undefined> {
   const existing = (await getDb()
     .prepare('SELECT * FROM calendar_bookings WHERE id = ?')
@@ -867,10 +1265,14 @@ export async function updateBooking(
   sets.push('updated_at = ?');
   values.push(now());
   values.push(id);
+  if (opts.fromStatus !== undefined) values.push(opts.fromStatus);
 
-  await getDb()
-    .prepare(`UPDATE calendar_bookings SET ${sets.join(', ')} WHERE id = ?`)
+  const res = await getDb()
+    .prepare(
+      `UPDATE calendar_bookings SET ${sets.join(', ')} WHERE id = ?${opts.fromStatus !== undefined ? ' AND status = ?' : ''}`,
+    )
     .run(...values);
+  if (opts.fromStatus !== undefined && res.changes === 0) throw new CalendarError('status_changed', 409);
   // Al cancelar, se descartan los recordatorios pendientes del booking.
   if (payload.status === 'cancelled') {
     await getDb()
@@ -916,16 +1318,29 @@ export interface DueReminderRow extends CalendarReminderRow {
   timezone: string;
   event_title: string;
   event_location: string;
+  meeting_url: string | null;
   manage_token: string | null;
   locale: string;
 }
 
-/** Recordatorios vencidos de bookings que siguen confirmados. */
+/**
+ * Recordatorios vencidos de bookings que siguen confirmados. Los de reuniones
+ * que ya empezaron se descartan (marcados como enviados): un reintento no
+ * debe llegar después de la reunión.
+ */
 export async function listDueReminders(limit = 50): Promise<DueReminderRow[]> {
+  const nowIso = new Date().toISOString();
+  await getDb()
+    .prepare(
+      `UPDATE calendar_reminders SET sent_at = ?
+       WHERE sent_at IS NULL AND send_at <= ?
+         AND booking_id IN (SELECT id FROM calendar_bookings WHERE starts_at <= ?)`,
+    )
+    .run(nowIso, nowIso, nowIso);
   return (await getDb()
     .prepare(
       `SELECT r.*, b.invitee_email, b.invitee_name, b.starts_at, b.ends_at, b.timezone, b.manage_token, b.locale,
-              e.title AS event_title, e.location AS event_location
+              b.meeting_url, e.title AS event_title, e.location AS event_location
        FROM calendar_reminders r
        JOIN calendar_bookings b ON b.id = r.booking_id
        JOIN calendar_event_types e ON e.id = b.event_type_id
@@ -933,7 +1348,7 @@ export async function listDueReminders(limit = 50): Promise<DueReminderRow[]> {
        ORDER BY r.send_at ASC
        LIMIT ?`,
     )
-    .all(new Date().toISOString(), limit)) as DueReminderRow[];
+    .all(nowIso, limit)) as DueReminderRow[];
 }
 
 export async function markReminderSent(id: string): Promise<void> {
@@ -942,9 +1357,28 @@ export async function markReminderSent(id: string): Promise<void> {
     .run(new Date().toISOString(), id);
 }
 
+/**
+ * Límites UTC de un filtro de fechas (YYYY-MM-DD) de reservas, tomando los
+ * días en la zona del calendario del workspace: `to` incluye su día entero.
+ */
+export async function bookingDateBounds(
+  userId: string,
+  from: string | undefined,
+  to: string | undefined,
+): Promise<{ from?: Date; to?: Date; timezone: string }> {
+  const timezone = (await getCalendarUser(userId))?.timezone || 'UTC';
+  return {
+    timezone,
+    from: from && parseDate(from) ? localToUtc(from, '00:00:00', timezone) : undefined,
+    to: to && parseDate(to) ? new Date(localToUtc(addDays(to, 1), '00:00:00', timezone).getTime() - 1) : undefined,
+  };
+}
+
 export interface CalendarBookingRowWithEvent extends CalendarBookingRow {
   event_type_title: string;
   event_type_duration_min: number;
+  /** JSON de los campos del tipo de evento: el detalle muestra la etiqueta de cada respuesta. */
+  event_type_fields: string;
   host_email: string | null;
   host_name: string | null;
 }
@@ -985,7 +1419,7 @@ export async function listUserBookings(
   }
 
   const sql = `SELECT b.*, e.title as event_type_title, e.duration_min as event_type_duration_min,
-                      h.email as host_email, h.name as host_name
+                      e.fields as event_type_fields, h.email as host_email, h.name as host_name
                FROM calendar_bookings b
                JOIN calendar_event_types e ON e.id = b.event_type_id
                LEFT JOIN users h ON h.id = b.host_user_id
@@ -1096,15 +1530,16 @@ export async function listBusyRanges(
   userId: string,
   from: Date,
   to: Date,
-  opts: { excludeBookingId?: string } = {},
+  opts: { excludeBookingId?: string; internalOnly?: boolean } = {},
 ): Promise<TimeRange[]> {
   const db = getDb();
   const bookings = (await db
     .prepare(
+      // host_user_id se completa siempre (backfill en la migración): filtrar
+      // por la columna, sin COALESCE, deja usar el índice (host, inicio).
       `SELECT b.starts_at, b.ends_at FROM calendar_bookings b
-       JOIN calendar_event_types e ON e.id = b.event_type_id
-       WHERE COALESCE(b.host_user_id, e.user_id) = ?
-         AND (b.status = 'confirmed' OR (b.status = 'pending' AND b.hold_expires_at > ?))
+       WHERE b.host_user_id = ? AND b.status IN ('confirmed', 'pending')
+         AND (b.status = 'confirmed' OR b.hold_expires_at > ?)
          AND b.starts_at < ? AND b.ends_at > ? AND b.id != ?`,
     )
     .all(userId, new Date().toISOString(), iso(to), iso(from), opts.excludeBookingId ?? '')) as Array<{
@@ -1118,14 +1553,33 @@ export async function listBusyRanges(
     start: new Date(r.starts_at),
     end: new Date(r.ends_at),
   }));
+  if (opts.internalOnly) return ranges;
+  // Al mover una reserva, su propio evento sigue en el calendario externo del
+  // host: ese horario se descuenta para que no choque consigo misma.
+  const own = opts.excludeBookingId
+    ? ((await db
+        .prepare('SELECT starts_at, ends_at FROM calendar_bookings WHERE id = ? AND host_user_id = ?')
+        .get(opts.excludeBookingId, userId)) as { starts_at: string; ends_at: string } | undefined)
+    : undefined;
+  const ownRange = own ? { start: new Date(own.starts_at), end: new Date(own.ends_at) } : null;
   for (const provider of externalBusyProviders) {
     try {
-      ranges.push(...(await provider(userId, from, to)));
+      const external = await provider(userId, from, to);
+      ranges.push(...(ownRange ? external.flatMap((r) => subtractRange(r, ownRange)) : external));
     } catch {
       // Un calendario externo caído no puede dejar la agenda sin slots.
     }
   }
   return ranges;
+}
+
+/** `range` menos `cut`: cero, uno o dos tramos. */
+export function subtractRange(range: TimeRange, cut: TimeRange): TimeRange[] {
+  if (cut.end <= range.start || cut.start >= range.end) return [range];
+  const out: TimeRange[] = [];
+  if (range.start < cut.start) out.push({ start: range.start, end: cut.start });
+  if (cut.end < range.end) out.push({ start: cut.end, end: range.end });
+  return out;
 }
 
 /** Hosts candidatos: el pool round-robin, o el dueño del event type. */
@@ -1134,33 +1588,37 @@ async function candidateHosts(eventType: CalendarEventTypeRow): Promise<string[]
   return pool.length > 0 ? pool.map((h) => h.user_id) : [eventType.user_id];
 }
 
-export async function getAvailableSlots(
-  eventTypeId: string,
-  timezone: string,
-  date: string,
-  opts: { excludeBookingId?: string } = {},
-): Promise<TimeRange[]> {
-  const eventType = await getEventTypeById(eventTypeId);
-  if (!eventType || eventType.active !== 1) return [];
-  if (eventType.single_use === 1 && eventType.used_at) return [];
+/**
+ * Todo lo que el motor necesita de un event type, cargado una vez: así la
+ * vista del mes no repite las mismas queries por cada día.
+ */
+interface SlotContext {
+  eventType: EventTypeWithRules;
+  calendarUser?: CalendarUserRow;
+  hosts: string[];
+  weekly: ScheduleRule[];
+  overrides: ScheduleOverride[];
+  scheduleTimezone: string;
+  minStart: Date;
+  maxFutureDays: number;
+}
 
-  const parsed = parseDate(date);
-  if (!parsed) return [];
+/**
+ * `excludeBookingId`: se calculan horarios para mover esa reserva (confirmada,
+ * del mismo event type). Reprogramar no es una reserva nueva: vale aunque el
+ * evento esté desactivado o sea un link de un solo uso ya consumido.
+ */
+async function loadSlotContext(eventTypeId: string, excludeBookingId?: string): Promise<SlotContext | null> {
+  const eventType = await getEventTypeById(eventTypeId);
+  if (!eventType) return null;
+  if (!(excludeBookingId && (await isReschedulableBooking(excludeBookingId, eventTypeId)))) {
+    if (eventType.active !== 1) return null;
+    if (eventType.single_use === 1 && eventType.used_at) return null;
+  }
 
   const calendarUser = await getCalendarUser(eventType.user_id);
-  const ownerTz = calendarUser?.timezone ?? 'UTC';
-
   const rules = getBookingRules(eventType);
   const minNoticeHours = rules.minNoticeHours ?? calendarUser?.min_notice_hours ?? 0;
-  const maxFutureDays = rules.maxFutureDays ?? calendarUser?.max_booking_days ?? 30;
-
-  const nowDate = new Date();
-  const minStart = new Date(nowDate.getTime() + minNoticeHours * 60 * 60 * 1000);
-
-  const todayParts = datePartsInTz(nowDate, timezone);
-  const maxDateMs = Date.UTC(todayParts.year, todayParts.month - 1, todayParts.day) + maxFutureDays * 24 * 60 * 60 * 1000;
-  const requestedMs = Date.UTC(parsed.year, parsed.month - 1, parsed.day);
-  if (requestedMs > maxDateMs) return [];
 
   // Horario reutilizable (zona propia + excepciones) o, si el evento no
   // tiene, sus reglas propias en la zona del dueño (comportamiento previo).
@@ -1173,29 +1631,77 @@ export async function getAvailableSlots(
         endTime: r.end_time,
       }));
 
-  const dayStart = localToUtc(date, '00:00:00', timezone);
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  return {
+    eventType,
+    calendarUser,
+    hosts: await candidateHosts(eventType),
+    weekly,
+    overrides: schedule?.overrides ?? [],
+    scheduleTimezone: schedule?.timezone ?? calendarUser?.timezone ?? 'UTC',
+    minStart: new Date(Date.now() + minNoticeHours * 60 * 60 * 1000),
+    maxFutureDays: effectiveMaxFutureDays(eventType, calendarUser),
+  };
+}
 
-  // Ocupación por host (margen de 1 día por buffers); un slot sirve si al
-  // menos un host candidato está libre.
-  const hosts = await candidateHosts(eventType);
-  const busyFrom = new Date(dayStart.getTime() - 24 * 60 * 60 * 1000);
-  const busyTo = new Date(dayEnd.getTime() + 24 * 60 * 60 * 1000);
-  const busyByHost = await Promise.all(hosts.map((h) => listBusyRanges(h, busyFrom, busyTo, opts)));
+/** La reserva existe, está confirmada y es de ese event type (se puede reprogramar). */
+export async function isReschedulableBooking(bookingId: string, eventTypeId: string): Promise<boolean> {
+  const row = (await getDb()
+    .prepare(`SELECT 1 AS one FROM calendar_bookings WHERE id = ? AND event_type_id = ? AND status = 'confirmed'`)
+    .get(bookingId, eventTypeId)) as { one: number } | undefined;
+  return row?.one === 1;
+}
+
+/** Máximo de días para reservar: la regla del evento o, si no tiene, la del workspace. */
+export function effectiveMaxFutureDays(eventType: EventTypeWithRules, calendarUser?: CalendarUserRow): number {
+  return getBookingRules(eventType).maxFutureDays ?? calendarUser?.max_booking_days ?? 30;
+}
+
+/** Slots de `date` con la ocupación por host ya cargada (cubre al menos el día ±1). */
+function slotsForDay(ctx: SlotContext, timezone: string, date: string, busyByHost: TimeRange[][]): TimeRange[] {
+  const parsed = parseDate(date);
+  if (!parsed) return [];
+  const todayParts = datePartsInTz(new Date(), timezone);
+  const maxDateMs = Date.UTC(todayParts.year, todayParts.month - 1, todayParts.day) + ctx.maxFutureDays * 24 * 60 * 60 * 1000;
+  if (Date.UTC(parsed.year, parsed.month - 1, parsed.day) > maxDateMs) return [];
 
   return computeDaySlots({
     date,
     guestTimezone: timezone,
-    scheduleTimezone: schedule?.timezone ?? ownerTz,
-    weekly,
-    overrides: schedule?.overrides ?? [],
-    durationMin: eventType.duration_min,
-    minStart,
+    scheduleTimezone: ctx.scheduleTimezone,
+    weekly: ctx.weekly,
+    overrides: ctx.overrides,
+    durationMin: ctx.eventType.duration_min,
+    minStart: ctx.minStart,
     isFree: (slot) => {
-      const buffered = applyBuffer(slot, eventType, calendarUser);
+      const buffered = applyBuffer(slot, ctx.eventType, ctx.calendarUser);
       return busyByHost.some((busy) => !hasOverlap(buffered, busy));
     },
   });
+}
+
+/** Ocupación de cada host candidato en [from, to); un slot sirve si al menos uno está libre. */
+function busyForHosts(ctx: SlotContext, from: Date, to: Date, opts: { excludeBookingId?: string }): Promise<TimeRange[][]> {
+  return Promise.all(ctx.hosts.map((h) => listBusyRanges(h, from, to, opts)));
+}
+
+export async function getAvailableSlots(
+  eventTypeId: string,
+  timezone: string,
+  date: string,
+  opts: { excludeBookingId?: string } = {},
+): Promise<TimeRange[]> {
+  if (!parseDate(date)) return [];
+  const ctx = await loadSlotContext(eventTypeId, opts.excludeBookingId);
+  if (!ctx) return [];
+  // Margen de 1 día por buffers.
+  const dayStart = localToUtc(date, '00:00:00', timezone);
+  const busyByHost = await busyForHosts(
+    ctx,
+    new Date(dayStart.getTime() - 24 * 60 * 60 * 1000),
+    new Date(dayStart.getTime() + 48 * 60 * 60 * 1000),
+    opts,
+  );
+  return slotsForDay(ctx, timezone, date, busyByHost);
 }
 
 /**
@@ -1232,7 +1738,8 @@ export function computeDaySlots(input: {
       const winEnd = localToUtc(localDay, w.endTime, tz);
       for (let t = winStart.getTime(); t + slotDuration <= winEnd.getTime(); t += slotDuration) {
         const slot: TimeRange = { start: new Date(t), end: new Date(t + slotDuration) };
-        if (slot.start < dayStart || slot.end > dayEnd) continue;
+        // Cada slot pertenece al día local de su inicio (puede terminar pasada la medianoche).
+        if (slot.start < dayStart || slot.start >= dayEnd) continue;
         if (slot.start < input.minStart) continue;
         if (input.isFree && !input.isFree(slot)) continue;
         slots.push(slot);

@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/session';
 import { getWorkspaceAnalytics, parseWorkspaceRange } from '@/lib/link-analytics';
 import { formatNumber } from '@/lib/utils';
 import LinkChart from '@/components/link/LinkChart';
+import { breakdownLabelers } from '@/lib/link-labels';
 import BreakdownBars from '@/components/link/BreakdownBars';
 
 export const dynamic = 'force-dynamic';
@@ -45,7 +46,17 @@ export default async function LinkAnalyticsPage(props: Props) {
     { days: 365, label: t('analytics.last365') },
   ].map((p) => ({ ...p, from: shift(today, -(p.days - 1)), to: today }));
 
-  const label = (n: string) => (n === 'direct' ? t('common.direct') : n === 'other' ? t('common.other') : n);
+  const labels = breakdownLabelers(locale, {
+    direct: t('common.direct'),
+    other: t('common.other'),
+    unknown: t('labels.unknown'),
+    variantDefault: t('detail.variantDefault'),
+    device: { desktop: t('labels.desktop'), mobile: t('labels.mobile'), tablet: t('labels.tablet') },
+    rule: (n) => t('labels.rule', { n }),
+    ab: (v) => t('labels.ab', { v }),
+    app: (os) => t('labels.app', { os }),
+  });
+  const label = labels.plain;
   const noData = t('analytics.noData');
   const q = `from=${range.from}&to=${range.to}`;
 
@@ -162,11 +173,11 @@ export default async function LinkAnalyticsPage(props: Props) {
         </section>
         <section className="panel">
           <p className="section-label">{t('analytics.countries')}</p>
-          <BreakdownBars items={a.countries} emptyLabel={noData} labelFor={label} />
+          <BreakdownBars items={a.countries} emptyLabel={noData} labelFor={labels.country} />
         </section>
         <section className="panel">
           <p className="section-label">{t('analytics.devices')}</p>
-          <BreakdownBars items={a.devices} emptyLabel={noData} />
+          <BreakdownBars items={a.devices} emptyLabel={noData} labelFor={labels.device} />
         </section>
         <section className="panel">
           <p className="section-label">{t('analytics.browsers')}</p>

@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/session';
 import { canAccessConversation } from '@/lib/chat-access';
 import {
   getChatConversationWithVisitor,
+  getChatWidget,
+  isChatAgentOfWidget,
   updateChatConversation,
 } from '@/lib/chat-data';
 import { conversationPatchSchema } from '@/lib/chat-schema';
@@ -17,7 +19,8 @@ export async function GET(_req: Request, props: { params: Promise<{ id: string }
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { ok, conversation } = await canAccessConversation(params.id, user);
   if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  return NextResponse.json(conversation);
+  // Con visitante y agente asignado (el inbox la refresca con este GET).
+  return NextResponse.json((await getChatConversationWithVisitor(params.id)) ?? conversation);
 }
 
 export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
@@ -37,6 +40,15 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
   const parsed = conversationPatchSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  }
+
+  // Solo se asigna a agentes del widget (si no, se filtran datos de usuarios
+  // ajenos vía el JOIN de la respuesta y la conversación queda huérfana).
+  if (parsed.data.assignedTo && before) {
+    const widget = await getChatWidget(before.widget_id);
+    if (!widget || !(await isChatAgentOfWidget(widget, parsed.data.assignedTo))) {
+      return NextResponse.json({ error: 'invalid_assignee' }, { status: 400 });
+    }
   }
 
   const updated = await updateChatConversation(params.id, parsed.data);

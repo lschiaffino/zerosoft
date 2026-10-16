@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteProject, getProject, updateProject, canAccessTrackProject } from '@/lib/track-data';
 import { projectUpdateSchema } from '@/lib/track-schema';
-import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
+import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,6 +36,14 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const body: unknown = await req.json().catch(() => null);
   const parsed = projectUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
+  // Slug (cambia los identificadores y rompe GitHub), archivar y triage son
+  // configuración compartida: solo owner/admin.
+  const { slug, status, triageEnabled } = parsed.data;
+  const adminOnly =
+    (slug !== undefined && slug !== project.slug) ||
+    (status !== undefined && status !== project.status) ||
+    (triageEnabled !== undefined && triageEnabled !== Boolean(project.triage_enabled));
+  if (adminOnly && !isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
 
   const updated = await updateProject(params.id, parsed.data);
   return NextResponse.json(updated);

@@ -1,7 +1,12 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
-import { countChatConversations, listChatConversations, listChatWidgets } from '@/lib/chat-data';
+import {
+  countChatConversations,
+  listChatConversations,
+  listChatWidgets,
+  reopenExpiredSnoozesThrottled,
+} from '@/lib/chat-data';
 import { formatNumber } from '@/lib/utils';
 import WidgetList from '@/components/chat/WidgetList';
 import NewWidgetButton from '@/components/chat/NewWidgetButton';
@@ -25,6 +30,7 @@ export default async function ChatOverviewPage(
   const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
   const widgetIds = widgets.map((w) => w.id);
 
+  await reopenExpiredSnoozesThrottled(widgetIds);
   // Antes contaba solo las conversaciones abiertas de los primeros 5 widgets.
   const [openCount, unassignedCount, recentOpen] = await Promise.all([
     countChatConversations(widgetIds, { status: 'open' }),

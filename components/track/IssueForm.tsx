@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { TrackStatusRow, TrackCycleRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
@@ -34,6 +35,7 @@ const LABEL_COLORS = ['#000000', '#333333', '#666666', '#999999', '#bbbbbb'];
 
 export default function IssueForm({ locale, projectId, parentId, statuses, cycles, labels, priorities }: IssueFormProps) {
   const router = useRouter();
+  const t = useTranslations('track');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState(statuses[0]?.id ?? '');
@@ -178,7 +180,7 @@ export default function IssueForm({ locale, projectId, parentId, statuses, cycle
               <button
                 type="button"
                 onClick={() => setIssueLabels((prev) => prev.filter((_, i) => i !== idx))}
-                aria-label="remove"
+                aria-label={t('issues.form.removeLabel')}
               >
                 ×
               </button>
@@ -199,7 +201,7 @@ export default function IssueForm({ locale, projectId, parentId, statuses, cycle
                 setLabelInput('');
               }
             }}
-            placeholder="Type and press Enter"
+            placeholder={t('issues.form.labelsPlaceholder')}
           />
         </div>
         <div className="track-label-colors">

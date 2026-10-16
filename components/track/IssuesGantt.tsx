@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type
 import { Link } from '@/i18n/navigation';
 import type { TrackStatusRow } from '@/lib/db';
 import type { TrackIssueWithStatus } from '@/lib/track-data';
+import { safeHexColor } from '@/lib/track-color';
 
 interface IssuesGanttProps {
   issues: TrackIssueWithStatus[];
@@ -181,7 +182,7 @@ export default function IssuesGantt({ issues, statuses, locale, onDatesChange, l
   const todayPct = today >= windowStart && today <= windowEnd ? pctOf(today) : null;
 
   const statusColor = (issue: TrackIssueWithStatus) =>
-    issue.status_color ?? statuses.find((s) => s.id === issue.status_id)?.color ?? INK;
+    safeHexColor(issue.status_color ?? statuses.find((s) => s.id === issue.status_id)?.color, INK);
 
   // ---------- Drag & drop de barras (pointer events, sin deps) ----------
 

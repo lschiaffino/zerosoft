@@ -1931,6 +1931,39 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Track: el color de los labels se pinta en style={{ background }}; antes
+    // se aceptaba cualquier string (p. ej. url(...)). Los que no son hex
+    // vuelven al gris por defecto, en track_labels y en la copia de cada issue.
+    id: '028_track_label_colors',
+    async up(client) {
+      const isHex = (c: unknown) => typeof c === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(c.trim());
+      const labels = (await client.execute('SELECT id, color FROM track_labels')).rows;
+      for (const r of labels) {
+        if (isHex(r.color)) continue;
+        await client.execute({ sql: "UPDATE track_labels SET color = '#666666' WHERE id = ?", args: [String(r.id)] });
+      }
+      const issues = (
+        await client.execute("SELECT id, labels FROM track_issues WHERE labels IS NOT NULL AND labels != '[]'")
+      ).rows;
+      for (const r of issues) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(String(r.labels));
+        } catch {
+          continue;
+        }
+        if (!Array.isArray(parsed)) continue;
+        const list = parsed as Array<Record<string, unknown>>;
+        if (list.every((l) => isHex(l?.color))) continue;
+        const next = list.map((l) => (isHex(l?.color) ? l : { ...l, color: '#666666' }));
+        await client.execute({
+          sql: 'UPDATE track_issues SET labels = ? WHERE id = ?',
+          args: [JSON.stringify(next), String(r.id)],
+        });
+      }
+    },
+  },
+  {
     // Link: segmentación por país/dispositivo, A/B y deep links (JSON en la
     // misma fila del link: el redirect sigue siendo una sola query), origen de
     // cada visita (link | qr) y variante servida, escaneos QR separados y
@@ -1954,6 +1987,122 @@ export const MIGRATIONS: Migration[] = [
           updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
       `);
+    },
+  },
+  {
+    // Cal: el índice único (host, inicio) cubre también los holds 'pending',
+    // así dos reservas pagas simultáneas al mismo horario no llegan las dos a
+    // Checkout. Antes se liberan los holds vencidos y los que ya chocan con
+    // una reserva confirmada u otro hold (queda el más viejo). El DROP y el
+    // CREATE van en una transacción: si hay duplicados históricos entre
+    // confirmadas, queda el índice anterior.
+    id: '028_cal_pending_slot',
+    async up(client) {
+      const ts = new Date().toISOString();
+      await client.execute({
+        sql: `UPDATE calendar_bookings SET status = 'cancelled', payment_status = 'expired', cancel_reason = 'payment_expired'
+              WHERE status = 'pending' AND hold_expires_at IS NOT NULL AND hold_expires_at <= ?`,
+        args: [ts],
+      });
+      await client.execute(
+        `UPDATE calendar_bookings SET status = 'cancelled', cancel_reason = 'slot_taken'
+         WHERE status = 'pending' AND host_user_id IS NOT NULL AND EXISTS (
+           SELECT 1 FROM calendar_bookings o
+           WHERE o.host_user_id = calendar_bookings.host_user_id AND o.starts_at = calendar_bookings.starts_at
+             AND o.id != calendar_bookings.id
+             AND (o.status = 'confirmed' OR (o.status = 'pending' AND o.rowid < calendar_bookings.rowid)))`,
+      );
+      try {
+        await client.batch(
+          [
+            'DROP INDEX IF EXISTS idx_calendar_bookings_host_slot',
+            `CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_bookings_host_slot
+             ON calendar_bookings(host_user_id, starts_at) WHERE status IN ('confirmed', 'pending')`,
+          ],
+          'write',
+        );
+      } catch {
+        // Duplicados históricos entre confirmadas: queda el índice anterior.
+      }
+    },
+  },
+  {
+    // Link: TXT de propiedad por dominio propio (anti-squatting y anti-takeover
+    // de CNAME colgante). Los ya verificados no lo necesitan.
+    id: '028_link_domain_verify_token',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE link_domains ADD COLUMN verify_token TEXT');
+    },
+  },
+  {
+    // Track: igual que 028_track_label_colors para proyectos y statuses (su
+    // color también se pinta en style={{ background }}): lo que no es hex
+    // vuelve al color por defecto.
+    id: '029_track_project_status_colors',
+    async up(client) {
+      const isHex = (c: unknown) => typeof c === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(c.trim());
+      for (const [table, fallback] of [
+        ['track_projects', '#000000'],
+        ['track_statuses', '#666666'],
+      ] as const) {
+        const rows = (await client.execute(`SELECT id, color FROM ${table}`)).rows;
+        for (const r of rows) {
+          if (r.color === null || isHex(r.color)) continue;
+          await client.execute({ sql: `UPDATE ${table} SET color = ? WHERE id = ?`, args: [fallback, String(r.id)] });
+        }
+      }
+    },
+  },
+  {
+    // Track: child_count (subconsulta por fila), el borrado de subtasks y la
+    // lista de hijos filtran por parent_id; sin índice era un scan completo.
+    id: '029_track_issues_parent_index',
+    async up(client) {
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_track_issues_parent ON track_issues(parent_id)');
+    },
+  },
+  {
+    // Track: el progreso de los cycles (listCyclesWithProgress) cuenta issues
+    // por cycle_id y status; sin índice cada subconsulta recorría toda la
+    // tabla (de todos los workspaces). También lo usa el ON DELETE SET NULL.
+    id: '030_track_issues_cycle_index',
+    async up(client) {
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_track_issues_cycle ON track_issues(cycle_id, status_id)');
+    },
+  },
+  {
+    // Cal: los pasos de workflow que fallan siempre (email que el proveedor
+    // rechaza) dejan de reintentarse después de unos intentos; sin contador
+    // ocupaban el lote del cron y frenaban los envíos de toda la instancia.
+    id: '031_cal_workflow_run_attempts',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE calendar_workflow_runs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE calendar_workflow_runs ADD COLUMN failed_at TEXT');
+    },
+  },
+  {
+    // Docs: restaurar una página de la papelera revive solo las subpáginas que
+    // se archivaron con ella, no las que ya se habían mandado a la papelera por
+    // su cuenta. Lo ya archivado debajo de un padre archivado se asume cascada
+    // (era el comportamiento previo al restaurar).
+    id: '032_docs_archived_by_parent',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN archived_by_parent INTEGER NOT NULL DEFAULT 0');
+      await client.execute(
+        `UPDATE docs_pages SET archived_by_parent = 1
+         WHERE archived = 1 AND parent_id IN (SELECT id FROM docs_pages WHERE archived = 1)`,
+      );
+    },
+  },
+  {
+    // Docs: "¿Te sirvió?" cuenta un voto por visitante (id anónimo del
+    // navegador); recargar la página ya no suma otro voto.
+    id: '033_docs_feedback_voter',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE docs_feedback ADD COLUMN voter TEXT');
+      await client.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_docs_feedback_voter ON docs_feedback(page_id, voter) WHERE voter IS NOT NULL',
+      );
     },
   },
 ];

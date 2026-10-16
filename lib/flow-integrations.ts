@@ -17,10 +17,12 @@ import { safeFetch, UnsafeUrlError } from './safe-fetch';
 
 export interface IntegrationContext {
   workspaceId: string;
-  /** Persona que creó el flow (para Gmail); null = dueño del workspace. */
+  /** Persona que creó el flow o editó por última vez sus nodos Gmail (remitente); null = dueño del workspace. */
   actorId: string | null;
   runId: string;
   nodeId: string;
+  /** Índice de la iteración si el nodo corre dentro de un Loop. */
+  loopIndex?: number;
   /** Credencial del workspace con uno de los tipos permitidos (o StepError). */
   credential(id: unknown, types: readonly CredentialType[]): Promise<ResolvedCredential>;
   /** Valor sensible derivado (p. ej. un access token emitido) para redactar. */
@@ -226,7 +228,11 @@ export const gmailConfigSchema = z.object({
   body: required(100_000),
 });
 
-/** Envía desde el Gmail conectado (CRM) de quien creó el flow o del dueño del workspace. */
+/**
+ * Envía desde el Gmail conectado (CRM) de quien creó el flow (o editó su nodo
+ * Gmail). Nunca usa otra casilla: si esa persona ya no es del workspace o no
+ * tiene Gmail conectado, falla con gmail_not_connected.
+ */
 export async function gmailNode(ctx: IntegrationContext, cfg: Record<string, unknown>, flowName: string) {
   const c = parseConfig(gmailConfigSchema, cfg);
   const recipients = c.to.split(/[,;]\s*/).map((x) => x.trim()).filter(Boolean);
@@ -235,7 +241,9 @@ export async function gmailNode(ctx: IntegrationContext, cfg: Record<string, unk
   }
   const { gmailSender } = await import('./crm-email');
   const { buildMime, gmailSend, GmailApiError } = await import('./gmail');
-  const sender = (ctx.actorId ? await gmailSender(ctx.actorId) : null) ?? (await gmailSender(ctx.workspaceId));
+  const { isWorkspacePerson } = await import('./crm-refs');
+  const actor = ctx.actorId ?? ctx.workspaceId;
+  const sender = (await isWorkspacePerson(ctx.workspaceId, actor)) ? await gmailSender(actor) : null;
   if (!sender) throw new StepError('gmail_not_connected');
   ctx.addSecret(sender.token);
   const mime = buildMime({ from: sender.email, to: recipients.join(', '), subject: c.subject || flowName, text: c.body });
@@ -291,8 +299,12 @@ export async function stripeNode(ctx: IntegrationContext, cfg: Record<string, un
   form.set('metadata[source]', 'zerosoft-flow');
   const res = await call('https://api.stripe.com/v1/customers', {
     method: 'POST',
-    // La misma corrida y nodo no crean dos clientes si se reintenta.
-    headers: { ...auth, 'content-type': 'application/x-www-form-urlencoded', 'idempotency-key': `${ctx.runId}:${ctx.nodeId}` },
+    // La misma corrida, nodo e iteración no crean dos clientes si se reintenta.
+    headers: {
+      ...auth,
+      'content-type': 'application/x-www-form-urlencoded',
+      'idempotency-key': `${ctx.runId}:${ctx.nodeId}${ctx.loopIndex === undefined ? '' : `:${ctx.loopIndex}`}`,
+    },
     body: form.toString(),
   });
   if (!res.ok) throw stripeFailure(res);

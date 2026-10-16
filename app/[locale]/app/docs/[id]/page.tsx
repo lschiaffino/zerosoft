@@ -3,9 +3,12 @@ import { notFound } from 'next/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { getUserById } from '@/lib/db';
 import {
+  DOC_INTERNAL_READ,
+  getDocAccess,
   getDocPageAncestors,
+  countArchivedDocPages,
   listDocComments,
-  listDocPages,
+  listDocPageSummaries,
   listDocShares,
   listSharedWithMe,
   resolveDocAccess,
@@ -46,10 +49,14 @@ export default async function DocsPageEditor(
   const { row, access } = resolved;
   const page = toDocPage(row);
   const isOwner = access === 'owner';
+  // El historial no se expone a quien solo llega porque la página está publicada.
+  const canSeeVersions =
+    access !== 'view' || (await getDocAccess(row, user, DOC_INTERNAL_READ)) !== null;
 
-  const [allPages, trashed, shared, comments] = await Promise.all([
-    listDocPages(user.id, { archived: false }),
-    listDocPages(user.id, { archived: true }),
+  // El sidebar solo necesita el árbol (sin content) y el número de la papelera.
+  const [allPages, trashCount, shared, comments] = await Promise.all([
+    listDocPageSummaries(user.id, { archived: false }),
+    countArchivedDocPages(user.id),
     listSharedWithMe(realUserId(user), user.id),
     listDocComments(id),
   ]);
@@ -68,12 +75,12 @@ export default async function DocsPageEditor(
       <DocsSidebar
         pages={allPages}
         currentId={id}
-        trashCount={trashed.length}
+        trashCount={trashCount}
         shared={shared}
-        createAction={createDocPageAction.bind(null, user.id, locale)}
-        moveAction={moveDocPageAction.bind(null, user.id)}
-        reorderAction={reorderDocPageAction.bind(null, user.id)}
-        stepAction={moveDocPageStepAction.bind(null, user.id)}
+        createAction={createDocPageAction.bind(null, locale)}
+        moveAction={moveDocPageAction}
+        reorderAction={reorderDocPageAction}
+        stepAction={moveDocPageStepAction}
         labels={{
           newPage: t('sidebar.newPage'),
           newSubpage: t('sidebar.newSubpage'),
@@ -85,6 +92,7 @@ export default async function DocsPageEditor(
           <DocsReadOnlyView
             page={{ ...page, content: sanitizeBlocks(page.content) }}
             sharedBy={sharedBy}
+            showVersions={canSeeVersions}
           />
         ) : (
           <>

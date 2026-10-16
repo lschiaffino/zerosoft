@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
 import { listChatWidgets } from '@/lib/chat-data';
 import InboxClient from '@/components/chat/InboxClient';
 
@@ -25,7 +25,7 @@ export default async function ChatInboxPage(
       <div className="page-head">
         <h1 className="app-title">{t('inbox.title')}</h1>
       </div>
-      <InboxClient widgetIds={widgets.map((w) => w.id)} currentUserId={user.id} />
+      <InboxClient widgetIds={widgets.map((w) => w.id)} currentUserId={realUserId(user)} />
     </div>
   );
 }

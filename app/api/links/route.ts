@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { limitByIp } from '@/lib/rate-limit';
 import { getCurrentUser } from '@/lib/session';
 import { createLink, listLinks, toLinkDto } from '@/lib/links';
 
@@ -53,16 +54,23 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = await limitByIp(req, 'link-create', 60, 60);
+  if (limited) return limited;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: 'invalid_url' }, { status: 400 });
+  if (!parsed.success) {
+    // Solo un problema en `url` es 'URL inválida'; un título o tag largo es otro campo.
+    const path = parsed.error.issues[0]?.path ?? [];
+    const code = path.length === 0 || path[0] === 'url' ? 'invalid_url' : 'bad_request';
+    return NextResponse.json({ error: code }, { status: 400 });
+  }
 
   const result = await createLink(user.id, parsed.data);
   if (!result.ok) {
-    const status = result.code === 'slug_taken' ? 409 : 400;
+    const status = result.code === 'slug_taken' ? 409 : result.code === 'quota_exceeded' ? 429 : 400;
     return NextResponse.json({ error: result.code }, { status });
   }
   return NextResponse.json(toLinkDto(result.link), { status: 201 });

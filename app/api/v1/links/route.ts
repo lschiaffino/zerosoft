@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createLink, listLinks, toLinkDto } from '@/lib/links';
 import { listDomains } from '@/lib/link-domains';
+import { limitByIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,12 +18,19 @@ const createSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const limited = await limitByIp(req, 'v1-link-create', 120, 60);
+  if (limited) return limited;
   const auth = await requireApiUser(req, 'links:write');
   if ('res' in auth) return auth.res;
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
-  if (!parsed.success) return apiError(400, 'invalid_url', 'A valid "url" is required.');
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const field = issue?.path.join('.') ?? '';
+    if (!field || field === 'url') return apiError(400, 'invalid_url', 'A valid "url" is required.');
+    return apiError(400, 'bad_request', `Invalid "${field}": ${issue?.message ?? 'invalid value'}.`);
+  }
 
   let domainId: string | null = null;
   if (parsed.data.domain) {
@@ -40,8 +48,10 @@ export async function POST(req: NextRequest) {
       slug_taken: 'That slug is already taken.',
       invalid_date: 'The expiration date is not valid.',
       invalid_domain: 'That domain is not a verified domain of yours.',
+      self_link: 'The destination cannot be another short link of ours.',
+      quota_exceeded: 'Daily link creation quota reached. Try again later.',
     };
-    return apiError(400, result.code, messages[result.code]);
+    return apiError(result.code === 'quota_exceeded' ? 429 : 400, result.code, messages[result.code]);
   }
 
   const dto = toLinkDto(result.link);

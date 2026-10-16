@@ -69,7 +69,49 @@ export async function assertPublicUrl(raw: string, opts: { allowHttp?: boolean }
   return url;
 }
 
-export async function safeFetch(raw: string, init: RequestInit = {}, timeoutMs = 8000): Promise<Response> {
-  const url = await assertPublicUrl(raw);
-  return fetch(url, { ...init, redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+/** Headers con credenciales: no se reenvían a otro origen al seguir una redirección. */
+const CREDENTIAL_HEADERS = ['authorization', 'proxy-authorization', 'cookie'];
+
+/**
+ * fetch a una URL pública. Por defecto no sigue redirecciones (devuelve el
+ * 3xx). Con `maxRedirects` las sigue a mano, validando cada Location con
+ * assertPublicUrl (un salto a la red interna falla igual que la URL inicial):
+ * 301/302/303 pasan a GET sin body (307/308 conservan método y body) y las
+ * credenciales se sacan si cambia el origen. El timeout cubre todos los saltos.
+ */
+export async function safeFetch(
+  raw: string,
+  init: RequestInit = {},
+  timeoutMs = 8000,
+  opts: { maxRedirects?: number } = {},
+): Promise<Response> {
+  const signal = AbortSignal.timeout(timeoutMs);
+  let url = await assertPublicUrl(raw);
+  let req: RequestInit = init;
+  const maxRedirects = Math.max(0, Math.floor(opts.maxRedirects ?? 0));
+  for (let hop = 0; ; hop++) {
+    const res = await fetch(url, { ...req, redirect: 'manual', signal });
+    const location = res.headers.get('location');
+    if (hop >= maxRedirects || !REDIRECT_STATUSES.has(res.status) || !location) return res;
+    await res.body?.cancel().catch(() => {});
+    let next: URL;
+    try {
+      next = new URL(location, url);
+    } catch {
+      throw new UnsafeUrlError('invalid_redirect');
+    }
+    next = await assertPublicUrl(next.toString());
+    const headers = new Headers(req.headers);
+    if (next.origin !== url.origin) for (const h of CREDENTIAL_HEADERS) headers.delete(h);
+    const method = (req.method ?? 'GET').toUpperCase();
+    if (res.status === 303 || ((res.status === 301 || res.status === 302) && method !== 'GET' && method !== 'HEAD')) {
+      headers.delete('content-type');
+      headers.delete('content-length');
+      req = { ...req, method: method === 'HEAD' ? 'HEAD' : 'GET', body: undefined, headers };
+    } else {
+      req = { ...req, headers };
+    }
+    url = next;
+  }
 }

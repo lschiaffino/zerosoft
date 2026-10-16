@@ -6,9 +6,10 @@ import {
   createBooking,
   expirePendingBooking,
   listUserBookings,
+  bookingDateBounds,
   CalendarError,
 } from '@/lib/calendar';
-import { bookingCreateSchema, bookingListQuerySchema } from '@/lib/calendar-schema';
+import { bookingCreateSchema, bookingListQuerySchema, validateBookingAnswers } from '@/lib/calendar-schema';
 import { invalidBody, crmError, unauthorized } from '@/lib/crm-http';
 import { afterBookingCreated } from '@/lib/calendar-lifecycle';
 import { getCurrentUser } from '@/lib/session';
@@ -20,7 +21,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET ?q=&status=&from=YYYY-MM-DD&to=YYYY-MM-DD — reservas del workspace
- * (anfitrión). `to` incluye el día entero (UTC). Con `from`, orden ascendente.
+ * (anfitrión). Días en la zona del calendario del workspace; `to` incluye el
+ * día entero. Con `from`, orden ascendente.
  */
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
@@ -28,11 +30,12 @@ export async function GET(req: NextRequest) {
   const parsed = bookingListQuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
   if (!parsed.success) return invalidBody(parsed.error);
   const { q, status, from, to, limit } = parsed.data;
+  const bounds = await bookingDateBounds(user.id, from, to);
   const rows = await listUserBookings(user.id, {
     q,
     status,
-    from: from ? new Date(`${from}T00:00:00.000Z`) : undefined,
-    to: to ? new Date(`${to}T23:59:59.999Z`) : undefined,
+    from: bounds.from,
+    to: bounds.to,
     limit,
     order: from ? 'asc' : 'desc',
   });
@@ -52,6 +55,9 @@ export async function POST(req: NextRequest) {
     const eventType = await getEventTypeById(eventTypeId);
     if (!eventType || eventType.active !== 1) return crmError(404, 'not_found');
     if (eventType.single_use === 1 && eventType.used_at) return crmError(410, 'link_expired');
+    // Respuestas contra los campos del evento (claves, tipos, tamaño y requeridos).
+    const validAnswers = validateBookingAnswers(eventType.fieldsParsed, answers);
+    if (!validAnswers) return crmError(400, 'invalid_input');
 
     const startDate = new Date(start);
     if (Number.isNaN(startDate.getTime())) return crmError(400, 'invalid_input');
@@ -70,7 +76,7 @@ export async function POST(req: NextRequest) {
         name,
         start: matching.start.toISOString(),
         timezone: guestTz,
-        answers,
+        answers: validAnswers,
         locale: parsed.data.locale,
       },
       paid
@@ -87,13 +93,10 @@ export async function POST(req: NextRequest) {
     // Con precio: la reserva queda retenida hasta que Stripe confirme el pago.
     if (paid) {
       const locale = parsed.data.locale ?? 'en';
-      const referer = req.headers.get('referer');
-      const cancelPath = referer && referer.startsWith(appBaseUrl()) ? referer.slice(appBaseUrl().length) : `/${locale}`;
       try {
         const checkoutUrl = await createCheckoutForBooking(booking, eventType, {
           origin: appBaseUrl(),
           locale,
-          cancelPath,
         });
         return NextResponse.json(
           {

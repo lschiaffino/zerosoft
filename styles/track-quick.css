@@ -1075,6 +1075,14 @@ a.track-board-card-title:hover {
   padding: 12px 0;
   border-bottom: 1px solid var(--line);
 }
+.track-triage-banner {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warn);
+  border-radius: 4px;
+  font-size: 13px;
+}
 .track-triage-main {
   display: flex;
   flex-direction: column;
@@ -1269,7 +1277,8 @@ a.track-board-card-title:hover {
   text-align: left;
   cursor: pointer;
 }
-.track-label-options button:hover {
+.track-label-options button:hover,
+.track-label-options button.is-active {
   background: rgba(0, 0, 0, 0.04);
 }
 

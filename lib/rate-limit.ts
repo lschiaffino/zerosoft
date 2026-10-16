@@ -38,6 +38,16 @@ export async function rateLimit(key: string, limit: number, windowSec: number): 
   return { ok: count <= limit, remaining: Math.max(0, limit - count), resetAt: windowStart + windowMs };
 }
 
+/** ¿La clave ya pasó el límite en la ventana actual? Solo lee (no cuenta este intento). */
+export async function isRateLimited(key: string, limit: number, windowSec: number): Promise<boolean> {
+  const windowMs = windowSec * 1000;
+  const windowStart = Math.floor(Date.now() / windowMs) * windowMs;
+  const row = (await getDb()
+    .prepare('SELECT count FROM rate_limits WHERE key = ? AND window_start = ?')
+    .get(key, windowStart)) as { count: number } | undefined;
+  return Number(row?.count ?? 0) >= limit;
+}
+
 /** IP del cliente. En Vercel x-forwarded-for la pone el edge (no la controla el cliente). */
 export function clientIp(req: Request): string {
   const fwd = req.headers.get('x-vercel-forwarded-for') ?? req.headers.get('x-forwarded-for') ?? '';

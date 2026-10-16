@@ -1,19 +1,21 @@
-import { getDb, type DocsCommentRow, type DocsPageRow, type DocsShareRow, type TeamRow, type UserRow } from './db';
+import { getDb, getUserById, type DocsCommentRow, type DocsPageRow, type DocsShareRow, type TeamRow, type UserRow } from './db';
 import { sanitizeBlocks } from './docs-sanitize';
-import { isMember } from './teams';
+import { isMember, listMembers, listOwnedTeams } from './teams';
 import {
   type DocsAccess,
   type DocsBlock,
   type DocsBlockType,
   type DocsComment,
+  type DocsMentionableUser,
   type DocsPage,
   type DocsPageShare,
+  type DocsPageSummary,
   type DocsShareRole,
   defaultBlocks,
   stringifyBlocks,
 } from './docs-types';
 
-export type { DocsBlock, DocsBlockType, DocsComment, DocsPage, DocsPageShare };
+export type { DocsBlock, DocsBlockType, DocsComment, DocsPage, DocsPageShare, DocsPageSummary };
 export { defaultBlocks, stringifyBlocks } from './docs-types';
 
 // ---------- Helpers JSON ----------
@@ -94,8 +96,30 @@ export interface DocsActor {
  *   que es miembro; gana el rol más alto ('edit' > 'view').
  * - Publicada en el centro de ayuda: cualquiera autenticado puede leerla.
  * `is_public` ya NO da lectura: solo habilita a la IA del Chat.
+ *
+ * `includePublished: false` ignora la publicación: el centro de ayuda solo
+ * expone el contenido actual, no el historial, los comentarios ni las
+ * menciones (eso exige ser owner o tener un share explícito).
+ * `includePublicLink: false` ignora además el share "cualquiera con el link"
+ * (para escrituras como comentar o resolver hilos).
  */
-export async function getDocAccess(page: DocsPageRow, actor: DocsActor): Promise<DocsAccess | null> {
+export interface DocAccessOptions {
+  includePublished?: boolean;
+  includePublicLink?: boolean;
+}
+
+/** Historial y comentarios: owner o share explícito (no alcanza con publicada). */
+export const DOC_INTERNAL_READ: DocAccessOptions = { includePublished: false };
+/** Comentar, resolver y mencionar: share de persona/team (ni publicada ni link público). */
+export const DOC_INTERNAL_WRITE: DocAccessOptions = { includePublished: false, includePublicLink: false };
+
+export async function getDocAccess(
+  page: DocsPageRow,
+  actor: DocsActor,
+  opts: DocAccessOptions = {},
+): Promise<DocsAccess | null> {
+  const includePublished = opts.includePublished ?? true;
+  const includePublicLink = opts.includePublicLink ?? true;
   if (page.user_id === actor.id) return 'owner';
   const userId = actor.actingUser?.id ?? actor.id;
   const shares = (await getDb()
@@ -104,14 +128,14 @@ export async function getDocAccess(page: DocsPageRow, actor: DocsActor): Promise
   let access: DocsAccess | null = null;
   for (const share of shares) {
     let match = false;
-    if (share.kind === 'public') match = true;
+    if (share.kind === 'public') match = includePublicLink;
     else if (share.kind === 'user' && share.target_id === userId) match = true;
     else if (share.kind === 'team' && share.target_id) match = await isMember(share.target_id, userId);
     if (!match) continue;
     if (share.role === 'edit' && share.kind !== 'public') return 'edit';
     access = 'view';
   }
-  if (!access && page.published === 1 && page.archived === 0) access = 'view';
+  if (!access && includePublished && page.published === 1 && page.archived === 0) access = 'view';
   return access;
 }
 
@@ -119,23 +143,47 @@ export async function getDocAccess(page: DocsPageRow, actor: DocsActor): Promise
 export async function resolveDocAccess(
   actor: DocsActor,
   pageId: string,
+  opts: DocAccessOptions = {},
 ): Promise<{ row: DocsPageRow; access: DocsAccess } | null> {
   const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as
     | DocsPageRow
     | undefined;
   if (!row) return null;
-  const access = await getDocAccess(row, actor);
+  const access = await getDocAccess(row, actor, opts);
   return access ? { row, access } : null;
 }
 
 /** Verifica si el actor puede leer una página (ver getDocAccess). */
-export async function canReadPage(page: DocsPageRow, actor: DocsActor): Promise<boolean> {
-  return (await getDocAccess(page, actor)) !== null;
+export async function canReadPage(
+  page: DocsPageRow,
+  actor: DocsActor,
+  opts: DocAccessOptions = {},
+): Promise<boolean> {
+  return (await getDocAccess(page, actor, opts)) !== null;
 }
 
 export async function canEditPage(page: DocsPageRow, actor: DocsActor): Promise<boolean> {
   const access = await getDocAccess(page, actor);
   return access === 'owner' || access === 'edit';
+}
+
+/**
+ * Mencionables de una página: el dueño del workspace de la página y los
+ * miembros de sus teams (los que la pueden abrir desde el workspace). Se arma
+ * desde la página, no desde el team activo de quien escribe: un invitado de
+ * otra empresa no notifica a sus compañeros (sin acceso) y sí puede mencionar
+ * al equipo dueño.
+ */
+export async function listPageMentionables(page: Pick<DocsPageRow, 'user_id'>): Promise<DocsMentionableUser[]> {
+  const out = new Map<string, DocsMentionableUser>();
+  const owner = await getUserById(page.user_id);
+  if (owner) out.set(owner.id, { id: owner.id, name: owner.name, email: owner.email });
+  for (const team of await listOwnedTeams(page.user_id)) {
+    for (const m of await listMembers(team.id)) {
+      if (!out.has(m.user_id)) out.set(m.user_id, { id: m.user_id, name: m.name, email: m.email });
+    }
+  }
+  return [...out.values()];
 }
 
 // ---------- CRUD ----------
@@ -152,6 +200,39 @@ export async function listDocPages(
     )
     .all(ownerId, archived)) as DocsPageRow[];
   return rows.map(toDocPage);
+}
+
+/**
+ * Igual que listDocPages pero sin content: para el sidebar y las listas, que
+ * viajan al cliente en cada navegación (antes iba el contenido de todas las páginas).
+ */
+export async function listDocPageSummaries(
+  ownerId: string,
+  opts: { archived?: boolean } = {},
+): Promise<DocsPageSummary[]> {
+  const archived = opts.archived ? 1 : 0;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, parent_id, title, icon, position, updated_at FROM docs_pages
+       WHERE user_id = ? AND archived = ? ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC`,
+    )
+    .all(ownerId, archived)) as DocsPageSummary[];
+  return rows.map((r) => ({
+    id: r.id,
+    parent_id: r.parent_id ?? null,
+    title: r.title,
+    icon: r.icon ?? null,
+    position: r.position ?? null,
+    updated_at: r.updated_at,
+  }));
+}
+
+/** Páginas en la papelera (solo el número, para el link del sidebar). */
+export async function countArchivedDocPages(ownerId: string): Promise<number> {
+  const row = (await getDb()
+    .prepare('SELECT COUNT(*) AS n FROM docs_pages WHERE user_id = ? AND archived = 1')
+    .get(ownerId)) as { n: number } | undefined;
+  return Number(row?.n ?? 0);
 }
 
 export async function getDocPage(
@@ -181,7 +262,14 @@ export async function createDocPage(
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const title = (input.title ?? '').trim();
-  const parentId = input.parent_id ?? null;
+  let parentId = input.parent_id ?? null;
+  if (parentId) {
+    // Solo se cuelga de páginas del mismo workspace.
+    const parent = (await getDb()
+      .prepare('SELECT user_id FROM docs_pages WHERE id = ?')
+      .get(parentId)) as { user_id: string } | undefined;
+    if (!parent || parent.user_id !== ownerId) parentId = null;
+  }
   const icon = input.icon ?? null;
   const coverUrl = input.cover_url ?? null;
   const content = stringifyBlocks(sanitizeBlocks(input.content ?? defaultBlocks()));
@@ -208,6 +296,20 @@ export interface UpdateDocPageInput {
   archived?: boolean;
   small_text?: boolean;
   full_width?: boolean;
+  /**
+   * Concurrencia optimista: `updated_at` sobre el que el cliente hizo sus
+   * cambios. Si la página cambió desde entonces (otra persona guardó o se
+   * restauró una versión), se rechaza con DocsConflictError en vez de pisarla.
+   */
+  base_updated_at?: string;
+}
+
+/** La página cambió desde el `base_updated_at` que mandó el cliente. */
+export class DocsConflictError extends Error {
+  constructor() {
+    super('docs_conflict');
+    this.name = 'DocsConflictError';
+  }
 }
 
 export async function updateDocPage(
@@ -219,6 +321,20 @@ export async function updateDocPage(
     .prepare('SELECT * FROM docs_pages WHERE id = ?')
     .get(pageId)) as DocsPageRow | undefined;
   if (!row || row.user_id !== ownerId) return null;
+  const base = input.base_updated_at;
+  if (base !== undefined && row.updated_at !== base) throw new DocsConflictError();
+
+  // Re-parentar: el nuevo padre tiene que ser del mismo workspace y no puede
+  // ser la propia página ni una de sus descendientes (armaría un ciclo y el
+  // subárbol desaparecería del árbol y del centro de ayuda).
+  if (input.parent_id != null && input.parent_id !== row.parent_id) {
+    if (input.parent_id === pageId) return null;
+    const parent = (await getDb()
+      .prepare('SELECT user_id FROM docs_pages WHERE id = ?')
+      .get(input.parent_id)) as { user_id: string } | undefined;
+    if (!parent || parent.user_id !== ownerId) return null;
+    if ((await collectDescendants(ownerId, pageId)).includes(input.parent_id)) return null;
+  }
 
   const updates: string[] = [];
   const args: (string | number | null)[] = [];
@@ -272,8 +388,18 @@ export async function updateDocPage(
     }
   }
   if (input.archived !== undefined) {
-    updates.push('archived = ?');
+    // Archivada o restaurada a mano: ya no depende de la cascada de un ancestro.
+    updates.push('archived = ?', 'archived_by_parent = 0');
     args.push(input.archived ? 1 : 0);
+    // Restaurar una subpágina cuyo padre sigue en la papelera: pasa a la raíz.
+    // Si no, quedaba colgando de un padre archivado y el borrado definitivo
+    // del padre se la llevaba aunque estuviera activa.
+    if (!input.archived && row.archived === 1 && row.parent_id && input.parent_id === undefined) {
+      const parent = (await getDb()
+        .prepare('SELECT archived FROM docs_pages WHERE id = ?')
+        .get(row.parent_id)) as { archived: number } | undefined;
+      if (parent?.archived === 1) updates.push('parent_id = NULL', 'position = NULL');
+    }
   }
 
   if (updates.length === 0) return toDocPage(row);
@@ -281,19 +407,39 @@ export async function updateDocPage(
   updates.push('updated_at = ?');
   args.push(new Date().toISOString());
   args.push(pageId);
+  if (base !== undefined) args.push(base);
 
-  await getDb()
-    .prepare(`UPDATE docs_pages SET ${updates.join(', ')} WHERE id = ?`)
+  const result = await getDb()
+    .prepare(`UPDATE docs_pages SET ${updates.join(', ')} WHERE id = ?${base !== undefined ? ' AND updated_at = ?' : ''}`)
     .run(...args);
+  // Otro guardado se coló entre el SELECT y el UPDATE.
+  if (base !== undefined && result.changes === 0) throw new DocsConflictError();
 
   // Papelera: archivar/restaurar arrastra a las subpáginas (si no, quedaban
   // huérfanas en la raíz del árbol al mandar el padre a la papelera).
+  // Se marca cuáles archivó la cascada: al restaurar vuelven solo esas, no las
+  // que ya estaban en la papelera por su cuenta (podían estar publicadas).
   if (input.archived !== undefined && (row.archived === 1) !== input.archived) {
-    const ids = (await collectDescendants(ownerId, pageId)).filter((x) => x !== pageId);
-    if (ids.length > 0) {
-      await getDb()
-        .prepare(`UPDATE docs_pages SET archived = ? WHERE id IN (${ids.map(() => '?').join(',')})`)
-        .run(input.archived ? 1 : 0, ...ids);
+    if (input.archived) {
+      const ids = (await collectDescendants(ownerId, pageId)).filter((x) => x !== pageId);
+      if (ids.length > 0) {
+        await getDb()
+          .prepare(
+            `UPDATE docs_pages SET archived = 1, archived_by_parent = 1
+             WHERE archived = 0 AND id IN (${ids.map(() => '?').join(',')})`,
+          )
+          .run(...ids);
+      }
+    } else {
+      const ids = await collectCascadeArchived(ownerId, pageId);
+      if (ids.length > 0) {
+        await getDb()
+          .prepare(
+            `UPDATE docs_pages SET archived = 0, archived_by_parent = 0
+             WHERE id IN (${ids.map(() => '?').join(',')})`,
+          )
+          .run(...ids);
+      }
     }
   }
 
@@ -363,7 +509,8 @@ export async function duplicateDocPage(
       );
 
     const children = (await getDb()
-      .prepare('SELECT id FROM docs_pages WHERE parent_id = ? AND user_id = ?')
+      // Las subpáginas en la papelera no se copian (revivirían como activas).
+      .prepare('SELECT id FROM docs_pages WHERE parent_id = ? AND user_id = ? AND archived = 0')
       .all(currentId, ownerId)) as Array<{ id: string }>;
     for (const child of children) {
       await clone(child.id, newId);
@@ -380,14 +527,73 @@ export async function duplicateDocPage(
 export async function collectDescendants(ownerId: string, rootId: string): Promise<string[]> {
   const ids: string[] = [rootId];
   const queue: string[] = [rootId];
+  // Defensa ante datos con ciclos de parent_id (no recorrer para siempre).
+  const seen = new Set<string>([rootId]);
   while (queue.length > 0) {
     const parentId = queue.shift()!;
     const rows = (await getDb()
       .prepare('SELECT id FROM docs_pages WHERE user_id = ? AND parent_id = ?')
       .all(ownerId, parentId)) as Array<{ id: string }>;
     for (const row of rows) {
+      if (seen.has(row.id)) continue;
+      seen.add(row.id);
       ids.push(row.id);
       queue.push(row.id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Descendientes que mandó a la papelera la cascada de `rootId`: baja solo por
+ * hijos con archived_by_parent = 1 (lo archivado por su cuenta, y lo que cuelga
+ * de eso, se queda en la papelera).
+ */
+async function collectCascadeArchived(ownerId: string, rootId: string): Promise<string[]> {
+  const ids: string[] = [];
+  const queue: string[] = [rootId];
+  const seen = new Set<string>([rootId]);
+  while (queue.length > 0) {
+    const parentId = queue.shift()!;
+    const rows = (await getDb()
+      .prepare(
+        'SELECT id FROM docs_pages WHERE user_id = ? AND parent_id = ? AND archived = 1 AND archived_by_parent = 1',
+      )
+      .all(ownerId, parentId)) as Array<{ id: string }>;
+    for (const child of rows) {
+      if (seen.has(child.id)) continue;
+      seen.add(child.id);
+      ids.push(child.id);
+      queue.push(child.id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Subárbol archivado de una página archivada: baja solo por hijos archivados
+ * y despega (parent_id = NULL) a los hijos activos que encuentra.
+ */
+async function collectArchivedSubtree(ownerId: string, rootId: string): Promise<string[]> {
+  const ids: string[] = [rootId];
+  const queue: string[] = [rootId];
+  const seen = new Set<string>([rootId]);
+  while (queue.length > 0) {
+    const parentId = queue.shift()!;
+    const rows = (await getDb()
+      .prepare('SELECT id, archived FROM docs_pages WHERE user_id = ? AND parent_id = ?')
+      .all(ownerId, parentId)) as Array<{ id: string; archived: number }>;
+    for (const child of rows) {
+      if (seen.has(child.id)) continue;
+      seen.add(child.id);
+      if (child.archived !== 1) {
+        await getDb()
+          .prepare('UPDATE docs_pages SET parent_id = NULL, position = NULL WHERE id = ? AND user_id = ?')
+          .run(child.id, ownerId);
+        continue;
+      }
+      ids.push(child.id);
+      queue.push(child.id);
     }
   }
   return ids;
@@ -399,7 +605,10 @@ export async function deleteDocPage(ownerId: string, pageId: string): Promise<bo
     .get(pageId)) as DocsPageRow | undefined;
   if (!row || row.user_id !== ownerId) return false;
 
-  const ids = await collectDescendants(ownerId, pageId);
+  // Borrar para siempre desde la papelera solo se lleva lo que está en la
+  // papelera: una subpágina ya restaurada (activa) se despega a la raíz junto
+  // con su subárbol, si no el DELETE (y el ON DELETE CASCADE) la borraba.
+  const ids = row.archived === 1 ? await collectArchivedSubtree(ownerId, pageId) : await collectDescendants(ownerId, pageId);
   const placeholders = ids.map(() => '?').join(',');
   await getDb()
     .prepare(`DELETE FROM docs_pages WHERE id IN (${placeholders})`)

@@ -22,6 +22,7 @@ interface Props {
 /** Reglas por país/dispositivo, A/B con pesos y deep links de un link. */
 export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
   const t = useTranslations('link.targeting');
+  const te = useTranslations('link.errors');
   const router = useRouter();
   const [rules, setRules] = useState<RuleDraft[]>(
     (initial?.rules ?? []).map((r) => ({ countries: r.countries.join(', '), devices: r.devices, url: r.url })),
@@ -52,17 +53,39 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
     };
   }
 
+  /** Una regla con países o dispositivos (o una variante) sin URL no se descarta en silencio. */
+  function hasIncompleteRows() {
+    return (
+      rules.some((r) => !r.url.trim() && (r.countries.trim() || r.devices.length > 0)) ||
+      ab.some((v) => !v.url.trim())
+    );
+  }
+
   async function save(targeting: ReturnType<typeof payload> | null) {
     setError(null);
+    if (targeting && hasIncompleteRows()) {
+      setError(t('incompleteRow'));
+      return;
+    }
+    if (targeting?.rules.some((r) => r.countries.some((c) => !/^[A-Z]{2}$/.test(c)))) {
+      setError(t('countriesInvalid'));
+      return;
+    }
     setState('saving');
     const res = await fetch(`/api/links/${linkId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ targeting }),
-    });
+    }).catch(() => null);
+    if (!res) {
+      setError(te('generic'));
+      setState('idle');
+      return;
+    }
     if (!res.ok) {
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
-      setError(t('error', { code: data?.error ?? res.status }));
+      const code = data?.error;
+      setError(code && te.has(code) ? te(code) : t('error', { code: code ?? res.status }));
       setState('idle');
       return;
     }
@@ -71,6 +94,7 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
   }
 
   function clearAll() {
+    if (!window.confirm(t('clearConfirm'))) return;
     setRules([]);
     setAb([]);
     setIosApp('');
@@ -89,6 +113,7 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
       <div className="tg-block">
         <p className="section-label">{t('rules')}</p>
         <p className="field-hint">{t('rulesHint')}</p>
+        <p className="field-hint">{t('ipadNote')}</p>
         {rules.map((r, i) => (
           <div className="tg-row" key={i} data-testid="tg-rule">
             <input

@@ -86,7 +86,7 @@
     "condOp": "Operador",
     "condRight": "Comparar con",
     "canvasHint": "Agregá nodos desde la izquierda. Conectalos arrastrando desde una salida hasta el nodo siguiente.",
-    "templateHelp": "Usá '{{trigger.x}}' para los datos del disparador y '{{nodes.<id>.output.x}}' para la salida de un nodo anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length.",
+    "templateHelp": "Usá '{{trigger.x}}' para los datos del disparador y '{{nodes.<id>.output.x}}' para la salida de un nodo anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode.",
     "everySummary": "Cada {n} {unit}",
     "dailySummary": "Todos los días a las {time} ({tz})",
     "conditionsCount": "{n, plural, one {# condición} other {# condiciones}}",
@@ -108,6 +108,8 @@
     "codeUnavailable": "El código corre en un Vercel Sandbox aislado. No está disponible en este servidor: configurá FLOW_CODE_RUNNER=sandbox con credenciales de Vercel para activarlo. Mientras tanto el nodo falla con code_unavailable.",
     "mergeHint": "Espera a que corran todos los nodos conectados y después corre una sola vez. Usá la clave '...' para copiar todos los campos de un objeto.",
     "scheduleGranularity": "En la nube de zerosoft el programador revisa una vez por hora, así que una corrida puede arrancar hasta una hora tarde. Con self-host sigue tu cron de /api/cron/tick.",
+    "delayGranularity": "Esperar retoma la corrida en la próxima pasada del programador. En la nube de zerosoft revisa una vez por hora, así que una espera corta (segundos o minutos) puede durar hasta una hora. Con self-host sigue tu cron de /api/cron/tick.",
+    "retryGranularity": "Cada reintento se retoma en la próxima pasada del programador (una vez por hora en la nube de zerosoft), no a los pocos segundos.",
     "stripeHint": "Guardá el flow, copiá la URL del webhook en Stripe (Developers → Webhooks) y guardá su signing secret en la credencial. Los pedidos sin firma se rechazan.",
     "allEvents": "Todos los eventos"
   },
@@ -150,7 +152,7 @@
     "trigger_stripe": { "title": "Evento de Stripe", "desc": "Corre cuando Stripe manda un evento a la URL de este flow. La firma se verifica con el webhook secret de la credencial." },
     "logic_run_flow": {
       "title": "Ejecutar flow",
-      "desc": "Corre otro flow con estas entradas y lo espera. Las salidas de sus nodos quedan en '{{nodes.<id>.output.outputs}}'.",
+      "desc": "Corre otro flow con estas entradas y lo espera. Ese flow no puede usar Esperar ni reintentos: si queda en espera, el paso falla con subflow_waiting. Las salidas de sus nodos quedan en '{{nodes.<id>.output.outputs}}'.",
       "fields": { "inputs": "Entradas ('{{trigger.x}}' en el otro flow)", "failOnErrorHint": "Fallar si el otro flow falla" }
     },
     "data_merge": {
@@ -374,7 +376,9 @@
     "rerunOf": "Re-ejecución de {id}. Los pasos anteriores reusan su salida.",
     "rerunFrom": "Re-ejecutar desde acá",
     "rerunHint": "Los pasos anteriores reusan la salida de esta corrida. Usa el flow guardado.",
-    "rerunDirty": "Tenés cambios sin guardar. La re-ejecución usa la última versión guardada. ¿Seguir?"
+    "rerunDirty": "Tenés cambios sin guardar. La re-ejecución usa la última versión guardada. ¿Seguir?",
+    "cancel": "Cancelar ejecución",
+    "cancelConfirm": "¿Cancelar esta ejecución? Los pasos pendientes (esperas y reintentos) no van a correr."
   },
   "stepStatus": {
     "running": "Ejecutando",
@@ -409,7 +413,8 @@
     "run_active": "Esta corrida todavía está en curso.",
     "node_not_found": "Ese nodo ya no está en el flow.",
     "node_is_trigger": "Re-ejecutá desde un paso posterior al trigger.",
-    "node_in_loop": "Los pasos dentro de un Loop no se re-ejecutan solos. Re-ejecutá desde el Loop."
+    "node_in_loop": "Los pasos dentro de un Loop no se re-ejecutan solos. Re-ejecutá desde el Loop.",
+    "run_not_cancellable": "La ejecución ya está corriendo o terminó: no se puede cancelar."
   },
   "onError": {
     "stop": "Detener el flow",

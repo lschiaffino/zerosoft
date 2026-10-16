@@ -123,7 +123,7 @@ export default function ProjectForm({ locale, labels }: ProjectFormProps) {
 
       <div className="track-form-row">
         <label htmlFor="color">{labels.color}</label>
-        <input id="color" type="text" value={color} onChange={(e) => setColor(e.target.value)} />
+        <input id="color" type="color" value={color} onChange={(e) => setColor(e.target.value)} />
       </div>
 
       <div className="track-form-actions">

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { canReadPage, getDocPageRow } from '@/lib/docs';
-import { listMembers } from '@/lib/teams';
+import { canReadPage, DOC_INTERNAL_WRITE, getDocPageRow, listPageMentionables } from '@/lib/docs';
 import { createDocsMentionNotification } from '@/lib/notifications';
 import { docMentionCreateSchema } from '@/lib/docs-schema';
 import { invalidBody, notFound, unauthorized } from '@/lib/docs-http';
@@ -17,7 +16,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const page = await getDocPageRow(params.id);
   if (!page) return notFound();
-  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }))) {
+  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }, DOC_INTERNAL_WRITE))) {
     return notFound();
   }
 
@@ -25,11 +24,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = docMentionCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  // El mencionado tiene que ser miembro del workspace activo.
-  const memberIds = user.team
-    ? (await listMembers(user.team.id)).map((m) => m.user_id)
-    : [user.id];
-  if (!memberIds.includes(parsed.data.user_id)) return notFound();
+  // El mencionado tiene que ser del workspace de la página (no del team
+  // activo de quien escribe): así siempre la puede abrir.
+  const mentionables = await listPageMentionables(page);
+  if (!mentionables.some((m) => m.id === parsed.data.user_id)) return notFound();
 
   const actorUser = user.actingUser ?? user;
   await createDocsMentionNotification({

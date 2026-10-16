@@ -86,7 +86,7 @@
     "condOp": "Operador",
     "condRight": "Comparar com",
     "canvasHint": "Adicione nós pela esquerda. Conecte-os arrastando de uma saída até o próximo nó.",
-    "templateHelp": "Use '{{trigger.x}}' para os dados do gatilho e '{{nodes.<id>.output.x}}' para a saída de um nó anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length.",
+    "templateHelp": "Use '{{trigger.x}}' para os dados do gatilho e '{{nodes.<id>.output.x}}' para a saída de um nó anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode.",
     "everySummary": "A cada {n} {unit}",
     "dailySummary": "Todo dia às {time} ({tz})",
     "conditionsCount": "{n, plural, one {# condição} other {# condições}}",
@@ -108,6 +108,8 @@
     "codeUnavailable": "O código roda em um Vercel Sandbox isolado. Não está disponível neste servidor: configure FLOW_CODE_RUNNER=sandbox com credenciais da Vercel para ativar. Enquanto isso o nó falha com code_unavailable.",
     "mergeHint": "Espera todos os nós conectados rodarem e depois roda uma vez só. Use a chave '...' para copiar todos os campos de um objeto.",
     "scheduleGranularity": "Na nuvem da zerosoft o agendador verifica uma vez por hora, então uma execução pode começar até uma hora depois. Em self-host segue o seu cron de /api/cron/tick.",
+    "delayGranularity": "Aguardar retoma a execução na próxima passada do agendador. Na nuvem da zerosoft ele verifica uma vez por hora, então uma espera curta (segundos ou minutos) pode durar até uma hora. Em self-host segue o seu cron de /api/cron/tick.",
+    "retryGranularity": "Cada nova tentativa é retomada na próxima passada do agendador (uma vez por hora na nuvem da zerosoft), não poucos segundos depois.",
     "stripeHint": "Salve o flow, copie a URL do webhook no Stripe (Developers → Webhooks) e salve o signing secret na credencial. Pedidos sem assinatura são recusados.",
     "allEvents": "Todos os eventos"
   },
@@ -150,7 +152,7 @@
     "trigger_stripe": { "title": "Evento do Stripe", "desc": "Roda quando o Stripe envia um evento para a URL deste flow. A assinatura é verificada com o webhook secret da credencial." },
     "logic_run_flow": {
       "title": "Executar flow",
-      "desc": "Roda outro flow com estas entradas e espera. As saídas dos nós dele ficam em '{{nodes.<id>.output.outputs}}'.",
+      "desc": "Roda outro flow com estas entradas e espera. Esse flow não pode usar Aguardar nem novas tentativas: se ficar em espera, o passo falha com subflow_waiting. As saídas dos nós dele ficam em '{{nodes.<id>.output.outputs}}'.",
       "fields": { "inputs": "Entradas ('{{trigger.x}}' no outro flow)", "failOnErrorHint": "Falhar se o outro flow falhar" }
     },
     "data_merge": {
@@ -374,7 +376,9 @@
     "rerunOf": "Reexecução de {id}. Os passos anteriores reutilizam a saída.",
     "rerunFrom": "Reexecutar daqui",
     "rerunHint": "Os passos anteriores reutilizam a saída desta execução. Usa o flow salvo.",
-    "rerunDirty": "Você tem alterações não salvas. A reexecução usa a última versão salva. Continuar?"
+    "rerunDirty": "Você tem alterações não salvas. A reexecução usa a última versão salva. Continuar?",
+    "cancel": "Cancelar execução",
+    "cancelConfirm": "Cancelar esta execução? Os passos pendentes (esperas e novas tentativas) não vão rodar."
   },
   "stepStatus": {
     "running": "Executando",
@@ -409,7 +413,8 @@
     "run_active": "Esta execução ainda está em andamento.",
     "node_not_found": "Esse nó não está mais no flow.",
     "node_is_trigger": "Reexecute a partir de um passo depois do trigger.",
-    "node_in_loop": "Passos dentro de um Loop não são reexecutados sozinhos. Reexecute a partir do Loop."
+    "node_in_loop": "Passos dentro de um Loop não são reexecutados sozinhos. Reexecute a partir do Loop.",
+    "run_not_cancellable": "A execução já está rodando ou terminou: não dá para cancelar."
   },
   "onError": {
     "stop": "Parar o flow",

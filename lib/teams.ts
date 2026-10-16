@@ -131,7 +131,26 @@ export async function removeMember(teamId: string, userId: string): Promise<void
     await getDb()
       .prepare('UPDATE api_keys SET revoked = 1 WHERE user_id = ? AND created_by = ?')
       .run(team.owner_id, userId);
+    // Deja de ser host de los tipos de evento del workspace (no recibe más
+    // reservas ni expone su disponibilidad).
+    await getDb()
+      .prepare(
+        `DELETE FROM calendar_event_hosts WHERE user_id = ? AND event_type_id IN (
+           SELECT id FROM calendar_event_types WHERE user_id = ?)`,
+      )
+      .run(userId, team.owner_id);
+    // Sus reservas por venir pasan a otro host (o al owner), con aviso.
+    const { reassignRemovedHostBookings } = await import('./calendar-lifecycle');
+    await reassignRemovedHostBookings(team.owner_id, userId);
   }
+  // Sus conversaciones de Chat del team quedan sin asignar: no le llegan más
+  // los mensajes de los visitantes y las reglas las vuelven a repartir.
+  await getDb()
+    .prepare(
+      `UPDATE chat_conversations SET assigned_to = NULL
+       WHERE assigned_to = ? AND widget_id IN (SELECT id FROM chat_widgets WHERE team_id = ?)`,
+    )
+    .run(userId, teamId);
   // Si el usuario tenía este team como activo, vuelve a su workspace personal.
   await getDb()
     .prepare('UPDATE users SET active_team_id = NULL WHERE id = ? AND active_team_id = ?')

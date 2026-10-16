@@ -1,27 +1,40 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { routing } from '@/i18n/routing';
 import {
   createDocPage,
-  deleteDocPage,
   moveDocPage,
   moveDocPageStep,
   reorderDocPage,
-  updateDocPage,
   type DocDropPlacement,
 } from './docs';
 import { getDocTemplate } from './docs-templates';
+import { getCurrentUser } from './session';
 
-export async function createDocPageAction(ownerId: string, locale: string, parentId?: string | null) {
-  const page = await createDocPage(ownerId, { parent_id: parentId ?? null });
-  redirect(`/${locale}/app/docs/${page.id}`);
+/**
+ * Las server actions son endpoints públicos: cualquiera puede invocarlas con
+ * los argumentos que quiera (los de un `.bind` viajan en claro desde el
+ * cliente). Por eso el dueño SIEMPRE sale de la sesión, nunca de un argumento.
+ */
+async function sessionOwnerId(): Promise<string> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('unauthorized');
+  return user.id;
 }
 
-export async function createDocPageFromTemplateAction(
-  ownerId: string,
-  locale: string,
-  templateKey: string,
-) {
+function safeLocale(locale: string): string {
+  return (routing.locales as readonly string[]).includes(locale) ? locale : routing.defaultLocale;
+}
+
+export async function createDocPageAction(locale: string, parentId?: string | null) {
+  const ownerId = await sessionOwnerId();
+  const page = await createDocPage(ownerId, { parent_id: parentId ?? null });
+  redirect(`/${safeLocale(locale)}/app/docs/${page.id}`);
+}
+
+export async function createDocPageFromTemplateAction(locale: string, templateKey: string) {
+  const ownerId = await sessionOwnerId();
   const tpl = getDocTemplate(locale, templateKey);
   const page = await createDocPage(
     ownerId,
@@ -29,32 +42,26 @@ export async function createDocPageFromTemplateAction(
       ? { title: tpl.title, icon: tpl.icon, content: tpl.makeBlocks() }
       : { title: '' },
   );
-  redirect(`/${locale}/app/docs/${page.id}`);
+  redirect(`/${safeLocale(locale)}/app/docs/${page.id}`);
 }
 
-export async function moveDocPageAction(ownerId: string, pageId: string, parentId: string | null) {
+export async function moveDocPageAction(pageId: string, parentId: string | null) {
+  const ownerId = await sessionOwnerId();
   await moveDocPage(ownerId, pageId, parentId);
 }
 
 export async function reorderDocPageAction(
-  ownerId: string,
   pageId: string,
   targetId: string,
   placement: DocDropPlacement,
 ) {
   if (placement !== 'before' && placement !== 'after') return;
+  const ownerId = await sessionOwnerId();
   await reorderDocPage(ownerId, pageId, targetId, placement);
 }
 
-export async function moveDocPageStepAction(ownerId: string, pageId: string, dir: -1 | 1) {
+export async function moveDocPageStepAction(pageId: string, dir: -1 | 1) {
   if (dir !== -1 && dir !== 1) return;
+  const ownerId = await sessionOwnerId();
   await moveDocPageStep(ownerId, pageId, dir);
-}
-
-export async function restoreDocPageAction(ownerId: string, pageId: string) {
-  await updateDocPage(ownerId, pageId, { archived: false });
-}
-
-export async function deleteDocPageForeverAction(ownerId: string, pageId: string) {
-  await deleteDocPage(ownerId, pageId);
 }

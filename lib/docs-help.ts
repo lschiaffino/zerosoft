@@ -40,6 +40,8 @@ export interface HelpArticle extends HelpArticleSummary {
 }
 
 type PublishedRow = Pick<DocsPageRow, 'id' | 'parent_id' | 'title' | 'icon' | 'content' | 'slug' | 'updated_at'>;
+/** Fila del árbol sin content: alcanza para ubicar un artículo y su anterior/siguiente. */
+type PublishedTreeRow = Omit<PublishedRow, 'content'> & { content?: string };
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
@@ -72,6 +74,16 @@ async function publishedRows(ownerId: string): Promise<PublishedRow[]> {
        ORDER BY (position IS NULL) ASC, position ASC, created_at ASC`,
     )
     .all(ownerId)) as PublishedRow[];
+}
+
+async function publishedTreeRows(ownerId: string): Promise<PublishedTreeRow[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT id, parent_id, title, icon, slug, updated_at FROM docs_pages
+       WHERE user_id = ? AND published = 1 AND archived = 0 AND slug IS NOT NULL
+       ORDER BY (position IS NULL) ASC, position ASC, created_at ASC`,
+    )
+    .all(ownerId)) as PublishedTreeRow[];
 }
 
 /** Texto plano de una página (sin tags ni entidades), para excerpts y búsqueda. */
@@ -109,21 +121,22 @@ export function pageExcerpt(content: string, max = 160): string {
   return `${(at > max * 0.6 ? cut.slice(0, at) : cut).replace(/[\s,.;:]+$/, '')}…`;
 }
 
-function summary(row: PublishedRow): HelpArticleSummary {
+function summary(row: PublishedTreeRow): HelpArticleSummary {
   return {
     id: row.id,
     slug: row.slug as string,
     title: row.title,
     icon: row.icon,
-    excerpt: pageExcerpt(row.content),
+    // Sin content (árbol liviano) no hay excerpt: no se parsea cada página.
+    excerpt: row.content != null ? pageExcerpt(row.content) : '',
     updated_at: row.updated_at,
   };
 }
 
 /** Árbol de colecciones (solo páginas publicadas). */
-export function buildHelpCollections(rows: PublishedRow[]): HelpCollection[] {
+export function buildHelpCollections(rows: PublishedTreeRow[]): HelpCollection[] {
   const ids = new Set(rows.map((r) => r.id));
-  const children = new Map<string, PublishedRow[]>();
+  const children = new Map<string, PublishedTreeRow[]>();
   for (const r of rows) {
     if (r.parent_id && ids.has(r.parent_id)) {
       const list = children.get(r.parent_id) ?? [];
@@ -131,8 +144,8 @@ export function buildHelpCollections(rows: PublishedRow[]): HelpCollection[] {
       children.set(r.parent_id, list);
     }
   }
-  const descendants = (id: string, seen = new Set<string>()): PublishedRow[] => {
-    const out: PublishedRow[] = [];
+  const descendants = (id: string, seen = new Set<string>()): PublishedTreeRow[] => {
+    const out: PublishedTreeRow[] = [];
     for (const c of children.get(id) ?? []) {
       if (seen.has(c.id)) continue;
       seen.add(c.id);
@@ -145,15 +158,41 @@ export function buildHelpCollections(rows: PublishedRow[]): HelpCollection[] {
     .map((root) => ({ ...summary(root), articles: descendants(root.id).map(summary) }));
 }
 
+/**
+ * Completa el excerpt de estos resúmenes leyendo el content solo de ellos (el
+ * árbol viene sin content: no se lee ni parsea cada página publicada).
+ */
+export async function withHelpExcerpts<T extends HelpArticleSummary>(ownerId: string, items: T[]): Promise<T[]> {
+  if (items.length === 0) return items;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, content FROM docs_pages WHERE user_id = ? AND id IN (${items.map(() => '?').join(', ')})`,
+    )
+    .all(ownerId, ...items.map((i) => i.id))) as Array<{ id: string; content: string }>;
+  const byId = new Map(rows.map((r) => [r.id, r.content]));
+  return items.map((i) => {
+    const content = byId.get(i.id);
+    return content != null ? { ...i, excerpt: pageExcerpt(content) } : i;
+  });
+}
+
+/** Colecciones con su excerpt; los artículos van sin excerpt (la home muestra solo el título). */
 export async function listHelpCollections(ownerId: string): Promise<HelpCollection[]> {
-  return buildHelpCollections(await publishedRows(ownerId));
+  return withHelpExcerpts(ownerId, buildHelpCollections(await publishedTreeRows(ownerId)));
 }
 
 /** Artículo publicado por slug, con su colección y anterior/siguiente. */
 export async function getHelpArticle(ownerId: string, slug: string): Promise<HelpArticle | null> {
-  const rows = await publishedRows(ownerId);
-  const row = rows.find((r) => r.slug === slug);
-  if (!row) return null;
+  // El árbol va sin content (antes se leían y parseaban todas las páginas
+  // publicadas); el content se lee solo para el artículo pedido.
+  const rows = await publishedTreeRows(ownerId);
+  const treeRow = rows.find((r) => r.slug === slug);
+  if (!treeRow) return null;
+  const content = (await getDb()
+    .prepare('SELECT content FROM docs_pages WHERE id = ? AND user_id = ?')
+    .get(treeRow.id, ownerId)) as { content: string } | undefined;
+  if (!content) return null;
+  const row: PublishedRow = { ...treeRow, content: content.content };
   const collections = buildHelpCollections(rows);
   // Orden de lectura: colección y sus artículos, una colección tras otra.
   const order: Array<{ item: HelpArticleSummary; collection: HelpArticleSummary }> = [];
@@ -217,15 +256,22 @@ export async function searchHelpArticles(ownerId: string, query: string, k = 5):
   return out;
 }
 
-/** Feedback "¿Te sirvió?" (público). Solo cuenta para páginas publicadas. */
-export async function recordHelpFeedback(pageId: string, helpful: boolean): Promise<boolean> {
+/**
+ * Feedback "¿Te sirvió?" (público). Solo cuenta para páginas publicadas. Con
+ * `voter` (id anónimo del navegador) hay un voto por visitante y página: votar
+ * de nuevo cambia el voto en vez de sumar otro.
+ */
+export async function recordHelpFeedback(pageId: string, helpful: boolean, voter?: string | null): Promise<boolean> {
   const page = (await getDb()
     .prepare('SELECT id, user_id FROM docs_pages WHERE id = ? AND published = 1 AND archived = 0')
     .get(pageId)) as { id: string; user_id: string } | undefined;
   if (!page) return false;
   await getDb()
-    .prepare('INSERT INTO docs_feedback (id, page_id, user_id, helpful) VALUES (?, ?, ?, ?)')
-    .run(crypto.randomUUID(), page.id, page.user_id, helpful ? 1 : 0);
+    .prepare(
+      `INSERT INTO docs_feedback (id, page_id, user_id, helpful, voter) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (page_id, voter) WHERE voter IS NOT NULL DO UPDATE SET helpful = excluded.helpful`,
+    )
+    .run(crypto.randomUUID(), page.id, page.user_id, helpful ? 1 : 0, voter || null);
   return true;
 }
 

@@ -1,5 +1,4 @@
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
 import ZeroField from '@/components/ZeroField';
 
 export const dynamic = 'force-dynamic';
@@ -31,9 +30,12 @@ export default async function GonePage(props: GonePageProps) {
       <p className="notfound-code">0</p>
       <h1 className="gone-title">{t(`gone.${reason}Title`)}</h1>
       <p className="notfound-msg">{t(`gone.${reason}Sub`)}</p>
-      <Link href="/" className="btn btn-ghost">
+      {/* <a> plano: en un dominio propio "/<locale>" no existe (404), y "/" ya
+          lleva a la raíz configurada del dominio o, en la app, al inicio. */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+      <a href="/" className="btn btn-ghost">
         {t('gone.home')}
-      </Link>
+      </a>
     </main>
   );
 }

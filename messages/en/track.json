@@ -91,7 +91,9 @@
       "cycle": "Cycle",
       "estimate": "Estimate (points)",
       "dueDate": "Due date",
-      "labels": "Labels"
+      "labels": "Labels",
+      "removeLabel": "Remove label",
+      "labelsPlaceholder": "Type and press Enter"
     },
     "dueDate": "Due date",
     "labels": "Labels",
@@ -100,7 +102,8 @@
       "addComment": "Add comment",
       "noComments": "No comments yet.",
       "properties": "Properties"
-    }
+    },
+    "changeStatus": "Change status"
   },
   "subtasks": {
     "title": "Subtasks",
@@ -114,7 +117,10 @@
     "drop": "Drop a file here",
     "empty": "No attachments yet.",
     "delete": "Delete",
-    "size": "Size"
+    "size": "Size",
+    "tooLarge": "The file is larger than 10 MB.",
+    "typeNotAllowed": "This file type isn’t allowed.",
+    "uploadError": "Couldn’t upload the file. Try again."
   },
   "activity": {
     "title": "Activity",
@@ -153,7 +159,11 @@
     "duplicatedBy": "duplicated by",
     "empty": "No relations yet.",
     "selectIssue": "Issue ID or identifier",
-    "selectType": "Type"
+    "selectType": "Type",
+    "notFound": "No issue found with that ID or identifier.",
+    "duplicate": "These issues are already related.",
+    "self": "An issue can’t be related to itself.",
+    "error": "Couldn’t add the relation. Try again."
   },
   "actions": {
     "close": "Close issue",
@@ -211,7 +221,9 @@
     "labels": "Labels",
     "dueDate": "Due date",
     "search": "Search issues…",
-    "clear": "Clear"
+    "clear": "Clear",
+    "dueFrom": "From",
+    "dueTo": "To"
   },
   "savedViews": {
     "title": "Saved views",
@@ -318,6 +330,7 @@
     "moveDown": "Move down",
     "delete": "Delete",
     "reassignTo": "Move its issues to",
+    "adminOnly": "Only an admin can delete statuses.",
     "confirmDelete": "Delete status",
     "newPlaceholder": "New status",
     "add": "Add"
@@ -335,12 +348,12 @@
     "color": "Color",
     "delete": "Delete",
     "confirmDelete": "Delete label",
-    "deleteHelp": "It will be removed from {count} issues.",
-    "issues": "{count} issues",
+    "deleteHelp": "It will be removed from {count, plural, one {# issue} other {# issues}}.",
+    "issues": "{count, plural, one {# issue} other {# issues}}",
     "duplicate": "A label with that name already exists.",
     "empty": "No labels yet.",
     "error": "Could not save the label.",
-    "adminOnly": "Only an admin can delete labels."
+    "adminOnly": "Only an admin can edit or delete labels."
   },
   "github": {
     "title": "GitHub",
@@ -380,7 +393,10 @@
       "closed": "closed",
       "merged": "merged",
       "pushed": "pushed"
-    }
+    },
+    "regenerateConfirm": "Generate a new secret? The current one stops working right away: GitHub deliveries will fail until you paste the new secret in the webhook.",
+    "disconnectConfirm": "Disconnect GitHub? PRs and commits will no longer be linked to issues.",
+    "moveHelp": "Only issues in the branch, in the title or after fixes, closes or resolves in the description change status."
   },
   "bulk": {
     "selected": "{count} selected",
@@ -408,6 +424,8 @@
     "title": "Triage",
     "enable": "Triage for external issues",
     "enableHelp": "Issues created through the API, Chat, Flow or GitHub wait here until someone accepts them.",
+    "toggleError": "Could not change triage.",
+    "adminOnly": "Only an admin can turn triage on or off.",
     "empty": "No issues waiting for triage.",
     "accept": "Accept",
     "acceptAs": "Accept as",
@@ -415,9 +433,11 @@
     "duplicate": "Duplicate",
     "duplicateOf": "Duplicate of",
     "duplicatePlaceholder": "Original ID, e.g. ZER-12",
-    "duplicateNotFound": "That issue is not in this project.",
+    "duplicateNotFound": "That issue is not in this workspace.",
     "from": "From {source}",
     "error": "Could not resolve the issue.",
+    "alreadyResolved": "Someone else already resolved this issue.",
+    "banner": "This issue is in triage: it won’t show up in lists or My tasks until someone accepts it.",
     "sources": {
       "api": "API",
       "chat": "Chat",

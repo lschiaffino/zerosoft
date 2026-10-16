@@ -15,22 +15,30 @@ interface TriagePanelProps {
   onResolved: () => void;
 }
 
-async function resolve(issueId: string, body: Record<string, unknown>): Promise<boolean> {
+async function resolve(issueId: string, body: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
   const res = await fetch(`/api/track/issues/${issueId}/triage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   }).catch(() => null);
-  return Boolean(res?.ok);
+  if (res?.ok) return { ok: true };
+  const data = res ? ((await res.json().catch(() => ({}))) as { error?: string }) : {};
+  return { ok: false, error: data.error };
 }
 
-function TriageRow({
+/**
+ * Aceptar / rechazar / duplicado de un issue en triage. Se usa en la cola y en
+ * el banner del detalle.
+ */
+export function TriageActions({
   issue,
-  projectId,
   statuses,
-  locale,
   onResolved,
-}: { issue: TrackIssueWithStatus } & Omit<TriagePanelProps, 'issues'>) {
+}: {
+  issue: Pick<TrackIssueWithStatus, 'id'>;
+  statuses: TrackStatusRow[];
+  onResolved: () => void;
+}) {
   const t = useTranslations('track');
   const defaultStatus = statuses.find((s) => s.category === 'todo') ?? statuses[0];
   const [statusId, setStatusId] = useState(defaultStatus?.id ?? '');
@@ -38,40 +46,30 @@ function TriageRow({
   const [dupOf, setDupOf] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const source = issue.source && issue.source !== 'app' ? issue.source : 'api';
 
   const act = async (body: Record<string, unknown>) => {
     setBusy(true);
     setError(null);
-    const ok = await resolve(issue.id, body);
+    const res = await resolve(issue.id, body);
     setBusy(false);
-    if (!ok) setError(t('triage.error'));
-    else onResolved();
+    if (res.ok) onResolved();
+    else if (body.action === 'duplicate' && res.error === 'invalid_duplicate') setError(t('triage.duplicateNotFound'));
+    else if (res.error === 'not_in_triage') {
+      // Otra persona lo resolvió antes: avisar y recargar la cola.
+      setError(t('triage.alreadyResolved'));
+      onResolved();
+    } else setError(t('triage.error'));
   };
 
   const markDuplicate = async () => {
     const ident = dupOf.trim().toUpperCase();
     if (!ident) return;
-    const res = await fetch(`/api/track/projects/${projectId}/issues?q=${encodeURIComponent(ident)}&pageSize=20`).catch(() => null);
-    const data = res?.ok ? ((await res.json()) as { rows: TrackIssueWithStatus[] }) : { rows: [] };
-    const original = data.rows.find((r) => r.identifier.toUpperCase() === ident);
-    if (!original) {
-      setError(t('triage.duplicateNotFound'));
-      return;
-    }
-    await act({ action: 'duplicate', duplicateOfId: original.id });
+    // El servidor busca el identifier exacto en todo el workspace.
+    await act({ action: 'duplicate', duplicateOfIdentifier: ident });
   };
 
   return (
-    <li className="track-triage-item" data-testid="track-triage-item">
-      <div className="track-triage-main">
-        <Link href={`/app/track/issues/${issue.id}`} className="track-triage-title">
-          <span className="track-identifier">{issue.identifier}</span> {issue.title || '—'}
-        </Link>
-        <span className="muted mono track-triage-meta">
-          {t('triage.from', { source: t(`triage.sources.${source}`) })} · {relDate(issue.created_at, locale)}
-        </span>
-      </div>
+    <>
       <div className="track-triage-actions">
         <select value={statusId} onChange={(e) => setStatusId(e.target.value)} aria-label={t('triage.acceptAs')} disabled={busy}>
           {statuses
@@ -126,7 +124,52 @@ function TriageRow({
           {error}
         </p>
       )}
+    </>
+  );
+}
+
+function TriageRow({
+  issue,
+  statuses,
+  locale,
+  onResolved,
+}: { issue: TrackIssueWithStatus } & Omit<TriagePanelProps, 'issues' | 'projectId'>) {
+  const t = useTranslations('track');
+  const source = issue.source && issue.source !== 'app' ? issue.source : 'api';
+
+  return (
+    <li className="track-triage-item" data-testid="track-triage-item">
+      <div className="track-triage-main">
+        <Link href={`/app/track/issues/${issue.id}`} className="track-triage-title">
+          <span className="track-identifier">{issue.identifier}</span> {issue.title || '—'}
+        </Link>
+        <span className="muted mono track-triage-meta">
+          {t('triage.from', { source: t(`triage.sources.${source}`) })} · {relDate(issue.created_at, locale)}
+        </span>
+      </div>
+      <TriageActions issue={issue} statuses={statuses} onResolved={onResolved} />
     </li>
+  );
+}
+
+/** Aviso en el detalle de un issue que sigue en triage, con las mismas acciones. */
+export function TriageBanner({
+  issue,
+  statuses,
+  onResolved,
+}: {
+  issue: Pick<TrackIssueWithStatus, 'id'>;
+  statuses: TrackStatusRow[];
+  onResolved: () => void;
+}) {
+  const t = useTranslations('track');
+  return (
+    <div className="track-triage-item track-triage-banner" role="status" data-testid="track-triage-banner">
+      <div className="track-triage-main">
+        <span>{t('triage.banner')}</span>
+      </div>
+      <TriageActions issue={issue} statuses={statuses} onResolved={onResolved} />
+    </div>
   );
 }
 

@@ -127,6 +127,27 @@ describe('reservas: acciones del anfitrión', () => {
     expect((await bookingRoute.PATCH(req('http://x', 'PATCH', { status: 'cancelled' }), ctx(pending.id))).status).toBe(200);
   });
 
+  it('una cancelada no vuelve a confirmada; un no-show vuelve solo si el horario sigue libre', async () => {
+    const { u, et, ana, bruno, pastId } = await setup('adm5');
+    session.user = u;
+    const patch = (id: string, status: string) => bookingRoute.PATCH(req('http://x', 'PATCH', { status }), ctx(id));
+    expect((await patch(ana.id, 'cancelled')).status).toBe(200);
+    expect((await patch(ana.id, 'confirmed')).status).toBe(409);
+    expect((await patch(ana.id, 'no_show')).status).toBe(409);
+    expect((await row(ana.id)).status).toBe('cancelled');
+
+    expect((await patch(pastId, 'no_show')).status).toBe(200);
+    expect((await patch(pastId, 'confirmed')).status).toBe(200);
+
+    // No-show de bruno y otra reserva toma su horario: ya no se puede deshacer.
+    // (Una reserva futura no se puede marcar no-show por la API: se fuerza el estado.)
+    expect((await patch(bruno.id, 'no_show')).status).toBe(409);
+    await getDb().prepare("UPDATE calendar_bookings SET status = 'no_show' WHERE id = ?").run(bruno.id);
+    await createBooking({ eventTypeId: et.id, email: 'z@x.com', name: 'Z', start: bruno.starts_at });
+    expect((await patch(bruno.id, 'confirmed')).status).toBe(409);
+    expect((await row(bruno.id)).status).toBe('no_show');
+  });
+
   it('reprogramar: solo horarios ofrecidos, avisa al invitado con .ics y no al anfitrión', async () => {
     const { u, ana, day } = await setup('adm4');
     const other = await makeUser('adm4b');

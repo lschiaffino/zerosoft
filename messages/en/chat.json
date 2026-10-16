@@ -163,6 +163,7 @@
     "matchType": "Match type",
     "keyword": "Keyword",
     "timeRange": "Time range",
+    "timeZoneHint": "Evaluated in {zone} (the widget's office-hours time zone).",
     "keywordPlaceholder": "refund, pricing…",
     "sub": "Rules run top to bottom: the first one that matches assigns the new conversation.",
     "emptySub": "Route conversations by keyword or time of day, or spread them round-robin across your team.",
@@ -266,8 +267,12 @@
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
+    "fileTooLarge": "File too large (max 10 MB).",
+    "fileTypeNotAllowed": "This file type isn't allowed.",
+    "messageTooLong": "Message too long (max 5,000 characters).",
     "invalid_input": "Some fields are invalid. Check them and try again.",
-    "missing_name": "Name is required."
+    "missing_name": "Name is required.",
+    "invalid_assignee": "That person can't be assigned to this conversation."
   },
   "quick": {
     "create": "Create",
@@ -314,6 +319,7 @@
   },
   "macros": {
     "applied": "Macro {shortcut} applied",
+    "pending": "Macro {shortcut}: applied when you send",
     "title": "Actions when using this reply (macro)",
     "status": "Status",
     "assign": "Assign to",

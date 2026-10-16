@@ -7,7 +7,7 @@ import TagsInput from './TagsInput';
 
 const SLUG_RE = /^[A-Za-z0-9_-]{2,32}$/;
 
-type SlugState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
+type SlugState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'reserved';
 
 function composeUrl(url: string, source: string, medium: string, campaign: string): string | null {
   const trimmed = url.trim();
@@ -76,7 +76,8 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
           `/api/links/check-slug?slug=${encodeURIComponent(value)}${domainId ? `&domainId=${encodeURIComponent(domainId)}` : ''}`,
         );
         const data = (await res.json()) as { available: boolean; valid: boolean };
-        setSlugState(data.valid && data.available ? 'available' : 'taken');
+        // El formato ya se validó acá: si el server dice inválido es una palabra reservada.
+        setSlugState(!data.valid ? 'reserved' : data.available ? 'available' : 'taken');
       } catch {
         setSlugState('idle');
       }
@@ -95,6 +96,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
     available: t('new.slugAvailable'),
     taken: t('new.slugTaken'),
     invalid: t('new.slugInvalid'),
+    reserved: t('new.slugReserved'),
   };
 
   async function onSubmit(e: React.FormEvent) {
@@ -187,6 +189,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
             className="input mono"
             type="text"
             value={slug}
+            maxLength={32}
             onChange={(e) => setSlug(e.target.value)}
             placeholder={t('new.slugPlaceholder')}
             autoComplete="off"
@@ -205,6 +208,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
           className="input"
           type="text"
           value={title}
+          maxLength={200}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t('new.titlePlaceholder')}
         />
@@ -222,6 +226,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
             className="input mono"
             type="text"
             value={utmSource}
+            maxLength={100}
             onChange={(e) => setUtmSource(e.target.value)}
             placeholder={t('new.utmSource')}
             aria-label={t('new.utmSource')}
@@ -230,6 +235,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
             className="input mono"
             type="text"
             value={utmMedium}
+            maxLength={100}
             onChange={(e) => setUtmMedium(e.target.value)}
             placeholder={t('new.utmMedium')}
             aria-label={t('new.utmMedium')}
@@ -238,6 +244,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
             className="input mono"
             type="text"
             value={utmCampaign}
+            maxLength={100}
             onChange={(e) => setUtmCampaign(e.target.value)}
             placeholder={t('new.utmCampaign')}
             aria-label={t('new.utmCampaign')}
@@ -305,6 +312,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
               className="input mono"
               type="password"
               value={password}
+              maxLength={100}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
             />
@@ -332,6 +340,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
               className="input"
               type="text"
               value={ogTitle}
+              maxLength={200}
               onChange={(e) => setOgTitle(e.target.value)}
               placeholder={t('new.ogTitlePlaceholder')}
             />
@@ -345,6 +354,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
               className="input"
               type="text"
               value={ogDescription}
+              maxLength={500}
               onChange={(e) => setOgDescription(e.target.value)}
               placeholder={t('new.ogDescriptionPlaceholder')}
             />
@@ -358,6 +368,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
               className="input mono"
               type="text"
               value={ogImage}
+              maxLength={500}
               onChange={(e) => setOgImage(e.target.value)}
               placeholder={t('new.ogImagePlaceholder')}
             />
@@ -370,7 +381,7 @@ export default function NewLinkForm({ domain, customDomains = [], initialUrl = '
       <button
         type="submit"
         className="btn btn-solid"
-        disabled={submitting || slugState === 'taken' || slugState === 'invalid'}
+        disabled={submitting || slugState === 'taken' || slugState === 'invalid' || slugState === 'reserved'}
       >
         {submitting ? t('new.creating') : t('new.create')}
       </button>

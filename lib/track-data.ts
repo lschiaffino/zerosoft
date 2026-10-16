@@ -4,7 +4,10 @@
  * Nota: el módulo `lib/track.ts` ya existe para el tracking de clicks de
  * links, por lo que este feature vive en `lib/track-data.ts`.
  */
+import { after } from 'next/server';
 import { getDb, getClient, txDb, getUserById } from './db';
+import { emitEvent } from './events';
+import { deleteUploads } from './uploads';
 import type {
   TrackCycleRow,
   TrackIssueActivityRow,
@@ -36,6 +39,7 @@ import type {
   StatusUpdatePayload,
   StatusesReorderPayload,
 } from './track-schema';
+import { safeHexColor } from './track-color';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
 
 // ---------- Tipos públicos ----------
@@ -161,16 +165,29 @@ function inClause(count: number): string {
 
 async function nextIdentifier(projectId: string): Promise<string> {
   const db = getDb();
-  const prefixRow = (await db
-    .prepare('SELECT slug FROM track_projects WHERE id = ?')
-    .get(projectId)) as { slug: string } | undefined;
-  const prefix = (prefixRow?.slug ?? 'project').toUpperCase();
+  const project = (await db
+    .prepare('SELECT slug, team_id, owner_id FROM track_projects WHERE id = ?')
+    .get(projectId)) as { slug: string; team_id: string | null; owner_id: string } | undefined;
+  const prefix = (project?.slug ?? 'project').toUpperCase();
+  const workspaceId = project?.team_id ?? project?.owner_id ?? '';
 
+  // El número sigue al máximo del prefijo en todo el workspace, no solo en el
+  // proyecto: si un slug se liberó (rename) y otro proyecto lo reusa, sus
+  // issues no repiten identificadores (GitHub y la búsqueda por identifier
+  // actúan a nivel workspace). El workspace se filtra sin COALESCE y el prefijo
+  // con un rango ('PREF-' <= x < 'PREF.'), para que sirvan los índices.
   const row = (await db
     .prepare(
-      "SELECT COALESCE(MAX(CAST(SUBSTR(identifier, ?) AS INTEGER)), 0) AS n FROM track_issues WHERE project_id = ? AND identifier LIKE ?",
+      `SELECT COALESCE(MAX(CAST(SUBSTR(i.identifier, ?) AS INTEGER)), 0) AS n
+       FROM track_projects p
+       JOIN track_issues i ON i.project_id = p.id
+       WHERE (p.team_id = ? OR (p.team_id IS NULL AND p.owner_id = ?))
+         AND i.identifier >= ? AND i.identifier < ?
+         AND SUBSTR(i.identifier, ?) NOT GLOB '*[^0-9]*'`,
     )
-    .get(prefix.length + 2, projectId, `${prefix}-%`)) as { n: number } | undefined;
+    .get(prefix.length + 2, workspaceId, workspaceId, `${prefix}-`, `${prefix}.`, prefix.length + 2)) as
+    | { n: number }
+    | undefined;
 
   return `${prefix}-${(row?.n ?? 0) + 1}`;
 }
@@ -281,7 +298,7 @@ export async function createProject(
       slug,
       payload.description?.trim() ?? '',
       payload.icon?.trim() ?? null,
-      payload.color?.trim() ?? '#000000',
+      safeHexColor(payload.color, '#000000'),
       'active',
       now,
       now,
@@ -337,7 +354,7 @@ export async function updateProject(
   }
   if (payload.color !== undefined) {
     fields.push('color = ?');
-    args.push(payload.color?.trim() ?? '#000000');
+    args.push(safeHexColor(payload.color, '#000000'));
   }
   if (payload.status !== undefined) {
     fields.push('status = ?');
@@ -359,7 +376,14 @@ export async function updateProject(
 }
 
 export async function deleteProject(id: string): Promise<boolean> {
-  const res = await getDb().prepare('DELETE FROM track_projects WHERE id = ?').run(id);
+  const db = getDb();
+  const files = (await db
+    .prepare(
+      'SELECT a.url FROM track_issue_attachments a JOIN track_issues i ON i.id = a.issue_id WHERE i.project_id = ?',
+    )
+    .all(id)) as Array<{ url: string }>;
+  const res = await db.prepare('DELETE FROM track_projects WHERE id = ?').run(id);
+  if (res.changes > 0) await deleteUploads(files.map((f) => f.url));
   return res.changes > 0;
 }
 
@@ -396,7 +420,7 @@ export async function createStatus(
       id,
       projectId,
       payload.name.trim(),
-      payload.color?.trim() ?? '#666666',
+      safeHexColor(payload.color, '#666666'),
       payload.position ?? max.p + 1,
       payload.category ?? 'todo',
     );
@@ -421,7 +445,7 @@ export async function updateStatus(
   }
   if (payload.color !== undefined) {
     fields.push('color = ?');
-    args.push(payload.color?.trim() ?? '#666666');
+    args.push(safeHexColor(payload.color, '#666666'));
   }
   if (payload.position !== undefined) {
     fields.push('position = ?');
@@ -667,6 +691,13 @@ function issueSelect(extraWhere = ''): string {
   `;
 }
 
+/** Cola de triage del proyecto (más nuevos primero), en una sola query. */
+export async function listProjectTriageIssues(projectId: string, limit = 200): Promise<TrackIssueWithStatus[]> {
+  return (await getDb()
+    .prepare(`${issueSelect('WHERE i.project_id = ? AND i.triage = 1')} ORDER BY i.created_at DESC LIMIT ?`)
+    .all(projectId, limit)) as TrackIssueWithStatus[];
+}
+
 export async function listIssues(
   projectId: string,
   options: ListIssuesOptions = {},
@@ -758,7 +789,12 @@ export async function listAllIssues(
   const projectWhere = scope.where;
   const projectArg = scope.arg;
 
-  const where: string[] = ['i.project_id IN (SELECT id FROM track_projects WHERE ' + projectWhere + ')', 'i.triage = 0'];
+  // Solo proyectos activos, como listMyIssues y listProjectMetas: los de un
+  // proyecto archivado no se pueden editar desde la lista.
+  const where: string[] = [
+    `i.project_id IN (SELECT id FROM track_projects WHERE ${projectWhere} AND status = 'active')`,
+    'i.triage = 0',
+  ];
   const args: Array<string | number> = [projectArg];
 
   if (options.projectId) {
@@ -872,6 +908,22 @@ export async function getIssue(id: string): Promise<TrackIssueWithStatus | undef
     | undefined;
 }
 
+/**
+ * Issue con su proyecto, solo si el proyecto es del workspace activo
+ * (ver canAccessTrackProject). Para páginas que cargan un issue por id.
+ */
+export async function getAccessibleIssue(
+  id: string,
+  teamId: string | null,
+  ownerId: string,
+): Promise<{ issue: TrackIssueWithStatus; project: TrackProjectRow } | null> {
+  const issue = await getIssue(id);
+  if (!issue) return null;
+  const project = await getProject(issue.project_id);
+  if (!project || !canAccessTrackProject(project, teamId, ownerId)) return null;
+  return { issue, project };
+}
+
 export async function getIssueByIdentifier(
   projectId: string,
   identifier: string,
@@ -979,10 +1031,18 @@ export async function createIssue(
   return created;
 }
 
+/** Origen de un cambio automático (hoy solo GitHub): se guarda en la actividad. */
+export interface IssueChangeVia {
+  source: 'github';
+  author?: string | null;
+  ref?: string | null;
+}
+
 export async function updateIssue(
   id: string,
   payload: IssueUpdatePayload,
   actorId?: string,
+  opts: { via?: IssueChangeVia } = {},
 ): Promise<TrackIssueWithStatus | undefined> {
   const db = getDb();
   const existing = await getIssue(id);
@@ -1089,14 +1149,23 @@ export async function updateIssue(
     await db.prepare(`UPDATE track_issues SET ${fields.join(', ')} WHERE id = ?`).run(...args);
 
     if (actorId) {
+      const viaMeta = opts.via
+        ? { via: opts.via.source, viaAuthor: opts.via.author ?? '', viaRef: opts.via.ref ?? '' }
+        : {};
       for (const activity of activities) {
-        await createIssueActivity(id, actorId, activity.type, activity.meta);
+        await createIssueActivity(id, actorId, activity.type, { ...activity.meta, ...viaMeta });
       }
 
-      const [actor, project] = await Promise.all([
+      const [owner, project] = await Promise.all([
         getUserById(actorId),
         getProject(existing.project_id),
       ]);
+      // Un cambio automático (GitHub) no se notifica a nombre del owner: el
+      // actor es la integración, así que el owner también recibe el aviso.
+      const actor =
+        owner && opts.via
+          ? { id: '', email: '', name: `GitHub${opts.via.author ? ` (@${opts.via.author})` : ''}` }
+          : owner;
       if (actor && project) {
         if (newAssigneeId) {
           await createIssueAssignedNotification({
@@ -1119,20 +1188,85 @@ export async function updateIssue(
     }
   }
 
-  return getIssue(id);
+  const updated = await getIssue(id);
+  if (updated && fields.length > 0) {
+    scheduleIssueEvents(
+      existing,
+      updated,
+      Object.keys(payload).filter((k) => payload[k as keyof IssueUpdatePayload] !== undefined),
+    );
+  }
+  return updated;
+}
+
+/**
+ * Emite issue.updated (y issue.status_changed si cambió el status) para
+ * webhooks y disparadores de Flow. Vive en updateIssue para que todos los
+ * caminos lo usen: detalle, edición masiva, triage y GitHub. Corre después de
+ * responder (after) si hay request; si no, en segundo plano.
+ */
+function scheduleIssueEvents(before: TrackIssueWithStatus, updated: TrackIssueWithStatus, changes: string[]): void {
+  const job = async () => {
+    const project = await getProject(updated.project_id);
+    if (!project?.owner_id) return;
+    const payload = {
+      issue: {
+        id: updated.id,
+        identifier: updated.identifier,
+        title: updated.title,
+        priority: updated.priority,
+        status: updated.status_name ?? null,
+        assigneeId: updated.assignee_id,
+      },
+      project: { id: project.id, name: project.name },
+      changes,
+    };
+    await emitEvent(project.owner_id, 'issue.updated', payload);
+    if (updated.status_id !== before.status_id) {
+      await emitEvent(project.owner_id, 'issue.status_changed', {
+        ...payload,
+        from: before.status_name ?? null,
+        to: updated.status_name ?? null,
+      });
+    }
+  };
+  try {
+    after(job);
+  } catch {
+    void job().catch(() => {});
+  }
+}
+
+/** El issue y todos sus descendientes (subtasks de subtasks incluidas). */
+const ISSUE_TREE_CTE = `WITH RECURSIVE tree(id) AS (
+  SELECT id FROM track_issues WHERE id = ?
+  UNION
+  SELECT c.id FROM track_issues c JOIN tree ON c.parent_id = tree.id
+)`;
+
+/**
+ * Borra el issue con todos sus descendientes (parent_id es ON DELETE SET NULL,
+ * así que sin esto los nietos quedarían sueltos). Devuelve los ids borrados;
+ * vacío si el issue no existía.
+ */
+export async function deleteIssueTree(id: string): Promise<string[]> {
+  const db = getDb();
+  const ids = ((await db.prepare(`${ISSUE_TREE_CTE} SELECT id FROM tree`).all(id)) as Array<{ id: string }>).map(
+    (r) => r.id,
+  );
+  if (ids.length === 0) return [];
+  // Los adjuntos se borran por FK, pero sus archivos no: juntar las URLs antes.
+  const files = (await db
+    .prepare(`SELECT url FROM track_issue_attachments WHERE issue_id IN (${ISSUE_TREE_CTE} SELECT id FROM tree)`)
+    .all(id)) as Array<{ url: string }>;
+  // Un solo DELETE: atómico, y las filas hijas de otras tablas se borran por FK.
+  await db.prepare(`DELETE FROM track_issues WHERE id IN (${ISSUE_TREE_CTE} SELECT id FROM tree)`).run(id);
+  await deleteUploads(files.map((f) => f.url));
+  return ids;
 }
 
 export async function deleteIssue(id: string): Promise<boolean> {
-  const db = getDb();
-  // Eliminar descendientes en cascada (las filas hijas se borran por FK).
-  const children = (await db
-    .prepare('SELECT id FROM track_issues WHERE parent_id = ?')
-    .all(id)) as Array<{ id: string }>;
-  for (const child of children) {
-    await db.prepare('DELETE FROM track_issues WHERE id = ?').run(child.id);
-  }
-  const res = await db.prepare('DELETE FROM track_issues WHERE id = ?').run(id);
-  return res.changes > 0;
+  return (await deleteIssueTree(id)).length > 0;
 }
 
 export async function listIssueChildren(issueId: string): Promise<TrackIssueWithStatus[]> {
@@ -1496,17 +1630,33 @@ export async function createIssueRelation(
   return listIssueRelations(issueId);
 }
 
+/** ¿Ya hay una relación entre los dos issues (en cualquier dirección)? */
+export async function hasIssueRelation(issueId: string, otherIssueId: string): Promise<boolean> {
+  const row = await getDb()
+    .prepare(
+      `SELECT id FROM track_issue_relations
+       WHERE (issue_id = ? AND related_issue_id = ?) OR (issue_id = ? AND related_issue_id = ?) LIMIT 1`,
+    )
+    .get(issueId, otherIssueId, otherIssueId, issueId);
+  return !!row;
+}
+
 export async function deleteIssueRelation(id: string, issueId: string, userId: string): Promise<boolean> {
   const db = getDb();
   const row = (await db
     .prepare('SELECT issue_id, related_issue_id, type FROM track_issue_relations WHERE id = ?')
     .get(id)) as { issue_id: string; related_issue_id: string; type: string } | undefined;
-  if (!row) return false;
+  // La relación tiene que colgar del issue de la URL (el único validado contra
+  // el workspace): si no, se podría borrar una relación ajena por id.
+  if (!row || (row.issue_id !== issueId && row.related_issue_id !== issueId)) return false;
   const otherIssueId = row.issue_id === issueId ? row.related_issue_id : row.issue_id;
   const related = (await db.prepare('SELECT identifier, title FROM track_issues WHERE id = ?').get(otherIssueId)) as
     | { identifier: string; title: string }
     | undefined;
-  const res = await db.prepare('DELETE FROM track_issue_relations WHERE id = ?').run(id);
+  const res = await db
+    .prepare('DELETE FROM track_issue_relations WHERE id = ? AND (issue_id = ? OR related_issue_id = ?)')
+    .run(id, issueId, issueId);
+  if (res.changes === 0) return false;
   const actorIssueId = row.issue_id === issueId ? issueId : row.issue_id;
   await createIssueActivity(actorIssueId, userId, 'relation_removed', {
     relatedIssueId: otherIssueId,
@@ -1565,9 +1715,13 @@ export async function createIssueAttachment(
 }
 
 export async function deleteIssueAttachment(id: string, issueId: string): Promise<boolean> {
-  const res = await getDb()
-    .prepare('DELETE FROM track_issue_attachments WHERE id = ? AND issue_id = ?')
-    .run(id, issueId);
+  const db = getDb();
+  const row = (await db
+    .prepare('SELECT url FROM track_issue_attachments WHERE id = ? AND issue_id = ?')
+    .get(id, issueId)) as { url: string } | undefined;
+  if (!row) return false;
+  const res = await db.prepare('DELETE FROM track_issue_attachments WHERE id = ? AND issue_id = ?').run(id, issueId);
+  if (res.changes > 0) await deleteUploads([row.url]);
   return res.changes > 0;
 }
 
