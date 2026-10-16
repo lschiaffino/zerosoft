@@ -24,7 +24,16 @@ export type IconName =
   | 'notes'
   | 'board'
   | 'agents'
-  | 'robots';
+  | 'robots'
+  | 'products'
+  | 'quotes'
+  | 'templates'
+  | 'dashboards'
+  | 'trash'
+  | 'clip'
+  | 'recorder'
+  | 'bulk'
+  | 'domains';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -167,6 +176,66 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="3" y="4" width="18" height="14" />
       <path d="M3 8h18M7 12l2 2-2 2M12 16h4" />
+    </>
+  ),
+  products: (
+    <>
+      <path d="M21 8l-9-5-9 5 9 5z" />
+      <path d="M3 8v8l9 5 9-5V8" />
+      <path d="M12 13v8" />
+    </>
+  ),
+  quotes: (
+    <>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </>
+  ),
+  templates: (
+    <>
+      <rect x="3" y="3" width="18" height="18" />
+      <path d="M3 9h18M9 9v12" />
+    </>
+  ),
+  dashboards: (
+    <>
+      <path d="M4 17a8 8 0 1 1 16 0" />
+      <path d="M12 17l4-5" />
+      <path d="M3 21h18" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4 7h16" />
+      <path d="M6 7l1 13h10l1-13" />
+      <path d="M9 7V4h6v3M10 11v6M14 11v6" />
+    </>
+  ),
+  clip: (
+    <>
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12" />
+    </>
+  ),
+  recorder: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="3.5" />
+    </>
+  ),
+  bulk: (
+    <>
+      <path d="M12 3l9 5-9 5-9-5z" />
+      <path d="M3 12.5l9 5 9-5" />
+      <path d="M3 16.5l9 5 9-5" />
+    </>
+  ),
+  domains: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z" />
     </>
   ),
 };

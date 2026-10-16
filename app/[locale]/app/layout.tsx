@@ -80,6 +80,10 @@ export default async function AppLayout(
           insights: tSide('insights'),
           linksSection: tSide('linksSection'),
           workspace: tSide('workspace'),
+          settings: tSide('settings'),
+          collapse: tSide('collapse'),
+          expand: tSide('expand'),
+          menu: tSide('menu'),
           newContact: tSide('newContact'),
           newCompany: tSide('newCompany'),
           newDeal: tSide('newDeal'),
@@ -99,7 +103,8 @@ export default async function AppLayout(
             new: tLink('tabs.new'),
             bio: tLink('tabs.bio'),
             analytics: tLink('tabs.analytics'),
-            settings: tLink('tabs.settings'),
+            bulk: tLink('bulk.title'),
+            domains: tSide('linkDomains'),
           },
           crm: {
             overview: tCrm('tabs.overview'),
@@ -119,9 +124,9 @@ export default async function AppLayout(
             forms: tCrm('tabs.forms'),
           },
           docs: {
-            overview: tDocs('sidebar.overview'),
             pages: tDocs('sidebar.pages'),
-            new: tDocs('sidebar.new'),
+            templates: tSide('docsTemplates'),
+            trash: tDocs('trash.title'),
           },
           calendar: {
             overview: tCalendar('sidebar.overview'),
@@ -151,13 +156,14 @@ export default async function AppLayout(
             flows: tFlow('sidebar.flows'),
             credentials: tFlow('sidebar.credentials'),
           },
-          notes: { all: tNotes('sidebar.all'), newNote: tNotes('actions.newNote') },
+          notes: { all: tNotes('sidebar.all'), newNote: tNotes('actions.newNote'), clip: tNotes('clip.button') },
           board: { boards: tBoard('sidebar.boards'), newBoard: tBoard('list.new') },
           agents: {
             agents: tAgents('sidebar.agents'),
           },
           robots: {
             robots: tRobots('sidebar.robots'),
+            recorder: tRobots('recorder.title'),
           },
           notifications: {
             title: tTrack('notifications.title'),
@@ -173,8 +179,10 @@ export default async function AppLayout(
             { href: '/app', label: tLink('tabs.overview') },
             { href: '/app/links', label: tLink('tabs.links') },
             { href: '/app/links/new', label: tLink('tabs.new') },
+            { href: '/app/links/bulk', label: tLink('bulk.title') },
             { href: '/app/links/bio', label: tLink('tabs.bio') },
-            { href: '/app/settings', label: tLink('tabs.settings') },
+            { href: '/app/links/analytics', label: tLink('tabs.analytics') },
+            { href: '/app/settings', label: tSide('settings') },
             { href: '/app/crm', label: tCrm('tabs.overview') },
             { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
             { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -190,7 +198,7 @@ export default async function AppLayout(
             { href: '/app/crm/reports', label: tCrm('tabs.reports') },
             { href: '/app/crm/workflows', label: tCrm('tabs.workflows') },
             { href: '/app/crm/settings', label: tCrm('tabs.settings') },
-            { href: '/app/docs', label: tDocs('sidebar.overview') },
+            { href: '/app/docs', label: tDocs('sidebar.pages') },
             { href: '/app/calendar', label: tCalendar('sidebar.overview') },
             { href: '/app/calendar/event-types', label: tCalendar('sidebar.eventTypes') },
             { href: '/app/calendar/routing', label: tCalendar('sidebar.routing') },
@@ -216,6 +224,7 @@ export default async function AppLayout(
             { href: '/app/board', label: tBoard('sidebar.boards') },
             { href: '/app/agents', label: tAgents('sidebar.agents') },
             { href: '/app/robots', label: tRobots('sidebar.robots') },
+            { href: '/app/robots/recorder', label: tRobots('recorder.title') },
           ]}
         />
         <main className="app-content">{children}</main>

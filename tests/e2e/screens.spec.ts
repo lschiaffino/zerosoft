@@ -11,6 +11,8 @@ const SCREENS = [
   '/en/docs',
   '/en/app/links',
   '/en/app/links/bio',
+  '/en/app/links/bulk',
+  '/en/app/links/analytics',
   '/en/app/settings',
   '/en/app/crm',
   '/en/app/crm/contacts',
@@ -22,11 +24,15 @@ const SCREENS = [
   '/en/app/track',
   '/en/app/track/issues',
   '/en/app/track/my-tasks',
+  '/en/app/track/projects',
   '/en/app/calendar',
   '/en/app/calendar/settings',
   '/en/app/calendar/event-types',
   '/en/app/chat',
+  '/en/app/chat/widgets',
   '/en/app/docs',
+  '/en/app/notes/clip',
+  '/en/app/robots/recorder',
 ];
 
 for (const path of SCREENS) {
@@ -41,3 +47,20 @@ for (const path of SCREENS) {
     expect(errors, errors.join('\n')).toEqual([]);
   });
 }
+
+test('el sidebar tiene Ajustes globales en el pie y el colapsar traducido', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/es/app/crm', { waitUntil: 'networkidle' });
+  const settings = page.getByTestId('side-settings');
+  await expect(settings).toHaveAttribute('href', /\/es\/app\/settings$/);
+  await expect(page.locator('.side-handle')).toHaveAttribute('aria-label', 'Contraer barra lateral');
+});
+
+test('"+ Nuevo" crea: la tarea de CRM abre el composer y Docs crea una página', async ({ page }) => {
+  await page.goto('/en/app/crm/tasks?new=1', { waitUntil: 'networkidle' });
+  await expect(page.getByLabel('Subject').first()).toBeVisible();
+  await expect(page).not.toHaveURL(/new=1/);
+
+  await page.goto('/en/app/docs?new=1');
+  await page.waitForURL(/\/en\/app\/docs\/[^/?#]+$/);
+});

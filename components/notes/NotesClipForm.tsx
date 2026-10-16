@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useEffect, useRef, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import { clipBookmarklet } from '@/lib/notes-types';
 
 export default function NotesClipForm({ url, title, selection }: { url: string; title: string; selection: string }) {
   const t = useTranslations('notes.clip');
@@ -10,6 +11,16 @@ export default function NotesClipForm({ url, title, selection }: { url: string; 
   const [text, setText] = useState(selection);
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [noteId, setNoteId] = useState<string | null>(null);
+  const locale = useLocale();
+  const bookmarkletRef = useRef<HTMLAnchorElement>(null);
+
+  // Sin URL (entrada desde el sidebar): se ofrece instalar el bookmarklet.
+  // React no deja renderizar href="javascript:…", así que se setea por DOM.
+  useEffect(() => {
+    if (!url && bookmarkletRef.current) {
+      bookmarkletRef.current.setAttribute('href', clipBookmarklet(window.location.origin, locale));
+    }
+  }, [url, locale]);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -32,8 +43,12 @@ export default function NotesClipForm({ url, title, selection }: { url: string; 
     return (
       <div className="notes-clip-page">
         <h1>{t('title')}</h1>
+        <p className="dim">{t('hint')}</p>
+        <a ref={bookmarkletRef} className="notes-bookmarklet" onClick={(e) => e.preventDefault()} draggable>
+          {t('bookmarkletName')}
+        </a>
         <p className="dim">{t('missingUrl')}</p>
-        <Link href="/app/notes" className="btn btn-solid">
+        <Link href="/app/notes" className="btn btn-ghost" style={{ alignSelf: 'flex-start' }}>
           {t('openNotes')}
         </Link>
       </div>

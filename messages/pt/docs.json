@@ -182,7 +182,8 @@
     "restore": "Restaurar",
     "deleteForever": "Excluir para sempre",
     "confirmDelete": "Excluir esta página para sempre? Esta ação não pode ser desfeita.",
-    "help": "Páginas na lixeira mantêm suas subpáginas. Restaure-as ou exclua para sempre."
+    "help": "Páginas na lixeira mantêm suas subpáginas. Restaure-as ou exclua para sempre.",
+    "empty": "A lixeira está vazia."
   },
   "comments": {
     "title": "Comentários",

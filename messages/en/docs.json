@@ -182,7 +182,8 @@
     "restore": "Restore",
     "deleteForever": "Delete forever",
     "confirmDelete": "Delete this page forever? This cannot be undone.",
-    "help": "Pages in the trash keep their subpages. Restore them or delete them forever."
+    "help": "Pages in the trash keep their subpages. Restore them or delete them forever.",
+    "empty": "The trash is empty."
   },
   "comments": {
     "title": "Comments",

@@ -182,7 +182,8 @@
     "restore": "Restaurar",
     "deleteForever": "Eliminar para siempre",
     "confirmDelete": "¿Eliminar esta página para siempre? No se puede deshacer.",
-    "help": "Las páginas en la papelera conservan sus subpáginas. Restauralas o borralas para siempre."
+    "help": "Las páginas en la papelera conservan sus subpáginas. Restauralas o borralas para siempre.",
+    "empty": "La papelera está vacía."
   },
   "comments": {
     "title": "Comentarios",

@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import SettingsAnchorNav from '@/components/crm/SettingsAnchorNav';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { getEmailSettings } from '@/lib/crm-email';
 import { getMailboxSync } from '@/lib/crm-email-sync';
@@ -124,13 +125,7 @@ export default async function CrmSettingsPage(
       <h1 className="app-title">{t('settings.title')}</h1>
 
       <div className="crm-settings">
-        <nav className="crm-settings-nav" aria-label={t('settings.title')}>
-          {sections.map((s) => (
-            <a key={s.id} href={`#${s.id}`}>
-              {s.label}
-            </a>
-          ))}
-        </nav>
+        <SettingsAnchorNav sections={sections} ariaLabel={t('settings.title')} />
 
         <div className="crm-settings-body">
           <section className="crm-set" id="team">

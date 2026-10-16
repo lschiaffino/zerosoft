@@ -68,13 +68,13 @@ export default async function SettingsPage(props: { params: Promise<{ locale: st
         <AiUsagePanel workspaceId={user.id} locale={locale} />
       </section>
 
-      <section className="panel">
+      <section className="panel" id="domains">
         <p className="section-label">{t('domains.title')}</p>
         <DomainsPanel initial={domains} canManage={isWorkspaceAdmin(user)} />
       </section>
 
       {isWorkspaceAdmin(user) && (
-        <section className="panel">
+        <section className="panel" id="import">
           <p className="section-label">{t('import.title')}</p>
           <ImportLinksPanel />
         </section>
