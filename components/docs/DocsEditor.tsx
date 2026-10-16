@@ -56,7 +56,7 @@ interface DocsEditorProps {
   onSave: (patch: Partial<DocsPage>) => void;
   saving?: boolean;
   /** El último guardado falló: se muestra en lugar de "Guardado", con reintento. */
-  saveError?: 'tooLong' | 'failed' | null;
+  saveError?: 'tooLong' | 'failed' | 'conflict' | null;
   onDuplicate?: () => void;
   onDelete?: () => void;
   onAddComment?: () => void;
@@ -1503,7 +1503,9 @@ export default function DocsEditor({
           >
             {saving || dirty
               ? t('editor.saving')
-              : saveError
+              : saveError === 'conflict'
+                ? t('editor.saveConflict')
+                : saveError
                 ? (
                     <>
                       {t(saveError === 'tooLong' ? 'editor.saveTooLong' : 'editor.saveFailed')}{' '}

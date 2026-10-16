@@ -4,9 +4,11 @@ import { canAccessConversation } from '@/lib/chat-access';
 import {
   chatAttachmentType,
   createChatMessage,
+  getCannedResponse,
   recordFirstResponse,
   reopenIfResolved,
 } from '@/lib/chat-data';
+import { applyCannedMacro } from '@/lib/chat-inbox';
 import { MAX_UPLOAD_SIZE, saveUpload, UploadError } from '@/lib/uploads';
 
 export const runtime = 'nodejs';
@@ -60,6 +62,15 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
 
   await recordFirstResponse(params.id);
   if (conversation) await reopenIfResolved(conversation);
+
+  // Macro elegida en el composer: se aplica al enviar, después de reabrir.
+  const cannedId = form.get('cannedId');
+  if (conversation && typeof cannedId === 'string' && cannedId) {
+    const canned = await getCannedResponse(cannedId);
+    if (canned && canned.widget_id === conversation.widget_id) {
+      await applyCannedMacro(params.id, canned, realUserId(user));
+    }
+  }
 
   return NextResponse.json(message, { status: 201 });
 }

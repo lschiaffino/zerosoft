@@ -460,20 +460,24 @@ export async function getOrCreateChatVisitor(
     return existing;
   }
 
-  const id = crypto.randomUUID();
+  // Dos requests en paralelo del mismo visitante (formulario pre-chat + primer
+  // mensaje) pasan los dos por el SELECT: el segundo INSERT no debe dar 500.
   await db
     .prepare(
-      'INSERT INTO chat_visitors (id, widget_id, external_id, email, name, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      `INSERT INTO chat_visitors (id, widget_id, external_id, email, name, created_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(widget_id, external_id) DO NOTHING`,
     )
     .run(
-      id,
+      crypto.randomUUID(),
       widgetId,
       externalId,
       payload?.email ?? null,
       payload?.name ?? null,
       nowIso(),
     );
-  return (await db.prepare('SELECT * FROM chat_visitors WHERE id = ?').get(id)) as ChatVisitorRow;
+  return (await db
+    .prepare('SELECT * FROM chat_visitors WHERE widget_id = ? AND external_id = ?')
+    .get(widgetId, externalId)) as ChatVisitorRow;
 }
 
 export async function getChatVisitorByExternalId(

@@ -319,6 +319,7 @@
   },
   "macros": {
     "applied": "Macro {shortcut} aplicada",
+    "pending": "Macro {shortcut}: se aplica al enviar",
     "title": "Acciones al usar esta respuesta (macro)",
     "status": "Estado",
     "assign": "Asignar a",
