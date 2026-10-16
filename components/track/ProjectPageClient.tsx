@@ -195,7 +195,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   const [tab, setTab] = useState<'issues' | 'triage'>(() => (searchParams.get('tab') === 'triage' ? 'triage' : 'issues'));
   const [triageIssues, setTriageIssues] = useState<TrackIssueWithStatus[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  const [workspaceLabels] = useWorkspaceLabels();
+  const [workspaceLabels] = useWorkspaceLabels(true);
   const today = useToday();
 
   const projectMap = useMemo<ProjectMap>(
@@ -243,6 +243,36 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     },
     [projectId, filters, sort, setIssues],
   );
+
+  // Vuelve a pedir las páginas ya cargadas (1..issuesPage) sin volver a la
+  // primera: después de una edición masiva no se pierde el lugar ni la
+  // selección de los issues de más abajo.
+  const reloadLoadedPages = useCallback(async () => {
+    const seq = ++issuesRequest.current;
+    const sp = filtersToParams(filters, sort);
+    sp.set('pageSize', String(ISSUES_PAGE_SIZE));
+    const pages = await Promise.all(
+      Array.from({ length: Math.max(1, issuesPage) }, (_, i) => {
+        const q = new URLSearchParams(sp);
+        q.set('page', String(i + 1));
+        return api<{ rows: TrackIssueWithStatus[]; total: number }>(
+          `/api/track/projects/${projectId}/issues?${q.toString()}`,
+        );
+      }),
+    );
+    if (seq !== issuesRequest.current) return;
+    const seen = new Set<string>();
+    const rows: TrackIssueWithStatus[] = [];
+    for (const page of pages) {
+      for (const row of page.rows) {
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+        rows.push(row);
+      }
+    }
+    setIssues(rows);
+    setIssuesTotal(pages[pages.length - 1].total);
+  }, [projectId, filters, sort, issuesPage, setIssues]);
 
   const handleLoadMore = async () => {
     setLoadingMore(true);
@@ -356,8 +386,10 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     if (body.action === 'delete') {
       selection.clear();
       setIssuesTotal((n) => Math.max(0, n - data.updated.length));
+      await fetchIssues(1, false);
+      return;
     }
-    await fetchIssues(1, false);
+    await reloadLoadedPages().catch(() => setNotice(t('errors.generic')));
   };
 
   const reloadCycles = useCallback(async () => {

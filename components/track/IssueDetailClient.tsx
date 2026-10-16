@@ -7,7 +7,7 @@ import StatusBadge from './StatusBadge';
 import IssuePropertiesPanel from './IssuePropertiesPanel';
 import IssueActivityTimeline from './IssueActivityTimeline';
 import QuickIssueModal from './QuickIssueModal';
-import { CopyBranchButton, IssueGithubPanel } from './IssueGithub';
+import { CopyBranchButton, IssueGithubPanel, useIssueGithub } from './IssueGithub';
 import { TrackToast, useToday } from './InlineEditors';
 import type { IssueDraft } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
@@ -172,6 +172,7 @@ export default function IssueDetailClient({
 }: IssueDetailClientProps) {
   const today = useToday();
   const [issue, setIssue] = useState(initialIssue);
+  const github = useIssueGithub(issue.id);
   const [children, setChildren] = useState(initialChildren);
   const [attachments, setAttachments] = useState(initialAttachments);
   const [activities, setActivities] = useState(initialActivities);
@@ -372,7 +373,7 @@ export default function IssueDetailClient({
           )}
         </div>
         <div className="track-detail-actions">
-          <CopyBranchButton issueId={issue.id} />
+          <CopyBranchButton identifier={issue.identifier} title={issue.title} />
           {(doneStatus || openStatus) && (
             <button type="button" className="btn btn-outline" onClick={handleCloseReopen}>
               {isClosed ? labels.actions.reopen : labels.actions.close}
@@ -431,7 +432,7 @@ export default function IssueDetailClient({
             )}
           </section>
 
-          <IssueGithubPanel issueId={issue.id} />
+          <IssueGithubPanel data={github} />
 
           <section className="panel">
             <p className="section-label">{labels.attachments.title}</p>

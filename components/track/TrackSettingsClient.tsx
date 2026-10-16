@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TrackLabel } from '@/lib/track-labels';
+import { invalidateWorkspaceLabels } from './LabelPicker';
 import type { GithubConfig } from '@/lib/track-github';
 
 const LABEL_COLORS = ['#666666', '#d14343', '#d9822b', '#3f8f4f', '#2f6fd1', '#7a4fd1'];
@@ -29,6 +30,8 @@ export function LabelsSettings({ isAdmin }: { isAdmin: boolean }) {
   const load = async () => {
     const res = await send<{ rows: TrackLabel[] }>('/api/track/labels?counts=1', 'GET');
     setLabels(res.ok ? res.data.rows : []);
+    // Pickers y edición masiva leen otra caché: que la recarguen.
+    invalidateWorkspaceLabels();
   };
   useEffect(() => {
     void load();

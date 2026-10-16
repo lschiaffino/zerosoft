@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import { invalidateWorkspaceLabels } from '@/components/track/LabelPicker';
 
 interface MemberInfo {
   user_id: string;
@@ -78,6 +79,8 @@ export default function TeamPanel({
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ teamId }),
     }))) return;
+    // Los labels de Track cacheados son del workspace anterior.
+    invalidateWorkspaceLabels();
     refresh();
   }
 

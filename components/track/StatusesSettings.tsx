@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TrackStatusRow } from '@/lib/db';
 
@@ -36,6 +36,8 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
   const [deleting, setDeleting] = useState<string | null>(null);
   const [reassignTo, setReassignTo] = useState('');
   const [busy, setBusy] = useState(false);
+  // Color guardado antes de empezar a editar, para revertir si falla el PATCH.
+  const colorBefore = useRef(new Map<string, string>());
 
   async function call(url: string, init: RequestInit): Promise<Response | null> {
     setError(null);
@@ -44,11 +46,21 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
     return res?.ok ? res : null;
   }
 
-  async function patch(id: string, body: Record<string, unknown>) {
+  async function patch(id: string, body: Record<string, unknown>): Promise<boolean> {
     const res = await call(`/api/track/statuses/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
-    if (!res) return;
+    if (!res) return false;
     const saved = (await res.json()) as TrackStatusRow;
     onChange(statuses.map((s) => (s.id === id ? saved : s)), { reloadIssues: true });
+    return true;
+  }
+
+  async function saveColor(id: string, color: string) {
+    const before = colorBefore.current.get(id);
+    colorBefore.current.delete(id);
+    if (before === undefined || before === color) return;
+    if (!(await patch(id, { color }))) {
+      onChange(statuses.map((x) => (x.id === id ? { ...x, color: before } : x)));
+    }
   }
 
   async function move(index: number, dir: -1 | 1) {
@@ -113,8 +125,11 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
               type="color"
               className="track-status-color"
               value={/^#[0-9a-f]{6}$/i.test(s.color) ? s.color : '#666666'}
-              onChange={(e) => onChange(statuses.map((x) => (x.id === s.id ? { ...x, color: e.target.value } : x)))}
-              onBlur={(e) => void patch(s.id, { color: e.target.value })}
+              onChange={(e) => {
+                if (!colorBefore.current.has(s.id)) colorBefore.current.set(s.id, s.color);
+                onChange(statuses.map((x) => (x.id === s.id ? { ...x, color: e.target.value } : x)));
+              }}
+              onBlur={(e) => void saveColor(s.id, e.target.value)}
               aria-label={t('statusSettings.color')}
             />
             <input
@@ -122,9 +137,14 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
               defaultValue={s.name}
               aria-label={t('statusSettings.name')}
               maxLength={200}
-              onBlur={(e) => {
-                const v = e.target.value.trim();
-                if (v && v !== s.name) void patch(s.id, { name: v });
+              onBlur={async (e) => {
+                const el = e.target;
+                const v = el.value.trim();
+                if (!v) {
+                  el.value = s.name;
+                  return;
+                }
+                if (v !== s.name && !(await patch(s.id, { name: v }))) el.value = s.name;
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
