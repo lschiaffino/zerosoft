@@ -3,8 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { AGENT_TEMPLATE_KEYS, AGENT_TEMPLATES, type AgentListItem, type AgentTemplateKey } from '@/lib/agents-config';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import DataTable from '@/components/ui/DataTable';
 import { api, errorText, toolName } from './agents-ui';
 
 interface Props {
@@ -35,8 +38,8 @@ export default function AgentsHome({ agents: initial, canEdit, aiEnabled }: Prop
         }
       : { name: t('editor.untitled') };
     const res = await api<{ id?: string }>('/api/agents', { method: 'POST', body: JSON.stringify(body) });
-    setBusy(null);
     if (!res.ok || !res.data.id) {
+      setBusy(null);
       setError(errorText(t, res.data.error));
       return;
     }
@@ -67,123 +70,128 @@ export default function AgentsHome({ agents: initial, canEdit, aiEnabled }: Prop
 
   function feedback(a: AgentListItem): string {
     const total = a.thumbsUp + a.thumbsDown;
-    if (!total) return '—';
+    if (!total) return t('list.noFeedback');
     return `${Math.round((a.thumbsUp / total) * 100)}% · ${total}`;
   }
 
+  const createButton = canEdit ? (
+    <button
+      type="button"
+      className="btn btn-primary"
+      disabled={busy !== null}
+      aria-busy={busy === 'new' || undefined}
+      onClick={() => create('new')}
+    >
+      {t('list.new')}
+    </button>
+  ) : null;
+
   return (
-    <div className="app-page ag-home">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{t('title')}</h1>
-          <p className="muted ag-sub">{t('subtitle')}</p>
-        </div>
-        {canEdit && (
-          <button type="button" className="btn btn-solid" disabled={busy !== null} onClick={() => create('new')}>
-            {t('list.new')}
-          </button>
-        )}
-      </div>
+    <div className="app-page ui-page ag-home">
+      <PageHeader title={t('title')} description={t('subtitle')} actions={createButton} />
+
       {!aiEnabled && (
-        <div className="ag-banner" role="note">
-          <strong>{t('aiOff.title')}</strong>
-          <span>{t('aiOff.body')}</span>
+        <div className="panel panel-quiet ag-note" role="note">
+          <strong>{t('aiOff.title')}</strong> {t('aiOff.body')}
         </div>
       )}
-      {!canEdit && <p className="muted ag-note">{t('list.adminOnly')}</p>}
+      {!canEdit && <p className="ui-help">{t('list.adminOnly')}</p>}
       {error && (
-        <p className="ag-error" role="alert">
+        <p className="ui-error" role="alert">
           {error}
         </p>
       )}
 
-      <section className="ag-section" aria-labelledby="ag-list-title">
-        <h2 id="ag-list-title" className="ag-section-title">
-          {t('list.title')}
-        </h2>
-        {agents.length === 0 ? (
-          <div className="ag-empty">
-            <p>{t('list.empty')}</p>
-            <p className="muted">{t('list.emptyHint')}</p>
-          </div>
-        ) : (
-          <div className="ag-table" role="table">
-            <div className="ag-row ag-row-head" role="row">
-              <span role="columnheader">{t('list.name')}</span>
-              <span role="columnheader">{t('list.channels')}</span>
-              <span role="columnheader" className="ag-num">
-                {t('list.conversations7d')}
-              </span>
-              <span role="columnheader" className="ag-num">
-                {t('list.feedback')}
-              </span>
-              <span role="columnheader">{t('list.status')}</span>
-            </div>
-            {agents.map((a) => (
-              <div className="ag-row" role="row" key={a.id}>
-                <span role="cell" className="ag-row-name">
-                  <span className="ag-avatar" aria-hidden="true">
-                    {a.emoji || a.name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className="ag-row-title">
-                    <Link href={`/app/agents/${a.id}`}>{a.name}</Link>
-                    <span className="muted">
-                      {a.tools.enabled.length
-                        ? a.tools.enabled.map((k) => toolName(t, k)).join(' · ')
-                        : t('list.noTools')}
-                    </span>
-                  </span>
+      {agents.length === 0 ? (
+        <EmptyState
+          product="agents"
+          title={t('list.empty')}
+          body={t('list.emptyHint')}
+          action={createButton ?? undefined}
+          secondary={canEdit ? t('list.emptyAlt') : undefined}
+        />
+      ) : (
+        <DataTable
+          caption={t('list.title')}
+          rows={agents}
+          rowKey={(a) => a.id}
+          rowHref={(a) => `/app/agents/${a.id}`}
+          columns={[
+            { key: 'name', header: t('list.name'), cell: (a) => a.name },
+            {
+              key: 'tools',
+              header: t('tabs.tools'),
+              cell: (a) => (
+                <span className="ag-cell-clip">
+                  {a.tools.enabled.length ? a.tools.enabled.map((k) => toolName(t, k)).join(', ') : t('list.noTools')}
                 </span>
-                <span role="cell" className="ag-row-channels">
-                  {a.channels.length ? a.channels.map((c) => t(`channelNames.${c}`)).join(' · ') : <span className="muted">{t('list.noChannels')}</span>}
-                </span>
-                <span role="cell" className="ag-num mono">
-                  {a.conversations7d}
-                </span>
-                <span role="cell" className="ag-num mono">
-                  {feedback(a)}
-                </span>
-                <span role="cell">
-                  <label className="ag-switch">
-                    <input
-                      type="checkbox"
-                      checked={a.enabled}
-                      disabled={!canEdit}
-                      onChange={(e) => toggle(a.id, e.target.checked)}
-                      aria-label={`${a.name}: ${a.enabled ? t('list.enabled') : t('list.disabled')}`}
-                    />
-                    <span className="ag-switch-track" aria-hidden="true" />
-                    <span className="ag-switch-label">{a.enabled ? t('list.enabled') : t('list.disabled')}</span>
-                  </label>
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+              ),
+            },
+            {
+              key: 'channels',
+              header: t('list.channels'),
+              cell: (a) =>
+                a.channels.length ? (
+                  a.channels.map((c) => t(`channelNames.${c}`)).join(', ')
+                ) : (
+                  <span className="ag-quiet">{t('list.noChannels')}</span>
+                ),
+            },
+            { key: 'c7', header: t('list.conversations7d'), cell: (a) => a.conversations7d, numeric: true, width: '120px' },
+            { key: 'fb', header: t('list.feedback'), cell: (a) => feedback(a), numeric: true, width: '130px' },
+            {
+              key: 'status',
+              header: t('list.status'),
+              width: '120px',
+              cell: (a) => (
+                <label className="ui-switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={a.enabled}
+                    disabled={!canEdit}
+                    onChange={(e) => toggle(a.id, e.target.checked)}
+                    aria-label={t('list.toggle', { name: a.name })}
+                  />
+                  <span>{a.enabled ? t('list.enabled') : t('list.disabled')}</span>
+                </label>
+              ),
+            },
+          ]}
+        />
+      )}
 
-      <section className="ag-section" aria-labelledby="ag-templates-title">
-        <h2 id="ag-templates-title" className="ag-section-title">
-          {t('templates.title')}
-        </h2>
-        <p className="muted ag-section-sub">{t('templates.subtitle')}</p>
-        <div className="ag-templates">
+      <section className="ag-block" aria-labelledby="ag-templates-title">
+        <div className="ui-section-head">
+          <h2 id="ag-templates-title" className="ui-section-title">
+            {t('templates.title')}
+          </h2>
+          <p className="ui-section-desc">{t('templates.subtitle')}</p>
+        </div>
+        <ul className="ag-templates">
           {AGENT_TEMPLATE_KEYS.map((key) => (
-            <article className="ag-template" key={key}>
-              <span className="ag-avatar" aria-hidden="true">
-                {AGENT_TEMPLATES[key].emoji}
-              </span>
-              <h3>{t(`templates.${key}.name`)}</h3>
-              <p className="muted">{t(`templates.${key}.desc`)}</p>
-              <p className="ag-template-tools mono">{AGENT_TEMPLATES[key].tools.map((k) => toolName(t, k)).join(' · ')}</p>
+            <li className="ag-template" key={key}>
+              <div className="ag-template-text">
+                <h3 className="ag-template-name">{t(`templates.${key}.name`)}</h3>
+                <p className="ag-template-desc">{t(`templates.${key}.desc`)}</p>
+                <p className="ui-help">
+                  {t('templates.tools', { tools: AGENT_TEMPLATES[key].tools.map((k) => toolName(t, k)).join(', ') })}
+                </p>
+              </div>
               {canEdit && (
-                <button type="button" className="btn btn-small" disabled={busy !== null} onClick={() => create(key, key)}>
-                  {busy === key ? t('editor.saving') : t('templates.use')}
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={busy !== null}
+                  aria-busy={busy === key || undefined}
+                  onClick={() => create(key, key)}
+                >
+                  {busy === key ? t('templates.creating') : t('templates.use')}
                 </button>
               )}
-            </article>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
     </div>
   );
