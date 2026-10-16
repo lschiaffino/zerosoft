@@ -428,22 +428,24 @@ export default function AgentEditor(props: Props) {
       >
         {notice ? notice.text : dirty ? t('editor.unsaved') : ''}
       </span>
+      {/* Sin cambios no hay nada que guardar: Descartar y Guardar aparecen recién con el formulario sucio. */}
       {dirty && (
-        <button type="button" className="btn btn-ghost" disabled={saving} onClick={() => resetFrom(agent)}>
-          {t('editor.discard')}
-        </button>
+        <>
+          <button type="button" className="btn btn-ghost" disabled={saving} onClick={() => resetFrom(agent)}>
+            {t('editor.discard')}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            aria-busy={saving || undefined}
+            aria-keyshortcuts="Meta+S Control+S"
+            title={t('editor.shortcut')}
+            onClick={save}
+          >
+            {saving ? t('editor.saving') : t('editor.save')}
+          </button>
+        </>
       )}
-      <button
-        type="button"
-        className="btn btn-primary"
-        disabled={!dirty}
-        aria-busy={saving || undefined}
-        aria-keyshortcuts="Meta+S Control+S"
-        title={t('editor.shortcut')}
-        onClick={save}
-      >
-        {saving ? t('editor.saving') : dirty ? t('editor.save') : t('editor.upToDate')}
-      </button>
     </>
   ) : null;
 
@@ -682,7 +684,7 @@ export default function AgentEditor(props: Props) {
                       </label>
                       <input
                         id="ag-model"
-                        className="input data"
+                        className="input data ag-model"
                         value={draft.model ?? ''}
                         disabled={ro}
                         spellCheck={false}

@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { getAgentByHandle } from '@/lib/agents';
 import { aiEnabled } from '@/lib/ai';
 import PublicAgentChat from '@/components/agents/PublicAgentChat';
+import LineGlyph from '@/components/brand/LineGlyph';
 import '@/styles/agents.css';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,10 @@ export default async function PublicAgentPage(props: Props) {
     <main className="ag-public">
       <header className="ag-public-head">
         <h1 className="ag-public-title">{agent.name}</h1>
-        <p className="ui-help">{t('public.subtitle')}</p>
+        <p className="ui-help ag-public-sub">
+          <LineGlyph product="agents" size={12} onLine />
+          {t('public.subtitle')}
+        </p>
       </header>
       <PublicAgentChat
         handle={agent.public_handle ?? handle}

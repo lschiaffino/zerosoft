@@ -4,7 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { AGENT_TEMPLATE_KEYS, AGENT_TEMPLATES, type AgentListItem, type AgentTemplateKey } from '@/lib/agents-config';
+import {
+  AGENT_TEMPLATE_KEYS,
+  AGENT_TEMPLATES,
+  AGENT_TOOL_GROUP,
+  AGENT_TOOL_GROUP_ORDER,
+  type AgentListItem,
+  type AgentTemplateKey,
+  type AgentToolKey,
+} from '@/lib/agents-config';
+import { PRODUCT_CONFIG } from '@/lib/products';
+import LineGlyph from '@/components/brand/LineGlyph';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import DataTable from '@/components/ui/DataTable';
@@ -122,9 +132,20 @@ export default function AgentsHome({ agents: initial, canEdit, aiEnabled }: Prop
               key: 'tools',
               header: t('tabs.tools'),
               cell: (a) => (
-                <span className="ag-cell-clip">
-                  {a.tools.enabled.length ? a.tools.enabled.map((k) => toolName(t, k)).join(', ') : t('list.noTools')}
-                </span>
+                a.tools.enabled.length ? (
+                  <span className="ag-cell-tools" title={a.tools.enabled.map((k) => toolName(t, k)).join(', ')}>
+                    <span className="ag-cell-lines">
+                      {AGENT_TOOL_GROUP_ORDER.filter((g) =>
+                        a.tools.enabled.some((k) => AGENT_TOOL_GROUP[k as AgentToolKey] === g.key),
+                      ).map((g) => (
+                        <LineGlyph key={g.key} product={g.product} size={12} title={PRODUCT_CONFIG[g.product].name} />
+                      ))}
+                    </span>
+                    {t('list.toolsCount', { count: a.tools.enabled.length })}
+                  </span>
+                ) : (
+                  <span className="ag-quiet">{t('list.noTools')}</span>
+                )
               ),
             },
             {

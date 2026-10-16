@@ -42,6 +42,9 @@ export default function AgentConversations({
   const t = useTranslations('agents');
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
+  // El tiempo relativo depende del reloj: se calcula recién en el cliente para no romper la hidratación.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [channel, setChannel] = useState<(typeof CHANNELS)[number]>('all');
   const [list, setList] = useState<AgentConversationDto[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -145,20 +148,18 @@ export default function AgentConversations({
   return (
     <div className="ag-convs" data-view={selected ? 'detail' : 'list'}>
       <aside className="ag-convs-list" aria-label={t('tabs.conversations')}>
-        <div className="ag-convs-filter">
-          <div className="btn-group" role="group" aria-label={t('conversations.filter')}>
-            {CHANNELS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className="btn btn-secondary btn-sm"
-                aria-pressed={channel === c}
-                onClick={() => setChannel(c)}
-              >
-                {c === 'all' ? t('conversations.all') : t(`channelNames.${c}`)}
-              </button>
-            ))}
-          </div>
+        <div className="ui-tabs ag-convs-filter" role="group" aria-label={t('conversations.filter')}>
+          {CHANNELS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`ui-tab${channel === c ? ' active' : ''}`}
+              aria-pressed={channel === c}
+              onClick={() => setChannel(c)}
+            >
+              {c === 'all' ? t('conversations.all') : t(`channelNames.${c}`)}
+            </button>
+          ))}
         </div>
         {listError ? (
           <div className="ag-pad">
@@ -191,7 +192,7 @@ export default function AgentConversations({
                   <span className="ag-conv-title">{c.title || t('conversations.untitled')}</span>
                   <span className="ag-conv-meta">
                     {t(`channelNames.${c.channel}`)} · {t('conversations.messages', { count: c.messageCount ?? 0 })} ·{' '}
-                    <span suppressHydrationWarning>{format.relativeTime(new Date(c.updatedAt), now)}</span>
+                    <time dateTime={c.updatedAt}>{mounted ? format.relativeTime(new Date(c.updatedAt), now) : ''}</time>
                   </span>
                   {c.handedOff && <span className="badge badge-warn ag-conv-badge">{t('conversations.handedOff')}</span>}
                 </button>

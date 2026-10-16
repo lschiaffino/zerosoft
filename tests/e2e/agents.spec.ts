@@ -63,15 +63,15 @@ test('herramientas: agrupadas por producto y Request HTTP en Avanzado', async ({
   await expect(page.getByRole('switch', { name: 'Request HTTP' })).toBeVisible();
 });
 
-test('un solo Guardar: se habilita con cambios, guarda y vuelve a "Sin cambios"', async ({ page }) => {
+test('un solo Guardar: aparece con cambios, guarda y se va', async ({ page }) => {
   const id = await createAgent(page, 'Agente guardar');
   await page.goto(`/es/app/agents/${id}`, { waitUntil: 'networkidle' });
-  const save = page.getByRole('button', { name: 'Sin cambios' });
-  await expect(save).toBeDisabled();
+  const save = page.getByRole('button', { name: 'Guardar cambios' });
+  await expect(save).toBeHidden();
   await page.getByLabel('Mensaje de bienvenida').fill('Hola, ¿en qué te ayudo?');
-  await expect(page.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled();
+  await expect(save).toBeEnabled();
   await page.keyboard.press('ControlOrMeta+s');
-  await expect(page.getByRole('button', { name: 'Sin cambios' })).toBeDisabled();
+  await expect(save).toBeHidden();
   const res = await page.request.get(`/api/agents/${id}`);
   const body = (await res.json()) as { agent: { welcomeMessage: string } };
   expect(body.agent.welcomeMessage).toBe('Hola, ¿en qué te ayudo?');
