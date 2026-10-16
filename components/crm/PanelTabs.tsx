@@ -20,12 +20,15 @@ export function PanelTabs({
   onChange,
   idBase,
   label,
+  level = 'top',
 }: {
   items: PanelTab[];
   active: string;
   onChange: (key: string) => void;
   idBase: string;
   label: string;
+  /** `sub`: pestañas dentro de otra pestaña de la página; más chicas y sin filete propio. */
+  level?: 'top' | 'sub';
 }) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -42,7 +45,7 @@ export function PanelTabs({
   }
 
   return (
-    <div className="ui-tabs" role="tablist" aria-label={label}>
+    <div className={level === 'sub' ? 'ui-tabs crm-subtabs' : 'ui-tabs'} role="tablist" aria-label={label}>
       {items.map((tab, i) => (
         <button
           key={tab.key}

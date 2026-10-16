@@ -113,19 +113,18 @@ export default async function QuotePage(props: QuotePageProps) {
         <QuoteDocument quote={doc} locale={locale} />
         <aside className="quote-side">
           <h2 className="crm-panel-title">{t('quotes.timeline.title')}</h2>
-          <ol className="quote-timeline">
-            {timeline.map((e) => (
-              <li key={e.key} className={`q-${e.key}`}>
-                <span>{e.label}</span>
-                <span className="data">{fmtTime(e.at, locale)}</span>
+          {/* La misma línea que workflows y secuencias: cada hito es una estación. */}
+          <ol className="crm-line quote-line">
+            {timeline.map((e, i) => (
+              <li key={e.key} className={`crm-stop q-${e.key}${i === 0 ? ' crm-stop-trigger' : ''}`}>
+                <span className="crm-station" aria-hidden="true" />
+                <p className="quote-line-text">
+                  <span>{e.label}</span>
+                  <span className="data">{fmtTime(e.at, locale)}</span>
+                </p>
               </li>
             ))}
           </ol>
-          {quote.status !== 'draft' && (
-            <p className="data quote-link" title={publicUrl}>
-              {publicUrl}
-            </p>
-          )}
         </aside>
       </div>
     </div>

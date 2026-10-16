@@ -136,7 +136,7 @@ export default function AssignmentPanel({ rule, unavailable, history, people, se
           })}
         </ul>
       </div>
-      <p className={error ? 'ui-error' : 'ui-help'} role="status" aria-live="polite">
+      <p className={`assign-status ${error ? 'ui-error' : 'ui-help'}`} role="status" aria-live="polite">
         {error ?? (saved ? t('common.saved') : null)}
       </p>
 

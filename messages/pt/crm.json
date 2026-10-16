@@ -677,7 +677,9 @@
       "trigger": "Escolha pelo menos um gatilho.",
       "action": "Adicione pelo menos uma ação.",
       "headers": "Os headers precisam ser um objeto JSON.",
-      "save": "Não foi possível salvar. Tente de novo."
+      "save": "Não foi possível salvar. Tente de novo.",
+      "required": "Preencha este campo.",
+      "fields": "Preencha os campos marcados nas ações."
     },
     "saving": "Salvando…",
     "saved": "Alterações salvas",
@@ -942,9 +944,9 @@
   },
   "importP": {
     "title": "Importar {entity}",
-    "stepUpload": "1 · Enviar",
-    "stepMap": "2 · Mapear colunas",
-    "stepResult": "3 · Resultado",
+    "stepUpload": "Enviar",
+    "stepMap": "Mapear colunas",
+    "stepResult": "Resultado",
     "dropHint": "Solte um CSV ou clique para escolher",
     "mode": "Se o registro já existir",
     "modeSkip": "Pular",
@@ -1008,7 +1010,8 @@
       "contacts": "Os contatos são cruzados pelo email. Uma coluna de empresa a vincula (ou cria) como principal; o responsável aceita o email ou o nome completo de alguém da equipe.",
       "companies": "As empresas são cruzadas pelo domínio. Uma coluna de empresa-mãe a vincula a uma empresa que já exista.",
       "deals": "O pipeline e a etapa são buscados pelo nome (senão, o primeiro pipeline e sua primeira etapa). As empresas são vinculadas ou criadas; os contatos são buscados pelo email e criados se faltarem."
-    }
+    },
+    "stepsLabel": "Etapas da importação"
   },
   "errors": {
     "invalid_email": "Esse e-mail não parece válido.",
@@ -1220,7 +1223,7 @@
       "replied": "Respondidos"
     },
     "enrollments": "Inscrições",
-    "noEnrollments": "Ninguém está inscrito ainda. Inscreva contatos pela página do contato ou pela lista de contatos.",
+    "noEnrollments": "Inscreva contatos pela página do contato ou pela lista.",
     "contact": "Contato",
     "status": "Status",
     "step": "Etapa",
@@ -1267,7 +1270,6 @@
     "addTaskStep": "Adicionar tarefa",
     "confirmDeleteCta": "Excluir sequência e inscrições",
     "saveSequence": "Salvar sequência",
-    "noEnrollmentsTitle": "Ninguém inscrito ainda",
     "createSubmit": "Criar sequência",
     "createNote": "Começa com um email, 3 dias de espera e um segundo email. Altere no editor."
   },
@@ -1643,7 +1645,15 @@
     "consent": "Consentimento",
     "page": "Página",
     "createSubmit": "Criar formulário",
-    "never": "Nunca"
+    "never": "Nunca",
+    "defaults": {
+      "submit": "Enviar",
+      "success": "Obrigado! Entraremos em contato em breve.",
+      "email": "Email",
+      "firstName": "Nome",
+      "lastName": "Sobrenome",
+      "emailPlaceholder": "voce@empresa.com"
+    }
   },
   "formsPublic": {
     "notFound": "Formulário não encontrado",
@@ -1730,9 +1740,9 @@
       "team": "Os próprios e os da equipe"
     },
     "visDesc": {
-      "all": "todos os contatos, empresas e negócios do workspace",
-      "mine": "os registros pelos quais são responsáveis",
-      "team": "os registros de qualquer pessoa das suas equipes de vendas"
+      "all": "Todos os contatos, empresas e negócios do workspace",
+      "mine": "Os registros pelos quais são responsáveis",
+      "team": "Os registros de qualquer pessoa das suas equipes de vendas"
     },
     "adminsSeeAll": "Vale para listas, fichas, busca, exportações, relatórios, dashboards e chaves de API criadas por membros.",
     "teams": "Equipes de vendas",
@@ -1740,7 +1750,7 @@
     "noTeams": "Nenhuma equipe de vendas ainda.",
     "teamName": "Nome da equipe",
     "teamNamePh": "ex. Enterprise",
-    "createTeam": "Criar equipe",
+    "createTeam": "Criar equipe de vendas",
     "deleteTeamConfirm": "Excluir esta equipe? Os membros mantêm os seus registros."
   },
   "assignment": {
@@ -1760,7 +1770,7 @@
     "outOfOffice": "Fora do escritório",
     "history": "Distribuições recentes",
     "noHistory": "Nenhum lead distribuído ainda.",
-    "advancedHint": "Fontes, histórico",
+    "advancedHint": "Origens, histórico",
     "assignedTo": "atribuído a {name} ({source})"
   },
   "quotas": {

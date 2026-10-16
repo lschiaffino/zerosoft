@@ -23,7 +23,7 @@ export default function WorkflowRuns({ runs }: { runs: CrmWorkflowRunRow[] }) {
         {t('runs')}
       </h2>
       {runs.length === 0 ? (
-        <EmptyState quiet title={t('noRuns')} body={t('noRunsBody')} />
+        <EmptyState compact body={t('noRunsBody')} />
       ) : (
         <div className="table-wrap">
           <table className="table table-compact">

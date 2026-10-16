@@ -74,6 +74,27 @@ test('workflows: una plantilla completa disparador y acción, y el nombre se der
   await expect(page.getByRole('heading', { name: 'Task when a deal is won', level: 1 })).toBeVisible();
 });
 
+test('workflows: Siguiente en Acciones no guarda y pide los campos vacíos', async ({ page }) => {
+  const posts: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && new URL(r.url()).pathname === '/api/crm/workflows') posts.push(r.url());
+  });
+  await page.goto('/en/app/crm/workflows/new', { waitUntil: 'networkidle' });
+  await expect(async () => {
+    await page.getByTestId('workflow-wizard-next').click();
+    await expect(page.getByTestId('workflow-action')).toHaveCount(1, { timeout: 1000 });
+  }).toPass({ timeout: 20_000 });
+  // Acción por defecto: tarea sin título. Siguiente no avanza ni guarda.
+  await page.getByTestId('workflow-wizard-next').click();
+  await expect(page.getByText('Fill in the marked fields in the actions.')).toBeVisible();
+  await expect(page.getByTestId('workflow-action').getByLabel('Task title')).toHaveAttribute('aria-invalid', 'true');
+  await page.getByTestId('workflow-action').getByLabel('Task title').fill('Call them');
+  await page.getByTestId('workflow-wizard-next').click();
+  await expect(page.getByLabel('Workflow name')).toBeVisible();
+  await expect(page.getByTestId('workflow-create')).toBeVisible();
+  expect(posts).toHaveLength(0);
+});
+
 test('secuencias: el horario se ve como resumen y se abre para editarlo', async ({ page, request }) => {
   const res = await request.post('/api/crm/sequences', {
     data: { name: `Seq ${uid()}`, timezone: 'UTC', steps: [{ type: 'email', subject: 'Hi', body: 'Hello' }] },

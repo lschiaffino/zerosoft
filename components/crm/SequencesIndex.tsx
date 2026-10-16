@@ -66,7 +66,7 @@ export default function SequencesIndex({ rows, title }: { rows: SequenceRowView[
         <EmptyState title={t('sequences.emptyTitle')} body={t('sequences.emptySub')} action={createButton} />
       ) : (
         <div className="table-wrap">
-          <table className="table">
+          <table className="table crm-stack">
             <caption className="sr-only">{title}</caption>
             <thead>
               <tr>
@@ -86,15 +86,23 @@ export default function SequencesIndex({ rows, title }: { rows: SequenceRowView[
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td>
+                  <td className="crm-stack-main">
                     <Link href={`/app/crm/sequences/${r.id}`} className="cell-link">
                       {r.name}
                     </Link>
                   </td>
-                  <td className="num">{r.steps}</td>
-                  <td className="num">{r.active}</td>
-                  <td className="num">{r.total}</td>
-                  <td className="data">{r.updated}</td>
+                  <td className="num" data-label={t('sequences.steps')}>
+                    {r.steps}
+                  </td>
+                  <td className="num" data-label={t('sequences.active')}>
+                    {r.active}
+                  </td>
+                  <td className="num" data-label={t('sequences.enrolled')}>
+                    {r.total}
+                  </td>
+                  <td className="data" data-label={t('sequences.updated')}>
+                    {r.updated}
+                  </td>
                 </tr>
               ))}
             </tbody>

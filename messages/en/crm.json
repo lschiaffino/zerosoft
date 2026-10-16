@@ -677,7 +677,9 @@
       "trigger": "Pick at least one trigger.",
       "action": "Add at least one action.",
       "headers": "Headers must be a JSON object.",
-      "save": "Couldn't save. Try again."
+      "save": "Couldn't save. Try again.",
+      "required": "Fill in this field.",
+      "fields": "Fill in the marked fields in the actions."
     },
     "saving": "Saving…",
     "saved": "Changes saved",
@@ -942,9 +944,9 @@
   },
   "importP": {
     "title": "Import {entity}",
-    "stepUpload": "1 · Upload",
-    "stepMap": "2 · Map columns",
-    "stepResult": "3 · Result",
+    "stepUpload": "Upload",
+    "stepMap": "Map columns",
+    "stepResult": "Result",
     "dropHint": "Drop a CSV file or click to browse",
     "mode": "If a record already exists",
     "modeSkip": "Skip it",
@@ -1008,7 +1010,8 @@
       "contacts": "Contacts are matched by email. A company column links (or creates) the company as primary; owner accepts a teammate's email or full name.",
       "companies": "Companies are matched by domain. A parent company column links an existing company as parent.",
       "deals": "Pipeline and stage are matched by name (defaults to the first pipeline and stage). Companies are linked or created; contacts are matched by email and created if missing."
-    }
+    },
+    "stepsLabel": "Import steps"
   },
   "errors": {
     "invalid_email": "That email doesn't look right.",
@@ -1220,7 +1223,7 @@
       "replied": "Replied"
     },
     "enrollments": "Enrollments",
-    "noEnrollments": "No one is enrolled yet. Enroll contacts from their page or from the contacts list.",
+    "noEnrollments": "Enroll contacts from their page or from the list.",
     "contact": "Contact",
     "status": "Status",
     "step": "Step",
@@ -1267,7 +1270,6 @@
     "addTaskStep": "Add task",
     "confirmDeleteCta": "Delete sequence and enrollments",
     "saveSequence": "Save sequence",
-    "noEnrollmentsTitle": "No one enrolled yet",
     "createSubmit": "Create sequence",
     "createNote": "Starts with an email, a 3 day wait and a second email. Change them in the editor."
   },
@@ -1643,7 +1645,15 @@
     "consent": "Consent",
     "page": "Page",
     "createSubmit": "Create form",
-    "never": "Never"
+    "never": "Never",
+    "defaults": {
+      "submit": "Submit",
+      "success": "Thanks! We will be in touch soon.",
+      "email": "Email",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "emailPlaceholder": "you@company.com"
+    }
   },
   "formsPublic": {
     "notFound": "Form not found",
@@ -1730,9 +1740,9 @@
       "team": "Their own and their team’s"
     },
     "visDesc": {
-      "all": "every contact, company and deal in the workspace",
-      "mine": "records they own",
-      "team": "records owned by anyone on their sales teams"
+      "all": "Every contact, company and deal in the workspace",
+      "mine": "Records they own",
+      "team": "Records owned by anyone on their sales teams"
     },
     "adminsSeeAll": "Applies to lists, record pages, search, exports, reports, dashboards and API keys created by members.",
     "teams": "Sales teams",
@@ -1740,7 +1750,7 @@
     "noTeams": "No sales teams yet.",
     "teamName": "Team name",
     "teamNamePh": "e.g. Enterprise",
-    "createTeam": "Create team",
+    "createTeam": "Create sales team",
     "deleteTeamConfirm": "Delete this team? Its members keep their records."
   },
   "assignment": {

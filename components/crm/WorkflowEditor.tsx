@@ -8,6 +8,8 @@ import type { CrmWorkflowRunRow, CrmListRow } from '@/lib/db';
 import {
   ACTION_GROUPS,
   TEMPLATE_KEYS,
+  actionMissing,
+  actionStepProblems,
   TRIGGER_GROUPS,
   buildTemplate,
   defaultActionConfig,
@@ -39,7 +41,7 @@ export interface WorkflowEditorProps {
   canEdit?: boolean;
 }
 
-type Ctx = Required<Omit<WorkflowEditorProps, 'workflow' | 'runs' | 'canEdit'>> & { canEdit: boolean; idBase: string };
+type Ctx = Required<Omit<WorkflowEditorProps, 'workflow' | 'runs' | 'canEdit'>> & { canEdit: boolean; idBase: string; showErrors: boolean };
 
 /**
  * Editor de workflows. Nuevo: asistente en tres pasos (Disparador →
@@ -86,7 +88,7 @@ export default function WorkflowEditor({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [running, setRunning] = useState(false);
 
-  const ctx: Ctx = { lists, sequences, forms, flows, pipelines, owners, canEdit, idBase };
+  const ctx: Ctx = { lists, sequences, forms, flows, pipelines, owners, canEdit, idBase, showErrors };
   const triggerLabel = (type: string) => (t.has(`triggerTypes.${type}`) ? t(`triggerTypes.${type}` as 'triggerTypes.manual') : type);
   const actionLabel = (type: string) => (t.has(`actionTypes.${type}`) ? t(`actionTypes.${type}` as 'actionTypes.webhook') : type);
 
@@ -149,6 +151,8 @@ export default function WorkflowEditor({
   async function save(e?: FormEvent) {
     e?.preventDefault();
     if (!canEdit || saving) return;
+    // El asistente solo guarda desde Revisar: un submit en otro paso no crea nada.
+    if (isNew && step !== 2) return;
     if (problems.length) {
       setShowErrors(true);
       setError(t(`problems.${problems[0]}`));
@@ -455,7 +459,7 @@ export default function WorkflowEditor({
                 <li key={`t${i}`} className="crm-stop crm-stop-trigger">
                   <span className="crm-station" aria-hidden="true" />
                   <p className="wf-summary-text">
-                    <span className="crm-stop-kicker">{i === 0 ? t('whenTrigger') : t('orWhen')}</span> {triggerLabel(tr.type)}
+                    {i === 0 ? t('whenTrigger') : t('orWhen')} {triggerLabel(tr.type)}
                   </p>
                 </li>
               ))}
@@ -488,12 +492,15 @@ export default function WorkflowEditor({
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
+                key="next"
                 onClick={() => {
-                  if (step === 1 && actions.length === 0) {
+                  const blocking = step === 1 ? actionStepProblems(actions) : [];
+                  if (blocking.length) {
                     setShowErrors(true);
-                    setError(t('problems.action'));
+                    setError(t(`problems.${blocking[0]}`));
                     return;
                   }
+                  setShowErrors(false);
                   setError(null);
                   setStep(step + 1);
                 }}
@@ -502,7 +509,14 @@ export default function WorkflowEditor({
                 {t('wizard.next')}
               </button>
             ) : (
-              <button type="submit" className="btn btn-primary btn-sm" aria-busy={saving || undefined} data-testid="workflow-create">
+              <button
+                key="create"
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => void save()}
+                aria-busy={saving || undefined}
+                data-testid="workflow-create"
+              >
                 {t('wizard.create')}
               </button>
             )}
@@ -513,6 +527,28 @@ export default function WorkflowEditor({
   }
 
   // ---------- Editor (workflow existente) ----------
+  // En desktop van en la barra; en el celular, debajo del contenido (la barra queda con Guardar solo).
+  const secondaryActions = (
+    <>
+      {confirmDelete ? (
+        <>
+          <button type="button" className="btn btn-primary btn-danger btn-sm" onClick={remove}>
+            {t('confirmDelete')}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>
+            {t('cancel')}
+          </button>
+        </>
+      ) : (
+        <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setConfirmDelete(true)}>
+          {t('delete')}
+        </button>
+      )}
+      <button type="button" className="btn btn-secondary btn-sm" onClick={run} aria-busy={running || undefined}>
+        {t('runNow')}
+      </button>
+    </>
+  );
   return (
     <div className="wf-page">
       <form className="wf" onSubmit={save} noValidate>
@@ -540,29 +576,14 @@ export default function WorkflowEditor({
           </p>
           {canEdit && (
             <span className="crm-savebar-actions">
-              {confirmDelete ? (
-                <>
-                  <button type="button" className="btn btn-primary btn-danger btn-sm" onClick={remove}>
-                    {t('confirmDelete')}
-                  </button>
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>
-                    {t('cancel')}
-                  </button>
-                </>
-              ) : (
-                <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setConfirmDelete(true)}>
-                  {t('delete')}
-                </button>
-              )}
-              <button type="button" className="btn btn-secondary btn-sm" onClick={run} aria-busy={running || undefined}>
-                {t('runNow')}
-              </button>
+              <span className="crm-savebar-secondary">{secondaryActions}</span>
               <button type="submit" className="btn btn-primary btn-sm" aria-busy={saving || undefined} data-testid="workflow-save">
                 {t('saveWorkflow')}
               </button>
             </span>
           )}
         </div>
+        {canEdit && <div className="crm-savebar-more">{secondaryActions}</div>}
       </form>
 
       <WorkflowRuns runs={runs} />
@@ -577,14 +598,20 @@ export default function WorkflowEditor({
   }
 }
 
-function Field({ id, label, help, children }: { id: string; label: string; help?: string; children: ReactNode }) {
+function Field({ id, label, help, error, children }: { id: string; label: string; help?: string; error?: string; children: ReactNode }) {
   return (
     <div className="ui-field">
       <label className="label" htmlFor={id}>
         {label}
       </label>
       {children}
-      {help && <span className="ui-help">{help}</span>}
+      {error ? (
+        <span className="ui-error" id={`${id}-err`}>
+          {error}
+        </span>
+      ) : (
+        help && <span className="ui-help">{help}</span>
+      )}
     </div>
   );
 }
@@ -711,6 +738,11 @@ function ActionConfig({
   const tc = useTranslations('crm');
   const id = (k: string) => `${ctx.idBase}-a${index}-${k}`;
   const dis = !ctx.canEdit;
+  const missing = ctx.showErrors ? actionMissing(type, config) : [];
+  /** aria-invalid + mensaje para un campo obligatorio vacío. */
+  const req = (k: string, fid: string) =>
+    missing.includes(k) ? { 'aria-invalid': true as const, 'aria-describedby': `${fid}-err` } : {};
+  const reqMsg = (k: string) => (missing.includes(k) ? t('problems.required') : undefined);
   const entitySelect = (k: string, withEmpty: boolean) => (
     <Field id={id(k)} label={t('entity')}>
       <select id={id(k)} className="select" value={safeString(config.entity) || (withEmpty ? '' : 'contact')} onChange={(e) => onChange({ entity: e.target.value })} disabled={dis}>
@@ -743,16 +775,16 @@ function ActionConfig({
               </select>
             </Field>
             {!toContact && (
-              <Field id={id('to-addr')} label={t('toAddress')} help={t('toAddressHint')}>
-                <input id={id('to-addr')} className="input" value={to} onChange={(e) => onChange({ to: e.target.value })} disabled={dis} />
+              <Field id={id('to-addr')} label={t('toAddress')} help={t('toAddressHint')} error={reqMsg('to')}>
+                <input id={id('to-addr')} className="input" {...req('to', id('to-addr'))} value={to} onChange={(e) => onChange({ to: e.target.value })} disabled={dis} />
               </Field>
             )}
           </div>
-          <Field id={id('subject')} label={tc('common.subject')}>
-            <input id={id('subject')} className="input" value={safeString(config.subject)} onChange={(e) => onChange({ subject: e.target.value })} disabled={dis} />
+          <Field id={id('subject')} label={tc('common.subject')} error={reqMsg('subject')}>
+            <input id={id('subject')} className="input" {...req('subject', id('subject'))} value={safeString(config.subject)} onChange={(e) => onChange({ subject: e.target.value })} disabled={dis} />
           </Field>
-          <Field id={id('body')} label={tc('common.body')} help={t('variablesHint')}>
-            <textarea id={id('body')} className="textarea" rows={4} value={safeString(config.body)} onChange={(e) => onChange({ body: e.target.value })} disabled={dis} />
+          <Field id={id('body')} label={tc('common.body')} help={t('variablesHint')} error={reqMsg('body')}>
+            <textarea id={id('body')} className="textarea" rows={4} {...req('body', id('body'))} value={safeString(config.body)} onChange={(e) => onChange({ body: e.target.value })} disabled={dis} />
           </Field>
         </div>
       );
@@ -760,8 +792,8 @@ function ActionConfig({
     case 'create_task':
       return (
         <div className="wf-config">
-          <Field id={id('subject')} label={t('taskTitle')}>
-            <input id={id('subject')} className="input" value={safeString(config.subject)} onChange={(e) => onChange({ subject: e.target.value })} disabled={dis} />
+          <Field id={id('subject')} label={t('taskTitle')} error={reqMsg('subject')}>
+            <input id={id('subject')} className="input" {...req('subject', id('subject'))} value={safeString(config.subject)} onChange={(e) => onChange({ subject: e.target.value })} disabled={dis} />
           </Field>
           <div className="ui-fields-2">
             <Field id={id('due')} label={t('dueInDays')}>
@@ -817,8 +849,8 @@ function ActionConfig({
       return (
         <div className="wf-config wf-config-3">
           {entitySelect('entity', false)}
-          <Field id={id('field')} label={t('field')} help={t('fieldHint')}>
-            <input id={id('field')} className="input data" value={safeString(config.field)} onChange={(e) => onChange({ field: e.target.value })} disabled={dis} />
+          <Field id={id('field')} label={t('field')} help={t('fieldHint')} error={reqMsg('field')}>
+            <input id={id('field')} className="input data" {...req('field', id('field'))} value={safeString(config.field)} onChange={(e) => onChange({ field: e.target.value })} disabled={dis} />
           </Field>
           <Field id={id('value')} label={t('value')}>
             <input id={id('value')} className="input" value={safeString(config.value)} onChange={(e) => onChange({ value: e.target.value })} disabled={dis} />
@@ -828,8 +860,8 @@ function ActionConfig({
     case 'add_to_list':
       return (
         <div className="wf-config">
-          <Field id={id('list')} label={t('listId')}>
-            <select id={id('list')} className="select" value={safeString(config.listId)} onChange={(e) => onChange({ listId: e.target.value })} disabled={dis}>
+          <Field id={id('list')} label={t('listId')} error={reqMsg('listId')}>
+            <select id={id('list')} className="select" {...req('listId', id('list'))} value={safeString(config.listId)} onChange={(e) => onChange({ listId: e.target.value })} disabled={dis}>
               <option value="">{t('pick')}</option>
               {ctx.lists.map((l) => (
                 <option key={l.id} value={l.id}>
@@ -855,8 +887,8 @@ function ActionConfig({
                 ))}
               </select>
             </Field>
-            <Field id={id('url')} label={t('url')}>
-              <input id={id('url')} className="input data" type="url" value={safeString(config.url)} onChange={(e) => onChange({ url: e.target.value })} placeholder="https://" disabled={dis} />
+            <Field id={id('url')} label={t('url')} error={reqMsg('url')}>
+              <input id={id('url')} className="input data" type="url" {...req('url', id('url'))} value={safeString(config.url)} onChange={(e) => onChange({ url: e.target.value })} placeholder="https://" disabled={dis} />
             </Field>
           </div>
           <div className="ui-field">
@@ -884,16 +916,16 @@ function ActionConfig({
     case 'notify_user':
       return (
         <div className="wf-config">
-          <Field id={id('msg')} label={t('message')} help={t('variablesHint')}>
-            <textarea id={id('msg')} className="textarea" rows={2} value={safeString(config.message)} onChange={(e) => onChange({ message: e.target.value })} disabled={dis} />
+          <Field id={id('msg')} label={t('message')} help={t('variablesHint')} error={reqMsg('message')}>
+            <textarea id={id('msg')} className="textarea" rows={2} {...req('message', id('msg'))} value={safeString(config.message)} onChange={(e) => onChange({ message: e.target.value })} disabled={dis} />
           </Field>
         </div>
       );
     case 'enroll_in_sequence':
       return (
         <div className="wf-config">
-          <Field id={id('seq')} label={t('sequenceId')}>
-            <select id={id('seq')} className="select" value={safeString(config.sequenceId)} onChange={(e) => onChange({ sequenceId: e.target.value })} disabled={dis}>
+          <Field id={id('seq')} label={t('sequenceId')} error={reqMsg('sequenceId')}>
+            <select id={id('seq')} className="select" {...req('sequenceId', id('seq'))} value={safeString(config.sequenceId)} onChange={(e) => onChange({ sequenceId: e.target.value })} disabled={dis}>
               <option value="">{t('pick')}</option>
               {ctx.sequences.map((sq) => (
                 <option key={sq.id} value={sq.id}>
@@ -907,8 +939,8 @@ function ActionConfig({
     case 'run_flow':
       return (
         <div className="wf-config">
-          <Field id={id('flow')} label={t('flowId')} help={t('runFlowHint')}>
-            <select id={id('flow')} className="select" value={safeString(config.flowId)} onChange={(e) => onChange({ flowId: e.target.value })} disabled={dis}>
+          <Field id={id('flow')} label={t('flowId')} help={t('runFlowHint')} error={reqMsg('flowId')}>
+            <select id={id('flow')} className="select" {...req('flowId', id('flow'))} value={safeString(config.flowId)} onChange={(e) => onChange({ flowId: e.target.value })} disabled={dis}>
               <option value="">{t('pick')}</option>
               {ctx.flows.map((fl) => (
                 <option key={fl.id} value={fl.id}>
@@ -924,8 +956,8 @@ function ActionConfig({
         <div className="wf-config">
           <div className="wf-config-branch">
             {entitySelect('bentity', false)}
-            <Field id={id('bfield')} label={t('field')}>
-              <input id={id('bfield')} className="input data" value={safeString(config.field)} onChange={(e) => onChange({ field: e.target.value })} disabled={dis} />
+            <Field id={id('bfield')} label={t('field')} error={reqMsg('field')}>
+              <input id={id('bfield')} className="input data" {...req('field', id('bfield'))} value={safeString(config.field)} onChange={(e) => onChange({ field: e.target.value })} disabled={dis} />
             </Field>
             <Field id={id('op')} label={t('condition')}>
               <select id={id('op')} className="select" value={safeString(config.op) || 'equals'} onChange={(e) => onChange({ op: e.target.value })} disabled={dis}>

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { PipelineWithStages } from '@/lib/crm';
+import { RemoveIcon } from './RowTools';
 
 interface PipelinesEditorProps {
   initialPipelines: PipelineWithStages[];
@@ -223,7 +224,7 @@ export default function PipelinesEditor({ initialPipelines }: PipelinesEditorPro
             {t('settings.newPipeline')}
           </button>
         </form>
-        {saved && <span className="saved-note mono">{t('common.saved')}</span>}
+        {saved && <span className="saved-note">{t('common.saved')}</span>}
       </div>
 
       {pipelines.map((p) => (
@@ -368,13 +369,13 @@ export default function PipelinesEditor({ initialPipelines }: PipelinesEditorPro
                   ) : (
                     <button
                       type="button"
-                      className="icon-btn danger"
+                      className="btn btn-ghost btn-danger btn-sm btn-icon"
                       onClick={() => setConfirmStage(s.id)}
                       disabled={busy}
                       title={t('settings.deleteStage')}
-                      aria-label={t('settings.deleteStage')}
+                      aria-label={`${t('settings.deleteStage')}: ${s.name}`}
                     >
-                      ×
+                      <RemoveIcon />
                     </button>
                   )}
                 </span>

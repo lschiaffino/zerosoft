@@ -54,3 +54,22 @@ const ERROR_TABS: Record<string, BuilderTab> = {
 export function builderTabForError(code: string): BuilderTab | null {
   return ERROR_TABS[code] ?? null;
 }
+
+/** Copy de un form nuevo en el idioma de la persona (el schema trae defaults en inglés). */
+export function localizedFormDefaults(copy: {
+  submit: string;
+  success: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  emailPlaceholder: string;
+}) {
+  return {
+    fields: [
+      { id: 'email', type: 'email' as const, label: copy.email, property: 'email', required: true, placeholder: copy.emailPlaceholder },
+      { id: 'first_name', type: 'text' as const, label: copy.firstName, property: 'firstName', required: false },
+      { id: 'last_name', type: 'text' as const, label: copy.lastName, property: 'lastName', required: false },
+    ],
+    settings: { submitText: copy.submit, successMessage: copy.success },
+  };
+}

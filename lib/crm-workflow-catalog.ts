@@ -121,12 +121,54 @@ export function webhookHeadersValid(value: unknown): boolean {
   }
 }
 
+/**
+ * Campos obligatorios de cada acción que siguen vacíos. El asistente no pasa
+ * a Revisar ni guarda mientras falte alguno (antes una tarea sin título se
+ * guardaba igual).
+ */
+export function actionMissing(type: ActionType, config: Record<string, unknown> = {}): string[] {
+  const empty = (k: string) => {
+    const v = config[k];
+    return v === undefined || v === null || String(v).trim() === '';
+  };
+  const need = (...keys: string[]) => keys.filter(empty);
+  switch (type) {
+    case 'create_task':
+      return need('subject');
+    case 'send_email':
+      return need('to', 'subject', 'body');
+    case 'notify_user':
+      return need('message');
+    case 'update_field':
+    case 'branch':
+      return need('field');
+    case 'add_to_list':
+      return need('listId');
+    case 'enroll_in_sequence':
+      return need('sequenceId');
+    case 'run_flow':
+      return need('flowId');
+    case 'webhook':
+      return need('url');
+    default:
+      return [];
+  }
+}
+
+export type WorkflowProblem = 'name' | 'trigger' | 'action' | 'fields' | 'headers';
+
 /** Qué falta para poder guardar (el asistente no deja pasar sin esto). */
-export function workflowProblems(input: Pick<WorkflowInput, 'name' | 'triggers' | 'actions'>): Array<'name' | 'trigger' | 'action' | 'headers'> {
-  const out: Array<'name' | 'trigger' | 'action' | 'headers'> = [];
+export function workflowProblems(input: Pick<WorkflowInput, 'name' | 'triggers' | 'actions'>): WorkflowProblem[] {
+  const out: WorkflowProblem[] = [];
   if (!input.name.trim()) out.push('name');
   if (input.triggers.length === 0) out.push('trigger');
   if (input.actions.length === 0) out.push('action');
+  if (input.actions.some((a) => actionMissing(a.type, a.config ?? {}).length > 0)) out.push('fields');
   if (input.actions.some((a) => a.type === 'webhook' && !webhookHeadersValid(a.config?.headers))) out.push('headers');
   return out;
+}
+
+/** Problemas que frenan el paso Acciones → Revisar (el nombre se pide después). */
+export function actionStepProblems(actions: WorkflowInput['actions']): WorkflowProblem[] {
+  return workflowProblems({ name: 'x', triggers: [{ type: 'manual' }], actions });
 }

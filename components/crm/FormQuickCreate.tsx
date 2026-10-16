@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
+import { localizedFormDefaults } from '@/lib/crm-forms-builder';
 
 /** CTA "New form": tecla C y `?new=1` abren el modal; al crear abre el builder. */
 export default function FormQuickCreate({ variant = 'head', label }: { variant?: 'head' | 'empty'; label?: string }) {
@@ -37,7 +38,18 @@ export default function FormQuickCreate({ variant = 'head', label }: { variant?:
     const res = await fetch('/api/crm/forms', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: name.trim() }),
+      // Los textos por defecto del form nuevo, en el idioma de quien lo crea.
+      body: JSON.stringify({
+        name: name.trim(),
+        ...localizedFormDefaults({
+          submit: t('forms.defaults.submit'),
+          success: t('forms.defaults.success'),
+          email: t('forms.defaults.email'),
+          firstName: t('forms.defaults.firstName'),
+          lastName: t('forms.defaults.lastName'),
+          emailPlaceholder: t('forms.defaults.emailPlaceholder'),
+        }),
+      }),
     }).catch(() => null);
     setBusy(false);
     if (res?.ok) {

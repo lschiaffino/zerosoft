@@ -6,6 +6,8 @@ import { ACTION_TYPES, TRIGGER_TYPES, createWorkflow, getWorkflow } from '@/lib/
 import {
   ACTION_GROUPS,
   TEMPLATE_KEYS,
+  actionMissing,
+  actionStepProblems,
   TRIGGER_GROUPS,
   buildTemplate,
   defaultActionConfig,
@@ -14,7 +16,8 @@ import {
   webhookHeadersValid,
   workflowProblems,
 } from '@/lib/crm-workflow-catalog';
-import { builderTabForError, fieldKeyFromLabel, slugFromName, uniqueFieldKey } from '@/lib/crm-forms-builder';
+import { builderTabForError, fieldKeyFromLabel, localizedFormDefaults, slugFromName, uniqueFieldKey } from '@/lib/crm-forms-builder';
+import { formCreateSchema } from '@/lib/crm-forms-schema';
 import { CRM_SETTINGS_TABS, LEGACY_ANCHORS, crmSettingsTab } from '@/lib/crm-settings-tabs';
 import { partySummary, runSummary } from '@/lib/crm-admin-format';
 import { QUOTE_TONE, badgeClass } from '@/lib/crm-ui-tones';
@@ -69,9 +72,27 @@ describe('catálogo de workflows', () => {
   it('marca qué falta antes de guardar', () => {
     expect(workflowProblems({ name: ' ', triggers: [], actions: [] })).toEqual(['name', 'trigger', 'action']);
     expect(
-      workflowProblems({ name: 'x', triggers: [{ type: 'manual' }], actions: [{ type: 'webhook', config: { headers: 'nope' } }] }),
+      workflowProblems({
+        name: 'x',
+        triggers: [{ type: 'manual' }],
+        actions: [{ type: 'webhook', config: { url: 'https://x.test', headers: 'nope' } }],
+      }),
     ).toEqual(['headers']);
     expect(defaultActionConfig('send_email')).toEqual({ to: 'contact', subject: '', body: '' });
+  });
+
+  it('una acción con campos obligatorios vacíos no pasa a Revisar ni se guarda', () => {
+    // Antes una tarea sin título se guardaba igual (el submit se colaba desde Acciones).
+    const blank = [{ type: 'create_task' as const, config: defaultActionConfig('create_task') }];
+    expect(actionMissing('create_task', defaultActionConfig('create_task'))).toEqual(['subject']);
+    expect(actionStepProblems(blank)).toEqual(['fields']);
+    expect(workflowProblems({ name: 'x', triggers: [{ type: 'manual' }], actions: blank })).toEqual(['fields']);
+    expect(actionMissing('send_email', { to: 'contact', subject: 'Hola', body: '  ' })).toEqual(['body']);
+    expect(actionMissing('send_email', { to: '', subject: 'Hola', body: 'x' })).toEqual(['to']);
+    expect(actionMissing('add_to_list', {})).toEqual(['listId']);
+    expect(actionMissing('webhook', { method: 'POST' })).toEqual(['url']);
+    expect(actionMissing('create_activity', { type: 'note' })).toEqual([]);
+    expect(actionStepProblems([])).toEqual(['action']);
   });
 
   it('cada trigger, acción, grupo y plantilla tiene texto en en, es y pt', () => {
@@ -81,7 +102,9 @@ describe('catálogo de workflows', () => {
       ...TRIGGER_GROUPS.map((g) => `workflows.triggerGroups.${g.key}`),
       ...ACTION_GROUPS.map((g) => `workflows.actionGroups.${g.key}`),
       ...TEMPLATE_KEYS.flatMap((k) => [`workflows.templates.${k}.title`, `workflows.templates.${k}.desc`]),
-      ...['name', 'trigger', 'action', 'headers', 'save'].map((p) => `workflows.problems.${p}`),
+      ...['name', 'trigger', 'action', 'fields', 'required', 'headers', 'save'].map((p) => `workflows.problems.${p}`),
+      ...['submit', 'success', 'email', 'firstName', 'lastName', 'emailPlaceholder'].map((k) => `forms.defaults.${k}`),
+      'importP.stepsLabel',
       ...CRM_SETTINGS_TABS.map((tab) => `settings.tabs.${tab}`),
       ...['fields', 'design', 'after', 'crm'].map((tab) => `forms.builder.tabs.${tab}`),
     ];
@@ -96,6 +119,14 @@ describe('builder de formularios', () => {
     expect(fieldKeyFromLabel('Teléfono móvil')).toBe('telefono_movil');
     expect(fieldKeyFromLabel('  ')).toBe('field');
     expect(uniqueFieldKey([{ id: 'email' }, { id: 'email_2' }], 'Email')).toBe('email_3');
+  });
+
+  it('un form nuevo nace con los textos en el idioma de quien lo crea', () => {
+    const d = es.forms.defaults;
+    const body = { name: 'Contacto', ...localizedFormDefaults(d) };
+    expect(formCreateSchema.safeParse(body).success).toBe(true);
+    expect(body.fields.map((f) => f.label)).toEqual(['Email', 'Nombre', 'Apellido']);
+    expect(body.settings.submitText).toBe('Enviar');
   });
 
   it('sugiere la URL propia desde el nombre', () => {

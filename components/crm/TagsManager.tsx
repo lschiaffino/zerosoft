@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { TAG_COLORS } from '@/lib/crm-constants';
 import { tagColorVar } from './TagDots';
+import { RemoveIcon } from './RowTools';
 
 export interface ManagedTag {
   id: string;
@@ -130,7 +131,7 @@ export default function TagsManager({ initialTags }: { initialTags: ManagedTag[]
                 }}
               />
               <Swatches value={tag.color} onPick={(c) => patch(tag.id, { color: c })} />
-              <span className="muted mono tags-count">
+              <span className="ui-help tags-count">
                 {t('tags.counts', { contacts: tag.contacts, companies: tag.companies, deals: tag.deals })}
               </span>
               {confirmId === tag.id ? (
@@ -143,8 +144,14 @@ export default function TagsManager({ initialTags }: { initialTags: ManagedTag[]
                   </button>
                 </span>
               ) : (
-                <button type="button" className="chip-remove" aria-label={`${t('tags.delete')} ${tag.name}`} onClick={() => setConfirmId(tag.id)}>
-                  ✕
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-danger btn-sm btn-icon"
+                  aria-label={`${t('tags.delete')} ${tag.name}`}
+                  title={t('tags.delete')}
+                  onClick={() => setConfirmId(tag.id)}
+                >
+                  <RemoveIcon />
                 </button>
               )}
             </li>

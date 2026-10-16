@@ -1495,9 +1495,8 @@ tr:hover .cell-quick { opacity: 0.8; }
 
 .imp { display: flex; flex-direction: column; gap: 18px; }
 
-.imp-steps { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); }
-.imp-step.active { color: var(--ink); }
-.imp-step-sep { margin: 0 6px; }
+/* .imp-steps usa la línea de estaciones de .wf-steps (ver Workflows). */
+.imp-steps .wf-steps-btn { cursor: default; }
 
 .imp-body { display: flex; flex-direction: column; gap: 16px; }
 
@@ -1683,13 +1682,12 @@ tr:hover .cell-quick { opacity: 0.8; }
 
 /* Panel de Team (settings) */
 .team-panel { display: flex; flex-direction: column; gap: 12px; }
-.team-panel .prop-label { margin-top: 6px; }
+.team-panel .crm-subhead { margin-top: 12px; }
+.team-panel .crm-subhead:first-child { margin-top: 0; }
 .team-acting {
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dim);
-  border: 1px dashed var(--line);
+  font-size: 0.8125rem;
+  color: var(--brand-gray-1);
+  border: 1px solid var(--line);
   border-radius: var(--r-md);
   padding: 8px 12px;
   margin: 0;
@@ -2719,31 +2717,10 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
 .quote-actions-spacer { flex: 1; }
 .quote-layout { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 28px; align-items: start; }
 .quote-side { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 12px; }
-.quote-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.quote-timeline li {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 0 8px 14px;
-  border-left: 1px solid var(--line);
-  position: relative;
-  font-size: 13px;
-}
-.quote-timeline li::before {
-  content: '';
-  position: absolute;
-  left: -4px;
-  top: 13px;
-  width: 7px;
-  height: 7px;
-  border-radius: 1px;
-  background: var(--dim);
-}
-.quote-timeline li.q-sent::before { background: var(--info); }
-.quote-timeline li.q-accepted::before { background: var(--ok); }
-.quote-timeline li.q-declined::before { background: var(--bad); }
-.quote-timeline li.q-expired::before { background: var(--warn); }
-.quote-link { font-size: 11px; overflow-wrap: anywhere; }
+.quote-line .crm-stop { padding-bottom: 16px; }
+.quote-line .crm-stop:last-child { padding-bottom: 0; }
+.quote-line-text { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; font-size: 0.875rem; line-height: 1.35; }
+.quote-line-text .data { color: var(--brand-gray-2); }
 @media (max-width: 900px) {
   .quote-layout { grid-template-columns: minmax(0, 1fr); }
   .quote-side { position: static; }
@@ -2868,7 +2845,7 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
   border-bottom: 1px solid var(--line);
 }
 .tags-name { padding: 4px 6px; }
-.tags-count { font-size: 11px; text-align: right; }
+.tags-count { text-align: right; }
 .tags-confirm { display: inline-flex; gap: 6px; }
 
 /* Ajustes › Moneda */
@@ -3115,6 +3092,11 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
   background: var(--bg);
 }
 .crm-savebar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.crm-savebar-secondary { display: contents; }
+/* Eliminar, Ejecutar, Vista previa: en el celular salen de la barra y van debajo del contenido. */
+.crm-savebar-more { display: none; }
+.crm-station-wait { border-color: var(--brand-gray-2); }
+.crm-subhead { font-size: 0.9375rem; font-weight: 600; line-height: 1.3; }
 .crm-row-tools { display: inline-flex; gap: 2px; margin-left: auto; }
 td.crm-row-actions { text-align: right; white-space: nowrap; }
 td.crm-row-actions > * + * { margin-left: 4px; }
@@ -3146,11 +3128,25 @@ td.crm-row-actions > * + * { margin-left: 4px; }
 .fb-panel:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 .fb-field-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1.4fr) minmax(110px, 0.8fr) minmax(150px, 1.1fr) auto auto;
+  /* Anchos fijos para Obligatorio y las herramientas: la cabecera (sin esos controles) queda alineada con las filas. */
+  grid-template-columns: minmax(140px, 1.4fr) minmax(110px, 0.8fr) minmax(150px, 1.1fr) 104px 156px;
   gap: 8px;
   align-items: center;
 }
-.fb-field-tools { display: inline-flex; align-items: center; gap: 2px; }
+.fb-field-tools { display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.fb-field-head { padding-bottom: 6px; border-bottom: 1px solid var(--line); font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
+.fb-fields { margin-top: -8px; }
+.fb-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* En desktop la cabecera nombra las columnas: el rótulo de cada control queda para lectores de pantalla. */
+.fb-cell-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.fb-meta { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .fb-field-more { padding: 12px 0 4px; }
 .fb-field-more[hidden] { display: none; }
 .fb-radios { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; }
@@ -3242,6 +3238,7 @@ td.crm-row-actions > * + * { margin-left: 4px; }
 .wf-template:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .wf-template-title { font-size: 0.9375rem; font-weight: 600; }
 .wf-template-desc { font-size: 0.8125rem; line-height: 1.4; color: var(--brand-gray-1); }
+.wf-summary { margin-top: 28px; }
 .wf-summary-text { padding-top: 6px; font-size: 0.9375rem; }
 .wf-summary-detail { color: var(--brand-gray-1); }
 
@@ -3271,4 +3268,128 @@ td.crm-row-actions > * + * { margin-left: 4px; }
   .wf-config-3, .wf-config-branch, .wf-config-url, .wf-templates { grid-template-columns: minmax(0, 1fr); }
   .wf-type { max-width: none; }
   .wf-steps-btn span:last-child { font-size: 0.8125rem; }
+}
+
+/* ---------- Ajustes de la revisión: listas, señalética y celular ---------- */
+
+/* El scroll horizontal de una tabla queda adentro de su caja, nunca en la página. */
+.table-wrap { position: relative; min-width: 0; max-width: 100%; }
+
+/* Celdas sueltas de las listas */
+.forms-never { font-size: 0.8125rem; color: var(--brand-gray-2); }
+.forms-link-cell .copy-btn {
+  padding: 4px 10px;
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  border-radius: var(--radius-1);
+}
+
+/* Mono solo para datos: los placeholders de inputs de datos van en Archivo. */
+.crm-settings .input.mono::placeholder,
+.crm-settings .input.data::placeholder { font-family: var(--font-ui); }
+.crm-settings .em-setting { margin-top: 0; padding-top: 0; border-top: 0; }
+.crm-settings .em-check { font-size: 0.875rem; }
+.crm-settings .access-teams { display: flex; flex-direction: column; gap: 8px; }
+.crm-settings .section-label { margin-bottom: 0; }
+.crm-settings legend.section-label { margin-bottom: 8px; }
+.crm-settings .access-team-list { margin: 0; }
+.assign-status:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* Pestañas de segundo nivel (dentro de Editor del form): más chicas, sin filete. */
+.crm-subtabs { gap: 20px; border-bottom: 0; }
+.crm-subtabs .ui-tab { height: 32px; padding: 0; font-size: 0.8125rem; }
+.crm-subtabs .ui-tab[aria-selected='true']::after { left: 0; right: 0; bottom: 2px; height: 2px; background: var(--ink); }
+
+@media (max-width: 900px) {
+  /* Campos personalizados: etiqueta y quitar arriba, clave y tipo debajo, opciones al final. */
+  .crm-settings .cf-group { overflow-x: visible; }
+  .crm-settings .cf-row { min-width: 0; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px 10px; padding: 8px 0; }
+  .crm-settings .cf-row > :first-child { grid-column: 1 / 3; }
+  .crm-settings .cf-row > :last-child { grid-column: 3; grid-row: 1; }
+  .crm-settings .cf-row .cf-name { grid-column: 1; grid-row: 2; }
+  .crm-settings .cf-row > .badge { grid-column: 2 / 4; grid-row: 2; justify-self: end; }
+  .crm-settings .cf-row > :nth-child(4) { grid-column: 1 / -1; }
+  .crm-settings .cf-options-empty { display: none; }
+
+  /* Pestañas de Ajustes: el borde derecho se desvanece para avisar que hay más. */
+  .crm-settings .ui-settings-nav {
+    padding-right: 32px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  }
+
+  /* Listas: cada fila es un bloque. Nombre y estado arriba; los datos, en dos columnas debajo. */
+  .crm-stack, .crm-stack tbody { display: block; width: 100%; }
+  .crm-stack thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .crm-stack tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .crm-stack tbody tr:hover { background: none; }
+  .crm-stack td { display: block; height: auto; padding: 0; border: 0; text-align: left; }
+  .crm-stack td.crm-stack-main { grid-column: 1; grid-row: 1; align-self: center; font-size: 0.9375rem; }
+  .crm-stack td.crm-stack-main.data { font-size: 0.875rem; }
+  .crm-stack td.crm-stack-state { grid-column: 2; grid-row: 1; align-self: center; justify-self: end; }
+  .crm-stack td.crm-stack-sub { grid-column: 1 / -1; margin-top: -2px; }
+  .crm-stack td[data-label] {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.8125rem;
+  }
+  .crm-stack td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-family: var(--font-ui);
+    color: var(--brand-gray-2);
+  }
+  .crm-stack td.forms-link-cell { white-space: normal; }
+  .crm-stack td.forms-link-cell .forms-url { margin-left: auto; max-width: 50vw; }
+  .crm-stack td.crm-row-actions { grid-column: 1 / -1; margin-top: 4px; text-align: left; }
+  .crm-stack td.crm-row-actions > * + * { margin-left: 4px; }
+  .crm-stack td.crm-row-actions:empty { display: none; }
+  .table-wrap:has(> .crm-stack) { overflow: visible; border: 0; }
+
+  /* Barra de guardado: estado a la izquierda, Guardar solo a la derecha; libre el rincón del botón de feedback. */
+  .crm-savebar { flex-wrap: nowrap; padding-right: 68px; }
+  .crm-savebar .ui-section-note { flex: 1; min-width: 0; }
+  .crm-savebar-actions { flex-wrap: nowrap; }
+  .crm-savebar-secondary { display: none; }
+  .crm-savebar-more { display: flex; flex-wrap: wrap; gap: 8px; }
+}
+
+@media (max-width: 720px) {
+  .fb-field-head { display: none; }
+  .fb-fields { margin-top: 0; }
+  .fb-cell-label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--brand-gray-2);
+  }
 }

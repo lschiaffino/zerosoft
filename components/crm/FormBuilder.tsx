@@ -215,6 +215,29 @@ export default function FormBuilder(props: Props) {
   const statusNote =
     busy ? t('common.saving') : error ? error.message : state === 'saved' ? t('forms.builder.saved') : state === 'dirty' ? t('forms.builder.unsaved') : null;
 
+  // En desktop van en la barra; en el celular, debajo del contenido (la barra queda con Guardar solo).
+  const secondaryActions = (
+    <>
+      {confirmDelete ? (
+        <>
+          <button type="button" className="btn btn-primary btn-danger btn-sm" onClick={remove}>
+            {t('forms.builder.confirmDelete')}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>
+            {t('common.cancel')}
+          </button>
+        </>
+      ) : (
+        <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setConfirmDelete(true)}>
+          {t('common.delete')}
+        </button>
+      )}
+      <a className="btn btn-secondary btn-sm" href={props.hostedUrl} target="_blank" rel="noreferrer">
+        {t('forms.builder.preview')}
+      </a>
+    </>
+  );
+
   return (
     <form className="fb" onSubmit={save} noValidate>
       <PanelTabs
@@ -223,10 +246,16 @@ export default function FormBuilder(props: Props) {
         onChange={(k) => setTab(k as BuilderTab)}
         idBase={idBase}
         label={t('forms.builder.tabsLabel')}
+        level="sub"
       />
 
       <TabPanel idBase={idBase} tab="fields" active={tab} className="fb-panel">
         <p className="ui-help">{t('forms.builder.fieldsDesc')}</p>
+        <div className="fb-field-row fb-field-head" aria-hidden="true">
+          <span>{t('forms.builder.label')}</span>
+          <span>{t('forms.builder.type')}</span>
+          <span>{t('forms.builder.property')}</span>
+        </div>
         <ol className="fb-fields">
           {fields.map((f, i) => {
             const more = open === f.id;
@@ -234,36 +263,51 @@ export default function FormBuilder(props: Props) {
             return (
               <li key={i} className="fb-field" data-testid="form-field-row">
                 <div className="fb-field-row">
-                  <input
-                    className="input fb-label"
-                    value={f.label}
-                    onChange={(e) => updateField(i, { label: e.target.value })}
-                    aria-label={t('forms.builder.label')}
-                    placeholder={t('forms.builder.label')}
-                    disabled={!canEdit}
-                  />
-                  <select
-                    className="select"
-                    value={f.type}
-                    onChange={(e) => updateField(i, { type: e.target.value as FormFieldType })}
-                    aria-label={t('forms.builder.type')}
-                    disabled={!canEdit}
-                  >
-                    {FORM_FIELD_TYPES.map((ft) => (
-                      <option key={ft} value={ft}>
-                        {t(`forms.types.${ft}`)}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="select"
-                    value={f.property}
-                    onChange={(e) => updateField(i, { property: e.target.value })}
-                    aria-label={t('forms.builder.property')}
-                    disabled={!canEdit}
-                  >
-                    {propertyOptions}
-                  </select>
+                  {/* La cabecera nombra las columnas en desktop; en el celular cada control lleva su rótulo. */}
+                  <span className="fb-cell fb-label">
+                    <label className="fb-cell-label" htmlFor={fid(`label-${i}`)}>
+                      {t('forms.builder.label')}
+                    </label>
+                    <input
+                      id={fid(`label-${i}`)}
+                      className="input"
+                      value={f.label}
+                      onChange={(e) => updateField(i, { label: e.target.value })}
+                      disabled={!canEdit}
+                    />
+                  </span>
+                  <span className="fb-cell">
+                    <label className="fb-cell-label" htmlFor={fid(`type-${i}`)}>
+                      {t('forms.builder.type')}
+                    </label>
+                    <select
+                      id={fid(`type-${i}`)}
+                      className="select"
+                      value={f.type}
+                      onChange={(e) => updateField(i, { type: e.target.value as FormFieldType })}
+                      disabled={!canEdit}
+                    >
+                      {FORM_FIELD_TYPES.map((ft) => (
+                        <option key={ft} value={ft}>
+                          {t(`forms.types.${ft}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </span>
+                  <span className="fb-cell">
+                    <label className="fb-cell-label" htmlFor={fid(`prop-${i}`)}>
+                      {t('forms.builder.property')}
+                    </label>
+                    <select
+                      id={fid(`prop-${i}`)}
+                      className="select"
+                      value={f.property}
+                      onChange={(e) => updateField(i, { property: e.target.value })}
+                      disabled={!canEdit}
+                    >
+                      {propertyOptions}
+                    </select>
+                  </span>
                   <label className="ui-check fb-req">
                     <input
                       type="checkbox"
@@ -421,46 +465,6 @@ export default function FormBuilder(props: Props) {
             disabled={!canEdit}
           />
         </div>
-        <div className="ui-fields-2">
-          <div className="ui-field">
-            <label className="label" htmlFor={fid('name')}>
-              {t('forms.builder.internalName')}
-            </label>
-            <input
-              id={fid('name')}
-              className="input"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                dirty();
-              }}
-              disabled={!canEdit}
-            />
-            <span className="ui-help">{t('forms.builder.internalNameHint')}</span>
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor={fid('status')}>
-              {t('forms.builder.status')}
-            </label>
-            <select
-              id={fid('status')}
-              className="select"
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value as FormStatus);
-                dirty();
-              }}
-              disabled={!canEdit}
-            >
-              {(['active', 'paused', 'archived'] as const).map((st) => (
-                <option key={st} value={st}>
-                  {t(`forms.status.${st}`)}
-                </option>
-              ))}
-            </select>
-            <span className="ui-help">{t('forms.builder.statusHint')}</span>
-          </div>
-        </div>
         <AdvancedSection storageKey="crm.form.design" hint={t('forms.builder.designAdvancedHint')} defaultOpen={error?.tab === 'design'}>
           <div className="ui-field">
             <label className="label" htmlFor={fid('slug')}>
@@ -565,6 +569,46 @@ export default function FormBuilder(props: Props) {
       </TabPanel>
 
       <TabPanel idBase={idBase} tab="crm" active={tab} className="fb-panel">
+        <div className="ui-fields-2 fb-meta">
+          <div className="ui-field">
+            <label className="label" htmlFor={fid('name')}>
+              {t('forms.builder.internalName')}
+            </label>
+            <input
+              id={fid('name')}
+              className="input"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                dirty();
+              }}
+              disabled={!canEdit}
+            />
+            <span className="ui-help">{t('forms.builder.internalNameHint')}</span>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor={fid('status')}>
+              {t('forms.builder.status')}
+            </label>
+            <select
+              id={fid('status')}
+              className="select"
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value as FormStatus);
+                dirty();
+              }}
+              disabled={!canEdit}
+            >
+              {(['active', 'paused', 'archived'] as const).map((st) => (
+                <option key={st} value={st}>
+                  {t(`forms.status.${st}`)}
+                </option>
+              ))}
+            </select>
+            <span className="ui-help">{t('forms.builder.statusHint')}</span>
+          </div>
+        </div>
         <p className="ui-help">{t('forms.builder.crmDesc')}</p>
         <div className="ui-fields-2">
           <div className="ui-field">
@@ -741,29 +785,14 @@ export default function FormBuilder(props: Props) {
         </p>
         {canEdit && (
           <span className="crm-savebar-actions">
-            {confirmDelete ? (
-              <>
-                <button type="button" className="btn btn-primary btn-danger btn-sm" onClick={remove}>
-                  {t('forms.builder.confirmDelete')}
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>
-                  {t('common.cancel')}
-                </button>
-              </>
-            ) : (
-              <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setConfirmDelete(true)}>
-                {t('common.delete')}
-              </button>
-            )}
-            <a className="btn btn-secondary btn-sm" href={props.hostedUrl} target="_blank" rel="noreferrer">
-              {t('forms.builder.preview')}
-            </a>
+            <span className="crm-savebar-secondary">{secondaryActions}</span>
             <button type="submit" className="btn btn-primary btn-sm" aria-busy={busy || undefined} data-testid="form-save">
               {t('forms.builder.saveForm')}
             </button>
           </span>
         )}
       </div>
+      {canEdit && <div className="crm-savebar-more">{secondaryActions}</div>}
     </form>
   );
 }

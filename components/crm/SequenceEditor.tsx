@@ -197,6 +197,21 @@ export default function SequenceEditor({ sequence, steps: initialSteps, template
           : !canEdit
             ? t('sequences.readOnly')
             : null;
+  // En desktop van en la barra; en el celular, debajo del contenido (la barra queda con Guardar solo).
+  const secondaryActions = confirmDelete ? (
+    <>
+      <button type="button" className="btn btn-primary btn-danger btn-sm" onClick={remove} disabled={busy}>
+        {t('sequences.confirmDeleteCta')}
+      </button>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>
+        {t('common.cancel')}
+      </button>
+    </>
+  ) : (
+    <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setConfirmDelete(true)}>
+      {t('sequences.deleteSequence')}
+    </button>
+  );
 
   return (
     <div className="seq-editor">
@@ -311,8 +326,8 @@ export default function SequenceEditor({ sequence, steps: initialSteps, template
               const typeLabel = t(`sequences.stepTypes.${s.type}`);
               return (
                 <li key={s.key} className={`crm-stop seq-step seq-${s.type}`}>
-                  <span className={`crm-station${s.type === 'wait' ? ' crm-station-ghost' : ''}`} aria-hidden="true">
-                    {s.type !== 'wait' && <span className="crm-station-n">{i + 1}</span>}
+                  <span className={`crm-station${s.type === 'wait' ? ' crm-station-wait' : ''}`} aria-hidden="true">
+                    <span className="crm-station-n">{i + 1}</span>
                   </span>
                   <div className="crm-stop-body">
                     <div className="crm-stop-head">
@@ -489,26 +504,14 @@ export default function SequenceEditor({ sequence, steps: initialSteps, template
           </p>
           {canEdit && (
             <span className="crm-savebar-actions">
-              {confirmDelete ? (
-                <>
-                  <button type="button" className="btn btn-primary btn-danger btn-sm" onClick={remove} disabled={busy}>
-                    {t('sequences.confirmDeleteCta')}
-                  </button>
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>
-                    {t('common.cancel')}
-                  </button>
-                </>
-              ) : (
-                <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setConfirmDelete(true)}>
-                  {t('sequences.deleteSequence')}
-                </button>
-              )}
+              <span className="crm-savebar-secondary">{secondaryActions}</span>
               <button type="submit" className="btn btn-primary btn-sm" aria-busy={busy || undefined} data-testid="sequence-save">
                 {t('sequences.saveSequence')}
               </button>
             </span>
           )}
         </div>
+        {canEdit && <div className="crm-savebar-more">{secondaryActions}</div>}
       </form>
 
       <section className="seq-enrollments" aria-labelledby={fid('enr')}>
@@ -516,7 +519,7 @@ export default function SequenceEditor({ sequence, steps: initialSteps, template
           {t('sequences.enrollments')} <span className="data seq-count">{enrollments.length}</span>
         </h2>
         {enrollments.length === 0 ? (
-          <EmptyState quiet title={t('sequences.noEnrollmentsTitle')} body={t('sequences.noEnrollments')} />
+          <EmptyState compact body={t('sequences.noEnrollments')} />
         ) : (
           <div className="table-wrap">
             <table className="table">

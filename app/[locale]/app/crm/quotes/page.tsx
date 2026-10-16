@@ -72,7 +72,7 @@ export default async function QuotesPage(props: QuotesPageProps) {
         )
       ) : (
         <div className="table-wrap">
-          <table className="table">
+          <table className="table crm-stack">
             <caption className="sr-only">{t('quotes.title')}</caption>
             <thead>
               <tr>
@@ -90,19 +90,19 @@ export default async function QuotesPage(props: QuotesPageProps) {
             <tbody>
               {rows.map((q) => (
                 <tr key={q.id}>
-                  <td className="data">
+                  <td className="data crm-stack-main quote-num-cell">
                     <Link href={`/app/crm/quotes/${q.id}`} className="cell-link">
                       {q.number}
                     </Link>
                   </td>
-                  <td>{q.title}</td>
-                  <td>{q.deal_name ? <Link href={`/app/crm/deals/${q.deal_id}`}>{q.deal_name}</Link> : null}</td>
-                  <td>
+                  <td className="crm-stack-sub">{q.title}</td>
+                  <td data-label={t('quotes.table.deal')}>{q.deal_name ? <Link href={`/app/crm/deals/${q.deal_id}`}>{q.deal_name}</Link> : null}</td>
+                  <td className="crm-stack-state">
                     <span className={badgeClass(QUOTE_TONE, q.status)}>{t(`enums.quoteStatus.${q.status}`)}</span>
                   </td>
-                  <td className="num data">{formatMoney(q.total, q.currency, locale, true)}</td>
-                  <td className="data">{fmtDay(q.expires_at)}</td>
-                  <td className="data">{formatDate(q.created_at, locale)}</td>
+                  <td className="num data" data-label={t('quotes.table.total')}>{formatMoney(q.total, q.currency, locale, true)}</td>
+                  <td className="data" data-label={t('quotes.table.expires')}>{fmtDay(q.expires_at)}</td>
+                  <td className="data" data-label={t('quotes.table.created')}>{formatDate(q.created_at, locale)}</td>
                 </tr>
               ))}
             </tbody>

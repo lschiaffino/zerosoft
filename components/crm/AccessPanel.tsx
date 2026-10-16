@@ -75,7 +75,9 @@ export default function AccessPanel({ visibility: initialVisibility, teams: init
 
   async function deleteTeam(id: string) {
     if (!confirm(t('access.deleteTeamConfirm'))) return;
-    const res = await fetch(`/api/crm/sales-teams/${id}`, { method: 'DELETE' }).catch(() => null);
+    const res = await fetch(`/api/crm/sales-teams/${id}`, {
+      method: 'DELETE',
+    }).catch(() => null);
     if (res?.ok) setTeams((prev) => prev.filter((x) => x.id !== id));
   }
 
@@ -105,44 +107,48 @@ export default function AccessPanel({ visibility: initialVisibility, teams: init
       <div className="access-teams">
         <p className="section-label">{t('access.teams')}</p>
         <p className="muted access-note">{t('access.teamsDesc')}</p>
-        {teams.length === 0 && <p className="muted">{t('access.noTeams')}</p>}
-        <ul className="access-team-list">
-          {teams.map((team) => (
-            <li key={team.id} className="access-team">
-              <div className="access-team-head">
-                <input
-                  className="input"
-                  defaultValue={team.name}
-                  onBlur={(e) => e.target.value.trim() && e.target.value !== team.name && patchTeam(team.id, { name: e.target.value.trim() })}
-                  aria-label={t('access.teamName')}
-                  disabled={!canEdit}
-                />
-                {canEdit && (
-                  <button type="button" className="icon-btn danger" onClick={() => deleteTeam(team.id)}>
-                    {t('common.delete')}
-                  </button>
-                )}
-              </div>
-              <div className="access-members">
-                {people.map((p) => (
-                  <label key={p.id} className="fb-check">
-                    <input
-                      type="checkbox"
-                      checked={team.members.includes(p.id)}
-                      onChange={(e) =>
-                        patchTeam(team.id, {
-                          members: e.target.checked ? [...team.members, p.id] : team.members.filter((m) => m !== p.id),
-                        })
-                      }
-                      disabled={!canEdit}
-                    />
-                    {p.label}
-                  </label>
-                ))}
-              </div>
-            </li>
-          ))}
-        </ul>
+        {teams.length === 0 && <p className="ui-help">{t('access.noTeams')}</p>}
+        {teams.length > 0 && (
+          <ul className="access-team-list">
+            {teams.map((team) => (
+              <li key={team.id} className="access-team">
+                <div className="access-team-head">
+                  <input
+                    className="input"
+                    defaultValue={team.name}
+                    onBlur={(e) =>
+                      e.target.value.trim() && e.target.value !== team.name && patchTeam(team.id, { name: e.target.value.trim() })
+                    }
+                    aria-label={t('access.teamName')}
+                    disabled={!canEdit}
+                  />
+                  {canEdit && (
+                    <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => deleteTeam(team.id)}>
+                      {t('common.delete')}
+                    </button>
+                  )}
+                </div>
+                <div className="access-members">
+                  {people.map((p) => (
+                    <label key={p.id} className="fb-check">
+                      <input
+                        type="checkbox"
+                        checked={team.members.includes(p.id)}
+                        onChange={(e) =>
+                          patchTeam(team.id, {
+                            members: e.target.checked ? [...team.members, p.id] : team.members.filter((m) => m !== p.id),
+                          })
+                        }
+                        disabled={!canEdit}
+                      />
+                      {p.label}
+                    </label>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
         {canEdit && (
           <div className="access-new">
             <input
@@ -153,7 +159,7 @@ export default function AccessPanel({ visibility: initialVisibility, teams: init
               placeholder={t('access.teamNamePh')}
               aria-label={t('access.teamName')}
             />
-            <button type="button" className="btn btn-small" onClick={createTeam} disabled={busy || !newName.trim()}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={createTeam} disabled={busy || !newName.trim()}>
               {t('access.createTeam')}
             </button>
           </div>

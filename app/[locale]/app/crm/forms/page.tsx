@@ -31,7 +31,7 @@ export default async function FormsPage(props: { params: Promise<{ locale: strin
         />
       ) : (
         <div className="table-wrap">
-          <table className="table forms-table">
+          <table className="table forms-table crm-stack">
             <caption className="sr-only">{t('forms.title')}</caption>
             <thead>
               <tr>
@@ -49,19 +49,27 @@ export default async function FormsPage(props: { params: Promise<{ locale: strin
                 const url = `${base}/${locale}/f/${f.slug ?? f.token}`;
                 return (
                   <tr key={f.id}>
-                    <td>
+                    <td className="crm-stack-main">
                       <Link href={`/app/crm/forms/${f.id}`} className="cell-link">
                         {f.name}
                       </Link>
                     </td>
-                    <td>
+                    <td className="crm-stack-state">
                       <span className={badgeClass(FORM_TONE, f.status)}>{t(`forms.status.${f.status}`)}</span>
                     </td>
-                    <td className="num">
+                    <td className="num" data-label={t('forms.table.submissions')}>
                       <Link href={`/app/crm/forms/${f.id}?tab=submissions`}>{f.submission_count}</Link>
                     </td>
-                    <td className="data">{f.last_submission_at ? formatDate(f.last_submission_at, locale) : t('forms.never')}</td>
-                    <td className="forms-link-cell">
+                    {f.last_submission_at ? (
+                      <td className="data" data-label={t('forms.table.last')}>
+                        {formatDate(f.last_submission_at, locale)}
+                      </td>
+                    ) : (
+                      <td className="forms-never" data-label={t('forms.table.last')}>
+                        {t('forms.never')}
+                      </td>
+                    )}
+                    <td className="forms-link-cell" data-label={t('forms.table.link')}>
                       <a href={url} target="_blank" rel="noreferrer" className="data forms-url">
                         /f/{f.slug ?? f.token}
                       </a>

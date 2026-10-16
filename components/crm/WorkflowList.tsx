@@ -32,7 +32,7 @@ export default function WorkflowList({ workflows, canEdit }: { workflows: Workfl
   return (
     <>
       <div className="table-wrap">
-        <table className="table wf-table">
+        <table className="table wf-table crm-stack">
           <caption className="sr-only">{t('title')}</caption>
           <thead>
             <tr>
@@ -51,15 +51,19 @@ export default function WorkflowList({ workflows, canEdit }: { workflows: Workfl
           <tbody>
             {workflows.map((wf) => (
               <tr key={wf.id} aria-busy={busy === wf.id || undefined}>
-                <td>
+                <td className="crm-stack-main">
                   <Link href={`/app/crm/workflows/${wf.id}`} className="cell-link">
                     {wf.name}
                   </Link>
                 </td>
-                <td>{wf.triggers.map((x) => trig(x.type)).join(', ') || t('noTrigger')}</td>
-                <td className="num">{wf.actions.length}</td>
-                <td className="data">{fmt.format(new Date(`${wf.updated_at.replace(' ', 'T')}Z`))}</td>
-                <td>
+                <td data-label={t('whenTrigger')}>{wf.triggers.map((x) => trig(x.type)).join(', ') || t('noTrigger')}</td>
+                <td className="num" data-label={t('actions')}>
+                  {wf.actions.length}
+                </td>
+                <td className="data" data-label={t('updated')}>
+                  {fmt.format(new Date(`${wf.updated_at.replace(' ', 'T')}Z`))}
+                </td>
+                <td className="crm-stack-state">
                   <label className="ui-switch">
                     <input
                       type="checkbox"

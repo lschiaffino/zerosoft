@@ -541,6 +541,8 @@ test('CRM: nuevo workflow con el asistente (disparador, acciones, revisar) lleva
   await page.getByTestId('workflow-trigger').selectOption('deal_won');
   await page.getByTestId('workflow-wizard-next').click();
   await expect(page.getByTestId('workflow-action')).toHaveCount(1);
+  // La tarea necesita título: sin él, Siguiente no pasa a Revisar.
+  await page.getByTestId('workflow-action').getByLabel('Task title').fill('Kickoff call');
   await page.getByTestId('workflow-wizard-next').click();
   await page.getByLabel('Workflow name').fill(`WF ${uid()}`);
   await page.getByTestId('workflow-create').click();
