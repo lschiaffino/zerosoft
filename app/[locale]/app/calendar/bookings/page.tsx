@@ -43,6 +43,7 @@ export default async function BookingsPage(props: {
       <BookingsList
         bookings={bookings}
         locale={locale}
+        timezone={timezone}
         initialFilters={{ q: f.q ?? '', status: f.status ?? '', from: from ?? '', to: f.to ?? '' }}
       />
     </div>

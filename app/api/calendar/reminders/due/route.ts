@@ -6,6 +6,11 @@ import { manageUrl } from '@/lib/calendar-notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
+/** Recordatorios por tanda y tiempo máximo para vaciar la cola en un tick. */
+const BATCH = 50;
+const BUDGET_MS = 45_000;
 
 /**
  * Envía los recordatorios de bookings vencidos (calendar_reminders.send_at <= now,
@@ -28,35 +33,50 @@ async function run(req: NextRequest) {
     }
   }
 
-  const due = await listDueReminders();
+  // Tandas hasta vaciar la cola (con un cron horario, un solo LIMIT dejaría
+  // atrasados los que no entran). Se corta si una tanda no envió ninguno
+  // (los fallidos siguen pendientes y se repetirían) o se acaba el tiempo.
+  const startedAt = Date.now();
+  let total = 0;
   let sent = 0;
   let failed = 0;
-
-  for (const reminder of due) {
-    const res = await sendBookingReminder({
-      to: reminder.invitee_email,
-      guestName: reminder.invitee_name,
-      eventTitle: reminder.event_title,
-      start: new Date(reminder.starts_at),
-      timezone: reminder.timezone,
-      location: reminder.meeting_url || reminder.event_location,
-      manageUrl: reminder.manage_token ? manageUrl({ manage_token: reminder.manage_token }, reminder.locale) : null,
-      locale: reminder.locale,
-    });
-    if (res.ok) {
-      await markReminderSent(reminder.id);
-      sent += 1;
-    } else {
-      // No se marca: el próximo run del cron lo reintenta.
-      failed += 1;
+  let pending = false;
+  for (;;) {
+    const due = await listDueReminders(BATCH);
+    total += due.length;
+    const sentBefore = sent;
+    for (const reminder of due) {
+      const res = await sendBookingReminder({
+        to: reminder.invitee_email,
+        guestName: reminder.invitee_name,
+        eventTitle: reminder.event_title,
+        start: new Date(reminder.starts_at),
+        timezone: reminder.timezone,
+        location: reminder.meeting_url || reminder.event_location,
+        manageUrl: reminder.manage_token ? manageUrl({ manage_token: reminder.manage_token }, reminder.locale) : null,
+        locale: reminder.locale,
+      });
+      if (res.ok) {
+        await markReminderSent(reminder.id);
+        sent += 1;
+      } else {
+        // No se marca: el próximo run del cron lo reintenta.
+        failed += 1;
+      }
+    }
+    if (due.length < BATCH || sent === sentBefore) break;
+    if (Date.now() - startedAt > BUDGET_MS) {
+      pending = true;
+      break;
     }
   }
+  if (pending) console.warn('[cal] recordatorios pendientes para el próximo tick (presupuesto de tiempo agotado)');
 
   // Pasos de workflows por tipo de evento y holds de pago vencidos.
   const workflows = await processDueWorkflowRuns();
   const expiredHolds = await expireUnpaidHolds();
 
-  return NextResponse.json({ total: due.length, sent, failed, workflows, expiredHolds });
+  return NextResponse.json({ total, sent, failed, pending, workflows, expiredHolds });
 }
 
 export async function POST(req: NextRequest) {
