@@ -289,11 +289,14 @@ Loaded site-wide after `globals.css`. Product screens use these classes instead 
 - **`EmptyState`** `{ title, body?, action?, secondary?, product?, quiet? }`: a stretch of the line with its station, what goes here, one primary action (`{ label, href }` or your own button) and a shortcut or import in `secondary`. `quiet` drops the border inside panels.
 - **`FormSection`** `{ title, description?, onSubmit?, submitLabel?, note?, footer?, tone? }`: a settings block with its own Guardar. With `onSubmit(formData)` it renders a `<form>` and handles saving, saved and error states (return a string or `{ error }` to show it). `tone="danger"` for destructive blocks.
 - **`AdvancedSection`** `{ storageKey, label?, hint?, defaultOpen? }`: the "Avanzado" disclosure (button with `aria-expanded` + region). Remembers open or closed per `storageKey` in localStorage, wrapped in try/catch.
-- **`SettingsTabs`** `{ items, mode: 'route' | 'query', param?, layout: 'side' | 'top' }`: settings navigation. `side` is a secondary nav on the left that becomes scrolling tabs under 900px; `top` uses `.ui-tabs`. Route mode activates the longest matching `href`; query mode writes `?tab=<key>` and defaults to the first item.
+- **`SettingsTabs`** `{ items, mode: 'route' | 'query', param?, layout: 'side' | 'top' }`: settings navigation. `side` is a secondary nav on the left that becomes scrolling tabs under 900px; `top` uses `.ui-tabs`. Route mode activates the longest matching `href` (an item's `match` adds more prefixes, e.g. Admin covers feedback, roadmap and changelog); query mode writes `?tab=<key>` and defaults to the first item.
 - **`DataTable`** `{ columns, rows, rowKey, rowHref?, caption?, empty?, compact?, sticky? }`: a dense `.table` for server or client components. Columns declare `numeric` or `data`; `rowHref` links the first cell. Sorting and paging stay in the page.
 
 ### App home (`/app`)
 The network map is the workspace launcher: `NetworkMap` with `hrefs` pointing each line and station into its app (no draw-in animation inside the app), next to the eleven lines as a list (glyph, name, one line). Link's numbers follow, since `/app` is also Link's overview.
+
+### Global settings (`/app/settings`)
+Three route tabs (`SettingsTabs` top): **Cuenta** (read-only profile), **Workspace** (API keys, webhooks, credentials, AI usage, Link data) and **Admin** (feedback, roadmap, changelog; only `ADMIN_EMAILS`). Each block is a `FormSection`; the short path is visible (key name + Crear key, endpoint URL + events) and the rest sits in `AdvancedSection` (key permissions, webhook signature, changelog translations and closed ideas, roadmap merge and signals). Webhook events are grouped by resource with a group checkbox that goes indeterminate. Admin screens share a segmented `.btn-group` of links (`aria-current`) for sub-sections, views and status filters. A product is shown as a short stretch of its line (`ProductTag`), never a dot. The roadmap kanban opens items in a native `dialog.ui-drawer`. Layout lives in `styles/settings.css` (prefix `st-`).
 
 ## Do's and Don'ts
 

@@ -1,0 +1,311 @@
+/* ============================================================
+   AJUSTES GLOBALES: /app/settings (Cuenta, Workspace, Admin).
+   Todo lo operable sale de ui.css (FormSection, AdvancedSection,
+   DataTable, .btn, .input, .ui-check, .badge). Acá vive solo el layout
+   propio de Ajustes (prefijo st-) y sus dos firmas: el producto como un
+   tramo de su línea y el kanban del roadmap como columnas de andén.
+
+   1. Página y bloques
+   2. Perfil y cifras
+   3. Formularios de alta (keys, webhooks)
+   4. Admin: barra, feedback, roadmap, changelog
+   ============================================================ */
+
+/* ---------- 1. Página y bloques ---------- */
+
+.st-page .ui-page-header { padding-bottom: 12px; }
+/* globals.css le da a todo <section> el aire del sitio de marketing (72–112px); en la app no va. */
+.st-page section { padding-top: 0; padding-bottom: 0; }
+/* ui.css pone .ui-drawer en flex y le gana al display:none del <dialog> cerrado. */
+.st-page dialog.ui-drawer:not([open]) { display: none; }
+/* Tablas: en mobile scrollean dentro de .table-wrap en lugar de apretar columnas; position
+   relative para que el .sr-only de las cabeceras no estire la página. */
+.st-page .table-wrap { position: relative; }
+.st-page .table-wrap .table { min-width: 560px; }
+.st-page .table td.data { white-space: nowrap; }
+.st-stack { display: flex; flex-direction: column; gap: 24px; min-width: 0; max-width: 1080px; }
+.st-stack:has(.st-kb) { max-width: none; }
+
+.st-muted { color: var(--brand-gray-2); }
+.st-strong { font-weight: 600; }
+.st-bad { color: var(--bad-ink); }
+.st-prose { max-width: 72ch; }
+.st-subtitle { font-size: 0.9375rem; font-weight: 600; line-height: 1.3; }
+.st-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.st-row-actions { display: flex; justify-content: flex-end; gap: 4px; }
+
+.st-inline-link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--brand-gray-3);
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.st-inline-link:hover { text-decoration-color: currentColor; }
+
+.st-block { display: flex; flex-direction: column; gap: 8px; }
+.st-block-title {
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.375rem;
+  line-height: 1.1;
+}
+
+/* Aviso dentro de una sección (configuración faltante). */
+.st-callout {
+  max-width: 72ch;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--warn-ink);
+  background: var(--warn-soft);
+  border-radius: var(--radius-1);
+}
+
+/* Links a otras pantallas: una fila por destino, con flecha. */
+.st-links { list-style: none; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.st-links li { border-bottom: 1px solid var(--line); }
+.st-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+.st-link::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform var(--ui-dur) var(--ease);
+}
+.st-link:hover::after { transform: translateX(3px) rotate(45deg); }
+.st-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.st-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.st-export { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; }
+
+/* ---------- 2. Perfil y cifras ---------- */
+
+.st-profile { display: flex; align-items: flex-start; gap: 20px; }
+.st-avatar { flex: 0 0 48px; width: 48px; height: 48px; border-radius: var(--radius-1); object-fit: cover; }
+.st-avatar-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--bg);
+  background: var(--ink);
+}
+
+/* Datos en pares rótulo/valor, en grilla. */
+.st-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px 32px; flex: 1; min-width: 0; }
+.st-facts > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.st-facts dt { font-size: 0.8125rem; font-weight: 600; color: var(--brand-gray-2); }
+.st-facts dd { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.9375rem; overflow-wrap: anywhere; }
+.st-facts-row { grid-template-columns: repeat(auto-fit, minmax(160px, max-content)); gap: 16px 48px; }
+.st-figure { font-size: 1.5rem; line-height: 1.1; font-feature-settings: "zero" 1, "tnum" 1; }
+
+/* Cuota de IA: un tramo de la línea que se llena con el color de la línea activa. */
+.st-meter-wrap { display: flex; align-items: center; gap: 12px; max-width: 560px; }
+.st-meter { flex: 1; height: 6px; background: var(--brand-enamel); border-radius: var(--radius-1); overflow: hidden; }
+.st-meter > span { display: block; height: 100%; background: var(--accent); }
+.st-meter.is-full > span { background: var(--bad-ink); }
+
+/* ---------- 3. Formularios de alta ---------- */
+
+/* Campo + botón en una fila (nombre de key, ítem nuevo, fusionar). */
+.st-create { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px; }
+.st-create-field { flex: 1 1 240px; max-width: 480px; }
+
+.st-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.st-legend { display: flex; align-items: baseline; gap: 8px; }
+.st-count { font-weight: 400; color: var(--brand-gray-2); }
+.st-checks { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+
+/* Secret o key recién creada: placa con borde de tinta, se ve una sola vez. */
+.st-reveal { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--ink); border-radius: var(--radius-1); }
+.st-reveal .label { margin: 0; }
+.st-reveal-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.st-secret {
+  flex: 1 1 280px;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+  user-select: all;
+}
+
+.st-webhook-form { display: flex; flex-direction: column; gap: 16px; }
+.st-webhook-form > .ui-field { max-width: 560px; }
+.st-form-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+
+/* Eventos de webhooks agrupados por recurso: una columna por grupo. */
+.st-event-groups { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); }
+.st-event-group { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 12px 0; }
+.st-event-group + .st-event-group { padding-left: 16px; border-left: 1px solid var(--line); }
+.st-group-check { font-weight: 600; }
+.st-event-list { list-style: none; display: flex; flex-direction: column; gap: 6px; padding-left: 24px; }
+.st-event-list .ui-check { font-size: 0.8125rem; }
+
+.st-url { display: inline-block; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.st-delivery { display: inline-flex; align-items: center; gap: 8px; }
+
+@media (max-width: 1100px) {
+  .st-event-groups { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .st-event-group:nth-child(3n + 1) { padding-left: 0; border-left: 0; }
+}
+@media (max-width: 640px) {
+  .st-profile { flex-direction: column; }
+  .st-event-groups { grid-template-columns: minmax(0, 1fr); }
+  .st-event-group, .st-event-group + .st-event-group { padding: 12px 0; border-left: 0; }
+  .st-event-group + .st-event-group { border-top: 1px solid var(--line); }
+  .st-form-foot { flex-direction: column-reverse; align-items: stretch; }
+  .st-url { max-width: 180px; }
+}
+
+/* ---------- 4. Admin ---------- */
+
+.st-admin-head { display: flex; flex-direction: column; gap: 10px; }
+.st-admin-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.st-admin-aside { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+/* Links pegados: el activo es la placa de tinta (mismo look que aria-pressed en ui.css). */
+.st-link-group { flex-wrap: wrap; }
+.btn-group > .btn[aria-current='page'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); --btn-bg-hover: var(--ink); z-index: 1; }
+.btn-group > .btn[aria-current='page']:hover { color: var(--bg); }
+
+/* Producto: un tramo de su línea con extremos redondos, como en el plano. */
+.st-product { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--ink); white-space: nowrap; }
+.st-product i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; background: var(--line); }
+
+/* Feedback: lista densa, una fila por mensaje. */
+.st-fb-list { list-style: none; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.st-fb { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.st-fb:last-child { border-bottom: 0; }
+.st-fb[data-status='done'] .st-fb-msg { color: var(--brand-gray-1); }
+.st-fb-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.st-fb-who { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; margin-left: auto; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.st-fb-msg { max-width: 80ch; font-size: 0.9375rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.st-fb-refs { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.st-fb-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.st-fb-promote { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 1 1 360px; min-width: 0; max-width: 100%; }
+.st-fb-promote .select { width: auto; flex: 0 1 280px; min-width: 0; max-width: 100%; }
+.st-fb-status { display: flex; gap: 6px; }
+
+/* Roadmap: kanban de andenes. Columnas sobre esmalte, cabecera con filete de tinta. */
+.st-kb-new .st-kb-status { width: auto; min-width: 160px; }
+.st-kb {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(208px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+.st-kb-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 320px;
+  padding: 0 6px 6px;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+  scroll-snap-align: start;
+  transition: background-color var(--ui-dur) var(--ease);
+}
+.st-kb-col.is-over { background: var(--ui-hover); box-shadow: inset 0 0 0 1px var(--ink); }
+.st-kb-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 4px 8px;
+  margin-bottom: 2px;
+  border-bottom: 2px solid var(--ink);
+}
+.st-kb-head h3 { font-size: 0.8125rem; font-weight: 600; }
+.st-kb-head .data { font-size: 0.75rem; color: var(--brand-gray-2); }
+.st-kb-empty { padding: 12px 4px; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.st-kb-card {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: grab;
+  transition: border-color var(--ui-dur) var(--ease);
+}
+.st-kb-card:hover { border-color: var(--ink); }
+.st-kb-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.st-kb-card:active { cursor: grabbing; }
+.st-kb-card.is-dragging { opacity: 0.4; }
+.st-kb-title { font-size: 0.875rem; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
+.st-kb-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; font-size: 0.75rem; color: var(--brand-gray-2); }
+.st-kb-meta .badge { height: 20px; }
+dialog.st-kb-drawer { width: min(560px, 100vw); }
+
+/* Roadmap: fila editable (lista y panel del kanban). */
+.st-rm-list { display: flex; flex-direction: column; gap: 12px; }
+.st-rm-list > .st-rm { padding: 16px 20px; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.st-rm { display: flex; flex-direction: column; gap: 14px; }
+.st-rm-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.st-rm-form { display: flex; flex-direction: column; gap: 14px; }
+.st-rm-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.st-rm-wide { grid-column: 1 / -1; }
+.ui-drawer .st-rm-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.ui-drawer .st-rm-grid > .ui-field:nth-child(4) { grid-column: 1 / -1; }
+.st-rm-foot { display: flex; align-items: center; gap: 12px; }
+.st-rm-state { margin-left: auto; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.st-rm-state[data-tone='ok'] { color: var(--ok-ink); }
+.st-rm-state[data-tone='error'] { color: var(--bad-ink); }
+.st-rm-more { display: flex; flex-direction: column; }
+.st-rm-signals { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.st-rm-signals li { display: flex; align-items: baseline; gap: 8px; font-size: 0.875rem; line-height: 1.45; }
+
+/* Changelog. */
+.st-cl-form { display: flex; flex-direction: column; gap: 16px; }
+.st-cl-top { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 12px; }
+.st-cl-lang { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
+.st-cl-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+
+@media (max-width: 720px) {
+  .st-fb { padding: 14px 16px; }
+  .st-fb-who { margin-left: 0; width: 100%; }
+  .st-fb-promote { flex-basis: 100%; }
+  .st-fb-promote .select { width: 100%; flex: 1 1 100%; }
+  .st-rm-grid, .ui-drawer .st-rm-grid { grid-template-columns: minmax(0, 1fr); }
+  .st-rm-list > .st-rm { padding: 14px 16px; }
+  .st-cl-top, .st-cl-lang { grid-template-columns: minmax(0, 1fr); }
+  .st-kb { grid-template-columns: repeat(7, minmax(78vw, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-link::after, .st-kb-col, .st-kb-card { transition: none; }
+}

@@ -1,17 +1,17 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties, type DragEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { RoadmapItemRow } from '@/lib/db';
-import { productColor } from '@/lib/product-taxonomy';
 import { ROADMAP_STATUSES, type RoadmapStatus } from '@/lib/roadmap-constants';
 import { RoadmapAdminRow, type AdminItem } from './RoadmapAdminList';
+import ProductTag from './ProductTag';
 
 /**
  * Kanban del admin: arrastrar un ítem entre columnas cambia su estado
  * (PATCH /api/roadmap/:id, que registra el evento y avisa a los suscriptos).
- * Click en una tarjeta abre el panel de edición (editar, publicar, fusionar).
- * Sin mouse: el panel tiene el selector de estado.
+ * Click o Enter en una tarjeta abre el panel de edición (editar, publicar,
+ * fusionar). Sin mouse: el panel tiene el selector de estado.
  */
 export default function RoadmapKanban({
   initial,
@@ -22,6 +22,7 @@ export default function RoadmapKanban({
 }) {
   const t = useTranslations('roadmap');
   const tp = useTranslations('feedbackBoard.product');
+  const ts = useTranslations('settings.admin');
   const [items, setItems] = useState(initial);
   const [dragId, setDragId] = useState<string | null>(null);
   const [over, setOver] = useState<RoadmapStatus | null>(null);
@@ -31,13 +32,15 @@ export default function RoadmapKanban({
   const [newStatus, setNewStatus] = useState<RoadmapStatus>('idea');
   const [creating, setCreating] = useState(false);
 
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // El panel de edición es un <dialog> nativo: foco atrapado, Esc cierra y el
+  // foco vuelve a la tarjeta que lo abrió.
   useEffect(() => {
-    if (!openId) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpenId(null);
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    const d = dialogRef.current;
+    if (!d) return;
+    if (openId && !d.open) d.showModal();
+    if (!openId && d.open) d.close();
   }, [openId]);
 
   async function move(id: string, status: RoadmapStatus) {
@@ -97,20 +100,28 @@ export default function RoadmapKanban({
 
   return (
     <>
-      <form className="rk-new" onSubmit={create}>
-        <input
-          className="input"
-          value={newTitle}
-          maxLength={160}
-          onChange={(e) => setNewTitle(e.target.value)}
-          placeholder={t('admin.newItemPlaceholder')}
-          aria-label={t('admin.newItemPlaceholder')}
-        />
+      <form className="st-create st-kb-new" onSubmit={create}>
+        <div className="ui-field st-create-field">
+          <label className="sr-only" htmlFor="st-kb-title">
+            {t('admin.newItemPlaceholder')}
+          </label>
+          <input
+            id="st-kb-title"
+            className="input"
+            value={newTitle}
+            maxLength={160}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder={t('admin.newItemPlaceholder')}
+          />
+        </div>
+        <label className="sr-only" htmlFor="st-kb-status">
+          {t('admin.statusLabel')}
+        </label>
         <select
-          className="select"
+          id="st-kb-status"
+          className="select st-kb-status"
           value={newStatus}
           onChange={(e) => setNewStatus(e.target.value as RoadmapStatus)}
-          aria-label={t('admin.statusLabel')}
         >
           {ROADMAP_STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -118,23 +129,24 @@ export default function RoadmapKanban({
             </option>
           ))}
         </select>
-        <button type="submit" className="btn btn-solid btn-small" disabled={creating || !newTitle.trim()}>
+        <button type="submit" className="btn btn-primary" disabled={!newTitle.trim()} aria-busy={creating || undefined}>
           {t('admin.create')}
         </button>
       </form>
       {error && (
-        <p className="rm-admin-status is-error" role="alert">
+        <p className="ui-error" role="alert">
           {t('admin.error')}
         </p>
       )}
 
-      <div className="rk-board">
+      <div className="st-kb" role="list" aria-label={t('admin.title')}>
         {ROADMAP_STATUSES.map((status) => {
           const col = items.filter((i) => i.status === status);
           return (
             <section
               key={status}
-              className={`rk-col${over === status ? ' is-over' : ''}`}
+              role="listitem"
+              className={`st-kb-col${over === status ? ' is-over' : ''}`}
               aria-label={t(`admin.status.${status}`)}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -144,16 +156,17 @@ export default function RoadmapKanban({
               onDragLeave={() => setOver((o) => (o === status ? null : o))}
               onDrop={(e) => onDrop(e, status)}
             >
-              <header className="rk-col-head">
-                {t(`admin.status.${status}`)}
-                <span>{col.length}</span>
+              <header className="st-kb-head">
+                <h3>{t(`admin.status.${status}`)}</h3>
+                <span className="data">{col.length}</span>
               </header>
+              {col.length === 0 && <p className="st-kb-empty">{ts('columnEmpty')}</p>}
               {col.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   draggable
-                  className={`rk-card${dragId === item.id ? ' is-dragging' : ''}${item.is_public ? '' : ' is-private'}`}
+                  className={`st-kb-card${dragId === item.id ? ' is-dragging' : ''}`}
                   onDragStart={(e) => {
                     e.dataTransfer.setData('text/plain', item.id);
                     e.dataTransfer.effectAllowed = 'move';
@@ -164,14 +177,13 @@ export default function RoadmapKanban({
                     setOver(null);
                   }}
                   onClick={() => setOpenId(item.id)}
+                  aria-haspopup="dialog"
                 >
-                  <span className="rk-card-title">{item.title}</span>
-                  <span className="rk-card-meta">
-                    <span className="bp-dot" style={{ '--dot': productColor(item.product) } as CSSProperties}>
-                      {tp(item.product)}
-                    </span>
-                    <span>{t('votes', { count: item.votes })}</span>
-                    {!item.is_public && <span>{t('admin.private')}</span>}
+                  <span className="st-kb-title">{item.title}</span>
+                  <span className="st-kb-meta">
+                    <ProductTag product={item.product} label={tp(item.product)} />
+                    <span className="data">{t('votes', { count: item.votes })}</span>
+                    {!item.is_public && <span className="badge badge-outline">{t('admin.private')}</span>}
                   </span>
                 </button>
               ))}
@@ -180,35 +192,43 @@ export default function RoadmapKanban({
         })}
       </div>
 
-      {open && (
-        <>
-          <div className="rk-drawer-backdrop" onClick={() => setOpenId(null)} aria-hidden="true" />
-          <aside className="rk-drawer" role="dialog" aria-modal="true" aria-label={open.title}>
-            <div className="rk-drawer-head">
-              <strong>{t('admin.edit')}</strong>
-              <button type="button" className="btn btn-ghost btn-small" onClick={() => setOpenId(null)}>
+      <dialog
+        ref={dialogRef}
+        className="ui-drawer st-kb-drawer"
+        aria-labelledby="st-kb-drawer-title"
+        onClose={() => setOpenId(null)}
+      >
+        {open && (
+          <>
+            <div className="ui-drawer-head">
+              <h2 className="ui-drawer-title" id="st-kb-drawer-title">
+                {t('admin.edit')}
+              </h2>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => dialogRef.current?.close()}>
                 {t('admin.close')}
               </button>
             </div>
-            <RoadmapAdminRow
-              key={open.id}
-              item={open}
-              targets={targets.filter((x) => x.id !== open.id)}
-              locale={locale}
-              t={t}
-              onSaved={(next) => setItems((list) => list.map((i) => (i.id === open.id ? { ...i, ...next } : i)))}
-              onMerged={(target) => {
-                setItems((list) =>
-                  list
-                    .filter((i) => i.id !== open.id)
-                    .map((i) => (i.id === target.id ? { ...i, ...target, signals: [...open.signals, ...i.signals] } : i)),
-                );
-                setOpenId(target.id);
-              }}
-            />
-          </aside>
-        </>
-      )}
+            <div className="ui-drawer-body">
+              <RoadmapAdminRow
+                key={open.id}
+                item={open}
+                targets={targets.filter((x) => x.id !== open.id)}
+                locale={locale}
+                t={t}
+                onSaved={(next) => setItems((list) => list.map((i) => (i.id === open.id ? { ...i, ...next } : i)))}
+                onMerged={(target) => {
+                  setItems((list) =>
+                    list
+                      .filter((i) => i.id !== open.id)
+                      .map((i) => (i.id === target.id ? { ...i, ...target, signals: [...open.signals, ...i.signals] } : i)),
+                  );
+                  setOpenId(target.id);
+                }}
+              />
+            </div>
+          </>
+        )}
+      </dialog>
     </>
   );
 }

@@ -1,18 +1,19 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { RoadmapItemRow, RoadmapSignalRow } from '@/lib/db';
 import { FEEDBACK_PRODUCTS } from '@/lib/feedback-constants';
 import {
   ROADMAP_KINDS,
-  ROADMAP_PRODUCT_COLOR,
   ROADMAP_STATUSES,
   type RoadmapKind,
   type RoadmapStatus,
 } from '@/lib/roadmap-constants';
 import { formatDateTime } from '@/lib/utils';
+import AdvancedSection from '@/components/ui/AdvancedSection';
+import ProductTag from './ProductTag';
 
 export type AdminItem = RoadmapItemRow & { signals: RoadmapSignalRow[] };
 type Item = AdminItem;
@@ -78,7 +79,7 @@ export default function RoadmapAdminList({
   }
 
   return (
-    <div className="rm-admin-list">
+    <div className="st-rm-list">
       {items.map((item) => (
         <RoadmapAdminRow
           key={item.id}
@@ -158,132 +159,179 @@ export function RoadmapAdminRow({
   }
 
   const id = `rm-${item.id}`;
+  const statusId = `${id}-status`;
   return (
-    <article className="rm-admin-row" style={{ '--dot': ROADMAP_PRODUCT_COLOR[draft.product] ?? 'var(--dim)' } as CSSProperties}>
-      <div className="rm-admin-head">
-        <span className="rm-dot" aria-hidden="true" />
-        <strong>{t('votes', { count: item.votes })}</strong>
+    <article className="st-rm" aria-label={item.title}>
+      <div className="st-rm-meta">
+        <ProductTag product={draft.product} label={tp(draft.product)} />
+        <span className="data">{t('votes', { count: item.votes })}</span>
         <span>{t('admin.signals', { count: item.signals.length })}</span>
-        <span>{item.is_public === 1 ? t('admin.public') : t('admin.private')}</span>
-        <span>{formatDateTime(item.created_at, locale)}</span>
+        <span className={`badge ${item.is_public === 1 ? 'badge-outline' : ''}`}>
+          {item.is_public === 1 ? t('admin.public') : t('admin.private')}
+        </span>
+        <span className="data st-muted">{formatDateTime(item.created_at, locale)}</span>
       </div>
 
-      <div className="rm-admin-grid">
-        <label className="rm-admin-field">
-          <span className="label">{t('admin.titleLabel')}</span>
-          <input className="input" id={`${id}-title`} value={draft.title} maxLength={160} onChange={(e) => set('title', e.target.value)} />
-        </label>
-        <label className="rm-admin-field">
-          <span className="label">{t('admin.statusLabel')}</span>
-          <select className="select" value={draft.status} onChange={(e) => save({ status: e.target.value as RoadmapStatus })} disabled={busy}>
-            {ROADMAP_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {t(`admin.status.${s}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="rm-admin-field">
-          <span className="label">{t('admin.productLabel')}</span>
-          <select className="select" value={draft.product} onChange={(e) => set('product', e.target.value)}>
-            {FEEDBACK_PRODUCTS.map((p) => (
-              <option key={p} value={p}>
-                {tp(p)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="rm-admin-field">
-          <span className="label">{t('admin.kindLabel')}</span>
-          <select className="select" value={draft.kind} onChange={(e) => set('kind', e.target.value as RoadmapKind)}>
-            {ROADMAP_KINDS.map((k) => (
-              <option key={k} value={k}>
-                {t(`kind.${k}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="rm-admin-field rm-admin-wide">
-          <span className="label">{t('admin.descriptionLabel')}</span>
-          <textarea
-            className="textarea"
-            value={draft.description}
-            maxLength={4000}
-            onChange={(e) => set('description', e.target.value)}
-          />
-        </label>
-        {draft.status === 'declined' && (
-          <label className="rm-admin-field rm-admin-wide">
-            <span className="label">{t('admin.declinedReasonLabel')}</span>
-            <textarea
-              className="textarea"
-              value={draft.declinedReason}
-              maxLength={1000}
-              onChange={(e) => set('declinedReason', e.target.value)}
-            />
-            <span className="rm-admin-hint">{t('admin.declinedReasonHint')}</span>
-          </label>
-        )}
-        {draft.status === 'done' && (
-          <label className="rm-admin-field rm-admin-wide">
-            <span className="label">{t('admin.changelogLabel')}</span>
-            <input
-              className="input mono"
-              value={draft.shippedChangelogId}
-              maxLength={120}
-              pattern="[A-Za-z0-9_-]*"
-              onChange={(e) => set('shippedChangelogId', e.target.value)}
-            />
-            <span className="rm-admin-hint">{t('admin.changelogHint')}</span>
-          </label>
-        )}
-      </div>
-
-      <div className="rm-admin-actions">
-        <label className="rm-admin-check">
-          <input type="checkbox" checked={draft.isPublic} disabled={busy} onChange={(e) => save({ isPublic: e.target.checked })} />
-          {t('admin.public')}
-        </label>
-        <button type="button" className="btn btn-solid btn-small" disabled={busy || !draft.title.trim()} onClick={() => save()}>
-          {t('admin.save')}
-        </button>
-        {state === 'saved' && <span className="rm-admin-status">{t('admin.saved')}</span>}
-        {state === 'error' && <span className="rm-admin-status is-error">{t('admin.error')}</span>}
-        {targets.length > 0 && (
-          <>
-            <select className="select" value={mergeTarget} onChange={(e) => setMergeTarget(e.target.value)} aria-label={t('admin.mergeInto')}>
-              <option value="">{t('admin.mergeInto')}</option>
-              {targets.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.title}
+      <form
+        className="st-rm-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (draft.title.trim()) void save();
+        }}
+      >
+        <div className="st-rm-grid">
+          <div className="ui-field st-rm-wide">
+            <label className="label" htmlFor={`${id}-title`}>
+              {t('admin.titleLabel')}
+            </label>
+            <input className="input" id={`${id}-title`} value={draft.title} maxLength={160} onChange={(e) => set('title', e.target.value)} />
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor={statusId}>
+              {t('admin.statusLabel')}
+            </label>
+            <select
+              id={statusId}
+              className="select"
+              value={draft.status}
+              onChange={(e) => save({ status: e.target.value as RoadmapStatus })}
+              disabled={busy}
+            >
+              {ROADMAP_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {t(`admin.status.${s}`)}
                 </option>
               ))}
             </select>
-            <button type="button" className="btn btn-ghost btn-small" disabled={busy || !mergeTarget} onClick={merge}>
-              {t('admin.merge')}
-            </button>
-          </>
-        )}
-      </div>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor={`${id}-product`}>
+              {t('admin.productLabel')}
+            </label>
+            <select id={`${id}-product`} className="select" value={draft.product} onChange={(e) => set('product', e.target.value)}>
+              {FEEDBACK_PRODUCTS.map((p) => (
+                <option key={p} value={p}>
+                  {tp(p)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor={`${id}-kind`}>
+              {t('admin.kindLabel')}
+            </label>
+            <select id={`${id}-kind`} className="select" value={draft.kind} onChange={(e) => set('kind', e.target.value as RoadmapKind)}>
+              {ROADMAP_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {t(`kind.${k}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="ui-field st-rm-wide">
+            <label className="label" htmlFor={`${id}-desc`}>
+              {t('admin.descriptionLabel')}
+            </label>
+            <textarea
+              id={`${id}-desc`}
+              className="textarea"
+              rows={3}
+              value={draft.description}
+              maxLength={4000}
+              onChange={(e) => set('description', e.target.value)}
+            />
+          </div>
+          {draft.status === 'declined' && (
+            <div className="ui-field st-rm-wide">
+              <label className="label" htmlFor={`${id}-declined`}>
+                {t('admin.declinedReasonLabel')}
+              </label>
+              <textarea
+                id={`${id}-declined`}
+                className="textarea"
+                rows={2}
+                value={draft.declinedReason}
+                maxLength={1000}
+                onChange={(e) => set('declinedReason', e.target.value)}
+              />
+              <span className="ui-help">{t('admin.declinedReasonHint')}</span>
+            </div>
+          )}
+          {draft.status === 'done' && (
+            <div className="ui-field st-rm-wide">
+              <label className="label" htmlFor={`${id}-changelog`}>
+                {t('admin.changelogLabel')}
+              </label>
+              <input
+                id={`${id}-changelog`}
+                className="input data"
+                value={draft.shippedChangelogId}
+                maxLength={120}
+                pattern="[A-Za-z0-9_-]*"
+                onChange={(e) => set('shippedChangelogId', e.target.value)}
+              />
+              <span className="ui-help">{t('admin.changelogHint')}</span>
+            </div>
+          )}
+        </div>
 
-      {item.signals.length > 0 && (
-        <details className="rm-admin-signals">
-          <summary>
-            {t('admin.excerpts')} ({item.signals.length})
-          </summary>
-          <ul>
-            {item.signals.map((s) => (
-              <li key={s.id}>
-                <span className="rm-admin-src">{t(`admin.source.${s.source}`)}</span>
-                {s.source === 'chat' ? (
-                  <Link href={`/app/chat/inbox/${s.source_id}`}>{s.excerpt || s.source_id}</Link>
-                ) : (
-                  s.excerpt
-                )}
-              </li>
-            ))}
-          </ul>
-        </details>
+        <div className="st-rm-foot">
+          <label className="ui-switch">
+            <input type="checkbox" role="switch" checked={draft.isPublic} disabled={busy} onChange={(e) => save({ isPublic: e.target.checked })} />
+            {t('admin.public')}
+          </label>
+          <span className="st-rm-state" role="status" aria-live="polite" data-tone={state === 'error' ? 'error' : state === 'saved' ? 'ok' : undefined}>
+            {state === 'saved' ? t('admin.saved') : state === 'error' ? t('admin.error') : ''}
+          </span>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={!draft.title.trim()} aria-busy={busy || undefined}>
+            {t('admin.save')}
+          </button>
+        </div>
+      </form>
+
+      {(targets.length > 0 || item.signals.length > 0) && (
+        <div className="st-rm-more">
+          {item.signals.length > 0 && (
+            <AdvancedSection storageKey="settings.roadmap.signals" label={t('admin.excerpts')} hint={String(item.signals.length)}>
+              <ul className="st-rm-signals">
+                {item.signals.map((s) => (
+                  <li key={s.id}>
+                    <span className="badge">{t(`admin.source.${s.source}`)}</span>
+                    {s.source === 'chat' ? (
+                      <Link href={`/app/chat/inbox/${s.source_id}`} className="st-inline-link">
+                        {s.excerpt || s.source_id}
+                      </Link>
+                    ) : (
+                      <span>{s.excerpt}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </AdvancedSection>
+          )}
+          {targets.length > 0 && (
+            <AdvancedSection storageKey="settings.roadmap.merge" label={t('admin.merge')} hint={t('admin.mergeInto')}>
+              <div className="st-create">
+                <div className="ui-field st-create-field">
+                  <label className="sr-only" htmlFor={`${id}-merge`}>
+                    {t('admin.mergeInto')}
+                  </label>
+                  <select id={`${id}-merge`} className="select" value={mergeTarget} onChange={(e) => setMergeTarget(e.target.value)}>
+                    <option value="">{t('admin.mergeInto')}</option>
+                    {targets.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !mergeTarget} onClick={merge}>
+                  {t('admin.merge')}
+                </button>
+              </div>
+            </AdvancedSection>
+          )}
+        </div>
       )}
     </article>
   );
