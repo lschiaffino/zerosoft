@@ -375,7 +375,9 @@
     "save": "Guardar",
     "saved": "Guardado ✓",
     "view": "Ver página ↗",
-    "error": "Revisá los campos (el avatar tiene que ser una URL https)."
+    "error": "Revisá los campos (el avatar tiene que ser una URL https).",
+    "search": "Buscar",
+    "searchPlaceholder": "Buscar otros links por título, slug o URL"
   },
   "quick": {
     "cancel": "Cancelar",
@@ -398,7 +400,8 @@
     "tagPlaceholder": "Etiqueta",
     "applyTag": "Aplicar",
     "clear": "Deseleccionar",
-    "confirmDelete": "{count, plural, one {¿Borrar # link?} other {¿Borrar # links?}}"
+    "confirmDelete": "{count, plural, one {¿Borrar # link?} other {¿Borrar # links?}}",
+    "tagPartial": "Se etiquetaron {affected} de {total}. El resto ya tenía esa etiqueta o 5 etiquetas."
   },
   "analytics": {
     "title": "Analytics",
@@ -480,5 +483,14 @@
     "lowContrast": "Poco contraste: algunos lectores no lo van a leer.",
     "scansNote": "El QR apunta a {url}: los escaneos se cuentan aparte de los clics.",
     "previewAria": "Código QR"
+  },
+  "labels": {
+    "unknown": "Desconocido",
+    "desktop": "Escritorio",
+    "mobile": "Móvil",
+    "tablet": "Tablet",
+    "rule": "Regla {n}",
+    "ab": "Variante {v}",
+    "app": "App {os}"
   }
 }

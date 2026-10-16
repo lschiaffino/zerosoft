@@ -375,7 +375,9 @@
     "save": "Save",
     "saved": "Saved ✓",
     "view": "View page ↗",
-    "error": "Check the fields (avatar must be an https URL)."
+    "error": "Check the fields (avatar must be an https URL).",
+    "search": "Search",
+    "searchPlaceholder": "Search other links by title, slug or URL"
   },
   "quick": {
     "cancel": "Cancel",
@@ -398,7 +400,8 @@
     "tagPlaceholder": "Tag name",
     "applyTag": "Apply",
     "clear": "Clear selection",
-    "confirmDelete": "{count, plural, one {Delete # link?} other {Delete # links?}}"
+    "confirmDelete": "{count, plural, one {Delete # link?} other {Delete # links?}}",
+    "tagPartial": "Tagged {affected} of {total}. The rest already had that tag or 5 tags."
   },
   "analytics": {
     "title": "Analytics",
@@ -480,5 +483,14 @@
     "lowContrast": "Low contrast: some scanners will not read it.",
     "scansNote": "The QR points to {url}: scans are counted apart from clicks.",
     "previewAria": "QR code"
+  },
+  "labels": {
+    "unknown": "Unknown",
+    "desktop": "Desktop",
+    "mobile": "Mobile",
+    "tablet": "Tablet",
+    "rule": "Rule {n}",
+    "ab": "Variant {v}",
+    "app": "{os} app"
   }
 }

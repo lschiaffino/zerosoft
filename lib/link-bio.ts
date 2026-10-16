@@ -35,6 +35,39 @@ export async function getBioSettings(userId: string): Promise<BioSettings> {
   };
 }
 
+export interface BioEditorLink {
+  id: string;
+  label: string;
+  short: string;
+  archived: boolean;
+}
+
+function toEditorLink(l: LinkWithDomain): BioEditorLink {
+  return { id: l.id, label: l.title || l.url, short: linkShortUrl(l), archived: l.archived === 1 };
+}
+
+/**
+ * Links para el editor: todos los ya elegidos (aunque sean viejos o estén
+ * archivados, así se pueden quitar y reordenar) + los `recent` activos más
+ * nuevos. El resto se busca desde el editor.
+ */
+export async function bioEditorLinks(userId: string, recent = 50): Promise<BioEditorLink[]> {
+  const db = getDb();
+  const chosen = (await db
+    .prepare(
+      `SELECT l.*, d.hostname AS domain_hostname FROM links l LEFT JOIN link_domains d ON d.id = l.domain_id
+       WHERE l.user_id = ? AND l.bio_position IS NOT NULL ORDER BY l.bio_position ASC`,
+    )
+    .all(userId)) as LinkWithDomain[];
+  const latest = (await db
+    .prepare(
+      `SELECT l.*, d.hostname AS domain_hostname FROM links l LEFT JOIN link_domains d ON d.id = l.domain_id
+       WHERE l.user_id = ? AND l.bio_position IS NULL AND l.archived = 0 ORDER BY l.created_at DESC, l.id LIMIT ?`,
+    )
+    .all(userId, recent)) as LinkWithDomain[];
+  return [...chosen, ...latest].map(toEditorLink);
+}
+
 export async function saveBioSettings(userId: string, input: BioSettings): Promise<void> {
   const db = getDb();
   await db

@@ -1,6 +1,6 @@
 import { after, NextRequest, NextResponse } from 'next/server';
 import { emitEvent } from '@/lib/events';
-import { gateCookieName, getLinkForHost, isExpired, isValidGateToken } from '@/lib/links';
+import { gateCookieName, getLinkForHost, isExpired, isValidGateToken, linkShortUrl } from '@/lib/links';
 import { isAppHost } from '@/lib/hosts';
 import { getVerifiedDomainByHost } from '@/lib/link-domains';
 import { contextFromHeaders, isBotRequest, recordClick } from '@/lib/track';
@@ -89,18 +89,20 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   const dest = resolveDestination(link.url, targeting, ctx, `${visitorId ?? ''}:${link.id}`);
 
   // Incremento atómico: si otra request se llevó el último click, no hay redirect.
-  if (!(await recordClick(link.id, ctx, { source, variant: dest.variant }))) return gone('limit');
+  const clicks = await recordClick(link.id, ctx, { source, variant: dest.variant });
+  if (clicks === null) return gone('limit');
   // El webhook sale después de responder: el redirect no espera a nadie.
   after(() =>
     emitEvent(
       link.user_id,
       'link.clicked',
       {
-        link: { id: link.id, slug: link.slug, domain: link.domain_hostname ?? null, url: link.url },
+        link: { id: link.id, slug: link.slug, domain: link.domain_hostname ?? null, url: link.url, short_url: linkShortUrl(link) },
         click: { ...ctx, at: new Date().toISOString() },
       },
-      // Solo para Flow (el webhook no cambia): total de clicks con este.
-      { extra: { clicks: link.clicks + 1 } },
+      // Solo para Flow (el webhook no cambia): total de clicks con este, el
+      // que devolvió el UPDATE atómico (no el leído antes, que se pisa entre visitas).
+      { extra: { clicks } },
     ),
   );
 
