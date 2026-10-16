@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
-import { buildPageTree, type DocsPage } from '@/lib/docs-types';
+import { buildPageTree, type DocsPageSummary } from '@/lib/docs-types';
 
 interface DocsSidebarProps {
-  pages: DocsPage[];
+  pages: DocsPageSummary[];
   currentId?: string;
   /** Cantidad de páginas en la papelera (link al pie). */
   trashCount?: number;
@@ -28,7 +28,7 @@ interface DocsSidebarProps {
   shared?: Array<{ id: string; title: string; icon: string | null; role: 'view' | 'edit'; owner_name: string | null; owner_email: string }>;
 }
 
-type TreeNode = DocsPage & { children?: TreeNode[] };
+type TreeNode = DocsPageSummary & { children?: TreeNode[] };
 type DropZone = 'before' | 'inside' | 'after';
 
 /** Zona de drop según la altura del puntero: borde superior/inferior = reordenar, centro = anidar. */

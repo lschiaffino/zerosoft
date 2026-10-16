@@ -406,6 +406,40 @@ export function cleanVisitorIdentity(email: unknown, name: unknown): { email: st
   };
 }
 
+export interface VisitorFormAnswers {
+  /** Respuestas con la etiqueta del campo del widget, en el orden del formulario. */
+  entries: Array<{ id: string; label: string; value: string }>;
+  /** Primer campo de tipo email válido: identidad del visitante. */
+  email: string | null;
+}
+
+/**
+ * Respuestas del formulario pre-chat del widget, validadas contra los campos
+ * configurados (ids desconocidos se descartan) y con sus etiquetas.
+ */
+export function visitorFormAnswers(widget: Pick<ChatWidgetRow, 'fields'>, raw: unknown): VisitorFormAnswers {
+  const result: VisitorFormAnswers = { entries: [], email: null };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return result;
+  const defs = parseJson<unknown>(widget.fields ?? '[]', []);
+  if (!Array.isArray(defs)) return result;
+  const values = raw as Record<string, unknown>;
+  for (const def of defs as ChatFieldDef[]) {
+    if (!def || typeof def.id !== 'string') continue;
+    const v = values[def.id];
+    const value = typeof v === 'string' ? v.trim().slice(0, 1000) : '';
+    if (!value) continue;
+    const label = typeof def.name === 'string' && def.name.trim() ? def.name.trim() : def.id;
+    result.entries.push({ id: def.id, label, value });
+    if (def.type === 'email' && !result.email) result.email = cleanVisitorIdentity(value, null).email;
+  }
+  return result;
+}
+
+/** Texto legible de las respuestas del formulario ("Empresa: Acme"). */
+export function formatVisitorFormAnswers(answers: VisitorFormAnswers): string {
+  return answers.entries.map((e) => `${e.label}: ${e.value}`).join('\n');
+}
+
 export async function getOrCreateChatVisitor(
   widgetId: string,
   externalId: string,
@@ -696,6 +730,24 @@ export async function reopenExpiredSnoozes(widgetIds: string[]): Promise<void> {
     .run(nowIso(), nowIso(), ...widgetIds);
 }
 
+const SNOOZE_SWEEP_INTERVAL_MS = 60_000;
+const lastSnoozeSweep = new Map<string, number>();
+
+/**
+ * Igual que reopenExpiredSnoozes pero como mucho una vez por minuto por widget:
+ * el inbox lo dispara en cada poll de cada agente y sin cambios era una
+ * escritura inútil. Se llama antes de listar y contar, así ambos ven lo mismo.
+ */
+export async function reopenExpiredSnoozesThrottled(
+  widgetIds: string[],
+  now: number = Date.now(),
+): Promise<void> {
+  const due = widgetIds.filter((id) => now - (lastSnoozeSweep.get(id) ?? 0) >= SNOOZE_SWEEP_INTERVAL_MS);
+  if (due.length === 0) return;
+  for (const id of due) lastSnoozeSweep.set(id, now);
+  await reopenExpiredSnoozes(due);
+}
+
 export interface ChatConversationListRow extends ChatConversationRow, SlaComputedFields {
   visitor_email: string | null;
   visitor_name: string | null;
@@ -725,7 +777,6 @@ export async function listChatConversations(
 ): Promise<ChatConversationListRow[]> {
   if (widgetIds.length === 0) return [];
   const db = getDb();
-  await reopenExpiredSnoozes(widgetIds);
   const where: string[] = [`c.widget_id IN ${inClause(widgetIds.length)}`];
   const args: Array<string | number> = [...widgetIds];
 
@@ -1826,6 +1877,32 @@ export async function clearTyping(
 /** Proyección del visitante para rutas públicas: sin notas internas ni metadata. */
 export function toPublicVisitor(visitor: ChatVisitorRow): Pick<ChatVisitorRow, 'id' | 'email' | 'name'> {
   return { id: visitor.id, email: visitor.email, name: visitor.name };
+}
+
+export type PublicChatMessage = Pick<ChatMessageRow, 'id' | 'conversation_id' | 'sender_type' | 'body' | 'read_at' | 'created_at'> & {
+  attachments: ChatAttachment[];
+};
+
+/**
+ * Proyección del mensaje para rutas públicas (widget): attachments ya parseado
+ * (en la base es texto JSON y el widget espera un array) y sin el user id del agente.
+ */
+export function toPublicMessage(message: ChatMessageRow): PublicChatMessage {
+  const parsed = parseJson<unknown>(message.attachments ?? '[]', []);
+  return {
+    id: message.id,
+    conversation_id: message.conversation_id,
+    sender_type: message.sender_type,
+    body: message.body,
+    attachments: Array.isArray(parsed) ? (parsed as ChatAttachment[]) : [],
+    read_at: message.read_at,
+    created_at: message.created_at,
+  };
+}
+
+/** Proyección del indicador de escribiendo para rutas públicas: sin ids de agentes. */
+export function toPublicTyping(rows: ChatTypingRow[]): Array<Pick<ChatTypingRow, 'sender_type'>> {
+  return rows.map((r) => ({ sender_type: r.sender_type }));
 }
 
 export interface VisitorConversationWithMessages {

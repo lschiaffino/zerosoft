@@ -6,6 +6,7 @@ import {
   getChatWidget,
   listTyping,
   setTyping,
+  toPublicTyping,
 } from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
@@ -41,7 +42,8 @@ export async function GET(req: Request) {
   const { ok } = await validateVisitorAndConversation(widgetId, visitorExternalId, conversationId);
   if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-  const typing = await listTyping(conversationId);
+  // Sin user_id de los agentes: el widget solo mira sender_type.
+  const typing = toPublicTyping(await listTyping(conversationId));
   return NextResponse.json({ typing });
 }
 
@@ -67,6 +69,7 @@ export async function POST(req: Request) {
   if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   await setTyping(conversationId, 'visitor', null, 5);
-  const typing = await listTyping(conversationId);
+  // Sin user_id de los agentes: el widget solo mira sender_type.
+  const typing = toPublicTyping(await listTyping(conversationId));
   return NextResponse.json({ typing });
 }

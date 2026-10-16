@@ -4,12 +4,16 @@ import {
   cleanVisitorIdentity,
   createChatConversation,
   createChatMessage,
+  formatVisitorFormAnswers,
   getChatWidget,
   getOfficeHoursState,
   getOrCreateChatVisitor,
   getVisitorConversationWithMessages,
+  toPublicMessage,
   toPublicVisitor,
   updateChatConversation,
+  updateChatVisitor,
+  visitorFormAnswers,
 } from '@/lib/chat-data';
 import { afterVisitorMessage } from '@/lib/chat-visitor-message';
 import { visitorMessageLimitsSchema } from '@/lib/chat-schema';
@@ -35,7 +39,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ visitor: null, conversation: null, messages: [], csat: null, office });
   }
 
-  return NextResponse.json({ ...result, visitor: toPublicVisitor(result.visitor), office });
+  return NextResponse.json({
+    ...result,
+    messages: result.messages.map(toPublicMessage),
+    visitor: toPublicVisitor(result.visitor),
+    office,
+  });
 }
 
 export async function POST(req: Request) {
@@ -61,11 +70,27 @@ export async function POST(req: Request) {
   const widget = await getChatWidget(widgetId);
   if (!widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-  if (!messageBody && (!body.fields || typeof body.fields !== 'object')) {
+  // Formulario pre-chat: las respuestas se guardan con las etiquetas del widget.
+  const answers = visitorFormAnswers(widget, body.fields);
+  const answersText = formatVisitorFormAnswers(answers);
+  if (!messageBody && !answersText) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
-  const visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, cleanVisitorIdentity(body.email, body.name));
+  const identity = cleanVisitorIdentity(body.email, body.name);
+  if (!identity.email && answers.email) identity.email = answers.email;
+  let visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, identity);
+  if (answers.entries.length > 0) {
+    let metadata: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(visitor.metadata || '{}') as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) metadata = parsed as Record<string, unknown>;
+    } catch {
+      // metadata inválida: se reemplaza.
+    }
+    const form = Object.fromEntries(answers.entries.map((e) => [e.label, e.value]));
+    visitor = (await updateChatVisitor(visitor.id, { metadata: { ...metadata, form } })) ?? visitor;
+  }
 
   let conversation = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))?.conversation ?? null;
   let isNewConversation = false;
@@ -80,7 +105,7 @@ export async function POST(req: Request) {
     conversation = (await updateChatConversation(conversation.id, { status: 'open' })) ?? conversation;
   }
 
-  const finalBody = messageBody || JSON.stringify(body.fields);
+  const finalBody = [messageBody, answersText].filter(Boolean).join('\n\n');
   const message = await createChatMessage(conversation.id, 'visitor', { body: finalBody });
 
   const result = await afterVisitorMessage({
@@ -94,7 +119,12 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json(
-    { message, conversation: result.conversation, visitor: toPublicVisitor(visitor), bot: result.botMessage },
+    {
+      message: toPublicMessage(message),
+      conversation: result.conversation,
+      visitor: toPublicVisitor(visitor),
+      bot: result.botMessage ? toPublicMessage(result.botMessage) : null,
+    },
     { status: 201 },
   );
 }

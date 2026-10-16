@@ -61,6 +61,9 @@ export interface DocsPage {
   updated_at: string;
 }
 
+/** Lo que necesitan el árbol del sidebar y las listas: sin content (que pesa). */
+export type DocsPageSummary = Pick<DocsPage, 'id' | 'parent_id' | 'title' | 'icon' | 'position' | 'updated_at'>;
+
 export interface DocsPageShare {
   id: string;
   page_id: string;
@@ -106,9 +109,9 @@ export interface DocsMentionableUser {
   email: string;
 }
 
-export function buildPageTree(pages: DocsPage[]): DocsPage[] {
-  const map = new Map<string, DocsPage & { children: DocsPage[] }>();
-  const roots: DocsPage[] = [];
+export function buildPageTree<T extends Pick<DocsPage, 'id' | 'parent_id'>>(pages: T[]): T[] {
+  const map = new Map<string, T & { children: T[] }>();
+  const roots: T[] = [];
 
   for (const page of pages) {
     map.set(page.id, { ...page, children: [] });

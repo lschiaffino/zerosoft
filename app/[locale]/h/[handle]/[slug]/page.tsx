@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import type { CSSProperties } from 'react';
+import { cache, type CSSProperties } from 'react';
 import { notFound } from 'next/navigation';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
-import { getHelpArticle, getHelpWorkspace } from '@/lib/docs-help';
+import { getHelpArticle as loadHelpArticle, getHelpWorkspace as loadHelpWorkspace } from '@/lib/docs-help';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
 import { buildToc } from '@/lib/docs-toc';
 import DocsBlocksView from '@/components/docs/DocsBlocksView';
@@ -10,6 +10,10 @@ import HelpFeedback from '@/components/docs/HelpFeedback';
 import '@/styles/help.css';
 
 export const dynamic = 'force-dynamic';
+
+// generateMetadata y la página piden lo mismo: una sola lectura por request.
+const getHelpWorkspace = cache(loadHelpWorkspace);
+const getHelpArticle = cache(loadHelpArticle);
 
 type Props = { params: Promise<{ locale: string; handle: string; slug: string }> };
 

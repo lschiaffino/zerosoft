@@ -3,10 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { DocsPage } from '@/lib/docs-types';
+import type { DocsPageSummary } from '@/lib/docs-types';
 
 interface DocsTrashListProps {
-  pages: DocsPage[];
+  pages: DocsPageSummary[];
   labels: {
     restore: string;
     deleteForever: string;

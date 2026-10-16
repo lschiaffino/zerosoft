@@ -6,8 +6,9 @@ import {
   DOC_INTERNAL_READ,
   getDocAccess,
   getDocPageAncestors,
+  countArchivedDocPages,
   listDocComments,
-  listDocPages,
+  listDocPageSummaries,
   listDocShares,
   listSharedWithMe,
   resolveDocAccess,
@@ -52,9 +53,10 @@ export default async function DocsPageEditor(
   const canSeeVersions =
     access !== 'view' || (await getDocAccess(row, user, DOC_INTERNAL_READ)) !== null;
 
-  const [allPages, trashed, shared, comments] = await Promise.all([
-    listDocPages(user.id, { archived: false }),
-    listDocPages(user.id, { archived: true }),
+  // El sidebar solo necesita el árbol (sin content) y el número de la papelera.
+  const [allPages, trashCount, shared, comments] = await Promise.all([
+    listDocPageSummaries(user.id, { archived: false }),
+    countArchivedDocPages(user.id),
     listSharedWithMe(realUserId(user), user.id),
     listDocComments(id),
   ]);
@@ -73,7 +75,7 @@ export default async function DocsPageEditor(
       <DocsSidebar
         pages={allPages}
         currentId={id}
-        trashCount={trashed.length}
+        trashCount={trashCount}
         shared={shared}
         createAction={createDocPageAction.bind(null, locale)}
         moveAction={moveDocPageAction}

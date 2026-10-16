@@ -271,7 +271,8 @@
     "fileTypeNotAllowed": "Este tipo de archivo no está permitido.",
     "messageTooLong": "Mensaje demasiado largo (máx. 5.000 caracteres).",
     "invalid_input": "Algunos campos son inválidos. Revísalos e intenta de nuevo.",
-    "missing_name": "El nombre es obligatorio."
+    "missing_name": "El nombre es obligatorio.",
+    "invalid_assignee": "No se puede asignar a esa persona en esta conversación."
   },
   "quick": {
     "create": "Crear",
