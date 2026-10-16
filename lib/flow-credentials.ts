@@ -96,11 +96,15 @@ function toDto(row: FlowCredentialRow): CredentialDto {
     if (f.secret) secretsSet.push(f.key);
     else fields[f.key] = data[f.key];
   }
-  return { id: row.id, name: row.name, type, fields, secretsSet, hint: row.hint, createdAt: row.created_at, updatedAt: row.updated_at };
+  // La pista se recalcula: las guardadas antes podían mostrar el final de una contraseña.
+  const hint = row.hint ? hintFor(type, data) || '••••' : '';
+  return { id: row.id, name: row.name, type, fields, secretsSet, hint, createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
 function hintFor(type: CredentialType, data: Record<string, string>): string {
   const first = credentialFields(type).find((f) => f.secret && data[f.key]);
+  // Una contraseña nunca deja ver su final, aunque sea larga.
+  if (first?.key === 'password') return '••••';
   return first ? maskSecret(data[first.key]) : '';
 }
 

@@ -58,6 +58,13 @@ export const MAX_LOOP_ITEMS = 100;
  */
 export const MAX_STEPS_TOTAL = 1_000;
 const MAX_RETRIES = 5;
+/**
+ * Dentro de un Loop no se agenda un job (la iteración no se puede retomar a
+ * mitad): se reintenta en línea, con un backoff corto y un presupuesto acotado.
+ */
+const LOOP_MAX_RETRIES = 3;
+const LOOP_RETRY_BASE_MS = 500;
+const LOOP_RETRY_BUDGET_MS = 30_000;
 /** Tope por valor al guardar en la base (pasos y contexto persistido). */
 const STORE_LIMIT = 64_000;
 /** Tope por salida de nodo en memoria (lo que leen los nodos siguientes). */
@@ -83,7 +90,7 @@ interface RunContext {
   stepLimit?: number;
 }
 
-type FlowInfo = Pick<FlowFlowRow, 'id' | 'name' | 'user_id' | 'created_by' | 'error_flow_id'>;
+type FlowInfo = Pick<FlowFlowRow, 'id' | 'name' | 'user_id' | 'created_by' | 'error_flow_id' | 'enabled'>;
 
 interface RunState {
   run: FlowRunRow;
@@ -99,6 +106,8 @@ interface RunState {
   merged: Set<string>;
   /** Nodos en espera (Esperar o reintento agendado): un Merge no los da por terminados. */
   pending: Set<string>;
+  /** Milisegundos ya esperados en reintentos en línea dentro de Loops (presupuesto). */
+  loopRetryMs: number;
 }
 
 interface LoopScope {
@@ -824,6 +833,20 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
 
   if (result.kind === 'error') {
     const retries = Math.min(Math.max(Math.floor(Number(node.config?.retries) || 0), 0), MAX_RETRIES);
+    if (result.retryable && loop && attempt < Math.min(retries, LOOP_MAX_RETRIES)) {
+      const delayMs = LOOP_RETRY_BASE_MS * 2 ** attempt;
+      if (state.loopRetryMs + delayMs <= LOOP_RETRY_BUDGET_MS) {
+        state.loopRetryMs += delayMs;
+        await finishStep(state, stepId, 'failed', errorOutput, `${result.error} (retry ${attempt + 1}/${retries})`);
+        delete state.ctx.nodes[node.id];
+        loop.ran.delete(node.id);
+        // El reintento suma un paso que el Loop no reservó.
+        state.ctx.stepLimit = Math.min((state.ctx.stepLimit ?? MAX_STEPS) + 1, MAX_STEPS_TOTAL);
+        await new Promise((r) => setTimeout(r, delayMs));
+        await runNode(state, node.id, loop, attempt + 1);
+        return;
+      }
+    }
     if (result.retryable && attempt < retries && !loop) {
       const delayMs = Math.min(15_000 * 2 ** attempt, 3_600_000);
       await scheduleJob(state.run.id, node.id, new Date(Date.now() + delayMs).toISOString(), {
@@ -980,7 +1003,7 @@ async function finalize(state: RunState): Promise<FlowRunRow['status']> {
 
 async function loadState(run: FlowRunRow): Promise<RunState | null> {
   const flow = (await getDb()
-    .prepare('SELECT id, name, user_id, graph, created_by, error_flow_id FROM flow_flows WHERE id = ? AND user_id = ?')
+    .prepare('SELECT id, name, user_id, graph, created_by, error_flow_id, enabled FROM flow_flows WHERE id = ? AND user_id = ?')
     .get(run.flow_id, run.user_id)) as (FlowInfo & Pick<FlowFlowRow, 'graph'>) | undefined;
   if (!flow) return null;
   const saved = parseJson<Partial<RunContext>>(run.context, {});
@@ -1001,7 +1024,26 @@ async function loadState(run: FlowRunRow): Promise<RunState | null> {
     secrets: [],
     merged: new Set(saved.merged ?? []),
     pending: new Set(saved.pending ?? []),
+    loopRetryMs: 0,
   };
+}
+
+/** Disparadores automáticos: si el flow se apagó, sus corridas pendientes no siguen. */
+const AUTOMATIC_TRIGGERS = new Set(['trigger.event', 'trigger.webhook', 'trigger.stripe', 'trigger.schedule']);
+
+/**
+ * Corrida automática de un flow apagado: se cancela (falla con flow_disabled y
+ * se borran sus jobs) en lugar de ejecutarse o retomarse. Las pruebas manuales,
+ * sub-flows y flows de error sí corren con el flow apagado.
+ */
+async function cancelIfDisabled(state: RunState): Promise<boolean> {
+  if (state.flow.enabled === 1 || !AUTOMATIC_TRIGGERS.has(state.run.trigger_type)) return false;
+  const db = getDb();
+  await db.prepare('DELETE FROM flow_jobs WHERE run_id = ?').run(state.run.id);
+  await db
+    .prepare("UPDATE flow_runs SET status = 'failed', error = 'flow_disabled', finished_at = ?, locked_until = NULL WHERE id = ?")
+    .run(nowIso(), state.run.id);
+  return true;
 }
 
 function inChain<T>(run: FlowRunRow, fn: () => Promise<T>): Promise<T> {
@@ -1023,6 +1065,7 @@ export async function executeRun(runId: string): Promise<FlowRunRow['status']> {
       .run(nowIso(), runId);
     return 'failed';
   }
+  if (await cancelIfDisabled(state)) return 'failed';
   await inChain(run, async () => {
     const trigger = triggerNode(state.ctx.graph);
     if (!trigger) {
@@ -1056,6 +1099,7 @@ export async function resumeRun(
   if (!run || run.status === 'failed' || run.status === 'success') return run?.status ?? 'failed';
   const state = await loadState(run);
   if (!state) return 'failed';
+  if (await cancelIfDisabled(state)) return 'failed';
   await getDb().prepare("UPDATE flow_runs SET status = 'running' WHERE id = ?").run(runId);
   await inChain(run, async () => {
     if (payload.kind === 'retry') await runNode(state, nodeId, undefined, Number(payload.attempt) || 1);

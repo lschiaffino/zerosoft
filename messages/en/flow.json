@@ -376,7 +376,9 @@
     "rerunOf": "Re-run of {id}. Earlier steps reuse their previous output.",
     "rerunFrom": "Re-run from here",
     "rerunHint": "Earlier steps reuse this run's output. Uses the saved flow.",
-    "rerunDirty": "You have unsaved changes. The re-run uses the last saved version. Continue?"
+    "rerunDirty": "You have unsaved changes. The re-run uses the last saved version. Continue?",
+    "cancel": "Cancel run",
+    "cancelConfirm": "Cancel this run? Pending steps (waits and retries) won't run."
   },
   "stepStatus": {
     "running": "Running",
@@ -411,7 +413,8 @@
     "run_active": "This run is still in progress.",
     "node_not_found": "That node is no longer in the flow.",
     "node_is_trigger": "Re-run from a step after the trigger.",
-    "node_in_loop": "Steps inside a Loop can't be re-run on their own. Re-run from the Loop."
+    "node_in_loop": "Steps inside a Loop can't be re-run on their own. Re-run from the Loop.",
+    "run_not_cancellable": "The run is already running or finished, so it can't be cancelled."
   },
   "onError": {
     "stop": "Stop the flow",

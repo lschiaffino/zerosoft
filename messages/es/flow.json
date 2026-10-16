@@ -376,7 +376,9 @@
     "rerunOf": "Re-ejecución de {id}. Los pasos anteriores reusan su salida.",
     "rerunFrom": "Re-ejecutar desde acá",
     "rerunHint": "Los pasos anteriores reusan la salida de esta corrida. Usa el flow guardado.",
-    "rerunDirty": "Tenés cambios sin guardar. La re-ejecución usa la última versión guardada. ¿Seguir?"
+    "rerunDirty": "Tenés cambios sin guardar. La re-ejecución usa la última versión guardada. ¿Seguir?",
+    "cancel": "Cancelar ejecución",
+    "cancelConfirm": "¿Cancelar esta ejecución? Los pasos pendientes (esperas y reintentos) no van a correr."
   },
   "stepStatus": {
     "running": "Ejecutando",
@@ -411,7 +413,8 @@
     "run_active": "Esta corrida todavía está en curso.",
     "node_not_found": "Ese nodo ya no está en el flow.",
     "node_is_trigger": "Re-ejecutá desde un paso posterior al trigger.",
-    "node_in_loop": "Los pasos dentro de un Loop no se re-ejecutan solos. Re-ejecutá desde el Loop."
+    "node_in_loop": "Los pasos dentro de un Loop no se re-ejecutan solos. Re-ejecutá desde el Loop.",
+    "run_not_cancellable": "La ejecución ya está corriendo o terminó: no se puede cancelar."
   },
   "onError": {
     "stop": "Detener el flow",

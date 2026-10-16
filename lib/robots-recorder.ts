@@ -151,6 +151,24 @@ function push(step) {
   if (state.steps.length >= 100) return;
   state.steps.push(step); save();
 }
+// Campos secretos: nunca se graba su valor. Además de type=password, cuentan los que
+// alguna vez fueron password (botón "mostrar contraseña"), los de autocomplete de
+// contraseña / OTP / tarjeta, los que ocultan el texto con text-security y los PIN.
+var wasPw = typeof WeakSet === 'function' ? new WeakSet() : null;
+function markPw(el) { if (wasPw && el && el.nodeType === 1 && (el.type || '').toLowerCase() === 'password') wasPw.add(el); }
+function secret(el) {
+  var type = (el.type || '').toLowerCase();
+  if (type === 'password') { markPw(el); return true; }
+  if (wasPw && wasPw.has(el)) return true;
+  var ac = (el.getAttribute('autocomplete') || '').toLowerCase();
+  if (/current-password|new-password|one-time-code|cc-number|cc-csc/.test(ac)) return true;
+  try { var cs = getComputedStyle(el); var ts = cs.getPropertyValue('-webkit-text-security') || cs.webkitTextSecurity || ''; if (ts && ts !== 'none') return true; } catch (e) {}
+  var names = ((el.getAttribute('name') || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute('aria-label') || '')).toLowerCase();
+  if (/passw|pwd|contrase|senha/.test(names)) return true;
+  var numeric = (el.getAttribute('inputmode') || '').toLowerCase() === 'numeric' || type === 'tel' || type === 'number';
+  return numeric && /(^|[^a-z])(pin|otp|cvv|cvc|card|token|code)/.test(names);
+}
+document.addEventListener('focusin', function (e) { markPw(e.target); }, true);
 document.addEventListener('click', function (e) {
   var t = e.target; if (!t || t.nodeType !== 1 || inPanel(t)) return;
   var el = t.closest('a,button,summary,label,[role=button],[role=link],input[type=submit],input[type=button],input[type=checkbox],input[type=radio]') || t;
@@ -164,8 +182,7 @@ document.addEventListener('change', function (e) {
   var tag = el.tagName.toLowerCase();
   if (tag === 'select') { push({ type: 'select', selector: sel(el).selector, value: el.value }); return; }
   if (tag === 'textarea' || (tag === 'input' && !/^(submit|button|checkbox|radio|reset|file|hidden)$/i.test(el.type || ''))) {
-    var pw = (el.type || '').toLowerCase() === 'password';
-    var fill = { type: 'fill', selector: sel(el).selector, value: pw ? ${JSON.stringify(PASSWORD_PLACEHOLDER)} : el.value };
+    var fill = { type: 'fill', selector: sel(el).selector, value: secret(el) ? ${JSON.stringify(PASSWORD_PLACEHOLDER)} : el.value };
     // Enter ya grabó fill + press: el change que dispara el navegador al confirmar no se repite.
     var n = state.steps.length, last = state.steps[n - 1], before = state.steps[n - 2];
     if (last && last.type === 'press' && last.key === 'Enter' && last.selector === fill.selector && before && before.type === 'fill' && before.selector === fill.selector && before.value === fill.value) return;
@@ -173,9 +190,9 @@ document.addEventListener('change', function (e) {
   }
 }, true);
 document.addEventListener('keydown', function (e) {
-  var el = e.target; if (e.key !== 'Enter' || !el || el.nodeType !== 1 || inPanel(el)) return;
+  var el = e.target; markPw(el); if (e.key !== 'Enter' || !el || el.nodeType !== 1 || inPanel(el)) return;
   var tag = el.tagName.toLowerCase(); if (tag !== 'input') return;
-  if (el.value) { var pw = (el.type || '').toLowerCase() === 'password'; push({ type: 'fill', selector: sel(el).selector, value: pw ? ${JSON.stringify(PASSWORD_PLACEHOLDER)} : el.value }); }
+  if (el.value) push({ type: 'fill', selector: sel(el).selector, value: secret(el) ? ${JSON.stringify(PASSWORD_PLACEHOLDER)} : el.value });
   push({ type: 'press', key: 'Enter', selector: sel(el).selector });
 }, true);
 var host = document.createElement('div');

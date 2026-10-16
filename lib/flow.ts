@@ -491,6 +491,30 @@ export async function getRunWithSteps(
   return { ...toRunDto(row), steps: steps.map(toStepDto) };
 }
 
+/**
+ * Cancela una corrida en cola o en espera: borra sus jobs (Esperar, reintentos)
+ * y la marca fallida con 'cancelled'. Una corrida que ya está ejecutándose o
+ * terminó no se toca.
+ */
+export async function cancelRun(
+  workspaceId: string,
+  runId: string,
+): Promise<{ ok: true } | { ok: false; error: 'not_found' | 'run_not_cancellable' }> {
+  const db = getDb();
+  const res = await db
+    .prepare(
+      `UPDATE flow_runs SET status = 'failed', error = 'cancelled', finished_at = ?, locked_until = NULL
+       WHERE id = ? AND user_id = ? AND status IN ('queued', 'waiting')`,
+    )
+    .run(nowIso(), runId, workspaceId);
+  if (res.changes === 0) {
+    const row = await db.prepare('SELECT 1 FROM flow_runs WHERE id = ? AND user_id = ?').get(runId, workspaceId);
+    return { ok: false, error: row ? 'run_not_cancellable' : 'not_found' };
+  }
+  await db.prepare('DELETE FROM flow_jobs WHERE run_id = ?').run(runId);
+  return { ok: true };
+}
+
 /** Última salida de cada nodo del flow (para el selector de variables). */
 export async function lastOutputs(workspaceId: string, flowId: string): Promise<Record<string, unknown>> {
   const run = (await getDb()
@@ -499,8 +523,14 @@ export async function lastOutputs(workspaceId: string, flowId: string): Promise<
     )
     .get(flowId, workspaceId)) as { id: string } | undefined;
   if (!run) return {};
+  // Una fila por nodo (la última): con Loops una corrida tiene cientos de pasos.
   const steps = (await getDb()
-    .prepare("SELECT node_id, output FROM flow_steps WHERE run_id = ? AND status = 'success' ORDER BY started_at ASC")
+    .prepare(
+      `SELECT node_id, output FROM (
+         SELECT node_id, output, ROW_NUMBER() OVER (PARTITION BY node_id ORDER BY started_at DESC, rowid DESC) AS rn
+         FROM flow_steps WHERE run_id = ? AND status = 'success'
+       ) WHERE rn = 1`,
+    )
     .all(run.id)) as Array<{ node_id: string; output: string | null }>;
   const out: Record<string, unknown> = {};
   for (const s of steps) out[s.node_id] = parseJson(s.output, null);
@@ -580,6 +610,24 @@ export async function enqueueRun(
   return id;
 }
 
+/**
+ * Corrida automática (schedule o evento) que no se encoló por el tope de
+ * corridas del workspace: queda en el historial como fallida con
+ * 'rate_limited' en lugar de perderse sin rastro. Como mucho una por flow y
+ * hora (el registro no puede convertirse en otra fuente de escrituras).
+ */
+async function recordRateLimitedRun(flow: Pick<FlowFlowRow, 'id' | 'user_id'>, triggerType: string, input: unknown): Promise<void> {
+  if (process.env.RATE_LIMIT_DISABLED !== 'true' && !(await rateLimit(`flow-skipped:${flow.id}`, 1, 3600)).ok) return;
+  const ts = nowIso();
+  await getDb()
+    .prepare(
+      `INSERT INTO flow_runs (id, flow_id, user_id, trigger_type, status, input, error, chain_depth, chain_seen,
+         created_at, started_at, finished_at)
+       VALUES (?, ?, ?, ?, 'failed', ?, 'rate_limited', 0, ?, ?, ?, ?)`,
+    )
+    .run(crypto.randomUUID(), flow.id, flow.user_id, triggerType, serializeRunInput(input), JSON.stringify([flow.id]), ts, ts, ts);
+}
+
 const KICK_LIMIT = 5;
 const KICK_BUDGET_MS = 20_000;
 
@@ -636,6 +684,7 @@ export async function enqueueEventRuns(
     const input = { ...data, event: { type, at: nowIso() } };
     const id = await enqueueRun(row, 'trigger.event', input, { chain: { depth, seen: parent?.seen ?? [] } });
     if (id) ids.push(id);
+    else await recordRateLimitedRun(row, 'trigger.event', input);
   }
   if (ids.length) kickFlowWorker();
   return ids;
@@ -715,8 +764,10 @@ export async function enqueueDueSchedules(now: Date = new Date(), limit = 100): 
       .prepare('UPDATE flow_flows SET next_run_at = ? WHERE id = ? AND next_run_at = ?')
       .run(next, row.id, row.next_run_at);
     if (res.changes !== 1) continue;
-    const id = await enqueueRun(row, 'trigger.schedule', { scheduledAt: row.next_run_at, firedAt: now.toISOString() });
+    const input = { scheduledAt: row.next_run_at, firedAt: now.toISOString() };
+    const id = await enqueueRun(row, 'trigger.schedule', input);
     if (id) ids.push(id);
+    else await recordRateLimitedRun(row, 'trigger.schedule', input);
   }
   return ids;
 }
