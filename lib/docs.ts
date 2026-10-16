@@ -1,11 +1,12 @@
-import { getDb, type DocsCommentRow, type DocsPageRow, type DocsShareRow, type TeamRow, type UserRow } from './db';
+import { getDb, getUserById, type DocsCommentRow, type DocsPageRow, type DocsShareRow, type TeamRow, type UserRow } from './db';
 import { sanitizeBlocks } from './docs-sanitize';
-import { isMember } from './teams';
+import { isMember, listMembers, listOwnedTeams } from './teams';
 import {
   type DocsAccess,
   type DocsBlock,
   type DocsBlockType,
   type DocsComment,
+  type DocsMentionableUser,
   type DocsPage,
   type DocsPageShare,
   type DocsPageSummary,
@@ -164,6 +165,25 @@ export async function canReadPage(
 export async function canEditPage(page: DocsPageRow, actor: DocsActor): Promise<boolean> {
   const access = await getDocAccess(page, actor);
   return access === 'owner' || access === 'edit';
+}
+
+/**
+ * Mencionables de una página: el dueño del workspace de la página y los
+ * miembros de sus teams (los que la pueden abrir desde el workspace). Se arma
+ * desde la página, no desde el team activo de quien escribe: un invitado de
+ * otra empresa no notifica a sus compañeros (sin acceso) y sí puede mencionar
+ * al equipo dueño.
+ */
+export async function listPageMentionables(page: Pick<DocsPageRow, 'user_id'>): Promise<DocsMentionableUser[]> {
+  const out = new Map<string, DocsMentionableUser>();
+  const owner = await getUserById(page.user_id);
+  if (owner) out.set(owner.id, { id: owner.id, name: owner.name, email: owner.email });
+  for (const team of await listOwnedTeams(page.user_id)) {
+    for (const m of await listMembers(team.id)) {
+      if (!out.has(m.user_id)) out.set(m.user_id, { id: m.user_id, name: m.name, email: m.email });
+    }
+  }
+  return [...out.values()];
 }
 
 // ---------- CRUD ----------

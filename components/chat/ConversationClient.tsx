@@ -305,7 +305,8 @@ export default function ConversationClient({
     }
     setSendError(null);
     setSending(true);
-    const macro = pendingMacro;
+    // Una macro (responder/resolver) no corre con una nota interna.
+    const macro = mode === 'note' ? null : pendingMacro;
     const macroDone = () => {
       if (!macro) return;
       setPendingMacro(null);
@@ -340,11 +341,16 @@ export default function ConversationClient({
         }
       } else {
         const isNote = mode === 'note';
+        // Solo las menciones que siguen en el texto (si se borró "@Ana", no se la notifica).
+        const liveMentions = mentions.filter((id) => {
+          const agent = agents.find((a) => a.id === id);
+          return agent ? body.includes(`@${agent.name || agent.email}`) : false;
+        });
         const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...(isNote ? { body, note: true, mentions } : { body }),
+            ...(isNote ? { body, note: true, mentions: liveMentions } : { body }),
             ...(macro ? { cannedId: macro.id } : {}),
           }),
         });
@@ -800,6 +806,7 @@ export default function ConversationClient({
             className={`chat-composer-mode${mode === 'note' ? ' active note' : ''}`}
             onClick={() => {
               setMode('note');
+              setPendingMacro(null);
               clearSelectedFile();
               // Si venía escribiendo una respuesta, el visitante deja de ver el indicador.
               if (typingSentAt.current > 0) {

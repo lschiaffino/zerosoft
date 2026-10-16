@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import { getChatWidget } from '@/lib/chat-data';
 import { getDb } from '@/lib/db';
-import { listHelpCollections, searchHelpArticles, type HelpArticleSummary } from '@/lib/docs-help';
+import { listHelpCollections, searchHelpArticles, withHelpExcerpts, type HelpArticleSummary } from '@/lib/docs-help';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,5 +39,7 @@ export async function GET(req: Request) {
   }
   const collections = await listHelpCollections(widget.user_id);
   const flat = collections.flatMap(({ articles, ...head }) => [head, ...articles]).slice(0, 6);
-  return NextResponse.json({ helpCenterUrl: base, articles: flat.map(link) });
+  // Excerpt solo de los 6 que se devuelven.
+  const withExcerpts = await withHelpExcerpts(widget.user_id, flat);
+  return NextResponse.json({ helpCenterUrl: base, articles: withExcerpts.map(link) });
 }

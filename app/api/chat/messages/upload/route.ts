@@ -63,8 +63,9 @@ export async function POST(req: Request) {
     isNewConversation = true;
   }
 
-  // Un mensaje del visitante despierta una conversación snoozed.
-  if (conversation.status === 'snoozed') {
+  // Un mensaje del visitante despierta una conversación snoozed o pendiente
+  // (esperando al cliente): vuelve a Abiertas para que alguien la atienda.
+  if (conversation.status === 'snoozed' || conversation.status === 'pending') {
     conversation = (await updateChatConversation(conversation.id, { status: 'open' })) ?? conversation;
   }
 

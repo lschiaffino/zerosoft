@@ -54,7 +54,12 @@ export async function afterVisitorMessage(input: {
   // Notify widget owner and assigned agent.
   const recipients = new Set<string>();
   recipients.add(widget.user_id);
-  if (conversation.assigned_to && conversation.assigned_to !== widget.user_id) {
+  // Solo si sigue siendo agente del widget (no a quien salió del team).
+  if (
+    conversation.assigned_to &&
+    conversation.assigned_to !== widget.user_id &&
+    agents.some((a) => a.id === conversation.assigned_to)
+  ) {
     recipients.add(conversation.assigned_to);
   }
 
