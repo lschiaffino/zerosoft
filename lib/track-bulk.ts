@@ -229,9 +229,10 @@ export async function findWorkspaceIssueByIdentifier(
 
 /**
  * Saca el issue de triage de forma atómica. Devuelve false si otro request ya
- * lo resolvió (la copia que leyó el llamador puede estar vieja).
+ * lo resolvió (la copia que leyó el llamador puede estar vieja). También lo usa
+ * el PATCH del detalle: asignar o cambiar el status acepta el issue.
  */
-async function claimTriage(issueId: string): Promise<boolean> {
+export async function claimTriage(issueId: string): Promise<boolean> {
   const res = await getDb()
     .prepare("UPDATE track_issues SET triage = 0, updated_at = datetime('now') WHERE id = ? AND triage = 1")
     .run(issueId);

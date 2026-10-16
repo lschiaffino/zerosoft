@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
-import { validateIssueRefs } from '@/lib/track-bulk';
+import { claimTriage, validateIssueRefs } from '@/lib/track-bulk';
 import { deleteIssue, getIssue, getProject, updateIssue, canAccessTrackProject } from '@/lib/track-data';
 import { issueUpdateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
@@ -43,6 +43,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
   const invalid = await validateIssueRefs(project, parsed.data, { ownerId: user.id, issueId: issue.id });
   if (invalid) return trackError(400, invalid);
+
+  // Asignar o mover un issue en triage lo acepta: si no, quedaría oculto de las
+  // listas y de My tasks aunque alguien ya esté trabajando en él.
+  if (issue.triage && (parsed.data.statusId !== undefined || parsed.data.assigneeId !== undefined)) {
+    await claimTriage(issue.id);
+  }
 
   // updateIssue emite issue.updated / issue.status_changed (after).
   const updated = await updateIssue(params.id, parsed.data, realUserId(user));

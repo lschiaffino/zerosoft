@@ -26,12 +26,19 @@ async function resolve(issueId: string, body: Record<string, unknown>): Promise<
   return { ok: false, error: data.error };
 }
 
-function TriageRow({
+/**
+ * Aceptar / rechazar / duplicado de un issue en triage. Se usa en la cola y en
+ * el banner del detalle.
+ */
+export function TriageActions({
   issue,
   statuses,
-  locale,
   onResolved,
-}: { issue: TrackIssueWithStatus } & Omit<TriagePanelProps, 'issues' | 'projectId'>) {
+}: {
+  issue: Pick<TrackIssueWithStatus, 'id'>;
+  statuses: TrackStatusRow[];
+  onResolved: () => void;
+}) {
   const t = useTranslations('track');
   const defaultStatus = statuses.find((s) => s.category === 'todo') ?? statuses[0];
   const [statusId, setStatusId] = useState(defaultStatus?.id ?? '');
@@ -39,7 +46,6 @@ function TriageRow({
   const [dupOf, setDupOf] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const source = issue.source && issue.source !== 'app' ? issue.source : 'api';
 
   const act = async (body: Record<string, unknown>) => {
     setBusy(true);
@@ -48,7 +54,11 @@ function TriageRow({
     setBusy(false);
     if (res.ok) onResolved();
     else if (body.action === 'duplicate' && res.error === 'invalid_duplicate') setError(t('triage.duplicateNotFound'));
-    else setError(t('triage.error'));
+    else if (res.error === 'not_in_triage') {
+      // Otra persona lo resolvió antes: avisar y recargar la cola.
+      setError(t('triage.alreadyResolved'));
+      onResolved();
+    } else setError(t('triage.error'));
   };
 
   const markDuplicate = async () => {
@@ -59,15 +69,7 @@ function TriageRow({
   };
 
   return (
-    <li className="track-triage-item" data-testid="track-triage-item">
-      <div className="track-triage-main">
-        <Link href={`/app/track/issues/${issue.id}`} className="track-triage-title">
-          <span className="track-identifier">{issue.identifier}</span> {issue.title || '—'}
-        </Link>
-        <span className="muted mono track-triage-meta">
-          {t('triage.from', { source: t(`triage.sources.${source}`) })} · {relDate(issue.created_at, locale)}
-        </span>
-      </div>
+    <>
       <div className="track-triage-actions">
         <select value={statusId} onChange={(e) => setStatusId(e.target.value)} aria-label={t('triage.acceptAs')} disabled={busy}>
           {statuses
@@ -122,7 +124,52 @@ function TriageRow({
           {error}
         </p>
       )}
+    </>
+  );
+}
+
+function TriageRow({
+  issue,
+  statuses,
+  locale,
+  onResolved,
+}: { issue: TrackIssueWithStatus } & Omit<TriagePanelProps, 'issues' | 'projectId'>) {
+  const t = useTranslations('track');
+  const source = issue.source && issue.source !== 'app' ? issue.source : 'api';
+
+  return (
+    <li className="track-triage-item" data-testid="track-triage-item">
+      <div className="track-triage-main">
+        <Link href={`/app/track/issues/${issue.id}`} className="track-triage-title">
+          <span className="track-identifier">{issue.identifier}</span> {issue.title || '—'}
+        </Link>
+        <span className="muted mono track-triage-meta">
+          {t('triage.from', { source: t(`triage.sources.${source}`) })} · {relDate(issue.created_at, locale)}
+        </span>
+      </div>
+      <TriageActions issue={issue} statuses={statuses} onResolved={onResolved} />
     </li>
+  );
+}
+
+/** Aviso en el detalle de un issue que sigue en triage, con las mismas acciones. */
+export function TriageBanner({
+  issue,
+  statuses,
+  onResolved,
+}: {
+  issue: Pick<TrackIssueWithStatus, 'id'>;
+  statuses: TrackStatusRow[];
+  onResolved: () => void;
+}) {
+  const t = useTranslations('track');
+  return (
+    <div className="track-triage-item track-triage-banner" role="status" data-testid="track-triage-banner">
+      <div className="track-triage-main">
+        <span>{t('triage.banner')}</span>
+      </div>
+      <TriageActions issue={issue} statuses={statuses} onResolved={onResolved} />
+    </div>
   );
 }
 

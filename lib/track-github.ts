@@ -256,16 +256,26 @@ export async function listIssueLinks(issueId: string): Promise<TrackIssueLink[]>
     .all(issueId)) as TrackIssueLink[];
 }
 
+/**
+ * Crea o actualiza el vínculo y devuelve el estado que tenía antes (null si es
+ * nuevo). 'merged' es terminal en GitHub: una entrega atrasada o reenviada no
+ * lo baja a open/closed.
+ */
 async function upsertLink(
   issueId: string,
   link: Pick<TrackIssueLink, 'kind' | 'repo' | 'ref' | 'url' | 'title' | 'state' | 'branch' | 'author'>,
-): Promise<void> {
-  await getDb()
+): Promise<TrackIssueLink['state'] | null> {
+  const db = getDb();
+  const prev = (await db
+    .prepare('SELECT state FROM track_issue_links WHERE issue_id = ? AND kind = ? AND repo = ? AND ref = ?')
+    .get(issueId, link.kind, link.repo, link.ref)) as { state: TrackIssueLink['state'] } | undefined;
+  await db
     .prepare(
       `INSERT INTO track_issue_links (id, issue_id, kind, repo, ref, url, title, state, branch, author)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (issue_id, kind, repo, ref) DO UPDATE SET
-         url = excluded.url, title = excluded.title, state = excluded.state,
+         url = excluded.url, title = excluded.title,
+         state = CASE WHEN track_issue_links.state = 'merged' THEN 'merged' ELSE excluded.state END,
          branch = COALESCE(excluded.branch, track_issue_links.branch),
          author = COALESCE(excluded.author, track_issue_links.author),
          updated_at = datetime('now')`,
@@ -282,6 +292,7 @@ async function upsertLink(
       link.branch,
       link.author,
     );
+  return prev?.state ?? null;
 }
 
 // ---------- Webhook ----------
@@ -463,7 +474,7 @@ export async function handleGithubWebhook(
           : 'open';
     let moved = 0;
     for (const issue of issues) {
-      await upsertLink(issue.id, {
+      const prevState = await upsertLink(issue.id, {
         kind: 'pr',
         repo,
         ref: String(pr.number),
@@ -474,6 +485,9 @@ export async function handleGithubWebhook(
         author: pr.user?.login ?? null,
       });
       if (!trusted || !movable.has(issue.identifier.toUpperCase())) continue;
+      // El merge ya se aplicó (entrega reenviada o atrasada): no volver a cerrar
+      // un issue que alguien reabrió a mano, ni mover por una entrega vieja.
+      if (prevState === 'merged') continue;
       const target = plannedCategory(issue.status_category, kind, config);
       const via = { author: pr.user?.login ?? null, ref: `#${pr.number}` };
       if (target && (await moveIssueToCategory(issue, target, row.owner_id, via))) moved++;

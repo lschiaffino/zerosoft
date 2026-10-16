@@ -1,6 +1,6 @@
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
-import { put } from '@vercel/blob';
+import { del, put } from '@vercel/blob';
 
 /**
  * Almacenamiento de archivos subidos (adjuntos de Chat, Track y tareas del CRM).
@@ -62,4 +62,24 @@ export async function saveUpload(
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, name), buffer);
   return `/uploads/${folder}/${name}`;
+}
+
+/**
+ * Borra archivos guardados con saveUpload (best effort: un fallo no corta el
+ * borrado de las filas). Sin esto, el blob público seguía accesible con la URL
+ * después de borrar el adjunto.
+ */
+export async function deleteUploads(urls: string[]): Promise<void> {
+  const blobs = urls.filter((u) => /^https:\/\//.test(u));
+  const local = urls.filter((u) => u.startsWith('/uploads/'));
+  if (blobs.length > 0 && process.env.BLOB_READ_WRITE_TOKEN) {
+    await del(blobs).catch(() => undefined);
+  }
+  const root = path.join(process.cwd(), 'public', 'uploads');
+  for (const url of local) {
+    const file = path.join(process.cwd(), 'public', url);
+    // Nunca fuera de public/uploads (la URL sale de la base, pero por las dudas).
+    if (!file.startsWith(root + path.sep)) continue;
+    await unlink(file).catch(() => undefined);
+  }
 }

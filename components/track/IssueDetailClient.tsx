@@ -9,6 +9,8 @@ import IssueActivityTimeline from './IssueActivityTimeline';
 import QuickIssueModal from './QuickIssueModal';
 import { CopyBranchButton, IssueGithubPanel, useIssueGithub } from './IssueGithub';
 import { TrackToast, useToday } from './InlineEditors';
+import { TriageBanner } from './TriagePanel';
+import { findDoneStatus, findOpenStatus } from '@/lib/track-tasks';
 import type { IssueDraft } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
@@ -216,8 +218,10 @@ export default function IssueDetailClient({
     await Promise.all([refreshIssue(), refreshActivities()]);
   }, [refreshIssue, refreshActivities]);
 
-  const doneStatus = initialStatuses.find((s) => s.category === 'done' || s.category === 'cancelled');
-  const openStatus = initialStatuses.find((s) => s.category !== 'done' && s.category !== 'cancelled');
+  // Igual que el checkbox de las listas (useIssueStore.toggleDone): cerrar va al
+  // primer Done (nunca a Cancelled) y reabrir prefiere Todo.
+  const doneStatus = findDoneStatus(initialStatuses);
+  const openStatus = findOpenStatus(initialStatuses);
   const isClosed = issue.status_category === 'done' || issue.status_category === 'cancelled';
 
   async function handleCreateSubIssue(projectId: string, draft: IssueDraft) {
@@ -372,6 +376,9 @@ export default function IssueDetailClient({
             </span>
           )}
         </div>
+        {issue.triage === 1 && (
+          <TriageBanner key={issue.id} issue={issue} statuses={initialStatuses} onResolved={() => void handleIssueChange()} />
+        )}
         <div className="track-detail-actions">
           <CopyBranchButton identifier={issue.identifier} title={issue.title} />
           {(doneStatus || openStatus) && (

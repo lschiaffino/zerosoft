@@ -6,6 +6,8 @@ import { buildTrackUiLabels } from '@/components/track/ui-labels';
 
 export const dynamic = 'force-dynamic';
 
+const ISSUES_PAGE_SIZE = 50;
+
 export default async function IssuesPage(
   props: {
     params: Promise<{ locale: string }>;
@@ -20,8 +22,8 @@ export default async function IssuesPage(
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
   const teamId = user.team?.id ?? null;
-  const [{ rows: issues }, projects] = await Promise.all([
-    listAllIssues(teamId, user.id, { pageSize: 50 }),
+  const [{ rows: issues, total }, projects] = await Promise.all([
+    listAllIssues(teamId, user.id, { pageSize: ISSUES_PAGE_SIZE }),
     listProjectMetas(teamId, user.id),
   ]);
 
@@ -34,6 +36,15 @@ export default async function IssuesPage(
         title={t('issues.pageTitle')}
         newIssueLabel={t('project.newIssue')}
         ui={buildTrackUiLabels(t)}
+        pagination={{
+          total,
+          pageSize: ISSUES_PAGE_SIZE,
+          labels: {
+            loading: t('common.loading'),
+            loadMore: t('project.loadMore'),
+            showing: t.raw('project.showing') as string,
+          },
+        }}
         labels={{
           identifier: t('issues.identifier'),
           title: t('issues.title'),

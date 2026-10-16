@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { TrackIssueWithStatus, TrackProjectMeta } from '@/lib/track-data';
 import { DUE_BUCKETS, groupByDue, parseQuickTitle, type DueBucket } from '@/lib/track-tasks';
 import IssuesTable, { type OptionalColumn } from './IssuesTable';
@@ -34,6 +34,13 @@ interface CrossProjectIssuesProps {
   newIssueLabel: string;
   title: string;
   subtitle?: string;
+  /** Página Issues: total del servidor y "cargar más" contra /api/track/issues. */
+  pagination?: {
+    total: number;
+    pageSize: number;
+    /** `showing` es la plantilla ICU cruda con {shown} y {total}. */
+    labels: { loading: string; loadMore: string; showing: string };
+  };
   /** "My tasks": agrupa por vencimiento y asigna lo nuevo a este usuario. */
   mine?: {
     userId: string;
@@ -55,6 +62,7 @@ export default function CrossProjectIssues({
   newIssueLabel,
   title,
   subtitle,
+  pagination,
   mine,
 }: CrossProjectIssuesProps) {
   const today = useToday();
@@ -65,6 +73,30 @@ export default function CrossProjectIssues({
     createError: ui.inline.createError,
     noDoneStatus: ui.inline.noDoneStatus,
   });
+
+  const [total, setTotal] = useState(pagination?.total ?? 0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadedPage = useRef(1);
+
+  const loadMore = async () => {
+    if (!pagination || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const next = loadedPage.current + 1;
+      const res = await fetch(`/api/track/issues?page=${next}&pageSize=${pagination.pageSize}`).catch(() => null);
+      if (!res?.ok) return;
+      const data = (await res.json()) as { rows: TrackIssueWithStatus[]; total: number };
+      loadedPage.current = next;
+      setTotal(data.total);
+      // Lo creado acá corre los offsets: no repetir filas que ya están.
+      store.setIssues((list) => {
+        const seen = new Set(list.map((i) => i.id));
+        return [...list, ...data.rows.filter((i) => !seen.has(i.id))];
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useCreateShortcut(() => setModalOpen(true), projects.length > 0 && !modalOpen);
 
@@ -155,6 +187,21 @@ export default function CrossProjectIssues({
           hideColumns={hideColumns}
           quickAdd={projects.length > 0 ? { onCreate: quickCreate, projects: projectOptions } : undefined}
         />
+      )}
+
+      {!mine && pagination && total > 0 && (
+        <div className="track-pagination">
+          <p className="muted mono track-pagination-count" role="status">
+            {pagination.labels.showing
+              .replace('{shown}', String(store.issues.length))
+              .replace('{total}', String(Math.max(total, store.issues.length)))}
+          </p>
+          {loadedPage.current * pagination.pageSize < total && (
+            <button type="button" className="btn btn-small" onClick={() => void loadMore()} disabled={loadingMore}>
+              {loadingMore ? pagination.labels.loading : pagination.labels.loadMore}
+            </button>
+          )}
+        </div>
       )}
 
       <QuickIssueModal
