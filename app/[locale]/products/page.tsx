@@ -1,131 +1,73 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import ZeroField from '@/components/ZeroField';
 import SuiteGrid from '@/components/site/SuiteGrid';
-import ZeroDots from '@/components/zero/ZeroDots';
-import ZeroMark from '@/components/zero/ZeroMark';
-import ProductZero from '@/components/zero/ProductZero';
-import { PRODUCT_NAMES, SITE_PRODUCTS } from '@/components/site/catalog';
+import SectionSign from '@/components/site/SectionSign';
+import SiteNetworkMap from '@/components/site/SiteNetworkMap';
+import CloudPricing from '@/components/site/CloudPricing';
+import EndLines from '@/components/site/EndLines';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
+  const { locale } = await props.params;
   const t = await getTranslations({ locale, namespace: 'pages.products' });
   return { title: t('meta.title'), description: t('meta.description') };
 }
 
-const ROADMAP = ['i1', 'i2', 'i3', 'i4'] as const;
-const COMPARE_ROWS = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'] as const;
-/** Roadmap items already shipped (rendered with the solid "done" style). */
-const ROADMAP_DONE: readonly string[] = ['i1', 'i2'];
-
+/** /products: el plano de la suite, las once líneas y los precios. */
 export default async function ProductsPage(props: { params: Promise<{ locale: string }> }) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
+  const { locale } = await props.params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'pages.products' });
-  const tc = await getTranslations({ locale, namespace: 'common.header' });
+  const tc = await getTranslations({ locale, namespace: 'common' });
 
   return (
-    <main>
-      {/* HERO */}
-      <section className="page-hero products-hero">
-        <ZeroField align="right" sizeFactor={0.92} />
-        <div className="container">
-          <h1 className="page-hero-title">
+    <main className="lp">
+      <section className="lp-hero" aria-labelledby="products-title">
+        <div className="lp-hero-copy">
+          <h1 id="products-title" className="lp-h1">
             {t('hero.title1')}
             <br />
-            <span className="dim">{t('hero.title2')}</span>
+            <span className="lp-h1-dim">{t('hero.title2')}</span>
           </h1>
-          <p className="page-hero-sub">{t('hero.sub')}</p>
-        </div>
-      </section>
-
-      {/* LA SUITE */}
-      <section className="container" style={{ paddingTop: 0 }}>
-        <SuiteGrid cta={{ label: tc('startFree'), href: '/app' }} />
-      </section>
-
-      {/* THE MATH */}
-      <section className="container">
-        <ZeroDots />
-        <div className="compare">
-          <div>
-            <p className="compare-col-title">{t('compare.todayTitle')}</p>
-            {COMPARE_ROWS.map((r) => (
-              <div className="compare-row" key={r}>
-                <span className="compare-name">{t(`compare.${r}name`)}</span>
-                <span className="compare-price">{t(`compare.${r}price`)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="compare-zero">
-            <p className="compare-col-title">{t('compare.withTitle')}</p>
-            <span className="compare-zero-num">{t('compare.big')}</span>
-            <p className="compare-zero-note">{t('compare.note')}</p>
+          <p className="lp-sub">{t('hero.sub')}</p>
+          <div className="lp-ctas">
+            <Link className="btn btn-primary btn-lg" href="/app">
+              {t('cta.button')}
+            </Link>
           </div>
         </div>
+        <SiteNetworkMap className="lp-hero-map" />
       </section>
 
-      {/* ROADMAP */}
-      <section className="container">
-        <ZeroDots />
-        <h2 className="section-title">
-          {t('roadmap.title')}
-          <br />
-          <span className="dim">{t('roadmap.titleDim')}</span>
-        </h2>
-        <div className="road">
-          {ROADMAP.map((id) => (
-            <div className={`road-item ${ROADMAP_DONE.includes(id) ? 'done' : ''}`} key={id}>
-              <span className="road-zero" aria-hidden="true">
-                <ZeroMark size={20} />
-              </span>
-              <p className="road-when">{t(`roadmap.${id}.when`)}</p>
-              <h3 className="road-name">{t(`roadmap.${id}.name`)}</h3>
-              <p className="road-what">{t(`roadmap.${id}.what`)}</p>
-              <span className="road-state">{t(`roadmap.${id}.state`)}</span>
-            </div>
-          ))}
+      <section className="lp-section" aria-labelledby="h-suite">
+        <SectionSign id="h-suite" title={tc('home.suite.title')} sub={tc('home.suite.titleDim')} />
+        <div className="container">
+          <SuiteGrid />
         </div>
       </section>
 
-      {/* CIERRE */}
-      <section className="lp-end">
-        <span className="lp-end-zero" aria-hidden="true">
-          0
-        </span>
+      <section className="lp-section" id="precios" aria-labelledby="h-pricing">
+        <SectionSign id="h-pricing" title={tc('pricing.title')} sub={tc('pricing.titleDim')} />
+        <div className="container">
+          <p className="lp-lede lp-lede-block">{tc('pricing.lead')}</p>
+          <CloudPricing headingId="h-pricing" />
+        </div>
+      </section>
+
+      <section className="lp-end" aria-labelledby="h-end">
         <div className="container lp-end-inner">
-          <h2>
+          <h2 id="h-end">
             {t('cta.title1')}
             <br />
             <span>{t('cta.title2')}</span>
           </h2>
           <p className="lp-end-sub">{t('cta.sub')}</p>
-          <div className="lp-ctas lp-ctas-center">
+          <div className="lp-ctas">
             <Link className="btn btn-invert-solid btn-lg" href="/app">
               {t('cta.button')}
             </Link>
           </div>
-          <ul className="lp-end-apps" aria-label={tc('products')}>
-            {SITE_PRODUCTS.map((k) => (
-              <li key={k}>
-                <Link href={`/products/${k}`}>
-                  <ProductZero product={k} size={11} />
-                  {PRODUCT_NAMES[k]}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <EndLines label={tc('header.products')} />
         </div>
       </section>
     </main>

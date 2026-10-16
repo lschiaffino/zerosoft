@@ -1,20 +1,18 @@
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import Icon from './Icon';
-import ZeroCounter from '@/components/zero/ZeroCounter';
-import ProductZero from '@/components/zero/ProductZero';
+import LineGlyph from '@/components/brand/LineGlyph';
 import { AUDIENCE_PRODUCTS, PRODUCT_NAMES, RIVALS, type Audience } from './catalog';
 
 const AUDIENCES: readonly Audience[] = ['teams', 'personal'];
 
 /**
  * La suite dividida en "Para equipos" y "Para vos": una lista de filas finas
- * (sin tarjetas), cada app con su cero de color, lo que reemplaza y su línea.
- * Home y /products.
+ * (sin tarjetas). Cada app es su línea: el tramo de color con su estación, el
+ * nombre en señalética, qué hace y lo que reemplaza. Home y /products.
  */
 export default function SuiteGrid({ cta }: { cta?: { label: string; href: string } }) {
   const h = useTranslations('common.home');
-  let n = 0;
   return (
     <div className="suite">
       {AUDIENCES.map((a) => (
@@ -24,23 +22,17 @@ export default function SuiteGrid({ cta }: { cta?: { label: string; href: string
             <p>{h(`suite.${a}Desc`)}</p>
           </header>
           <ul className="suite-rows">
-            {AUDIENCE_PRODUCTS[a].map((k) => {
-              n += 1;
-              return (
-                <li key={k} className={`suite-row card-${k}`}>
-                  <Link href={`/products/${k}`} className="suite-row-link">
-                    <ZeroCounter n={n} className="suite-num" />
-                    <span className="suite-name">
-                      <ProductZero product={k} size={14} />
-                      {PRODUCT_NAMES[k]}
-                    </span>
-                    <span className="suite-line">{h(`suite.${k}.line`)}</span>
-                    <span className="suite-vs">{h('suite.replaces', { rival: RIVALS[k] })}</span>
-                    <Icon name="arrow" size={16} />
-                  </Link>
-                </li>
-              );
-            })}
+            {AUDIENCE_PRODUCTS[a].map((k) => (
+              <li key={k} className={`suite-row card-${k}`}>
+                <Link href={`/products/${k}`} className="suite-row-link">
+                  <LineGlyph product={k} size={18} onLine className="suite-glyph" />
+                  <span className="suite-name">{PRODUCT_NAMES[k]}</span>
+                  <span className="suite-line">{h(`suite.${k}.line`)}</span>
+                  <span className="suite-vs">{h('suite.replaces', { rival: RIVALS[k] })}</span>
+                  <Icon name="arrow" size={16} />
+                </Link>
+              </li>
+            ))}
           </ul>
         </section>
       ))}

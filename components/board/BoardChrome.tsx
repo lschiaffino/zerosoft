@@ -3,12 +3,13 @@ import { boardPath } from '@/lib/board-paths';
 import { boardLoginHref, type BoardContext } from '@/lib/board-context';
 import { authBaseUrl, siteUrl } from '@/lib/board-urls';
 import type { BoardPerson } from '@/lib/board-session';
+import Logo from '@/components/brand/Logo';
 
 export type BoardSection = 'board' | 'roadmap' | 'changelog';
 
 /**
- * Chrome mínimo del board: logo zerosoft, Board / Roadmap / Changelog y
- * login. Reemplaza al header de marketing (ver ChromeGate y board-public.css).
+ * Chrome mínimo del board: la banda negra con el wordmark, Ideas / Roadmap /
+ * Changelog y login. Reemplaza al header de marketing (ver ChromeGate y board-public.css).
  */
 export default async function BoardChrome({
   ctx,
@@ -33,10 +34,8 @@ export default async function BoardChrome({
     <header className="bp-head">
       <div className="bp-wrap bp-head-inner">
         <a className="bp-logo" href={home} aria-label={t('home')}>
-          <span className="bp-logo-zero" aria-hidden="true">
-            0
-          </span>
-          zerosoft
+          <Logo tone="white" height={20} title="" className="bp-logo-word" />
+          <Logo tone="white" variant="symbol" height={24} title="" className="bp-logo-symbol" />
           <span className="bp-logo-sub">{t('sub')}</span>
         </a>
         <nav className="bp-nav" aria-label={t('label')}>
@@ -60,7 +59,7 @@ export default async function BoardChrome({
               <span>{person.name ?? person.email}</span>
             </a>
           ) : (
-            <a className="btn btn-ghost btn-small" href={boardLoginHref(ctx, returnPath)}>
+            <a className="btn btn-invert btn-sm" href={boardLoginHref(ctx, returnPath)}>
               {t('signIn')}
             </a>
           )}

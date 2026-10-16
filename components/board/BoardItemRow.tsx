@@ -1,7 +1,6 @@
-import type { CSSProperties } from 'react';
 import BoardVote, { type BoardVoteLabels } from './BoardVote';
 import type { BoardItem } from '@/lib/board';
-import { productColor } from '@/lib/product-taxonomy';
+import ProductMark from '@/components/site/ProductMark';
 import { ROADMAP_VOTABLE_STATUSES } from '@/lib/roadmap-constants';
 
 export interface BoardRowLabels {
@@ -48,7 +47,8 @@ export function BoardItemRow({
           <span className="bp-status" data-status={item.status}>
             {labels.status[item.status] ?? item.status}
           </span>
-          <span className="bp-dot" style={{ '--dot': productColor(item.product) } as CSSProperties}>
+          <span className="bp-product">
+            <ProductMark product={item.product} size={10} />
             {labels.product[item.product] ?? item.product}
           </span>
           {item.comment_count > 0 && <span>{labels.comments(item.comment_count)}</span>}
@@ -81,7 +81,8 @@ export function BoardItemCard({
           <a href={href}>{item.title}</a>
         </p>
         <p className="bp-meta">
-          <span className="bp-dot" style={{ '--dot': productColor(item.product) } as CSSProperties}>
+          <span className="bp-product">
+            <ProductMark product={item.product} size={10} />
             {labels.product[item.product] ?? item.product}
           </span>
           {item.comment_count > 0 && <span>{labels.comments(item.comment_count)}</span>}

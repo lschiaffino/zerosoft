@@ -1,71 +1,13 @@
-import { getTranslations, setRequestLocale } from 'next-intl/server';
-import '@/styles/pages.css';
-
-interface LegalSection {
-  h: string;
-  p?: string[];
-  ul?: string[];
-}
+import { setRequestLocale } from 'next-intl/server';
+import LegalPage, { legalMetadata } from '@/components/site/LegalPage';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
-  const t = await getTranslations({ locale, namespace: 'legal.privacy' });
-  return { title: t('meta.title'), description: t('meta.description') };
+  const { locale } = await props.params;
+  return legalMetadata(locale, 'privacy');
 }
 
-export default async function PrivacyPage(props: { params: Promise<{ locale: string }> }) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
+export default async function Page(props: { params: Promise<{ locale: string }> }) {
+  const { locale } = await props.params;
   setRequestLocale(locale);
-  const t = await getTranslations({ locale, namespace: 'legal.privacy' });
-  const sections = Object.entries(t.raw('sections') as Record<string, LegalSection>);
-
-  return (
-    <main>
-      <section className="doc-hero container">
-        <h1 className="doc-title">{t('title')}</h1>
-        <p className="doc-updated">{t('updated')}</p>
-        <p className="doc-intro">{t('intro')}</p>
-      </section>
-
-      <div className="doc-body container">
-        <nav className="panel legal-toc" aria-label={t('tocTitle')}>
-          <ol>
-            {sections.map(([id, s]) => (
-              <li key={id}>
-                <a href={`#${id}`}>{s.h}</a>
-              </li>
-            ))}
-          </ol>
-        </nav>
-
-        <div className="prose">
-          {sections.map(([id, s]) => (
-            <div key={id} id={id}>
-              <h2>{s.h}</h2>
-              {(s.p ?? []).map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
-              {s.ul && (
-                <ul>
-                  {s.ul.map((li, i) => (
-                    <li key={i}>{li}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </main>
-  );
+  return <LegalPage locale={locale} doc="privacy" />;
 }

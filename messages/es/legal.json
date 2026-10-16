@@ -2,12 +2,12 @@
   "terms": {
     "meta": {
       "title": "Términos de Servicio",
-      "description": "Los términos que rigen el uso de zerosoft.ai y la nube de Zerosoft. Escritos para ser leídos."
+      "description": "Los términos que rigen el uso de zerosoft.ai y la nube de zerosoft. Escritos para ser leídos."
     },
     "label": "Legal — 01",
     "title": "Términos de Servicio",
     "updated": "Última actualización: 12 de octubre de 2026",
-    "intro": "Estos términos rigen tu uso de zerosoft.ai y de la nube de Zerosoft. Están escritos para ser leídos, no para asustarte. Los revisamos periódicamente y cada vez que el producto cambia de una forma que los afecte. Si algo no queda claro, escribinos a hola@zerosoft.ai antes de aceptar.",
+    "intro": "Estos términos rigen tu uso de zerosoft.ai y de la nube de zerosoft. Están escritos para ser leídos, no para asustarte. Los revisamos periódicamente y cada vez que el producto cambia de una forma que los afecte. Si algo no queda claro, escribinos a hola@zerosoft.ai antes de aceptar.",
     "tocTitle": "Contenido",
     "sections": {
       "s01": {
@@ -20,15 +20,15 @@
       "s02": {
         "h": "Quiénes somos y qué cubren estos términos",
         "p": [
-          "Zerosoft (\"Zerosoft\", \"nosotros\") opera zerosoft.ai y las versiones hosteadas de nuestros productos: Link (links cortos, dominios propios, páginas link-in-bio, códigos QR), Cal (agenda y páginas de reserva), CRM, Track, Chat (un widget de chat para sitios web) y Docs. Algunos productos o funciones pueden estar marcados como beta: funcionan, pero pueden cambiar más rápido y tener bordes menos pulidos.",
+          "zerosoft (\"zerosoft\", \"nosotros\") opera zerosoft.ai y las versiones hosteadas de nuestros productos: Link (links cortos, dominios propios, páginas link-in-bio, códigos QR), Cal (agenda y páginas de reserva), CRM, Track, Chat (un widget de chat para sitios web) y Docs. Algunos productos o funciones pueden estar marcados como beta: funcionan, pero pueden cambiar más rápido y tener bordes menos pulidos.",
           "Estos términos se aplican al sitio y al servicio hosteado (\"la nube\"). Si hosteás el software vos mismo, estos términos no se aplican a tu instancia: se aplica la licencia del software. Al crear una cuenta o usar la nube aceptás estos términos y nuestra Política de Privacidad. Si aceptás en nombre de una empresa u organización, confirmás que tenés autoridad para obligarla, y \"vos\" la incluye."
         ]
       },
       "s03": {
         "h": "El software y sus licencias",
         "p": [
-          "Zerosoft es open core. Todo el código fuera del directorio /ee está licenciado bajo la GNU Affero General Public License v3 (AGPLv3). El código dentro de /ee está bajo la Zerosoft Enterprise License: gratis para desarrollo y pruebas, con una suscripción obligatoria para uso en producción. El archivo de licencia de cada parte del código es el texto que manda.",
-          "Tus derechos para descargar, ejecutar, modificar y redistribuir el software vienen de esas licencias, no de estos términos, y estos términos no las restringen. A la inversa, las licencias no te dan ningún derecho sobre nuestro servicio hosteado, nuestros dominios, ni el nombre y el logo de Zerosoft. Podés decir que tu proyecto está basado en Zerosoft, pero no presentes un fork o una copia hosteada como si fuera el servicio oficial de Zerosoft."
+          "zerosoft es open core. Todo el código fuera del directorio /ee está licenciado bajo la GNU Affero General Public License v3 (AGPLv3). El código dentro de /ee está bajo la zerosoft Enterprise License: gratis para desarrollo y pruebas, con una suscripción obligatoria para uso en producción. El archivo de licencia de cada parte del código es el texto que manda.",
+          "Tus derechos para descargar, ejecutar, modificar y redistribuir el software vienen de esas licencias, no de estos términos, y estos términos no las restringen. A la inversa, las licencias no te dan ningún derecho sobre nuestro servicio hosteado, nuestros dominios, ni el nombre y el logo de zerosoft. Podés decir que tu proyecto está basado en zerosoft, pero no presentes un fork o una copia hosteada como si fuera el servicio oficial de zerosoft."
         ]
       },
       "s04": {
@@ -118,7 +118,7 @@
       "s14": {
         "h": "Limitación de responsabilidad",
         "p": [
-          "En la máxima medida permitida por la ley, ni Zerosoft ni su equipo van a ser responsables por daños indirectos, incidentales, especiales o consecuentes, ni por lucro cesante, pérdida de ingresos, de datos o de negocios, derivados del uso o la imposibilidad de usar el software o la nube, aunque se nos haya advertido de esa posibilidad.",
+          "En la máxima medida permitida por la ley, ni zerosoft ni su equipo van a ser responsables por daños indirectos, incidentales, especiales o consecuentes, ni por lucro cesante, pérdida de ingresos, de datos o de negocios, derivados del uso o la imposibilidad de usar el software o la nube, aunque se nos haya advertido de esa posibilidad.",
           "En la máxima medida permitida por la ley, nuestra responsabilidad total por cualquier reclamo relacionado con la nube se limita al mayor de estos montos: lo que nos hayas pagado por la nube en los 12 meses anteriores al reclamo, o USD 100.",
           "Nada en estos términos excluye ni limita la responsabilidad que la ley no permite excluir ni limitar, como la responsabilidad por fraude, dolo o culpa grave, ni tus derechos como consumidor bajo normas imperativas."
         ]
@@ -126,7 +126,7 @@
       "s15": {
         "h": "Indemnidad",
         "p": [
-          "Si usás la nube para una empresa u organización, aceptás defender y mantener indemne a Zerosoft frente a reclamos de terceros que surjan de tu contenido, tus links y sus destinos, los datos personales que recolectes a través del servicio, o tu incumplimiento de estos términos o de la ley, en la medida en que la ley lo permita. Esta sección no se aplica a consumidores cuando la ley local no lo admite."
+          "Si usás la nube para una empresa u organización, aceptás defender y mantener indemne a zerosoft frente a reclamos de terceros que surjan de tu contenido, tus links y sus destinos, los datos personales que recolectes a través del servicio, o tu incumplimiento de estos términos o de la ley, en la medida en que la ley lo permita. Esta sección no se aplica a consumidores cuando la ley local no lo admite."
         ]
       },
       "s16": {
@@ -161,15 +161,15 @@
         "h": "La versión corta",
         "p": [
           "Necesitamos tu nombre y tu email para darte una cuenta, y algunos encabezados de la request para contar clics. No usamos cookies de publicidad ni de analítica, no hacemos fingerprinting, no guardamos la dirección IP de quienes hacen clic en tus links, y no vendemos ni alquilamos datos personales.",
-          "Esta política cubre a dos grupos de personas: quienes tienen cuenta y usan Zerosoft, y quienes interactúan con lo que publican nuestros usuarios — personas que hacen clic en un link corto, reservan una reunión o escriben en un widget de chat."
+          "Esta política cubre a dos grupos de personas: quienes tienen cuenta y usan zerosoft, y quienes interactúan con lo que publican nuestros usuarios — personas que hacen clic en un link corto, reservan una reunión o escriben en un widget de chat."
         ]
       },
       "s02": {
         "h": "Quién es responsable de tus datos",
         "p": [
-          "Zerosoft es el responsable (quien decide cómo y para qué se usan los datos) de los datos de cuenta, los datos de uso de zerosoft.ai y las comunicaciones que enviamos a quienes tienen cuenta.",
-          "Para los datos que nuestros usuarios recolectan a través de los productos — contactos del CRM, invitados de reservas, visitantes del chat y clics en links — el usuario es el responsable y Zerosoft los procesa por cuenta suya (como encargado del tratamiento). Si reservaste una reunión, chateaste con una empresa o hiciste clic en un link y querés ejercer tus derechos, contactá primero a esa empresa; nosotros la vamos a ayudar a responder, y también podés escribirnos.",
-          "Si hosteás Zerosoft vos mismo, sos el responsable de todo lo que hay en tu instancia y nosotros nunca lo vemos."
+          "zerosoft es el responsable (quien decide cómo y para qué se usan los datos) de los datos de cuenta, los datos de uso de zerosoft.ai y las comunicaciones que enviamos a quienes tienen cuenta.",
+          "Para los datos que nuestros usuarios recolectan a través de los productos — contactos del CRM, invitados de reservas, visitantes del chat y clics en links — el usuario es el responsable y zerosoft los procesa por cuenta suya (como encargado del tratamiento). Si reservaste una reunión, chateaste con una empresa o hiciste clic en un link y querés ejercer tus derechos, contactá primero a esa empresa; nosotros la vamos a ayudar a responder, y también podés escribirnos.",
+          "Si hosteás zerosoft vos mismo, sos el responsable de todo lo que hay en tu instancia y nosotros nunca lo vemos."
         ]
       },
       "s03": {
@@ -227,9 +227,9 @@
       "s08": {
         "h": "Datos de usuarios de Google",
         "p": [
-          "Si conectás Gmail o Google Calendar, Zerosoft pide solo el acceso que cada función necesita: lectura de Gmail para mostrar en el timeline los emails intercambiados con tus contactos del CRM (y detectar respuestas que frenan una secuencia), envío de Gmail para mandar desde tu propia dirección los emails y pasos de secuencias que escribís en el CRM, y acceso a la disponibilidad (free/busy) y a eventos de Google Calendar para evitar reservas superpuestas y para crear, actualizar o cancelar los eventos que generan tus reservas. Los datos de Gmail se usan solo para estas funciones: no se usan para publicidad, no se venden y no se usan para entrenar modelos de IA. Podés desconectarlos en cualquier momento desde la configuración del producto o desde tu cuenta de Google.",
-          "El uso que hace Zerosoft de la información recibida de las APIs de Google, y su transferencia a cualquier otra app, cumple con la Política de Datos de Usuario de los Servicios de API de Google (Google API Services User Data Policy), incluidos los requisitos de Uso Limitado (Limited Use).",
-          "En la práctica: usamos los datos de usuarios de Google solo para prestar y mejorar las funciones visibles para el usuario que los usan; no los transferimos a terceros salvo lo necesario para prestar esas funciones, para cumplir la ley, o como parte de una fusión o adquisición con aviso previo; no los usamos para publicidad; no los usamos para entrenar modelos generales de IA o aprendizaje automático; y nadie en Zerosoft los lee salvo que nos des permiso explícito para mensajes específicos, que sea necesario por seguridad (por ejemplo, para investigar un abuso) o que lo exija la ley."
+          "Si conectás Gmail o Google Calendar, zerosoft pide solo el acceso que cada función necesita: lectura de Gmail para mostrar en el timeline los emails intercambiados con tus contactos del CRM (y detectar respuestas que frenan una secuencia), envío de Gmail para mandar desde tu propia dirección los emails y pasos de secuencias que escribís en el CRM, y acceso a la disponibilidad (free/busy) y a eventos de Google Calendar para evitar reservas superpuestas y para crear, actualizar o cancelar los eventos que generan tus reservas. Los datos de Gmail se usan solo para estas funciones: no se usan para publicidad, no se venden y no se usan para entrenar modelos de IA. Podés desconectarlos en cualquier momento desde la configuración del producto o desde tu cuenta de Google.",
+          "El uso que hace zerosoft de la información recibida de las APIs de Google, y su transferencia a cualquier otra app, cumple con la Política de Datos de Usuario de los Servicios de API de Google (Google API Services User Data Policy), incluidos los requisitos de Uso Limitado (Limited Use).",
+          "En la práctica: usamos los datos de usuarios de Google solo para prestar y mejorar las funciones visibles para el usuario que los usan; no los transferimos a terceros salvo lo necesario para prestar esas funciones, para cumplir la ley, o como parte de una fusión o adquisición con aviso previo; no los usamos para publicidad; no los usamos para entrenar modelos generales de IA o aprendizaje automático; y nadie en zerosoft los lee salvo que nos des permiso explícito para mensajes específicos, que sea necesario por seguridad (por ejemplo, para investigar un abuso) o que lo exija la ley."
         ]
       },
       "s09": {
@@ -251,7 +251,7 @@
           "Google — inicio de sesión, y Gmail y Google Calendar solo cuando los conectás.",
           "Destinos que vos elegís: si configurás webhooks o usás la API, los datos se envían a las URLs y herramientas que definiste.",
           "Autoridades, cuando la ley realmente lo exige; vamos a objetar los pedidos excesivamente amplios.",
-          "Un sucesor, si Zerosoft se fusiona o es adquirida; te vamos a avisar antes de que tus datos queden sujetos a una política de privacidad distinta."
+          "Un sucesor, si zerosoft se fusiona o es adquirida; te vamos a avisar antes de que tus datos queden sujetos a una política de privacidad distinta."
         ]
       },
       "s11": {
@@ -295,7 +295,7 @@
       "s16": {
         "h": "Instancias self-hosted",
         "p": [
-          "Si corrés Zerosoft en tus propios servidores, tus datos quedan donde vos los pongas y esta política no se les aplica. No recibimos nada de tu instancia: las licencias de las funciones enterprise se verifican offline."
+          "Si corrés zerosoft en tus propios servidores, tus datos quedan donde vos los pongas y esta política no se les aplica. No recibimos nada de tu instancia: las licencias de las funciones enterprise se verifican offline."
         ]
       },
       "s17": {
@@ -322,13 +322,13 @@
         "h": "La versión corta",
         "p": [
           "Datos mínimos, ninguna contraseña para robar, secretos cifrados, claves hasheadas y un código que va a estar abierto para que cualquiera lo audite. Seguridad a través de la simplicidad.",
-          "Para ser claros sobre lo que no somos: Zerosoft no tiene hoy ninguna certificación ni atestación de seguridad, como SOC 2 o ISO 27001, y todavía no contrató un test de penetración independiente. Cuando eso cambie, esta página lo va a decir."
+          "Para ser claros sobre lo que no somos: zerosoft no tiene hoy ninguna certificación ni atestación de seguridad, como SOC 2 o ISO 27001, y todavía no contrató un test de penetración independiente. Cuando eso cambie, esta página lo va a decir."
         ]
       },
       "s02": {
         "h": "Autenticación",
         "p": [
-          "En Zerosoft no hay contraseñas de usuario. Las cuentas inician sesión con Google (OAuth 2.0 / OpenID Connect), así que la seguridad de tu cuenta de Google — incluida la verificación en dos pasos — protege también tu cuenta de Zerosoft. Las sesiones usan cookies firmadas y httpOnly, que en producción viajan solo por HTTPS."
+          "En zerosoft no hay contraseñas de usuario. Las cuentas inician sesión con Google (OAuth 2.0 / OpenID Connect), así que la seguridad de tu cuenta de Google — incluida la verificación en dos pasos — protege también tu cuenta de zerosoft. Las sesiones usan cookies firmadas y httpOnly, que en producción viajan solo por HTTPS."
         ]
       },
       "s03": {

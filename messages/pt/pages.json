@@ -9,57 +9,11 @@
       "title2": "Um só workspace.",
       "sub": "Para a sua empresa: CRM, suporte, agentes de IA, automações, robôs, projetos e links. Para você: docs, notas, agenda e quadro branco. O core de cada um é open source e roda no seu servidor por $0."
     },
-    "compare": {
-      "todayTitle": "Hoje você paga",
-      "r1name": "Bitly",
-      "r1price": "US$ 35 / mês",
-      "r2name": "Linear",
-      "r2price": "US$ 8 / usuário / mês",
-      "r3name": "HubSpot",
-      "r3price": "US$ 50 / usuário / mês",
-      "r4name": "Calendly",
-      "r4price": "US$ 12 / usuário / mês",
-      "withTitle": "Com a zerosoft",
-      "big": "$0",
-      "note": "No seu servidor, o core custa $0 por mês. Na zerosoft Cloud você começa grátis e paga por uso; assentos não são cobrados.",
-      "r5name": "Notion",
-      "r5price": "US$ 10 / usuário / mês",
-      "r6name": "Intercom",
-      "r6price": "US$ 29 / assento / mês"
-    },
-    "roadmap": {
-      "title": "O plano, em aberto.",
-      "titleDim": "O que saiu e o que vem.",
-      "i1": {
-        "when": "2026 · Q3",
-        "name": "Link · CRM · Docs · Chat",
-        "what": "Links curtos, pipelines, uma wiki com editor de blocos e uma caixa de suporte.",
-        "state": "Disponível"
-      },
-      "i2": {
-        "when": "2026 · Q4",
-        "name": "Track · Cal · Agents · Flow · Robots · Notes · Board",
-        "what": "Issues, ciclos e Gantt. Páginas de agendamento com Google Calendar. Agentes de IA, automações, robôs de navegador, notas e um quadro branco.",
-        "state": "Disponível"
-      },
-      "i3": {
-        "when": "O que vem",
-        "name": "Conectar",
-        "what": "API e webhooks para o Track. Calendários Outlook e iCloud para o Cal.",
-        "state": "Pendente"
-      },
-      "i4": {
-        "when": "O que vem",
-        "name": "Mudar-se",
-        "what": "Importadores do Linear e do Notion. Export completo para Docs e Chat.",
-        "state": "Pendente"
-      }
-    },
     "cta": {
       "title1": "Teste os onze apps.",
       "title2": "Com uma só conta.",
       "sub": "Entre com o Google, crie um workspace e comece no plano grátis. Se depois preferir o seu servidor, o código está no GitHub.",
-      "button": "Abrir o app →"
+      "button": "Abrir o app"
     },
     "link": {
       "meta": {
@@ -143,7 +97,7 @@
         "title1": "Encurte o seu primeiro link.",
         "title2": "Leva dez segundos.",
         "sub": "Cole uma URL, escolha o alias e compartilhe.",
-        "button": "Abrir o Link →"
+        "button": "Abrir o Link"
       },
       "steps": {
         "s1": {
@@ -241,7 +195,7 @@
         "title1": "Monte o seu primeiro ciclo.",
         "title2": "Com o time inteiro.",
         "sub": "Crie um projeto, convide o time e cadastre as issues da semana.",
-        "button": "Abrir o Track →"
+        "button": "Abrir o Track"
       },
       "steps": {
         "s1": {
@@ -339,7 +293,7 @@
         "title1": "Monte o seu pipeline.",
         "title2": "Com os dados que você já tem.",
         "sub": "Importe um CSV do HubSpot ou de uma planilha e comece a mover negócios.",
-        "button": "Abrir o CRM →"
+        "button": "Abrir o CRM"
       },
       "steps": {
         "s1": {
@@ -437,7 +391,7 @@
         "title1": "Compartilhe o seu link.",
         "title2": "Deixe a pessoa escolher o horário.",
         "sub": "Crie um tipo de evento, conecte o Google Calendar e envie o link.",
-        "button": "Abrir o Cal →"
+        "button": "Abrir o Cal"
       },
       "steps": {
         "s1": {
@@ -535,7 +489,7 @@
         "title1": "Escreva a primeira página.",
         "title2": "Depois monte a wiki.",
         "sub": "Comece de um template e aninhe páginas conforme crescer.",
-        "button": "Abrir o Docs →"
+        "button": "Abrir o Docs"
       },
       "steps": {
         "s1": {
@@ -633,7 +587,7 @@
         "title1": "Coloque o widget.",
         "title2": "Responda pela caixa.",
         "sub": "Crie um widget, cole o script no seu site e receba a primeira mensagem.",
-        "button": "Abrir o Chat →"
+        "button": "Abrir o Chat"
       },
       "steps": {
         "s1": {
@@ -719,7 +673,7 @@
         "title1": "Responda seus clientes",
         "title2": "às 3 da manhã.",
         "sub": "Crie um agente a partir de um modelo e teste no playground antes de publicar.",
-        "button": "Abrir o Agents →"
+        "button": "Abrir o Agents"
       },
       "steps": {
         "s1": {
@@ -805,7 +759,7 @@
         "title1": "Conecte seus apps.",
         "title2": "Pare de copiar e colar.",
         "sub": "Comece com um modelo e ative seu primeiro flow hoje.",
-        "button": "Abrir o Flow →"
+        "button": "Abrir o Flow"
       },
       "steps": {
         "s1": {
@@ -891,7 +845,7 @@
         "title1": "Deixe o robô fazer.",
         "title2": "Você confere o resultado.",
         "sub": "Comece com um modelo: ler uma tabela, acompanhar um preço, preencher um formulário ou tirar uma captura.",
-        "button": "Abrir o Robots →"
+        "button": "Abrir o Robots"
       },
       "steps": {
         "s1": {
@@ -977,7 +931,7 @@
         "title1": "Anote agora.",
         "title2": "Encontre depois.",
         "sub": "Aperte N e escreva. Suas notas são só suas.",
-        "button": "Abrir o Notes →"
+        "button": "Abrir o Notes"
       }
     },
     "board": {
@@ -1048,7 +1002,7 @@
         "title1": "Desenhe.",
         "title2": "Assim todo mundo entende.",
         "sub": "Abra um quadro novo e compartilhe com o seu time.",
-        "button": "Abrir o Board →"
+        "button": "Abrir o Board"
       }
     }
   },
@@ -1058,26 +1012,6 @@
     "compareZero": "Com a zerosoft",
     "compareTeam": "Time de 10",
     "compareYear": "/ ano",
-    "model": {
-      "a": {
-        "title": "Hospede você mesmo",
-        "desc": "O core é AGPLv3, com todas as funções. Rode no seu servidor e modifique como quiser. Não tem período de teste nem chave de licença.",
-        "price": "$0",
-        "priceNote": "/ mês, no seu servidor"
-      },
-      "b": {
-        "title": "zerosoft Cloud",
-        "desc": "Nós operamos: login, backups, atualizações e uptime. Cada workspace começa com um plano grátis e depois paga por uso: cliques, agendamentos, emails e armazenamento. Assentos não são cobrados, e a IA é cobrada por tokens.",
-        "price": "Grátis",
-        "priceNote": "/ para começar · depois, por uso"
-      },
-      "c": {
-        "title": "Enterprise",
-        "desc": "Licença comercial com suporte direto do time, nos seus servidores ou na nossa nuvem. SSO/SAML, logs de auditoria, papéis personalizados e white-label estão em desenvolvimento.",
-        "price": "Fale conosco",
-        "priceNote": "/ licença comercial + suporte"
-      }
-    },
     "faqTitle": "Perguntas sobre o {name}.",
     "faqTitleDim": "Migração, limites e API.",
     "alternative": "A alternativa open source ao {rival}",
@@ -1087,7 +1021,21 @@
     "howTitleDim": "Em três passos.",
     "suiteTitle": "Um workspace.",
     "suiteTitleDim": "Onze apps, o mesmo login.",
-    "previewNote": "Prévia interativa da interface do produto."
+    "previewNote": "Prévia interativa da interface do produto.",
+    "shotTitle": "{name}, por dentro.",
+    "crumbs": "Localização",
+    "navLabel": "Seções do {name}",
+    "nav": {
+      "shot": "Tela",
+      "features": "Funções",
+      "how": "Como usar",
+      "video": "Vídeo",
+      "compare": "A conta",
+      "model": "Preços",
+      "faq": "Perguntas"
+    },
+    "compareTitle": "{rival} a preço de tabela.",
+    "compareTitleDim": "Contra $0 no seu servidor."
   },
   "mockups": {
     "link": {

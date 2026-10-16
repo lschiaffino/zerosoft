@@ -4,7 +4,6 @@ import ChangelogList from '@/components/ChangelogList';
 import { getUnifiedChangelog } from '@/lib/changelog';
 import { boardItemPath } from '@/lib/board-paths';
 import { isProductKey } from '@/lib/product-taxonomy';
-import '@/styles/pages.css';
 import '@/styles/changelog.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -41,48 +40,43 @@ export default async function ChangelogPage(props: {
   const entries = await getUnifiedChangelog();
 
   return (
-    <main className="cl-main">
-      <div className="doc-hero container">
-        <h1 className="doc-title">
-          {t('title')}
-          <br />
-          <span className="dim">{t('titleDim')}</span>
+    <main className="container cl-main">
+      <header className="read-hero">
+        <h1 className="read-title">
+          {t('title')} <span className="dim">{t('titleDim')}</span>
         </h1>
-        <p className="doc-intro">{t('intro')}</p>
-        <div className="cl-hero-actions">
-          <a className="btn btn-ghost btn-small" href={`/${locale}/changelog/feed.xml`}>
-            <span className="cl-feed-glyph" aria-hidden="true" />
+        <p className="read-intro">{t('intro')}</p>
+        <div className="read-actions">
+          <a className="btn btn-secondary btn-sm" href={`/${locale}/changelog/feed.xml`}>
             {t('rss')}
           </a>
-          <Link className="btn btn-ghost btn-small" href="/feedback-board/roadmap">
+          <Link className="btn btn-secondary btn-sm" href="/feedback-board/roadmap">
             {tb('roadmap')}
           </Link>
-          <Link className="btn btn-ghost btn-small" href="/feedback-board">
+          <Link className="btn btn-secondary btn-sm" href="/feedback-board">
             {t('feedback')}
           </Link>
         </div>
-      </div>
+      </header>
 
-      <div className="container">
-        <ChangelogList
-          locale={locale}
-          entries={entries}
-          filter={filter}
-          filterHref={(p) => (p ? `/${locale}/changelog?product=${p}` : `/${locale}/changelog`)}
-          itemHref={(id, title) => boardItemPath(locale, false, id, title)}
-        />
+      <ChangelogList
+        locale={locale}
+        entries={entries}
+        filter={filter}
+        filterHref={(p) => (p ? `/${locale}/changelog?product=${p}` : `/${locale}/changelog`)}
+        itemHref={(id, title) => boardItemPath(locale, false, id, title)}
+      />
 
-        {!filter && <p className="cl-end mono">{t('endNote')}</p>}
+      {!filter && <p className="cl-end">{t('endNote')}</p>}
 
-        <div className="cl-cta">
-          <div>
-            <p className="cl-cta-title">{t('ctaTitle')}</p>
-            <p className="cl-cta-body">{t('ctaBody')}</p>
-          </div>
-          <Link className="btn btn-solid" href="/feedback-board/new">
-            {t('ctaButton')}
-          </Link>
+      <div className="cl-cta">
+        <div>
+          <h2 className="cl-cta-title">{t('ctaTitle')}</h2>
+          <p className="cl-cta-body">{t('ctaBody')}</p>
         </div>
+        <Link className="btn btn-invert-solid" href="/feedback-board/new">
+          {t('ctaButton')}
+        </Link>
       </div>
     </main>
   );

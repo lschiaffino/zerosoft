@@ -4,7 +4,8 @@ import LocaleSwitcher from './LocaleSwitcher';
 import Icon from './site/Icon';
 import { GITHUB_URL, PRODUCT_NAMES, SITE_PRODUCTS } from './site/catalog';
 import Logo from './brand/Logo';
-import ProductZero from './zero/ProductZero';
+import LineGlyph from './brand/LineGlyph';
+import '@/styles/site.css';
 
 export default async function Footer({ locale }: { locale: string }) {
   const t = await getTranslations({ locale, namespace: 'common.footer' });
@@ -32,7 +33,7 @@ export default async function Footer({ locale }: { locale: string }) {
             {SITE_PRODUCTS.map((k) => (
               <li key={k}>
                 <Link href={`/products/${k}`}>
-                  <ProductZero product={k} size={11} />
+                  <LineGlyph product={k} size={11} onLine />
                   {PRODUCT_NAMES[k]}
                 </Link>
               </li>

@@ -8,7 +8,7 @@ import LocaleSwitcher from './LocaleSwitcher';
 import Icon from './site/Icon';
 import { AUDIENCE_PRODUCTS, GITHUB_URL, PRODUCT_NAMES, type Audience } from './site/catalog';
 import Logo from './brand/Logo';
-import ProductZero from './zero/ProductZero';
+import LineGlyph from './brand/LineGlyph';
 
 interface HeaderClientProps {
   locale: string;
@@ -74,10 +74,21 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
     };
   }, [menuOpen, megaOpen]);
 
+  /** aria-current del link de la sección en la que estás. */
+  const current = (href: string) => (pathname === href || pathname.startsWith(`${href}/`) ? ('page' as const) : undefined);
+
+  /** Cuándo se abrió el menú por hover: un clic justo después no lo cierra. */
+  const hoverOpenedAt = useRef(0);
   const openMega = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     closeTimer.current = null;
+    if (!megaOpen) hoverOpenedAt.current = Date.now();
     setMegaOpen(true);
+  };
+  const toggleMega = () => {
+    if (megaOpen && Date.now() - hoverOpenedAt.current < 600) return;
+    hoverOpenedAt.current = 0;
+    setMegaOpen((v) => !v);
   };
   const closeMegaSoon = () => {
     closeTimer.current = setTimeout(() => setMegaOpen(false), 200);
@@ -93,9 +104,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <p className="hd-group-title">{ts(`${a}Title`)}</p>
         {AUDIENCE_PRODUCTS[a].map((key) => (
           <Link key={key} href={`/products/${key}`} className={`hd-prod card-${key} hd-prod-${variant}`}>
-            <span className="hd-prod-icon" aria-hidden="true">
-              <ProductZero product={key} size={14} />
-            </span>
+            <LineGlyph product={key} size={14} onLine className="hd-prod-icon" />
             <span className="hd-prod-text">
               <span className="hd-prod-name">{PRODUCT_NAMES[key]}</span>
               <span className="hd-prod-desc">{th(`desc.${key}`)}</span>
@@ -109,7 +118,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
     <header className={`site-header${scrolled ? ' is-scrolled' : ''}${menuOpen ? ' menu-open' : ''}`}>
       <div className="hd-inner">
         <Link href="/" className="brand" aria-label="zerosoft">
-          <Logo height={22} title="" />
+          <Logo tone="white" height={22} title="" />
         </Link>
 
         <nav className="hd-nav" aria-label="Main">
@@ -126,7 +135,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
               className="hd-link hd-trigger"
               aria-expanded={megaOpen}
               aria-controls="hd-mega"
-              onClick={() => setMegaOpen((v) => !v)}
+              onClick={toggleMega}
             >
               {labels.products}
               <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
@@ -146,21 +155,21 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
                   <span className="hd-mega-cta-title">
                     <Icon name="github" size={15} /> {th('selfHost')}
                   </span>
-                  <span className="hd-mega-cta-desc mono">{th('selfHostDesc')}</span>
+                  <span className="hd-mega-cta-desc">{th('selfHostDesc')}</span>
                 </a>
               </div>
             </div>
           </div>
-          <Link className="hd-link" href="/tools">
+          <Link className="hd-link" href="/tools" aria-current={current('/tools')}>
             {labels.freeTools}
           </Link>
-          <Link className="hd-link" href="/docs">
+          <Link className="hd-link" href="/docs" aria-current={current('/docs')}>
             {labels.docs}
           </Link>
-          <Link className="hd-link" href="/blog">
+          <Link className="hd-link" href="/blog" aria-current={current('/blog')}>
             {labels.blog}
           </Link>
-          <Link className="hd-link" href="/changelog">
+          <Link className="hd-link" href="/changelog" aria-current={current('/changelog')}>
             {labels.changelog}
           </Link>
           <a className="hd-link hd-gh" href={GITHUB_URL} target="_blank" rel="noreferrer">
@@ -172,7 +181,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <div className="hd-right">
           <LocaleSwitcher locale={locale} />
           {user ? (
-            <Link className="nav-cta nav-cta-solid" href="/app" title={user.email}>
+            <Link className="btn btn-invert-solid btn-sm" href="/app" title={user.email}>
               {labels.dashboard}
             </Link>
           ) : (
@@ -184,7 +193,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
               >
                 {labels.signIn}
               </button>
-              <Link className="nav-cta nav-cta-solid" href="/app">
+              <Link className="btn btn-invert-solid btn-sm" href="/app">
                 {labels.startFree}
               </Link>
             </>
@@ -197,28 +206,34 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
             aria-controls="mobile-panel"
             onClick={() => setMenuOpen((v) => !v)}
           >
-            <span aria-hidden>{menuOpen ? '×' : '☰'}</span>
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              {menuOpen ? (
+                <path d="M4 4l12 12M16 4L4 16" stroke="currentColor" strokeWidth="2" />
+              ) : (
+                <path d="M2 5h16M2 10h16M2 15h16" stroke="currentColor" strokeWidth="2" />
+              )}
+            </svg>
           </button>
         </div>
       </div>
 
       <div id="mobile-panel" className="mobile-panel" hidden={!menuOpen}>
-        <p className="mobile-panel-label mono">{labels.products}</p>
+        <p className="mobile-panel-label">{labels.products}</p>
         <div className="mobile-panel-products">{productItems('panel')}</div>
         <div className="mobile-panel-links">
-          <Link className="hd-link" href="/products">
+          <Link className="hd-link" href="/products" aria-current={current('/products')}>
             {th('allProducts')}
           </Link>
-          <Link className="hd-link" href="/tools">
+          <Link className="hd-link" href="/tools" aria-current={current('/tools')}>
             {labels.freeTools}
           </Link>
-          <Link className="hd-link" href="/docs">
+          <Link className="hd-link" href="/docs" aria-current={current('/docs')}>
             {labels.docs}
           </Link>
-          <Link className="hd-link" href="/blog">
+          <Link className="hd-link" href="/blog" aria-current={current('/blog')}>
             {labels.blog}
           </Link>
-          <Link className="hd-link" href="/changelog">
+          <Link className="hd-link" href="/changelog" aria-current={current('/changelog')}>
             {labels.changelog}
           </Link>
           <a className="hd-link hd-gh" href={GITHUB_URL} target="_blank" rel="noreferrer">
@@ -229,13 +244,13 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <div className="mobile-panel-foot">
           <LocaleSwitcher locale={locale} />
           {user ? (
-            <button className="nav-cta" onClick={() => signOut({ callbackUrl: '/' })}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => signOut({ callbackUrl: '/' })}>
               {labels.signOut}
             </button>
           ) : (
             <button
               type="button"
-              className="nav-cta"
+              className="btn btn-secondary btn-sm"
               onClick={() => signIn('google', { callbackUrl: `/${locale}/app` })}
             >
               {labels.signIn}

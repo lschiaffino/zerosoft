@@ -1,10 +1,10 @@
 {
   "metaTitle": "Changelog",
-  "metaDescription": "Everything that shipped in zerosoft.ai — Link, CRM, Cal, Track, Chat and Docs — release by release.",
+  "metaDescription": "Everything that shipped on zerosoft.ai, app by app and release by release.",
   "label": "Changelog",
   "title": "What's new.",
   "titleDim": "Only what actually shipped.",
-  "intro": "Every release of zerosoft, newest first. Written from the real commit history — no roadmap promises here.",
+  "intro": "Every release of zerosoft, newest first. Written from the real commit history: no roadmap promises here.",
   "rss": "Atom feed",
   "feedback": "Ideas and votes",
   "filterAll": "All",
@@ -19,7 +19,7 @@
     "docs": "Docs",
     "platform": "Platform"
   },
-  "feedTitle": "zerosoft.ai — Changelog",
+  "feedTitle": "zerosoft.ai changelog",
   "endNote": "That's where it all started.",
   "ctaTitle": "Missing something?",
   "ctaBody": "Tell us what to build or fix next. Every message gets read.",
@@ -59,5 +59,6 @@
     "edit": "Edit",
     "delete": "Delete",
     "deleteConfirm": "Delete this entry? The ideas it closed stay launched, without a link."
-  }
+  },
+  "empty": "No releases for this product yet."
 }

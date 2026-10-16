@@ -187,9 +187,6 @@
     "feedback": "Feedback",
     "videos": "Vídeos"
   },
-  "showcase": {
-    "label": "Por dentro"
-  },
   "home": {
     "hero": {
       "title1": "Onze apps para o seu time.",
@@ -205,9 +202,9 @@
     },
     "proof": {
       "caption": "Prévias interativas de cada app. O de verdade está a um clique.",
-      "open": "Abrir {name}"
+      "title": "Cada linha, por dentro.",
+      "titleDim": "Telas interativas de oito apps."
     },
-    "replaces": "Substitui",
     "suite": {
       "title": "O que o seu time usa.",
       "titleDim": "Num só workspace.",
@@ -285,7 +282,6 @@
       "total": "Total por ano",
       "zeroTitle": "zerosoft, no seu servidor",
       "zeroNote": "Os onze apps. Você paga só o seu servidor.",
-      "cloudNote": "zerosoft Cloud: comece grátis e depois pague por uso. Assentos não são cobrados.",
       "footnote": "Preços de tabela citados nas nossas páginas de produto, com cobrança mensal, para 10 usuários (Bitly Core é um plano fixo). Os fornecedores mudam os preços: confira nos sites deles. A zerosoft não tem afiliação com nenhuma dessas empresas."
     },
     "oss": {
@@ -356,5 +352,47 @@
     "lines": "Linhas",
     "open": "Abrir {name}",
     "linkSummary": "Resumo do Link"
+  },
+  "pricing": {
+    "title": "Preço = custo × 3.",
+    "titleDim": "Os dois números à vista.",
+    "lead": "No seu servidor, o zerosoft custa $0. No zerosoft Cloud cada workspace tem um plano grátis por mês, e acima dele cobramos o uso a três vezes o que custa para nós.",
+    "selfHost": "Hospede você",
+    "start": "Criar um workspace",
+    "contact": "Fale com a gente",
+    "usageTitle": "Uso no zerosoft Cloud",
+    "usageLead": "O que se cobra acima do plano, por workspace e por mês. Primeiro o que custa para nós, depois o que você paga.",
+    "caption": "Uso do zerosoft Cloud acima do plano, por workspace e por mês",
+    "colResource": "Recurso",
+    "colFree": "Incluído por mês",
+    "colBlock": "Cobrado a cada",
+    "colCost": "Nosso custo",
+    "colPrice": "Seu preço (× {x})",
+    "usage": {
+      "clicks": {
+        "name": "Cliques em links",
+        "free": "25.000 cliques",
+        "block": "100.000 cliques"
+      },
+      "bookings": {
+        "name": "Reservas",
+        "free": "50 reservas",
+        "block": "1.000 reservas"
+      },
+      "emails": {
+        "name": "E-mails enviados",
+        "free": "150 e-mails",
+        "block": "1.000 e-mails"
+      },
+      "storage": {
+        "name": "Armazenamento",
+        "free": "0,5 GB",
+        "block": "1 GB por mês"
+      }
+    },
+    "seats": "Os assentos não são cobrados: adicionar pessoas ao time não muda a fatura.",
+    "ai": "A IA é cobrada por tokens, ao preço do provedor × {x}.",
+    "minimum": "Um workspace pago tem um mínimo de {min} por mês, creditado no uso.",
+    "measured": "Custos de infraestrutura medidos em {date} e arredondados ao centavo."
   }
 }

@@ -5,7 +5,6 @@ import Icon from '@/components/site/Icon';
 import ToolComponent from '@/components/tools/ToolComponent';
 import { PRODUCT_NAMES } from '@/components/site/catalog';
 import { getTool, jsonLd, localizedAlternates, relatedTools, siteUrl, TOOLS } from '@/lib/tools/registry';
-import '@/styles/pages.css';
 import '@/styles/tools.css';
 
 type Params = { locale: string; slug: string };
@@ -86,14 +85,14 @@ export default async function ToolPage(props: { params: Promise<Params> }) {
     <main className={`tool-page card-${tool.accent}`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
       <section className="tool-hero container">
-        <nav className="tool-crumbs mono" aria-label="Breadcrumb">
+        <nav className="tool-crumbs" aria-label={t('common.label')}>
           <Link href="/tools">{t('common.label')}</Link>
           <span aria-hidden="true">/</span>
           <span>{t(`hub.groups.${tool.group}.title`)}</span>
         </nav>
         <h1 className="tool-title">{item('title')}</h1>
         <p className="tool-sub">{item('sub')}</p>
-        <p className="tool-meta mono">
+        <p className="tool-meta">
           <span>{t('common.free')}</span>
           <span>{t(`common.kind.${kind}`)}</span>
         </p>
@@ -110,7 +109,7 @@ export default async function ToolPage(props: { params: Promise<Params> }) {
             <p>{item('ctaBody')}</p>
           </div>
           <div className="tool-cta-actions">
-            <Link className="btn btn-solid" href="/app">
+            <Link className="btn btn-primary" href="/app">
               {t('common.saveInZerosoft')}
             </Link>
             <Link className="lp-textlink" href={productHref}>

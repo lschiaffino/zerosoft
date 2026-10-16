@@ -2,7 +2,6 @@ import { use, type CSSProperties } from 'react';
 import { useTranslations } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import ZeroField from '@/components/ZeroField';
 import BrowserFrame from '@/components/products/BrowserFrame';
 import ShowcaseTabs from '@/components/products/ShowcaseTabs';
 import VideoPlayer from '@/components/VideoPlayer';
@@ -12,15 +11,18 @@ import CrmMockup from '@/components/products/mockups/CrmMockup';
 import CalMockup from '@/components/products/mockups/CalMockup';
 import DocsMockup from '@/components/products/mockups/DocsMockup';
 import ChatMockup from '@/components/products/mockups/ChatMockup';
+import AgentsMockup from '@/components/products/mockups/AgentsMockup';
+import FlowMockup from '@/components/products/mockups/FlowMockup';
 import Icon from '@/components/site/Icon';
 import CodeTabs from '@/components/site/CodeTabs';
 import SuiteGrid from '@/components/site/SuiteGrid';
-import AgentsMockup from '@/components/products/mockups/AgentsMockup';
-import FlowMockup from '@/components/products/mockups/FlowMockup';
-import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, RIVALS, SITE_PRODUCTS, annualCost } from '@/components/site/catalog';
-import { PRODUCT_CONFIG, PRODUCT_KEYS, productRgb } from '@/lib/products';
-import ZeroDots from '@/components/zero/ZeroDots';
-import ProductZero from '@/components/zero/ProductZero';
+import SectionSign from '@/components/site/SectionSign';
+import SiteNetworkMap from '@/components/site/SiteNetworkMap';
+import CloudPricing from '@/components/site/CloudPricing';
+import EndLines from '@/components/site/EndLines';
+import LineGlyph from '@/components/brand/LineGlyph';
+import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, annualCost } from '@/components/site/catalog';
+import { PRODUCT_CONFIG } from '@/lib/products';
 import '@/styles/pages.css';
 
 const SHOWCASE = [
@@ -33,9 +35,6 @@ const SHOWCASE = [
   { key: 'cal', Mockup: CalMockup },
   { key: 'docs', Mockup: DocsMockup },
 ] as const;
-
-/** Un color por app, del catálogo (lib/products.ts): sin RGB duplicados acá. */
-const FIELD_ACCENTS = PRODUCT_KEYS.map(productRgb);
 
 /** Orden de la tabla de costos: de la más cara a la más barata. */
 const STACK_ORDER = ['crm', 'chat', 'cal', 'docs', 'track', 'link'] as const;
@@ -61,23 +60,20 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
 
   return (
     <main id="top" className="lp">
-      {/* HERO */}
-      <section className="lp-hero">
-        <div className="lp-hero-field" aria-hidden="true">
-          <ZeroField align="right" sizeFactor={0.86} accents={FIELD_ACCENTS} />
-        </div>
-        <div className="container lp-hero-inner">
-          <h1 className="lp-h1">
+      {/* Primer viewport: la tesis y el plano vivo de la suite. */}
+      <section className="lp-hero" aria-labelledby="lp-title">
+        <div className="lp-hero-copy">
+          <h1 id="lp-title" className="lp-h1">
             {h('hero.title1')}
             <br />
             <span className="lp-h1-dim">{h('hero.title2')}</span>
           </h1>
           <p className="lp-sub">{h('hero.sub')}</p>
           <div className="lp-ctas">
-            <Link className="btn btn-solid btn-lg" href="/app">
-              {h('hero.ctaStart')} <Icon name="arrow" size={16} />
+            <Link className="btn btn-primary btn-lg" href="/app">
+              {h('hero.ctaStart')}
             </Link>
-            <a className="btn btn-ghost btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
+            <a className="btn btn-secondary btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
               <Icon name="github" size={16} /> {h('hero.ctaSelfHost')}
             </a>
           </div>
@@ -88,123 +84,122 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             </a>
           </p>
         </div>
+        <SiteNetworkMap className="lp-hero-map" />
       </section>
 
-      {/* PRODUCT PROOF */}
-      <section className="lp-proof container" aria-label={t('showcase.label')}>
-        <ShowcaseTabs
-          tabs={SHOWCASE.map((p) => ({ key: p.key, label: PRODUCT_NAMES[p.key] }))}
-          panels={SHOWCASE.map((p) => (
-            <div key={p.key} className={`showcase-frame card-${p.key}`}>
-              <BrowserFrame url={`zerosoft.ai/app/${PRODUCT_CONFIG[p.key].path}`}>
-                <p.Mockup />
-              </BrowserFrame>
-              <div className="lp-proof-foot">
-                <span>{h('proof.caption')}</span>
-                <Link href={`/products/${p.key}`} className="lp-textlink">
-                  {h('suite.explore', { name: PRODUCT_NAMES[p.key] })} <Icon name="arrow" size={14} />
-                </Link>
-              </div>
-            </div>
-          ))}
-        />
-      </section>
-
-      {/* REPLACES */}
-      <div className="lp-replaces container" aria-label={h('replaces')}>
-        <span className="lp-replaces-label">{h('replaces')}</span>
-        <ul>
-          {SITE_PRODUCTS.map((k) => (
-            <li key={k} className={`card-${k}`}>
-              <s>{RIVALS[k]}</s>
-              <Icon name="arrow" size={12} />
-              <ProductZero product={k} size={11} />
-              <span>{PRODUCT_NAMES[k]}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* SUITE */}
-      <section className="lp-section container" id="productos">
-        <ZeroDots />
-        <div className="lp-head">
-          <h2 className="lp-title">
-            {h('suite.title')} <span className="dim">{h('suite.titleDim')}</span>
-          </h2>
-        </div>
-        <SuiteGrid cta={{ label: t('header.allProducts'), href: '/products' }} />
-      </section>
-
-      {/* VIDEO: tour de 48 s por la app real */}
-      <section className="lp-section container" id="tour">
-        <ZeroDots />
-        <div className="lp-head">
-          <h2 className="lp-title">
-            {v('items.zerosoft-intro.title')} <span className="dim">{v('embedTitleDim')}</span>
-          </h2>
-          <p className="lp-sub">{v('items.zerosoft-intro.desc')}</p>
-        </div>
-        <div className="lp-video">
-          <VideoPlayer
-            src="/videos/zerosoft-intro.mp4"
-            poster="/videos/zerosoft-intro.jpg"
-            title={v('items.zerosoft-intro.title')}
-          />
-          <p className="lp-video-note">
-            {v('note')} <Link href="/videos">{v('allVideos')} →</Link>
-          </p>
-        </div>
-      </section>
-
-      {/* STACK MATH */}
-      <section className="lp-section lp-section-tint" id="stack">
-        <div className="container">
-          <div className="lp-head">
-            <h2 className="lp-title">
-              {h('stack.title', { total: money.format(total) })} <span className="dim">{h('stack.titleDim')}</span>
-            </h2>
-            <p className="lp-lede">{h('stack.sub')}</p>
+      {/* La app real, grabada: 48 s por seis apps. */}
+      <section className="lp-section" id="tour" aria-labelledby="h-tour">
+        <SectionSign id="h-tour" title={v('items.zerosoft-intro.title')} sub={v('embedTitleDim')} />
+        <div className="container lp-tour">
+          <div className="lp-video">
+            <VideoPlayer
+              src="/videos/zerosoft-intro.mp4"
+              poster="/videos/zerosoft-intro.jpg"
+              title={v('items.zerosoft-intro.title')}
+            />
           </div>
+          <div className="lp-tour-side">
+            <p className="lp-lede">{v('items.zerosoft-intro.desc')}</p>
+            <p className="lp-video-note">
+              {v('note')} <Link href="/videos">{v('allVideos')}</Link>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Cada línea por dentro: vistas interactivas de las apps. */}
+      <section className="lp-section" id="vistas" aria-labelledby="h-proof">
+        <SectionSign id="h-proof" title={h('proof.title')} sub={h('proof.titleDim')} />
+        <div className="container">
+          <ShowcaseTabs
+            label={h('proof.title')}
+            tabs={SHOWCASE.map((p) => ({ key: p.key, label: PRODUCT_NAMES[p.key] }))}
+            panels={SHOWCASE.map((p) => (
+              <div key={p.key} className={`showcase-frame card-${p.key}`}>
+                <BrowserFrame url={`zerosoft.ai/app/${PRODUCT_CONFIG[p.key].path}`}>
+                  <p.Mockup />
+                </BrowserFrame>
+                <div className="lp-proof-foot">
+                  <span>{h('proof.caption')}</span>
+                  <Link href={`/products/${p.key}`} className="lp-textlink">
+                    {h('suite.explore', { name: PRODUCT_NAMES[p.key] })} <Icon name="arrow" size={14} />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          />
+        </div>
+      </section>
+
+      {/* La suite: once líneas, dos audiencias. */}
+      <section className="lp-section" id="productos" aria-labelledby="h-suite">
+        <SectionSign id="h-suite" title={h('suite.title')} sub={h('suite.titleDim')} />
+        <div className="container">
+          <SuiteGrid cta={{ label: t('header.allProducts'), href: '/products' }} />
+        </div>
+      </section>
+
+      {/* La cuenta: lo que se paga hoy a precio de lista. */}
+      <section className="lp-section" id="stack" aria-labelledby="h-stack">
+        <SectionSign id="h-stack" title={h('stack.title', { total: money.format(total) })} sub={h('stack.titleDim')} />
+        <div className="container">
+          <p className="lp-lede lp-lede-block">{h('stack.sub')}</p>
           <div className="stack">
-            <div className="stack-table">
-              <div className="stack-row stack-row-head" aria-hidden="true">
-                <span>{h('stack.colTool')}</span>
-                <span>{h('stack.colPrice')}</span>
-                <span />
-                <span>{h('stack.colYear')}</span>
-              </div>
-              {STACK_ORDER.map((k, i) => {
-                const inc = INCUMBENTS[k];
-                return (
-                  <div key={k} className={`stack-row card-${k}`}>
-                    <span className="stack-tool">
-                      <ProductZero product={k} />
-                      <strong>{inc.rival}</strong>
-                      <span className="stack-arrow">→ {PRODUCT_NAMES[k]}</span>
-                    </span>
-                    <span className="stack-price">
-                      {money.format(inc.monthly)} {inc.perUser ? h('stack.perUser') : h('stack.perMonth')}
-                    </span>
-                    <span className="stack-bar" aria-hidden="true">
-                      <i style={{ '--w': `${(totals[i] / maxRow) * 100}%` } as CSSProperties} />
-                    </span>
-                    <span className="stack-year">{money.format(totals[i])}</span>
-                  </div>
-                );
-              })}
-              <div className="stack-row stack-total">
-                <span>{h('stack.total')}</span>
-                <span />
-                <span />
-                <span className="stack-year">{money.format(total)}</span>
-              </div>
+            <div className="table-wrap">
+              <table className="table stack-table">
+                <caption className="sr-only">{h('stack.sub')}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{h('stack.colTool')}</th>
+                    <th scope="col">{h('stack.colPrice')}</th>
+                    <th scope="col" className="stack-bar-col">
+                      <span className="sr-only">{h('stack.colYear')}</span>
+                    </th>
+                    <th scope="col" className="num">
+                      {h('stack.colYear')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {STACK_ORDER.map((k, i) => {
+                    const inc = INCUMBENTS[k];
+                    return (
+                      <tr key={k}>
+                        <th scope="row">
+                          <span className="stack-tool">
+                            <strong>{inc.rival}</strong>
+                            <span className="stack-arrow">
+                              <LineGlyph product={k} size={12} onLine /> {PRODUCT_NAMES[k]}
+                            </span>
+                          </span>
+                        </th>
+                        <td className="data stack-price">
+                          {money.format(inc.monthly)} {inc.perUser ? h('stack.perUser') : h('stack.perMonth')}
+                        </td>
+                        <td className="stack-bar-col" aria-hidden="true">
+                          <span className="stack-bar">
+                            <i style={{ '--w': `${(totals[i] / maxRow) * 100}%`, '--bar': `var(--c-${k})` } as CSSProperties} />
+                          </span>
+                        </td>
+                        <td className="num data">{money.format(totals[i])}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="stack-total">
+                    <th scope="row">{h('stack.total')}</th>
+                    <td />
+                    <td className="stack-bar-col" />
+                    <td className="num data">{money.format(total)}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
             <div className="stack-zero">
               <p className="stack-zero-label">{h('stack.zeroTitle')}</p>
               <span className="stack-zero-num">$0</span>
               <p className="stack-zero-note">{h('stack.zeroNote')}</p>
-              <p className="stack-zero-cloud">{h('stack.cloudNote')}</p>
               <a className="btn btn-invert" href={GITHUB_URL} target="_blank" rel="noreferrer">
                 <Icon name="github" size={15} /> {h('hero.ctaSelfHost')}
               </a>
@@ -214,13 +209,20 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
         </div>
       </section>
 
-      {/* OPEN SOURCE */}
-      <section className="lp-section lp-dark" id="open-source">
+      {/* Precios: la regla y los dos números. */}
+      <section className="lp-section" id="precios" aria-labelledby="h-pricing">
+        <SectionSign id="h-pricing" title={t('pricing.title')} sub={t('pricing.titleDim')} />
+        <div className="container">
+          <p className="lp-lede lp-lede-block">{t('pricing.lead')}</p>
+          <CloudPricing headingId="h-pricing" />
+        </div>
+      </section>
+
+      {/* Open source: un comando. */}
+      <section className="lp-section lp-dark" id="open-source" aria-labelledby="h-oss">
+        <SectionSign id="h-oss" title={h('oss.title')} sub={h('oss.titleDim')} />
         <div className="container lp-split">
           <div className="lp-split-text">
-            <h2 className="lp-title">
-              {h('oss.title')} <span className="dim">{h('oss.titleDim')}</span>
-            </h2>
             <p className="lp-lede">{h('oss.p')}</p>
             <ul className="lp-checks">
               {(['b1', 'b2', 'b3', 'b4'] as const).map((b) => (
@@ -284,13 +286,11 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
         </div>
       </section>
 
-      {/* DEVELOPERS */}
-      <section className="lp-section container" id="developers">
-        <div className="lp-split lp-split-rev">
+      {/* Desarrolladores: API y webhooks. */}
+      <section className="lp-section" id="developers" aria-labelledby="h-dev">
+        <SectionSign id="h-dev" title={h('dev.title')} sub={h('dev.titleDim')} />
+        <div className="container lp-split lp-split-rev">
           <div className="lp-split-text">
-            <h2 className="lp-title">
-              {h('dev.title')} <span className="dim">{h('dev.titleDim')}</span>
-            </h2>
             <p className="lp-lede">{h('dev.p')}</p>
             <ul className="dev-list">
               {(['b1', 'b2', 'b3'] as const).map((b) => (
@@ -300,8 +300,8 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                 </li>
               ))}
             </ul>
-            <Link className="btn btn-solid" href="/docs">
-              {h('dev.cta')} <Icon name="arrow" size={14} />
+            <Link className="btn btn-primary" href="/docs">
+              {h('dev.cta')}
             </Link>
           </div>
           <div className="lp-split-code">
@@ -360,50 +360,10 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
         </div>
       </section>
 
-      {/* MODEL */}
-      <section className="lp-section container" id="modelo">
-        <ZeroDots />
-        <div className="lp-head">
-          <h2 className="lp-title">
-            {t('model.title')} <span className="dim">{t('model.titleDim')}</span>
-          </h2>
-        </div>
-        <ol className="plan-rows">
-          {(['a', 'b', 'c'] as const).map((key) => (
-            <li className="plan-row" key={key}>
-              <p className="plan-row-price">{t(`model.${key}.price`)}</p>
-              <div className="plan-row-body">
-                <h3>{t(`model.${key}.title`)}</h3>
-                <p>{t(`model.${key}.desc`)}</p>
-              </div>
-              <div className="plan-row-side">
-                <p className="plan-row-note">{t(`model.${key}.priceNote`)}</p>
-                {key === 'a' ? (
-                  <a className="btn btn-ghost" href={GITHUB_URL} target="_blank" rel="noreferrer">
-                    <Icon name="github" size={15} /> {h('hero.ctaSelfHost')}
-                  </a>
-                ) : key === 'b' ? (
-                  <Link className="btn btn-solid" href="/app">
-                    {h('hero.ctaStart')} <Icon name="arrow" size={14} />
-                  </Link>
-                ) : (
-                  <a className="btn btn-ghost" href="mailto:hola@zerosoft.ai">
-                    {t(`model.c.price`)} <Icon name="arrow" size={14} />
-                  </a>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      {/* MANIFESTO */}
-      <section className="lp-section container lp-manifesto" id="manifiesto">
-        <ZeroDots />
-        <div className="lp-manifesto-side">
-          <h2 className="lp-manifesto-final">{t('manifesto.final')}</h2>
-        </div>
-        <div className="lp-manifesto-body">
+      {/* Manifiesto */}
+      <section className="lp-section" id="manifiesto" aria-labelledby="h-manifesto">
+        <SectionSign id="h-manifesto" title={t('manifesto.final')} />
+        <div className="container lp-manifesto">
           <p>{t.rich('manifesto.p1', { strong: (chunks) => <strong>{chunks}</strong> })}</p>
           <p>{t.rich('manifesto.p2', { strong: (chunks) => <strong>{chunks}</strong> })}</p>
           <p>{t('manifesto.p3')}</p>
@@ -412,58 +372,42 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="lp-section container lp-faq" id="faq">
-        <div className="lp-faq-side">
-          <h2 className="lp-title">
-            {h('faq.title')} <span className="dim">{h('faq.titleDim')}</span>
-          </h2>
-        </div>
-        <div className="faq">
-          {FAQ.map((n) => (
-            <details className="faq-item" key={n}>
-              <summary>
-                {h(`faq.q${n}`)}
-                <span className="faq-plus" aria-hidden="true">
-                  +
-                </span>
-              </summary>
-              <p className="faq-a">{h(`faq.a${n}`)}</p>
-            </details>
-          ))}
+      {/* Preguntas */}
+      <section className="lp-section" id="faq" aria-labelledby="h-faq">
+        <SectionSign id="h-faq" title={h('faq.title')} sub={h('faq.titleDim')} />
+        <div className="container">
+          <div className="faq">
+            {FAQ.map((n) => (
+              <details className="faq-item" key={n}>
+                <summary>
+                  {h(`faq.q${n}`)}
+                  <span className="faq-plus" aria-hidden="true" />
+                </summary>
+                <p className="faq-a">{h(`faq.a${n}`)}</p>
+              </details>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* FINAL CTA */}
-      <section className="lp-end" id="sumate">
-        <span className="lp-end-zero" aria-hidden="true">
-          0
-        </span>
+      {/* Cierre: la banda negra con las once líneas. */}
+      <section className="lp-end" id="sumate" aria-labelledby="h-end">
         <div className="container lp-end-inner">
-          <h2>
+          <h2 id="h-end">
             {h('end.title1')}
             <br />
             <span>{h('end.title2')}</span>
           </h2>
           <p className="lp-end-sub">{h('end.sub')}</p>
-          <div className="lp-ctas lp-ctas-center">
+          <div className="lp-ctas">
             <Link className="btn btn-invert-solid btn-lg" href="/app">
-              {h('hero.ctaStart')} <Icon name="arrow" size={16} />
+              {h('hero.ctaStart')}
             </Link>
             <a className="btn btn-invert btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
               <Icon name="github" size={16} /> {h('hero.ctaSelfHost')}
             </a>
           </div>
-          <ul className="lp-end-apps" aria-label={t('header.products')}>
-            {SITE_PRODUCTS.map((k) => (
-              <li key={k} className={`card-${k}`}>
-                <Link href={`/products/${k}`}>
-                  <ProductZero product={k} size={11} />
-                  {PRODUCT_NAMES[k]}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <EndLines label={t('header.products')} />
         </div>
       </section>
     </main>
