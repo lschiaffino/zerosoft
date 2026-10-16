@@ -663,9 +663,9 @@ test('Chat: nota interna visible para agentes, nunca para el visitante', async (
 
 // ---------- Cal D9: horarios, reservas del anfitrión, recordatorios y cobro ----------
 test.describe('cal d9', () => {
-  /** Próxima fecha (UTC) con ese día de semana, al menos 3 días adelante. */
-  const nextDow = (dow: number) => {
-    const d = new Date(Date.now() + 3 * 86_400_000);
+  /** Próxima fecha (UTC) con ese día de semana, al menos `minDays` días adelante. */
+  const nextDow = (dow: number, minDays = 3) => {
+    const d = new Date(Date.now() + minDays * 86_400_000);
     while (d.getUTCDay() !== dow) d.setUTCDate(d.getUTCDate() + 1);
     return d.toISOString().slice(0, 10);
   };
@@ -684,7 +684,9 @@ test.describe('cal d9', () => {
     const et = await (
       await request.post('/api/calendar/event-types', { data: { slug, title: 'D9', durationMin: 60, scheduleId: schedule.id } })
     ).json();
-    const monday = nextDow(1);
+    // Lejos de las reservas que otros tests hacen a +3/+4/+7 días con el mismo
+    // anfitrión demo: si caen el mismo lunes, ocupan un slot y el conteo falla.
+    const monday = nextDow(1, 21);
     const slots = async () =>
       (await (await request.get(`/api/calendar/event-types/${et.id}/slots?date=${monday}&timezone=UTC`)).json()).slots as unknown[];
     expect(await slots()).toHaveLength(3);
