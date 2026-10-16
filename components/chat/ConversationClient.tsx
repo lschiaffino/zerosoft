@@ -90,6 +90,8 @@ export default function ConversationClient({
   const [sending, setSending] = useState(false);
   /** Error del último envío (aria-live): antes un rechazo del servidor no avisaba nada. */
   const [sendError, setSendError] = useState<string | null>(null);
+  /** Error al cambiar estado, prioridad o asignación (antes el select volvía atrás sin aviso). */
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [listRows, setListRows] = useState<ChatConversationListRow[] | null>(null);
   const router = useRouter();
@@ -213,6 +215,8 @@ export default function ConversationClient({
   }
 
   async function sendTyping() {
+    // Una nota interna no es una respuesta: el visitante no debe ver "escribiendo…".
+    if (mode !== 'reply') return;
     const now = Date.now();
     if (now - typingSentAt.current < 2000) return;
     typingSentAt.current = now;
@@ -270,7 +274,12 @@ export default function ConversationClient({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      setUpdateError(t(sendErrorKey(data.error)));
+      return;
+    }
+    setUpdateError(null);
     const updated = (await res.json()) as ChatConversationWithVisitor;
     setConversation((prev) => ({ ...prev, ...updated }));
     fetchList();
@@ -527,8 +536,9 @@ export default function ConversationClient({
 
           <div className="chat-conversation-header-actions">
             <div className="chat-header-field">
-              <label className="mono muted">{t('conversation.statusLabel')}</label>
+              <label className="mono muted" htmlFor="chat-header-status">{t('conversation.statusLabel')}</label>
               <select
+                id="chat-header-status"
                 className="select chat-header-select"
                 value={conversation.status}
                 onChange={(e) => changeStatus(e.target.value)}
@@ -541,8 +551,9 @@ export default function ConversationClient({
 
             {conversation.status === 'snoozed' && (
               <div className="chat-header-field">
-                <label className="mono muted">{t('conversation.snoozeUntil')}</label>
+                <label className="mono muted" htmlFor="chat-header-snooze">{t('conversation.snoozeUntil')}</label>
                 <select
+                  id="chat-header-snooze"
                   className="select chat-header-select"
                   value=""
                   onChange={(e) => {
@@ -567,8 +578,9 @@ export default function ConversationClient({
             )}
 
             <div className="chat-header-field">
-              <label className="mono muted">{t('conversation.priority')}</label>
+              <label className="mono muted" htmlFor="chat-header-priority">{t('conversation.priority')}</label>
               <select
+                id="chat-header-priority"
                 className="select chat-header-select"
                 value={conversation.priority}
                 onChange={(e) =>
@@ -582,8 +594,9 @@ export default function ConversationClient({
             </div>
 
             <div className="chat-header-field">
-              <label className="mono muted">{t('conversation.assignedTo')}</label>
+              <label className="mono muted" htmlFor="chat-header-assignee">{t('conversation.assignedTo')}</label>
               <select
+                id="chat-header-assignee"
                 className="select chat-header-select"
                 value={conversation.assigned_to ?? ''}
                 onChange={(e) =>
@@ -605,6 +618,9 @@ export default function ConversationClient({
               {isResolved ? t('conversation.reopen') : t('conversation.resolve')}
             </button>
           </div>
+          <p className="form-error" role="alert" hidden={!updateError}>
+            {updateError}
+          </p>
         </header>
 
         <div className="chat-tags-row">
@@ -771,6 +787,11 @@ export default function ConversationClient({
             onClick={() => {
               setMode('note');
               clearSelectedFile();
+              // Si venía escribiendo una respuesta, el visitante deja de ver el indicador.
+              if (typingSentAt.current > 0) {
+                typingSentAt.current = 0;
+                fetch(`/api/chat/conversations/${conversationId}/typing`, { method: 'DELETE' }).catch(() => {});
+              }
             }}
           >
             {t('notes.label')}

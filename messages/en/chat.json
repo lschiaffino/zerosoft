@@ -271,7 +271,8 @@
     "fileTypeNotAllowed": "This file type isn't allowed.",
     "messageTooLong": "Message too long (max 5,000 characters).",
     "invalid_input": "Some fields are invalid. Check them and try again.",
-    "missing_name": "Name is required."
+    "missing_name": "Name is required.",
+    "invalid_assignee": "That person can't be assigned to this conversation."
   },
   "quick": {
     "create": "Create",

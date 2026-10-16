@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
-  const updated = await submitConversationCsat(conversationId, score, comment);
-  return NextResponse.json({ ok: true, conversation: updated }, { status: 201 });
+  await submitConversationCsat(conversationId, score, comment);
+  // Ruta pública: no devuelve la fila (agente asignado, prioridad, SLA).
+  return NextResponse.json({ ok: true }, { status: 201 });
 }

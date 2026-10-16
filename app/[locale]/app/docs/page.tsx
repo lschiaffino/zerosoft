@@ -1,6 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { realUserId, requireUser } from '@/lib/session';
-import { listDocPages, listSharedWithMe } from '@/lib/docs';
+import { listDocPageSummaries, listSharedWithMe } from '@/lib/docs';
 import {
   createDocPageAction,
   createDocPageFromTemplateAction,
@@ -21,8 +21,9 @@ export default async function DocsLandingPage(props: { params: Promise<{ locale:
 
   setRequestLocale(locale);
   const user = await requireUser(locale);
-  const pages = await listDocPages(user.id, { archived: false });
-  const trashed = await listDocPages(user.id, { archived: true });
+  // Sin content: el sidebar y las listas solo muestran título, ícono y fecha.
+  const pages = await listDocPageSummaries(user.id, { archived: false });
+  const trashed = await listDocPageSummaries(user.id, { archived: true });
   const shared = await listSharedWithMe(realUserId(user), user.id);
   const templates = getDocTemplates(locale);
   const t = await getTranslations({ locale, namespace: 'docs' });

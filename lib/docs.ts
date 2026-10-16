@@ -8,12 +8,13 @@ import {
   type DocsComment,
   type DocsPage,
   type DocsPageShare,
+  type DocsPageSummary,
   type DocsShareRole,
   defaultBlocks,
   stringifyBlocks,
 } from './docs-types';
 
-export type { DocsBlock, DocsBlockType, DocsComment, DocsPage, DocsPageShare };
+export type { DocsBlock, DocsBlockType, DocsComment, DocsPage, DocsPageShare, DocsPageSummary };
 export { defaultBlocks, stringifyBlocks } from './docs-types';
 
 // ---------- Helpers JSON ----------
@@ -179,6 +180,39 @@ export async function listDocPages(
     )
     .all(ownerId, archived)) as DocsPageRow[];
   return rows.map(toDocPage);
+}
+
+/**
+ * Igual que listDocPages pero sin content: para el sidebar y las listas, que
+ * viajan al cliente en cada navegación (antes iba el contenido de todas las páginas).
+ */
+export async function listDocPageSummaries(
+  ownerId: string,
+  opts: { archived?: boolean } = {},
+): Promise<DocsPageSummary[]> {
+  const archived = opts.archived ? 1 : 0;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, parent_id, title, icon, position, updated_at FROM docs_pages
+       WHERE user_id = ? AND archived = ? ORDER BY (position IS NULL) ASC, position ASC, updated_at DESC`,
+    )
+    .all(ownerId, archived)) as DocsPageSummary[];
+  return rows.map((r) => ({
+    id: r.id,
+    parent_id: r.parent_id ?? null,
+    title: r.title,
+    icon: r.icon ?? null,
+    position: r.position ?? null,
+    updated_at: r.updated_at,
+  }));
+}
+
+/** Páginas en la papelera (solo el número, para el link del sidebar). */
+export async function countArchivedDocPages(ownerId: string): Promise<number> {
+  const row = (await getDb()
+    .prepare('SELECT COUNT(*) AS n FROM docs_pages WHERE user_id = ? AND archived = 1')
+    .get(ownerId)) as { n: number } | undefined;
+  return Number(row?.n ?? 0);
 }
 
 export async function getDocPage(

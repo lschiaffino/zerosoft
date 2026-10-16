@@ -86,6 +86,7 @@ export function sendErrorKey(code: string | undefined): string {
   if (code === 'file_too_large') return 'errors.fileTooLarge';
   if (code === 'file_type_not_allowed') return 'errors.fileTypeNotAllowed';
   if (code === 'invalid_input') return 'errors.invalid_input';
+  if (code === 'invalid_assignee') return 'errors.invalid_assignee';
   return 'errors.generic';
 }
 
