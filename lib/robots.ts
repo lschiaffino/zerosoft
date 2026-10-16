@@ -7,7 +7,7 @@
  */
 import { getDb, type RobotRow, type RobotRunRow, type RobotRunStatus, type RobotRunTrigger } from './db';
 import { emitEvent } from './events';
-import { computeNextRun } from './flow';
+import { computeNextRun, sameJson } from './flow';
 import { referencedCredentialNames, resolveCredential, secretValues } from './flow-credentials';
 import { redact } from './flow-credentials-schema';
 import { rateLimit } from './rate-limit';
@@ -317,7 +317,12 @@ export async function updateRobot(
   }
   const enabled = patch.enabled ?? row.enabled === 1;
   const schedule = patch.schedule !== undefined ? patch.schedule : parseJson<RobotSchedule>(row.schedule, null);
-  const scheduleChanged = patch.schedule !== undefined || (patch.enabled !== undefined && patch.enabled !== (row.enabled === 1));
+  // El editor manda el schedule en cada guardado: solo se recalcula la próxima
+  // corrida si cambió (si no, un intervalo se posterga con cada guardado).
+  const scheduleChanged =
+    (patch.schedule !== undefined && !sameJson(patch.schedule, parseJson<RobotSchedule>(row.schedule, null))) ||
+    (patch.enabled !== undefined && patch.enabled !== (row.enabled === 1)) ||
+    (enabled && !!schedule && !row.next_run_at);
   const next = scheduleChanged ? nextRun(schedule, enabled) : row.next_run_at;
   const timeout = Math.min(Math.max(patch.timeoutSec ?? row.timeout_sec, 10), MAX_TIMEOUT_SEC);
   await getDb()

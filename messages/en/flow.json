@@ -86,7 +86,7 @@
     "condOp": "Operator",
     "condRight": "Compare with",
     "canvasHint": "Add nodes from the left. Connect them by dragging from an output to the next node.",
-    "templateHelp": "Use '{{trigger.x}}' for trigger data and '{{nodes.<id>.output.x}}' for the output of an earlier node. Filters: json, join, lines, map:field, default:value, upper, lower, length.",
+    "templateHelp": "Use '{{trigger.x}}' for trigger data and '{{nodes.<id>.output.x}}' for the output of an earlier node. Filters: json, join, lines, map:field, default:value, upper, lower, length, urlencode.",
     "everySummary": "Every {n} {unit}",
     "dailySummary": "Daily at {time} ({tz})",
     "conditionsCount": "{n, plural, one {# condition} other {# conditions}}",

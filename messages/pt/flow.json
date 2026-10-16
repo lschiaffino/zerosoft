@@ -86,7 +86,7 @@
     "condOp": "Operador",
     "condRight": "Comparar com",
     "canvasHint": "Adicione nós pela esquerda. Conecte-os arrastando de uma saída até o próximo nó.",
-    "templateHelp": "Use '{{trigger.x}}' para os dados do gatilho e '{{nodes.<id>.output.x}}' para a saída de um nó anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length.",
+    "templateHelp": "Use '{{trigger.x}}' para os dados do gatilho e '{{nodes.<id>.output.x}}' para a saída de um nó anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode.",
     "everySummary": "A cada {n} {unit}",
     "dailySummary": "Todo dia às {time} ({tz})",
     "conditionsCount": "{n, plural, one {# condição} other {# condições}}",

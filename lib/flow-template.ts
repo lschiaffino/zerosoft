@@ -8,7 +8,7 @@
  *   {{loop.item}} {{loop.index}}  dentro del cuerpo de un Loop
  *   {{flow.name}} {{run.id}} {{now}}
  * Filtros encadenables con |: json, join[:sep], lines, length, upper, lower,
- * trim, map:<campo>, default:<valor>, number, first, last.
+ * trim, map:<campo>, default:<valor>, number, first, last, urlencode.
  *   {"text": {{nodes.ai.output.text | json}}}
  *   {{nodes.deals.output.deals | map:name | lines}}
  */
@@ -99,6 +99,9 @@ function applyFilter(value: unknown, filter: string): unknown {
       return Array.isArray(value) ? value[0] : value;
     case 'last':
       return Array.isArray(value) ? value[value.length - 1] : value;
+    case 'urlencode':
+      // Para meter datos externos en el path o la query de una URL sin que cambien su forma.
+      return encodeURIComponent(stringify(value));
     default:
       return value;
   }

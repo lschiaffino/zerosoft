@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { RobotDto, RobotRunDto, RobotUsage } from '@/lib/robots';
@@ -79,6 +79,14 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       timeoutSec: robot.timeoutSec,
       persistSession: robot.persistSession,
     });
+
+  // Avisa antes de cerrar la pestaña con cambios sin guardar (como el editor de Flow).
+  useEffect(() => {
+    if (!dirty) return;
+    const onBefore = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', onBefore);
+    return () => window.removeEventListener('beforeunload', onBefore);
+  }, [dirty]);
 
   async function save(): Promise<boolean> {
     setSaving(true);

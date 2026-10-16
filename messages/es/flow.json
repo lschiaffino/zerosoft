@@ -86,7 +86,7 @@
     "condOp": "Operador",
     "condRight": "Comparar con",
     "canvasHint": "Agregá nodos desde la izquierda. Conectalos arrastrando desde una salida hasta el nodo siguiente.",
-    "templateHelp": "Usá '{{trigger.x}}' para los datos del disparador y '{{nodes.<id>.output.x}}' para la salida de un nodo anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length.",
+    "templateHelp": "Usá '{{trigger.x}}' para los datos del disparador y '{{nodes.<id>.output.x}}' para la salida de un nodo anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode.",
     "everySummary": "Cada {n} {unit}",
     "dailySummary": "Todos los días a las {time} ({tz})",
     "conditionsCount": "{n, plural, one {# condición} other {# condiciones}}",

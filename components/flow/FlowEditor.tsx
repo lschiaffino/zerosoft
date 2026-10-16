@@ -22,6 +22,7 @@ import {
   NODE_DEFS,
   NODE_TYPES,
   defaultConfig,
+  isHookTrigger,
   isTriggerType,
   nodeOutputs,
   type FlowEventType,
@@ -545,7 +546,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
 
   function triggerExtra() {
     if (!selected) return null;
-    if (selected.data.type === 'trigger.webhook') {
+    if (isHookTrigger(selected.data.type)) {
       const url = hookUrl(selected.id);
       return (
         <div className="flow-field">
@@ -560,7 +561,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
           ) : (
             <p className="muted">{t('editor.webhookSaveFirst')}</p>
           )}
-          <p className="muted flow-hint">{t('editor.webhookHint')}</p>
+          {selected.data.type === 'trigger.webhook' && <p className="muted flow-hint">{t('editor.webhookHint')}</p>}
         </div>
       );
     }
