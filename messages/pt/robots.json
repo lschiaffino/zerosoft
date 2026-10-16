@@ -1,12 +1,14 @@
 {
   "title": "Robots",
   "subtitle": "Robôs de navegador que visitam páginas, clicam, preenchem formulários e extraem dados por você. Execute-os manualmente, com agendamento ou pelo Flow.",
-  "sidebar": { "robots": "Robots" },
+  "sidebar": {
+    "robots": "Robots"
+  },
   "list": {
-    "new": "Novo robô",
+    "new": "Criar robô",
     "title": "Seus robôs",
     "empty": "Ainda não há robôs.",
-    "emptyHint": "Comece com um modelo abaixo ou crie um robô vazio.",
+    "emptyHint": "Um robô abre um navegador, segue seus passos e devolve os dados. Crie um vazio ou comece por um modelo.",
     "name": "Nome",
     "lastRun": "Última execução",
     "runs7d": "Execuções (7d)",
@@ -14,7 +16,11 @@
     "never": "Nunca executado",
     "noSchedule": "Manual",
     "adminOnly": "Somente admins e owners do workspace podem criar, editar e executar robôs.",
-    "record": "Gravar passos"
+    "record": "Gravar passos",
+    "creating": "Criando robô…",
+    "emptyTitle": "Ainda não há robôs",
+    "emptyAlt": "ou use um modelo",
+    "paused": "pausado"
   },
   "usage": {
     "title": "Este mês",
@@ -28,44 +34,63 @@
     "noneHint": "Defina ROBOTS_RUNNER=local e instale o Chromium (npx playwright-core install --with-deps chromium) para executar robôs nesta máquina, ou faça deploy na Vercel para usar o Vercel Sandbox. Você ainda pode criar e editar robôs.",
     "sandbox": "Executa em uma microVM isolada do Vercel Sandbox.",
     "local": "Executa em um Chromium local deste servidor.",
-    "localHint": "Self-host: é o runner padrão quando playwright-core está instalado. Instale o Chromium com npx playwright-core install --with-deps chromium."
+    "localHint": "Self-host: é o runner padrão quando playwright-core está instalado. Instale o Chromium com npx playwright-core install --with-deps chromium.",
+    "title": "Onde roda"
   },
   "templates": {
     "title": "Modelos",
     "subtitle": "Robôs prontos para adaptar.",
     "use": "Usar modelo",
     "items": {
-      "scrapeTable": { "name": "Extrair uma tabela para JSON", "desc": "Abre uma página e transforma a primeira tabela em linhas que você pode usar no Flow." },
-      "priceCheck": { "name": "Verificar um preço todos os dias", "desc": "Lê o preço de um produto diariamente. Combine com um Flow em “Robots: execução concluída” para receber alertas." },
-      "fillForm": { "name": "Preencher um formulário web", "desc": "Preenche campos com as entradas, envia e captura o resultado." },
-      "screenshot": { "name": "Tirar uma captura de uma página", "desc": "Abre uma URL, lê o título e salva uma captura de tela." }
-    }
+      "scrapeTable": {
+        "name": "Extrair uma tabela para JSON",
+        "desc": "Abre uma página e transforma a primeira tabela em linhas que você pode usar no Flow."
+      },
+      "priceCheck": {
+        "name": "Verificar um preço todos os dias",
+        "desc": "Lê o preço de um produto diariamente. Combine com um Flow em “Robots: execução concluída” para receber alertas."
+      },
+      "fillForm": {
+        "name": "Preencher um formulário web",
+        "desc": "Preenche campos com as entradas, envia e captura o resultado."
+      },
+      "screenshot": {
+        "name": "Tirar uma captura de uma página",
+        "desc": "Abre uma URL, lê o título e salva uma captura de tela."
+      }
+    },
+    "stepsLabel": "{count, plural, one {# passo} other {# passos}}"
   },
   "editor": {
     "untitled": "Robô sem título",
     "back": "Robots",
     "namePlaceholder": "Nome do robô",
-    "descriptionPlaceholder": "O que este robô faz?",
-    "save": "Salvar",
+    "descriptionPlaceholder": "Adicione o que este robô faz",
+    "save": "Salvar alterações",
     "saving": "Salvando…",
     "saved": "Salvo",
     "unsaved": "Alterações não salvas",
-    "run": "Executar",
+    "run": "Rodar robô",
     "running": "Executando…",
-    "delete": "Excluir",
+    "delete": "Excluir robô",
     "confirmDelete": "Excluir este robô e o histórico de execuções?",
     "readOnly": "Somente leitura: apenas admins e owners podem editar ou executar robôs.",
     "tabs": {
       "steps": "Passos",
       "inputs": "Entradas",
       "runs": "Execuções",
-      "settings": "Configurações"
+      "schedule": "Agendamento",
+      "advanced": "Avançado"
     },
     "record": "Gravar passos",
-    "paste": "Colar passos gravados"
+    "paste": "Colar passos",
+    "sections": "Seções do robô",
+    "descriptionLabel": "Descrição",
+    "deleteTitle": "Excluir robô",
+    "deleteDesc": "Exclui o robô e todo o histórico de execuções. Não dá para desfazer."
   },
   "steps": {
-    "empty": "Ainda não há passos. Adicione o primeiro: normalmente “Ir para URL”.",
+    "empty": "Escolha o tipo abaixo e adicione o primeiro, normalmente Ir para URL.",
     "add": "Adicionar passo",
     "addInLoop": "Adicionar passo ao loop",
     "moveUp": "Subir",
@@ -135,32 +160,48 @@
       "Listas: um Extrair com “Todos os resultados” sobre “.item a” retorna o texto de cada link; adicione o atributo href para obter as URLs."
     ],
     "fileHint": "O arquivo é salvo e a URL fica em {example}.",
-    "credentialsTip": "Logins: use {example} com uma credencial salva no Flow. O valor nunca aparece em logs nem capturas.",
-    "credentialsLink": "Credenciais"
+    "credentialsTip": "Use {example} com uma credencial salva. O valor nunca aparece em logs nem capturas.",
+    "credentialsLink": "Abrir Credenciais",
+    "addType": "Tipo de passo",
+    "options": "Opções do passo {num}",
+    "retriesAdd": "Adicionar novas tentativas",
+    "retriesRemove": "Remover novas tentativas",
+    "retriesBadge": "{count, plural, one {# nova tentativa} other {# novas tentativas}}",
+    "invalid": "revise este passo",
+    "emptyTitle": "Ainda não há passos",
+    "emptyAlt": "ou",
+    "emptyAltLink": "grave os passos no site",
+    "credentialsTitle": "Logins"
   },
   "inputs": {
     "title": "Entradas",
     "desc": "Valores nomeados que você passa em cada execução (pelo diálogo Executar, pelo Flow ou pelos padrões do agendamento). Use-os como {example}.",
-    "empty": "Sem entradas. Adicione uma para tornar o robô reutilizável.",
+    "empty": "Entradas tornam o robô reutilizável: uma URL, um email ou uma lista que mudam a cada execução.",
     "add": "Adicionar entrada",
-    "name": "Nome",
+    "name": "Nome nos passos",
     "label": "Rótulo",
     "kind": "Tipo",
-    "kinds": { "text": "Texto", "list": "Lista (uma por linha)" },
+    "kinds": {
+      "text": "Texto",
+      "list": "Lista (uma por linha)"
+    },
     "default": "Padrão",
     "required": "Obrigatória",
-    "remove": "Remover",
-    "passwordWarning": "Não guarde senhas nem segredos aqui: as entradas ficam salvas em texto puro e visíveis para o workspace. Robôs são para páginas públicas."
+    "remove": "Remover entrada",
+    "passwordWarning": "Não guarde senhas nem segredos aqui: as entradas ficam salvas em texto puro e visíveis para o workspace. Robôs são para páginas públicas.",
+    "emptyTitle": "Sem entradas",
+    "labelPlaceholder": "Ex.: Email do cliente",
+    "nameHint": "O nome usado nos passos é preenchido a partir do rótulo. Você pode mudá-lo."
   },
   "run": {
     "title": "Executar {name}",
     "desc": "O robô abre um navegador novo, executa cada passo e o fecha. Pode levar até {seconds} segundos.",
     "start": "Executar agora",
     "cancel": "Cancelar",
-    "noInputs": "Este robô não tem entradas."
+    "noInputs": "Este robô não tem entradas.",
+    "optional": "(opcional)"
   },
   "runs": {
-    "empty": "Ainda não há execuções.",
     "select": "Selecione uma execução para ver os passos, dados e capturas.",
     "trigger": {
       "manual": "Manual",
@@ -188,7 +229,17 @@
       "success": "OK",
       "failed": "Falhou",
       "skipped": "Pulado"
-    }
+    },
+    "emptyTitle": "Ainda não há execuções",
+    "emptyBody": "Rode o robô para ver cada passo, os dados extraídos e as capturas.",
+    "history": "Histórico de execuções",
+    "runningNow": "Rodando agora",
+    "runningHint": "O robô está rodando. Os passos e os dados aparecem aqui quando terminar.",
+    "logStep": "Passo",
+    "logDetail": "Detalhe",
+    "logTime": "Tempo",
+    "view": "Visualização dos dados",
+    "copied": "Copiado"
   },
   "settings": {
     "enabled": "Permitir execuções automáticas",
@@ -197,11 +248,11 @@
     "scheduleNone": "Sem agendamento",
     "scheduleDaily": "Todos os dias às",
     "scheduleInterval": "A cada N horas ou minutos",
-    "time": "Hora (HH:MM)",
+    "time": "Horário",
     "timezone": "Fuso horário",
     "every": "Horas",
     "nextRun": "Próxima execução: {date}",
-    "timeout": "Timeout (segundos)",
+    "timeout": "Segundos",
     "timeoutHint": "Máximo {max} s. As execuções contam nos seus minutos do mês.",
     "flowTitle": "Usar no Flow",
     "flowHint": "Adicione o nó “Robots: executar robô” e cole este ID. Os flows também podem reagir a “Robots: execução concluída” e “Robots: execução falhou”.",
@@ -210,7 +261,10 @@
     "responsible": "Use os robôs com responsabilidade: respeite os termos de cada site e o robots.txt e não sobrecarregue servidores. Guarde os logins em credenciais, nunca nos passos. Redes privadas e URLs file:// são bloqueadas; downloads só pelo passo Baixar arquivo (até 10 MB).",
     "scheduleCron": "Cron",
     "unit": "Unidade",
-    "units": { "hours": "Horas", "minutes": "Minutos" },
+    "units": {
+      "hours": "Horas",
+      "minutes": "Minutos"
+    },
     "everyN": "A cada",
     "minMinutes": "Mínimo de 15 minutos.",
     "cron": "Expressão cron",
@@ -223,7 +277,34 @@
     "sessionSaved": "Há uma sessão salva.",
     "sessionEmpty": "Nenhuma sessão salva.",
     "clearSession": "Apagar sessão",
-    "sessionCleared": "Sessão apagada."
+    "sessionCleared": "Sessão apagada.",
+    "scheduleTitle": "Quando roda",
+    "scheduleDesc": "Escolha um horário. Para algo mais fino, use Personalizado.",
+    "presetLabel": "Frequência",
+    "presets": {
+      "none": "Manual",
+      "noneHint": "Roda quando você roda ou pelo Flow.",
+      "hourly": "A cada hora",
+      "hourlyHint": "Uma vez por hora, o dia todo.",
+      "daily": "Todos os dias",
+      "dailyHint": "Uma vez por dia, no horário que você escolher.",
+      "weekdays": "Dias úteis",
+      "weekdaysHint": "De segunda a sexta, no horário que você escolher.",
+      "weekly": "Toda segunda-feira",
+      "weeklyHint": "Uma vez por semana, no horário que você escolher.",
+      "custom": "Personalizado",
+      "customHint": "A cada N minutos ou horas, ou uma expressão cron."
+    },
+    "customMode": "Tipo de agendamento",
+    "automaticTitle": "Execuções automáticas",
+    "scheduleOff": "As execuções automáticas estão desligadas: o agendamento não roda até você ligá-las.",
+    "sessionTitle": "Sessão",
+    "timeoutTitle": "Tempo máximo",
+    "credentialsTitle": "Credenciais",
+    "credentialsDesc": "Os logins ficam criptografados em Credenciais, que o Robots compartilha com o Flow. Os passos usam sem que o valor apareça em logs nem capturas.",
+    "credentialsOpen": "Abrir Credenciais",
+    "globalSettings": "Ir para Configurações globais",
+    "usageTitle": "Uso e runner"
   },
   "errors": {
     "generic": "Algo deu errado. Tente novamente.",
@@ -244,7 +325,11 @@
     "missing_input": "Preencha a entrada obrigatória “{name}”.",
     "no_steps": "Adicione pelo menos um passo antes de executar.",
     "disabled": "Este robô está desligado para execuções automáticas.",
-    "missing_credential": "Falta a credencial “{name}”. Crie em Flow > Credenciais."
+    "missing_credential": "Falta a credencial “{name}”. Crie em Flow > Credenciais.",
+    "pageTitle": "Não foi possível carregar o Robots",
+    "pageBody": "Tente de novo. Se continuar falhando, confira se o servidor está online.",
+    "retry": "Tentar de novo",
+    "backToList": "Voltar para Robots"
   },
   "paste": {
     "title": "Colar passos gravados",
@@ -259,7 +344,8 @@
       "invalid_json": "Não é um JSON válido.",
       "no_steps": "Não há passos no texto colado.",
       "invalid_steps": "O passo {index} é inválido."
-    }
+    },
+    "modeLabel": "O que fazer com os passos"
   },
   "recorder": {
     "title": "Gravador de passos",
@@ -286,6 +372,8 @@
       "clear": "Limpar",
       "close": "Fechar",
       "hint": "Faça a tarefa normalmente. Ao terminar, copie os passos."
-    }
-  }
+    },
+    "codeTitle": "Sem barra de favoritos"
+  },
+  "loading": "Carregando robôs…"
 }

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
 import { buildRecorderScript, PASSWORD_PLACEHOLDER, recorderBookmarklet, type RecorderLabels } from '@/lib/robots-recorder';
+import PageHeader from '@/components/ui/PageHeader';
 
 /** /app/robots/recorder: bookmarklet para grabar pasos en cualquier sitio. */
 export default function RecorderPage() {
@@ -36,51 +36,57 @@ export default function RecorderPage() {
   }
 
   return (
-    <div className="app-page robots-recorder">
-      <Link href="/app/robots" className="robots-back">
-        ← {t('back')}
-      </Link>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{t('title')}</h1>
-          <p className="muted robots-sub">{t('subtitle')}</p>
-        </div>
-      </div>
+    <div className="app-page ui-page ui-page-narrow robots-recorder">
+      <PageHeader back={{ href: '/app/robots', label: t('back') }} title={t('title')} description={t('subtitle')} />
 
-      <section className="robots-recorder-drag">
-        <a
-          ref={linkRef}
-          className="robots-bookmarklet"
-          draggable
-          onClick={(e) => e.preventDefault()}
-          title={t('dragHint')}
-        >
+      <section className="robots-recorder-drag" aria-labelledby="recorder-drag">
+        <h2 className="sr-only" id="recorder-drag">
+          {t('bookmarklet')}
+        </h2>
+        <a ref={linkRef} className="btn btn-primary robots-bookmarklet" draggable onClick={(e) => e.preventDefault()} title={t('dragHint')}>
           {t('bookmarklet')}
         </a>
-        <p className="muted">{t('dragHint')}</p>
+        <p>{t('dragHint')}</p>
       </section>
 
-      <section className="robots-recorder-section">
-        <h2 className="robots-section-title">{t('howTitle')}</h2>
-        <ol className="robots-recorder-steps">
-          <li>{t('step1')}</li>
-          <li>{t('step2')}</li>
-          <li>{t('step3')}</li>
-          <li>{t('step4')}</li>
+      <section className="robots-block" aria-labelledby="recorder-how">
+        <h2 className="ui-section-title" id="recorder-how">
+          {t('howTitle')}
+        </h2>
+        <ol className="robots-line robots-howto">
+          {(['step1', 'step2', 'step3', 'step4'] as const).map((k, i) => (
+            <li key={k} className="robots-stop">
+              <span className="robots-station" aria-hidden="true" />
+              <div className="robots-stop-head">
+                <span className="robots-stop-num data">{i + 1}</span>
+                <p className="robots-howto-text">{t(k)}</p>
+              </div>
+            </li>
+          ))}
         </ol>
       </section>
 
-      <section className="robots-recorder-section">
-        <h2 className="robots-section-title">{t('selectorsTitle')}</h2>
-        <p className="muted">{t('selectors')}</p>
-        <p className="muted">{t('passwords', { placeholder: PASSWORD_PLACEHOLDER })}</p>
+      <section className="robots-block" aria-labelledby="recorder-selectors">
+        <h2 className="ui-section-title" id="recorder-selectors">
+          {t('selectorsTitle')}
+        </h2>
+        <p className="robots-lead">{t('selectors')}</p>
+        <p className="robots-lead">{t('passwords', { placeholder: PASSWORD_PLACEHOLDER })}</p>
       </section>
 
-      <section className="robots-recorder-section">
-        <button type="button" className="btn btn-small" onClick={() => void copyCode()}>
-          {copied ? t('copied') : t('copyCode')}
-        </button>
-        <p className="muted robots-hint">{t('copyCodeHint')}</p>
+      <section className="robots-block" aria-labelledby="recorder-code">
+        <h2 className="ui-section-title" id="recorder-code">
+          {t('codeTitle')}
+        </h2>
+        <p className="robots-lead">{t('copyCodeHint')}</p>
+        <div>
+          <button type="button" className="btn btn-secondary" onClick={() => void copyCode()}>
+            {copied ? t('copied') : t('copyCode')}
+          </button>
+          <span className="sr-only" role="status">
+            {copied ? t('copied') : ''}
+          </span>
+        </div>
       </section>
     </div>
   );

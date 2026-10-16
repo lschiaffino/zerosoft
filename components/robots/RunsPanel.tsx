@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import type { RobotRunDto } from '@/lib/robots';
+import EmptyState from '@/components/ui/EmptyState';
+import { StatusBadge } from './robots-ui';
 
 function duration(ms: number | null): string {
-  if (ms === null || ms === undefined) return '—';
+  if (ms === null || ms === undefined) return '–';
   if (ms < 1000) return `${ms} ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
   return `${Math.floor(ms / 60_000)} min ${Math.round((ms % 60_000) / 1000)} s`;
@@ -41,139 +43,216 @@ function cell(v: unknown): string {
   return typeof v === 'string' ? v : JSON.stringify(v);
 }
 
-export default function RunsPanel({ runs, selectedId, onSelect }: { runs: RobotRunDto[]; selectedId: string | null; onSelect: (id: string) => void }) {
+/** Historial de corridas: lista a la izquierda, detalle a la derecha. */
+export default function RunsPanel({
+  runs,
+  selectedId,
+  onSelect,
+  running = false,
+  emptyAction,
+}: {
+  runs: RobotRunDto[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  /** Hay una corrida en curso (se muestra arriba mientras termina). */
+  running?: boolean;
+  /** Acción del estado vacío (el botón Correr). */
+  emptyAction?: React.ReactNode;
+}) {
   const t = useTranslations('robots.runs');
   const format = useFormatter();
   const run = runs.find((r) => r.id === selectedId) ?? null;
 
-  if (runs.length === 0) return <p className="muted robots-pad">{t('empty')}</p>;
+  if (runs.length === 0 && !running) {
+    return <EmptyState title={t('emptyTitle')} body={t('emptyBody')} action={emptyAction} />;
+  }
 
   return (
     <div className="robots-runs">
-      <ul className="robots-run-list" aria-label={t('steps')}>
+      <ul className="robots-run-list" aria-label={t('history')}>
+        {running && (
+          <li>
+            <div className="robots-run-item is-pending" aria-current="true">
+              <StatusBadge status="running" />
+              <span className="robots-run-when">{t('runningNow')}</span>
+            </div>
+          </li>
+        )}
         {runs.map((r) => (
           <li key={r.id}>
-            <button type="button" className={`robots-run-item${r.id === selectedId ? ' is-active' : ''}`} onClick={() => onSelect(r.id)}>
-              <span className={`robots-dot is-${r.status}`} aria-hidden="true" />
+            <button
+              type="button"
+              className="robots-run-item"
+              aria-current={!running && r.id === selectedId ? 'true' : undefined}
+              onClick={() => onSelect(r.id)}
+            >
+              <StatusBadge status={r.status} />
               <span className="robots-run-when" suppressHydrationWarning>
                 {format.dateTime(new Date(r.createdAt), { dateStyle: 'medium', timeStyle: 'short' })}
               </span>
-              <span className="muted">
-                {t(`trigger.${r.trigger}`)} · {duration(r.durationMs)}
+              <span className="robots-run-sub">
+                {t(`trigger.${r.trigger}`)} · <span className="num">{duration(r.durationMs)}</span>
               </span>
             </button>
           </li>
         ))}
       </ul>
-      <div className="robots-run-detail">{run ? <RunDetail run={run} /> : <p className="muted robots-pad">{t('select')}</p>}</div>
+      <div className="robots-run-detail" aria-live="polite">
+        {running ? (
+          <div className="robots-run-body ui-loading-stack" aria-busy="true">
+            <p className="robots-muted">{t('runningHint')}</p>
+            <span className="ui-skeleton ui-skeleton-title" />
+            <span className="ui-skeleton ui-skeleton-row" />
+            <span className="ui-skeleton ui-skeleton-row" />
+            <span className="ui-skeleton ui-skeleton-row" />
+          </div>
+        ) : run ? (
+          <RunDetail run={run} />
+        ) : (
+          <p className="robots-run-body robots-muted">{t('select')}</p>
+        )}
+      </div>
     </div>
   );
 }
 
 function RunDetail({ run }: { run: RobotRunDto }) {
   const t = useTranslations('robots.runs');
+  const tTypes = useTranslations('robots.steps.types');
   const [view, setView] = useState<'table' | 'json'>('table');
+  const [copied, setCopied] = useState(false);
   const entries = Object.entries(run.output ?? {});
   const tableable = entries.some(([, v]) => asRows(v));
+  const asJson = view === 'json' || !tableable;
 
   return (
     <div className="robots-run-body">
       <div className="robots-run-meta">
-        <span className={`robots-status is-${run.status}`}>
-          <span className={`robots-dot is-${run.status}`} aria-hidden="true" />
-          {t(`status.${run.status}`)}
+        <StatusBadge status={run.status} />
+        <span>
+          {t('duration')} <span className="num">{duration(run.durationMs)}</span>
         </span>
-        <span className="muted">
-          {t('duration')}: {duration(run.durationMs)}
-        </span>
-        <span className="muted">{t(`trigger.${run.trigger}`)}</span>
+        <span>{t(`trigger.${run.trigger}`)}</span>
       </div>
       {run.error && (
-        <p className="robots-error mono" role="alert">
-          {t('error')}: {run.error}
-        </p>
-      )}
-
-      <h3 className="robots-section-title">{t('steps')}</h3>
-      <ol className="robots-log">
-        {run.logs.map((l, i) => (
-          <li key={i} className={`is-${l.status}`}>
-            <span className="robots-log-num mono">{l.step}</span>
-            <span className="robots-log-type">{l.type}</span>
-            <span className="robots-log-detail mono">{l.error ? `${l.error}${l.detail ? ` — ${l.detail}` : ''}` : (l.detail ?? '')}</span>
-            <span className="robots-log-ms muted">{l.status === 'skipped' ? t('stepStatus.skipped') : duration(l.ms)}</span>
-          </li>
-        ))}
-      </ol>
-
-      <div className="robots-data-head">
-        <h3 className="robots-section-title">{t('data')}</h3>
-        {entries.length > 0 && (
-          <div className="robots-seg" role="tablist">
-            {tableable && (
-              <button type="button" role="tab" aria-selected={view === 'table'} className={view === 'table' ? 'is-on' : ''} onClick={() => setView('table')}>
-                {t('asTable')}
-              </button>
-            )}
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === 'json' || !tableable}
-              className={view === 'json' || !tableable ? 'is-on' : ''}
-              onClick={() => setView('json')}
-            >
-              {t('asJson')}
-            </button>
-            <button type="button" onClick={() => void navigator.clipboard?.writeText(pretty(run.output))}>
-              {t('copy')}
-            </button>
-          </div>
-        )}
-      </div>
-      {entries.length === 0 ? (
-        <p className="muted">{t('noData')}</p>
-      ) : view === 'json' || !tableable ? (
-        <pre className="robots-json">{pretty(run.output)}</pre>
-      ) : (
-        <div className="robots-vars">
-          {entries.map(([k, v]) => {
-            const rows = asRows(v);
-            return (
-              <div key={k} className="robots-var">
-                <span className="robots-var-name mono">{k}</span>
-                {rows ? (
-                  <div className="robots-data-table-wrap">
-                    <table className="robots-data-table">
-                      <thead>
-                        <tr>
-                          {rows.head.map((h) => (
-                            <th key={h}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.rows.map((r, i) => (
-                          <tr key={i}>
-                            {r.map((c, j) => (
-                              <td key={j}>{c}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <span className="robots-var-val">{cell(v)}</span>
-                )}
-              </div>
-            );
-          })}
+        <div className="robots-run-error" role="alert">
+          <strong>{t('error')}</strong>
+          <span className="data">{run.error}</span>
         </div>
       )}
 
+      <section className="robots-block" aria-labelledby={`log-${run.id}`}>
+        <h3 className="robots-h3" id={`log-${run.id}`}>
+          {t('steps')}
+        </h3>
+        <div className="table-wrap">
+          <table className="table table-compact robots-log">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">{t('logStep')}</th>
+                <th scope="col">{t('logDetail')}</th>
+                <th scope="col" className="num">
+                  {t('logTime')}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {run.logs.map((l, i) => (
+                <tr key={i} data-status={l.status}>
+                  <td className="data">{l.step}</td>
+                  <td className="robots-log-type">{tTypes.has(l.type) ? tTypes(l.type as 'goto') : l.type}</td>
+                  <td className="data robots-log-detail" title={l.error ? `${l.error}${l.detail ? `: ${l.detail}` : ''}` : (l.detail ?? '')}>
+                    {l.error ? `${l.error}${l.detail ? `: ${l.detail}` : ''}` : (l.detail ?? '')}
+                  </td>
+                  <td className="num">{l.status === 'skipped' ? t('stepStatus.skipped') : duration(l.ms)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="robots-block" aria-labelledby={`data-${run.id}`}>
+        <div className="robots-block-head">
+          <h3 className="robots-h3" id={`data-${run.id}`}>
+            {t('data')}
+          </h3>
+          {entries.length > 0 && (
+            <div className="robots-block-actions">
+              {tableable && (
+                <div className="btn-group" role="group" aria-label={t('view')}>
+                  <button type="button" className="btn btn-sm" aria-pressed={!asJson} onClick={() => setView('table')}>
+                    {t('asTable')}
+                  </button>
+                  <button type="button" className="btn btn-sm" aria-pressed={asJson} onClick={() => setView('json')}>
+                    {t('asJson')}
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(pretty(run.output)).catch(() => {});
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                }}
+              >
+                {copied ? t('copied') : t('copy')}
+              </button>
+            </div>
+          )}
+        </div>
+        {entries.length === 0 ? (
+          <p className="robots-muted">{t('noData')}</p>
+        ) : asJson ? (
+          <pre className="robots-json data">{pretty(run.output)}</pre>
+        ) : (
+          <div className="robots-vars">
+            {entries.map(([k, v]) => {
+              const rows = asRows(v);
+              return (
+                <div key={k} className="robots-var">
+                  <span className="robots-var-name data">{k}</span>
+                  {rows ? (
+                    <div className="table-wrap robots-scroll">
+                      <table className="table table-compact table-sticky">
+                        <thead>
+                          <tr>
+                            {rows.head.map((h) => (
+                              <th key={h} scope="col">
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.rows.map((r, i) => (
+                            <tr key={i}>
+                              {r.map((c, j) => (
+                                <td key={j}>{c}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <span className="robots-var-val">{cell(v)}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {run.screenshots.length > 0 && (
-        <>
-          <h3 className="robots-section-title">{t('screenshots')}</h3>
+        <section className="robots-block" aria-labelledby={`shots-${run.id}`}>
+          <h3 className="robots-h3" id={`shots-${run.id}`}>
+            {t('screenshots')}
+          </h3>
           <div className="robots-shots">
             {run.screenshots.map((s, i) => (
               <figure key={i} className="robots-shot">
@@ -186,20 +265,22 @@ function RunDetail({ run }: { run: RobotRunDto }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={s.url} alt={s.name} loading="lazy" />
                 ) : (
-                  <p className="muted">{t('omitted')}</p>
+                  <p className="robots-muted robots-shot-missing">{t('omitted')}</p>
                 )}
-                <figcaption className="mono">{s.name}</figcaption>
+                <figcaption className="data">{s.name}</figcaption>
               </figure>
             ))}
           </div>
-        </>
+        </section>
       )}
 
       {Object.keys(run.input ?? {}).length > 0 && (
-        <>
-          <h3 className="robots-section-title">{t('input')}</h3>
-          <pre className="robots-json">{pretty(run.input)}</pre>
-        </>
+        <section className="robots-block" aria-labelledby={`input-${run.id}`}>
+          <h3 className="robots-h3" id={`input-${run.id}`}>
+            {t('input')}
+          </h3>
+          <pre className="robots-json data">{pretty(run.input)}</pre>
+        </section>
       )}
     </div>
   );

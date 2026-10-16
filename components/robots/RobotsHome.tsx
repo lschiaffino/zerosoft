@@ -6,7 +6,11 @@ import { useSearchParams } from 'next/navigation';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { RobotListItem, RobotUsage } from '@/lib/robots';
 import { ROBOT_TEMPLATES } from '@/lib/robots-schema';
-import { errorText, RunnerNote, UsageMeter } from './robots-ui';
+import { presetUsesTime, schedulePreset, scheduleTime } from '@/lib/robots-editor';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import DataTable from '@/components/ui/DataTable';
+import { errorText, RunnerNote, StatusBadge, UsageMeter } from './robots-ui';
 
 interface Props {
   robots: RobotListItem[];
@@ -34,8 +38,8 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
       body: JSON.stringify(body),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { id?: string; error?: string } | null;
-    setBusy(null);
     if (!res?.ok || !data?.id) {
+      setBusy(null);
       setError(errorText(t, data?.error));
       return;
     }
@@ -54,130 +58,150 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
   function scheduleLabel(r: RobotListItem): string {
     if (!r.schedule) return t('list.noSchedule');
     const s = r.schedule;
-    const base =
-      s.mode === 'daily'
-        ? `${t('settings.scheduleDaily')} ${s.time} ${s.timezone}`
+    const preset = schedulePreset(s);
+    const tz = s.timezone.replace(/_/g, ' ');
+    const base = presetUsesTime(preset)
+      ? `${t(`settings.presets.${preset}`)}, ${scheduleTime(s)} ${tz}`
+      : preset === 'hourly'
+        ? t('settings.presets.hourly')
         : s.mode === 'cron'
-          ? `${t('settings.scheduleCron')} ${s.cron ?? ''} ${s.timezone}`
+          ? `${t('settings.scheduleCron')} ${s.cron ?? ''} ${tz}`
           : `${t('settings.everyN')} ${s.every} ${t(`settings.units.${s.unit === 'minutes' ? 'minutes' : 'hours'}`).toLowerCase()}`;
-    return r.enabled ? base : `${base} · off`;
+    return r.enabled ? base : `${base} · ${t('list.paused')}`;
   }
 
+  const createButton = canEdit ? (
+    <button
+      type="button"
+      className="btn btn-primary"
+      disabled={busy !== null}
+      aria-busy={busy === 'new' || undefined}
+      onClick={() => create({ name: t('editor.untitled') }, 'new')}
+    >
+      {busy === 'new' ? t('list.creating') : t('list.new')}
+    </button>
+  ) : null;
+
   return (
-    <div className="app-page robots-home">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{t('title')}</h1>
-          <p className="muted robots-sub">{t('subtitle')}</p>
-        </div>
-        <div className="robots-head-actions">
-          <Link href="/app/robots/recorder" className="btn btn-ghost">
-            {t('list.record')}
-          </Link>
-          {canEdit && (
-            <button
-              type="button"
-              className="btn btn-solid"
-              disabled={busy !== null}
-              onClick={() => create({ name: t('editor.untitled') }, 'new')}
-            >
-              {t('list.new')}
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="app-page ui-page robots-home">
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={
+          <>
+            <Link href="/app/robots/recorder" className="btn btn-ghost">
+              {t('list.record')}
+            </Link>
+            {createButton}
+          </>
+        }
+      />
 
-      <div className="robots-strip">
-        <UsageMeter usage={usage} />
-        <RunnerNote backend={usage.backend} />
-      </div>
+      {usage.backend === 'none' ? (
+        <RunnerNote backend="none" />
+      ) : (
+        <div className="robots-strip">
+          <UsageMeter usage={usage} />
+          <RunnerNote backend={usage.backend} />
+        </div>
+      )}
 
-      {!canEdit && <p className="muted robots-note">{t('list.adminOnly')}</p>}
+      {!canEdit && <p className="robots-muted">{t('list.adminOnly')}</p>}
       {error && (
-        <p className="robots-error" role="alert">
+        <p className="robots-alert" role="alert">
           {error}
         </p>
       )}
 
-      <section className="robots-section" aria-labelledby="robots-list-title">
-        <h2 id="robots-list-title" className="robots-section-title">
+      <section className="robots-block" aria-labelledby="robots-list-title">
+        <h2 id="robots-list-title" className="ui-section-title">
           {t('list.title')}
         </h2>
-        {robots.length === 0 ? (
-          <div className="robots-empty">
-            <p>{t('list.empty')}</p>
-            <p className="muted">{t('list.emptyHint')}</p>
-          </div>
-        ) : (
-          <div className="robots-table" role="table">
-            <div className="robots-row robots-row-head" role="row">
-              <span role="columnheader">{t('list.name')}</span>
-              <span role="columnheader">{t('list.lastRun')}</span>
-              <span role="columnheader" className="robots-num">
-                {t('list.runs7d')}
-              </span>
-              <span role="columnheader">{t('list.schedule')}</span>
-            </div>
-            {robots.map((r) => (
-              <div className="robots-row" role="row" key={r.id}>
-                <span role="cell" className="robots-row-name">
-                  <Link href={`/app/robots/${r.id}`}>{r.name}</Link>
-                  {r.description && <span className="muted">{r.description}</span>}
+        <DataTable
+          caption={t('list.title')}
+          rows={robots}
+          rowKey={(r) => r.id}
+          empty={
+            <EmptyState
+              title={t('list.emptyTitle')}
+              body={t('list.emptyHint')}
+              action={createButton}
+              secondary={canEdit ? <a href="#robots-templates-title">{t('list.emptyAlt')}</a> : undefined}
+            />
+          }
+          columns={[
+            {
+              key: 'name',
+              header: t('list.name'),
+              cell: (r) => (
+                <span className="robots-cell-name">
+                  <Link href={`/app/robots/${r.id}`} className="cell-link">
+                    {r.name}
+                  </Link>
+                  {r.description && <span className="robots-cell-desc">{r.description}</span>}
                 </span>
-                <span role="cell" className="robots-row-last">
-                  {r.lastRun ? (
-                    <>
-                      <span className={`robots-dot is-${r.lastRun.status}`} aria-hidden="true" />
-                      {t(`runs.status.${r.lastRun.status}`)}
-                      <span className="muted" suppressHydrationWarning>
-                        {' · '}
-                        {format.relativeTime(new Date(r.lastRun.createdAt), now)}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="muted">{t('list.never')}</span>
-                  )}
-                </span>
-                <span role="cell" className="robots-num">
-                  {r.runs7d}
-                </span>
-                <span role="cell" className="robots-row-sched muted">
-                  {scheduleLabel(r)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+              ),
+            },
+            {
+              key: 'last',
+              header: t('list.lastRun'),
+              width: '220px',
+              cell: (r) =>
+                r.lastRun ? (
+                  <span className="robots-cell-last">
+                    <StatusBadge status={r.lastRun.status} />
+                    <span className="robots-muted" suppressHydrationWarning>
+                      {format.relativeTime(new Date(r.lastRun.createdAt), now)}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="robots-muted">{t('list.never')}</span>
+                ),
+            },
+            { key: 'runs', header: t('list.runs7d'), numeric: true, width: '120px', cell: (r) => r.runs7d },
+            {
+              key: 'schedule',
+              header: t('list.schedule'),
+              width: '260px',
+              cell: (r) => <span className={`robots-cell-sched${r.schedule && r.enabled ? '' : ' robots-muted'}`}>{scheduleLabel(r)}</span>,
+            },
+          ]}
+        />
       </section>
 
-      <section className="robots-section" aria-labelledby="robots-templates-title">
-        <h2 id="robots-templates-title" className="robots-section-title">
-          {t('templates.title')}
-        </h2>
-        <p className="muted robots-section-sub">{t('templates.subtitle')}</p>
-        <div className="robots-templates">
+      <section className="robots-block" aria-labelledby="robots-templates-title">
+        <div className="robots-block-head is-stacked">
+          <h2 id="robots-templates-title" className="ui-section-title">
+            {t('templates.title')}
+          </h2>
+          <p className="robots-muted">{t('templates.subtitle')}</p>
+        </div>
+        <ul className="robots-templates">
           {ROBOT_TEMPLATES.map((tpl) => (
-            <article className="robots-template" key={tpl.key}>
-              <ol className="robots-template-steps" aria-hidden="true">
+            <li className="robots-template" key={tpl.key}>
+              <div className="robots-template-text">
+                <h3 className="robots-template-name">{t(`templates.items.${tpl.key}.name`)}</h3>
+                <p className="robots-muted">{t(`templates.items.${tpl.key}.desc`)}</p>
+              </div>
+              <ol className="robots-template-steps" aria-label={t('templates.stepsLabel', { count: tpl.steps.length })}>
                 {tpl.steps.map((s, i) => (
                   <li key={i}>{t(`steps.types.${s.type}`)}</li>
                 ))}
               </ol>
-              <h3>{t(`templates.items.${tpl.key}.name`)}</h3>
-              <p className="muted">{t(`templates.items.${tpl.key}.desc`)}</p>
               {canEdit && (
                 <button
                   type="button"
-                  className="btn btn-small"
+                  className="btn btn-secondary btn-sm"
                   disabled={busy !== null}
+                  aria-busy={busy === tpl.key || undefined}
                   onClick={() => create({ name: t(`templates.items.${tpl.key}.name`), template: tpl.key }, tpl.key)}
                 >
-                  {busy === tpl.key ? t('editor.saving') : t('templates.use')}
+                  {busy === tpl.key ? t('list.creating') : t('templates.use')}
                 </button>
               )}
-            </article>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
     </div>
   );

@@ -1,12 +1,14 @@
 {
   "title": "Robots",
   "subtitle": "Robots de navegador que visitan páginas, hacen clic, completan formularios y extraen datos por vos. Correlos a mano, con un horario o desde Flow.",
-  "sidebar": { "robots": "Robots" },
+  "sidebar": {
+    "robots": "Robots"
+  },
   "list": {
-    "new": "Nuevo robot",
+    "new": "Crear robot",
     "title": "Tus robots",
     "empty": "Todavía no hay robots.",
-    "emptyHint": "Empezá desde una plantilla de abajo o creá un robot vacío.",
+    "emptyHint": "Un robot abre un navegador, sigue tus pasos y te devuelve los datos. Creá uno vacío o empezá desde una plantilla.",
     "name": "Nombre",
     "lastRun": "Última corrida",
     "runs7d": "Corridas (7d)",
@@ -14,7 +16,11 @@
     "never": "Nunca corrió",
     "noSchedule": "Manual",
     "adminOnly": "Solo los admins y owners del workspace pueden crear, editar y correr robots.",
-    "record": "Grabar pasos"
+    "record": "Grabar pasos",
+    "creating": "Creando robot…",
+    "emptyTitle": "Todavía no hay robots",
+    "emptyAlt": "o usá una plantilla",
+    "paused": "pausado"
   },
   "usage": {
     "title": "Este mes",
@@ -28,44 +34,63 @@
     "noneHint": "Configurá ROBOTS_RUNNER=local e instalá Chromium (npx playwright-core install --with-deps chromium) para correr robots en esta máquina, o desplegá en Vercel para usar Vercel Sandbox. Igual podés armar y editar robots.",
     "sandbox": "Corre en una microVM aislada de Vercel Sandbox.",
     "local": "Corre en un Chromium local de este servidor.",
-    "localHint": "Self-host: es el runner por defecto si playwright-core está instalado. Instalá Chromium con npx playwright-core install --with-deps chromium."
+    "localHint": "Self-host: es el runner por defecto si playwright-core está instalado. Instalá Chromium con npx playwright-core install --with-deps chromium.",
+    "title": "Dónde corre"
   },
   "templates": {
     "title": "Plantillas",
     "subtitle": "Robots listos para adaptar.",
     "use": "Usar plantilla",
     "items": {
-      "scrapeTable": { "name": "Extraer una tabla a JSON", "desc": "Abre una página y convierte su primera tabla en filas que podés usar en Flow." },
-      "priceCheck": { "name": "Revisar un precio todos los días", "desc": "Lee el precio de un producto a diario. Combinalo con un Flow en “Robots: corrida terminada” para recibir avisos." },
-      "fillForm": { "name": "Completar un formulario web", "desc": "Completa campos con las entradas, envía y captura el resultado." },
-      "screenshot": { "name": "Sacar una captura de una página", "desc": "Abre una URL, lee el título y guarda una captura." }
-    }
+      "scrapeTable": {
+        "name": "Extraer una tabla a JSON",
+        "desc": "Abre una página y convierte su primera tabla en filas que podés usar en Flow."
+      },
+      "priceCheck": {
+        "name": "Revisar un precio todos los días",
+        "desc": "Lee el precio de un producto a diario. Combinalo con un Flow en “Robots: corrida terminada” para recibir avisos."
+      },
+      "fillForm": {
+        "name": "Completar un formulario web",
+        "desc": "Completa campos con las entradas, envía y captura el resultado."
+      },
+      "screenshot": {
+        "name": "Sacar una captura de una página",
+        "desc": "Abre una URL, lee el título y guarda una captura."
+      }
+    },
+    "stepsLabel": "{count, plural, one {# paso} other {# pasos}}"
   },
   "editor": {
     "untitled": "Robot sin título",
     "back": "Robots",
     "namePlaceholder": "Nombre del robot",
-    "descriptionPlaceholder": "¿Qué hace este robot?",
-    "save": "Guardar",
+    "descriptionPlaceholder": "Agregá qué hace este robot",
+    "save": "Guardar cambios",
     "saving": "Guardando…",
     "saved": "Guardado",
     "unsaved": "Cambios sin guardar",
-    "run": "Correr",
+    "run": "Correr robot",
     "running": "Corriendo…",
-    "delete": "Borrar",
+    "delete": "Borrar robot",
     "confirmDelete": "¿Borrar este robot y su historial de corridas?",
     "readOnly": "Solo lectura: solo admins y owners pueden editar o correr robots.",
     "tabs": {
       "steps": "Pasos",
       "inputs": "Entradas",
       "runs": "Corridas",
-      "settings": "Ajustes"
+      "schedule": "Programación",
+      "advanced": "Avanzado"
     },
     "record": "Grabar pasos",
-    "paste": "Pegar pasos grabados"
+    "paste": "Pegar pasos",
+    "sections": "Secciones del robot",
+    "descriptionLabel": "Descripción",
+    "deleteTitle": "Borrar robot",
+    "deleteDesc": "Se borran el robot y todo su historial de corridas. No se puede deshacer."
   },
   "steps": {
-    "empty": "Todavía no hay pasos. Agregá el primero: normalmente “Ir a URL”.",
+    "empty": "Elegí el tipo abajo y agregá el primero, normalmente Ir a URL.",
     "add": "Agregar paso",
     "addInLoop": "Agregar paso al loop",
     "moveUp": "Subir",
@@ -135,32 +160,48 @@
       "Listas: un Extraer con “Todos los resultados” sobre “.item a” devuelve el texto de cada link; agregá el atributo href para obtener las URLs."
     ],
     "fileHint": "El archivo se guarda y queda la URL en {example}.",
-    "credentialsTip": "Logins: usá {example} con una credencial guardada en Flow. El valor nunca aparece en logs ni capturas.",
-    "credentialsLink": "Credenciales"
+    "credentialsTip": "Usá {example} con una credencial guardada. El valor nunca aparece en logs ni capturas.",
+    "credentialsLink": "Abrir Credenciales",
+    "addType": "Tipo de paso",
+    "options": "Opciones del paso {num}",
+    "retriesAdd": "Agregar reintentos",
+    "retriesRemove": "Quitar reintentos",
+    "retriesBadge": "{count, plural, one {# reintento} other {# reintentos}}",
+    "invalid": "revisá este paso",
+    "emptyTitle": "Todavía no hay pasos",
+    "emptyAlt": "o",
+    "emptyAltLink": "grabá los pasos en el sitio",
+    "credentialsTitle": "Logins"
   },
   "inputs": {
     "title": "Entradas",
     "desc": "Valores con nombre que pasás en cada corrida (desde el diálogo Correr, Flow o los valores por defecto del horario). Usalos como {example}.",
-    "empty": "Sin entradas. Agregá una para que el robot sea reutilizable.",
+    "empty": "Las entradas hacen al robot reutilizable: una URL, un email o una lista que cambian en cada corrida.",
     "add": "Agregar entrada",
-    "name": "Nombre",
+    "name": "Nombre en los pasos",
     "label": "Etiqueta",
     "kind": "Tipo",
-    "kinds": { "text": "Texto", "list": "Lista (una por línea)" },
+    "kinds": {
+      "text": "Texto",
+      "list": "Lista (una por línea)"
+    },
     "default": "Por defecto",
     "required": "Obligatoria",
-    "remove": "Quitar",
-    "passwordWarning": "No guardes contraseñas ni secretos acá: las entradas se guardan en texto plano y las ve todo el workspace. Los robots son para páginas públicas."
+    "remove": "Quitar entrada",
+    "passwordWarning": "No guardes contraseñas ni secretos acá: las entradas se guardan en texto plano y las ve todo el workspace. Los robots son para páginas públicas.",
+    "emptyTitle": "Sin entradas",
+    "labelPlaceholder": "Ej.: Email del cliente",
+    "nameHint": "El nombre en los pasos se completa solo a partir de la etiqueta. Podés cambiarlo."
   },
   "run": {
     "title": "Correr {name}",
     "desc": "El robot abre un navegador nuevo, ejecuta cada paso y lo cierra. Puede tardar hasta {seconds} segundos.",
     "start": "Correr ahora",
     "cancel": "Cancelar",
-    "noInputs": "Este robot no tiene entradas."
+    "noInputs": "Este robot no tiene entradas.",
+    "optional": "(opcional)"
   },
   "runs": {
-    "empty": "Todavía no hay corridas.",
     "select": "Elegí una corrida para ver sus pasos, datos y capturas.",
     "trigger": {
       "manual": "Manual",
@@ -188,7 +229,17 @@
       "success": "OK",
       "failed": "Falló",
       "skipped": "Salteado"
-    }
+    },
+    "emptyTitle": "Todavía no hay corridas",
+    "emptyBody": "Corré el robot para ver cada paso, los datos que extrajo y las capturas.",
+    "history": "Historial de corridas",
+    "runningNow": "Corriendo ahora",
+    "runningHint": "El robot está corriendo. Los pasos y los datos aparecen acá cuando termina.",
+    "logStep": "Paso",
+    "logDetail": "Detalle",
+    "logTime": "Tiempo",
+    "view": "Vista de los datos",
+    "copied": "Copiado"
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -197,11 +248,11 @@
     "scheduleNone": "Sin horario",
     "scheduleDaily": "Todos los días a las",
     "scheduleInterval": "Cada N horas o minutos",
-    "time": "Hora (HH:MM)",
+    "time": "Hora",
     "timezone": "Zona horaria",
     "every": "Horas",
     "nextRun": "Próxima corrida: {date}",
-    "timeout": "Timeout (segundos)",
+    "timeout": "Segundos",
     "timeoutHint": "Máximo {max} s. Las corridas descuentan de tus minutos del mes.",
     "flowTitle": "Usar en Flow",
     "flowHint": "Agregá el nodo “Robots: ejecutar robot” y pegá este ID. Los flows también pueden reaccionar a “Robots: corrida terminada” y “Robots: corrida fallida”.",
@@ -210,7 +261,10 @@
     "responsible": "Usá los robots con responsabilidad: respetá los términos de cada sitio y su robots.txt y no sobrecargues servidores. Guardá los logins en credenciales, nunca en los pasos. Las redes privadas y las URLs file:// están bloqueadas; las descargas solo pasan por el paso Descargar archivo (hasta 10 MB).",
     "scheduleCron": "Cron",
     "unit": "Unidad",
-    "units": { "hours": "Horas", "minutes": "Minutos" },
+    "units": {
+      "hours": "Horas",
+      "minutes": "Minutos"
+    },
     "everyN": "Cada",
     "minMinutes": "Mínimo 15 minutos.",
     "cron": "Expresión cron",
@@ -223,7 +277,34 @@
     "sessionSaved": "Hay una sesión guardada.",
     "sessionEmpty": "Sin sesión guardada.",
     "clearSession": "Borrar sesión",
-    "sessionCleared": "Sesión borrada."
+    "sessionCleared": "Sesión borrada.",
+    "scheduleTitle": "Cuándo corre",
+    "scheduleDesc": "Elegí un horario. Para algo más fino, usá Personalizado.",
+    "presetLabel": "Frecuencia",
+    "presets": {
+      "none": "Manual",
+      "noneHint": "Corre cuando lo corrés vos o desde Flow.",
+      "hourly": "Cada hora",
+      "hourlyHint": "Una vez por hora, todo el día.",
+      "daily": "Todos los días",
+      "dailyHint": "Una vez por día, a la hora que elijas.",
+      "weekdays": "Días hábiles",
+      "weekdaysHint": "De lunes a viernes, a la hora que elijas.",
+      "weekly": "Todos los lunes",
+      "weeklyHint": "Una vez por semana, a la hora que elijas.",
+      "custom": "Personalizado",
+      "customHint": "Cada N minutos u horas, o una expresión cron."
+    },
+    "customMode": "Tipo de horario",
+    "automaticTitle": "Corridas automáticas",
+    "scheduleOff": "Las corridas automáticas están apagadas: el horario no corre hasta que las prendas.",
+    "sessionTitle": "Sesión",
+    "timeoutTitle": "Tiempo máximo",
+    "credentialsTitle": "Credenciales",
+    "credentialsDesc": "Los logins se guardan cifrados en Credenciales, que Robots comparte con Flow. Los pasos los usan sin que el valor aparezca en logs ni capturas.",
+    "credentialsOpen": "Abrir Credenciales",
+    "globalSettings": "Ir a Ajustes globales",
+    "usageTitle": "Uso y runner"
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",
@@ -244,7 +325,11 @@
     "missing_input": "Completá la entrada obligatoria “{name}”.",
     "no_steps": "Agregá al menos un paso antes de correr.",
     "disabled": "Este robot está apagado para corridas automáticas.",
-    "missing_credential": "Falta la credencial “{name}”. Creala en Flow > Credenciales."
+    "missing_credential": "Falta la credencial “{name}”. Creala en Flow > Credenciales.",
+    "pageTitle": "No se pudo cargar Robots",
+    "pageBody": "Probá de nuevo. Si sigue fallando, revisá que el servidor esté en línea.",
+    "retry": "Reintentar",
+    "backToList": "Volver a Robots"
   },
   "paste": {
     "title": "Pegar pasos grabados",
@@ -259,7 +344,8 @@
       "invalid_json": "No es JSON válido.",
       "no_steps": "No hay pasos en el texto pegado.",
       "invalid_steps": "El paso {index} es inválido."
-    }
+    },
+    "modeLabel": "Qué hacer con los pasos"
   },
   "recorder": {
     "title": "Grabador de pasos",
@@ -286,6 +372,8 @@
       "clear": "Limpiar",
       "close": "Cerrar",
       "hint": "Hacé la tarea normalmente. Al terminar, copiá los pasos."
-    }
-  }
+    },
+    "codeTitle": "Sin barra de favoritos"
+  },
+  "loading": "Cargando robots…"
 }
