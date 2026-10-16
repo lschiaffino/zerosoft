@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type { ChatVisitorListRow } from '@/lib/chat-data';
 import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
+import EmptyState from '@/components/ui/EmptyState';
 
 interface PeopleClientProps {
   widgetIds: string[];
@@ -12,116 +13,152 @@ interface PeopleClientProps {
 
 const PAGE_SIZE = 25;
 
-function initials(name: string | null, email: string | null): string {
-  const base = name || email || '?';
-  const parts = base.trim().split(/\s+/);
-  if (parts.length > 1) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return base.slice(0, 2).toUpperCase();
-}
-
+/** Personas que escribieron por algún widget: tabla densa con búsqueda. */
 export default function PeopleClient({ widgetIds }: PeopleClientProps) {
   const t = useTranslations('chat');
   const locale = useLocale();
   const [q, setQ] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
   const [rows, setRows] = useState<ChatVisitorListRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  const requestSeq = useRef(0);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQ(q.trim()), 250);
+    return () => clearTimeout(id);
+  }, [q]);
 
   const filters = useMemo(() => {
     const base: Record<string, string> = {};
     if (widgetIds.length > 0) base.widgetIds = widgetIds.join(',');
-    if (q.trim()) base.q = q.trim();
+    if (debouncedQ) base.q = debouncedQ;
     return base;
-  }, [q, widgetIds]);
+  }, [debouncedQ, widgetIds]);
 
   async function fetchRows(offset: number, append: boolean) {
+    const seq = ++requestSeq.current;
     if (widgetIds.length === 0) {
       setRows([]);
       setTotal(0);
+      setLoaded(true);
       return;
     }
     setLoading(true);
-    setError(null);
+    setError(false);
     try {
       const params = new URLSearchParams({ ...filters, limit: String(PAGE_SIZE), offset: String(offset) });
       const res = await fetch(`/api/chat/visitors?${params.toString()}`);
       if (!res.ok) throw new Error('fetch_failed');
       const data = (await res.json()) as { rows: ChatVisitorListRow[]; total: number };
+      if (seq !== requestSeq.current) return;
       setRows((prev) => (append ? [...prev, ...data.rows] : data.rows));
       setTotal(data.total);
     } catch {
-      setError(t('errors.generic'));
+      if (seq === requestSeq.current) setError(true);
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) {
+        setLoading(false);
+        setLoaded(true);
+      }
     }
   }
 
   useEffect(() => {
-    fetchRows(0, false);
+    void fetchRows(0, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   return (
-    <div className="chat-people">
-      <div className="chat-people-head">
+    <div className="ui-page">
+      <div className="chat-toolbar">
         <input
-          type="text"
-          className="input chat-people-search"
+          type="search"
+          className="input chat-toolbar-search"
           placeholder={t('people.search')}
+          aria-label={t('people.search')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+        {loaded && !error && (
+          <span className="chat-toolbar-count">{t('people.count', { count: total })}</span>
+        )}
       </div>
 
-      {error && <p className="chat-inbox-error">{error}</p>}
-
-      <section className="panel chat-people-panel">
-        {rows.length === 0 && !loading ? (
-          <div className="chat-list-empty">
-            <p className="empty-zeros mono" aria-hidden>0 0 0</p>
-            <p className="muted">{q.trim() ? t('people.empty') : t('common.empty')}</p>
-          </div>
+      {error ? (
+        <div className="chat-load-error" role="alert">
+          <p>{t('errors.loadFailed')}</p>
+          <button type="button" className="btn btn-sm" onClick={() => fetchRows(0, false)}>
+            {t('common.retry')}
+          </button>
+        </div>
+      ) : !loaded ? (
+        <div className="ui-loading-stack" aria-label={t('common.loading')}>
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i} className="ui-skeleton ui-skeleton-row" />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        debouncedQ ? (
+          <EmptyState quiet title={t('people.empty')} product="chat" />
         ) : (
-          <ul className="chat-people-list">
-            {rows.map((v) => (
-              <li key={v.id}>
-                <Link href={`/app/chat/people/${v.id}`} className="chat-people-row">
-                  <span className="chat-people-avatar">{initials(v.name, v.email)}</span>
-                  <div className="chat-people-main">
-                    <div className="chat-people-top">
-                      <span className="chat-people-name">
-                        {v.name || v.email || v.external_id}
-                      </span>
-                      {v.last_conversation_at && (
-                        <span className="chat-people-time mono" title={formatDateTime(v.last_conversation_at, locale)}>
-                          {formatTimeAgo(v.last_conversation_at, locale)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="chat-people-meta">
-                      {v.email && <span className="mono muted">{v.email}</span>}
-                      <span className="mono muted">
-                        {t('people.conversations', { count: v.conversation_count })}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          <EmptyState
+            title={t('people.emptyTitle')}
+            body={t('people.emptyBody')}
+            action={{ label: t('people.emptyAction'), href: '/app/chat/settings' }}
+            product="chat"
+          />
+        )
+      ) : (
+        <div className="table-wrap" aria-busy={loading}>
+          <table className="table">
+            <caption className="sr-only">{t('people.title')}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{t('visitorPanel.name')}</th>
+                <th scope="col">{t('visitorPanel.email')}</th>
+                <th scope="col" className="num">
+                  {t('overview.conversations')}
+                </th>
+                <th scope="col">{t('people.lastSeen')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((v) => (
+                <tr key={v.id}>
+                  <td>
+                    <Link href={`/app/chat/people/${v.id}`} className="cell-link">
+                      {v.name || v.email || t('conversation.anonymous')}
+                    </Link>
+                  </td>
+                  <td className="data">{v.email ?? <span className="chat-quiet">{t('people.noEmail')}</span>}</td>
+                  <td className="num data">{v.conversation_count}</td>
+                  <td>
+                    {v.last_conversation_at ? (
+                      <time suppressHydrationWarning dateTime={v.last_conversation_at} title={formatDateTime(v.last_conversation_at, locale)}>
+                        {formatTimeAgo(v.last_conversation_at, locale)}
+                      </time>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {rows.length < total && (
-        <div className="chat-inbox-more">
+      {loaded && !error && rows.length < total && (
+        <div>
           <button
             type="button"
-            className="btn btn-small"
+            className="btn btn-secondary btn-sm"
             onClick={() => fetchRows(rows.length, true)}
             disabled={loading}
+            aria-busy={loading || undefined}
           >
-            {loading ? t('common.loading') : t('inbox.loadMore')}
+            {t('inbox.loadMore')}
           </button>
         </div>
       )}

@@ -1092,10 +1092,6 @@ td.cell-actions > * + * { margin-left: 4px; }
 .stage-close { display: flex; gap: 8px; margin-top: 12px; }
 .deal-stage { display: flex; flex-direction: column; gap: 4px; }
 
-/* Mobile: las pestañas del inbox de Chat scrollean dentro de su caja. */
-.chat-inbox-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
-.chat-inbox-tabs::-webkit-scrollbar { display: none; }
-.chat-inbox-tab { flex-shrink: 0; }
 /* Tablas de reportes: scroll propio en pantallas chicas. */
 .panel:has(> .owner-table), .panel:has(> .table) { overflow-x: auto; }
 /* Hijos de grids/flex: que puedan achicarse (si no, una tabla ancha estira la página). */

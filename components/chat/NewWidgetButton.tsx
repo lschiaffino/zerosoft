@@ -4,25 +4,35 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
-
-const SWATCHES = ['#e23d7f', '#2f6bff', '#0e9f6e', '#f2611d', '#7b4dff', '#0d0d0d'];
+import ColorField, { WIDGET_SWATCHES } from './ColorField';
 
 interface NewWidgetButtonProps {
   /** Muestra el atajo "C" en el botón y lo registra en la página. */
   shortcut?: boolean;
+  /** Abre el modal al montar (la ruta /app/chat/widgets/new). */
+  defaultOpen?: boolean;
+  /** A dónde volver si se cierra sin crear (cuando el modal es la página). */
+  closeHref?: string;
+  /** Botón secundario en vez de primario (cuando la página ya tiene su acción principal). */
+  secondary?: boolean;
 }
 
 /**
- * Crear un widget sin salir del overview: nombre + color en un modal, y al
- * crear lleva directo a la configuración (donde está el código para pegar).
- * Reemplaza el salto a /app/chat/widgets/new (que sigue existiendo).
+ * Crear un widget es nombre y color en un modal; al crear lleva al editor,
+ * donde está el código para pegar y el resto (bienvenida, formulario, bot,
+ * horario) en pestañas. /app/chat/widgets/new abre este mismo modal.
  */
-export default function NewWidgetButton({ shortcut = true }: NewWidgetButtonProps) {
+export default function NewWidgetButton({
+  shortcut = true,
+  defaultOpen = false,
+  closeHref,
+  secondary = false,
+}: NewWidgetButtonProps) {
   const t = useTranslations('chat');
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [name, setName] = useState('');
-  const [color, setColor] = useState(SWATCHES[0]);
+  const [color, setColor] = useState(WIDGET_SWATCHES[0]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +41,7 @@ export default function NewWidgetButton({ shortcut = true }: NewWidgetButtonProp
   const close = () => {
     setOpen(false);
     setError(null);
+    if (closeHref) router.replace(closeHref);
   };
 
   async function create() {
@@ -60,16 +71,21 @@ export default function NewWidgetButton({ shortcut = true }: NewWidgetButtonProp
 
   return (
     <>
-      <button type="button" className="btn btn-solid btn-small" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className={`btn ${secondary ? 'btn-secondary' : 'btn-primary'}`}
+        onClick={() => setOpen(true)}
+        aria-keyshortcuts={shortcut ? 'c' : undefined}
+      >
         {t('overview.newWidget')}
-        {shortcut && <span className="kbd-hint">C</span>}
+        {shortcut && <kbd className="kbd">C</kbd>}
       </button>
       <QuickModal
         open={open}
         onClose={close}
         crumb={`Chat › ${t('overview.newWidget')}`}
         onSubmit={create}
-        submitLabel={t('quick.create')}
+        submitLabel={t('widgetForm.create')}
         cancelLabel={t('common.cancel')}
         submitDisabled={!name.trim()}
         busy={busy}
@@ -77,39 +93,29 @@ export default function NewWidgetButton({ shortcut = true }: NewWidgetButtonProp
         hint={t('quick.hint')}
         width={480}
       >
-        <input
-          className="qm-title"
-          value={name}
-          maxLength={120}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t('quick.widgetPlaceholder')}
-          aria-label={t('widgetForm.name')}
-        />
-        <div className="qm-field">
-          <span>{t('widgetForm.color')}</span>
-          <div className="chat-swatches" role="radiogroup" aria-label={t('widgetForm.color')}>
-            {SWATCHES.map((c) => (
-              <button
-                key={c}
-                type="button"
-                role="radio"
-                aria-checked={color === c}
-                aria-label={c}
-                className={`chat-swatch${color === c ? ' active' : ''}`}
-                style={{ backgroundColor: c }}
-                onClick={() => setColor(c)}
-              />
-            ))}
+        <div className="ui-fields">
+          <div className="ui-field">
+            <label className="label" htmlFor="new-widget-name">
+              {t('widgetForm.name')}
+            </label>
             <input
-              type="color"
-              className="chat-swatch-custom"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              aria-label={t('widgetForm.color')}
+              id="new-widget-name"
+              className="input"
+              data-autofocus
+              value={name}
+              maxLength={120}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('quick.widgetPlaceholder')}
             />
           </div>
+          <div className="ui-field">
+            <span className="label" id="new-widget-color">
+              {t('widgetForm.color')}
+            </span>
+            <ColorField labelId="new-widget-color" value={color} onChange={setColor} />
+          </div>
+          <p className="ui-help">{t('quick.widgetNote')}</p>
         </div>
-        <p className="muted chat-quick-note">{t('quick.widgetNote')}</p>
       </QuickModal>
     </>
   );

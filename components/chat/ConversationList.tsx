@@ -4,118 +4,85 @@ import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type { ChatConversationListRow } from '@/lib/chat-data';
 import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
+import EmptyState from '@/components/ui/EmptyState';
+import { initials } from './icons';
 
 interface ConversationListProps {
   conversations: ChatConversationListRow[];
   currentId?: string;
   emptyTitle?: string;
-}
-
-function initials(name: string | null, email: string | null): string {
-  const base = (name || email || '?').replace(/[^\p{L}\p{N}\s@.]/gu, ' ').trim() || '?';
-  const parts = base.split(/\s+/);
-  if (parts.length > 1) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return base.slice(0, 2).toUpperCase();
+  emptyBody?: string;
 }
 
 function preview(c: ChatConversationListRow): string {
-  if (c.subject) return c.subject;
-  if (c.last_message_body) return c.last_message_body;
-  return c.id.slice(0, 8);
+  return c.last_message_body || c.subject || '';
 }
 
-export default function ConversationList({
-  conversations,
-  currentId,
-  emptyTitle,
-}: ConversationListProps) {
+/**
+ * Filas de conversación densas: placa con iniciales, nombre y hora, la última
+ * línea del hilo y una sola fila de metadatos. Solo lo que pide atención
+ * (prioridad alta, SLA, estado distinto de abierta) lleva color.
+ */
+export default function ConversationList({ conversations, currentId, emptyTitle, emptyBody }: ConversationListProps) {
   const t = useTranslations('chat');
   const locale = useLocale();
 
   if (conversations.length === 0) {
-    return (
-      <div className="chat-list-empty">
-        <p className="empty-zeros mono" aria-hidden>0 0 0</p>
-        <p className="muted">{emptyTitle ?? t('inbox.empty')}</p>
-      </div>
-    );
+    return <EmptyState quiet title={emptyTitle ?? t('inbox.empty')} body={emptyBody} product="chat" />;
   }
 
   return (
-    <ul className="chat-conversation-list">
+    <ul className="chat-list" aria-label={t('inbox.listLabel')}>
       {conversations.map((c) => {
         const active = c.id === currentId;
-        const unread = c.status === 'open';
         const assignee = c.assigned_name || c.assigned_email;
+        const name = c.visitor_name || c.visitor_email || t('conversation.anonymous');
+        const text = preview(c);
+        const tags = c.tags ? c.tags.split(',').filter(Boolean) : [];
         return (
           <li key={c.id}>
             <Link
               href={`/app/chat/inbox/${c.id}`}
-              className={`chat-conversation-row${active ? ' active' : ''}${unread ? ' unread' : ''}`}
+              className="chat-row"
               aria-current={active ? 'page' : undefined}
+              data-status={c.status}
             >
-              <span className="chat-row-avatar">{initials(c.visitor_name, c.visitor_email)}</span>
-              <div className="chat-row-main">
-                <div className="chat-row-top">
-                  <span className="chat-row-name">
-                    {c.visitor_name || c.visitor_email || c.visitor_external_id}
-                  </span>
-                  <span className="chat-row-time mono">{formatTimeAgo(c.updated_at, locale)}</span>
-                </div>
-                <div className="chat-row-preview">{preview(c)}</div>
-                <div className="chat-row-meta">
-                  {c.status !== 'open' && (
-                    <span className={`chat-status chat-status-${c.status}`}>
-                      {t(`conversation.${c.status}`)}
+              <span className="chat-plate" aria-hidden="true">
+                {c.visitor_name || c.visitor_email ? initials(c.visitor_name, c.visitor_email) : '?'}
+              </span>
+              <span className="chat-row-main">
+                <span className="chat-row-top">
+                  <span className="chat-row-name">{name}</span>
+                  <time suppressHydrationWarning className="chat-row-time data" dateTime={c.updated_at} title={formatDateTime(c.updated_at, locale)}>
+                    {formatTimeAgo(c.updated_at, locale)}
+                  </time>
+                </span>
+                {c.subject && c.last_message_body && <span className="chat-row-subject">{c.subject}</span>}
+                <span className="chat-row-preview">{text || t('conversation.noMessages')}</span>
+                <span className="chat-row-meta">
+                  {c.sla_breached === 1 ? (
+                    <span className="badge badge-bad">
+                      {c.sla_breach_kind === 'resolution' ? t('sla.breachedResolution') : t('sla.breachedFirst')}
                     </span>
-                  )}
-                  {c.priority !== 'medium' && (
-                    <span className={`chat-priority chat-priority-${c.priority} mono`}>
+                  ) : !c.resolved_at && c.sla_due_in_minutes != null ? (
+                    <span className="badge badge-warn">{t('sla.dueIn', { minutes: c.sla_due_in_minutes })}</span>
+                  ) : null}
+                  {(c.priority === 'high' || c.priority === 'urgent') && (
+                    <span className={`badge ${c.priority === 'urgent' ? 'badge-ink' : 'badge-outline'}`}>
                       {t(`priorities.${c.priority}`)}
                     </span>
                   )}
-                  {c.sla_breached === 1 ? (
-                    <span className="chat-sla-badge chat-sla-breached">
-                      {c.sla_breach_kind === 'resolution'
-                        ? t('sla.breachedResolution')
-                        : t('sla.breachedFirst')}
-                    </span>
-                  ) : c.resolved_at ? null : c.sla_due_in_minutes != null ? (
-                    <span className="chat-sla-badge chat-sla-due">
-                      {t('sla.dueIn', { minutes: c.sla_due_in_minutes })}
-                    </span>
-                  ) : null}
-                  {c.status === 'snoozed' && c.snoozed_until && (
-                    <span
-                      className="chat-row-snoozed mono muted"
-                      title={formatDateTime(c.snoozed_until, locale)}
-                    >
-                      {formatTimeAgo(c.snoozed_until, locale)}
+                  {c.status !== 'open' && (
+                    <span className="chat-row-status" suppressHydrationWarning>
+                      {c.status === 'snoozed' && c.snoozed_until
+                        ? t('inbox.snoozedUntil', { when: formatTimeAgo(c.snoozed_until, locale) })
+                        : t(`conversation.${c.status}`)}
                     </span>
                   )}
-                  <span className="chat-row-assignee mono muted">
-                    {assignee ? (
-                      <>
-                        <span className="chat-assignee-avatar" aria-hidden>
-                          {initials(c.assigned_name, c.assigned_email)}
-                        </span>
-                        {assignee}
-                      </>
-                    ) : (
-                      t('conversation.unassigned')
-                    )}
-                  </span>
-                  {c.tags && (
-                    <span className="chat-row-tags mono muted">
-                      {c.tags
-                        .split(',')
-                        .map((tag) => `#${tag}`)
-                        .join(' ')}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {unread && !active && <span className="chat-unread-dot" aria-label={t('inbox.unread')} />}
+                  <span className="chat-row-assignee">{assignee ?? t('conversation.unassigned')}</span>
+                  {tags.length > 0 && <span className="chat-row-tags">{tags.map((tag) => `#${tag}`).join(' ')}</span>}
+                </span>
+              </span>
             </Link>
           </li>
         );
