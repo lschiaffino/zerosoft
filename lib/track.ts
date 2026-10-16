@@ -348,39 +348,32 @@ export async function getAnalytics(
   const end = todayUtc();
   const start = rangeStart(range, createdAt);
 
-  const total = (
-    (await db.prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ?').get(linkId)) as {
-      c: number;
-    }
-  ).c;
-  const rangeTotal = (
-    (await db
-      .prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND ts >= ?')
-      .get(linkId, start)) as { c: number }
-  ).c;
+  const count = async (sql: string, ...args: string[]) =>
+    ((await db.prepare(sql).get(...args)) as { c: number }).c;
 
-  let previousTotal: number | null = null;
-  if (range !== 'all') {
-    const prevStart = addDays(start, -RANGE_DAYS[range]);
-    previousTotal = (
-      (await db
-        .prepare('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND ts >= ? AND ts < ?')
-        .get(linkId, prevStart, start)) as { c: number }
-    ).c;
-  }
+  // Consultas independientes en paralelo: con Turso cada una es un viaje de red.
+  const [total, rangeTotal, previousTotal, byDay, referrers, countries, devices, browsers, os, variants] =
+    await Promise.all([
+      count('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ?', linkId),
+      count('SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND ts >= ?', linkId, start),
+      range === 'all'
+        ? Promise.resolve(null)
+        : count(
+            'SELECT COUNT(*) AS c FROM clicks WHERE link_id = ? AND ts >= ? AND ts < ?',
+            linkId,
+            addDays(start, -RANGE_DAYS[range]),
+            start,
+          ),
+      byDayFor(linkId, start, end),
+      breakdown(linkId, 'referrer', start, 'direct'),
+      breakdown(linkId, 'country', start, 'unknown'),
+      breakdown(linkId, 'device', start, 'unknown'),
+      breakdown(linkId, 'browser', start, 'unknown'),
+      breakdown(linkId, 'os', start, 'unknown'),
+      breakdown(linkId, 'variant', start, 'default'),
+    ]);
 
-  return {
-    total,
-    rangeTotal,
-    previousTotal,
-    byDay: await byDayFor(linkId, start, end),
-    referrers: await breakdown(linkId, 'referrer', start, 'direct'),
-    countries: await breakdown(linkId, 'country', start, 'unknown'),
-    devices: await breakdown(linkId, 'device', start, 'unknown'),
-    browsers: await breakdown(linkId, 'browser', start, 'unknown'),
-    os: await breakdown(linkId, 'os', start, 'unknown'),
-    variants: await breakdown(linkId, 'variant', start, 'default'),
-  };
+  return { total, rangeTotal, previousTotal, byDay, referrers, countries, devices, browsers, os, variants };
 }
 
 // ---------- User-level overview ----------

@@ -82,39 +82,9 @@ export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRang
   const hi = addDays(range.to, 1);
   const args = [userId, lo, hi];
 
-  const totals = (await db
-    .prepare(`SELECT c.source AS s, COUNT(*) AS n ${FROM} WHERE ${WHERE} GROUP BY c.source`)
-    .all(...args)) as Array<{ s: string; n: number }>;
-  const sum = (rows: Array<{ s: string; n: number }>) => ({
-    clicks: rows.filter((r) => r.s !== 'qr').reduce((a, r) => a + Number(r.n), 0),
-    scans: rows.filter((r) => r.s === 'qr').reduce((a, r) => a + Number(r.n), 0),
-  });
-
+  type SourceRows = Array<{ s: string; n: number }>;
   const len = dayList(range.from, range.to).length;
-  const prevRows = (await db
-    .prepare(`SELECT c.source AS s, COUNT(*) AS n ${FROM} WHERE ${WHERE} GROUP BY c.source`)
-    .all(userId, addDays(range.from, -len), lo)) as Array<{ s: string; n: number }>;
-
-  const dayRows = (await db
-    .prepare(
-      `SELECT substr(c.ts, 1, 10) AS d, SUM(c.source = 'qr') AS q, COUNT(*) AS n ${FROM} WHERE ${WHERE} GROUP BY d`,
-    )
-    .all(...args)) as Array<{ d: string; q: number; n: number }>;
-  const map = new Map(dayRows.map((r) => [r.d, r]));
-  const byDay = dayList(range.from, range.to).map((date) => {
-    const r = map.get(date);
-    const scans = Number(r?.q ?? 0);
-    return { date, clicks: Number(r?.n ?? 0) - scans, scans };
-  });
-
-  const top = (await db
-    .prepare(
-      `SELECT l.id, l.slug, l.url, l.title, d.hostname AS host,
-              COUNT(*) AS n, SUM(c.source = 'qr') AS q
-       ${FROM} LEFT JOIN link_domains d ON d.id = l.domain_id
-       WHERE ${WHERE} GROUP BY l.id ORDER BY n DESC, l.slug LIMIT 10`,
-    )
-    .all(...args)) as Array<{ id: string; slug: string; url: string; title: string | null; host: string | null; n: number; q: number }>;
+  const bySource = `SELECT c.source AS s, COUNT(*) AS n ${FROM} WHERE ${WHERE} GROUP BY c.source`;
 
   const breakdown = async (col: Col, fallback: string, limit = 8): Promise<BreakdownItem[]> => {
     const rows = (await db
@@ -127,6 +97,42 @@ export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRang
     if (rest > 0) out.push({ name: 'other', count: rest });
     return out;
   };
+
+  // Consultas independientes en paralelo: con Turso cada una es un viaje de red.
+  const [totals, prevRows, dayRows, top, referrers, countries, devices, browsers] = await Promise.all([
+    db.prepare(bySource).all(...args) as Promise<SourceRows>,
+    db.prepare(bySource).all(userId, addDays(range.from, -len), lo) as Promise<SourceRows>,
+    db
+      .prepare(
+        `SELECT substr(c.ts, 1, 10) AS d, SUM(c.source = 'qr') AS q, COUNT(*) AS n ${FROM} WHERE ${WHERE} GROUP BY d`,
+      )
+      .all(...args) as Promise<Array<{ d: string; q: number; n: number }>>,
+    db
+      .prepare(
+        `SELECT l.id, l.slug, l.url, l.title, d.hostname AS host,
+                COUNT(*) AS n, SUM(c.source = 'qr') AS q
+         ${FROM} LEFT JOIN link_domains d ON d.id = l.domain_id
+         WHERE ${WHERE} GROUP BY l.id ORDER BY n DESC, l.slug LIMIT 10`,
+      )
+      .all(...args) as Promise<
+      Array<{ id: string; slug: string; url: string; title: string | null; host: string | null; n: number; q: number }>
+    >,
+    breakdown('referrer', 'direct'),
+    breakdown('country', 'unknown'),
+    breakdown('device', 'unknown'),
+    breakdown('browser', 'unknown'),
+  ]);
+
+  const sum = (rows: SourceRows) => ({
+    clicks: rows.filter((r) => r.s !== 'qr').reduce((a, r) => a + Number(r.n), 0),
+    scans: rows.filter((r) => r.s === 'qr').reduce((a, r) => a + Number(r.n), 0),
+  });
+  const map = new Map(dayRows.map((r) => [r.d, r]));
+  const byDay = dayList(range.from, range.to).map((date) => {
+    const r = map.get(date);
+    const scans = Number(r?.q ?? 0);
+    return { date, clicks: Number(r?.n ?? 0) - scans, scans };
+  });
 
   return {
     range,
@@ -142,10 +148,10 @@ export async function getWorkspaceAnalytics(userId: string, range: WorkspaceRang
       clicks: Number(r.n) - Number(r.q ?? 0),
       scans: Number(r.q ?? 0),
     })),
-    referrers: await breakdown('referrer', 'direct'),
-    countries: await breakdown('country', 'unknown'),
-    devices: await breakdown('device', 'unknown'),
-    browsers: await breakdown('browser', 'unknown'),
+    referrers,
+    countries,
+    devices,
+    browsers,
   };
 }
 

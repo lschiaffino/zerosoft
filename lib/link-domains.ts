@@ -151,7 +151,31 @@ export async function getVerifiedDomainByHost(host: string): Promise<LinkDomainR
     .get(h)) as LinkDomainRow | undefined;
 }
 
-export type AddDomainError = 'invalid_hostname' | 'domain_taken' | 'app_host' | 'provider_error';
+export type AddDomainError = 'invalid_hostname' | 'domain_taken' | 'app_host' | 'provider_error' | 'too_many_pending';
+
+/** Tope de dominios sin verificar por usuario (cada alta también ocupa un lugar en el proyecto de Vercel). */
+export const MAX_PENDING_DOMAINS = 5;
+
+/**
+ * Borra los pendientes vencidos de este hostname y de este usuario. En Vercel
+ * también los saca del proyecto: si no, quedarían colgados ahí para siempre.
+ */
+async function purgeExpiredPending(hostname: string, userId: string): Promise<void> {
+  const expired = (await getDb()
+    .prepare(
+      `SELECT id, hostname FROM link_domains
+       WHERE (hostname = ? OR user_id = ?) AND verified = 0 AND created_at < datetime('now', ?)`,
+    )
+    .all(hostname, userId, `-${UNVERIFIED_TTL_DAYS} days`)) as Array<{ id: string; hostname: string }>;
+  for (const d of expired) {
+    if (vercelConfigured()) {
+      await vercel(`/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${encodeURIComponent(d.hostname)}${vercelQuery()}`, {
+        method: 'DELETE',
+      });
+    }
+    await getDb().prepare('DELETE FROM link_domains WHERE id = ? AND verified = 0').run(d.id);
+  }
+}
 
 export async function addDomain(
   userId: string,
@@ -161,13 +185,13 @@ export async function addDomain(
   if (!isValidHostname(hostname)) return { ok: false, code: 'invalid_hostname' };
   if (isAppHost(hostname)) return { ok: false, code: 'app_host' };
   // Un alta que nunca se verificó no bloquea el dominio para siempre.
-  await getDb()
-    .prepare(
-      `DELETE FROM link_domains WHERE hostname = ? AND verified = 0 AND created_at < datetime('now', ?)`,
-    )
-    .run(hostname, `-${UNVERIFIED_TTL_DAYS} days`);
+  await purgeExpiredPending(hostname, userId);
   const existing = await getDb().prepare('SELECT 1 AS x FROM link_domains WHERE hostname = ?').get(hostname);
   if (existing) return { ok: false, code: 'domain_taken' };
+  const pending = (await getDb()
+    .prepare('SELECT COUNT(*) AS n FROM link_domains WHERE user_id = ? AND verified = 0')
+    .get(userId)) as { n: number } | undefined;
+  if (Number(pending?.n ?? 0) >= MAX_PENDING_DOMAINS) return { ok: false, code: 'too_many_pending' };
 
   if (vercelConfigured()) {
     const res = await vercel(`/v10/projects/${process.env.VERCEL_PROJECT_ID}/domains${vercelQuery()}`, {
@@ -187,9 +211,15 @@ export async function addDomain(
   }
 
   const id = crypto.randomUUID();
-  await getDb()
-    .prepare('INSERT INTO link_domains (id, user_id, hostname, verify_token) VALUES (?, ?, ?, ?)')
-    .run(id, userId, hostname, newVerifyToken());
+  try {
+    await getDb()
+      .prepare('INSERT INTO link_domains (id, user_id, hostname, verify_token) VALUES (?, ?, ?, ?)')
+      .run(id, userId, hostname, newVerifyToken());
+  } catch (e) {
+    // Dos altas simultáneas del mismo hostname: el UNIQUE frena a la segunda.
+    if (/UNIQUE constraint failed/i.test(String(e))) return { ok: false, code: 'domain_taken' };
+    throw e;
+  }
   return { ok: true, domain: (await getUserDomain(userId, id))! };
 }
 

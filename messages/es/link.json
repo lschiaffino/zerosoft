@@ -180,7 +180,8 @@
     "qrScans": "Escaneos QR",
     "variants": "Destinos de la segmentación",
     "variantDefault": "por defecto",
-    "chartAria": "Clicks por día"
+    "chartAria": "Clicks por día",
+    "chartSummary": "{total} en total. Pico: {peak} el {date}."
   },
   "bulk": {
     "title": "Creación masiva",
@@ -330,6 +331,8 @@
       "app_host": "Ese es el dominio de Zerosoft.",
       "provider_error": "No se pudo registrar el dominio en el hosting. Probá de nuevo.",
       "has_links": "Este dominio todavía tiene links. Movelos o borralos primero.",
+      "too_many_pending": "Tenés 5 dominios esperando verificación. Verificá o borrá alguno primero.",
+      "rate_limited": "Agregaste demasiados dominios. Esperá un rato y probá de nuevo.",
       "invalid_url": "La URL no es válida."
     },
     "txtMissing": "Todavía no vemos el registro TXT. Revisá el nombre y el valor; el DNS puede tardar unos minutos."

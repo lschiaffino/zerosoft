@@ -180,7 +180,8 @@
     "qrScans": "QR scans",
     "variants": "Targeting destinations",
     "variantDefault": "default",
-    "chartAria": "Clicks per day"
+    "chartAria": "Clicks per day",
+    "chartSummary": "{total} in total. Peak: {peak} on {date}."
   },
   "bulk": {
     "title": "Bulk create",
@@ -330,6 +331,8 @@
       "app_host": "That's Zerosoft's own domain.",
       "provider_error": "Couldn't register the domain with the hosting provider. Try again.",
       "has_links": "This domain still has links. Move or delete them first.",
+      "too_many_pending": "You have 5 domains waiting for verification. Verify or remove one first.",
+      "rate_limited": "Too many domains added. Wait a while and try again.",
       "invalid_url": "That URL isn't valid."
     },
     "txtMissing": "We can't see the TXT record yet. Check its name and value; DNS can take a few minutes."
