@@ -20,6 +20,7 @@ import DangerZone from '@/components/link/DangerZone';
 import CountryFilter from '@/components/link/CountryFilter';
 import TargetingPanel from '@/components/link/TargetingPanel';
 import { parseTargeting } from '@/lib/link-targeting';
+import { breakdownLabelers } from '@/lib/link-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,8 +78,17 @@ export default async function LinkDetailPage(props: DetailPageProps) {
     { value: 'all', label: t('detail.rangeAll') },
   ];
 
-  const breakdownLabel = (name: string) =>
-    name === 'direct' ? t('common.direct') : name === 'other' ? t('common.other') : name;
+  const labels = breakdownLabelers(locale, {
+    direct: t('common.direct'),
+    other: t('common.other'),
+    unknown: t('labels.unknown'),
+    variantDefault: t('detail.variantDefault'),
+    device: { desktop: t('labels.desktop'), mobile: t('labels.mobile'), tablet: t('labels.tablet') },
+    rule: (n) => t('labels.rule', { n }),
+    ab: (v) => t('labels.ab', { v }),
+    app: (os) => t('labels.app', { os }),
+  });
+  const breakdownLabel = labels.plain;
 
   const noData = t('detail.noData');
 
@@ -190,20 +200,20 @@ export default async function LinkDetailPage(props: DetailPageProps) {
           <BreakdownBars
             items={a.countries}
             emptyLabel={noData}
-            labelFor={(n) => (n === 'other' ? t('common.other') : n)}
+            labelFor={labels.country}
           />
         </section>
         <section className="panel">
           <p className="section-label">{t('detail.devices')}</p>
-          <BreakdownBars items={a.devices} emptyLabel={noData} />
+          <BreakdownBars items={a.devices} emptyLabel={noData} labelFor={labels.device} />
         </section>
         <section className="panel">
           <p className="section-label">{t('detail.browsers')}</p>
-          <BreakdownBars items={a.browsers} emptyLabel={noData} />
+          <BreakdownBars items={a.browsers} emptyLabel={noData} labelFor={labels.plain} />
         </section>
         <section className="panel">
           <p className="section-label">{t('detail.os')}</p>
-          <BreakdownBars items={a.os} emptyLabel={noData} />
+          <BreakdownBars items={a.os} emptyLabel={noData} labelFor={labels.plain} />
         </section>
         {(link.targeting || a.variants.some((v) => v.name !== 'default')) && (
           <section className="panel" data-testid="detail-variants">
@@ -211,7 +221,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
             <BreakdownBars
               items={a.variants}
               emptyLabel={noData}
-              labelFor={(n) => (n === 'default' ? t('detail.variantDefault') : n === 'other' ? t('common.other') : n)}
+              labelFor={labels.variant}
             />
           </section>
         )}
@@ -297,9 +307,9 @@ export default async function LinkDetailPage(props: DetailPageProps) {
                   {clickResult.clicks.map((c) => (
                     <tr key={c.id}>
                       <td className="cell-date mono">{formatDateTime(c.ts, locale)}</td>
-                      <td>{c.country ?? '—'}</td>
+                      <td title={c.country ?? undefined}>{c.country ? labels.country(c.country) : '—'}</td>
                       <td className="cell-url mono">{c.referrer ?? '—'}</td>
-                      <td>{c.device ?? '—'}</td>
+                      <td>{c.device ? labels.device(c.device) : '—'}</td>
                       <td>{c.browser ?? '—'}</td>
                       <td>{c.os ?? '—'}</td>
                     </tr>

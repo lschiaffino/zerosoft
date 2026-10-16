@@ -35,6 +35,7 @@ export default function LinksTable({ rows }: LinksTableProps) {
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [tagOpen, setTagOpen] = useState(false);
   const [tag, setTag] = useState('');
+  const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
 
   // Si la lista cambia (filtros, refresh), solo quedan seleccionadas las filas visibles.
   const visibleSelected = rows.filter((r) => selected.has(r.id)).map((r) => r.id);
@@ -55,36 +56,52 @@ export default function LinksTable({ rows }: LinksTableProps) {
 
   async function bulk(body: { action: 'archive' | 'unarchive' | 'delete' } | { action: 'tag'; tag: string }) {
     if (visibleSelected.length === 0) return;
+    const total = visibleSelected.length;
     setBulkBusy(true);
-    await fetch('/api/links/batch', {
+    setNotice(null);
+    const res = await fetch('/api/links/batch', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ...body, ids: visibleSelected }),
     }).catch(() => null);
+    const data = res?.ok ? ((await res.json().catch(() => null)) as { affected?: number } | null) : null;
     setBulkBusy(false);
     setBulkConfirm(false);
     setTagOpen(false);
     setTag('');
-    if (body.action === 'delete' || body.action === 'archive' || body.action === 'unarchive') setSelected(new Set());
+    if (!res?.ok) {
+      setNotice({ kind: 'error', text: t('errors.generic') });
+    } else {
+      // Etiquetar saltea los links que ya tienen 5 tags (o ya tenían esa): se avisa.
+      const affected = typeof data?.affected === 'number' ? data.affected : total;
+      if (body.action === 'tag' && affected < total) {
+        setNotice({ kind: 'info', text: t('bulkActions.tagPartial', { affected, total }) });
+      }
+      if (body.action === 'delete' || body.action === 'archive' || body.action === 'unarchive') setSelected(new Set());
+    }
     router.refresh();
   }
 
   async function patch(id: string, body: Record<string, unknown>) {
     setBusyId(id);
-    await fetch(`/api/links/${id}`, {
+    setNotice(null);
+    const res = await fetch(`/api/links/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     }).catch(() => null);
     setBusyId(null);
+    if (!res?.ok) setNotice({ kind: 'error', text: t('errors.generic') });
     router.refresh();
   }
 
   async function remove(id: string) {
     setBusyId(id);
-    await fetch(`/api/links/${id}`, { method: 'DELETE' }).catch(() => null);
+    setNotice(null);
+    const res = await fetch(`/api/links/${id}`, { method: 'DELETE' }).catch(() => null);
     setBusyId(null);
     setConfirmingId(null);
+    if (!res?.ok) setNotice({ kind: 'error', text: t('errors.generic') });
     router.refresh();
   }
 
@@ -98,6 +115,11 @@ export default function LinksTable({ rows }: LinksTableProps) {
 
   return (
     <div className="table-wrap">
+      {notice && (
+        <p className={notice.kind === 'error' ? 'form-error mono' : 'field-hint'} role={notice.kind === 'error' ? 'alert' : 'status'}>
+          {notice.text}
+        </p>
+      )}
       {visibleSelected.length > 0 && (
         <div className="links-bulk-bar" role="toolbar" aria-label={t('bulkActions.label')} data-testid="links-bulk-bar">
           <span className="links-bulk-count mono">{t('bulkActions.selected', { count: visibleSelected.length })}</span>

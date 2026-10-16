@@ -1,5 +1,5 @@
 import { getDb } from './db';
-import { csvSafe, dayList, type BreakdownItem } from './track';
+import { csvSafe, dayList, EXPORT_LIMIT, type BreakdownItem } from './track';
 import { shortUrl } from './utils';
 
 /**
@@ -10,7 +10,7 @@ import { shortUrl } from './utils';
  */
 
 export const MAX_RANGE_DAYS = 366;
-export const EXPORT_LIMIT = 100_000;
+export { EXPORT_LIMIT };
 
 export interface WorkspaceRange {
   from: string;

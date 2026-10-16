@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getUserLink } from '@/lib/links';
-import { clicksToCsv, exportClicks, type AnalyticsRange, parseRange } from '@/lib/track';
+import { clicksToCsv, EXPORT_LIMIT, exportClicks, type AnalyticsRange, parseRange } from '@/lib/track';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,6 +35,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     headers: {
       'content-type': 'text/csv; charset=utf-8',
       'content-disposition': `attachment; filename="${filename}"`,
+      // Se cortó en EXPORT_LIMIT (los más recientes): el total sigue en las analytics.
+      ...(clicks.length >= EXPORT_LIMIT ? { 'x-export-truncated': String(EXPORT_LIMIT) } : {}),
     },
   });
 }

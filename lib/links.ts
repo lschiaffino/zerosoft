@@ -10,6 +10,7 @@ import { isValidUrl, normalizeUrl, shortDomain, shortUrl } from './utils';
 import { appHosts, isAppHost, normalizeHost } from './hosts';
 import { getVerifiedDomainByHost } from './link-domains';
 import { emitEvent } from './events';
+import type { BulkResultItem } from './link-bulk-csv';
 import {
   linkTargetingSchema,
   normalizeTargeting,
@@ -148,14 +149,16 @@ export async function listLinks(
 
 /** All distinct tags used by a user's links (for filter chips). */
 export async function userTags(userId: string): Promise<string[]> {
+  // DISTINCT en la base: no viaja una fila por link (un workspace puede tener
+  // decenas de miles) solo para armar los chips. JSON roto cuenta como sin tags.
   const rows = (await getDb()
-    .prepare('SELECT tags FROM links WHERE user_id = ?')
-    .all(userId)) as Array<{
-    tags: string;
-  }>;
-  const set = new Set<string>();
-  for (const row of rows) for (const tag of parseTags(row.tags)) set.add(tag);
-  return [...set].sort();
+    .prepare(
+      `SELECT DISTINCT j.value AS tag FROM links l,
+         json_each(CASE WHEN json_valid(l.tags) THEN l.tags ELSE '[]' END) j
+       WHERE l.user_id = ? AND j.type = 'text' LIMIT 500`,
+    )
+    .all(userId)) as Array<{ tag: string }>;
+  return rows.map((r) => r.tag).sort();
 }
 
 // ---------- Status ----------
@@ -476,12 +479,7 @@ export interface BulkCreateInput {
   utmCampaign?: string;
 }
 
-export interface BulkResultItem {
-  url: string;
-  short_url: string;
-  status: 'created' | 'error';
-  error?: string;
-}
+export { bulkResultsToCsv, type BulkResultItem } from './link-bulk-csv';
 
 /** Creates many links in one call. Returns per-line results preserving order. */
 export async function createLinksBulk(
@@ -512,22 +510,6 @@ export async function createLinksBulk(
   }
 
   return results;
-}
-
-export function bulkResultsToCsv(rows: BulkResultItem[]): string {
-  const lines = ['original_url,short_url,status'];
-  for (const row of rows) {
-    lines.push(
-      [csvCell(row.url), csvCell(row.short_url), csvCell(row.error ?? row.status)].join(','),
-    );
-  }
-  return lines.join('\n');
-}
-
-function csvCell(value: string): string {
-  const escaped = value.replace(/"/g, '""');
-  if (/[",\n\r]/.test(escaped)) return `"${escaped}"`;
-  return escaped;
 }
 
 // ---------- Edición (app y API v1) ----------

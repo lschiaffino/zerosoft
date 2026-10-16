@@ -94,15 +94,17 @@ export interface ClickOptions {
 /**
  * Guarda la visita. `clicks` cuenta todas; `qr_scans` solo las del QR.
  * El incremento es condicional y atómico respecto de max_clicks: devuelve
- * false (sin registrar nada) si el link ya llegó al límite, aunque varias
- * requests concurrentes hayan pasado el chequeo previo.
+ * null (sin registrar nada) si el link ya llegó al límite, aunque varias
+ * requests concurrentes hayan pasado el chequeo previo. Si no, el total de
+ * clicks con este, leído en la misma transacción (cada visita ve un número
+ * distinto: los disparadores "llegó a N clicks" saltan una sola vez).
  */
-export async function recordClick(linkId: string, ctx: ClickContext, opts: ClickOptions = {}): Promise<boolean> {
+export async function recordClick(linkId: string, ctx: ClickContext, opts: ClickOptions = {}): Promise<number | null> {
   await ensureMigrated();
   const source = opts.source === 'qr' ? 'qr' : 'link';
   // Un batch es una sola transacción: el INSERT solo corre si el UPDATE
   // condicional tocó la fila (changes() = 1), sin ventana entre chequeo y acción.
-  const [update] = await getClient().batch(
+  const [update, , total] = await getClient().batch(
     [
       {
         sql: 'UPDATE links SET clicks = clicks + 1, qr_scans = qr_scans + ? WHERE id = ? AND (max_clicks IS NULL OR clicks < max_clicks)',
@@ -113,10 +115,12 @@ export async function recordClick(linkId: string, ctx: ClickContext, opts: Click
               SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1`,
         args: [linkId, ctx.referrer, ctx.country, ctx.device, ctx.browser, ctx.os, source, opts.variant ?? null],
       },
+      { sql: 'SELECT clicks FROM links WHERE id = ?', args: [linkId] },
     ],
     'write',
   );
-  return update.rowsAffected === 1;
+  if (update.rowsAffected !== 1) return null;
+  return Number(total.rows[0]?.clicks ?? 0);
 }
 
 export async function todayClicksForLink(linkId: string): Promise<number> {
@@ -176,11 +180,15 @@ export async function listClicks(
   return { clicks, total, page, pageSize };
 }
 
-/** All individual clicks for the given range/country, ordered newest first. */
+/** Tope de filas de un export de clicks (memoria y tiempo en serverless). */
+export const EXPORT_LIMIT = 100_000;
+
+/** Los clicks del rango/país, del más nuevo al más viejo (como mucho `limit`). */
 export async function exportClicks(
   linkId: string,
   createdAt: string,
   params: Pick<ListClicksParams, 'range' | 'country'>,
+  limit: number = EXPORT_LIMIT,
 ): Promise<ClickRow[]> {
   const start = rangeStart(params.range, createdAt);
   const where: string[] = ['link_id = ? AND ts >= ?'];
@@ -192,8 +200,8 @@ export async function exportClicks(
   }
 
   return (await getDb()
-    .prepare(`SELECT * FROM clicks WHERE ${where.join(' AND ')} ORDER BY ts DESC`)
-    .all(...args)) as ClickRow[];
+    .prepare(`SELECT * FROM clicks WHERE ${where.join(' AND ')} ORDER BY ts DESC LIMIT ?`)
+    .all(...args, limit)) as ClickRow[];
 }
 
 export function clicksToCsv(clicks: ClickRow[]): string {

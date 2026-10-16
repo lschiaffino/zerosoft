@@ -16,27 +16,32 @@ export default function DangerZone({ id, slug, archived }: DangerZoneProps) {
   const router = useRouter();
   const [confirmText, setConfirmText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   async function toggleArchive() {
     setBusy(true);
-    await fetch(`/api/links/${id}`, {
+    setFailed(false);
+    const res = await fetch(`/api/links/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ archived: !archived }),
     }).catch(() => null);
     setBusy(false);
+    if (!res?.ok) setFailed(true);
     router.refresh();
   }
 
   async function onDelete() {
     if (confirmText !== slug) return;
     setBusy(true);
+    setFailed(false);
     const res = await fetch(`/api/links/${id}`, { method: 'DELETE' }).catch(() => null);
     if (res && res.status === 204) {
       router.push('/app/links');
       return;
     }
     setBusy(false);
+    setFailed(true);
   }
 
   return (
@@ -81,6 +86,11 @@ export default function DangerZone({ id, slug, archived }: DangerZoneProps) {
           </button>
         </div>
       </div>
+      {failed && (
+        <p className="form-error mono" role="alert">
+          {t('errors.generic')}
+        </p>
+      )}
     </div>
   );
 }

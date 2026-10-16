@@ -2,26 +2,44 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { BioSettings } from '@/lib/link-bio';
+import type { BioEditorLink, BioSettings } from '@/lib/link-bio';
 
 interface Props {
   initial: BioSettings;
   handle: string;
-  links: Array<{ id: string; label: string; short: string }>;
+  /** Los elegidos (todos) + los activos más nuevos; el resto se busca. */
+  links: BioEditorLink[];
 }
 
 /** Editor de la página /@handle: perfil, publicación y links (selección + orden). */
-export default function BioEditor({ initial, handle, links }: Props) {
+export default function BioEditor({ initial, handle, links: initialLinks }: Props) {
   const t = useTranslations('link');
   const [values, setValues] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [state, setState] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [links, setLinks] = useState(initialLinks);
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
 
   // Orden: primero los elegidos (en su orden), después el resto.
   const ordered = [
-    ...values.linkIds.map((id) => links.find((l) => l.id === id)).filter((l): l is Props['links'][number] => Boolean(l)),
+    ...values.linkIds.map((id) => links.find((l) => l.id === id)).filter((l): l is BioEditorLink => Boolean(l)),
     ...links.filter((l) => !values.linkIds.includes(l.id)),
   ];
+
+  // Busca entre todos los links activos (no solo los más nuevos) y los suma a la lista.
+  async function search() {
+    const q = query.trim();
+    if (!q) return;
+    setSearching(true);
+    const res = await fetch(`/api/links?${new URLSearchParams({ q, pageSize: '50' })}`).catch(() => null);
+    const data = res?.ok
+      ? ((await res.json().catch(() => null)) as { links?: Array<{ id: string; title: string | null; url: string; short_url: string }> } | null)
+      : null;
+    setSearching(false);
+    const found = (data?.links ?? []).map((l) => ({ id: l.id, label: l.title || l.url, short: l.short_url, archived: false }));
+    setLinks((prev) => [...prev, ...found.filter((f) => !prev.some((p) => p.id === f.id))]);
+  }
 
   function toggle(id: string) {
     setValues((v) => ({ ...v, linkIds: v.linkIds.includes(id) ? v.linkIds.filter((x) => x !== id) : [...v.linkIds, id] }));
@@ -68,6 +86,25 @@ export default function BioEditor({ initial, handle, links }: Props) {
       <div className="field">
         <p className="label">{t('bio.links')}</p>
         <p className="field-hint">{t('bio.linksHint')}</p>
+        <div className="bio-editor-search">
+          <input
+            className="input"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void search();
+              }
+            }}
+            placeholder={t('bio.searchPlaceholder')}
+            aria-label={t('bio.searchPlaceholder')}
+          />
+          <button type="button" className="btn btn-small" onClick={() => void search()} disabled={searching || !query.trim()}>
+            {t('bio.search')}
+          </button>
+        </div>
         {links.length === 0 ? (
           <p className="muted">{t('bio.empty')}</p>
         ) : (
@@ -78,6 +115,7 @@ export default function BioEditor({ initial, handle, links }: Props) {
                 <li key={l.id} className="bio-editor-item">
                   <input type="checkbox" checked={on} onChange={() => toggle(l.id)} aria-label={l.label} />
                   <span className="grow">{l.label}</span>
+                  {l.archived && <span className="badge status-archived">{t('table.statusArchived')}</span>}
                   <span className="mono muted">{l.short.replace(/^https?:\/\//, '')}</span>
                   {on && (
                     <>
