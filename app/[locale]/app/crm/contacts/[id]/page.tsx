@@ -491,8 +491,8 @@ export default async function ContactDetailPage(props: {
               }))}
               addLabel={t('contacts.detail.associateCompany')}
               emptyLabel={t('contacts.detail.noCompany')}
+              action={<CompanyQuickCreate contactId={contact.id} />}
             />
-            <CompanyQuickCreate contactId={contact.id} />
           </section>
 
           <section className="record-block">
@@ -503,7 +503,7 @@ export default async function ContactDetailPage(props: {
                 id: d.id,
                 name: d.name,
                 href: `/app/crm/deals/${d.id}`,
-                meta: `${d.stage_name ?? ''}${d.closed_at ? ` · ${t('deals.detail.closedAt')}` : ''} · ${money(d.amount, d.currency, locale)}`,
+                meta: [d.stage_name, money(d.amount, d.currency, locale)].filter(Boolean).join(' · '),
               }))}
               options={allDeals
                 .filter((d) => !deals.some((dd) => dd.id === d.id))
@@ -512,16 +512,18 @@ export default async function ContactDetailPage(props: {
               onRemove={removeDealFromContact.bind(null, contact.id)}
               addLabel={t('assoc.pickDeal')}
               emptyLabel={t('contacts.detail.noDeals')}
+              action={
+                defaultPipeline && firstOpenStage ? (
+                  <ContactAddDeal
+                    pipelineId={defaultPipeline.id}
+                    stageId={firstOpenStage.id}
+                    contactId={contact.id}
+                    priorities={priorities}
+                    sources={sourceOpts}
+                  />
+                ) : undefined
+              }
             />
-            {defaultPipeline && firstOpenStage && (
-              <ContactAddDeal
-                pipelineId={defaultPipeline.id}
-                stageId={firstOpenStage.id}
-                contactId={contact.id}
-                priorities={priorities}
-                sources={sourceOpts}
-              />
-            )}
           </section>
 
           <SequencePanel

@@ -186,20 +186,22 @@ export default function TasksView({
       <PageHeader
         title={title}
         actions={
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => setShowComposer(true)}
-            data-testid="crm-quick-task"
-          >
-            {t('record.createTask')}
-            <kbd className="kbd" aria-hidden>
-              C
-            </kbd>
-          </button>
+          <>
+            {children}
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowComposer(true)}
+              data-testid="crm-quick-task"
+            >
+              {t('record.createTask')}
+              <kbd className="kbd" aria-hidden>
+                C
+              </kbd>
+            </button>
+          </>
         }
       />
-      {children}
       <div className="task-controls">
         <nav className="ui-tabs task-buckets" aria-label={t('record.taskBuckets')}>
           {BUCKETS.map((b) => (
@@ -365,9 +367,7 @@ export default function TasksView({
                 <div className="task-meta">
                   <span className="task-type muted">{taskTypeLabel(row.type)}</span>
                   {row.due ? (
-                    <span className={`badge${row.overdue ? ' task-overdue' : row.done ? ' task-done' : ''}`}>
-                      {row.due}
-                    </span>
+                    <span className={`task-due${row.overdue && !row.done ? ' is-overdue' : ''}`}>{row.due}</span>
                   ) : (
                     <span className="muted">{t('tasks.noDue')}</span>
                   )}
@@ -377,7 +377,7 @@ export default function TasksView({
                       {row.record.name}
                     </Link>
                   )}
-                  <span className="muted task-owner">{row.ownerName}</span>
+                  {row.ownerName && <span className="muted task-owner">{row.ownerName}</span>}
                 </div>
               </div>
 

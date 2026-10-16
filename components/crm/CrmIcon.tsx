@@ -1,6 +1,6 @@
 /**
  * Íconos de línea del CRM (trazo 2, 24×24, currentColor), en lugar de
- * glifos unicode (✕ ✓ ✎ ☎ ✉ ↗). Decorativos: el botón que los contiene
+ * glifos unicode o emoji. Decorativos: el botón que los contiene
  * lleva su aria-label.
  */
 const PATHS = {
@@ -10,6 +10,10 @@ const PATHS = {
   mail: 'M3 6h18v12H3zM3 7l9 6 9-6',
   phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a1 1 0 01-1 1A16 16 0 014 5a1 1 0 011-1z',
   external: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
+  panel: 'M3 4h18v16H3zM14 4v16',
+  chevronUp: 'M6 15l6-6 6 6',
+  chevronDown: 'M6 9l6 6 6-6',
+  pin: 'M9 3h6M10 3v6l-4 5h12l-4-5V3M12 14v7',
 } as const;
 
 export type CrmIconName = keyof typeof PATHS;

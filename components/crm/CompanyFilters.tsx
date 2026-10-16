@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
+import { ColumnsSlot } from './ColumnToggle';
 
 interface CustomFieldOption {
   name: string;
@@ -28,6 +29,8 @@ interface CompanyFiltersProps {
   lifecycles: Array<{ value: string; label: string }>;
   owners: Array<{ value: string; label: string }>;
   customFields: CustomFieldOption[];
+  /** Filtro avanzado (FilterBuilder): se muestra dentro de "Más filtros". */
+  children?: React.ReactNode;
 }
 
 /** Búsqueda + filtros de industria/lifecycle/owner/fecha/custom + sort (todo server-side vía query params). */
@@ -47,6 +50,7 @@ export default function CompanyFilters({
   lifecycles,
   owners,
   customFields,
+  children,
 }: CompanyFiltersProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -87,139 +91,98 @@ export default function CompanyFilters({
   const activeFilters = [q, industry, lifecycle, owner, tag, createdFrom, createdTo, ...Object.values(custom)].filter(
     Boolean,
   ).length;
+  const moreActive = [createdFrom, createdTo, advanced, ...Object.values(custom)].filter(Boolean).length;
+  const [moreOpen, setMoreOpen] = useState(moreActive > 0);
 
   return (
     <div className="filter-bar">
-      <form
-        className="filter-search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          go({ q: search.trim() || undefined });
-        }}
-      >
-        <input
-          className="input"
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t('companies.searchPlaceholder')}
-          aria-label={t('companies.searchPlaceholder')}
-        />
-      </form>
-
-      <div className="filter-row">
-        <div className="filter-chips">
-          <select
-            className="filter-select filter-btn"
-            value={industry}
-            onChange={(e) => go({ industry: e.target.value || undefined })}
-            aria-label={t('companies.filterIndustry')}
-          >
-            <option value="">{t('companies.filterIndustry')}</option>
-            {industries.map((ind) => (
-              <option key={ind} value={ind}>
-                {ind}
-              </option>
-            ))}
-          </select>
-          <select
-            className="filter-select filter-btn"
-            value={lifecycle}
-            onChange={(e) => go({ lifecycle: e.target.value || undefined })}
-            aria-label={t('companies.filterLifecycle')}
-          >
-            <option value="">{t('companies.filterLifecycle')}</option>
-            {lifecycles.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="filter-select filter-btn"
-            value={owner}
-            onChange={(e) => go({ owner: e.target.value || undefined })}
-            aria-label={t('companies.filterOwner')}
-          >
-            <option value="">{t('companies.filterOwner')}</option>
-            {owners.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-
-          {tags.length > 0 && (
-            <select
-              className={`filter-select filter-btn${tag ? ' on' : ''}`}
-              value={tag}
-              onChange={(e) => go({ tag: e.target.value || undefined })}
-              aria-label={t('tags.filter')}
-              data-testid="tag-filter"
-            >
-              <option value="">{t('tags.filter')}</option>
-              {tags.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <div className="filter-date-group">
-            <input
-              className="input filter-date"
-              type="date"
-              value={createdFrom}
-              onChange={(e) => go({ createdFrom: e.target.value || undefined })}
-              aria-label={t('companies.filterCreatedFrom')}
-              placeholder={t('companies.filterCreatedFrom')}
-            />
-            <span className="filter-date-sep">—</span>
-            <input
-              className="input filter-date"
-              type="date"
-              value={createdTo}
-              onChange={(e) => go({ createdTo: e.target.value || undefined })}
-              aria-label={t('companies.filterCreatedTo')}
-              placeholder={t('companies.filterCreatedTo')}
-            />
-          </div>
-          {customFields.map((cf) => (
-            <select
-              key={cf.name}
-              className="filter-select filter-btn"
-              value={custom[cf.name] ?? ''}
-              onChange={(e) => setCustom(cf.name, e.target.value)}
-              aria-label={cf.label}
-            >
-              <option value="">{cf.label}</option>
-              {cf.options.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
+      <div className="filter-toolbar">
+        <form
+          className="filter-search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            go({ q: search.trim() || undefined });
+          }}
+        >
+          <input
+            className="input"
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('companies.searchPlaceholder')}
+            aria-label={t('companies.searchPlaceholder')}
+          />
+        </form>
+        <select
+          className={`filter-select${industry ? ' on' : ''}`}
+          value={industry}
+          onChange={(e) => go({ industry: e.target.value || undefined })}
+          aria-label={t('companies.filterIndustry')}
+        >
+          <option value="">{t('companies.filterIndustry')}</option>
+          {industries.map((ind) => (
+            <option key={ind} value={ind}>
+              {ind}
+            </option>
           ))}
-        </div>
+        </select>
+        <select
+          className={`filter-select${lifecycle ? ' on' : ''}`}
+          value={lifecycle}
+          onChange={(e) => go({ lifecycle: e.target.value || undefined })}
+          aria-label={t('companies.filterLifecycle')}
+        >
+          <option value="">{t('companies.filterLifecycle')}</option>
+          {lifecycles.map((l) => (
+            <option key={l.value} value={l.value}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className={`filter-select${owner ? ' on' : ''}`}
+          value={owner}
+          onChange={(e) => go({ owner: e.target.value || undefined })}
+          aria-label={t('companies.filterOwner')}
+        >
+          <option value="">{t('companies.filterOwner')}</option>
+          {owners.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        {tags.length > 0 && (
+          <select
+            className={`filter-select${tag ? ' on' : ''}`}
+            value={tag}
+            onChange={(e) => go({ tag: e.target.value || undefined })}
+            aria-label={t('tags.filter')}
+            data-testid="tag-filter"
+          >
+            <option value="">{t('tags.filter')}</option>
+            {tags.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <button
+          type="button"
+          className={`filter-more${moreOpen ? ' open' : ''}${moreActive ? ' on' : ''}`}
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
+        >
+          {t('common.moreFilters')}
+          {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
+        </button>
 
         <div className="filter-right">
-          <select
-            className="filter-select filter-sort"
-            value={sort}
-            onChange={(e) =>
-              go({ sort: e.target.value === 'newest' ? undefined : e.target.value })
-            }
-            aria-label="sort"
-          >
-            <option value="newest">{t('companies.sortNewest')}</option>
-            <option value="oldest">{t('companies.sortOldest')}</option>
-            <option value="name">{t('companies.sortName')}</option>
-            <option value="name_desc">{t('companies.sortNameDesc')}</option>
-          </select>
           {activeFilters > 0 && (
             <button
               type="button"
-              className="btn btn-ghost btn-small filter-clear"
+              className="filter-clear"
               onClick={() =>
                 go({
                   q: undefined,
@@ -235,8 +198,61 @@ export default function CompanyFilters({
               {t('common.clear')}
             </button>
           )}
+          <select
+            className="filter-select filter-sort"
+            value={sort}
+            onChange={(e) => go({ sort: e.target.value === 'newest' ? undefined : e.target.value })}
+            aria-label={t('common.sortBy')}
+          >
+            <option value="newest">{t('companies.sortNewest')}</option>
+            <option value="oldest">{t('companies.sortOldest')}</option>
+            <option value="name">{t('companies.sortName')}</option>
+            <option value="name_desc">{t('companies.sortNameDesc')}</option>
+          </select>
+          <ColumnsSlot />
         </div>
       </div>
+
+      {moreOpen && (
+        <div className="filter-more-panel">
+          <label className="filter-field">
+            <span className="label">{t('companies.filterCreatedFrom')}</span>
+            <input
+              className="input filter-date"
+              type="date"
+              value={createdFrom}
+              onChange={(e) => go({ createdFrom: e.target.value || undefined })}
+            />
+          </label>
+          <label className="filter-field">
+            <span className="label">{t('companies.filterCreatedTo')}</span>
+            <input
+              className="input filter-date"
+              type="date"
+              value={createdTo}
+              onChange={(e) => go({ createdTo: e.target.value || undefined })}
+            />
+          </label>
+          {customFields.map((cf) => (
+            <label key={cf.name} className="filter-field">
+              <span className="label">{cf.label}</span>
+              <select
+                className={`filter-select${custom[cf.name] ? ' on' : ''}`}
+                value={custom[cf.name] ?? ''}
+                onChange={(e) => setCustom(cf.name, e.target.value)}
+              >
+                <option value="">{t('common.all')}</option>
+                {cf.options.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          {children && <div className="filter-advanced">{children}</div>}
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
+import CrmIcon from './CrmIcon';
 
 export interface AssociationRecord {
   id: string;
@@ -39,6 +40,8 @@ interface AssociationPanelProps {
   emptyLabel: string;
   busy?: boolean;
   count?: number;
+  /** Acción "Crear …" en la misma línea que el selector. */
+  action?: React.ReactNode;
 }
 
 /**
@@ -60,6 +63,7 @@ export default function AssociationPanel({
   emptyLabel,
   busy,
   count,
+  action,
 }: AssociationPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -159,34 +163,37 @@ export default function AssociationPanel({
                 disabled={busyNow || pending.has(r.id)}
                 onClick={() => wrap(() => onRemove(r.id), r.id)}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
+                <CrmIcon name="x" />
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      {available.length > 0 && (
-        <select
-          className="select assoc-add"
-          value=""
-          disabled={busyNow}
-          aria-label={addLabel}
-          onChange={(e) => {
-            const id = e.target.value;
-            e.target.value = '';
-            if (id) void wrap(() => onAssociate(id), id);
-          }}
-        >
-          <option value="">{addLabel}</option>
-          {available.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.value}
-            </option>
-          ))}
-        </select>
+      {(available.length > 0 || action) && (
+        <div className="assoc-add-row">
+          {available.length > 0 && (
+            <select
+              className="select assoc-add"
+              value=""
+              disabled={busyNow}
+              aria-label={addLabel}
+              onChange={(e) => {
+                const id = e.target.value;
+                e.target.value = '';
+                if (id) void wrap(() => onAssociate(id), id);
+              }}
+            >
+              <option value="">{addLabel}</option>
+              {available.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.value}
+                </option>
+              ))}
+            </select>
+          )}
+          {action}
+        </div>
       )}
 
       {error && (

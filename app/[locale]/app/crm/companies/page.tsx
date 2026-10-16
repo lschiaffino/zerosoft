@@ -275,9 +275,9 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         lifecycles={lifecycles}
         owners={owners}
         customFields={customFields}
-      />
-
-      <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+      >
+        <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+      </CompanyFilters>
 
       {tableRows.length === 0 ? (
         hasFilters || advancedRules.length > 0 ? (

@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { Link, usePathname } from '@/i18n/navigation';
+import CrmIcon from './CrmIcon';
 
 interface SortThProps {
   label: string;
@@ -17,7 +18,7 @@ interface SortThProps {
 
 /**
  * Header de columna ordenable (estilo Twenty): click alterna asc/desc,
- * flecha ▲▼ en la columna activa. Preserva el resto de los query params
+ * chevron arriba/abajo en la columna activa. Preserva el resto de los query params
  * y resetea la paginación.
  */
 export default function SortTh({ label, asc, desc, current, reset = 'newest' }: SortThProps) {
@@ -32,7 +33,6 @@ export default function SortTh({ label, asc, desc, current, reset = 'newest' }: 
   const qs = q.toString();
 
   const active = current === asc || current === desc;
-  const arrow = current === asc ? '▲' : current === desc ? '▼' : '';
 
   return (
     <Link
@@ -41,7 +41,7 @@ export default function SortTh({ label, asc, desc, current, reset = 'newest' }: 
     >
       {label}
       <span className="sort-arrow" aria-hidden>
-        {arrow}
+        {current === asc ? <CrmIcon name="chevronUp" size={12} /> : current === desc ? <CrmIcon name="chevronDown" size={12} /> : null}
       </span>
     </Link>
   );

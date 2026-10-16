@@ -67,7 +67,8 @@
     "adminOnly": "Só admins do workspace podem alterar isso.",
     "moreFilters": "Mais filtros",
     "sortBy": "Ordenar por",
-    "activityType": "Tipo de atividade"
+    "activityType": "Tipo de atividade",
+    "preview": "Pré-visualizar"
   },
   "assoc": {
     "associate": "Associar",

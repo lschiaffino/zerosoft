@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
-import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
+import { ColumnToggleInBar, useColumnVisibility } from './ColumnToggle';
 import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
@@ -98,14 +98,12 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
 
   return (
     <>
-      <div className="table-toolbar">
-        <ColumnToggle
-          columns={COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible }))}
-          visible={visible}
-          onToggle={toggleVisible}
-          label={t('common.columns')}
-        />
-      </div>
+      <ColumnToggleInBar
+        columns={COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible }))}
+        visible={visible}
+        onToggle={toggleVisible}
+        label={t('common.columns')}
+      />
 
       <div className="table-wrap">
         <table className="table crm-table">
@@ -141,7 +139,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   <SortTh label={t('companies.table.created')} asc="oldest" desc="newest" current={sort} />
                 </th>
               )}
-              <th className="cell-actions-head">{t('companies.table.actions')}</th>
+              <th className="cell-actions-head"><span className="sr-only">{t('companies.table.actions')}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -220,7 +218,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                 )}
                 {visible.has('tags') && (
                   <td className="cell-crm-tags">
-                    <TagDots tags={row.tags ?? []} />
+                    <TagDots tags={row.tags ?? []} max={2} />
                   </td>
                 )}
                 {visible.has('parent') && <td className="muted cell-sub">{row.parentName || '—'}</td>}
@@ -230,10 +228,10 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                     type="button"
                     className="icon-btn preview-btn"
                     onClick={() => setPreviewId(row.id)}
-                    title={t('common.viewAll')}
-                    aria-label={t('common.viewAll')}
+                    title={t('common.preview')}
+                    aria-label={t('common.preview')}
                   >
-                    👁
+                    <CrmIcon name="panel" />
                   </button>
                 </td>
               </tr>

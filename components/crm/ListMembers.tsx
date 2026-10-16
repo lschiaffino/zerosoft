@@ -148,7 +148,7 @@ export default function ListMembers({ listId, members }: ListMembersProps) {
                 <th scope="col">{t('contacts.table.email')}</th>
                 <th scope="col">{t('contacts.table.company')}</th>
                 <th scope="col">{t('contacts.table.lifecycle')}</th>
-                <th scope="col">{t('contacts.table.created')}</th>
+                <th className="num cell-date" scope="col">{t('contacts.table.created')}</th>
                 <th scope="col">
                   <span className="sr-only">{t('common.actions')}</span>
                 </th>

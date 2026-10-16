@@ -336,8 +336,9 @@ export default async function DealsPage(props: DealsPageProps) {
           sources={sources}
           owners={owners}
           customFields={customFields}
-        />
-        <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+        >
+          <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+        </DealsFilters>
         {tableRows.length === 0 ? (
           Object.keys(query).length > 2 ? (
             <EmptyState

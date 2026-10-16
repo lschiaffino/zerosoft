@@ -95,7 +95,7 @@ export default function ListsIndex({ rows, lifecycles, leadStatuses, sources, ti
                 <th>{t('lists.nameLabel')}</th>
                 <th>{t('lists.kind')}</th>
                 <th className="num">{t('lists.membersTitle')}</th>
-                <th>{t('lists.created')}</th>
+                <th className="num cell-date">{t('lists.created')}</th>
                 <th aria-label={t('common.actions')} />
               </tr>
             </thead>

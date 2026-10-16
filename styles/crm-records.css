@@ -122,12 +122,10 @@
 }
 .record-props > :only-child { grid-column: 1; }
 
-/* Relacionados: bloques en dos columnas. */
+/* Relacionados: secciones a lo ancho, separadas por una regla. */
 .record-related {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
 }
 .record-block,
 .record-related > .panel {
@@ -135,11 +133,13 @@
   flex-direction: column;
   gap: 10px;
   min-width: 0;
-  padding: 16px 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-1);
-  background: var(--bg);
+  padding: 20px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
 }
+.record-related > :first-child { border-top: 0; padding-top: 4px; }
 .record-block-wide { grid-column: 1 / -1; }
 .record-related > .panel .section-label {
   margin: 0;
@@ -157,8 +157,7 @@
   .record-summary { position: static; padding-left: 0; border-left: 0; padding-top: 16px; border-top: 4px solid var(--ink); }
 }
 @media (max-width: 760px) {
-  .record-related { grid-template-columns: minmax(0, 1fr); }
-  .record-block, .record-related > .panel { padding: 14px 16px; }
+  .record-block, .record-related > .panel { padding: 16px 0; }
 }
 
 /* ---------- Asociaciones (filas, no pastillas) ---------- */
@@ -196,6 +195,10 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   .assoc-row:hover .assoc-remove, .assoc-remove:focus-visible { opacity: 1; }
 }
 .assoc-add { max-width: 100%; }
+.assoc-add-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.assoc-add-row .assoc-add { flex: 0 1 360px; width: auto; min-width: 0; height: 32px; min-height: 32px; padding-top: 0; padding-bottom: 0; }
+.assoc-add-row > .assoc-panel,
+.assoc-add-row > .add-deal-panel { flex-basis: 100%; margin-top: 4px; }
 @media (max-width: 520px) {
   .assoc-row { flex-wrap: wrap; }
   .assoc-row-meta { order: 3; width: 100%; padding-left: 0; }
@@ -319,6 +322,8 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   .prop-row .prop-label { grid-column: 1; }
   .prop-row .prop-value { grid-column: 1; }
   .prop-row .prop-edit { grid-column: 2; grid-row: 1 / span 2; }
+  /* Apilado: el valor arranca en la misma línea que su label. */
+  .prop-row .prop-value.prop-btn { min-height: 28px; padding: 2px 0; }
 }
 
 /* Score: puntos por regla. */
@@ -357,6 +362,7 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   top: calc(var(--stop) / 2 - 3px);
   right: 50%;
   left: -50%;
+  z-index: 0;
   height: 6px;
   background: var(--brand-gray-3);
 }
@@ -366,6 +372,7 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .stage-line.is-lost .stage-stop::before { background: var(--brand-gray-3); }
 .stage-stop-btn {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -380,6 +387,7 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 }
 .stage-stop-btn:disabled { cursor: progress; }
 .stage-dot {
+  box-sizing: border-box;
   width: var(--stop);
   height: var(--stop);
   background: #ffffff;
@@ -477,10 +485,31 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   .task-actions { opacity: 0; transition: opacity var(--ui-dur) var(--ease); }
   .task-row:hover .task-actions, .task-row:focus-within .task-actions { opacity: 1; }
 }
+.row-delete { color: var(--brand-gray-2); }
 .row-delete:hover:not(:disabled) { color: var(--bad-ink); }
-.task-projects-manager { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; margin-top: -8px; }
-.task-projects-panel { align-self: stretch; }
+@media (hover: hover) {
+  .crm-table .row-delete { opacity: 0; transition: opacity var(--ui-dur) var(--ease); }
+  .crm-table tr:hover .row-delete,
+  .crm-table tr:focus-within .row-delete { opacity: 1; }
+}
+.task-projects-panel { display: flex; flex-direction: column; gap: 16px; }
+.task-due { color: var(--brand-gray-1); font-variant-numeric: tabular-nums; }
+.task-due.is-overdue { color: var(--bad-ink); }
 @media (max-width: 640px) {
   .task-controls { align-items: stretch; }
-  .task-filters .select { flex: 1; min-width: 0; }
+  .task-filters { flex-wrap: nowrap; width: 100%; }
+  .task-filters .select { flex: 1 1 0; min-width: 0; width: 100%; text-overflow: ellipsis; }
+}
+
+/* Mobile: "Más campos" en una línea y la pista debajo, alineada al texto. */
+@media (max-width: 760px) {
+  .ui-disclosure-toggle { flex-wrap: wrap; row-gap: 2px; padding: 8px 0; }
+  .ui-disclosure-label { white-space: nowrap; }
+  .ui-disclosure-hint { flex-basis: 100%; margin-left: 22px; font-size: 0.8125rem; }
+}
+
+/* Mobile: los tipos de actividad pasan a dos filas en vez de cortarse. */
+@media (max-width: 760px) {
+  .tl-filters { flex-wrap: wrap; overflow: visible; padding-top: 1px; }
+  .tl-filters > .btn { margin-top: -1px; }
 }

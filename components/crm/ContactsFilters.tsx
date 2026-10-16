@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import CrmIcon from './CrmIcon';
+import { ColumnsSlot } from './ColumnToggle';
 
 export type ContactSort = 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc' | 'score' | 'score_asc';
 
@@ -341,6 +342,7 @@ export default function ContactsFilters({
             <option value="score">{t('scoring.sortHigh')}</option>
             <option value="score_asc">{t('scoring.sortLow')}</option>
           </select>
+          <ColumnsSlot />
         </div>
       </div>
 

@@ -117,7 +117,7 @@ export default function BookMeetingMenu({ eventTypes, name, email, locale }: Boo
       <button
         type="button"
         ref={triggerRef}
-        className="btn btn-ghost btn-small"
+        className="btn btn-secondary btn-sm"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"

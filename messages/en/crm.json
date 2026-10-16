@@ -67,7 +67,8 @@
     "adminOnly": "Only workspace admins can change this.",
     "moreFilters": "More filters",
     "sortBy": "Sort by",
-    "activityType": "Activity type"
+    "activityType": "Activity type",
+    "preview": "Preview"
   },
   "assoc": {
     "associate": "Associate",

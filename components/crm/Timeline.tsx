@@ -595,12 +595,13 @@ export default function Timeline({
                       <>
                         <button
                           type="button"
-                          className="icon-btn"
+                          className={`icon-btn tl-pin${item.pinned ? ' is-pinned' : ''}`}
                           onClick={() => togglePin(item)}
                           title={item.pinned ? t('common.unpin') : t('common.pin')}
                           aria-label={item.pinned ? t('common.unpin') : t('common.pin')}
+                          aria-pressed={!!item.pinned}
                         >
-                          {item.pinned ? '◆' : '◇'}
+                          <CrmIcon name="pin" />
                         </button>
                         <button
                           type="button"
