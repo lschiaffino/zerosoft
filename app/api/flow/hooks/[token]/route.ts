@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enqueueWebhookRun } from '@/lib/flow';
-import { limitByIp, rateLimit } from '@/lib/rate-limit';
+import { clientIp, isRateLimited, rateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const MAX_BODY = 256_000;
+/** Por token (identifica al flow): el límite principal. */
+const PER_TOKEN_LIMIT = 600;
+/**
+ * Por IP solo se cuentan los tokens inexistentes o apagados: frena a quien
+ * prueba tokens sin castigar a emisores compartidos entre workspaces (Stripe,
+ * GitHub, Zapier mandan desde pocas IPs).
+ */
+const MISSES_PER_IP = 120;
 /** Headers que no se pasan al flow (credenciales e infraestructura). */
 const DROP_HEADERS = /^(cookie|authorization|proxy-authorization|x-vercel-.*|x-forwarded-.*|x-real-ip|forwarded)$/i;
 
@@ -17,10 +25,11 @@ const DROP_HEADERS = /^(cookie|authorization|proxy-authorization|x-vercel-.*|x-f
 export async function POST(req: NextRequest, props: { params: Promise<{ token: string }> }) {
   const { token } = await props.params;
   if (!/^fh_[A-Za-z0-9_-]{20,64}$/.test(token)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  const limited = await limitByIp(req, 'flow-hook', 120, 60);
-  if (limited) return limited;
-  if (process.env.RATE_LIMIT_DISABLED !== 'true') {
-    const perToken = await rateLimit(`flow-hook-token:${token}`, 600, 60);
+  const limits = process.env.RATE_LIMIT_DISABLED !== 'true';
+  const missKey = `flow-hook-miss:${clientIp(req)}`;
+  if (limits) {
+    if (await isRateLimited(missKey, MISSES_PER_IP, 60)) return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
+    const perToken = await rateLimit(`flow-hook-token:${token}`, PER_TOKEN_LIMIT, 60);
     if (!perToken.ok) return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
   }
 
@@ -52,6 +61,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
     if (res.error === 'rate_limited') return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
     if (res.error === 'invalid_signature') return NextResponse.json({ error: 'invalid_signature' }, { status: 400 });
     // Flow apagado o token inexistente: misma respuesta (no revela cuál).
+    if (limits) await rateLimit(missKey, MISSES_PER_IP, 60);
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
   if (res.ignored) return NextResponse.json({ ok: true, ignored: true }, { status: 200 });

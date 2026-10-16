@@ -40,8 +40,9 @@ export async function GET(req: NextRequest) {
   // Flow con presupuesto: no empieza corridas nuevas pasados ~150 s del tick
   // (lo que quede sigue en cola para el próximo tick o el worker).
   const flow = await processFlowQueue({ limit: 200, budgetMs: Math.max(0, FLOW_BUDGET_MS - (Date.now() - tickStart)) });
-  // Robots al final: son lo más lento y usan el tiempo que queda.
-  // El tick tiene 300 s: los robots usan lo que quede (con margen).
-  const robots = await runDueRobots(new Date(), 5, Math.max(0, 270_000 - (Date.now() - tickStart)));
+  // Robots al final: son lo más lento y usan el tiempo que queda (con margen).
+  // En Vercel también los corre /api/cron/robots cada 5 min; self-host puede
+  // llamar solo al tick. El compare-and-set de next_run_at evita dobles corridas.
+  const robots = await runDueRobots(new Date(), 100, Math.max(0, 270_000 - (Date.now() - tickStart)));
   return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow, emailSync, sequences, scoring, robots });
 }
