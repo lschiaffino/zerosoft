@@ -624,3 +624,6 @@ body:has(.bp) .site-footer { display: none; }
   .bp-misuse { grid-template-columns: 1fr; }
   .bp-yesno { grid-template-columns: 1fr; }
 }
+
+/* El pie del plano ancho queda a la vista mientras el plano se desplaza. */
+.bp-map-wide .net-caption { position: sticky; left: 0; max-width: calc(100vw - 32px); }

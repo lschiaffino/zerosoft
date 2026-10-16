@@ -121,7 +121,7 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
                 </a>
                 {size ? ` · ${size}` : ''}
               </p>
-              <p className="bp-meta data">{t('hero.edition')}</p>
+              <p className="bp-meta">{t('hero.edition')}</p>
             </div>
           </div>
           <NetworkMap locale={locale} labels={mapLabels} className="bp-hero-map" />
@@ -292,15 +292,15 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
             <ul className="bp-weights">
               <li>
                 <span className="bp-weight" style={{ height: 16 }} />
-                <span className="data">{t('stations.w16')}</span>
+                <span>{t('stations.w16')}</span>
               </li>
               <li>
                 <span className="bp-weight" style={{ height: 8 }} />
-                <span className="data">{t('stations.w8')}</span>
+                <span>{t('stations.w8')}</span>
               </li>
               <li>
                 <span className="bp-weight" style={{ height: 4 }} />
-                <span className="data">{t('stations.w4')}</span>
+                <span>{t('stations.w4')}</span>
               </li>
             </ul>
             <p className="bp-body">{t('stations.corners')}</p>
