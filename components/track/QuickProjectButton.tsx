@@ -8,23 +8,13 @@ import QuickModal from '@/components/app/QuickModal';
 
 const KNOWN_ERRORS = new Set(['invalid_slug', 'slug_taken', 'missing_name', 'invalid_input']);
 
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 64);
-}
-
 /**
- * "Nuevo proyecto" en un modal (nombre, slug, ícono, descripción) sin salir
- * del overview; al crear navega al proyecto. El form completo sigue en
- * /app/track/projects/new.
+ * "Nuevo proyecto" en un modal (nombre y descripción) sin salir de la lista;
+ * al crear navega al proyecto. El identificador lo deriva el servidor del
+ * nombre; el form con opciones avanzadas está en /app/track/projects/new.
  */
 export default function QuickProjectButton({
-  className = 'btn btn-solid',
+  className = 'btn btn-primary',
   testId = 'track-new-project',
   listenParam = false,
 }: {
@@ -48,14 +38,9 @@ export default function QuickProjectButton({
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [listenParam, searchParams, pathname, router]);
   const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
-  const [slugTouched, setSlugTouched] = useState(false);
-  const [icon, setIcon] = useState('◆');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const effectiveSlug = slugTouched ? slug : slugify(name);
 
   async function submit() {
     if (!name.trim() || busy) return;
@@ -64,13 +49,7 @@ export default function QuickProjectButton({
     const res = await fetch('/api/track/projects', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        name: name.trim(),
-        slug: effectiveSlug || slugify(name) || 'project',
-        description: description.trim(),
-        icon: icon.trim() || undefined,
-        color: '#000000',
-      }),
+      body: JSON.stringify({ name: name.trim(), description: description.trim() }),
     }).catch(() => null);
     const data = res ? ((await res.json().catch(() => null)) as { id?: string; error?: string } | null) : null;
     if (res?.ok && data?.id) {
@@ -92,45 +71,21 @@ export default function QuickProjectButton({
         onClose={() => setOpen(false)}
         crumb={`Track › ${t('projects.newTitle')}`}
         onSubmit={submit}
-        submitLabel={busy ? t('common.saving') : t('common.create')}
+        submitLabel={busy ? t('common.saving') : t('projects.create')}
         cancelLabel={t('common.cancel')}
         submitDisabled={!name.trim()}
         busy={busy}
         error={error}
       >
-        <div className="qm-row">
-          <input
-            className="qm-title"
-            style={{ maxWidth: 64, textAlign: 'center' }}
-            value={icon}
-            onChange={(e) => setIcon(e.target.value)}
-            aria-label={t('projects.form.icon')}
-            maxLength={8}
-          />
-          <input
-            data-autofocus
-            className="qm-title"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('projects.form.namePlaceholder')}
-            aria-label={t('projects.form.name')}
-            maxLength={200}
-          />
-        </div>
-        <div className="qm-row">
-          <label className="qm-field">
-            <span>{t('projects.form.slug')}</span>
-            <input
-              value={effectiveSlug}
-              onChange={(e) => {
-                setSlugTouched(true);
-                setSlug(slugify(e.target.value));
-              }}
-              placeholder={t('projects.form.slugPlaceholder')}
-              maxLength={64}
-            />
-          </label>
-        </div>
+        <input
+          data-autofocus
+          className="qm-title"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('projects.form.namePlaceholder')}
+          aria-label={t('projects.form.name')}
+          maxLength={200}
+        />
         <label className="qm-field">
           <span>{t('projects.form.description')}</span>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} maxLength={5000} />

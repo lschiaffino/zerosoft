@@ -21,33 +21,44 @@
     "hide": "Hide",
     "search": "Search",
     "noResults": "No results",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "retry": "Try again",
+    "optional": "optional"
   },
   "overview": {
     "title": "Track",
-    "subtitle": "Projects, cycles and issues. Zero friction.",
-    "emptyTitle": "0 projects",
-    "emptySub": "Create your first project and start shipping.",
-    "emptyCta": "New project",
+    "subtitle": "Your team's projects, cycles and issues.",
+    "emptyTitle": "No projects yet",
+    "emptySub": "A project groups issues, cycles and views. Create one per product or team.",
     "projects": "Projects",
-    "recentIssues": "Recent issues"
+    "recentIssues": "Recent issues",
+    "emptySecondary": "Also from ⌘K."
   },
   "projects": {
     "title": "Projects",
-    "newCta": "+ New project",
+    "newCta": "New project",
     "newTitle": "New project",
-    "newSub": "Name it. Slug it. Ship it.",
+    "newSub": "Issue identifiers come from the name.",
     "back": "← All projects",
     "empty": "No projects yet.",
     "openIssues": "open",
     "form": {
       "name": "Name",
       "namePlaceholder": "Acme Mobile App",
-      "slug": "Slug",
+      "slug": "Identifier",
       "slugPlaceholder": "acme-mobile",
       "description": "Description",
       "icon": "Icon",
-      "color": "Color"
+      "slugHelp": "Issue prefix: {example}. Leave it empty to use the name.",
+      "advancedHint": "Identifier and icon",
+      "iconHelp": "An emoji or up to 8 characters, next to the name."
+    },
+    "create": "Create project",
+    "formTitle": "Project",
+    "backToList": "Back to projects",
+    "column": {
+      "project": "Project",
+      "open": "Open"
     }
   },
   "project": {
@@ -63,13 +74,18 @@
     "pastCycles": "Past cycles",
     "loadMore": "Load more",
     "showing": "Showing {shown} of {total}",
-    "settings": "Settings"
+    "settings": "Settings",
+    "loadErrorTitle": "Couldn't load the project",
+    "loadErrorBody": "Check your connection and try again.",
+    "emptyTitle": "No issues yet",
+    "emptyBody": "An issue is a task with a status, a priority and an owner. The ones you create show up here.",
+    "emptyShortcut": "Shortcut: C",
+    "noMatches": "No issues match these filters.",
+    "activeCycleMeta": "{name}: {done} of {total} done. Ends {end}."
   },
   "issues": {
     "pageTitle": "Issues",
     "newCta": "+ New issue",
-    "newTitle": "New issue",
-    "newSub": "Create an issue in this project.",
     "back": "← Back to project",
     "empty": "No issues match.",
     "identifier": "ID",
@@ -81,20 +97,6 @@
     "estimate": "Estimate",
     "created": "Created",
     "noAssignee": "Unassigned",
-    "form": {
-      "title": "Title",
-      "titlePlaceholder": "Fix login redirect",
-      "description": "Description",
-      "status": "Status",
-      "priority": "Priority",
-      "assignee": "Assignee",
-      "cycle": "Cycle",
-      "estimate": "Estimate (points)",
-      "dueDate": "Due date",
-      "labels": "Labels",
-      "removeLabel": "Remove label",
-      "labelsPlaceholder": "Type and press Enter"
-    },
     "dueDate": "Due date",
     "labels": "Labels",
     "detail": {
@@ -103,7 +105,13 @@
       "noComments": "No comments yet.",
       "properties": "Properties"
     },
-    "changeStatus": "Change status"
+    "changeStatus": "Change status",
+    "untitled": "Untitled",
+    "createdOn": "Created {date}",
+    "breadcrumb": "Issue location",
+    "description": "Description",
+    "noProjectsBody": "Create a project to start adding issues.",
+    "none": "None"
   },
   "subtasks": {
     "title": "Subtasks",
@@ -146,7 +154,8 @@
     "mentionedYou": "{actor} mentioned you in {identifier}",
     "assignedYou": "{actor} assigned you {identifier}",
     "commentedOn": "{actor} commented on {identifier}",
-    "changedStatus": "{actor} changed status of {identifier}"
+    "changedStatus": "{actor} changed status of {identifier}",
+    "submitComment": "Comment"
   },
   "relations": {
     "title": "Relations",
@@ -163,7 +172,8 @@
     "notFound": "No issue found with that ID or identifier.",
     "duplicate": "These issues are already related.",
     "self": "An issue can’t be related to itself.",
-    "error": "Couldn’t add the relation. Try again."
+    "error": "Couldn’t add the relation. Try again.",
+    "add": "Add relation"
   },
   "actions": {
     "close": "Close issue",
@@ -191,7 +201,13 @@
       "active": "Active",
       "upcoming": "Upcoming",
       "past": "Past"
-    }
+    },
+    "help": "Work periods, usually two weeks long. Completing one moves what is unfinished to the next.",
+    "emptyTitle": "No cycles yet",
+    "emptyBody": "Create the first one to plan in periods and track progress.",
+    "save": "Save cycle",
+    "create": "Create cycle",
+    "completeConfirm": "Complete cycle"
   },
   "statuses": {
     "title": "Statuses",
@@ -211,7 +227,8 @@
     "list": "List",
     "board": "Board",
     "calendar": "Calendar",
-    "gantt": "Gantt"
+    "gantt": "Gantt",
+    "group": "View"
   },
   "filters": {
     "status": "Status",
@@ -255,9 +272,13 @@
     "mentions": "Mentions",
     "assigned": "Assigned",
     "updates": "Updates",
-    "empty": "No notifications.",
+    "empty": "No notifications",
     "markAllRead": "Mark all read",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "emptyBody": "Mentions, assignments and status changes on your issues land here.",
+    "unread": "Unread",
+    "loadError": "Couldn't load the inbox.",
+    "someone": "Someone"
   },
   "notifications": {
     "title": "Notifications",
@@ -303,7 +324,8 @@
     "clear": "Remove date",
     "pickDate": "Pick a date",
     "dragHint": "Drag to another column to change status",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "loadError": "Couldn't load more issues."
   },
   "myTasks": {
     "title": "My tasks",
@@ -312,7 +334,8 @@
     "today": "Today",
     "upcoming": "Upcoming",
     "noDate": "No date",
-    "empty": "Nothing assigned to you. Enjoy the calm."
+    "empty": "Nothing assigned to you",
+    "emptyBody": "Anything assigned to you in any project shows up here, grouped by due date."
   },
   "cmdk": {
     "newIssue": "New issue",
@@ -333,7 +356,8 @@
     "adminOnly": "Only an admin can delete statuses.",
     "confirmDelete": "Delete status",
     "newPlaceholder": "New status",
-    "add": "Add"
+    "add": "Add",
+    "help": "Statuses order the board. The category decides what counts as done."
   },
   "settingsPage": {
     "title": "Track settings",
@@ -353,7 +377,8 @@
     "duplicate": "A label with that name already exists.",
     "empty": "No labels yet.",
     "error": "Could not save the label.",
-    "adminOnly": "Only an admin can edit or delete labels."
+    "adminOnly": "Only an admin can edit or delete labels.",
+    "loadError": "Couldn't load labels."
   },
   "github": {
     "title": "GitHub",
@@ -372,7 +397,7 @@
     "onMergeMove": "Move the issue to Done",
     "doNothing": "Keep the status",
     "connect": "Connect GitHub",
-    "save": "Save",
+    "save": "Save repos",
     "disconnect": "Disconnect",
     "regenerate": "Generate a new secret",
     "lastDelivery": "Last delivery: {date}",
@@ -396,7 +421,17 @@
     },
     "regenerateConfirm": "Generate a new secret? The current one stops working right away: GitHub deliveries will fail until you paste the new secret in the webhook.",
     "disconnectConfirm": "Disconnect GitHub? PRs and commits will no longer be linked to issues.",
-    "moveHelp": "Only issues in the branch, in the title or after fixes, closes or resolves in the description change status."
+    "moveHelp": "Only issues in the branch, in the title or after fixes, closes or resolves in the description change status.",
+    "reposRequired": "Add at least one repo.",
+    "loadError": "Couldn't load the integration.",
+    "notConnected": "Not connected.",
+    "connectNote": "Next you'll get the URL and secret to paste into GitHub.",
+    "webhookTitle": "Webhook",
+    "reposTitle": "Repos",
+    "dangerTitle": "Secret and connection",
+    "dangerHelp": "A new secret invalidates the current one. Disconnecting stops linking PRs and commits.",
+    "statusRules": "Status rules",
+    "statusRulesHint": "What happens when a PR opens or merges"
   },
   "bulk": {
     "selected": "{count} selected",
@@ -445,6 +480,16 @@
       "github": "GitHub",
       "agent": "Agents",
       "app": "the app"
+    },
+    "emptyBody": "Issues from the API, Chat, Flow or GitHub wait here until someone accepts them."
+  },
+  "projectSettings": {
+    "title": "Project settings",
+    "close": "Close settings",
+    "tabs": {
+      "cycles": "Cycles",
+      "statuses": "Statuses",
+      "triage": "Triage"
     }
   }
 }

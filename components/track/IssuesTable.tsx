@@ -7,6 +7,8 @@ import type { TrackIssueWithStatus } from '@/lib/track-data';
 import type { IssueLabel } from '@/lib/track-schema';
 import type { IssuePatch } from '@/lib/track-tasks';
 import StatusBadge from './StatusBadge';
+import EmptyState from '@/components/ui/EmptyState';
+import TrackIcon from './TrackIcon';
 import { AssigneeMenu, DoneCheckbox, DueDateMenu, PriorityMenu, QuickAdd, StatusMenu } from './InlineEditors';
 import { isPendingIssue, type ProjectMap } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
@@ -108,14 +110,7 @@ export default function IssuesTable({
   }, [issues, sort, sortDir]);
 
   if (sorted.length === 0 && !quickAdd) {
-    return (
-      <div className="track-empty">
-        <p className="track-empty-zeros mono" aria-hidden>
-          0 0 0
-        </p>
-        <p>{labels.empty}</p>
-      </div>
-    );
+    return <EmptyState quiet title={labels.empty} />;
   }
 
   const show = (c: OptionalColumn) => !hideColumns.includes(c) && (c !== 'project' || Boolean(labels.project));
@@ -129,13 +124,17 @@ export default function IssuesTable({
       aria-sort={sort === field ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
       {label}
-      {sort === field && <span className="track-sort-arrow">{sortDir === 'asc' ? ' ↑' : ' ↓'}</span>}
+      {sort === field && (
+        <span className="track-sort-arrow">
+          <TrackIcon name={sortDir === 'asc' ? 'up' : 'down'} size={11} />
+        </span>
+      )}
     </th>
   );
 
   return (
-    <div className={`track-table-wrap${editing ? ' is-editable' : ''}`}>
-      <table className="track-table">
+    <div className={`table-wrap track-table-wrap${editing ? ' is-editable' : ''}`}>
+      <table className="table track-table">
         {showHeader && (
           <thead>
             <tr>
@@ -187,10 +186,11 @@ export default function IssuesTable({
             const completed = issue.status_category === 'done' || issue.status_category === 'cancelled';
             const titleContent = (
               <>
-                <span className="track-issue-title">{issue.title || '—'}</span>
+                <span className="track-issue-title">{issue.title || '–'}</span>
                 {issue.child_count > 0 && (
                   <span className="track-subtask-indicator" title={labels.hasSubtasks}>
-                    ⊞ {issue.child_count}
+                    <TrackIcon name="subtasks" size={12} />
+                    <span className="sr-only">{labels.hasSubtasks}:</span> {issue.child_count}
                   </span>
                 )}
               </>
@@ -250,7 +250,7 @@ export default function IssuesTable({
                 <td className="track-col-title">
                   {pending ? titleContent : <Link href={`/app/track/issues/${issue.id}`}>{titleContent}</Link>}
                 </td>
-                {show('project') && <td className="hide-sm track-cell-dim">{ctx?.name ?? '—'}</td>}
+                {show('project') && <td className="hide-sm track-cell-dim">{ctx?.name ?? '–'}</td>}
                 <td>
                   {editing ? (
                     <StatusMenu
@@ -301,7 +301,7 @@ export default function IssuesTable({
                     )}
                   </td>
                 )}
-                {show('cycle') && <td className="hide-sm">{issue.cycle_name ?? '—'}</td>}
+                {show('cycle') && <td className="hide-sm">{issue.cycle_name ?? '–'}</td>}
                 <td className="hide-sm">
                   {editing ? (
                     <DueDateMenu
@@ -315,7 +315,7 @@ export default function IssuesTable({
                   ) : issue.due_date ? (
                     formatDate(issue.due_date, locale)
                   ) : (
-                    '—'
+                    '–'
                   )}
                 </td>
                 {show('labels') && (
@@ -330,7 +330,7 @@ export default function IssuesTable({
                         ))}
                       </span>
                     ) : (
-                      '—'
+                      '–'
                     )}
                   </td>
                 )}

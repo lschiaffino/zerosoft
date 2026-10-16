@@ -37,7 +37,7 @@ export function CopyBranchButton({ identifier, title }: { identifier: string; ti
   return (
     <button
       type="button"
-      className="btn btn-outline"
+      className="btn"
       title={branchName}
       data-testid="track-copy-branch"
       data-branch={branchName}
@@ -57,20 +57,20 @@ export function IssueGithubPanel({ data }: { data: GithubData | null }) {
   const t = useTranslations('track');
   if (!data) return null;
   return (
-    <section className="panel" data-testid="track-issue-github">
-      <p className="section-label">{t('github.linked')}</p>
+    <section className="track-detail-section" data-testid="track-issue-github">
+      <h2 className="track-section-title">{t('github.linked')}</h2>
       {data.rows.length === 0 ? (
-        <p className="muted">{t('github.noLinks')}</p>
+        <p className="ui-help">{t('github.noLinks')}</p>
       ) : (
         <ul className="track-gh-list">
           {data.rows.map((l) => (
             <li key={l.id} className="track-gh-item">
-              <span className="track-gh-kind mono">{l.kind === 'pr' ? `#${l.ref}` : l.ref.slice(0, 7)}</span>
+              <span className="track-gh-kind data">{l.kind === 'pr' ? `#${l.ref}` : l.ref.slice(0, 7)}</span>
               <a href={l.url} target="_blank" rel="noreferrer" className="track-gh-title">
                 {l.title || l.url}
               </a>
-              <span className={`track-gh-state is-${l.state} mono`}>{t(`github.states.${l.state}`)}</span>
-              <span className="track-gh-repo muted mono">{l.repo}</span>
+              <span className={`badge track-gh-state is-${l.state}`}>{t(`github.states.${l.state}`)}</span>
+              <span className="track-gh-repo data">{l.repo}</span>
             </li>
           ))}
         </ul>

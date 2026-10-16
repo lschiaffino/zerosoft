@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TrackStatusRow } from '@/lib/db';
+import TrackIcon from './TrackIcon';
 
 const CATEGORIES = ['backlog', 'todo', 'in_progress', 'done', 'cancelled'] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -86,7 +87,7 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
     setBusy(true);
     const res = await call(`/api/track/projects/${projectId}/statuses`, {
       method: 'POST',
-      body: JSON.stringify({ name: newName.trim(), category: newCategory, color: '#666666' }),
+      body: JSON.stringify({ name: newName.trim(), category: newCategory, color: '#767676' }),
     });
     setBusy(false);
     if (!res) return;
@@ -113,8 +114,9 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
 
   return (
     <div className="track-statuses" data-testid="track-statuses-settings">
+      <p className="ui-help">{t('statusSettings.help')}</p>
       {error && (
-        <p className="form-error" role="alert">
+        <p className="ui-error" role="alert">
           {error}
         </p>
       )}
@@ -124,16 +126,16 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
             <input
               type="color"
               className="track-status-color"
-              value={/^#[0-9a-f]{6}$/i.test(s.color) ? s.color : '#666666'}
+              value={/^#[0-9a-f]{6}$/i.test(s.color) ? s.color : '#767676'}
               onChange={(e) => {
                 if (!colorBefore.current.has(s.id)) colorBefore.current.set(s.id, s.color);
                 onChange(statuses.map((x) => (x.id === s.id ? { ...x, color: e.target.value } : x)));
               }}
               onBlur={(e) => void saveColor(s.id, e.target.value)}
-              aria-label={t('statusSettings.color')}
+              aria-label={`${t('statusSettings.color')}: ${s.name}`}
             />
             <input
-              className="track-status-name"
+              className="input track-status-name"
               defaultValue={s.name}
               aria-label={t('statusSettings.name')}
               maxLength={200}
@@ -151,8 +153,9 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
               }}
             />
             <select
+              className="select track-status-category"
               value={s.category}
-              aria-label={t('statusSettings.category')}
+              aria-label={`${t('statusSettings.category')}: ${s.name}`}
               onChange={(e) => void patch(s.id, { category: e.target.value })}
             >
               {CATEGORIES.map((c) => (
@@ -161,44 +164,48 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              className="btn btn-small"
-              onClick={() => void move(i, -1)}
-              disabled={i === 0}
-              aria-label={t('statusSettings.moveUp')}
-              title={t('statusSettings.moveUp')}
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              className="btn btn-small"
-              onClick={() => void move(i, 1)}
-              disabled={i === statuses.length - 1}
-              aria-label={t('statusSettings.moveDown')}
-              title={t('statusSettings.moveDown')}
-            >
-              ↓
-            </button>
-            {canDelete && (
+            <span className="track-status-tools">
               <button
                 type="button"
-                className="btn btn-small"
-                disabled={statuses.length <= 1}
-                onClick={() => {
-                  setDeleting(s.id);
-                  setReassignTo(statuses.find((x) => x.id !== s.id)?.id ?? '');
-                }}
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={() => void move(i, -1)}
+                disabled={i === 0}
+                aria-label={`${t('statusSettings.moveUp')}: ${s.name}`}
+                title={t('statusSettings.moveUp')}
               >
-                {t('statusSettings.delete')}
+                <TrackIcon name="up" />
               </button>
-            )}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={() => void move(i, 1)}
+                disabled={i === statuses.length - 1}
+                aria-label={`${t('statusSettings.moveDown')}: ${s.name}`}
+                title={t('statusSettings.moveDown')}
+              >
+                <TrackIcon name="down" />
+              </button>
+              {canDelete && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm btn-icon btn-danger"
+                  disabled={statuses.length <= 1}
+                  aria-label={`${t('statusSettings.delete')}: ${s.name}`}
+                  title={t('statusSettings.delete')}
+                  onClick={() => {
+                    setDeleting(s.id);
+                    setReassignTo(statuses.find((x) => x.id !== s.id)?.id ?? '');
+                  }}
+                >
+                  <TrackIcon name="close" />
+                </button>
+              )}
+            </span>
             {deleting === s.id && (
-              <div className="track-status-delete" role="group" aria-label={t('statusSettings.delete')}>
-                <label>
-                  {t('statusSettings.reassignTo')}{' '}
-                  <select value={reassignTo} onChange={(e) => setReassignTo(e.target.value)}>
+              <div className="track-status-delete" role="group" aria-label={t('statusSettings.confirmDelete')}>
+                <label className="track-status-reassign">
+                  <span>{t('statusSettings.reassignTo')}</span>
+                  <select className="select" value={reassignTo} onChange={(e) => setReassignTo(e.target.value)}>
                     {statuses
                       .filter((x) => x.id !== s.id)
                       .map((x) => (
@@ -208,34 +215,47 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
                       ))}
                   </select>
                 </label>
-                <button type="button" className="btn btn-small btn-solid" onClick={() => void remove(s.id)} disabled={busy}>
-                  {t('statusSettings.confirmDelete')}
-                </button>
-                <button type="button" className="btn btn-small" onClick={() => setDeleting(null)}>
-                  {t('common.cancel')}
-                </button>
+                <span className="track-inline-form-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDeleting(null)}>
+                    {t('common.cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary btn-danger"
+                    onClick={() => void remove(s.id)}
+                    aria-busy={busy || undefined}
+                  >
+                    {t('statusSettings.confirmDelete')}
+                  </button>
+                </span>
               </div>
             )}
           </li>
         ))}
       </ul>
-      {!canDelete && <p className="muted track-settings-help">{t('statusSettings.adminOnly')}</p>}
+      {!canDelete && <p className="ui-help">{t('statusSettings.adminOnly')}</p>}
       <form className="track-status-add" onSubmit={add}>
         <input
+          className="input"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder={t('statusSettings.newPlaceholder')}
           aria-label={t('statusSettings.newPlaceholder')}
           maxLength={200}
         />
-        <select value={newCategory} onChange={(e) => setNewCategory(e.target.value as Category)} aria-label={t('statusSettings.category')}>
+        <select
+          className="select"
+          value={newCategory}
+          onChange={(e) => setNewCategory(e.target.value as Category)}
+          aria-label={t('statusSettings.category')}
+        >
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {t(`statuses.${CATEGORY_KEY[c]}`)}
             </option>
           ))}
         </select>
-        <button type="submit" className="btn btn-small btn-solid" disabled={!newName.trim() || busy}>
+        <button type="submit" className="btn btn-sm" disabled={!newName.trim()} aria-busy={busy || undefined}>
           {t('statusSettings.add')}
         </button>
       </form>

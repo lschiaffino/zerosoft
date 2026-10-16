@@ -4,37 +4,31 @@ import InboxClient from '@/components/track/InboxClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TrackInboxPage(
-  props: {
-    params: Promise<{ locale: string }>;
-  }
-) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
+export default async function TrackInboxPage(props: { params: Promise<{ locale: string }> }) {
+  const { locale } = await props.params;
   await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
 
   return (
     <div className="app-page track-page">
-      <div className="track-page-header">
-        <h1>{t('inbox.title')}</h1>
-      </div>
-
       <InboxClient
         locale={locale}
         labels={{
+          title: t('inbox.title'),
           all: t('inbox.all'),
           mentions: t('inbox.mentions'),
           assigned: t('inbox.assigned'),
           updates: t('inbox.updates'),
           empty: t('inbox.empty'),
+          emptyBody: t('inbox.emptyBody'),
           markAllRead: t('inbox.markAllRead'),
           loadMore: t('inbox.loadMore'),
           markRead: t('notifications.markRead'),
+          unread: t('inbox.unread'),
+          loading: t('common.loading'),
+          loadError: t('inbox.loadError'),
+          retry: t('common.retry'),
+          someone: t('inbox.someone'),
           mentionedYou: t('activity.mentionedYou'),
           assignedYou: t('activity.assignedYou'),
           commentedOn: t('activity.commentedOn'),

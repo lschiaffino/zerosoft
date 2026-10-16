@@ -8,7 +8,7 @@ interface StatusBadgeProps {
 }
 
 export default function StatusBadge({ name, color }: StatusBadgeProps) {
-  if (!name) return <span className="track-badge">—</span>;
+  if (!name) return <span className="track-badge">–</span>;
 
   const dotColor = safeHexColor(color, '#666666');
   const textColor = safeHexColor(color, 'currentColor');

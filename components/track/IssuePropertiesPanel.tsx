@@ -137,8 +137,8 @@ export default function IssuePropertiesPanel({
   return (
     <div className="track-properties">
       <div className="track-property">
-        <label>{labels.status}</label>
-        <select value={localIssue.status_id ?? ''} onChange={(e) => setStatus(e.target.value)}>
+        <label htmlFor="prop-status">{labels.status}</label>
+        <select id="prop-status" className="select" value={localIssue.status_id ?? ''} onChange={(e) => setStatus(e.target.value)}>
           <option value="">{labels.none}</option>
           {statuses.map((s) => (
             <option key={s.id} value={s.id}>
@@ -148,8 +148,10 @@ export default function IssuePropertiesPanel({
         </select>
       </div>
       <div className="track-property">
-        <label>{labels.priority}</label>
+        <label htmlFor="prop-priority">{labels.priority}</label>
         <select
+          id="prop-priority"
+          className="select"
           value={localIssue.priority}
           onChange={(e) => update({ priority: e.target.value })}
         >
@@ -161,8 +163,8 @@ export default function IssuePropertiesPanel({
         </select>
       </div>
       <div className="track-property">
-        <label>{labels.assignee}</label>
-        <select value={localIssue.assignee_id ?? ''} onChange={(e) => setAssignee(e.target.value)}>
+        <label htmlFor="prop-assignee">{labels.assignee}</label>
+        <select id="prop-assignee" className="select" value={localIssue.assignee_id ?? ''} onChange={(e) => setAssignee(e.target.value)}>
           <option value="">{labels.noAssignee}</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>
@@ -172,8 +174,8 @@ export default function IssuePropertiesPanel({
         </select>
       </div>
       <div className="track-property">
-        <label>{labels.cycle}</label>
-        <select value={localIssue.cycle_id ?? ''} onChange={(e) => setCycle(e.target.value)}>
+        <label htmlFor="prop-cycle">{labels.cycle}</label>
+        <select id="prop-cycle" className="select" value={localIssue.cycle_id ?? ''} onChange={(e) => setCycle(e.target.value)}>
           <option value="">{labels.none}</option>
           {cycles.map((c) => (
             <option key={c.id} value={c.id}>
@@ -183,20 +185,24 @@ export default function IssuePropertiesPanel({
         </select>
       </div>
       <div className="track-property">
-        <label>{labels.dueDate}</label>
+        <label htmlFor="prop-dueDate">{labels.dueDate}</label>
         <input
+          id="prop-dueDate"
+          className="input"
           type="date"
           value={localIssue.due_date ?? ''}
           onChange={(e) => update({ dueDate: e.target.value || null })}
         />
       </div>
       <div className="track-property track-property-stack">
-        <label>{labels.labels}</label>
+        <span className="track-property-label">{labels.labels}</span>
         <LabelPicker value={issueLabels} onChange={(next) => void setLabels(next)} />
       </div>
       <div className="track-property">
-        <label>{labels.estimate}</label>
+        <label htmlFor="prop-estimate">{labels.estimate}</label>
         <input
+          id="prop-estimate"
+          className="input"
           type="number"
           min={0}
           value={localIssue.estimate ?? ''}

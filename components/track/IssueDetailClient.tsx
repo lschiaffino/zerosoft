@@ -35,6 +35,7 @@ interface DetailLabels {
     labels: string;
     noAssignee: string;
     none: string;
+    title: string;
   };
   priorities: Array<{ value: string; label: string }>;
   subtasks: {
@@ -97,12 +98,15 @@ interface DetailLabels {
     duplicate: string;
     self: string;
     error: string;
+    cancel: string;
   };
   actions: {
     close: string;
     reopen: string;
   };
   description: string;
+  untitled: string;
+  createdOn: string;
 }
 
 interface IssueDetailClientProps {
@@ -340,70 +344,75 @@ export default function IssueDetailClient({
 
   return (
     <div className="app-page track-detail" data-track-project-id={issue.project_id}>
-      <div className="track-detail-head">
-        <div className="track-detail-meta">
-          <Link href={`/app/track/projects/${issue.project_id}`}>{labels.back}</Link>
-        </div>
-        <nav className="track-breadcrumb">
+      <header className="track-detail-head">
+        <nav className="track-breadcrumb" aria-label={labels.back}>
           <Link href={`/app/track/projects/${issue.project_id}`}>{initialProjectName}</Link>
           {initialParentChain.map((p) => (
-            <span key={p.id}>
-              <span className="track-breadcrumb-sep">/</span>
-              <Link href={`/app/track/issues/${p.id}`} title={p.title}>
+            <span key={p.id} className="track-breadcrumb-step">
+              <span className="track-breadcrumb-sep" aria-hidden>
+                /
+              </span>
+              <Link href={`/app/track/issues/${p.id}`} title={p.title} className="track-identifier">
                 {p.identifier}
               </Link>
             </span>
           ))}
-          <span className="track-breadcrumb-sep">/</span>
-          <span className="track-breadcrumb-current">{issue.identifier}</span>
+          <span className="track-breadcrumb-sep" aria-hidden>
+            /
+          </span>
+          <span className="track-breadcrumb-current track-identifier" aria-current="page">
+            {issue.identifier}
+          </span>
         </nav>
-        <h1>
-          <span className="track-identifier">{issue.identifier}</span>{' '}
-          {issue.title || labels.description}
-        </h1>
-        <div className="track-detail-meta">
-          <StatusBadge name={issue.status_name} color={issue.status_color} />
-          <span>{labels.priorities.find((p) => p.value === issue.priority)?.label ?? issue.priority}</span>
-          <span>{formatDate(issue.created_at, locale)}</span>
-          {issueLabels.length > 0 && (
-            <span className="track-label-chips">
-              {issueLabels.map((l) => (
-                <span key={l.id} className="track-label-tag">
-                  <span className="track-label-tag-dot" style={{ background: l.color }} aria-hidden />
-                  {l.name}
-                </span>
-              ))}
+        <h1 className="track-detail-title">{issue.title || labels.untitled}</h1>
+        <div className="track-detail-bar">
+          <div className="track-detail-meta">
+            <StatusBadge name={issue.status_name} color={issue.status_color} />
+            <span className="track-priority">
+              <PriorityDot priority={issue.priority} />
+              {labels.priorities.find((p) => p.value === issue.priority)?.label ?? issue.priority}
             </span>
-          )}
+            <span>{labels.createdOn.replace('{date}', formatDate(issue.created_at, locale))}</span>
+            {issueLabels.length > 0 && (
+              <span className="track-label-chips">
+                {issueLabels.map((l) => (
+                  <span key={l.id} className="track-label-tag">
+                    <span className="track-label-tag-dot" style={{ background: l.color }} aria-hidden />
+                    {l.name}
+                  </span>
+                ))}
+              </span>
+            )}
+          </div>
+          <div className="track-detail-actions">
+            <CopyBranchButton identifier={issue.identifier} title={issue.title} />
+            {(doneStatus || openStatus) && (
+              <button type="button" className="btn btn-primary" onClick={handleCloseReopen}>
+                {isClosed ? labels.actions.reopen : labels.actions.close}
+              </button>
+            )}
+          </div>
         </div>
         {issue.triage === 1 && (
           <TriageBanner key={issue.id} issue={issue} statuses={initialStatuses} onResolved={() => void handleIssueChange()} />
         )}
-        <div className="track-detail-actions">
-          <CopyBranchButton identifier={issue.identifier} title={issue.title} />
-          {(doneStatus || openStatus) && (
-            <button type="button" className="btn btn-outline" onClick={handleCloseReopen}>
-              {isClosed ? labels.actions.reopen : labels.actions.close}
-            </button>
-          )}
-        </div>
-      </div>
+      </header>
 
       <div className="track-detail-grid">
         <div className="track-detail-main">
           {descriptionText ? (
-            <section className="panel">
-              <p className="section-label">{labels.description}</p>
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.6 }}>{descriptionText}</div>
+            <section className="track-detail-section">
+              <h2 className="track-section-title">{labels.description}</h2>
+              <div className="track-description">{descriptionText}</div>
             </section>
           ) : null}
 
-          <section className="panel">
+          <section className="track-detail-section">
             <div className="track-section-header">
-              <p className="section-label">{labels.subtasks.title}</p>
+              <h2 className="track-section-title">{labels.subtasks.title}</h2>
               <button
                 type="button"
-                className="btn btn-small"
+                className="btn btn-ghost btn-sm"
                 onClick={() => setSubOpen(true)}
                 data-testid="track-add-subissue"
               >
@@ -411,25 +420,25 @@ export default function IssueDetailClient({
               </button>
             </div>
             {subError && (
-              <p className="form-error" role="alert">
+              <p className="ui-error" role="alert">
                 {subError}
               </p>
             )}
             {children.length === 0 ? (
-              <p className="muted">{labels.subtasks.empty}</p>
+              <p className="ui-help">{labels.subtasks.empty}</p>
             ) : (
               <ul className="track-subtask-list">
                 {children.map((child) => (
                   <li key={child.id} className="track-subtask">
                     <Link href={`/app/track/issues/${child.id}`}>
                       <span className="track-identifier">{child.identifier}</span>
-                      <span className="track-subtask-title">{child.title || '—'}</span>
+                      <span className="track-subtask-title">{child.title || labels.untitled}</span>
                     </Link>
                     <div className="track-subtask-meta">
                       <StatusBadge name={child.status_name} color={child.status_color} />
                       <span className="track-priority">
                         <PriorityDot priority={child.priority} />
-                        {child.priority}
+                        {labels.priorities.find((p) => p.value === child.priority)?.label ?? child.priority}
                       </span>
                       <span>{child.assignee_name ?? child.assignee_email ?? labels.properties.noAssignee}</span>
                     </div>
@@ -441,8 +450,9 @@ export default function IssueDetailClient({
 
           <IssueGithubPanel data={github} />
 
-          <section className="panel">
-            <p className="section-label">{labels.attachments.title}</p>
+          <section className="track-detail-section">
+            <div className="track-section-header">
+              <h2 className="track-section-title">{labels.attachments.title}</h2>
             <label className="track-attachment-upload">
               <input
                 type="file"
@@ -453,15 +463,18 @@ export default function IssueDetailClient({
                 }}
                 disabled={uploading}
               />
-              <span className="btn btn-small">{uploading ? '…' : labels.attachments.upload}</span>
+              <span className="btn btn-ghost btn-sm" aria-busy={uploading || undefined}>
+                {labels.attachments.upload}
+              </span>
             </label>
+            </div>
             {attachmentError && (
-              <p className="form-error" role="alert">
+              <p className="ui-error" role="alert">
                 {attachmentError}
               </p>
             )}
             {attachments.length === 0 ? (
-              <p className="muted">{labels.attachments.empty}</p>
+              <p className="ui-help">{labels.attachments.empty}</p>
             ) : (
               <ul className="track-attachment-list">
                 {attachments.map((a) => (
@@ -475,7 +488,7 @@ export default function IssueDetailClient({
                     {a.user_id === userId && (
                       <button
                         type="button"
-                        className="track-attachment-delete"
+                        className="btn btn-ghost btn-sm btn-danger"
                         onClick={() => handleDeleteAttachment(a.id)}
                       >
                         {labels.attachments.delete}
@@ -487,13 +500,20 @@ export default function IssueDetailClient({
             )}
           </section>
 
-          <section className="panel">
-            <p className="section-label">{labels.relations.title}</p>
-            {relations.length === 0 && !showRelationForm && <p className="muted">{labels.relations.empty}</p>}
+          <section className="track-detail-section">
+            <div className="track-section-header">
+              <h2 className="track-section-title">{labels.relations.title}</h2>
+              {!showRelationForm && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowRelationForm(true)}>
+                  {labels.relations.add}
+                </button>
+              )}
+            </div>
+            {relations.length === 0 && !showRelationForm && <p className="ui-help">{labels.relations.empty}</p>}
 
             {outgoing.length > 0 && (
               <div className="track-relation-group">
-                <p className="track-relation-heading">{labels.relations.outgoing}</p>
+                <h3 className="track-relation-heading">{labels.relations.outgoing}</h3>
                 <ul className="track-relation-list">
                   {outgoing.map((r) => (
                     <li key={r.id} className="track-relation">
@@ -504,7 +524,7 @@ export default function IssueDetailClient({
                       </Link>
                       <button
                         type="button"
-                        className="track-relation-delete"
+                        className="btn btn-ghost btn-sm"
                         onClick={() => handleDeleteRelation(r.id)}
                       >
                         {labels.relations.remove}
@@ -517,7 +537,7 @@ export default function IssueDetailClient({
 
             {incoming.length > 0 && (
               <div className="track-relation-group">
-                <p className="track-relation-heading">{labels.relations.incoming}</p>
+                <h3 className="track-relation-heading">{labels.relations.incoming}</h3>
                 <ul className="track-relation-list">
                   {incoming.map((r) => (
                     <li key={r.id} className="track-relation">
@@ -528,7 +548,7 @@ export default function IssueDetailClient({
                       </Link>
                       <button
                         type="button"
-                        className="track-relation-delete"
+                        className="btn btn-ghost btn-sm"
                         onClick={() => handleDeleteRelation(r.id)}
                       >
                         {labels.relations.remove}
@@ -539,42 +559,57 @@ export default function IssueDetailClient({
               </div>
             )}
 
-            {showRelationForm ? (
-              <form className="track-relation-form" onSubmit={handleAddRelation}>
+            {showRelationForm && (
+              <form
+                className="track-relation-form"
+                onSubmit={handleAddRelation}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setShowRelationForm(false);
+                  }
+                }}
+              >
+                <select
+                  className="select"
+                  aria-label={labels.relations.selectType}
+                  value={relationType}
+                  onChange={(e) => setRelationType(e.target.value as (typeof RELATION_TYPES)[number])}
+                >
+                  {RELATION_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {relationLabel(type, 'outgoing')}
+                    </option>
+                  ))}
+                </select>
                 <input
+                  className="input data"
                   type="text"
                   value={relationInput}
                   onChange={(e) => setRelationInput(e.target.value)}
                   placeholder={labels.relations.selectIssue}
+                  aria-label={labels.relations.selectIssue}
+                  autoFocus
                 />
-                <select value={relationType} onChange={(e) => setRelationType(e.target.value as (typeof RELATION_TYPES)[number])}>
-                  {RELATION_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {labels.relations.selectType} {t}
-                    </option>
-                  ))}
-                </select>
-                <button type="submit" className="btn btn-small btn-solid">
-                  {labels.relations.add}
-                </button>
-                <button type="button" className="btn btn-small" onClick={() => setShowRelationForm(false)}>
-                  Cancel
-                </button>
+                <span className="track-inline-form-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowRelationForm(false)}>
+                    {labels.relations.cancel}
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={!relationInput.trim()}>
+                    {labels.relations.add}
+                  </button>
+                </span>
               </form>
-            ) : (
-              <button type="button" className="btn btn-small" onClick={() => setShowRelationForm(true)}>
-                {labels.relations.add}
-              </button>
             )}
             {relationError && (
-              <p className="form-error" role="alert">
+              <p className="ui-error" role="alert">
                 {relationError}
               </p>
             )}
           </section>
 
-          <section className="panel">
-            <p className="section-label">{labels.activity.title}</p>
+          <section className="track-detail-section">
+            <h2 className="track-section-title">{labels.activity.title}</h2>
             <IssueActivityTimeline
               issueId={issue.id}
               locale={locale}
@@ -588,8 +623,7 @@ export default function IssueDetailClient({
         </div>
 
         <aside className="track-detail-side">
-          <section className="panel">
-            <p className="section-label">{labels.properties.status}</p>
+          <section className="track-detail-props" aria-label={labels.properties.title}>
             <IssuePropertiesPanel
               issue={issue}
               statuses={initialStatuses}

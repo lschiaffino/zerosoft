@@ -253,7 +253,7 @@ export function useCreateShortcut(onCreate: () => void, enabled = true): void {
       if (
         el &&
         (el.isContentEditable ||
-          el.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"], [role="listbox"]'))
+          el.closest('input, textarea, select, [contenteditable="true"], dialog, [role="dialog"], [role="menu"], [role="listbox"]'))
       ) {
         return;
       }

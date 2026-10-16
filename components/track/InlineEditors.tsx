@@ -281,12 +281,12 @@ export function StatusMenu({
 }) {
   return (
     <Popover
-      ariaLabel={`${label}: ${statusName ?? '—'}`}
+      ariaLabel={`${label}: ${statusName ?? '–'}`}
       disabled={disabled || statuses.length === 0}
       trigger={
         <>
           <StatusDot color={statusColor} category={statusCategory} />
-          {!compact && <span className="track-inline-text">{statusName ?? '—'}</span>}
+          {!compact && <span className="track-inline-text">{statusName ?? '–'}</span>}
         </>
       }
     >
@@ -371,7 +371,7 @@ export function AssigneeMenu({
   noAssignee: string;
   compact?: boolean;
 }) {
-  const display = assigneeId ? assigneeName || assigneeEmail || '—' : noAssignee;
+  const display = assigneeId ? assigneeName || assigneeEmail || '–' : noAssignee;
   return (
     <Popover
       ariaLabel={`${label}: ${display}`}
@@ -537,7 +537,10 @@ export function QuickAdd({
   if (!open) {
     return (
       <button type="button" className={`track-quick-add-btn track-quick-add-${variant}`} onClick={() => setOpen(true)}>
-        <span aria-hidden>+</span> {labels.newTask}
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        {labels.newTask}
       </button>
     );
   }
@@ -584,7 +587,7 @@ export function QuickAdd({
           }
         }}
       />
-      <span className="track-quick-add-hint mono" aria-hidden>
+      <span className="track-quick-add-hint" aria-hidden>
         {labels.hint}
       </span>
     </div>
@@ -595,11 +598,13 @@ export function QuickAdd({
 export function TrackToast({ message, onDismiss, dismissLabel }: { message: string | null; onDismiss: () => void; dismissLabel: string }) {
   if (!message) return null;
   return (
-    <div className="track-toast" role="status" aria-live="polite">
-      <span>{message}</span>
-      <button type="button" onClick={onDismiss} aria-label={dismissLabel}>
-        ×
-      </button>
+    <div className="ui-toasts" role="status" aria-live="polite">
+      <div className="ui-toast" data-tone="error">
+        <span>{message}</span>
+        <button type="button" className="ui-toast-action" onClick={onDismiss}>
+          {dismissLabel}
+        </button>
+      </div>
     </div>
   );
 }

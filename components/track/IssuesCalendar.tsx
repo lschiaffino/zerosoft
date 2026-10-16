@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Link } from '@/i18n/navigation';
+import TrackIcon from './TrackIcon';
 import { formatDate } from '@/lib/utils';
 import type { TrackIssueWithStatus } from '@/lib/track-data';
 
@@ -77,7 +78,10 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
   const remainder = (7 - (days.length % 7)) % 7;
   for (let i = 1; i <= remainder; i++) days.push(new Date(year, month + 1, i));
 
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // 4 de enero de 1970 fue domingo: nombres cortos de los días en el idioma de la página.
+  const weekDays = Array.from({ length: 7 }, (_, i) =>
+    new Date(Date.UTC(1970, 0, 4 + i)).toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' }),
+  );
 
   return (
     <div className="track-calendar">
@@ -85,14 +89,14 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
         <div className="track-calendar-title">
           {current.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}
         </div>
-        <div className="track-calendar-nav">
-          <button type="button" onClick={() => setCurrent((d) => addMonths(d, -1))}>
+        <div className="btn-group track-calendar-nav">
+          <button type="button" className="btn btn-sm" onClick={() => setCurrent((d) => addMonths(d, -1))}>
             {labels.prev}
           </button>
-          <button type="button" onClick={() => setCurrent(startOfMonth(new Date()))}>
+          <button type="button" className="btn btn-sm" onClick={() => setCurrent(startOfMonth(new Date()))}>
             {labels.today}
           </button>
-          <button type="button" onClick={() => setCurrent((d) => addMonths(d, 1))}>
+          <button type="button" className="btn btn-sm" onClick={() => setCurrent((d) => addMonths(d, 1))}>
             {labels.next}
           </button>
         </div>
@@ -127,7 +131,12 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
                     >
                       <span className="track-identifier">{issue.identifier}</span>
                       <span className="track-calendar-issue-title">{issue.title}</span>
-                      {issue.child_count > 0 && <span className="track-subtask-indicator">⊞ {issue.child_count}</span>}
+                      {issue.child_count > 0 && (
+                        <span className="track-subtask-indicator">
+                          <TrackIcon name="subtasks" size={12} />
+                          {issue.child_count}
+                        </span>
+                      )}
                     </Link>
                   ))}
                   {dayIssues.length > 3 && (
@@ -152,7 +161,12 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
               >
                 <span className="track-identifier">{issue.identifier}</span>
                 <span className="track-calendar-issue-title">{issue.title}</span>
-                {issue.child_count > 0 && <span className="track-subtask-indicator">⊞ {issue.child_count}</span>}
+                {issue.child_count > 0 && (
+                        <span className="track-subtask-indicator">
+                          <TrackIcon name="subtasks" size={12} />
+                          {issue.child_count}
+                        </span>
+                      )}
                 <span className="track-calendar-issue-assignee">
                   {issue.assignee_name ?? labels.noAssignee}
                 </span>

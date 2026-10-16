@@ -21,33 +21,44 @@
     "hide": "Ocultar",
     "search": "Buscar",
     "noResults": "Sin resultados",
-    "loading": "Cargando…"
+    "loading": "Cargando…",
+    "retry": "Reintentar",
+    "optional": "opcional"
   },
   "overview": {
     "title": "Track",
-    "subtitle": "Proyectos, ciclos e issues. Sin fricción.",
-    "emptyTitle": "0 proyectos",
-    "emptySub": "Crea tu primer proyecto y empieza a shippear.",
-    "emptyCta": "Nuevo proyecto",
+    "subtitle": "Proyectos, ciclos e issues del equipo.",
+    "emptyTitle": "Todavía no hay proyectos",
+    "emptySub": "Un proyecto agrupa issues, ciclos y vistas. Creá uno por producto o por equipo.",
     "projects": "Proyectos",
-    "recentIssues": "Issues recientes"
+    "recentIssues": "Issues recientes",
+    "emptySecondary": "También desde ⌘K."
   },
   "projects": {
     "title": "Proyectos",
-    "newCta": "+ Nuevo proyecto",
+    "newCta": "Nuevo proyecto",
     "newTitle": "Nuevo proyecto",
-    "newSub": "Nombralo. Sluggealo. Shipealo.",
+    "newSub": "El identificador de los issues sale del nombre.",
     "back": "← Todos los proyectos",
     "empty": "Todavía no hay proyectos.",
     "openIssues": "abiertos",
     "form": {
       "name": "Nombre",
       "namePlaceholder": "Acme Mobile App",
-      "slug": "Slug",
+      "slug": "Identificador",
       "slugPlaceholder": "acme-mobile",
       "description": "Descripción",
       "icon": "Icono",
-      "color": "Color"
+      "slugHelp": "Prefijo de los issues: {example}. Si lo dejás vacío, sale del nombre.",
+      "advancedHint": "Identificador e ícono",
+      "iconHelp": "Un emoji o hasta 8 caracteres, al lado del nombre."
+    },
+    "create": "Crear proyecto",
+    "formTitle": "Proyecto",
+    "backToList": "Volver a proyectos",
+    "column": {
+      "project": "Proyecto",
+      "open": "Abiertos"
     }
   },
   "project": {
@@ -63,13 +74,18 @@
     "pastCycles": "Ciclos anteriores",
     "loadMore": "Cargar más",
     "showing": "Mostrando {shown} de {total}",
-    "settings": "Configuración"
+    "settings": "Ajustes",
+    "loadErrorTitle": "No se pudo cargar el proyecto",
+    "loadErrorBody": "Revisá la conexión y probá de nuevo.",
+    "emptyTitle": "Todavía no hay issues",
+    "emptyBody": "Un issue es una tarea con estado, prioridad y responsable. Los que crees aparecen acá.",
+    "emptyShortcut": "Atajo: C",
+    "noMatches": "Ningún issue coincide con los filtros.",
+    "activeCycleMeta": "{name}: {done} de {total} terminados. Cierra el {end}."
   },
   "issues": {
     "pageTitle": "Issues",
     "newCta": "+ Nuevo issue",
-    "newTitle": "Nuevo issue",
-    "newSub": "Crea un issue en este proyecto.",
     "back": "← Volver al proyecto",
     "empty": "Ningún issue coincide.",
     "identifier": "ID",
@@ -81,20 +97,6 @@
     "estimate": "Estimación",
     "created": "Creado",
     "noAssignee": "Sin asignar",
-    "form": {
-      "title": "Título",
-      "titlePlaceholder": "Arreglar redirect de login",
-      "description": "Descripción",
-      "status": "Estado",
-      "priority": "Prioridad",
-      "assignee": "Asignado",
-      "cycle": "Ciclo",
-      "estimate": "Estimación (puntos)",
-      "dueDate": "Fecha de vencimiento",
-      "labels": "Etiquetas",
-      "removeLabel": "Quitar label",
-      "labelsPlaceholder": "Escribí y presioná Enter"
-    },
     "dueDate": "Fecha de vencimiento",
     "labels": "Etiquetas",
     "detail": {
@@ -103,7 +105,13 @@
       "noComments": "Todavía no hay comentarios.",
       "properties": "Propiedades"
     },
-    "changeStatus": "Cambiar estado"
+    "changeStatus": "Cambiar estado",
+    "untitled": "Sin título",
+    "createdOn": "Creado el {date}",
+    "breadcrumb": "Ubicación del issue",
+    "description": "Descripción",
+    "noProjectsBody": "Creá un proyecto para empezar a cargar issues.",
+    "none": "Ninguno"
   },
   "subtasks": {
     "title": "Subtareas",
@@ -146,7 +154,8 @@
     "mentionedYou": "{actor} te mencionó en {identifier}",
     "assignedYou": "{actor} te asignó {identifier}",
     "commentedOn": "{actor} comentó en {identifier}",
-    "changedStatus": "{actor} cambió el estado de {identifier}"
+    "changedStatus": "{actor} cambió el estado de {identifier}",
+    "submitComment": "Comentar"
   },
   "relations": {
     "title": "Relaciones",
@@ -163,7 +172,8 @@
     "notFound": "No hay ningún issue con ese ID o identifier.",
     "duplicate": "Esos issues ya están relacionados.",
     "self": "Un issue no se puede relacionar consigo mismo.",
-    "error": "No se pudo agregar la relación. Probá de nuevo."
+    "error": "No se pudo agregar la relación. Probá de nuevo.",
+    "add": "Agregar relación"
   },
   "actions": {
     "close": "Cerrar issue",
@@ -178,20 +188,26 @@
       "endAt": "Fin"
     },
     "edit": "Editar",
-    "editTitle": "Editar cycle",
+    "editTitle": "Editar ciclo",
     "complete": "Completar",
     "completeTitle": "Completar {name}",
     "completeMove": "{count, plural, =0 {No hay issues sin terminar.} one {El issue sin terminar pasa a {name}.} other {Los # issues sin terminar pasan a {name}.}}",
-    "completeNoNext": "{count, plural, =0 {No hay issues sin terminar.} one {No hay un cycle siguiente: el issue sin terminar queda sin cycle.} other {No hay un cycle siguiente: los # issues sin terminar quedan sin cycle.}}",
+    "completeNoNext": "{count, plural, =0 {No hay issues sin terminar.} one {No hay un ciclo siguiente: el issue sin terminar queda sin ciclo.} other {No hay un ciclo siguiente: los # issues sin terminar quedan sin ciclo.}}",
     "movedTo": "{count, plural, one {# issue movido} other {# issues movidos}} a {name}.",
-    "movedOut": "{count, plural, one {# issue quedó} other {# issues quedaron}} sin cycle.",
+    "movedOut": "{count, plural, one {# issue quedó} other {# issues quedaron}} sin ciclo.",
     "progress": "{done}/{total} terminados",
     "invalidRange": "La fecha de fin no puede ser anterior al inicio.",
     "state": {
       "active": "Activo",
       "upcoming": "Próximo",
       "past": "Terminado"
-    }
+    },
+    "help": "Períodos de trabajo, en general de dos semanas. Al completar uno, lo que quedó sin terminar pasa al siguiente.",
+    "emptyTitle": "Todavía no hay ciclos",
+    "emptyBody": "Creá el primero para planificar por períodos y ver el avance.",
+    "save": "Guardar ciclo",
+    "create": "Crear ciclo",
+    "completeConfirm": "Completar ciclo"
   },
   "statuses": {
     "title": "Estados",
@@ -211,7 +227,8 @@
     "list": "Lista",
     "board": "Tablero",
     "calendar": "Calendario",
-    "gantt": "Cronograma"
+    "gantt": "Cronograma",
+    "group": "Vista"
   },
   "filters": {
     "status": "Estado",
@@ -255,9 +272,13 @@
     "mentions": "Menciones",
     "assigned": "Asignadas",
     "updates": "Actualizaciones",
-    "empty": "No hay notificaciones.",
+    "empty": "No hay notificaciones",
     "markAllRead": "Marcar todas como leídas",
-    "loadMore": "Cargar más"
+    "loadMore": "Cargar más",
+    "emptyBody": "Acá llegan las menciones, asignaciones y cambios de estado de tus issues.",
+    "unread": "Sin leer",
+    "loadError": "No se pudo cargar la bandeja.",
+    "someone": "Alguien"
   },
   "notifications": {
     "title": "Notificaciones",
@@ -303,7 +324,8 @@
     "clear": "Quitar fecha",
     "pickDate": "Elegir fecha",
     "dragHint": "Arrastrá a otra columna para cambiar el estado",
-    "dismiss": "Cerrar"
+    "dismiss": "Cerrar",
+    "loadError": "No se pudieron cargar más issues."
   },
   "myTasks": {
     "title": "Mis tareas",
@@ -312,7 +334,8 @@
     "today": "Hoy",
     "upcoming": "Próximas",
     "noDate": "Sin fecha",
-    "empty": "No tenés nada asignado. Disfrutá la calma."
+    "empty": "No tenés nada asignado",
+    "emptyBody": "Lo que te asignen en cualquier proyecto aparece acá, agrupado por vencimiento."
   },
   "cmdk": {
     "newIssue": "Nuevo issue",
@@ -333,7 +356,8 @@
     "adminOnly": "Solo un admin puede borrar status.",
     "confirmDelete": "Borrar status",
     "newPlaceholder": "Nuevo status",
-    "add": "Agregar"
+    "add": "Agregar",
+    "help": "Los estados ordenan el tablero. La categoría define qué cuenta como terminado."
   },
   "settingsPage": {
     "title": "Ajustes de Track",
@@ -353,7 +377,8 @@
     "duplicate": "Ya existe un label con ese nombre.",
     "empty": "Todavía no hay labels.",
     "error": "No se pudo guardar el label.",
-    "adminOnly": "Solo un admin puede editar o borrar labels."
+    "adminOnly": "Solo un admin puede editar o borrar labels.",
+    "loadError": "No se pudieron cargar los labels."
   },
   "github": {
     "title": "GitHub",
@@ -372,7 +397,7 @@
     "onMergeMove": "Mover el issue a Hecho",
     "doNothing": "No cambiar el estado",
     "connect": "Conectar GitHub",
-    "save": "Guardar",
+    "save": "Guardar repos",
     "disconnect": "Desconectar",
     "regenerate": "Generar secret nuevo",
     "lastDelivery": "Última entrega: {date}",
@@ -396,7 +421,17 @@
     },
     "regenerateConfirm": "¿Generar un secret nuevo? El actual deja de funcionar en el acto: las entregas de GitHub van a fallar hasta que pegues el secret nuevo en el webhook.",
     "disconnectConfirm": "¿Desconectar GitHub? Los PRs y commits dejan de vincularse a los issues.",
-    "moveHelp": "Solo cambian de estado los issues del branch, del título o precedidos de fixes, closes o resolves en la descripción."
+    "moveHelp": "Solo cambian de estado los issues del branch, del título o precedidos de fixes, closes o resolves en la descripción.",
+    "reposRequired": "Agregá al menos un repo.",
+    "loadError": "No se pudo cargar la integración.",
+    "notConnected": "Sin conectar.",
+    "connectNote": "Después te mostramos la URL y el secret para pegar en GitHub.",
+    "webhookTitle": "Webhook",
+    "reposTitle": "Repos",
+    "dangerTitle": "Secret y conexión",
+    "dangerHelp": "Un secret nuevo invalida el actual. Al desconectar, los PRs y commits dejan de vincularse.",
+    "statusRules": "Reglas de estado",
+    "statusRulesHint": "Qué pasa al abrir y mergear un PR"
   },
   "bulk": {
     "selected": "{count} seleccionados",
@@ -445,6 +480,16 @@
       "github": "GitHub",
       "agent": "Agents",
       "app": "la app"
+    },
+    "emptyBody": "Los issues que llegan por API, Chat, Flow o GitHub esperan acá hasta que alguien los acepte."
+  },
+  "projectSettings": {
+    "title": "Ajustes del proyecto",
+    "close": "Cerrar ajustes",
+    "tabs": {
+      "cycles": "Ciclos",
+      "statuses": "Estados",
+      "triage": "Triage"
     }
   }
 }

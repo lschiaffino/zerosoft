@@ -48,6 +48,7 @@ export interface TrackUiLabels {
     pickDate: string;
     dragHint: string;
     dismiss: string;
+    loadError: string;
   };
 }
 
@@ -102,6 +103,7 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
       pickDate: t('inline.pickDate'),
       dragHint: t('inline.dragHint'),
       dismiss: t('inline.dismiss'),
+      loadError: t('inline.loadError'),
     },
   };
 }

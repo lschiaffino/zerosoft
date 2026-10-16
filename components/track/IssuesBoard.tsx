@@ -9,6 +9,7 @@ import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
 import type { TrackStatusRow } from '@/lib/db';
 import type { IssuePatch } from '@/lib/track-tasks';
 import StatusBadge from './StatusBadge';
+import TrackIcon from './TrackIcon';
 import {
   AssigneeMenu,
   DoneCheckbox,
@@ -183,10 +184,10 @@ export default function IssuesBoard({
                           </span>
                         </div>
                         {pending ? (
-                          <p className="track-board-card-title">{issue.title || '—'}</p>
+                          <p className="track-board-card-title">{issue.title || t('issues.untitled')}</p>
                         ) : (
                           <Link href={`/app/track/issues/${issue.id}`} className="track-board-card-title" draggable={false}>
-                            {issue.title || '—'}
+                            {issue.title || t('issues.untitled')}
                           </Link>
                         )}
                         <div className="track-board-card-meta">
@@ -209,7 +210,12 @@ export default function IssuesBoard({
                             labels={editing.ui.inline}
                             onChange={(dueDate) => editing.onUpdate(issue.id, { dueDate })}
                           />
-                          {issue.child_count > 0 && <span className="track-subtask-indicator">⊞ {issue.child_count}</span>}
+                          {issue.child_count > 0 && (
+                            <span className="track-subtask-indicator">
+                              <TrackIcon name="subtasks" size={12} />
+                              {issue.child_count}
+                            </span>
+                          )}
                           {issue.cycle_name && <span className="track-board-cycle">{issue.cycle_name}</span>}
                         </div>
                       </>
@@ -220,11 +226,14 @@ export default function IssuesBoard({
                             <span className="track-identifier">{issue.identifier}</span>
                             <PriorityIcon priority={issue.priority} />
                           </div>
-                          <p className="track-board-card-title">{issue.title || '—'}</p>
+                          <p className="track-board-card-title">{issue.title || t('issues.untitled')}</p>
                           <div className="track-board-card-meta">
                             <span>{issue.assignee_name ?? labels.noAssignee}</span>
                             {issue.child_count > 0 && (
-                              <span className="track-subtask-indicator">⊞ {issue.child_count}</span>
+                              <span className="track-subtask-indicator">
+                                <TrackIcon name="subtasks" size={12} />
+                                {issue.child_count}
+                              </span>
                             )}
                             {issue.cycle_name && <span className="track-board-cycle">{issue.cycle_name}</span>}
                             {issue.due_date && (

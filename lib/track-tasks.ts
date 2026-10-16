@@ -236,3 +236,40 @@ export function formatDay(isoDay: string, locale: string, today?: string): strin
     timeZone: 'UTC',
   }).format(new Date(Date.UTC(y, m - 1, d)));
 }
+
+/**
+ * Slug de un proyecto a partir del nombre: el mismo que deriva el servidor
+ * cuando no se manda uno. Es el prefijo de los identificadores (WEB-12).
+ */
+export function projectSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 64);
+}
+
+export type CycleState = 'active' | 'upcoming' | 'past';
+
+interface CycleLike {
+  start_at: string;
+  end_at: string;
+}
+
+/** Estado de un ciclo respecto de `today` (YYYY-MM-DD); inicio y fin inclusive. */
+export function cycleState(cycle: CycleLike, today: string): CycleState {
+  if (cycle.end_at.slice(0, 10) < today) return 'past';
+  if (cycle.start_at.slice(0, 10) > today) return 'upcoming';
+  return 'active';
+}
+
+/** El ciclo en curso (si hay varios, el que empezó último). */
+export function activeCycle<T extends CycleLike>(cycles: T[], today: string): T | null {
+  return (
+    cycles
+      .filter((c) => cycleState(c, today) === 'active')
+      .sort((a, b) => b.start_at.localeCompare(a.start_at))[0] ?? null
+  );
+}

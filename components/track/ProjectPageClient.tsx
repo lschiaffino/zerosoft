@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import type { TrackProjectRow, TrackStatusRow } from '@/lib/db';
@@ -10,7 +10,7 @@ import type { FilterState } from './IssueFilters';
 import type { ViewType } from './ViewSwitcher';
 import type { TrackIssueView, ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
 import ViewSwitcher from './ViewSwitcher';
-import IssueFilters from './IssueFilters';
+import IssueFilters, { activeFilterCount } from './IssueFilters';
 import SavedViewsMenu from './SavedViewsMenu';
 import SaveViewDialog from './SaveViewDialog';
 import IssuesTable from './IssuesTable';
@@ -21,8 +21,12 @@ import QuickIssueModal from './QuickIssueModal';
 import CyclesPanel, { type CycleWithProgress } from './CyclesPanel';
 import StatusesSettings from './StatusesSettings';
 import { TrackToast, useToday } from './InlineEditors';
-import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } from './useIssueStore';
-import { parseQuickTitle } from '@/lib/track-tasks';
+import { TRACK_NEW_ISSUE_EVENT, useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } from './useIssueStore';
+import { activeCycle, formatDay, parseQuickTitle } from '@/lib/track-tasks';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import ProjectSettingsDrawer from './ProjectSettingsDrawer';
+import TrackIcon from './TrackIcon';
 import type { TrackUiLabels } from './ui-labels';
 import { BulkBar, useIssueSelection, type BulkPatch } from './BulkEdit';
 import { useWorkspaceLabels } from './LabelPicker';
@@ -185,6 +189,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   const [issuesPage, setIssuesPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [view, setView] = useState<ViewType>(() => (searchParams.get('view') as ViewType) ?? 'list');
   const [filters, setFilters] = useState<FilterState>(() => paramsToFilters(searchParams));
@@ -278,6 +284,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     setLoadingMore(true);
     try {
       await fetchIssues(issuesPage + 1, true);
+    } catch {
+      setNotice(t('errors.generic'));
     } finally {
       setLoadingMore(false);
     }
@@ -287,6 +295,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     let mounted = true;
     async function load() {
       setLoading(true);
+      setLoadError(false);
       try {
         const [p, s, c, m, v, i] = await Promise.all([
           api<TrackProjectRow>(`/api/track/projects/${projectId}`),
@@ -325,6 +334,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
             setActiveViewId(def.id);
           }
         }
+      } catch {
+        if (mounted) setLoadError(true);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -333,16 +344,16 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     return () => {
       mounted = false;
     };
-  }, [projectId, setIssues]);
+  }, [projectId, setIssues, reloadKey]);
 
   // Con debounce: la búsqueda cambia los filtros en cada tecla.
   useEffect(() => {
-    if (loading) return;
+    if (loading || loadError) return;
     const timer = setTimeout(() => {
       fetchIssues(1, false).catch(() => setNotice(t('errors.generic')));
     }, 250);
     return () => clearTimeout(timer);
-  }, [filters, sort, fetchIssues, loading, t]);
+  }, [filters, sort, fetchIssues, loading, loadError, t]);
 
   const loadTriage = useCallback(async () => {
     const data = await api<{ rows: TrackIssueWithStatus[] }>(`/api/track/projects/${projectId}/triage`).catch(() => null);
@@ -453,30 +464,37 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     setActiveViewId(selected.id);
   };
 
-  const handleSetDefault = async (id: string) => {
-    const updated = await api<TrackIssueView>(`/api/track/views/${id}/default`, { method: 'POST' });
-    setViews((prev) =>
-      prev
-        .map((v) => ({ ...v, is_default: v.id === id }))
-        .sort((a, b) => (a.is_default === b.is_default ? 0 : a.is_default ? -1 : 1)),
-    );
-    setActiveViewId(updated.id);
+  const viewAction = (fn: () => Promise<unknown>) => {
+    fn().catch(() => setNotice(t('errors.generic')));
   };
 
-  const handleRename = async (id: string, name: string) => {
-    const updated = await api<TrackIssueView>(`/api/track/views/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+  const handleSetDefault = (id: string) =>
+    viewAction(async () => {
+      const updated = await api<TrackIssueView>(`/api/track/views/${id}/default`, { method: 'POST' });
+      setViews((prev) =>
+        prev
+          .map((v) => ({ ...v, is_default: v.id === id }))
+          .sort((a, b) => (a.is_default === b.is_default ? 0 : a.is_default ? -1 : 1)),
+      );
+      setActiveViewId(updated.id);
     });
-    setViews((prev) => prev.map((v) => (v.id === id ? updated : v)));
-  };
 
-  const handleDelete = async (id: string) => {
-    await api(`/api/track/views/${id}`, { method: 'DELETE' });
-    setViews((prev) => prev.filter((v) => v.id !== id));
-    if (activeViewId === id) setActiveViewId(undefined);
-  };
+  const handleRename = (id: string, name: string) =>
+    viewAction(async () => {
+      const updated = await api<TrackIssueView>(`/api/track/views/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      setViews((prev) => prev.map((v) => (v.id === id ? updated : v)));
+    });
+
+  const handleDelete = (id: string) =>
+    viewAction(async () => {
+      await api(`/api/track/views/${id}`, { method: 'DELETE' });
+      setViews((prev) => prev.filter((v) => v.id !== id));
+      if (activeViewId === id) setActiveViewId(undefined);
+    });
 
   const handleStatusChange = (issueId: string, statusId: string) => {
     void store.update(issueId, { statusId });
@@ -494,7 +512,26 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     createIssue({ ...extra, title: parsed.title, priority: parsed.priority, dueDate: parsed.dueDate ?? extra.dueDate });
   };
 
-  useCreateShortcut(() => setModalOpen(true), !loading && !modalOpen && !saveDialogOpen);
+  useCreateShortcut(() => setModalOpen(true), !loading && !loadError && !modalOpen && !saveDialogOpen && !settingsOpen);
+
+  // "Nuevo issue" pedido mientras la vista carga (⌘K, o el link viejo
+  // /issues/new → ?newIssue=1): se recuerda y el modal abre al terminar.
+  const pendingCreate = useRef(false);
+  useEffect(() => {
+    if (!loading) {
+      if (pendingCreate.current && !loadError) {
+        pendingCreate.current = false;
+        setModalOpen(true);
+      }
+      return;
+    }
+    const onEvent = (e: Event) => {
+      e.preventDefault();
+      pendingCreate.current = true;
+    };
+    window.addEventListener(TRACK_NEW_ISSUE_EVENT, onEvent);
+    return () => window.removeEventListener(TRACK_NEW_ISSUE_EVENT, onEvent);
+  }, [loading, loadError]);
 
   const editing = {
     onUpdate: (issueId: string, patch: Parameters<typeof store.update>[1]) => void store.update(issueId, patch),
@@ -522,99 +559,124 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     }
   };
 
-  if (loading || !project) {
+  if (loadError) {
     return (
-      <div className="app-page track-page">
-        <p className="muted">{labels.loading}</p>
+      <div className="app-page track-page" data-track-project-id={projectId}>
+        <EmptyState
+          title={t('project.loadErrorTitle')}
+          body={t('project.loadErrorBody')}
+          action={
+            <button type="button" className="btn btn-primary" onClick={() => setReloadKey((k) => k + 1)}>
+              {t('common.retry')}
+            </button>
+          }
+          secondary={<Link href="/app/track/projects">{t('projects.backToList')}</Link>}
+        />
       </div>
     );
   }
 
-  return (
-    <div className="app-page track-page">
-      <div className="track-page-header">
-        <div>
-          <h1>
-            <span style={{ marginRight: 10 }}>{project.icon || '◆'}</span>
-            {project.name}
-          </h1>
-          {project.description ? <p>{project.description}</p> : null}
+  if (loading || !project) {
+    return (
+      <div className="app-page track-page" data-track-project-id={projectId} aria-busy="true">
+        <span className="sr-only" role="status">
+          {labels.loading}
+        </span>
+        <div className="track-skeleton-head">
+          <span className="ui-skeleton ui-skeleton-title" />
+          <span className="ui-skeleton ui-skeleton-text" />
         </div>
-        <div className="track-form-actions">
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setSettingsOpen((v) => !v)}
-            aria-expanded={settingsOpen}
-            data-testid="track-project-settings"
-          >
-            {labels.settings}
-          </button>
-          <button
-            type="button"
-            className="btn btn-solid"
-            onClick={() => setModalOpen(true)}
-            title={labels.ui.modal.shortcutHint}
-            aria-keyshortcuts="C"
-          >
-            {labels.newIssue}
-            <kbd className="track-kbd" aria-hidden>
-              C
-            </kbd>
-          </button>
+        <div className="ui-loading-stack">
+          {Array.from({ length: 8 }, (_, i) => (
+            <span key={i} className="ui-skeleton ui-skeleton-row" />
+          ))}
         </div>
       </div>
+    );
+  }
 
-      {settingsOpen && (
-        <section className="panel track-settings-panel" aria-label={labels.settings}>
-          <label className="track-triage-toggle">
-            <input
-              type="checkbox"
-              checked={Boolean(project.triage_enabled)}
-              disabled={!isAdmin}
-              title={isAdmin ? undefined : t('triage.adminOnly')}
-              onChange={(e) => void toggleTriage(e.target.checked)}
-              data-testid="track-triage-toggle"
-            />
-            <span>
-              <strong>{t('triage.enable')}</strong>
-              <span className="muted">{t('triage.enableHelp')}</span>
-            </span>
-          </label>
-          <p className="section-label">{labels.workflowStatuses}</p>
-          <StatusesSettings
-            projectId={projectId}
-            statuses={statuses}
-            canDelete={isAdmin}
-            onChange={(next, opts) => {
-              setStatuses(next);
-              if (opts?.reloadIssues) void fetchIssues(1, false);
-            }}
-          />
-        </section>
-      )}
+  const current = activeCycle(cycles, today);
+  const filtersActive = activeFilterCount(filters) > 0 || Boolean(filters.q);
+  const projectEmpty = issuesTotal === 0 && issues.length === 0 && !filtersActive;
+  const showTriageTab = Boolean(project.triage_enabled) || triageIssues.length > 0;
 
-      {(project.triage_enabled || triageIssues.length > 0) && (
-        <div className="track-tabs" role="tablist">
+  return (
+    <div className="app-page track-page" data-track-project-id={project.id}>
+      <PageHeader
+        back={{ href: '/app/track/projects', label: t('projects.title') }}
+        title={
+          <>
+            {project.icon ? <span className="track-project-icon">{project.icon}</span> : null}
+            {project.name}
+          </>
+        }
+        description={
+          project.description || current ? (
+            <>
+              {project.description}
+              {current && (
+                <span className="track-cycle-meta" data-testid="track-active-cycle">
+                  {t('project.activeCycleMeta', {
+                    name: current.name,
+                    done: current.done ?? 0,
+                    total: current.total ?? 0,
+                    end: formatDay(current.end_at.slice(0, 10), locale, today),
+                  })}
+                </span>
+              )}
+            </>
+          ) : undefined
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setSettingsOpen(true)}
+              aria-haspopup="dialog"
+              data-testid="track-project-settings"
+            >
+              <TrackIcon name="settings" />
+              {labels.settings}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setModalOpen(true)}
+              title={labels.ui.modal.shortcutHint}
+              aria-keyshortcuts="C"
+            >
+              {labels.newIssue}
+              <kbd className="kbd track-kbd" aria-hidden>
+                C
+              </kbd>
+            </button>
+          </>
+        }
+      />
+
+      {showTriageTab && (
+        <div className="ui-tabs track-project-tabs" role="tablist" aria-label={project.name}>
           <button
             type="button"
             role="tab"
             aria-selected={tab === 'issues'}
-            className={`track-tab${tab === 'issues' ? ' is-active' : ''}`}
+            className="ui-tab"
             onClick={() => setTab('issues')}
           >
             {labels.issues}
+            <span className="ui-tab-count">{issuesTotal}</span>
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={tab === 'triage'}
-            className={`track-tab${tab === 'triage' ? ' is-active' : ''}`}
+            className="ui-tab"
             onClick={() => setTab('triage')}
             data-testid="track-triage-tab"
           >
             {t('triage.tab')}
-            {triageIssues.length > 0 && <span className="track-tab-count mono">{triageIssues.length}</span>}
+            {triageIssues.length > 0 && <span className="ui-tab-count">{triageIssues.length}</span>}
           </button>
         </div>
       )}
@@ -630,123 +692,128 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
             void fetchIssues(1, false);
           }}
         />
-      ) : (
-      <>
-      <div className="track-toolbar track-toolbar-wrap">
-        <div className="track-toolbar-left">
-          <ViewSwitcher active={view} onChange={handleViewChange} labels={labels.viewSwitcher} />
-          <SavedViewsMenu
-            views={views}
-            activeViewId={activeViewId}
-            onSelect={handleSelectView}
-            onSetDefault={handleSetDefault}
-            onRename={handleRename}
-            onDelete={handleDelete}
-            labels={{
-              title: labels.savedViews.title,
-              empty: labels.savedViews.empty,
-              default: labels.savedViews.default,
-              rename: labels.savedViews.rename,
-              delete: labels.savedViews.delete,
-            }}
-          />
-        </div>
-      </div>
-
-      <IssueFilters
-        filters={filters}
-        onChange={(f) => {
-          setFilters(f);
-          setActiveViewId(undefined);
-        }}
-        onSaveView={() => setSaveDialogOpen(true)}
-        statuses={statuses}
-        priorities={labels.priorities}
-        members={members}
-        cycles={cycles}
-        issueLabels={issueLabels}
-        labels={labels.filters}
-      />
-
-      <div className="track-view" style={{ marginTop: 16 }}>
-        {view === 'list' && (
-          <IssuesTable
-            issues={issues}
-            locale={locale}
-            labels={{
-              ...labels.table,
-              empty: labels.noIssues,
-              noAssignee: labels.noAssignee,
-            }}
-            editing={{ ...editing, projects: projectMap }}
-            quickAdd={{ onCreate: (title) => quickCreate(title) }}
-            hideColumns={cycles.length > 0 ? [] : ['cycle']}
-            selection={{ ...selection, label: t('bulk.select'), allLabel: t('bulk.selectAll') }}
-          />
-        )}
-        {view === 'board' && (
-          <IssuesBoard
-            issues={issues}
-            statuses={statuses}
-            locale={locale}
-            onStatusChange={handleStatusChange}
-            labels={{ noAssignee: labels.noAssignee, empty: labels.board.empty }}
-            editing={{ ...editing, members }}
-            onQuickCreate={(title, statusId) => quickCreate(title, { statusId })}
-          />
-        )}
-        {view === 'calendar' && (
-          <IssuesCalendar
-            issues={issues}
-            locale={locale}
-            labels={{
-              prev: labels.calendar.prev,
-              next: labels.calendar.next,
-              today: labels.calendar.today,
-              unscheduled: labels.calendar.unscheduled,
-              noAssignee: labels.noAssignee,
-            }}
-          />
-        )}
-        {view === 'gantt' && (
-          <IssuesGantt
-            issues={issues}
-            statuses={statuses}
-            locale={locale}
-            onDatesChange={handleDatesChange}
-            labels={{
-              prev: labels.gantt.prev,
-              next: labels.gantt.next,
-              today: labels.gantt.today,
-              unscheduled: labels.gantt.unscheduled,
-              noAssignee: labels.noAssignee,
-              updateError: labels.gantt.updateError,
-            }}
-          />
-        )}
-      </div>
-
-      {issuesTotal > 0 && (
-        <div className="track-pagination">
-          <p className="muted mono track-pagination-count" role="status">
-            {labels.showing
-              .replace('{shown}', String(issues.length))
-              .replace('{total}', String(issuesTotal))}
-          </p>
-          {issues.length < issuesTotal && (
-            <button
-              type="button"
-              className="btn btn-small"
-              onClick={handleLoadMore}
-              disabled={loadingMore}
-            >
-              {loadingMore ? labels.loading : labels.loadMore}
+      ) : projectEmpty ? (
+        <EmptyState
+          title={t('project.emptyTitle')}
+          body={t('project.emptyBody')}
+          action={
+            <button type="button" className="btn btn-primary" onClick={() => setModalOpen(true)} data-testid="track-empty-new-issue">
+              {labels.newIssue}
             </button>
-          )}
-        </div>
-      )}
+          }
+          secondary={t('project.emptyShortcut')}
+        />
+      ) : (
+        <>
+          <div className="track-toolbar">
+            <ViewSwitcher
+              active={view}
+              onChange={handleViewChange}
+              labels={{ ...labels.viewSwitcher, group: t('views.group') }}
+            />
+            <SavedViewsMenu
+              views={views}
+              activeViewId={activeViewId}
+              onSelect={handleSelectView}
+              onSetDefault={handleSetDefault}
+              onRename={handleRename}
+              onDelete={handleDelete}
+              labels={{
+                title: labels.savedViews.title,
+                empty: labels.savedViews.empty,
+                default: labels.savedViews.default,
+                rename: labels.savedViews.rename,
+                delete: labels.savedViews.delete,
+              }}
+            />
+          </div>
 
-      </>
+          <IssueFilters
+            filters={filters}
+            onChange={(f) => {
+              setFilters(f);
+              setActiveViewId(undefined);
+            }}
+            onSaveView={() => setSaveDialogOpen(true)}
+            statuses={statuses}
+            priorities={labels.priorities}
+            members={members}
+            cycles={cycles}
+            issueLabels={issueLabels}
+            labels={labels.filters}
+          />
+
+          <div className="track-view">
+            {view === 'list' && (
+              <IssuesTable
+                issues={issues}
+                locale={locale}
+                labels={{
+                  ...labels.table,
+                  empty: filtersActive ? t('project.noMatches') : labels.noIssues,
+                  noAssignee: labels.noAssignee,
+                }}
+                editing={{ ...editing, projects: projectMap }}
+                quickAdd={{ onCreate: (title) => quickCreate(title) }}
+                hideColumns={cycles.length > 0 ? [] : ['cycle']}
+                selection={{ ...selection, label: t('bulk.select'), allLabel: t('bulk.selectAll') }}
+              />
+            )}
+            {view === 'board' && (
+              <IssuesBoard
+                issues={issues}
+                statuses={statuses}
+                locale={locale}
+                onStatusChange={handleStatusChange}
+                labels={{ noAssignee: labels.noAssignee, empty: labels.board.empty }}
+                editing={{ ...editing, members }}
+                onQuickCreate={(title, statusId) => quickCreate(title, { statusId })}
+              />
+            )}
+            {view === 'calendar' && (
+              <IssuesCalendar
+                issues={issues}
+                locale={locale}
+                labels={{
+                  prev: labels.calendar.prev,
+                  next: labels.calendar.next,
+                  today: labels.calendar.today,
+                  unscheduled: labels.calendar.unscheduled,
+                  noAssignee: labels.noAssignee,
+                }}
+              />
+            )}
+            {view === 'gantt' && (
+              <IssuesGantt
+                issues={issues}
+                statuses={statuses}
+                locale={locale}
+                onDatesChange={handleDatesChange}
+                labels={{
+                  prev: labels.gantt.prev,
+                  next: labels.gantt.next,
+                  today: labels.gantt.today,
+                  unscheduled: labels.gantt.unscheduled,
+                  noAssignee: labels.noAssignee,
+                  updateError: labels.gantt.updateError,
+                }}
+              />
+            )}
+          </div>
+
+          {issuesTotal > 0 && (
+            <div className="track-pagination">
+              <p className="track-pagination-count" role="status">
+                {labels.showing.replace('{shown}', String(issues.length)).replace('{total}', String(issuesTotal))}
+              </p>
+              {issues.length < issuesTotal && (
+                <button type="button" className="btn btn-sm" onClick={handleLoadMore} aria-busy={loadingMore || undefined}>
+                  {labels.loadMore}
+                </button>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {tab === 'issues' && view === 'list' && (
@@ -764,14 +831,55 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
         />
       )}
 
-      <CyclesPanel
-        projectId={projectId}
-        cycles={cycles}
-        today={today}
-        onChanged={async () => {
-          await Promise.all([reloadCycles(), fetchIssues(1, false)]);
-        }}
-      />
+      {settingsOpen && (
+        <ProjectSettingsDrawer
+          projectName={project.name}
+          onClose={() => setSettingsOpen(false)}
+          panels={{
+            cycles: (
+              <CyclesPanel
+                projectId={projectId}
+                cycles={cycles}
+                today={today}
+                onChanged={async () => {
+                  await Promise.all([reloadCycles(), fetchIssues(1, false)]);
+                }}
+              />
+            ),
+            statuses: (
+              <StatusesSettings
+                projectId={projectId}
+                statuses={statuses}
+                canDelete={isAdmin}
+                onChange={(next, opts) => {
+                  setStatuses(next);
+                  if (opts?.reloadIssues) void fetchIssues(1, false);
+                }}
+              />
+            ),
+            triage: (
+              <div className="track-triage-settings">
+                <label className="ui-switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={Boolean(project.triage_enabled)}
+                    disabled={!isAdmin}
+                    onChange={(e) => void toggleTriage(e.target.checked)}
+                    aria-describedby="track-triage-help"
+                    data-testid="track-triage-toggle"
+                  />
+                  {t('triage.enable')}
+                </label>
+                <p className="ui-help" id="track-triage-help">
+                  {t('triage.enableHelp')}
+                </p>
+                {!isAdmin && <p className="ui-help">{t('triage.adminOnly')}</p>}
+              </div>
+            ),
+          }}
+        />
+      )}
 
       <QuickIssueModal
         open={modalOpen}
@@ -797,6 +905,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
           namePlaceholder: labels.savedViews.saveDialogPlaceholder,
           save: labels.savedViews.save,
           cancel: labels.savedViews.cancel,
+          error: t('errors.generic'),
         }}
       />
     </div>

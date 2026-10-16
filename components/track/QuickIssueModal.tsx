@@ -169,7 +169,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
             </span>
             {defaults?.parentLabel && (
               <>
-                <span className="track-qc-crumb mono">{defaults.parentLabel}</span>
+                <span className="track-qc-crumb track-identifier">{defaults.parentLabel}</span>
                 <span className="track-qc-sep" aria-hidden>
                   ›
                 </span>
@@ -238,17 +238,17 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
           </div>
 
           <div className="track-qc-foot">
-            <span className="track-qc-hint mono">{labels.quick.hint}</span>
-            <label className="track-qc-more">
+            <span className="track-qc-hint">{labels.quick.hint}</span>
+            <label className="ui-check track-qc-more">
               <input type="checkbox" checked={createMore} onChange={(e) => setCreateMore(e.target.checked)} />
               {labels.modal.createMore}
             </label>
-            <button type="button" className="btn btn-small" onClick={onClose}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
               {labels.modal.cancel}
             </button>
             <button
               type="submit"
-              className="btn btn-small btn-solid"
+              className="btn btn-sm btn-primary"
               disabled={!title.trim() || !projectId}
               title={labels.modal.submitHint}
             >

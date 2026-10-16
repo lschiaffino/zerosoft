@@ -19,7 +19,7 @@ export default async function MyTasksPage(props: { params: Promise<{ locale: str
   ]);
 
   return (
-    <div className="app-page track-page">
+    <div className="app-page track-page ui-page">
       <CrossProjectIssues
         initialIssues={issues}
         projects={projects}
@@ -28,9 +28,15 @@ export default async function MyTasksPage(props: { params: Promise<{ locale: str
         subtitle={t('myTasks.subtitle')}
         newIssueLabel={t('quick.newTask')}
         ui={buildTrackUiLabels(t)}
+        empty={{
+          noProjectsTitle: t('overview.emptyTitle'),
+          noProjectsBody: t('issues.noProjectsBody'),
+          noProjectsCta: t('projects.newCta'),
+        }}
         mine={{
           userId: me,
           empty: t('myTasks.empty'),
+          emptyBody: t('myTasks.emptyBody'),
           groups: {
             overdue: t('myTasks.overdue'),
             today: t('myTasks.today'),
