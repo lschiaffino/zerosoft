@@ -1,21 +1,19 @@
 'use client';
 
-import { safeHexColor } from '@/lib/track-color';
+import { StatusDot } from './InlineEditors';
 
 interface StatusBadgeProps {
   name: string | null;
   color: string | null;
+  category?: string | null;
 }
 
-export default function StatusBadge({ name, color }: StatusBadgeProps) {
+/** Status de solo lectura: el color va en el glifo, el texto siempre en tinta. */
+export default function StatusBadge({ name, color, category = null }: StatusBadgeProps) {
   if (!name) return <span className="track-badge">–</span>;
-
-  const dotColor = safeHexColor(color, '#666666');
-  const textColor = safeHexColor(color, 'currentColor');
-
   return (
-    <span className="track-badge" style={{ color: textColor, borderColor: textColor }}>
-      <span className="track-badge-dot" style={{ background: dotColor }} />
+    <span className="track-badge">
+      <StatusDot color={color} category={category} />
       {name}
     </span>
   );

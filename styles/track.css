@@ -374,23 +374,11 @@
   white-space: nowrap;
 }
 
-.track-badge-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 0;
-}
-
 .track-priority {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
-}
-
-.track-priority-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 0;
 }
 
 .track-label-chips {
@@ -537,6 +525,27 @@ dialog.ui-drawer.track-drawer {
   font-weight: 600;
 }
 
+/* Estado del ciclo en texto (sin etiquetas): el activo lleva la estación y peso. */
+.track-cycle-state {
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+}
+
+.track-cycle.is-active .track-cycle-state {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.track-cycle-station {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+}
+
 .track-cycle-dates {
   font-size: 0.8125rem;
   color: var(--brand-gray-2);
@@ -637,6 +646,16 @@ dialog.ui-drawer.track-drawer {
 
 .track-status-tools {
   display: inline-flex;
+}
+
+/* Borrar un estado: gris en reposo, rojo solo al apuntar. */
+.track-status-remove {
+  color: var(--brand-gray-2);
+}
+
+.track-status-remove:hover:not(:disabled),
+.track-status-remove:focus-visible {
+  color: var(--bad-ink);
 }
 
 .track-status-delete {
@@ -759,6 +778,11 @@ dialog.ui-drawer.track-drawer {
   gap: 6px;
 }
 
+.track-triage-accept-in {
+  font-size: 0.8125rem;
+  color: var(--brand-gray-1);
+}
+
 .app-frame .track-triage-actions .select {
   width: auto;
   min-height: 28px;
@@ -849,11 +873,8 @@ dialog.ui-drawer.track-drawer {
   justify-self: end;
 }
 
-/* ---------- Detalle del issue ---------- */
-
-.track-detail {
-  max-width: 1120px;
-}
+/* ---------- Detalle del issue ----------
+   Mismo ancho que el resto de las páginas: el filete de 4px termina igual. */
 
 .track-detail-head {
   padding-bottom: 16px;
@@ -965,11 +986,105 @@ dialog.ui-drawer.track-drawer {
   margin-bottom: 10px;
 }
 
-.track-description {
+.track-description,
+.track-description-input {
+  display: block;
+  width: 100%;
   max-width: 70ch;
+  margin: -6px -8px;
+  padding: 6px 8px;
+  font: inherit;
   font-size: 0.9375rem;
   line-height: 1.6;
+  text-align: left;
   white-space: pre-wrap;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  box-sizing: content-box;
+}
+
+.track-description {
+  cursor: text;
+}
+
+.track-description:hover {
+  background: var(--brand-enamel);
+}
+
+.track-description.is-empty {
+  color: var(--brand-gray-2);
+}
+
+.track-description-input {
+  min-height: 96px;
+  resize: vertical;
+  border-color: var(--ink);
+  outline: none;
+}
+
+.track-description:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+/* Agregar sub-issue, adjunto o relación: una sola fila en vez de secciones vacías. */
+.track-detail-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 8px -8px;
+}
+
+.track-detail-add .btn {
+  color: var(--brand-gray-1);
+}
+
+.track-detail-add .btn:hover {
+  color: var(--ink);
+}
+
+.track-detail .track-detail-section.track-detail-description {
+  padding: 6px 0 12px;
+  border-top: 0;
+}
+
+/* Título editable en línea: el mismo cartel, sin caja hasta que se enfoca. */
+.track-detail-title-input {
+  display: block;
+  width: 100%;
+  margin: 0 -8px;
+  padding: 2px 8px;
+  overflow: hidden;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  resize: none;
+  box-sizing: content-box;
+}
+
+.track-detail-title-input:hover {
+  background: var(--brand-enamel);
+}
+
+.track-detail-title-input:focus {
+  border-color: var(--ink);
+  outline: none;
+  background: var(--bg);
+}
+
+.app-frame .track-inline-trigger.track-detail-more {
+  justify-content: center;
+  width: 36px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ui-field);
 }
 
 .track-detail-side {
@@ -1010,9 +1125,35 @@ dialog.ui-drawer.track-drawer {
   font-size: 0.8125rem;
 }
 
-.track-property-stack {
-  grid-template-columns: 1fr;
+.track-property-top {
   align-items: start;
+}
+
+.track-property-top > .track-property-label {
+  padding-top: 7px;
+}
+
+.track-property-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-gray-2);
+}
+
+.app-frame .track-property-unit .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-property-date {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  padding-left: 6px;
+}
+
+.track-nowrap {
+  white-space: nowrap;
 }
 
 /* Sub-issues, adjuntos, relaciones */
@@ -1932,6 +2073,54 @@ a.track-board-card-title:hover {
   max-width: 120px;
 }
 
+/* ---------- Resumen ---------- */
+
+.track-overview-cycle {
+  display: grid;
+  grid-template-columns: minmax(80px, max-content) minmax(80px, 200px) max-content;
+  align-items: center;
+  gap: 12px;
+}
+
+.track-overview-cycle-name {
+  font-weight: 600;
+}
+
+.track-overview-cycle .track-cycle-bar {
+  display: block;
+}
+
+.track-overview-cycle-meta {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-2);
+}
+
+.track-overview-alert {
+  font-weight: 700;
+  color: var(--bad-ink);
+}
+
+/* ---------- Hoja de filtros (pantallas chicas) ---------- */
+
+.track-filter-sheet-head,
+.track-filter-sheet-btn,
+.track-filter-backdrop,
+.track-calendar-day-pick,
+.track-calendar-agenda {
+  display: none;
+}
+
+.track-filter-sheet-views {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
 /* ---------- Mobile ---------- */
 
 @media (max-width: 767px) {
@@ -2010,6 +2199,196 @@ a.track-board-card-title:hover {
   .track-cycle-actions {
     grid-row: auto;
     grid-column: 1;
+  }
+}
+
+/* ---------- Pantallas chicas (< 600px) ---------- */
+
+@media (max-width: 599px) {
+  .track-toolbar .track-saved-views,
+  .track-filter-save,
+  .track-filter-group {
+    display: none;
+  }
+
+  .track-filters {
+    flex-wrap: nowrap;
+  }
+
+  .track-filter-sheet-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+  }
+
+  .track-filters.is-sheet-open .track-filter-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: block;
+    background: rgb(17 17 17 / 0.4);
+  }
+
+  .track-filters.is-sheet-open .track-filter-group {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 121;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    max-height: 80vh;
+    overflow: auto;
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+    background: var(--bg);
+    border-top: 4px solid var(--ink);
+  }
+
+  .track-filters.is-sheet-open .track-filter-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .track-filter-sheet-title {
+    font-family: var(--font-signage);
+    font-stretch: 75%;
+    font-weight: 800;
+    font-size: 1.25rem;
+  }
+
+  .track-filters.is-sheet-open .track-filter-toggle {
+    justify-content: space-between;
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .track-filters.is-sheet-open .track-filter-menu {
+    position: static;
+    max-height: none;
+    border: 0;
+    padding: 0 0 8px 8px;
+  }
+
+  .track-filters.is-sheet-open .track-saved-views-menu {
+    position: static;
+    margin-top: 4px;
+  }
+
+  .track-filter-sheet-views .track-saved-views {
+    flex-basis: 100%;
+  }
+
+  /* Calendario: un número por día y la lista del día elegido abajo. */
+  .track-calendar-day > .track-calendar-day-number,
+  .track-calendar-day-issues {
+    display: none;
+  }
+
+  .track-calendar-day {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .track-calendar-weekday {
+    padding: 6px 2px;
+    text-align: center;
+  }
+
+  .track-calendar-day-pick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+    min-height: 52px;
+    padding: 4px 0;
+    font: inherit;
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .track-calendar-day-pick .track-calendar-day-number {
+    align-self: center;
+  }
+
+  .track-calendar-day.is-selected .track-calendar-day-pick {
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+
+  .track-calendar-day-count {
+    min-width: 18px;
+    padding: 0 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 16px;
+    text-align: center;
+    color: var(--bg);
+    background: var(--ink);
+    border-radius: var(--radius-1);
+  }
+
+  .track-calendar-agenda {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .track-calendar-agenda-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+
+  .track-calendar-agenda-title::first-letter {
+    text-transform: uppercase;
+  }
+
+  .track-calendar-agenda-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+  }
+
+  .track-calendar-agenda-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    min-width: 0;
+    font-size: 0.875rem;
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Proyectos y Resumen: sin descripción ni columnas secundarias. */
+  .track-projects th:nth-child(2),
+  .track-projects td:nth-child(2),
+  .track-overview th:nth-child(5),
+  .track-overview td:nth-child(5) {
+    display: none;
+  }
+
+  .track-overview-cycle {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .track-search .track-search-kbd {
+    display: none;
   }
 }
 

@@ -884,6 +884,7 @@ test.describe('track d9', () => {
     expect(bad.status()).toBe(401);
     await page.goto(`/en/app/track/issues/${ids[0]}`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('track-issue-github')).toContainText('#7');
+    await page.getByRole('button', { name: 'More actions' }).click();
     await expect(page.getByTestId('track-copy-branch')).toHaveAttribute('data-branch', /-uno$/);
 
     // Triage: se activa desde la configuración del proyecto.

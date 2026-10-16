@@ -70,6 +70,16 @@ export default async function IssueDetailPage(
         description: t('issues.description'),
         untitled: t('issues.untitled'),
         createdOn: t.raw('issues.createdOn') as string,
+        edit: {
+          title: t('issues.editTitle'),
+          descriptionPlaceholder: t('issues.descriptionPlaceholder'),
+          more: t('issues.moreActions'),
+          copyBranch: t('github.copyBranch'),
+          copied: t('github.copied'),
+          addSubtask: t('issues.addSubtask'),
+          addAttachment: t('issues.addAttachment'),
+          addRelation: t('issues.addRelation'),
+        },
         properties: {
           status: t('issues.status'),
           priority: t('issues.priority'),
@@ -81,6 +91,8 @@ export default async function IssueDetailPage(
           noAssignee: t('issues.noAssignee'),
           none: t('issues.none'),
           title: t('issues.detail.properties'),
+          estimatePlaceholder: t('issues.estimatePlaceholder'),
+          estimateUnit: t('issues.estimateUnit'),
         },
         priorities: [
           { value: 'urgent', label: t('priorities.urgent') },

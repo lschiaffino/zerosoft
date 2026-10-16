@@ -1,14 +1,15 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { formatDate, relDate } from '@/lib/utils';
 import StatusBadge from './StatusBadge';
 import IssuePropertiesPanel from './IssuePropertiesPanel';
 import IssueActivityTimeline from './IssueActivityTimeline';
 import QuickIssueModal from './QuickIssueModal';
-import { CopyBranchButton, IssueGithubPanel, useIssueGithub } from './IssueGithub';
-import { TrackToast, useToday } from './InlineEditors';
+import { IssueGithubPanel, useIssueGithub } from './IssueGithub';
+import { Popover, PriorityIcon, TrackToast, useToday } from './InlineEditors';
+import { branchNameFor } from '@/lib/track-branch';
 import { TriageBanner } from './TriagePanel';
 import { findDoneStatus, findOpenStatus } from '@/lib/track-tasks';
 import type { IssueDraft } from './useIssueStore';
@@ -36,6 +37,8 @@ interface DetailLabels {
     noAssignee: string;
     none: string;
     title: string;
+    estimatePlaceholder: string;
+    estimateUnit: string;
   };
   priorities: Array<{ value: string; label: string }>;
   subtasks: {
@@ -107,6 +110,16 @@ interface DetailLabels {
   description: string;
   untitled: string;
   createdOn: string;
+  edit: {
+    title: string;
+    descriptionPlaceholder: string;
+    more: string;
+    copyBranch: string;
+    copied: string;
+    addSubtask: string;
+    addAttachment: string;
+    addRelation: string;
+  };
 }
 
 interface IssueDetailClientProps {
@@ -152,10 +165,16 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function PriorityDot({ priority }: { priority: string }) {
-  const color =
-    priority === 'urgent' ? 'var(--bad)' : priority === 'high' ? 'var(--c-track)' : priority === 'medium' ? 'var(--warn)' : '#bbbbbb';
-  return <span className="track-priority-dot" style={{ background: color }} aria-hidden />;
+/** Textarea que crece con el contenido (título y descripción editables en línea). */
+function useAutosize(value: string) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return ref;
 }
 
 const RELATION_TYPES = ['blocks', 'related', 'duplicates'] as const;
@@ -192,6 +211,12 @@ export default function IssueDetailClient({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [relationError, setRelationError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [titleDraft, setTitleDraft] = useState(initialIssue.title);
+  const [descDraft, setDescDraft] = useState(() => parseDescription(initialIssue.description));
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const titleRef = useAutosize(titleDraft);
+  const descRef = useAutosize(editingDesc ? descDraft : '');
 
   const refreshIssue = useCallback(async () => {
     const res = await fetch(`/api/track/issues/${issue.id}`);
@@ -264,6 +289,42 @@ export default function IssueDetailClient({
     }
   }
 
+  // Título y descripción se editan en línea; un PATCH fallido revierte y avisa.
+  async function patchFields(body: Record<string, unknown>): Promise<boolean> {
+    const res = await fetch(`/api/track/issues/${issue.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setSaveError(ui.inline.saveError);
+      return false;
+    }
+    await handleIssueChange();
+    return true;
+  }
+
+  async function saveTitle() {
+    const next = titleDraft.replace(/\s+/g, ' ').trim();
+    if (!next) {
+      setTitleDraft(issue.title);
+      return;
+    }
+    if (next === issue.title) return;
+    setTitleDraft(next);
+    if (!(await patchFields({ title: next }))) setTitleDraft(issue.title);
+  }
+
+  async function saveDescription() {
+    setEditingDesc(false);
+    const next = descDraft.trim();
+    const current = parseDescription(issue.description).trim();
+    if (next === current) return;
+    if (!(await patchFields({ description: next ? [{ type: 'text', text: next }] : [] }))) setDescDraft(current);
+  }
+
+  const branchName = branchNameFor(issue.identifier, titleDraft || issue.title);
+
   async function handleUpload(file: File) {
     setAttachmentError(null);
     if (file.size > 10 * 1024 * 1024) {
@@ -331,7 +392,6 @@ export default function IssueDetailClient({
   }
 
   const issueLabels = parseLabels(issue.labels);
-  const descriptionText = parseDescription(issue.description);
 
   const outgoing = relations.filter((r) => r.direction === 'outgoing');
   const incoming = relations.filter((r) => r.direction === 'incoming');
@@ -341,6 +401,8 @@ export default function IssueDetailClient({
     if (type === 'duplicates') return direction === 'outgoing' ? labels.relations.duplicates : labels.relations.duplicatedBy;
     return labels.relations.related;
   }
+
+  const priorityLabel = (value: string) => labels.priorities.find((p) => p.value === value)?.label ?? value;
 
   return (
     <div className="app-page track-detail" data-track-project-id={issue.project_id}>
@@ -364,13 +426,36 @@ export default function IssueDetailClient({
             {issue.identifier}
           </span>
         </nav>
-        <h1 className="track-detail-title">{issue.title || labels.untitled}</h1>
+        <h1 className="track-detail-title">
+          <textarea
+            ref={titleRef}
+            className="track-detail-title-input"
+            value={titleDraft}
+            rows={1}
+            maxLength={500}
+            placeholder={labels.untitled}
+            aria-label={labels.edit.title}
+            onChange={(e) => setTitleDraft(e.target.value.replace(/\n/g, ' '))}
+            onBlur={() => void saveTitle()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.currentTarget.blur();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                setTitleDraft(issue.title);
+                window.setTimeout(() => (e.target as HTMLTextAreaElement).blur(), 0);
+              }
+            }}
+            data-testid="track-issue-title"
+          />
+        </h1>
         <div className="track-detail-bar">
           <div className="track-detail-meta">
-            <StatusBadge name={issue.status_name} color={issue.status_color} />
+            <StatusBadge name={issue.status_name} color={issue.status_color} category={issue.status_category} />
             <span className="track-priority">
-              <PriorityDot priority={issue.priority} />
-              {labels.priorities.find((p) => p.value === issue.priority)?.label ?? issue.priority}
+              <PriorityIcon priority={issue.priority} />
+              {priorityLabel(issue.priority)}
             </span>
             <span>{labels.createdOn.replace('{date}', formatDate(issue.created_at, locale))}</span>
             {issueLabels.length > 0 && (
@@ -385,7 +470,38 @@ export default function IssueDetailClient({
             )}
           </div>
           <div className="track-detail-actions">
-            <CopyBranchButton identifier={issue.identifier} title={issue.title} />
+            <Popover
+              ariaLabel={labels.edit.more}
+              className="btn btn-icon track-detail-more"
+              width={240}
+              trigger={
+                <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden>
+                  <rect x="2" y="7" width="2.5" height="2.5" fill="currentColor" />
+                  <rect x="6.75" y="7" width="2.5" height="2.5" fill="currentColor" />
+                  <rect x="11.5" y="7" width="2.5" height="2.5" fill="currentColor" />
+                </svg>
+              }
+            >
+              {(close) => (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="track-menu-item"
+                  data-testid="track-copy-branch"
+                  data-branch={branchName}
+                  data-autofocus
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(branchName).catch(() => undefined);
+                    setCopied(true);
+                    window.setTimeout(() => setCopied(false), 1500);
+                    close();
+                  }}
+                >
+                  <span className="track-menu-label">{labels.edit.copyBranch}</span>
+                  <span className="track-menu-meta data">{branchName}</span>
+                </button>
+              )}
+            </Popover>
             {(doneStatus || openStatus) && (
               <button type="button" className="btn btn-primary" onClick={handleCloseReopen}>
                 {isClosed ? labels.actions.reopen : labels.actions.close}
@@ -393,6 +509,9 @@ export default function IssueDetailClient({
             )}
           </div>
         </div>
+        <span className="sr-only" role="status">
+          {copied ? labels.edit.copied : ''}
+        </span>
         {issue.triage === 1 && (
           <TriageBanner key={issue.id} issue={issue} statuses={initialStatuses} onResolved={() => void handleIssueChange()} />
         )}
@@ -400,59 +519,53 @@ export default function IssueDetailClient({
 
       <div className="track-detail-grid">
         <div className="track-detail-main">
-          {descriptionText ? (
-            <section className="track-detail-section">
-              <h2 className="track-section-title">{labels.description}</h2>
-              <div className="track-description">{descriptionText}</div>
-            </section>
-          ) : null}
-
-          <section className="track-detail-section">
-            <div className="track-section-header">
-              <h2 className="track-section-title">{labels.subtasks.title}</h2>
+          <section className="track-detail-section track-detail-description" aria-label={labels.description}>
+            {editingDesc ? (
+              <textarea
+                ref={descRef}
+                className="track-description-input"
+                value={descDraft}
+                rows={4}
+                autoFocus
+                placeholder={labels.edit.descriptionPlaceholder}
+                aria-label={labels.description}
+                onChange={(e) => setDescDraft(e.target.value)}
+                onBlur={() => void saveDescription()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDescDraft(parseDescription(issue.description));
+                    setEditingDesc(false);
+                  } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  }
+                }}
+                data-testid="track-issue-description"
+              />
+            ) : (
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setSubOpen(true)}
-                data-testid="track-add-subissue"
+                className={`track-description${descDraft.trim() ? '' : ' is-empty'}`}
+                onClick={() => setEditingDesc(true)}
+                aria-label={descDraft.trim() ? `${labels.description}: ${descDraft}` : labels.edit.descriptionPlaceholder}
+                data-testid="track-issue-description"
               >
-                {labels.subtasks.add}
+                {descDraft.trim() || labels.edit.descriptionPlaceholder}
               </button>
-            </div>
-            {subError && (
-              <p className="ui-error" role="alert">
-                {subError}
-              </p>
-            )}
-            {children.length === 0 ? (
-              <p className="ui-help">{labels.subtasks.empty}</p>
-            ) : (
-              <ul className="track-subtask-list">
-                {children.map((child) => (
-                  <li key={child.id} className="track-subtask">
-                    <Link href={`/app/track/issues/${child.id}`}>
-                      <span className="track-identifier">{child.identifier}</span>
-                      <span className="track-subtask-title">{child.title || labels.untitled}</span>
-                    </Link>
-                    <div className="track-subtask-meta">
-                      <StatusBadge name={child.status_name} color={child.status_color} />
-                      <span className="track-priority">
-                        <PriorityDot priority={child.priority} />
-                        {labels.priorities.find((p) => p.value === child.priority)?.label ?? child.priority}
-                      </span>
-                      <span>{child.assignee_name ?? child.assignee_email ?? labels.properties.noAssignee}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
             )}
           </section>
 
-          <IssueGithubPanel data={github} />
-
-          <section className="track-detail-section">
-            <div className="track-section-header">
-              <h2 className="track-section-title">{labels.attachments.title}</h2>
+          <div className="track-detail-add">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setSubOpen(true)}
+              data-testid="track-add-subissue"
+            >
+              <span aria-hidden>+</span> {labels.edit.addSubtask}
+            </button>
             <label className="track-attachment-upload">
               <input
                 type="file"
@@ -464,18 +577,53 @@ export default function IssueDetailClient({
                 disabled={uploading}
               />
               <span className="btn btn-ghost btn-sm" aria-busy={uploading || undefined}>
-                {labels.attachments.upload}
+                <span aria-hidden>+</span> {labels.edit.addAttachment}
               </span>
             </label>
-            </div>
-            {attachmentError && (
-              <p className="ui-error" role="alert">
-                {attachmentError}
-              </p>
-            )}
-            {attachments.length === 0 ? (
-              <p className="ui-help">{labels.attachments.empty}</p>
-            ) : (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setShowRelationForm(true)}
+              aria-expanded={showRelationForm}
+            >
+              <span aria-hidden>+</span> {labels.edit.addRelation}
+            </button>
+          </div>
+          {(subError || attachmentError) && (
+            <p className="ui-error" role="alert">
+              {subError ?? attachmentError}
+            </p>
+          )}
+
+          {children.length > 0 && (
+            <section className="track-detail-section">
+              <h2 className="track-section-title">{labels.subtasks.title}</h2>
+              <ul className="track-subtask-list">
+                {children.map((child) => (
+                  <li key={child.id} className="track-subtask">
+                    <Link href={`/app/track/issues/${child.id}`}>
+                      <span className="track-identifier">{child.identifier}</span>
+                      <span className="track-subtask-title">{child.title || labels.untitled}</span>
+                    </Link>
+                    <div className="track-subtask-meta">
+                      <StatusBadge name={child.status_name} color={child.status_color} category={child.status_category} />
+                      <span className="track-priority">
+                        <PriorityIcon priority={child.priority} />
+                        {priorityLabel(child.priority)}
+                      </span>
+                      <span>{child.assignee_name ?? child.assignee_email ?? labels.properties.noAssignee}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <IssueGithubPanel data={github} />
+
+          {attachments.length > 0 && (
+            <section className="track-detail-section">
+              <h2 className="track-section-title">{labels.attachments.title}</h2>
               <ul className="track-attachment-list">
                 {attachments.map((a) => (
                   <li key={a.id} className="track-attachment">
@@ -497,116 +645,100 @@ export default function IssueDetailClient({
                   </li>
                 ))}
               </ul>
-            )}
-          </section>
+            </section>
+          )}
 
-          <section className="track-detail-section">
-            <div className="track-section-header">
+          {(relations.length > 0 || showRelationForm) && (
+            <section className="track-detail-section">
               <h2 className="track-section-title">{labels.relations.title}</h2>
-              {!showRelationForm && (
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowRelationForm(true)}>
-                  {labels.relations.add}
-                </button>
+
+              {outgoing.length > 0 && (
+                <div className="track-relation-group">
+                  <h3 className="track-relation-heading">{labels.relations.outgoing}</h3>
+                  <ul className="track-relation-list">
+                    {outgoing.map((r) => (
+                      <li key={r.id} className="track-relation">
+                        <span className="track-relation-type">{relationLabel(r.type, 'outgoing')}</span>
+                        <Link href={`/app/track/issues/${r.related_issue_id}`}>
+                          <span className="track-identifier">{r.identifier}</span> {r.title}
+                        </Link>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDeleteRelation(r.id)}>
+                          {labels.relations.remove}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
-            </div>
-            {relations.length === 0 && !showRelationForm && <p className="ui-help">{labels.relations.empty}</p>}
 
-            {outgoing.length > 0 && (
-              <div className="track-relation-group">
-                <h3 className="track-relation-heading">{labels.relations.outgoing}</h3>
-                <ul className="track-relation-list">
-                  {outgoing.map((r) => (
-                    <li key={r.id} className="track-relation">
-                      <span className="track-relation-type">{relationLabel(r.type, 'outgoing')}</span>
-                      <Link href={`/app/track/issues/${r.related_issue_id}`}>
-                        <span className="track-identifier">{r.identifier}</span>{' '}
-                        {r.title}
-                      </Link>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => handleDeleteRelation(r.id)}
-                      >
-                        {labels.relations.remove}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              {incoming.length > 0 && (
+                <div className="track-relation-group">
+                  <h3 className="track-relation-heading">{labels.relations.incoming}</h3>
+                  <ul className="track-relation-list">
+                    {incoming.map((r) => (
+                      <li key={r.id} className="track-relation">
+                        <span className="track-relation-type">{relationLabel(r.type, 'incoming')}</span>
+                        <Link href={`/app/track/issues/${r.issue_id}`}>
+                          <span className="track-identifier">{r.identifier}</span> {r.title}
+                        </Link>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleDeleteRelation(r.id)}>
+                          {labels.relations.remove}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-            {incoming.length > 0 && (
-              <div className="track-relation-group">
-                <h3 className="track-relation-heading">{labels.relations.incoming}</h3>
-                <ul className="track-relation-list">
-                  {incoming.map((r) => (
-                    <li key={r.id} className="track-relation">
-                      <span className="track-relation-type">{relationLabel(r.type, 'incoming')}</span>
-                      <Link href={`/app/track/issues/${r.issue_id}`}>
-                        <span className="track-identifier">{r.identifier}</span>{' '}
-                        {r.title}
-                      </Link>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => handleDeleteRelation(r.id)}
-                      >
-                        {labels.relations.remove}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {showRelationForm && (
-              <form
-                className="track-relation-form"
-                onSubmit={handleAddRelation}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    setShowRelationForm(false);
-                  }
-                }}
-              >
-                <select
-                  className="select"
-                  aria-label={labels.relations.selectType}
-                  value={relationType}
-                  onChange={(e) => setRelationType(e.target.value as (typeof RELATION_TYPES)[number])}
+              {showRelationForm && (
+                <form
+                  className="track-relation-form"
+                  onSubmit={handleAddRelation}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowRelationForm(false);
+                    }
+                  }}
                 >
-                  {RELATION_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {relationLabel(type, 'outgoing')}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  className="input data"
-                  type="text"
-                  value={relationInput}
-                  onChange={(e) => setRelationInput(e.target.value)}
-                  placeholder={labels.relations.selectIssue}
-                  aria-label={labels.relations.selectIssue}
-                  autoFocus
-                />
-                <span className="track-inline-form-actions">
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowRelationForm(false)}>
-                    {labels.relations.cancel}
-                  </button>
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={!relationInput.trim()}>
-                    {labels.relations.add}
-                  </button>
-                </span>
-              </form>
-            )}
-            {relationError && (
-              <p className="ui-error" role="alert">
-                {relationError}
-              </p>
-            )}
-          </section>
+                  <select
+                    className="select"
+                    aria-label={labels.relations.selectType}
+                    value={relationType}
+                    onChange={(e) => setRelationType(e.target.value as (typeof RELATION_TYPES)[number])}
+                  >
+                    {RELATION_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {relationLabel(type, 'outgoing')}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="input data"
+                    type="text"
+                    value={relationInput}
+                    onChange={(e) => setRelationInput(e.target.value)}
+                    placeholder={labels.relations.selectIssue}
+                    aria-label={labels.relations.selectIssue}
+                    autoFocus
+                  />
+                  <span className="track-inline-form-actions">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowRelationForm(false)}>
+                      {labels.relations.cancel}
+                    </button>
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={!relationInput.trim()}>
+                      {labels.relations.add}
+                    </button>
+                  </span>
+                </form>
+              )}
+              {relationError && (
+                <p className="ui-error" role="alert">
+                  {relationError}
+                </p>
+              )}
+            </section>
+          )}
 
           <section className="track-detail-section">
             <h2 className="track-section-title">{labels.activity.title}</h2>
@@ -632,6 +764,8 @@ export default function IssueDetailClient({
               locale={locale}
               labels={labels.properties}
               priorities={labels.priorities}
+              dateLabels={ui.inline}
+              today={today}
               onChange={handleIssueChange}
               onError={() => setSaveError(ui.inline.saveError)}
             />

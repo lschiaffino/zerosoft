@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import TrackIcon from './TrackIcon';
 import { formatDate } from '@/lib/utils';
@@ -30,8 +31,9 @@ function addMonths(d: Date, months: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + months, 1);
 }
 
-function isoDay(d: Date): number {
-  return d.getDay();
+/** La semana empieza el lunes, salvo en inglés (domingo). */
+function weekStart(locale: string): number {
+  return locale.startsWith('en') ? 0 : 1;
 }
 
 function sameDate(a: Date, b: Date): boolean {
@@ -44,8 +46,11 @@ function parseDate(iso: string): Date | null {
 }
 
 export default function IssuesCalendar({ issues, locale, labels }: IssuesCalendarProps) {
+  const t = useTranslations('track');
   const [current, setCurrent] = useState(() => startOfMonth(new Date()));
   const today = new Date();
+  // En pantallas chicas cada día muestra solo la cantidad y la lista va abajo.
+  const [selected, setSelected] = useState<Date>(() => new Date());
 
   const { scheduled, unscheduled } = useMemo(() => {
     const scheduled: Array<{ date: Date; issues: TrackIssueWithStatus[] }> = [];
@@ -71,7 +76,8 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
   const year = current.getFullYear();
   const month = current.getMonth();
   const totalDays = daysInMonth(year, month);
-  const firstDay = isoDay(new Date(year, month, 1));
+  const start = weekStart(locale);
+  const firstDay = (new Date(year, month, 1).getDay() - start + 7) % 7;
   const days: Date[] = [];
   for (let i = 0; i < firstDay; i++) days.push(new Date(year, month, i - firstDay + 1));
   for (let i = 1; i <= totalDays; i++) days.push(new Date(year, month, i));
@@ -80,8 +86,10 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
 
   // 4 de enero de 1970 fue domingo: nombres cortos de los días en el idioma de la página.
   const weekDays = Array.from({ length: 7 }, (_, i) =>
-    new Date(Date.UTC(1970, 0, 4 + i)).toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' }),
+    new Date(Date.UTC(1970, 0, 4 + start + i)).toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' }),
   );
+  const issuesOn = (date: Date) => scheduled.filter((s) => sameDate(s.date, date)).flatMap((s) => s.issues);
+  const selectedIssues = issuesOn(selected);
 
   return (
     <div className="track-calendar">
@@ -93,7 +101,10 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
           <button type="button" className="btn btn-sm" onClick={() => setCurrent((d) => addMonths(d, -1))}>
             {labels.prev}
           </button>
-          <button type="button" className="btn btn-sm" onClick={() => setCurrent(startOfMonth(new Date()))}>
+          <button type="button" className="btn btn-sm" onClick={() => {
+              setCurrent(startOfMonth(new Date()));
+              setSelected(new Date());
+            }}>
             {labels.today}
           </button>
           <button type="button" className="btn btn-sm" onClick={() => setCurrent((d) => addMonths(d, 1))}>
@@ -111,15 +122,31 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
         {days.map((date, idx) => {
           const isCurrentMonth = date.getMonth() === month;
           const isToday = sameDate(date, today);
-          const dayIssues = scheduled.filter((s) => sameDate(s.date, date)).flatMap((s) => s.issues);
+          const dayIssues = issuesOn(date);
+          const isSelected = sameDate(date, selected);
           return (
             <div
               key={idx}
-              className={['track-calendar-day', isCurrentMonth ? 'current' : 'muted', isToday ? 'today' : '']
+              className={[
+                'track-calendar-day',
+                isCurrentMonth ? 'current' : 'muted',
+                isToday ? 'today' : '',
+                isSelected ? 'is-selected' : '',
+              ]
                 .filter(Boolean)
                 .join(' ')}
             >
               <span className="track-calendar-day-number">{date.getDate()}</span>
+              <button
+                type="button"
+                className="track-calendar-day-pick"
+                aria-pressed={isSelected}
+                aria-label={`${date.toLocaleDateString(locale, { day: 'numeric', month: 'long' })}: ${t('calendar.dayCount', { count: dayIssues.length })}`}
+                onClick={() => setSelected(date)}
+              >
+                <span className="track-calendar-day-number">{date.getDate()}</span>
+                {dayIssues.length > 0 && <span className="track-calendar-day-count">{dayIssues.length}</span>}
+              </button>
               {dayIssues.length > 0 && (
                 <div className="track-calendar-day-issues">
                   {dayIssues.slice(0, 3).map((issue) => (
@@ -140,7 +167,7 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
                     </Link>
                   ))}
                   {dayIssues.length > 3 && (
-                    <span className="track-calendar-more">+{dayIssues.length - 3} more</span>
+                    <span className="track-calendar-more">{t('calendar.more', { count: dayIssues.length - 3 })}</span>
                   )}
                 </div>
               )}
@@ -148,6 +175,26 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
           );
         })}
       </div>
+
+      <section className="track-calendar-agenda" aria-live="polite">
+        <h3 className="track-calendar-agenda-title">
+          {selected.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}
+        </h3>
+        {selectedIssues.length === 0 ? (
+          <p className="ui-help">{t('calendar.nothingDue')}</p>
+        ) : (
+          <ul className="track-calendar-agenda-list">
+            {selectedIssues.map((issue) => (
+              <li key={issue.id}>
+                <Link href={`/app/track/issues/${issue.id}`} className="track-calendar-agenda-item">
+                  <span className="track-identifier">{issue.identifier}</span>
+                  <span className="track-calendar-issue-title">{issue.title}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {unscheduled.length > 0 && (
         <div className="track-calendar-unscheduled">

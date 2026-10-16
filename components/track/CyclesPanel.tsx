@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
 import type { TrackCycleRow } from '@/lib/db';
-import { addDays, cycleState, formatDay } from '@/lib/track-tasks';
+import { cycleState, formatDay, nextCycleDraft, overlappingCycle } from '@/lib/track-tasks';
 
 export type CycleWithProgress = TrackCycleRow & { total?: number; done?: number };
 
@@ -17,6 +17,8 @@ interface CyclesPanelProps {
 }
 
 const day = (s: string) => s.slice(0, 10);
+
+const STATE_ORDER = { active: 0, upcoming: 1, past: 2 } as const;
 
 /**
  * Ciclos del proyecto (vive en el drawer de ajustes): crear y editar en línea
@@ -32,7 +34,13 @@ export default function CyclesPanel({ projectId, cycles, today, onChanged }: Cyc
 
   const ordered = [...cycles].sort((a, b) => a.start_at.localeCompare(b.start_at));
   const nextOf = (c: CycleWithProgress) => ordered.find((x) => x.id !== c.id && x.start_at > c.start_at) ?? null;
-  const newestFirst = [...cycles].sort((a, b) => b.start_at.localeCompare(a.start_at));
+  // El activo primero, después los próximos (el más cercano arriba) y al final los terminados.
+  const listed = [...cycles].sort((a, b) => {
+    const sa = STATE_ORDER[cycleState(a, today)];
+    const sb = STATE_ORDER[cycleState(b, today)];
+    if (sa !== sb) return sa - sb;
+    return sa === 1 ? a.start_at.localeCompare(b.start_at) : b.start_at.localeCompare(a.start_at);
+  });
   const range = (c: CycleWithProgress) => `${formatDay(day(c.start_at), locale, today)} – ${formatDay(day(c.end_at), locale, today)}`;
 
   const saved = async () => {
@@ -58,7 +66,7 @@ export default function CyclesPanel({ projectId, cycles, today, onChanged }: Cyc
       )}
 
       {editing === 'new' && (
-        <CycleForm projectId={projectId} cycle={null} today={today} onCancel={() => setEditing(null)} onSaved={saved} />
+        <CycleForm projectId={projectId} cycle={null} cycles={cycles} today={today} onCancel={() => setEditing(null)} onSaved={saved} />
       )}
 
       {cycles.length === 0 && editing !== 'new' ? (
@@ -74,7 +82,7 @@ export default function CyclesPanel({ projectId, cycles, today, onChanged }: Cyc
         />
       ) : (
         <ul className="track-cycle-list">
-          {newestFirst.map((c) => {
+          {listed.map((c) => {
             const total = c.total ?? 0;
             const done = c.done ?? 0;
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -83,17 +91,19 @@ export default function CyclesPanel({ projectId, cycles, today, onChanged }: Cyc
             if (editing === c.id) {
               return (
                 <li key={c.id} className="track-cycle is-editing">
-                  <CycleForm projectId={projectId} cycle={c} today={today} onCancel={() => setEditing(null)} onSaved={saved} />
+                  <CycleForm projectId={projectId} cycle={c} cycles={cycles} today={today} onCancel={() => setEditing(null)} onSaved={saved} />
                 </li>
               );
             }
             return (
               <li key={c.id} className={`track-cycle is-${st}`} data-testid="track-cycle">
                 <div className="track-cycle-head">
+                  {st === 'active' && <span className="track-cycle-station" aria-hidden />}
                   <span className="track-cycle-name">{c.name}</span>
-                  <span className={`badge${st === 'active' ? ' badge-ink' : ''}`}>{t(`cycles.state.${st}`)}</span>
+                  <span className="track-cycle-state">{t(`cycles.state.${st}`)}</span>
                   <span className="track-cycle-dates">{range(c)}</span>
                 </div>
+                {st === 'upcoming' && total === 0 ? null : (
                 <div className="track-cycle-progress">
                   <div
                     className="track-cycle-bar"
@@ -107,6 +117,7 @@ export default function CyclesPanel({ projectId, cycles, today, onChanged }: Cyc
                   </div>
                   <span className="track-cycle-count">{t('cycles.progress', { done, total })}</span>
                 </div>
+                )}
                 {completing === c.id ? (
                   <CompleteCycle
                     cycle={c}
@@ -151,41 +162,60 @@ export default function CyclesPanel({ projectId, cycles, today, onChanged }: Cyc
 function CycleForm({
   projectId,
   cycle,
+  cycles,
   today,
   onCancel,
   onSaved,
 }: {
   projectId: string;
   cycle: CycleWithProgress | null;
+  cycles: CycleWithProgress[];
   today: string;
   onCancel: () => void;
   onSaved: () => void;
 }) {
   const t = useTranslations('track');
-  const [name, setName] = useState(cycle?.name ?? '');
-  const [startAt, setStartAt] = useState(cycle ? day(cycle.start_at) : today);
-  const [endAt, setEndAt] = useState(cycle ? day(cycle.end_at) : addDays(today, 13));
+  const locale = useLocale();
+  const [draft] = useState(() => nextCycleDraft(cycles, today));
+  const defaultName = t('cycles.defaultName', { n: draft.n });
+  const [name, setName] = useState(cycle?.name ?? defaultName);
+  const [startAt, setStartAt] = useState(cycle ? day(cycle.start_at) : draft.startAt);
+  const [endAt, setEndAt] = useState(cycle ? day(cycle.end_at) : draft.endAt);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const invalidRange = !!startAt && !!endAt && endAt < startAt;
+  // Dos ciclos no pueden pisarse: un issue tendría dos "ciclos activos".
+  const overlap =
+    !invalidRange && startAt && endAt
+      ? overlappingCycle(cycles, startAt, endAt, cycle?.id)
+      : undefined;
+  const problem = invalidRange
+    ? t('cycles.invalidRange')
+    : overlap
+      ? t('cycles.overlap', {
+          name: overlap.name,
+          range: `${formatDay(day(overlap.start_at), locale, today)} – ${formatDay(day(overlap.end_at), locale, today)}`,
+        })
+      : null;
   const prefix = cycle ? `cycle-${cycle.id}` : 'cycle-new';
+  const finalName = name.trim() || (cycle ? cycle.name : defaultName);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !startAt || !endAt || invalidRange || busy) return;
+    if (!startAt || !endAt || problem || busy) return;
     setBusy(true);
     setError(null);
     const res = await fetch(cycle ? `/api/track/cycles/${cycle.id}` : `/api/track/projects/${projectId}/cycles`, {
       method: cycle ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), startAt, endAt }),
+      body: JSON.stringify({ name: finalName, startAt, endAt }),
     }).catch(() => null);
     setBusy(false);
     if (res?.ok) {
       onSaved();
       return;
     }
-    setError(t('errors.generic'));
+    setError(res?.status === 409 ? t('errors.cycle_overlap') : t('errors.generic'));
   }
 
   return (
@@ -203,17 +233,16 @@ function CycleForm({
     >
       <div className="ui-field">
         <label className="label" htmlFor={`${prefix}-name`}>
-          {t('cycles.form.name')}
+          {t('cycles.form.name')} <span className="ui-optional">{t('common.optional')}</span>
         </label>
         <input
           id={`${prefix}-name`}
           className="input"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={t('cycles.form.namePlaceholder')}
+          placeholder={cycle ? cycle.name : defaultName}
           maxLength={200}
           autoFocus
-          required
         />
       </div>
       <div className="ui-fields-2">
@@ -225,8 +254,11 @@ function CycleForm({
             id={`${prefix}-start`}
             className="input"
             type="date"
+            lang={locale}
             value={startAt}
             onChange={(e) => setStartAt(e.target.value)}
+            aria-invalid={Boolean(overlap) || undefined}
+            aria-describedby={problem ? `${prefix}-err` : undefined}
             required
           />
         </div>
@@ -238,17 +270,18 @@ function CycleForm({
             id={`${prefix}-end`}
             className="input"
             type="date"
+            lang={locale}
             value={endAt}
             onChange={(e) => setEndAt(e.target.value)}
-            aria-invalid={invalidRange || undefined}
-            aria-describedby={invalidRange ? `${prefix}-err` : undefined}
+            aria-invalid={Boolean(problem) || undefined}
+            aria-describedby={problem ? `${prefix}-err` : undefined}
             required
           />
         </div>
       </div>
-      {(error || invalidRange) && (
+      {(error || problem) && (
         <p className="ui-error" id={`${prefix}-err`} role="alert">
-          {error ?? t('cycles.invalidRange')}
+          {error ?? problem}
         </p>
       )}
       <div className="track-inline-form-actions">
@@ -258,7 +291,7 @@ function CycleForm({
         <button
           type="submit"
           className="btn btn-primary btn-sm"
-          disabled={!name.trim() || !startAt || !endAt || invalidRange}
+          disabled={!startAt || !endAt || Boolean(problem)}
           aria-busy={busy || undefined}
         >
           {cycle ? t('cycles.save') : t('cycles.create')}

@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { findOpenStatus, parseQuickTitle, type IssuePriority } from '@/lib/track-tasks';
+import { useLocale } from 'next-intl';
+import { activeCycle, findOpenStatus, parseQuickTitle, type IssuePriority } from '@/lib/track-tasks';
 import type { IssueDraft, ProjectContext } from './useIssueStore';
+import { DueDateMenu } from './InlineEditors';
 import type { TrackUiLabels } from './ui-labels';
 
 export interface QuickIssueDefaults {
@@ -38,6 +40,7 @@ export default function QuickIssueModal(props: QuickIssueModalProps) {
 }
 
 function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, today }: QuickIssueModalProps) {
+  const lang = useLocale();
   const initialProject = projects.find((p) => p.id === defaults?.projectId) ?? projects[0];
   const [projectId, setProjectId] = useState(initialProject?.id ?? '');
   const project = projects.find((p) => p.id === projectId);
@@ -52,6 +55,9 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
   const [priority, setPriority] = useState<IssuePriority>('medium');
   const [assigneeId, setAssigneeId] = useState(defaults?.assigneeId ?? '');
   const [dueDate, setDueDate] = useState(defaults?.dueDate ?? '');
+  // El ciclo arranca en el activo del proyecto (si hay), como en Linear.
+  const defaultCycle = (p: ProjectContext | undefined) => (p?.cycles ? (activeCycle(p.cycles, today)?.id ?? '') : '');
+  const [cycleId, setCycleId] = useState(() => (defaults?.parentId ? '' : defaultCycle(initialProject)));
   const [createMore, setCreateMore] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -72,6 +78,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     setProjectId(id);
     const p = projects.find((x) => x.id === id);
     setStatusId(defaultStatus(p));
+    setCycleId(defaultCycle(p));
     if (assigneeId && !p?.members.some((m) => m.id === assigneeId)) setAssigneeId('');
   };
 
@@ -89,6 +96,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
       assigneeId: assigneeId || null,
       dueDate: parsed.dueDate ?? (dueDate || null),
       parentId: defaults?.parentId ?? null,
+      cycleId: cycleId || null,
     });
     if (createMore) {
       setTitle('');
@@ -231,10 +239,29 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
                 ))}
               </select>
             </label>
-            <label className="track-qc-prop">
+            <span className="track-qc-prop">
               <span>{labels.modal.dueDate}</span>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-            </label>
+              <DueDateMenu
+                dueDate={dueDate || null}
+                locale={lang}
+                today={today}
+                labels={labels.inline}
+                onChange={(v) => setDueDate(v ?? '')}
+              />
+            </span>
+            {project?.cycles && project.cycles.length > 0 && (
+              <label className="track-qc-prop">
+                <span>{labels.modal.cycle}</span>
+                <select value={cycleId} onChange={(e) => setCycleId(e.target.value)}>
+                  <option value="">{labels.modal.noCycle}</option>
+                  {project.cycles.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
 
           <div className="track-qc-foot">

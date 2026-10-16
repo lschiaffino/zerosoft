@@ -5,6 +5,8 @@ import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
 import LabelPicker from './LabelPicker';
+import { DueDateMenu } from './InlineEditors';
+import type { TrackUiLabels } from './ui-labels';
 
 interface IssuePropertiesPanelProps {
   issue: TrackIssueWithStatus;
@@ -22,8 +24,13 @@ interface IssuePropertiesPanelProps {
     labels: string;
     noAssignee: string;
     none: string;
+    estimatePlaceholder: string;
+    estimateUnit: string;
   };
   priorities: Array<{ value: string; label: string }>;
+  /** Textos del selector de fecha (Hoy, Mañana, Elegir fecha). */
+  dateLabels: TrackUiLabels['inline'];
+  today: string;
   onChange?: () => void;
   /** Un cambio no se pudo guardar (ya se revirtió en el panel). */
   onError?: () => void;
@@ -53,8 +60,11 @@ export default function IssuePropertiesPanel({
   statuses,
   cycles,
   members,
+  locale,
   labels,
   priorities,
+  dateLabels,
+  today,
   onChange,
   onError,
 }: IssuePropertiesPanelProps) {
@@ -185,29 +195,36 @@ export default function IssuePropertiesPanel({
         </select>
       </div>
       <div className="track-property">
-        <label htmlFor="prop-dueDate">{labels.dueDate}</label>
-        <input
-          id="prop-dueDate"
-          className="input"
-          type="date"
-          value={localIssue.due_date ?? ''}
-          onChange={(e) => update({ dueDate: e.target.value || null })}
-        />
+        <span className="track-property-label">{labels.dueDate}</span>
+        <span className="track-property-date">
+          <DueDateMenu
+            dueDate={localIssue.due_date}
+            locale={locale}
+            today={today}
+            labels={dateLabels}
+            onChange={(dueDate) => void update({ dueDate })}
+          />
+        </span>
       </div>
-      <div className="track-property track-property-stack">
+      <div className="track-property track-property-top">
         <span className="track-property-label">{labels.labels}</span>
         <LabelPicker value={issueLabels} onChange={(next) => void setLabels(next)} />
       </div>
       <div className="track-property">
         <label htmlFor="prop-estimate">{labels.estimate}</label>
-        <input
-          id="prop-estimate"
-          className="input"
-          type="number"
-          min={0}
-          value={localIssue.estimate ?? ''}
-          onChange={(e) => update({ estimate: e.target.value ? Number(e.target.value) : null })}
-        />
+        <span className="track-property-unit">
+          <input
+            id="prop-estimate"
+            className="input"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            placeholder={labels.estimatePlaceholder}
+            value={localIssue.estimate ?? ''}
+            onChange={(e) => update({ estimate: e.target.value ? Number(e.target.value) : null })}
+          />
+          <span aria-hidden>{labels.estimateUnit}</span>
+        </span>
       </div>
     </div>
   );

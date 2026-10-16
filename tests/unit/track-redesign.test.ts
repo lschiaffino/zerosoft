@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeCycle, cycleState, projectSlug } from '@/lib/track-tasks';
+import { activeCycle, cycleState, nextCycleDraft, overlappingCycle, projectSlug } from '@/lib/track-tasks';
 
 describe('projectSlug', () => {
   it('deriva el slug como el servidor: minúsculas, sin acentos, guiones', () => {
@@ -30,5 +30,25 @@ describe('cycleState y activeCycle', () => {
     expect(activeCycle([c13, c15], '2026-10-16')).toBeNull();
     const overlap = { id: 'x', start_at: '2026-10-15', end_at: '2026-10-20' };
     expect(activeCycle([c14, overlap], '2026-10-16')?.id).toBe('x');
+  });
+});
+
+describe('nextCycleDraft y overlappingCycle', () => {
+  const c14 = { id: '14', name: 'Ciclo 14', start_at: '2026-10-10', end_at: '2026-10-23' };
+  const c15 = { id: '15', name: 'Ciclo 15', start_at: '2026-10-24', end_at: '2026-11-06' };
+
+  it('propone Ciclo N+1 el día después del último, con la misma duración', () => {
+    expect(nextCycleDraft([c14, c15], '2026-10-16')).toEqual({ n: 16, startAt: '2026-11-07', endAt: '2026-11-20' });
+  });
+
+  it('sin ciclos arranca hoy y dura dos semanas', () => {
+    expect(nextCycleDraft([], '2026-10-16')).toEqual({ n: 1, startAt: '2026-10-16', endAt: '2026-10-29' });
+  });
+
+  it('detecta superposición (bordes inclusive) y no se compara consigo mismo', () => {
+    expect(overlappingCycle([c14, c15], '2026-10-16', '2026-10-29')?.id).toBe('14');
+    expect(overlappingCycle([c14, c15], '2026-11-07', '2026-11-20')).toBeUndefined();
+    expect(overlappingCycle([c14, c15], '2026-10-23', '2026-10-23')?.id).toBe('14');
+    expect(overlappingCycle([c14], '2026-10-10', '2026-10-25', '14')).toBeUndefined();
   });
 });

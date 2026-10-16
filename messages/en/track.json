@@ -26,13 +26,17 @@
     "optional": "optional"
   },
   "overview": {
-    "title": "Track",
-    "subtitle": "Your team's projects, cycles and issues.",
+    "title": "Overview",
+    "subtitle": "Each project's current cycle, overdue issues and the triage queue.",
     "emptyTitle": "No projects yet",
     "emptySub": "A project groups issues, cycles and views. Create one per product or team.",
     "projects": "Projects",
     "recentIssues": "Recent issues",
-    "emptySecondary": "Also from ⌘K."
+    "emptySecondary": "Also from ⌘K.",
+    "cycle": "Current cycle",
+    "noCycle": "No current cycle",
+    "cycleMeta": "{done}/{total} · ends {end}",
+    "triage": "Triage"
   },
   "projects": {
     "title": "Projects",
@@ -44,9 +48,9 @@
     "openIssues": "open",
     "form": {
       "name": "Name",
-      "namePlaceholder": "Acme Mobile App",
+      "namePlaceholder": "Mobile app",
       "slug": "Identifier",
-      "slugPlaceholder": "acme-mobile",
+      "slugPlaceholder": "mobile-app",
       "description": "Description",
       "icon": "Icon",
       "slugHelp": "Issue prefix: {example}. Leave it empty to use the name.",
@@ -54,12 +58,13 @@
       "iconHelp": "An emoji or up to 8 characters, next to the name."
     },
     "create": "Create project",
-    "formTitle": "Project",
+    "formTitle": "Basics",
     "backToList": "Back to projects",
     "column": {
       "project": "Project",
       "open": "Open"
-    }
+    },
+    "subtitle": "All of your team's projects and their open issues."
   },
   "project": {
     "title": "Project",
@@ -97,7 +102,7 @@
     "estimate": "Estimate",
     "created": "Created",
     "noAssignee": "Unassigned",
-    "dueDate": "Due date",
+    "dueDate": "Due",
     "labels": "Labels",
     "detail": {
       "comments": "Comments",
@@ -111,13 +116,21 @@
     "breadcrumb": "Issue location",
     "description": "Description",
     "noProjectsBody": "Create a project to start adding issues.",
-    "none": "None"
+    "none": "None",
+    "editTitle": "Issue title",
+    "descriptionPlaceholder": "Add a description…",
+    "moreActions": "More actions",
+    "addSubtask": "Sub-issue",
+    "addAttachment": "Attachment",
+    "addRelation": "Relation",
+    "estimatePlaceholder": "Points",
+    "estimateUnit": "pts"
   },
   "subtasks": {
-    "title": "Subtasks",
-    "add": "Add subtask",
-    "empty": "No subtasks yet.",
-    "hasSubtasks": "Has subtasks"
+    "title": "Sub-issues",
+    "add": "Add sub-issue",
+    "empty": "No sub-issues yet.",
+    "hasSubtasks": "Has sub-issues"
   },
   "attachments": {
     "title": "Attachments",
@@ -144,7 +157,7 @@
     "relationAdded": "{user} added relation to",
     "relationRemoved": "{user} removed relation",
     "attachmentAdded": "{user} added attachment {filename}",
-    "subtaskAdded": "{user} added this as a subtask",
+    "subtaskAdded": "{user} added this as a sub-issue",
     "closed": "{user} closed this issue",
     "reopened": "{user} reopened this issue",
     "commented": "{user} commented",
@@ -183,7 +196,7 @@
     "title": "Cycles",
     "form": {
       "name": "Name",
-      "namePlaceholder": "Sprint 1",
+      "namePlaceholder": "Cycle {n}",
       "startAt": "Start",
       "endAt": "End"
     },
@@ -207,7 +220,10 @@
     "emptyBody": "Create the first one to plan in periods and track progress.",
     "save": "Save cycle",
     "create": "Create cycle",
-    "completeConfirm": "Complete cycle"
+    "completeConfirm": "Complete cycle",
+    "defaultName": "Cycle {n}",
+    "overlap": "Overlaps {name} ({range}). Pick other dates.",
+    "next": "Next"
   },
   "statuses": {
     "title": "Statuses",
@@ -236,11 +252,13 @@
     "assignee": "Assignee",
     "cycle": "Cycle",
     "labels": "Labels",
-    "dueDate": "Due date",
+    "dueDate": "Due",
     "search": "Search issues…",
     "clear": "Clear",
     "dueFrom": "From",
-    "dueTo": "To"
+    "dueTo": "To",
+    "button": "Filter",
+    "done": "Done"
   },
   "savedViews": {
     "title": "Saved views",
@@ -257,7 +275,10 @@
     "prev": "Previous",
     "next": "Next",
     "today": "Today",
-    "unscheduled": "Unscheduled"
+    "unscheduled": "Unscheduled",
+    "more": "+{count} more",
+    "dayCount": "{count, plural, one {# issue} other {# issues}}",
+    "nothingDue": "Nothing due this day."
   },
   "gantt": {
     "prev": "Previous",
@@ -295,12 +316,13 @@
     "invalid_input": "Some fields are invalid. Check them and try again.",
     "generic": "Something went wrong. Try again.",
     "invalid_range": "The end date can't be before the start.",
-    "last_status": "The project needs at least one status."
+    "last_status": "The project needs at least one status.",
+    "cycle_overlap": "That overlaps another cycle. Pick other dates."
   },
   "quick": {
-    "newTask": "New task",
-    "placeholder": "Task title, Enter to save, Esc to cancel",
-    "hint": "!high @tomorrow",
+    "newTask": "New issue",
+    "placeholder": "Issue title, Enter to save, Esc to cancel",
+    "hint": "Type !high or @tomorrow in the title to set priority and due date.",
     "project": "Project",
     "modalTitle": "New issue",
     "titlePlaceholder": "Issue title",
@@ -309,14 +331,16 @@
     "createMore": "Create more",
     "submitHint": "Enter or ⌘↵ to create",
     "shortcutHint": "Press C to create an issue",
-    "subModalTitle": "New sub-issue"
+    "subModalTitle": "New sub-issue",
+    "cycle": "Cycle",
+    "noCycle": "No cycle"
   },
   "inline": {
     "markDone": "Mark as done",
     "markOpen": "Mark as not done",
     "noDoneStatus": "This project has no “Done” status.",
     "saveError": "Couldn’t save the change. It was reverted.",
-    "createError": "Couldn’t create the task. Try again.",
+    "createError": "Couldn’t create the issue. Try again.",
     "noDate": "No date",
     "today": "Today",
     "tomorrow": "Tomorrow",
@@ -382,7 +406,7 @@
   },
   "github": {
     "title": "GitHub",
-    "help": "Connect a GitHub webhook. PRs and commits that mention an issue (ZER-123) in the branch, title or description get linked to it.",
+    "help": "Connect a GitHub webhook. PRs and commits that mention an issue (<id>{example}</id>) in the branch, title or description get linked to it.",
     "steps": "In GitHub: repo Settings, Webhooks, Add webhook. Content type application/json, events Pull requests and Pushes.",
     "webhookUrl": "Payload URL",
     "secret": "Secret",
@@ -463,7 +487,7 @@
     "adminOnly": "Only an admin can turn triage on or off.",
     "empty": "No issues waiting for triage.",
     "accept": "Accept",
-    "acceptAs": "Accept as",
+    "acceptAs": "Accept into",
     "decline": "Decline",
     "duplicate": "Duplicate",
     "duplicateOf": "Duplicate of",

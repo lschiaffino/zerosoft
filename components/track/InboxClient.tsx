@@ -162,9 +162,11 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
       <PageHeader
         title={labels.title}
         actions={
-          <button type="button" className="btn" onClick={() => void markAllRead()} disabled={rows.length === 0}>
-            {labels.markAllRead}
-          </button>
+          rows.length > 0 ? (
+            <button type="button" className="btn" onClick={() => void markAllRead()}>
+              {labels.markAllRead}
+            </button>
+          ) : null
         }
       />
 

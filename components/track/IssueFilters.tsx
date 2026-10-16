@@ -39,6 +39,8 @@ interface IssueFiltersProps {
   cycles: TrackCycleRow[];
   issueLabels: IssueLabel[];
   labels: FilterLabels;
+  /** Vistas guardadas: en pantallas chicas viven dentro de la hoja "Filtrar". */
+  savedViews?: ReactNode;
 }
 
 export interface FilterLabels {
@@ -51,6 +53,9 @@ export interface FilterLabels {
   search: string;
   clear: string;
   saveView: string;
+  /** Botón que abre la hoja de filtros en pantallas chicas. */
+  filter: string;
+  done: string;
 }
 
 /** Cantidad de filtros activos (sin contar la búsqueda). */
@@ -166,9 +171,16 @@ export default function IssueFilters({
   cycles,
   issueLabels,
   labels,
+  savedViews,
 }: IssueFiltersProps) {
   const t = useTranslations('track');
   const search = useRef<HTMLInputElement>(null);
+  const sheetButton = useRef<HTMLButtonElement>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const closeSheet = () => {
+    setSheetOpen(false);
+    sheetButton.current?.focus();
+  };
   const activeCount = activeFilterCount(filters);
   const update = (patch: Partial<FilterState>) => onChange({ ...filters, ...patch });
 
@@ -184,8 +196,27 @@ export default function IssueFilters({
   }, []);
 
   return (
-    <div className="track-filters" role="search">
-      <div className="track-filter-group">
+    <div className={`track-filters${sheetOpen ? ' is-sheet-open' : ''}`} role="search">
+      {sheetOpen && <div className="track-filter-backdrop" onClick={closeSheet} aria-hidden />}
+      <div
+        className="track-filter-group"
+        id="track-filter-sheet"
+        role={sheetOpen ? 'dialog' : undefined}
+        aria-modal={sheetOpen || undefined}
+        aria-label={sheetOpen ? labels.filter : undefined}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && sheetOpen && !e.defaultPrevented) {
+            e.preventDefault();
+            closeSheet();
+          }
+        }}
+      >
+        <div className="track-filter-sheet-head">
+          <span className="track-filter-sheet-title">{labels.filter}</span>
+          <button type="button" className="btn btn-sm" onClick={closeSheet}>
+            {labels.done}
+          </button>
+        </div>
         <MultiSelect
           label={labels.status}
           options={statuses.map((s) => ({ value: s.id, label: s.name, color: s.color }))}
@@ -247,6 +278,21 @@ export default function IssueFilters({
             {labels.clear}
           </button>
         )}
+        {sheetOpen && (
+          <div className="track-filter-sheet-views">
+            {savedViews}
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setSheetOpen(false);
+                onSaveView();
+              }}
+            >
+              {labels.saveView}
+            </button>
+          </div>
+        )}
       </div>
       <div className="track-filter-search">
         <span className="track-search">
@@ -272,7 +318,19 @@ export default function IssueFilters({
             /
           </kbd>
         </span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onSaveView} data-testid="track-save-view">
+        <button
+          ref={sheetButton}
+          type="button"
+          className={`btn btn-sm track-filter-sheet-btn${activeCount > 0 ? ' is-active' : ''}`}
+          onClick={() => setSheetOpen(true)}
+          aria-expanded={sheetOpen}
+          aria-controls="track-filter-sheet"
+          data-testid="track-filter-sheet-open"
+        >
+          {labels.filter}
+          {activeCount > 0 && <span className="track-filter-count">{activeCount}</span>}
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm track-filter-save" onClick={onSaveView} data-testid="track-save-view">
           {labels.saveView}
         </button>
       </div>

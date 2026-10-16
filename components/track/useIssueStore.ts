@@ -13,6 +13,8 @@ export interface ProjectContext {
   icon?: string | null;
   statuses: TrackStatusRow[];
   members: ProjectMember[];
+  /** Ciclos del proyecto (el quick-create preselecciona el activo). */
+  cycles?: Array<{ id: string; name: string; start_at: string; end_at: string }>;
 }
 
 export type ProjectMap = Record<string, ProjectContext>;
@@ -26,6 +28,7 @@ export interface IssueDraft {
   dueDate?: string | null;
   /** Sub-issue: id del issue padre. */
   parentId?: string | null;
+  cycleId?: string | null;
 }
 
 export interface IssueStore {
@@ -61,7 +64,6 @@ function draftIssue(projectId: string, id: string, draft: IssueDraft, ctx?: Proj
     priority: draft.priority ?? 'medium',
     assignee_id: null,
     creator_id: '',
-    cycle_id: null,
     estimate: null,
     parent_id: null,
     start_date: null,
@@ -74,7 +76,8 @@ function draftIssue(projectId: string, id: string, draft: IssueDraft, ctx?: Proj
     status_category: null,
     assignee_name: null,
     assignee_email: null,
-    cycle_name: null,
+    cycle_id: draft.cycleId ?? null,
+    cycle_name: draft.cycleId ? (ctx?.cycles?.find((c) => c.id === draft.cycleId)?.name ?? null) : null,
     child_count: 0,
   };
   return applyIssuePatch(
@@ -197,6 +200,7 @@ export function useIssueStore(
               assigneeId: draft.assigneeId || undefined,
               dueDate: draft.dueDate || undefined,
               parentId: draft.parentId || undefined,
+              cycleId: draft.cycleId || undefined,
             }),
           });
           if (!res.ok) throw new Error(`create ${res.status}`);

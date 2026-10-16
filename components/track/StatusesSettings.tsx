@@ -188,7 +188,7 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
               {canDelete && (
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm btn-icon btn-danger"
+                  className="btn btn-ghost btn-sm btn-icon track-status-remove"
                   disabled={statuses.length <= 1}
                   aria-label={`${t('statusSettings.delete')}: ${s.name}`}
                   title={t('statusSettings.delete')}

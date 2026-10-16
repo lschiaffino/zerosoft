@@ -5,8 +5,8 @@ import PageHeader from '@/components/ui/PageHeader';
 import ProjectList from './ProjectList';
 import QuickProjectButton from './QuickProjectButton';
 
-/** Resumen y Proyectos de Track: la lista de proyectos con "Nuevo proyecto". */
-export default async function ProjectsPage({ locale, title }: { locale: string; title: 'overview' | 'projects' }) {
+/** Proyectos de Track: la lista de proyectos con "Nuevo proyecto". */
+export default async function ProjectsPage({ locale }: { locale: string }) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
   const { rows: projects } = await listProjects(user.team?.id ?? null, user.id, { pageSize: 100 });
@@ -14,8 +14,8 @@ export default async function ProjectsPage({ locale, title }: { locale: string; 
   return (
     <div className="app-page track-page ui-page">
       <PageHeader
-        title={t(`${title}.title`)}
-        description={t('overview.subtitle')}
+        title={t('projects.title')}
+        description={t('projects.subtitle')}
         actions={projects.length > 0 ? <QuickProjectButton listenParam /> : null}
       />
       <ProjectList

@@ -10,16 +10,7 @@ import type { TrackStatusRow } from '@/lib/db';
 import type { IssuePatch } from '@/lib/track-tasks';
 import StatusBadge from './StatusBadge';
 import TrackIcon from './TrackIcon';
-import {
-  AssigneeMenu,
-  DoneCheckbox,
-  DueDateMenu,
-  PriorityIcon,
-  PriorityMenu,
-  QuickAdd,
-  StatusDot,
-  StatusMenu,
-} from './InlineEditors';
+import { AssigneeMenu, DueDateMenu, PriorityIcon, PriorityMenu, QuickAdd, StatusDot, StatusToggle } from './InlineEditors';
 import { isPendingIssue } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
 
@@ -110,7 +101,7 @@ export default function IssuesBoard({
                   {status.name}
                 </span>
               ) : (
-                <StatusBadge name={status.name} color={status.color} />
+                <StatusBadge name={status.name} color={status.color} category={status.category} />
               )}
               <span className="track-board-count">{colIssues.length}</span>
             </div>
@@ -153,7 +144,8 @@ export default function IssuesBoard({
                       <>
                         <div className="track-board-card-head">
                           <span className="track-board-card-id">
-                            <DoneCheckbox
+                            <StatusToggle
+                              color={issue.status_color}
                               category={issue.status_category}
                               disabled={pending}
                               onToggle={() => editing.onToggleDone(issue)}
@@ -162,17 +154,6 @@ export default function IssuesBoard({
                             <span className="track-identifier">{issue.identifier}</span>
                           </span>
                           <span className="track-board-card-tools">
-                            <StatusMenu
-                              compact
-                              statusId={issue.status_id}
-                              statusName={issue.status_name}
-                              statusColor={issue.status_color}
-                              statusCategory={issue.status_category}
-                              statuses={statuses}
-                              disabled={pending}
-                              label={editing.ui.inline.status}
-                              onChange={(statusId) => editing.onUpdate(issue.id, { statusId })}
-                            />
                             <PriorityMenu
                               compact
                               priority={issue.priority}

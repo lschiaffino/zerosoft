@@ -254,7 +254,7 @@ function CopyField({ id, label, value, testId }: { id: string; label: string; va
  * "Conectar GitHub"; el formulario aparece al pedirlo. Conectado: datos del
  * webhook, repos (con su Guardar) y una zona para secret nuevo y desconectar.
  */
-export function GithubSettings(props: { isAdmin: boolean; locale: string }) {
+export function GithubSettings(props: { isAdmin: boolean; locale: string; example: string }) {
   return (
     <div data-testid="track-github-settings" className="ui-page">
       <GithubSettingsBody {...props} />
@@ -262,8 +262,10 @@ export function GithubSettings(props: { isAdmin: boolean; locale: string }) {
   );
 }
 
-function GithubSettingsBody({ isAdmin, locale }: { isAdmin: boolean; locale: string }) {
+function GithubSettingsBody({ isAdmin, locale, example }: { isAdmin: boolean; locale: string; example: string }) {
   const t = useTranslations('track');
+  // El ejemplo usa el prefijo real de un proyecto y no se corta entre líneas.
+  const help = t.rich('github.help', { example, id: (chunks) => <span className="track-nowrap data">{chunks}</span> });
   const [config, setConfig] = useState<GithubConfig | null | undefined>(undefined);
   const [loadFailed, setLoadFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -350,7 +352,7 @@ function GithubSettingsBody({ isAdmin, locale }: { isAdmin: boolean; locale: str
 
   if (config === undefined) {
     return (
-      <FormSection title={t('github.title')} description={t('github.help')}>
+      <FormSection title={t('github.title')} description={help}>
         <SettingsSkeleton />
       </FormSection>
     );
@@ -358,7 +360,7 @@ function GithubSettingsBody({ isAdmin, locale }: { isAdmin: boolean; locale: str
 
   if (loadFailed) {
     return (
-      <FormSection title={t('github.title')} description={t('github.help')}>
+      <FormSection title={t('github.title')} description={help}>
         <EmptyState
           quiet
           title={t('github.loadError')}
@@ -434,7 +436,7 @@ function GithubSettingsBody({ isAdmin, locale }: { isAdmin: boolean; locale: str
       return (
         <FormSection
           title={t('github.title')}
-          description={t('github.help')}
+          description={help}
           footer={
             <>
               <span className="ui-section-note">{isAdmin ? t('github.notConnected') : t('github.adminOnly')}</span>
@@ -457,7 +459,7 @@ function GithubSettingsBody({ isAdmin, locale }: { isAdmin: boolean; locale: str
     return (
       <FormSection
         title={t('github.title')}
-        description={t('github.help')}
+        description={help}
         onSubmit={() => save()}
         submitLabel={t('github.connect')}
         note={t('github.connectNote')}

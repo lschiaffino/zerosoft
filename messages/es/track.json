@@ -26,13 +26,17 @@
     "optional": "opcional"
   },
   "overview": {
-    "title": "Track",
-    "subtitle": "Proyectos, ciclos e issues del equipo.",
+    "title": "Resumen",
+    "subtitle": "El ciclo en curso de cada proyecto, lo vencido y lo que espera triage.",
     "emptyTitle": "Todavía no hay proyectos",
     "emptySub": "Un proyecto agrupa issues, ciclos y vistas. Creá uno por producto o por equipo.",
     "projects": "Proyectos",
     "recentIssues": "Issues recientes",
-    "emptySecondary": "También desde ⌘K."
+    "emptySecondary": "También desde ⌘K.",
+    "cycle": "Ciclo en curso",
+    "noCycle": "Sin ciclo en curso",
+    "cycleMeta": "{done}/{total} · cierra el {end}",
+    "triage": "Triage"
   },
   "projects": {
     "title": "Proyectos",
@@ -44,9 +48,9 @@
     "openIssues": "abiertos",
     "form": {
       "name": "Nombre",
-      "namePlaceholder": "Acme Mobile App",
+      "namePlaceholder": "App móvil",
       "slug": "Identificador",
-      "slugPlaceholder": "acme-mobile",
+      "slugPlaceholder": "app-movil",
       "description": "Descripción",
       "icon": "Icono",
       "slugHelp": "Prefijo de los issues: {example}. Si lo dejás vacío, sale del nombre.",
@@ -54,12 +58,13 @@
       "iconHelp": "Un emoji o hasta 8 caracteres, al lado del nombre."
     },
     "create": "Crear proyecto",
-    "formTitle": "Proyecto",
+    "formTitle": "Datos básicos",
     "backToList": "Volver a proyectos",
     "column": {
       "project": "Proyecto",
       "open": "Abiertos"
-    }
+    },
+    "subtitle": "Todos los proyectos del equipo y sus issues abiertos."
   },
   "project": {
     "title": "Proyecto",
@@ -97,7 +102,7 @@
     "estimate": "Estimación",
     "created": "Creado",
     "noAssignee": "Sin asignar",
-    "dueDate": "Fecha de vencimiento",
+    "dueDate": "Vence",
     "labels": "Etiquetas",
     "detail": {
       "comments": "Comentarios",
@@ -111,13 +116,21 @@
     "breadcrumb": "Ubicación del issue",
     "description": "Descripción",
     "noProjectsBody": "Creá un proyecto para empezar a cargar issues.",
-    "none": "Ninguno"
+    "none": "Ninguno",
+    "editTitle": "Título del issue",
+    "descriptionPlaceholder": "Agregá una descripción…",
+    "moreActions": "Más acciones",
+    "addSubtask": "Sub-issue",
+    "addAttachment": "Adjunto",
+    "addRelation": "Relación",
+    "estimatePlaceholder": "Puntos",
+    "estimateUnit": "pts"
   },
   "subtasks": {
-    "title": "Subtareas",
-    "add": "Agregar subtarea",
-    "empty": "Todavía no hay subtareas.",
-    "hasSubtasks": "Tiene subtareas"
+    "title": "Sub-issues",
+    "add": "Agregar sub-issue",
+    "empty": "Todavía no hay sub-issues.",
+    "hasSubtasks": "Tiene sub-issues"
   },
   "attachments": {
     "title": "Adjuntos",
@@ -144,7 +157,7 @@
     "relationAdded": "{user} agregó relación con",
     "relationRemoved": "{user} eliminó una relación",
     "attachmentAdded": "{user} agregó el adjunto {filename}",
-    "subtaskAdded": "{user} agregó esto como subtarea",
+    "subtaskAdded": "{user} agregó esto como sub-issue",
     "closed": "{user} cerró este issue",
     "reopened": "{user} reabrió este issue",
     "commented": "{user} comentó",
@@ -169,7 +182,7 @@
     "empty": "Todavía no hay relaciones.",
     "selectIssue": "ID o identificador del issue",
     "selectType": "Tipo",
-    "notFound": "No hay ningún issue con ese ID o identifier.",
+    "notFound": "No hay ningún issue con ese ID o identificador.",
     "duplicate": "Esos issues ya están relacionados.",
     "self": "Un issue no se puede relacionar consigo mismo.",
     "error": "No se pudo agregar la relación. Probá de nuevo.",
@@ -183,7 +196,7 @@
     "title": "Ciclos",
     "form": {
       "name": "Nombre",
-      "namePlaceholder": "Sprint 1",
+      "namePlaceholder": "Ciclo {n}",
       "startAt": "Inicio",
       "endAt": "Fin"
     },
@@ -207,7 +220,10 @@
     "emptyBody": "Creá el primero para planificar por períodos y ver el avance.",
     "save": "Guardar ciclo",
     "create": "Crear ciclo",
-    "completeConfirm": "Completar ciclo"
+    "completeConfirm": "Completar ciclo",
+    "defaultName": "Ciclo {n}",
+    "overlap": "Se superpone con {name} ({range}). Elegí otras fechas.",
+    "next": "Próximo"
   },
   "statuses": {
     "title": "Estados",
@@ -236,11 +252,13 @@
     "assignee": "Asignado",
     "cycle": "Ciclo",
     "labels": "Etiquetas",
-    "dueDate": "Fecha de vencimiento",
+    "dueDate": "Vence",
     "search": "Buscar issues…",
     "clear": "Limpiar",
     "dueFrom": "Desde",
-    "dueTo": "Hasta"
+    "dueTo": "Hasta",
+    "button": "Filtrar",
+    "done": "Listo"
   },
   "savedViews": {
     "title": "Vistas guardadas",
@@ -257,7 +275,10 @@
     "prev": "Anterior",
     "next": "Siguiente",
     "today": "Hoy",
-    "unscheduled": "Sin fecha"
+    "unscheduled": "Sin fecha",
+    "more": "+{count} más",
+    "dayCount": "{count, plural, one {# issue} other {# issues}}",
+    "nothingDue": "Nada vence este día."
   },
   "gantt": {
     "prev": "Anterior",
@@ -295,12 +316,13 @@
     "invalid_input": "Algunos campos son inválidos. Revisalos e intentá de nuevo.",
     "generic": "Algo salió mal. Intentá de nuevo.",
     "invalid_range": "La fecha de fin no puede ser anterior al inicio.",
-    "last_status": "El proyecto necesita al menos un status."
+    "last_status": "El proyecto necesita al menos un estado.",
+    "cycle_overlap": "Se superpone con otro ciclo. Elegí otras fechas."
   },
   "quick": {
-    "newTask": "Nueva tarea",
-    "placeholder": "Título de la tarea, Enter para guardar, Esc para cancelar",
-    "hint": "!alta @mañana",
+    "newTask": "Nuevo issue",
+    "placeholder": "Título del issue, Enter para guardar, Esc para cancelar",
+    "hint": "Escribí !alta o @mañana en el título para fijar prioridad y fecha.",
     "project": "Proyecto",
     "modalTitle": "Nuevo issue",
     "titlePlaceholder": "Título del issue",
@@ -309,14 +331,16 @@
     "createMore": "Crear otro",
     "submitHint": "Enter o ⌘↵ para crear",
     "shortcutHint": "Tocá C para crear un issue",
-    "subModalTitle": "Nuevo sub-issue"
+    "subModalTitle": "Nuevo sub-issue",
+    "cycle": "Ciclo",
+    "noCycle": "Sin ciclo"
   },
   "inline": {
-    "markDone": "Marcar como hecha",
+    "markDone": "Marcar como terminado",
     "markOpen": "Marcar como pendiente",
     "noDoneStatus": "Este proyecto no tiene un estado “Hecho”.",
     "saveError": "No se pudo guardar el cambio. Se revirtió.",
-    "createError": "No se pudo crear la tarea. Probá de nuevo.",
+    "createError": "No se pudo crear el issue. Probá de nuevo.",
     "noDate": "Sin fecha",
     "today": "Hoy",
     "tomorrow": "Mañana",
@@ -345,44 +369,44 @@
     "inbox": "Ir al inbox de Track"
   },
   "statusSettings": {
-    "title": "Status del workflow",
-    "name": "Nombre del status",
+    "title": "Estados del flujo",
+    "name": "Nombre del estado",
     "color": "Color",
     "category": "Categoría",
     "moveUp": "Subir",
     "moveDown": "Bajar",
     "delete": "Borrar",
     "reassignTo": "Pasar sus issues a",
-    "adminOnly": "Solo un admin puede borrar status.",
-    "confirmDelete": "Borrar status",
-    "newPlaceholder": "Nuevo status",
+    "adminOnly": "Solo un admin puede borrar estados.",
+    "confirmDelete": "Borrar estado",
+    "newPlaceholder": "Nuevo estado",
     "add": "Agregar",
     "help": "Los estados ordenan el tablero. La categoría define qué cuenta como terminado."
   },
   "settingsPage": {
     "title": "Ajustes de Track",
-    "subtitle": "Labels del workspace e integración con GitHub."
+    "subtitle": "Etiquetas del workspace e integración con GitHub."
   },
   "labelsSettings": {
-    "title": "Labels",
-    "help": "Los labels son del workspace: se comparten entre todos los proyectos.",
-    "newPlaceholder": "Nuevo label",
+    "title": "Etiquetas",
+    "help": "Las etiquetas son del workspace: se comparten entre todos los proyectos.",
+    "newPlaceholder": "Nueva etiqueta",
     "add": "Agregar",
-    "name": "Nombre del label",
+    "name": "Nombre de la etiqueta",
     "color": "Color",
     "delete": "Borrar",
-    "confirmDelete": "Borrar label",
+    "confirmDelete": "Borrar etiqueta",
     "deleteHelp": "Se quita de {count, plural, one {# issue} other {# issues}}.",
     "issues": "{count, plural, one {# issue} other {# issues}}",
-    "duplicate": "Ya existe un label con ese nombre.",
-    "empty": "Todavía no hay labels.",
-    "error": "No se pudo guardar el label.",
-    "adminOnly": "Solo un admin puede editar o borrar labels.",
-    "loadError": "No se pudieron cargar los labels."
+    "duplicate": "Ya existe una etiqueta con ese nombre.",
+    "empty": "Todavía no hay etiquetas.",
+    "error": "No se pudo guardar la etiqueta.",
+    "adminOnly": "Solo un admin puede editar o borrar etiquetas.",
+    "loadError": "No se pudieron cargar las etiquetas."
   },
   "github": {
     "title": "GitHub",
-    "help": "Conectá un webhook de GitHub. Los PRs y commits que mencionan un issue (ZER-123) en el branch, el título o la descripción quedan vinculados.",
+    "help": "Conectá un webhook de GitHub. Los PRs y commits que mencionan un issue (<id>{example}</id>) en el branch, el título o la descripción quedan vinculados.",
     "steps": "En GitHub: Settings del repo, Webhooks, Add webhook. Content type application/json, eventos Pull requests y Pushes.",
     "webhookUrl": "Payload URL",
     "secret": "Secret",
@@ -441,7 +465,7 @@
     "status": "Estado",
     "priority": "Prioridad",
     "assignee": "Asignado",
-    "labels": "Labels",
+    "labels": "Etiquetas",
     "cycle": "Ciclo",
     "delete": "Borrar",
     "confirmDelete": "¿Borrar {count} issues? No se puede deshacer.",
@@ -463,7 +487,7 @@
     "adminOnly": "Solo un admin puede activar o apagar el triage.",
     "empty": "No hay issues esperando triage.",
     "accept": "Aceptar",
-    "acceptAs": "Aceptar como",
+    "acceptAs": "Aceptar en",
     "decline": "Rechazar",
     "duplicate": "Duplicado",
     "duplicateOf": "Duplicado de",

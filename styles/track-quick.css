@@ -16,51 +16,46 @@
   border: 0;
 }
 
-/* ---------- Checkbox de terminado ----------
-   Es una estación: aro de tinta vacío, lleno con el color de la línea al terminar. */
+/* ---------- Glifo de status (y control de terminado) ----------
+   Cuadrado: los círculos son de las estaciones. El color del status va
+   solo en el glifo; el nombre siempre en tinta. */
 
-.track-check {
+.track-status-glyph {
+  display: block;
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+}
+
+.track-status-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.track-status-toggle {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
+  margin: -4px 0 -4px -6px;
   padding: 0;
-  color: transparent;
-  background: var(--bg);
-  border: 2px solid var(--brand-gray-3);
-  border-radius: 50%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
   cursor: pointer;
-  transition: border-color var(--ui-dur) var(--ease), background-color var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
+  transition: border-color var(--ui-dur) var(--ease), background-color var(--ui-dur) var(--ease);
 }
 
-.track-check svg {
-  width: 9px;
-  height: 9px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.4;
+.track-status-toggle:hover:not(:disabled) {
+  background: var(--ui-hover);
+  border-color: var(--line);
 }
 
-.track-check:hover:not(:disabled) {
-  color: var(--brand-gray-2);
-  border-color: var(--ink);
-}
-
-.track-check.is-checked {
-  color: var(--ink);
-  background: var(--accent);
-  border-color: var(--ink);
-}
-
-.track-check.is-cancelled {
-  color: var(--bg);
-  background: var(--brand-gray-3);
-  border-color: var(--brand-gray-3);
-}
-
-.track-check:focus-visible,
+.track-status-toggle:focus-visible,
 .track-inline-trigger:focus-visible,
 .track-menu-item:focus-visible,
 .track-quick-add-btn:focus-visible {
@@ -68,34 +63,16 @@
   outline-offset: 1px;
 }
 
-.track-check:disabled {
+.track-status-toggle:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-/* ---------- Íconos de status y prioridad ---------- */
-
-.track-status-dot {
-  --dot: var(--brand-gray-3);
-  flex-shrink: 0;
-  box-sizing: border-box;
-  width: 12px;
-  height: 12px;
-  border: 1.5px solid var(--dot);
-  border-radius: 50%;
+.track-status-control .track-inline-trigger {
+  margin-left: -4px;
 }
 
-.track-status-dot.is-progress {
-  background: conic-gradient(var(--dot) 0 50%, transparent 50% 100%);
-}
-
-.track-status-dot.is-done {
-  background: var(--dot);
-}
-
-.track-status-dot.is-cancelled {
-  border-style: dashed;
-}
+/* ---------- Prioridad ---------- */
 
 .track-prio-icon {
   display: inline-flex;
@@ -174,12 +151,7 @@
 }
 
 .track-inline-trigger.is-today {
-  color: var(--accent-ink);
   font-weight: 600;
-}
-
-.track-inline-trigger.is-today .track-inline-cal {
-  stroke: var(--accent-ink);
 }
 
 /* ---------- Menú flotante ---------- */
@@ -292,13 +264,57 @@
   overflow: visible;
 }
 
-.track-table .track-col-check {
-  width: 20px;
-  padding-right: 0;
+/* Celdas secundarias al mismo cuerpo que los editores inline (13px). */
+.track-table .track-col-cycle,
+.track-table .track-col-due,
+.track-table .track-col-project,
+.track-table .track-col-created,
+.track-table .track-col-assignee,
+.track-table .track-col-priority {
+  font-size: 0.8125rem;
 }
 
-.track-table .track-col-check .track-check {
-  vertical-align: middle;
+/* Etiquetas en línea después del título (como en Linear). */
+.track-title-labels {
+  margin-left: 8px;
+  vertical-align: 1px;
+}
+
+/* Ancho fijo: varias tablas seguidas (Mis tareas) alinean sus columnas. */
+.track-table.is-fixed {
+  table-layout: fixed;
+}
+
+.track-table.is-fixed .track-col-id {
+  width: 96px;
+}
+
+.track-table.is-fixed td.track-col-title {
+  width: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-table.is-fixed .track-col-project {
+  width: 140px;
+}
+
+.track-table.is-fixed .track-col-status {
+  width: 170px;
+}
+
+.track-table.is-fixed .track-col-priority {
+  width: 130px;
+}
+
+.track-table.is-fixed .track-col-due {
+  width: 140px;
+}
+
+.track-table.is-fixed td {
+  overflow: hidden;
 }
 
 .track-table tr.is-pending {
@@ -390,9 +406,12 @@
 }
 
 .track-quick-add-hint {
-  flex-shrink: 0;
-  font-family: var(--font-data);
-  font-size: 0.6875rem;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--brand-gray-2);
 }
 
@@ -560,13 +579,15 @@
 }
 
 .track-qc-hint {
+  flex: 1 1 220px;
   margin-right: auto;
-  font-family: var(--font-data);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
   color: var(--brand-gray-2);
 }
 
 .track-qc-more {
+  white-space: nowrap;
   font-size: 0.8125rem;
   color: var(--brand-gray-1);
 }
@@ -792,7 +813,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .track-check {
+  .track-status-toggle {
     transition: none;
   }
 }

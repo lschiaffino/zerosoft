@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { branchNameFor } from '@/lib/track-branch';
 import type { TrackIssueLink } from '@/lib/track-github';
 
 export interface GithubData {
   branchName: string;
+  /** El workspace tiene GitHub conectado. */
+  connected: boolean;
   rows: TrackIssueLink[];
 }
 
@@ -26,36 +27,10 @@ export function useIssueGithub(issueId: string): GithubData | null {
   return data;
 }
 
-/**
- * Botón "Copiar nombre de branch" (zer-123-titulo-del-issue). Se calcula en el
- * cliente para que siga al título si se renombra el issue.
- */
-export function CopyBranchButton({ identifier, title }: { identifier: string; title: string }) {
-  const t = useTranslations('track');
-  const [copied, setCopied] = useState(false);
-  const branchName = branchNameFor(identifier, title);
-  return (
-    <button
-      type="button"
-      className="btn"
-      title={branchName}
-      data-testid="track-copy-branch"
-      data-branch={branchName}
-      onClick={() => {
-        void navigator.clipboard?.writeText(branchName).catch(() => undefined);
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1500);
-      }}
-    >
-      {copied ? t('github.copied') : t('github.copyBranch')}
-    </button>
-  );
-}
-
-/** PRs y commits de GitHub vinculados al issue. */
+/** PRs y commits de GitHub vinculados al issue: solo con GitHub conectado o con vínculos. */
 export function IssueGithubPanel({ data }: { data: GithubData | null }) {
   const t = useTranslations('track');
-  if (!data) return null;
+  if (!data || (!data.connected && data.rows.length === 0)) return null;
   return (
     <section className="track-detail-section" data-testid="track-issue-github">
       <h2 className="track-section-title">{t('github.linked')}</h2>

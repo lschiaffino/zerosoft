@@ -72,11 +72,14 @@ export function TriageActions({
   return (
     <>
       <div className="track-triage-actions">
+        <label className="track-triage-accept-in" htmlFor={`accept-${issue.id}`}>
+          {t('triage.acceptAs')}
+        </label>
         <select
+          id={`accept-${issue.id}`}
           className="select"
           value={statusId}
           onChange={(e) => setStatusId(e.target.value)}
-          aria-label={t('triage.acceptAs')}
           disabled={busy}
         >
           {statuses

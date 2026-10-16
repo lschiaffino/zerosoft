@@ -5,7 +5,7 @@ import type { TrackIssueWithStatus, TrackProjectMeta } from '@/lib/track-data';
 import { DUE_BUCKETS, groupByDue, parseQuickTitle, type DueBucket } from '@/lib/track-tasks';
 import IssuesTable, { type OptionalColumn } from './IssuesTable';
 import QuickIssueModal from './QuickIssueModal';
-import { QuickAdd, TrackToast, useToday } from './InlineEditors';
+import { TrackToast, useToday } from './InlineEditors';
 import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
 import PageHeader from '@/components/ui/PageHeader';
@@ -131,7 +131,7 @@ export default function CrossProjectIssues({
     today,
   };
 
-  const hideColumns: OptionalColumn[] = mine ? ['assignee', 'cycle', 'labels', 'created'] : ['cycle', 'created', 'labels'];
+  const hideColumns: OptionalColumn[] = mine ? ['assignee', 'cycle'] : ['cycle'];
 
   const groups = useMemo(() => (mine ? groupByDue(store.issues, today) : null), [mine, store.issues, today]);
 
@@ -167,11 +167,6 @@ export default function CrossProjectIssues({
 
       {projects.length === 0 ? null : mine && groups ? (
         <div className="track-mytasks">
-          {projects.length > 0 && (
-            <div className="track-mytasks-add">
-              <QuickAdd labels={ui.quick} onCreate={quickCreate} projects={projectOptions} />
-            </div>
-          )}
           {store.issues.length === 0 && <EmptyState quiet title={mine.empty} body={mine.emptyBody} />}
           {DUE_BUCKETS.filter((b) => groups[b].length > 0).map((bucket) => (
             <section key={bucket} className={`track-mytasks-group is-${bucket}`} aria-labelledby={`grp-${bucket}`}>
@@ -186,6 +181,7 @@ export default function CrossProjectIssues({
                 editing={editing}
                 hideColumns={hideColumns}
                 showHeader={false}
+                fixedLayout
               />
             </section>
           ))}

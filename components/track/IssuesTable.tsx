@@ -9,14 +9,15 @@ import type { IssuePatch } from '@/lib/track-tasks';
 import StatusBadge from './StatusBadge';
 import EmptyState from '@/components/ui/EmptyState';
 import TrackIcon from './TrackIcon';
-import { AssigneeMenu, DoneCheckbox, DueDateMenu, PriorityMenu, QuickAdd, StatusMenu } from './InlineEditors';
+import { AssigneeMenu, DueDateMenu, PriorityIcon, PriorityMenu, QuickAdd, StatusMenu, StatusToggle } from './InlineEditors';
 import { isPendingIssue, type ProjectMap } from './useIssueStore';
 import type { TrackUiLabels } from './ui-labels';
 import type { IssueSelection } from './BulkEdit';
 
 export type SortField = 'identifier' | 'title' | 'priority' | 'created' | null;
 
-export type OptionalColumn = 'assignee' | 'cycle' | 'labels' | 'created' | 'project';
+/** `created` está oculta salvo que se pida; las etiquetas van en línea después del título. */
+export type OptionalColumn = 'assignee' | 'cycle' | 'created' | 'project';
 
 export interface IssuesTableEditing {
   projects: ProjectMap;
@@ -58,6 +59,10 @@ interface IssuesTableProps {
   /** Fila "+ New task" al final de la lista. */
   quickAdd?: IssuesTableQuickAdd;
   hideColumns?: OptionalColumn[];
+  /** Columnas opcionales que arrancan ocultas (hoy, `created`). */
+  showColumns?: OptionalColumn[];
+  /** Ancho fijo por columna, para que varias tablas seguidas alineen (Mis tareas). */
+  fixedLayout?: boolean;
   /** Muestra la cabecera de columnas (por defecto sí). */
   showHeader?: boolean;
   /** Selección múltiple para edición masiva (checkbox, shift+clic, X). */
@@ -73,12 +78,6 @@ function parseLabels(raw: string): IssueLabel[] {
   }
 }
 
-function PriorityDot({ priority }: { priority: string }) {
-  const color =
-    priority === 'urgent' ? 'var(--bad)' : priority === 'high' ? 'var(--c-track)' : priority === 'medium' ? 'var(--warn)' : '#bbbbbb';
-  return <span className="track-priority-dot" style={{ background: color }} aria-hidden />;
-}
-
 export default function IssuesTable({
   issues,
   locale,
@@ -89,6 +88,8 @@ export default function IssuesTable({
   editing,
   quickAdd,
   hideColumns = [],
+  showColumns = [],
+  fixedLayout = false,
   showHeader = true,
   selection,
 }: IssuesTableProps) {
@@ -113,9 +114,10 @@ export default function IssuesTable({
     return <EmptyState quiet title={labels.empty} />;
   }
 
-  const show = (c: OptionalColumn) => !hideColumns.includes(c) && (c !== 'project' || Boolean(labels.project));
+  const show = (c: OptionalColumn) =>
+    !hideColumns.includes(c) && (c !== 'project' || Boolean(labels.project)) && (c !== 'created' || showColumns.includes('created'));
   const columnCount =
-    (editing ? 1 : 0) + (selection ? 1 : 0) + 5 + (['assignee', 'cycle', 'labels', 'created', 'project'] as OptionalColumn[]).filter(show).length;
+    (selection ? 1 : 0) + 5 + (['assignee', 'cycle', 'created', 'project'] as OptionalColumn[]).filter(show).length;
 
   const header = (field: SortField, label: string, className?: string) => (
     <th
@@ -134,7 +136,7 @@ export default function IssuesTable({
 
   return (
     <div className={`table-wrap track-table-wrap${editing ? ' is-editable' : ''}`}>
-      <table className="table track-table">
+      <table className={`table track-table${fixedLayout ? ' is-fixed' : ''}`}>
         {showHeader && (
           <thead>
             <tr>
@@ -153,21 +155,15 @@ export default function IssuesTable({
                   />
                 </th>
               )}
-              {editing && (
-                <th className="track-col-check">
-                  <span className="track-sr-only">{editing.ui.inline.markDone}</span>
-                </th>
-              )}
               {header('identifier', labels.identifier, 'track-col-id')}
               {header('title', labels.title)}
-              {show('project') && <th className="hide-sm">{labels.project}</th>}
-              <th>{labels.status}</th>
-              {header('priority', labels.priority, 'hide-sm')}
-              {show('assignee') && <th className="hide-sm">{labels.assignee}</th>}
-              {show('cycle') && <th className="hide-sm">{labels.cycle}</th>}
-              <th className="hide-sm">{labels.dueDate}</th>
-              {show('labels') && <th className="hide-sm">{labels.labels}</th>}
-              {show('created') && header('created', labels.created, 'hide-sm')}
+              {show('project') && <th className="hide-sm track-col-project">{labels.project}</th>}
+              <th className="track-col-status">{labels.status}</th>
+              {header('priority', labels.priority, 'hide-sm track-col-priority')}
+              {show('assignee') && <th className="hide-sm track-col-assignee">{labels.assignee}</th>}
+              {show('cycle') && <th className="hide-sm track-col-cycle">{labels.cycle}</th>}
+              <th className="hide-sm track-col-due">{labels.dueDate}</th>
+              {show('created') && header('created', labels.created, 'hide-sm track-col-created')}
             </tr>
           </thead>
         )}
@@ -191,6 +187,17 @@ export default function IssuesTable({
                   <span className="track-subtask-indicator" title={labels.hasSubtasks}>
                     <TrackIcon name="subtasks" size={12} />
                     <span className="sr-only">{labels.hasSubtasks}:</span> {issue.child_count}
+                  </span>
+                )}
+                {issueLabels.length > 0 && (
+                  <span className="track-label-chips track-title-labels">
+                    <span className="sr-only">{labels.labels}:</span>
+                    {issueLabels.map((l) => (
+                      <span key={l.id} className="track-label-tag" title={l.name}>
+                        <span className="track-label-tag-dot" style={{ background: l.color }} aria-hidden />
+                        {l.name}
+                      </span>
+                    ))}
                   </span>
                 )}
               </>
@@ -228,16 +235,6 @@ export default function IssuesTable({
                     />
                   </td>
                 )}
-                {editing && (
-                  <td className="track-col-check">
-                    <DoneCheckbox
-                      category={issue.status_category}
-                      disabled={pending}
-                      onToggle={() => editing.onToggleDone(issue)}
-                      labels={editing.ui.inline}
-                    />
-                  </td>
-                )}
                 <td className="track-col-id">
                   {pending ? (
                     <span className="track-identifier">{issue.identifier}</span>
@@ -250,10 +247,19 @@ export default function IssuesTable({
                 <td className="track-col-title">
                   {pending ? titleContent : <Link href={`/app/track/issues/${issue.id}`}>{titleContent}</Link>}
                 </td>
-                {show('project') && <td className="hide-sm track-cell-dim">{ctx?.name ?? '–'}</td>}
-                <td>
+                {show('project') && <td className="hide-sm track-cell-dim track-col-project">{ctx?.name ?? '–'}</td>}
+                <td className="track-col-status">
                   {editing ? (
-                    <StatusMenu
+                    <span className="track-status-control">
+                      <StatusToggle
+                        color={issue.status_color}
+                        category={issue.status_category}
+                        disabled={pending}
+                        onToggle={() => editing.onToggleDone(issue)}
+                        labels={editing.ui.inline}
+                      />
+                      <StatusMenu
+                      textOnly
                       statusId={issue.status_id}
                       statusName={issue.status_name}
                       statusColor={issue.status_color}
@@ -263,11 +269,12 @@ export default function IssuesTable({
                       label={editing.ui.inline.status}
                       onChange={(statusId) => editing.onUpdate(issue.id, { statusId })}
                     />
+                    </span>
                   ) : (
-                    <StatusBadge name={issue.status_name} color={issue.status_color} />
+                    <StatusBadge name={issue.status_name} color={issue.status_color} category={issue.status_category} />
                   )}
                 </td>
-                <td className="hide-sm">
+                <td className="hide-sm track-col-priority">
                   {editing ? (
                     <PriorityMenu
                       priority={issue.priority}
@@ -278,13 +285,13 @@ export default function IssuesTable({
                     />
                   ) : (
                     <span className="track-priority">
-                      <PriorityDot priority={issue.priority} />
+                      <PriorityIcon priority={issue.priority} />
                       {issue.priority}
                     </span>
                   )}
                 </td>
                 {show('assignee') && (
-                  <td className="hide-sm">
+                  <td className="hide-sm track-col-assignee">
                     {editing ? (
                       <AssigneeMenu
                         assigneeId={issue.assignee_id}
@@ -301,8 +308,8 @@ export default function IssuesTable({
                     )}
                   </td>
                 )}
-                {show('cycle') && <td className="hide-sm">{issue.cycle_name ?? '–'}</td>}
-                <td className="hide-sm">
+                {show('cycle') && <td className="hide-sm track-col-cycle">{issue.cycle_name ?? '–'}</td>}
+                <td className="hide-sm track-col-due">
                   {editing ? (
                     <DueDateMenu
                       dueDate={issue.due_date}
@@ -318,23 +325,7 @@ export default function IssuesTable({
                     '–'
                   )}
                 </td>
-                {show('labels') && (
-                  <td className="hide-sm">
-                    {issueLabels.length > 0 ? (
-                      <span className="track-label-chips">
-                        {issueLabels.map((l) => (
-                          <span key={l.id} className="track-label-tag" title={l.name}>
-                            <span className="track-label-tag-dot" style={{ background: l.color }} aria-hidden />
-                            {l.name}
-                          </span>
-                        ))}
-                      </span>
-                    ) : (
-                      '–'
-                    )}
-                  </td>
-                )}
-                {show('created') && <td className="hide-sm track-cell-dim">{formatDate(issue.created_at, locale)}</td>}
+                {show('created') && <td className="hide-sm track-cell-dim track-col-created">{formatDate(issue.created_at, locale)}</td>}
               </tr>
             );
           })}

@@ -207,9 +207,9 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
   const projectMap = useMemo<ProjectMap>(
     () =>
       project
-        ? { [project.id]: { id: project.id, name: project.name, icon: project.icon, statuses, members } }
+        ? { [project.id]: { id: project.id, name: project.name, icon: project.icon, statuses, members, cycles } }
         : {},
-    [project, statuses, members],
+    [project, statuses, members, cycles],
   );
   const store = useIssueStore([], projectMap, {
     saveError: labels.ui.inline.saveError,
@@ -595,6 +595,24 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
     );
   }
 
+  const savedViewsMenu = (
+    <SavedViewsMenu
+      views={views}
+      activeViewId={activeViewId}
+      onSelect={handleSelectView}
+      onSetDefault={handleSetDefault}
+      onRename={handleRename}
+      onDelete={handleDelete}
+      labels={{
+        title: labels.savedViews.title,
+        empty: labels.savedViews.empty,
+        default: labels.savedViews.default,
+        rename: labels.savedViews.rename,
+        delete: labels.savedViews.delete,
+      }}
+    />
+  );
+
   const current = activeCycle(cycles, today);
   const filtersActive = activeFilterCount(filters) > 0 || Boolean(filters.q);
   const projectEmpty = issuesTotal === 0 && issues.length === 0 && !filtersActive;
@@ -711,21 +729,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
               onChange={handleViewChange}
               labels={{ ...labels.viewSwitcher, group: t('views.group') }}
             />
-            <SavedViewsMenu
-              views={views}
-              activeViewId={activeViewId}
-              onSelect={handleSelectView}
-              onSetDefault={handleSetDefault}
-              onRename={handleRename}
-              onDelete={handleDelete}
-              labels={{
-                title: labels.savedViews.title,
-                empty: labels.savedViews.empty,
-                default: labels.savedViews.default,
-                rename: labels.savedViews.rename,
-                delete: labels.savedViews.delete,
-              }}
-            />
+            {savedViewsMenu}
           </div>
 
           <IssueFilters
@@ -740,7 +744,8 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
             members={members}
             cycles={cycles}
             issueLabels={issueLabels}
-            labels={labels.filters}
+            labels={{ ...labels.filters, filter: t('filters.button'), done: t('filters.done') }}
+            savedViews={savedViewsMenu}
           />
 
           <div className="track-view">
@@ -755,7 +760,7 @@ export default function ProjectPageClient({ locale, projectId, userId, isAdmin =
                 }}
                 editing={{ ...editing, projects: projectMap }}
                 quickAdd={{ onCreate: (title) => quickCreate(title) }}
-                hideColumns={cycles.length > 0 ? [] : ['cycle']}
+                hideColumns={cycles.length > 0 && filters.cycleId.length === 0 ? [] : ['cycle']}
                 selection={{ ...selection, label: t('bulk.select'), allLabel: t('bulk.selectAll') }}
               />
             )}
