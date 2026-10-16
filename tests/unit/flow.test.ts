@@ -320,11 +320,13 @@ describe('Flow: motor', () => {
 
   it('corta en el tope de pasos por corrida', async () => {
     const ws = (await makeUser('flow')).id;
+    // 100 ítems × 10 nodos en el cuerpo no entran en el techo de pasos: falla antes de empezar.
+    const body = Array.from({ length: 10 }, (_, i) => node(`b${i}`, 'data.set'));
     const flow = await newFlow(
       ws,
       manual(
-        [node('loop', 'logic.loop', { items: '{{trigger.items}}', max: 100 }), node('a', 'data.set'), node('b', 'data.set'), node('c', 'data.set')],
-        [edge('t', 'loop'), edge('loop', 'a', 'item'), edge('a', 'b'), edge('b', 'c')],
+        [node('loop', 'logic.loop', { items: '{{trigger.items}}', max: 100 }), ...body],
+        [edge('t', 'loop'), edge('loop', 'b0', 'item'), ...body.slice(1).map((n, i) => edge(`b${i}`, n.id))],
       ),
     );
     const res = await runFlowNow(ws, flow.id, { items: Array.from({ length: 100 }, (_, i) => i) });

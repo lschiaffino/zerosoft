@@ -45,10 +45,18 @@ import {
   type FlowNode,
 } from './flow-schema';
 import { evalConditions, renderDeep, renderString, renderValue, stringify, type Condition } from './flow-template';
+import { rateLimit } from './rate-limit';
 import { safeFetch, UnsafeUrlError } from './safe-fetch';
 
 export const MAX_STEPS = 200;
 export const MAX_LOOP_ITEMS = 100;
+/**
+ * Techo absoluto de pasos por corrida. Cada Loop suma a MAX_STEPS lo que va a
+ * necesitar (ítems × nodos del cuerpo) antes de empezar, así no se corta a
+ * mitad de camino con efectos parciales; si no entra en este techo, falla
+ * antes de correr ningún ítem.
+ */
+export const MAX_STEPS_TOTAL = 1_000;
 const MAX_RETRIES = 5;
 /** Tope por valor al guardar en la base (pasos y contexto persistido). */
 const STORE_LIMIT = 64_000;
@@ -71,6 +79,8 @@ interface RunContext {
   merged?: string[];
   /** Nodos con un Esperar o un reintento agendado (todavía no terminaron). */
   pending?: string[];
+  /** Tope de pasos de la corrida (MAX_STEPS más lo que reservaron los Loops). */
+  stepLimit?: number;
 }
 
 type FlowInfo = Pick<FlowFlowRow, 'id' | 'name' | 'user_id' | 'created_by' | 'error_flow_id'>;
@@ -94,6 +104,13 @@ interface RunState {
 interface LoopScope {
   item: unknown;
   index: number;
+  /** Loop que abrió esta iteración y los nodos de su cuerpo. */
+  loopId: string;
+  body: Set<string>;
+  /** Nodos del cuerpo que ya corrieron en esta iteración (para los Merge). */
+  ran: Set<string>;
+  /** Merge del cuerpo ya ejecutados en esta iteración. */
+  merged: Set<string>;
 }
 
 type NodeResult =
@@ -614,6 +631,7 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       if (!EMAIL_RE.test(to)) throw new StepError('missing_recipient');
       const subject = renderString(cfg.subject ?? '', tctx).slice(0, 300) || state.flow.name;
       const text = renderString(cfg.body ?? '', tctx);
+      if (!(await allowFlowEmail(ws))) throw new StepError('email_quota');
       const res = await sendEmail({ to, subject, text });
       if (!res.ok) throw new StepError(res.error ?? 'send_failed', true);
       return { kind: 'ok', output: { sent: true, to, subject, provider: res.provider ?? null }, handles: ['out'] };
@@ -665,6 +683,21 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
     default:
       throw new StepError('unsupported_node');
   }
+}
+
+function flowEmailsPerDay(): number {
+  const n = Number(process.env.FLOW_EMAILS_PER_DAY);
+  return Number.isFinite(n) && n > 0 ? n : 300;
+}
+
+/**
+ * Cuota diaria de emails del nodo Email por workspace: salen desde el remitente
+ * de la plataforma, así que un flow (o un Loop) no puede mandar volumen ilimitado.
+ */
+async function allowFlowEmail(workspaceId: string): Promise<boolean> {
+  if (process.env.RATE_LIMIT_DISABLED === 'true') return true;
+  const res = await rateLimit(`flow-email:${workspaceId}`, flowEmailsPerDay(), 86_400);
+  return res.ok;
 }
 
 /** Config con las plantillas resueltas (nodos de integraciones). */
@@ -734,11 +767,17 @@ async function runChildren(state: RunState, nodeId: string, handle: string, loop
  * todos los nodos conectados a él (los que llegan antes no lo ejecutan).
  */
 function mergeReady(state: RunState, node: FlowNode, loop?: LoopScope): boolean {
-  const key = loop ? `${node.id}@${loop.index}` : node.id;
-  if (state.merged.has(key)) return false;
+  const merged = loop ? loop.merged : state.merged;
+  if (merged.has(node.id)) return false;
   const sources = [...new Set(state.ctx.graph.edges.filter((e) => e.target === node.id).map((e) => e.source))];
-  if (sources.some((id) => state.ctx.nodes[id] === undefined || state.pending.has(id))) return false;
-  state.merged.add(key);
+  // Dentro de un Loop, las fuentes del cuerpo (y el propio Loop) tienen que haber
+  // corrido en esta iteración: la salida de la iteración anterior no cuenta.
+  const done = (id: string) =>
+    loop && (id === loop.loopId || loop.body.has(id))
+      ? loop.ran.has(id)
+      : state.ctx.nodes[id] !== undefined && !state.pending.has(id);
+  if (!sources.every(done)) return false;
+  merged.add(node.id);
   return true;
 }
 
@@ -761,7 +800,7 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
   if (node.type === 'data.merge' && attempt === 0 && !mergeReady(state, node, loop)) return;
   if (attempt > 0) state.pending.delete(node.id);
   state.steps += 1;
-  if (state.steps > MAX_STEPS) {
+  if (state.steps > (state.ctx.stepLimit ?? MAX_STEPS)) {
     state.error = 'step_limit';
     return;
   }
@@ -781,6 +820,7 @@ async function runNode(state: RunState, nodeId: string, loop?: LoopScope, attemp
     result = { kind: 'error', error: e.code, retryable: e.retryable };
     if (e.output !== undefined && e.output !== null) errorOutput = keep(state, e.output);
   }
+  loop?.ran.add(node.id);
 
   if (result.kind === 'error') {
     const retries = Math.min(Math.max(Math.floor(Number(node.config?.retries) || 0), 0), MAX_RETRIES);
@@ -845,12 +885,30 @@ async function runLoop(state: RunState, node: FlowNode, outer?: LoopScope): Prom
   else items = [raw];
   const max = Math.min(Math.max(Math.floor(Number(cfg.max) || 50), 1), MAX_LOOP_ITEMS);
   const capped = items.slice(0, max);
+  const body = reachableFrom(state.ctx.graph, node.id, 'item');
+  // Reserva los pasos del cuerpo antes de empezar: si no entran, no corre ningún ítem.
+  const limit = (state.ctx.stepLimit ?? MAX_STEPS) + capped.length * body.size;
+  if (limit > MAX_STEPS_TOTAL) {
+    await finishStep(state, stepId, 'failed', null, 'step_limit');
+    state.error = 'step_limit';
+    state.failedNode = node.id;
+    return;
+  }
+  state.ctx.stepLimit = limit;
   for (let i = 0; i < capped.length; i++) {
     if (state.error) break;
-    await runChildren(state, node.id, 'item', { item: capped[i], index: i });
+    await runChildren(state, node.id, 'item', {
+      item: capped[i],
+      index: i,
+      loopId: node.id,
+      body,
+      ran: new Set([node.id]),
+      merged: new Set(),
+    });
   }
   const output = { count: capped.length, total: items.length, items: capped };
   state.ctx.nodes[node.id] = { output: keep(state, output) };
+  outer?.ran.add(node.id);
   if (state.error) {
     await finishStep(state, stepId, 'failed', output, 'loop_body_failed');
     return;
@@ -931,6 +989,7 @@ async function loadState(run: FlowRunRow): Promise<RunState | null> {
     graph: saved.graph ?? parseJson<FlowGraph>(flow.graph, { nodes: [], edges: [] }),
     trigger: saved.trigger ?? parseJson(run.input, {}),
     nodes: saved.nodes ?? {},
+    stepLimit: saved.stepLimit,
   };
   return {
     run,
@@ -1072,7 +1131,11 @@ export async function rerunFromStep(
   }
   await db
     .prepare('UPDATE flow_runs SET context = ?, step_count = ? WHERE id = ?')
-    .run(JSON.stringify({ graph, trigger: oldCtx.trigger ?? parseJson(old.input, {}), nodes }), copied, newId);
+    .run(
+      JSON.stringify({ graph, trigger: oldCtx.trigger ?? parseJson(old.input, {}), nodes, stepLimit: MAX_STEPS + copied }),
+      copied,
+      newId,
+    );
 
   const run = (await db.prepare('SELECT * FROM flow_runs WHERE id = ?').get(newId)) as FlowRunRow;
   const state = await loadState(run);

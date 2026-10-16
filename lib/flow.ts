@@ -146,6 +146,21 @@ function toStepDto(row: FlowStepRow): FlowStepDto {
 
 // ---------- Schedules ----------
 
+/** Igualdad estructural de valores JSON (sin depender del orden de las claves). */
+export function sameJson(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(norm)
+      : v && typeof v === 'object'
+        ? Object.fromEntries(
+            Object.keys(v as Record<string, unknown>)
+              .sort()
+              .map((k) => [k, norm((v as Record<string, unknown>)[k])]),
+          )
+        : v;
+  return JSON.stringify(norm(a) ?? null) === JSON.stringify(norm(b) ?? null);
+}
+
 /**
  * Próxima ejecución de un trigger.schedule (o del schedule de un robot)
  * después de `from`. `minMinutes`: intervalo mínimo entre corridas.
@@ -405,9 +420,17 @@ export async function updateFlow(
   const enabled = patch.enabled ?? row.enabled === 1;
   const tf = triggerFields(graph, enabled);
   // Al editar un schedule ya programado, se conserva la próxima corrida si la
-  // config no cambió (evita correrlo de nuevo al guardar).
+  // config del trigger no cambió (el editor manda el grafo entero en cada
+  // guardado: recalcular desde ahora postergaría los intervalos).
+  const oldTrigger = triggerNode(parseGraph(row.graph));
+  const newTrigger = triggerNode(graph);
   const keepNext =
-    tf.type === 'trigger.schedule' && enabled && row.enabled === 1 && patch.graph === undefined && row.next_run_at;
+    tf.type === 'trigger.schedule' &&
+    enabled &&
+    row.enabled === 1 &&
+    row.next_run_at &&
+    oldTrigger?.type === newTrigger?.type &&
+    sameJson(oldTrigger?.config ?? {}, newTrigger?.config ?? {});
   const res = await getDb()
     .prepare(
       `UPDATE flow_flows SET name = ?, description = ?, enabled = ?, graph = ?, version = version + 1,
@@ -647,8 +670,20 @@ export async function enqueueWebhookRun(
     const cred = await resolveCredential(hook.user_id, String(trigger.config.credentialId ?? ''));
     const secret = cred?.type === 'stripe' ? cred.data.webhookSecret : '';
     if (!secret || !verifyStripeSignature(raw.body, raw.signature, secret)) return { ok: false, error: 'invalid_signature' };
-    const event = (data.body && typeof data.body === 'object' ? data.body : {}) as { type?: string };
+    const event = (data.body && typeof data.body === 'object' ? data.body : {}) as { id?: unknown; type?: string };
     if (!stripeEventAllowed(trigger.config.events, String(event.type ?? ''))) return { ok: true, runId: null, ignored: true };
+    // Stripe puede entregar el mismo evento más de una vez (y reintenta hasta 3 días):
+    // si este flow ya tiene una corrida con ese event.id, no se vuelve a correr.
+    if (typeof event.id === 'string' && event.id) {
+      const since = new Date(Date.now() - 4 * 86_400_000).toISOString();
+      const dup = await getDb()
+        .prepare(
+          `SELECT 1 FROM flow_runs WHERE flow_id = ? AND trigger_type = 'trigger.stripe' AND created_at > ?
+             AND json_valid(input) AND json_extract(input, '$.id') = ? LIMIT 1`,
+        )
+        .get(hook.id, since, event.id);
+      if (dup) return { ok: true, runId: null, ignored: true };
+    }
     const runId = await enqueueRun({ id: hook.id, user_id: hook.user_id }, 'trigger.stripe', event);
     if (!runId) return { ok: false, error: 'rate_limited' };
     kickFlowWorker();
