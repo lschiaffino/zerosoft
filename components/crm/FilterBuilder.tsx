@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
+import CrmIcon from './CrmIcon';
 
 export type FilterBuilderFieldType = 'text' | 'number' | 'select' | 'date';
 
@@ -248,7 +249,7 @@ export default function FilterBuilder({ fields, initial, baseQuery }: FilterBuil
                         aria-label={t('filters.removeRule')}
                         title={t('filters.removeRule')}
                       >
-                        ✕
+                        <CrmIcon name="x" />
                       </button>
                     </div>
                   </div>

@@ -9,6 +9,7 @@ import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
 import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
+import CrmIcon from './CrmIcon';
 
 export interface CompanyRow {
   id: string;
@@ -129,9 +130,9 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
               {visible.has('phone') && <th>{t('companies.table.phone')}</th>}
               {visible.has('location') && <th>{t('companies.table.location')}</th>}
               {visible.has('contacts') && (
-                <th className="th-num">{t('companies.table.contacts')}</th>
+                <th className="num">{t('companies.table.contacts')}</th>
               )}
-              {visible.has('deals') && <th className="th-num">{t('deals.title')}</th>}
+              {visible.has('deals') && <th className="num">{t('deals.title')}</th>}
               {visible.has('lifecycle') && <th>{t('companies.table.lifecycle')}</th>}
               {visible.has('tags') && <th>{t('tags.column')}</th>}
               {visible.has('parent') && <th>{t('companies.detail.parent')}</th>}
@@ -195,15 +196,16 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                         href={`tel:${row.phone}`}
                         className="cell-quick"
                         title={t('enums.activityType.call')}
+                        aria-label={t('enums.activityType.call')}
                       >
-                        ☎
+                        <CrmIcon name="phone" />
                       </a>
                     ) : null}
                   </td>
                 )}
                 {visible.has('location') && <td className="muted cell-sub">{row.location || '—'}</td>}
-                {visible.has('contacts') && <td className="mono td-num">{row.contacts}</td>}
-                {visible.has('deals') && <td className="mono td-num">{row.deals}</td>}
+                {visible.has('contacts') && <td className="num">{row.contacts}</td>}
+                {visible.has('deals') && <td className="num">{row.deals}</td>}
                 {visible.has('lifecycle') && (
                   <td>
                     <InlineEditCell
@@ -222,7 +224,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   </td>
                 )}
                 {visible.has('parent') && <td className="muted cell-sub">{row.parentName || '—'}</td>}
-                {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
+                {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}
                 <td className="cell-actions">
                   <button
                     type="button"

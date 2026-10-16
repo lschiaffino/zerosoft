@@ -94,28 +94,36 @@ export default function AssociationPanel({
   return (
     <div className="association-panel">
       {title && (
-        <div className="panel-head">
-          <h2 className="section-label">{title}</h2>
-          {count !== undefined && <span className="panel-more">{count}</span>}
+        <div className="assoc-head">
+          <h2 className="assoc-title">{title}</h2>
+          {count !== undefined && <span className="assoc-count num">{count}</span>}
         </div>
       )}
 
       {records.length === 0 ? (
-        <p className="muted">{emptyLabel}</p>
+        <p className="assoc-empty">{emptyLabel}</p>
       ) : (
-        <div className="chip-list">
+        <ul className="assoc-list">
           {records.map((r) => (
-            <span className="chip-contact" key={r.id}>
-              {r.href ? <Link href={r.href}>{r.name}</Link> : <span>{r.name}</span>}
-              {r.meta && <span className="muted chip-meta">{r.meta}</span>}
+            <li className={`assoc-row${pending.has(r.id) ? ' row-busy' : ''}`} key={r.id}>
+              <span className="assoc-main">
+                {r.href ? (
+                  <Link href={r.href} className="assoc-name">
+                    {r.name}
+                  </Link>
+                ) : (
+                  <span className="assoc-name">{r.name}</span>
+                )}
+                {r.meta && <span className="assoc-meta">{r.meta}</span>}
+              </span>
               {(r.primary !== undefined || (onSetLabel && labelOptions)) && (
                 <span className="assoc-row-meta">
                   {r.primary ? (
-                    <span className="assoc-primary mono">{t('assoc.primary')}</span>
+                    <span className="badge badge-ink">{t('assoc.primary')}</span>
                   ) : onSetPrimary ? (
                     <button
                       type="button"
-                      className="assoc-link-btn"
+                      className="btn btn-ghost btn-sm"
                       disabled={busyNow}
                       onClick={() => wrap(() => onSetPrimary(r.id), r.id)}
                     >
@@ -124,7 +132,7 @@ export default function AssociationPanel({
                   ) : null}
                   {onSetLabel && labelOptions && (
                     <select
-                      className="assoc-label-select"
+                      className="select assoc-label-select"
                       value={r.label ?? ''}
                       disabled={busyNow}
                       aria-label={`${t('assoc.label')} ${r.name}`}
@@ -145,21 +153,24 @@ export default function AssociationPanel({
               )}
               <button
                 type="button"
-                className="chip-remove"
+                className="btn btn-ghost btn-icon btn-sm assoc-remove"
                 aria-label={`${removeLabel ?? t('assoc.remove')} ${r.name}`}
+                title={removeLabel ?? t('assoc.remove')}
                 disabled={busyNow || pending.has(r.id)}
                 onClick={() => wrap(() => onRemove(r.id), r.id)}
               >
-                ✕
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
               </button>
-            </span>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {available.length > 0 && (
         <select
-          className="filter-select"
+          className="select assoc-add"
           value=""
           disabled={busyNow}
           aria-label={addLabel}
@@ -178,7 +189,11 @@ export default function AssociationPanel({
         </select>
       )}
 
-      {error && <p className="form-error">{error}</p>}
+      {error && (
+        <p className="ui-error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

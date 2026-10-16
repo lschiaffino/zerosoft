@@ -12,6 +12,9 @@ import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+import CrmPager from '@/components/crm/CrmPager';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
@@ -250,11 +253,11 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     Object.keys(custom).length > 0;
 
   return (
-    <div className="app-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('companies.title')}</h1>
-        <CrmQuickCreate kind="company" />
-      </div>
+    <div className="ui-page crm-list-page">
+      <PageHeader
+        title={t('companies.title')}
+        actions={<CrmQuickCreate kind="company" buttonClassName="btn btn-primary btn-sm" label={t('record.createCompany')} />}
+      />
 
       <CompanyFilters
         q={q}
@@ -277,20 +280,20 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
       <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
 
       {tableRows.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-zeros mono" aria-hidden>
-            0 0 0 0 0 0 0
-          </p>
-          <h2>{t('companies.emptyTitle')}</h2>
-          <p className="muted">{t('companies.emptySub')}</p>
-          {hasFilters ? (
-            <Link href="/app/crm/companies" className="btn btn-small">
-              {t('common.clear')}
-            </Link>
-          ) : (
-            <CrmQuickCreate kind="company" variant="empty" label={t('companies.emptyCta')} />
-          )}
-        </div>
+        hasFilters || advancedRules.length > 0 ? (
+          <EmptyState
+            title={t('record.empty.noMatchTitle')}
+            body={t('record.empty.noMatchBody')}
+            action={{ label: t('common.clear'), href: '/app/crm/companies' }}
+          />
+        ) : (
+          <EmptyState
+            title={t('record.empty.companiesTitle')}
+            body={t('record.empty.companiesBody')}
+            action={<CrmQuickCreate kind="company" variant="empty" buttonClassName="btn btn-primary" label={t('record.createCompany')} />}
+            secondary={<Link href="/app/crm/settings">{t('record.empty.importCsv')}</Link>}
+          />
+        )
       ) : (
         <>
           <CompaniesTable
@@ -300,31 +303,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
             locale={locale}
             allTags={tagOptions}
           />
-          {pages > 1 && (
-            <nav className="pager mono">
-              {currentPage > 1 ? (
-                <Link
-                  href={{ pathname: '/app/crm/companies', query: { ...query, page: String(currentPage - 1) } }}
-                  className="pager-btn"
-                >
-                  {t('common.pagePrev')}
-                </Link>
-              ) : (
-                <span className="pager-btn disabled">{t('common.pagePrev')}</span>
-              )}
-              <span className="pager-info">{t('common.pageOf', { page: currentPage, pages })}</span>
-              {currentPage < pages ? (
-                <Link
-                  href={{ pathname: '/app/crm/companies', query: { ...query, page: String(currentPage + 1) } }}
-                  className="pager-btn"
-                >
-                  {t('common.pageNext')}
-                </Link>
-              ) : (
-                <span className="pager-btn disabled">{t('common.pageNext')}</span>
-              )}
-            </nav>
-          )}
+          <CrmPager pathname="/app/crm/companies" query={query} page={currentPage} pages={pages} total={total} locale={locale} />
         </>
       )}
     </div>

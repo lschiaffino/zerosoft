@@ -522,50 +522,6 @@
 .cmdk-item.sel { background: var(--ui-hover); }
 .cmdk-state { padding: 24px; font-size: 0.875rem; text-align: center; color: var(--brand-gray-2); }
 
-/* History / audit trail */
-.history-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.history-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  line-height: 1.35;
-}
-
-.history-field {
-  font-weight: 500;
-  color: var(--text);
-  text-transform: capitalize;
-}
-
-.history-change {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: baseline;
-  font-size: 12px;
-}
-
-.history-arrow {
-  color: var(--muted);
-}
-
-.history-value {
-  word-break: break-word;
-}
-
-.history-meta {
-  font-size: 11px;
-}
-
 /* Column toggle */
 .column-toggle {
   position: relative;
@@ -1008,20 +964,19 @@ td.cell-actions > * + * { margin-left: 4px; }
 
 /* ---------- Board de deals: tarjetas más limpias ---------- */
 .kb-card { position: relative; gap: 6px; }
-.kb-card-amount { font-family: var(--mono); font-size: 14px; font-weight: 500; }
+.kb-card-amount { font-family: var(--font-data); font-feature-settings: "zero" 1, "tnum" 1; font-size: 14px; font-weight: 500; }
 .kb-card-foot {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 10px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--dim);
+  gap: 4px 10px;
+  font-size: 12px;
+  color: var(--brand-gray-2);
   min-height: 0;
 }
 .kb-card-foot:empty { display: none; }
 .kb-card-foot .badge { height: 20px; padding: 0 6px; font-size: 0.6875rem; }
-.kb-card-date::before { content: '◷ '; }
+.kb-card-date { font-variant-numeric: tabular-nums; }
 .kb-card-rotting { color: var(--warn-ink); }
 /* "Mover a…" solo aparece al pasar el mouse (en touch queda visible). */
 .kb-card .kb-move {
@@ -1042,55 +997,6 @@ td.cell-actions > * + * { margin-left: 4px; }
 .kb-card .kb-move option { color: var(--ink); }
 .kb-card-name { padding-right: 34px; }
 
-/* Registros asociados (columna derecha del detalle): filas, no pastillas que
-   se desbordan de la tarjeta con emails largos. */
-.association-panel .chip-list { flex-direction: column; width: 100%; gap: 6px; }
-.association-panel .chip-contact {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto;
-  column-gap: 8px;
-  width: 100%;
-  border-radius: var(--r-md);
-  padding: 8px 6px 8px 12px;
-}
-.association-panel .chip-contact > a,
-.association-panel .chip-contact > span:first-child { grid-column: 1; font-weight: 500; overflow-wrap: anywhere; }
-.association-panel .chip-meta {
-  grid-column: 1;
-  grid-row: 2;
-  margin: 2px 0 0 !important;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.association-panel .chip-contact > a + .chip-meta::before { content: none; }
-.association-panel .chip-remove { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
-.association-panel .filter-select { max-width: none; }
-
-/* Etapa del deal: barra de progreso + Ganado / Perdido. */
-.stage-stepper { display: flex; gap: 3px; width: 100%; }
-.stage-step {
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 9px 8px;
-  border: none;
-  background: var(--brand-enamel);
-  color: var(--brand-gray-2);
-  font-family: var(--font-ui);
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.stage-step span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stage-step:first-child { border-radius: var(--r-md) 0 0 var(--r-md); }
-.stage-step:last-child { border-radius: 0 var(--r-md) var(--r-md) 0; }
-.stage-step:hover:not(:disabled) { background: var(--ui-press); color: var(--ink); }
-.stage-step.done { background: var(--ui-hover); color: var(--ink); }
-.stage-step.current { background: var(--ink); color: var(--bg); }
-.stage-close { display: flex; gap: 8px; margin-top: 12px; }
-.deal-stage { display: flex; flex-direction: column; gap: 4px; }
 
 /* Mobile: las pestañas del inbox de Chat scrollean dentro de su caja. */
 .chat-inbox-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }

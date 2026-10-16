@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { CrmTaskFileRow } from '@/lib/db';
+import CrmIcon from './CrmIcon';
 
 interface TaskFilesProps {
   taskId: string;
@@ -70,7 +71,7 @@ export default function TaskFiles({ taskId, files }: TaskFilesProps) {
                 title={t('common.delete')}
                 onClick={() => remove(f.id)}
               >
-                ✕
+                <CrmIcon name="x" />
               </button>
             </li>
           ))}

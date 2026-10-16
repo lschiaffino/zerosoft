@@ -67,41 +67,34 @@ export default function HistoryPanel({ entity, entityId, locale, labels }: Histo
 
   if (events === null) {
     return (
-      <section className="panel">
-        <p className="section-label">{labels.title}</p>
-        <p className="muted">…</p>
-      </section>
+      <div className="ui-loading-stack" aria-busy="true" aria-label={labels.title}>
+        <span className="ui-skeleton ui-skeleton-row" />
+        <span className="ui-skeleton ui-skeleton-row" />
+        <span className="ui-skeleton ui-skeleton-row" />
+      </div>
     );
   }
 
+  if (events.length === 0) return <p className="muted">{labels.empty}</p>;
+
   return (
-    <section className="panel">
-      <p className="section-label">{labels.title}</p>
-      {events.length === 0 ? (
-        <p className="muted">{labels.empty}</p>
-      ) : (
-        <ul className="history-list">
-          {events.map((e) => {
-            const f = fieldLabel(e.field);
-            const oldV = formatValue(e.field, e.oldValue);
-            const newV = formatValue(e.field, e.newValue);
-            return (
-              <li key={e.id} className="history-row">
-                <span className="history-field">{f}</span>
-                <span className="history-change">
-                  <span className="history-value">{oldV}</span>
-                  <span className="history-arrow"> → </span>
-                  <span className="history-value">{newV}</span>
-                </span>
-                <span className="history-meta muted">
-                  {e.actorEmail ? `${e.actorEmail} · ` : ''}
-                  {formatDate(e.createdAt)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
+    <ol className="history-list">
+      {events.map((e) => (
+        <li key={e.id} className="history-row">
+          <span className="history-field">{fieldLabel(e.field)}</span>
+          <span className="history-change">
+            <span className="history-value is-old">{formatValue(e.field, e.oldValue)}</span>
+            <svg className="history-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+            <span className="history-value">{formatValue(e.field, e.newValue)}</span>
+          </span>
+          <span className="history-meta">
+            {e.actorEmail ? `${e.actorEmail} · ` : ''}
+            <time dateTime={e.createdAt}>{formatDate(e.createdAt)}</time>
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }

@@ -56,7 +56,7 @@ export default function TaskProjectsManager({ projects }: TaskProjectsManagerPro
 
   return (
     <div className="task-projects-manager">
-      <button type="button" className="btn btn-ghost btn-small" onClick={() => setExpanded((v) => !v)}>
+      <button type="button" className="btn btn-secondary btn-sm" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
         {expanded ? t('common.close') : t('tasks.projects.manage')}
       </button>
 

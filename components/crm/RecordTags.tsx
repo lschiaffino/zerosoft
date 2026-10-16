@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { TagEntity } from '@/lib/crm-constants';
 import { tagColorVar, type TagDot } from './TagDots';
+import CrmIcon from './CrmIcon';
 
 interface RecordTagsProps {
   entity: TagEntity;
@@ -89,7 +90,7 @@ export default function RecordTags({ entity, recordId, tags, allTags }: RecordTa
             aria-label={`${t('tags.remove')} ${tag.name}`}
             onClick={() => save(current.filter((c) => c.id !== tag.id).map((c) => c.id))}
           >
-            ✕
+            <CrmIcon name="x" />
           </button>
         </span>
       ))}

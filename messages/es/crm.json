@@ -24,7 +24,7 @@
   "common": {
     "save": "Guardar",
     "saving": "Guardando…",
-    "saved": "Guardado ✓",
+    "saved": "Guardado",
     "cancel": "Cancelar",
     "delete": "Eliminar",
     "confirm": "Confirmar",
@@ -230,7 +230,7 @@
       "mergeKeep": "Conservar este",
       "mergeDrop": "Combinar en el otro",
       "mergeConfirm": "¿Combinar {drop} en {keep}? No se puede deshacer.",
-      "merged": "Contactos combinados ✓",
+      "merged": "Contactos combinados",
       "dangerZone": "Zona de peligro",
       "deleteTitle": "Eliminar este contacto",
       "deleteDesc": "Elimina el contacto y lo saca de deals y listas. Las actividades se conservan.",
@@ -467,7 +467,7 @@
     "upcoming": "Próximas",
     "done": "Hechas",
     "complete": "Completar",
-    "completed": "Completada ✓",
+    "completed": "Completada",
     "reopen": "Reabrir",
     "dueLabel": "Vence",
     "noDue": "Sin fecha",
@@ -1614,5 +1614,95 @@
     "empty": "Todavía no hay cuotas.",
     "expected": "Esperado a esta altura: {pct}%",
     "manage": "Gestionar"
+  },
+  "record": {
+    "tabsLabel": "Secciones del registro",
+    "tabs": {
+      "activity": "Actividad",
+      "properties": "Propiedades",
+      "related": "Relacionados"
+    },
+    "moreLabel": "Más",
+    "close": "Cerrar",
+    "more": {
+      "duplicates": "Duplicados",
+      "history": "Historial",
+      "deleteContact": "Eliminar contacto",
+      "deleteCompany": "Eliminar empresa",
+      "deleteDeal": "Eliminar deal"
+    },
+    "back": {
+      "contacts": "Contactos",
+      "companies": "Empresas",
+      "deals": "Deals",
+      "lists": "Listas"
+    },
+    "summary": "Resumen",
+    "manageRelated": "Ver y editar relacionados",
+    "confirmType": "Escribí {token} para confirmar",
+    "createContact": "Crear contacto",
+    "createCompany": "Crear empresa",
+    "createDeal": "Crear deal",
+    "createList": "Crear lista",
+    "createTask": "Crear tarea",
+    "viewLabel": "Vista",
+    "listsDesc": "Grupos de contactos para secuencias, envíos y reportes.",
+    "taskBuckets": "Tareas por fecha",
+    "loading": "Cargando…",
+    "noResults": "Sin resultados.",
+    "form": {
+      "contactTitle": "Datos del contacto",
+      "contactDesc": "Con un nombre o un email alcanza. El resto se completa después.",
+      "companyTitle": "Datos de la empresa",
+      "companyDesc": "Con el nombre alcanza. El resto se completa después.",
+      "dealTitle": "Datos del deal",
+      "dealDesc": "Nombre, monto y etapa. Lo demás puede esperar.",
+      "moreFields": "Más campos",
+      "contactMoreHint": "Cargo, web, ubicación, lifecycle, origen",
+      "companyMoreHint": "Industria, empleados, teléfono, web, ubicación",
+      "dealMoreHint": "Moneda, cierre, prioridad, origen, descripción",
+      "domainHelp": "Si lo dejás vacío, sale del sitio web.",
+      "contact": "Contacto",
+      "noContact": "Sin contacto"
+    },
+    "empty": {
+      "noMatchTitle": "Nada coincide con estos filtros",
+      "noMatchBody": "Cambiá la búsqueda o limpiá los filtros para ver todo.",
+      "contactsTitle": "Todavía no hay contactos",
+      "contactsBody": "Cargá el primero o importá un CSV con los que ya tenés.",
+      "companiesTitle": "Todavía no hay empresas",
+      "companiesBody": "Cargá la primera o importá un CSV. Los contactos se asocian solos por dominio.",
+      "dealsTitle": "Este pipeline no tiene deals",
+      "dealsBody": "Creá el primero y movelo por las etapas desde el tablero.",
+      "importCsv": "o importá un CSV",
+      "noPipelineTitle": "Todavía no hay pipelines",
+      "noPipelineBody": "Un pipeline define las etapas por las que pasa un deal.",
+      "noPipelineCta": "Crear pipeline",
+      "listsTitle": "Todavía no hay listas",
+      "listsBody": "Una lista estática la llenás a mano. Una dinámica se llena sola con un filtro.",
+      "staticListTitle": "La lista está vacía",
+      "staticListBody": "Buscá contactos arriba para agregarlos.",
+      "dynamicListTitle": "Ningún contacto cumple el filtro",
+      "dynamicListBody": "La lista se actualiza sola cuando alguno lo cumpla.",
+      "tasks": {
+        "overdue": "Nada vencido",
+        "today": "Nada para hoy",
+        "upcoming": "Nada en los próximos días",
+        "done": "Todavía no completaste tareas"
+      },
+      "tasksBody": "Las tareas de contactos, empresas y deals aparecen acá según su fecha."
+    },
+    "pager": {
+      "label": "Paginación",
+      "total": "{count, plural, one {# registro} other {# registros}}",
+      "prev": "Anterior",
+      "next": "Siguiente",
+      "of": "Página {page} de {pages}"
+    },
+    "error": {
+      "title": "No se pudo cargar esta vista",
+      "body": "Puede ser un corte de conexión. Probá de nuevo; si sigue, avisanos.",
+      "retry": "Reintentar"
+    }
   }
 }

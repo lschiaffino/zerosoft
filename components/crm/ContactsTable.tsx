@@ -9,6 +9,7 @@ import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
 import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
+import CrmIcon from './CrmIcon';
 
 export interface ContactRow {
   id: string;
@@ -228,8 +229,9 @@ export default function ContactsTable({
                         href={`mailto:${row.email}`}
                         className="cell-quick"
                         title={t('enums.activityType.email')}
+                        aria-label={t('enums.activityType.email')}
                       >
-                        ✉
+                        <CrmIcon name="mail" />
                       </a>
                     ) : null}
                   </td>
@@ -247,8 +249,9 @@ export default function ContactsTable({
                         href={`tel:${row.phone}`}
                         className="cell-quick"
                         title={t('enums.activityType.call')}
+                        aria-label={t('enums.activityType.call')}
                       >
-                        ☎
+                        <CrmIcon name="phone" />
                       </a>
                     ) : null}
                   </td>
@@ -311,7 +314,7 @@ export default function ContactsTable({
                   </td>
                 )}
                 {visible.has('score') && (
-                  <td className="num mono cell-score" data-testid="contact-score">
+                  <td className="num cell-score" data-testid="contact-score">
                     {row.score}
                   </td>
                 )}
@@ -320,7 +323,7 @@ export default function ContactsTable({
                     <TagDots tags={row.tags ?? []} />
                   </td>
                 )}
-                {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
+                {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}
                 <td className="cell-actions">
                   <button
                     type="button"

@@ -66,13 +66,13 @@ export default function ListForm({ lifecycles, leadStatuses, sources, onCancel }
 
   return (
     <form className="crm-form" onSubmit={onSubmit}>
-      <div className="form-grid">
-        <label className="field">
-          <span className="prop-label">{t('lists.nameLabel')}</span>
+      <div className="ui-fields-2">
+        <label className="ui-field">
+          <span className="label">{t('lists.nameLabel')}</span>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} />
         </label>
-        <label className="field">
-          <span className="prop-label">{t('lists.kind')}</span>
+        <label className="ui-field">
+          <span className="label">{t('lists.kind')}</span>
           <select className="select" value={kind} onChange={(e) => setKind(e.target.value as 'static' | 'dynamic')}>
             <option value="static">{t('lists.static')}</option>
             <option value="dynamic">{t('lists.dynamic')}</option>
@@ -82,10 +82,10 @@ export default function ListForm({ lifecycles, leadStatuses, sources, onCancel }
 
       {kind === 'dynamic' && (
         <>
-          <p className="muted">{t('lists.dynamicNote')}</p>
-          <div className="form-grid form-grid-3">
-            <label className="field">
-              <span className="prop-label">{t('lists.filterLifecycle')}</span>
+          <p className="ui-help">{t('lists.dynamicNote')}</p>
+          <div className="ui-fields-2">
+            <label className="ui-field">
+              <span className="label">{t('lists.filterLifecycle')}</span>
               <select className="select" value={lifecycle} onChange={(e) => setLifecycle(e.target.value)}>
                 <option value="">{t('common.all')}</option>
                 {lifecycles.map((o) => (
@@ -95,8 +95,8 @@ export default function ListForm({ lifecycles, leadStatuses, sources, onCancel }
                 ))}
               </select>
             </label>
-            <label className="field">
-              <span className="prop-label">{t('lists.filterLeadStatus')}</span>
+            <label className="ui-field">
+              <span className="label">{t('lists.filterLeadStatus')}</span>
               <select className="select" value={leadStatus} onChange={(e) => setLeadStatus(e.target.value)}>
                 <option value="">{t('common.all')}</option>
                 {leadStatuses.map((o) => (
@@ -106,8 +106,8 @@ export default function ListForm({ lifecycles, leadStatuses, sources, onCancel }
                 ))}
               </select>
             </label>
-            <label className="field">
-              <span className="prop-label">{t('lists.filterSource')}</span>
+            <label className="ui-field">
+              <span className="label">{t('lists.filterSource')}</span>
               <select className="select" value={source} onChange={(e) => setSource(e.target.value)}>
                 <option value="">{t('common.all')}</option>
                 {sources.map((o) => (
@@ -118,8 +118,8 @@ export default function ListForm({ lifecycles, leadStatuses, sources, onCancel }
               </select>
             </label>
           </div>
-          <label className="field">
-            <span className="prop-label">{t('lists.filterQ')}</span>
+          <label className="ui-field">
+            <span className="label">{t('lists.filterQ')}</span>
             <input
               className="input"
               value={q}
@@ -131,13 +131,17 @@ export default function ListForm({ lifecycles, leadStatuses, sources, onCancel }
         </>
       )}
 
-      {error && <p className="form-error">{error}</p>}
+      {error && (
+        <p className="ui-error" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="form-actions">
-        <button type="submit" className="btn btn-solid btn-small" disabled={busy}>
-          {busy ? t('common.creating') : t('common.create')}
+        <button type="submit" className="btn btn-primary btn-sm" disabled={busy} aria-busy={busy || undefined}>
+          {t('record.createList')}
         </button>
-        <button type="button" className="btn btn-ghost btn-small" onClick={onCancel}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
           {t('common.cancel')}
         </button>
       </div>

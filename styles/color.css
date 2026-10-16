@@ -65,13 +65,8 @@
 .kb-col-head, .kb-head { position: relative; }
 .kb-card:hover { border-color: var(--ink); }
 .kb-card-amount { color: var(--ink); }
-.kb-card-rotting { color: var(--warn-ink); }
 .kb-totals strong, .kb-totals b { color: var(--ink); }
 
-.stage-step.done { background: var(--accent-line); color: var(--ink); }
-.stage-step.current { background: var(--accent); color: var(--accent-on); }
-.stage-step:hover:not(:disabled) { background: var(--accent-soft); color: var(--ink); }
-.stage-close .btn-danger.btn-solid { --btn-bg: var(--bad-ink); --btn-bd: var(--bad-ink); --btn-fg: #fff; }
 
 /* ---------- Estados vacíos y alertas ---------- */
 .empty-zeros { color: var(--brand-gray-3); }

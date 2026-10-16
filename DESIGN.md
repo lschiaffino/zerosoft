@@ -295,6 +295,9 @@ Loaded site-wide after `globals.css`. Product screens use these classes instead 
 ### App home (`/app`)
 The network map is the workspace launcher: `NetworkMap` with `hrefs` pointing each line and station into its app (no draw-in animation inside the app), next to the eleven lines as a list (glyph, name, one line). Link's numbers follow, since `/app` is also Link's overview.
 
+### CRM records (`styles/crm-records.css`)
+Contact, company and deal details share one shape: `PageHeader` (back link, name, badges and meta as the description, actions), tags, then `RecordTabs` (`?tab=activity|properties|related`, only the active tab is rendered). Activity is the timeline plus a sticky summary rail (key facts, first five related records). Duplicates, history and delete live in `RecordMoreMenu` ("More"), which opens a drawer, or a modal for delete. A deal's stages are its line: stations on a 6px stroke, done and current segments in the CRM color, the current station filled. Associated records are rows (`.assoc-row`), not pills. Create forms use `FormSection` with the basics visible and the rest behind `AdvancedSection` ("More fields"). Lists use dense one-line tables (36px rows, ellipsis), `CrmPager` and `EmptyState`; every CRM list route has `loading.tsx` (skeleton) and `error.tsx` (retry).
+
 ## Do's and Don'ts
 
 ### Do:

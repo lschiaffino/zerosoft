@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
+import CrmIcon from './CrmIcon';
 
 export type ContactSort = 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc' | 'score' | 'score_asc';
 
@@ -189,7 +190,7 @@ export default function ContactsFilters({
               title={t('contacts.savedViews.delete')}
               aria-label={t('contacts.savedViews.delete')}
             >
-              ✕
+              <CrmIcon name="x" />
             </button>
           </span>
         ))}

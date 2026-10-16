@@ -5,6 +5,9 @@ import { useTranslations } from 'next-intl';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import { Link, useRouter } from '@/i18n/navigation';
 import ListForm, { type EnumOption } from './ListForm';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import CrmIcon from './CrmIcon';
 
 export interface ListRow {
   id: string;
@@ -43,18 +46,26 @@ export default function ListsIndex({ rows, lifecycles, leadStatuses, sources, ti
 
   return (
     <>
-      <div className="page-head">
-        <h1 className="app-title">{title}</h1>
-        <button type="button" className="btn btn-solid btn-small" onClick={() => setShowForm((v) => !v)}>
-          {t('lists.newCta')}
-          <span className="kbd-hint" aria-hidden>
-            C
-          </span>
-        </button>
-      </div>
+      <PageHeader
+        title={title}
+        description={t('record.listsDesc')}
+        actions={
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            aria-expanded={showForm}
+            onClick={() => setShowForm((v) => !v)}
+          >
+            {t('record.createList')}
+            <kbd className="kbd" aria-hidden>
+              C
+            </kbd>
+          </button>
+        }
+      />
 
       {showForm && (
-        <div className="panel">
+        <div className="record-inline-form">
           <ListForm
             lifecycles={lifecycles}
             leadStatuses={leadStatuses}
@@ -65,16 +76,17 @@ export default function ListsIndex({ rows, lifecycles, leadStatuses, sources, ti
       )}
 
       {rows.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-zeros mono" aria-hidden>
-            0 0 0 0 0 0 0
-          </p>
-          <h2>{t('lists.emptyTitle')}</h2>
-          <p className="muted">{t('lists.emptySub')}</p>
-          <button type="button" className="btn btn-solid btn-small" onClick={() => setShowForm(true)}>
-            {t('lists.emptyCta')}
-          </button>
-        </div>
+        showForm ? null : (
+          <EmptyState
+            title={t('record.empty.listsTitle')}
+            body={t('record.empty.listsBody')}
+            action={
+              <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)}>
+                {t('record.createList')}
+              </button>
+            }
+          />
+        )
       ) : (
         <div className="table-wrap">
           <table className="table crm-table">
@@ -82,7 +94,7 @@ export default function ListsIndex({ rows, lifecycles, leadStatuses, sources, ti
               <tr>
                 <th>{t('lists.nameLabel')}</th>
                 <th>{t('lists.kind')}</th>
-                <th className="th-num">{t('lists.membersTitle')}</th>
+                <th className="num">{t('lists.membersTitle')}</th>
                 <th>{t('lists.created')}</th>
                 <th aria-label={t('common.actions')} />
               </tr>
@@ -98,28 +110,29 @@ export default function ListsIndex({ rows, lifecycles, leadStatuses, sources, ti
                   <td>
                     <span className={`badge kind-${row.kind}`}>{t(`lists.${row.kind}`)}</span>
                   </td>
-                  <td className="mono td-num">{row.memberCount}</td>
-                  <td className="mono muted cell-date">{row.created}</td>
+                  <td className="num">{row.memberCount}</td>
+                  <td className="num muted cell-date">{row.created}</td>
                   <td>
                     {confirmingId === row.id ? (
                       <div className="cell-actions confirm">
                         <span className="confirm-label">{t('lists.deleteConfirm')}</span>
-                        <button type="button" className="icon-btn danger" onClick={() => remove(row.id)}>
-                          {t('common.yes')}
+                        <button type="button" className="btn btn-primary btn-danger btn-sm" onClick={() => remove(row.id)}>
+                          {t('common.delete')}
                         </button>
-                        <button type="button" className="icon-btn" onClick={() => setConfirmingId(null)}>
-                          {t('common.no')}
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmingId(null)}>
+                          {t('common.cancel')}
                         </button>
                       </div>
                     ) : (
                       <div className="cell-actions">
                         <button
                           type="button"
-                          className="icon-btn danger"
+                          className="btn btn-ghost btn-icon btn-sm row-delete"
                           title={t('common.delete')}
+                          aria-label={`${t('common.delete')} ${row.name}`}
                           onClick={() => setConfirmingId(row.id)}
                         >
-                          ✕
+                          <CrmIcon name="x" />
                         </button>
                       </div>
                     )}

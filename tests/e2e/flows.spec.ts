@@ -876,3 +876,84 @@ test.describe('link d9', () => {
     await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible();
   });
 });
+
+// ---------- CRM core: detalle en tabs, menú "More" y altas cortas ----------
+
+test('CRM: el detalle del contacto separa Actividad, Propiedades y Relacionados', async ({ request, page }) => {
+  const email = `tabs-${uid()}@example.com`;
+  const contact = await (await request.post('/api/crm/contacts', { data: { email, firstName: 'Tabs' } })).json();
+  await page.goto(`/en/app/crm/contacts/${contact.id}`);
+  const tabs = page.getByRole('navigation', { name: 'Record sections' });
+  await expect(tabs.getByRole('link', { name: 'Activity' })).toHaveAttribute('aria-current', 'page');
+  // El resumen de Actividad muestra el email sin cambiar de tab.
+  await expect(page.getByRole('complementary', { name: 'Summary' }).getByText(email)).toBeVisible();
+
+  await tabs.getByRole('link', { name: 'Properties' }).click();
+  await expect(page).toHaveURL(/tab=properties/);
+  await expect(page.getByTestId('contact-score-card')).toBeVisible();
+
+  await tabs.getByRole('link', { name: 'Related' }).click();
+  await expect(page).toHaveURL(/tab=related/);
+  await expect(page.getByRole('heading', { name: 'Lists' })).toBeVisible();
+});
+
+test('CRM: "More" abre el historial en un drawer, Esc devuelve el foco y eliminar pide confirmación', async ({
+  request,
+  page,
+}) => {
+  const email = `more-${uid()}@example.com`;
+  const contact = await (await request.post('/api/crm/contacts', { data: { email, firstName: 'More' } })).json();
+  await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+
+  const more = page.getByTestId('record-more');
+  await more.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('menu')).toBeVisible();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'History' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  const drawer = page.getByRole('dialog', { name: 'History' });
+  await expect(drawer).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(drawer).toBeHidden();
+  await expect(more).toBeFocused();
+
+  await more.click();
+  await page.getByRole('menuitem', { name: 'Delete contact' }).click();
+  const modal = page.getByRole('dialog');
+  const confirm = modal.getByRole('button', { name: 'Delete forever' });
+  await expect(confirm).toBeDisabled();
+  await modal.getByLabel(`Type ${email} to confirm`).fill(email);
+  await confirm.click();
+  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts$/, { timeout: 15_000 });
+});
+
+test('CRM: el alta completa de contacto muestra lo básico y guarda el resto en "More fields"', async ({ page }) => {
+  const first = `Full${uid()}`;
+  await page.goto('/en/app/crm/contacts/new?full=1');
+  await expect(page.getByLabel('Job title')).toBeHidden();
+  await page.getByLabel('First name').fill(first);
+  await page.getByLabel('Email').fill(`${first.toLowerCase()}@example.com`);
+  const toggle = page.getByRole('button', { name: /More fields/ });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await page.getByLabel('Job title').fill('CTO');
+  await page.getByRole('button', { name: 'Create contact' }).click();
+  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+  await expect(page.getByRole('heading', { level: 1, name: first })).toBeVisible();
+  await expect(page.getByText('CTO').first()).toBeVisible();
+});
+
+test('CRM: el alta completa de deal pide nombre, monto y etapa; la moneda acompaña al monto', async ({ page }) => {
+  const name = `FullDeal ${uid()}`;
+  await page.goto('/en/app/crm/deals/new?full=1');
+  await expect(page.getByLabel('Currency')).toBeHidden();
+  await page.getByLabel('Name').fill(name);
+  await page.getByLabel('Amount').fill('2500');
+  await page.getByRole('button', { name: /More fields/ }).click();
+  await page.getByLabel('Currency').fill('eur');
+  await expect(page.locator('.ui-addon')).toHaveText('EUR');
+  await page.getByRole('button', { name: 'Create deal' }).click();
+  await expect(page).toHaveURL(/\/en\/app\/crm\/deals\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+});

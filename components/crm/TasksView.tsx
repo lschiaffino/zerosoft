@@ -1,10 +1,13 @@
 'use client';
 
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter, usePathname } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
+import CrmIcon from './CrmIcon';
 
 export interface TaskRow {
   id: string;
@@ -180,37 +183,40 @@ export default function TasksView({
 
   return (
     <>
-      <div className="page-head">
-        <h1 className="app-title">{title}</h1>
-        <button
-          type="button"
-          className="btn btn-small btn-solid"
-          onClick={() => setShowComposer(true)}
-          data-testid="crm-quick-task"
-        >
-          {t('quick.task.cta')}
-          <span className="kbd-hint" aria-hidden>
-            C
-          </span>
-        </button>
-      </div>
+      <PageHeader
+        title={title}
+        actions={
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => setShowComposer(true)}
+            data-testid="crm-quick-task"
+          >
+            {t('record.createTask')}
+            <kbd className="kbd" aria-hidden>
+              C
+            </kbd>
+          </button>
+        }
+      />
       {children}
       <div className="task-controls">
-        <div className="filter-chips">
+        <nav className="ui-tabs task-buckets" aria-label={t('record.taskBuckets')}>
           {BUCKETS.map((b) => (
             <Link
               key={b}
               href={{ pathname: '/app/crm/tasks', query: b === 'today' ? {} : { bucket: b } }}
-              className={`chip${bucket === b ? ' active' : ''}`}
+              className="ui-tab"
+              aria-current={bucket === b ? 'page' : undefined}
             >
               {t(`tasks.${b}`)}
             </Link>
           ))}
-        </div>
+        </nav>
 
         <div className="task-filters">
           <select
-            className="filter-select"
+            className="select filter-select"
             value={ownerId ?? ''}
             onChange={(e) => setQuery({ owner: e.target.value || undefined })}
             aria-label={t('tasks.filterOwner')}
@@ -224,7 +230,7 @@ export default function TasksView({
           </select>
 
           <select
-            className="filter-select"
+            className="select filter-select"
             value={projectId ?? ''}
             onChange={(e) => setQuery({ project: e.target.value || undefined })}
             aria-label={t('tasks.filterProject')}
@@ -314,12 +320,17 @@ export default function TasksView({
       </QuickModal>
 
       {rows.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-zeros mono" aria-hidden>
-            0 0 0 0 0 0 0
-          </p>
-          <p className="muted">{t('tasks.empty')}</p>
-        </div>
+        <EmptyState
+          title={t(`record.empty.tasks.${bucket}`)}
+          body={t('record.empty.tasksBody')}
+          action={
+            bucket === 'done' ? undefined : (
+              <button type="button" className="btn btn-primary" onClick={() => setShowComposer(true)}>
+                {t('record.createTask')}
+              </button>
+            )
+          }
+        />
       ) : (
         <div className="task-list">
           {rows.map((row) => (
@@ -334,7 +345,7 @@ export default function TasksView({
                 title={row.done ? t('tasks.reopen') : t('tasks.complete')}
                 onClick={() => setDone(row.id, !row.done)}
               >
-                ✓
+                <CrmIcon name="check" />
               </button>
 
               <div className="task-main">
@@ -371,17 +382,17 @@ export default function TasksView({
               </div>
 
               <div className="task-actions">
-                <Link href={`/app/crm/tasks/${row.id}`} className="icon-btn" aria-label={t('common.edit')}>
-                  ✎
+                <Link href={`/app/crm/tasks/${row.id}`} className="btn btn-ghost btn-icon btn-sm" aria-label={t('common.edit')}>
+                  <CrmIcon name="edit" />
                 </Link>
                 <button
                   type="button"
-                  className="icon-btn danger"
+                  className="btn btn-ghost btn-icon btn-sm row-delete"
                   aria-label={t('common.delete')}
                   title={t('common.delete')}
                   onClick={() => remove(row.id)}
                 >
-                  ✕
+                  <CrmIcon name="x" />
                 </button>
               </div>
             </div>
