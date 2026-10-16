@@ -254,7 +254,9 @@ async function httpNode(state: RunState, cfg: Record<string, unknown>, tctx: Rec
   const timeoutMs = Math.min(Math.max(Number(cfg.timeoutMs) || 8000, 1000), 30_000);
   let res: Response;
   try {
-    res = await safeFetch(url, { method, headers, body: body || undefined }, timeoutMs);
+    // Sigue redirecciones (p. ej. Apps Script responde 302) salvo que el nodo lo apague.
+    const maxRedirects = cfg.followRedirects === false ? 0 : 5;
+    res = await safeFetch(url, { method, headers, body: body || undefined }, timeoutMs, { maxRedirects });
   } catch (err) {
     if (err instanceof UnsafeUrlError) throw new StepError(err.message);
     throw new StepError(err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'network_error', true);
@@ -472,11 +474,34 @@ async function agentNode(ws: string, cfg: Record<string, unknown>, tctx: Record<
   }
 }
 
+/** Tope de ejecuciones del nodo Código (env; 'unlimited' lo apaga). */
+function codeLimit(name: string, fallback: number): number | null {
+  const raw = (process.env[name] ?? '').trim().toLowerCase();
+  if (raw === 'unlimited') return null;
+  const n = Number(raw);
+  return raw && Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+/**
+ * Ejecuciones del nodo Código por workspace: por hora y por día (UTC). Cada
+ * una es una microVM de Vercel Sandbox; sin tope, un Loop dentro de un flow
+ * con webhook crearía VMs sin límite.
+ */
+async function allowFlowCode(workspaceId: string): Promise<boolean> {
+  const perHour = codeLimit('FLOW_CODE_RUNS_PER_HOUR', 300);
+  const perDay = codeLimit('FLOW_CODE_RUNS_PER_DAY', 2000);
+  if (perHour !== null && !(await rateLimit(`flow-code-hour:${workspaceId}`, perHour, 3600)).ok) return false;
+  if (perDay !== null && !(await rateLimit(`flow-code-day:${workspaceId}`, perDay, 86_400)).ok) return false;
+  return true;
+}
+
 async function codeNode(state: RunState, cfg: Record<string, unknown>) {
   const code = String(cfg.code ?? '');
   if (!code.trim()) throw new StepError('missing_code');
   if (code.length > 50_000) throw new StepError('code_too_long');
   const timeoutSec = Math.min(Math.max(Math.floor(Number(cfg.timeoutSec) || 10), 1), CODE_MAX_TIMEOUT_SEC);
+  // Cada ejecución levanta una microVM (costo de la plataforma): tope por workspace.
+  if (!(await allowFlowCode(state.flow.user_id))) throw new StepError('code_rate_limited', true);
   // Lo que ve el código: trigger y salidas previas (ya redactadas), sin truncar.
   const all = { trigger: state.ctx.trigger, nodes: state.ctx.nodes, flow: { id: state.flow.id, name: state.flow.name } };
   const input = state.secrets.length ? redact(all, state.secrets) : all;
@@ -954,12 +979,16 @@ async function enqueueErrorFlow(state: RunState): Promise<void> {
     .get(target, state.flow.user_id)) as Pick<FlowFlowRow, 'id' | 'user_id'> | undefined;
   if (!row) return;
   const failed = state.failedNode ? state.ctx.graph.nodes.find((n) => n.id === state.failedNode) : null;
-  const input = store(state, {
+  // flow, run y failedNode van completos (son chicos; la salida del nodo ya
+  // viene acotada): solo el trigger se acota aparte. Truncar el objeto entero
+  // dejaba {{trigger.run.error}} vacío cuando el trigger era grande.
+  const details = {
     flow: { id: state.flow.id, name: state.flow.name },
     run: { id: state.run.id, error: state.error, triggerType: state.run.trigger_type, startedAt: state.run.started_at },
     failedNode: failed ? { id: failed.id, type: failed.type, output: store(state, state.ctx.nodes[failed.id]?.output ?? null) } : null,
-    trigger: state.ctx.trigger,
-  });
+    trigger: forStore(state.ctx.trigger, CONTEXT_LIMIT),
+  };
+  const input = state.secrets.length ? redact(details, state.secrets) : details;
   const id = await enqueueRun(row, 'error', input, { chain: { depth, seen }, parentRunId: state.run.id });
   if (id) kickFlowWorker();
 }
@@ -1100,7 +1129,16 @@ export async function resumeRun(
   const state = await loadState(run);
   if (!state) return 'failed';
   if (await cancelIfDisabled(state)) return 'failed';
-  await getDb().prepare("UPDATE flow_runs SET status = 'running' WHERE id = ?").run(runId);
+  // Solo si sigue en espera: una cancelación entre la lectura y acá gana.
+  const claimed = await getDb()
+    .prepare("UPDATE flow_runs SET status = 'running' WHERE id = ? AND status = 'waiting'")
+    .run(runId);
+  if (claimed.changes !== 1) {
+    const now = (await getDb().prepare('SELECT status FROM flow_runs WHERE id = ?').get(runId)) as
+      | Pick<FlowRunRow, 'status'>
+      | undefined;
+    return now?.status ?? 'failed';
+  }
   await inChain(run, async () => {
     if (payload.kind === 'retry') await runNode(state, nodeId, undefined, Number(payload.attempt) || 1);
     else {

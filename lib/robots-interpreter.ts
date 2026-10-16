@@ -644,6 +644,11 @@ export interface HarnessChromium {
         abort(code?: string): Promise<void>;
         continue(): Promise<void>;
       }) => Promise<void>): Promise<void>;
+      /** Playwright ≥ 1.48: los WebSocket no pasan por route(). */
+      routeWebSocket?(
+        pattern: RegExp,
+        handler: (ws: { url(): string; close(opts?: { code?: number; reason?: string }): Promise<void>; connectToServer(): unknown }) => unknown,
+      ): Promise<void>;
       on(event: 'page', cb: (p: { close(): Promise<void> }) => void): void;
       newPage(): Promise<unknown>;
       storageState(): Promise<unknown>;
@@ -670,7 +675,8 @@ export async function robotHarness(
     browser = await chromium.launch({
       headless: true,
       executablePath: job.executablePath || undefined,
-      args: job.args ?? [],
+      // WebRTC sin UDP directo: no abre conexiones a la red interna por fuera de route().
+      args: [...(job.args ?? []), '--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],
       timeout: 30_000,
     });
     const b = browser;
@@ -707,6 +713,26 @@ export async function robotHarness(
       if (await verdict) return route.abort('blockedbyclient');
       return route.continue();
     });
+    // Los WebSocket (ws/wss) no pasan por route(): misma verificación de host.
+    if (typeof context.routeWebSocket === 'function') {
+      await context.routeWebSocket(/.*/, async (ws) => {
+        let origin = '';
+        try {
+          const u = new URL(ws.url());
+          if (u.protocol !== 'ws:' && u.protocol !== 'wss:') return ws.close({ code: 1008, reason: 'blocked' });
+          origin = `${u.protocol === 'wss:' ? 'https:' : 'http:'}//${u.host}`;
+        } catch {
+          return ws.close({ code: 1008, reason: 'blocked' });
+        }
+        let verdict = verdicts.get(origin);
+        if (!verdict) {
+          verdict = checkUrl(`${origin}/`).catch(() => 'unresolvable_host');
+          verdicts.set(origin, verdict);
+        }
+        if (await verdict) return ws.close({ code: 1008, reason: 'blocked' });
+        ws.connectToServer();
+      });
+    }
     let opened = 0;
     context.on('page', (p) => {
       opened += 1;

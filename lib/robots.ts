@@ -615,37 +615,65 @@ export async function startRobotRun(
   return { ok: true, run };
 }
 
+/** Robots programados que corren a la vez en una pasada del cron (uno por workspace). */
+function cronConcurrency(): number {
+  const env = Number(process.env.ROBOTS_CRON_CONCURRENCY);
+  if (Number.isFinite(env) && env >= 1) return Math.min(Math.floor(env), 50);
+  // Local: cada corrida es un Chromium en este servidor. Sandbox: microVMs remotas.
+  return robotBackendName() === 'local' ? 2 : 10;
+}
+
 /**
  * Schedules vencidos (cron): avanza next_run_at con compare-and-set y corre
- * cada robot. Con presupuesto de tiempo: solo arranca una corrida si su
- * timeout entra en lo que queda de `budgetMs` (el resto queda para el
- * próximo tick; la primera siempre corre).
+ * los robots en paralelo, de a uno por workspace (un workspace corre un robot
+ * a la vez) y hasta `cronConcurrency()` workspaces juntos, en pasadas
+ * sucesivas mientras quede tiempo. Después de la primera pasada (que siempre
+ * corre), solo arranca corridas cuyo timeout entra en `budgetMs`; lo
+ * que no entra queda para la próxima invocación (/api/cron/robots, cada pocos
+ * minutos). Devuelve las corridas arrancadas.
  */
-export async function runDueRobots(now: Date = new Date(), limit = 5, budgetMs = 240_000): Promise<number> {
+export async function runDueRobots(now: Date = new Date(), limit = 100, budgetMs = 240_000): Promise<number> {
   await failStaleRobotRuns();
   // Sin tiempo suficiente en este tick: quedan para el próximo.
   if (budgetMs < 60_000) return 0;
-  const rows = (await getDb()
-    .prepare(
-      `SELECT * FROM robots WHERE enabled = 1 AND schedule IS NOT NULL AND next_run_at IS NOT NULL AND next_run_at <= ?
-       ORDER BY next_run_at LIMIT ?`,
-    )
-    .all(now.toISOString(), limit)) as RobotRow[];
+  const concurrency = cronConcurrency();
   const t0 = Date.now();
   let ran = 0;
   let attempted = 0;
-  for (const row of rows) {
-    if (attempted > 0 && Date.now() - t0 + Math.min(row.timeout_sec, MAX_TIMEOUT_SEC) * 1000 > budgetMs) break;
-    const schedule = parseJson<RobotSchedule>(row.schedule, null);
-    const next = nextRun(schedule, true, now);
-    const res = await getDb()
-      .prepare('UPDATE robots SET next_run_at = ? WHERE id = ? AND next_run_at = ?')
-      .run(next, row.id, row.next_run_at);
-    if (res.changes !== 1) continue;
-    attempted += 1;
-    const r = await startRobotRun(row.user_id, row.id, undefined, { trigger: 'schedule' });
-    if (r.ok) ran += 1;
-    else if (r.error !== 'not_found' && r.error !== 'disabled') await recordSkippedRun(row, r.error);
+  while (attempted < limit) {
+    const rows = (await getDb()
+      .prepare(
+        `SELECT * FROM robots WHERE enabled = 1 AND schedule IS NOT NULL AND next_run_at IS NOT NULL AND next_run_at <= ?
+         ORDER BY next_run_at LIMIT ?`,
+      )
+      .all(now.toISOString(), Math.max(concurrency * 20, 100))) as RobotRow[];
+    // Uno por workspace por pasada (el resto del workspace va en la siguiente).
+    const batch: RobotRow[] = [];
+    const seen = new Set<string>();
+    for (const row of rows) {
+      if (batch.length >= Math.min(concurrency, limit - attempted)) break;
+      if (seen.has(row.user_id)) continue;
+      // La primera pasada siempre corre (arrancan juntas); las siguientes, si el timeout entra.
+      if (attempted > 0 && Date.now() - t0 + Math.min(row.timeout_sec, MAX_TIMEOUT_SEC) * 1000 > budgetMs) continue;
+      seen.add(row.user_id);
+      batch.push(row);
+    }
+    if (!batch.length) break;
+    const results = await Promise.all(
+      batch.map(async (row) => {
+        const schedule = parseJson<RobotSchedule>(row.schedule, null);
+        const next = nextRun(schedule, true, now);
+        const res = await getDb()
+          .prepare('UPDATE robots SET next_run_at = ? WHERE id = ? AND next_run_at = ?')
+          .run(next, row.id, row.next_run_at);
+        if (res.changes !== 1) return false;
+        const r = await startRobotRun(row.user_id, row.id, undefined, { trigger: 'schedule' });
+        if (!r.ok && r.error !== 'not_found' && r.error !== 'disabled') await recordSkippedRun(row, r.error);
+        return r.ok;
+      }),
+    );
+    attempted += batch.length;
+    ran += results.filter(Boolean).length;
   }
   return ran;
 }

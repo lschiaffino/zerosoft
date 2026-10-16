@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/tick",
       "schedule": "17 * * * *"
+    },
+    {
+      "path": "/api/cron/robots",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
