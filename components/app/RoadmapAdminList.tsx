@@ -14,7 +14,8 @@ import {
 } from '@/lib/roadmap-constants';
 import { formatDateTime } from '@/lib/utils';
 
-type Item = RoadmapItemRow & { signals: RoadmapSignalRow[] };
+export type AdminItem = RoadmapItemRow & { signals: RoadmapSignalRow[] };
+type Item = AdminItem;
 
 interface Draft {
   title: string;
@@ -24,6 +25,7 @@ interface Draft {
   kind: RoadmapKind;
   isPublic: boolean;
   shippedChangelogId: string;
+  declinedReason: string;
 }
 
 function toDraft(i: Item): Draft {
@@ -35,6 +37,7 @@ function toDraft(i: Item): Draft {
     kind: i.kind,
     isPublic: i.is_public === 1,
     shippedChangelogId: i.shipped_changelog_id ?? '',
+    declinedReason: i.declined_reason ?? '',
   };
 }
 
@@ -91,7 +94,7 @@ export default function RoadmapAdminList({
   );
 }
 
-function RoadmapAdminRow({
+export function RoadmapAdminRow({
   item,
   targets,
   locale,
@@ -110,6 +113,7 @@ function RoadmapAdminRow({
   const [busy, setBusy] = useState(false);
   const [state, setState] = useState<'idle' | 'saved' | 'error'>('idle');
   const [mergeTarget, setMergeTarget] = useState('');
+  const tp = useTranslations('feedbackBoard.product');
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -123,7 +127,11 @@ function RoadmapAdminRow({
     const res = await fetch(`/api/roadmap/${item.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...next, shippedChangelogId: next.shippedChangelogId.trim() || null }),
+      body: JSON.stringify({
+        ...next,
+        shippedChangelogId: next.shippedChangelogId.trim() || null,
+        declinedReason: next.declinedReason.trim() || null,
+      }),
     }).catch(() => null);
     const data = res?.ok ? ((await res.json().catch(() => null)) as { item?: RoadmapItemRow } | null) : null;
     if (data?.item) {
@@ -180,7 +188,7 @@ function RoadmapAdminRow({
           <select className="select" value={draft.product} onChange={(e) => set('product', e.target.value)}>
             {FEEDBACK_PRODUCTS.map((p) => (
               <option key={p} value={p}>
-                {t(`product.${p}`)}
+                {tp(p)}
               </option>
             ))}
           </select>
@@ -204,6 +212,18 @@ function RoadmapAdminRow({
             onChange={(e) => set('description', e.target.value)}
           />
         </label>
+        {draft.status === 'declined' && (
+          <label className="rm-admin-field rm-admin-wide">
+            <span className="label">{t('admin.declinedReasonLabel')}</span>
+            <textarea
+              className="textarea"
+              value={draft.declinedReason}
+              maxLength={1000}
+              onChange={(e) => set('declinedReason', e.target.value)}
+            />
+            <span className="rm-admin-hint">{t('admin.declinedReasonHint')}</span>
+          </label>
+        )}
         {draft.status === 'done' && (
           <label className="rm-admin-field rm-admin-wide">
             <span className="label">{t('admin.changelogLabel')}</span>

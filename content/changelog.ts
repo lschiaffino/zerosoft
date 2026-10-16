@@ -5,7 +5,10 @@
  * idiomas. `id` es el ancla (#id) y el id del feed: no cambiarlo una vez publicado.
  */
 
-export type ChangelogProduct = 'link' | 'crm' | 'cal' | 'track' | 'chat' | 'docs' | 'platform';
+import type { ProductKey } from '@/lib/product-taxonomy';
+
+/** Taxonomía compartida con feedback, roadmap y board (lib/product-taxonomy.ts). */
+export type ChangelogProduct = ProductKey;
 
 export interface Localized {
   en: string;

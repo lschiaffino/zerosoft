@@ -6,7 +6,6 @@ import { Link, usePathname } from '@/i18n/navigation';
 import Icon from './icons';
 import { appProductFromPath, buildNav, buildNewItems, settingsNavItem, type SidebarLabels } from './sidebar-nav';
 import NotificationBell from './NotificationBell';
-import FeedbackButton from './FeedbackButton';
 
 export type { SidebarLabels };
 
@@ -251,7 +250,6 @@ export default function AppSidebar({
           <Icon name="docs" />
           {labels.docsSite}
         </Link>
-        <FeedbackButton email={user.email} />
         <div className="side-user">
           {user.image ? (
             // eslint-disable-next-line @next/next/no-img-element

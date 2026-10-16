@@ -1,0 +1,152 @@
+{
+  "nav": {
+    "label": "Feedback",
+    "home": "zerosoft, inicio",
+    "sub": "feedback",
+    "board": "Ideas",
+    "roadmap": "Roadmap",
+    "changelog": "Changelog",
+    "signIn": "Ingresar"
+  },
+  "meta": {
+    "title": "Feedback",
+    "description": "Ideas y pedidos para zerosoft. Votá lo que necesitás, comentá y seguí cada idea hasta que sale.",
+    "roadmapTitle": "Roadmap",
+    "roadmapDescription": "Lo que está planeado, en curso y lanzado en zerosoft.",
+    "newTitle": "Proponer una idea"
+  },
+  "hero": {
+    "title": "Qué construimos después.",
+    "intro": "Proponé ideas, votá las que necesitás y seguí su estado. Lo más votado sube en la lista.",
+    "propose": "Proponer idea"
+  },
+  "toolbar": {
+    "search": "Buscar ideas",
+    "allProducts": "Todos los productos",
+    "allStatuses": "Todos los estados",
+    "productLabel": "Producto",
+    "statusLabel": "Estado",
+    "sortLabel": "Orden",
+    "sort": {
+      "top": "Más votadas",
+      "new": "Más nuevas",
+      "trending": "Tendencia"
+    },
+    "list": "Lista",
+    "columns": "Columnas",
+    "count": "{count, plural, one {# idea} other {# ideas}}"
+  },
+  "status": {
+    "idea": "Nueva",
+    "considering": "En evaluación",
+    "planned": "Planeada",
+    "in_progress": "En curso",
+    "done": "Lanzada",
+    "declined": "Cerrada"
+  },
+  "kind": {
+    "idea": "Idea",
+    "bug": "Arreglo"
+  },
+  "product": {
+    "link": "Link",
+    "crm": "CRM",
+    "cal": "Cal",
+    "track": "Track",
+    "chat": "Chat",
+    "docs": "Docs",
+    "flow": "Flow",
+    "agents": "Agents",
+    "notes": "Notes",
+    "board": "Board",
+    "robots": "Robots",
+    "platform": "Plataforma",
+    "site": "Sitio web",
+    "other": "Otro"
+  },
+  "empty": "Todavía no hay ideas. Proponé la primera.",
+  "emptySearch": "Nada coincide con la búsqueda. Probá con otras palabras o proponé la idea.",
+  "columnEmpty": "Nada por ahora.",
+  "comments": "{count, plural, one {# comentario} other {# comentarios}}",
+  "vote": {
+    "upvote": "Votar",
+    "voted": "Votada. Click para quitar el voto",
+    "error": "No pudimos guardar el voto. Probá de nuevo.",
+    "loginToVote": "Ingresá para votar"
+  },
+  "roadmap": {
+    "title": "Roadmap.",
+    "intro": "Lo que decidimos construir: planeado, en curso y lanzado. Sale de las ideas más votadas y del soporte."
+  },
+  "detail": {
+    "back": "Todas las ideas",
+    "closedTitle": "Cerrada.",
+    "closedNoReason": "No la vamos a construir por ahora.",
+    "shipped": "Ya salió.",
+    "shippedLink": "Ver en el changelog",
+    "follow": "Avisos",
+    "subscribe": "Seguir",
+    "unsubscribe": "Dejar de seguir",
+    "subscribeHint": "Te escribimos cuando pase a planeada, en curso o lanzada.",
+    "unsubscribedNotice": "Listo. No vas a recibir más avisos de esta idea.",
+    "timeline": "Historial",
+    "created": "Propuesta",
+    "movedTo": "Pasó a {status}",
+    "inReview": "revisión"
+  },
+  "comment": {
+    "title": "Comentarios",
+    "empty": "Sin comentarios todavía.",
+    "placeholder": "Contá tu caso: qué necesitás y para qué.",
+    "send": "Comentar",
+    "sending": "Enviando…",
+    "officialTag": "Equipo zerosoft",
+    "postOfficial": "Publicar como Equipo zerosoft",
+    "pinned": "Fijado",
+    "pin": "Fijar",
+    "unpin": "Desfijar",
+    "markOfficial": "Marcar como respuesta oficial",
+    "unmarkOfficial": "Quitar respuesta oficial",
+    "delete": "Borrar",
+    "deleteConfirm": "¿Borrar este comentario?",
+    "loginToComment": "Ingresá para comentar",
+    "error": "No se pudo guardar. Probá de nuevo.",
+    "anonymous": "Alguien",
+    "markdownHint": "Markdown básico: **negrita**, _cursiva_, `código`, links."
+  },
+  "propose": {
+    "title": "Proponer una idea.",
+    "intro": "Antes de enviar, mirá si alguien ya la propuso: votarla suma más que repetirla.",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Exportar contactos a CSV",
+    "descriptionLabel": "Detalle (opcional)",
+    "descriptionPlaceholder": "Qué necesitás, para qué y cómo lo resolvés hoy.",
+    "productLabel": "Producto",
+    "submit": "Publicar idea",
+    "sending": "Publicando…",
+    "similarTitle": "Ideas parecidas",
+    "similarHint": "Escribí el título y te mostramos ideas parecidas para votar.",
+    "moderation": "Las ideas se publican al instante. Revisamos todo y cerramos lo duplicado o fuera de tema.",
+    "loginBody": "Para proponer y votar ideas necesitás una cuenta. Ingresás con Google y volvés acá.",
+    "login": "Ingresar con Google",
+    "errorInvalid": "Escribí un título de al menos 6 caracteres.",
+    "errorRate": "Demasiadas ideas en poco tiempo. Probá en un rato.",
+    "errorGeneric": "No se pudo publicar. Probá de nuevo."
+  },
+  "launcher": {
+    "title": "Feedback",
+    "open": "Feedback y novedades",
+    "close": "Cerrar",
+    "tabs": {
+      "ideas": "Ideas",
+      "send": "Enviar",
+      "news": "Novedades"
+    },
+    "unread": "{count, plural, one {# novedad sin leer} other {# novedades sin leer}}",
+    "searchPlaceholder": "Buscar ideas para votar",
+    "searchEmpty": "No hay ideas con esas palabras. Mandala desde Enviar.",
+    "newsEmpty": "Sin novedades por ahora.",
+    "seeBoard": "Ver todas las ideas",
+    "seeChangelog": "Changelog completo"
+  }
+}

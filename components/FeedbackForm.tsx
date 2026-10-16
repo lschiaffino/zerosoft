@@ -3,22 +3,8 @@
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { FEEDBACK_KINDS, FEEDBACK_MAX, FEEDBACK_PRODUCTS, type FeedbackKind, type FeedbackProduct } from '@/lib/feedback-constants';
+import { productColor } from '@/lib/product-taxonomy';
 import '@/styles/feedback.css';
-
-/** Color de cada producto (tokens --c-* de globals.css). */
-const PRODUCT_COLOR: Partial<Record<FeedbackProduct, string>> = {
-  link: 'var(--c-link)',
-  crm: 'var(--c-crm)',
-  cal: 'var(--c-cal)',
-  track: 'var(--c-track)',
-  chat: 'var(--c-chat)',
-  docs: 'var(--c-docs)',
-  flow: 'var(--c-flow)',
-  notes: 'var(--c-notes)',
-  board: 'var(--c-board)',
-  agents: 'var(--c-agents)',
-  robots: 'var(--c-robots)',
-};
 
 /**
  * Formulario de feedback compartido: modal de la app (con sesión, sin email)
@@ -36,6 +22,7 @@ export default function FeedbackForm({
   onCancel?: () => void;
 }) {
   const t = useTranslations('feedback.form');
+  const tp = useTranslations('feedbackBoard.product');
   const [kind, setKind] = useState<FeedbackKind>('idea');
   const [product, setProduct] = useState<FeedbackProduct>(defaultProduct);
   const [message, setMessage] = useState('');
@@ -126,11 +113,11 @@ export default function FeedbackForm({
 
       <label className="fb-field">
         <span className="label">{t('productLabel')}</span>
-        <span className="fb-select-wrap" style={{ '--dot': PRODUCT_COLOR[product] ?? 'var(--line)' } as CSSProperties}>
+        <span className="fb-select-wrap" style={{ '--dot': productColor(product) } as CSSProperties}>
           <select className="select" value={product} onChange={(e) => setProduct(e.target.value as FeedbackProduct)}>
             {FEEDBACK_PRODUCTS.map((p) => (
               <option key={p} value={p}>
-                {t(`product.${p}`)}
+                {tp(p)}
               </option>
             ))}
           </select>
