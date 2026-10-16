@@ -69,6 +69,7 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
   const mapLabels: NetworkMapLabels = {
     title: t('map.title'),
     hint: t('map.hint'),
+    hintTouch: t('map.hintTouch'),
     lines: Object.fromEntries(PRODUCT_KEYS.map((k) => [k, t(`map.lines.${k}`)])) as Record<ProductKey, string>,
     stations: Object.fromEntries(
       NET_STATIONS.map((s) => [s.id, { name: t(`map.stations.${s.id}.name`), desc: t(`map.stations.${s.id}.desc`) }]),
@@ -133,7 +134,7 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
             <p className="bp-lead">{t('name.lead')}</p>
             <div className="bp-yesno">
               <div>
-                <h3 className="bp-tag data">{t('name.yes')}</h3>
+                <h3 className="bp-tag">{t('name.yes')}</h3>
                 <ul className="bp-specimens">
                   {NAME_YES.map((n) => (
                     <li key={n}>{n}</li>
@@ -141,7 +142,7 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
                 </ul>
               </div>
               <div>
-                <h3 className="bp-tag data">{t('name.no')}</h3>
+                <h3 className="bp-tag">{t('name.no')}</h3>
                 <ul className="bp-specimens is-no">
                   {NAME_NO.map((n) => (
                     <li key={n}>{n}</li>
@@ -189,13 +190,13 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
                 <div className="bp-plate-art">
                   <Logo tone="ink" height={72} title="zerosoft" />
                 </div>
-                <figcaption className="data">{t('logo.onLight')}</figcaption>
+                <figcaption>{t('logo.onLight')} · <span className="data">logo-dark.svg</span></figcaption>
               </figure>
               <figure className="bp-plate is-ink">
                 <div className="bp-plate-art">
                   <Logo tone="white" height={72} title="zerosoft" />
                 </div>
-                <figcaption className="data">{t('logo.onDark')}</figcaption>
+                <figcaption>{t('logo.onDark')} · <span className="data">logo-light.svg</span></figcaption>
               </figure>
               <figure className="bp-plate is-symbol">
                 <div className="bp-plate-art">
@@ -206,8 +207,8 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
                     <Logo variant="symbol" tone="white" height={72} title="" />
                   </span>
                 </div>
-                <figcaption className="data">
-                  {t('logo.symbol')} · {t('logo.symbolFile')}
+                <figcaption>
+                  {t('logo.symbol')} · <span className="data">{t('logo.symbolFile')}</span>
                 </figcaption>
               </figure>
             </div>
@@ -337,10 +338,12 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
                       </span>
                     </th>
                     <td>
+                      <span className="bp-cell-label">{t('lines.colLine')}</span>
                       <CopyValue value={l.line} label={t('lines.copy', { value: l.line })} copied={t('lines.copied')} />
                       <CopyValue value={l.lineOklch} label={t('lines.copy', { value: l.lineOklch })} copied={t('lines.copied')} />
                     </td>
                     <td>
+                      <span className="bp-cell-label">{t('lines.colInk')}</span>
                       <CopyValue value={l.ink} label={t('lines.copy', { value: l.ink })} copied={t('lines.copied')} />
                       <CopyValue value={l.inkOklch} label={t('lines.copy', { value: l.inkOklch })} copied={t('lines.copied')} />
                     </td>
@@ -376,7 +379,7 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
             <p className="bp-lead">{t('type.lead')}</p>
             <div className="bp-type-grid">
               <div className="bp-type-spec">
-                <h3 className="bp-tag data">{t('type.signage')}</h3>
+                <h3 className="bp-tag">{t('type.signage')}</h3>
                 <p className="data bp-small">{t('type.signageSpec')}</p>
                 <div className="bp-wdth-ramp" aria-hidden="true">
                   {[62, 75, 88, 100].map((w) => (
@@ -388,10 +391,10 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
                 </div>
               </div>
               <div className="bp-type-spec">
-                <h3 className="bp-tag data">{t('type.ui')}</h3>
+                <h3 className="bp-tag">{t('type.ui')}</h3>
                 <p className="data bp-small">{t('type.uiSpec')}</p>
                 <p className="bp-ui-sample">{t('type.uiSample')}</p>
-                <h3 className="bp-tag data">{t('type.data')}</h3>
+                <h3 className="bp-tag">{t('type.data')}</h3>
                 <p className="data bp-small">{t('type.dataSpec')}</p>
                 <p className="data bp-data-sample">#7b4dff · 0,0083 × 3 = 0,025 · 2026-10-16 10:00</p>
               </div>
@@ -402,9 +405,9 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
               <tbody>
                 {SCALE.map((s) => (
                   <tr key={s.key}>
-                    <th scope="row" className="data">
+                    <th scope="row">
                       {t(`type.scale.${s.key}`)}
-                      <span className="bp-small">
+                      <span className="bp-small data">
                         {s.px}/{s.lh}
                         {s.cls === 'is-signage' ? ` · wdth ${s.wdth} · 800` : ''}
                       </span>
@@ -444,11 +447,11 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
                   </div>
                   <div className="bp-voice-ex">
                     <p>
-                      <span className="bp-tag data">{t('voice.yes')}</span>
+                      <span className="bp-tag">{t('voice.yes')}</span>
                       <span className="bp-ex">{t(`voice.rules.${r}.yes`)}</span>
                     </p>
                     <p className="is-no">
-                      <span className="bp-tag data">{t('voice.no')}</span>
+                      <span className="bp-tag">{t('voice.no')}</span>
                       <span className="bp-ex">{t(`voice.rules.${r}.no`)}</span>
                     </p>
                   </div>
@@ -463,6 +466,9 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
           <SectionSign id="h-network" title={t('network.title')} />
           <div className="bp-wrap">
             <p className="bp-lead">{t('network.lead')}</p>
+            <div className="bp-map-scroll">
+              <NetworkMap locale={locale} labels={mapLabels} className="bp-map-wide" />
+            </div>
             <table className="bp-table bp-network">
               <thead>
                 <tr>
@@ -585,7 +591,7 @@ function ClearSpace({ unit }: { unit: string }) {
           <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={st.r - st.ring / 2} className="bp-clear-unit" strokeWidth={st.ring} />
         ))}
       </svg>
-      <figcaption className="data">{unit} = ⌀ o</figcaption>
+      <figcaption>{unit} = ⌀ o</figcaption>
     </figure>
   );
 }

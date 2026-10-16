@@ -25,6 +25,7 @@
   "map": {
     "title": "Plano de la red de zerosoft: once líneas y sus estaciones de combinación",
     "hint": "Pasá por una línea o una estación para ver con qué combina.",
+    "hintTouch": "Tocá una estación para ver con qué combina.",
     "lines": {
       "link": "Link: cada link creado o clickeado puede disparar un flow, y un flow crea links.",
       "crm": "CRM: el centro de la red. Recibe los contactos de Cal, Chat y Agents, y sus eventos disparan flows.",
@@ -108,8 +109,8 @@
     "lead": "El wordmark es zerosoft en Archivo angosta y pesada, con la o de zero convertida en estación. El símbolo es esa estación sola.",
     "wordmark": "Wordmark",
     "symbol": "Símbolo",
-    "onLight": "Tinta sobre claro · logo-dark.svg",
-    "onDark": "Blanco sobre la banda negra · logo-light.svg",
+    "onLight": "Tinta sobre claro",
+    "onDark": "Blanco sobre la banda negra",
     "symbolFile": "symbol.svg",
     "clearTitle": "Área de resguardo",
     "clearBody": "Una estación de aire por lado: el diámetro de la o de zero. Nada entra en ese margen.",

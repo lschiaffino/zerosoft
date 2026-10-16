@@ -222,6 +222,18 @@ body:has(.bp) .site-footer { display: none; }
 
 .net-caption-line { flex: 0 0 48px; height: 8px; transition: background 0.2s var(--ease-out-expo); }
 .net-caption-text { max-width: 72ch; }
+.net-hint-touch { display: none; }
+@media (hover: none) {
+  .net-hint-hover { display: none; }
+  .net-hint-touch { display: inline; }
+}
+
+/* Zona de toque invisible alrededor de cada estación (≥ 24 px en pantalla). */
+.net-hit-stop { fill: transparent; stroke: none; pointer-events: all; }
+
+/* El segundo plano, en la sección "La red": solo en pantallas angostas, con scroll horizontal. */
+.bp-map-scroll { display: none; }
+.bp-cell-label { display: none; }
 
 /* La línea se dibuja una vez; las estaciones aparecen de golpe al final. */
 @media (prefers-reduced-motion: no-preference) {
@@ -285,7 +297,7 @@ body:has(.bp) .site-footer { display: none; }
 .bp-body { max-width: 65ch; color: var(--brand-gray-1); }
 .bp-small { font-size: var(--t-data); color: var(--brand-gray-2); }
 
-.bp-tag { display: block; font-size: var(--t-data); font-weight: 500; color: var(--brand-gray-2); margin-bottom: 12px; }
+.bp-tag { display: block; font-size: var(--t-data); font-weight: 600; color: var(--brand-gray-1); margin-bottom: 12px; }
 
 .bp-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; }
 
@@ -313,9 +325,8 @@ body:has(.bp) .site-footer { display: none; }
 .bp-table th,
 .bp-table td { padding: 16px 16px 16px 0; text-align: left; vertical-align: middle; border-top: 1px solid var(--brand-rule); }
 .bp-table thead th {
-  font-family: var(--font-data);
   font-size: var(--t-data);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--brand-gray-2);
   border-top: 0;
   padding-top: 0;
@@ -349,7 +360,7 @@ body:has(.bp) .site-footer { display: none; }
 .bp-plate.is-symbol .bp-plate-art { justify-content: center; gap: 0; padding: 0; }
 .bp-plate.is-symbol .bp-plate-art > * { flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; }
 .bp-plate-ink { background: var(--brand-ink); }
-.bp-plate figcaption { padding-top: 12px; font-size: var(--t-data); color: var(--brand-gray-2); }
+.bp-plate figcaption { padding-top: 12px; font-size: var(--t-data); color: var(--brand-gray-1); }
 
 .bp-measure { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 56px; }
 
@@ -472,7 +483,7 @@ body:has(.bp) .site-footer { display: none; }
 .bp-ui-sample { margin-top: 16px; font-size: var(--t-lead); line-height: 1.45; max-width: 40ch; }
 .bp-data-sample { margin-top: 16px; font-size: 15px; }
 
-.bp-scale th { width: 30%; font-size: var(--t-data); font-weight: 500; }
+.bp-scale th { width: 30%; font-size: var(--t-ui); font-weight: 600; }
 .bp-scale th .bp-small { display: block; }
 .bp-scale td { max-width: 0; overflow: hidden; }
 .bp-scale-sample { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
@@ -561,8 +572,17 @@ body:has(.bp) .site-footer { display: none; }
   .bp-hero-foot { padding-top: 24px; }
   .bp-hero-map { padding: 16px 16px 24px; }
   .net-svg { max-height: none; }
-  .net-label { font-size: 40px; }
-  .net-station-name { display: none; }
+  .bp-hero-map .net-label { font-size: 40px; }
+  .bp-hero-map .net-station-name { display: none; }
+  .bp-map-scroll {
+    display: block;
+    overflow-x: auto;
+    margin: 24px -16px 0;
+    padding: 0 16px 8px;
+    overscroll-behavior-x: contain;
+  }
+  .bp-map-wide { width: 760px; }
+  .bp-cell-label { display: block; font-size: var(--t-data); font-weight: 600; color: var(--brand-gray-1); margin-bottom: 2px; }
 
   .bp-wrap { padding: 0 16px; }
   .bp .bp-section { padding-bottom: 72px; }

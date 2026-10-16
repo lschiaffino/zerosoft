@@ -9,12 +9,15 @@ const R = 18;
 const RING = 8;
 /** Distancia entre los dos anillos de una combinación. */
 const PAIR = 44;
+/** Radio de la zona de toque invisible: 32 unidades son ≥ 24 px aun con el plano a 0,75. */
+const HIT = 32;
 
 export interface NetworkMapLabels {
   /** Nombre del plano para lectores de pantalla. */
   title: string;
-  /** Texto del pie cuando no hay nada encendido. */
+  /** Texto del pie cuando no hay nada encendido (puntero y táctil). */
   hint: string;
+  hintTouch: string;
   /** Qué hace cada línea con las otras (pie al encenderla). */
   lines: Record<ProductKey, string>;
   /** Nombre corto y descripción de cada estación de combinación. */
@@ -95,6 +98,7 @@ export default function NetworkMap({
                 width={2 * (dx + R + 8)}
                 height={2 * (dy + R + 8)}
               />
+              <circle cx={s.x} cy={s.y} r={HIT} className="net-hit-stop" />
               {s.external || s.lines.length < 2 ? (
                 <circle cx={s.x} cy={s.y} r={R - RING / 2} className="net-ring" />
               ) : (
@@ -132,6 +136,7 @@ export default function NetworkMap({
             onBlur={clear}
           >
             <rect className="net-focus" x={l.terminal.x - R - 8} y={l.terminal.y - R - 8} width={2 * (R + 8)} height={2 * (R + 8)} />
+            <circle cx={l.terminal.x} cy={l.terminal.y} r={HIT} className="net-hit-stop" />
             <circle cx={l.terminal.x} cy={l.terminal.y} r={R - RING / 2} className="net-ring" />
             <text className="net-label" x={l.label.x} y={l.label.y} textAnchor={l.label.anchor}>
               {PRODUCT_CONFIG[l.key].name}
@@ -145,7 +150,16 @@ export default function NetworkMap({
           aria-hidden="true"
           style={{ background: activeKey ? `var(--c-${activeKey})` : 'var(--brand-ink)' }}
         />
-        <span className="net-caption-text">{active ? active.text : labels.hint}</span>
+        <span className="net-caption-text">
+          {active ? (
+            active.text
+          ) : (
+            <>
+              <span className="net-hint-hover">{labels.hint}</span>
+              <span className="net-hint-touch">{labels.hintTouch}</span>
+            </>
+          )}
+        </span>
       </figcaption>
     </figure>
   );

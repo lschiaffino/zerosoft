@@ -1377,14 +1377,23 @@ section.lp-section { padding-top: clamp(72px, 8vw, 120px); padding-bottom: clamp
 }
 
 .lp-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 36px; width: fit-content; max-width: 100%; }
+/* Base de marca: los botones del hero en Archivo, rectos, en minúscula de oración. */
+.lp-hero .lp-ctas .btn {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  border-width: 2px;
+  border-radius: 0;
+}
 .lp-ctas-center { justify-content: center; margin-inline: auto; }
 
 .lp-notes {
   margin-top: 24px;
   width: fit-content;
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  font-family: var(--font-ui);
+  font-size: 14px;
   color: var(--ink-3);
 }
 .lp-notes a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #c8c8c8; }

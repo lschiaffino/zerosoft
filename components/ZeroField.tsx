@@ -92,7 +92,7 @@ export default function ZeroField({
           const cctx = c.getContext('2d');
           if (!cctx) return;
           // Cada partícula es una estación: un anillo grueso (0,44 del radio).
-          const r = SPRITE * 0.34;
+          const r = SPRITE * 0.48;
           const w = r * 0.44;
           cctx.strokeStyle = `rgb(${rgb})`;
           cctx.lineWidth = w;

@@ -25,6 +25,7 @@
   "map": {
     "title": "zerosoft network map: eleven lines and their interchange stations",
     "hint": "Hover a line or a station to see what it connects to.",
+    "hintTouch": "Tap a station to see what it connects to.",
     "lines": {
       "link": "Link: every link created or clicked can trigger a flow, and a flow creates links.",
       "crm": "CRM: the center of the network. It gets contacts from Cal, Chat and Agents, and its events trigger flows.",
@@ -108,8 +109,8 @@
     "lead": "The wordmark is zerosoft in narrow, heavy Archivo, with the o of zero turned into a station. The symbol is that station on its own.",
     "wordmark": "Wordmark",
     "symbol": "Symbol",
-    "onLight": "Ink on light · logo-dark.svg",
-    "onDark": "White on the black band · logo-light.svg",
+    "onLight": "Ink on light",
+    "onDark": "White on the black band",
     "symbolFile": "symbol.svg",
     "clearTitle": "Clear space",
     "clearBody": "One station of air on every side: the diameter of the o in zero. Nothing enters that margin.",
