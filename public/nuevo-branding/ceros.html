@@ -42,7 +42,7 @@ pre{font-family:inherit;white-space:pre;line-height:1.05}
 .inner{max-width:1180px;margin:0 auto;padding:0 24px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .meta{max-width:1180px;margin:0 auto;padding:22px 24px 56px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;font-size:14px;line-height:1.5;color:var(--ink-2)}
-.meta h4{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin-bottom:6px}
+.meta .mh{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin-bottom:6px}
 .label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.6;margin-bottom:10px;display:block}
 @media (max-width:860px){
   .grid2,.meta{grid-template-columns:1fr}
@@ -161,7 +161,7 @@ pre{font-family:inherit;white-space:pre;line-height:1.05}
 .d6 .ill+.ill{padding-left:20px}
 .d6 .ill:last-child{border-right:0}
 .d6 .ill pre{font:400 13px/1.25 "IBM Plex Mono";color:#0d0d0d;margin:14px 0}
-.d6 .ill h5{font-size:18px;font-weight:500}
+.d6 .ill .ttl{font-size:18px;font-weight:500}
 .d6 .ill p{font-size:14px;color:#4a4a4a;line-height:1.45}
 .d6 .lockup{display:flex;align-items:center;gap:8px;font:500 22px "Space Grotesk";letter-spacing:-.02em}
 @media (max-width:860px){.d6 .ills{grid-template-columns:1fr}.d6 .ill,.d6 .ill+.ill{padding:18px 0;border-right:0;border-bottom:1px solid #e6e6e6}}
@@ -175,7 +175,7 @@ pre{font-family:inherit;white-space:pre;line-height:1.05}
 .app-side a{display:flex;gap:10px;align-items:center;padding:6px 14px;text-decoration:none}
 .app-side a.on{font-weight:600}
 .app-main{padding:16px 18px;min-width:0}
-.app-main h6{font-size:18px;font-weight:500;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.app-main .ttl{font-size:18px;font-weight:500;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:12px}
 .app-main table{width:100%;border-collapse:collapse}
 .app-main th{text-align:left;font-weight:500;opacity:.6;padding:6px 8px 6px 0;font-size:12px}
 .app-main td{padding:7px 8px 7px 0;border-top:1px solid color-mix(in srgb,currentColor 18%,transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
@@ -247,9 +247,9 @@ pre{font-family:inherit;white-space:pre;line-height:1.05}
     </div>
   </div>
   <div class="meta">
-    <div><h4>Personalidad</h4>Artesanal y técnica a la vez. El cero texturado se reconoce de lejos aunque no se lea el nombre.</div>
-    <div><h4>En la app</h4>La app queda sobria en mono, con fondo papel. La textura de ceros solo aparece en estados vacíos, cargas y el inicio.</div>
-    <div><h4>Riesgo</h4>Si se abusa del campo, todo se ve ruidoso. Necesita reglas claras de dónde va la textura.</div>
+    <div><h3 class="mh">Personalidad</h3>Artesanal y técnica a la vez. El cero texturado se reconoce de lejos aunque no se lea el nombre.</div>
+    <div><h3 class="mh">En la app</h3>La app queda sobria en mono, con fondo papel. La textura de ceros solo aparece en estados vacíos, cargas y el inicio.</div>
+    <div><h3 class="mh">Riesgo</h3>Si se abusa del campo, todo se ve ruidoso. Necesita reglas claras de dónde va la textura.</div>
   </div>
 </section>
 
@@ -272,9 +272,9 @@ pre{font-family:inherit;white-space:pre;line-height:1.05}
     </div>
   </div>
   <div class="meta">
-    <div><h4>Personalidad</h4>La más fuerte y la más nerd. Se nota que es open source y que se puede instalar.</div>
-    <div><h4>En la app</h4>Modo oscuro por defecto, todo mono, atajos de teclado a la vista. Ideal para Track, Flow o Robots.</div>
-    <div><h4>Riesgo</h4>Para una persona no técnica que entra a Cal o CRM puede sentirse hostil. Hace falta un modo claro bien resuelto.</div>
+    <div><h3 class="mh">Personalidad</h3>La más fuerte y la más nerd. Se nota que es open source y que se puede instalar.</div>
+    <div><h3 class="mh">En la app</h3>Modo oscuro por defecto, todo mono, atajos de teclado a la vista. Ideal para Track, Flow o Robots.</div>
+    <div><h3 class="mh">Riesgo</h3>Para una persona no técnica que entra a Cal o CRM puede sentirse hostil. Hace falta un modo claro bien resuelto.</div>
   </div>
 </section>
 
@@ -298,9 +298,9 @@ pre{font-family:inherit;white-space:pre;line-height:1.05}
     </div>
   </div>
   <div class="meta">
-    <div><h4>Personalidad</h4>Gráfica y de afiche. El "cero hecho de ceros" es un sistema que se puede llevar a cualquier pieza: remeras, stickers, OG.</div>
-    <div><h4>En la app</h4>Tipografía mono normal para la UI. El bitmap se usa solo en títulos grandes, logo e íconos.</div>
-    <div><h4>Riesgo</h4>En tamaños chicos el bitmap no se lee. Hacen falta versiones simplificadas a 16 y 32 px.</div>
+    <div><h3 class="mh">Personalidad</h3>Gráfica y de afiche. El "cero hecho de ceros" es un sistema que se puede llevar a cualquier pieza: remeras, stickers, OG.</div>
+    <div><h3 class="mh">En la app</h3>Tipografía mono normal para la UI. El bitmap se usa solo en títulos grandes, logo e íconos.</div>
+    <div><h3 class="mh">Riesgo</h3>En tamaños chicos el bitmap no se lee. Hacen falta versiones simplificadas a 16 y 32 px.</div>
   </div>
 </section>
 
@@ -324,9 +324,9 @@ pre{font-family:inherit;white-space:pre;line-height:1.05}
     </div>
   </div>
   <div class="meta">
-    <div><h4>Personalidad</h4>Mínima, tipo Apple o Linear, con un truco memorable. Es la más cercana a la marca anterior.</div>
-    <div><h4>En la app</h4>Blanco y Space Grotesk. El cero del producto es el único acento de color. El selector de apps es la fila de ceros.</div>
-    <div><h4>Riesgo</h4>Menos "ASCII". La personalidad depende de la interacción y en una imagen estática se pierde un poco.</div>
+    <div><h3 class="mh">Personalidad</h3>Mínima, tipo Apple o Linear, con un truco memorable. Es la más cercana a la marca anterior.</div>
+    <div><h3 class="mh">En la app</h3>Blanco y Space Grotesk. El cero del producto es el único acento de color. El selector de apps es la fila de ceros.</div>
+    <div><h3 class="mh">Riesgo</h3>Menos "ASCII". La personalidad depende de la interacción y en una imagen estática se pierde un poco.</div>
   </div>
 </section>
 
@@ -348,9 +348,9 @@ pre{font-family:inherit;white-space:pre;line-height:1.05}
     </div>
   </div>
   <div class="meta">
-    <div><h4>Personalidad</h4>Calma y viva. Es la evolución natural de lo que ya había.</div>
-    <div><h4>En la app</h4>Igual que la marca anterior, con un estado de carga y estados vacíos animados en ASCII.</div>
-    <div><h4>Riesgo</h4>Es la menos sorprendente. Si lo que buscás es un salto grande de personalidad, se queda corta.</div>
+    <div><h3 class="mh">Personalidad</h3>Calma y viva. Es la evolución natural de lo que ya había.</div>
+    <div><h3 class="mh">En la app</h3>Igual que la marca anterior, con un estado de carga y estados vacíos animados en ASCII.</div>
+    <div><h3 class="mh">Riesgo</h3>Es la menos sorprendente. Si lo que buscás es un salto grande de personalidad, se queda corta.</div>
   </div>
 </section>
 
@@ -370,9 +370,9 @@ pre{font-family:inherit;white-space:pre;line-height:1.05}
     </div>
   </div>
   <div class="meta">
-    <div><h4>Personalidad</h4>Seria y cálida. El ASCII se lee como el dibujo de alguien, no como un efecto.</div>
-    <div><h4>En la app</h4>Prácticamente la marca anterior. Las ilustraciones aparecen en estados vacíos y onboarding.</div>
-    <div><h4>Riesgo</h4>Hay que dibujar a mano una ilustración por producto (11 o más) para que no se vea genérico.</div>
+    <div><h3 class="mh">Personalidad</h3>Seria y cálida. El ASCII se lee como el dibujo de alguien, no como un efecto.</div>
+    <div><h3 class="mh">En la app</h3>Prácticamente la marca anterior. Las ilustraciones aparecen en estados vacíos y onboarding.</div>
+    <div><h3 class="mh">Riesgo</h3>Hay que dibujar a mano una ilustración por producto (11 o más) para que no se vea genérico.</div>
   </div>
 </section>
 
@@ -564,7 +564,7 @@ const ILL=[
  0 Exportar  0 Webhooks  0 Docs
  0 Filtros               0 i18n
  0 Mobile`]];
-$('i6').innerHTML=ILL.map(([n,p,a])=>`<div class="ill"><h5>${n}</h5><pre>${a}</pre><p>${p}</p></div>`).join('');
+$('i6').innerHTML=ILL.map(([n,p,a])=>`<div class="ill"><p class="ttl">${n}</p><pre>${a}</pre><p>${p}</p></div>`).join('');
 
 /* ---------- Mini app ---------- */
 const ICON={
@@ -580,7 +580,7 @@ function miniApp(id,d,{empty}={}){
   const rows=[['zerosoft.ai/lanzamiento','producthunt.com/posts/…','hoy'],['zerosoft.ai/cal','zerosoft.ai/es/book/lauta','ayer'],['zerosoft.ai/gh','github.com/lschiaffino/zerosoft','12 oct'],['zerosoft.ai/docs','zerosoft.ai/es/docs','10 oct']];
   const btn={d1:'<a class="btn" style="margin:0">Nuevo</a>',d2:'<a class="btn" style="margin:0">n · nuevo</a>',d3:'<a class="btn" style="margin:0">Nuevo</a>',d4:'<a class="btn" style="margin:0">Nuevo</a>',d5:'<a class="btn" style="margin:0">Nuevo</a>',d6:'<a class="btn" style="margin:0">Nuevo link</a>'}[d];
   $(id).innerHTML=`<div class="app"><div class="app-side"><div class="ws">${d==='d2'?'[0] mi-equipo':'mi equipo'}</div>${side}</div>
-  <div class="app-main"><h6>Links ${btn}</h6><table><thead><tr><th>Link</th><th>Destino</th><th>Creado</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table>
+  <div class="app-main"><p class="ttl">Links ${btn}</p><table><thead><tr><th>Link</th><th>Destino</th><th>Creado</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table>
   ${empty||''}</div></div>`;
 }
 miniApp('a1','d1',{empty:`<pre class="empty" style="font-size:9px;line-height:1">${zeroGlyph(22,10,0.5)}</pre>`});
