@@ -25,6 +25,7 @@ export function chatLabels(t: T): AgentChatLabels {
     input: t('chat.input'),
     output: t('chat.output'),
     toolError: t('chat.toolError'),
+    running: t('chat.running'),
     error: (code) => errorText(t, code),
     toolName: (tool) => toolName(t, tool),
   };

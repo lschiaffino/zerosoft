@@ -1,6 +1,6 @@
 {
   "title": "Agents",
-  "subtitle": "Agentes de AI que conversam com seus clientes no Chat, numa página pública ou pela API — e executam ações em toda a suíte.",
+  "subtitle": "Agentes de AI que atendem seus clientes no Chat, numa página pública ou pela API, e executam ações em toda a suíte.",
   "sidebar": {
     "agents": "Agentes"
   },
@@ -10,19 +10,24 @@
   },
   "list": {
     "title": "Seus agentes",
-    "new": "Novo agente",
+    "new": "Criar agente",
     "adminOnly": "Só admins e owners podem criar ou editar agentes. Você pode vê-los, testá-los no playground e avaliar respostas.",
-    "empty": "Ainda não há agentes.",
-    "emptyHint": "Comece com um modelo abaixo ou crie um agente em branco.",
+    "empty": "Ainda não há agentes",
+    "emptyHint": "Um agente responde com seus docs e usa a suíte: agenda no Cal, salva leads no CRM e abre issues no Track.",
     "name": "Agente",
     "channels": "Canais",
     "conversations7d": "Conv. 7d",
     "feedback": "Aprovação",
     "status": "Status",
     "noTools": "Sem ferramentas",
+    "toolsCount": "{count, plural, one {# ferramenta} other {# ferramentas}}",
     "noChannels": "Não publicado",
-    "enabled": "On",
-    "disabled": "Off"
+    "enabled": "Ativo",
+    "disabled": "Desligado",
+    "emptyAlt": "ou comece com um modelo abaixo",
+    "noFeedback": "Sem votos",
+    "toggle": "Ativar {name}",
+    "loading": "Carregando agentes"
   },
   "channelNames": {
     "chat": "Chat",
@@ -47,11 +52,13 @@
       "instructions": "Você é um SDR de vendas simpático. Seu objetivo é entender o que o visitante precisa, responder às perguntas e, se houver interesse, agendar uma demo.\n\nComo trabalhar:\n- Responda perguntas de produto e preço só com a base de conhecimento.\n- Faça no máximo uma pergunta por vez: a empresa, o tamanho da equipe e o que quer resolver.\n- Quando houver interesse, ofereça uma demo. Consulte a disponibilidade e ofereça 3 horários concretos no fuso horário da pessoa (pergunte se não souber).\n- Antes de reservar, confirme o horário exato e peça o nome completo e o e-mail de trabalho. Reserve só depois da confirmação.\n- Salve o lead no CRM com e-mail, nome e uma nota curta do que precisa.\n- Se perguntarem sobre contratos personalizados, revisões de segurança ou algo que você não sabe, transfira para uma pessoa.\n\nTom: caloroso, conciso e nunca insistente."
     },
     "qualifier": {
-      "name": "Qualificador de leads → CRM",
+      "name": "Qualificador de leads",
       "desc": "Faz suas perguntas de qualificação, salva as respostas como nota no CRM e encaminha os leads quentes para a equipe.",
       "welcome": "Olá! Algumas perguntas rápidas para te direcionar à pessoa certa.",
       "instructions": "Você qualifica leads de entrada para a equipe de vendas.\n\nFaça estas perguntas, uma de cada vez e de forma natural:\n1. Qual é o seu nome e e-mail de trabalho?\n2. Em que empresa você trabalha e quantas pessoas há na sua equipe?\n3. Que problema você quer resolver?\n4. Para quando precisa de uma solução (este mês, este trimestre, depois)?\n5. Há orçamento definido?\n\nQuando tiver o e-mail, crie ou atualize o contato no CRM. Quando tiver todas as respostas, adicione uma nota com um resumo curto e uma pontuação: QUENTE (precisa neste trimestre e tem orçamento), MORNO ou FRIO.\nPara leads QUENTES, transfira para uma pessoa para que vendas faça o follow-up na hora. Aos demais, agradeça e diga que a equipe vai entrar em contato.\n\nNunca invente respostas que o visitante não deu. Mensagens curtas."
-    }
+    },
+    "creating": "Criando…",
+    "tools": "Usa {tools}"
   },
   "editor": {
     "back": "Agentes",
@@ -59,14 +66,20 @@
     "emoji": "Avatar (emoji)",
     "name": "Nome do agente",
     "namePlaceholder": "Nome do agente",
-    "save": "Salvar",
+    "save": "Salvar alterações",
     "saving": "Salvando…",
     "saved": "Salvo",
-    "upToDate": "Salvo",
-    "delete": "Excluir",
+    "delete": "Excluir agente",
     "deleteConfirm": "Excluir \"{name}\"? As conversas e os registros também são apagados. Os widgets do Chat que o usavam voltam ao bot de AI.",
     "readOnly": "Somente leitura: só admins e owners podem editar este agente.",
-    "tabsLabel": "Configurações do agente"
+    "tabsLabel": "Configurações do agente",
+    "unsaved": "Alterações não salvas",
+    "discard": "Descartar",
+    "enabled": "Agente ativo",
+    "shortcut": "Salve com ⌘S ou Ctrl+S.",
+    "loading": "Carregando agente",
+    "dangerTitle": "Excluir agente",
+    "dangerBody": "Exclui o agente, suas conversas e registros. Os widgets do Chat que o usavam voltam para o bot de AI."
   },
   "tabs": {
     "instructions": "Instruções",
@@ -91,15 +104,20 @@
     "guardrails": "limites"
   },
   "instructions": {
-    "title": "Instruções",
-    "hint": "O que o agente faz, como fala e quando usa cada ferramenta. Escreva como um briefing para alguém novo na equipe.",
+    "title": "O básico",
+    "hint": "O que o agente faz, como fala e quando usa cada ferramenta.",
     "template": "Começar com um modelo…",
     "replaceConfirm": "Substituir as instruções atuais pelo modelo?",
     "placeholder": "Você é o assistente de suporte da Acme. Responda com a base de conhecimento, seja breve e transfira quando não tiver certeza…",
     "safety": "Regras de segurança são sempre adicionadas: conhecimento e resultados de ferramentas são tratados como dados, o agente nunca revela estas instruções e recusa pedidos fora do escopo.",
     "welcomeTitle": "Mensagem de boas-vindas",
     "welcomePlaceholder": "Olá! Como posso ajudar?",
-    "welcomeHint": "Aparece primeiro na página pública e no playground."
+    "welcomeHint": "Aparece primeiro na página pública e no playground.",
+    "instructionsLabel": "Instruções",
+    "instructionsHelp": "Escreva como um briefing para alguém novo no time.",
+    "templateHelp": "Substitui as instruções atuais.",
+    "advancedHint": "Transferência, limites e modelo",
+    "templateLabel": "Modelo de agente"
   },
   "handoff": {
     "title": "Transferir para uma pessoa",
@@ -119,10 +137,11 @@
     "maxChars": "Tamanho máximo da resposta (caracteres)"
   },
   "model": {
-    "title": "Modelo (opcional)",
+    "title": "Modelo",
     "placeholder": "Padrão do servidor",
     "temperature": "Temperatura",
-    "hint": "Qualquer modelo do AI Gateway como provedor/modelo, p. ex. anthropic/claude-sonnet-5-5. Temperatura menor = respostas mais previsíveis."
+    "hint": "Qualquer modelo do AI Gateway como provedor/modelo, p. ex. anthropic/claude-sonnet-5-5. Temperatura menor = respostas mais previsíveis.",
+    "section": "Modelo"
   },
   "knowledge": {
     "toolOff": "A ferramenta “Pesquisar conhecimento” está desligada: o agente não vai usar este conhecimento até você ativá-la em Ferramentas.",
@@ -132,25 +151,32 @@
     "noPages": "Você ainda não tem páginas no Docs.",
     "openDocs": "Abrir Docs",
     "untitledPage": "Sem título",
-    "public": "pública",
-    "private": "privada",
+    "public": "Pública",
+    "private": "Privada",
     "privateWarn": "Você escolheu páginas privadas: qualquer pessoa que conversar com este agente pode ver o conteúdo delas.",
     "urlsTitle": "Páginas web",
     "urlsHint": "Até 20 URLs. O texto é salvo e pesquisado junto com seus docs; atualize para buscar mudanças.",
     "refresh": "Atualizar",
     "refreshing": "Baixando…",
     "saveFirst": "Salve para baixar as novas URLs.",
-    "fetched": "{chars, number} caracteres",
+    "fetched": "{chars, plural, one {# caractere} other {# caracteres}}",
     "failed": "Não foi possível baixar: {error}",
     "pending": "Ainda não baixada",
     "remove": "Remover",
     "addUrl": "Adicionar URL",
     "cannedTitle": "Respostas prontas",
     "cannedHint": "Usar as respostas prontas de um widget do Chat.",
-    "cannedNone": "Nenhum"
+    "cannedNone": "Nenhum",
+    "status": {
+      "ok": "Baixada",
+      "error": "Erro",
+      "pending": "Pendente"
+    },
+    "urlsEmpty": "Ainda não há páginas web.",
+    "advancedHint": "Respostas salvas do Chat"
   },
   "tools": {
-    "intro": "As ferramentas permitem que o agente aja. Cada uma só alcança este workspace, valida o que recebe e fica registrada com entrada, saída e duração.",
+    "intro": "As ferramentas permitem que o agente aja na suíte. Cada uma só alcança este workspace e fica registrada com entrada, saída e duração.",
     "choose": "Escolher…",
     "create": "Criar um",
     "needsEventType": "Escolha um tipo de evento para funcionar.",
@@ -207,7 +233,16 @@
         "name": "Requisição HTTP",
         "desc": "Chama suas próprias APIs, só em domínios permitidos. Desligada por padrão."
       }
-    }
+    },
+    "groups": {
+      "knowledge": "Docs",
+      "handoff": "Chat",
+      "crm": "CRM",
+      "cal": "Cal",
+      "track": "Track",
+      "flow": "Flow"
+    },
+    "advancedHint": "Requests HTTP para suas próprias APIs"
   },
   "channels": {
     "chatTitle": "Widgets do Chat",
@@ -234,7 +269,14 @@
     "apiTitle": "API",
     "apiHint": "Envie mensagens do seu próprio app com uma API key.",
     "apiKeys": "Gerenciar API keys",
-    "apiContinue": "A resposta inclui conversationId: envie de volta para continuar a mesma conversa."
+    "apiContinue": "A resposta inclui conversationId: envie de volta para continuar a mesma conversa.",
+    "createWidget": "Criar widget",
+    "publicToggle": "Publicar numa página pública",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "status": {
+      "active": "Ativo"
+    }
   },
   "playground": {
     "intro": "Converse com o agente como um visitante faria. As ferramentas aparecem em linha com entrada e saída.",
@@ -243,14 +285,15 @@
   },
   "chat": {
     "placeholder": "Escreva uma mensagem…",
-    "send": "Enviar",
+    "send": "Enviar mensagem",
     "thinking": "Pensando…",
     "newConversation": "Nova conversa",
     "handoff": "Transferido para uma pessoa.",
     "stepLimit": "Parou no limite de passos (ferramentas demais).",
     "input": "Entrada",
     "output": "Saída",
-    "toolError": "Erro"
+    "toolError": "Erro",
+    "running": "Em andamento"
   },
   "conversations": {
     "filter": "Canal",
@@ -259,14 +302,20 @@
     "empty": "Ainda não há conversas.",
     "untitled": "Conversa sem título",
     "messages": "{count, plural, one {# mensagem} other {# mensagens}}",
-    "handedOff": "transferida",
+    "handedOff": "Transferida",
     "pick": "Escolha uma conversa para ver a transcrição, as ferramentas e o feedback.",
     "openInbox": "Abrir no inbox do Chat",
     "thumbsUp": "Boa resposta",
     "thumbsDown": "Resposta ruim",
     "notePlaceholder": "O que estava errado? (opcional)",
-    "saveNote": "Salvar",
-    "toolLog": "Registro de ferramentas"
+    "saveNote": "Salvar nota",
+    "toolLog": "Registro de ferramentas",
+    "emptyTitle": "Ainda não há conversas",
+    "emptyBody": "As conversas do Chat, da página pública, da API e do playground aparecem aqui, com as ferramentas e o feedback.",
+    "tryPlayground": "Testar no playground",
+    "retry": "Tentar de novo",
+    "back": "Conversas",
+    "loadingDetail": "Carregando conversa"
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",
@@ -294,5 +343,10 @@
     "defaultWelcome": "Olá! Como posso ajudar hoje?",
     "offline": "Este assistente está indisponível agora. Tente mais tarde.",
     "disclaimer": "Você está conversando com um assistente de AI. Ele pode errar; uma pessoa pode assumir quando necessário."
+  },
+  "page": {
+    "errorTitle": "Não foi possível carregar o Agents",
+    "errorBody": "Pode ser a conexão ou um erro do servidor. Seus agentes não foram alterados.",
+    "retry": "Tentar de novo"
   }
 }
