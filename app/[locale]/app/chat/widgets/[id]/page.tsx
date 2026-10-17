@@ -1,54 +1,32 @@
 import { headers } from 'next/headers';
-import { canAccessWidget } from '@/lib/chat-access';
 import { notFound } from 'next/navigation';
+import { canAccessWidget } from '@/lib/chat-access';
 import { requireUser } from '@/lib/session';
 import { countChatConversations, getChatWidget } from '@/lib/chat-data';
-import WidgetHeader from '@/components/chat/WidgetHeader';
-import WidgetForm from '@/components/chat/WidgetForm';
 import { aiEnabled } from '@/lib/ai';
-import EmbedCode from '@/components/chat/EmbedCode';
 import { publicOrigin } from '@/components/calendar/event-type-items';
+import WidgetSettings from '@/components/chat/WidgetSettings';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EditWidgetPage(
-  props: {
-    params: Promise<{ locale: string; id: string }>;
-  }
-) {
-  const params = await props.params;
-
-  const {
-    locale,
-    id
-  } = params;
+export default async function EditWidgetPage(props: { params: Promise<{ locale: string; id: string }> }) {
+  const { locale, id } = await props.params;
 
   const user = await requireUser(locale);
   const widget = await getChatWidget(id);
+  if (!widget || !canAccessWidget(widget, user)) notFound();
 
-  if (!widget || !canAccessWidget(widget, user)) {
-    notFound();
-  }
-
-  const conversations = await countChatConversations([widget.id]);
   const origin = publicOrigin((await headers()).get('host'));
+  // Para el diálogo de borrar: cuántas conversaciones se van con el widget.
+  const conversationCount = await countChatConversations([widget.id]);
 
   return (
-    <div className="app-page">
-      <WidgetHeader locale={locale} widget={widget} active="settings" conversations={conversations} />
-
-      <div className="chat-edit-grid">
-        <div className="chat-edit-form">
-          <WidgetForm
-            initial={widget}
-            aiAvailable={aiEnabled()}
-            helpCenterPath={user.handle ? `/${locale}/h/${user.handle}` : null}
-          />
-        </div>
-        <div className="chat-edit-side">
-          <EmbedCode widgetId={widget.id} origin={origin} />
-        </div>
-      </div>
-    </div>
+    <WidgetSettings
+      widget={widget}
+      origin={origin}
+      aiAvailable={aiEnabled()}
+      conversationCount={conversationCount}
+      helpCenterPath={user.handle ? `/${locale}/h/${user.handle}` : null}
+    />
   );
 }

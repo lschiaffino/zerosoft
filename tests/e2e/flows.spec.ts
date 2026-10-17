@@ -464,7 +464,9 @@ test('Chat: crear widget desde el overview con "C" y abrir su configuración', a
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/en\/app\/chat\/widgets\/[0-9a-f-]+$/, { timeout: 60_000 });
   await expect(page.getByRole('heading', { name })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Canned responses' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Saved replies' })).toBeVisible();
+  // El editor del widget está en pestañas.
+  await expect(page.getByRole('navigation', { name: 'Widget settings' }).getByRole('link')).toHaveCount(4);
 });
 
 test('Chat: respuestas guardadas y reglas se crean en un modal, sin salir de la vista', async ({ request, page }) => {
@@ -472,7 +474,7 @@ test('Chat: respuestas guardadas y reglas se crean en un modal, sin salir de la 
   const { id: widgetId } = await w.json();
 
   await page.goto(`/en/app/chat/widgets/${widgetId}/canned`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Add response' }).click();
+  await page.getByRole('button', { name: 'Create reply' }).click();
   await page.getByRole('dialog').getByLabel('Shortcut').fill('Hola Mundo');
   await page.getByPlaceholder('Type your saved message here…').fill('Hi! How can we help?');
   await page.keyboard.press('Meta+Enter');
@@ -483,8 +485,8 @@ test('Chat: respuestas guardadas y reglas se crean en un modal, sin salir de la 
   await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Edited body')).toBeVisible();
 
-  await page.getByRole('link', { name: 'Assignment rules' }).click();
-  await page.getByRole('button', { name: 'Add rule' }).click();
+  await page.getByRole('link', { name: 'Rules', exact: true }).click();
+  await page.getByRole('button', { name: 'Create rule' }).click();
   await page.keyboard.type('Pricing questions');
   await page.getByRole('dialog').locator('select').first().selectOption('keyword');
   await page.getByPlaceholder('refund, pricing…').fill('pricing');
@@ -508,10 +510,10 @@ test('Chat: responder con Enter (y "/" inserta una respuesta guardada) y resolve
   await page.goto(`/en/app/chat/inbox/${message.conversation_id}`, { waitUntil: 'networkidle' });
   const composer = page.getByRole('textbox', { name: 'Reply' });
   await composer.fill('/than');
-  await expect(page.locator('.chat-canned-picker')).toBeVisible();
+  await expect(page.locator('.chat-picker')).toBeVisible();
   await composer.press('Enter'); // inserta la respuesta guardada
   await composer.press('Enter'); // envía
-  await expect(page.locator('.chat-message.agent').getByText('Thanks for writing in!')).toBeVisible();
+  await expect(page.locator('.chat-message[data-sender="user"]').getByText('Thanks for writing in!')).toBeVisible();
 
   await page.getByRole('button', { name: 'Resolve' }).click();
   await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible();
@@ -752,10 +754,10 @@ test('Chat: nota interna visible para agentes, nunca para el visitante', async (
 
   await page.goto(`/en/app/chat/inbox/${message.conversation_id}`, { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Internal note' }).click();
-  const composer = page.getByRole('textbox', { name: 'Reply' });
+  const composer = page.getByRole('textbox', { name: 'Internal note' });
   await composer.fill('Cliente VIP, revisar plan');
   await composer.press('Enter');
-  await expect(page.locator('.chat-message.note').getByText('Cliente VIP, revisar plan')).toBeVisible();
+  await expect(page.locator('.chat-message[data-note]').getByText('Cliente VIP, revisar plan')).toBeVisible();
 
   const thread = await request.get(`/api/chat/messages?widgetId=${widgetId}&visitorId=${visitorId}`);
   const text = JSON.stringify(await thread.json());

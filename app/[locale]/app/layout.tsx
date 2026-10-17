@@ -113,7 +113,6 @@ export default async function AppLayout(
               { href: '/app/chat', label: tChat('sidebar.overview') },
               { href: '/app/chat/inbox', label: tChat('sidebar.inbox') },
               { href: '/app/chat/people', label: tChat('sidebar.people') },
-              { href: '/app/chat/settings', label: tChat('sidebar.settings') },
               { href: '/app/chat/reports', label: tChat('sidebar.reports') },
               { href: '/app/chat/widgets', label: tChat('sidebar.widgets') },
               { href: '/app/flow', label: tFlow('sidebar.flows') },

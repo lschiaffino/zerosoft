@@ -1,7 +1,7 @@
 /* ============================================================
-   QuickModal — creación/edición rápida compartida por las apps.
-   Mismo lenguaje que el ui-modal del kit: borde de tinta, esquinas
-   rectas, sin sombra (se separa por el telón), foco en tinta.
+   QuickModal: creación/edición rápida compartida por las apps.
+   Red de subte: esquinas rectas, sin sombra, un filete de tinta
+   que lo separa del telón; acento del producto vía --accent.
    ============================================================ */
 
 .qm-overlay {
@@ -19,7 +19,7 @@
 .qm {
   width: 100%;
   border: 1px solid var(--ink);
-  border-radius: var(--radius-1, 0);
+  border-radius: 0;
   background: var(--bg);
   animation: qm-in 0.15s var(--ease);
 }
@@ -47,6 +47,18 @@
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--brand-gray-2, var(--dim));
+}
+
+/* Título real del diálogo: Archivo condensada 800, como los de la señalética. */
+.qm-heading {
+  margin: 0;
+  padding-top: 4px;
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.375rem;
+  line-height: 1.1;
+  color: var(--ink);
 }
 
 .qm-body {
@@ -166,6 +178,7 @@
 
 .qm-hint {
   margin-right: auto;
+  font-family: var(--font-ui);
   font-size: 0.75rem;
   color: var(--brand-gray-2, var(--dim));
 }
@@ -210,6 +223,14 @@
   font-size: 10px;
   line-height: 1;
   opacity: 0.8;
+}
+
+/* En pantallas táctiles no hay teclado que atajar. */
+@media (pointer: coarse) {
+  .qm-hint,
+  .kbd-hint {
+    display: none;
+  }
 }
 
 @media (max-width: 720px) {

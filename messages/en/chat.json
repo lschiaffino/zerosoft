@@ -3,13 +3,13 @@
     "overview": "Overview",
     "inbox": "Inbox",
     "people": "People",
-    "settings": "Settings",
+    "settings": "Widgets",
     "reports": "Reports",
     "widgets": "Widgets"
   },
   "overview": {
     "title": "Chat",
-    "subtitle": "Talk to visitors. One widget at a time.",
+    "subtitle": "What needs a reply now across your widgets.",
     "widgets": "Widgets",
     "conversations": "Conversations",
     "noWidgets": "No widgets yet.",
@@ -21,7 +21,10 @@
     "openConversations": "Open conversations",
     "noOpen": "No open conversations. You’re all caught up.",
     "emptyTitle": "Create your first widget",
-    "emptySub": "A widget is the chat bubble you embed on your site. Create one, paste the snippet and new conversations land in the inbox."
+    "emptySub": "A widget is the chat bubble you embed on your site. Create one, paste the snippet and new conversations land in the inbox.",
+    "unassignedOpen": "Open and unassigned",
+    "mineOpen": "Open and assigned to you",
+    "seeAll": "See all {count}"
   },
   "widgetForm": {
     "name": "Name",
@@ -37,12 +40,7 @@
     "fieldType": "Type",
     "fieldTypeText": "Text",
     "fieldTypeNumber": "Number",
-    "save": "Save widget",
     "create": "Create widget",
-    "newTitle": "New widget",
-    "newSub": "Configure how the widget looks and what it asks.",
-    "editTitle": "Edit widget",
-    "preview": "Preview",
     "days": {
       "sun": "Sun",
       "mon": "Mon",
@@ -51,13 +49,38 @@
       "thu": "Thu",
       "fri": "Fri",
       "sat": "Sat"
-    }
+    },
+    "customColor": "Pick another color",
+    "tabs": {
+      "look": "Appearance",
+      "form": "Pre-chat form",
+      "bot": "Bot",
+      "hours": "Hours"
+    },
+    "tabsLabel": "Widget settings",
+    "lookSub": "How the bubble looks on your site and what it says when opened.",
+    "welcomePlaceholder": "Hi. Tell us what you need.",
+    "deleteTitle": "Delete widget",
+    "deleteSub": "The chat stops showing on your site. Conversations are deleted with the widget.",
+    "delete": "Delete widget",
+    "formSub": "What the visitor fills in before writing. With no fields, they write right away.",
+    "noFields": "No fields: the visitor writes right away.",
+    "removeField": "Remove the {name} field",
+    "botSub": "Replies while nobody on the team has answered.",
+    "lookTitle": "Bubble and welcome",
+    "formTitle": "Fields before the chat",
+    "botTitle": "Automatic reply",
+    "hoursTitle": "Opening hours",
+    "deleteConfirmTitle": "Delete {name}?",
+    "deleteConfirmBody": "{count, plural, =0 {The widget has no conversations.} one {# conversation is deleted with its full history.} other {# conversations are deleted with their full history.}} The chat stops showing on your site. This cannot be undone.",
+    "deleteConfirmAction": "Delete widget"
   },
   "embed": {
-    "title": "Embed code",
-    "copy": "Copy",
-    "copied": "Copied",
-    "instructions": "Paste this snippet right before the closing body tag of your site."
+    "title": "Install code",
+    "copy": "Copy code",
+    "copied": "Code copied",
+    "instructions": "Paste this snippet right before the closing body tag of your site.",
+    "copyError": "Couldn’t copy. Select the code and copy it by hand."
   },
   "inbox": {
     "title": "Inbox",
@@ -68,7 +91,8 @@
       "snoozed": "Snoozed",
       "resolved": "Resolved",
       "unassigned": "Unassigned",
-      "mine": "Mine"
+      "mine": "Mine",
+      "anyone": "Anyone"
     },
     "search": "Search visitors or subjects…",
     "empty": "No conversations match your filters.",
@@ -76,7 +100,15 @@
     "unread": "Unread",
     "emptyOpen": "No open conversations. You’re all caught up.",
     "noWidgetsTitle": "No widget yet",
-    "noWidgetsSub": "Conversations arrive through a widget on your site. Create one to start receiving chats here."
+    "noWidgetsSub": "Conversations arrive through a widget on your site. Create one to start receiving chats here.",
+    "loadError": "Couldn’t load the inbox.",
+    "listLabel": "Conversations",
+    "snoozedUntil": "Snoozed, back {when}",
+    "backToList": "Back to inbox",
+    "pickTitle": "Pick a conversation",
+    "keysNav": "Next and previous",
+    "keysSearch": "Search",
+    "keysSend": "Send the reply (Shift+Enter for a new line)"
   },
   "conversation": {
     "open": "Open",
@@ -108,14 +140,22 @@
     "you": "You",
     "system": "System",
     "bot": "Bot",
-    "botBadge": "BOT",
     "priorities": {
       "low": "Low",
       "medium": "Medium",
       "high": "High",
       "urgent": "Urgent"
     },
-    "replyHint": "Reply… Enter to send · / for canned responses"
+    "anonymous": "Anonymous visitor",
+    "assignedToYou": "You",
+    "snoozeLabel": "Snooze",
+    "snoozedUntilShort": "Until {when}",
+    "details": "Details",
+    "conversation": "Conversation",
+    "replyPlaceholder": "Write your reply…",
+    "hintSend": "sends",
+    "hintCanned": "saved replies",
+    "nobody": "Nobody"
   },
   "visitorPanel": {
     "title": "Visitor",
@@ -128,7 +168,7 @@
     "csat": "CSAT",
     "createContact": "Create CRM contact",
     "logToCrm": "Save conversation to CRM",
-    "loggedToCrm": "Saved to the contact timeline ✓",
+    "loggedToCrm": "Saved to the contact timeline.",
     "crmError": "Couldn't save to the CRM. Try again.",
     "needsEmail": "Ask for an email to create a CRM contact.",
     "started": "Started"
@@ -146,12 +186,26 @@
     "conversations": "{count, plural, one {# conversation} other {# conversations}}",
     "notes": "Notes",
     "editNotes": "Edit notes",
-    "notesPlaceholder": "Add a note about this person… saved automatically",
-    "lastSeen": "Last seen"
+    "notesPlaceholder": "Context about this person for the team",
+    "lastSeen": "Last seen",
+    "subtitle": "Everyone who wrote through one of your widgets.",
+    "count": "{count, plural, one {# person} other {# people}}",
+    "emptyTitle": "Nobody has written yet",
+    "emptyBody": "Every visitor who starts a conversation shows up here with their history.",
+    "emptyAction": "See widgets",
+    "noEmail": "No email",
+    "noConversations": "No conversations",
+    "updated": "Last activity",
+    "noSubject": "No subject",
+    "data": "Details",
+    "notesHint": "Saves when you leave the field. Only your team sees it.",
+    "notesSaving": "Saving…",
+    "notesSaved": "Note saved",
+    "notesError": "Couldn’t save the note. Try again."
   },
   "rules": {
     "title": "Assignment rules",
-    "add": "Add rule",
+    "add": "Create rule",
     "matchAll": "Catch-all",
     "matchKeyword": "Keyword",
     "matchTime": "Time range",
@@ -159,7 +213,7 @@
     "assignTo": "Assign to",
     "active": "Active",
     "inactive": "Inactive",
-    "empty": "No assignment rules yet.",
+    "empty": "No rules yet",
     "matchType": "Match type",
     "keyword": "Keyword",
     "timeRange": "Time range",
@@ -170,16 +224,28 @@
     "deleteConfirm": "Delete this assignment rule?",
     "moveUp": "Move up",
     "moveDown": "Move down",
-    "namePlaceholder": "Rule name, e.g. Pricing questions to sales"
+    "namePlaceholder": "Rule name, e.g. Pricing questions to sales",
+    "create": "Create rule",
+    "order": "Order",
+    "name": "Name",
+    "condition": "Condition",
+    "state": "Status",
+    "roundRobinTeam": "Whole team, in turns",
+    "toggle": "Turn on {name}",
+    "moveUpNamed": "Move {name} up",
+    "moveDownNamed": "Move {name} down",
+    "deleteNamed": "Delete {name}",
+    "newTitle": "New rule",
+    "editTitle": "Edit rule"
   },
   "sla": {
     "title": "SLA",
     "firstResponse": "First response",
     "resolution": "Resolution",
     "breached": "Breached",
-    "breachedFirst": "First reply SLA",
-    "breachedResolution": "Resolution SLA",
-    "dueIn": "Reply in {minutes}m",
+    "breachedFirst": "First reply overdue",
+    "breachedResolution": "Resolution overdue",
+    "dueIn": "Reply in {age}",
     "resolved": "Resolved",
     "policies": "SLA policies",
     "priority": "Priority",
@@ -187,16 +253,18 @@
     "resolutionMinutes": "Resolution (min)",
     "default": "Default",
     "saved": "Saved.",
-    "policiesNote": "Targets per priority for this widget. Without a policy, first response defaults to 60 min and there is no resolution target. Leave resolution empty for no target."
+    "policiesNote": "Targets per priority for this widget, in minutes. For no resolution target, leave the field empty.",
+    "invalid": "Use whole minutes between 1 and {max}.",
+    "noTarget": "No target",
+    "breachedFirstAgo": "First reply overdue by {age}",
+    "breachedResolutionAgo": "Resolution overdue by {age}",
+    "allDefault": "All four priorities use the default: first response in 60 min, no resolution target."
   },
   "settings": {
-    "title": "Chat settings",
-    "subtitle": "Widgets, embed code, rules, canned responses and SLA.",
     "avgFirstResponse": "Avg first response",
     "withinSla": "Within first-response SLA",
     "avgResolution": "Avg resolution time",
-    "resolvedCount": "Resolved conversations",
-    "widgetsNote": "Each widget has its own look, embed code, assignment rules, canned responses and SLA policies."
+    "resolvedCount": "Resolved conversations"
   },
   "csat": {
     "title": "CSAT",
@@ -211,34 +279,47 @@
     "greeting": "Greeting",
     "greetingPlaceholder": "Hi! I'm the assistant. Let me help you…",
     "source": "Knowledge source",
-    "sourceCanned": "Canned responses",
+    "sourceCanned": "Saved replies",
     "sourceDocs": "Docs pages",
     "hint": "The bot replies once per conversation, only if nobody has answered yet. It scores visitor keywords against the source (title matches weigh double); without a match it sends just the greeting.",
-    "sourceAi": "AI (Docs + canned responses)",
-    "hintAi": "The AI bot answers every visitor message until a teammate replies, using only your public Docs pages and this widget's canned responses as knowledge. When it is unsure or the visitor asks for a person, it hands off: the conversation is flagged high priority in the inbox. If AI fails or the monthly quota runs out, the keyword bot answers instead.",
-    "aiNotConfigured": "AI is not configured on this server (set AI_GATEWAY_API_KEY). Until then the bot uses keyword matching over Docs and canned responses.",
+    "sourceAi": "AI (Docs + saved replies)",
+    "hintAi": "The AI bot answers every visitor message until a teammate replies, using only your public Docs pages and this widget's saved replies as knowledge. When it is unsure or the visitor asks for a person, it hands off: the conversation is flagged high priority in the inbox. If AI fails or the monthly quota runs out, the keyword bot answers instead.",
+    "aiNotConfigured": "AI is not configured on this server (set AI_GATEWAY_API_KEY). Until then the bot uses keyword matching over Docs and saved replies.",
     "sourceAgent": "AI agent (from Agents)",
     "hintAgent": "This widget is answered by an AI agent. Its instructions, knowledge and tools are managed in Agents → Channels. The agent stops when a teammate replies or it hands off."
   },
   "officeHours": {
     "title": "Office hours",
-    "enabled": "Set office hours",
+    "enabled": "Answer on a schedule",
     "disabled": "No office hours: the widget is always online.",
     "timezone": "Timezone",
-    "hint": "Outside these hours the widget shows an away message with the expected response time."
+    "hint": "Outside these hours the widget shows an away message with the expected response time.",
+    "zoneNote": "Time zone: {zone}",
+    "from": "{day}, from",
+    "to": "{day}, until"
   },
   "canned": {
-    "title": "Canned responses",
-    "add": "Add response",
+    "title": "Saved replies",
+    "add": "Create reply",
     "shortcut": "Shortcut",
-    "body": "Body",
-    "empty": "No canned responses yet.",
+    "body": "Text",
+    "empty": "No saved replies yet",
     "placeholder": "Type your saved message here…",
-    "sub": "Saved replies for this widget. In a conversation, type / to insert one.",
+    "sub": "Type / in a conversation to insert one.",
     "emptySub": "Save answers you type often and insert them with / while replying.",
-    "deleteConfirm": "Delete the canned response {shortcut}?",
-    "titleLabel": "Title",
-    "titlePlaceholder": "Optional — defaults to the shortcut"
+    "deleteConfirm": "Delete the saved reply {shortcut}?",
+    "titleLabel": "Name",
+    "titlePlaceholder": "e.g. First greeting",
+    "create": "Create reply",
+    "shortcutHelp": "Comes from the name. Type it in a conversation to insert the text.",
+    "shortcutTaken": "There’s already a reply with the {shortcut} shortcut.",
+    "autoActions": "Automatic actions",
+    "autoActionsAdvanced": "Automatic actions (Advanced)",
+    "actionsCount": "{count, plural, one {# action} other {# actions}}",
+    "delete": "Delete {shortcut}",
+    "tagsPlaceholder": "billing urgent",
+    "newTitle": "New reply",
+    "editTitle": "Edit reply"
   },
   "attachments": {
     "image": "Image",
@@ -263,7 +344,10 @@
     "delete": "Delete",
     "edit": "Edit",
     "loading": "Loading…",
-    "empty": "Nothing here yet."
+    "empty": "Nothing here yet.",
+    "retry": "Retry",
+    "close": "Close",
+    "actions": "Actions"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -272,10 +356,12 @@
     "messageTooLong": "Message too long (max 5,000 characters).",
     "invalid_input": "Some fields are invalid. Check them and try again.",
     "missing_name": "Name is required.",
-    "invalid_assignee": "That person can't be assigned to this conversation."
+    "invalid_assignee": "That person can't be assigned to this conversation.",
+    "loadFailed": "Couldn’t load. Check your connection and retry.",
+    "pageTitle": "This screen didn’t load",
+    "pageBody": "It may be the connection or an error on our side. Retry; if it keeps happening, tell us from Feedback."
   },
   "quick": {
-    "create": "Create",
     "hint": "Enter to create · Esc to cancel",
     "saveHint": "⌘↵ to save · Esc to cancel",
     "widgetPlaceholder": "Widget name, e.g. Website support",
@@ -283,8 +369,9 @@
   },
   "widgetNav": {
     "settings": "Widget",
-    "back": "All widgets",
-    "conversations": "{count, plural, one {# conversation} other {# conversations}}"
+    "rules": "Rules",
+    "canned": "Saved replies",
+    "sla": "SLA"
   },
   "reports": {
     "title": "Reports",
@@ -292,7 +379,7 @@
     "exportCsv": "Export CSV",
     "from": "From",
     "to": "To",
-    "apply": "Apply",
+    "apply": "Apply range",
     "lastDays": "Last {days} days",
     "conversations": "Conversations",
     "responses": "{count, plural, one {# response} other {# responses}}",
@@ -302,25 +389,31 @@
     "firstResponse": "First response",
     "resolution": "Resolution",
     "resolved": "Resolved",
-    "note": "Times are averages from when the conversation was created. CSAT from 1 to 5."
+    "note": "Times are averages from when the conversation was created. CSAT from 1 to 5.",
+    "csatLabel": "CSAT ({count, plural, one {# response} other {# responses}})",
+    "range": "Report range",
+    "presets": "Quick ranges",
+    "emptyBody": "Try a longer range."
   },
   "tags": {
     "title": "Tags",
     "filter": "Filter by tag",
     "all": "All tags",
     "remove": "Remove #{tag}",
-    "add": "+ tag"
+    "add": "Add tag"
   },
   "notes": {
     "label": "Internal note",
     "mode": "Message type",
     "hint": "Internal note… only your team sees it. @ to mention",
-    "add": "Add note"
+    "add": "Add note",
+    "mentions": "Mention",
+    "footHint": "Only your team sees it. @ to mention."
   },
   "macros": {
     "applied": "Macro {shortcut} applied",
     "pending": "Macro {shortcut}: applied when you send",
-    "title": "Actions when using this reply (macro)",
+    "title": "Applied when the reply is sent in a conversation.",
     "status": "Status",
     "assign": "Assign to",
     "tags": "Add tags",
@@ -328,10 +421,11 @@
     "none": "No change",
     "me": "Whoever uses it",
     "summary": {
-      "snooze": "Snoozes {hours} h",
-      "status": "Sets {status}",
-      "unassign": "Unassigns",
-      "assign": "Assigns to {name}"
+      "snooze": "snoozes {hours} h",
+      "status": "sets {status}",
+      "unassign": "unassigns",
+      "assign": "assigns to {name}",
+      "assignMe": "assigns to whoever uses it"
     }
   },
   "help": {
@@ -339,5 +433,16 @@
     "enabled": "Show help tab",
     "hint": "The widget adds a tab with your published Docs articles and suggests them while the visitor types a question.",
     "open": "Open help center"
+  },
+  "widgets": {
+    "title": "Widgets",
+    "subtitle": "Each widget is the chat bubble for one site, with its code, bot, hours, rules and replies.",
+    "open": "Open",
+    "on": "On",
+    "off": "Off",
+    "hoursSet": "Scheduled",
+    "alwaysOn": "Always online",
+    "created": "Created",
+    "openInbox": "{count, plural, =0 {Open inbox} one {# open in inbox} other {{formatted} open in inbox}}"
   }
 }

@@ -6,10 +6,12 @@ import '@/styles/quick-modal.css';
 export interface QuickModalProps {
   open: boolean;
   onClose: () => void;
-  /** Breadcrumb chico arriba a la izquierda (p. ej. "Link › New link"). Si es texto, también nombra el diálogo. */
-  crumb: ReactNode;
+  /** Breadcrumb chico arriba a la izquierda (p. ej. "Link › New link"). Si es texto, también nombra el diálogo. Se ignora si hay `title`. */
+  crumb?: ReactNode;
   /** false: el crumb solo nombra el diálogo (aria-label) y no se dibuja. */
   showCrumb?: boolean;
+  /** Título del diálogo en la letra de señalética ("Nuevo widget"). Reemplaza al crumb. */
+  title?: string;
   /** Contenido del formulario (campos). */
   children: ReactNode;
   onSubmit: () => void;
@@ -41,6 +43,7 @@ function QuickModalBody({
   onClose,
   crumb,
   showCrumb = true,
+  title,
   children,
   onSubmit,
   submitLabel,
@@ -112,7 +115,7 @@ function QuickModalBody({
         className="qm"
         role="dialog"
         aria-modal="true"
-        aria-label={typeof crumb === 'string' ? crumb : undefined}
+        aria-label={title ?? (typeof crumb === 'string' ? crumb : undefined)}
         style={{ maxWidth: width }}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
@@ -123,7 +126,13 @@ function QuickModalBody({
             submit();
           }}
         >
-          {showCrumb && <div className="qm-head">{crumb}</div>}
+          {title ? (
+            <div className="qm-head">
+              <h2 className="qm-heading">{title}</h2>
+            </div>
+          ) : (
+            showCrumb && crumb && <div className="qm-head">{crumb}</div>
+          )}
           <div className="qm-body">{children}</div>
           {error && (
             <p className="qm-error" role="alert">

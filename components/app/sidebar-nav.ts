@@ -301,10 +301,10 @@ export function buildNav(
           section: labels.workspace,
           items: [
             {
-              href: '/app/chat/settings',
+              href: '/app/chat/widgets',
               label: labels.chat.settings,
-              // Las páginas de un widget cuelgan de Ajustes (ahí está la lista).
-              active: at('/app/chat/settings') || at('/app/chat/widgets'),
+              // La lista de widgets y las páginas de cada widget (/app/chat/settings redirige acá).
+              active: at('/app/chat/widgets') || at('/app/chat/settings'),
               icon: 'settings',
             },
           ],

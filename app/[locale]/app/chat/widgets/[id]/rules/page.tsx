@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
 import { canAccessWidget } from '@/lib/chat-access';
-import WidgetHeader from '@/components/chat/WidgetHeader';
 import { requireUser } from '@/lib/session';
 import { getChatWidget, listChatAgents, parseOfficeHours } from '@/lib/chat-data';
 import RulesClient from '@/components/chat/RulesClient';
@@ -29,13 +28,10 @@ export default async function WidgetRulesPage(
   const agents = await listChatAgents(widget.user_id, widget.team_id);
 
   return (
-    <div className="app-page">
-      <WidgetHeader locale={locale} widget={widget} active="rules" />
-      <RulesClient
-        widgetId={widget.id}
-        agents={agents}
-        timeZone={parseOfficeHours(widget.office_hours)?.timezone ?? 'UTC'}
-      />
-    </div>
+    <RulesClient
+      widgetId={widget.id}
+      agents={agents}
+      timeZone={parseOfficeHours(widget.office_hours)?.timezone ?? 'UTC'}
+    />
   );
 }

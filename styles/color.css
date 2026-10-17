@@ -79,8 +79,5 @@
 .next-task-banner.overdue { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad-ink) 35%, white) !important; }
 .next-task-banner .bulk-btn { color: var(--ink); border-color: var(--ui-field); background: var(--bg); }
 .next-task-banner .bulk-btn:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.chat-priority-urgent { background: var(--bad-ink) !important; color: #fff; }
-.chat-priority-high { color: var(--c-track-ink); border-color: currentColor; }
-.chat-unread-dot { background: var(--accent); }
 .track-calendar-day.today .track-calendar-day-number { color: #fff; }
 .docs-tree-link.active { color: #fff; }
