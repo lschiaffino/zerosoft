@@ -356,5 +356,8 @@
     "lines": "Linhas",
     "open": "Abrir {name}",
     "linkSummary": "Resumo do Link"
+  },
+  "publicPage": {
+    "poweredBy": "Feito com zerosoft"
   }
 }

@@ -97,7 +97,7 @@ export default function UserMentionPopover({ query, pageId, style, onSelect, onC
       onMouseDown={(e) => e.preventDefault()}
     >
       {filtered === null ? (
-        <div className="docs-mention-empty">…</div>
+        <div className="docs-mention-empty" aria-busy="true"><span className="ui-skeleton ui-skeleton-text" /></div>
       ) : items.length === 0 ? (
         <div className="docs-mention-empty">{t('mentions.noMembers')}</div>
       ) : (

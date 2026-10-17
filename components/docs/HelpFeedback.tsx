@@ -48,14 +48,14 @@ export default function HelpFeedback({ pageId }: { pageId: string }) {
         <>
           <p className="help-feedback-q">{t('helpful')}</p>
           <div className="help-feedback-actions">
-            <button type="button" onClick={() => send(true)} disabled={state === 'sending'}>
+            <button type="button" className="btn btn-secondary help-feedback-btn" onClick={() => send(true)} disabled={state === 'sending'}>
               {t('yes')}
             </button>
-            <button type="button" onClick={() => send(false)} disabled={state === 'sending'}>
+            <button type="button" className="btn btn-secondary help-feedback-btn" onClick={() => send(false)} disabled={state === 'sending'}>
               {t('no')}
             </button>
           </div>
-          {state === 'error' && <p className="help-feedback-thanks">{t('feedbackError')}</p>}
+          {state === 'error' && <p className="ui-error help-feedback-error">{t('feedbackError')}</p>}
         </>
       )}
     </div>

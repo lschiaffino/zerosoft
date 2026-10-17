@@ -96,6 +96,14 @@ describe('centro de ayuda (/h/<handle>)', () => {
     expect(art?.collection?.id).toBe(root.id);
     expect(art?.prev?.id).toBe(root.id);
     expect(art?.next).toBeNull();
+    expect(art?.children).toEqual([]);
+  });
+
+  it('una colección lista sus artículos publicados como hijas', async () => {
+    const { a, slugs, child } = await setup();
+    const col = await getHelpArticle(a.id, slugs.root);
+    expect(col?.children.map((c) => c.id)).toEqual([child.id]);
+    expect(col?.children[0].excerpt).toContain('Invoices arrive monthly');
   });
 
   it('la búsqueda ignora borradores y otros workspaces', async () => {
@@ -104,6 +112,8 @@ describe('centro de ayuda (/h/<handle>)', () => {
     expect(await searchHelpArticles(a.id, 'flamingo')).toEqual([]);
     const hits = await searchHelpArticles(a.id, 'invoices monthly');
     expect(hits[0]?.title).toBe('Billing and invoices');
+    // Cada artículo trae su colección para la miga del resultado.
+    expect(hits[0]?.collection?.title).toBe('Getting started');
     // Singular/plural y raíces comunes también encuentran el artículo.
     expect((await searchHelpArticles(a.id, 'invoice'))[0]?.title).toBe('Billing and invoices');
     expect(expandQuery('reembolso', ['Reembolsos y devoluciones'])).toBe('reembolso reembolsos');

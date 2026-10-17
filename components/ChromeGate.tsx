@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { usePathname } from '@/i18n/navigation';
 import type { ReactNode } from 'react';
 import type { HostSurface } from '@/lib/host-rewrite';
@@ -36,6 +37,7 @@ export default function ChromeGate({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const t = useTranslations('common.publicPage');
   if (surface || pathname.startsWith('/feedback-board') || pathname === '/brand' || pathname.startsWith('/brand/')) {
     return <>{children}</>;
   }
@@ -71,7 +73,7 @@ export default function ChromeGate({
         {children}
         <p className="powered-by">
           <a href="https://zerosoft.ai" target="_blank" rel="noreferrer">
-            Powered by zerosoft
+            {t('poweredBy')}
           </a>
         </p>
       </>
