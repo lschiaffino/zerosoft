@@ -340,6 +340,7 @@ export default function ChangelogAdmin({
           rows={entries}
           rowKey={(r) => r.id}
           compact
+          className="st-table-stack"
           empty={<EmptyState quiet title={ts('changelogEmptyTitle')} body={ts('changelogEmptyBody')} />}
           columns={[
             { key: 'date', header: ts('colDate'), cell: (r) => r.date, data: true, width: '120px' },

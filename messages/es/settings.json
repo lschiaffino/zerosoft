@@ -49,7 +49,7 @@
   },
   "keys": {
     "title": "API keys",
-    "desc": "Para la API pública: header Authorization: Bearer zs_…, hasta 100 pedidos por minuto por key.",
+    "desc": "Para la API pública: header <code>Authorization: Bearer zs_…</code>, hasta 100 pedidos por minuto por key.",
     "docs": "Ver la documentación de la API",
     "name": "Nombre de la key",
     "namePlaceholder": "Deploy CI",
@@ -147,10 +147,9 @@
     "colType": "Tipo",
     "colUpdated": "Actualizada",
     "manage": "Administrar credenciales",
-    "emptyTitle": "Todavía no hay credenciales",
-    "emptyBody": "Cargá una API key o un token una vez y usalo en cualquier flujo o robot.",
-    "create": "Crear credencial",
-    "note": "Se crean y editan en Flow."
+    "note": "Se crean y editan en Flow.",
+    "emptyLine": "Todavía no hay credenciales.",
+    "createInFlow": "Crear en Flow"
   },
   "link": {
     "title": "Datos de Link",
@@ -203,6 +202,10 @@
     "stateDraft": "Borrador",
     "changelogEmptyTitle": "Todavía no hay entradas",
     "changelogEmptyBody": "Las que publiques acá se suman a las del changelog público sin deploy.",
-    "actionError": "No se pudo completar. Probá de nuevo."
+    "actionError": "No se pudo completar. Probá de nuevo.",
+    "colVotes": "Votos",
+    "colVisibility": "Visibilidad",
+    "colCreated": "Creado",
+    "kanbanMore": "{count, plural, one {Ver # columna más} other {Ver # columnas más}}"
   }
 }

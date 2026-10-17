@@ -184,6 +184,7 @@ export default function WebhooksPanel({ initial }: { initial: WebhookDto[] }) {
         rows={rows}
         rowKey={(r) => r.id}
         compact
+        className="st-table-stack"
         empty={<EmptyState quiet title={t('emptyTitle')} body={t('emptyBody')} />}
         columns={[
           { key: 'url', header: t('colUrl'), cell: (r) => <span className="st-url">{r.url}</span>, data: true },

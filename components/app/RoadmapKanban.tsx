@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'rea
 import { useTranslations } from 'next-intl';
 import type { RoadmapItemRow } from '@/lib/db';
 import { ROADMAP_STATUSES, type RoadmapStatus } from '@/lib/roadmap-constants';
-import { RoadmapAdminRow, type AdminItem } from './RoadmapAdminList';
+import type { AdminItem } from './RoadmapAdminRow';
+import RoadmapItemDrawer from './RoadmapItemDrawer';
 import ProductTag from './ProductTag';
 
 /**
@@ -13,13 +14,7 @@ import ProductTag from './ProductTag';
  * Click o Enter en una tarjeta abre el panel de edición (editar, publicar,
  * fusionar). Sin mouse: el panel tiene el selector de estado.
  */
-export default function RoadmapKanban({
-  initial,
-  locale,
-}: {
-  initial: AdminItem[];
-  locale: string;
-}) {
+export default function RoadmapKanban({ initial, locale }: { initial: AdminItem[]; locale: string }) {
   const t = useTranslations('roadmap');
   const tp = useTranslations('feedbackBoard.product');
   const ts = useTranslations('settings.admin');
@@ -32,16 +27,28 @@ export default function RoadmapKanban({
   const [newStatus, setNewStatus] = useState<RoadmapStatus>('idea');
   const [creating, setCreating] = useState(false);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [hidden, setHidden] = useState(0);
 
-  // El panel de edición es un <dialog> nativo: foco atrapado, Esc cierra y el
-  // foco vuelve a la tarjeta que lo abrió.
+  // Cuántas columnas quedan fuera a la derecha: el botón "Ver N columnas más"
+  // avisa que el tablero sigue y lleva hasta el final.
   useEffect(() => {
-    const d = dialogRef.current;
-    if (!d) return;
-    if (openId && !d.open) d.showModal();
-    if (!openId && d.open) d.close();
-  }, [openId]);
+    const el = boardRef.current;
+    if (!el) return;
+    const measure = () => {
+      const right = el.getBoundingClientRect().right;
+      const cols = Array.from(el.children) as HTMLElement[];
+      setHidden(cols.filter((c) => c.getBoundingClientRect().right > right + 2).length);
+    };
+    measure();
+    el.addEventListener('scroll', measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', measure);
+      ro.disconnect();
+    };
+  }, []);
 
   async function move(id: string, status: RoadmapStatus) {
     const item = items.find((i) => i.id === id);
@@ -100,46 +107,62 @@ export default function RoadmapKanban({
 
   return (
     <>
-      <form className="st-create st-kb-new" onSubmit={create}>
-        <div className="ui-field st-create-field">
-          <label className="sr-only" htmlFor="st-kb-title">
-            {t('admin.newItemPlaceholder')}
+      <div className="st-kb-bar">
+        <form className="st-create st-kb-new" onSubmit={create}>
+          <div className="ui-field st-create-field">
+            <label className="sr-only" htmlFor="st-kb-title">
+              {t('admin.newItemPlaceholder')}
+            </label>
+            <input
+              id="st-kb-title"
+              className="input"
+              value={newTitle}
+              maxLength={160}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder={t('admin.newItemPlaceholder')}
+            />
+          </div>
+          <label className="sr-only" htmlFor="st-kb-status">
+            {t('admin.statusLabel')}
           </label>
-          <input
-            id="st-kb-title"
-            className="input"
-            value={newTitle}
-            maxLength={160}
-            onChange={(e) => setNewTitle(e.target.value)}
-            placeholder={t('admin.newItemPlaceholder')}
-          />
-        </div>
-        <label className="sr-only" htmlFor="st-kb-status">
-          {t('admin.statusLabel')}
-        </label>
-        <select
-          id="st-kb-status"
-          className="select st-kb-status"
-          value={newStatus}
-          onChange={(e) => setNewStatus(e.target.value as RoadmapStatus)}
-        >
-          {ROADMAP_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {t(`admin.status.${s}`)}
-            </option>
-          ))}
-        </select>
-        <button type="submit" className="btn btn-primary" disabled={!newTitle.trim()} aria-busy={creating || undefined}>
-          {t('admin.create')}
-        </button>
-      </form>
+          <select
+            id="st-kb-status"
+            className="select st-kb-status"
+            value={newStatus}
+            onChange={(e) => setNewStatus(e.target.value as RoadmapStatus)}
+          >
+            {ROADMAP_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {t(`admin.status.${s}`)}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="btn btn-primary" disabled={!newTitle.trim()} aria-busy={creating || undefined}>
+            {t('admin.create')}
+          </button>
+        </form>
+        {hidden > 0 && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm st-kb-more"
+            onClick={() =>
+              boardRef.current?.scrollTo({
+                left: boardRef.current.scrollWidth,
+                behavior: 'smooth',
+              })
+            }
+          >
+            {ts('kanbanMore', { count: hidden })}
+          </button>
+        )}
+      </div>
       {error && (
         <p className="ui-error" role="alert">
           {t('admin.error')}
         </p>
       )}
 
-      <div className="st-kb" role="list" aria-label={t('admin.title')}>
+      <div className="st-kb" role="list" aria-label={t('admin.title')} ref={boardRef}>
         {ROADMAP_STATUSES.map((status) => {
           const col = items.filter((i) => i.status === status);
           return (
@@ -192,43 +215,30 @@ export default function RoadmapKanban({
         })}
       </div>
 
-      <dialog
-        ref={dialogRef}
-        className="ui-drawer st-kb-drawer"
-        aria-labelledby="st-kb-drawer-title"
+      <RoadmapItemDrawer
+        item={open}
+        targets={targets}
+        locale={locale}
         onClose={() => setOpenId(null)}
-      >
-        {open && (
-          <>
-            <div className="ui-drawer-head">
-              <h2 className="ui-drawer-title" id="st-kb-drawer-title">
-                {t('admin.edit')}
-              </h2>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => dialogRef.current?.close()}>
-                {t('admin.close')}
-              </button>
-            </div>
-            <div className="ui-drawer-body">
-              <RoadmapAdminRow
-                key={open.id}
-                item={open}
-                targets={targets.filter((x) => x.id !== open.id)}
-                locale={locale}
-                t={t}
-                onSaved={(next) => setItems((list) => list.map((i) => (i.id === open.id ? { ...i, ...next } : i)))}
-                onMerged={(target) => {
-                  setItems((list) =>
-                    list
-                      .filter((i) => i.id !== open.id)
-                      .map((i) => (i.id === target.id ? { ...i, ...target, signals: [...open.signals, ...i.signals] } : i)),
-                  );
-                  setOpenId(target.id);
-                }}
-              />
-            </div>
-          </>
-        )}
-      </dialog>
+        onSaved={(id, next) => setItems((list) => list.map((i) => (i.id === id ? { ...i, ...next } : i)))}
+        onMerged={(sourceId, target) => {
+          setItems((list) => {
+            const source = list.find((i) => i.id === sourceId);
+            return list
+              .filter((i) => i.id !== sourceId)
+              .map((i) =>
+                i.id === target.id
+                  ? {
+                      ...i,
+                      ...target,
+                      signals: [...(source?.signals ?? []), ...i.signals],
+                    }
+                  : i,
+              );
+          });
+          setOpenId(target.id);
+        }}
+      />
     </>
   );
 }

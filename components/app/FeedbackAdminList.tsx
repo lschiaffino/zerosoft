@@ -39,6 +39,7 @@ export default function FeedbackAdminList({
   const [links, setLinks] = useState<Record<string, Target>>(linked);
   const [items, setItems] = useState<Target[]>(targets);
   const [pick, setPick] = useState<Record<string, string>>({});
+  const [promoting, setPromoting] = useState<string | null>(null);
   const [failed, setFailed] = useState<{ id: string; msg: string } | null>(null);
 
   async function promote(row: FeedbackRow, body: unknown) {
@@ -55,6 +56,7 @@ export default function FeedbackAdminList({
       setLinks((prev) => ({ ...prev, [row.id]: item }));
       setItems((prev) => (prev.some((x) => x.id === item.id) ? prev : [item, ...prev]));
       setRows((prev) => prev.map((r) => (r.id === row.id && r.status === 'new' ? { ...r, status: 'read' } : r)));
+      setPromoting(null);
     } else {
       setFailed({ id: row.id, msg: t('admin.promoteError') });
     }
@@ -94,6 +96,7 @@ export default function FeedbackAdminList({
     <ul className="st-fb-list">
       {rows.map((r) => {
         const pickId = `st-fb-pick-${r.id}`;
+        const promoteId = `st-fb-promote-${r.id}`;
         return (
           <li key={r.id} className="st-fb" data-status={r.status}>
             <div className="st-fb-meta">
@@ -124,7 +127,34 @@ export default function FeedbackAdminList({
               </p>
             )}
             <div className="st-fb-actions">
-              <div className="st-fb-promote">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm st-fb-toggle"
+                aria-expanded={promoting === r.id}
+                aria-controls={promoting === r.id ? promoteId : undefined}
+                onClick={() => setPromoting((cur) => (cur === r.id ? null : r.id))}
+              >
+                {ts('promote')}
+              </button>
+              <div className="st-fb-status">
+                {r.status === 'new' && (
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy === r.id} onClick={() => setStatus(r.id, 'read')}>
+                    {t('admin.markRead')}
+                  </button>
+                )}
+                {r.status !== 'done' ? (
+                  <button type="button" className="btn btn-primary btn-sm" disabled={busy === r.id} onClick={() => setStatus(r.id, 'done')}>
+                    {t('admin.markDone')}
+                  </button>
+                ) : (
+                  <button type="button" className="btn btn-secondary btn-sm" disabled={busy === r.id} onClick={() => setStatus(r.id, 'new')}>
+                    {t('admin.reopen')}
+                  </button>
+                )}
+              </div>
+            </div>
+            {promoting === r.id && (
+              <div className="st-fb-promote" id={promoteId}>
                 <label className="sr-only" htmlFor={pickId}>
                   {t('admin.promoteAttach')}
                 </label>
@@ -153,23 +183,7 @@ export default function FeedbackAdminList({
                   {ts('createItem')}
                 </button>
               </div>
-              <div className="st-fb-status">
-                {r.status === 'new' && (
-                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy === r.id} onClick={() => setStatus(r.id, 'read')}>
-                    {t('admin.markRead')}
-                  </button>
-                )}
-                {r.status !== 'done' ? (
-                  <button type="button" className="btn btn-primary btn-sm" disabled={busy === r.id} onClick={() => setStatus(r.id, 'done')}>
-                    {t('admin.markDone')}
-                  </button>
-                ) : (
-                  <button type="button" className="btn btn-secondary btn-sm" disabled={busy === r.id} onClick={() => setStatus(r.id, 'new')}>
-                    {t('admin.reopen')}
-                  </button>
-                )}
-              </div>
-            </div>
+            )}
             {failed?.id === r.id && (
               <p className="ui-error" role="alert">
                 {failed.msg}

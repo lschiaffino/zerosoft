@@ -2,7 +2,6 @@ import { getFormatter, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import type { CredentialDto } from '@/lib/flow-credentials';
 import DataTable from '@/components/ui/DataTable';
-import EmptyState from '@/components/ui/EmptyState';
 import FormSection from '@/components/ui/FormSection';
 
 /**
@@ -47,13 +46,17 @@ export default async function CredentialsSummary({
         rowKey={(c) => c.id}
         compact
         empty={
-          <EmptyState
-            quiet
-            product="flow"
-            title={t('emptyTitle')}
-            body={t('emptyBody')}
-            action={canEdit ? { label: t('create'), href: '/app/flow/credentials' } : undefined}
-          />
+          <p className="st-empty-line">
+            {t('emptyLine')}
+            {canEdit && (
+              <>
+                {' '}
+                <Link href="/app/flow/credentials" className="st-inline-link">
+                  {t('createInFlow')}
+                </Link>
+              </>
+            )}
+          </p>
         }
         columns={[
           { key: 'name', header: t('colName'), cell: (c) => c.name, data: true },

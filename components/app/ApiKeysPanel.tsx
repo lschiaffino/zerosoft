@@ -85,7 +85,7 @@ export default function ApiKeysPanel({ initialKeys, isAdmin }: { initialKeys: Ap
       title={t('title')}
       description={
         <>
-          {t('desc')}{' '}
+          {t.rich('desc', { code: (chunks) => <code className="data">{chunks}</code> })}{' '}
           <Link href="/docs" className="st-inline-link">
             {t('docs')}
           </Link>
@@ -160,6 +160,7 @@ export default function ApiKeysPanel({ initialKeys, isAdmin }: { initialKeys: Ap
         rows={keys}
         rowKey={(k) => k.id}
         compact
+        className="st-table-stack"
         empty={<EmptyState quiet title={t('emptyTitle')} body={t('emptyBody')} />}
         columns={[
           { key: 'name', header: t('colName'), cell: (k) => <span className="st-strong">{k.name}</span> },

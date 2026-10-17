@@ -23,8 +23,50 @@
 .st-page .table-wrap { position: relative; }
 .st-page .table-wrap .table { min-width: 560px; }
 .st-page .table td.data { white-space: nowrap; }
-.st-stack { display: flex; flex-direction: column; gap: 24px; min-width: 0; max-width: 1080px; }
-.st-stack:has(.st-kb) { max-width: none; }
+.st-stack { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+/* Tablas con acciones por fila: bajo 640px cada fila se apila en pares
+   rótulo/valor (data-label de DataTable) y las acciones van en su propia
+   línea, así Revocar o Borrar se ven sin scroll horizontal. */
+@media (max-width: 640px) {
+  .st-page .st-table-stack { overflow-x: visible; }
+  .st-page .st-table-stack .table { min-width: 0; }
+  .st-table-stack .table, .st-table-stack tbody { display: block; width: 100%; }
+  .st-page .st-table-stack .table td.data { white-space: normal; }
+  .st-table-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .st-table-stack tbody tr { display: grid; gap: 4px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .st-table-stack tbody tr:last-child { border-bottom: 0; }
+  .st-table-stack tbody tr:hover { background: none; }
+  .st-table-stack .table td,
+  .st-table-stack.table-wrap .table-compact td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    height: auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    text-align: right;
+    white-space: normal;
+  }
+  .st-table-stack td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-family: var(--font-ui);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--brand-gray-2);
+    text-align: left;
+  }
+  /* La primera celda es el nombre de la fila: va sola, sin rótulo. */
+  .st-table-stack .table td:first-child { justify-content: flex-start; text-align: left; }
+  .st-table-stack td:first-child::before { display: none; }
+  .st-table-stack .st-row-actions { justify-content: flex-start; flex-wrap: wrap; width: 100%; padding-top: 4px; }
+  .st-table-stack .st-row-actions .btn:first-child { margin-left: -10px; }
+  .st-table-stack td > * { min-width: 0; overflow-wrap: anywhere; }
+  .st-table-stack .st-url { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+}
 
 .st-muted { color: var(--brand-gray-2); }
 .st-strong { font-weight: 600; }
@@ -59,7 +101,7 @@
   font-size: 0.875rem;
   line-height: 1.45;
   color: var(--warn-ink);
-  background: var(--warn-soft);
+  background: var(--brand-enamel);
   border-radius: var(--radius-1);
 }
 
@@ -133,10 +175,27 @@
 .st-count { font-weight: 400; color: var(--brand-gray-2); }
 .st-checks { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 
+/* Vacío de una sección de solo lectura: una línea, sin título ni glifo. */
+.st-empty-line { font-size: 0.875rem; color: var(--brand-gray-1); }
+
 /* Secret o key recién creada: placa con borde de tinta, se ve una sola vez. */
 .st-reveal { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--ink); border-radius: var(--radius-1); }
 .st-reveal .label { margin: 0; }
 .st-reveal-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+/* CopyButton trae el look de link.css (mono, mayúsculas, 10px); acá es un botón más. */
+.st-reveal .copy-btn {
+  padding: 0 var(--btn-px);
+  font-family: var(--font-ui);
+  font-size: var(--btn-fs);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--btn-fg);
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-bd);
+  border-radius: var(--radius-1);
+}
+.st-reveal .copy-btn:hover { background: var(--btn-bg-hover); border-color: var(--btn-bd-hover); color: var(--btn-fg); }
+.st-reveal .copy-btn.copied { color: var(--bg); background: var(--ink); border-color: var(--ink); }
 .st-secret {
   flex: 1 1 280px;
   min-width: 0;
@@ -201,15 +260,33 @@
 .st-fb-msg { max-width: 80ch; font-size: 0.9375rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .st-fb-refs { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.8125rem; color: var(--brand-gray-2); }
 .st-fb-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
-.st-fb-promote { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 1 1 360px; min-width: 0; max-width: 100%; }
+.st-fb-toggle::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform var(--ui-dur) var(--ease);
+}
+.st-fb-toggle[aria-expanded='true']::after { margin-top: 3px; transform: rotate(225deg); }
+.st-fb-toggle { margin-left: -10px; }
+.st-fb-promote { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px 12px; background: var(--brand-enamel); border-radius: var(--radius-1); }
 .st-fb-promote .select { width: auto; flex: 0 1 280px; min-width: 0; max-width: 100%; }
 .st-fb-status { display: flex; gap: 6px; }
 
 /* Roadmap: kanban de andenes. Columnas sobre esmalte, cabecera con filete de tinta. */
+.st-kb-bar { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.st-kb-bar .st-kb-new { flex: 1 1 480px; }
 .st-kb-new .st-kb-status { width: auto; min-width: 160px; }
+/* Siete columnas entran enteras a 1440; más angosto, el tablero scrollea y
+   "Ver N columnas más" avisa. Cada columna tiene su propio scroll vertical
+   para que Lanzada no estire a las demás. */
 .st-kb {
   display: grid;
-  grid-template-columns: repeat(7, minmax(208px, 1fr));
+  grid-template-columns: repeat(7, minmax(184px, 1fr));
+  align-items: start;
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 8px;
@@ -219,7 +296,10 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 320px;
+  min-height: 200px;
+  max-height: max(420px, calc(100dvh - 300px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0 6px 6px;
   background: var(--brand-enamel);
   border-radius: var(--radius-1);
@@ -232,10 +312,15 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
   padding: 10px 4px 8px;
   margin-bottom: 2px;
+  background: var(--brand-enamel);
   border-bottom: 2px solid var(--ink);
 }
+.st-kb-col.is-over .st-kb-head { background: var(--ui-hover); }
 .st-kb-head h3 { font-size: 0.8125rem; font-weight: 600; }
 .st-kb-head .data { font-size: 0.75rem; color: var(--brand-gray-2); }
 .st-kb-empty { padding: 12px 4px; font-size: 0.8125rem; color: var(--brand-gray-2); }
@@ -262,9 +347,25 @@
 .st-kb-meta .badge { height: 20px; }
 dialog.st-kb-drawer { width: min(560px, 100vw); }
 
-/* Roadmap: fila editable (lista y panel del kanban). */
-.st-rm-list { display: flex; flex-direction: column; gap: 12px; }
-.st-rm-list > .st-rm { padding: 16px 20px; border: 1px solid var(--line); border-radius: var(--radius-1); }
+/* Roadmap, vista Lista: una fila por ítem; el título abre el panel y toda la fila es el blanco. */
+.st-rm-table tbody tr { position: relative; cursor: pointer; }
+.st-row-open {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.st-row-open::after { content: ''; position: absolute; inset: 0; }
+.st-row-open:hover { text-decoration: underline; text-underline-offset: 3px; }
+.st-row-open:focus-visible { outline: none; }
+.st-rm-table tbody tr:has(.st-row-open:focus-visible) { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+/* Roadmap: formulario del ítem (panel del kanban y de la lista). */
 .st-rm { display: flex; flex-direction: column; gap: 14px; }
 .st-rm-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8125rem; color: var(--brand-gray-2); }
 .st-rm-form { display: flex; flex-direction: column; gap: 14px; }
@@ -298,14 +399,12 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 @media (max-width: 720px) {
   .st-fb { padding: 14px 16px; }
   .st-fb-who { margin-left: 0; width: 100%; }
-  .st-fb-promote { flex-basis: 100%; }
   .st-fb-promote .select { width: 100%; flex: 1 1 100%; }
   .st-rm-grid, .ui-drawer .st-rm-grid { grid-template-columns: minmax(0, 1fr); }
-  .st-rm-list > .st-rm { padding: 14px 16px; }
   .st-cl-top, .st-cl-lang { grid-template-columns: minmax(0, 1fr); }
   .st-kb { grid-template-columns: repeat(7, minmax(78vw, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .st-link::after, .st-kb-col, .st-kb-card { transition: none; }
+  .st-link::after, .st-kb-col, .st-kb-card, .st-fb-toggle::after { transition: none; }
 }

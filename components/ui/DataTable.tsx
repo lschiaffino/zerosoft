@@ -17,6 +17,8 @@ export interface DataColumn<T> {
  * server y client components; no ordena ni pagina: eso lo hace la página.
  * `rowHref` vuelve link la primera columna (el resto de la fila queda
  * seleccionable). `empty` se muestra en lugar de la tabla si no hay filas.
+ * Cada celda lleva `data-label` con la cabecera (si es texto) para que una
+ * pantalla pueda apilar la fila en pares rótulo/valor en mobile.
  *
  *   <DataTable caption="Links" rows={links} rowKey={(l) => l.id} rowHref={(l) => `/app/links/${l.id}`}
  *     columns={[{ key: 'slug', header: 'Link', cell: (l) => l.slug, data: true },
@@ -65,7 +67,7 @@ export default function DataTable<T>({
           {rows.map((row) => (
             <tr key={rowKey(row)}>
               {columns.map((c, i) => (
-                <td key={c.key} className={cellCls(c)}>
+                <td key={c.key} className={cellCls(c)} data-label={typeof c.header === 'string' ? c.header : undefined}>
                   {i === 0 && rowHref ? (
                     <Link href={rowHref(row)} className="cell-link">
                       {c.cell(row)}
