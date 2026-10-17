@@ -8,7 +8,6 @@ export default async function ExportPanel({ locale }: { locale: string }) {
 
   return (
     <div className="exp">
-      <p className="muted exp-tagline">{t('settings.exportTagline')}</p>
       {ENTITIES.map((entity) => (
         <div className="exp-row" key={entity}>
           <span className="exp-name">{t(`settings.entities.${entity}`)}</span>

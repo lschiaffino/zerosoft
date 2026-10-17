@@ -276,12 +276,15 @@ export default function ScoringRulesPanel({ initialRules, customFields, canEdit 
             <button type="button" className="btn btn-solid btn-small" onClick={add} disabled={busy || !draft.points} data-testid="score-add">
               {t('scoring.add')}
             </button>
-            <button type="button" className="btn btn-small" onClick={recalc} disabled={busy}>
-              {t('scoring.recalculate')}
-            </button>
+            {/* Sin reglas no hay nada que recalcular. */}
+            {rules.length > 0 && (
+              <button type="button" className="btn btn-small" onClick={recalc} disabled={busy}>
+                {t('scoring.recalculate')}
+              </button>
+            )}
           </div>
           {error && <p className="form-error">{error}</p>}
-          {note && <p className="mono muted">{note}</p>}
+          {note && <p className="ui-help">{note}</p>}
         </div>
       ) : (
         <p className="muted">{t('common.adminOnly')}</p>

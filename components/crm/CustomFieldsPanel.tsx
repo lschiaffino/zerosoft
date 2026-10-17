@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { CrmCustomFieldRow } from '@/lib/db';
+import { RemoveIcon } from './RowTools';
 
 interface CustomFieldsPanelProps {
   initialFields: CrmCustomFieldRow[];
@@ -209,7 +210,7 @@ export default function CustomFieldsPanel({ initialFields }: CustomFieldsPanelPr
       </form>
 
       <div className="cf-feedback">
-        {saved && <span className="saved-note mono">{t('common.saved')}</span>}
+        {saved && <span className="saved-note">{t('common.saved')}</span>}
         {error && <p className="form-error">{error}</p>}
       </div>
 
@@ -282,13 +283,13 @@ export default function CustomFieldsPanel({ initialFields }: CustomFieldsPanelPr
                   ) : (
                     <button
                       type="button"
-                      className="icon-btn danger"
+                      className="btn btn-ghost btn-danger btn-sm btn-icon"
                       onClick={() => setConfirmId(f.id)}
                       disabled={busy}
                       title={t('common.delete')}
-                      aria-label={t('common.delete')}
+                      aria-label={`${t('common.delete')}: ${f.label}`}
                     >
-                      ×
+                      <RemoveIcon />
                     </button>
                   )}
                 </div>

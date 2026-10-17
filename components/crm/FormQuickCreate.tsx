@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
+import { localizedFormDefaults } from '@/lib/crm-forms-builder';
 
 /** CTA "New form": tecla C y `?new=1` abren el modal; al crear abre el builder. */
 export default function FormQuickCreate({ variant = 'head', label }: { variant?: 'head' | 'empty'; label?: string }) {
@@ -18,7 +19,6 @@ export default function FormQuickCreate({ variant = 'head', label }: { variant?:
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (variant !== 'head') return;
     if (searchParams.get('new') === '1') {
       setOpen(true);
       const params = new URLSearchParams(searchParams.toString());
@@ -26,9 +26,10 @@ export default function FormQuickCreate({ variant = 'head', label }: { variant?:
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     }
-  }, [searchParams, pathname, router, variant]);
+  }, [searchParams, pathname, router]);
 
-  useKeyShortcut('c', () => setOpen(true), !open && variant === 'head');
+  // Solo hay un botón en pantalla (cabecera o estado vacío): ambos atienden C y ?new=1.
+  useKeyShortcut('c', () => setOpen(true), !open);
 
   async function submit() {
     if (!name.trim() || busy) return;
@@ -37,7 +38,18 @@ export default function FormQuickCreate({ variant = 'head', label }: { variant?:
     const res = await fetch('/api/crm/forms', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: name.trim() }),
+      // Los textos por defecto del form nuevo, en el idioma de quien lo crea.
+      body: JSON.stringify({
+        name: name.trim(),
+        ...localizedFormDefaults({
+          submit: t('forms.defaults.submit'),
+          success: t('forms.defaults.success'),
+          email: t('forms.defaults.email'),
+          firstName: t('forms.defaults.firstName'),
+          lastName: t('forms.defaults.lastName'),
+          emailPlaceholder: t('forms.defaults.emailPlaceholder'),
+        }),
+      }),
     }).catch(() => null);
     setBusy(false);
     if (res?.ok) {
@@ -53,23 +65,21 @@ export default function FormQuickCreate({ variant = 'head', label }: { variant?:
     <>
       <button
         type="button"
-        className={variant === 'head' ? 'btn btn-solid btn-small' : 'btn btn-small'}
+        className="btn btn-primary"
         onClick={() => setOpen(true)}
         data-testid="crm-quick-form"
       >
         {label ?? t('forms.new')}
-        {variant === 'head' && (
-          <span className="kbd-hint" aria-hidden>
-            C
-          </span>
-        )}
+        <kbd className="kbd" aria-hidden="true">
+          C
+        </kbd>
       </button>
       <QuickModal
         open={open}
         onClose={() => setOpen(false)}
         crumb={`CRM › ${t('forms.new')}`}
         onSubmit={submit}
-        submitLabel={busy ? t('common.saving') : t('common.create')}
+        submitLabel={busy ? t('common.creating') : t('forms.createSubmit')}
         cancelLabel={t('common.cancel')}
         submitDisabled={!name.trim()}
         busy={busy}

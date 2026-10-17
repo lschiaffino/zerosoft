@@ -157,11 +157,11 @@ export default function TeamPanel({
   return (
     <div className="team-panel">
       {actingTeamName && (
-        <p className="team-acting mono">{t('settings.teamActing', { team: actingTeamName })}</p>
+        <p className="team-acting">{t('settings.teamActing', { team: actingTeamName })}</p>
       )}
 
       {/* Workspaces */}
-      <p className="prop-label">{t('settings.teamWorkspaces')}</p>
+      <h3 className="crm-subhead">{t('settings.teamWorkspaces')}</h3>
       <ul className="recent-list team-list">
         <li className="team-row">
           <span className="recent-name">{t('settings.teamPersonal')}</span>
@@ -210,7 +210,7 @@ export default function TeamPanel({
       </ul>
 
       {/* Tu team (owner) */}
-      <p className="prop-label">{t('settings.teamYours')}</p>
+      <h3 className="crm-subhead">{t('settings.teamYours')}</h3>
       {ownedTeam ? (
         <>
           <ul className="recent-list team-list">
@@ -269,8 +269,8 @@ export default function TeamPanel({
           <p className="muted">{t('settings.teamInviteNote')}</p>
 
           {createdUrl && (
-            <div className="team-created mono">
-              <span className="team-created-url">{createdUrl}</span>
+            <div className="team-created">
+              <span className="team-created-url data">{createdUrl}</span>
               <button
                 type="button"
                 className="btn btn-ghost btn-small"
@@ -283,7 +283,7 @@ export default function TeamPanel({
 
           {invites.length > 0 && (
             <>
-              <p className="prop-label">{t('settings.teamPending')}</p>
+              <h3 className="crm-subhead">{t('settings.teamPending')}</h3>
               <ul className="recent-list team-list">
                 {invites.map((i) => (
                   <li key={i.id} className="team-row">

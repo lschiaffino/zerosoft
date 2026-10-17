@@ -598,10 +598,7 @@
     "delete": "Delete workflow",
     "deleteConfirm": "Delete this workflow?",
     "emailAction": "Send email",
-    "fromStageId": "From stage id",
-    "toStageId": "To stage id",
     "dueInDays": "Due in days",
-    "ownerId": "Owner id",
     "entity": "Entity",
     "field": "Field",
     "value": "Value",
@@ -631,8 +628,114 @@
       "no": "If no"
     },
     "trigger": "Trigger",
-    "quickCreate": "Create and configure",
-    "quickNote": "It's created as a disabled draft; you add the actions in the editor."
+    "subtitle": "When something happens in the CRM, do what you would do by hand: create tasks, notify, send emails.",
+    "create": "Create workflow",
+    "createFirst": "Create the first workflow",
+    "derivedName": "{trigger}: {action}",
+    "whenTrigger": "When",
+    "orWhen": "Or when",
+    "removeTrigger": "Remove trigger",
+    "noActions": "Add at least one action.",
+    "actionN": "Action {n}",
+    "triggerN": "Trigger {n}",
+    "actionGroups": {
+      "basic": "Actions",
+      "advanced": "Advanced"
+    },
+    "triggerGroups": {
+      "contacts": "Contacts",
+      "deals": "Deals",
+      "email": "Email and meetings",
+      "other": "Other"
+    },
+    "templates": {
+      "copy": {
+        "taskSubject": "Schedule the onboarding",
+        "emailSubject": "Thanks for reaching out",
+        "emailBody": "Hi, we got your message. We will reply within the day.",
+        "notifyMessage": "A new form submission came in.",
+        "followUpSubject": "Call: opened the email"
+      },
+      "wonTask": {
+        "title": "Task when a deal is won",
+        "desc": "When a deal is won, creates the onboarding task for tomorrow."
+      },
+      "welcomeEmail": {
+        "title": "Welcome email",
+        "desc": "When a new contact comes in, sends them an email."
+      },
+      "formAlert": {
+        "title": "Form alert",
+        "desc": "When someone submits a form, notifies you in the app."
+      },
+      "openFollowUp": {
+        "title": "Follow up on open",
+        "desc": "When your email is opened, creates a task to call."
+      }
+    },
+    "problems": {
+      "name": "Add a name.",
+      "trigger": "Pick at least one trigger.",
+      "action": "Add at least one action.",
+      "headers": "Headers must be a JSON object.",
+      "save": "Couldn't save. Try again.",
+      "required": "Fill in this field.",
+      "fields": "Fill in the marked fields in the actions."
+    },
+    "saving": "Saving…",
+    "saved": "Changes saved",
+    "unsaved": "Unsaved changes",
+    "readOnly": "Only workspace admins can edit workflows.",
+    "nameDerived": "Filled in from the trigger and the first action.",
+    "state": "Status",
+    "wizard": {
+      "label": "Steps",
+      "trigger": "Trigger",
+      "actions": "Actions",
+      "review": "Review",
+      "pickTemplate": "Start from a template",
+      "orTrigger": "Or pick the trigger",
+      "thenDo": "When «{trigger}» happens, do:",
+      "summary": "Summary",
+      "back": "Back",
+      "next": "Next",
+      "create": "Create workflow",
+      "desc": "Pick when it runs, what it does, and review it before creating it."
+    },
+    "confirmDelete": "Delete workflow",
+    "cancel": "Cancel",
+    "saveWorkflow": "Save workflow",
+    "fromStage": "From stage",
+    "toStage": "To stage",
+    "anyStage": "Any stage",
+    "directionLabel": "Direction",
+    "entities": {
+      "contact": "Contact",
+      "company": "Company",
+      "deal": "Deal"
+    },
+    "toContact": "The record's contact",
+    "toOther": "Another address",
+    "toAddress": "Address",
+    "toAddressHint": "A fixed email or a variable holding the contact's email.",
+    "variablesHint": "Accepts contact, company and deal variables.",
+    "taskTitle": "Task title",
+    "owner": "Owner",
+    "ownerDefault": "The record's owner",
+    "activityType": "Type",
+    "fieldHint": "For example lifecycle_stage or custom.plan",
+    "pick": "Pick one",
+    "headersHint": "Optional. A JSON object.",
+    "condition": "Condition",
+    "noRunsBody": "Each time it fires, the run shows up here with its result.",
+    "runWhen": "When",
+    "runState": "Status",
+    "runResult": "Result",
+    "runActionsOk": "{ok} of {total} actions OK",
+    "updated": "Updated",
+    "rowActions": "Row actions",
+    "noTrigger": "No trigger",
+    "ranNow": "Ran «{name}»."
   },
   "history": {
     "title": "History",
@@ -825,13 +928,26 @@
     "tags": "Tags",
     "tagsDesc": "Shared labels for contacts, companies and deals. Filter lists by tag and tag records in bulk.",
     "currency": "Currency",
-    "currencyDesc": "Your workspace's base currency, manual exchange rates and what happens when a quote is accepted."
+    "currencyDesc": "The workspace base currency and manual exchange rates.",
+    "tabs": {
+      "team": "Team",
+      "sales": "Sales",
+      "data": "Data",
+      "automation": "Automation",
+      "integrations": "Integrations",
+      "import": "Import and export"
+    },
+    "subtitle": "Team, pipelines, fields and automations for the CRM. Each block saves on its own.",
+    "gmailTitle": "Gmail",
+    "importDesc": "Upload a CSV of contacts, companies or deals.",
+    "quotesTitle": "Quotes",
+    "quotesDesc": "What happens to the deal when the customer accepts."
   },
   "importP": {
     "title": "Import {entity}",
-    "stepUpload": "1 · Upload",
-    "stepMap": "2 · Map columns",
-    "stepResult": "3 · Result",
+    "stepUpload": "Upload",
+    "stepMap": "Map columns",
+    "stepResult": "Result",
     "dropHint": "Drop a CSV file or click to browse",
     "mode": "If a record already exists",
     "modeSkip": "Skip it",
@@ -895,7 +1011,8 @@
       "contacts": "Contacts are matched by email. A company column links (or creates) the company as primary; owner accepts a teammate's email or full name.",
       "companies": "Companies are matched by domain. A parent company column links an existing company as parent.",
       "deals": "Pipeline and stage are matched by name (defaults to the first pipeline and stage). Companies are linked or created; contacts are matched by email and created if missing."
-    }
+    },
+    "stepsLabel": "Import steps"
   },
   "errors": {
     "invalid_email": "That email doesn't look right.",
@@ -1097,7 +1214,7 @@
     "businessDays": "Business days only (Mon–Fri)",
     "cronNote": "Steps run on an hourly schedule: emails go out within an hour of their due time, inside the send window.",
     "gmailNote": "Emails are sent from the Gmail of whoever enrolls the contact.",
-    "saved": "Saved",
+    "saved": "Changes saved",
     "deleteSequence": "Delete sequence",
     "deleteConfirm": "Delete this sequence and all its enrollments?",
     "stats": {
@@ -1107,7 +1224,7 @@
       "replied": "Replied"
     },
     "enrollments": "Enrollments",
-    "noEnrollments": "No one is enrolled yet. Enroll contacts from their page or from the contacts list.",
+    "noEnrollments": "Enroll contacts from their page or from the list.",
     "contact": "Contact",
     "status": "Status",
     "step": "Step",
@@ -1140,7 +1257,22 @@
     "crumbNew": "New sequence",
     "back": "← Sequences",
     "readOnly": "Only admins or the person who created this sequence can edit it.",
-    "noSteps": "Add the first step."
+    "noSteps": "Add the first step.",
+    "nameRequired": "Give the sequence a name.",
+    "unsaved": "Unsaved changes",
+    "scheduleSummary": "{days}, {from} to {to} ({tz})",
+    "weekdays": "Monday to Friday",
+    "everyDay": "Every day",
+    "windowToLabel": "Until",
+    "statsLine": "{sent} sent · {opened} opened · {clicked} clicked · {replied} replied",
+    "content": "Content",
+    "addEmailStep": "Add email",
+    "addWaitStep": "Add wait",
+    "addTaskStep": "Add task",
+    "confirmDeleteCta": "Delete sequence and enrollments",
+    "saveSequence": "Save sequence",
+    "createSubmit": "Create sequence",
+    "createNote": "Starts with an email, a 3 day wait and a second email. Change them in the editor."
   },
   "email": {
     "messages": "{n, plural, one {# message} other {# messages}}",
@@ -1270,7 +1402,20 @@
       "accepted": "Accepted by {name}",
       "declined": "Declined",
       "expired": "Expired"
-    }
+    },
+    "linkCopied": "Link copied",
+    "saveQuote": "Save quote",
+    "parties": {
+      "label": "Sender and recipient",
+      "summary": "From {from} to {to}",
+      "missing": "not set",
+      "fromDeal": "the deal contact"
+    },
+    "emptyFilteredTitle": "No quotes in «{status}»",
+    "seeAll": "See all",
+    "pagination": "Pages",
+    "prevPage": "Previous",
+    "nextPage": "Next"
   },
   "quotePublic": {
     "quote": "Quote",
@@ -1334,7 +1479,8 @@
     "quoteMovesDeal": "When a quote is accepted, move the deal to the won stage",
     "saved": "Saved.",
     "convertedHint": "Converted to {base} with the workspace exchange rate",
-    "reportNote": "Amounts in {base}. Deals in other currencies are converted with your exchange rates."
+    "reportNote": "Amounts in {base}. Deals in other currencies are converted with your exchange rates.",
+    "removeShort": "Remove"
   },
   "forms": {
     "title": "Forms",
@@ -1418,7 +1564,7 @@
       "consentPlaceholder": "I agree to receive emails…",
       "consentRequired": "Consent is required to submit",
       "after": "After submit",
-      "successMode": "Then",
+      "successMode": "When someone submits it",
       "showMessage": "Show a thank-you message",
       "redirect": "Redirect to a URL",
       "redirectUrl": "Redirect URL",
@@ -1439,7 +1585,28 @@
       "status": "Status",
       "saved": "Saved",
       "preview": "Preview",
-      "readOnly": "Only admins and the form creator can edit it."
+      "readOnly": "Only admins and the form creator can edit it.",
+      "tabs": {
+        "fields": "Fields",
+        "design": "Design",
+        "after": "After submit",
+        "crm": "CRM and alerts"
+      },
+      "tabsLabel": "Form sections",
+      "untitled": "Untitled field",
+      "keyHint": "Generated from the label. It names the field in the API and the CSV.",
+      "internalName": "Internal name",
+      "internalNameHint": "You see it in the forms list. People filling it in see the title.",
+      "statusHint": "Only active forms accept submissions.",
+      "designAdvancedHint": "Custom URL, consent",
+      "slugExplain": "Empty: the form uses its generated link.",
+      "useSlug": "Use /f/{slug}",
+      "keepAsIs": "Don't change",
+      "noneOption": "None",
+      "crmAdvancedHint": "Duplicates, spam",
+      "unsaved": "Unsaved changes",
+      "confirmDelete": "Delete form and submissions",
+      "saveForm": "Save form"
     },
     "types": {
       "text": "Text",
@@ -1477,7 +1644,17 @@
     "newContact": "new",
     "view": "View",
     "consent": "Consent",
-    "page": "Page"
+    "page": "Page",
+    "createSubmit": "Create form",
+    "never": "Never",
+    "defaults": {
+      "submit": "Submit",
+      "success": "Thanks! We will be in touch soon.",
+      "email": "Email",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "emailPlaceholder": "you@company.com"
+    }
   },
   "formsPublic": {
     "notFound": "Form not found",
@@ -1564,9 +1741,9 @@
       "team": "Their own and their team’s"
     },
     "visDesc": {
-      "all": "every contact, company and deal in the workspace",
-      "mine": "records they own",
-      "team": "records owned by anyone on their sales teams"
+      "all": "Every contact, company and deal in the workspace",
+      "mine": "Records they own",
+      "team": "Records owned by anyone on their sales teams"
     },
     "adminsSeeAll": "Applies to lists, record pages, search, exports, reports, dashboards and API keys created by members.",
     "teams": "Sales teams",
@@ -1574,7 +1751,7 @@
     "noTeams": "No sales teams yet.",
     "teamName": "Team name",
     "teamNamePh": "e.g. Enterprise",
-    "createTeam": "Create team",
+    "createTeam": "Create sales team",
     "deleteTeamConfirm": "Delete this team? Its members keep their records."
   },
   "assignment": {
@@ -1593,7 +1770,9 @@
     "poolDesc": "Checked people take turns in this order. Leads that already have an owner are not reassigned.",
     "outOfOffice": "Out of office",
     "history": "Recent assignments",
-    "noHistory": "No leads assigned yet."
+    "noHistory": "No leads assigned yet.",
+    "advancedHint": "Sources, history",
+    "assignedTo": "assigned to {name} ({source})"
   },
   "quotas": {
     "title": "Quotas",
@@ -1705,5 +1884,10 @@
       "body": "It may be a connection drop. Try again; if it keeps failing, let us know.",
       "retry": "Try again"
     }
+  },
+  "rowTools": {
+    "up": "Move up",
+    "down": "Move down",
+    "remove": "Remove"
   }
 }

@@ -215,7 +215,7 @@ export default async function CrmOverviewPage(
         <section className="panel" data-testid="overview-quotas">
           <div className="panel-head">
             <p className="section-label">{t('quotas.title')}</p>
-            <Link href="/app/crm/settings#quotas" className="mono panel-more">
+            <Link href="/app/crm/settings?tab=sales" className="mono panel-more">
               {t('quotas.manage')} →
             </Link>
           </div>

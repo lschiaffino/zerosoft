@@ -605,6 +605,8 @@ dialog.ui-drawer[open] { display: flex; }
   background: var(--bg);
 }
 .ui-empty-quiet { border: 0; padding: 24px 0; }
+.ui-empty-compact { gap: 8px; padding: 4px 0 0; border: 0; }
+.ui-empty-compact .ui-empty-actions { margin-top: 0; }
 .ui-empty-glyph { display: block; margin-bottom: 4px; }
 .ui-empty-title {
   font-family: var(--font-signage);

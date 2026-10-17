@@ -3,6 +3,7 @@
 import { Fragment, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import EmptyState from '@/components/ui/EmptyState';
 
 interface Row {
   id: string;
@@ -26,7 +27,7 @@ interface Props {
 
 function show(v: unknown, yes: string, no: string): string {
   if (typeof v === 'boolean') return v ? yes : no;
-  if (v === null || v === undefined || v === '') return '—';
+  if (v === null || v === undefined || v === '') return '';
   return String(v);
 }
 
@@ -40,52 +41,48 @@ export default function FormSubmissions({ formId, fields, rows, total, page, pag
   return (
     <div className="forms-subs">
       <div className="forms-subs-bar">
-        <span className="mono muted">{t('forms.submissionsCount', { count: total })}</span>
-        <a className="btn btn-small" href={`/api/crm/forms/${formId}/submissions?format=csv`} data-testid="form-export-csv">
+        <span className="ui-help">{t('forms.submissionsCount', { count: total })}</span>
+        <a className="btn btn-secondary btn-sm" href={`/api/crm/forms/${formId}/submissions?format=csv`} data-testid="form-export-csv">
           {t('forms.exportCsv')}
         </a>
       </div>
       {rows.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-zeros mono" aria-hidden>
-            0 0 0 0 0 0 0
-          </p>
-          <h2>{t('forms.noSubmissions')}</h2>
-          <p className="muted">{t('forms.noSubmissionsSub')}</p>
-        </div>
+        <EmptyState title={t('forms.noSubmissions')} body={t('forms.noSubmissionsSub')} />
       ) : (
         <div className="table-wrap">
-          <table className="table crm-table">
+          <table className="table">
             <thead>
               <tr>
-                <th>{t('forms.table.date')}</th>
-                <th>{t('forms.table.contact')}</th>
+                <th scope="col">{t('forms.table.date')}</th>
+                <th scope="col">{t('forms.table.contact')}</th>
                 {cols.map((c) => (
-                  <th key={c.id}>{c.label}</th>
+                  <th scope="col" key={c.id}>
+                    {c.label}
+                  </th>
                 ))}
-                <th aria-label={t('common.actions')} />
+                <th scope="col">
+                  <span className="sr-only">{t('common.actions')}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <Fragment key={r.id}>
                   <tr data-testid="form-submission-row">
-                    <td className="mono muted">{r.createdAt}</td>
+                    <td className="data">{r.createdAt}</td>
                     <td>
                       {r.contactId ? (
                         <Link href={`/app/crm/contacts/${r.contactId}`}>{r.contactLabel ?? t('forms.contact')}</Link>
-                      ) : (
-                        '—'
-                      )}
-                      {r.created && <span className="mono muted forms-new"> · {t('forms.newContact')}</span>}
+                      ) : null}
+                      {r.created && <span className="badge badge-ok forms-new">{t('forms.newContact')}</span>}
                     </td>
                     {cols.map((c) => (
                       <td key={c.id}>{show(r.data[c.id], t('common.yes'), t('common.no'))}</td>
                     ))}
-                    <td className="td-actions">
+                    <td className="crm-row-actions">
                       <button
                         type="button"
-                        className="icon-btn"
+                        className="btn btn-ghost btn-sm"
                         onClick={() => setOpen(open === r.id ? null : r.id)}
                         aria-expanded={open === r.id}
                       >
@@ -111,14 +108,14 @@ export default function FormSubmissions({ formId, fields, rows, total, page, pag
                           )}
                           {Object.entries(r.utm).map(([k, v]) => (
                             <Fragment key={k}>
-                              <dt className="mono">{k}</dt>
+                              <dt className="data">{k}</dt>
                               <dd>{v}</dd>
                             </Fragment>
                           ))}
                           {r.pageUrl && (
                             <>
                               <dt>{t('forms.page')}</dt>
-                              <dd className="mono forms-break">{r.pageUrl}</dd>
+                              <dd className="data">{r.pageUrl}</dd>
                             </>
                           )}
                         </dl>
@@ -132,21 +129,21 @@ export default function FormSubmissions({ formId, fields, rows, total, page, pag
         </div>
       )}
       {pages > 1 && (
-        <nav className="pager mono">
+        <nav className="crm-pager" aria-label={t('quotes.pagination')}>
           {page > 1 ? (
-            <Link href={{ pathname: `/app/crm/forms/${formId}`, query: { tab: 'submissions', page: String(page - 1) } }} className="pager-btn">
+            <Link href={{ pathname: `/app/crm/forms/${formId}`, query: { tab: 'submissions', page: String(page - 1) } }} className="btn btn-secondary btn-sm">
               {t('common.pagePrev')}
             </Link>
           ) : (
-            <span className="pager-btn disabled">{t('common.pagePrev')}</span>
+            <span className="btn btn-secondary btn-sm" aria-disabled="true">{t('common.pagePrev')}</span>
           )}
-          <span className="pager-info">{t('common.pageOf', { page, pages })}</span>
+          <span className="data">{t('common.pageOf', { page, pages })}</span>
           {page < pages ? (
-            <Link href={{ pathname: `/app/crm/forms/${formId}`, query: { tab: 'submissions', page: String(page + 1) } }} className="pager-btn">
+            <Link href={{ pathname: `/app/crm/forms/${formId}`, query: { tab: 'submissions', page: String(page + 1) } }} className="btn btn-secondary btn-sm">
               {t('common.pageNext')}
             </Link>
           ) : (
-            <span className="pager-btn disabled">{t('common.pageNext')}</span>
+            <span className="btn btn-secondary btn-sm" aria-disabled="true">{t('common.pageNext')}</span>
           )}
         </nav>
       )}

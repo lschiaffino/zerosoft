@@ -30,9 +30,11 @@ export default function EmptyState({
   secondary,
   product,
   quiet = false,
+  compact = false,
   className = '',
 }: {
-  title: ReactNode;
+  /** Sin título solo cuando es `compact`. */
+  title?: ReactNode;
   body?: ReactNode;
   /** `{ label, href }` o un botón propio (p. ej. <button className="btn btn-primary">). */
   action?: Action;
@@ -41,8 +43,26 @@ export default function EmptyState({
   product?: ProductKey;
   /** Sin borde: para vacíos dentro de un panel o una tabla. */
   quiet?: boolean;
+  /**
+   * Dentro de una sección que ya tiene su título: solo el texto y la acción,
+   * sin estación ni titular (si no, el vacío grita más que la sección).
+   */
+  compact?: boolean;
   className?: string;
 }) {
+  if (compact) {
+    return (
+      <div className={`ui-empty ui-empty-compact ${className}`.trim()}>
+        <p className="ui-empty-body">{body ?? title}</p>
+        {(action || secondary) && (
+          <div className="ui-empty-actions">
+            {action && renderAction(action, 'btn btn-secondary btn-sm')}
+            {secondary && <span className="ui-empty-alt">{secondary}</span>}
+          </div>
+        )}
+      </div>
+    );
+  }
   const stroke = product ? `var(--c-${product})` : 'var(--accent)';
   return (
     <div className={`ui-empty${quiet ? ' ui-empty-quiet' : ''} ${className}`.trim()}>
@@ -50,7 +70,7 @@ export default function EmptyState({
         <line x1="18" y1="50" x2="282" y2="50" stroke={stroke} strokeWidth="36" strokeLinecap="round" />
         <circle cx="150" cy="50" r="39" fill="#ffffff" stroke="#111111" strokeWidth="22" />
       </svg>
-      <h2 className="ui-empty-title">{title}</h2>
+      {title && <h2 className="ui-empty-title">{title}</h2>}
       {body && <p className="ui-empty-body">{body}</p>}
       {(action || secondary) && (
         <div className="ui-empty-actions">
