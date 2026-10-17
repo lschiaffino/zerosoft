@@ -1,0 +1,110 @@
+/* ============================================
+   /brand: la marca default en una página (logo, colores, tipografía).
+   Usa los tokens de styles/themes/default.css.
+   ============================================ */
+
+.bd-root { min-height: 100vh; background: var(--bg); color: var(--ink); }
+.bd-wrap { max-width: 1120px; margin: 0 auto; padding: 0 32px; }
+
+.bd-head { border-bottom: 1px solid var(--line); }
+.bd-head-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px; }
+.bd-home { display: inline-flex; color: var(--ink); }
+.bd-head-link {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.bd-head-link:hover { color: var(--ink); }
+
+.bd-main { padding-bottom: 112px; }
+.bd-hero { padding: 88px 0 56px; }
+.bd-title {
+  font-family: var(--font-signage);
+  font-weight: var(--signage-weight);
+  font-size: var(--t-display);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.bd-lead { margin-top: 20px; max-width: 46ch; font-size: var(--t-lead); line-height: 1.45; color: var(--ink-2); }
+
+section.bd-section { padding: 48px 0 0; margin-top: 48px; border-top: 1px solid var(--ink); }
+.bd-h2 {
+  font-family: var(--font-signage);
+  font-weight: var(--signage-weight);
+  font-size: var(--t-h2);
+  letter-spacing: var(--signage-tracking);
+  line-height: 1.05;
+}
+.bd-h3 {
+  margin: 36px 0 14px;
+  font-family: var(--font-data);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.bd-body { margin-top: 12px; max-width: 62ch; font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); }
+.bd-link { display: inline-block; margin-top: 16px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.bd-link:hover { text-decoration-thickness: 2px; }
+
+/* Logo */
+.bd-logo-grid { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 12px; margin-top: 28px; }
+.bd-tile { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius-1); overflow: hidden; }
+.bd-tile-art { display: flex; align-items: center; justify-content: center; min-height: 200px; padding: 32px; color: var(--ink); }
+.bd-tile-art .brand-name { font-size: 26px; }
+.bd-tile figcaption { padding: 10px 14px; font-size: 0.8125rem; color: var(--ink-3); border-top: 1px solid var(--line); }
+.bd-tile-dark .bd-tile-art { background: var(--brand-ink); }
+.bd-tile-dark { border-color: var(--brand-ink); }
+.bd-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  color: var(--brand-white);
+  background: var(--brand-ink);
+  border-radius: 12px;
+}
+
+/* Colores */
+.bd-swatches { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.bd-products { margin-top: 20px; }
+.bd-swatch { display: flex; flex-direction: column; gap: 8px; }
+.bd-chip { display: block; height: 72px; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.bd-swatch-name { display: inline-flex; align-items: center; gap: 8px; font-size: 0.9375rem; font-weight: 500; }
+.bd-swatch .bp-copy {
+  align-self: flex-start;
+  display: inline-flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+.bd-swatch .bp-copy:hover { color: var(--ink); text-decoration-color: currentColor; }
+.bd-swatch .bp-copy-state { color: var(--ok-ink); }
+
+/* Tipografía */
+.bd-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 28px; }
+.bd-type { padding: 28px; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.bd-type-specimen { font-size: clamp(3rem, 7vw, 5.5rem); line-height: 1; letter-spacing: -0.02em; }
+.bd-type-sans { font-family: var(--font-ui); font-weight: 500; }
+.bd-type-mono { font-family: var(--font-data); font-weight: 500; letter-spacing: 0; }
+.bd-type-name { margin-top: 20px; font-weight: 600; }
+.bd-type .bd-body { margin-top: 4px; font-size: 0.9375rem; }
+
+@media (max-width: 860px) {
+  .bd-wrap { padding: 0 16px; }
+  .bd-hero { padding: 56px 0 32px; }
+  .bd-logo-grid,
+  .bd-type-grid { grid-template-columns: minmax(0, 1fr); }
+  .bd-tile-art { min-height: 150px; }
+}

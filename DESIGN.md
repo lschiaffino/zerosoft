@@ -1,27 +1,28 @@
 ---
 name: zerosoft
-description: Red de subte. Each app is a line, integrations are interchange stations, the zeros are the stations.
+description: White, black and zeros. The zero is the mark; color belongs to the eleven apps. Optional brand themes (today "Red de subte") restyle the same structure.
 colors:
-  enamel-white: "#ffffff"
-  enamel-panel: "#f4f4f2"
-  signage-ink: "#111111"
-  gray-1: "#3d3d3d"
-  gray-2: "#5c5c5c"
-  gray-3: "#767676"
-  rule: "#d9d9d6"
+  white: "#ffffff"
+  panel: "#f5f5f5"
+  side: "#fafafa"
+  ink: "#0d0d0d"
+  gray-1: "#4a4a4a"
+  gray-2: "#5e5e5e"
+  gray-3: "#6e6e6e"
+  rule: "#e8e8e8"
   on-ink: "#ffffff"
-  on-ink-2: "#b8b8b8"
-  line-link: "#2f6bff"
-  line-crm: "#7b4dff"
-  line-cal: "#0e9f6e"
-  line-track: "#f2611d"
-  line-chat: "#e23d7f"
-  line-docs: "#c2700a"
-  line-flow: "#0284c7"
-  line-agents: "#ff3b30"
-  line-notes: "#e6b400"
-  line-board: "#00b8a9"
-  line-robots: "#6b7280"
+  on-ink-2: "#b3b3b3"
+  app-link: "#2f6bff"
+  app-crm: "#7b4dff"
+  app-cal: "#0e9f6e"
+  app-track: "#f2611d"
+  app-chat: "#e23d7f"
+  app-docs: "#c2700a"
+  app-flow: "#0284c7"
+  app-agents: "#ff3b30"
+  app-notes: "#e6b400"
+  app-board: "#00b8a9"
+  app-robots: "#6b7280"
   ink-link: "#2c66f8"
   ink-crm: "#7b4dff"
   ink-cal: "#008358"
@@ -35,55 +36,46 @@ colors:
   ink-robots: "#6b7280"
 typography:
   display:
-    fontFamily: "Archivo, Arial Narrow, Arial, sans-serif"
-    fontSize: "clamp(3.25rem, 6.1vw, 5.5rem)"
-    fontWeight: 800
-    lineHeight: 0.92
-    letterSpacing: "-0.01em"
-    fontVariation: "\"wdth\" 75"
-  headline:
-    fontFamily: "Archivo, Arial Narrow, Arial, sans-serif"
-    fontSize: "clamp(2rem, 3.4vw, 3rem)"
-    fontWeight: 800
-    lineHeight: 1
-    letterSpacing: "-0.005em"
-    fontVariation: "\"wdth\" 75"
-  title:
-    fontFamily: "Archivo, Arial Narrow, Arial, sans-serif"
-    fontSize: "2rem"
-    fontWeight: 800
+    fontFamily: "Space Grotesk, -apple-system, Helvetica Neue, Arial, sans-serif"
+    fontSize: "clamp(2.75rem, 5.2vw, 4.75rem)"
+    fontWeight: 500
     lineHeight: 1.05
-    fontVariation: "\"wdth\" 75"
-  sign:
-    fontFamily: "Archivo, Arial Narrow, Arial, sans-serif"
-    fontSize: "1.625rem"
-    fontWeight: 800
-    lineHeight: 1
-    fontVariation: "\"wdth\" 75"
+    letterSpacing: "-0.02em"
+  headline:
+    fontFamily: "Space Grotesk, -apple-system, Helvetica Neue, Arial, sans-serif"
+    fontSize: "clamp(1.75rem, 2.9vw, 2.625rem)"
+    fontWeight: 500
+    lineHeight: 1.05
+    letterSpacing: "-0.02em"
+  title:
+    fontFamily: "Space Grotesk, -apple-system, Helvetica Neue, Arial, sans-serif"
+    fontSize: "1.75rem"
+    fontWeight: 500
+    lineHeight: 1.05
   lead:
-    fontFamily: "Archivo, -apple-system, Helvetica Neue, Arial, sans-serif"
+    fontFamily: "Space Grotesk, -apple-system, Helvetica Neue, Arial, sans-serif"
     fontSize: "1.25rem"
     fontWeight: 400
     lineHeight: 1.45
   body:
-    fontFamily: "Archivo, -apple-system, Helvetica Neue, Arial, sans-serif"
+    fontFamily: "Space Grotesk, -apple-system, Helvetica Neue, Arial, sans-serif"
     fontSize: "1.0625rem"
     fontWeight: 400
     lineHeight: 1.55
   label:
-    fontFamily: "Archivo, -apple-system, Helvetica Neue, Arial, sans-serif"
+    fontFamily: "Space Grotesk, -apple-system, Helvetica Neue, Arial, sans-serif"
     fontSize: "0.9375rem"
     fontWeight: 600
     lineHeight: 1.2
   data:
-    fontFamily: "JetBrains Mono, ui-monospace, SF Mono, Menlo, monospace"
+    fontFamily: "IBM Plex Mono, ui-monospace, SF Mono, Menlo, monospace"
     fontSize: "0.8125rem"
     fontWeight: 400
     lineHeight: 1.7
     fontFeature: "\"zero\" 1, \"tnum\" 1"
 rounded:
   square: "0px"
-  control: "2px"
+  control: "3px"
 spacing:
   s-1: "4px"
   s-2: "8px"
@@ -96,270 +88,212 @@ spacing:
   s-9: "128px"
 components:
   button-primary:
-    backgroundColor: "{colors.signage-ink}"
-    textColor: "{colors.enamel-white}"
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.white}"
     typography: "{typography.label}"
-    rounded: "{rounded.square}"
+    rounded: "{rounded.control}"
     padding: "10px 20px"
-    height: "44px"
+    height: "40px"
   button-primary-hover:
-    backgroundColor: "{colors.enamel-white}"
-    textColor: "{colors.signage-ink}"
-  button-on-band:
-    backgroundColor: "{colors.enamel-white}"
-    textColor: "{colors.signage-ink}"
+    backgroundColor: "{colors.white}"
+    textColor: "{colors.ink}"
+  button-chrome:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.white}"
     typography: "{typography.label}"
-    rounded: "{rounded.square}"
-    padding: "10px 20px"
-    height: "44px"
-  button-on-band-hover:
-    backgroundColor: "{colors.signage-ink}"
-    textColor: "{colors.enamel-white}"
-  button-outline-on-band:
-    backgroundColor: "transparent"
-    textColor: "{colors.on-ink}"
-    typography: "{typography.label}"
-    rounded: "{rounded.square}"
-    padding: "10px 20px"
-    height: "44px"
-  signage-band:
-    backgroundColor: "{colors.signage-ink}"
-    textColor: "{colors.on-ink}"
-    height: "74px"
-    padding: "0 56px"
+    rounded: "{rounded.control}"
+    height: "32px"
+  site-header:
+    backgroundColor: "{colors.white}"
+    textColor: "{colors.ink}"
+    height: "64px"
+  app-band:
+    backgroundColor: "{colors.white}"
+    textColor: "{colors.ink}"
+    height: "48px"
   section-sign:
-    backgroundColor: "{colors.signage-ink}"
-    textColor: "{colors.on-ink}"
+    backgroundColor: "transparent"
+    textColor: "{colors.ink}"
     typography: "{typography.headline}"
     height: "104px"
-  enamel-plate:
-    backgroundColor: "{colors.enamel-panel}"
-    rounded: "{rounded.square}"
-    height: "240px"
 ---
 
 # Design System: zerosoft
 
 ## Overview
 
-**Creative North Star: "Red de subte"**
+**Creative North Star: "Hecho de ceros"**
 
-zerosoft is drawn as a transit network. Each of the eleven apps is a line with its own color; integrations are interchange stations where two lines meet; the brand's zeros are the stations themselves, white circles with a thick black ring. The world borrows from Buenos Aires Subte signage and network diagrams: white enamel panels, a near-black signage band, condensed heavy lettering, colored strokes with round caps. It replaced the earlier black, white and oval-zeros look.
+zerosoft is white, black and zeros. The mark is a zero (an oval ring, `ZeroMark`, path in `lib/zero-mark.ts`) next to "zerosoft.ai" in lowercase mono. The site's first viewport is a big zero made of small zeros (`ZeroField`). Everything else is quiet: a white field, ink type, 1px rules, square-ish 3px corners. Color belongs to the eleven apps: each one has its color and it only says where you are (the app's zero, the active item, a chart), never decorates.
 
-The system is flat and literal. Depth comes from the contrast between the enamel field and the black band, never from shadows. Color is wayfinding: a line color tells you which app you are on, and nothing else in the interface competes with it. Type is one family, Archivo, used at two widths: condensed (wdth 75, weight 800) for signage and headings, normal width for reading and UI. JetBrains Mono appears only where the content is data.
+Type is Space Grotesk for reading, interface and headings (weight 500 for titles, tight tracking) and IBM Plex Mono for data, code and the wordmark. The system is flat: no shadows, gradients or pills.
 
-**Scope of application.** The full world is built on the brand guidelines page (`/[locale]/brand`, branding.zerosoft.ai) and on the public site (home, /products, product pages, tools, blog, API docs, changelog, status, legal and the feedback board; see Components: Site). The station-ring particle field (`ZeroField`) survives only on the sign-in, gate and error pages. The app shell is built on the same world (see Components: App shell): a black signage band on top, the sidebar drawn as the product's line with nav items as stations, and a shared control set in `styles/ui.css`. Product screens inside the shell move to it product by product.
+**Brand themes.** This is the **default** theme. The same structure (shell, UI kit, pages) can be restyled by an optional brand theme, chosen per browser with a cookie. Today there is one: **Red de subte** (see Themes). A third theme based on zeros/ASCII is planned; the layer is built so it only adds files.
 
 **Key Characteristics:**
-- White enamel field, #111 signage band for chrome and section headers.
-- Eleven line colors, drawn as 16px round-capped strokes; each paired with a darkened text ink.
-- The station (white circle, ring 0.44 of the outer radius) is the logo's "o", the symbol, and every map node.
-- One condensed heavy grotesque for signage; normal-width Archivo for UI; mono with slashed zero for data only.
-- Square corners everywhere except stations. No shadows, gradients, pills or emoji.
+- White field, ink text, 1px rules. Ink only as a band where it means "the end" (closing band, footer, code).
+- Eleven app colors, used as accents; each paired with a darkened text ink.
+- The zero is the logo, the favicon, the app icon and every app's mark (the zero in the app's color).
+- Space Grotesk for everything a person reads or operates; IBM Plex Mono for values and the wordmark.
+- 3px corners on controls; no shadows, gradients, pills or emoji.
+
+## Themes
+
+Themes change the brand layer only: tokens, typefaces, logo and a few signature drawings. Structure, routes, copy and UX (tabs, `AdvancedSection`, `SettingsTabs`, `FormSection`, `EmptyState`, `PageHeader`, `DataTable`) are shared.
+
+- **Registry:** `lib/brand-theme.ts` (`BRAND_THEMES`, cookie `zs_brand`, routes that force a theme). Server: `getBrandTheme()` in `lib/brand-theme-server.ts`. Client: `BrandProvider` / `useBrand()` in `components/brand/BrandProvider.tsx`.
+- **Switching:** any URL with `?brand=subte` stores the cookie and redirects to the same URL without the parameter; `?brand=default` clears it (`middleware.ts`). The root locale layout reads it and sets `<html data-brand="…">`.
+- **Forced routes:** `/[locale]/brand` (and branding.zerosoft.ai) is always default; `/[locale]/nuevo-branding/subte` is always subte. The middleware passes the forced theme in the internal `x-zs-brand` header.
+- **Tokens:** `styles/brand.css` holds what every theme shares (spacing, body scale, app `-ink`/`-on` colors). Each theme defines the same token names in `styles/themes/<theme>.css`: default in `:root`, the others under `html[data-brand="<theme>"]`. Token families: neutrals (`--brand-*`), type (`--font-signage`, `--font-ui`, `--font-data`, `--signage-stretch|weight|tracking|leading`, `--t-display|h1|h2|h3`), shape (`--radius-1`, `--stroke-rule`), interface (`--ui-hover`, `--ui-press`, `--ui-field`), chrome (`--chrome-bg|fg|fg-2|fg-3|line|hover|border|active-bg|active-fg|focus`), sidebar (`--side-bg`) and section signs (`--sign-bg|fg|fg-2|border`). Product CSS never hardcodes a theme value: titles use `font-family: var(--font-signage)` with the `--signage-*` tokens, heavy rules use `var(--stroke-rule)`, chrome uses `--chrome-*`.
+- **Brand components:** `Logo` (wordmark or symbol), `ProductGlyph` (an app's mark), `BrandSymbol` (bullet/milestone), `AccentGlyph` (empty states, public headers) and `HeroVisual` (first viewport) dispatch on the theme. Default renders live in `components/brand/default` and `components/zero`; subte in `components/brand/subte`, `Station`, `NetworkMap`.
+- **Adding a theme:** add the key to `BRAND_THEMES`, create `styles/themes/<theme>.css` and import it in `app/layout.tsx`, add its case to the dispatching components, load its fonts (without preload) in `app/[locale]/layout.tsx`, and (optionally) a guide at `/[locale]/nuevo-branding/<theme>` forced in `lib/brand-theme.ts`.
+
+### Optional theme: Red de subte
+
+Each app is a subway line, integrations are interchange stations, the zeros are the stations (white circles with a ring 0.44 of the radius). Neutrals `#ffffff` / enamel `#f4f4f2` / signage ink `#111111` (grays `#3d3d3d`, `#5c5c5c`, `#767676`; rule `#d9d9d6`). Archivo condensed (wdth 75, weight 800) for signage and titles, Archivo normal width for UI, JetBrains Mono for data. 2px corners, 4px ink rules. Chrome is a black signage band; section signs are full-width black bands with a station; the app sidebar is the product's line (a 6px stroke in `--accent`) with each item as a station; `/app` and the site's first viewport show the live `NetworkMap`. Logo: the outlined "zerosoft" wordmark with the station as its "o" (`lib/brand-mark.ts`). Full guide, kit and assets: `/[locale]/nuevo-branding/subte` (`public/brand/`).
 
 ## Colors
 
-A neutral enamel-and-ink base carrying eleven saturated line colors that work as wayfinding, not decoration.
+A white-and-ink base carrying eleven saturated app colors that work as wayfinding, not decoration.
 
 ### Primary
-- **Signage Ink** (signage-ink): the signage band, section header bands, the press footer, primary buttons, station rings, all body text. The site-wide `--ink` was moved to the same value.
-- **Enamel White** (enamel-white): the page field and station fill.
+- **Ink** (ink): text, primary buttons, rules under page headers, the closing band and footer.
+- **White** (white): the page field.
 
-### Secondary: the eleven lines
-- **Line colors** (line-link through line-robots): identical to `PRODUCT_CONFIG[key].color` and `--c-<key>`. Used for 16px map strokes, product station rings (`LineGlyph`), color swatches and fills. Never for text.
-- **Line inks** (ink-link through ink-robots): the same hue darkened in OKLCH to at least 4.75:1 on white. The only form of a line color allowed as text (links, labels, the copy confirmation, the red strike on "no" specimens). Canonical OKLCH values live in `lib/brand.ts` and the sidecar.
-- **Text on a line fill** (`--c-<key>-on`): white on Link, CRM and Robots; signage ink on the other eight.
+### Secondary: the eleven apps
+- **App colors** (app-link through app-robots): identical to `PRODUCT_CONFIG[key].color` and `--c-<key>`. Used for the app's zero (`ProductGlyph`, `.product-zero`), the active item in the sidebar, tab bars, charts and swatches. Never for text.
+- **App inks** (ink-link through ink-robots): the same hue darkened to at least 4.75:1 on white; the only form allowed as text.
+- **Text on an app fill** (`--c-<key>-on`): white on Link, CRM and Robots; ink on the other eight.
 
 ### Neutral
-- **Enamel Panel** (enamel-panel): plates behind logo, station and misuse specimens; the only tinted surface.
-- **Gray 1** (gray-1): secondary copy, captions, station names on the map.
-- **Gray 2** (gray-2): meta, table heads, struck-through "no" examples.
-- **Gray 3** (gray-3): the lightest gray allowed for text (4.54:1); also dimension lines.
-- **Rule** (rule): 1px table and list dividers, swatch borders.
-- **On Ink / On Ink 2** (on-ink, on-ink-2): primary and secondary text on the black band.
+- **Gray 1** (gray-1, 8.9:1): secondary copy, descriptions.
+- **Gray 2** (gray-2, 6.5:1): meta, table heads, section names in the sidebar.
+- **Gray 3** (gray-3, 5.1:1): the lightest gray allowed for text. Never lighter (no #9a9a9a for text).
+- **Panel** (panel) and **Side** (side): the only tinted surfaces (plates, the app sidebar).
+- **Rule** (rule): 1px dividers and borders.
+- **On Ink / On Ink 2**: text on the ink bands (footer, closing band, code).
 
 ### Named Rules
-**The Ink-For-Text Rule.** A line color is never set as text. Text in a product's color uses its `-ink` variant; text on a line fill uses its `-on` value.
+**The Ink-For-Text Rule.** An app color is never set as text. Text in an app's color uses its `-ink` variant; text on an app fill uses its `-on` value.
 
-**The Labeled Line Rule.** A line color never carries meaning alone: every line on the map has its name in signage type at a terminus, and every swatch sits beside the product name. Notes (#e6b400) and Board (#00b8a9) strokes fall below 3:1 on white, so the label is what makes them legible.
+**The Labeled Color Rule.** An app color never carries meaning alone: the zero sits next to the app's name.
 
-**The Logo Is Ink Rule.** The wordmark and the brand symbol are signage ink or white only. A line-colored ring belongs to a product symbol, never to the zerosoft mark.
+**The Logo Is Ink Rule.** The zerosoft zero and wordmark are ink or white only. A colored zero is an app's mark, never zerosoft's.
 
 ## Typography
 
-**Display Font:** Archivo variable, condensed (wdth 75, weight 800), fallback Arial Narrow
-**Body Font:** Archivo variable, normal width, fallback -apple-system, Helvetica Neue, Arial
-**Label/Mono Font:** JetBrains Mono with slashed zero and tabular figures, fallback ui-monospace
-
-**Character:** A heavy condensed transit grotesque that reads like station signage, paired with the same family at normal width so the interface feels like one voice. Mono is a tool for values, not a style.
-
-Archivo is loaded with the `wdth` axis (62 to 125); the build uses 75 for all signage. `--wdth-tight` (62) is defined but not yet used.
+**Display/Body Font:** Space Grotesk (titles at 500 with -0.02em tracking; UI and reading at 400 to 600)
+**Mono Font:** IBM Plex Mono (data, code, the wordmark, small uppercase captions)
 
 ### Hierarchy
-- **Display** (800, wdth 75, clamp 52 to 88px, 0.92): the first-viewport headline. The landing hero `.lp-h1` uses the same treatment at clamp 48 to 96px.
-- **Headline** (800, wdth 75, clamp 32 to 48px, 1.0): section titles, set white inside the black section-sign band. Raised to the h1 step (clamp 40 to 64px) for the press close.
-- **Title** (800, wdth 75, 32px, 1.05): subsections, 72px above and 16px below.
-- **Sign** (800, wdth 75, 26px, 1.0): line names on the network map and signage labels.
+- **Display** (500, clamp 44 to 76px, 1.05): the first-viewport headline.
+- **Headline** (500, clamp 28 to 42px): section titles (`SectionSign`), the second clause in gray-2.
+- **Title** (500, 28px): subsections and page titles (`PageHeader` uses 32px).
 - **Lead** (400, 20px, 1.45): section intros, max 60ch.
-- **Body** (400, 17px, 1.55): reading copy, max 65ch, gray-1 when secondary.
-- **Label** (600, 15px): buttons, band navigation, station names, small headings above specimens.
-- **Data** (JetBrains Mono, 13px): HEX values, file names, sizes, measurements.
+- **Body** (400, 17px, 1.55): reading copy, max 65ch.
+- **Label** (600, 15px): buttons, navigation, small headings.
+- **Data** (IBM Plex Mono, 13px, slashed zero, tabular): values a reader might copy or compare.
 
 ### Named Rules
-**The Mono Is Data Rule.** JetBrains Mono, with `"zero" 1`, is only for values a reader might copy or compare: HEX, OKLCH, file names, sizes, pixel measures. Labels, buttons and navigation are Archivo.
+**The Mono Is Data Rule.** Mono is for values, code and the wordmark. Buttons and navigation are Space Grotesk, sentence case.
 
-**The Two Widths Rule.** Signage and headings are condensed 800; everything a user reads or operates is normal width. Never set running text condensed, never set a heading at normal width.
-
-**The Lowercase Name Rule.** The wordmark is always "zerosoft" in lowercase, outlined from the brand's own drawing with the station as its "o"; never retyped in another font or as a typographic zero.
+**The Lowercase Name Rule.** The name is always "zerosoft.ai" (or "zerosoft") in lowercase, next to the zero.
 
 ## Layout
 
-Full-bleed bands on a white field. Content sits in a 1200px wrap with 56px side padding (16px under 900px). Sections end with 112px of space (72px on small screens) and open with a full-width black section-sign band, 104px tall (80px small), holding a white-ringed station and the headline.
+Full-bleed sections on a white field. Content sits in a 1280px container with 32px gutters (16px under 860px). Sections open with a section sign (a 1px ink rule on top, the zero and the headline) and end with generous space. The first viewport is a split: headline, one sentence and two actions on the left; the zero made of zeros on the right (on a product page, tinted with its color). The closing band and the footer are ink.
 
-The first viewport is a 2:3 split: condensed headline, one sentence and the kit download on the left; the live network diagram on the right, filling the viewport height below the 74px band. A 4px ink rule closes the hero. Under 900px everything stacks to one column, the band drops its links and keeps the logo and one action, the hero map enlarges its line labels to 40px and hides station names, and a wider copy of the map scrolls horizontally with its caption pinned. Multi-column tables become stacked two-column rows.
-
-Spacing lives on a multiple-of-8 scale with a 4px half step (spacing tokens). Wide gaps between columns are 56px; grid gaps 24 to 32px.
+Spacing lives on a multiple-of-8 scale with a 4px half step.
 
 ## Elevation & Depth
 
-Flat by construction. There are no box shadows anywhere in the world. Depth comes from tonal layering of only three planes: the white field, the enamel panel for specimens, and the black signage band for chrome and section headers. Sticky band at the top uses z-index only.
-
-### Named Rules
-**The No-Shadow Rule.** Nothing casts a shadow, glows or blurs. If a surface needs to separate, it changes plane (white, enamel, ink) or takes a 1px rule. The only shadow on the brand page is inside the logo-misuse specimen that shows what not to do.
+Flat. No box shadows. Surfaces separate by plane (white, panel, ink) or by a 1px rule. Sticky chrome uses z-index only.
 
 ## Shapes
 
-Square. Every container, plate, button, band, swatch and focus outline has a 0 radius. The circle is reserved for stations: a white disc with a ring 0.44 of its outer radius (`STATION_RING`), the same ratio as the wordmark's "o". Interchanges are two stations 1.6 radii apart joined by a bar the thickness of the ring. Lines are 16px strokes with round caps and round joins, routed in horizontals, verticals and 45-degree diagonals. Rules come in three weights: 16px line, 8px ring, 4px rule; dividers are 1px.
-
-### Named Rules
-**The Circle Is A Station Rule.** A circle in this world always means a station. Do not use round avatars, dots, pills or rounded cards to decorate; any circle will be read as a stop on a line.
+Controls and plates have 3px corners (`--radius-1`). Avatars and plates are square. The zero is an oval ring. Rules are 1px; the heavy rule (`--stroke-rule`) is 1px of ink in default (4px in subte).
 
 ## Components
 
 ### Buttons
-`.btn` in `styles/ui.css`, one component for site and app. Archivo 600, sentence case, no tracking, 2px corners, 1px border.
-- **Variants:** `.btn-primary` (alias `.btn-solid`): ink plate, white text, one per view. `.btn-secondary` (plain `.btn`, alias `.btn-outline`): white with a 3.2:1 field border. `.btn-ghost`: text only, enamel fill on hover, for tertiary actions. `.btn-danger`: red text; `.btn-primary.btn-danger` is the red plate. `.btn-invert` and `.btn-invert-solid` sit on the black band.
-- **Sizes:** default 40px on the site, 36px inside `.app-frame`; `.btn-sm` (alias `.btn-small`) 32px / 28px in the app; `.btn-lg` 48px. `.btn-icon` is square; `.btn-block` fills the row.
-- **States:** hover inverts the primary plate (white with an ink border and ink text; the red plate darkens) and lifts the secondary to enamel with an ink border; press scales to 0.98; focus is a 2px ink outline offset 2px (white on the band); disabled is 40% opacity with `not-allowed`; loading is `aria-busy="true"`: the label stays, clicks stop, and a 2px line draws along the bottom edge (static under reduced motion).
-- **Copy:** a verb and an object ("Crear link", "Guardar cambios"), never "OK" or "Enviar" alone.
+`.btn` in `styles/ui.css`, one component for site and app. Sentence case, 1px border, `--radius-1` corners.
+- **Variants:** `.btn-primary` (alias `.btn-solid`): ink plate, one per view. `.btn-secondary` (plain `.btn`, alias `.btn-outline`): white with a 3.3:1 field border. `.btn-ghost`: text only, hover fill. `.btn-danger`: red text; `.btn-primary.btn-danger` is the red plate. `.btn-chrome` / `.btn-chrome-outline` sit on the theme's chrome (site header, board header): ink on white in default, white on the black band in subte. `.btn-invert` / `.btn-invert-solid` sit on ink bands (closing band).
+- **Sizes:** default 40px on the site, 36px inside `.app-frame`; `.btn-sm` 32px / 28px; `.btn-lg` 48px.
+- **States:** hover inverts the primary plate; press scales to 0.98; focus is a 2px ink outline offset 2px (`--chrome-focus` on chrome); disabled is 40% opacity; loading is `aria-busy="true"`.
+- **Copy:** a verb and an object ("Crear link", "Guardar cambios").
 
-### Signage Band (navigation)
-The site chrome on the brand page: a sticky 74px #111 band, wordmark left, Archivo 600 15px links with a 2px underline that appears on hover, one white action pushed to the right. Under 900px the links are hidden and the band is 64px.
-
-### Section Sign
-Every section opens with a full-width black band containing a white-ringed station and the section title in Headline. It replaces eyebrows and kickers: the station marks where you are.
-
-### Network Map (signature)
-The SVG diagram of the suite (`NetworkMap`, data in `lib/brand-network.ts`, real integrations only). Lines draw in once with stroke-dashoffset (1.4s, expo-out, staggered 80ms per line); stations snap visible at the end with no easing; reduced motion skips both. Hovering or focusing a line or station dims everything else to 14% opacity and the caption below shows a color bar and what the station connects. Every station is keyboard-focusable with a 3px ring; lines carry a 44px invisible hit stroke and stations an invisible touch zone of at least 24px. Station names are Archivo 600 15px in gray-1 with a white halo.
-
-### Station and Line Glyph
-`Station` renders the zero (single or interchange) at any size; `LineGlyph` is a product's station with the ring in its line color, optionally sitting on a short stretch of line. Used as list markers in tables and as product symbols.
-
-### Enamel Plates
-Square enamel panels (240px tall for logo plates, 200px for stations, 160px for misuse) present specimens, with 13px gray captions below. An ink plate variant shows the reversed logo.
-
-### Tables
-Full-width, rules only: 1px rule dividers, 16px cell padding, 13px gray-2 heads, no fills or zebra striping. HEX values are copy buttons: mono data with an underline on hover and a copied confirmation in the Cal ink.
+### Logo and marks
+- **`Logo`** `{ tone?: 'current' | 'ink' | 'white', height?, variant?: 'wordmark' | 'symbol', title? }`: in default, `ZeroMark` + "zerosoft.ai" in mono (`.brand-logo-default`); the symbol is the zero alone. `tone="current"` (chrome) inherits the text color.
+- **`ProductGlyph`** `{ product, size?, onLine? }`: an app's mark. Default: the zero in the app color (`.product-zero card-<key>`). `onLine` only applies to subte.
+- **`BrandSymbol`**: the zero as bullet or milestone (changelog nodes, product steps, section signs).
+- **`AccentGlyph`** `{ color, height? }`: the zero in a given color, used by `EmptyState` and the help-center header.
+- **Favicon / app icon / OG:** `app/icon.svg` and `app/apple-icon.tsx` are the white zero on an ink square; product, changelog and tool OG images (`lib/product-og.ts`) are a zero made of zeros on ink; blog covers (`lib/blog-cover.ts`) are zeros only.
 
 ### App shell
 `app/[locale]/app/layout.tsx` + `components/app/AppSidebar.tsx` + `styles/app.css`.
-- **Signage band** (`.app-band`, 48px, #111, sticky): white station home link to `/app`, the line switcher (the current product's `LineGlyph` on its line plus the name in Sign type), the current section after a slash (`AppTopbar`, on-ink-2), search with `⌘K`, notifications. Under 1024px a menu button opens the drawer and the section and search label hide.
-- **The sidebar is the product's line** (`.side`, 240px, enamel plane): a 6px vertical stroke in `--accent` runs through every nav item; each item (`.side-stop`) is a station (`.side-station`, 16px white disc with a 3.5px ink ring). The active item has `aria-current="page"`, its station filled with the line color and a white row. Section names sit beside the line in 12px gray-2. Counts are ink plates in mono.
-- **Switcher:** a menu (`role="menu"`, arrow keys, Home/End, Esc returns focus) listing the eleven lines as glyphs; the current one carries `aria-current` and a small ink square.
-- **Collapsed** (≥1024px, `.sidebar-collapsed`, 56px, remembered in localStorage `zs-side-collapsed`): only the stations, labels kept for screen readers, tooltips by `title`.
-- **Mobile drawer** (<1024px): slides from the left under the band, backdrop at 48% ink, Esc closes and returns focus to the menu button, hidden content is not focusable.
-- **Color:** AppSidebar injects `--accent` (line), `--accent-ink` (text) and `--accent-on` (text on a line fill) on `.app-frame`. Use the line for wayfinding only (active station, active tab bar, charts); actions stay ink.
-- **Heights:** `--band-h` (48px) is the only chrome above content; full-height views use `calc(100dvh - var(--band-h))`.
+- **Band** (`.app-band`, 48px, sticky, `--chrome-*`): white with a 1px rule in default. The zero links to `/app`, then the product switcher (the app's zero and its name), the current section after a slash (`AppTopbar`), search with `⌘K` and notifications. Under 1024px a menu button opens the drawer.
+- **Sidebar** (`.side`, 240px, `--side-bg`): "+ Nuevo", then the product's items with their icons; the active item has `aria-current="page"`, a white row, a 2px bar in `--accent` on its left edge and its icon in `--accent-ink`. Section names in 12px gray-2. Footer: Ajustes, Docs, back to the site, the user.
+- **Switcher:** a menu (`role="menu"`, arrow keys, Home/End, Esc returns focus) listing the eleven apps with their zeros; the current one carries `aria-current`.
+- **Collapsed** (≥1024px, `.sidebar-collapsed`, 56px, remembered in localStorage `zs-side-collapsed`): only the icons, labels kept for screen readers.
+- **Mobile drawer** (<1024px): slides from the left under the band, 48% ink backdrop, Esc closes and returns focus.
+- **Color:** AppSidebar injects `--accent`, `--accent-ink` and `--accent-on` on `.app-frame`. The app color is wayfinding only (active item, active tab bar, charts); actions stay ink.
+- **Heights:** `--band-h` (48px) is the only chrome above content.
+
+### App home (`/app`)
+Default: the eleven apps as a grid of plates (`.app-home-apps`), each with its zero in the app color, name and one line; Link's numbers follow, since `/app` is also Link's overview. Subte: the `NetworkMap` as launcher next to the list of lines.
 
 ### UI kit (`styles/ui.css`)
 Loaded site-wide after `globals.css`. Product screens use these classes instead of their own versions.
-- **Fields:** `.input`, `.select`, `.textarea` (40px site, 36px app; 1px `--ui-field` border at 3.2:1; focus thickens the border to 2px ink inside; `aria-invalid="true"` turns it red; disabled is enamel). `.label` (13px 600, sentence case), `.ui-field` wraps label + control + `.ui-help` / `.ui-error`; `.ui-fields` and `.ui-fields-2` lay out groups; `.ui-input-group` + `.ui-addon` for prefixes like a domain.
-- **Checkbox and switch:** `<label class="ui-check"><input type="checkbox">` is a 16px square, ink when checked (supports indeterminate). `<label class="ui-switch"><input type="checkbox" role="switch">` is a straight 32×18 rail with a square plate; ink when on. Radios stay native with ink `accent-color`: a radio is already a station.
-- **Badges:** `.badge` is a 22px straight plate in Archivo 12px 600, enamel by default; `.badge-ok`, `-warn`, `-bad`, `-info`, `-ink`, `-outline`. Never a pill, never uppercase. `.kbd` for shortcuts.
-- **Dense tables:** `.table` (inside `.table-wrap`): 32px header with a 1px ink rule, 36px rows with 1px rules, tabular numerals, enamel on hover, `aria-selected` rows in hover gray. `.num` right-aligns numbers; `.data` sets values in mono; `.table-compact` (32px rows); `.table-sticky` header; `.cell-link` for the row's primary link.
-- **Tabs:** `.ui-tabs` with `.ui-tab` (links with `aria-current="page"` or `role="tab"` buttons with `aria-selected`). The active tab carries a 4px bar in the line color under ink text.
-- **Modal and drawer:** native `<dialog class="ui-modal">` / `<dialog class="ui-drawer">` opened with `showModal()` (focus trap and Esc for free). 1px ink border, 48% ink backdrop, no shadow. Parts: `-head`, `-title` (signage 22px), `-body`, `-foot` (enamel, actions right, `.ui-foot-note` left). `.ui-modal-wide` for 760px. Prefer inline or a drawer before a modal.
-- **Toasts:** `.ui-toasts` (fixed bottom right, `role="status"`) holding `.ui-toast` plates: ink with white text, `data-tone="error"` in red, optional `.ui-toast-action`.
-- **Empty and loading:** `.ui-empty` (see EmptyState). `.ui-skeleton` plates in enamel that breathe to hover gray (`-text`, `-title`, `-row`, `-block`); no shimmer gradient, static under reduced motion. Skeletons, not spinners, inside content.
-- **Page:** `.ui-page` (24px rhythm), `.ui-page-header` (title in signage 32px, 4px ink rule below), `.ui-section` (form section with enamel footer), `.ui-disclosure` (Avanzado), `.ui-settings` (secondary settings nav).
-- **Tokens added in `globals.css`:** `--ui-hover`, `--ui-press`, `--ui-field`, `--ui-backdrop`, `--ui-dur` (160ms), semantic `--ok`/`--warn`/`--bad` each with `-ink` (text, AA) and `-soft` (background). Old names (`--dim`, `--line`, `--ink-2`, `--subtle`, `--r-*`) are aliases of the brand tokens; `--r-*` are all 2px.
+- **Fields:** `.input`, `.select`, `.textarea` (40px site, 36px app; 1px `--ui-field` border at 3.3:1; focus thickens the border to 2px ink; `aria-invalid="true"` turns it red). `.label` (13px 600, sentence case), `.ui-field` wraps label + control + `.ui-help` / `.ui-error`; `.ui-fields`, `.ui-fields-2`; `.ui-input-group` + `.ui-addon`.
+- **Checkbox and switch:** `.ui-check` (16px square, ink when checked, indeterminate) and `.ui-switch` (32×18 rail, ink when on).
+- **Badges:** `.badge` is a 22px plate, 12px 600; `.badge-ok`, `-warn`, `-bad`, `-info`, `-ink`, `-outline`. Never a pill, never uppercase. `.kbd` for shortcuts.
+- **Dense tables:** `.table` (inside `.table-wrap`): 32px header with a 1px ink rule, 36px rows, tabular numerals. `.num`, `.data`, `.table-compact`, `.table-sticky`, `.cell-link`.
+- **Tabs:** `.ui-tabs` with `.ui-tab` (`aria-current="page"` links or `role="tab"` buttons). The active tab carries a bar in the app color under ink text.
+- **Modal and drawer:** native `<dialog class="ui-modal">` / `<dialog class="ui-drawer">` with `showModal()`. 1px ink border, 48% ink backdrop, no shadow.
+- **Toasts:** `.ui-toasts` / `.ui-toast` (ink plate, `data-tone="error"` in red).
+- **Empty and loading:** `.ui-empty` (see EmptyState). `.ui-skeleton` plates; skeletons, not spinners.
+- **Page:** `.ui-page`, `.ui-page-header` (title 32px, `--stroke-rule` ink rule below), `.ui-section`, `.ui-disclosure` (Avanzado), `.ui-settings`.
+- **Tokens in `globals.css`:** `--ui-backdrop`, `--ui-dur` (160ms), semantic `--ok`/`--warn`/`--bad` each with `-ink` (text, AA) and `-soft`. Old names (`--dim`, `--line`, `--ink-2`, `--subtle`, `--r-*`) are aliases of the theme tokens.
 
 ### React components (`components/ui/`)
 - **`PageHeader`** `{ title, description?, actions?, back? }`: the top of every app page. One `.btn-primary` in `actions`.
-- **`EmptyState`** `{ title, body?, action?, secondary?, product?, quiet? }`: a stretch of the line with its station, what goes here, one primary action (`{ label, href }` or your own button) and a shortcut or import in `secondary`. `quiet` drops the border inside panels.
-- **`FormSection`** `{ title, description?, onSubmit?, submitLabel?, note?, footer?, tone? }`: a settings block with its own Guardar. With `onSubmit(formData)` it renders a `<form>` and handles saving, saved and error states (return a string or `{ error }` to show it). `tone="danger"` for destructive blocks.
-- **`AdvancedSection`** `{ storageKey, label?, hint?, defaultOpen? }`: the "Avanzado" disclosure (button with `aria-expanded` + region). Remembers open or closed per `storageKey` in localStorage, wrapped in try/catch.
-- **`SettingsTabs`** `{ items, mode: 'route' | 'query', param?, layout: 'side' | 'top' }`: settings navigation. `side` is a secondary nav on the left that becomes scrolling tabs under 900px; `top` uses `.ui-tabs`. Route mode activates the longest matching `href` (an item's `match` adds more prefixes, e.g. Admin covers feedback, roadmap and changelog); query mode writes `?tab=<key>` and defaults to the first item.
-- **`DataTable`** `{ columns, rows, rowKey, rowHref?, caption?, empty?, compact?, sticky? }`: a dense `.table` for server or client components. Columns declare `numeric` or `data`; `rowHref` links the first cell. Sorting and paging stay in the page.
+- **`EmptyState`** `{ title, body?, action?, secondary?, product?, quiet?, compact? }`: the brand glyph in the app color, what goes here, one primary action and a shortcut or import in `secondary`.
+- **`FormSection`** `{ title, description?, onSubmit?, submitLabel?, note?, footer?, tone? }`: a settings block with its own Guardar.
+- **`AdvancedSection`** `{ storageKey, label?, hint?, defaultOpen? }`: the "Avanzado" disclosure, remembered per `storageKey`.
+- **`SettingsTabs`** `{ items, mode: 'route' | 'query', param?, layout: 'side' | 'top' }`: settings navigation.
+- **`DataTable`** `{ columns, rows, rowKey, rowHref?, caption?, empty?, compact?, sticky? }`: a dense `.table`.
 
 ### Site (`components/site`, `styles/site.css`, `styles/pages.css`)
-Persuade and Read surfaces carry the world in full; the reading column stays calm.
-- **Signage band** (`.site-header`, 64px `--site-band-h`, sticky, #111): white wordmark, Archivo 600 links with a 2px underline on hover and on the current section (`aria-current="page"`), locale plates, one white action (`.btn-invert-solid`). The products menu is a white panel with a 1px ink border listing the eleven lines as `LineGlyph`. Under 1024px a drawn menu icon opens the panel.
-- **First viewport** (`.lp-hero`, `.pd-hero`): 2:3 split, display headline left, the live `NetworkMap` right (`SiteNetworkMap`, every line and station links to its product page), closed by a 4px ink rule. A product page passes `focus` so its line stays lit and the caption says what it connects. Under 900px the map goes below the copy.
-- **Section sign** (`SectionSign`): every section opens with a full-width 104px black band, a station and the Headline; the second clause sits in on-ink-2 after it. On a product page the station is the product's `LineGlyph`.
-- **The product's line as index** (`ProductLineNav`, `.pline`): sticky under the band, a 6px stroke in the product color with one station per section; the current one is filled with the line color and carries `aria-current="location"`. It scrolls sideways on phones and follows the reading position.
-- **Pricing** (`CloudPricing`, data in `lib/pricing.ts`): the three ways (self-host, Cloud, Enterprise) as rows with the price in signage, then the usage table with "Nuestro costo" and "Tu precio (× 3)" side by side in mono, plus seats, AI (× 1.2), the paid minimum and the date the costs were measured. On the home, /products and every product page.
-- **The math** (`.stack`): list prices as a `.table` with the bars drawn as 8px round-capped strokes in each line color, next to an ink plate with "$0". On product pages the rival's price sits next to the ink plate with a 16px stretch of the product's line through a station.
-- **Steps** (`.pd-steps`): three stations on a 6px stretch of the product's line, horizontal on desktop, vertical on phones.
-- **Closing band** (`.lp-end`): black, display headline, white actions and the eleven lines as `EndLines` (the current product marked).
-- **Reading pages** (`.read-hero`, `.read-title`, `.prose`): signage title, lead intro, 4px ink rule, a 68ch column. Legal pages share `LegalPage` with the index on an enamel plate. Blog covers (`lib/blog-cover.ts`) are a stretch of a line on the ink band, deterministic per slug, also used for the OG image.
-- **Changelog** (`ChangelogList`): a 6px ink line with one station per release, the day in signage, product filters as `.ui-tabs` (bar in the line color) and each change marked with its `LineGlyph` (`ProductMark` draws a plain station for platform and site).
-- **Feedback board** (`BoardChrome`, `styles/board-public.css`): the same black band with the wordmark (the station alone under 520px) and "feedback" in signage; signage titles, square avatars, product marks as line glyphs and the idea history as a small line with stations.
-- **Contrast:** inside site pages Link's accent is its ink (#2c66f8), because white on #2f6bff is 4.49:1.
+- **Header** (`.site-header`, 64px, sticky, `--chrome-*`): white with a 1px rule; the logo, links with an underline on hover and on the current section, locale plates and one `.btn-chrome` action. The products menu lists the eleven apps with their zeros.
+- **First viewport** (`.lp-hero`, `.pd-hero`): headline left, `HeroVisual` right (the zero made of zeros; tinted on a product page).
+- **Section sign** (`SectionSign`): a 1px ink rule, the zero (the app's zero on a product page) and the headline; the second clause in gray-2.
+- **Pricing** (`CloudPricing`), **the math** (`.stack`), **steps**, **closing band** (`.lp-end`, ink, with the eleven apps as `EndLines`) and **reading pages** (`.read-hero`, `.prose`) keep their structure; they read their colors and rules from the theme tokens.
+- **Changelog** (`ChangelogList`): one milestone per release (`BrandSymbol`), product filters as `.ui-tabs`, each change marked with its `ProductMark`.
+- **Feedback board** (`BoardChrome`, `styles/board-public.css`): the chrome tokens (white header in default), the logo (the zero alone under 520px).
+- **Brand page** (`/[locale]/brand`, branding.zerosoft.ai, `styles/brand-default.css`): the default logo on white and on ink, the icon, neutrals and the eleven app colors (copyable HEX), the two typefaces and a pointer to the optional theme.
 
-### App home (`/app`)
-The network map is the workspace launcher: `NetworkMap` with `hrefs` pointing each line and station into its app (no draw-in animation inside the app), next to the eleven lines as a list (glyph, name, one line). Link's numbers follow, since `/app` is also Link's overview.
-
-### Link (`/app/links`)
-- **Signature:** `LinkRoute` draws each link as a stretch of the Link line: the short URL and the destination are stations joined by a 6px stroke in `--accent`; with routing rules the destination becomes an interchange and the extra destinations are counted.
-- **Detail** is one header plus five tabs (`?tab=`: Resumen, Analytics, QR, Ruteo, Ajustes; `?edit=1` redirects to Ajustes). Numbers sit in a ruled strip (`.lk-stats`), never in cards. Charts and breakdown bars use the line color; the last point of a chart is a station.
-- **Create** has one entry, "Nuevo", with route tabs Un link / En lote / Importar. The basic path is URL + optional slug; everything else is in `AdvancedSection`. Custom domains have their own page at `/app/links/domains`.
-
-### CRM records (`styles/crm-records.css`)
-Contact, company and deal details share one shape: `PageHeader` (back link, name, badges and meta as the description, actions), tags, then `RecordTabs` (`?tab=activity|properties|related`, only the active tab is rendered). Activity is the timeline plus a sticky summary rail (key facts, first five related records). Duplicates, history and delete live in `RecordMoreMenu` ("More"), which opens a drawer, or a modal for delete. A deal's stages are its line: stations on a 6px stroke, done and current segments in the CRM color, the current station filled. Associated records are rows (`.assoc-row`), not pills. Create forms use `FormSection` with the basics visible and the rest behind `AdvancedSection` ("More fields"). Lists use dense one-line tables (36px rows, ellipsis), `CrmPager` and `EmptyState`; every CRM list route has `loading.tsx` (skeleton) and `error.tsx` (retry).
-
-### Step line (CRM workflows and sequences)
-`.crm-line` in `styles/crm.css`: an ordered list drawn as the product's line. Each step (`.crm-stop`) sits on a 4px `--accent` stroke with a station (`.crm-station`, 24px white disc, 3.5px ink ring, the step number in data type). The trigger of a workflow is the filled station; wait steps and the "add" row use a small gray station. The new-workflow wizard uses the same move for its three steps (`.wf-steps`): stations joined by a 4px rule that turns into the line color once a step is done. Editors on this line end in one sticky `.crm-savebar` with the only primary button.
-
-### CRM settings and builders
-CRM settings are `SettingsTabs` in query mode (`?tab=team|sales|data|automation|integrations|import`); each tab loads only its data and each block is a `FormSection`. Old anchors (`#quotas`) redirect to their tab. The form builder splits into four `role="tab"` panels inside one `<form>` (one Save); slug, consent, dedupe and spam live in `AdvancedSection`. Quote sender and recipient collapse to a one-line summary; a sequence's schedule collapses to "Mon to Fri, 09:00 to 17:00 (tz)".
-
-### Cal (`/app/calendar`, `/book`, `/r`)
-`styles/calendar.css` holds only what Cal adds on top of the UI kit.
-- **Event type editor:** one `.ui-section` form with `.ui-tabs` (General, Availability, Questions, Advanced, Share; arrow keys move between tabs, `?tab=` deep-links) and a single sticky "Save changes" foot that saves the event, its own hours and its reminders together. Validation errors switch to the tab that has them. Limits default to the calendar's values ("Use the calendar's defaults" switch); the URL slug and each question's key are derived from the title and label (`components/calendar/cal-utils.ts`).
-- **Quick create:** title, duration and location in the shared QuickModal; the URL is shown as a preview with "Change URL". A toast confirms and links to the editor.
-- **Event type colors** are 12px squares (`.cal-swatch`), never dots: a circle would read as a station.
-- **Routing form editor** is drawn as a line with three stations (`.cal-stepper`: Questions, Rules, Publish), the active one filled with the line color. Questions and rules save as you add them; Publish is a `FormSection` with one Save.
-- **Availability:** schedule list plus one editor with one Save; weekly hours are `WeeklyHours` (shared with an event's own hours); date overrides sit behind `AdvancedSection` with their count as the hint.
-- **Bookings** are grouped by day in the calendar's time zone, one dense row per booking (time in data type, guest, event, status badge, actions); reschedule, cancel and details open inline under the row.
-- **Public pages** (`.bk`) carry the workspace's brand, not zerosoft's: `--bk` is the event's brand color (or its color), `--bk-on` is white or ink by contrast (`textOn`). The color fills the selected day, the selected slot, the main button and a 4px top rule on the card; available days get a 9% tint. Logo or a square monogram, host name, then the event. No signage band, stations or condensed type there.
-
-### Docs (`styles/docs.css`, `styles/help.css`)
-- **Page tree as a branch of the line:** a 256px column next to the shell sidebar. Each level is a 4px stroke in `--accent` and every page is a 12px station (2.6px ink ring); the open page is the filled station on an enamel row with `aria-current`. A user-chosen emoji sits after the station, never in its place; pages have no default icon. New page and Trash live in the shell sidebar, so the tree does not repeat them. Under 1024px it folds into a "Pages" toggle.
-- **Editor:** a sticky 48px bar (breadcrumb, save state, a "Published" badge, Comments, Share, the "…" menu). Reading column of 42rem: title in signage 44px, headings in signage (32/26/20px) with more space above than below, body Archivo 17px/1.65, square bullets, square ink checkboxes, 2px ink quote rule, code on enamel in JetBrains Mono. Selection is the line color at 26%.
-- **Floating menus** (page menu, block menu, `/` commands, mentions, format bar, icon picker): one piece, 1px ink border, 4px padding, 32px items, enamel hover, no shadow. Block-type icons are drawn SVGs, not glyphs.
-- **Share:** `dialog.ui-modal` with two groups, People (invite combobox with arrow keys, role select, access list) and Publish (help-center switch, public link with copy, Chat AI under Advanced).
-- **Help center** (`/h/<handle>`): the workspace's brand. Its accent arrives split by `lib/docs-accent.ts` into stroke, AA text ink and text-on-fill. Header is the workspace name as a station on its line; the hero is an enamel band with the signage headline and a 48px search; collections are stations on a vertical 8px line in the workspace color, with their articles in ruled two-column lists. Articles read at 44rem with a sticky contents rail.
-
-### Global settings (`/app/settings`)
-Three route tabs (`SettingsTabs` top): **Cuenta** (read-only profile), **Workspace** (API keys, webhooks, credentials, AI usage, Link data) and **Admin** (feedback, roadmap, changelog; only `ADMIN_EMAILS`). Each block is a `FormSection`; the short path is visible (key name + Crear key, endpoint URL + events) and the rest sits in `AdvancedSection` (key permissions, webhook signature, changelog translations and closed ideas, roadmap merge and signals). Webhook events are grouped by resource with a group checkbox that goes indeterminate. Admin screens share a segmented `.btn-group` of links (`aria-current`) for sub-sections, views and status filters. A product is shown as a short stretch of its line (`ProductTag`), never a dot. The roadmap kanban opens items in a native `dialog.ui-drawer`. Layout lives in `styles/settings.css` (prefix `st-`).
+### Product screens
+Product-specific notes (shared by every theme):
+- **Link:** detail is one header plus five tabs (`?tab=`); numbers sit in a ruled strip; create has one entry with route tabs; custom domains at `/app/links/domains`.
+- **CRM records:** `PageHeader`, tags, `RecordTabs` (`?tab=activity|properties|related`), `RecordMoreMenu`; create forms use `FormSection` + `AdvancedSection`; every list route has `loading.tsx` and `error.tsx`. Settings are `SettingsTabs` in query mode.
+- **Cal:** one event-type editor with `.ui-tabs` and a single sticky save; quick create in QuickModal; bookings grouped by day; public pages (`.bk`) carry the workspace's brand, not zerosoft's.
+- **Docs:** page tree next to the shell sidebar; editor with a sticky 48px bar; floating menus with a 1px ink border; help center (`/h/<handle>`) in the workspace's color.
+- **Global settings:** `SettingsTabs` (Cuenta, Workspace, Admin), each block a `FormSection`, details in `AdvancedSection`.
+- **Product diagrams** (Link route, CRM step line and deal stages, Docs tree, Flow nodes, Cal routing stepper) are still drawn as a line with stations in every theme; moving them to theme tokens is pending.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** draw every app as a 16px round-capped stroke in its line color, and every node as a station with a 0.44 ring.
-- **Do** use the `-ink` variant for any text in a product's color and the `-on` value for text on a line fill.
-- **Do** open sections with the black section-sign band and a station, not a small label above the title.
-- **Do** set headings in Archivo wdth 75 weight 800 and everything operable in normal-width Archivo.
-- **Do** keep JetBrains Mono for values only, with the slashed zero on.
-- **Do** separate surfaces by plane (white, enamel #f4f4f2, ink #111) or a 1px rule.
-- **Do** animate lines once by drawing them and let stations snap; respect reduced motion.
+- **Do** use the zero as the only brand shape, and the app's zero in its color as its mark.
+- **Do** use the `-ink` variant for text in an app's color and the `-on` value on an app fill.
+- **Do** read every brand value from the theme tokens (`--brand-*`, `--font-*`, `--signage-*`, `--chrome-*`, `--stroke-rule`).
+- **Do** keep text at gray-3 (#6e6e6e) or darker.
+- **Do** separate surfaces by plane or a 1px rule.
 
 ### Don't:
-- **Don't** round corners on anything but stations.
-- **Don't** add shadows, glows, gradients or outlines to surfaces or to the logo.
-- **Don't** use pills, tags, emoji or decorative circles.
-- **Don't** set a raw line color as text, or let a line color stand without its name.
-- **Don't** color the zerosoft wordmark or symbol with a line color, stretch it, capitalize it, rebuild it in another font, or replace the station with a typographic zero.
-- **Don't** set buttons, navigation or labels in mono or uppercase with tracking.
-- **Don't** make lines float, pulse or loop; motion is one draw-in.
+- **Don't** hardcode a theme's look (condensed 800 titles, 4px rules, black chrome, stations) outside its theme file or component.
+- **Don't** add shadows, glows or gradients.
+- **Don't** use pills, emoji or decorative circles.
+- **Don't** set a raw app color as text, or let it stand without its name.
+- **Don't** color the zerosoft zero with an app color, stretch it, or retype the name in another font.
+- **Don't** set buttons or navigation in mono or uppercase.

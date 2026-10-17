@@ -1,21 +1,22 @@
 /* ============================================
    zerosoft: estilos globales del sitio y las apps.
-   Los tokens de marca (red de subte) están en styles/brand.css.
+   Los tokens de marca salen del tema activo (styles/themes/default.css y los
+   opcionales bajo html[data-brand]); los compartidos, de styles/brand.css.
    ============================================ */
 
-/* Los neutros salen de styles/brand.css (red de subte). Estos nombres
-   (--bg, --ink, --dim, --line…) son alias históricos que usan los estilos de
-   cada producto: apuntan a los tokens de marca, no a valores propios. */
+/* Estos nombres (--bg, --ink, --dim, --line…) son alias históricos que usan
+   los estilos de cada producto: apuntan a los tokens del tema, no a valores
+   propios. */
 :root {
   --bg: var(--brand-white);
   --ink: var(--brand-ink);
-  /* Gris más claro permitido para texto (4,54:1). Antes var(--brand-on-ink-2), que no pasaba AA. */
+  /* Gris más claro permitido para texto (≥ 4,5:1 en cada tema). */
   --dim: var(--brand-gray-3);
   /* Filete de 1px: divisores de tabla, listas y paneles. */
   --line: var(--brand-rule);
   --ink-2: var(--brand-gray-1);
   --ink-3: var(--brand-gray-2);
-  /* Lo mismo sobre la banda de señalética (#111). */
+  /* Lo mismo sobre fondos de tinta (pie, bandas oscuras). */
   --on-dark-2: var(--brand-on-ink-2);
   --on-dark-3: #8f8f8f;
   --mono: var(--font-data);
@@ -27,9 +28,9 @@
   --muted: var(--dim);
   --subtle: var(--brand-enamel);
 
-  /* Color: una línea por producto. Blanco esmaltado y tinta son la base;
-     el color de la línea marca dónde estás. Verificados contra
-     PRODUCT_CONFIG en tests/unit/site-catalog.test.ts. */
+  /* Color: uno por producto. Blanco y tinta son la base; el color del
+     producto marca dónde estás. Verificados contra PRODUCT_CONFIG en
+     tests/unit/site-catalog.test.ts. */
   --c-link: #2f6bff;
   --c-crm: #7b4dff;
   --c-cal: #0e9f6e;
@@ -42,7 +43,7 @@
   --c-board: #00b8a9;
   --c-robots: #6b7280;
 
-  /* Forma: recta. 2px como máximo; el círculo es solo para estaciones. */
+  /* Forma: la del tema (--radius-1). */
   --r-xs: var(--radius-1);
   --r-sm: var(--radius-1);
   --r-md: var(--radius-1);
@@ -61,11 +62,8 @@
   --info: var(--c-link);
   --info-ink: var(--c-link-ink);
 
-  /* Superficies de la interfaz (ver styles/ui.css). */
-  --ui-hover: #ebebe8;
-  --ui-press: #e1e1dd;
-  /* Borde de un campo: 3,2:1 sobre blanco (WCAG 1.4.11). */
-  --ui-field: #8c8c88;
+  /* Superficies de la interfaz (ver styles/ui.css). --ui-hover, --ui-press
+     y --ui-field vienen del tema. */
   --ui-backdrop: rgb(17 17 17 / 0.48);
   --ui-dur: 160ms;
 
@@ -284,7 +282,7 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
 
 }
 
-/* Pie mínimo de las páginas públicas (sin chrome de marketing): Archivo, sentence case, marca en minúscula. */
+/* Pie mínimo de las páginas públicas (sin chrome de marketing): sentence case, marca en minúscula. */
 .powered-by {
   text-align: center;
   font-family: var(--font-ui, var(--sans));

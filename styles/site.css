@@ -1,15 +1,15 @@
 /* ============================================
-   Sitio público: la banda de señalética (header), el pie de prensa, el blog
-   y las páginas de lectura (legal, estado). Red de subte: banda #111,
-   Archivo angosta para títulos, Archivo normal para leer, mono solo datos.
+   Sitio público: el header, el pie, el blog y las páginas de lectura
+   (legal, estado). Los colores del header salen de los tokens --chrome-*
+   del tema (default: blanco con filete; subte: banda negra).
    ============================================ */
 
 :root {
   --site-band-h: 64px;
 }
 
-/* Sobre la banda negra el foco es blanco. */
-.site-header :focus-visible,
+/* Sobre fondos de tinta el foco es blanco. */
+.site-header :focus-visible { outline-color: var(--chrome-focus); }
 .site-footer :focus-visible,
 .sign-band :focus-visible,
 .lp-end :focus-visible,
@@ -29,14 +29,15 @@
 }
 .lp-textlink:hover { text-decoration-thickness: 2px; }
 
-/* ---------- Banda de señalética (header) ---------- */
+/* ---------- Header ---------- */
 
 .site-header {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: var(--brand-ink);
-  color: var(--brand-on-ink);
+  background: var(--chrome-bg);
+  color: var(--chrome-fg);
+  border-bottom: var(--chrome-border);
 }
 
 .hd-inner {
@@ -50,7 +51,7 @@
 }
 
 .site-header .brand { display: inline-flex; padding: 6px 0; flex-shrink: 0; }
-.site-header .brand .brand-logo { display: block; }
+.site-header .brand .brand-logo { display: flex; }
 
 .hd-nav { display: flex; align-items: center; gap: 4px; min-width: 0; }
 
@@ -63,7 +64,7 @@
   font-family: var(--font-ui);
   font-size: var(--t-ui);
   font-weight: 600;
-  color: var(--brand-on-ink);
+  color: var(--chrome-fg);
   background: none;
   border: 0;
   cursor: pointer;
@@ -99,18 +100,18 @@
 .locale-switcher a:hover { color: var(--ink); }
 .locale-switcher a.active { background: var(--ink); color: var(--bg); }
 
-.site-header .locale-switcher,
+.site-header .locale-switcher { border-color: var(--chrome-line); }
+.site-header .locale-switcher a { color: var(--chrome-fg-2); }
+.site-header .locale-switcher a + a { border-left-color: var(--chrome-line); }
+.site-header .locale-switcher a:hover { color: var(--chrome-fg); }
+.site-header .locale-switcher a.active { background: var(--chrome-active-bg); color: var(--chrome-active-fg); }
 .site-footer .locale-switcher { border-color: var(--brand-gray-1); }
-.site-header .locale-switcher a,
 .site-footer .locale-switcher a { color: var(--brand-on-ink-2); }
-.site-header .locale-switcher a + a,
 .site-footer .locale-switcher a + a { border-left-color: var(--brand-gray-1); }
-.site-header .locale-switcher a:hover,
 .site-footer .locale-switcher a:hover { color: var(--brand-on-ink); }
-.site-header .locale-switcher a.active,
 .site-footer .locale-switcher a.active { background: var(--brand-on-ink); color: var(--brand-ink); }
 
-/* Menú de productos: un panel blanco bajo la banda, las once líneas. */
+/* Menú de productos: un panel blanco bajo el header, las once apps. */
 .hd-dropdown { position: relative; }
 .hd-mega {
   position: absolute;
@@ -132,13 +133,14 @@
 .hd-group { display: flex; flex-direction: column; gap: 2px; }
 .hd-group-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.25rem;
   line-height: 1;
   padding: 0 8px 10px;
   margin-bottom: 4px;
-  border-bottom: 4px solid var(--brand-ink);
+  border-bottom: var(--stroke-rule) solid var(--brand-ink);
 }
 .hd-prod {
   display: grid;
@@ -172,14 +174,15 @@
   width: 40px;
   height: 40px;
   background: none;
-  border: 1px solid var(--brand-gray-1);
-  color: var(--brand-on-ink);
+  border: 1px solid var(--chrome-line);
+  color: var(--chrome-fg);
   cursor: pointer;
 }
 .mobile-panel-label {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.5rem;
 }
 
@@ -208,7 +211,7 @@
     padding: 16px 16px 24px;
     background: var(--bg);
     color: var(--ink);
-    border-bottom: 4px solid var(--brand-ink);
+    border-bottom: var(--stroke-rule) solid var(--brand-ink);
   }
   .mobile-panel .hd-group-title { display: none; }
   .mobile-panel-products { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
@@ -246,8 +249,9 @@
 .footer-brand p { margin-top: 16px; max-width: 34ch; font-size: 14px; line-height: 1.55; }
 .footer-brand .footer-tagline {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.25rem;
   color: var(--brand-on-ink);
 }
@@ -269,8 +273,9 @@
 
 .footer-col h4 {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.125rem;
   color: var(--brand-on-ink);
   margin-bottom: 16px;
@@ -320,16 +325,16 @@
 .read-hero {
   padding-top: 56px;
   padding-bottom: 40px;
-  border-bottom: 4px solid var(--brand-ink);
+  border-bottom: var(--stroke-rule) solid var(--brand-ink);
   margin-bottom: 48px;
 }
 
 .read-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: var(--t-h1);
-  line-height: 0.95;
+  line-height: var(--signage-leading);
   letter-spacing: -0.01em;
   max-width: 18ch;
   text-wrap: balance;
@@ -374,8 +379,9 @@
 .prose p { margin-bottom: 1.2em; }
 .prose h2 {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.75rem;
   line-height: 1.05;
   color: var(--ink);
@@ -385,7 +391,7 @@
 .prose h3 { font-size: 1.15rem; font-weight: 700; color: var(--ink); margin: 1.6em 0 0.5em; }
 .prose ul, .prose ol { margin: 0 0 1.2em 1.3em; }
 .prose li { margin-bottom: 0.4em; }
-.prose blockquote { border-left: 4px solid var(--ink); padding-left: 20px; margin: 1.8em 0; color: var(--ink); }
+.prose blockquote { border-left: var(--stroke-rule) solid var(--ink); padding-left: 20px; margin: 1.8em 0; color: var(--ink); }
 .prose code {
   font-family: var(--font-data);
   font-feature-settings: "zero" 1;
@@ -424,8 +430,9 @@
 .blog-card-meta { font-size: 13px; color: var(--brand-gray-2); }
 .blog-card-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.5rem;
   line-height: 1.05;
   text-wrap: balance;
@@ -437,8 +444,9 @@
 .blog-back { font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
 .blog-post-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: var(--t-h1);
   line-height: 0.98;
   margin: 20px 0 16px;
@@ -474,8 +482,9 @@
 .status-note-block { margin-top: 48px; padding: 24px; background: var(--brand-enamel); max-width: 72ch; }
 .status-note-block h2 {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.75rem;
   line-height: 1;
 }

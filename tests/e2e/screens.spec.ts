@@ -83,7 +83,7 @@ test('el sidebar tiene Ajustes globales en el pie y el colapsar traducido', asyn
   await expect(page.locator('.side-handle')).toHaveAttribute('aria-label', 'Contraer barra lateral');
 });
 
-test('el shell: banda con switcher de líneas y la estación activa marcada', async ({ page }) => {
+test('el shell: banda con switcher de apps y el ítem activo marcado', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/es/app/crm/contacts', { waitUntil: 'networkidle' });
   const active = page.locator('.side-line [aria-current="page"]');

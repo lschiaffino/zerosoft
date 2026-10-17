@@ -34,8 +34,8 @@ export default async function BoardChrome({
     <header className="bp-head">
       <div className="bp-wrap bp-head-inner">
         <a className="bp-logo" href={home} aria-label={t('home')}>
-          <Logo tone="white" height={20} title="" className="bp-logo-word" />
-          <Logo tone="white" variant="symbol" height={24} title="" className="bp-logo-symbol" />
+          <Logo tone="current" height={20} title="" className="bp-logo-word" />
+          <Logo tone="current" variant="symbol" height={24} title="" className="bp-logo-symbol" />
           <span className="bp-logo-sub">{t('sub')}</span>
         </a>
         <nav className="bp-nav" aria-label={t('label')}>
@@ -59,7 +59,7 @@ export default async function BoardChrome({
               <span>{person.name ?? person.email}</span>
             </a>
           ) : (
-            <a className="btn btn-invert btn-sm" href={boardLoginHref(ctx, returnPath)}>
+            <a className="btn btn-chrome-outline btn-sm" href={boardLoginHref(ctx, returnPath)}>
               {t('signIn')}
             </a>
           )}

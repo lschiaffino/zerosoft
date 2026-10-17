@@ -202,7 +202,7 @@
     },
     "proof": {
       "caption": "Interactive previews of each app. The real thing is one click away.",
-      "title": "Every line, inside.",
+      "title": "Every app, inside.",
       "titleDim": "Interactive views of eight apps."
     },
     "suite": {
@@ -346,8 +346,11 @@
     "sections": "Sections"
   },
   "appHome": {
-    "title": "Your network",
-    "lead": "Each app is a line. Shared stations are the integrations that already work between them.",
+    "title": "Your apps",
+    "lead": "The eleven apps in your workspace. Pick one to get started.",
+    "apps": "Apps",
+    "subteTitle": "Your network",
+    "subteLead": "Each app is a line. Shared stations are the integrations that already work between them.",
     "mapTitle": "Map of your apps",
     "lines": "Lines",
     "open": "Open {name}",

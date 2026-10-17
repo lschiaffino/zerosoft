@@ -202,7 +202,7 @@
     },
     "proof": {
       "caption": "Vistas interactivas de cada app. La de verdad está a un clic.",
-      "title": "Cada línea, por dentro.",
+      "title": "Cada app, por dentro.",
       "titleDim": "Vistas interactivas de ocho apps."
     },
     "suite": {
@@ -346,8 +346,11 @@
     "sections": "Secciones"
   },
   "appHome": {
-    "title": "Tu red",
-    "lead": "Cada app es una línea. Las estaciones compartidas son las integraciones que ya funcionan entre ellas.",
+    "title": "Tus apps",
+    "lead": "Las once apps de tu workspace. Elegí una para empezar.",
+    "apps": "Apps",
+    "subteTitle": "Tu red",
+    "subteLead": "Cada app es una línea. Las estaciones compartidas son las integraciones que ya funcionan entre ellas.",
     "mapTitle": "Plano de tus apps",
     "lines": "Líneas",
     "open": "Abrir {name}",

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-16T19:52:27+00:00",
+  "generatedAt": "2026-10-17T12:00:00+00:00",
   "title": "Design System: zerosoft",
   "extensions": {
     "colorMeta": {
-      "enamel-white": {
+      "white": {
         "role": "primary",
-        "displayName": "Enamel White",
+        "displayName": "White",
         "tonalRamp": [
           "oklch(15% 0 0)",
           "oklch(25% 0 0)",
@@ -18,9 +18,9 @@
           "oklch(95% 0 0)"
         ]
       },
-      "signage-ink": {
+      "ink": {
         "role": "primary",
-        "displayName": "Signage Ink",
+        "displayName": "Ink",
         "tonalRamp": [
           "oklch(15% 0 0)",
           "oklch(25% 0 0)",
@@ -32,9 +32,23 @@
           "oklch(95% 0 0)"
         ]
       },
-      "enamel-panel": {
+      "panel": {
         "role": "neutral",
-        "displayName": "Enamel Panel",
+        "displayName": "Panel",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(55% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "side": {
+        "role": "neutral",
+        "displayName": "Sidebar",
         "tonalRamp": [
           "oklch(15% 0 0)",
           "oklch(25% 0 0)",
@@ -48,7 +62,7 @@
       },
       "gray-1": {
         "role": "neutral",
-        "displayName": "Gray 1 (11.3:1)",
+        "displayName": "Gray 1 (8.9:1)",
         "tonalRamp": [
           "oklch(15% 0 0)",
           "oklch(25% 0 0)",
@@ -62,7 +76,7 @@
       },
       "gray-2": {
         "role": "neutral",
-        "displayName": "Gray 2 (6.7:1)",
+        "displayName": "Gray 2 (6.5:1)",
         "tonalRamp": [
           "oklch(15% 0 0)",
           "oklch(25% 0 0)",
@@ -76,7 +90,7 @@
       },
       "gray-3": {
         "role": "neutral",
-        "displayName": "Gray 3 (4.54:1, lightest text gray)",
+        "displayName": "Gray 3 (5.1:1, lightest text)",
         "tonalRamp": [
           "oklch(15% 0 0)",
           "oklch(25% 0 0)",
@@ -118,7 +132,7 @@
       },
       "on-ink-2": {
         "role": "neutral",
-        "displayName": "On Ink 2 (9.2:1 on #111)",
+        "displayName": "On Ink 2",
         "tonalRamp": [
           "oklch(15% 0 0)",
           "oklch(25% 0 0)",
@@ -130,9 +144,9 @@
           "oklch(95% 0 0)"
         ]
       },
-      "line-link": {
+      "app-link": {
         "role": "secondary",
-        "displayName": "Link Line",
+        "displayName": "Link App",
         "canonical": "oklch(58.1% 0.229 263.9)",
         "tonalRamp": [
           "oklch(15% 0.229 263.9)",
@@ -162,9 +176,9 @@
         ],
         "note": "Text version, at least 4.75:1 on white."
       },
-      "line-crm": {
+      "app-crm": {
         "role": "secondary",
-        "displayName": "CRM Line",
+        "displayName": "CRM App",
         "canonical": "oklch(57.8% 0.247 287.9)",
         "tonalRamp": [
           "oklch(15% 0.247 287.9)",
@@ -194,9 +208,9 @@
         ],
         "note": "Text version, at least 4.75:1 on white."
       },
-      "line-cal": {
+      "app-cal": {
         "role": "secondary",
-        "displayName": "Cal Line",
+        "displayName": "Cal App",
         "canonical": "oklch(62.2% 0.133 162.3)",
         "tonalRamp": [
           "oklch(15% 0.133 162.3)",
@@ -226,9 +240,9 @@
         ],
         "note": "Text version, at least 4.75:1 on white."
       },
-      "line-track": {
+      "app-track": {
         "role": "secondary",
-        "displayName": "Track Line",
+        "displayName": "Track App",
         "canonical": "oklch(67.0% 0.193 41.4)",
         "tonalRamp": [
           "oklch(15% 0.193 41.4)",
@@ -258,9 +272,9 @@
         ],
         "note": "Text version, at least 4.75:1 on white."
       },
-      "line-chat": {
+      "app-chat": {
         "role": "secondary",
-        "displayName": "Chat Line",
+        "displayName": "Chat App",
         "canonical": "oklch(62.2% 0.206 1.1)",
         "tonalRamp": [
           "oklch(15% 0.206 1.1)",
@@ -290,9 +304,9 @@
         ],
         "note": "Text version, at least 4.75:1 on white."
       },
-      "line-docs": {
+      "app-docs": {
         "role": "secondary",
-        "displayName": "Docs Line",
+        "displayName": "Docs App",
         "canonical": "oklch(62.3% 0.141 61.8)",
         "tonalRamp": [
           "oklch(15% 0.141 61.8)",
@@ -322,9 +336,9 @@
         ],
         "note": "Text version, at least 4.75:1 on white."
       },
-      "line-flow": {
+      "app-flow": {
         "role": "secondary",
-        "displayName": "Flow Line",
+        "displayName": "Flow App",
         "canonical": "oklch(58.8% 0.139 242.0)",
         "tonalRamp": [
           "oklch(15% 0.139 242.0)",
@@ -354,9 +368,9 @@
         ],
         "note": "Text version, at least 4.75:1 on white."
       },
-      "line-agents": {
+      "app-agents": {
         "role": "secondary",
-        "displayName": "Agents Line",
+        "displayName": "Agents App",
         "canonical": "oklch(65.4% 0.232 28.7)",
         "tonalRamp": [
           "oklch(15% 0.232 28.7)",
@@ -386,9 +400,9 @@
         ],
         "note": "Text version, at least 4.75:1 on white."
       },
-      "line-notes": {
+      "app-notes": {
         "role": "secondary",
-        "displayName": "Notes Line",
+        "displayName": "Notes App",
         "canonical": "oklch(79.3% 0.162 88.4)",
         "tonalRamp": [
           "oklch(15% 0.162 88.4)",
@@ -418,9 +432,9 @@
         ],
         "note": "Text version, at least 4.75:1 on white."
       },
-      "line-board": {
+      "app-board": {
         "role": "secondary",
-        "displayName": "Board Line",
+        "displayName": "Board App",
         "canonical": "oklch(70.3% 0.124 184.6)",
         "tonalRamp": [
           "oklch(15% 0.124 184.6)",
@@ -450,9 +464,9 @@
         ],
         "note": "Text version, at least 4.75:1 on white."
       },
-      "line-robots": {
+      "app-robots": {
         "role": "secondary",
-        "displayName": "Robots Line",
+        "displayName": "Robots App",
         "canonical": "oklch(55.1% 0.023 264.4)",
         "tonalRamp": [
           "oklch(15% 0.023 264.4)",
@@ -485,20 +499,16 @@
     },
     "typographyMeta": {
       "display": {
-        "displayName": "Display (signage)",
-        "purpose": "First-viewport headline; .lp-h1 on landing heroes."
+        "displayName": "Display",
+        "purpose": "First-viewport headline (.lp-h1, .pd-title-name)."
       },
       "headline": {
-        "displayName": "Headline (signage)",
-        "purpose": "Section titles inside the section-sign band."
+        "displayName": "Headline",
+        "purpose": "Section titles (SectionSign)."
       },
       "title": {
-        "displayName": "Title (signage)",
-        "purpose": "Subsections."
-      },
-      "sign": {
-        "displayName": "Sign",
-        "purpose": "Line names on the network map."
+        "displayName": "Title",
+        "purpose": "Subsections and page titles."
       },
       "lead": {
         "displayName": "Lead",
@@ -510,63 +520,58 @@
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Buttons, band navigation, station names."
+        "purpose": "Buttons, navigation, small headings."
       },
       "data": {
-        "displayName": "Data (mono)",
-        "purpose": "HEX, OKLCH, file names, sizes and measures only."
+        "displayName": "Data (IBM Plex Mono)",
+        "purpose": "Values, code and the wordmark; slashed zero, tabular figures."
       }
     },
     "shadows": [],
     "strokes": [
       {
+        "name": "stroke-rule",
+        "value": "1px (subte: 4px)",
+        "purpose": "Heavy rule under page headers and closing the hero (var(--stroke-rule))."
+      },
+      {
+        "name": "divider",
+        "value": "1px solid #e8e8e8",
+        "purpose": "Table and list dividers."
+      },
+      {
         "name": "stroke-line",
         "value": "16px",
-        "purpose": "Line strokes, round caps and joins."
+        "purpose": "Subte theme only: network map lines."
       },
       {
         "name": "stroke-ring",
         "value": "8px",
-        "purpose": "Station rings on the map (ring = 0.44 of the outer radius)."
-      },
-      {
-        "name": "stroke-rule",
-        "value": "4px",
-        "purpose": "Heavy ink rule closing the hero."
-      },
-      {
-        "name": "divider",
-        "value": "1px solid #d9d9d6",
-        "purpose": "Table and list dividers."
+        "purpose": "Subte theme only: station rings on the map."
       }
     ],
     "focus": [
       {
         "name": "focus-ring",
-        "value": "outline: 3px solid #111; outline-offset: 3px",
-        "purpose": "All focusable elements; white on ink bands."
+        "value": "outline: 2px solid #0d0d0d; outline-offset: 2px",
+        "purpose": "All focusable elements; --chrome-focus on the chrome, white on ink bands."
       }
     ],
     "motion": [
       {
         "name": "ease-out-expo",
         "value": "cubic-bezier(0.16, 1, 0.3, 1)",
-        "purpose": "All state transitions (0.2s buttons and links, 0.25s map dimming)."
+        "purpose": "All state transitions (160ms interface)."
       },
       {
-        "name": "line-draw",
-        "value": "stroke-dashoffset 1 to 0, 1.4s ease-out-expo, +80ms per line",
-        "purpose": "Lines draw in once on load; skipped with reduced motion."
+        "name": "zero-field",
+        "value": "canvas particles that drift back to the big zero; reacts to the pointer",
+        "purpose": "First viewport (ZeroField); static fallback with reduced motion."
       },
       {
-        "name": "station-snap",
-        "value": "visibility step-end at 900ms + 30ms per station",
-        "purpose": "Stations appear without easing after the lines."
-      },
-      {
-        "name": "dim",
-        "value": "opacity 0.14",
-        "purpose": "Non-active lines and stations while one is lit."
+        "name": "logo-squeeze",
+        "value": "scaleX(0.82), 0.4s ease-out-expo",
+        "purpose": "The zero of the logo on hover."
       }
     ],
     "breakpoints": [
@@ -582,6 +587,22 @@
         "name": "medium",
         "value": "1100px"
       }
+    ],
+    "themes": [
+      {
+        "name": "default",
+        "selector": ":root",
+        "file": "styles/themes/default.css",
+        "description": "zerosoft.ai: ZeroMark + \"zerosoft.ai\", Space Grotesk + IBM Plex Mono, white/black/zeros."
+      },
+      {
+        "name": "subte",
+        "selector": "html[data-brand=\"subte\"]",
+        "file": "styles/themes/subte.css",
+        "optional": true,
+        "activate": "?brand=subte (cookie zs_brand); ?brand=default clears it; forced on /[locale]/nuevo-branding/subte",
+        "description": "Red de subte: apps as lines, zeros as stations, Archivo condensed 800 + JetBrains Mono, black signage band, sidebar as the product line, NetworkMap launcher."
+      }
     ]
   },
   "components": [
@@ -589,57 +610,49 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Solid ink signage plate; inverts on hover.",
-      "html": "<button class=\"ds-btn\">Descargar kit</button>",
-      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 20px; border: 2px solid var(--brand-ink, #111111); border-radius: 0; background: var(--brand-ink, #111111); color: #fff; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; line-height: 1.2; cursor: pointer; transition: background 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)), color 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-btn:hover { background: #fff; color: var(--brand-ink, #111111); } .ds-btn:focus-visible { outline: 3px solid var(--brand-ink, #111111); outline-offset: 3px; }"
+      "description": "Ink plate with 3px corners; inverts on hover. One per view.",
+      "html": "<button class=\"ds-btn\">Empezá gratis</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; min-height: 40px; padding: 0 18px; border: 1px solid #0d0d0d; border-radius: 3px; background: #0d0d0d; color: #fff; font-family: var(--font-ui, 'Space Grotesk', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 160ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn:hover { background: #fff; color: #0d0d0d; } .ds-btn:focus-visible { outline: 2px solid #0d0d0d; outline-offset: 2px; }"
     },
     {
-      "name": "On-band Buttons",
-      "kind": "button",
-      "refersTo": "button-on-band",
-      "description": "White plate (main action) and white outline (secondary) inside the black band.",
-      "html": "<div class=\"ds-band-demo\"><button class=\"ds-btn-white\">Descargar kit</button> <button class=\"ds-btn-outline\">Ver la red</button></div>",
-      "css": ".ds-band-demo { background: var(--brand-ink, #111111); padding: 24px; display: flex; gap: 12px; } .ds-btn-white, .ds-btn-outline { min-height: 44px; padding: 10px 20px; border: 2px solid #fff; border-radius: 0; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)), color 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-btn-white { background: #fff; color: var(--brand-ink, #111111); } .ds-btn-white:hover { background: var(--brand-ink, #111111); color: #fff; } .ds-btn-outline { background: transparent; color: #fff; } .ds-btn-outline:hover { background: #fff; color: var(--brand-ink, #111111); } .ds-btn-white:focus-visible, .ds-btn-outline:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }"
+      "name": "Logo",
+      "kind": "brand",
+      "refersTo": "site-header",
+      "description": "The zero and \"zerosoft.ai\" in lowercase mono; the zero squeezes on hover.",
+      "html": "<a class=\"ds-logo\" href=\"#\"><svg viewBox=\"0 0 20 24\" width=\"20\" height=\"24\" aria-hidden=\"true\"><path d=\"M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z\" fill=\"currentColor\" fill-rule=\"evenodd\"/></svg><span>zerosoft.ai</span></a>",
+      "css": ".ds-logo { display: inline-flex; align-items: center; gap: 10px; color: #0d0d0d; text-decoration: none; } .ds-logo svg { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); } .ds-logo:hover svg { transform: scaleX(0.82); } .ds-logo span { font-family: var(--font-data, 'IBM Plex Mono', ui-monospace, monospace); font-size: 14px; font-weight: 500; letter-spacing: 0.02em; }"
     },
     {
-      "name": "Signage Band",
-      "kind": "nav",
-      "refersTo": "signage-band",
-      "description": "Sticky #111 band: wordmark left, links, one white action right.",
-      "html": "<header class=\"ds-band\"><span class=\"ds-band-mark\">zer<svg class=\"ds-o\" width=\"17\" height=\"17\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#111\" stroke=\"#fff\" stroke-width=\"22\"/></svg>soft</span><nav class=\"ds-band-nav\"><a href=\"#\">Logo</a><a href=\"#\">Líneas</a><a href=\"#\">Tipografía</a></nav><a class=\"ds-band-btn\" href=\"#\">Descargar kit</a></header>",
-      "css": ".ds-band { display: flex; align-items: center; gap: 36px; height: 74px; padding: 0 32px; background: var(--brand-ink, #111111); color: #fff; } .ds-band-mark { display: inline-flex; align-items: center; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-weight: 800; font-size: 26px; letter-spacing: -0.02em; } .ds-o { margin: 0 1px; } .ds-band-nav { display: flex; gap: 28px; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; } .ds-band-nav a { color: #fff; text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 6px; transition: text-decoration-color 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-band-nav a:hover { text-decoration-color: currentColor; } .ds-band-nav a:focus-visible, .ds-band-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; } .ds-band-btn { margin-left: auto; padding: 10px 20px; background: #fff; color: var(--brand-ink, #111111); border: 2px solid #fff; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; text-decoration: none; } .ds-band-btn:hover { background: var(--brand-ink, #111111); color: #fff; }"
+      "name": "Site Header",
+      "kind": "navigation",
+      "refersTo": "site-header",
+      "description": "White, 64px, 1px rule below; logo, links, locale plates and one chrome button.",
+      "html": "<header class=\"ds-head\"><a class=\"ds-logo\" href=\"#\"><svg viewBox=\"0 0 20 24\" width=\"20\" height=\"24\" aria-hidden=\"true\"><path d=\"M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z\" fill=\"currentColor\" fill-rule=\"evenodd\"/></svg><span>zerosoft.ai</span></a><nav><a href=\"#\">Productos</a><a href=\"#\">Docs</a><a href=\"#\">Blog</a></nav><a class=\"ds-cta\" href=\"#\">Dashboard</a></header>",
+      "css": ".ds-head { display: flex; align-items: center; gap: 32px; height: 64px; padding: 0 32px; background: #fff; color: #0d0d0d; border-bottom: 1px solid #e8e8e8; font-family: var(--font-ui, 'Space Grotesk', -apple-system, 'Helvetica Neue', Arial, sans-serif); } .ds-head .ds-logo { display: inline-flex; align-items: center; gap: 10px; color: inherit; } .ds-head .ds-logo span { font-family: var(--font-data, 'IBM Plex Mono', ui-monospace, monospace); font-size: 14px; } .ds-head nav { display: flex; gap: 20px; font-size: 15px; font-weight: 600; } .ds-head nav a { color: inherit; text-decoration: none; } .ds-cta { margin-left: auto; padding: 7px 12px; border-radius: 3px; background: #0d0d0d; color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }"
     },
     {
       "name": "Section Sign",
-      "kind": "custom",
+      "kind": "heading",
       "refersTo": "section-sign",
-      "description": "Full-width black band opening every section: white-ringed station plus condensed headline.",
-      "html": "<div class=\"ds-sign\"><svg width=\"28\" height=\"28\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#111111\" stroke=\"#ffffff\" stroke-width=\"22\"/></svg><h2 class=\"ds-sign-h\">Las líneas</h2></div>",
-      "css": ".ds-sign { display: flex; align-items: center; gap: 20px; min-height: 104px; padding: 0 32px; background: var(--brand-ink, #111111); color: #fff; } .ds-sign-h { margin: 0; font-family: var(--font-signage, 'Archivo', 'Arial Narrow', Arial, sans-serif); font-stretch: 75%; font-weight: 800; font-size: 48px; line-height: 1; letter-spacing: -0.005em; }"
+      "description": "1px ink rule, the zero and the headline; second clause in gray-2.",
+      "html": "<div class=\"ds-sign\"><svg viewBox=\"0 0 20 24\" width=\"20\" height=\"24\" aria-hidden=\"true\"><path d=\"M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z\" fill=\"currentColor\" fill-rule=\"evenodd\"/></svg><h2>Lo que usa tu equipo. <span>En un solo workspace.</span></h2></div>",
+      "css": ".ds-sign { display: flex; align-items: center; gap: 20px; min-height: 104px; border-top: 1px solid #0d0d0d; color: #0d0d0d; font-family: var(--font-ui, 'Space Grotesk', -apple-system, 'Helvetica Neue', Arial, sans-serif); } .ds-sign h2 { font-size: 42px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.05; } .ds-sign span { color: #5e5e5e; }"
     },
     {
-      "name": "Network Line",
-      "kind": "custom",
-      "refersTo": "network-map",
-      "description": "A line as on the map: 16px round-capped stroke, stations with 0.44 rings, an interchange as linked double rings, name in signage type.",
-      "html": "<svg class=\"ds-net\" viewBox=\"0 0 420 120\" role=\"img\" aria-label=\"Línea Cal\"><g class=\"ds-net-line\"><path d=\"M30 80 H250 L290 40 H390\" fill=\"none\" stroke=\"#0e9f6e\" stroke-width=\"16\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"30\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><rect x=\"150\" y=\"76\" width=\"22\" height=\"8\" fill=\"#111\"/><circle cx=\"150\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><circle cx=\"172\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><circle cx=\"390\" cy=\"40\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><text x=\"22\" y=\"52\" class=\"ds-net-label\">Cal</text></g></svg>",
-      "css": ".ds-net { width: 100%; max-width: 420px; height: auto; } .ds-net-label { font-family: var(--font-signage, 'Archivo', 'Arial Narrow', Arial, sans-serif); font-stretch: 75%; font-weight: 800; font-size: 26px; fill: #111; } .ds-net-line { transition: opacity 0.25s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-net-line:hover .ds-net-label { text-decoration: underline; text-decoration-thickness: 3px; }"
+      "name": "App Zero (ProductGlyph)",
+      "kind": "brand",
+      "refersTo": "colors",
+      "description": "An app's mark: the zero in the app color, always next to its name.",
+      "html": "<span class=\"ds-app\" style=\"--accent:#7b4dff\"><svg viewBox=\"0 0 20 24\" width=\"20\" height=\"24\" aria-hidden=\"true\"><path d=\"M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z\" fill=\"currentColor\" fill-rule=\"evenodd\"/></svg>CRM</span> <span class=\"ds-app\" style=\"--accent:#0e9f6e\"><svg viewBox=\"0 0 20 24\" width=\"20\" height=\"24\" aria-hidden=\"true\"><path d=\"M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z\" fill=\"currentColor\" fill-rule=\"evenodd\"/></svg>Cal</span>",
+      "css": ".ds-app { display: inline-flex; align-items: center; gap: 8px; margin-right: 16px; font-family: var(--font-ui, 'Space Grotesk', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; color: #0d0d0d; } .ds-app svg { color: var(--accent); width: 14px; height: 17px; }"
     },
     {
-      "name": "Product Station (LineGlyph)",
-      "kind": "chip",
-      "refersTo": "line-glyph",
-      "description": "A product's station with the ring in its line color, used as a list marker beside the product name. Never a pill.",
-      "html": "<ul class=\"ds-glyphs\"><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#2f6bff\" stroke-width=\"22\"/></svg>Link</li><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#7b4dff\" stroke-width=\"22\"/></svg>CRM</li><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#0e9f6e\" stroke-width=\"22\"/></svg>Cal</li></ul>",
-      "css": ".ds-glyphs { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px 16px; flex-wrap: wrap; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; color: var(--brand-ink, #111111); } .ds-glyphs li { display: inline-flex; align-items: center; gap: 6px; }"
-    },
-    {
-      "name": "Enamel Plate",
+      "name": "App Launcher Plate",
       "kind": "card",
-      "refersTo": "enamel-plate",
-      "description": "Square enamel panel presenting a specimen, caption below in data size.",
-      "html": "<figure class=\"ds-plate\"><div class=\"ds-plate-art\"><svg width=\"72\" height=\"72\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"22\"/></svg></div><figcaption>La estación: anillo de 0,44 del radio.</figcaption></figure>",
-      "css": ".ds-plate { margin: 0; max-width: 320px; } .ds-plate-art { display: flex; align-items: center; justify-content: center; height: 200px; background: var(--brand-enamel, #f4f4f2); border-radius: 0; } .ds-plate figcaption { padding-top: 12px; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 13px; color: #3d3d3d; }"
+      "refersTo": "colors",
+      "description": "/app in the default theme: one plate per app (zero, name, one line); ink border on hover.",
+      "html": "<a class=\"ds-plate\" href=\"#\" style=\"--accent:#e23d7f\"><svg viewBox=\"0 0 20 24\" width=\"20\" height=\"24\" aria-hidden=\"true\"><path d=\"M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z\" fill=\"currentColor\" fill-rule=\"evenodd\"/></svg><b>Chat</b><span>Chat web e inbox compartido para soporte.</span></a>",
+      "css": ".ds-plate { display: grid; grid-template-columns: 24px 1fr; column-gap: 12px; row-gap: 4px; align-items: center; max-width: 260px; padding: 16px; border: 1px solid #e8e8e8; border-radius: 3px; color: #0d0d0d; text-decoration: none; font-family: var(--font-ui, 'Space Grotesk', -apple-system, 'Helvetica Neue', Arial, sans-serif); } .ds-plate:hover { border-color: #0d0d0d; } .ds-plate svg { color: var(--accent); } .ds-plate span { grid-column: 2; font-size: 13px; color: #4a4a4a; }"
     },
     {
       "name": "Copy Value",
@@ -647,78 +660,89 @@
       "refersTo": "copy-value",
       "description": "HEX/OKLCH copy button in data type: underline on hover, confirmation in the Cal ink.",
       "html": "<button class=\"ds-copy\"><span class=\"ds-copy-v\">#0E9F6E</span><span class=\"ds-copy-s\">Copiado</span></button>",
-      "css": ".ds-copy { display: flex; align-items: baseline; gap: 10px; padding: 3px 0; border: 0; background: none; color: var(--brand-ink, #111111); font-family: var(--font-data, 'JetBrains Mono', ui-monospace, Menlo, monospace); font-feature-settings: 'zero' 1, 'tnum' 1; font-size: 13px; cursor: pointer; } .ds-copy-v { text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 4px; } .ds-copy:hover .ds-copy-v { text-decoration-color: currentColor; } .ds-copy:focus-visible { outline: 3px solid var(--brand-ink, #111111); outline-offset: 3px; } .ds-copy-s { color: #008358; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-weight: 600; }"
+      "css": ".ds-copy { display: flex; align-items: baseline; gap: 10px; padding: 3px 0; border: 0; background: none; color: var(--brand-ink, #0d0d0d); font-family: var(--font-data, 'IBM Plex Mono', ui-monospace, Menlo, monospace); font-feature-settings: 'zero' 1, 'tnum' 1; font-size: 13px; cursor: pointer; } .ds-copy-v { text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 4px; } .ds-copy:hover .ds-copy-v { text-decoration-color: currentColor; } .ds-copy:focus-visible { outline: 3px solid var(--brand-ink, #0d0d0d); outline-offset: 3px; } .ds-copy-s { color: #008358; font-family: var(--font-ui, 'Space Grotesk', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-weight: 600; }"
+    },
+    {
+      "name": "Signage Band (theme: subte)",
+      "kind": "nav",
+      "refersTo": "signage-band",
+      "description": "Optional subte theme (html[data-brand=\"subte\"]). Sticky #111 band: wordmark left, links, one white action right.",
+      "html": "<header class=\"ds-band\"><span class=\"ds-band-mark\">zer<svg class=\"ds-o\" width=\"17\" height=\"17\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#111\" stroke=\"#fff\" stroke-width=\"22\"/></svg>soft</span><nav class=\"ds-band-nav\"><a href=\"#\">Logo</a><a href=\"#\">Líneas</a><a href=\"#\">Tipografía</a></nav><a class=\"ds-band-btn\" href=\"#\">Descargar kit</a></header>",
+      "css": ".ds-band { display: flex; align-items: center; gap: 36px; height: 74px; padding: 0 32px; background: var(--brand-ink, #111111); color: #fff; } .ds-band-mark { display: inline-flex; align-items: center; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-weight: 800; font-size: 26px; letter-spacing: -0.02em; } .ds-o { margin: 0 1px; } .ds-band-nav { display: flex; gap: 28px; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; } .ds-band-nav a { color: #fff; text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 6px; transition: text-decoration-color 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-band-nav a:hover { text-decoration-color: currentColor; } .ds-band-nav a:focus-visible, .ds-band-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; } .ds-band-btn { margin-left: auto; padding: 10px 20px; background: #fff; color: var(--brand-ink, #111111); border: 2px solid #fff; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; text-decoration: none; } .ds-band-btn:hover { background: var(--brand-ink, #111111); color: #fff; }"
+    },
+    {
+      "name": "Network Line (theme: subte)",
+      "kind": "custom",
+      "refersTo": "network-map",
+      "description": "Optional subte theme (html[data-brand=\"subte\"]). A line as on the map: 16px round-capped stroke, stations with 0.44 rings, an interchange as linked double rings, name in signage type.",
+      "html": "<svg class=\"ds-net\" viewBox=\"0 0 420 120\" role=\"img\" aria-label=\"Línea Cal\"><g class=\"ds-net-line\"><path d=\"M30 80 H250 L290 40 H390\" fill=\"none\" stroke=\"#0e9f6e\" stroke-width=\"16\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"30\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><rect x=\"150\" y=\"76\" width=\"22\" height=\"8\" fill=\"#111\"/><circle cx=\"150\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><circle cx=\"172\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><circle cx=\"390\" cy=\"40\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><text x=\"22\" y=\"52\" class=\"ds-net-label\">Cal</text></g></svg>",
+      "css": ".ds-net { width: 100%; max-width: 420px; height: auto; } .ds-net-label { font-family: var(--font-signage, 'Archivo', 'Arial Narrow', Arial, sans-serif); font-stretch: 75%; font-weight: 800; font-size: 26px; fill: #111; } .ds-net-line { transition: opacity 0.25s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-net-line:hover .ds-net-label { text-decoration: underline; text-decoration-thickness: 3px; }"
+    },
+    {
+      "name": "Product Station (LineGlyph) (theme: subte)",
+      "kind": "chip",
+      "refersTo": "line-glyph",
+      "description": "Optional subte theme (html[data-brand=\"subte\"]). A product's station with the ring in its line color, used as a list marker beside the product name. Never a pill.",
+      "html": "<ul class=\"ds-glyphs\"><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#2f6bff\" stroke-width=\"22\"/></svg>Link</li><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#7b4dff\" stroke-width=\"22\"/></svg>CRM</li><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#0e9f6e\" stroke-width=\"22\"/></svg>Cal</li></ul>",
+      "css": ".ds-glyphs { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px 16px; flex-wrap: wrap; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; color: var(--brand-ink, #111111); } .ds-glyphs li { display: inline-flex; align-items: center; gap: 6px; }"
     }
   ],
   "narrative": {
-    "northStar": "Red de subte",
-    "overview": "zerosoft is drawn as a transit network. Each of the eleven apps is a line with its own color; integrations are interchange stations where two lines meet; the brand's zeros are the stations themselves, white circles with a thick black ring. The world borrows from Buenos Aires Subte signage and network diagrams: white enamel panels, a near-black signage band, condensed heavy lettering, colored strokes with round caps. It replaced the earlier black, white and oval-zeros look.\n\nThe system is flat and literal. Depth comes from the contrast between the enamel field and the black band, never from shadows. Color is wayfinding: a line color tells you which app you are on, and nothing else in the interface competes with it. Type is one family, Archivo, used at two widths: condensed (wdth 75, weight 800) for signage and headings, normal width for reading and UI. JetBrains Mono appears only where the content is data.\n\n**Scope of application.** The full world is built on the brand guidelines page (`/[locale]/brand`, branding.zerosoft.ai). The rest of the marketing site and the apps carry only the minimal application: the new wordmark and station symbol (header, footer, app topbar, OG images, kit), Archivo and JetBrains Mono as the global `--sans`/`--mono`, the signage display face on the landing hero headline (`.lp-h1`), square Archivo hero CTAs, and the home particle field redrawn as station rings. Their full redesign is a later round. The app-sidebar pattern in the direction (the sidebar as the product's line, nav items as stations, the active station filled with the line color) is **not built yet**; do not treat it as an existing component.",
+    "northStar": "Hecho de ceros",
+    "overview": "zerosoft is white, black and zeros. The mark is a zero (an oval ring, ZeroMark) next to \"zerosoft.ai\" in lowercase mono; the site's first viewport is a big zero made of small zeros (ZeroField). Everything else is quiet: white field, ink type, 1px rules, 3px corners. Color belongs to the eleven apps and only says where you are (the app's zero, the active item, a chart).\n\nType is Space Grotesk for reading, interface and headings (500 for titles) and IBM Plex Mono for data, code and the wordmark. Flat: no shadows, gradients or pills.\n\n**Brand themes.** This is the default theme. Optional themes restyle the same structure through tokens in styles/themes/<theme>.css under html[data-brand], chosen with ?brand=<theme> (cookie zs_brand). Today: \"Red de subte\" (apps as subway lines, zeros as stations), guide at /[locale]/nuevo-branding/subte. See DESIGN.md, Themes.",
     "keyCharacteristics": [
-      "White enamel field, #111 signage band for chrome and section headers.",
-      "Eleven line colors, drawn as 16px round-capped strokes; each paired with a darkened text ink.",
-      "The station (white circle, ring 0.44 of the outer radius) is the logo's \"o\", the symbol, and every map node.",
-      "One condensed heavy grotesque for signage; normal-width Archivo for UI; mono with slashed zero for data only.",
-      "Square corners everywhere except stations. No shadows, gradients, pills or emoji."
+      "White field, ink text, 1px rules; ink bands only for the closing band, footer and code.",
+      "Eleven app colors as accents, each paired with a darkened text ink.",
+      "The zero is the logo, favicon, app icon and every app mark (the zero in its color).",
+      "Space Grotesk for everything read or operated; IBM Plex Mono for values and the wordmark.",
+      "3px corners on controls; no shadows, gradients, pills or emoji."
     ],
     "rules": [
       {
         "name": "The Ink-For-Text Rule",
-        "body": "A line color is never set as text. Text in a product's color uses its `-ink` variant; text on a line fill uses its `-on` value.",
+        "body": "An app color is never set as text. Text in an app's color uses its `-ink` variant; text on an app fill uses its `-on` value.",
         "section": "colors"
       },
       {
-        "name": "The Labeled Line Rule",
-        "body": "A line color never carries meaning alone: every line on the map has its name in signage type at a terminus, and every swatch sits beside the product name. Notes (#e6b400) and Board (#00b8a9) strokes fall below 3:1 on white, so the label is what makes them legible.",
+        "name": "The Labeled Color Rule",
+        "body": "An app color never carries meaning alone: the zero sits next to the app's name.",
         "section": "colors"
       },
       {
         "name": "The Logo Is Ink Rule",
-        "body": "The wordmark and the brand symbol are signage ink or white only. A line-colored ring belongs to a product symbol, never to the zerosoft mark.",
+        "body": "The zerosoft zero and wordmark are ink or white only. A colored zero is an app's mark, never zerosoft's.",
         "section": "colors"
       },
       {
         "name": "The Mono Is Data Rule",
-        "body": "JetBrains Mono, with `\"zero\" 1`, is only for values a reader might copy or compare: HEX, OKLCH, file names, sizes, pixel measures. Labels, buttons and navigation are Archivo.",
-        "section": "typography"
-      },
-      {
-        "name": "The Two Widths Rule",
-        "body": "Signage and headings are condensed 800; everything a user reads or operates is normal width. Never set running text condensed, never set a heading at normal width.",
+        "body": "Mono is for values, code and the wordmark. Buttons and navigation are Space Grotesk, sentence case.",
         "section": "typography"
       },
       {
         "name": "The Lowercase Name Rule",
-        "body": "The wordmark is always \"zerosoft\" in lowercase, outlined from the brand's own drawing with the station as its \"o\"; never retyped in another font or as a typographic zero.",
+        "body": "The name is always \"zerosoft.ai\" (or \"zerosoft\") in lowercase, next to the zero.",
         "section": "typography"
       },
       {
-        "name": "The No-Shadow Rule",
-        "body": "Nothing casts a shadow, glows or blurs. If a surface needs to separate, it changes plane (white, enamel, ink) or takes a 1px rule. The only shadow on the brand page is inside the logo-misuse specimen that shows what not to do.",
-        "section": "elevation"
-      },
-      {
-        "name": "The Circle Is A Station Rule",
-        "body": "A circle in this world always means a station. Do not use round avatars, dots, pills or rounded cards to decorate; any circle will be read as a stop on a line.",
-        "section": "shapes"
+        "name": "The Theme Token Rule",
+        "body": "Brand values come from the theme tokens (--brand-*, --font-*, --signage-*, --chrome-*, --stroke-rule). A theme's look never leaks outside its theme file or component.",
+        "section": "components"
       }
     ],
     "dos": [
-      "**Do** draw every app as a 16px round-capped stroke in its line color, and every node as a station with a 0.44 ring.",
-      "**Do** use the `-ink` variant for any text in a product's color and the `-on` value for text on a line fill.",
-      "**Do** open sections with the black section-sign band and a station, not a small label above the title.",
-      "**Do** set headings in Archivo wdth 75 weight 800 and everything operable in normal-width Archivo.",
-      "**Do** keep JetBrains Mono for values only, with the slashed zero on.",
-      "**Do** separate surfaces by plane (white, enamel #f4f4f2, ink #111) or a 1px rule.",
-      "**Do** animate lines once by drawing them and let stations snap; respect reduced motion."
+      "**Do** use the zero as the only brand shape, and the app's zero in its color as its mark.",
+      "**Do** use the `-ink` variant for text in an app's color and the `-on` value on an app fill.",
+      "**Do** read every brand value from the theme tokens.",
+      "**Do** keep text at gray-3 (#6e6e6e) or darker.",
+      "**Do** separate surfaces by plane or a 1px rule."
     ],
     "donts": [
-      "**Don't** round corners on anything but stations.",
-      "**Don't** add shadows, glows, gradients or outlines to surfaces or to the logo.",
-      "**Don't** use pills, tags, emoji or decorative circles.",
-      "**Don't** set a raw line color as text, or let a line color stand without its name.",
-      "**Don't** color the zerosoft wordmark or symbol with a line color, stretch it, capitalize it, rebuild it in another font, or replace the station with a typographic zero.",
-      "**Don't** set buttons, navigation or labels in mono or uppercase with tracking.",
-      "**Don't** make lines float, pulse or loop; motion is one draw-in."
+      "**Don't** hardcode a theme's look (condensed 800 titles, 4px rules, black chrome, stations) outside its theme.",
+      "**Don't** add shadows, glows or gradients.",
+      "**Don't** use pills, emoji or decorative circles.",
+      "**Don't** set a raw app color as text, or let it stand without its name.",
+      "**Don't** color the zerosoft zero with an app color, stretch it, or retype the name in another font.",
+      "**Don't** set buttons or navigation in mono or uppercase."
     ]
   }
 }

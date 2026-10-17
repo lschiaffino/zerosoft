@@ -74,7 +74,7 @@
   padding-top: 0;
   padding-bottom: 40px;
   margin-bottom: 48px;
-  border-bottom: 4px solid var(--brand-ink);
+  border-bottom: var(--stroke-rule) solid var(--brand-ink);
 }
 
 .api-docs-body {
@@ -90,8 +90,9 @@
 
 .api-docs-section h2 {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: var(--t-h2);
   line-height: 1;
   margin-bottom: 12px;
@@ -290,10 +291,11 @@
 
 .api-docs-hero .doc-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: var(--t-h1);
-  line-height: 0.95;
+  line-height: var(--signage-leading);
 }
 
 .api-docs-hero .doc-title .dim { color: var(--brand-gray-2); }

@@ -1,5 +1,5 @@
 import { Link } from '@/i18n/navigation';
-import LineGlyph from '@/components/brand/LineGlyph';
+import ProductGlyph from '@/components/brand/ProductGlyph';
 import type { ProductKey } from '@/lib/products';
 import { PRODUCT_NAMES, SITE_PRODUCTS } from './catalog';
 
@@ -10,7 +10,7 @@ export default function EndLines({ label, current }: { label: string; current?: 
       {SITE_PRODUCTS.map((k) => (
         <li key={k}>
           <Link href={`/products/${k}`} aria-current={k === current ? 'page' : undefined}>
-            <LineGlyph product={k} size={12} onLine />
+            <ProductGlyph product={k} size={12} onLine />
             {PRODUCT_NAMES[k]}
           </Link>
         </li>

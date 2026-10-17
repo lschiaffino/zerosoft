@@ -1,18 +1,17 @@
 /**
- * El "0" de la marca como trazado SVG (sin depender de una fuente): la
- * estación de la red. Un anillo circular grueso (0,44 del radio, igual que la
- * "o" del wordmark en lib/brand-mark.ts). Lo usa ZeroMark en
- * listas y menús y los separadores de ceros. La caja sigue siendo 20×24 para
- * no mover los layouts que ya lo usan.
+ * El "0" de la marca como trazado SVG (sin depender de una fuente): un óvalo
+ * geométrico de trazo parejo, con las proporciones del cero de Space Grotesk.
+ * Lo usan el logo (components/zero/ZeroMark), el favicon, el apple-icon, los
+ * separadores de ceros y las imágenes OG.
  */
 
 export const ZERO_VIEWBOX = '0 0 20 24';
 export const ZERO_W = 20;
 export const ZERO_H = 24;
 
-/** Anillo: radio exterior 10, interior 5,6 (regla evenodd). */
+/** Anillo ovalado: exterior 17×22, interior 10.6×15.8 (regla evenodd). */
 export const ZERO_PATH =
-  'M10 2A10 10 0 1 1 10 22A10 10 0 1 1 10 2ZM10 6.4A5.6 5.6 0 1 0 10 17.6A5.6 5.6 0 1 0 10 6.4Z';
+  'M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z';
 
 /** El cero como <path> posicionado (para componer SVGs a mano, p. ej. OG). */
 export function zeroPathAt(x: number, y: number, height: number, fill: string, opacity = 1): string {

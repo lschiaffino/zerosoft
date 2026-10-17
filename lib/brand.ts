@@ -71,10 +71,15 @@ function n(v: number): string {
   return String(Math.round(v * 100) / 100);
 }
 
-export type MarkTone = 'ink' | 'white';
+export type MarkTone = 'ink' | 'white' | 'current';
 
-/** Colores del wordmark: tinta sobre fondos claros, blanco sobre fondos oscuros. */
+/**
+ * Colores del wordmark: tinta sobre fondos claros, blanco sobre fondos
+ * oscuros. `current` hereda el color del texto y deja la estación hueca
+ * (para el chrome, que cambia de color según el tema).
+ */
 export function markColors(tone: MarkTone): { fg: string; hole: string } {
+  if (tone === 'current') return { fg: 'currentColor', hole: 'none' };
   return tone === 'ink' ? { fg: BRAND_INK, hole: BRAND_WHITE } : { fg: BRAND_WHITE, hole: BRAND_INK };
 }
 

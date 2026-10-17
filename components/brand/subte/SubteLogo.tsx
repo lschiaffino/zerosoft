@@ -1,13 +1,13 @@
 import { WORDMARK, markColors, type MarkTone } from '@/lib/brand';
-import Station from './Station';
+import Station from '../Station';
 
 /**
- * El logo de zerosoft: el wordmark en minúscula con la "o" de zero como
+ * Logo del tema subte (html[data-brand="subte"]): el wordmark en minúscula con la "o" de zero como
  * estación (círculo con anillo grueso). Trazado, no texto: se ve igual en
  * cualquier lugar. `tone="ink"` sobre fondos claros, `tone="white"` sobre la
  * banda negra. `variant="symbol"` es la estación sola.
  */
-export default function Logo({
+export default function SubteLogo({
   tone = 'ink',
   height = 24,
   variant = 'wordmark',

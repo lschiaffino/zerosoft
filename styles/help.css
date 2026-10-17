@@ -46,8 +46,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.375rem;
   line-height: 1;
 }
@@ -86,8 +87,8 @@
 .help-title {
   margin: 0;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: clamp(2.5rem, 5vw, 3.75rem);
   line-height: 0.98;
   letter-spacing: -0.005em;
@@ -101,8 +102,9 @@
 .help-section-title {
   margin: 0 0 16px;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.5rem;
   line-height: 1.1;
 }
@@ -136,8 +138,9 @@
 .help-collection-title {
   margin: 0;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.875rem;
   line-height: 1.05;
 }
@@ -193,13 +196,13 @@
 .help-article-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; padding: 24px 0 96px; }
 .help-article-grid.has-toc { grid-template-columns: minmax(0, 1fr) 232px; }
 .help-article { min-width: 0; max-width: 44rem; }
-.help-article-head { padding-bottom: 20px; margin-bottom: 28px; border-bottom: 4px solid var(--ink); }
+.help-article-head { padding-bottom: 20px; margin-bottom: 28px; border-bottom: var(--stroke-rule) solid var(--ink); }
 .help-article-icon { display: block; margin-bottom: 12px; font-size: 2.5rem; line-height: 1; }
 .help-article-title {
   margin: 0;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: clamp(2.25rem, 4vw, 3rem);
   line-height: 1.02;
   letter-spacing: -0.005em;
@@ -234,7 +237,7 @@
 @media (max-width: 899px) { .help-feedback-btn { --btn-h: 40px; } }
 
 /* Portada de colección: sus artículos como estaciones bajo la intro. */
-.help-line-children { margin-top: 48px; padding-top: 32px; border-top: 4px solid var(--ink); }
+.help-line-children { margin-top: 48px; padding-top: 32px; border-top: var(--stroke-rule) solid var(--ink); }
 .help-line-children::before { top: 46px; }
 .help-line-children .help-collection-title { font-size: 1.5rem; }
 .help-line-children .help-stop { padding-bottom: 36px; }
@@ -311,8 +314,8 @@
 .dbv h4 {
   margin: 0.9em 0 0;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   letter-spacing: -0.003em;
   text-wrap: balance;
   scroll-margin-top: 80px;

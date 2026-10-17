@@ -147,18 +147,6 @@
 .app-home-line-desc { font-size: 0.8125rem; line-height: 1.35; color: var(--brand-gray-1); }
 .app-home-line:hover .app-home-line-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
-.app-home-sub {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-top: 8px;
-  font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
-  font-size: 1.5rem;
-  line-height: 1.1;
-}
-
 @media (max-width: 1100px) {
   .app-home-network { grid-template-columns: minmax(0, 1fr); }
   .app-home-map .net-svg { max-height: none; }

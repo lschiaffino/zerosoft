@@ -13,7 +13,8 @@ import type { HostSurface } from '@/lib/host-rewrite';
  * solo un "Powered by" discreto (y así se pueden embeber en un iframe).
  *
  * El board público (feedback.zerosoft.ai o /feedback-board) y la página de
- * marca (branding.zerosoft.ai o /brand) tienen su propio chrome mínimo: acá
+ * marca (branding.zerosoft.ai o /brand, y las guías de temas en
+ * /nuevo-branding/<tema>) tienen su propio chrome mínimo: acá
  * no se pone el de marketing ni el launcher de feedback. `surface` viene del
  * host (el layout lo resuelve en el servidor), así server y cliente coinciden
  * aunque el middleware haya reescrito el path.
@@ -38,7 +39,13 @@ export default function ChromeGate({
 }) {
   const pathname = usePathname();
   const t = useTranslations('common.publicPage');
-  if (surface || pathname.startsWith('/feedback-board') || pathname === '/brand' || pathname.startsWith('/brand/')) {
+  if (
+    surface ||
+    pathname.startsWith('/feedback-board') ||
+    pathname === '/brand' ||
+    pathname.startsWith('/brand/') ||
+    pathname.startsWith('/nuevo-branding/')
+  ) {
     return <>{children}</>;
   }
   if (pathname.startsWith('/app')) {

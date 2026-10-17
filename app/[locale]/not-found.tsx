@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import Station from '@/components/brand/Station';
+import BrandSymbol from '@/components/brand/BrandSymbol';
 import '@/styles/pages.css';
 
 export async function generateMetadata() {
@@ -15,7 +15,7 @@ export default async function LocaleNotFound() {
     <main className="nf">
       <div className="sign-band">
         <div className="container sign-inner">
-          <Station size={28} ring="#ffffff" fill="#111111" className="sign-station" />
+          <BrandSymbol size={28} ring="#ffffff" fill="#111111" className="sign-station" />
           <p className="sign-title">
             {t('sign')}
             <span className="sign-sub">404</span>

@@ -117,8 +117,8 @@
   padding: 0;
   margin: 0;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 2rem;
   line-height: 1.05;
   letter-spacing: -0.005em;

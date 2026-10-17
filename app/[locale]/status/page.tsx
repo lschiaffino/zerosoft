@@ -1,6 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import LineGlyph from '@/components/brand/LineGlyph';
-import Station from '@/components/brand/Station';
+import ProductGlyph from '@/components/brand/ProductGlyph';
+import BrandSymbol from '@/components/brand/BrandSymbol';
 import type { ProductKey } from '@/lib/products';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -48,7 +48,7 @@ export default async function StatusPage(props: { params: Promise<{ locale: stri
           {SERVICES.map((s) => (
             <li className="status-row" key={s.id}>
               <span className="status-name">
-                {s.product ? <LineGlyph product={s.product} size={12} onLine /> : <Station size={12} />}
+                {s.product ? <ProductGlyph product={s.product} size={12} onLine /> : <BrandSymbol size={12} />}
                 {t(`${s.id}.name`)}
               </span>
               <span className="status-desc">{t(`${s.id}.desc`)}</span>

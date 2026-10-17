@@ -376,8 +376,9 @@ a.lk-route-name:hover { text-decoration: underline; text-underline-offset: 3px; 
 .lk-panel-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .lk-h {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.25rem;
   line-height: 1.15;
 }

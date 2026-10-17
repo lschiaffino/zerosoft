@@ -8,7 +8,7 @@ import LocaleSwitcher from './LocaleSwitcher';
 import Icon from './site/Icon';
 import { AUDIENCE_PRODUCTS, GITHUB_URL, PRODUCT_NAMES, type Audience } from './site/catalog';
 import Logo from './brand/Logo';
-import LineGlyph from './brand/LineGlyph';
+import ProductGlyph from './brand/ProductGlyph';
 
 interface HeaderClientProps {
   locale: string;
@@ -104,7 +104,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <p className="hd-group-title">{ts(`${a}Title`)}</p>
         {AUDIENCE_PRODUCTS[a].map((key) => (
           <Link key={key} href={`/products/${key}`} className={`hd-prod card-${key} hd-prod-${variant}`}>
-            <LineGlyph product={key} size={14} onLine className="hd-prod-icon" />
+            <ProductGlyph product={key} size={14} onLine className="hd-prod-icon" />
             <span className="hd-prod-text">
               <span className="hd-prod-name">{PRODUCT_NAMES[key]}</span>
               <span className="hd-prod-desc">{th(`desc.${key}`)}</span>
@@ -117,8 +117,8 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   return (
     <header className={`site-header${scrolled ? ' is-scrolled' : ''}${menuOpen ? ' menu-open' : ''}`}>
       <div className="hd-inner">
-        <Link href="/" className="brand" aria-label="zerosoft">
-          <Logo tone="white" height={22} title="" />
+        <Link href="/" className="brand" aria-label="zerosoft.ai">
+          <Logo tone="current" height={22} title="" />
         </Link>
 
         <nav className="hd-nav" aria-label="Main">
@@ -181,7 +181,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <div className="hd-right">
           <LocaleSwitcher locale={locale} />
           {user ? (
-            <Link className="btn btn-invert-solid btn-sm" href="/app" title={user.email}>
+            <Link className="btn btn-chrome btn-sm" href="/app" title={user.email}>
               {labels.dashboard}
             </Link>
           ) : (
@@ -193,7 +193,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
               >
                 {labels.signIn}
               </button>
-              <Link className="btn btn-invert-solid btn-sm" href="/app">
+              <Link className="btn btn-chrome btn-sm" href="/app">
                 {labels.startFree}
               </Link>
             </>

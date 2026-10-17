@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import AccentGlyph from '@/components/brand/AccentGlyph';
 import Icon from '@/components/app/icons';
 
 /**
@@ -22,10 +23,7 @@ export default async function HelpHeader({
     <header className="help-head">
       <div className="help-head-inner">
         <a href={base} className="help-brand">
-          <svg className="help-brand-glyph" viewBox="0 0 48 24" width="40" height="20" aria-hidden="true" focusable="false">
-            <line x1="6" y1="12" x2="42" y2="12" stroke="var(--help-accent)" strokeWidth="8" strokeLinecap="round" />
-            <circle cx="24" cy="12" r="8" fill="#ffffff" stroke="#111111" strokeWidth="3.6" />
-          </svg>
+          <AccentGlyph className="help-brand-glyph" color="var(--help-accent)" height={18} />
           <span className="help-brand-name">{name}</span>
           <span className="help-brand-sub">{t('title')}</span>
         </a>

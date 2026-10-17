@@ -38,20 +38,21 @@ body:has(.bp-root) .fl-root {
 .bp-page { padding-bottom: 96px; }
 .bp-wrap { max-width: var(--bp-max); margin: 0 auto; padding: 0 20px; }
 
-/* ---------- Chrome: la banda de señalética ---------- */
-.bp-head { position: sticky; top: 0; z-index: 20; background: var(--brand-ink); color: var(--brand-on-ink); }
-.bp-head :focus-visible { outline-color: var(--brand-on-ink); }
+/* ---------- Chrome (tokens --chrome-* del tema) ---------- */
+.bp-head { position: sticky; top: 0; z-index: 20; background: var(--chrome-bg); color: var(--chrome-fg); border-bottom: var(--chrome-border); }
+.bp-head :focus-visible { outline-color: var(--chrome-focus); }
 .bp-head-inner { display: flex; align-items: center; gap: 28px; height: var(--bp-head-h); }
 .bp-logo { display: inline-flex; align-items: center; gap: 12px; }
-.bp-logo .brand-logo { display: block; }
+.bp-logo .brand-logo { display: flex; }
 .bp-logo .bp-logo-symbol { display: none; }
 .bp-logo-sub {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.25rem;
   line-height: 1;
-  color: var(--brand-on-ink-2);
+  color: var(--chrome-fg-2);
 }
 .bp-nav { display: flex; gap: 4px; }
 .bp-nav a {
@@ -61,7 +62,7 @@ body:has(.bp-root) .fl-root {
   padding: 0 10px;
   font-size: 15px;
   font-weight: 600;
-  color: var(--brand-on-ink);
+  color: var(--chrome-fg);
   text-decoration: underline;
   text-decoration-color: transparent;
   text-decoration-thickness: 2px;
@@ -70,26 +71,27 @@ body:has(.bp-root) .fl-root {
 .bp-nav a:hover,
 .bp-nav a[aria-current='page'] { text-decoration-color: currentColor; }
 .bp-head-end { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 14px; }
-.bp-user { display: inline-flex; align-items: center; gap: 8px; color: var(--brand-on-ink-2); }
-.bp-user:hover { color: var(--brand-on-ink); }
+.bp-user { display: inline-flex; align-items: center; gap: 8px; color: var(--chrome-fg-2); }
+.bp-user:hover { color: var(--chrome-fg); }
 /* Avatares cuadrados: el círculo es solo para estaciones. */
 .bp-user img, .bp-avatar {
   width: 24px; height: 24px; object-fit: cover; flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center; background: var(--brand-gray-1);
-  font-size: 12px; font-weight: 700; color: var(--brand-on-ink);
+  display: inline-flex; align-items: center; justify-content: center; background: var(--chrome-active-bg);
+  font-size: 12px; font-weight: 700; color: var(--chrome-active-fg);
 }
 
 /* ---------- Hero y toolbar ---------- */
 .bp-hero {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap;
-  padding: 48px 0 28px; margin-bottom: 24px; border-bottom: 4px solid var(--brand-ink);
+  padding: 48px 0 28px; margin-bottom: 24px; border-bottom: var(--stroke-rule) solid var(--brand-ink);
 }
 .bp-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: var(--t-h1);
-  line-height: 0.95;
+  line-height: var(--signage-leading);
   text-wrap: balance;
 }
 .bp-intro { margin-top: 12px; color: var(--bp-ink-2); max-width: 60ch; font-size: var(--t-lead); line-height: 1.45; }
@@ -147,8 +149,8 @@ body:has(.bp-root) .fl-root {
 /* ---------- Columnas ---------- */
 .bp-columns > section { padding: 0; }
 .bp-columns { display: grid; grid-template-columns: repeat(var(--bp-cols, 5), minmax(200px, 1fr)); gap: 0 20px; overflow-x: auto; padding-bottom: 12px; }
-.bp-col-head { display: flex; justify-content: space-between; align-items: baseline; padding: 16px 0 10px; border-bottom: 4px solid var(--brand-ink); }
-.bp-col-head h2 { font-family: var(--font-signage); font-stretch: 75%; font-weight: 800; font-size: 1.375rem; line-height: 1; }
+.bp-col-head { display: flex; justify-content: space-between; align-items: baseline; padding: 16px 0 10px; border-bottom: var(--stroke-rule) solid var(--brand-ink); }
+.bp-col-head h2 { font-family: var(--font-signage); letter-spacing: var(--signage-tracking); font-stretch: var(--signage-stretch); font-weight: var(--signage-weight); font-size: 1.375rem; line-height: 1; }
 .bp-col-count { font-size: 13px; font-weight: 600; color: var(--bp-ink-3); }
 .bp-card { padding: 14px 0; border-bottom: 1px solid var(--bp-line); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
 .bp-card-title { font-size: 15px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
@@ -159,13 +161,13 @@ body:has(.bp-root) .fl-root {
 .bp-detail { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 48px; padding: 40px 0 80px; }
 .bp-back { font-size: 14px; font-weight: 600; color: var(--bp-ink); text-decoration: underline; text-underline-offset: 4px; display: inline-block; margin-bottom: 18px; }
 .bp-detail-head { display: grid; grid-template-columns: var(--bp-vote-w) minmax(0, 1fr); gap: 18px; align-items: start; }
-.bp-detail-title { font-family: var(--font-signage); font-stretch: 75%; font-weight: 800; font-size: var(--t-h2); line-height: 1; overflow-wrap: anywhere; text-wrap: balance; }
+.bp-detail-title { font-family: var(--font-signage); letter-spacing: var(--signage-tracking); font-stretch: var(--signage-stretch); font-weight: var(--signage-weight); font-size: var(--t-h2); line-height: 1; overflow-wrap: anywhere; text-wrap: balance; }
 .bp-detail-desc { margin-top: 18px; white-space: pre-wrap; line-height: 1.6; color: var(--bp-ink-2); overflow-wrap: anywhere; }
 .bp-closed { margin-top: 20px; padding: 14px 16px; background: var(--bp-soft); font-size: 0.92rem; line-height: 1.5; }
 .bp-shipped { margin-top: 20px; padding: 14px 16px; background: var(--ok-soft); color: var(--ok-ink); font-size: 0.92rem; }
 .bp-shipped a { text-decoration: underline; text-underline-offset: 3px; }
 .bp-side { display: flex; flex-direction: column; gap: 24px; }
-.bp-side-block h3 { font-size: 14px; font-weight: 700; color: var(--bp-ink); padding-bottom: 8px; margin-bottom: 12px; border-bottom: 4px solid var(--brand-ink); }
+.bp-side-block h3 { font-size: 14px; font-weight: 700; color: var(--bp-ink); padding-bottom: 8px; margin-bottom: 12px; border-bottom: var(--stroke-rule) solid var(--brand-ink); }
 /* El historial de una idea: una línea con una estación por cambio de estado. */
 .bp-timeline { list-style: none; position: relative; padding-left: 26px; }
 .bp-timeline::before { content: ''; position: absolute; left: 5px; top: 6px; bottom: 10px; width: 4px; background: var(--brand-ink); }
@@ -176,7 +178,7 @@ body:has(.bp-root) .fl-root {
 
 /* ---------- Comentarios ---------- */
 .bp-comments { margin-top: 44px; border-top: 1px solid var(--bp-line); padding-top: 24px; }
-.bp-comments h2 { font-family: var(--font-signage); font-stretch: 75%; font-weight: 800; font-size: 1.5rem; line-height: 1; margin-bottom: 16px; }
+.bp-comments h2 { font-family: var(--font-signage); letter-spacing: var(--signage-tracking); font-stretch: var(--signage-stretch); font-weight: var(--signage-weight); font-size: 1.5rem; line-height: 1; margin-bottom: 16px; }
 .bp-comment { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--bp-line); }
 .bp-comment.is-official { background: var(--bp-soft); padding-left: 12px; padding-right: 12px; }
 .bp-comment-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: 13px; }
@@ -202,7 +204,7 @@ body:has(.bp-root) .fl-root {
 .bp-propose { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 48px; padding: 40px 0 80px; }
 .bp-form { display: grid; gap: 16px; }
 .bp-field { display: grid; gap: 6px; }
-.bp-similar { border-top: 4px solid var(--brand-ink); }
+.bp-similar { border-top: var(--stroke-rule) solid var(--brand-ink); }
 .bp-similar h2 { font-size: 14px; font-weight: 700; color: var(--bp-ink); padding: 12px 0 4px; }
 .bp-similar-item { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--bp-line); align-items: start; }
 .bp-similar-item .bp-vote { width: 44px; padding: 6px 2px; }
@@ -275,6 +277,6 @@ body:has(.bp-root) .fl-root {
   .bp-user > span:not(.bp-avatar) { display: none; }
   .bp-head-inner { gap: 12px; }
   .bp-logo .bp-logo-word { display: none; }
-  .bp-logo .bp-logo-symbol { display: block; }
+  .bp-logo .bp-logo-symbol { display: flex; }
   .bp-nav a { padding: 0 6px; font-size: 14px; }
 }

@@ -18,9 +18,10 @@ import CodeTabs from '@/components/site/CodeTabs';
 import SuiteGrid from '@/components/site/SuiteGrid';
 import SectionSign from '@/components/site/SectionSign';
 import SiteNetworkMap from '@/components/site/SiteNetworkMap';
+import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
 import EndLines from '@/components/site/EndLines';
-import LineGlyph from '@/components/brand/LineGlyph';
+import ProductGlyph from '@/components/brand/ProductGlyph';
 import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, annualCost } from '@/components/site/catalog';
 import { PRODUCT_CONFIG } from '@/lib/products';
 import '@/styles/pages.css';
@@ -84,7 +85,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             </a>
           </p>
         </div>
-        <SiteNetworkMap className="lp-hero-map" />
+        <HeroVisual className="lp-hero-map" map={<SiteNetworkMap className="lp-hero-map" />} />
       </section>
 
       {/* La app real, grabada: 48 s por seis apps. */}
@@ -169,7 +170,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                           <span className="stack-tool">
                             <strong>{inc.rival}</strong>
                             <span className="stack-arrow">
-                              <LineGlyph product={k} size={12} onLine /> {PRODUCT_NAMES[k]}
+                              <ProductGlyph product={k} size={12} onLine /> {PRODUCT_NAMES[k]}
                             </span>
                           </span>
                         </th>

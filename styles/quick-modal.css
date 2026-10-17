@@ -54,8 +54,9 @@
   margin: 0;
   padding-top: 4px;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.375rem;
   line-height: 1.1;
   color: var(--ink);

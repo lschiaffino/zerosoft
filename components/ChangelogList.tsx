@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { pick } from '@/content/changelog';
 import type { UnifiedChangelogEntry } from '@/lib/changelog';
 import { PRODUCT_KEYS, type ProductKey } from '@/lib/product-taxonomy';
-import Station from '@/components/brand/Station';
+import BrandSymbol from '@/components/brand/BrandSymbol';
 import ProductMark from '@/components/site/ProductMark';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -80,7 +80,7 @@ export default async function ChangelogList({
                     <span className="cl-month">{d.month}</span>
                   </time>
                 </div>
-                <Station size={22} className="cl-node" />
+                <BrandSymbol size={22} className="cl-node" />
                 <article className="cl-card">
                   <h2 className="cl-title">
                     <a href={`#${e.id}`}>{pick(e.title, locale)}</a>

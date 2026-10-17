@@ -14,7 +14,7 @@ import {
   type AgentToolKey,
 } from '@/lib/agents-config';
 import { PRODUCT_CONFIG } from '@/lib/products';
-import LineGlyph from '@/components/brand/LineGlyph';
+import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import DataTable from '@/components/ui/DataTable';
@@ -138,7 +138,7 @@ export default function AgentsHome({ agents: initial, canEdit, aiEnabled }: Prop
                       {AGENT_TOOL_GROUP_ORDER.filter((g) =>
                         a.tools.enabled.some((k) => AGENT_TOOL_GROUP[k as AgentToolKey] === g.key),
                       ).map((g) => (
-                        <LineGlyph key={g.key} product={g.product} size={12} title={PRODUCT_CONFIG[g.product].name} />
+                        <ProductGlyph key={g.key} product={g.product} size={12} title={PRODUCT_CONFIG[g.product].name} />
                       ))}
                     </span>
                     {t('list.toolsCount', { count: a.tools.enabled.length })}

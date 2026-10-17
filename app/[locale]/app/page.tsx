@@ -5,9 +5,10 @@ import { getUserOverview } from '@/lib/track';
 import { formatNumber, shortUrl } from '@/lib/utils';
 import LinkChart from '@/components/link/LinkChart';
 import NetworkMap, { type NetworkMapLabels } from '@/components/brand/NetworkMap';
-import LineGlyph from '@/components/brand/LineGlyph';
+import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
 import { NET_STATIONS } from '@/lib/brand-network';
+import { getBrandTheme } from '@/lib/brand-theme-server';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey } from '@/lib/products';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,7 @@ export default async function OverviewPage(props: { params: Promise<{ locale: st
   const tProducts = await getTranslations({ locale, namespace: 'common.products' });
   const tBrand = await getTranslations({ locale, namespace: 'brand' });
   const o = await getUserOverview(user.id);
+  const brand = await getBrandTheme();
 
   // El plano de la red como launcher: cada línea y estación entra a su app.
   const mapLabels: NetworkMapLabels = {
@@ -45,29 +47,54 @@ export default async function OverviewPage(props: { params: Promise<{ locale: st
 
   return (
     <div className="app-page app-home">
-      <PageHeader title={tHome('title')} description={tHome('lead')} />
+      <PageHeader
+        title={brand === 'subte' ? tHome('subteTitle') : tHome('title')}
+        description={brand === 'subte' ? tHome('subteLead') : tHome('lead')}
+      />
 
-      <section className="app-home-network" aria-label={tHome('mapTitle')}>
-        <div className="app-home-map">
-          <NetworkMap locale={locale} labels={mapLabels} hrefs={appHrefs} />
-        </div>
-        <nav className="app-home-lines" aria-label={tHome('lines')}>
+      {brand === 'subte' ? (
+        // Tema subte: el plano de la red como launcher (cada línea entra a su app).
+        <section className="app-home-network" aria-label={tHome('mapTitle')}>
+          <div className="app-home-map">
+            <NetworkMap locale={locale} labels={mapLabels} hrefs={appHrefs} />
+          </div>
+          <nav className="app-home-lines" aria-label={tHome('lines')}>
+            <ul>
+              {PRODUCT_KEYS.map((k) => (
+                <li key={k}>
+                  <Link href={PRODUCT_CONFIG[k].launch} className="app-home-line" aria-label={tHome('open', { name: PRODUCT_CONFIG[k].name })}>
+                    <ProductGlyph product={k} size={14} onLine />
+                    <span className="app-home-line-name">{PRODUCT_CONFIG[k].name}</span>
+                    <span className="app-home-line-desc">{tProducts(`${k}.desc`)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </section>
+      ) : (
+        // Marca default: las once apps en una grilla sobria, cada una con su cero.
+        <nav className="app-home-apps" aria-label={tHome('apps')}>
           <ul>
             {PRODUCT_KEYS.map((k) => (
               <li key={k}>
-                <Link href={PRODUCT_CONFIG[k].launch} className="app-home-line" aria-label={tHome('open', { name: PRODUCT_CONFIG[k].name })}>
-                  <LineGlyph product={k} size={14} onLine />
-                  <span className="app-home-line-name">{PRODUCT_CONFIG[k].name}</span>
-                  <span className="app-home-line-desc">{tProducts(`${k}.desc`)}</span>
+                <Link
+                  href={PRODUCT_CONFIG[k].launch}
+                  className={`app-home-app card-${k}`}
+                  aria-label={tHome('open', { name: PRODUCT_CONFIG[k].name })}
+                >
+                  <ProductGlyph product={k} size={20} />
+                  <span className="app-home-app-name">{PRODUCT_CONFIG[k].name}</span>
+                  <span className="app-home-app-desc">{tProducts(`${k}.desc`)}</span>
                 </Link>
               </li>
             ))}
           </ul>
         </nav>
-      </section>
+      )}
 
       <h2 className="app-home-sub">
-        <LineGlyph product="link" size={14} onLine />
+        <ProductGlyph product="link" size={14} onLine />
         {tHome('linkSummary')}
       </h2>
 

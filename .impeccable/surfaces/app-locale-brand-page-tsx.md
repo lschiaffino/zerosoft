@@ -1,13 +1,15 @@
 ---
 version: 1
 slug: "app-locale-brand-page-tsx"
-primary_target: "app/[locale]/brand/page.tsx"
+primary_target: "app/[locale]/nuevo-branding/subte/page.tsx"
 related_targets: []
 ---
 
 # Surface brief: brand world + branding.zerosoft.ai
 
-Scope: the zerosoft visual world (site, app shell, all products) and its first proving surface, the brand guidelines page served at branding.zerosoft.ai (route /[locale]/brand). Mode of the brand page: Persuade/Read hybrid (designers, press, contributors; must make the system intelligible and downloadable).
+Status: the subte world is now an OPTIONAL brand theme (html[data-brand="subte"], ?brand=subte). Its guide moved to /[locale]/nuevo-branding/subte; /[locale]/brand and branding.zerosoft.ai show the default brand (see DESIGN.md, Themes).
+
+Scope (historical): the zerosoft visual world and its first proving surface, the brand guidelines page. Mode of the brand page: Persuade/Read hybrid (designers, press, contributors; must make the system intelligible and downloadable).
 
 Audience/job: founders and teams evaluating zerosoft, contributors and press needing assets. Action: understand the system, download the logo/assets kit, copy colors and type.
 
