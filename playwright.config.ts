@@ -33,6 +33,8 @@ export default defineConfig({
       SHORT_DOMAIN: `localhost:${PORT}`,
       // El receptor de webhooks del test escucha en 127.0.0.1.
       ALLOW_PRIVATE_WEBHOOKS: 'true',
+      // El usuario demo administra feedback, roadmap y changelog (pestaña Admin de Ajustes).
+      ADMIN_EMAILS: 'demo@zerosoft.ai',
     },
   },
 });

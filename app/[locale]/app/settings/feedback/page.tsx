@@ -1,13 +1,21 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { FEEDBACK_STATUSES, isAdminEmail, listFeedback, type FeedbackStatus } from '@/lib/feedback';
 import FeedbackAdminList from '@/components/app/FeedbackAdminList';
+import AdminNav, { LinkGroup } from '@/components/app/AdminNav';
+import EmptyState from '@/components/ui/EmptyState';
 import { itemsForFeedback, listRoadmapItemsAdmin } from '@/lib/roadmap';
-import '@/styles/feedback.css';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await props.params;
+  const t = await getTranslations({ locale, namespace: 'settings' });
+  return { title: `${t('admin.feedback')} · ${t('title')}` };
+}
 
 /** Feedback recibido. Solo ADMIN_EMAILS; para el resto (o sin la env) es un 404. */
 export default async function FeedbackAdminPage(props: {
@@ -20,7 +28,7 @@ export default async function FeedbackAdminPage(props: {
   if (!isAdminEmail(user.actingUser?.email ?? user.email)) notFound();
 
   const t = await getTranslations({ locale, namespace: 'feedback.admin' });
-  const tr = await getTranslations({ locale, namespace: 'roadmap.admin' });
+  const ts = await getTranslations({ locale, namespace: 'settings.admin' });
   const filter = FEEDBACK_STATUSES.includes(status as FeedbackStatus) ? (status as FeedbackStatus) : undefined;
   const rows = await listFeedback({ status: filter });
   const [items, linkedMap] = await Promise.all([listRoadmapItemsAdmin(), itemsForFeedback(rows.map((r) => r.id))]);
@@ -28,32 +36,36 @@ export default async function FeedbackAdminPage(props: {
   const linked = Object.fromEntries(linkedMap);
 
   return (
-    <div className="app-page">
-      <div>
-        <h1 className="app-title">{t('title')}</h1>
-        <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>{t('sub')}</p>
-      </div>
-
-      <nav className="fb-admin-filters" aria-label={t('title')}>
-        <Link href="/app/settings/feedback" className={`btn btn-small ${filter ? 'btn-ghost' : 'btn-solid'}`}>
-          {t('all')}
-        </Link>
-        {FEEDBACK_STATUSES.map((s) => (
-          <Link
-            key={s}
-            href={`/app/settings/feedback?status=${s}`}
-            className={`btn btn-small ${filter === s ? 'btn-solid' : 'btn-ghost'}`}
-          >
-            {t(`status.${s}`)}
-          </Link>
-        ))}
-        <Link href="/app/settings/roadmap" className="btn btn-small btn-ghost fb-admin-roadmap">
-          {tr('feedbackLink')} →
-        </Link>
-      </nav>
+    <div className="st-stack">
+      <AdminNav
+        locale={locale}
+        current="feedback"
+        description={ts('feedbackDesc')}
+        aside={
+          <LinkGroup
+            label={ts('filter')}
+            items={[
+              { key: 'all', href: '/app/settings/feedback', label: t('all'), active: !filter },
+              ...FEEDBACK_STATUSES.map((s) => ({
+                key: s,
+                href: `/app/settings/feedback?status=${s}`,
+                label: t(`status.${s}`),
+                active: filter === s,
+              })),
+            ]}
+          />
+        }
+      />
 
       {rows.length === 0 ? (
-        <p className="muted mono">{t('empty')}</p>
+        filter ? (
+          <EmptyState
+            title={ts('feedbackEmptyFiltered')}
+            action={<Link href="/app/settings/feedback" className="btn btn-secondary">{ts('showAll')}</Link>}
+          />
+        ) : (
+          <EmptyState title={ts('feedbackEmptyTitle')} body={ts('feedbackEmptyBody')} />
+        )
       ) : (
         <FeedbackAdminList initial={rows} locale={locale} targets={targets} linked={linked} />
       )}

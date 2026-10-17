@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { FeedbackRow } from '@/lib/feedback';
 import type { FeedbackStatus } from '@/lib/feedback-constants';
-import { productColor } from '@/lib/product-taxonomy';
 import { formatDateTime } from '@/lib/utils';
+import ProductTag from './ProductTag';
 
-const KIND_COLOR: Record<string, string> = { idea: 'var(--warn)', bug: 'var(--bad)', other: 'var(--dim)' };
+const KIND_BADGE: Record<string, string> = { idea: 'badge-warn', bug: 'badge-bad', other: '' };
+const STATUS_BADGE: Record<string, string> = { new: 'badge-ink', read: 'badge-outline', done: 'badge-ok' };
 
 interface Target {
   id: string;
@@ -16,7 +17,7 @@ interface Target {
 
 /**
  * Lista del owner: marcar leído / hecho / reabrir (PATCH /api/feedback/:id) y
- * "Promover a ítem": adjuntar a un ítem del roadmap o crear uno nuevo
+ * llevar al roadmap: adjuntar a un ítem o crear uno nuevo
  * (POST /api/feedback/:id/promote).
  */
 export default function FeedbackAdminList({
@@ -31,13 +32,15 @@ export default function FeedbackAdminList({
   linked?: Record<string, Target>;
 }) {
   const t = useTranslations('feedback');
+  const ts = useTranslations('settings.admin');
   const tp = useTranslations('feedbackBoard.product');
   const [rows, setRows] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [links, setLinks] = useState<Record<string, Target>>(linked);
   const [items, setItems] = useState<Target[]>(targets);
   const [pick, setPick] = useState<Record<string, string>>({});
-  const [failed, setFailed] = useState<string | null>(null);
+  const [promoting, setPromoting] = useState<string | null>(null);
+  const [failed, setFailed] = useState<{ id: string; msg: string } | null>(null);
 
   async function promote(row: FeedbackRow, body: unknown) {
     setBusy(row.id);
@@ -53,8 +56,9 @@ export default function FeedbackAdminList({
       setLinks((prev) => ({ ...prev, [row.id]: item }));
       setItems((prev) => (prev.some((x) => x.id === item.id) ? prev : [item, ...prev]));
       setRows((prev) => prev.map((r) => (r.id === row.id && r.status === 'new' ? { ...r, status: 'read' } : r)));
+      setPromoting(null);
     } else {
-      setFailed(row.id);
+      setFailed({ id: row.id, msg: t('admin.promoteError') });
     }
     setBusy(null);
   }
@@ -77,91 +81,117 @@ export default function FeedbackAdminList({
 
   async function setStatus(id: string, status: FeedbackStatus) {
     setBusy(id);
+    setFailed(null);
     const res = await fetch(`/api/feedback/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ status }),
     }).catch(() => null);
     if (res?.ok) setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+    else setFailed({ id, msg: ts('actionError') });
     setBusy(null);
   }
 
   return (
-    <div className="fb-admin-list">
-      {rows.map((r) => (
-        <article key={r.id} className={`fb-admin-row${r.status === 'new' ? ' is-new' : ''}`}>
-          <div className="fb-admin-meta">
-            <span className="fb-admin-tag" style={{ '--dot': KIND_COLOR[r.kind] } as CSSProperties}>
-              <i />
-              {t(`form.kind.${r.kind}`)}
-            </span>
-            <span className="fb-admin-tag" style={{ '--dot': productColor(r.product) } as CSSProperties}>
-              <i />
-              {tp(r.product)}
-            </span>
-            <span>{r.email ?? t('admin.anonymous')}</span>
-            <span>{formatDateTime(r.created_at, locale)}</span>
-            <span className="badge">{t(`admin.status.${r.status}`)}</span>
-          </div>
-          <p className="fb-admin-msg">{r.message}</p>
-          {r.page_url && (
-            <p className="fb-admin-meta">
-              {t('admin.openPage')}:{' '}
-              <a className="fb-admin-url" href={r.page_url} target="_blank" rel="noreferrer noopener">
-                {r.page_url}
-              </a>
-            </p>
-          )}
-          {links[r.id] && (
-            <p className="fb-linked">
-              {t('admin.linkedTo')}: <a href={`/${locale}/feedback-board/i/${links[r.id].id}`}>{links[r.id].title}</a>
-            </p>
-          )}
-          <div className="fb-promote">
-            <select
-              className="select"
-              value={pick[r.id] ?? ''}
-              onChange={(e) => setPick((prev) => ({ ...prev, [r.id]: e.target.value }))}
-              aria-label={t('admin.promoteAttach')}
-            >
-              <option value="">{t('admin.promoteAttach')}</option>
-              {items.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.title}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn btn-ghost btn-small"
-              disabled={busy === r.id || !pick[r.id]}
-              onClick={() => promote(r, { itemId: pick[r.id] })}
-            >
-              {t('admin.attach')}
-            </button>
-            <button type="button" className="btn btn-ghost btn-small" disabled={busy === r.id} onClick={() => createFrom(r)}>
-              {t('admin.promoteNew')}
-            </button>
-            {failed === r.id && <span className="rm-admin-status is-error">{t('admin.promoteError')}</span>}
-          </div>
-          <div className="fb-admin-actions">
-            {r.status === 'new' && (
-              <button type="button" className="btn btn-ghost" disabled={busy === r.id} onClick={() => setStatus(r.id, 'read')}>
-                {t('admin.markRead')}
-              </button>
+    <ul className="st-fb-list">
+      {rows.map((r) => {
+        const pickId = `st-fb-pick-${r.id}`;
+        const promoteId = `st-fb-promote-${r.id}`;
+        return (
+          <li key={r.id} className="st-fb" data-status={r.status}>
+            <div className="st-fb-meta">
+              <span className={`badge ${STATUS_BADGE[r.status] ?? ''}`}>{t(`admin.status.${r.status}`)}</span>
+              <span className={`badge ${KIND_BADGE[r.kind] ?? ''}`}>{t(`form.kind.${r.kind}`)}</span>
+              <ProductTag product={r.product} label={tp(r.product)} />
+              <span className="st-fb-who">
+                <span>{r.email ?? t('admin.anonymous')}</span>
+                <span className="data">{formatDateTime(r.created_at, locale)}</span>
+              </span>
+            </div>
+            <p className="st-fb-msg">{r.message}</p>
+            {(r.page_url || links[r.id]) && (
+              <p className="st-fb-refs">
+                {r.page_url && (
+                  <a className="st-inline-link data" href={r.page_url} target="_blank" rel="noreferrer noopener">
+                    {r.page_url}
+                  </a>
+                )}
+                {links[r.id] && (
+                  <span>
+                    {t('admin.linkedTo')}:{' '}
+                    <a className="st-inline-link" href={`/${locale}/feedback-board/i/${links[r.id].id}`}>
+                      {links[r.id].title}
+                    </a>
+                  </span>
+                )}
+              </p>
             )}
-            {r.status !== 'done' ? (
-              <button type="button" className="btn btn-solid" disabled={busy === r.id} onClick={() => setStatus(r.id, 'done')}>
-                {t('admin.markDone')}
+            <div className="st-fb-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm st-fb-toggle"
+                aria-expanded={promoting === r.id}
+                aria-controls={promoting === r.id ? promoteId : undefined}
+                onClick={() => setPromoting((cur) => (cur === r.id ? null : r.id))}
+              >
+                {ts('promote')}
               </button>
-            ) : (
-              <button type="button" className="btn btn-ghost" disabled={busy === r.id} onClick={() => setStatus(r.id, 'new')}>
-                {t('admin.reopen')}
-              </button>
+              <div className="st-fb-status">
+                {r.status === 'new' && (
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy === r.id} onClick={() => setStatus(r.id, 'read')}>
+                    {t('admin.markRead')}
+                  </button>
+                )}
+                {r.status !== 'done' ? (
+                  <button type="button" className="btn btn-primary btn-sm" disabled={busy === r.id} onClick={() => setStatus(r.id, 'done')}>
+                    {t('admin.markDone')}
+                  </button>
+                ) : (
+                  <button type="button" className="btn btn-secondary btn-sm" disabled={busy === r.id} onClick={() => setStatus(r.id, 'new')}>
+                    {t('admin.reopen')}
+                  </button>
+                )}
+              </div>
+            </div>
+            {promoting === r.id && (
+              <div className="st-fb-promote" id={promoteId}>
+                <label className="sr-only" htmlFor={pickId}>
+                  {t('admin.promoteAttach')}
+                </label>
+                <select
+                  id={pickId}
+                  className="select"
+                  value={pick[r.id] ?? ''}
+                  onChange={(e) => setPick((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                >
+                  <option value="">{t('admin.promoteAttach')}</option>
+                  {items.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.title}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={busy === r.id || !pick[r.id]}
+                  onClick={() => promote(r, { itemId: pick[r.id] })}
+                >
+                  {t('admin.attach')}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" disabled={busy === r.id} onClick={() => createFrom(r)}>
+                  {ts('createItem')}
+                </button>
+              </div>
             )}
-          </div>
-        </article>
-      ))}
-    </div>
+            {failed?.id === r.id && (
+              <p className="ui-error" role="alert">
+                {failed.msg}
+              </p>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }

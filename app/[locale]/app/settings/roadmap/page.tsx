@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
@@ -6,9 +7,16 @@ import { isAdminEmail } from '@/lib/feedback';
 import { listRoadmapItemsAdmin, ROADMAP_STATUSES, type RoadmapStatus } from '@/lib/roadmap';
 import RoadmapAdminList from '@/components/app/RoadmapAdminList';
 import RoadmapKanban from '@/components/app/RoadmapKanban';
-import '@/styles/roadmap.css';
+import AdminNav, { LinkGroup } from '@/components/app/AdminNav';
+import EmptyState from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await props.params;
+  const t = await getTranslations({ locale, namespace: 'settings' });
+  return { title: `${t('admin.roadmap')} · ${t('title')}` };
+}
 
 /**
  * Roadmap (ítems del board, el feedback y los chats de soporte). Kanban con
@@ -25,6 +33,7 @@ export default async function RoadmapAdminPage(props: {
   if (!isAdminEmail(user.actingUser?.email ?? user.email)) notFound();
 
   const t = await getTranslations({ locale, namespace: 'roadmap.admin' });
+  const ts = await getTranslations({ locale, namespace: 'settings.admin' });
   const isList = view === 'list';
   const filter = isList && ROADMAP_STATUSES.includes(status as RoadmapStatus) ? (status as RoadmapStatus) : undefined;
   const all = await listRoadmapItemsAdmin();
@@ -32,45 +41,57 @@ export default async function RoadmapAdminPage(props: {
   const targets = all.map((i) => ({ id: i.id, title: i.title }));
 
   return (
-    <div className="app-page">
-      <div>
-        <h1 className="app-title">{t('title')}</h1>
-        <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>{t('sub')}</p>
-      </div>
-
-      <nav className="rm-admin-filters" aria-label={t('title')}>
-        <Link href="/app/settings/roadmap" className={`btn btn-small ${isList ? 'btn-ghost' : 'btn-solid'}`}>
-          {t('viewKanban')}
-        </Link>
-        <Link href="/app/settings/roadmap?view=list" className={`btn btn-small ${isList && !filter ? 'btn-solid' : 'btn-ghost'}`}>
-          {t('viewList')}
-        </Link>
-        {isList &&
-          ROADMAP_STATUSES.map((s) => (
-            <Link
-              key={s}
-              href={`/app/settings/roadmap?view=list&status=${s}`}
-              className={`btn btn-small ${filter === s ? 'btn-solid' : 'btn-ghost'}`}
-            >
-              {t(`status.${s}`)}
+    <div className="st-stack">
+      <AdminNav
+        locale={locale}
+        current="roadmap"
+        description={t('sub')}
+        aside={
+          <>
+            <LinkGroup
+              label={ts('view')}
+              items={[
+                { key: 'kanban', href: '/app/settings/roadmap', label: t('viewKanban'), active: !isList },
+                { key: 'list', href: '/app/settings/roadmap?view=list', label: t('viewList'), active: isList },
+              ]}
+            />
+            <Link href="/feedback-board" className="btn btn-ghost btn-sm">
+              {ts('publicBoard')}
             </Link>
-          ))}
-        <span className="rm-admin-spacer" />
-        <Link href="/app/settings/feedback" className="btn btn-small btn-ghost">
-          ← {t('backToFeedback')}
-        </Link>
-        <Link href="/app/settings/changelog" className="btn btn-small btn-ghost">
-          {t('changelogLink')}
-        </Link>
-        <Link href="/feedback-board" className="btn btn-small btn-ghost">
-          {t('viewPublic')}
-        </Link>
-      </nav>
+          </>
+        }
+      />
+
+      {isList && (
+        <LinkGroup
+          label={ts('filter')}
+          items={[
+            { key: 'all', href: '/app/settings/roadmap?view=list', label: t('all'), active: !filter },
+            ...ROADMAP_STATUSES.map((s) => ({
+              key: s,
+              href: `/app/settings/roadmap?view=list&status=${s}`,
+              label: t(`status.${s}`),
+              active: filter === s,
+            })),
+          ]}
+        />
+      )}
 
       {!isList ? (
         <RoadmapKanban initial={all} locale={locale} />
       ) : items.length === 0 ? (
-        <p className="muted mono">{t('empty')}</p>
+        filter ? (
+          <EmptyState
+            title={ts('roadmapEmptyFiltered')}
+            action={<Link href="/app/settings/roadmap?view=list" className="btn btn-secondary">{ts('showAll')}</Link>}
+          />
+        ) : (
+          <EmptyState
+            title={ts('roadmapEmptyTitle')}
+            body={t('empty')}
+            action={<Link href="/app/settings/roadmap" className="btn btn-primary">{t('viewKanban')}</Link>}
+          />
+        )
       ) : (
         <RoadmapAdminList initial={items} targets={targets} locale={locale} />
       )}
