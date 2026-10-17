@@ -219,7 +219,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
       </section>
 
       {/* Open source: un comando. */}
-      <section className="lp-section lp-dark" id="open-source" aria-labelledby="h-oss">
+      <section className="lp-section" id="open-source" aria-labelledby="h-oss">
         <SectionSign id="h-oss" title={h('oss.title')} sub={h('oss.titleDim')} />
         <div className="container lp-split">
           <div className="lp-split-text">
@@ -233,10 +233,10 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
               ))}
             </ul>
             <div className="lp-ctas">
-              <a className="btn btn-invert-solid" href={GITHUB_URL} target="_blank" rel="noreferrer">
+              <a className="btn btn-primary" href={GITHUB_URL} target="_blank" rel="noreferrer">
                 <Icon name="github" size={16} /> {h('oss.cta')}
               </a>
-              <a className="btn btn-invert" href={GITHUB_URL} target="_blank" rel="noreferrer">
+              <a className="btn btn-secondary" href={GITHUB_URL} target="_blank" rel="noreferrer">
                 <Icon name="star" size={15} /> {h('hero.star')}
               </a>
             </div>

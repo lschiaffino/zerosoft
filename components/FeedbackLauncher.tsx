@@ -135,6 +135,44 @@ export default function FeedbackLauncher({ locale, hasSupport = false }: { local
     };
   }, [open]);
 
+  // En el teléfono el botón tapa el texto de las filas: se esconde mientras
+  // bajás y cuando el footer está a la vista; vuelve al subir.
+  const [tucked, setTucked] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 760px)');
+    let lastY = window.scrollY;
+    let footerVisible = false;
+    let frame = 0;
+    const footer = document.querySelector('.site-footer');
+    const io =
+      footer && 'IntersectionObserver' in window
+        ? new IntersectionObserver(([entry]) => {
+            footerVisible = entry.isIntersecting;
+            setTucked(mq.matches && footerVisible);
+          })
+        : null;
+    if (footer && io) io.observe(footer);
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const y = window.scrollY;
+        const delta = y - lastY;
+        lastY = y;
+        if (!mq.matches) return setTucked(false);
+        if (footerVisible) return setTucked(true);
+        if (Math.abs(delta) < 4) return;
+        setTucked(delta > 0 && y > 120);
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      io?.disconnect();
+    };
+  }, []);
+
   function showNews() {
     setTab('news');
     if (unread.length > 0) {
@@ -153,7 +191,7 @@ export default function FeedbackLauncher({ locale, hasSupport = false }: { local
   };
 
   return (
-    <div className={`fl-root${hasSupport ? ' has-support' : ''}`} ref={panelRef}>
+    <div className={`fl-root${hasSupport ? ' has-support' : ''}${tucked && !open ? ' is-tucked' : ''}`} ref={panelRef}>
       {open && (
         <div className="fl-panel" role="dialog" aria-label={t('launcher.title')}>
           <div className="fl-tabs" role="tablist">

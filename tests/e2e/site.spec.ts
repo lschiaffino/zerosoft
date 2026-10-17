@@ -43,6 +43,20 @@ test('el home abre con el plano de la red y cada línea lleva a su producto', as
   await expect(map.locator('.net-caption-text')).toContainText('Cal: cada reserva');
 });
 
+test('todas las estaciones del plano quedan visibles al terminar la animación', async ({ page }) => {
+  await page.goto('/es', { waitUntil: 'load' });
+  await page.waitForTimeout(2000);
+  const hidden = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.lp-hero .net-stop'))
+      .filter((el) => getComputedStyle(el).visibility !== 'visible')
+      .map((el) => el.textContent?.trim() || el.getAttribute('aria-label') || '?'),
+  );
+  expect(hidden, `estaciones ocultas: ${hidden.join(', ')}`).toEqual([]);
+  const terminals = page.locator('.lp-hero a.net-terminal');
+  await expect(terminals).toHaveCount(11);
+  for (let i = 0; i < 11; i++) await expect(terminals.nth(i)).toBeVisible();
+});
+
 test('la tabla de precios muestra costo y precio (× 3)', async ({ page }) => {
   await page.goto('/es', { waitUntil: 'networkidle' });
   const table = page.locator('#precios .pricing-table');

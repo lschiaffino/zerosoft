@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl';
 import ZeroMark from '@/components/zero/ZeroMark';
+import { MkCheck } from './MkIcons';
 
 export default function DocsMockup() {
   const t = useTranslations('pages.mockups.docs');
@@ -29,9 +30,18 @@ export default function DocsMockup() {
           <div className="mk-doc-line" style={{ width: '80%' }} />
           <div className="mk-doc-line" style={{ width: '76%' }} />
           <div className="mk-doc-list">
-            <span>☐ {t('item1')}</span>
-            <span>☑ {t('item2')}</span>
-            <span>☐ {t('item3')}</span>
+            <span>
+              <MkCheck done={false} />
+              {t('item1')}
+            </span>
+            <span>
+              <MkCheck done />
+              {t('item2')}
+            </span>
+            <span>
+              <MkCheck done={false} />
+              {t('item3')}
+            </span>
           </div>
         </div>
       </div>

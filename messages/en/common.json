@@ -394,5 +394,12 @@
     "ai": "AI is billed per token, at the provider's price × {x}.",
     "minimum": "A paid workspace has a {min} monthly minimum, credited to usage.",
     "measured": "Infrastructure costs measured on {date} and rounded to the cent."
+  },
+  "notFound": {
+    "sign": "End of the line",
+    "title": "This page does not exist.",
+    "body": "The link may have a typo or the page moved. The home page takes you to all eleven apps.",
+    "cta": "Go to the home page",
+    "meta": "Page not found"
   }
 }

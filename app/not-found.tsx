@@ -1,23 +1,27 @@
 import Link from 'next/link';
 import { Archivo, JetBrains_Mono } from 'next/font/google';
-import ZeroField from '@/components/ZeroField';
+import '@/styles/site.css';
 
 const sans = Archivo({ subsets: ['latin'], axes: ['wdth'], variable: '--font-archivo', display: 'swap' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains', display: 'swap' });
 
-// 404 global (rutas fuera de /[locale]). Autocontenida: trae su propio html/body y las fuentes del sitio.
+// 404 global (rutas fuera de /[locale]). Autocontenida: trae su propio html/body
+// y las fuentes del sitio. Las rutas con idioma usan app/[locale]/not-found.tsx.
 export default function GlobalNotFound() {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body>
-        <div className="notfound-page">
-          <ZeroField align="center" sizeFactor={1.2} interactive={false} alpha={0.12} />
-          <p className="notfound-code">404</p>
-          <p className="notfound-msg">This page is not here. Maybe it never was.</p>
-          <Link className="btn btn-solid" href="/">
-            Back to zero
-          </Link>
-        </div>
+        <main className="container">
+          <header className="read-hero">
+            <h1 className="read-title">This page does not exist.</h1>
+            <p className="read-intro">The link may have a typo or the page moved.</p>
+            <div className="read-actions">
+              <Link className="btn btn-primary btn-lg" href="/">
+                Go to the home page
+              </Link>
+            </div>
+          </header>
+        </main>
       </body>
     </html>
   );

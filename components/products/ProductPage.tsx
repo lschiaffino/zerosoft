@@ -52,7 +52,6 @@ const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `
  */
 export default async function ProductPage({ locale, product }: { locale: string; product: ProductKey }) {
   const t = await getTranslations({ locale, namespace: 'pages' });
-  const tc = await getTranslations({ locale, namespace: 'common.products' });
   const tcm = await getTranslations({ locale, namespace: 'common' });
   const tv = await getTranslations({ locale, namespace: 'videos' });
 
@@ -231,7 +230,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
           </nav>
           <h1 id="pd-title" className="pd-title">
             <span className="pd-title-name">{cfg.name}</span>
-            <span className="pd-tagline">{tc(`${product}.desc`)}</span>
+            <span className="pd-tagline">{t('product.alternative', { rival })}</span>
           </h1>
           <p className="pd-sub">{t(`${p}.hero.sub`)}</p>
           <div className="pd-actions">
@@ -247,7 +246,6 @@ export default async function ProductPage({ locale, product }: { locale: string;
               </Link>
             )}
           </div>
-          <p className="pd-alt">{t('product.alternative', { rival })}</p>
         </div>
         <SiteNetworkMap focus={product} className="pd-hero-map" />
       </section>

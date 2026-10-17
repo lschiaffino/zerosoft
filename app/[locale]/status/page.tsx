@@ -17,6 +17,11 @@ const SERVICES: Array<{ id: string; product?: ProductKey }> = [
   { id: 's4', product: 'cal' },
   { id: 's5', product: 'docs' },
   { id: 's6', product: 'chat' },
+  { id: 's10', product: 'flow' },
+  { id: 's9', product: 'agents' },
+  { id: 's11', product: 'robots' },
+  { id: 's12', product: 'notes' },
+  { id: 's13', product: 'board' },
   { id: 's7' },
   { id: 's8' },
 ];

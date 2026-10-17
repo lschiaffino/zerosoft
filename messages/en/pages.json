@@ -1044,7 +1044,7 @@
       "navQr": "QR codes",
       "navSettings": "Settings",
       "title": "Links",
-      "new": "+ New link",
+      "new": "Create link",
       "statClicks": "Total clicks",
       "statLinks": "Active links",
       "statTop": "Top link",
@@ -1067,7 +1067,7 @@
     },
     "track": {
       "filter": "Filter tasks…",
-      "new": "+ New task",
+      "new": "Create task",
       "col_backlog": "Backlog",
       "col_todo": "Todo",
       "col_progress": "In progress",
@@ -1086,7 +1086,7 @@
     },
     "crm": {
       "title": "Deals",
-      "new": "+ New deal",
+      "new": "Create deal",
       "stage_lead": "Lead",
       "stage_qualified": "Qualified",
       "stage_proposal": "Proposal",
@@ -1298,6 +1298,26 @@
     "s8": {
       "name": "Auth",
       "desc": "Google sign-in"
+    },
+    "s9": {
+      "name": "Agents",
+      "desc": "Agents, knowledge, tools"
+    },
+    "s10": {
+      "name": "Flow",
+      "desc": "Workflows, triggers, runs"
+    },
+    "s11": {
+      "name": "Robots",
+      "desc": "Browser robots, schedules, runner"
+    },
+    "s12": {
+      "name": "Notes",
+      "desc": "Notes, notebooks, search"
+    },
+    "s13": {
+      "name": "Board",
+      "desc": "Whiteboards, autosave, share links"
     },
     "noData": "No data yet",
     "monitoringTitle": "Coming soon.",

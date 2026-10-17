@@ -394,5 +394,12 @@
     "ai": "A IA é cobrada por tokens, ao preço do provedor × {x}.",
     "minimum": "Um workspace pago tem um mínimo de {min} por mês, creditado no uso.",
     "measured": "Custos de infraestrutura medidos em {date} e arredondados ao centavo."
+  },
+  "notFound": {
+    "sign": "Fim da linha",
+    "title": "Esta página não existe.",
+    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos onze apps.",
+    "cta": "Ir para o início",
+    "meta": "Página não encontrada"
   }
 }

@@ -66,9 +66,10 @@
   line-height: 1.55;
   color: var(--brand-gray-1);
 }
+.cl-text { max-width: 68ch; }
 .cl-tag { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; }
 
-.cl-body { font-size: 16px; line-height: 1.6; color: var(--brand-gray-1); margin-bottom: 14px; }
+.cl-body { max-width: 68ch; font-size: 16px; line-height: 1.6; color: var(--brand-gray-1); margin-bottom: 14px; }
 .cl-body p + p, .cl-body ul, .cl-body ol { margin-top: 8px; }
 .cl-body ul, .cl-body ol { padding-left: 18px; }
 .cl-body a { text-decoration: underline; text-underline-offset: 2px; }

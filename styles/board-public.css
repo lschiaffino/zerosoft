@@ -215,6 +215,9 @@ body:has(.bp-root) .fl-root {
 /* ---------- Launcher de feedback (in-app y sitio) ---------- */
 .fl-root { position: fixed; right: 20px; bottom: 20px; z-index: 99990; font-family: var(--sans); }
 .fl-root.has-support { right: 88px; bottom: 26px; }
+.fl-root { transition: transform 200ms var(--ease-out-expo, ease-out), opacity 200ms ease-out, visibility 0s linear 0s; }
+.fl-root.is-tucked { transform: translateY(calc(100% + 32px)); opacity: 0; visibility: hidden; pointer-events: none; transition-delay: 0s, 0s, 200ms; }
+@media (prefers-reduced-motion: reduce) { .fl-root { transition: none; } }
 .fl-button {
   width: var(--bp-launcher-size); height: var(--bp-launcher-size); border-radius: var(--bp-radius);
   border: 1px solid var(--bp-line); background: var(--bp-bg); color: var(--bp-ink);
