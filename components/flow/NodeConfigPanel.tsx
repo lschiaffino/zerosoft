@@ -1,9 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import AdvancedSection from '@/components/ui/AdvancedSection';
 import { nextCronRuns } from '@/lib/cron';
+import type { CredentialType } from '@/lib/flow-credentials-schema';
 import {
   FLOW_EVENT_TYPES,
   NODE_DEFS,
@@ -14,7 +16,8 @@ import {
   type FlowNodeType,
 } from '@/lib/flow-schema';
 import { CONDITION_OPS } from '@/lib/flow-template';
-import { i18nKey, preview } from './flow-ui';
+import CredentialDialog from './CredentialDialog';
+import { changedCount, i18nKey, preview, splitFields } from './flow-ui';
 
 export interface VariableOption {
   path: string;
@@ -39,6 +42,8 @@ interface Props {
   refs: EditorRefs;
   onChange: (config: Record<string, unknown>) => void;
   onDelete: () => void;
+  /** Credencial creada desde el modal del campo (se agrega a refs). */
+  onCredentialCreated: (credential: { id: string; name: string; type: string }) => void;
   /** Extra para triggers (URL del webhook, próxima corrida). */
   extra?: React.ReactNode;
 }
@@ -58,11 +63,27 @@ function CronPreview({ cron, timezone }: { cron: string; timezone: string }) {
   const format = useFormatter();
   const runs = useMemo(() => nextCronRuns(cron, timezone || 'UTC', 3), [cron, timezone]);
   if (!cron.trim()) return null;
-  if (runs.length === 0) return <p className="flow-field-error">{t('cronInvalid')}</p>;
+  if (runs.length === 0) return <p className="ui-error">{t('cronInvalid')}</p>;
   return (
-    <p className="muted flow-hint" suppressHydrationWarning>
+    <p className="ui-help" suppressHydrationWarning>
       {t('cronNext')}: {runs.map((d) => format.dateTime(d, { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone || 'UTC' })).join(' · ')}
     </p>
+  );
+}
+
+function IconX() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+function IconPlus() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
   );
 }
 
@@ -71,35 +92,53 @@ function VariablePicker({ variables, onPick, disabled }: { variables: VariableOp
   const t = useTranslations('flow.editor');
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  const btn = useRef<HTMLButtonElement>(null);
   const list = useMemo(
     () => variables.filter((v) => v.path.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 80),
     [variables, q],
   );
+  function close() {
+    setOpen(false);
+    btn.current?.focus();
+  }
   return (
     <span className="flow-var">
       <button
+        ref={btn}
         type="button"
-        className="flow-var-btn mono"
+        className="btn btn-secondary btn-icon flow-var-btn"
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
         aria-expanded={open}
         title={t('insertVariable')}
         aria-label={t('insertVariable')}
       >
-        {'{ }'}
+        <span className="data" aria-hidden="true">
+          {'{ }'}
+        </span>
       </button>
       {open && (
-        <div className="flow-var-menu" role="dialog" aria-label={t('variables')}>
+        <div
+          className="flow-var-menu"
+          role="dialog"
+          aria-label={t('variables')}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              close();
+            }
+          }}
+        >
           <input
             className="input"
             autoFocus
             value={q}
             placeholder={t('searchVariables')}
+            aria-label={t('searchVariables')}
             onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
           />
           {list.length === 0 ? (
-            <p className="muted flow-var-empty">{t('noVariables')}</p>
+            <p className="ui-help flow-var-empty">{t('noVariables')}</p>
           ) : (
             <ul>
               {list.map((v) => (
@@ -108,11 +147,11 @@ function VariablePicker({ variables, onPick, disabled }: { variables: VariableOp
                     type="button"
                     onClick={() => {
                       onPick(v.path);
-                      setOpen(false);
+                      close();
                     }}
                   >
-                    <span className="mono">{v.path}</span>
-                    {v.sample !== undefined && <span className="muted">{preview(v.sample)}</span>}
+                    <span className="data">{v.path}</span>
+                    {v.sample !== undefined && <span className="flow-muted">{preview(v.sample)}</span>}
                   </button>
                 </li>
               ))}
@@ -121,6 +160,31 @@ function VariablePicker({ variables, onPick, disabled }: { variables: VariableOp
         </div>
       )}
     </span>
+  );
+}
+
+/** "Referencia: {{nodes.http_1.output}}" con copiar: así se usa la salida del nodo en variables. */
+function NodeRef({ nodeId, trigger }: { nodeId: string; trigger: boolean }) {
+  const t = useTranslations('flow.editor');
+  const [copied, setCopied] = useState(false);
+  const ref = trigger ? '{{trigger}}' : `{{nodes.${nodeId}.output}}`;
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(ref);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // Sin portapapeles: el texto queda seleccionable.
+    }
+  }
+  return (
+    <p className="flow-config-ref">
+      <span className="flow-muted">{t('nodeId')}:</span>
+      <span className="data">{ref}</span>
+      <button type="button" className="flow-link" onClick={() => void copy()} aria-label={t('copyNodeRef')}>
+        <span aria-live="polite">{copied ? t('copied') : t('copy')}</span>
+      </button>
+    </p>
   );
 }
 
@@ -149,7 +213,7 @@ function TemplateInput({
       {multiline ? (
         <textarea
           id={id}
-          className="textarea mono"
+          className="textarea data"
           rows={4}
           value={value}
           placeholder={placeholder}
@@ -160,7 +224,7 @@ function TemplateInput({
       ) : (
         <input
           id={id}
-          className="input mono"
+          className="input data"
           value={value}
           placeholder={placeholder}
           readOnly={readOnly}
@@ -173,11 +237,24 @@ function TemplateInput({
   );
 }
 
-export default function NodeConfigPanel({ nodeId, type, config, readOnly, variables, refs, onChange, onDelete, extra }: Props) {
+export default function NodeConfigPanel({
+  nodeId,
+  type,
+  config,
+  readOnly,
+  variables,
+  refs,
+  onChange,
+  onDelete,
+  onCredentialCreated,
+  extra,
+}: Props) {
   const t = useTranslations('flow');
   const def = NODE_DEFS[type];
   const set = (key: string, value: unknown) => onChange({ ...config, [key]: value });
   const [jsonError, setJsonError] = useState<string | null>(null);
+  /** Campo de credencial que abrió el modal "Crear credencial". */
+  const [credFor, setCredFor] = useState<FieldDef | null>(null);
 
   /** Etiqueta del campo: la del nodo si la tiene (nodes.<tipo>.fields.x), si no la general. */
   function fieldLabel(key: string): string {
@@ -209,7 +286,7 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
         return field.kind === 'textarea' ? (
           <textarea
             id={id}
-            className={field.key === 'code' ? 'textarea mono flow-code' : 'textarea'}
+            className={field.key === 'code' ? 'textarea data flow-code' : 'textarea'}
             rows={field.key === 'code' ? 10 : 3}
             spellCheck={field.key === 'code' ? false : undefined}
             value={String(value ?? '')}
@@ -263,19 +340,44 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
         const list = refs.credentials.filter((c) => types.includes(c.type));
         const current = String(value ?? '');
         const missing = current && !refs.credentials.some((c) => c.id === current);
+        const alone = list.length === 0 && !current;
+        // Solo, el botón toma el id del campo (el label lo enfoca) pero conserva su propio nombre accesible.
+        const create = !readOnly && (
+          <button
+            type="button"
+            id={alone ? id : undefined}
+            aria-label={alone ? t('editor.createCredential') : undefined}
+            className="btn btn-secondary"
+            onClick={() => setCredFor(field)}
+          >
+            <IconPlus />
+            {t('editor.createCredential')}
+          </button>
+        );
+        // Sin credenciales del tipo: solo el botón; el select y Administrar aparecen cuando hay alguna.
+        if (alone) return create || <p className="ui-help">{t('editor.credentialNone')}</p>;
         return (
           <>
-            <select id={id} className="select" value={current} disabled={readOnly} onChange={(e) => set(field.key, e.target.value)}>
-              <option value="">{t('editor.credentialNone')}</option>
-              {missing && <option value={current}>{t('editor.credentialMissing')}</option>}
-              {list.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} · {t(`credentials.types.${c.type}`)}
-                </option>
-              ))}
-            </select>
-            <p className="muted flow-hint">
-              {list.length === 0 ? t('editor.credentialEmpty', { types: types.map((x) => t(`credentials.types.${x}`)).join(', ') }) : null}{' '}
+            <div className="flow-cred-pick">
+              <select
+                id={id}
+                className="select"
+                value={current}
+                disabled={readOnly}
+                aria-invalid={missing ? true : undefined}
+                onChange={(e) => set(field.key, e.target.value)}
+              >
+                <option value="">{t('editor.credentialNone')}</option>
+                {missing && <option value={current}>{t('editor.credentialMissing')}</option>}
+                {list.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} · {t(`credentials.types.${c.type}`)}
+                  </option>
+                ))}
+              </select>
+              {create}
+            </div>
+            <p className="ui-help">
               <Link href="/app/flow/credentials" className="flow-link">
                 {t('editor.manageCredentials')}
               </Link>
@@ -311,7 +413,7 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
               ))}
             </select>
             {refs.agents.length === 0 && (
-              <p className="muted flow-hint">
+              <p className="ui-help">
                 {t('editor.noAgents')}{' '}
                 <Link href="/app/agents" className="flow-link">
                   {t('editor.createAgent')}
@@ -326,19 +428,19 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
           <>
             <input
               id={id}
-              className="input mono"
+              className="input data"
               value={String(value ?? '')}
               placeholder={field.placeholder}
               readOnly={readOnly}
               onChange={(e) => set(field.key, e.target.value)}
             />
-            <p className="muted flow-hint">{t('editor.cronHelp')}</p>
+            <p className="ui-help">{t('editor.cronHelp')}</p>
             <CronPreview cron={String(value ?? '')} timezone={String(config.timezone ?? 'UTC')} />
           </>
         );
       case 'bool':
         return (
-          <label className="flow-check">
+          <label className="ui-check">
             <input id={id} type="checkbox" checked={value !== false} disabled={readOnly} onChange={(e) => set(field.key, e.target.checked)} />
             <span>{fieldLabel(`${field.key}Hint`)}</span>
           </label>
@@ -348,8 +450,9 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
           <>
             <textarea
               id={id}
-              className="textarea mono"
+              className="textarea data"
               rows={6}
+              aria-invalid={jsonError ? true : undefined}
               value={typeof value === 'string' ? value : JSON.stringify(value ?? {}, null, 2)}
               readOnly={readOnly}
               onChange={(e) => {
@@ -362,7 +465,7 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
                 }
               }}
             />
-            {jsonError && <p className="flow-field-error">{jsonError}</p>}
+            {jsonError && <p className="ui-error">{jsonError}</p>}
           </>
         );
       case 'kv': {
@@ -373,7 +476,7 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
             {rows.map((r, i) => (
               <div className="flow-kv" key={i}>
                 <input
-                  className="input mono"
+                  className="input data"
                   value={r.key ?? ''}
                   placeholder={t('editor.kvKey')}
                   aria-label={t('editor.kvKey')}
@@ -390,15 +493,22 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
                   onChange={(v) => update(rows.map((x, j) => (j === i ? { ...x, value: v } : x)))}
                 />
                 {!readOnly && (
-                  <button type="button" className="flow-icon-btn" aria-label={t('editor.remove')} onClick={() => update(rows.filter((_, j) => j !== i))}>
-                    ×
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon"
+                    aria-label={t('editor.remove')}
+                    title={t('editor.remove')}
+                    onClick={() => update(rows.filter((_, j) => j !== i))}
+                  >
+                    <IconX />
                   </button>
                 )}
               </div>
             ))}
             {!readOnly && (
-              <button type="button" className="flow-add" onClick={() => update([...rows, { key: '', value: '' }])}>
-                + {t('editor.addRow')}
+              <button type="button" className="btn btn-ghost btn-sm flow-add" onClick={() => update([...rows, { key: '', value: '' }])}>
+                <IconPlus />
+                {t('editor.addRow')}
               </button>
             )}
           </div>
@@ -445,15 +555,22 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
                   />
                 )}
                 {!readOnly && (
-                  <button type="button" className="flow-icon-btn" aria-label={t('editor.remove')} onClick={() => update(rows.filter((_, j) => j !== i))}>
-                    ×
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon"
+                    aria-label={t('editor.remove')}
+                    title={t('editor.remove')}
+                    onClick={() => update(rows.filter((_, j) => j !== i))}
+                  >
+                    <IconX />
                   </button>
                 )}
               </div>
             ))}
             {!readOnly && (
-              <button type="button" className="flow-add" onClick={() => update([...rows, { left: '', op: 'equals', right: '' }])}>
-                + {t('editor.addCondition')}
+              <button type="button" className="btn btn-ghost btn-sm flow-add" onClick={() => update([...rows, { left: '', op: 'equals', right: '' }])}>
+                <IconPlus />
+                {t('editor.addCondition')}
               </button>
             )}
           </div>
@@ -467,7 +584,7 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
             {rows.map((r, i) => (
               <div className="flow-kv" key={i}>
                 <input
-                  className="input mono"
+                  className="input data"
                   value={r}
                   aria-label={t('handles.case', { n: i + 1 })}
                   placeholder={t('handles.case', { n: i + 1 })}
@@ -475,15 +592,22 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
                   onChange={(e) => update(rows.map((x, j) => (j === i ? e.target.value : x)))}
                 />
                 {!readOnly && (
-                  <button type="button" className="flow-icon-btn" aria-label={t('editor.remove')} onClick={() => update(rows.filter((_, j) => j !== i))}>
-                    ×
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon"
+                    aria-label={t('editor.remove')}
+                    title={t('editor.remove')}
+                    onClick={() => update(rows.filter((_, j) => j !== i))}
+                  >
+                    <IconX />
                   </button>
                 )}
               </div>
             ))}
             {!readOnly && (
-              <button type="button" className="flow-add" onClick={() => update([...rows, ''])}>
-                + {t('editor.addCase')}
+              <button type="button" className="btn btn-ghost btn-sm flow-add" onClick={() => update([...rows, ''])}>
+                <IconPlus />
+                {t('editor.addCase')}
               </button>
             )}
           </div>
@@ -494,80 +618,92 @@ export default function NodeConfigPanel({ nodeId, type, config, readOnly, variab
     }
   }
 
-  const visibleFields = (def.fields as readonly FieldDef[]).filter((f) => {
-    if (f.showIf) {
-      const dep = (def.fields as readonly FieldDef[]).find((x) => x.key === f.showIf!.key);
-      const current = String(config[f.showIf.key] ?? dep?.default ?? '');
-      if (!f.showIf.values.includes(current)) return false;
-    }
-    if (type === 'trigger.event' && (f.key === 'filterOp' || f.key === 'filterValue') && !String(config.filterPath ?? '').trim()) {
-      return false;
-    }
-    return true;
-  });
+  const { basic, advanced } = splitFields(type, def.fields as readonly FieldDef[], config);
   const errorMode = onErrorMode(config);
+  const hasErrorHandling = supportsErrorHandling(type);
+  const changed = changedCount(advanced, config) + (errorMode !== 'stop' ? 1 : 0);
+  const hasAdvanced = advanced.length > 0 || hasErrorHandling;
+
+  function fieldBlock(f: FieldDef) {
+    return (
+      <div className="ui-field" key={f.key}>
+        {f.kind !== 'bool' && (
+          <label className="label" htmlFor={`f-${nodeId}-${f.key}`}>
+            {fieldLabel(f.key)}
+          </label>
+        )}
+        {renderField(f)}
+        {f.key === 'retries' && <p className="ui-help">{t('editor.retryGranularity')}</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="flow-config">
       <div className="flow-config-head">
-        <div>
-          <p className="flow-config-cat">{t(`categories.${def.category}`)}</p>
-          <h3>{t(`nodes.${i18nKey(type)}.title`)}</h3>
-        </div>
-        <span className="mono muted flow-config-id">{nodeId}</span>
+        <h2 className="flow-config-title">{t(`nodes.${i18nKey(type)}.title`)}</h2>
+        <p className="ui-help">{t(`nodes.${i18nKey(type)}.desc`)}</p>
+        <NodeRef nodeId={nodeId} trigger={type.startsWith('trigger.')} />
       </div>
-      <p className="muted flow-config-desc">{t(`nodes.${i18nKey(type)}.desc`)}</p>
       {type === 'data.code' && !refs.codeAvailable && (
         <p className="flow-note" role="note">
           {t('editor.codeUnavailable')}
         </p>
       )}
-      {type === 'data.merge' && <p className="muted flow-hint">{t('editor.mergeHint')}</p>}
-      {type === 'trigger.schedule' && <p className="muted flow-hint">{t('editor.scheduleGranularity')}</p>}
-      {type === 'logic.delay' && <p className="muted flow-hint">{t('editor.delayGranularity')}</p>}
-      {type === 'trigger.stripe' && <p className="muted flow-hint">{t('editor.stripeHint')}</p>}
+      {type === 'data.merge' && <p className="ui-help">{t('editor.mergeHint')}</p>}
+      {type === 'trigger.schedule' && <p className="ui-help">{t('editor.scheduleGranularity')}</p>}
+      {type === 'logic.delay' && <p className="ui-help">{t('editor.delayGranularity')}</p>}
+      {type === 'trigger.stripe' && <p className="ui-help">{t('editor.stripeHint')}</p>}
       {extra}
-      {visibleFields.map((f) => (
-        <div className="flow-field" key={f.key}>
-          {f.kind !== 'bool' && (
-            <label className="label" htmlFor={`f-${nodeId}-${f.key}`}>
-              {fieldLabel(f.key)}
-            </label>
+      {basic.map(fieldBlock)}
+      {hasAdvanced && (
+        <AdvancedSection storageKey="flow.node" hint={changed > 0 ? t('editor.advancedChanged', { n: changed }) : undefined}>
+          {advanced.map(fieldBlock)}
+          {hasErrorHandling && (
+            <div className="ui-field">
+              <label className="label" htmlFor={`f-${nodeId}-onError`}>
+                {t('fields.onError')}
+              </label>
+              <select
+                id={`f-${nodeId}-onError`}
+                className="select"
+                value={errorMode}
+                disabled={readOnly}
+                onChange={(e) => {
+                  const next: Record<string, unknown> = { ...config, onError: e.target.value };
+                  if (e.target.value === 'stop') delete next.onError;
+                  onChange(next);
+                }}
+              >
+                {ON_ERROR_MODES.map((m) => (
+                  <option key={m} value={m}>
+                    {t(`onError.${m}`)}
+                  </option>
+                ))}
+              </select>
+              <p className="ui-help">{t(`onError.${errorMode}Hint`)}</p>
+            </div>
           )}
-          {renderField(f)}
-          {f.key === 'retries' && <p className="muted flow-hint">{t('editor.retryGranularity')}</p>}
-        </div>
-      ))}
-      {supportsErrorHandling(type) && (
-        <div className="flow-field flow-onerror">
-          <label className="label" htmlFor={`f-${nodeId}-onError`}>
-            {t('fields.onError')}
-          </label>
-          <select
-            id={`f-${nodeId}-onError`}
-            className="select"
-            value={errorMode}
-            disabled={readOnly}
-            onChange={(e) => {
-              const next: Record<string, unknown> = { ...config, onError: e.target.value };
-              if (e.target.value === 'stop') delete next.onError;
-              onChange(next);
-            }}
-          >
-            {ON_ERROR_MODES.map((m) => (
-              <option key={m} value={m}>
-                {t(`onError.${m}`)}
-              </option>
-            ))}
-          </select>
-          <p className="muted flow-hint">{t(`onError.${errorMode}Hint`)}</p>
-        </div>
+        </AdvancedSection>
       )}
       {!readOnly && (
-        <button type="button" className="btn btn-small btn-ghost flow-delete" onClick={onDelete}>
-          {t('editor.deleteNode')}
-        </button>
+        <div className="flow-config-foot">
+          <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={onDelete}>
+            {t('editor.deleteNode')}
+          </button>
+        </div>
       )}
+      <CredentialDialog
+        open={credFor !== null}
+        types={(credFor?.options ?? []) as readonly CredentialType[]}
+        existingNames={refs.credentials.map((c) => c.name)}
+        onClose={() => setCredFor(null)}
+        onSaved={(c) => {
+          onCredentialCreated({ id: c.id, name: c.name, type: c.type });
+          if (credFor) set(credFor.key, c.id);
+          setCredFor(null);
+        }}
+      />
     </div>
   );
 }

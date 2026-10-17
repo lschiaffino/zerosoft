@@ -285,6 +285,8 @@ export interface FlowVersionDto {
   createdAt: string;
   /** Cambios respecto de la versión anterior. */
   diff: GraphDiff;
+  /** Tipo de cada nodo nombrado en el diff (también los quitados), para mostrar su título. */
+  nodeTypes: Record<string, string>;
 }
 
 async function snapshotVersion(
@@ -324,6 +326,7 @@ export async function listFlowVersions(workspaceId: string, flowId: string): Pro
       createdBy: row.created_by,
       createdAt: row.created_at,
       diff: diffGraphs(prev, graph),
+      nodeTypes: Object.fromEntries([...(prev?.nodes ?? []), ...graph.nodes].map((n) => [n.id, n.type])),
     };
   });
 }

@@ -1,17 +1,105 @@
-import type { NodeCategory } from '@/lib/flow-schema';
+import type { FieldDef, FlowNodeType } from '@/lib/flow-schema';
+import type { ProductKey } from '@/lib/products';
 
-/** Color por categoría de nodo (tokens --c-* de globals.css). */
-export const CATEGORY_COLOR: Record<NodeCategory, string> = {
-  trigger: 'var(--c-flow)',
-  logic: 'var(--c-crm)',
-  data: 'var(--c-docs)',
-  action: 'var(--c-link)',
-  app: 'var(--c-cal)',
-  integration: 'var(--c-agents)',
-  ai: 'var(--c-chat)',
+export const CATEGORY_ORDER = ['trigger', 'logic', 'data', 'action', 'app', 'integration', 'ai'] as const;
+
+/**
+ * La red de subte en el canvas: el flow es la línea de Flow y cada nodo una
+ * estación. Un nodo que entra o sale por otra app de zerosoft es una
+ * combinación con la línea de esa app (devuelve su clave). El resto, null.
+ */
+const EVENT_LINES: Array<[string, ProductKey]> = [
+  ['booking.', 'cal'],
+  ['link.', 'link'],
+  ['contact.', 'crm'],
+  ['deal.', 'crm'],
+  ['quote.', 'crm'],
+  ['email.', 'crm'],
+  ['form.', 'crm'],
+  ['issue.', 'track'],
+  ['conversation.', 'chat'],
+  ['message.', 'chat'],
+  ['page.', 'docs'],
+  ['robot.', 'robots'],
+];
+
+const NODE_LINES: Partial<Record<FlowNodeType, ProductKey>> = {
+  'app.crm_contact': 'crm',
+  'app.crm_sequence': 'crm',
+  'app.crm_deals': 'crm',
+  'app.track_issue': 'track',
+  'app.link': 'link',
+  'app.chat_message': 'chat',
+  'app.docs_page': 'docs',
+  'app.robot_run': 'robots',
+  'ai.agent': 'agents',
 };
 
-export const CATEGORY_ORDER: NodeCategory[] = ['trigger', 'logic', 'data', 'action', 'app', 'integration', 'ai'];
+export function interchangeLine(type: FlowNodeType, config: Record<string, unknown> = {}): ProductKey | null {
+  if (type === 'trigger.event') {
+    const ev = String(config.event ?? '');
+    return EVENT_LINES.find(([prefix]) => ev.startsWith(prefix))?.[1] ?? null;
+  }
+  return NODE_LINES[type] ?? null;
+}
+
+/**
+ * Campos visibles de un nodo, separados en el camino básico y "Avanzado"
+ * (FieldDef.advanced). Respeta showIf y oculta el operador y valor del filtro
+ * de eventos mientras no haya campo a filtrar.
+ */
+export function splitFields(
+  type: FlowNodeType,
+  fields: readonly FieldDef[],
+  config: Record<string, unknown>,
+): { basic: FieldDef[]; advanced: FieldDef[] } {
+  const visible = fields.filter((f) => {
+    if (f.showIf) {
+      const dep = fields.find((x) => x.key === f.showIf!.key);
+      const current = String(config[f.showIf.key] ?? dep?.default ?? '');
+      if (!f.showIf.values.includes(current)) return false;
+    }
+    if (type === 'trigger.event' && (f.key === 'filterOp' || f.key === 'filterValue') && !String(config.filterPath ?? '').trim()) {
+      return false;
+    }
+    return true;
+  });
+  return { basic: visible.filter((f) => !f.advanced), advanced: visible.filter((f) => f.advanced) };
+}
+
+/** Cuántos campos avanzados se apartan de su valor por defecto (para avisar que hay algo ajustado). */
+export function changedCount(fields: readonly FieldDef[], config: Record<string, unknown>): number {
+  return fields.filter((f) => {
+    const v = config[f.key];
+    if (v === undefined || v === '') return false;
+    return JSON.stringify(v) !== JSON.stringify(f.default ?? '');
+  }).length;
+}
+
+/**
+ * Nombre técnico de una credencial nueva, derivado del tipo: "slack",
+ * "slack-2"… Sigue CREDENTIAL_NAME_RE y no choca (sin distinguir mayúsculas)
+ * con los nombres que ya existen.
+ */
+export function suggestCredentialName(type: string, existing: readonly string[]): string {
+  const base = type.replace(/[^A-Za-z0-9_-]/g, '-').replace(/_/g, '-').slice(0, 50) || 'credential';
+  const taken = new Set(existing.map((n) => n.toLowerCase()));
+  if (!taken.has(base)) return base;
+  for (let i = 2; ; i++) {
+    const name = `${base}-${i}`;
+    if (!taken.has(name)) return name;
+  }
+}
+
+/** Badge (ui.css) por estado de corrida o de paso. */
+export const RUN_BADGE: Record<string, string> = {
+  success: 'badge-ok',
+  failed: 'badge-bad',
+  waiting: 'badge-warn',
+  queued: 'badge-warn',
+  running: 'badge-info',
+  skipped: 'badge-outline',
+};
 
 /** next-intl usa '.' como separador: 'trigger.event' → 'trigger_event'. */
 export function i18nKey(value: string): string {
@@ -68,4 +156,28 @@ export function pretty(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+/**
+ * Código de error de un paso ("missing_credentialid (retry 1/2)", "http_502")
+ * a la clave de flow.stepErrors que dice el problema y cómo resolverlo. null
+ * si el código no es conocido: entonces solo se muestra el código.
+ * `inEditor`: se arregla en la configuración del nodo.
+ */
+export function stepErrorInfo(raw: string): { code: string; key: string; values?: Record<string, string>; inEditor: boolean } | null {
+  const code = raw.trim().match(/^[a-z0-9_]+/i)?.[0]?.toLowerCase() ?? '';
+  if (!code) return null;
+  const http = code.match(/^http_(\d{3})$/);
+  if (http) return { code, key: 'http', values: { status: http[1] }, inEditor: true };
+  if (code === 'missing_credential' || code === 'missing_credentialid') return { code, key: 'missing_credential', inEditor: true };
+  if (code === 'credential_not_found' || code === 'credential_wrong_type') return { code, key: code, inEditor: true };
+  if (code === 'invalid_credential' || /^(google_invalid_credential|telegram_invalid_token|discord_invalid_webhook|slack_invalid_auth|slack_not_authed)$/.test(code)) {
+    return { code, key: 'invalid_credential', inEditor: true };
+  }
+  if (code === 'missing_url') return { code, key: 'missing_url', inEditor: true };
+  if (code === 'invalid_email' || code === 'missing_recipient') return { code, key: 'invalid_email', inEditor: true };
+  if (code === 'invalid_json') return { code, key: 'invalid_json', inEditor: true };
+  if (code === 'rate_limited' || code === 'slack_ratelimited') return { code, key: 'rate_limited', inEditor: false };
+  if (code.startsWith('missing_')) return { code, key: 'missing_field', inEditor: true };
+  return null;
 }

@@ -190,6 +190,8 @@ export interface FieldDef {
   default?: unknown;
   /** Se muestra solo si otro campo tiene uno de estos valores. */
   showIf?: { key: string; values: readonly string[] };
+  /** Opción fina (reintentos, timeouts…): el editor la agrupa en "Avanzado". */
+  advanced?: boolean;
 }
 
 export interface NodeDef {
@@ -212,9 +214,9 @@ export const NODE_DEFS = {
     outputs: ['out'],
     fields: [
       { key: 'event', kind: 'event', default: 'contact.created' },
-      { key: 'filterPath', kind: 'text', placeholder: 'link.slug' },
-      { key: 'filterOp', kind: 'select', options: CONDITION_OPS, default: 'equals' },
-      { key: 'filterValue', kind: 'text' },
+      { key: 'filterPath', kind: 'text', placeholder: 'link.slug', advanced: true },
+      { key: 'filterOp', kind: 'select', options: CONDITION_OPS, default: 'equals', advanced: true },
+      { key: 'filterValue', kind: 'text', advanced: true },
     ],
   },
   'trigger.webhook': { type: 'trigger.webhook', category: 'trigger', outputs: ['out'], fields: [] },
@@ -272,7 +274,7 @@ export const NODE_DEFS = {
     outputs: ['item', 'done'],
     fields: [
       { key: 'items', kind: 'text', template: true, placeholder: '{{trigger.items}}' },
-      { key: 'max', kind: 'number', default: 50 },
+      { key: 'max', kind: 'number', default: 50, advanced: true },
     ],
   },
   'data.set': {
@@ -295,11 +297,11 @@ export const NODE_DEFS = {
       { key: 'method', kind: 'select', options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], default: 'POST' },
       { key: 'url', kind: 'text', template: true, placeholder: 'https://api.example.com/hook' },
       { key: 'credentialId', kind: 'credential', options: ['api_key', 'basic', 'oauth_token'] },
-      { key: 'headers', kind: 'kv', template: true, default: [] },
+      { key: 'headers', kind: 'kv', template: true, default: [], advanced: true },
       { key: 'body', kind: 'textarea', template: true, placeholder: '{"text": {{nodes.ai.output.text | json}}}' },
-      { key: 'parseJson', kind: 'bool', default: true },
-      { key: 'timeoutMs', kind: 'number', default: 8000 },
-      { key: 'retries', kind: 'number', default: 0 },
+      { key: 'parseJson', kind: 'bool', default: true, advanced: true },
+      { key: 'timeoutMs', kind: 'number', default: 8000, advanced: true },
+      { key: 'retries', kind: 'number', default: 0, advanced: true },
     ],
   },
   'action.email': {
@@ -321,7 +323,7 @@ export const NODE_DEFS = {
       { key: 'firstName', kind: 'text', template: true },
       { key: 'lastName', kind: 'text', template: true },
       { key: 'phone', kind: 'text', template: true },
-      { key: 'source', kind: 'text', template: true, default: 'flow' },
+      { key: 'source', kind: 'text', template: true, default: 'flow', advanced: true },
     ],
   },
   'app.crm_sequence': {
@@ -385,8 +387,8 @@ export const NODE_DEFS = {
     fields: [
       { key: 'robotId', kind: 'text', placeholder: 'robot id' },
       { key: 'inputs', kind: 'kv', template: true, default: [] },
-      { key: 'failOnError', kind: 'bool', default: true },
-      { key: 'retries', kind: 'number', default: 0 },
+      { key: 'failOnError', kind: 'bool', default: true, advanced: true },
+      { key: 'retries', kind: 'number', default: 0, advanced: true },
     ],
   },
   'logic.run_flow': {
@@ -396,7 +398,7 @@ export const NODE_DEFS = {
     fields: [
       { key: 'flowId', kind: 'flowRef' },
       { key: 'inputs', kind: 'kv', template: true, default: [] },
-      { key: 'failOnError', kind: 'bool', default: true },
+      { key: 'failOnError', kind: 'bool', default: true, advanced: true },
     ],
   },
   'data.merge': {
@@ -428,7 +430,7 @@ export const NODE_DEFS = {
         placeholder: 'const total = input.nodes.deals.output.total;\nreturn { total, double: total * 2 };',
         default: 'return { ok: true, trigger: input.trigger };',
       },
-      { key: 'timeoutSec', kind: 'number', default: 10 },
+      { key: 'timeoutSec', kind: 'number', default: 10, advanced: true },
     ],
   },
   'app.slack': {
@@ -439,7 +441,7 @@ export const NODE_DEFS = {
       { key: 'credentialId', kind: 'credential', options: ['slack'] },
       { key: 'channel', kind: 'text', template: true, placeholder: '#sales' },
       { key: 'text', kind: 'textarea', template: true, placeholder: 'New lead: {{trigger.body.email}}' },
-      { key: 'retries', kind: 'number', default: 1 },
+      { key: 'retries', kind: 'number', default: 1, advanced: true },
     ],
   },
   'app.google_sheets': {
@@ -452,7 +454,7 @@ export const NODE_DEFS = {
       { key: 'spreadsheetId', kind: 'text', template: true, placeholder: '1AbC…' },
       { key: 'range', kind: 'text', template: true, placeholder: 'Sheet1', default: 'Sheet1' },
       { key: 'row', kind: 'kv', template: true, default: [], showIf: { key: 'operation', values: ['append'] } },
-      { key: 'retries', kind: 'number', default: 1 },
+      { key: 'retries', kind: 'number', default: 1, advanced: true },
     ],
   },
   'app.gmail': {
@@ -476,7 +478,7 @@ export const NODE_DEFS = {
       { key: 'name', kind: 'text', template: true, showIf: { key: 'operation', values: ['create_customer'] } },
       { key: 'description', kind: 'text', template: true, showIf: { key: 'operation', values: ['create_customer'] } },
       { key: 'limit', kind: 'number', default: 10, showIf: { key: 'operation', values: ['list_payments'] } },
-      { key: 'retries', kind: 'number', default: 1 },
+      { key: 'retries', kind: 'number', default: 1, advanced: true },
     ],
   },
   'app.notion': {
@@ -488,11 +490,11 @@ export const NODE_DEFS = {
       { key: 'operation', kind: 'select', options: ['create_page', 'append_text'], default: 'create_page' },
       { key: 'databaseId', kind: 'text', template: true, placeholder: 'database id or URL', showIf: { key: 'operation', values: ['create_page'] } },
       { key: 'title', kind: 'text', template: true, showIf: { key: 'operation', values: ['create_page'] } },
-      { key: 'titleProperty', kind: 'text', placeholder: 'Name', default: 'Name', showIf: { key: 'operation', values: ['create_page'] } },
+      { key: 'titleProperty', kind: 'text', placeholder: 'Name', default: 'Name', showIf: { key: 'operation', values: ['create_page'] }, advanced: true },
       { key: 'properties', kind: 'textarea', template: true, placeholder: '{"Status": {"select": {"name": "New"}}}', showIf: { key: 'operation', values: ['create_page'] } },
       { key: 'pageId', kind: 'text', template: true, placeholder: 'page id or URL', showIf: { key: 'operation', values: ['append_text'] } },
       { key: 'content', kind: 'textarea', template: true },
-      { key: 'retries', kind: 'number', default: 1 },
+      { key: 'retries', kind: 'number', default: 1, advanced: true },
     ],
   },
   'app.discord': {
@@ -502,8 +504,8 @@ export const NODE_DEFS = {
     fields: [
       { key: 'credentialId', kind: 'credential', options: ['discord'] },
       { key: 'content', kind: 'textarea', template: true },
-      { key: 'username', kind: 'text', template: true, placeholder: 'Zerosoft' },
-      { key: 'retries', kind: 'number', default: 1 },
+      { key: 'username', kind: 'text', template: true, placeholder: 'Zerosoft', advanced: true },
+      { key: 'retries', kind: 'number', default: 1, advanced: true },
     ],
   },
   'app.telegram': {
@@ -514,8 +516,8 @@ export const NODE_DEFS = {
       { key: 'credentialId', kind: 'credential', options: ['telegram'] },
       { key: 'chatId', kind: 'text', template: true, placeholder: '-1001234567890' },
       { key: 'text', kind: 'textarea', template: true },
-      { key: 'parseMode', kind: 'select', options: ['', 'HTML', 'MarkdownV2'], default: '' },
-      { key: 'retries', kind: 'number', default: 1 },
+      { key: 'parseMode', kind: 'select', options: ['', 'HTML', 'MarkdownV2'], default: '', advanced: true },
+      { key: 'retries', kind: 'number', default: 1, advanced: true },
     ],
   },
   'ai.agent': {
@@ -535,7 +537,7 @@ export const NODE_DEFS = {
     fields: [
       { key: 'instructions', kind: 'textarea', template: true },
       { key: 'prompt', kind: 'textarea', template: true },
-      { key: 'maxTokens', kind: 'number', default: 500 },
+      { key: 'maxTokens', kind: 'number', default: 500, advanced: true },
     ],
   },
 } as const satisfies Record<string, NodeDef>;

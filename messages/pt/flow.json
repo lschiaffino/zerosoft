@@ -3,10 +3,11 @@
   "subtitle": "Automações entre todos os apps da zerosoft e qualquer serviço com API.",
   "sidebar": { "flows": "Flows", "credentials": "Credenciais" },
   "list": {
+    "emptyTemplates": "Ver modelos",
+    "emptyTitle": "Ainda não há flows",
     "title": "Seus flows",
-    "new": "Novo flow",
-    "empty": "Ainda 0 flows.",
-    "emptyHint": "Comece do zero ou escolha um modelo abaixo.",
+    "new": "Criar flow",
+    "emptyHint": "Um flow é uma linha: um disparador e os passos seguintes. Comece do zero ou com um modelo.",
     "name": "Nome",
     "trigger": "Gatilho",
     "lastRun": "Última execução",
@@ -38,6 +39,13 @@
     }
   },
   "editor": {
+    "nodeId": "Referência",
+    "copied": "Copiada",
+    "retry": "Tentar de novo",
+    "flowSettings": "Ajustes do flow",
+    "addStep": "Adicionar passo",
+    "advancedChanged": "{n, plural, one {# ajustado} other {# ajustados}}",
+    "createCredential": "Criar credencial",
     "back": "Voltar aos flows",
     "nameLabel": "Nome do flow",
     "untitled": "Flow sem título",
@@ -57,7 +65,7 @@
     "search": "Buscar nós",
     "noResults": "0 nós encontrados.",
     "settings": "Configuração",
-    "selectNode": "Selecione um nó para configurá-lo. Arraste nós da esquerda ou clique para adicioná-los.",
+    "selectNode": "Selecione um nó para configurá-lo, ou adicione um passo pela paleta.",
     "description": "Descrição",
     "deleteNode": "Excluir nó",
     "deleteFlow": "Excluir flow",
@@ -85,7 +93,7 @@
     "condLeft": "Valor",
     "condOp": "Operador",
     "condRight": "Comparar com",
-    "canvasHint": "Adicione nós pela esquerda. Conecte-os arrastando de uma saída até o próximo nó.",
+    "canvasHint": "Adicione um passo pela paleta. Para conectar dois nós, arraste de uma saída até o próximo nó.",
     "templateHelp": "Use '{{trigger.x}}' para os dados do gatilho e '{{nodes.<id>.output.x}}' para a saída de um nó anterior. Filtros: json, join, lines, map:campo, default:valor, upper, lower, length, urlencode.",
     "everySummary": "A cada {n} {unit}",
     "dailySummary": "Todo dia às {time} ({tz})",
@@ -96,7 +104,6 @@
     "errorFlowHint": "Roda outro flow quando uma execução falha. Recebe '{{trigger.flow}}', '{{trigger.run.error}}' e '{{trigger.failedNode}}'.",
     "credentialNone": "Escolha uma credencial",
     "credentialMissing": "Credencial apagada",
-    "credentialEmpty": "0 credenciais do tipo {types}.",
     "manageCredentials": "Gerenciar credenciais",
     "pickFlow": "Escolha um flow",
     "pickAgent": "Escolha um agente",
@@ -111,7 +118,8 @@
     "delayGranularity": "Aguardar retoma a execução na próxima passada do agendador. Na nuvem da zerosoft ele verifica uma vez por hora, então uma espera curta (segundos ou minutos) pode durar até uma hora. Em self-host segue o seu cron de /api/cron/tick.",
     "retryGranularity": "Cada nova tentativa é retomada na próxima passada do agendador (uma vez por hora na nuvem da zerosoft), não poucos segundos depois.",
     "stripeHint": "Salve o flow, copie a URL do webhook no Stripe (Developers → Webhooks) e salve o signing secret na credencial. Pedidos sem assinatura são recusados.",
-    "allEvents": "Todos os eventos"
+    "allEvents": "Todos os eventos",
+    "copyNodeRef": "Copiar referência"
   },
   "categories": {
     "trigger": "Gatilho",
@@ -349,9 +357,11 @@
     "is_false": "é falso"
   },
   "runs": {
+    "loadError": "Não foi possível carregar as execuções.",
+    "emptyBody": "Use Testar para rodar com dados de teste, ou ative o flow para ele rodar sozinho.",
+    "emptyTitle": "Ainda não há execuções",
     "title": "Execuções",
     "loading": "Carregando…",
-    "empty": "Ainda 0 execuções. Use Testar ou ative o flow.",
     "refresh": "Atualizar",
     "selectRun": "Selecione uma execução para ver as etapas.",
     "input": "Entrada",
@@ -378,7 +388,8 @@
     "rerunHint": "Os passos anteriores reutilizam a saída desta execução. Usa o flow salvo.",
     "rerunDirty": "Você tem alterações não salvas. A reexecução usa a última versão salva. Continuar?",
     "cancel": "Cancelar execução",
-    "cancelConfirm": "Cancelar esta execução? Os passos pendentes (esperas e novas tentativas) não vão rodar."
+    "cancelConfirm": "Cancelar esta execução? Os passos pendentes (esperas e novas tentativas) não vão rodar.",
+    "openInEditor": "Abrir no editor"
   },
   "stepStatus": {
     "running": "Executando",
@@ -386,6 +397,18 @@
     "failed": "Falhou",
     "skipped": "Parado pelo filtro",
     "waiting": "Aguardando"
+  },
+  "stepErrors": {
+    "missing_credential": "Este passo não tem credencial. Escolha uma no editor.",
+    "credential_not_found": "A credencial deste passo não existe mais. Escolha outra no editor.",
+    "credential_wrong_type": "A credencial deste passo é de outro tipo. Escolha uma compatível no editor.",
+    "invalid_credential": "O serviço recusou a credencial. Revise em Credenciais ou escolha outra no editor.",
+    "missing_field": "Falta um dado obrigatório neste passo. Preencha no editor.",
+    "missing_url": "Este passo não tem URL. Preencha no editor.",
+    "invalid_email": "O destinatário não é um email válido. Revise no editor.",
+    "invalid_json": "O body não é um JSON válido. Revise no editor.",
+    "http": "O serviço respondeu com o status {status}. Revise a URL e os dados que este passo envia.",
+    "rate_limited": "O serviço pediu para esperar. Tente de novo em alguns minutos."
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",
@@ -425,29 +448,33 @@
     "branchHint": "Adiciona uma saída Erro. Conecte o que deve acontecer se falhar."
   },
   "versions": {
+    "loadError": "Não foi possível carregar as versões.",
+    "emptyTitle": "Ainda não há versões",
     "title": "Versões",
     "subtitle": "Uma versão é salva cada vez que os nós do flow mudam.",
     "loading": "Carregando…",
-    "empty": "0 versões ainda.",
     "current": "Atual",
     "first": "Primeira versão",
     "noChanges": "Mesmos nós",
     "nodes": "{n, plural, one {# nó} other {# nós}}",
-    "added": "+{n}: {ids}",
-    "removed": "−{n}: {ids}",
-    "changed": "{n} editados: {ids}",
-    "edges": "conexões +{added} −{removed}",
+    "added": "Adicionados: {names}",
+    "removed": "Removidos: {names}",
+    "changed": "Editados: {names}",
     "restore": "Restaurar",
     "restoring": "Restaurando…",
     "confirm": "Restaurar a versão {n}? O flow atual também fica salvo como versão.",
     "confirmDirty": "Restaurar a versão {n}? As alterações não salvas serão perdidas.",
     "error": "Não foi possível restaurar esta versão.",
-    "restored": "Restaurado. Agora na versão {n}."
+    "restored": "Restaurado. Agora na versão {n}.",
+    "edgesAdded": "{n, plural, one {Uma conexão nova} =2 {Duas conexões novas} =3 {Três conexões novas} other {# conexões novas}}",
+    "edgesRemoved": "{n, plural, one {Uma conexão removida} =2 {Duas conexões removidas} =3 {Três conexões removidas} other {# conexões removidas}}"
   },
   "credentials": {
+    "emptyTitle": "Ainda não há credenciais",
+    "saveChanges": "Salvar alterações",
+    "create": "Criar credencial",
     "title": "Credenciais",
     "subtitle": "API keys e tokens para as integrações do Flow e para Robots. Ficam criptografadas e não são mostradas de novo.",
-    "new": "Nova credencial",
     "newTitle": "Nova credencial",
     "editTitle": "Editar {name}",
     "name": "Nome",
@@ -458,7 +485,6 @@
     "edit": "Editar",
     "delete": "Apagar",
     "confirmDelete": "Apagar {name}? Os flows e robôs que a usam vão falhar.",
-    "empty": "0 credenciais ainda.",
     "emptyHint": "Adicione uma para usar Slack, Google Sheets, Stripe, Notion, Discord ou Telegram nos seus flows, ou logins em Robots.",
     "listTitle": "Credenciais salvas",
     "adminOnly": "Só admins e owners do workspace podem adicionar ou editar credenciais.",
@@ -509,6 +535,7 @@
       "duplicate_name": "Já existe uma credencial com esse nome.",
       "invalid_json": "O JSON da conta de serviço não é válido (precisa de client_email e private_key).",
       "invalid_input": "Dados inválidos."
-    }
+    },
+    "oneOf": {"slack": "Preencha o bot token ou a URL do webhook.", "google": "Preencha o access token ou o JSON da conta de serviço."}
   }
 }

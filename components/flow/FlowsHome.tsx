@@ -3,17 +3,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import { useRouter } from '@/i18n/navigation';
+import DataTable from '@/components/ui/DataTable';
+import EmptyState from '@/components/ui/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
 import type { FlowListItem } from '@/lib/flow';
-import { FLOW_TEMPLATES, NODE_DEFS, triggerNode, type FlowNodeType } from '@/lib/flow-schema';
-import { CATEGORY_COLOR, i18nKey } from './flow-ui';
+import { FLOW_TEMPLATES, triggerNode, type FlowNodeType } from '@/lib/flow-schema';
+import FlowLineGlyph from './FlowLineGlyph';
+import { i18nKey, interchangeLine, RUN_BADGE } from './flow-ui';
 
 interface Props {
   flows: FlowListItem[];
   canEdit: boolean;
 }
 
-/** Lista de flows + galería de plantillas (/app/flow). */
+/** Lista de flows + plantillas (/app/flow). */
 export default function FlowsHome({ flows: initial, canEdit }: Props) {
   const t = useTranslations('flow');
   const format = useFormatter();
@@ -34,8 +38,8 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
       body: JSON.stringify(body),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { id?: string; error?: string } | null;
-    setBusy(null);
     if (!res?.ok || !data?.id) {
+      setBusy(null);
       setError(t.has(`errors.${data?.error}`) ? t(`errors.${data?.error}`) : t('errors.generic'));
       return;
     }
@@ -70,133 +74,136 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
 
   function triggerLabel(f: FlowListItem): string {
     const trig = triggerNode(f.graph);
-    if (!trig) return '—';
+    if (!trig) return '';
     const base = t(`nodes.${i18nKey(trig.type)}.title`);
     if (trig.type === 'trigger.event' && f.triggerEvent) return `${base} · ${t(`events.${i18nKey(f.triggerEvent)}`)}`;
     return base;
   }
 
+  const stops = (nodes: Array<{ type: string; config?: Record<string, unknown> }>) =>
+    nodes.map((n) => interchangeLine(n.type as FlowNodeType, n.config ?? {}));
+
+  const createButton = canEdit ? (
+    <button
+      type="button"
+      className="btn btn-primary"
+      aria-busy={busy === 'new' || undefined}
+      disabled={busy !== null && busy !== 'new'}
+      onClick={() => create({ name: t('editor.untitled') }, 'new')}
+    >
+      {t('list.new')}
+    </button>
+  ) : null;
+
   return (
-    <div className="app-page flow-home">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{t('title')}</h1>
-          <p className="muted flow-sub">{t('subtitle')}</p>
-        </div>
-        <div className="flow-home-actions">
-          <Link href="/app/flow/credentials" className="btn btn-ghost">
-            {t('credentials.title')}
-          </Link>
-          {canEdit && (
-            <button
-              type="button"
-              className="btn btn-solid"
-              disabled={busy !== null}
-              onClick={() => create({ name: t('editor.untitled') }, 'new')}
-            >
-              {t('list.new')}
-            </button>
-          )}
-        </div>
-      </div>
-      {!canEdit && <p className="muted flow-note">{t('list.adminOnly')}</p>}
+    <div className="ui-page flow-page">
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={flows.length > 0 ? createButton : undefined}
+      />
+      {!canEdit && <p className="ui-help">{t('list.adminOnly')}</p>}
       {error && (
-        <p className="flow-error" role="alert">
+        <p className="ui-error" role="alert">
           {error}
         </p>
       )}
 
-      <section className="flow-section" aria-labelledby="flow-list-title">
-        <h2 id="flow-list-title" className="flow-section-title">
-          {t('list.title')}
-        </h2>
-        {flows.length === 0 ? (
-          <div className="flow-empty">
-            <p>{t('list.empty')}</p>
-            <p className="muted">{t('list.emptyHint')}</p>
-          </div>
-        ) : (
-          <div className="flow-table" role="table">
-            <div className="flow-row flow-row-head" role="row">
-              <span role="columnheader">{t('list.name')}</span>
-              <span role="columnheader">{t('list.trigger')}</span>
-              <span role="columnheader">{t('list.lastRun')}</span>
-              <span role="columnheader">{t('list.status')}</span>
-            </div>
-            {flows.map((f) => (
-              <div className="flow-row" role="row" key={f.id}>
-                <span role="cell" className="flow-row-name">
-                  <Link href={`/app/flow/${f.id}`}>{f.name}</Link>
-                  {f.description && <span className="muted">{f.description}</span>}
+      <section className="flow-block" aria-label={t('list.title')}>
+        <DataTable
+          caption={t('list.title')}
+          className="flow-table flow-table-flows"
+          rows={flows}
+          rowKey={(f) => f.id}
+          rowHref={(f) => `/app/flow/${f.id}`}
+          empty={
+            <EmptyState
+              product="flow"
+              title={t('list.emptyTitle')}
+              body={t('list.emptyHint')}
+              action={createButton}
+              secondary={<a href="#flow-templates">{t('list.emptyTemplates')}</a>}
+            />
+          }
+          columns={[
+            {
+              key: 'name',
+              header: t('list.name'),
+              cell: (f) => (
+                <span className="flow-name-cell">
+                  <FlowLineGlyph stops={stops(f.graph.nodes)} />
+                  <span className="flow-ellipsis">{f.name}</span>
                 </span>
-                <span role="cell" className="flow-row-trigger">
-                  {triggerLabel(f)}
-                </span>
-                <span role="cell" className="flow-row-last">
-                  {f.lastRun ? (
-                    <>
-                      <span className={`flow-dot is-${f.lastRun.status}`} aria-hidden="true" />
-                      {t(`runs.status.${f.lastRun.status}`)}
-                      <span className="muted" suppressHydrationWarning>
-                        {' · '}
-                        {format.relativeTime(new Date(f.lastRun.createdAt), now)}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="muted">{t('list.never')}</span>
-                  )}
-                </span>
-                <span role="cell">
-                  <label className="flow-switch" title={f.enabled ? t('editor.enabled') : t('editor.disabled')}>
-                    <input
-                      type="checkbox"
-                      checked={f.enabled}
-                      disabled={!canEdit}
-                      onChange={(e) => toggle(f.id, e.target.checked)}
-                      aria-label={`${f.name}: ${f.enabled ? t('editor.enabled') : t('editor.disabled')}`}
-                    />
-                    <span className="flow-switch-track" aria-hidden="true" />
-                    <span className="flow-switch-label">{f.enabled ? t('editor.enabled') : t('editor.disabled')}</span>
-                  </label>
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+              ),
+            },
+            { key: 'trigger', header: t('list.trigger'), cell: (f) => <span className="flow-ellipsis">{triggerLabel(f)}</span> },
+            {
+              key: 'last',
+              header: t('list.lastRun'),
+              cell: (f) =>
+                f.lastRun ? (
+                  <span className="flow-last-run">
+                    <span className={`badge ${RUN_BADGE[f.lastRun.status] ?? ''}`}>{t(`runs.status.${f.lastRun.status}`)}</span>
+                    <span className="flow-muted" suppressHydrationWarning>
+                      {format.relativeTime(new Date(f.lastRun.createdAt), now)}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="flow-muted">{t('list.never')}</span>
+                ),
+            },
+            {
+              key: 'enabled',
+              header: t('list.status'),
+              width: '120px',
+              cell: (f) => (
+                <label className="ui-switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={f.enabled}
+                    disabled={!canEdit}
+                    onChange={(e) => void toggle(f.id, e.target.checked)}
+                    aria-label={`${f.name}: ${t('editor.enabled')}`}
+                  />
+                  <span className="flow-muted">{f.enabled ? t('editor.enabled') : t('editor.disabled')}</span>
+                </label>
+              ),
+            },
+          ]}
+        />
       </section>
 
-      <section className="flow-section" aria-labelledby="flow-templates-title">
-        <h2 id="flow-templates-title" className="flow-section-title">
-          {t('templates.title')}
-        </h2>
-        <p className="muted flow-section-sub">{t('templates.subtitle')}</p>
-        <div className="flow-templates">
+      <section className="flow-block" id="flow-templates" aria-labelledby="flow-templates-title">
+        <div className="flow-block-head">
+          <h2 id="flow-templates-title" className="flow-block-title">
+            {t('templates.title')}
+          </h2>
+          <p className="ui-help">{t('templates.subtitle')}</p>
+        </div>
+        <ul className="flow-templates">
           {FLOW_TEMPLATES.map((tpl) => (
-            <article className="flow-template" key={tpl.key}>
-              <div className="flow-template-chain" aria-hidden="true">
-                {tpl.graph.nodes.map((n) => (
-                  <span
-                    key={n.id}
-                    className="flow-template-step"
-                    style={{ background: CATEGORY_COLOR[NODE_DEFS[n.type as FlowNodeType].category] }}
-                  />
-                ))}
+            <li className="flow-template" key={tpl.key}>
+              <FlowLineGlyph stops={stops(tpl.graph.nodes)} />
+              <div className="flow-template-text">
+                <h3 className="flow-template-name">{t(`templates.items.${tpl.key}.name`)}</h3>
+                <p className="flow-template-desc">{t(`templates.items.${tpl.key}.desc`)}</p>
               </div>
-              <h3>{t(`templates.items.${tpl.key}.name`)}</h3>
-              <p className="muted">{t(`templates.items.${tpl.key}.desc`)}</p>
               {canEdit && (
                 <button
                   type="button"
-                  className="btn btn-small"
-                  disabled={busy !== null}
+                  className="btn btn-secondary btn-sm"
+                  aria-busy={busy === tpl.key || undefined}
+                  disabled={busy !== null && busy !== tpl.key}
+                  aria-label={`${t('templates.use')}: ${t(`templates.items.${tpl.key}.name`)}`}
                   onClick={() => create({ name: t(`templates.items.${tpl.key}.name`), template: tpl.key }, tpl.key)}
                 >
-                  {busy === tpl.key ? t('editor.saving') : t('templates.use')}
+                  {t('templates.use')}
                 </button>
               )}
-            </article>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
     </div>
   );
