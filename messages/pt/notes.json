@@ -1,8 +1,14 @@
 {
-  "meta": { "title": "Notas" },
+  "meta": {
+    "title": "Notas"
+  },
   "untitled": "Sem título",
-  "sidebar": { "all": "Todas as notas" },
-  "actions": { "newNote": "Nova nota" },
+  "sidebar": {
+    "all": "Todas as notas"
+  },
+  "actions": {
+    "newNote": "Nova nota"
+  },
   "nav": {
     "label": "Cadernos",
     "all": "Todas as notas",
@@ -14,32 +20,49 @@
   "notebooks": {
     "new": "Novo caderno",
     "namePlaceholder": "Nome do caderno",
-    "rename": "Renomear",
-    "renamePrompt": "Renomear caderno",
+    "rename": "Renomear caderno",
     "delete": "Excluir caderno",
     "confirmDelete": "Excluir “{name}”? As notas vão para a lixeira.",
-    "empty": "Agrupe suas notas em cadernos."
+    "empty": "Agrupe suas notas em cadernos.",
+    "renameLabel": "Novo nome do caderno",
+    "actions": "Ações do caderno"
   },
   "list": {
     "search": "Buscar notas",
     "sortLabel": "Ordenar",
-    "sort": { "updated": "Última edição", "created": "Criação", "title": "Título" },
+    "sort": {
+      "updated": "Última edição",
+      "created": "Criação",
+      "title": "Título"
+    },
     "count": "{count, plural, =0 {Nenhuma nota} one {# nota} other {# notas}}",
     "noResults": "Nada corresponde a “{q}”.",
-    "emptyTitle": "Ainda não há notas aqui.",
-    "justNow": "agora"
+    "emptyTitle": "Ainda não há notas",
+    "justNow": "agora",
+    "loadError": "Não foi possível carregar a lista.",
+    "retry": "Tentar de novo",
+    "loading": "Carregando notas",
+    "emptyBody": "Escreva o que estiver na sua cabeça. Salva sozinho enquanto você digita.",
+    "emptyClip": "Recortar uma página da web",
+    "emptyNotebookTitle": "Este caderno está vazio",
+    "emptyNotebookBody": "As notas que você cria aqui ficam neste caderno. Você também pode mover uma nota pela barra dela.",
+    "emptyPinnedTitle": "Nenhuma nota fixada",
+    "emptyPinnedBody": "Fixe uma nota pela barra dela e ela fica no topo.",
+    "searchHint": "Atalho: /",
+    "resultCount": "{count, plural, =0 {0 resultados} one {# resultado} other {# resultados}}",
+    "clearSearch": "Limpar busca"
   },
   "trash": {
     "confirmDelete": "Excluir esta nota para sempre? Não dá para desfazer.",
     "confirmEmpty": "Excluir para sempre todas as notas da lixeira?",
     "empty": "Esvaziar lixeira",
-    "emptyState": "A lixeira está vazia.",
+    "emptyState": "A lixeira está vazia",
     "banner": "Esta nota está na lixeira.",
     "restore": "Restaurar",
-    "deleteForever": "Excluir para sempre"
+    "deleteForever": "Excluir para sempre",
+    "emptyStateBody": "As notas que você manda para a lixeira ficam aqui até você restaurar ou apagar."
   },
   "editor": {
-    "emptyTitle": "Escolha uma nota ou comece uma nova.",
     "back": "Notas",
     "moveTo": "Mover para caderno",
     "noNotebook": "Sem caderno",
@@ -53,7 +76,13 @@
     "removeTag": "Remover etiqueta {tag}",
     "addTag": "Adicionar etiqueta",
     "source": "Fonte:",
-    "created": "Criada em {date}"
+    "created": "Criada em {date}",
+    "openError": "Não foi possível abrir a nota.",
+    "actionError": "Não foi possível salvar a alteração. Tente de novo.",
+    "more": "Mais ações",
+    "dismiss": "Fechar aviso",
+    "hintNew": "nova nota",
+    "hintSearch": "buscar"
   },
   "share": {
     "button": "Compartilhar",
@@ -80,11 +109,7 @@
   },
   "clip": {
     "button": "Recortar páginas",
-    "title": "Recortar página",
-    "hint": "Arraste este botão para a barra de favoritos. Clique nele em qualquer página para salvá-la (com o texto selecionado) como nota.",
     "bookmarkletName": "Salvar no Notes",
-    "missingUrl": "Nada para recortar. Use o botão a partir de qualquer página.",
-    "openNotes": "Abrir Notas",
     "saved": "Salvo no Notes",
     "openNote": "Abrir nota",
     "close": "Fechar",
@@ -92,7 +117,20 @@
     "selection": "Texto",
     "error": "Não foi possível salvar. Tente de novo.",
     "saving": "Salvando…",
-    "save": "Salvar nota"
+    "save": "Salvar nota",
+    "lead": "Salve qualquer página da web como nota, com o texto que você tiver selecionado.",
+    "step1": "Arraste o botão para a sua barra de favoritos.",
+    "step1Hint": "Se não vê a barra, mostre com ⌘⇧B (Ctrl+Shift+B no Windows).",
+    "step2": "Em qualquer página, selecione um texto e clique em Salvar em Notas.",
+    "step2Hint": "Abre uma janela pequena com o título, o link e o texto. Você revisa e salva.",
+    "step3": "A nota aparece em Todas as notas, com o link da fonte.",
+    "dragOnly": "Arraste para a barra de favoritos. Aqui não recorta nada.",
+    "manual": "Não consegue arrastar? Crie um favorito novo e cole este código como endereço.",
+    "copyCode": "Copiar código",
+    "copied": "Copiado",
+    "source": "Fonte",
+    "saveHint": "⌘↵ para salvar",
+    "touchInstall": "O recorte se instala pelo computador. Copie o código para colá-lo lá como favorito."
   },
   "public": {
     "notFound": "Nota não encontrada",

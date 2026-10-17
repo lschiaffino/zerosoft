@@ -118,7 +118,7 @@ export default async function AppLayout(
               { href: '/app/flow', label: tFlow('sidebar.flows') },
               { href: '/app/flow/credentials', label: tFlow('sidebar.credentials') },
               { href: '/app/notes', label: tNotes('sidebar.all') },
-              { href: '/app/notes/clip', label: tNotes('clip.title') },
+              { href: '/app/notes/clip', label: tNotes('clip.button') },
               { href: '/app/board', label: tBoard('sidebar.boards') },
               { href: '/app/agents', label: tAgents('sidebar.agents') },
               { href: '/app/robots', label: tRobots('sidebar.robots') },

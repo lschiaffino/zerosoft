@@ -1,6 +1,10 @@
 {
-  "meta": { "title": "Board" },
-  "sidebar": { "boards": "Boards" },
+  "meta": {
+    "title": "Board"
+  },
+  "sidebar": {
+    "boards": "Boards"
+  },
   "list": {
     "title": "Boards",
     "subtitle": "Infinite whiteboards for your team. Everyone in the workspace can open and edit them.",
@@ -8,13 +12,16 @@
     "untitled": "Untitled board",
     "copyName": "{name} (copy)",
     "confirmDelete": "Delete “{name}”? This can't be undone.",
-    "emptyTitle": "No boards yet.",
+    "emptyTitle": "No boards yet",
     "emptyHint": "Sketch, plan and share an idea on an infinite canvas.",
     "rename": "Rename",
     "duplicate": "Duplicate",
     "delete": "Delete",
     "actions": "Board actions",
-    "updated": "Edited {when}"
+    "updated": "Edited {when}",
+    "createError": "Couldn’t create the board. Try again.",
+    "actionError": "Couldn’t finish that. Try again.",
+    "creating": "Creating…"
   },
   "share": {
     "button": "Share",
@@ -37,7 +44,9 @@
     "conflictBy": "{name} changed this board somewhere else.",
     "reload": "Reload",
     "keepMine": "Keep my version",
-    "tooLarge": "This board is over {mb} MB, usually because of images. Remove or shrink some images to keep saving."
+    "tooLarge": "This board is over {mb} MB, usually because of images. Remove or shrink some images to keep saving.",
+    "loading": "Loading board",
+    "dismiss": "Dismiss"
   },
   "public": {
     "notFound": "Board not found",

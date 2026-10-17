@@ -95,10 +95,11 @@ export function blocksToText(blocks: DocsBlock[]): string {
 /** Snippet de una línea para la lista de notas. */
 export function makeSnippet(body: string, max = 140): string {
   const flat = body
-    .replace(/^\[x\] /gm, '✓ ')
-    .replace(/^\[ \] /gm, '○ ')
+    // Las tareas van como texto plano: un círculo se lee como estación.
+    .replace(/^\[[ x]\] (.*)$/gm, '$1,')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .replace(/,$/, '');
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 

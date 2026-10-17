@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
+import EmptyState from '@/components/ui/EmptyState';
+import PageHeader from '@/components/ui/PageHeader';
+import NotesIcon from '@/components/notes/NotesIcon';
+import RowMenu from '@/components/notes/RowMenu';
 import type { BoardDetail, BoardSummary } from '@/lib/boards-types';
+
+const TOAST_MS = 6000;
 
 /** Grilla de pizarras del workspace: crear, renombrar, duplicar y borrar. */
 export default function BoardList({
@@ -23,6 +29,7 @@ export default function BoardList({
   const [menu, setMenu] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const started = useRef(false);
   const [now, setNow] = useState(serverNow);
 
@@ -31,6 +38,12 @@ export default function BoardList({
     const h = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(h);
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const h = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(h);
+  }, [toast]);
 
   const create = useCallback(async () => {
     if (busy) return;
@@ -41,10 +54,11 @@ export default function BoardList({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: t('list.untitled') }),
       });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(String(res.status));
       const board = (await res.json()) as BoardDetail;
       router.push(`/app/board/${board.id}`);
-    } finally {
+    } catch {
+      setToast(t('list.createError'));
       setBusy(false);
     }
   }, [busy, router, t]);
@@ -56,26 +70,21 @@ export default function BoardList({
     }
   }, [startNew, create]);
 
-  useEffect(() => {
-    if (!menu) return;
-    const close = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('.board-card-menu')) setMenu(null);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [menu]);
-
   async function rename(id: string, name: string) {
     setRenaming(null);
     const clean = name.trim();
     const prev = boards.find((b) => b.id === id);
     if (!clean || !prev || clean === prev.name) return;
     setBoards((list) => list.map((b) => (b.id === id ? { ...b, name: clean } : b)));
-    await fetch(`/api/boards/${id}`, {
+    const res = await fetch(`/api/boards/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: clean }),
-    });
+    }).catch(() => null);
+    if (!res?.ok) {
+      setBoards((list) => list.map((b) => (b.id === id ? { ...b, name: prev.name } : b)));
+      setToast(t('list.actionError'));
+    }
   }
 
   async function duplicate(b: BoardSummary) {
@@ -84,8 +93,11 @@ export default function BoardList({
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: t('list.copyName', { name: b.name }).slice(0, 120) }),
-    });
-    if (!res.ok) return;
+    }).catch(() => null);
+    if (!res?.ok) {
+      setToast(t('list.actionError'));
+      return;
+    }
     const copy = (await res.json()) as BoardDetail;
     const summary: BoardSummary = {
       id: copy.id,
@@ -103,49 +115,38 @@ export default function BoardList({
   async function remove(b: BoardSummary) {
     setMenu(null);
     if (!confirm(t('list.confirmDelete', { name: b.name }))) return;
-    const res = await fetch(`/api/boards/${b.id}`, { method: 'DELETE' });
-    if (res.ok) setBoards((list) => list.filter((x) => x.id !== b.id));
+    const res = await fetch(`/api/boards/${b.id}`, { method: 'DELETE' }).catch(() => null);
+    if (res?.ok) setBoards((list) => list.filter((x) => x.id !== b.id));
+    else setToast(t('list.actionError'));
   }
 
+  const newButton = (
+    <button type="button" className="btn btn-primary" onClick={() => void create()} aria-busy={busy}>
+      {busy ? t('list.creating') : t('list.new')}
+    </button>
+  );
+
   return (
-    <div className="board-list app-page">
-      <div className="page-head">
-        <div>
-          <h1 className="app-title">{t('list.title')}</h1>
-          <p className="app-sub">{t('list.subtitle')}</p>
-        </div>
-        {boards.length > 0 && (
-          <button type="button" className="btn btn-solid" onClick={() => void create()} disabled={busy}>
-            {t('list.new')}
-          </button>
-        )}
-      </div>
+    <div className="ui-page board-list">
+      <PageHeader title={t('list.title')} description={t('list.subtitle')} actions={boards.length > 0 ? newButton : undefined} />
 
       {boards.length === 0 ? (
-        <div className="board-empty">
-          <p className="board-empty-title">{t('list.emptyTitle')}</p>
-          <p className="dim">{t('list.emptyHint')}</p>
-          <button type="button" className="btn btn-solid" onClick={() => void create()} disabled={busy}>
-            {t('list.new')}
-          </button>
-        </div>
+        <EmptyState quiet product="board" title={t('list.emptyTitle')} body={t('list.emptyHint')} action={newButton} />
       ) : (
         <ul className="board-grid">
           {boards.map((b) => (
             <li key={b.id} className="board-card">
-              <Link href={`/app/board/${b.id}`} className="board-thumb" aria-label={b.name}>
+              <div className="board-thumb" aria-hidden="true">
                 {b.thumbnail ? (
                   // Miniatura SVG generada por el cliente (filtrada en el servidor); como <img> no ejecuta nada.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(b.thumbnail)}`} alt="" />
-                ) : (
-                  <span className="board-thumb-empty" aria-hidden="true" />
-                )}
-              </Link>
+                ) : null}
+              </div>
               <div className="board-card-body">
                 {renaming === b.id ? (
                   <input
-                    className="board-rename"
+                    className="input board-rename"
                     defaultValue={b.name}
                     autoFocus
                     maxLength={120}
@@ -162,40 +163,39 @@ export default function BoardList({
                     {b.name}
                   </Link>
                 )}
-                <p className="board-card-meta mono">
+                <p className="board-card-meta">
                   {t('list.updated', { when: format.relativeTime(new Date(b.updated_at), new Date(now)) })}
                   {b.updated_by ? ` · ${b.updated_by}` : ''}
-                  {b.shared ? ` · ${t('share.on')}` : ''}
                 </p>
+                {b.shared && <span className="badge badge-outline board-card-shared">{t('share.on')}</span>}
               </div>
-              <div className="board-card-menu">
-                <button
-                  type="button"
-                  className="board-icon-btn"
-                  onClick={() => setMenu(menu === b.id ? null : b.id)}
-                  aria-expanded={menu === b.id}
-                  aria-label={t('list.actions')}
-                >
-                  ···
-                </button>
-                {menu === b.id && (
-                  <div className="board-menu" role="menu">
-                    <button type="button" role="menuitem" onClick={() => { setMenu(null); setRenaming(b.id); }}>
-                      {t('list.rename')}
-                    </button>
-                    <button type="button" role="menuitem" onClick={() => void duplicate(b)}>
-                      {t('list.duplicate')}
-                    </button>
-                    <button type="button" role="menuitem" className="danger" onClick={() => void remove(b)}>
-                      {t('list.delete')}
-                    </button>
-                  </div>
-                )}
-              </div>
+              <RowMenu
+                className="board-card-menu"
+                open={menu === b.id}
+                label={`${t('list.actions')}: ${b.name}`}
+                onToggle={(open) => setMenu(open ? b.id : null)}
+                items={[
+                  { label: t('list.rename'), onSelect: () => { setMenu(null); setRenaming(b.id); } },
+                  { label: t('list.duplicate'), onSelect: () => void duplicate(b) },
+                  { label: t('list.delete'), danger: true, onSelect: () => void remove(b) },
+                ]}
+              />
             </li>
           ))}
         </ul>
       )}
+
+      <div className="ui-toasts" role="status" aria-live="polite">
+        {toast && (
+          <div className="ui-toast" data-tone="error">
+            {toast}
+            <button type="button" className="ui-toast-action" onClick={() => setToast(null)}>
+              {t('editor.dismiss')}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+

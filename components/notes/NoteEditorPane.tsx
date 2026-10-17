@@ -6,6 +6,8 @@ import DocsEditor from '@/components/docs/DocsEditor';
 import type { DocsBlock, DocsPage } from '@/lib/docs-types';
 import { normalizeTag, type NoteDetail, type NotebookInfo } from '@/lib/notes-types';
 import NoteBlocksView from './NoteBlocksView';
+import NotesIcon from './NotesIcon';
+import { usePopover } from './usePopover';
 
 interface Props {
   note: NoteDetail;
@@ -19,6 +21,8 @@ interface Props {
   onRestore: (id: string) => Promise<void>;
   onDeleteForever: (id: string) => Promise<void>;
   onShareChange: (token: string | null) => void;
+  /** Error de red en una acción del panel (compartir): el padre muestra el aviso. */
+  onError?: () => void;
 }
 
 export default function NoteEditorPane({
@@ -33,16 +37,17 @@ export default function NoteEditorPane({
   onRestore,
   onDeleteForever,
   onShareChange,
+  onError,
 }: Props) {
   const t = useTranslations('notes');
   const format = useFormatter();
   const [tags, setTags] = useState<string[]>(note.tags);
   const [tagDraft, setTagDraft] = useState('');
   const [pinned, setPinned] = useState(note.pinned);
-  const [shareOpen, setShareOpen] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const shareRef = useRef<HTMLDivElement>(null);
+  const share = usePopover();
 
   // Página sintética para reutilizar el editor de bloques de Docs (modo embebido).
   const page = useMemo<DocsPage>(
@@ -80,18 +85,10 @@ export default function NoteEditorPane({
     el?.focus();
   }, [focusTitle]);
 
-  useEffect(() => {
-    if (!shareOpen) return;
-    function onDoc(e: MouseEvent) {
-      if (shareRef.current && !shareRef.current.contains(e.target as Node)) setShareOpen(false);
-    }
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [shareOpen]);
-
   async function saveTags(next: string[]) {
+    const prev = tags;
     setTags(next);
-    await onPatch(note.id, { tags: next });
+    if (!(await onPatch(note.id, { tags: next }))) setTags(prev);
   }
 
   function addTag(raw: string) {
@@ -102,19 +99,27 @@ export default function NoteEditorPane({
   }
 
   async function togglePin() {
-    setPinned((v) => !v);
-    await onPatch(note.id, { pinned: !pinned });
+    const next = !pinned;
+    setPinned(next);
+    if (!(await onPatch(note.id, { pinned: next }))) setPinned(!next);
   }
 
   async function setShare(shared: boolean) {
-    const res = await fetch(`/api/notes/${note.id}/share`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ shared }),
-    });
-    if (!res.ok) return;
-    const data = (await res.json()) as { share_token: string | null };
-    onShareChange(data.share_token);
+    setShareBusy(true);
+    try {
+      const res = await fetch(`/api/notes/${note.id}/share`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ shared }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = (await res.json()) as { share_token: string | null };
+      onShareChange(data.share_token);
+    } catch {
+      onError?.();
+    } finally {
+      setShareBusy(false);
+    }
   }
 
   const shareUrl =
@@ -123,19 +128,24 @@ export default function NoteEditorPane({
   const statusLabel =
     status === 'saving' ? t('editor.saving') : status === 'saved' ? t('editor.saved') : status === 'error' ? t('editor.saveError') : '';
 
+  const back = (
+    <button type="button" className="notes-back" onClick={onBack}>
+      <NotesIcon name="back" size={14} />
+      {t('editor.back')}
+    </button>
+  );
+
   if (note.trashed) {
     return (
       <div className="note-pane" ref={wrapRef}>
         <div className="note-bar">
-          <button type="button" className="notes-back" onClick={onBack}>
-            ‹ {t('editor.back')}
-          </button>
+          {back}
           <span className="note-bar-info">{t('trash.banner')}</span>
           <div className="note-bar-actions">
-            <button type="button" className="btn btn-small" onClick={() => void onRestore(note.id)}>
+            <button type="button" className="btn btn-sm" onClick={() => void onRestore(note.id)}>
               {t('trash.restore')}
             </button>
-            <button type="button" className="btn btn-small notes-danger" onClick={() => void onDeleteForever(note.id)}>
+            <button type="button" className="btn btn-sm btn-danger" onClick={() => void onDeleteForever(note.id)}>
               {t('trash.deleteForever')}
             </button>
           </div>
@@ -151,11 +161,9 @@ export default function NoteEditorPane({
   return (
     <div className="note-pane" ref={wrapRef}>
       <div className="note-bar">
-        <button type="button" className="notes-back" onClick={onBack}>
-          ‹ {t('editor.back')}
-        </button>
+        {back}
         <select
-          className="note-notebook"
+          className="select note-notebook"
           value={note.notebook_id ?? ''}
           onChange={(e) => void onPatch(note.id, { notebook_id: e.target.value || null })}
           aria-label={t('editor.moveTo')}
@@ -168,41 +176,46 @@ export default function NoteEditorPane({
             </option>
           ))}
         </select>
-        <span className="note-status mono" aria-live="polite">
+        <span className={`note-status${status === 'error' ? ' is-error' : ''}`} aria-live="polite">
           {statusLabel}
         </span>
         <div className="note-bar-actions">
           <button
             type="button"
-            className={`notes-icon-btn note-pin${pinned ? ' on' : ''}`}
+            className="btn btn-ghost btn-sm btn-icon note-pin"
             onClick={() => void togglePin()}
             aria-pressed={pinned}
+            aria-label={pinned ? t('editor.unpin') : t('editor.pin')}
             title={pinned ? t('editor.unpin') : t('editor.pin')}
           >
-            {pinned ? t('editor.pinned') : t('editor.pin')}
+            <NotesIcon name="pin" size={15} />
           </button>
-          <div className="note-share-wrap" ref={shareRef}>
+          <div className="note-share-wrap" ref={share.wrapRef}>
             <button
+              ref={share.buttonRef}
               type="button"
-              className={`notes-icon-btn${note.shared ? ' on' : ''}`}
-              onClick={() => setShareOpen((v) => !v)}
-              aria-expanded={shareOpen}
+              className={`btn btn-ghost btn-sm${note.shared ? ' is-on' : ''}`}
+              onClick={share.toggle}
+              aria-expanded={share.open}
+              aria-haspopup="dialog"
+              aria-label={t('share.button')}
             >
-              {t('share.button')}
+              <NotesIcon name="share" size={14} />
+              <span className="note-bar-label">{t('share.button')}</span>
             </button>
-            {shareOpen && (
-              <div className="note-pop" role="dialog" aria-label={t('share.title')}>
-                <p className="note-pop-title">{t('share.title')}</p>
-                <p className="note-pop-hint">{t('share.hint')}</p>
+            {share.open && (
+              <div className="notes-pop" role="dialog" aria-label={t('share.title')}>
+                <p className="notes-pop-title">{t('share.title')}</p>
+                <p className="notes-pop-hint">{t('share.hint')}</p>
                 {note.share_token ? (
                   <>
-                    <div className="note-share-row">
-                      <input className="notes-inline-input" readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} />
+                    <div className="notes-pop-row">
+                      <input className="input data" readOnly value={shareUrl} aria-label={t('share.title')} onFocus={(e) => e.currentTarget.select()} />
                       <button
                         type="button"
-                        className="btn btn-small"
+                        className="btn btn-sm"
                         onClick={() => {
-                          void navigator.clipboard.writeText(shareUrl);
+                          void navigator.clipboard?.writeText(shareUrl).catch(() => {});
                           setCopied(true);
                           setTimeout(() => setCopied(false), 1500);
                         }}
@@ -210,30 +223,39 @@ export default function NoteEditorPane({
                         {copied ? t('share.copied') : t('share.copy')}
                       </button>
                     </div>
-                    <button type="button" className="notes-link-btn danger" onClick={() => void setShare(false)}>
+                    <button type="button" className="btn btn-sm btn-ghost btn-danger notes-pop-off" aria-busy={shareBusy} onClick={() => void setShare(false)}>
                       {t('share.disable')}
                     </button>
                   </>
                 ) : (
-                  <button type="button" className="btn btn-small btn-solid" onClick={() => void setShare(true)}>
+                  <button type="button" className="btn btn-sm btn-primary" aria-busy={shareBusy} onClick={() => void setShare(true)}>
                     {t('share.enable')}
                   </button>
                 )}
               </div>
             )}
           </div>
-          <button type="button" className="notes-icon-btn" onClick={() => void onTrash(note.id)} title={t('editor.trash')}>
-            {t('editor.trash')}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm btn-icon"
+            onClick={() => void onTrash(note.id)}
+            aria-label={t('editor.trash')}
+            title={t('editor.trash')}
+          >
+            <NotesIcon name="trash" size={15} />
           </button>
         </div>
       </div>
 
-      <div className="note-tags">
+      <div className="note-meta">
         {tags.map((tg) => (
-          <span key={tg} className="notes-tag">
-            #{tg}
+          <span key={tg} className="note-tag">
+            <span>
+              <span className="note-tag-hash" aria-hidden="true">#</span>
+              {tg}
+            </span>
             <button type="button" onClick={() => void saveTags(tags.filter((x) => x !== tg))} aria-label={t('editor.removeTag', { tag: tg })}>
-              ×
+              <NotesIcon name="close" size={11} />
             </button>
           </span>
         ))}
@@ -268,7 +290,7 @@ export default function NoteEditorPane({
       <div className="note-body">
         <DocsEditor page={page} ancestors={[]} onSave={handleSave} embedded />
       </div>
-      <p className="note-foot mono">
+      <p className="note-foot">
         {t('editor.created', { date: format.dateTime(new Date(note.created_at), { dateStyle: 'medium' }) })}
       </p>
     </div>
