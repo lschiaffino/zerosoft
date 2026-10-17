@@ -1,12 +1,14 @@
 {
   "title": "Robots",
   "subtitle": "Browser robots that visit pages, click, fill forms and extract data for you. Run them by hand, on a schedule or from Flow.",
-  "sidebar": { "robots": "Robots" },
+  "sidebar": {
+    "robots": "Robots"
+  },
   "list": {
-    "new": "New robot",
+    "new": "Create robot",
     "title": "Your robots",
     "empty": "No robots yet.",
-    "emptyHint": "Start from a template below or create an empty robot.",
+    "emptyHint": "A robot opens a browser, follows your steps and hands back the data. Create an empty one or start from a template.",
     "name": "Name",
     "lastRun": "Last run",
     "runs7d": "Runs (7d)",
@@ -14,7 +16,11 @@
     "never": "Never run",
     "noSchedule": "Manual",
     "adminOnly": "Only workspace admins and owners can create, edit and run robots.",
-    "record": "Record steps"
+    "record": "Record steps",
+    "creating": "Creating robot…",
+    "emptyTitle": "No robots yet",
+    "emptyAlt": "or use a template",
+    "paused": "paused"
   },
   "usage": {
     "title": "This month",
@@ -28,44 +34,65 @@
     "noneHint": "Set ROBOTS_RUNNER=local and install Chromium (npx playwright-core install --with-deps chromium) to run robots on this machine, or deploy on Vercel to use Vercel Sandbox. You can still build and edit robots.",
     "sandbox": "Runs in an isolated Vercel Sandbox microVM.",
     "local": "Runs in a local Chromium on this server.",
-    "localHint": "Self-host: this is the default runner when playwright-core is installed. Install Chromium with npx playwright-core install --with-deps chromium."
+    "localHint": "Self-host: this is the default runner when playwright-core is installed. Install Chromium with npx playwright-core install --with-deps chromium.",
+    "title": "Where it runs"
   },
   "templates": {
     "title": "Templates",
     "subtitle": "Ready-made robots you can adapt.",
     "use": "Use template",
     "items": {
-      "scrapeTable": { "name": "Scrape a table to JSON", "desc": "Opens a page and turns its first table into rows you can use in Flow." },
-      "priceCheck": { "name": "Check a price every day", "desc": "Reads a product's price daily. Pair it with a Flow on “Robots: run finished” to get alerts." },
-      "fillForm": { "name": "Fill a web form", "desc": "Fills fields from inputs, submits and captures the result." },
-      "screenshot": { "name": "Take a screenshot of a page", "desc": "Opens a URL, reads the heading and saves a screenshot." }
-    }
+      "scrapeTable": {
+        "name": "Scrape a table to JSON",
+        "desc": "Opens a page and turns its first table into rows you can use in Flow."
+      },
+      "priceCheck": {
+        "name": "Check a price every day",
+        "desc": "Reads a product's price daily. Pair it with a Flow on “Robots: run finished” to get alerts."
+      },
+      "fillForm": {
+        "name": "Fill a web form",
+        "desc": "Fills fields from inputs, submits and captures the result."
+      },
+      "screenshot": {
+        "name": "Take a screenshot of a page",
+        "desc": "Opens a URL, reads the heading and saves a screenshot."
+      }
+    },
+    "stepsLabel": "{count, plural, one {# step} other {# steps}}"
   },
   "editor": {
     "untitled": "Untitled robot",
     "back": "Robots",
     "namePlaceholder": "Robot name",
-    "descriptionPlaceholder": "What does this robot do?",
-    "save": "Save",
+    "descriptionPlaceholder": "Add what this robot does",
+    "save": "Save changes",
     "saving": "Saving…",
     "saved": "Saved",
     "unsaved": "Unsaved changes",
-    "run": "Run",
+    "run": "Run robot",
     "running": "Running…",
-    "delete": "Delete",
+    "delete": "Delete robot",
     "confirmDelete": "Delete this robot and its run history?",
     "readOnly": "Read only: only admins and owners can edit or run robots.",
     "tabs": {
       "steps": "Steps",
       "inputs": "Inputs",
       "runs": "Runs",
-      "settings": "Settings"
+      "schedule": "Schedule",
+      "advanced": "Advanced"
     },
     "record": "Record steps",
-    "paste": "Paste recorded steps"
+    "paste": "Paste steps",
+    "sections": "Robot sections",
+    "descriptionLabel": "Description",
+    "deleteTitle": "Delete robot",
+    "deleteDesc": "Deletes the robot and its whole run history. This cannot be undone.",
+    "deleteDialogTitle": "Delete {name}?",
+    "cancel": "Cancel"
   },
   "steps": {
-    "empty": "No steps yet. Add the first one: usually “Go to URL”.",
+    "empty": "Pick a type below and add the first one, usually Go to URL.",
     "add": "Add step",
     "addInLoop": "Add step to loop",
     "moveUp": "Move up",
@@ -135,32 +162,48 @@
       "Lists: an Extract with “All matches” over “.item a” returns every link text; add the attribute href to get the URLs."
     ],
     "fileHint": "The file is stored and its URL goes to {example}.",
-    "credentialsTip": "Logins: use {example} with a credential saved in Flow. The value never shows in logs or screenshots.",
-    "credentialsLink": "Credentials"
+    "credentialsTip": "Use {example} with a saved credential. The value never shows up in logs or screenshots.",
+    "credentialsLink": "Open Credentials",
+    "addType": "Step type",
+    "options": "Step {num} options",
+    "retriesAdd": "Add retries",
+    "retriesRemove": "Remove retries",
+    "retriesBadge": "{count, plural, one {# retry} other {# retries}}",
+    "invalid": "check this step",
+    "emptyTitle": "No steps yet",
+    "emptyAlt": "or",
+    "emptyAltLink": "record the steps on the site",
+    "credentialsTitle": "Logins"
   },
   "inputs": {
     "title": "Inputs",
     "desc": "Named values you pass on each run (from the Run dialog, Flow or the schedule's defaults). Use them as {example}.",
-    "empty": "No inputs. Add one to make the robot reusable.",
+    "empty": "Inputs make a robot reusable: a URL, an email or a list that changes on every run.",
     "add": "Add input",
-    "name": "Name",
+    "name": "Name in steps",
     "label": "Label",
     "kind": "Type",
-    "kinds": { "text": "Text", "list": "List (one per line)" },
+    "kinds": {
+      "text": "Text",
+      "list": "List (one per line)"
+    },
     "default": "Default",
     "required": "Required",
-    "remove": "Remove",
-    "passwordWarning": "Don't store passwords or secrets here: inputs are saved in plain text and visible to the workspace. Robots are for public pages."
+    "remove": "Remove input",
+    "passwordWarning": "Don't store passwords or secrets here: inputs are saved in plain text and visible to the workspace. Robots are for public pages.",
+    "emptyTitle": "No inputs",
+    "labelPlaceholder": "E.g. Customer email",
+    "nameHint": "The name used in steps fills in from the label. You can change it."
   },
   "run": {
     "title": "Run {name}",
     "desc": "The robot opens a fresh browser, runs every step and closes it. It can take up to {seconds} seconds.",
     "start": "Run now",
     "cancel": "Cancel",
-    "noInputs": "This robot has no inputs."
+    "noInputs": "This robot has no inputs.",
+    "optional": "(optional)"
   },
   "runs": {
-    "empty": "No runs yet.",
     "select": "Select a run to see its steps, data and screenshots.",
     "trigger": {
       "manual": "Manual",
@@ -188,7 +231,17 @@
       "success": "OK",
       "failed": "Failed",
       "skipped": "Skipped"
-    }
+    },
+    "emptyTitle": "No runs yet",
+    "emptyBody": "Run the robot to see each step, the data it extracted and the screenshots.",
+    "history": "Run history",
+    "runningNow": "Running now",
+    "runningHint": "The robot is running. Steps and data show up here when it finishes.",
+    "logStep": "Step",
+    "logDetail": "Detail",
+    "logTime": "Time",
+    "view": "Data view",
+    "copied": "Copied"
   },
   "settings": {
     "enabled": "Allow automatic runs",
@@ -197,11 +250,11 @@
     "scheduleNone": "No schedule",
     "scheduleDaily": "Every day at",
     "scheduleInterval": "Every N hours or minutes",
-    "time": "Time (HH:MM)",
+    "time": "Time",
     "timezone": "Time zone",
     "every": "Hours",
     "nextRun": "Next run: {date}",
-    "timeout": "Timeout (seconds)",
+    "timeout": "Seconds",
     "timeoutHint": "Max {max} s. Runs count toward your monthly minutes.",
     "flowTitle": "Use in Flow",
     "flowHint": "Add the “Robots: run robot” node and paste this ID. Flows can also react to “Robots: run finished” and “Robots: run failed”.",
@@ -210,7 +263,10 @@
     "responsible": "Use robots responsibly: respect each site's terms and robots.txt and don't overload servers. Keep logins in saved credentials, never in steps. Private networks and file:// URLs are blocked; downloads only through the Download step (10 MB max).",
     "scheduleCron": "Cron",
     "unit": "Unit",
-    "units": { "hours": "Hours", "minutes": "Minutes" },
+    "units": {
+      "hours": "Hours",
+      "minutes": "Minutes"
+    },
     "everyN": "Every",
     "minMinutes": "Minimum 15 minutes.",
     "cron": "Cron expression",
@@ -223,7 +279,36 @@
     "sessionSaved": "A session is saved.",
     "sessionEmpty": "No saved session.",
     "clearSession": "Clear session",
-    "sessionCleared": "Session cleared."
+    "sessionCleared": "Session cleared.",
+    "scheduleTitle": "When it runs",
+    "scheduleDesc": "Pick a schedule. For anything finer, use Custom.",
+    "presetLabel": "Frequency",
+    "presets": {
+      "none": "Manual",
+      "noneHint": "Runs when you run it or from Flow.",
+      "hourly": "Every hour",
+      "hourlyHint": "Once an hour, all day.",
+      "daily": "Every day",
+      "dailyHint": "Once a day, at the time you pick.",
+      "weekdays": "Weekdays",
+      "weekdaysHint": "Monday to Friday, at the time you pick.",
+      "weekly": "Every Monday",
+      "weeklyHint": "Once a week, at the time you pick.",
+      "custom": "Custom",
+      "customHint": "Every N minutes or hours, or a cron expression.",
+      "noneHintOff": "Runs only when you run it."
+    },
+    "customMode": "Schedule type",
+    "automaticTitle": "Automatic runs",
+    "scheduleOff": "Automatic runs are off: the schedule will not run until you turn them on.",
+    "sessionTitle": "Session",
+    "timeoutTitle": "Time limit",
+    "credentialsTitle": "Credentials",
+    "credentialsDesc": "Logins are stored encrypted in Credentials, which Robots shares with Flow. Steps use them without the value showing up in logs or screenshots.",
+    "credentialsOpen": "Open Credentials",
+    "globalSettings": "Go to global Settings",
+    "usageTitle": "Usage and runner",
+    "turnOn": "Turn on"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -244,7 +329,11 @@
     "missing_input": "Fill in the required input “{name}”.",
     "no_steps": "Add at least one step before running.",
     "disabled": "This robot is turned off for automatic runs.",
-    "missing_credential": "Missing credential “{name}”. Create it in Flow > Credentials."
+    "missing_credential": "Missing credential “{name}”. Create it in Flow > Credentials.",
+    "pageTitle": "Robots could not load",
+    "pageBody": "Try again. If it keeps failing, check that the server is online.",
+    "retry": "Try again",
+    "backToList": "Back to Robots"
   },
   "paste": {
     "title": "Paste recorded steps",
@@ -259,7 +348,8 @@
       "invalid_json": "Not valid JSON.",
       "no_steps": "No steps in the pasted text.",
       "invalid_steps": "Step {index} is invalid."
-    }
+    },
+    "modeLabel": "What to do with the steps"
   },
   "recorder": {
     "title": "Step recorder",
@@ -286,6 +376,8 @@
       "clear": "Clear",
       "close": "Close",
       "hint": "Do the task as usual. When done, copy the steps."
-    }
-  }
+    },
+    "codeTitle": "No bookmarks bar"
+  },
+  "loading": "Loading robots…"
 }

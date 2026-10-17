@@ -53,6 +53,7 @@ const SCREENS = [
   '/en/app/chat/widgets',
   '/en/app/docs',
   '/en/app/notes/clip',
+  '/en/app/robots',
   '/en/app/robots/recorder',
 ];
 
