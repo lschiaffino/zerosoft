@@ -1,0 +1,1373 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grabado, marca zerosoft</title>
+<meta name="description" content="Propuesta de marca Grabado para zerosoft: todo se imprime con ceros de seis cuerpos.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20fill%3D%22%231c1915%22%20fill-rule%3D%22evenodd%22%20d%3D%22M8%20.6C4.6.6%202.2%203.9%202.2%208S4.6%2015.4%208%2015.4%2013.8%2012.1%2013.8%208%2011.4.6%208%20.6Zm-.5%203C5.9%203.6%205.1%205.6%205.1%207.6s.8%204.2%202.6%204.2%202.9-1.8%202.9-4.1S9.4%203.6%207.5%203.6Z%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --papel:#f2ece0;--papel-2:#e9e1d1;--papel-3:#ddd2bd;--linea:#cbbfa8;
+  --tinta:#1c1915;--tinta-2:#4a4339;--tinta-3:#675e50;
+  --plancha:#17140f;--plancha-2:#24201a;--plancha-linea:#3a342b;--plancha-texto:#efe7d8;--plancha-texto-2:#b5aa96;
+  --serif:"Newsreader",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --max:1240px;--g:24px;
+  --c-link:#2b5ee8;--c-crm:#7044e6;--c-cal:#0c8f63;--c-track:#e5561b;--c-chat:#d6336f;--c-docs:#b8690a;
+  --c-flow:#0379b8;--c-agents:#e8382c;--c-notes:#dcaa00;--c-board:#00a294;--c-robots:#6b6f76;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:56px}
+body{background:var(--papel);color:var(--tinta);font-family:var(--serif);font-size:18px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img,svg,canvas{display:block;max-width:100%}
+a{color:inherit}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--tinta);outline-offset:2px}
+.mono{font-family:var(--mono)}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 var(--g)}
+.lbl{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--tinta-3)}
+.lbl b{color:var(--tinta);font-weight:500}
+@media (max-width:700px){:root{--g:16px}body{font-size:17px}}
+
+/* ---------- navegación ---------- */
+.nav{position:sticky;top:0;z-index:50;background:var(--papel);border-bottom:1px solid var(--tinta)}
+.nav .wrap{display:flex;align-items:center;gap:20px;height:52px}
+.nav .brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex:none}
+.nav .brand svg{width:20px;height:22px;color:var(--tinta)}
+.nav .brand span{font:600 21px/1 var(--serif);letter-spacing:-.01em}
+.nav .brand em{font:500 12px var(--mono);font-style:normal;color:var(--tinta-3);margin-left:4px}
+.nav ol{display:flex;gap:2px;list-style:none;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.nav ol li:first-child{margin-left:auto}
+.nav ol::-webkit-scrollbar{display:none}
+.nav a.s{display:block;padding:6px 8px;font:500 12px var(--mono);text-decoration:none;color:var(--tinta-2);white-space:nowrap;border-bottom:2px solid transparent}
+.nav a.s:hover{color:var(--tinta)}
+.nav a.s.on{color:var(--tinta);border-bottom-color:var(--tinta)}
+@media (min-width:1101px){.nav ol{gap:0}.nav a.s{padding:6px 6px}}
+@media (max-width:700px){.nav ol{justify-content:flex-start}.nav .brand em{display:none}}
+
+/* ---------- secciones ---------- */
+section.sec{border-top:1px solid var(--tinta);padding:72px 0 96px}
+.sh{display:grid;grid-template-columns:120px 1fr;gap:24px;margin-bottom:48px}
+.sh .n{font:500 14px var(--mono);padding-top:12px}
+.sh h2{font:500 clamp(40px,6vw,76px)/.98 var(--serif);letter-spacing:-.025em}
+.sh p{max-width:640px;margin-top:16px;color:var(--tinta-2);font-size:19px}
+@media (max-width:700px){.sh{grid-template-columns:1fr;gap:8px;margin-bottom:32px}.sh .n{padding:0}section.sec{padding:48px 0 64px}}
+.sub{display:flex;justify-content:space-between;align-items:baseline;gap:16px;border-top:1px solid var(--linea);padding-top:14px;margin:56px 0 24px}
+.sub h3{font:500 26px/1.1 var(--serif);letter-spacing:-.01em}
+.sub:first-of-type{margin-top:0}
+.grid{display:grid;gap:24px}
+.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:900px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:700px){.g2,.g3{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,1fr);gap:16px}}
+.plate{background:var(--papel);border:1px solid var(--tinta);position:relative}
+.plate.dark{background:var(--plancha);border-color:var(--plancha);color:var(--plancha-texto)}
+.plate .cap{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid var(--linea);font:12px var(--mono);color:var(--tinta-3)}
+.plate.dark .cap{border-color:var(--plancha-linea);color:var(--plancha-texto-2)}
+.plate .cap b{font-weight:500;color:var(--tinta)}
+.plate.dark .cap b{color:var(--plancha-texto)}
+
+/* ---------- portada ---------- */
+.cover{position:relative;min-height:calc(100svh - 52px);display:grid;grid-template-rows:1fr auto;overflow:hidden}
+.cover canvas{position:absolute;inset:0;width:100%;height:100%}
+.cover .cv{position:relative;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:24px;align-items:end;padding-top:56px;padding-bottom:40px}
+.cover .kicker{font:500 13px var(--mono);display:flex;gap:18px;flex-wrap:wrap}
+.cover h1{font:500 clamp(54px,9.4vw,148px)/.9 var(--serif);letter-spacing:-.035em;margin-top:20px;max-width:9ch}
+.cover h1 i{font-style:italic;font-weight:400}
+.cover .concept{margin-top:28px;font:400 clamp(22px,2.4vw,30px)/1.25 var(--serif);max-width:24ch;background:var(--papel);padding:4px 0}
+.manif{background:var(--papel);border:1px solid var(--tinta);padding:22px 24px 24px;max-width:460px;justify-self:end}
+.manif .lbl{display:block;margin-bottom:12px}
+.manif p{font:400 19px/1.55 var(--serif)}
+.manif p+p{margin-top:2px}
+.cover .foot{position:relative;border-top:1px solid var(--tinta);background:var(--papel)}
+.cover .foot .wrap{display:flex;justify-content:space-between;gap:16px;padding-top:12px;padding-bottom:12px;font:12px var(--mono);color:var(--tinta-2);flex-wrap:wrap}
+@media (max-width:860px){.cover .cv{grid-template-columns:1fr;align-items:start;padding-bottom:0}.manif{justify-self:start}.cover{min-height:auto;display:flex;flex-direction:column}.cover canvas{position:relative;inset:auto;height:360px;order:1}.cover .foot{order:2}}
+
+/* ---------- sistema ---------- */
+.ramp{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--tinta)}
+.ramp div{border-left:1px solid var(--linea);padding:0 0 12px;text-align:center}
+.ramp div:first-child{border-left:0}
+.ramp canvas{width:100%;aspect-ratio:1/1.25;background:repeating-linear-gradient(0deg,transparent 0 calc(50% - .5px),var(--papel-3) calc(50% - .5px) calc(50% + .5px),transparent calc(50% + .5px)),repeating-linear-gradient(90deg,transparent 0 calc(50% - .5px),var(--papel-3) calc(50% - .5px) calc(50% + .5px),transparent calc(50% + .5px))}
+.ramp .ch{font:500 28px/1 var(--mono);margin-top:10px}
+.ramp .nm{font:12px var(--mono);color:var(--tinta-3);margin-top:6px}
+@media (max-width:700px){.ramp{grid-template-columns:repeat(4,1fr)}.ramp div:nth-child(5){border-left:0}.ramp div:nth-child(n+5){border-top:1px solid var(--linea)}.ramp .ch{font-size:22px}}
+.rules{list-style:none;counter-reset:r;border-top:1px solid var(--tinta)}
+.rules li{display:grid;grid-template-columns:56px 1fr;gap:12px;padding:16px 0;border-bottom:1px solid var(--linea)}
+.rules li::before{counter-increment:r;content:"0" counter(r);font:500 13px var(--mono);padding-top:5px}
+.rules b{font-weight:600}
+.rules span{color:var(--tinta-2)}
+.gridview{position:relative;overflow:hidden;display:flex;flex-direction:column}
+.gridview canvas{flex:1;min-height:360px}
+.demo{display:grid;grid-template-columns:minmax(0,1fr) 280px;border:1px solid var(--tinta)}
+.demo .stage{position:relative;min-height:580px;cursor:crosshair;background:var(--papel);overflow:hidden}
+.demo .stage canvas{width:100%;height:100%;position:absolute;inset:0}
+.demo .stage pre{position:absolute;inset:0;font:12px/15px var(--mono);white-space:pre;overflow:hidden;padding:8px;color:var(--ink,var(--tinta));display:none}
+.demo .stage pre b{font-weight:700}
+.demo.txt .stage pre{display:block}.demo.txt .stage canvas{display:none}
+.demo .ctl{border-left:1px solid var(--tinta);padding:18px;display:flex;flex-direction:column;gap:18px}
+.ctl .lbl{display:block;margin-bottom:8px}
+.seg{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--tinta)}
+.seg button{flex:1 1 auto;background:none;border:0;border-left:1px solid var(--tinta);padding:7px 8px;font:500 12px var(--mono);cursor:pointer;min-width:0}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed=true]{background:var(--tinta);color:var(--papel)}
+.seg.wrap4{display:grid;grid-template-columns:repeat(3,1fr)}
+.seg.wrap4 button{padding:7px 2px;border-left:1px solid var(--tinta);border-top:1px solid var(--tinta);margin:-1px 0 0 -1px}
+.inks{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.inks button{aspect-ratio:1;border:1px solid var(--tinta);cursor:pointer;position:relative}
+.inks button[aria-pressed=true]::after{content:"";position:absolute;inset:3px;border:2px solid var(--papel)}
+input[type=range]{width:100%;accent-color:var(--tinta)}
+.readout{font:12px var(--mono);color:var(--tinta-2);margin-top:auto;line-height:1.6}
+@media (max-width:860px){.demo{grid-template-columns:1fr}.demo .ctl{border-left:0;border-top:1px solid var(--tinta)}.demo .stage{min-height:380px}}
+
+/* ---------- logo ---------- */
+.logo-hero{display:grid;grid-template-columns:1fr 1fr}
+.logo-hero>div{padding:72px 48px;display:flex;align-items:center;justify-content:center;min-height:320px}
+.logo-hero img{width:min(100%,460px)}
+.logo-hero .d{background:var(--plancha)}
+@media (max-width:700px){.logo-hero{grid-template-columns:1fr}.logo-hero>div{padding:48px 24px;min-height:200px}}
+.tiers{display:grid;grid-template-columns:2fr 1.3fr 1fr 1fr;border:1px solid var(--tinta)}
+.tiers>div{border-left:1px solid var(--linea);padding:24px;display:flex;flex-direction:column;gap:16px}
+.tiers>div:first-child{border-left:0}
+.tiers .art{flex:1;display:flex;align-items:center;justify-content:center;min-height:200px;gap:20px}
+.tiers .t1 svg{width:180px;color:var(--tinta)}
+.tiers .t2 svg{width:84px;color:var(--tinta)}
+.tiers .zoom{image-rendering:pixelated;border:1px solid var(--linea)}
+.tiers .real{display:flex;gap:14px;align-items:flex-end}
+.tiers p{font-size:15px;color:var(--tinta-2);line-height:1.45}
+@media (max-width:900px){.tiers{grid-template-columns:1fr 1fr}.tiers>div:nth-child(3){border-left:0}.tiers>div:nth-child(n+3){border-top:1px solid var(--linea)}}
+@media (max-width:520px){.tiers{grid-template-columns:1fr}.tiers>div{border-left:0!important}.tiers>div+div{border-top:1px solid var(--linea)}}
+.tab-sizes{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-end;margin-top:24px}
+.tab{display:flex;align-items:center;gap:8px;border:1px solid var(--linea);border-bottom:0;padding:8px 14px 8px 10px;background:var(--papel-2);font:13px var(--mono)}
+.tab.dk{background:var(--plancha-2);color:var(--plancha-texto);border-color:var(--plancha-linea)}
+.clear{position:relative;display:flex;justify-content:center;padding:56px 24px;background:var(--papel-2)}
+.clear .box{position:relative;padding:var(--cl);outline:1px dashed var(--tinta-3)}
+.clear .box img{width:min(420px,60vw)}
+.clear .box::before{content:"";position:absolute;inset:var(--cl);outline:1px solid var(--tinta-3)}
+.clear .m{position:absolute;font:11px var(--mono);color:var(--tinta-2)}
+.wrong{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.wrong figure{border:1px solid var(--tinta)}
+.wrong .art{height:170px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;padding:16px}
+.wrong .art::after{content:"";position:absolute;left:-10%;right:-10%;top:50%;border-top:2px solid #b42318;transform:rotate(-14deg)}
+.wrong figcaption{padding:10px 14px;border-top:1px solid var(--linea);font:12px/1.5 var(--mono);color:var(--tinta-2)}
+.wrong figcaption b{display:block;color:#b42318;font-weight:600}
+@media (max-width:900px){.wrong{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.wrong{grid-template-columns:1fr}}
+.lockups{display:grid;grid-template-columns:repeat(2,1fr);border-top:1px solid var(--tinta)}
+.lockup{display:flex;align-items:center;gap:12px;padding:22px 8px;border-bottom:1px solid var(--linea)}
+.lockup:nth-child(odd){border-right:1px solid var(--linea);padding-right:24px}
+.lockup:nth-child(even){padding-left:24px}
+.lockup svg{width:34px;flex:none}
+.lockup .w{font:600 32px/1 var(--serif);letter-spacing:-.012em}
+.lockup .p{font:500 25px/1 var(--mono);margin-left:4px}
+.lockup .r{margin-left:auto;font:12px var(--mono);color:var(--tinta-3);text-align:right}
+@media (max-width:700px){.lockups{grid-template-columns:1fr}.lockup:nth-child(n){border-right:0;padding:16px 0}.lockup .w{font-size:26px}.lockup .p{font-size:20px}.lockup svg{width:24px}}
+
+/* ---------- tipografía ---------- */
+.fam{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--tinta)}
+.fam>div{padding:28px}
+.fam>div+div{border-left:1px solid var(--tinta)}
+.fam .big{font-size:clamp(90px,12vw,170px);line-height:.9;letter-spacing:-.04em;margin:20px 0}
+.fam .chars{font-size:22px;line-height:1.4;color:var(--tinta-2);word-break:break-all}
+.fam p.u{font-size:15px;color:var(--tinta-2);margin-top:16px}
+@media (max-width:760px){.fam{grid-template-columns:1fr}.fam>div+div{border-left:0;border-top:1px solid var(--tinta)}.fam>div{padding:20px}}
+.scale{border-top:1px solid var(--tinta)}
+.scale>div{display:grid;grid-template-columns:150px 1fr;gap:20px;align-items:baseline;padding:14px 0;border-bottom:1px solid var(--linea);overflow:hidden}
+.scale .k{font:12px/1.5 var(--mono);color:var(--tinta-3)}
+.scale .k b{display:block;color:var(--tinta);font-weight:500}
+.scale .v{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:700px){.scale>div{grid-template-columns:1fr;gap:4px}.scale .v{white-space:normal}}
+.spec{display:grid;grid-template-columns:1.3fr 1fr;gap:48px;margin-top:8px}
+.spec .col{columns:2;column-gap:32px;font-size:17px;line-height:1.6;hyphens:auto}
+.spec .col p{margin-bottom:12px}
+.spec .col p:first-child::first-letter{font:600 74px/.8 var(--serif);float:left;margin:6px 8px 0 0}
+.spec .tech{background:var(--plancha);color:var(--plancha-texto);padding:22px;font:13px/1.7 var(--mono)}
+.spec .tech .c{color:var(--plancha-texto-2)}
+.spec .tech .k{color:#f0a37c}
+.spec .tech .s{color:#7fd3ae}
+@media (max-width:860px){.spec{grid-template-columns:1fr}.spec .col{columns:1}}
+
+/* ---------- color ---------- */
+.neutrals{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid var(--tinta)}
+.neutrals>div{min-height:180px;padding:14px;display:flex;flex-direction:column;justify-content:flex-end;font:12px/1.5 var(--mono);border-left:1px solid rgba(0,0,0,.12)}
+.neutrals>div:first-child{border-left:0}
+.neutrals b{font:500 14px var(--mono);display:block}
+@media (max-width:900px){.neutrals{grid-template-columns:repeat(2,1fr)}.neutrals>div{border-top:1px solid rgba(0,0,0,.12)}}
+.prods{border-top:1px solid var(--tinta)}
+.prow{display:grid;grid-template-columns:150px 1fr 1fr 1fr 1.6fr;gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid var(--linea);font:13px var(--mono)}
+.prow.h{font-size:11px;color:var(--tinta-3);padding:10px 0}
+.prow .nm{display:flex;align-items:center;gap:10px;font-weight:500;font-size:14px}
+.prow .nm svg{width:22px;height:22px}
+.prow .sw{display:flex;align-items:center;gap:10px}
+.prow .sw i{width:34px;height:34px;flex:none;display:block}
+.prow .ok{color:var(--tinta-3)}
+.prow .sw.dk{padding:6px 8px 6px 6px}
+.prow canvas{width:100%;height:42px}
+@media (max-width:900px){.prow{grid-template-columns:1fr 1fr;row-gap:8px}.prow.h{display:none}.prow .nm{grid-column:1/-1}.prow canvas{grid-column:1/-1}}
+
+/* ---------- íconos ---------- */
+.icons{display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--tinta);border-left:1px solid var(--linea)}
+.icons>div{border-right:1px solid var(--linea);border-bottom:1px solid var(--linea);padding:20px 12px 14px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.icons .big{width:72px;height:72px}
+.icons .sizes{display:flex;gap:12px;align-items:flex-end}
+.icons .lbl{text-align:center}
+.icons .grid24{position:relative;width:96px;height:96px;background-image:linear-gradient(var(--papel-3) 1px,transparent 1px),linear-gradient(90deg,var(--papel-3) 1px,transparent 1px);background-size:4px 4px;border:1px solid var(--linea)}
+.icons .grid24 svg{position:absolute;inset:0;width:100%;height:100%}
+@media (max-width:900px){.icons{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:520px){.icons{grid-template-columns:repeat(2,1fr)}}
+.icon-dark{display:flex;flex-wrap:wrap;gap:28px;background:var(--plancha);padding:28px;margin-top:24px}
+.icon-dark div{display:flex;align-items:center;gap:8px;font:13px var(--mono);color:var(--plancha-texto)}
+
+/* ---------- ilustración ---------- */
+.ill{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.ill figure{border:1px solid var(--tinta);background:var(--papel)}
+.ill figure .im{padding:18px;display:flex;align-items:center;justify-content:center;aspect-ratio:1.15}
+.ill figure img{width:100%;height:100%;object-fit:contain;display:block}
+.ill figcaption{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--linea);font:12px var(--mono);color:var(--tinta-3)}
+.ill figcaption b{font-weight:500}
+@media (max-width:900px){.ill{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.ill{grid-template-columns:1fr}}
+.pats{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+.pats figure{border:1px solid var(--tinta)}
+.pats img{width:100%;aspect-ratio:2/1}
+.pats figcaption{padding:10px 14px;border-top:1px solid var(--linea);font:12px var(--mono);color:var(--tinta-3)}
+@media (max-width:700px){.pats{grid-template-columns:1fr}}
+
+/* ---------- motion ---------- */
+.motion{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.motion figure{border:1px solid var(--tinta);display:flex;flex-direction:column}
+.motion .st{height:300px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:22px;position:relative;overflow:hidden}
+.motion figcaption{border-top:1px solid var(--linea);padding:12px 14px;font-size:15px;line-height:1.45;color:var(--tinta-2)}
+.motion figcaption b{display:block;font:500 13px var(--mono);color:var(--tinta);margin-bottom:4px}
+.spin{width:96px;height:96px;color:var(--tinta)}
+.spin ellipse{transform-box:fill-box;transform-origin:center;animation:ink 1.2s steps(6) infinite}
+@keyframes ink{0%{transform:scale(.35)}50%{transform:scale(1.15)}100%{transform:scale(.35)}}
+.bar{font:15px/1 var(--mono);letter-spacing:.06em;white-space:pre}
+.bar b{font-weight:700}
+.motion .st canvas{width:100%;height:100%;position:absolute;inset:0}
+.btn-ink{position:relative;display:inline-flex;flex-direction:column;align-items:flex-start;gap:6px;text-decoration:none;font:500 15px var(--mono);cursor:pointer}
+.btn-ink .z{display:flex;gap:1px;font:13px/1 var(--mono);height:14px;align-items:center}
+.btn-ink .z span{display:inline-block;width:.62em;text-align:center}
+.hoverlist{display:flex;flex-direction:column;gap:22px;align-items:flex-start}
+.hcard{display:flex;align-items:center;gap:12px;border:1px solid var(--tinta);padding:10px 14px 10px 10px;min-width:220px;background:var(--papel);transition:background .18s,color .18s;cursor:pointer;text-decoration:none}
+.hcard svg{width:22px;height:22px;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.hcard:hover,.hcard:focus-visible{background:var(--tinta);color:var(--papel)}
+.hcard:hover svg,.hcard:focus-visible svg{transform:translateX(3px)}
+.replay{position:absolute;right:10px;bottom:10px;background:none;border:1px solid var(--tinta);padding:5px 9px;font:12px var(--mono);cursor:pointer;z-index:2}
+@media (max-width:900px){.motion{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.spin ellipse{animation:none}.hcard,.hcard svg{transition:none}html{scroll-behavior:auto}}
+
+/* ---------- mocks: navegador ---------- */
+.browser{border:1px solid var(--tinta);background:var(--papel)}
+.browser .bar2{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--tinta);font:12px var(--mono);color:var(--tinta-3);background:var(--papel-2)}
+.browser .bar2 i{width:10px;height:10px;border:1px solid var(--tinta-3);display:block}
+.browser .bar2 span{margin:0 auto;padding:3px 40px;border:1px solid var(--linea);background:var(--papel);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.site{--pc:var(--tinta);--pt:var(--tinta)}
+.site .snav{display:flex;align-items:center;gap:28px;padding:18px 40px;border-bottom:1px solid var(--linea);font:14px var(--mono)}
+.site .snav .b{display:flex;align-items:center;gap:8px;text-decoration:none;margin-right:auto}
+.site .snav .b svg{width:18px;color:var(--pc)}
+.site .snav .b span{font:600 22px/1 var(--serif)}
+.site .snav .b em{font:500 17px var(--mono);font-style:normal;color:var(--pt)}
+.site .snav a{text-decoration:none;color:var(--tinta-2)}
+.site .snav a.btn{color:var(--papel)}
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:1px solid var(--tinta);background:var(--tinta);color:var(--papel);font:500 14px var(--mono);text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn.sec{background:transparent;color:var(--tinta)}
+.btn.gh{background:transparent;border-color:transparent;color:var(--tinta);text-decoration:underline;text-underline-offset:4px;padding:0 6px}
+.btn.sm{height:32px;padding:0 12px;font-size:13px}
+.btn.danger{background:#b42318;border-color:#b42318;color:#fff}
+.btn[disabled]{background:var(--papel-3);border-color:var(--papel-3);color:var(--tinta-3);cursor:not-allowed}
+.btn:hover:not([disabled]){filter:brightness(1.18)}
+.btn.sec:hover,.btn.gh:hover{filter:none;background:var(--papel-2)}
+.site .hero{display:grid;grid-template-columns:1fr 1fr;min-height:560px;border-bottom:1px solid var(--tinta)}
+.site .hero .t{padding:72px 40px 48px;display:flex;flex-direction:column;justify-content:space-between;gap:32px}
+.site .hero h3{font:500 clamp(54px,7vw,112px)/.9 var(--serif);letter-spacing:-.035em}
+.site .hero p{font-size:20px;max-width:30ch;color:var(--tinta-2);margin-top:20px}
+.site .hero .cta{display:flex;gap:10px;flex-wrap:wrap}
+.site .hero .a{position:relative;border-left:1px solid var(--tinta);min-height:380px}
+.site .hero .a canvas{position:absolute;inset:0;width:100%;height:100%}
+.site .hero .a .tag{position:absolute;left:16px;bottom:14px;font:12px var(--mono);color:var(--tinta-3)}
+.site .shd{display:flex;justify-content:space-between;align-items:baseline;gap:20px;padding:48px 40px 20px;flex-wrap:wrap}
+.site .shd h4{font:500 44px/1 var(--serif);letter-spacing:-.02em}
+.site .shd p{font:13px var(--mono);color:var(--tinta-3)}
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--tinta);margin:0 40px}
+.pgrid a{display:flex;flex-direction:column;gap:28px;padding:20px 16px 18px;border-right:1px solid var(--linea);border-bottom:1px solid var(--linea);text-decoration:none;min-height:150px;transition:background .15s}
+.pgrid a:nth-child(4n){border-right:0}
+.pgrid a:hover{background:var(--papel-2)}
+.pgrid a svg{width:26px;height:26px}
+.pgrid a b{font:500 24px/1 var(--serif);display:block}
+.pgrid a span{font:12px var(--mono);color:var(--tinta-3);display:block;margin-top:6px}
+.price{display:grid;grid-template-columns:1fr 1fr;margin:48px 40px 0;border:1px solid var(--tinta)}
+.price>div{padding:32px}
+.price>div+div{border-left:1px solid var(--tinta)}
+.price h5{font:500 13px var(--mono);color:var(--tinta-3);margin-bottom:12px}
+.price .big{font:500 64px/1 var(--serif);letter-spacing:-.03em}
+.price .eq{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;font:500 15px var(--mono);margin:20px 0 12px}
+.price .eq b{font:500 44px/1 var(--serif)}
+.price p{font-size:16px;color:var(--tinta-2);max-width:40ch}
+.price label{display:block;font:12px var(--mono);color:var(--tinta-3);margin-top:16px}
+.sfoot{margin-top:72px;background:var(--plancha);color:var(--plancha-texto);padding:48px 40px 28px;position:relative;overflow:hidden}
+.sfoot .cols{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:24px;position:relative}
+.sfoot .cols b{font:500 12px var(--mono);color:var(--plancha-texto-2);display:block;margin-bottom:10px}
+.sfoot .cols a{display:block;font-size:16px;text-decoration:none;color:var(--plancha-texto);margin:4px 0}
+.sfoot .wm{font:600 64px/1 var(--serif);letter-spacing:-.02em}
+.sfoot .legal{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-top:1px solid var(--plancha-linea);margin-top:40px;padding-top:16px;font:12px var(--mono);color:var(--plancha-texto-2);position:relative}
+.sfoot canvas{position:absolute;right:0;top:0;height:100%;width:50%;opacity:1}
+@media (max-width:900px){
+  .site .snav{padding:14px 16px;gap:16px}.site .snav a:not(.b):not(.btn){display:none}
+  .site .hero{grid-template-columns:1fr}.site .hero .a{border-left:0;border-top:1px solid var(--tinta);min-height:300px}.site .hero .t{padding:40px 16px 32px}
+  .site .shd{padding:40px 16px 16px}.pgrid{grid-template-columns:repeat(2,1fr);margin:0 16px}.pgrid a:nth-child(n){border-right:1px solid var(--linea)}.pgrid a:nth-child(2n){border-right:0}
+  .price{grid-template-columns:1fr;margin:40px 16px 0}.price>div+div{border-left:0;border-top:1px solid var(--tinta)}.price>div{padding:22px}
+  .sfoot{padding:36px 16px 20px}.sfoot .cols{grid-template-columns:1fr 1fr}.sfoot .cols>div:first-child{grid-column:1/-1}.sfoot canvas{width:100%;opacity:.35}
+}
+/* página de producto */
+.ppage{--pc:var(--c-cal);--pt:#076140}
+.ppage .phero{display:grid;grid-template-columns:1.1fr .9fr;border-bottom:1px solid var(--tinta)}
+.ppage .phero .t{padding:64px 40px 40px}
+.ppage .phero .k{font:500 13px var(--mono);color:var(--pt);display:flex;gap:8px;align-items:center}
+.ppage .phero .k svg{width:18px;height:18px}
+.ppage .phero h3{font:500 clamp(64px,9vw,140px)/.9 var(--serif);letter-spacing:-.04em;margin:18px 0 18px}
+.ppage .phero p{font-size:21px;color:var(--tinta-2);max-width:30ch}
+.ppage .phero .cta{display:flex;gap:10px;margin-top:28px;flex-wrap:wrap}
+.ppage .phero .btn{background:var(--pt);border-color:var(--pt)}
+.ppage .phero .btn.sec{background:transparent;color:var(--tinta);border-color:var(--tinta)}
+.ppage .phero .a{border-left:1px solid var(--tinta);display:flex;align-items:center;justify-content:center;padding:32px;background:var(--papel)}
+.ppage .phero .a img{max-height:420px}
+.book{display:grid;grid-template-columns:260px 1fr 220px;border:1px solid var(--tinta);margin:48px 40px 0;background:var(--papel)}
+.book>div{padding:22px}
+.book>div+div{border-left:1px solid var(--linea)}
+.book .who b{display:block;font:500 26px/1.1 var(--serif);margin:10px 0 6px}
+.book .who span{font:13px var(--mono);color:var(--tinta-3);display:block;margin-top:4px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font:13px var(--mono);text-align:center}
+.cal-grid .dw{color:var(--tinta-3);font-size:11px;padding-bottom:6px}
+.cal-grid button{width:100%;height:44px;border:1px solid transparent;background:none;cursor:pointer;font:inherit;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.cal-grid button.av{border-color:var(--linea);color:var(--tinta)}
+.cal-grid button.av::after{content:"·";line-height:.4;color:var(--pt)}
+.cal-grid button.on{background:var(--pt);color:#fff;border-color:var(--pt)}
+.cal-grid button.on::after{color:#fff}
+.cal-grid button:disabled{color:var(--tinta-3);opacity:.55;cursor:default}
+.slots{display:flex;flex-direction:column;gap:8px}
+.slots button{height:40px;border:1px solid var(--pt);background:none;color:var(--pt);font:500 14px var(--mono);cursor:pointer}
+.slots button:hover,.slots button.on{background:var(--pt);color:#fff}
+.feats{display:grid;grid-template-columns:repeat(3,1fr);margin:48px 40px 0;border-top:1px solid var(--tinta)}
+.feats div{padding:22px 22px 0 0}
+.feats div+div{padding-left:22px;border-left:1px solid var(--linea)}
+.feats b{display:block;font:500 13px var(--mono);color:var(--pt);margin-bottom:10px}
+.feats h5{font:500 26px/1.1 var(--serif);margin-bottom:8px}
+.feats p{font-size:16px;color:var(--tinta-2)}
+@media (max-width:900px){
+  .ppage .phero{grid-template-columns:1fr}.ppage .phero .t{padding:40px 16px 28px}.ppage .phero .a{border-left:0;border-top:1px solid var(--tinta)}
+  .book{grid-template-columns:1fr;margin:32px 16px 0}.book>div+div{border-left:0;border-top:1px solid var(--linea)}
+  .feats{grid-template-columns:1fr;margin:32px 16px 0}.feats div,.feats div+div{padding:18px 0;border-left:0;border-bottom:1px solid var(--linea)}
+}
+
+/* ---------- app ---------- */
+.app{--pc:var(--c-track);--pt:#b03d0b;display:grid;grid-template-columns:232px minmax(0,1fr) 340px;height:720px;border:1px solid var(--tinta);background:var(--papel);font:14px/1.45 var(--mono);overflow:hidden}
+.scrollx{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.scrollx .app{min-width:1100px}
+.side{background:var(--papel-2);border-right:1px solid var(--tinta);display:flex;flex-direction:column}
+.side .ws{display:flex;align-items:center;gap:10px;padding:14px 14px;border-bottom:1px solid var(--linea)}
+.side .ws svg{width:16px;color:var(--tinta)}
+.side .ws b{font:600 18px/1 var(--serif)}
+.side .ws span{margin-left:auto;font-size:12px;color:var(--tinta-3)}
+.side .grp{padding:12px 8px 4px 14px;font-size:11px;color:var(--tinta-3)}
+.side a{display:flex;align-items:center;gap:10px;padding:6px 14px;text-decoration:none;font-size:13px;color:var(--tinta-2);border-left:3px solid transparent}
+.side a svg{width:16px;height:16px;flex:none}
+.side a:hover{background:var(--papel-3);color:var(--tinta)}
+.side a.on{background:var(--papel);color:var(--tinta);border-left-color:var(--pc);font-weight:500}
+.side a .ct{margin-left:auto;font-size:11px;color:var(--tinta-3)}
+.side .me{margin-top:auto;border-top:1px solid var(--linea);padding:12px 14px;display:flex;gap:10px;align-items:center;font-size:12px}
+.av{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;background:var(--tinta);color:var(--papel);font:500 11px var(--mono);flex:none}
+.main{display:flex;flex-direction:column;min-width:0}
+.mh{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--linea)}
+.mh h4{font:500 26px/1 var(--serif);letter-spacing:-.01em}
+.mh .crumb{font-size:12px;color:var(--tinta-3)}
+.mh .sp{margin-left:auto;display:flex;gap:8px}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--tinta);padding:0 20px}
+.tabs button{background:none;border:0;padding:10px 14px 9px;font:500 13px var(--mono);color:var(--tinta-3);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--tinta);border-bottom-color:var(--pc)}
+.tabs button span{font-weight:400;color:var(--tinta-3);margin-left:6px}
+.tools{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--linea);align-items:center}
+.inp{height:36px;border:1px solid var(--tinta-3);background:var(--papel);padding:0 10px;font:13px var(--mono);min-width:0}
+.inp:focus{outline:2px solid var(--pc);outline-offset:-1px;border-color:var(--tinta)}
+.inp::placeholder{color:var(--tinta-3)}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;font-weight:500;font-size:11px;color:var(--tinta-3);padding:8px 10px;border-bottom:1px solid var(--linea);white-space:nowrap}
+table.t td{padding:9px 10px;border-bottom:1px solid var(--linea);white-space:nowrap;vertical-align:middle}
+table.t tr{cursor:pointer}
+table.t tbody tr:hover{background:var(--papel-2)}
+table.t tr.sel{background:var(--papel-2);box-shadow:inset 3px 0 0 var(--pc)}
+table.t td.ti{white-space:normal;color:var(--tinta);min-width:200px}
+table.t .id{color:var(--tinta-3)}
+.prio{font:500 17px/1 var(--mono);letter-spacing:-.05em;color:var(--tinta)}
+.st-ic{display:inline-flex;align-items:center;gap:6px}
+.st-ic i{width:10px;height:12px;border:2px solid var(--tinta-3);border-radius:50%;display:inline-block}
+.st-ic.prog i{border-color:var(--pt);border-right-color:transparent}
+.st-ic.done i{background:var(--pt);border-color:var(--pt)}
+.st-ic.rev i{border-color:var(--tinta);border-style:dotted}
+.panel{border-left:1px solid var(--tinta);display:flex;flex-direction:column;min-width:0}
+.panel .ph{padding:14px 18px;border-bottom:1px solid var(--linea);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--tinta-3)}
+.panel .pb{padding:18px;overflow:auto;flex:1}
+.panel h5{font:500 24px/1.15 var(--serif);margin-bottom:16px}
+.panel dl{display:grid;grid-template-columns:96px 1fr;gap:8px 10px;font-size:13px;margin-bottom:18px}
+.panel dt{color:var(--tinta-3)}
+.panel .desc{font:16px/1.55 var(--serif);color:var(--tinta-2);border-top:1px solid var(--linea);padding-top:14px}
+.panel .cm{border-top:1px solid var(--linea);margin-top:16px;padding-top:14px;font-size:13px}
+.panel .cm p{margin-top:4px;color:var(--tinta-2);font:15px/1.5 var(--serif)}
+.panel .pf{border-top:1px solid var(--linea);padding:12px 18px;display:flex;gap:8px}
+.panel .pf .inp{flex:1}
+.toast{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;background:var(--tinta);color:var(--papel);padding:10px 12px 10px 14px;font:13px var(--mono);white-space:nowrap;z-index:3}
+.toast svg{width:16px;height:20px;color:var(--c-track)}
+.toast button{background:none;border:0;color:var(--papel);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font:inherit}
+.appwrap{position:relative}
+.app-row2{display:grid;grid-template-columns:390px minmax(0,1fr);gap:24px;align-items:start;margin-top:32px}
+.app-row2 .comps{margin-top:0;grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:1100px){.app-row2{grid-template-columns:minmax(0,1fr)}}
+.phone{width:100%;max-width:390px;height:780px;border:1px solid var(--tinta);background:var(--papel);display:flex;flex-direction:column;font:14px/1.45 var(--mono);position:relative;overflow:hidden;--pc:var(--c-track);--pt:#b03d0b;margin:0 auto}
+.phone .stb{display:flex;justify-content:space-between;padding:10px 18px 6px;font-size:12px}
+.phone .top{display:flex;align-items:center;gap:10px;padding:8px 16px 12px;border-bottom:1px solid var(--linea)}
+.phone .top h4{font:500 28px/1 var(--serif)}
+.phone .top svg{width:20px;height:20px;color:var(--pc)}
+.phone .top .btn{margin-left:auto}
+.phone .tabs{padding:0 8px;overflow-x:auto}
+.phone .list{flex:1;overflow:auto}
+.phone .it{display:grid;grid-template-columns:20px 1fr auto;gap:10px;padding:12px 16px;border-bottom:1px solid var(--linea);align-items:start}
+.phone .it .tt{font:16px/1.3 var(--serif);color:var(--tinta)}
+.phone .it .mt{font-size:12px;color:var(--tinta-3);margin-top:4px}
+.phone .bb{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--tinta);background:var(--papel-2)}
+.phone .bb a{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 14px;font-size:10px;text-decoration:none;color:var(--tinta-3)}
+.phone .bb a svg{width:20px;height:20px}
+.phone .bb a.on{color:var(--tinta);box-shadow:inset 0 2px 0 var(--pc)}
+.phone .toast{bottom:84px;font-size:12px}
+.comps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:24px}
+.comps>div{border:1px solid var(--tinta);padding:22px;display:flex;flex-direction:column;gap:14px;font-family:var(--mono)}
+.comps .lbl{margin-bottom:2px}
+.comps .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.field{display:flex;flex-direction:column;gap:6px;font-size:12px}
+.field .inp{width:100%}
+.field .err{color:#b42318}
+.field .inp.bad{border-color:#b42318}
+.sel{appearance:none;background:var(--papel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0h10L5 6z' fill='%231c1915'/%3E%3C/svg%3E") no-repeat right 10px center;padding-right:28px}
+.comps>.empty{grid-column:1/-1;display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:center}
+.empty img{width:200px}
+.empty h6{font:500 30px/1.1 var(--serif);margin-bottom:8px}
+.empty p{font:16px/1.5 var(--serif);color:var(--tinta-2);margin-bottom:16px;max-width:36ch}
+.toast.static{position:static;transform:none;align-self:flex-start;white-space:normal;max-width:100%}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px}
+.chk input{appearance:none;width:16px;height:16px;border:1.5px solid var(--tinta);display:grid;place-items:center;margin:0}
+.chk input:checked{background:var(--tinta)}
+.chk input:checked::after{content:"";width:6px;height:8px;border:solid var(--papel);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+@media (max-width:700px){.app-row2 .comps{grid-template-columns:minmax(0,1fr)}.comps>.empty{grid-template-columns:1fr}.empty img{width:160px}}
+
+/* ---------- piezas ---------- */
+.pieces{display:grid;grid-template-columns:repeat(6,1fr);gap:24px}
+.pieces figure{border:1px solid var(--tinta);background:var(--papel-2);display:flex;flex-direction:column}
+.pieces figure .im{flex:1;display:flex;align-items:center;justify-content:center;padding:20px}
+.pieces figure img{width:100%;height:auto;box-shadow:0 1px 0 var(--linea)}
+.pieces figcaption{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--linea);font:12px var(--mono);color:var(--tinta-3);background:var(--papel)}
+.pieces figcaption b{font-weight:500;color:var(--tinta)}
+.pieces .s2{grid-column:span 2}.pieces .s3{grid-column:span 3}.pieces .s4{grid-column:span 4}.pieces .s6{grid-column:span 6}
+.pieces .tall img{max-height:420px;width:auto;max-width:100%}
+@media (max-width:900px){.pieces{grid-template-columns:repeat(2,1fr)}.pieces .s2,.pieces .s3{grid-column:span 1}.pieces .s4,.pieces .s6{grid-column:span 2}}
+@media (max-width:560px){.pieces{grid-template-columns:1fr}.pieces figure{grid-column:auto!important}}
+
+/* ---------- descargas ---------- */
+.dl{border-top:1px solid var(--tinta);columns:2;column-gap:48px}
+.dl a{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--linea);text-decoration:none;font:13px var(--mono);break-inside:avoid}
+.dl a:hover .f{text-decoration:underline;text-underline-offset:3px}
+.dl a img{width:34px;height:34px;object-fit:contain;background:var(--papel-2)}
+.dl .f{font-weight:500}
+.dl .d{display:block;color:var(--tinta-3);font-size:12px}
+.dl .sz{color:var(--tinta-3);font-size:12px}
+@media (max-width:760px){.dl{columns:1}}
+.endnote{margin-top:48px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;font-size:16px;color:var(--tinta-2)}
+.endnote b{display:block;font:500 12px var(--mono);color:var(--tinta);margin-bottom:6px}
+@media (max-width:760px){.endnote{grid-template-columns:1fr}}
+footer.f{border-top:1px solid var(--tinta);padding:24px 0 40px;font:12px var(--mono);color:var(--tinta-3)}
+footer.f .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<nav class="nav" aria-label="Secciones">
+  <div class="wrap">
+    <a class="brand" href="#portada"><svg viewBox="0 0 110 124" aria-hidden="true"><path fill="currentColor" d="M37.18 6.88a1.32 1.32 0 1 0 2.64 0a1.32 1.32 0 1 0 -2.64 0M59.18 89.38a1.32 1.32 0 1 0 2.64 0a1.32 1.32 0 1 0 -2.64 0"/><path fill="currentColor" d="M47.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M58.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M25.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M80.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M25.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M47.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M58.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M91.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 61.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 61.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 75.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 75.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M47.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M91.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 116.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 116.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0"/><path fill="currentColor" d="M46.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M68.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M68.46 34.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 34.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 48.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 48.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M13.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M13.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 89.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M35.46 89.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M35.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M46.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M46.46 116.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 116.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0"/><path fill="currentColor" d="M35.06 34.38a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 48.13a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 61.88a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 75.63a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M79.06 89.38a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M68.06 103.13a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0"/></svg><span>zerosoft</span><em>Grabado</em></a>
+    <ol id="toc"></ol>
+  </div>
+</nav>
+
+<main>
+<!-- 00 PORTADA -->
+<header class="cover" id="portada" data-sec="Portada">
+  <canvas id="coverCanvas" aria-hidden="true"></canvas>
+  <div class="wrap cv">
+    <div>
+      <div class="kicker"><span>Propuesta 01 de 05</span><span>Grabado</span><span>Octubre 2026</span></div>
+      <h1>Todo se <i>imprime</i> con ceros.</h1>
+      <p class="concept">Un solo tipo en seis cuerpos. El chico es luz, el grande es sombra. Con eso se dibuja la marca entera.</p>
+    </div>
+    <div class="manif">
+      <span class="lbl">Manifiesto</span>
+      <p>El software murió.</p>
+      <p>Lo que queda es oficio: código abierto y el costo a la vista.</p>
+      <p>Cada pieza se compone a mano con el mismo tipo, un cero.</p>
+      <p>Chico cuando hay luz. Grande y negro cuando hay sombra.</p>
+      <p>Con suficientes ceros se imprime cualquier cosa. Una empresa también.</p>
+    </div>
+  </div>
+  <div class="foot"><div class="wrap"><span>Mové el puntero: la luz del grabado lo sigue.</span><span>Papel #f2ece0 · Tinta #1c1915 · 11 tintas de producto</span></div></div>
+</header>
+
+<!-- 01 SISTEMA -->
+<section class="sec" id="sistema" data-sec="Sistema">
+  <div class="wrap">
+    <div class="sh"><div class="n">01</div><div><h2>El sistema del cero</h2><p>La marca funciona como una caja de tipos de imprenta con un único carácter fundido en seis cuerpos. Cualquier imagen se traduce a esa rampa: donde hay luz va un punto, donde hay sombra va un cero lleno de tinta.</p></div></div>
+
+    <div class="sub"><h3>La rampa</h3><span class="lbl">7 valores · 6 tipos y el blanco del papel</span></div>
+    <div class="ramp" id="ramp"></div>
+
+    <div class="sub"><h3>Reglas de composición</h3><span class="lbl">Valen para logo, ilustración, patrones y UI</span></div>
+    <div class="grid g2">
+      <ol class="rules">
+        <li><div><b>Un tipo, seis cuerpos.</b> <span>Nunca se usa otra forma para sombrear. Ni rayas, ni degradés, ni puntos cuadrados.</span></div></li>
+        <li><div><b>La celda es fija: 1 × 1,25.</b> <span>Es la proporción de un cero de máquina. Las filas siempre son horizontales, como en una caja de composición.</span></div></li>
+        <li><div><b>La luz viene de arriba a la izquierda.</b> <span>Toda ilustración comparte la misma fuente. La sombra cae abajo a la derecha y se dibuja con puntos.</span></div></li>
+        <li><div><b>Una tinta por pieza.</b> <span>Tinta negra para la marca, la tinta del producto para su mundo. No se mezclan dos tintas de producto en una misma imagen.</span></div></li>
+        <li><div><b>El papel no se imprime.</b> <span>El fondo es siempre papel o plancha. El blanco de una imagen es papel que quedó sin tinta.</span></div></li>
+        <li><div><b>Tramado ordenado 4 × 4.</b> <span>Entre dos cuerpos se alterna con una matriz de Bayer, así los degradés no hacen escalones.</span></div></li>
+      </ol>
+      <figure class="plate gridview">
+        <canvas id="gridCanvas" style="width:100%" aria-label="Detalle ampliado de la grilla de celdas"></canvas>
+        <div class="cap"><span><b>Grilla</b> · detalle del símbolo a 8×</span><span>celda 1 × 1,25</span></div>
+      </figure>
+    </div>
+
+    <div class="sub"><h3>Demo viva</h3><span class="lbl">Elegí una escena, una tinta y un cuerpo. Mové el puntero para mover la luz.</span></div>
+    <div class="demo" id="demo">
+      <div class="stage" id="demoStage"><canvas id="demoCanvas" aria-label="Grabado de ceros en vivo"></canvas><pre id="demoPre" aria-hidden="true"></pre></div>
+      <div class="ctl">
+        <div><span class="lbl">Escena</span><div class="seg wrap4" id="demoScene"></div></div>
+        <div><span class="lbl">Tinta</span><div class="inks" id="demoInk"></div></div>
+        <div><label class="lbl" for="demoCols">Columnas <b id="demoColsV">64</b></label><input type="range" id="demoCols" min="24" max="160" value="64"></div>
+        <div><span class="lbl">Salida</span><div class="seg" id="demoMode"><button aria-pressed="true" data-m="svg">Tipos</button><button aria-pressed="false" data-m="txt">Caracteres</button></div></div>
+        <div class="readout" id="demoRead"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 LOGO -->
+<section class="sec" id="logo" data-sec="Logo">
+  <div class="wrap">
+    <div class="sh"><div class="n">02</div><div><h2>Logo</h2><p>El símbolo es un cero grande compuesto con ceros chicos, iluminado como un objeto. El wordmark va en Newsreader seminegrita, en minúscula, con la interletra apenas cerrada.</p></div></div>
+    <div class="sub"><h3>Principal</h3><span class="lbl">logo.svg · logo-dark.svg</span></div>
+    <div class="logo-hero plate"><div><img src="assets/logo.svg" alt="Logo zerosoft sobre papel"></div><div class="d"><img src="assets/logo-dark.svg" alt="Logo zerosoft sobre plancha"></div></div>
+
+    <div class="sub"><h3>Símbolo en cuatro cortes</h3><span class="lbl">Cada tamaño tiene su propia versión. No se escala uno en otro.</span></div>
+    <div class="tiers">
+      <div class="t1"><span class="lbl"><b>A · Grabado</b> · 120 px o más</span><div class="art"><svg viewBox="0 0 240 275" aria-hidden="true"><path fill="currentColor" d="M83.8 18.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M93.8 18.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M153.8 18.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M63.8 31.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M173.8 31.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M53.8 43.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M73.8 43.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M43.8 56.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M63.8 56.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M193.8 56.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M33.8 68.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M53.8 68.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M103.8 81.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M23.8 93.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M93.8 93.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M213.8 93.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M23.8 181.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M143.8 181.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M103.8 193.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M133.8 193.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M153.8 193.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M33.8 206.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M143.8 206.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M203.8 206.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M43.8 218.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M193.8 218.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M53.8 231.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M183.8 231.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M173.8 243.75a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M83.8 256.25a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0"/><path fill="none" stroke="currentColor" stroke-width="0.8" d="M103.8 18.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M133.8 18.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M143.8 18.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M73.8 31.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M83.8 31.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M93.8 31.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M103.8 31.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M113.8 31.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M123.8 31.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M63.8 43.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M83.8 43.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M93.8 43.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M183.8 43.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M53.8 56.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M73.8 56.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M63.8 68.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M203.8 68.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M33.8 81.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M43.8 81.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M53.8 81.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M133.8 81.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M33.8 93.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M143.8 93.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M23.8 106.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M43.8 106.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M153.8 118.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M83.8 156.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M153.8 156.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M163.8 156.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M23.8 168.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M153.8 168.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M173.8 168.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M93.8 181.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M153.8 181.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M163.8 181.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M213.8 181.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M143.8 193.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M163.8 193.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M123.8 206.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M133.8 206.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M153.8 206.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M123.8 218.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M133.8 218.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M63.8 243.75a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0M153.8 256.25a1.2 1.5 0 1 0 2.4 0a1.2 1.5 0 1 0 -2.4 0"/><path fill="none" stroke="currentColor" stroke-width="1" d="M113.2 18.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M123.2 18.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M133.2 31.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M143.2 31.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M163.2 31.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M113.2 43.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M133.2 43.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M153.2 43.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M83.2 56.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M143.2 56.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M163.2 56.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M43.2 68.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M173.2 68.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M63.2 81.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M163.2 81.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M183.2 81.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M43.2 93.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M53.2 93.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M173.2 93.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M33.2 106.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M153.2 106.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M163.2 106.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M173.2 106.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M183.2 106.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M213.2 106.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M23.2 118.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M33.2 118.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M43.2 118.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M53.2 118.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M83.2 118.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M173.2 118.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M23.2 131.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M33.2 131.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M43.2 131.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M163.2 131.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M173.2 131.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M183.2 131.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M33.2 143.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M173.2 143.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M23.2 156.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M33.2 156.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M43.2 156.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M173.2 156.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M183.2 156.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M33.2 168.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M53.2 168.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M163.2 168.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M213.2 168.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M43.2 181.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M63.2 181.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M173.2 181.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M33.2 193.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M53.2 193.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M63.2 206.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M83.2 206.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M103.2 206.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M113.2 206.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M163.2 206.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M93.2 218.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M113.2 218.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M143.2 218.75a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M103.2 231.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M123.2 231.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M93.2 256.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0M143.2 256.25a1.8 2.3 0 1 0 3.6 0a1.8 2.3 0 1 0 -3.6 0"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M152.6 31.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M102.6 43.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M122.6 43.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M142.6 43.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M162.6 43.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M172.6 43.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M92.6 56.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M102.6 56.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M122.6 56.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M132.6 56.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M152.6 56.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M172.6 56.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M182.6 56.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M72.6 68.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M152.6 68.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M162.6 68.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M72.6 81.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M142.6 81.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M152.6 81.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M172.6 81.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M202.6 81.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M62.6 93.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M152.6 93.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M162.6 93.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M182.6 93.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M192.6 93.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M52.6 106.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M62.6 106.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M82.6 106.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M192.6 106.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M162.6 118.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M182.6 118.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M192.6 118.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M212.6 118.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M52.6 131.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M62.6 131.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M192.6 131.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M22.6 143.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M42.6 143.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M52.6 143.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M162.6 143.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M182.6 143.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M192.6 143.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M52.6 156.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M62.6 156.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M192.6 156.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M212.6 156.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M42.6 168.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M62.6 168.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M82.6 168.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M182.6 168.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M192.6 168.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M32.6 181.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M52.6 181.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M72.6 181.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M182.6 181.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M42.6 193.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M62.6 193.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M72.6 193.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M172.6 193.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M42.6 206.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M52.6 206.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M72.6 206.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M92.6 206.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M172.6 206.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M52.6 218.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M62.6 218.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M72.6 218.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M82.6 218.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M102.6 218.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M152.6 218.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M62.6 231.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M72.6 231.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M82.6 231.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M92.6 231.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M112.6 231.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M132.6 231.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M142.6 231.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M72.6 243.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M112.6 243.75a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M102.6 256.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0M132.6 256.25a2.4 3.2 0 1 0 4.8 0a2.4 3.2 0 1 0 -4.8 0"/><path fill="none" stroke="currentColor" stroke-width="1.7" d="M112.45 56.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M82.45 68.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M92.45 68.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M132.45 68.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M142.45 68.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M182.45 68.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M192.45 68.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M82.45 81.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M192.45 81.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M72.45 93.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M202.45 106.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M62.45 118.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M72.45 118.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M202.45 118.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M202.45 131.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M62.45 143.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M72.45 143.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M202.45 143.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M72.45 156.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M202.45 156.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M72.45 168.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M82.45 181.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M192.45 181.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M202.45 181.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M82.45 193.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M92.45 193.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M182.45 193.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M192.45 193.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M202.45 193.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M182.45 206.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M162.45 218.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M172.45 218.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M152.45 231.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M162.45 231.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M92.45 243.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M102.45 243.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M122.45 243.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M132.45 243.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M162.45 243.75a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0M122.45 256.25a2.55 3.75 0 1 0 5.1 0a2.55 3.75 0 1 0 -5.1 0"/><path fill="none" stroke="currentColor" stroke-width="2.7" d="M102.55 68.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M112.55 68.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M122.55 68.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M92.55 81.25a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M82.55 93.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M202.55 93.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M72.55 106.25a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M72.55 131.25a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M212.55 131.25a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M212.55 143.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M202.55 168.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M192.55 206.25a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M182.55 218.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M172.55 231.25a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M82.55 243.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M142.55 243.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M152.55 243.75a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0M112.55 256.25a2.45 3.65 0 1 0 4.9 0a2.45 3.65 0 1 0 -4.9 0"/></svg></div><p>24 columnas, tramado completo. Portadas, piezas impresas, ícono de app.</p></div>
+      <div class="t2"><span class="lbl"><b>B · Medio</b> · 40 a 120 px</span><div class="art"><svg viewBox="0 0 110 124" aria-hidden="true"><path fill="currentColor" d="M37.18 6.88a1.32 1.32 0 1 0 2.64 0a1.32 1.32 0 1 0 -2.64 0M59.18 89.38a1.32 1.32 0 1 0 2.64 0a1.32 1.32 0 1 0 -2.64 0"/><path fill="currentColor" d="M47.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M58.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M25.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M80.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M25.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M47.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M58.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M91.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 61.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 61.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 75.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 75.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M47.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M91.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 116.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 116.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0"/><path fill="currentColor" d="M46.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M68.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M68.46 34.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 34.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 48.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 48.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M13.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M13.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 89.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M35.46 89.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M35.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M46.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M46.46 116.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 116.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0"/><path fill="currentColor" d="M35.06 34.38a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 48.13a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 61.88a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 75.63a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M79.06 89.38a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M68.06 103.13a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0"/></svg></div><p>10 columnas de ceros macizos. Es el que va en el lockup y en la navegación.</p></div>
+      <div><span class="lbl"><b>C · 32 px</b></span><div class="art"><div class="real"><img src="assets/symbol-32.svg" width="32" height="32" alt="Símbolo a 32 px reales"><img class="zoom" src="assets/symbol-32.svg" width="96" height="96" alt="Símbolo de 32 px ampliado"></div></div><p>Doce ceros en anillo. Los de abajo a la derecha llevan más tinta.</p></div>
+      <div><span class="lbl"><b>D · 16 px</b></span><div class="art"><div class="real"><img src="assets/favicon.svg" width="16" height="16" alt="Favicon a 16 px reales"><img class="zoom" src="assets/favicon.svg" width="96" height="96" alt="Favicon ampliado"></div></div><p>Un cero de trazo modulado: el grabado reducido a su sombra.</p></div>
+    </div>
+    <div class="tab-sizes">
+      <div class="tab"><img src="assets/favicon.svg" width="16" height="16" alt="">zerosoft · Inicio</div>
+      <div class="tab dk"><svg viewBox="0 0 16 16" width="16" height="16" style="color:var(--plancha-texto)"><path fill="currentColor" fill-rule="evenodd" d="M8 .6C4.6.6 2.2 3.9 2.2 8S4.6 15.4 8 15.4 13.8 12.1 13.8 8 11.4.6 8 .6Zm-.5 3C5.9 3.6 5.1 5.6 5.1 7.6s.8 4.2 2.6 4.2 2.9-1.8 2.9-4.1S9.4 3.6 7.5 3.6Z"/></svg>zerosoft · Track</div>
+      <div><img src="assets/app-icon.svg" width="64" height="64" alt="Ícono de app"></div>
+      <div><img src="assets/app-icon.svg" width="40" height="40" alt=""></div>
+    </div>
+
+    <div class="sub"><h3>Área de respeto</h3><span class="lbl">Margen mínimo = alto de la x del wordmark</span></div>
+    <div class="clear plate" style="--cl:44px"><div class="box"><img src="assets/logo.svg" alt="Logo con su área de respeto"></div></div>
+
+    <div class="sub"><h3>Usos incorrectos</h3><span class="lbl">Cuatro errores que rompen el sistema</span></div>
+    <div class="wrong">
+      <figure><div class="art"><img src="assets/logo.svg" alt="" style="width:200px;transform:scaleX(1.5)"></div><figcaption><b>Deformar</b>El cero tiene su proporción. Nunca se estira.</figcaption></figure>
+      <figure><div class="art"><img src="assets/symbol.svg" alt="" style="width:80px;filter:drop-shadow(3px 3px 0 #e5561b) drop-shadow(-3px -2px 0 #2b5ee8)"></div><figcaption><b>Mezclar tintas</b>Un símbolo, una tinta. Sin sombras de color.</figcaption></figure>
+      <figure><div class="art"><span style="font:700 40px/1 Arial,Helvetica,sans-serif;letter-spacing:-.04em;display:flex;align-items:center;gap:10px"><span style="width:30px;color:var(--tinta)"><svg viewBox="0 0 110 124" aria-hidden="true"><path fill="currentColor" d="M37.18 6.88a1.32 1.32 0 1 0 2.64 0a1.32 1.32 0 1 0 -2.64 0M59.18 89.38a1.32 1.32 0 1 0 2.64 0a1.32 1.32 0 1 0 -2.64 0"/><path fill="currentColor" d="M47.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M58.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M25.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M80.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M25.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M47.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M58.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M91.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 61.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 61.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 75.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 75.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M47.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M91.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 116.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 116.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0"/><path fill="currentColor" d="M46.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M68.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M68.46 34.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 34.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 48.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 48.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M13.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M13.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 89.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M35.46 89.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M35.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M46.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M46.46 116.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 116.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0"/><path fill="currentColor" d="M35.06 34.38a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 48.13a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 61.88a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 75.63a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M79.06 89.38a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M68.06 103.13a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0"/></svg></span>zeroSoft</span></div><figcaption><b>Cambiar la letra</b>Ni otra familia ni mayúsculas.</figcaption></figure>
+      <figure><div class="art" style="background:url(assets/pattern-ondas.svg) center/cover"><img src="assets/logo.svg" alt="" style="width:200px"></div><figcaption><b>Sobre trama</b>El logo va sobre papel liso o plancha.</figcaption></figure>
+    </div>
+
+    <div class="sub"><h3>Lockup por producto</h3><span class="lbl">El símbolo entinta con el color del producto</span></div>
+    <div class="lockups" id="lockups"></div>
+  </div>
+</section>
+
+<!-- 03 TIPOGRAFÍA -->
+<section class="sec" id="tipografia" data-sec="Tipografía">
+  <div class="wrap">
+    <div class="sh"><div class="n">03</div><div><h2>Tipografía</h2><p>Dos familias, una por oficio. Newsreader pone la voz editorial: titulares, textos de lectura y el wordmark. IBM Plex Mono pone el taller: interfaz, números, código y etiquetas. Su cero con punto conversa con el símbolo.</p></div></div>
+    <div class="fam">
+      <div><span class="lbl"><b>Newsreader</b> · Production Type · OFL</span><div class="big" style="font-family:var(--serif);font-weight:500">Aa<i style="font-weight:400">g</i></div><div class="chars" style="font-family:var(--serif)">abcdefghijklmnñopqrstuvwxyz ABCDEFGHIJKLMNÑOPQRSTUVWXYZ 0123456789 ¿?¡! áéíóú «»</div><p class="u">400 texto · 500 titulares · 600 wordmark · itálica 400 para énfasis. Eje óptico de 6 a 72.</p></div>
+      <div><span class="lbl"><b>IBM Plex Mono</b> · IBM · OFL</span><div class="big" style="font-family:var(--mono);font-weight:500;letter-spacing:-.06em">0o·</div><div class="chars" style="font-family:var(--mono);font-size:19px">abcdefghijklmnñopqrstuvwxyz ABCDEFGHIJKLMNÑOPQRSTUVWXYZ 0123456789 {}[]()&lt;&gt;=+−×$%</div><p class="u">400 interfaz y datos · 500 etiquetas y botones · 600 énfasis en tablas. Tabular por definición.</p></div>
+    </div>
+    <div class="sub"><h3>Escala</h3><span class="lbl">Base 16 · razón 1,333 · redondeado a la grilla de 4</span></div>
+    <div class="scale">
+      <div><div class="k"><b>Display</b>Newsreader 500 · 112/100</div><div class="v" style="font:500 clamp(48px,8vw,112px)/1 var(--serif);letter-spacing:-.035em">El software murió.</div></div>
+      <div><div class="k"><b>H1</b>Newsreader 500 · 64/68</div><div class="v" style="font:500 clamp(36px,5vw,64px)/1.05 var(--serif);letter-spacing:-.025em">Once productos, un código.</div></div>
+      <div><div class="k"><b>H2</b>Newsreader 500 · 40/44</div><div class="v" style="font:500 clamp(28px,3.4vw,40px)/1.1 var(--serif);letter-spacing:-.015em">Precio igual a costo por tres.</div></div>
+      <div><div class="k"><b>H3</b>Newsreader 500 · 28/32</div><div class="v" style="font:500 28px/1.15 var(--serif)">Self-host en tu servidor</div></div>
+      <div><div class="k"><b>Lectura</b>Newsreader 400 · 18/28</div><div class="v" style="font:400 18px/1.55 var(--serif)">Instalás el núcleo con un comando y el producto es tuyo. La licencia AGPL te deja leerlo, cambiarlo y correrlo donde quieras.</div></div>
+      <div><div class="k"><b>UI</b>Plex Mono 400 · 14/20</div><div class="v" style="font:400 14px/1.45 var(--mono)">TRK-0042 · Migrar webhooks a la cola nueva · En curso</div></div>
+      <div><div class="k"><b>Etiqueta</b>Plex Mono 500 · 12/16</div><div class="v" style="font:500 12px/1.4 var(--mono);color:var(--tinta-2)">COSTO US$ 0,40 · PRECIO US$ 1,20</div></div>
+    </div>
+    <div class="sub"><h3>Especímenes</h3><span class="lbl">Texto real en contexto</span></div>
+    <div class="spec">
+      <div class="col">
+        <p>El software murió. Durante veinte años pagamos todos los meses por herramientas que hacen lo mismo: acortar un link, mostrar una agenda, ordenar una lista de clientes. Ese trabajo ya está resuelto y el precio no lo refleja.</p>
+        <p>zerosoft reconstruye esas herramientas y las publica con licencia AGPL. Si tenés un servidor, el costo es cero. Si preferís que lo corramos nosotros, te mostramos cuánto nos cuesta y cobramos tres veces eso. Los dos números quedan a la vista en cada factura.</p>
+        <p>La marca se compone como se componía una página: a mano, con un solo tipo, sobre papel. Lo que importa es el oficio.</p>
+      </div>
+      <div class="tech"><span class="c"># instalar zerosoft en tu servidor</span><br><span class="k">$</span> git clone github.com/lschiaffino/zerosoft<br><span class="k">$</span> cd zerosoft &amp;&amp; npm install<br><span class="k">$</span> npm run start<br><br><span class="c"># precio en la nube</span><br>costo&nbsp;&nbsp;= <span class="s">0.40</span><br>precio = costo × <span class="s">3</span> <span class="c"># 1.20</span><br><br><span class="c">0 O o ∘ · la rampa también es texto</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 COLOR -->
+<section class="sec" id="color" data-sec="Color">
+  <div class="wrap">
+    <div class="sh"><div class="n">04</div><div><h2>Color</h2><p>Papel cálido y una tinta casi negra hacen el 90 % de la marca. Cada producto tiene su tinta. Para texto sobre papel se usa una versión más cargada de esa tinta, que pasa AA.</p></div></div>
+    <div class="sub"><h3>Neutros</h3><span class="lbl">Contraste medido contra papel y plancha</span></div>
+    <div class="neutrals" id="neutrals"></div>
+    <div class="sub"><h3>Once tintas</h3><span class="lbl">Tinta para ilustración · texto sobre papel · texto sobre plancha</span></div>
+    <div class="prods" id="prods"></div>
+  </div>
+</section>
+
+<!-- 05 ÍCONOS -->
+<section class="sec" id="iconos" data-sec="Íconos">
+  <div class="wrap">
+    <div class="sh"><div class="n">05</div><div><h2>Iconografía</h2><p>Cada glifo arranca de un cero con la proporción de la celda. Grilla de 24, trazo de 1,9, puntas rectas. Cuando el ícono necesita sombra, la sombra es la rampa: puntos que crecen.</p></div></div>
+    <div class="icons" id="icons"></div>
+    <div class="icon-dark" id="iconsDark"></div>
+  </div>
+</section>
+
+<!-- 06 ILUSTRACIÓN -->
+<section class="sec" id="ilustracion" data-sec="Ilustración">
+  <div class="wrap">
+    <div class="sh"><div class="n">06</div><div><h2>Ilustración y patrones</h2><p>Objetos, nunca escenas. Cada producto tiene un objeto que lo representa, iluminado con la misma luz y entintado con su color. Todas se generan con el mismo motor que el logo: son 56 columnas de ceros.</p></div></div>
+    <div class="ill" id="ill"></div>
+    <div class="sub"><h3>Patrones</h3><span class="lbl">Para fondos de piezas, nunca detrás de texto largo</span></div>
+    <div class="pats">
+      <figure><img src="assets/pattern-ondas.svg" alt="Patrón de ondas hecho de ceros" loading="lazy"><figcaption>pattern-ondas.svg · tinta sobre papel</figcaption></figure>
+      <figure><img src="assets/pattern-anillos.svg" alt="Patrón de anillos concéntricos en tinta Track" loading="lazy"><figcaption>pattern-anillos.svg · tinta Track</figcaption></figure>
+      <figure><img src="assets/pattern-degrade.svg" alt="Degradé de ceros sobre plancha" loading="lazy"><figcaption>pattern-degrade.svg · papel sobre plancha</figcaption></figure>
+      <figure><img src="assets/pattern-montes.svg" alt="Horizonte de ceros en tinta Cal" loading="lazy"><figcaption>pattern-montes.svg · tinta Cal</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- 07 MOTION -->
+<section class="sec" id="motion" data-sec="Motion">
+  <div class="wrap">
+    <div class="sh"><div class="n">07</div><div><h2>Motion</h2><p>El movimiento es tinta que entra en el papel. Los ceros crecen de a un cuerpo por paso, nunca de forma continua: se mueve como una imprenta, a golpes cortos. Con movimiento reducido todo queda en su estado final.</p></div></div>
+    <div class="motion">
+      <figure><div class="st" id="loadSt"><svg class="spin" viewBox="0 0 32 32" aria-label="Cargando"><ellipse cx="16.00" cy="3.60" rx="1.38" ry="1.61" fill="currentColor"/><ellipse cx="20.80" cy="5.26" rx="1.72" ry="2.00" fill="currentColor"/><ellipse cx="24.31" cy="9.80" rx="2.11" ry="2.45" fill="currentColor"/><ellipse cx="25.60" cy="16.00" rx="2.45" ry="2.84" fill="currentColor"/><ellipse cx="24.31" cy="22.20" rx="2.64" ry="3.07" fill="currentColor"/><ellipse cx="20.80" cy="26.74" rx="2.64" ry="3.07" fill="currentColor"/><ellipse cx="16.00" cy="28.40" rx="2.45" ry="2.84" fill="currentColor"/><ellipse cx="11.20" cy="26.74" rx="2.11" ry="2.45" fill="currentColor"/><ellipse cx="7.69" cy="22.20" rx="1.72" ry="2.00" fill="currentColor"/><ellipse cx="6.40" cy="16.00" rx="1.38" ry="1.61" fill="currentColor"/><ellipse cx="7.69" cy="9.80" rx="1.19" ry="1.38" fill="currentColor"/><ellipse cx="11.20" cy="5.26" rx="1.19" ry="1.38" fill="currentColor"/></svg><div class="bar" id="loadBar" aria-hidden="true"></div></div><figcaption><b>Carga</b>El anillo de 32 px entinta un cero por vez. La barra avanza un cuerpo por paso, de · a 0.</figcaption></figure>
+      <figure><div class="st" id="transSt"><canvas id="transCanvas" aria-label="Transición entre ilustraciones"></canvas><button class="replay" id="transBtn">Siguiente</button></div><figcaption><b>Transición</b>Entre dos imágenes cada celda cambia de cuerpo de a un paso, en diagonal desde la luz.</figcaption></figure>
+      <figure><div class="st"><div class="hoverlist">
+        <a class="btn-ink" href="#motion" data-ink>Ver el código<span class="z" aria-hidden="true"></span></a>
+        <a class="hcard" href="#motion"><span style="color:var(--c-link)" data-icon="link"></span>Abrir Link<span style="margin-left:auto" data-icon="arrow"></span></a>
+        <a class="hcard" href="#motion"><span style="color:var(--c-cal)" data-icon="cal"></span>Abrir Cal<span style="margin-left:auto" data-icon="arrow"></span></a>
+      </div></div><figcaption><b>Hover</b>El subrayado es una fila de ceros que se entinta de izquierda a derecha. Las tarjetas se invierten a plancha.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- 08 SITIO -->
+<section class="sec" id="sitio" data-sec="Sitio">
+  <div class="wrap">
+    <div class="sh"><div class="n">08</div><div><h2>Aplicación al sitio</h2><p>Home y página de producto. El sitio usa papel y tinta; el color de producto aparece solo cuando entrás a su mundo.</p></div></div>
+    <div class="browser">
+      <div class="bar2"><i></i><i></i><i></i><span>zerosoft.ai</span></div>
+      <div class="site">
+        <div class="snav"><a class="b" href="#sitio"><svg viewBox="0 0 110 124" aria-hidden="true"><path fill="currentColor" d="M37.18 6.88a1.32 1.32 0 1 0 2.64 0a1.32 1.32 0 1 0 -2.64 0M59.18 89.38a1.32 1.32 0 1 0 2.64 0a1.32 1.32 0 1 0 -2.64 0"/><path fill="currentColor" d="M47.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M58.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M25.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M80.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M25.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M47.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M58.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M91.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 61.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 61.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 75.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 75.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M47.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M91.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 116.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 116.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0"/><path fill="currentColor" d="M46.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M68.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M68.46 34.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 34.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 48.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 48.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M13.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M13.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 89.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M35.46 89.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M35.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M46.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M46.46 116.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 116.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0"/><path fill="currentColor" d="M35.06 34.38a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 48.13a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 61.88a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 75.63a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M79.06 89.38a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M68.06 103.13a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0"/></svg><span>zerosoft</span></a><a href="#sitio">Productos</a><a href="#sitio">Precios</a><a href="#sitio">Docs</a><a href="#sitio">GitHub</a><a class="btn sm" href="#sitio">Entrar</a></div>
+        <div class="hero">
+          <div class="t"><div><h3>El software murió.</h3><p>Once productos de código abierto para reemplazar lo que pagás todos los meses. En tu servidor por $0, o en la nube a costo por tres.</p></div><div class="cta"><a class="btn" href="#sitio">Crear un workspace</a><a class="btn sec" href="#sitio">Ver en GitHub</a></div></div>
+          <div class="a"><canvas id="homeCanvas" aria-label="Cero grabado"></canvas><span class="tag">fig. 0 · el cero grabado</span></div>
+        </div>
+        <div class="shd"><h4>Once productos</h4><p>Para equipos y para vos</p></div>
+        <div class="pgrid" id="pgrid"></div>
+        <div class="shd"><h4>Dos números, siempre</h4><p>Precio = costo × 3</p></div>
+        <div class="price">
+          <div><h5>Self-host</h5><div class="big">$0</div><p style="margin-top:14px">AGPLv3. Clonás el repo, lo corrés en tu infraestructura y es tuyo. Las funciones de <span class="mono" style="font-size:14px">/ee</span> tienen licencia comercial.</p></div>
+          <div><h5>zerosoft Cloud</h5><div class="eq"><span>costo</span><b id="pc">0,40</b><span>× 3 =</span><b id="pp">1,20</b><span>US$</span></div><p>Lo que nos cuesta correrlo, al lado de lo que te cobramos. Asientos sin cargo.</p><label for="pcr">Mové el costo (ejemplo)</label><input type="range" id="pcr" min="0" max="200" value="40"></div>
+        </div>
+        <footer class="sfoot"><canvas id="footCanvas" aria-hidden="true"></canvas>
+          <div class="cols"><div><div class="wm">zerosoft</div><p style="margin-top:12px;color:var(--plancha-texto-2);font-size:16px;max-width:30ch">Código abierto. Costo a la vista.</p></div><div><b>Productos</b><a href="#sitio">Link</a><a href="#sitio">CRM</a><a href="#sitio">Cal</a><a href="#sitio">Track</a></div><div><b>Recursos</b><a href="#sitio">Docs</a><a href="#sitio">Changelog</a><a href="#sitio">Roadmap</a></div><div><b>Código</b><a href="#sitio">GitHub</a><a href="#sitio">Licencia</a><a href="#sitio">Self-host</a></div></div>
+          <div class="legal"><span>zerosoft · AGPLv3 · /ee comercial</span><span>es · en · pt</span></div>
+        </footer>
+      </div>
+    </div>
+
+    <div class="sub"><h3>Página de producto: Cal</h3><span class="lbl">El mundo verde</span></div>
+    <div class="browser">
+      <div class="bar2"><i></i><i></i><i></i><span>zerosoft.ai/cal</span></div>
+      <div class="site ppage">
+        <div class="snav"><a class="b" href="#sitio"><svg viewBox="0 0 110 124" aria-hidden="true"><path fill="currentColor" d="M37.18 6.88a1.32 1.32 0 1 0 2.64 0a1.32 1.32 0 1 0 -2.64 0M59.18 89.38a1.32 1.32 0 1 0 2.64 0a1.32 1.32 0 1 0 -2.64 0"/><path fill="currentColor" d="M47.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M58.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 6.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M25.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M80.17 20.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M25.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M47.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M58.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M91.17 34.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 48.13a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 61.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 61.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 75.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 75.63a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M14.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M47.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M91.17 89.38a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M36.17 116.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0M69.17 116.88a2.33 2.83 0 1 0 4.66 0a2.33 2.83 0 1 0 -4.66 0"/><path fill="currentColor" d="M46.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M68.46 20.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M68.46 34.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 34.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 48.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 48.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M13.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 61.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M13.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 75.63a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 89.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M35.46 89.38a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M24.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M35.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M46.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M79.46 103.13a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M46.46 116.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0M57.46 116.88a3.04 3.85 0 1 0 6.07 0a3.04 3.85 0 1 0 -6.07 0"/><path fill="currentColor" d="M35.06 34.38a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 48.13a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 61.88a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M90.06 75.63a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M79.06 89.38a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0M68.06 103.13a3.44 4.66 0 1 0 6.88 0a3.44 4.66 0 1 0 -6.88 0"/></svg><span>zerosoft</span><em>cal</em></a><a href="#sitio">Funciones</a><a href="#sitio">Precio</a><a href="#sitio">Docs</a><a class="btn sm" href="#sitio" style="background:var(--pt);border-color:var(--pt)">Probar Cal</a></div>
+        <div class="phero">
+          <div class="t"><div class="k"><span data-icon="cal"></span>zerosoft cal</div><h3>Cal.</h3><p>Tu agenda pública, tu disponibilidad y tus reservas. Reemplaza a Calendly.</p><div class="cta"><a class="btn" href="#sitio">Crear mi página</a><a class="btn sec" href="#sitio">Leer la doc</a></div></div>
+          <div class="a"><img src="assets/illus-cal.svg" alt="Reloj despertador grabado en tinta verde"></div>
+        </div>
+        <div class="book">
+          <div class="who"><span>zerosoft.ai/cal/equipo</span><b>Llamada de 30 minutos</b><span>30 min · Videollamada</span><span>Zona: Buenos Aires</span></div>
+          <div><div style="display:flex;justify-content:space-between;font:500 14px var(--mono);margin-bottom:12px"><span>Noviembre 2026</span><span style="color:var(--tinta-3)">‹ ›</span></div><div class="cal-grid" id="calGrid"></div></div>
+          <div><div style="font:500 13px var(--mono);margin-bottom:12px" id="slotDay">Martes 10</div><div class="slots" id="slots"></div></div>
+        </div>
+        <div class="feats">
+          <div><b>01</b><h5>Disponibilidad</h5><p>Horarios por día y por zona horaria. Las excepciones se cargan en el calendario.</p></div>
+          <div><b>02</b><h5>Páginas de reserva</h5><p>Un link por tipo de reunión, con tu dominio y tu marca.</p></div>
+          <div><b>03</b><h5>Tus datos</h5><p>Corre en tu servidor o en la nube. El código está en GitHub.</p></div>
+        </div>
+        <footer class="sfoot" style="margin-top:56px"><div class="cols"><div><div class="wm">zerosoft <span class="mono" style="font-size:40px;color:#119166;font-weight:500">cal</span></div></div><div><b>Cal</b><a href="#sitio">Funciones</a><a href="#sitio">Precio</a></div><div><b>Suite</b><a href="#sitio">Link</a><a href="#sitio">Track</a></div><div><b>Código</b><a href="#sitio">GitHub</a></div></div><div class="legal"><span>zerosoft · AGPLv3</span><span>es · en · pt</span></div></footer>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 09 APP -->
+<section class="sec" id="app" data-sec="App">
+  <div class="wrap">
+    <div class="sh"><div class="n">09</div><div><h2>Aplicación a la app</h2><p>La app es papel, tinta y mono. El color del producto marca dónde estás: la barra lateral, la pestaña activa, la fila elegida. La prioridad se escribe con la rampa.</p></div></div>
+      <div class="appwrap scrollx">
+        <div class="app" id="appDesk">
+          <aside class="side" id="side"></aside>
+          <div class="main">
+            <div class="mh"><div><div class="crumb">Track / Plataforma</div><h4>Issues</h4></div><div class="sp"><button class="btn sec sm">Filtrar</button><button class="btn sm" id="newIssue">Nuevo issue</button></div></div>
+            <div class="tabs" role="tablist"><button role="tab" aria-selected="true">Todos<span>24</span></button><button role="tab" aria-selected="false">Míos<span>7</span></button><button role="tab" aria-selected="false">Ciclo 14<span>11</span></button><button role="tab" aria-selected="false">Archivados</button></div>
+            <div class="tools"><input class="inp" style="width:260px" placeholder="Buscar por título o TRK-" aria-label="Buscar"><select class="inp sel" aria-label="Estado"><option>Estado: todos</option></select><span style="margin-left:auto;font-size:12px;color:var(--tinta-3)">Prioridad: · ∘ o O 0</span></div>
+            <div style="overflow:auto;flex:1"><table class="t"><thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Ciclo</th></tr></thead><tbody id="rows"></tbody></table></div>
+          </div>
+          <aside class="panel" id="panel"></aside>
+        </div>
+        <div class="toast" id="toast" role="status"><svg viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M8 .6C4.6.6 2.2 3.9 2.2 8S4.6 15.4 8 15.4 13.8 12.1 13.8 8 11.4.6 8 .6Zm-.5 3C5.9 3.6 5.1 5.6 5.1 7.6s.8 4.2 2.6 4.2 2.9-1.8 2.9-4.1S9.4 3.6 7.5 3.6Z"/></svg><span id="toastTxt">TRK-0042 pasó a En curso.</span><button>Deshacer</button></div>
+      </div>
+    <div class="app-row2">
+      <div class="phone" aria-label="App en mobile">
+        <div class="stb"><span>9:41</span><span>zerosoft</span></div>
+        <div class="top"><span data-icon="track"></span><h4>Issues</h4><button class="btn sm">Nuevo</button></div>
+        <div class="tabs" role="tablist"><button role="tab" aria-selected="true">Todos<span>24</span></button><button role="tab" aria-selected="false">Míos<span>7</span></button><button role="tab" aria-selected="false">Ciclo 14</button></div>
+        <div class="list" id="mlist"></div>
+        <div class="toast" role="status"><svg viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M8 .6C4.6.6 2.2 3.9 2.2 8S4.6 15.4 8 15.4 13.8 12.1 13.8 8 11.4.6 8 .6Zm-.5 3C5.9 3.6 5.1 5.6 5.1 7.6s.8 4.2 2.6 4.2 2.9-1.8 2.9-4.1S9.4 3.6 7.5 3.6Z"/></svg>Issue creado.<button>Ver</button></div>
+        <nav class="bb" id="mbar"></nav>
+      </div>
+      <div><div class="sub" style="margin-top:0"><h3>Componentes</h3><span class="lbl">Esquinas rectas. El foco es una línea de tinta.</span></div>
+    <div class="comps">
+      <div><span class="lbl">Botones</span><div class="row"><button class="btn">Guardar</button><button class="btn sec">Cancelar</button><button class="btn gh">Avanzado</button></div><div class="row"><button class="btn sm">Chico</button><button class="btn danger sm">Borrar</button><button class="btn sm" disabled>Deshabilitado</button></div><div class="row"><button class="btn" style="background:var(--c-cal);border-color:var(--c-cal);background:#076140;border-color:#076140">Con tinta de producto</button></div></div>
+      <div><span class="lbl">Campos</span><label class="field">Nombre del workspace<input class="inp" value="plataforma"></label><label class="field">Dominio<input class="inp bad" value="zerosoft..ai"><span class="err">Revisá el dominio: tiene dos puntos seguidos.</span></label><label class="field">Rol<select class="inp sel"><option>Editor</option></select></label><label class="chk"><input type="checkbox" checked> Avisarme por mail</label></div>
+      <div><span class="lbl">Pestañas y tabla</span><div class="tabs" style="padding:0" role="tablist"><button role="tab" aria-selected="true">General</button><button role="tab" aria-selected="false">Miembros</button><button role="tab" aria-selected="false">Facturación</button></div>
+        <table class="t"><thead><tr><th>Recurso</th><th>Costo</th><th>Precio</th></tr></thead><tbody><tr><td>Clics de Link</td><td>0,40</td><td>1,20</td></tr><tr><td>Reservas de Cal</td><td>0,10</td><td>0,30</td></tr><tr><td>Asientos</td><td>0,00</td><td>0,00</td></tr></tbody></table><span class="lbl">Cifras de ejemplo para el mock</span></div>
+      <div><span class="lbl">Toast</span><div class="toast static"><svg viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M8 .6C4.6.6 2.2 3.9 2.2 8S4.6 15.4 8 15.4 13.8 12.1 13.8 8 11.4.6 8 .6Zm-.5 3C5.9 3.6 5.1 5.6 5.1 7.6s.8 4.2 2.6 4.2 2.9-1.8 2.9-4.1S9.4 3.6 7.5 3.6Z"/></svg>Cambios guardados.<button>Deshacer</button></div><div class="toast static" style="background:#b42318">No pudimos guardar. Reintentá.<button>Reintentar</button></div><span class="lbl">Un toast a la vez, abajo al centro, 5 segundos.</span></div>
+      <div class="empty"><img src="assets/illus-track.svg" alt=""><div><h6>Todavía no hay issues.</h6><p>Creá el primero o importalos desde Linear con un archivo CSV.</p><div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn">Nuevo issue</button><button class="btn sec">Importar</button></div></div></div>
+    </div></div></div>
+  </div>
+</section>
+
+<!-- 10 PIEZAS -->
+<section class="sec" id="piezas" data-sec="Piezas">
+  <div class="wrap">
+    <div class="sh"><div class="n">10</div><div><h2>Piezas</h2><p>Todas están en assets/ como SVG con el texto convertido a trazos. Se abren sin las fuentes instaladas.</p></div></div>
+    <div class="pieces">
+      <figure class="s6"><div class="im"><img src="assets/og-home.svg" alt="OG del home" loading="lazy"></div><figcaption><b>og-home.svg</b><span>1200 × 630</span></figcaption></figure>
+      <figure class="s2"><div class="im"><img src="assets/og-link.svg" alt="OG de Link" loading="lazy"></div><figcaption><b>og-link.svg</b><span>1200 × 630</span></figcaption></figure>
+      <figure class="s2"><div class="im"><img src="assets/og-cal.svg" alt="OG de Cal" loading="lazy"></div><figcaption><b>og-cal.svg</b><span>1200 × 630</span></figcaption></figure>
+      <figure class="s2"><div class="im"><img src="assets/og-track.svg" alt="OG de Track" loading="lazy"></div><figcaption><b>og-track.svg</b><span>1200 × 630</span></figcaption></figure>
+      <figure class="s2"><div class="im"><img src="assets/social-post.svg" alt="Post cuadrado" loading="lazy"></div><figcaption><b>social-post.svg</b><span>1080 × 1080</span></figcaption></figure>
+      <figure class="s4"><div class="im"><img src="assets/banner-x.svg" alt="Banner de X" loading="lazy"></div><figcaption><b>banner-x.svg</b><span>1500 × 500</span></figcaption></figure>
+      <figure class="s4"><div class="im"><img src="assets/email-header.svg" alt="Header de email" loading="lazy"></div><figcaption><b>email-header.svg</b><span>1200 × 300</span></figcaption></figure>
+      <figure class="s2 tall"><div class="im"><img src="assets/sticker.svg" alt="Sticker" loading="lazy" style="max-height:260px"></div><figcaption><b>sticker.svg</b><span>800 × 980</span></figcaption></figure>
+      <figure class="s3"><div class="im"><img src="assets/card-front.svg" alt="Tarjeta personal, frente" loading="lazy"></div><figcaption><b>card-front.svg</b><span>3,5 × 2 in</span></figcaption></figure>
+      <figure class="s3"><div class="im"><img src="assets/card-back.svg" alt="Tarjeta personal, dorso" loading="lazy"></div><figcaption><b>card-back.svg</b><span>3,5 × 2 in</span></figcaption></figure>
+      <figure class="s2 tall"><div class="im"><img src="assets/tshirt.svg" alt="Remera" loading="lazy"></div><figcaption><b>tshirt.svg</b><span>estampa pecho</span></figcaption></figure>
+      <figure class="s4"><div class="im"><img src="assets/slide-cover.svg" alt="Portada de slide" loading="lazy"></div><figcaption><b>slide-cover.svg</b><span>1920 × 1080</span></figcaption></figure>
+      <figure class="s2"><div class="im"><img src="assets/app-icon.svg" alt="Ícono de app" loading="lazy" style="max-width:220px"></div><figcaption><b>app-icon.svg</b><span>1024 × 1024</span></figcaption></figure>
+      <figure class="s2"><div class="im"><img src="assets/icons.svg" alt="Hoja de íconos" loading="lazy"></div><figcaption><b>icons.svg</b><span>11 glifos</span></figcaption></figure>
+      <figure class="s2"><div class="im"><img src="assets/lockups.svg" alt="Lockups de los 11 productos" loading="lazy" style="max-height:300px;width:auto"></div><figcaption><b>lockups.svg</b><span>11 lockups</span></figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- 11 DESCARGAS -->
+<section class="sec" id="descargas" data-sec="Descargas">
+  <div class="wrap">
+    <div class="sh"><div class="n">11</div><div><h2>Descargas</h2><p>Todo es SVG. El texto está en trazos, así que no hace falta instalar ninguna fuente para abrirlos.</p></div></div>
+    <div class="dl" id="dl"></div>
+    <div class="endnote">
+      <div><b>Qué tiene a favor</b>Puede dibujar cualquier cosa con el mismo tipo: un objeto, una cara, un gráfico. Se siente hecha a mano y técnica a la vez.</div>
+      <div><b>Qué cuesta</b>Las ilustraciones necesitan el motor para generarse. En tamaños chicos el grabado se pierde y hay que usar los cortes C y D.</div>
+      <div><b>En la app</b>Papel y mono le dan un tono de cuaderno de taller. Hay que cuidar que el papel no se lea como &quot;viejo&quot; en pantallas frías.</div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="f"><div class="wrap"><span>zerosoft · propuesta Grabado · uso interno</span><span>Newsreader + IBM Plex Mono · papel #f2ece0</span></div></footer>
+
+<script>
+/* Grabado: motor de medios tonos hecho de ceros. Corre en node y en el navegador. */
+(function (G) {
+  var LX = -0.5, LY = -0.62, LZ = 0.78;
+  (function () { var m = Math.hypot(LX, LY, LZ); LX /= m; LY /= m; LZ /= m; })();
+  var light = { x: LX, y: LY, z: LZ };
+  function setLight(x, y) { var z = 0.8, m = Math.hypot(x, y, z); light = { x: x / m, y: y / m, z: z / m }; }
+  function shade(n, base, specK) {
+    var d = n[0] * light.x + n[1] * light.y + n[2] * light.z;
+    if (d < 0) d = 0;
+    // reflejo especular, vista (0,0,1)
+    var rz = 2 * d * n[2] - light.z;
+    var sp = rz > 0 ? Math.pow(rz, 24) : 0;
+    var t = 1 - (0.1 + 0.92 * d) + (base || 0) - sp * (specK == null ? 0.7 : specK);
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return 0.2 + 0.8 * Math.pow(t, 0.6);
+  }
+  function norm(a, b, c) { var m = Math.hypot(a, b, c) || 1; return [a / m, b / m, c / m]; }
+  function rot(x, y, cx, cy, a) { var c = Math.cos(a), s = Math.sin(a), dx = x - cx, dy = y - cy; return [cx + dx * c + dy * s, cy - dx * s + dy * c]; }
+  function rotN(n, a) { var c = Math.cos(a), s = Math.sin(a); return [n[0] * c - n[1] * s, n[0] * s + n[1] * c, n[2]]; }
+
+  // ---------- primitivas: devuelven {z, n} o null ----------
+  function sphere(x, y, cx, cy, r) {
+    var dx = x - cx, dy = y - cy, d2 = dx * dx + dy * dy;
+    if (d2 >= r * r) return null;
+    var z = Math.sqrt(r * r - d2);
+    return { z: z, n: [dx / r, dy / r, z / r] };
+  }
+  function ellipsoid(x, y, cx, cy, rx, ry) {
+    var u = (x - cx) / rx, v = (y - cy) / ry, d2 = u * u + v * v;
+    if (d2 >= 1) return null;
+    var w = Math.sqrt(1 - d2);
+    return { z: w * Math.min(rx, ry), n: norm(u / rx, v / ry, w / Math.min(rx, ry)) };
+  }
+  // tubo alrededor de una elipse (el cero)
+  function torusE(x, y, cx, cy, A, B, r) {
+    var ux = (x - cx) / A, uy = (y - cy) / B, th = Math.atan2(uy, ux);
+    var qx = cx + A * Math.cos(th), qy = cy + B * Math.sin(th);
+    // refinamiento de Newton corto para la distancia a la elipse
+    for (var i = 0; i < 3; i++) {
+      var tx = -A * Math.sin(th), ty = B * Math.cos(th);
+      var dx = x - qx, dy = y - qy;
+      var f = dx * tx + dy * ty;
+      var fp = -(tx * tx + ty * ty) + dx * (-A * Math.cos(th)) + dy * (-B * Math.sin(th));
+      th -= f / fp;
+      qx = cx + A * Math.cos(th); qy = cy + B * Math.sin(th);
+    }
+    var ddx = x - qx, ddy = y - qy, d = Math.hypot(ddx, ddy);
+    if (d >= r) return null;
+    var z = Math.sqrt(r * r - d * d);
+    return { z: z, n: [ddx / r, ddy / r, z / r] };
+  }
+  // tubo sobre un segmento con radio R de recorrido (eslabón)
+  function stadium(x, y, ax, ay, bx, by, R, r) {
+    var vx = bx - ax, vy = by - ay, L2 = vx * vx + vy * vy;
+    var t = ((x - ax) * vx + (y - ay) * vy) / L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    var qx = ax + vx * t, qy = ay + vy * t, px = x - qx, py = y - qy, L = Math.hypot(px, py) || 1e-6;
+    var dd = L - R;
+    if (Math.abs(dd) >= r) return null;
+    var z = Math.sqrt(r * r - dd * dd);
+    return { z: z, n: [px / L * dd / r, py / L * dd / r, z / r] };
+  }
+  function tube(x, y, ax, ay, bx, by, r) { return stadium(x, y, ax, ay, bx, by, 0, r); }
+  // extrusión con bisel redondo de cualquier SDF 2D
+  function extrude(x, y, sdf, b, h) {
+    var s = sdf(x, y);
+    if (s >= 0) return null;
+    if (s <= -b) return { z: h, n: [0, 0, 1] };
+    var e = 0.0015, gx = (sdf(x + e, y) - sdf(x - e, y)) / (2 * e), gy = (sdf(x, y + e) - sdf(x, y - e)) / (2 * e);
+    var u = 1 + s / b; // 0 adentro, 1 en el borde
+    var slope = u / Math.sqrt(Math.max(1e-4, 1 - u * u));
+    if (slope > 6) slope = 6;
+    return { z: h - b + b * Math.sqrt(Math.max(0, 1 - u * u)), n: norm(gx * slope, gy * slope, 1) };
+  }
+  function sdCircle(x, y, cx, cy, r) { return Math.hypot(x - cx, y - cy) - r; }
+  function sdRound(x, y, cx, cy, hw, hh, rr) {
+    var qx = Math.abs(x - cx) - hw + rr, qy = Math.abs(y - cy) - hh + rr;
+    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - rr;
+  }
+  function sdSeg(x, y, ax, ay, bx, by) {
+    var vx = bx - ax, vy = by - ay, t = ((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy);
+    t = t < 0 ? 0 : t > 1 ? 1 : t; return Math.hypot(x - ax - vx * t, y - ay - vy * t);
+  }
+  function sdTri(x, y, a, b, c) {
+    var d = Math.min(sdSeg(x, y, a[0], a[1], b[0], b[1]), sdSeg(x, y, b[0], b[1], c[0], c[1]), sdSeg(x, y, c[0], c[1], a[0], a[1]));
+    function sg(p1, p2) { return (x - p2[0]) * (p1[1] - p2[1]) - (p1[0] - p2[0]) * (y - p2[1]); }
+    var d1 = sg(a, b), d2 = sg(b, c), d3 = sg(c, a);
+    var inside = !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+    return inside ? -d : d;
+  }
+  function smin(a, b, k) { var h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; }
+  function softShadow(x, y, cx, cy, rx, ry, k) {
+    var u = (x - cx) / rx, v = (y - cy) / ry, d = u * u + v * v;
+    return d < 1 ? (1 - d) * (k || 0.35) : 0;
+  }
+  function flat(t) { return { z: 9, n: [0, 0, 1], t: t }; }
+
+  // ---------- escenas ----------
+  // cada escena: {w, h, f(x,y) -> oscuridad 0..1}
+  var S = {};
+  S.zero = { w: 1, h: 1.18, f: function (x, y) {
+    var hit = torusE(x, y, 0.5, 0.59, 0.285, 0.39, 0.125);
+    if (hit) return shade(hit.n, 0.05);
+    return 0;
+  } };
+  S.zeroShadow = { w: 1.4, h: 1.2, f: function (x, y) {
+    var hit = torusE(x, y, 0.62, 0.55, 0.27, 0.37, 0.12);
+    if (hit) return shade(hit.n, 0.04);
+    return softShadow(x, y, 0.82, 1.0, 0.42, 0.08, 0.5);
+  } };
+  S.link = { w: 1.5, h: 1, f: function (x, y) {
+    var a = -0.42, p1 = rot(x, y, 0.5, 0.52, a), p2 = rot(x, y, 1.0, 0.48, a);
+    var h1 = stadium(p1[0], p1[1], 0.36, 0.52, 0.64, 0.52, 0.17, 0.065);
+    var h2 = stadium(p2[0], p2[1], 0.86, 0.48, 1.14, 0.48, 0.17, 0.065);
+    var useA;
+    if (h1 && h2) useA = y < 0.5 + (x - 0.75) * 0.0 ? (x < 0.75) : (x >= 0.75); else useA = !!h1;
+    if (h1 && h2) { useA = (y < 0.5) ? true : false; }
+    if (useA && h1) return shade(rotN(h1.n, -a), 0.02);
+    if (h2) return shade(rotN(h2.n, -a), 0.02);
+    if (h1) return shade(rotN(h1.n, -a), 0.02);
+    return softShadow(x, y, 0.8, 0.9, 0.55, 0.06, 0.4);
+  } };
+  S.cal = { w: 1, h: 1.12, f: function (x, y) {
+    var cx = 0.5, cy = 0.58, R = 0.34;
+    // campanas
+    var b1 = sphere(x, y, 0.27, 0.27, 0.11), b2 = sphere(x, y, 0.73, 0.27, 0.11);
+    // patas
+    var l1 = tube(x, y, 0.33, 0.86, 0.24, 0.99, 0.03), l2 = tube(x, y, 0.67, 0.86, 0.76, 0.99, 0.03);
+    var rim = torusE(x, y, cx, cy, R, R, 0.055);
+    var d = Math.hypot(x - cx, y - cy);
+    if (rim) return shade(rim.n, 0.05);
+    if (d < R) {
+      // cara: ticks y agujas
+      var ang = Math.atan2(y - cy, x - cx);
+      for (var i = 0; i < 12; i++) {
+        var a = i * Math.PI / 6, tx = cx + Math.cos(a) * R * 0.8, ty = cy + Math.sin(a) * R * 0.8;
+        if (Math.hypot(x - tx, y - ty) < (i % 3 === 0 ? 0.03 : 0.017)) return 0.95;
+      }
+      if (sdSeg(x, y, cx, cy, cx - 0.12, cy - 0.13) < 0.022) return 1;
+      if (sdSeg(x, y, cx, cy, cx + 0.2, cy - 0.06) < 0.015) return 1;
+      if (d < 0.03) return 1;
+      // cara levemente cóncava
+      var nz = norm(-(x - cx) * 0.7, -(y - cy) * 0.7, 1);
+      return Math.max(0, shade(nz, -0.12, 0.2) * 0.55);
+    }
+    if (b1) return shade(b1.n, 0.08);
+    if (b2) return shade(b2.n, 0.08);
+    var top = tube(x, y, 0.42, 0.2, 0.58, 0.2, 0.025);
+    if (top) return shade(top.n, 0.1);
+    if (sdSeg(x, y, 0.5, 0.2, 0.5, 0.26) < 0.02) return 0.7;
+    if (l1) return shade(l1.n, 0.15);
+    if (l2) return shade(l2.n, 0.15);
+    return softShadow(x, y, 0.55, 1.02, 0.42, 0.05, 0.45);
+  } };
+  S.chat = { w: 1.3, h: 1, f: function (x, y) {
+    var front = extrude(x, y, function (u, v) {
+      return smin(sdRound(u, v, 0.72, 0.56, 0.36, 0.2, 0.15), sdTri(u, v, [0.88, 0.66], [1.0, 0.92], [0.7, 0.7]), 0.05);
+    }, 0.09, 0.2);
+    if (front) {
+      for (var i = 0; i < 3; i++) { var s = sphere(x, y, 0.58 + i * 0.14, 0.56, 0.042); if (s) { return shade([-s.n[0], -s.n[1], s.n[2]], 0.35, 0); } }
+      return shade(front.n, 0.02);
+    }
+    var back = extrude(x, y, function (u, v) {
+      return smin(sdRound(u, v, 0.42, 0.34, 0.32, 0.17, 0.13), sdTri(u, v, [0.24, 0.42], [0.12, 0.62], [0.4, 0.46]), 0.05);
+    }, 0.08, 0.15);
+    if (back) {
+      var shadowF = sdRound(x - 0.04, y - 0.05, 0.72, 0.56, 0.36, 0.2, 0.15) < 0 ? 0.28 : 0;
+      return Math.min(1, shade(back.n, 0.12) + shadowF);
+    }
+    return softShadow(x, y, 0.7, 0.95, 0.5, 0.04, 0.4);
+  } };
+  S.track = { w: 1.2, h: 1, f: function (x, y) {
+    var cx = 0.55, cy = 0.52;
+    // flecha clavada
+    var shaft = tube(x, y, cx, cy, 1.05, 0.12, 0.018);
+    var fl = sdTri(x, y, [1.02, 0.05], [1.14, 0.04], [1.08, 0.2]);
+    if (fl < 0) return 0.75;
+    if (shaft) return shade(shaft.n, 0.25);
+    var rings = [0.4, 0.29, 0.18];
+    for (var i = 0; i < rings.length; i++) {
+      var t = torusE(x, y, cx, cy, rings[i], rings[i], 0.05);
+      if (t) return shade(t.n, 0.02);
+    }
+    var c = sphere(x, y, cx, cy, 0.075);
+    if (c) return shade(c.n, 0.25);
+    var d = Math.hypot(x - cx, y - cy);
+    if (d < 0.45) return 0.12 + (Math.floor(d / 0.11) % 2) * 0.5;
+    return softShadow(x, y, 0.6, 0.98, 0.45, 0.035, 0.4);
+  } };
+  S.crm = { w: 1, h: 1.2, f: function (x, y) {
+    // busto clásico
+    var head = ellipsoid(x, y, 0.5, 0.36, 0.165, 0.215);
+    if (head) {
+      var nose = ellipsoid(x, y, 0.44, 0.4, 0.03, 0.06);
+      if (nose) return shade(nose.n, 0.0);
+      // cuencas de los ojos
+      if (ellipsoid(x, y, 0.45, 0.33, 0.04, 0.02) || ellipsoid(x, y, 0.57, 0.33, 0.04, 0.02)) return Math.min(1, shade(head.n, 0.3));
+      // pelo: banda superior con estrías
+      if (y < 0.27 - (x - 0.5) * (x - 0.5) * 1.2) return Math.min(1, shade(head.n, 0.18) + (Math.sin(x * 120) > 0.3 ? 0.18 : 0));
+      return shade(head.n, -0.02);
+    }
+    var ear = ellipsoid(x, y, 0.66, 0.38, 0.03, 0.055);
+    if (ear) return shade(ear.n, 0.1);
+    var neck = ellipsoid(x, y, 0.52, 0.6, 0.085, 0.13);
+    if (neck) return shade(neck.n, 0.2);
+    if (y < 1.0) {
+      var sh = ellipsoid(x, y, 0.5, 0.92, 0.36, 0.25);
+      if (sh) return shade(sh.n, 0.04);
+    }
+    var base = extrude(x, y, function (u, v) { return sdRound(u, v, 0.5, 1.07, 0.24, 0.07, 0.01); }, 0.03, 0.05);
+    if (base) return shade(base.n, 0.25);
+    return softShadow(x, y, 0.55, 1.15, 0.45, 0.04, 0.4);
+  } };
+  S.notes = { w: 1.3, h: 1, f: function (x, y) {
+    var a = 0.5, ax = 0.15, ay = 0.82, bx = 1.0, by = 0.25;
+    var p = rot(x, y, ax, ay, 0);
+    var dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+    var px = x - ax, py = y - ay, t = px * ux + py * uy, s = -px * uy + py * ux; // s: distancia perpendicular
+    var r = 0.075;
+    if (t > 0 && t < L * 0.86 && Math.abs(s) < r) {
+      // facetas hexagonales: cuantiza la normal
+      var q = s / r, fac = Math.round(q * 1.5) / 1.5;
+      var z = Math.sqrt(Math.max(0, 1 - fac * fac));
+      var n = [-uy * fac, ux * fac, z];
+      var base = 0.05;
+      if (t < 0.08) { // goma
+        return shade(n, 0.28);
+      }
+      if (t < 0.15) { // virola con bandas
+        return Math.min(1, shade(n, 0.15) + (Math.floor(t * 120) % 2 ? 0.25 : 0));
+      }
+      return shade(n, base);
+    }
+    var tipStart = L * 0.86, tipLen = L * 0.14;
+    if (t >= tipStart && t < L) {
+      var w = r * (1 - (t - tipStart) / tipLen);
+      if (Math.abs(s) < w) {
+        var q2 = s / Math.max(w, 1e-4), z2 = Math.sqrt(Math.max(0, 1 - q2 * q2));
+        var dark = (t > L - tipLen * 0.35) ? 0.55 : 0.05;
+        return shade([-uy * q2, ux * q2, z2], dark);
+      }
+    }
+    // línea escrita
+    var wy = 0.9 + Math.sin(x * 22) * 0.025;
+    if (x > 0.55 && x < 1.22 && Math.abs(y - wy) < 0.01) return 0.9;
+    return softShadow(x, y, 0.62, 0.9, 0.45, 0.05, 0.35);
+  } };
+  function gearSdf(u, v, cx, cy, R, teeth, ph) {
+    var dx = u - cx, dy = v - cy, d = Math.hypot(dx, dy), th = Math.atan2(dy, dx);
+    var w = Math.cos(teeth * th + ph); var tooth = w > 0.2 ? 1 : w < -0.2 ? 0 : (w + 0.2) / 0.4;
+    var outer = d - (R + tooth * R * 0.17);
+    var hole = R * 0.32 - d;
+    return Math.max(outer, hole);
+  }
+  S.flow = { w: 1.3, h: 1, f: function (x, y) {
+    var g1 = extrude(x, y, function (u, v) { return gearSdf(u, v, 0.45, 0.48, 0.26, 10, 0.0); }, 0.05, 0.1);
+    if (g1) return shade(g1.n, 0.04);
+    var g2 = extrude(x, y, function (u, v) { return gearSdf(u, v, 0.92, 0.7, 0.17, 7, 0.45); }, 0.04, 0.08);
+    if (g2) return shade(g2.n, 0.1);
+    var ax1 = sphere(x, y, 0.45, 0.48, 0.05); if (ax1) return shade(ax1.n, 0.3);
+    return softShadow(x, y, 0.7, 0.96, 0.55, 0.04, 0.4);
+  } };
+  S.robots = { w: 1, h: 1.1, f: function (x, y) {
+    var ant = tube(x, y, 0.5, 0.12, 0.5, 0.26, 0.018);
+    var bulb = sphere(x, y, 0.5, 0.1, 0.05);
+    if (bulb) return shade(bulb.n, 0.05);
+    if (ant) return shade(ant.n, 0.2);
+    var e1 = sphere(x, y, 0.38, 0.5, 0.075), e2 = sphere(x, y, 0.62, 0.5, 0.075);
+    var head = extrude(x, y, function (u, v) { return sdRound(u, v, 0.5, 0.55, 0.3, 0.27, 0.07); }, 0.07, 0.15);
+    if (head) {
+      var eh = e1 || e2;
+      if (eh) { var ring = Math.hypot(x - (e1 ? 0.38 : 0.62), y - 0.5); return ring > 0.06 ? 0.95 : shade(eh.n, 0.35); }
+      // boca rejilla
+      if (y > 0.66 && y < 0.72 && x > 0.33 && x < 0.67) return (Math.floor((x - 0.33) * 50) % 2) ? 0.95 : 0.4;
+      // tornillos
+      var sc = [[0.26, 0.34], [0.74, 0.34], [0.26, 0.76], [0.74, 0.76]];
+      for (var i = 0; i < 4; i++) { var s = sphere(x, y, sc[i][0], sc[i][1], 0.02); if (s) return shade(s.n, 0.3); }
+      return shade(head.n, 0.0);
+    }
+    var ear1 = extrude(x, y, function (u, v) { return sdRound(u, v, 0.17, 0.55, 0.04, 0.09, 0.02); }, 0.02, 0.05);
+    var ear2 = extrude(x, y, function (u, v) { return sdRound(u, v, 0.83, 0.55, 0.04, 0.09, 0.02); }, 0.02, 0.05);
+    if (ear1) return shade(ear1.n, 0.2);
+    if (ear2) return shade(ear2.n, 0.2);
+    var neck = extrude(x, y, function (u, v) { return sdRound(u, v, 0.5, 0.88, 0.1, 0.06, 0.01); }, 0.02, 0.05);
+    if (neck) return shade(neck.n, 0.25);
+    return softShadow(x, y, 0.55, 1.0, 0.42, 0.05, 0.4);
+  } };
+  S.docs = { w: 1.3, h: 1, f: function (x, y) {
+    // libro abierto: dos páginas curvas sobre la tapa
+    var cx = 0.65, hw = 0.5;
+    var dx = x - cx, side = dx < 0 ? -1 : 1, u = Math.min(1, Math.abs(dx) / hw);
+    var lift = 0.07 * Math.sin(u * Math.PI * 0.9);          // la página sube desde el lomo
+    var top = 0.24 - lift, bot = 0.8 - lift * 0.35;
+    if (Math.abs(dx) < hw && y > top && y < bot) {
+      var nx = side * Math.cos(u * Math.PI * 0.9) * -0.9;
+      var n = norm(nx, -0.25 + (y - top) * 0.1, 1);
+      var t = shade(n, -0.08, 0.5) * 0.75;
+      var ly = (y - top - 0.08) / 0.034, li = Math.floor(ly);
+      var para = (li === 4 || li === 9);
+      var short = (li === 3 || li === 8 || li === 13) ? (u > 0.12 && u < 0.6) : (u > 0.12 && u < 0.88);
+      if (ly > 0 && li < 15 && !para && short && (ly - li) < 0.42) t = Math.min(1, t + 0.42);
+      if (u < 0.035) t = Math.min(1, t + 0.45);              // el lomo
+      if (u > 0.975 || y > bot - 0.012) t = Math.min(1, t + 0.35); // canto de las hojas
+      return t;
+    }
+    // tapa que asoma debajo
+    if (Math.abs(dx) < hw + 0.02 && y >= bot && y < bot + 0.03) return 0.92;
+    return softShadow(x, y, 0.68, 0.9, 0.62, 0.05, 0.45);
+  } };
+
+  // ---------- muestreo ----------
+  var BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  var CELL_H = 1.25; // las celdas son más altas que anchas, como un cero
+  function sample(scene, cols, opt) {
+    opt = opt || {};
+    var cw = scene.w / cols, ch = cw * CELL_H, rows = Math.max(1, Math.floor(scene.h / ch + 1e-6));
+    var oy = (scene.h - rows * ch) / 2;
+    var lv = new Uint8Array(cols * rows), dith = opt.dither == null ? 1 : opt.dither, ss = opt.ss || 2;
+    for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
+      var acc = 0;
+      for (var a = 0; a < ss; a++) for (var b = 0; b < ss; b++) acc += scene.f((c + (a + 0.5) / ss) * cw, oy + (r + (b + 0.5) / ss) * ch);
+      var t = acc / (ss * ss);
+      if (opt.gamma) t = Math.pow(t, opt.gamma);
+      var th = (BAYER[(r % 4) * 4 + (c % 4)] / 16 - 0.47) * dith / 6;
+      var l = t < 0.04 ? 0 : Math.round(t * 6 + th * 6);
+      l = l < 0 ? 0 : l > 6 ? 6 : (t >= 0.04 && l === 0 ? 1 : l);
+      if (opt.min && l && t > (opt.minT || 0.3)) l = Math.max(l, opt.min);
+      lv[r * cols + c] = l;
+    }
+    return { cols: cols, rows: rows, lv: lv };
+  }
+  // geometría de cada tipo de la rampa, en unidades de ancho de celda
+  // · ∘ o O 0 0(negra)
+  var RAMP = [null,
+    { dot: 0.12 },
+    { rx: 0.16, ry: 0.19, sw: 0.08 },
+    { rx: 0.23, ry: 0.28, sw: 0.1 },
+    { rx: 0.3, ry: 0.38, sw: 0.12 },
+    { rx: 0.34, ry: 0.46, sw: 0.17 },
+    { rx: 0.38, ry: 0.5, sw: 0.27 }];
+  var CHARS = [' ', '·', '∘', 'o', 'O', '0', '0'];
+  function f2(n) { return Math.round(n * 100) / 100; }
+  function toSVG(grid, cell, ox, oy, color, solid) {
+    var ch = cell * CELL_H, paths = ['', '', '', '', '', '', ''];
+    for (var r = 0; r < grid.rows; r++) for (var c = 0; c < grid.cols; c++) {
+      var l = grid.lv[r * grid.cols + c]; if (!l) continue;
+      var x = ox + (c + 0.5) * cell, y = oy + (r + 0.5) * ch, g = RAMP[l];
+      if (solid && !g.dot) { var sx = g.rx * cell * 0.92, sy = g.ry * cell * 0.92; paths[l] += 'M' + f2(x - sx) + ' ' + f2(y) + 'a' + f2(sx) + ' ' + f2(sy) + ' 0 1 0 ' + f2(2 * sx) + ' 0a' + f2(sx) + ' ' + f2(sy) + ' 0 1 0 ' + f2(-2 * sx) + ' 0';
+      } else if (g.dot) { var rr = g.dot * cell; paths[l] += 'M' + f2(x - rr) + ' ' + f2(y) + 'a' + f2(rr) + ' ' + f2(rr) + ' 0 1 0 ' + f2(2 * rr) + ' 0a' + f2(rr) + ' ' + f2(rr) + ' 0 1 0 ' + f2(-2 * rr) + ' 0';
+      } else {
+        var rx = (g.rx - g.sw / 2) * cell, ry = (g.ry - g.sw / 2) * cell;
+        paths[l] += 'M' + f2(x - rx) + ' ' + f2(y) + 'a' + f2(rx) + ' ' + f2(ry) + ' 0 1 0 ' + f2(2 * rx) + ' 0a' + f2(rx) + ' ' + f2(ry) + ' 0 1 0 ' + f2(-2 * rx) + ' 0';
+      }
+    }
+    var out = '';
+    for (var i = 1; i <= 6; i++) if (paths[i]) {
+      out += (RAMP[i].dot || solid) ? '<path fill="' + color + '" d="' + paths[i] + '"/>' : '<path fill="none" stroke="' + color + '" stroke-width="' + f2(RAMP[i].sw * cell) + '" d="' + paths[i] + '"/>';
+    }
+    return out;
+  }
+  function drawGlyph(ctx, l, x, y, cell) {
+    var g = RAMP[l];
+    if (!g) return;
+    ctx.beginPath();
+    if (g.dot) { ctx.arc(x, y, g.dot * cell, 0, 6.2832); ctx.fill(); }
+    else { ctx.lineWidth = g.sw * cell; ctx.ellipse(x, y, (g.rx - g.sw / 2) * cell, (g.ry - g.sw / 2) * cell, 0, 0, 6.2832); ctx.stroke(); }
+  }
+  function draw(ctx, grid, cell, ox, oy, color, levelFn) {
+    var ch = cell * CELL_H; ctx.fillStyle = ctx.strokeStyle = color;
+    for (var r = 0; r < grid.rows; r++) for (var c = 0; c < grid.cols; c++) {
+      var l = grid.lv[r * grid.cols + c];
+      if (levelFn) l = levelFn(l, c, r);
+      if (l) drawGlyph(ctx, l, ox + (c + 0.5) * cell, oy + (r + 0.5) * ch, cell);
+    }
+  }
+  function toText(grid, html) {
+    var out = '';
+    for (var r = 0; r < grid.rows; r++) {
+      for (var c = 0; c < grid.cols; c++) { var l = grid.lv[r * grid.cols + c]; out += (html && l === 6) ? '<b>0</b>' : CHARS[l]; }
+      out += '\n';
+    }
+    return out;
+  }
+  G.Grabado = { scenes: S, sample: sample, toSVG: toSVG, draw: draw, drawGlyph: drawGlyph, toText: toText, RAMP: RAMP, CHARS: CHARS, CELL_H: CELL_H, setLight: setLight };
+})(typeof window !== 'undefined' ? window : module.exports);
+
+</script>
+<script>
+(function(){
+var PRODUCTS=[{"id":"link","name":"Link","ink":"#2b5ee8","text":"#2b5ee8","dark":"#517bec","what":"Links cortos y QR","replaces":"Bitly","crInk":4.613547431875101,"crText":4.613547431875101,"crDark":4.717783299052887},{"id":"crm","name":"CRM","ink":"#7044e6","text":"#7044e6","dark":"#8d69eb","what":"Contactos y oportunidades","replaces":"HubSpot","crInk":4.879137788468107,"crText":4.879137788468107,"crDark":4.681514422990201},{"id":"cal","name":"Cal","ink":"#0c8f63","text":"#0f7753","dark":"#119166","what":"Agenda y reservas","replaces":"Calendly","crInk":3.4830701930912125,"crText":4.717292899983076,"crDark":4.60546850852824},{"id":"track","name":"Track","ink":"#e5561b","text":"#b14619","dark":"#e5561b","what":"Issues y ciclos","replaces":"Linear","crInk":3.143410064753231,"crText":4.747940739288376,"crDark":4.966402403056776},{"id":"chat","name":"Chat","ink":"#d6336f","text":"#c03064","dark":"#db4b80","what":"Soporte y mensajes","replaces":"Intercom","crInk":3.91250035567126,"crText":4.638657888997296,"crDark":4.661697366136524},{"id":"docs","name":"Docs","ink":"#b8690a","text":"#99590c","dark":"#bb6f14","what":"Documentos y wikis","replaces":"Notion","crInk":3.5255190813798247,"crText":4.71135060179653,"crDark":4.720023004685957},{"id":"flow","name":"Flow","ink":"#0379b8","text":"#066fa8","dark":"#2189c1","what":"Automatizaciones","replaces":"n8n","crInk":4.028471899993904,"crText":4.6400378827630515,"crDark":4.734143782464899},{"id":"agents","name":"Agents","ink":"#e8382c","text":"#c33228","dark":"#e94439","what":"Agentes de IA","replaces":null,"crInk":3.546450214886833,"crText":4.6883583441637535,"crDark":4.6796359706122015},{"id":"notes","name":"Notes","ink":"#dcaa00","text":"#80640a","dark":"#dcaa00","what":"Notas personales","replaces":null,"crInk":1.8227263699825331,"crText":4.76623849836183,"crDark":8.564883658062678},{"id":"board","name":"Board","ink":"#00a294","text":"#09766b","dark":"#00a294","what":"Pizarras","replaces":null,"crInk":2.7062848094892322,"crText":4.678534353247809,"crDark":5.768586973789248},{"id":"robots","name":"Robots","ink":"#6b6f76","text":"#666a70","dark":"#7d8086","what":"Tareas programadas","replaces":null,"crInk":4.290310195366907,"crText":4.623703694084442,"crDark":4.6387501081718545}], ICONS={"link":"<ellipse cx=\"8.6\" cy=\"12\" rx=\"3.6\" ry=\"5.6\" transform=\"rotate(-45 8.6 12)\"/><ellipse cx=\"15.4\" cy=\"12\" rx=\"3.6\" ry=\"5.6\" transform=\"rotate(-45 15.4 12)\"/>","crm":"<ellipse cx=\"12\" cy=\"7.6\" rx=\"3.3\" ry=\"4.2\"/><path d=\"M4.5 21c0-4.3 3.4-6.8 7.5-6.8s7.5 2.5 7.5 6.8\"/>","cal":"<ellipse cx=\"12\" cy=\"13.5\" rx=\"7.6\" ry=\"8\"/><path d=\"M12 9v4.8l3 1.8\"/><circle cx=\"4.6\" cy=\"4.2\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"19.4\" cy=\"4.2\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/>","track":"<ellipse cx=\"12\" cy=\"12\" rx=\"8\" ry=\"9.6\"/><ellipse cx=\"12\" cy=\"12\" rx=\"4.2\" ry=\"5.2\"/><circle cx=\"12\" cy=\"12\" r=\"1.4\" fill=\"currentColor\" stroke=\"none\"/>","chat":"<path d=\"M7.4 17.2C4.9 15.9 3.4 13.7 3.4 11.2c0-4 3.9-7.1 8.6-7.1s8.6 3.1 8.6 7.1-3.9 7.1-8.6 7.1c-.9 0-1.8-.1-2.6-.3L5 20.6Z\"/>","docs":"<path d=\"M5 3h10l4 4v14H5Z\"/><circle cx=\"9\" cy=\"11\" r=\"1.2\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"12.5\" cy=\"11\" r=\".9\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15.5\" cy=\"11\" r=\".6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"15\" r=\"1.2\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"12.5\" cy=\"15\" r=\".9\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"18.4\" r=\"1.2\" fill=\"currentColor\" stroke=\"none\"/>","flow":"<ellipse cx=\"5.6\" cy=\"5.6\" rx=\"2.4\" ry=\"3\"/><ellipse cx=\"18.4\" cy=\"12\" rx=\"2.4\" ry=\"3\"/><ellipse cx=\"5.6\" cy=\"18.4\" rx=\"2.4\" ry=\"3\"/><path d=\"M8 6.6l8 4.2M8 17.4l8-4.2\"/>","agents":"<ellipse cx=\"10\" cy=\"13.4\" rx=\"5.4\" ry=\"7\"/><path d=\"M18.6 1.8v6.4M15.4 5h6.4\"/>","notes":"<ellipse cx=\"7\" cy=\"7.6\" rx=\"3\" ry=\"4\"/><path d=\"M13 5h7.5M13 10h7.5M3.5 15h17M3.5 20h11\"/>","board":"<ellipse cx=\"6.6\" cy=\"6.6\" rx=\"2.8\" ry=\"3.5\"/><ellipse cx=\"17.4\" cy=\"6.6\" rx=\"2.8\" ry=\"3.5\"/><ellipse cx=\"6.6\" cy=\"17.4\" rx=\"2.8\" ry=\"3.5\"/><ellipse cx=\"17.4\" cy=\"17.4\" rx=\"2.8\" ry=\"3.5\" fill=\"currentColor\"/>","robots":"<path d=\"M4.5 8h15v12h-15ZM12 8V3.5\"/><circle cx=\"12\" cy=\"3\" r=\"1.3\" fill=\"currentColor\" stroke=\"none\"/><ellipse cx=\"9\" cy=\"13.4\" rx=\"1.6\" ry=\"2.1\"/><ellipse cx=\"15\" cy=\"13.4\" rx=\"1.6\" ry=\"2.1\"/>"}, N={"papel":"#f2ece0","papel2":"#e9e1d1","papel3":"#ddd2bd","linea":"#cbbfa8","tinta":"#1c1915","tinta2":"#4a4339","tinta3":"#675e50","plancha":"#17140f","plancha2":"#24201a","planchaLinea":"#3a342b","planchaTexto":"#efe7d8","planchaTexto2":"#b5aa96"}, ILLUS=[{"scene":"link","pid":"link","w":924,"h":605},{"scene":"cal","pid":"cal","w":616,"h":688},{"scene":"chat","pid":"chat","w":803,"h":605},{"scene":"track","pid":"track","w":737,"h":605},{"scene":"crm","pid":"crm","w":616,"h":729},{"scene":"notes","pid":"notes","w":803,"h":605},{"scene":"flow","pid":"flow","w":803,"h":605},{"scene":"robots","pid":"robots","w":616,"h":674},{"scene":"docs","pid":"docs","w":803,"h":605}], FILES=[{"name":"logo.svg","w":481,"h":112,"label":"Logo principal, sobre claro","bytes":9140},{"name":"logo-dark.svg","w":481,"h":112,"label":"Logo principal, sobre oscuro","bytes":9140},{"name":"wordmark.svg","w":387,"h":112,"label":"Wordmark solo","bytes":5722},{"name":"symbol.svg","w":240,"h":275,"label":"Símbolo grabado completo","bytes":15610},{"name":"symbol-dark.svg","w":280,"h":315,"label":"Símbolo sobre plancha","bytes":15702},{"name":"symbol-mid.svg","w":110,"h":124,"label":"Símbolo medio (40 a 120 px)","bytes":3393},{"name":"symbol-32.svg","w":32,"h":32,"label":"Símbolo 32 px","bytes":885},{"name":"favicon.svg","w":16,"h":16,"label":"Favicon 16 px","bytes":285},{"name":"favicon-32.svg","w":32,"h":32,"label":"Favicon 32 px con fondo","bytes":930},{"name":"app-icon.svg","w":1024,"h":1024,"label":"Ícono de app 1024","bytes":11267},{"name":"lockups.svg","w":379,"h":770,"label":"Lockups de los 11 productos","bytes":130326},{"name":"icons-sprite.svg","w":24,"h":24,"label":"Sprite de íconos, un symbol por producto","bytes":3416},{"name":"icons.svg","w":600,"h":240,"label":"Hoja de íconos","bytes":35154},{"name":"illus-link.svg","w":924,"h":605,"label":"Ilustración Link","bytes":79740},{"name":"illus-cal.svg","w":616,"h":688,"label":"Ilustración Cal","bytes":94498},{"name":"illus-chat.svg","w":803,"h":605,"label":"Ilustración Chat","bytes":81923},{"name":"illus-track.svg","w":737,"h":605,"label":"Ilustración Track","bytes":107074},{"name":"illus-crm.svg","w":616,"h":729,"label":"Ilustración CRM","bytes":69803},{"name":"illus-notes.svg","w":803,"h":605,"label":"Ilustración Notes","bytes":35650},{"name":"illus-flow.svg","w":803,"h":605,"label":"Ilustración Flow","bytes":66368},{"name":"illus-robots.svg","w":616,"h":674,"label":"Ilustración Robots","bytes":71483},{"name":"illus-docs.svg","w":803,"h":605,"label":"Ilustración Docs","bytes":113123},{"name":"pattern-ondas.svg","w":1200,"h":600,"label":"Patrón ondas","bytes":226730},{"name":"pattern-anillos.svg","w":1200,"h":600,"label":"Patrón anillos","bytes":191900},{"name":"pattern-degrade.svg","w":1200,"h":600,"label":"Patrón degradé sobre plancha","bytes":200248},{"name":"pattern-montes.svg","w":1200,"h":600,"label":"Patrón horizonte","bytes":140729},{"name":"og-home.svg","w":1200,"h":630,"label":"OG del home 1200×630","bytes":103620},{"name":"og-link.svg","w":1200,"h":630,"label":"OG Link","bytes":144209},{"name":"og-cal.svg","w":1200,"h":630,"label":"OG Cal","bytes":167031},{"name":"og-track.svg","w":1200,"h":630,"label":"OG Track","bytes":185477},{"name":"social-post.svg","w":1080,"h":1080,"label":"Post cuadrado 1080","bytes":119734},{"name":"banner-x.svg","w":1500,"h":500,"label":"Banner X 1500×500","bytes":155974},{"name":"email-header.svg","w":1200,"h":300,"label":"Header de email 1200×300 (600 a 2x)","bytes":66019},{"name":"card-front.svg","w":1050,"h":600,"label":"Tarjeta personal, frente","bytes":57398},{"name":"card-back.svg","w":1050,"h":600,"label":"Tarjeta personal, dorso","bytes":69331},{"name":"sticker.svg","w":800,"h":980,"label":"Sticker troquelado 800×980","bytes":29931},{"name":"tshirt.svg","w":1000,"h":1100,"label":"Remera, estampa en pecho","bytes":37674},{"name":"slide-cover.svg","w":1920,"h":1080,"label":"Portada de slide 1920×1080","bytes":72133}];
+var G=window.Grabado, P={}; PRODUCTS.forEach(function(p){P[p.id]=p});
+var RM=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+function icon(id,size,sw){
+  if(id==='arrow') return '<svg viewBox="0 0 24 24" width="'+(size||20)+'" height="'+(size||20)+'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="square" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
+  return '<svg viewBox="0 0 24 24" width="'+(size||24)+'" height="'+(size||24)+'" fill="none" stroke="currentColor" stroke-width="'+(sw||1.9)+'" stroke-linecap="square" aria-hidden="true">'+ICONS[id]+'</svg>';
+}
+$$('[data-icon]').forEach(function(el){el.innerHTML=icon(el.getAttribute('data-icon'),20)});
+function fmt(n){return n.toFixed(2).replace('.',',')}
+function lum(h){var a=[1,3,5].map(function(i){var c=parseInt(h.slice(i,i+2),16)/255;return c<=.03928?c/12.92:Math.pow((c+.055)/1.055,2.4)});return .2126*a[0]+.7152*a[1]+.0722*a[2]}
+function cr(a,b){var x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+
+// ---------- navegación ----------
+var secs=$$('[data-sec]'), toc=$('#toc');
+secs.forEach(function(s,i){var li=document.createElement('li');li.innerHTML='<a class="s" href="#'+s.id+'">'+String(i).padStart(2,'0')+' '+s.getAttribute('data-sec')+'</a>';toc.appendChild(li)});
+var links=$$('a.s',toc);
+if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){var i=secs.indexOf(e.target);links.forEach(function(l,j){l.classList.toggle('on',i===j)});var a=links[i];if(a&&toc.scrollWidth>toc.clientWidth){toc.scrollTo({left:a.offsetLeft-16,behavior:RM?'auto':'smooth'})}}})},{rootMargin:'-45% 0px -50% 0px'});secs.forEach(function(s){io.observe(s)})}
+
+// ---------- canvas util ----------
+function fitCanvas(cv){var r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);cv.width=Math.max(1,Math.round(r.width*d));cv.height=Math.max(1,Math.round(r.height*d));var c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);return {ctx:c,w:r.width,h:r.height}}
+// dibuja una escena centrada en un rectángulo
+function render(cv,scene,opt){
+  opt=opt||{};var f=fitCanvas(cv),c=f.ctx,sc=G.scenes[scene];
+  c.clearRect(0,0,f.w,f.h);
+  if(opt.bg){c.fillStyle=opt.bg;c.fillRect(0,0,f.w,f.h)}
+  var cell=opt.cell||10, pad=opt.pad==null?24:opt.pad;
+  var availW=f.w-pad*2, availH=f.h-pad*2;
+  var targetW=Math.min(availW, availH*sc.w/sc.h);
+  var cols=Math.max(8,Math.floor(targetW/cell));
+  var g=G.sample(sc,cols,{ss:opt.ss||1});
+  var gw=g.cols*cell, gh=g.rows*cell*G.CELL_H;
+  var ox=opt.align==='right'? f.w-gw-pad : (f.w-gw)/2, oy=(f.h-gh)/2;
+  G.draw(c,g,cell,ox,oy,opt.color||N.tinta,opt.levelFn);
+  return {g:g,cell:cell,ox:ox,oy:oy,f:f};
+}
+function lightFromEvent(e,el){var r=el.getBoundingClientRect();var x=(e.clientX-r.left)/r.width*2-1,y=(e.clientY-r.top)/r.height*2-1;G.setLight(x*1.2,y*1.2)}
+function resetLight(){G.setLight(-0.55,-0.68)}
+resetLight();
+
+// ---------- portada ----------
+var cover=$('#portada'),coverCv=$('#coverCanvas');
+function drawCover(){var w=coverCv.getBoundingClientRect().width;var cell=w<700?7:11;render(coverCv,'zeroShadow',{cell:cell,pad:w<700?8:30,align:w<860?'center':'right',color:N.tinta})}
+var raf=0;
+cover.addEventListener('pointermove',function(e){if(raf)return;raf=requestAnimationFrame(function(){raf=0;lightFromEvent(e,cover);drawCover();resetLight()})});
+cover.addEventListener('pointerleave',function(){drawCover()});
+
+// ---------- rampa ----------
+var rampEl=$('#ramp'),NAMES=['papel','punto','cero de ojo','o','O','0','0 negro'];
+for(var i=0;i<7;i++){var d=document.createElement('div');d.innerHTML='<canvas></canvas><div class="ch">'+(i===0?'&nbsp;':G.CHARS[i]==='0'&&i===6?'<b style="font-weight:700">0</b>':G.CHARS[i])+'</div><div class="nm">'+i+' · '+NAMES[i]+'</div>';rampEl.appendChild(d)}
+function drawRamp(){$$('canvas',rampEl).forEach(function(cv,i){var f=fitCanvas(cv);f.ctx.fillStyle=f.ctx.strokeStyle=N.tinta;if(i)G.drawGlyph(f.ctx,i,f.w/2,f.h/2,f.w)})}
+
+// ---------- grilla ----------
+function drawGrid(){var cv=$('#gridCanvas'),f=fitCanvas(cv),c=f.ctx;var g=G.sample(G.scenes.zero,24,{ss:2});var cell=Math.max(28,f.w/9);var ch=cell*G.CELL_H;
+  // ventana sobre el borde izquierdo del cero
+  var c0=1,r0=Math.max(0,Math.floor(g.rows/2)-3);c.fillStyle=N.papel;c.fillRect(0,0,f.w,f.h);
+  c.strokeStyle=N.linea;c.lineWidth=1;
+  for(var x=0;x<=f.w;x+=cell){c.beginPath();c.moveTo(x+.5,0);c.lineTo(x+.5,f.h);c.stroke()}
+  for(var y=0;y<=f.h;y+=ch){c.beginPath();c.moveTo(0,y+.5);c.lineTo(f.w,y+.5);c.stroke()}
+  c.fillStyle=c.strokeStyle=N.tinta;
+  for(var r=0;r*ch<f.h;r++)for(var k=0;k*cell<f.w;k++){var gr=r0+r,gc=c0+k;if(gr>=g.rows||gc>=g.cols)continue;var l=g.lv[gr*g.cols+gc];if(l)G.drawGlyph(c,l,k*cell+cell/2,r*ch+ch/2,cell);
+    if(l&&r<3&&k<9){c.save();c.font='10px "IBM Plex Mono", monospace';c.fillStyle=N.tinta3;c.fillText(l,k*cell+3,r*ch+11);c.restore();c.fillStyle=c.strokeStyle=N.tinta}}
+}
+
+// ---------- demo ----------
+var demo={scene:'crm',ink:N.tinta,cols:64,mode:'svg'};
+var DSC=[['zero','Cero'],['crm','Busto'],['link','Link'],['cal','Reloj'],['chat','Chat'],['track','Blanco'],['notes','Lápiz'],['flow','Engranajes'],['robots','Robot']];
+var dsEl=$('#demoScene');DSC.forEach(function(s){var b=document.createElement('button');b.textContent=s[1];b.setAttribute('aria-pressed',s[0]===demo.scene);b.onclick=function(){demo.scene=s[0];$$('button',dsEl).forEach(function(x){x.setAttribute('aria-pressed',x===b)});drawDemo()};dsEl.appendChild(b)});
+var diEl=$('#demoInk');[{id:'tinta',name:'Tinta',ink:N.tinta}].concat(PRODUCTS).forEach(function(p,i){if(i>11)return;var b=document.createElement('button');b.style.background=p.ink;b.title=p.name;b.setAttribute('aria-label','Tinta '+p.name);b.setAttribute('aria-pressed',i===0);b.onclick=function(){demo.ink=p.ink;$$('button',diEl).forEach(function(x){x.setAttribute('aria-pressed',x===b)});drawDemo()};diEl.appendChild(b)});
+$('#demoCols').oninput=function(){demo.cols=+this.value;$('#demoColsV').textContent=this.value;drawDemo()};
+$$('#demoMode button').forEach(function(b){b.onclick=function(){demo.mode=b.dataset.m;$$('#demoMode button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});$('#demo').classList.toggle('txt',demo.mode==='txt');drawDemo()}});
+var demoStage=$('#demoStage');
+function drawDemo(){
+  var cv=$('#demoCanvas'),f=fitCanvas(cv),sc=G.scenes[demo.scene];
+  var maxW=Math.min(f.w-24,(f.h-24)*sc.w/sc.h);var cell=maxW/demo.cols;
+  var g=G.sample(sc,demo.cols,{ss:demo.cols<70?2:1});
+  var gw=g.cols*cell,gh=g.rows*cell*G.CELL_H;f.ctx.clearRect(0,0,f.w,f.h);
+  G.draw(f.ctx,g,cell,(f.w-gw)/2,(f.h-gh)/2,demo.ink);
+  var counts=[0,0,0,0,0,0,0];for(var i=0;i<g.lv.length;i++)counts[g.lv[i]]++;
+  $('#demoRead').innerHTML=g.cols+' × '+g.rows+' celdas<br>'+counts.slice(1).map(function(n,i){return G.CHARS[i+1]+' '+n}).join(' &nbsp;')+'<br>tinta '+demo.ink;
+  if(demo.mode==='txt'){var pre=$('#demoPre');var tc=Math.min(demo.cols,Math.floor((f.w-16)/7.22));var g2=G.sample(sc,tc,{ss:1});pre.style.color=demo.ink;pre.innerHTML=G.toText(g2,true)}
+}
+var draf=0;demoStage.addEventListener('pointermove',function(e){if(draf)return;draf=requestAnimationFrame(function(){draf=0;lightFromEvent(e,demoStage);drawDemo();resetLight()})});
+
+// ---------- lockups ----------
+var SYM=document.querySelector('.tiers .t2 svg').outerHTML;
+$('#lockups').innerHTML=PRODUCTS.map(function(p){return '<div class="lockup"><span style="color:'+p.text+'">'+SYM+'</span><span class="w">zerosoft</span><span class="p" style="color:'+p.text+'">'+p.id+'</span><span class="r">'+(p.replaces?'reemplaza a '+p.replaces:p.what.toLowerCase())+'</span></div>'}).join('');
+$$('#lockups svg').forEach(function(s){s.style.width='';});
+
+// ---------- color ----------
+var NEU=[['papel','Papel',N.papel,N.tinta],['papel3','Papel 3',N.papel3,N.tinta],['tinta3','Tinta 3',N.tinta3,N.papel],['tinta2','Tinta 2',N.tinta2,N.papel],['tinta','Tinta',N.tinta,N.papel],['plancha','Plancha',N.plancha,N.planchaTexto]];
+$('#neutrals').innerHTML=NEU.map(function(n){return '<div style="background:'+n[2]+';color:'+n[3]+'"><b>'+n[1]+'</b>'+n[2]+'<br>'+fmt(cr(n[2],N.papel)).replace(',',',')+':1 sobre papel<br>'+fmt(cr(n[2],N.plancha))+':1 sobre plancha</div>'}).join('');
+var rowsH='<div class="prow h"><span>Producto</span><span>Tinta (gráfica)</span><span>Texto sobre papel</span><span>Texto sobre plancha</span><span>Rampa en tinta</span></div>';
+$('#prods').innerHTML=rowsH+PRODUCTS.map(function(p){
+  return '<div class="prow"><span class="nm" style="color:'+p.text+'">'+icon(p.id,22)+p.name+'</span>'+
+  '<span class="sw"><i style="background:'+p.ink+'"></i><span>'+p.ink+'<br><span class="ok">'+fmt(p.crInk)+':1 · gráfico</span></span></span>'+
+  '<span class="sw"><i style="background:'+p.text+'"></i><span style="color:'+p.text+'">'+p.text+'<br><span class="ok">'+fmt(p.crText)+':1 · AA</span></span></span>'+
+  '<span class="sw dk" style="background:'+N.plancha+';color:'+p.dark+'"><i style="background:'+p.dark+'"></i><span>'+p.dark+'<br>'+fmt(p.crDark)+':1 · AA</span></span>'+
+  '<canvas data-ink="'+p.ink+'"></canvas></div>'}).join('');
+function drawStrips(){$$('#prods canvas').forEach(function(cv){var f=fitCanvas(cv),cell=9,cols=Math.floor(f.w/cell),rows=Math.floor(f.h/(cell*G.CELL_H));var g={cols:cols,rows:rows,lv:new Uint8Array(cols*rows)};var B=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){var t=c/(cols-1),th=B[(r%4)*4+(c%4)]/16-.47;g.lv[r*cols+c]=Math.max(0,Math.min(6,Math.round(t*6+th)))}G.draw(f.ctx,g,cell,0,(f.h-rows*cell*G.CELL_H)/2,cv.dataset.ink)})}
+
+// ---------- íconos ----------
+$('#icons').innerHTML=PRODUCTS.map(function(p){return '<div><div class="grid24" style="color:'+p.ink+'">'+icon(p.id,96,1.9)+'</div><div class="sizes" style="color:'+p.text+'">'+icon(p.id,32)+icon(p.id,24)+icon(p.id,16,2.2)+'</div><span class="lbl"><b>'+p.id+'</b> · 32 24 16</span></div>'}).join('')+'<div style="justify-content:center"><span class="lbl" style="text-align:left;line-height:1.7"><b>Grilla 24</b><br>trazo 1,9<br>16 px: trazo 2,2<br>puntas rectas</span></div>';
+$('#iconsDark').innerHTML=PRODUCTS.map(function(p){return '<div><span style="color:'+p.dark+'">'+icon(p.id,24)+'</span>'+p.name+'</div>'}).join('');
+
+// ---------- ilustraciones ----------
+var ILN={link:'Eslabones',cal:'Despertador',chat:'Globos',track:'Blanco y flecha',crm:'Busto',notes:'Lápiz',flow:'Engranajes',robots:'Robot',docs:'Libro abierto'};
+$('#ill').innerHTML=ILLUS.map(function(it){var p=P[it.pid];return '<figure><div class="im"><img src="assets/illus-'+it.scene+'.svg" alt="'+ILN[it.scene]+' grabado en tinta '+p.name+'" loading="lazy"></div><figcaption><b style="color:'+p.text+'">'+p.name+' · '+ILN[it.scene]+'</b><span>illus-'+it.scene+'.svg</span></figcaption></figure>'}).join('');
+
+// ---------- motion: carga ----------
+$$('.spin ellipse').forEach(function(e,i){e.style.animationDelay=(i*0.1)+'s'});
+var bar=$('#loadBar'),step=0,BW=20;
+function drawBar(){var s='';for(var i=0;i<BW;i++){var l=Math.max(0,Math.min(6,step-i));s+=l===6?'<b>0</b>':l===0?'·':G.CHARS[l]}bar.innerHTML=s}
+if(RM){step=BW+6;drawBar()}else{drawBar();setInterval(function(){step=(step+1)%(BW+14);drawBar()},90)}
+
+// ---------- motion: transición ----------
+var tLabel='zero',TS=['zero','link','cal','crm','robots'],ti=0,tcv=$('#transCanvas'),tA=null,tB=null,tt=0,tanim=0;
+function tGrid(scene,f){var sc=G.scenes[scene];var cols=Math.floor(Math.min(f.w-40,(f.h-60)*sc.w/sc.h)/6);return G.sample(sc,cols,{ss:1})}
+function tDraw(){var f=fitCanvas(tcv),c=f.ctx;c.clearRect(0,0,f.w,f.h);var cell=6;
+  // ambos en una grilla común
+  var cols=Math.floor((f.w-24)/cell),rows=Math.floor((f.h-50)/(cell*G.CELL_H));
+  function place(gr){var o=new Uint8Array(cols*rows),dx=Math.floor((cols-gr.cols)/2),dy=Math.floor((rows-gr.rows)/2);for(var r=0;r<gr.rows;r++)for(var k=0;k<gr.cols;k++){var R=r+dy,K=k+dx;if(R>=0&&R<rows&&K>=0&&K<cols)o[R*cols+K]=gr.lv[r*gr.cols+k]}return o}
+  var a=place(tA),b=place(tB),g={cols:cols,rows:rows,lv:new Uint8Array(cols*rows)};
+  for(var r=0;r<rows;r++)for(var k=0;k<cols;k++){var i=r*cols+k,delay=(k/cols+r/rows)*0.5*14,p=Math.max(0,Math.min(1,(tt-delay)/1));var steps=Math.abs(b[i]-a[i]);var cur=a[i]+Math.sign(b[i]-a[i])*Math.round(steps*p);
+    // paso por el blanco: primero se vacía, luego se entinta
+    g.lv[i]=cur}
+  G.draw(c,g,cell,(f.w-cols*cell)/2,10,N.tinta);
+  c.font='12px "IBM Plex Mono", monospace';c.fillStyle=N.tinta3;c.fillText(tLabel,12,f.h-16)}
+function tNext(){var f=fitCanvas(tcv);tA=tGrid(TS[ti],f);ti=(ti+1)%TS.length;tB=tGrid(TS[ti],f);tLabel=TS[(ti-1+TS.length)%TS.length]+' → '+TS[ti];ti=(ti-1+TS.length)%TS.length;tt=0;cancelAnimationFrame(tanim);
+  if(RM){tt=99;tDraw();ti=(ti+1)%TS.length;return}
+  var t0=performance.now();(function loop(now){tt=(now-t0)/1000*12;tDraw();if(tt<16)tanim=requestAnimationFrame(loop);else ti=(ti+1)%TS.length})(t0)}
+$('#transBtn').onclick=tNext;
+var autoT=null;function startAuto(){if(RM||autoT)return;autoT=setInterval(tNext,3600)}
+
+// ---------- motion: hover ----------
+$$('[data-ink]').forEach(function(a){if(a.tagName!=='A')return;var z=$('.z',a),n=14,cells=[];for(var i=0;i<n;i++){var s=document.createElement('span');s.textContent='·';z.appendChild(s);cells.push(s)}var tm=[];
+  function run(on){tm.forEach(clearTimeout);tm=[];if(RM){cells.forEach(function(s){s.textContent=on?'0':'·'});return}cells.forEach(function(s,i){for(var l=1;l<=5;l++)(function(l){tm.push(setTimeout(function(){s.innerHTML=on?(l===5?'<b>0</b>':G.CHARS[l+1]):'·'},(on?i*22:(n-i)*12)+l*30))})(l)})}
+  a.addEventListener('mouseenter',function(){run(true)});a.addEventListener('mouseleave',function(){run(false)});a.addEventListener('focus',function(){run(true)});a.addEventListener('blur',function(){run(false)})});
+
+// ---------- sitio ----------
+$('#pgrid').innerHTML=PRODUCTS.map(function(p){return '<a href="#sitio"><span style="color:'+p.ink+'">'+icon(p.id,26)+'</span><span><b>'+p.name+'</b><span>'+(p.replaces?'Reemplaza a '+p.replaces:p.what)+'</span></span></a>'}).join('')+'<a href="#sitio" style="justify-content:flex-end"><span><b>Todos</b><span>Un login, un workspace</span></span></a>';
+$('#pcr').oninput=function(){var c=this.value/100;$('#pc').textContent=fmt(c);$('#pp').textContent=fmt(c*3)};
+var cal=$('#calGrid');var dws=['L','M','M','J','V','S','D'];var h=dws.map(function(d){return '<span class="dw">'+d+'</span>'}).join('');for(var i=0;i<6;i++)h+='<span></span>';for(var d=1;d<=30;d++){var wd=(d+5)%7;var av=wd<5&&d>3;h+='<button '+(av?'class="av'+(d===10?' on':'')+'"':'disabled')+'>'+d+'</button>'}cal.innerHTML=h.replace(/<span><\/span>/g,'<span></span>');
+// alinear: noviembre 2026 empieza domingo -> 6 vacíos
+var slotT=['09:00','09:30','11:00','14:30','16:00'];$('#slots').innerHTML=slotT.map(function(s,i){return '<button'+(i===2?' class="on"':'')+'>'+s+'</button>'}).join('');
+$$('#calGrid button.av').forEach(function(b){b.onclick=function(){$$('#calGrid button').forEach(function(x){x.classList.remove('on')});b.classList.add('on');var wd=['Lunes','Martes','Miércoles','Jueves','Viernes'][(+b.textContent+5)%7];$('#slotDay').textContent=wd+' '+b.textContent}});
+$$('#slots button').forEach(function(b){b.onclick=function(){$$('#slots button').forEach(function(x){x.classList.remove('on')});b.classList.add('on')}});
+
+// ---------- app ----------
+var B2B=['link','crm','cal','track','chat','docs','flow','agents'],PER=['notes','board','robots'];
+function sideItem(id){var p=P[id];return '<a href="#app" class="'+(id==='track'?'on':'')+'"><span style="color:'+p.ink+'">'+icon(id,16)+'</span>'+p.name+(id==='track'?'<span class="ct">24</span>':'')+'</a>'}
+$('#side').innerHTML='<div class="ws">'+document.querySelector('.tiers .t2 svg').outerHTML+'<b>plataforma</b><span>▾</span></div><div class="grp">Para equipos</div>'+B2B.map(sideItem).join('')+'<div class="grp">Para vos</div>'+PER.map(sideItem).join('')+'<div class="me"><span class="av">MR</span>Mariana R.<span style="margin-left:auto;color:var(--tinta-3)">Ajustes</span></div>';
+var PRI=['·','∘','o','O','<b>0</b>'];
+var ISS=[['TRK-0042','Migrar webhooks a la cola nueva','prog','En curso',4,'MR','14'],['TRK-0041','Cal: la lista de zonas llega después de montar','done','Hecho',3,'LS','14'],['TRK-0040','Exportar contactos de CRM a CSV','rev','En revisión',2,'JP','14'],['TRK-0039','Link: QR en SVG con margen configurable','todo','Por hacer',2,'MR','14'],['TRK-0038','Mostrar costo y precio en la factura','prog','En curso',4,'LS','14'],['TRK-0037','Chat: atajos de teclado en la bandeja','todo','Por hacer',1,'AV','15'],['TRK-0036','Docs: historial de versiones por página','todo','Por hacer',2,'JP','15'],['TRK-0035','Flow: reintentos con espera creciente','rev','En revisión',3,'AV','14'],['TRK-0034','Traducir onboarding a portugués','done','Hecho',1,'MR','13'],['TRK-0033','Track: atajos para cambiar estado','todo','Por hacer',0,'LS','15'],['TRK-0032','Robots: logs de ejecución por tarea','prog','En curso',2,'JP','14'],['TRK-0031','Board: exportar a PNG','todo','Por hacer',0,'AV','·']];
+var sel=0;
+function drawRows(){ $('#rows').innerHTML=ISS.map(function(r,i){return '<tr class="'+(i===sel?'sel':'')+'" data-i="'+i+'"><td class="id">'+r[0]+'</td><td class="ti">'+r[1]+'</td><td><span class="st-ic '+r[2]+'"><i></i>'+r[3]+'</span></td><td><span class="prio" title="Prioridad '+r[4]+' de 4">'+PRI[r[4]]+'</span></td><td><span class="av">'+r[5]+'</span></td><td class="id">'+r[6]+'</td></tr>'}).join('');
+  $$('#rows tr').forEach(function(tr){tr.onclick=function(){sel=+tr.dataset.i;drawRows();drawPanel();showToast(ISS[sel][0]+' abierto.')}})}
+function drawPanel(){var r=ISS[sel];$('#panel').innerHTML='<div class="ph"><span>'+r[0]+'</span><span>Copiar link · ×</span></div><div class="pb"><h5>'+r[1]+'</h5><dl><dt>Estado</dt><dd><span class="st-ic '+r[2]+'"><i></i>'+r[3]+'</span></dd><dt>Prioridad</dt><dd><span class="prio">'+PRI[r[4]]+'</span> '+['Ninguna','Baja','Media','Alta','Urgente'][r[4]]+'</dd><dt>Asignado</dt><dd><span class="av">'+r[5]+'</span></dd><dt>Ciclo</dt><dd>'+r[6]+'</dd><dt>Producto</dt><dd style="color:var(--pt)">Track</dd></dl><div class="desc">Hoy los webhooks salen en el mismo proceso que la request. Pasan a la cola con reintentos y un registro por intento, visible desde Ajustes.</div><div class="cm"><span class="av">LS</span> <span style="color:var(--tinta-3)">hace 2 h</span><p>Probado en staging con 10 000 eventos. Falta el panel de reintentos.</p></div></div><div class="pf"><input class="inp" placeholder="Escribí un comentario" aria-label="Comentario"><button class="btn sm">Enviar</button></div>'}
+drawRows();drawPanel();
+var toastT;function showToast(t){var el=$('#toast');$('#toastTxt').textContent=t;el.style.opacity=1;clearTimeout(toastT)}
+$('#newIssue').onclick=function(){showToast('Issue TRK-0043 creado.')};
+$('#mlist').innerHTML=ISS.slice(0,8).map(function(r){return '<div class="it"><span class="prio" style="padding-top:2px">'+PRI[r[4]]+'</span><div><div class="tt">'+r[1]+'</div><div class="mt">'+r[0]+' · <span class="st-ic '+r[2]+'"><i></i>'+r[3]+'</span></div></div><span class="av">'+r[5]+'</span></div>'}).join('');
+$('#mbar').innerHTML=['track','link','cal','chat','crm'].map(function(id,i){return '<a href="#app" class="'+(i===0?'on':'')+'"><span style="color:'+(i===0?P[id].ink:'inherit')+'">'+icon(id,20)+'</span>'+P[id].name+'</a>'}).join('');
+
+// ---------- descargas ----------
+$('#dl').innerHTML=FILES.map(function(f){return '<a href="assets/'+f.name+'" download><img src="assets/'+f.name+'" alt="" loading="lazy"><span><span class="f">'+f.name+'</span><span class="d">'+f.label+'</span></span><span class="sz">'+(f.bytes>1024?Math.round(f.bytes/1024)+' KB':f.bytes+' B')+'</span></a>'}).join('');
+
+// ---------- render inicial ----------
+function drawAll(){drawCover();drawRamp();drawGrid();drawDemo();drawStrips();
+  var hw=$('#homeCanvas').getBoundingClientRect().width;render($('#homeCanvas'),'zeroShadow',{cell:hw<500?6:8,pad:hw<500?12:28});
+  render($('#footCanvas'),'zero',{cell:7,pad:0,align:'right',color:'#3a342b'});
+  tA=tGrid(TS[0],fitCanvas(tcv));tB=tA;tt=99;tDraw()}
+var rT;window.addEventListener('resize',function(){clearTimeout(rT);rT=setTimeout(drawAll,150)});
+function boot(){drawAll();startAuto()}
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(boot);else boot();
+})();
+</script>
+</body>
+</html>

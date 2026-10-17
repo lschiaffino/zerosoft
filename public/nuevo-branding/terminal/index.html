@@ -1,0 +1,1620 @@
+<!doctype html>
+<html lang="es" data-theme="terminal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>zerosoft · Terminal</title>
+<meta name="description" content="Propuesta de marca Terminal para zerosoft: el cero vive en [0].">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700;800&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root, [data-theme="terminal"] {
+  --bg: #0f0e0c; --bg2: #161411; --bg3: #1e1b17; --line: #2e2a24; --line2: #4a443a;
+  --fg: #ece4d2; --fg2: #c9bfa9; --dim: #9b927f; --bar: #13120f; --sel: #26221c; --on-fg: #0f0e0c;
+  --link: #447aff; --crm: #8d66ff; --cal: #0e9f6e; --track: #f2611d; --chat: #e34584; --docs: #c2700a;
+  --flow: #118bca; --agents: #ff3b30; --notes: #e6b400; --board: #00b8a9; --robots: #7d838f;
+  --bad: #ff5a4f; --ok: #3ccf8e;
+  color-scheme: dark;
+}
+[data-theme="papel"] {
+  --bg: #f4efe4; --bg2: #ebe4d4; --bg3: #e3dccb; --line: #d6cdb9; --line2: #a69c86;
+  --fg: #1a1814; --fg2: #3d382f; --dim: #6a6254; --bar: #e2ead6; --sel: #e8dcc0; --on-fg: #f4efe4;
+  --link: #295ee0; --crm: #7147eb; --cal: #0a7651; --track: #ae4615; --chat: #b93268; --docs: #975708;
+  --flow: #026ca3; --agents: #c22d24; --notes: #816500; --board: #00766c; --robots: #626976;
+  --bad: #b3261e; --ok: #0a7651;
+  color-scheme: light;
+}
+:root { --ui: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; --read: 'IBM Plex Mono', ui-monospace, Menlo, monospace; --disp: 'VT323', 'JetBrains Mono', ui-monospace, monospace; --pc: var(--fg); --gut: clamp(16px, 4vw, 56px); }
+* { box-sizing: border-box; }
+html { background: var(--bg); scroll-behavior: smooth; scroll-padding-top: 64px; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 15px/1.6 var(--ui); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+[data-theme] { background: var(--bg); color: var(--fg); }
+a { color: inherit; }
+::selection { background: var(--fg); color: var(--on-fg); }
+pre, code { font-family: var(--ui); }
+img { max-width: 100%; display: block; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 var(--gut); }
+.dim { color: var(--dim); }
+.c-link{--pc:var(--link)}.c-crm{--pc:var(--crm)}.c-cal{--pc:var(--cal)}.c-track{--pc:var(--track)}.c-chat{--pc:var(--chat)}.c-docs{--pc:var(--docs)}.c-flow{--pc:var(--flow)}.c-agents{--pc:var(--agents)}.c-notes{--pc:var(--notes)}.c-board{--pc:var(--board)}.c-robots{--pc:var(--robots)}
+.pc { color: var(--pc); }
+.cur { display: inline-block; width: .6em; height: 1.1em; background: currentColor; vertical-align: -0.15em; animation: blink 1.06s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---------- barra superior ---------- */
+.top { position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top-in { display: flex; align-items: center; gap: 20px; height: 52px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; white-space: nowrap; font-size: 13px; color: var(--dim); }
+.brand svg { height: 18px; width: auto; }
+.nav { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+.nav::-webkit-scrollbar { display: none; }
+.nav a { text-decoration: none; color: var(--dim); font-size: 12px; padding: 6px 8px; white-space: nowrap; }
+.nav a:hover, .nav a.on { color: var(--fg); background: var(--bg3); }
+.nav a b { font-weight: 500; color: var(--fg2); }
+.theme { display: flex; border: 1px solid var(--line2); font-size: 12px; flex: none; }
+.theme button { font: inherit; background: none; border: 0; color: var(--dim); padding: 5px 10px; cursor: pointer; }
+.theme button[aria-pressed="true"] { background: var(--fg); color: var(--on-fg); }
+
+/* ---------- secciones ---------- */
+section.s { padding: 96px 0 40px; border-bottom: 1px solid var(--line); }
+.sh { display: grid; grid-template-columns: 120px 1fr; gap: 8px 32px; margin-bottom: 48px; align-items: baseline; }
+.sh-n { font-size: 13px; color: var(--dim); }
+.sh-n::before { content: '['; } .sh-n::after { content: ']'; }
+.sh h2 { margin: 0; font: 700 clamp(30px, 4.4vw, 52px)/1.05 var(--ui); letter-spacing: -0.03em; }
+.sh p { grid-column: 2; margin: 0; max-width: 64ch; color: var(--fg2); }
+h3.k { font: 500 12px/1.4 var(--ui); color: var(--dim); text-transform: lowercase; margin: 56px 0 16px; display: flex; gap: 12px; align-items: center; }
+h3.k::before { content: '──'; color: var(--line2); }
+h3.k::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
+.cap { font-size: 12px; color: var(--dim); margin-top: 10px; }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.panel { border: 1px solid var(--line); background: var(--bg2); padding: 24px; position: relative; min-width: 0; }
+.panel.flat { background: transparent; }
+.tag { font-size: 11px; color: var(--dim); position: absolute; top: 8px; left: 12px; }
+.art { margin: 0; white-space: pre; line-height: 1.2; overflow: hidden; font-size: 12px; }
+
+/* ---------- 01 portada ---------- */
+.hero { min-height: calc(100svh - 52px); display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 40px; align-items: center; padding-top: 48px; padding-bottom: 64px; }
+.hero-k { font-size: 12px; color: var(--dim); display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 40px; }
+.hero-k span::before { content: '# '; color: var(--line2); }
+.hero h1 { font: 400 clamp(64px, 11vw, 168px)/0.82 var(--disp); margin: 0 0 32px; letter-spacing: -0.01em; }
+.hero h1.hero-logo { margin: 0 0 40px; } .hero-logo svg { width: 100%; max-width: 640px; height: auto; display: block; } .hero-logo .z-cursor { animation: blink 1.06s steps(1) infinite; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: reduce) { .hero-logo .z-cursor { animation: none; } }
+.concept { font: 500 clamp(18px, 2vw, 22px)/1.45 var(--ui); max-width: 34ch; margin: 0 0 32px; }
+.manif { border: 1px solid var(--line2); background: var(--bg2); font-size: 14px; }
+.manif-bar { display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid var(--line); color: var(--dim); font-size: 12px; }
+.manif pre { margin: 0; padding: 16px 16px 20px; white-space: pre-wrap; line-height: 1.75; font-family: var(--read); min-height: 13.5em; }
+.manif .p { color: var(--dim); }
+.tor-box { position: relative; aspect-ratio: 1 / 0.86; display: flex; align-items: center; justify-content: center; }
+.tor-box pre { margin: 0; line-height: 1.12; white-space: pre; color: var(--fg); font-size: 12px; cursor: grab; user-select: none; touch-action: none; }
+.tor-meta { position: absolute; inset: auto 0 0 0; display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); }
+
+/* ---------- 02 sistema ---------- */
+.rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.rule { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 20px 20px 24px; }
+.rule .n { color: var(--dim); font-size: 12px; }
+.rule h4 { margin: 8px 0 8px; font: 700 17px/1.3 var(--ui); }
+.rule p { margin: 0; color: var(--fg2); font-size: 14px; }
+.rule .demo { font-size: 22px; margin: 12px 0 0; white-space: pre; line-height: 1.2; }
+.cellgrid { position: relative; font-size: 16px; line-height: 24px; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 1ch 24px; background-position: -1px -1px; padding: 24px 2ch; white-space: pre; overflow: hidden; border: 1px solid var(--line); }
+.cellgrid .hl { background: color-mix(in srgb, var(--pc) 22%, transparent); }
+.ramp { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); }
+.ramp div { border-right: 1px solid var(--line); padding: 14px 12px; }
+.ramp div:last-child { border-right: 0; }
+.ramp b { display: block; font: 400 64px/1 var(--ui); height: 72px; }
+.ramp span { font-size: 12px; color: var(--dim); display: block; }
+.fam { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+.fam div { border: 1px solid var(--line); padding: 16px; }
+.fam b { font: 500 34px/1.2 var(--ui); display: block; margin-bottom: 8px; white-space: nowrap; }
+.fam > div > span { font-size: 12px; color: var(--fg2); }
+.lab { display: grid; grid-template-columns: 300px minmax(0, 1fr); border: 1px solid var(--line2); }
+.lab-ctl { border-right: 1px solid var(--line); padding: 20px; display: flex; flex-direction: column; gap: 18px; background: var(--bg2); }
+.lab-out { padding: 20px; min-height: 280px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.lab-out pre { margin: 0; white-space: pre; line-height: 1.2; color: var(--pc); }
+
+/* ---------- controles (compartidos por la guía y la app) ---------- */
+.fld { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--dim); }
+.inp { font: 400 14px/1 var(--ui); color: var(--fg); background: var(--bg); border: 1px solid var(--line2); padding: 10px 12px; width: 100%; border-radius: 0; caret-color: var(--pc); outline: none; }
+.inp:focus { border-color: var(--fg); box-shadow: inset 3px 0 0 var(--pc); }
+.inp::placeholder { color: var(--dim); }
+input[type=range] { accent-color: var(--fg); width: 100%; }
+select.inp { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%), linear-gradient(135deg, var(--dim) 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 30px; cursor: pointer; }
+.btn { font: 500 14px/1 var(--ui); display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; border: 1px solid var(--fg); background: var(--fg); color: var(--on-fg); text-decoration: none; cursor: pointer; border-radius: 0; white-space: nowrap; transition: background .12s, color .12s; }
+.btn .m { display: inline-block; min-width: 1ch; }
+.btn:hover { background: transparent; color: var(--fg); }
+.btn.sec { background: transparent; color: var(--fg); border-color: var(--line2); }
+.btn.sec:hover { border-color: var(--fg); background: var(--bg3); }
+.btn.gh { background: transparent; color: var(--fg); border-color: transparent; padding-left: 4px; padding-right: 4px; text-decoration: underline; text-underline-offset: 5px; text-decoration-color: var(--line2); }
+.btn.gh:hover { text-decoration-color: var(--fg); }
+.btn.dng { background: transparent; color: var(--bad); border-color: var(--bad); }
+.btn.dng:hover { background: var(--bad); color: var(--on-fg); }
+.btn.sm { padding: 7px 10px; font-size: 12px; }
+.btn:focus-visible, .inp:focus-visible, a:focus-visible, button:focus-visible { outline: 2px solid var(--pc); outline-offset: 2px; }
+.kbd { font: 500 11px/1 var(--ui); border: 1px solid var(--line2); padding: 3px 5px; color: var(--dim); }
+.chk { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; color: var(--fg); cursor: pointer; }
+.chk i { font-style: normal; color: var(--dim); }
+.chk i b { color: var(--pc); font-weight: 700; }
+.tabs { display: flex; border-bottom: 1px solid var(--line2); gap: 0; overflow-x: auto; scrollbar-width: none; }
+.tabs button { font: 500 13px/1 var(--ui); background: none; border: 1px solid transparent; border-bottom: 0; color: var(--dim); padding: 10px 14px 9px; cursor: pointer; margin-bottom: -1px; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-color: var(--line2); background: var(--bg); box-shadow: inset 0 2px 0 var(--pc); }
+.tabs button .ct { color: var(--dim); margin-left: 6px; font-weight: 400; }
+.toggle { display: inline-flex; border: 1px solid var(--line2); font-size: 12px; }
+.toggle span { padding: 4px 8px; color: var(--dim); }
+.toggle span.on { background: var(--pc); color: var(--on-fg); font-weight: 700; }
+
+/* ---------- 03 logo ---------- */
+.logo-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border: 1px solid var(--line); }
+.logo-stage > div { padding: clamp(28px, 6vw, 72px) clamp(20px, 5vw, 56px); display: flex; flex-direction: column; justify-content: center; min-height: 300px; position: relative; }
+.logo-stage svg { width: 100%; height: auto; max-width: 520px; }
+.sizes { display: flex; gap: 40px; align-items: flex-end; flex-wrap: wrap; }
+.sizes figure { margin: 0; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.sizes figcaption { font-size: 12px; color: var(--dim); }
+.px { image-rendering: pixelated; }
+.respect { position: relative; display: flex; justify-content: center; padding: 40px 16px; }
+.respect-in { position: relative; outline: 1px dashed var(--dim); outline-offset: 0; }
+.respect-in svg { display: block; width: min(520px, 70vw); height: auto; }
+.respect-in .m { position: absolute; font-size: 11px; color: var(--dim); }
+.wrong { position: relative; border: 1px solid var(--line); padding: 32px 16px 44px; display: flex; align-items: center; justify-content: center; min-height: 170px; overflow: hidden; }
+.wrong p { position: absolute; left: 12px; right: 12px; bottom: 10px; margin: 0; font-size: 12px; color: var(--fg2); }
+.wrong p::before { content: '[x] '; color: var(--bad); font-weight: 700; }
+.wrong svg { width: 80%; height: auto; }
+.lockups { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.lockups div { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 28px 20px 16px; min-width: 0; }
+.lockups svg { height: 44px; width: auto; max-width: 100%; display: block; }
+.lockups span { display: block; margin-top: 14px; font-size: 11px; color: var(--dim); }
+
+/* ---------- 04 tipografía ---------- */
+.fonts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.font { border: 1px solid var(--line); padding: 24px; min-width: 0; overflow: hidden; }
+.font .nm { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--dim); margin-bottom: 18px; flex-wrap: wrap; }
+.font .big { font-size: 88px; line-height: 1; white-space: nowrap; }
+.font .abc { font-size: 15px; color: var(--fg2); margin-top: 16px; word-break: break-all; }
+.scale-t { width: 100%; border-collapse: collapse; }
+.scale-t td { border-bottom: 1px solid var(--line); padding: 14px 12px 14px 0; vertical-align: baseline; }
+.scale-t td:first-child { font-size: 12px; color: var(--dim); width: 150px; white-space: nowrap; }
+.scale-t td:last-child { font-size: 12px; color: var(--dim); text-align: right; white-space: nowrap; }
+.spec { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+.article { border: 1px solid var(--line); padding: 32px; }
+.article .kick { font-size: 12px; color: var(--dim); }
+.article h4 { font: 700 34px/1.12 var(--ui); letter-spacing: -0.02em; margin: 12px 0 16px; }
+.article p { font: 400 16px/1.75 var(--read); color: var(--fg2); margin: 0 0 14px; max-width: 62ch; }
+.article code { background: var(--bg3); padding: 1px 5px; font-size: 14px; }
+.codeb { border: 1px solid var(--line); background: var(--bg2); font-size: 13px; line-height: 1.7; padding: 18px; margin: 0; white-space: pre; overflow-x: auto; }
+.codeb .c { color: var(--dim); } .codeb .k { color: var(--pc); }
+
+/* ---------- 05 color ---------- */
+.neutrals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.nset { border: 1px solid var(--line2); }
+.nset .row { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 13px; }
+.nset .row:first-child { border-top: 0; }
+.sw { width: 56px; height: 36px; border: 1px solid var(--line2); }
+.colors { width: 100%; border-collapse: collapse; font-size: 13px; }
+.colors th { text-align: left; font-weight: 500; color: var(--dim); font-size: 11px; padding: 0 10px 10px 0; border-bottom: 1px solid var(--line2); white-space: nowrap; }
+.colors td { padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.chip { display: inline-block; width: 44px; height: 26px; vertical-align: middle; }
+.cbox { display: inline-flex; align-items: center; gap: 10px; padding: 4px 10px; font-weight: 700; }
+.ok-t { color: var(--ok); } .bad-t { color: var(--bad); }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); padding: 16px 16px 6px; }
+.colorbar { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); height: 120px; margin-bottom: 24px; }
+.colorbar div { display: flex; align-items: flex-end; padding: 8px; font-size: 11px; color: #0f0e0c; font-weight: 700; }
+
+/* ---------- 06 iconos ---------- */
+.icons { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.icons figure { margin: 0; min-width: 0; }
+.icons img { width: 100%; height: auto; border: 1px solid var(--line); }
+.icons figcaption { font-size: 12px; color: var(--dim); margin-top: 6px; display: flex; justify-content: space-between; }
+.inline-g { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.navdemo { border: 1px solid var(--line); background: var(--bg2); padding: 8px 0; font-size: 13px; }
+.navdemo div { display: grid; grid-template-columns: 5ch 1fr auto; gap: 8px; padding: 5px 14px; }
+.navdemo div.on { background: var(--sel); box-shadow: inset 2px 0 0 var(--pc); }
+.navdemo b { font-weight: 700; color: var(--pc); }
+.uicons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.uicons div { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 14px; font-size: 13px; color: var(--fg2); }
+.uicons b { display: block; font-size: 22px; color: var(--fg); font-weight: 500; margin-bottom: 4px; }
+
+/* ---------- 07 ilustraciones ---------- */
+.illos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.illo { border: 1px solid var(--line); background: var(--bg2); min-width: 0; display: flex; flex-direction: column; }
+.illo .art { padding: 28px 20px 12px; color: var(--pc); flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; }
+.illo footer { border-top: 1px solid var(--line); padding: 10px 14px; font-size: 12px; color: var(--fg2); display: grid; grid-template-columns: auto 1fr; gap: 12px; }
+.illo footer b { color: var(--pc); font-weight: 700; }
+.illo.big { grid-column: span 2; }
+.patterns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.pat { border: 1px solid var(--line); height: 260px; position: relative; overflow: hidden; }
+.pat pre { margin: 0; line-height: 1.2; font-size: 12px; white-space: pre; color: var(--dim); position: absolute; inset: 0; padding: 8px; }
+.pat .lbl { position: absolute; left: 0; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); border-right: 1px solid var(--line); padding: 6px 10px; font-size: 12px; z-index: 2; }
+.greenbar { background: repeating-linear-gradient(#f4efe4 0 48px, #e2ead6 48px 96px); color: #1a1814; }
+.greenbar pre { color: #3d382f; font-family: var(--read); font-size: 13px; line-height: 24px; padding: 0 20px 0 52px; }
+.greenbar::before { content: ''; position: absolute; left: 32px; top: 0; bottom: 0; border-left: 1px solid #c9bfa9; }
+
+/* ---------- 08 motion ---------- */
+.motions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.mo { border: 1px solid var(--line2); display: flex; flex-direction: column; min-width: 0; }
+.mo-st { flex: 1; min-height: 280px; padding: 20px; position: relative; overflow: hidden; }
+.mo footer { border-top: 1px solid var(--line); padding: 12px 14px; font-size: 12px; color: var(--fg2); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.mo pre { margin: 0; white-space: pre; font-size: 13px; line-height: 1.6; }
+.mo-tabs { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+.mo-tabs button { font: 500 12px/1 var(--ui); background: none; border: 1px solid var(--line2); color: var(--dim); padding: 6px 10px; cursor: pointer; }
+.mo-tabs button[aria-pressed="true"] { border-color: var(--fg); color: var(--fg); }
+.hv-list { list-style: none; margin: 0 0 20px; padding: 0; font-size: 14px; }
+.hv-list li { padding: 6px 0; cursor: pointer; display: flex; gap: 10px; }
+.hv-list .b { display: inline-block; width: 3ch; color: var(--dim); }
+.hv-list li:hover .b, .hv-list li:focus-visible .b { color: var(--pc); }
+.hv-list li:hover .t { text-decoration: underline; text-underline-offset: 4px; }
+.hv-card { position: relative; padding: 14px 16px; font-size: 13px; color: var(--fg2); cursor: pointer; }
+.hv-card::before, .hv-card::after { content: ''; position: absolute; inset: 0; pointer-events: none; border: 1px solid var(--line); }
+.hv-card::after { border-color: var(--pc); clip-path: inset(0 100% 100% 0); transition: clip-path .32s steps(8); }
+.hv-card:hover::after { clip-path: inset(0 0 0 0); }
+.hv-card b { color: var(--fg); display: block; font-weight: 700; margin-bottom: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .cur { animation: none; }
+  .hv-card::after { transition: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* ---------- 09 sitio ---------- */
+.bleed { padding: 0 var(--gut); }
+.browser { border: 1px solid var(--line2); max-width: 1680px; margin: 0 auto; overflow: hidden; }
+.browser-bar { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line2); font-size: 12px; color: var(--dim); background: var(--bg3); }
+.browser-bar .url { flex: 1; border: 1px solid var(--line); padding: 3px 10px; background: var(--bg); color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.site { background: var(--bg); color: var(--fg); }
+.site-nav { display: flex; align-items: center; gap: 28px; padding: 18px clamp(16px, 4vw, 48px); border-bottom: 1px solid var(--line); font-size: 13px; }
+.site-nav svg { height: 20px; width: auto; flex: none; }
+.site-nav .links { display: flex; gap: 22px; flex: 1; color: var(--fg2); }
+.site-nav .links a { text-decoration: none; }
+.site-nav .links a:hover { color: var(--fg); }
+.site-nav .act { display: flex; gap: 10px; align-items: center; }
+.s-hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 48px; padding: clamp(40px, 7vw, 104px) clamp(16px, 4vw, 48px) clamp(40px, 6vw, 88px); align-items: center; }
+.s-hero h1 { font: 400 clamp(68px, 8.4vw, 150px)/0.82 var(--disp); margin: 0 0 28px; }
+.s-hero p { font-size: 17px; line-height: 1.6; color: var(--fg2); max-width: 46ch; margin: 0 0 32px; }
+.s-hero .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+.term { border: 1px solid var(--line2); background: var(--bg2); font-size: 13px; min-width: 0; }
+.term-bar { display: flex; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--dim); }
+.term pre { margin: 0; padding: 16px; line-height: 1.75; white-space: pre-wrap; min-height: 20em; word-break: break-word; }
+.term .p { color: var(--dim); } .term .g { color: var(--ok); }
+.s-sec { padding: clamp(48px, 7vw, 96px) clamp(16px, 4vw, 48px); border-top: 1px solid var(--line); }
+.s-sec h2 { font: 700 clamp(28px, 3.6vw, 48px)/1.05 var(--ui); letter-spacing: -0.03em; margin: 0 0 12px; }
+.s-sec .lead { color: var(--fg2); max-width: 56ch; margin: 0 0 40px; }
+.ls { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ls td { padding: 13px 16px 13px 0; border-bottom: 1px solid var(--line); vertical-align: baseline; }
+.ls tr { cursor: pointer; }
+.ls tr:hover td { background: var(--sel); }
+.ls .gl { color: var(--fg); font-weight: 700; width: 6ch; white-space: nowrap; padding-left: 10px; }
+.ls .gl b { color: var(--pc); }
+.ls .nm { font-weight: 700; width: 10ch; }
+.ls .rp { color: var(--dim); text-align: right; white-space: nowrap; }
+.ls .perm { color: var(--line2); width: 12ch; white-space: nowrap; }
+.ls-h { font-size: 13px; color: var(--dim); margin-bottom: 8px; }
+.price { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; border: 1px solid var(--line2); }
+.price > div { padding: 28px; }
+.price > div + div { border-left: 1px solid var(--line2); }
+.price .big { font: 400 clamp(64px, 8vw, 112px)/0.9 var(--disp); margin: 12px 0 8px; }
+.price .row { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--line); padding: 8px 0; font-size: 14px; }
+.price .row b { font-weight: 700; }
+.s-foot { border-top: 1px solid var(--line); padding: 48px clamp(16px, 4vw, 48px) 32px; }
+.s-foot .tree { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; font-size: 13px; }
+.s-foot pre { margin: 0; white-space: pre; line-height: 1.75; color: var(--fg2); }
+.s-foot .big0 { margin: 40px 0 16px; color: var(--dim); overflow: hidden; }
+.s-foot .legal { display: flex; justify-content: space-between; gap: 16px; font-size: 12px; color: var(--dim); flex-wrap: wrap; }
+.p-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; padding: clamp(40px, 6vw, 88px) clamp(16px, 4vw, 48px); align-items: start; }
+.p-hero .gl svg { height: clamp(56px, 7vw, 96px); width: auto; display: block; margin-bottom: 28px; }
+.p-hero h1 { font: 700 clamp(36px, 5vw, 68px)/1.02 var(--ui); letter-spacing: -0.035em; margin: 0 0 20px; }
+.p-hero p { color: var(--fg2); font-size: 16px; max-width: 46ch; margin: 0 0 28px; }
+.bk { border: 1px solid var(--line2); background: var(--bg2); }
+.bk-h { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.bk-b { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+.cal-g { padding: 16px 18px; border-right: 1px solid var(--line); }
+.cal-g .mh { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 12px; }
+.cal-g .days { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 13px; gap: 2px; }
+.cal-g .days span { padding: 7px 0 9px; position: relative; color: var(--dim); }
+.cal-g .days .wd { font-size: 11px; color: var(--dim); padding: 0 0 6px; }
+.cal-g .days .free { color: var(--fg); cursor: pointer; }
+.cal-g .days .free::after { content: '·'; position: absolute; left: 0; right: 0; bottom: -3px; color: var(--pc); font-weight: 700; }
+.cal-g .days .sel { background: var(--pc); color: var(--on-fg); font-weight: 700; }
+.cal-g .days .sel::after { content: '0'; color: var(--on-fg); font-size: 9px; bottom: -1px; }
+.slots { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.slots button { font: 500 13px/1 var(--ui); background: transparent; border: 1px solid var(--line2); color: var(--fg); padding: 10px; cursor: pointer; text-align: left; display: flex; justify-content: space-between; }
+.slots button.on { border-color: var(--pc); box-shadow: inset 3px 0 0 var(--pc); }
+.feat { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.feat > div { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 24px; }
+.feat b { display: block; margin-bottom: 8px; }
+.feat p { margin: 0; color: var(--fg2); font-size: 14px; }
+.feat .n { color: var(--pc); font-size: 12px; display: block; margin-bottom: 18px; }
+
+/* ---------- 10 app ---------- */
+.scaler { position: relative; overflow: hidden; border: 1px solid var(--line2); }
+.scaler > .inner { width: 1280px; transform-origin: 0 0; position: absolute; left: 0; top: 0; }
+.app { display: grid; grid-template-columns: 232px minmax(0, 1fr) 340px; height: 760px; font-size: 13px; background: var(--bg); color: var(--fg); position: relative; }
+.sb { border-right: 1px solid var(--line); background: var(--bg2); display: flex; flex-direction: column; min-height: 0; }
+.sb-top { padding: 14px 14px 10px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+.sb-top svg { height: 15px; width: auto; }
+.sb-grp { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.sb-grp .h { font-size: 11px; color: var(--dim); padding: 4px 14px 6px; }
+.sb-it { display: grid; grid-template-columns: 5ch 1fr auto; gap: 6px; padding: 5px 14px; color: var(--fg2); cursor: pointer; }
+.sb-it:hover { background: var(--bg3); color: var(--fg); }
+.sb-it .g { color: var(--dim); font-weight: 700; }
+.sb-it .g b { color: var(--pc); }
+.sb-it.on { background: var(--sel); color: var(--fg); box-shadow: inset 2px 0 0 var(--pc); }
+.sb-it .n { color: var(--dim); font-size: 11px; }
+.sb-bot { margin-top: auto; padding: 12px 14px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; color: var(--dim); font-size: 12px; }
+.mn { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.mn-h { padding: 14px 20px 0; }
+.crumb { font-size: 12px; color: var(--dim); }
+.mn-t { display: flex; align-items: center; justify-content: space-between; margin: 8px 0 14px; gap: 12px; }
+.mn-t h1 { font: 700 22px/1 var(--ui); margin: 0; letter-spacing: -0.02em; }
+.mn-t h1 span { color: var(--dim); font-weight: 400; font-size: 14px; margin-left: 8px; }
+.mn-bar { display: flex; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+.mn-bar .inp { padding: 8px 10px; font-size: 13px; }
+.dt { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dt th { text-align: left; font-weight: 500; color: var(--dim); font-size: 11px; padding: 9px 12px; border-bottom: 1px solid var(--line2); white-space: nowrap; position: sticky; top: 0; background: var(--bg); }
+.dt td { padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.dt tbody tr:nth-child(even) td { background: var(--bar); }
+.dt tbody tr:hover td { background: var(--bg3); }
+.dt tbody tr.on td { background: var(--sel); }
+.dt tbody tr.on td:first-child { box-shadow: inset 2px 0 0 var(--pc); }
+.dt .mk { color: var(--dim); width: 3ch; }
+.dt tr.on .mk { color: var(--pc); font-weight: 700; }
+.stg { font-size: 12px; }
+.stg::before { content: '● '; color: var(--sc, var(--dim)); }
+.dt .sub { color: var(--dim); }
+.mn-b { flex: 1; overflow: hidden; }
+.mn-f { padding: 10px 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--dim); display: flex; justify-content: space-between; }
+.pn { border-left: 1px solid var(--line); background: var(--bg2); display: flex; flex-direction: column; min-height: 0; }
+.pn-h { padding: 16px 18px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; }
+.av { width: 44px; height: 44px; border: 1px solid var(--line2); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--pc); font-size: 14px; }
+.pn-h h2 { margin: 0; font: 700 16px/1.2 var(--ui); }
+.pn-h p { margin: 2px 0 0; color: var(--dim); font-size: 12px; }
+.pn-s { padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.pn-s .h { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+.kv { display: grid; grid-template-columns: 9ch 1fr; gap: 4px 10px; font-size: 13px; }
+.kv dt { color: var(--dim); } .kv dd { margin: 0; }
+.radios { display: flex; flex-direction: column; gap: 4px; }
+.tl { margin: 0; white-space: pre; font-size: 12px; line-height: 1.8; color: var(--fg2); }
+.tl .d { color: var(--dim); } .tl b { font-weight: 700; }
+.toast { position: absolute; right: 20px; bottom: 20px; border: 1px solid var(--fg); background: var(--bg); padding: 12px 14px; display: flex; gap: 14px; align-items: center; font-size: 13px; box-shadow: 6px 6px 0 var(--line); z-index: 3; }
+.toast .x { color: var(--dim); cursor: pointer; }
+.toast a { color: var(--fg); }
+.app-wrap { display: grid; gap: 16px; }
+.phones { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+.phone { width: 360px; max-width: 100%; height: 740px; border: 1px solid var(--line2); display: flex; flex-direction: column; background: var(--bg); color: var(--fg); position: relative; overflow: hidden; font-size: 13px; }
+.ph-st { display: flex; justify-content: space-between; padding: 10px 16px 6px; font-size: 11px; color: var(--dim); }
+.ph-h { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.ph-h b { font-size: 15px; }
+.ph-h b i { font-style: normal; color: var(--pc); }
+.ph-s { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.ph-l { flex: 1; overflow: hidden; }
+.ph-it { padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; }
+.ph-it:nth-child(even) { background: var(--bar); }
+.ph-it b { font-weight: 700; } .ph-it span { color: var(--dim); font-size: 12px; }
+.ph-tb { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: var(--bg2); }
+.ph-tb div { text-align: center; padding: 10px 0 18px; font-size: 11px; color: var(--dim); }
+.ph-tb div b { display: block; font-size: 15px; color: var(--fg2); margin-bottom: 2px; }
+.ph-tb div.on { color: var(--fg); box-shadow: inset 0 2px 0 var(--pc); }
+.ph-tb div.on b { color: var(--pc); }
+.fab { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--fg); color: var(--on-fg); font-size: 13px; font-weight: 700; }
+.kit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.kit > div { border: 1px solid var(--line2); padding: 24px; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.kit .h { font-size: 11px; color: var(--dim); margin-bottom: -12px; }
+.kit .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.empty { border: 1px dashed var(--line2); padding: 20px; text-align: center; }
+.empty pre { margin: 0 auto 10px; line-height: 1.2; font-size: 8px; color: var(--pc); white-space: pre; display: inline-block; text-align: left; }
+.empty b { display: block; margin-bottom: 4px; }
+.empty p { margin: 0 0 14px; color: var(--dim); font-size: 13px; }
+.toast.static { position: static; box-shadow: 4px 4px 0 var(--line); }
+
+/* ---------- 11 piezas ---------- */
+.pieces { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+.pc-it { margin: 0; min-width: 0; }
+.pc-it img { width: 100%; height: auto; border: 1px solid var(--line); background: var(--bg2); }
+.pc-it figcaption { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--dim); margin-top: 8px; }
+.pc-it figcaption a { color: var(--fg2); }
+.w6 { grid-column: span 6; } .w4 { grid-column: span 4; } .w8 { grid-column: span 8; } .w12 { grid-column: span 12; } .w3 { grid-column: span 3; }
+
+/* ---------- 12 descargas ---------- */
+.dl { border: 1px solid var(--line2); background: var(--bg2); }
+.dl-h { padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--dim); }
+.dl ul { list-style: none; margin: 0; padding: 8px 0; columns: 2; column-gap: 0; font-size: 13px; }
+.dl li { break-inside: avoid; display: grid; grid-template-columns: 11ch 1fr auto; gap: 12px; padding: 4px 16px; }
+.dl li:hover { background: var(--bg3); }
+.dl li .pm { color: var(--line2); }
+.dl li a { text-decoration: none; }
+.dl li a:hover { text-decoration: underline; }
+.dl li .sz { color: var(--dim); }
+.weak { border: 1px solid var(--line); padding: 20px 24px; margin-top: 24px; }
+.weak pre { margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.8; color: var(--fg2); font-family: var(--read); }
+.foot { padding: 40px 0 56px; font-size: 12px; color: var(--dim); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1100px) {
+  .g4, .lockups { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .icons { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .fam { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .motions, .illos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .site-nav .links { display: none; }
+}
+@media (max-width: 820px) {
+  section.s { padding-top: 64px; }
+  .sh { grid-template-columns: 1fr; margin-bottom: 32px; }
+  .sh p { grid-column: 1; }
+  .hero { grid-template-columns: minmax(0, 1fr); min-height: 0; padding-top: 32px; }
+  .tor-box { aspect-ratio: auto; height: 280px; }
+  .g2, .g3, .rules, .fonts, .spec, .neutrals, .inline-g, .kit, .logo-stage, .lab, .price, .s-hero, .p-hero, .bk-b, .motions, .illos, .patterns, .feat { grid-template-columns: minmax(0, 1fr); }
+  .lab-ctl { border-right: 0; border-bottom: 1px solid var(--line); }
+  .price > div + div { border-left: 0; border-top: 1px solid var(--line2); }
+  .cal-g { border-right: 0; border-bottom: 1px solid var(--line); }
+  .illo.big { grid-column: auto; }
+  .lockups, .uicons, .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #lgGrid { overflow-x: auto; } #lgGrid svg { min-width: 760px; }
+  .icons { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .fam { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ramp { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ramp div:nth-child(3) { border-right: 0; } .ramp div:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
+  .colorbar { height: 72px; } .colorbar div { font-size: 0; }
+  .pieces .w6, .pieces .w4, .pieces .w8, .pieces .w3 { grid-column: span 12; }
+  .dl ul { columns: 1; }
+  .s-foot .tree { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .font .big { font-size: 56px; }
+  .ls .perm, .ls .rp { display: none; }
+  .scale-t td:last-child { display: none; }
+  .scale-t td:first-child { width: 96px; }
+  .top-in { gap: 10px; }
+  .brand .bt { display: none; }
+  .lockups svg { height: 26px !important; margin-bottom: 0 !important; }
+  .lockups svg[style*="54px"] { height: 32px !important; margin-bottom: -6px !important; }
+}
+@media (max-width: 560px) { #wrong { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="#portada" id="brandLogo" aria-label="zerosoft"><span class="bl"></span><span class="bt">/ marca / terminal</span></a>
+    <nav class="nav" aria-label="Secciones" id="nav">
+      <a href="#portada"><b>01</b> portada</a><a href="#sistema"><b>02</b> sistema</a><a href="#logo"><b>03</b> logo</a><a href="#tipo"><b>04</b> tipografía</a><a href="#color"><b>05</b> color</a><a href="#iconos"><b>06</b> íconos</a><a href="#ilustracion"><b>07</b> ilustración</a><a href="#motion"><b>08</b> motion</a><a href="#sitio"><b>09</b> sitio</a><a href="#app"><b>10</b> app</a><a href="#piezas"><b>11</b> piezas</a><a href="#descargas"><b>12</b> descargas</a>
+    </nav>
+    <div class="theme" role="group" aria-label="Modo">
+      <button type="button" data-set="terminal" aria-pressed="true">terminal</button><button type="button" data-set="papel" aria-pressed="false">papel</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ============ 01 PORTADA ============ -->
+<section class="s" id="portada" style="padding-top:0">
+  <div class="wrap hero">
+    <div>
+      <div class="hero-k"><span>propuesta 02 de 05</span><span>terminal</span><span>octubre 2026</span></div>
+      <h1 class="hero-logo" id="heroLogo"><span class="sr">[0] zerosoft</span></h1>
+      <p class="concept">zerosoft habla como una terminal: texto plano, nada escondido, y un <b>[0]</b> que marca dónde estás.</p>
+      <div class="manif">
+        <div class="manif-bar"><span>~/zerosoft</span><span>manifiesto.txt</span></div>
+        <pre id="manif" aria-label="Manifiesto"></pre>
+      </div>
+    </div>
+    <div class="tor-box">
+      <pre id="torus" aria-label="Un cero en tres dimensiones, dibujado con ceros. Arrastralo para girarlo." role="img"></pre>
+      <div class="tor-meta"><span>fig. 0 · el cero, hecho de ceros</span><span>arrastrá para girar</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 SISTEMA ============ -->
+<section class="s" id="sistema">
+  <div class="wrap">
+    <header class="sh"><span class="sh-n">02</span><h2>Sistema del cero</h2><p>Todo se arma con caracteres sobre una grilla de celdas. El cero es la unidad: en corchetes es marca, en rampa es sombra, en color es producto.</p></header>
+
+    <div class="rules">
+      <div class="rule"><span class="n">regla 01</span><h4>Todo mide celdas</h4><p>Una celda es 1 carácter de ancho por 1 línea de alto. Márgenes, columnas y espacios son múltiplos de la celda.</p><div class="demo dim">┌──┬──┬──┐<br>│  │  │  │<br>└──┴──┴──┘</div></div>
+      <div class="rule"><span class="n">regla 02</span><h4>[0] marca lo importante</h4><p>El cero entre corchetes es el logo, el prompt, la viñeta y el ítem activo. Aparece una vez por vista.</p><div class="demo">[0] <span class="dim">cal</span></div></div>
+      <div class="rule"><span class="n">regla 03</span><h4>Cajas de dibujo</h4><p>Los contenedores se dibujan con ┌─┐│└┘ o con un borde de 1 px que los imita. Esquinas a 90°, siempre.</p><div class="demo dim">┌───────┐<br>│ hola  │<br>└───────┘</div></div>
+      <div class="rule"><span class="n">regla 04</span><h4>La rampa da volumen</h4><p>Las ilustraciones usan solo seis niveles: espacio, · ° o 0 Ø. Nada de degradés ni sombras de color.</p><div class="demo">·°o0Ø0o°·</div></div>
+      <div class="rule c-cal"><span class="n">regla 05</span><h4>El color vive en el cero</h4><p>El color de producto pinta el 0, el foco y la línea activa. El texto sigue siendo hueso sobre negro o tinta sobre papel.</p><div class="demo">[<span class="pc">0</span>:<span class="pc">00</span>] cal</div></div>
+      <div class="rule"><span class="n">regla 06</span><h4>El cursor dice "vivo"</h4><p>El bloque ▌ parpadea donde algo pasa: carga, escritura, foco. Si nada pasa, el cursor no está.</p><div class="demo">$ zerosoft<span class="cur"></span></div></div>
+    </div>
+
+    <h3 class="k">grilla de celdas</h3>
+    <div class="grid g2">
+      <div class="cellgrid c-crm" id="cellgrid" aria-label="Una tarjeta de contacto dibujada sobre la grilla de celdas"></div>
+      <div class="panel flat">
+        <p style="margin-top:0">A 16 px, una celda mide 9,6 × 24 px. La página entera se piensa en celdas: el sidebar de la app ocupa 24, la tabla empieza en la columna 26, los títulos ocupan 2 líneas.</p>
+        <pre class="codeb" style="margin-top:16px"><span class="c">/* tokens de la grilla */</span>
+--celda-x: <span class="k">1ch</span>;      <span class="c">/* 9,6 px a 16 px */</span>
+--celda-y: <span class="k">1.5em</span>;    <span class="c">/* 24 px */</span>
+--gutter:  <span class="k">2ch</span>;
+--sidebar: <span class="k">24ch</span>;
+--panel:   <span class="k">36ch</span>;</pre>
+      </div>
+    </div>
+
+    <h3 class="k">rampa de ceros</h3>
+    <div class="ramp" id="ramp"></div>
+    <p class="cap">De vacío a lleno. Cada nivel es un cero con más o menos cuerpo; el Ø barrado es el más denso y el del logo.</p>
+
+    <h3 class="k">familia del cero</h3>
+    <div class="fam">
+      <div><b>[0]</b><span>marca. logo, prompt, viñeta del ítem activo.</span></div>
+      <div class="c-link"><b>(<span class="pc">0</span>)</b><span>elegido. radio seleccionado, opción activa.</span></div>
+      <div><b>Ø</b><span>cero barrado. el glifo del logo; nunca se confunde con la O.</span></div>
+      <div class="c-track"><b><span class="pc">0</span>/<span class="dim">12</span></b><span>contador. pendientes, pasos, páginas.</span></div>
+      <div><b>▌</b><span>cursor. algo vivo: carga, foco, escritura.</span></div>
+    </div>
+
+    <h3 class="k">laboratorio · escribí y se vuelve ceros</h3>
+    <div class="lab c-cal" id="lab">
+      <div class="lab-ctl">
+        <label class="fld">texto<input class="inp" id="labTxt" value="hola" maxlength="14" autocomplete="off" spellcheck="false"></label>
+        <label class="fld">resolución <span id="labResV">72 columnas</span><input type="range" id="labRes" min="36" max="140" value="72"></label>
+        <label class="fld">producto
+          <select class="inp" id="labCol"></select></label>
+        <label class="chk"><input type="checkbox" id="labSh" checked hidden><i>[<b id="labShM">x</b>]</i> sombra de un cero</label>
+        <p class="cap" style="margin:0">El texto se dibuja en la grilla y cada celda elige su nivel de la rampa. Así se hacen los titulares de campaña y el footer.</p>
+      </div>
+      <div class="lab-out"><pre id="labOut" aria-live="polite"></pre></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 LOGO ============ -->
+<section class="s" id="logo">
+  <div class="wrap">
+    <header class="sh"><span class="sh-n">03</span><h2>Logo</h2><p>Un símbolo, [0], y un nombre dibujado a mano en una mono cuadrada con chaflanes. Las o del nombre repiten el chaflán del cero; el cero lleva barra para no confundirse nunca con una letra.</p></header>
+
+    <div class="logo-stage">
+      <div data-theme="terminal"><span class="tag">principal · sobre negro</span><div id="lgDark"></div></div>
+      <div data-theme="papel"><span class="tag">principal · sobre papel</span><div id="lgPaper"></div></div>
+    </div>
+
+    <h3 class="k">construcción</h3>
+    <div class="panel" style="padding:24px 16px"><div id="lgGrid"></div>
+      <p class="cap">Celda de 5 × 9 unidades, trazo de 1,3, puntas cuadradas, avance de 7. Los ceros y las o tienen chaflán de 1 unidad. El cursor es opcional y solo aparece en pantalla.</p></div>
+
+    <h3 class="k">símbolo y tamaños chicos</h3>
+    <div class="grid g2">
+      <div class="panel" style="display:flex;gap:28px;align-items:center;flex-wrap:wrap">
+        <div id="symDark" style="width:150px"></div>
+        <div data-theme="papel" style="padding:12px"><div id="symPaper" style="width:126px"></div></div>
+        <p class="cap" style="flex-basis:100%;margin:0">El símbolo solo se usa cuando el nombre ya está cerca o el espacio no alcanza: favicon, avatar, app.</p>
+      </div>
+      <div class="panel">
+        <div class="sizes">
+          <figure><img src="assets/favicon.svg" width="16" height="16" alt="favicon 16 px"><figcaption>16 px real</figcaption></figure>
+          <figure><img src="assets/favicon-32.svg" width="32" height="32" alt="favicon 32 px"><figcaption>32 px real</figcaption></figure>
+          <figure><img class="px" src="assets/favicon.svg" width="128" height="128" alt="favicon 16 px ampliado"><figcaption>16 px × 8, píxel por píxel</figcaption></figure>
+          <figure><img src="assets/favicon-32.svg" width="96" height="96" alt="favicon 32 px ampliado"><figcaption>32 px × 3</figcaption></figure>
+        </div>
+        <p class="cap">A 16 px el cero pasa a una versión dibujada en píxeles con trazo de 1, para que la barra no empaste.</p>
+      </div>
+    </div>
+
+    <h3 class="k">área de respeto</h3>
+    <div class="panel flat respect"><div class="respect-in" id="respect"></div></div>
+    <p class="cap">Alrededor del logo queda libre el ancho de un corchete más su separación: una celda (x) por lado. Tamaño mínimo: 88 px de ancho en pantalla, 22 mm en papel.</p>
+
+    <h3 class="k">usos incorrectos</h3>
+    <div class="grid g4" id="wrong"></div>
+
+    <h3 class="k">lockup por producto</h3>
+    <div class="lockups" id="lockups"></div>
+  </div>
+</section>
+
+<!-- ============ 04 TIPOGRAFÍA ============ -->
+<section class="s" id="tipo">
+  <div class="wrap">
+    <header class="sh"><span class="sh-n">04</span><h2>Tipografía</h2><p>Todo es mono. Tres familias de Google Fonts con roles fijos y una cuarta, dibujada, que solo existe en el logo y los glifos.</p></header>
+    <div class="fonts">
+      <div class="font"><div class="nm"><span>JetBrains Mono · 400 500 700 800</span><span>interfaz y titulares</span></div><div class="big" style="font-weight:800;letter-spacing:-0.04em">Aa 0Ø</div><div class="abc">ABCDEFGHIJKLMNÑOPQRSTUVWXYZ abcdefghijklmnñopqrstuvwxyz 0123456789 ┌─┐│└┘ → ← ↵ ⌘ $ # @ ( ) [ ] { }</div></div>
+      <div class="font"><div class="nm"><span>VT323 · 400</span><span>display, solo desde 48 px</span></div><div class="big" style="font-family:var(--disp);font-size:120px;line-height:.8">Aa 0:00</div><div class="abc" style="font-family:var(--disp);font-size:24px;line-height:1.2">ABCDEFGHIJKLMNÑOPQRSTUVWXYZ abcdefghijklmnñopqrstuvwxyz 0123456789</div></div>
+      <div class="font"><div class="nm"><span>IBM Plex Mono · 400 400i 600</span><span>lectura larga: blog, docs, mails</span></div><div class="big" style="font-family:var(--read);font-weight:400">Aa <i>áé</i></div><div class="abc" style="font-family:var(--read)">ABCDEFGHIJKLMNÑOPQRSTUVWXYZ abcdefghijklmnñopqrstuvwxyz ¿¡ áéíóú ü 0123456789</div></div>
+      <div class="font"><div class="nm"><span>Cero Terminal · dibujada</span><span>solo logo y glifos de producto</span></div><div id="ctAlpha" style="margin-top:6px"></div><div class="abc">Trazo constante, ángulos de 90° y 45°. No se instala ni se usa para texto corrido.</div></div>
+    </div>
+
+    <h3 class="k">escala</h3>
+    <table class="scale-t">
+      <tr><td>display · VT323</td><td style="font:400 clamp(56px,9vw,120px)/.85 var(--disp)">El software murió.</td><td>120 / 0.85</td></tr>
+      <tr><td>h1 · 800</td><td style="font:800 clamp(34px,4.4vw,56px)/1.05 var(--ui);letter-spacing:-.035em">Once apps, una cuenta.</td><td>56 / 1.05</td></tr>
+      <tr><td>h2 · 700</td><td style="font:700 32px/1.1 var(--ui);letter-spacing:-.025em">Tipos de evento</td><td>32 / 1.1</td></tr>
+      <tr><td>h3 · 700</td><td style="font:700 20px/1.3 var(--ui)">Disponibilidad por día</td><td>20 / 1.3</td></tr>
+      <tr><td>cuerpo · 400</td><td style="font:400 15px/1.6 var(--ui)">Elegí los días y horarios en los que aceptás reuniones.</td><td>15 / 1.6</td></tr>
+      <tr><td>lectura · Plex</td><td style="font:400 16px/1.75 var(--read)">Instalalo en tu servidor con Docker y es tuyo.</td><td>16 / 1.75</td></tr>
+      <tr><td>chico · 500</td><td style="font:500 12px/1.5 var(--ui);color:var(--dim)">última actividad hace 2 h</td><td>12 / 1.5</td></tr>
+    </table>
+
+    <h3 class="k">especímenes</h3>
+    <div class="spec">
+      <article class="article">
+        <span class="kick">blog · producto · 6 min</span>
+        <h4>Por qué mostramos el costo al lado del precio</h4>
+        <p>Cada producto de la nube tiene un costo real: cómputo, base de datos, envíos de email. Lo medimos por workspace y lo multiplicamos por tres. Ese es el precio.</p>
+        <p>Los dos números aparecen en la factura y en <code>Ajustes → Uso</code>. Si preferís no pagar nada, el mismo código corre en tu servidor con <code>docker compose up -d</code>.</p>
+      </article>
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+        <pre class="codeb c-flow"><span class="c"># self-host en cualquier VPS</span>
+<span class="k">$</span> git clone github.com/lschiaffino/zerosoft
+<span class="k">$</span> cd zerosoft && cp .env.example .env
+<span class="k">$</span> docker compose up -d
+<span class="c">→ http://localhost:3000</span></pre>
+        <div class="panel" style="padding:20px">
+          <div style="font-size:12px;color:var(--dim)">precio de nube · ejemplo</div>
+          <div style="display:flex;align-items:baseline;gap:14px;margin-top:8px;flex-wrap:wrap"><span style="font:400 72px/0.9 var(--disp)">US$ 12</span><span class="dim">= costo US$ 4 × 3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 05 COLOR ============ -->
+<section class="s" id="color">
+  <div class="wrap">
+    <header class="sh"><span class="sh-n">05</span><h2>Color</h2><p>Dos fondos: negro cálido de fósforo apagado y papel de impresora con banda verde. Encima, hueso o tinta. Los once colores de producto tienen un tono para cada fondo, ajustado hasta pasar AA como texto.</p></header>
+    <div class="colorbar" id="colorbar"></div>
+    <div class="neutrals">
+      <div class="nset" data-theme="terminal" id="nTerm"></div>
+      <div class="nset" data-theme="papel" id="nPap"></div>
+    </div>
+    <h3 class="k">once productos · contraste como texto</h3>
+    <div class="tbl-wrap"><table class="colors" id="ctable"></table></div>
+    <p class="cap">Contraste calculado en vivo contra #0f0e0c y #f4efe4. Base es el color histórico de cada producto; se usa en piezas grandes y en el 0 de los íconos.</p>
+  </div>
+</section>
+
+<!-- ============ 06 ICONOS ============ -->
+<section class="s" id="iconos">
+  <div class="wrap">
+    <header class="sh"><span class="sh-n">06</span><h2>Iconografía</h2><p>Cada producto tiene un glifo armado con caracteres alrededor del 0. Se lee como texto en la barra lateral y se dibuja con la Cero Terminal cuando hace falta un ícono.</p></header>
+    <div class="icons" id="icons"></div>
+    <h3 class="k">en papel</h3>
+    <div class="icons" id="iconsP"></div>
+    <h3 class="k">en uso</h3>
+    <div class="inline-g">
+      <div class="navdemo c-cal" id="navdemo"></div>
+      <div class="uicons">
+        <div><b>[+]</b>crear</div><div><b>[/]</b>buscar</div><div><b>[×]</b>cerrar</div><div><b>[↓]</b>exportar</div>
+        <div><b>[!]</b>alerta</div><div><b>[?]</b>ayuda</div><div><b>[…]</b>más</div><div><b>[↵]</b>enviar</div>
+      </div>
+    </div>
+    <p class="cap">Los íconos de interfaz también son caracteres. No hay librería de íconos: si no se puede escribir, no es un ícono.</p>
+  </div>
+</section>
+
+<!-- ============ 07 ILUSTRACIÓN ============ -->
+<section class="s" id="ilustracion">
+  <div class="wrap">
+    <header class="sh"><span class="sh-n">07</span><h2>Ilustración y texturas</h2><p>Dibujos hechos solo con la rampa de ceros, calculados sobre la grilla para que cada borde caiga en una celda. Un color por pieza, el del producto.</p></header>
+    <div class="illos" id="illos"></div>
+    <h3 class="k">texturas</h3>
+    <div class="patterns">
+      <div class="pat"><pre id="patRain"></pre><span class="lbl">lluvia de ceros</span></div>
+      <div class="pat greenbar"><pre>  0001  El software murió.
+  0002  Lo reescribimos en once apps.
+  0003  El código es público.
+  0004  Instalalo por $0.
+  0005  O pagá costo × 3.
+  0006  Los dos números, a la vista.
+  0007  [0]
+  0008
+  0009
+  0010</pre><span class="lbl" style="background:#f4efe4;color:#1a1814;border-color:#d6cdb9">papel de impresora</span></div>
+      <div class="pat"><pre id="patDither"></pre><span class="lbl">degradé de rampa</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 08 MOTION ============ -->
+<section class="s" id="motion">
+  <div class="wrap">
+    <header class="sh"><span class="sh-n">08</span><h2>Motion</h2><p>El movimiento es de terminal: aparece por pasos, carácter por carácter, a 30 cuadros. Nada rebota ni se desliza. Con movimiento reducido, todo llega a su estado final de una vez.</p></header>
+    <div class="motions">
+      <div class="mo c-cal"><div class="mo-st"><pre id="moLoad"></pre></div><footer><span>01 · carga</span><button class="btn sec sm" id="moLoadBtn" type="button">repetir</button></footer></div>
+      <div class="mo"><div class="mo-st"><div class="mo-tabs" id="moTabs"></div><pre id="moTr"></pre></div><footer><span>02 · transición entre apps</span><span class="dim">decodifica en 420 ms</span></footer></div>
+      <div class="mo c-chat"><div class="mo-st">
+        <ul class="hv-list" id="hvList"><li tabindex="0"><span class="b">·</span><span class="t">Bandeja</span></li><li tabindex="0"><span class="b">·</span><span class="t">Asignadas a mí</span></li><li tabindex="0"><span class="b">·</span><span class="t">Sin responder</span></li><li tabindex="0"><span class="b">·</span><span class="t">Cerradas</span></li></ul>
+        <div class="hv-card" tabindex="0"><b>Widget de chat</b>Pegá una línea en tu sitio y empezá a responder.</div>
+        <div style="margin-top:16px"><a class="btn" href="#motion" id="hvBtn"><span class="m">&gt;</span> abrir chat</a></div>
+      </div><footer><span>03 · hover y foco</span><span class="dim">· ° o 0 → [0]</span></footer></div>
+    </div>
+    <pre class="codeb" style="margin-top:16px"><span class="c">/* motion */</span>
+--paso:      <span class="k">33ms</span>;   <span class="c">/* un cuadro a 30 fps */</span>
+--rapido:    <span class="k">120ms</span>;  <span class="c">/* hover, foco */</span>
+--normal:    <span class="k">420ms</span>;  <span class="c">/* transición entre vistas */</span>
+--curva:     <span class="k">steps(n)</span>; <span class="c">/* siempre por pasos, nunca ease */</span>
+--parpadeo:  <span class="k">1060ms</span>; <span class="c">/* cursor */</span></pre>
+  </div>
+</section>
+
+<!-- ============ 09 SITIO ============ -->
+<section class="s" id="sitio">
+  <div class="wrap"><header class="sh"><span class="sh-n">09</span><h2>Aplicación al sitio</h2><p>El home y una página de producto, a tamaño real. El sitio usa el modo terminal; el papel queda para docs, blog y mails.</p></header></div>
+  <div class="bleed">
+    <div class="browser">
+      <div class="browser-bar"><span>■ □</span><span class="url">zerosoft.ai</span><span>es</span></div>
+      <div class="site" data-theme="terminal">
+        <nav class="site-nav"><span class="lg-s"></span><div class="links"><a href="#sitio">productos</a><a href="#sitio">precios</a><a href="#sitio">docs</a><a href="#sitio">changelog</a><a href="#sitio">github ↗</a></div><div class="act"><a class="btn gh sm" href="#sitio">entrar</a><a class="btn sm" href="#sitio">empezar</a></div></nav>
+        <div class="s-hero">
+          <div>
+            <h1>El software<br>murió.</h1>
+            <p>Once apps de código abierto para tu equipo. Instalalas en tu servidor por $0, o usá la nube y pagá el costo × 3, con los dos números a la vista.</p>
+            <div class="ctas"><a class="btn" href="#sitio"><span class="m">&gt;</span> empezar en la nube</a><a class="btn sec" href="#sitio">$ git clone</a></div>
+          </div>
+          <div class="term">
+            <div class="term-bar"><span>~/zerosoft</span><span>bash</span></div>
+            <pre id="siteTerm"></pre>
+          </div>
+        </div>
+        <div class="s-sec">
+          <div class="ls-h">$ ls apps/</div>
+          <h2>Once apps, una cuenta.</h2>
+          <p class="lead">Comparten login, ajustes y datos. Un contacto del CRM es el mismo que reservó en Cal y el que escribió por Chat.</p>
+          <table class="ls" id="siteLs"></table>
+        </div>
+        <div class="s-sec">
+          <div class="ls-h">$ zerosoft precio</div>
+          <h2>El precio es el costo × 3.</h2>
+          <p class="lead">Te mostramos los dos números. Los asientos no se cobran. Si lo instalás vos, no pagás nada.</p>
+          <div class="price">
+            <div><div class="dim" style="font-size:13px">self-host · AGPL-3.0</div><div class="big">$0</div><div class="row"><span>código</span><b>público</b></div><div class="row"><span>datos</span><b>en tu servidor</b></div><div class="row"><span>asientos</span><b>los que quieras</b></div></div>
+            <div><div class="dim" style="font-size:13px">nube · mové el costo</div><div class="big" id="pzPrice">US$ 36</div>
+              <div class="row"><span>costo del mes</span><b id="pzCost">US$ 12</b></div><div class="row"><span>× 3</span><b id="pzMul">US$ 36</b></div>
+              <label class="fld" style="margin-top:14px">costo de ejemplo<input type="range" id="pz" min="0" max="80" value="12"></label></div>
+          </div>
+        </div>
+        <footer class="s-foot">
+          <div class="tree">
+            <pre>productos/
+├── link
+├── crm
+├── cal
+├── track
+└── …</pre>
+            <pre>recursos/
+├── docs
+├── changelog
+├── roadmap
+└── feedback</pre>
+            <pre>código/
+├── github ↗
+├── licencia agpl
+└── self-host</pre>
+            <pre>zerosoft/
+├── manifiesto
+├── precios
+└── contacto</pre>
+          </div>
+          <pre class="art big0" id="footZeros" data-max="16"></pre>
+          <div class="legal"><span>[0] zerosoft · hecho de ceros</span><span>es · en · pt</span></div>
+        </footer>
+      </div>
+    </div>
+
+    <div class="browser c-cal" style="margin-top:32px">
+      <div class="browser-bar"><span>■ □</span><span class="url">zerosoft.ai/cal</span><span>es</span></div>
+      <div class="site" data-theme="terminal">
+        <nav class="site-nav"><span class="lg-s"></span><div class="links"><a href="#sitio" style="color:var(--fg)">productos / <b class="pc">cal</b></a><a href="#sitio">precios</a><a href="#sitio">docs</a><a href="#sitio">changelog</a></div><div class="act"><a class="btn gh sm" href="#sitio">entrar</a><a class="btn sm" href="#sitio">empezar</a></div></nav>
+        <div class="p-hero">
+          <div class="gl"><span id="calGlyph"></span>
+            <h1>Tu link para que te reserven.</h1>
+            <p>Páginas de reserva con tus horarios y tu zona. Cada reunión entra como actividad en el CRM. Reemplaza a Calendly.</p>
+            <div class="ctas" style="display:flex;gap:12px;flex-wrap:wrap"><a class="btn" href="#sitio"><span class="m">&gt;</span> crear mi página</a><a class="btn sec" href="#sitio">ver docs</a></div>
+          </div>
+          <div class="bk">
+            <div class="bk-h"><span><b>Reunión de 30 min</b><br><span class="dim">zerosoft.ai/c/equipo</span></span><span class="dim">GMT-3</span></div>
+            <div class="bk-b">
+              <div class="cal-g"><div class="mh"><span>octubre 2026</span><span class="dim">‹ ›</span></div><div class="days" id="calDays"></div></div>
+              <div class="slots" id="calSlots"><span class="dim" style="font-size:12px">mar 20</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="s-sec" style="padding-top:0;border-top:0">
+          <div class="feat">
+            <div><span class="n">[0] 01</span><b>Tipos de evento</b><p>Duración, preguntas y link propio para cada tipo de reunión.</p></div>
+            <div><span class="n">[0] 02</span><b>Disponibilidad</b><p>Horarios por día y por zona horaria. La página muestra la hora de quien reserva.</p></div>
+            <div><span class="n">[0] 03</span><b>Parte de la suite</b><p>Quien reserva aparece en el CRM. Flow puede hacer algo con cada reserva.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10 APP ============ -->
+<section class="s" id="app">
+  <div class="wrap"><header class="sh"><span class="sh-n">10</span><h2>Aplicación a la app</h2><p>La misma pantalla del CRM en los dos modos. Terminal para quien vive en el teclado; papel para quien usa Cal o el CRM y prefiere una hoja clara. Cambia el fondo, la estructura queda igual.</p></header></div>
+  <div class="bleed app-wrap">
+    <div class="scaler" data-w="1280"><div class="inner"><div class="app c-crm" data-theme="terminal" id="appT"></div></div></div>
+    <div class="cap" style="max-width:1680px;margin:0 auto 24px">CRM · contactos · modo terminal</div>
+    <div class="scaler" data-w="1280"><div class="inner"><div class="app c-crm" data-theme="papel" id="appP"></div></div></div>
+    <div class="cap" style="max-width:1680px;margin:0 auto 24px">CRM · contactos · modo papel. Las filas pares toman la banda verde del papel de impresora.</div>
+  </div>
+  <div class="wrap">
+    <h3 class="k">mobile</h3>
+    <div class="phones"><div class="phone c-crm" data-theme="terminal" id="phT"></div><div class="phone c-crm" data-theme="papel" id="phP"></div></div>
+    <h3 class="k">componentes</h3>
+    <div class="kit">
+      <div data-theme="terminal" class="c-crm kitc"></div>
+      <div data-theme="papel" class="c-crm kitc"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11 PIEZAS ============ -->
+<section class="s" id="piezas">
+  <div class="wrap">
+    <header class="sh"><span class="sh-n">11</span><h2>Piezas</h2><p>Todas en SVG, dibujadas con rectángulos, paths y texto en monospace genérico para que se vean igual sin la webfont.</p></header>
+    <div class="pieces" id="pieces"></div>
+  </div>
+</section>
+
+<!-- ============ 12 DESCARGAS ============ -->
+<section class="s" id="descargas">
+  <div class="wrap">
+    <header class="sh"><span class="sh-n">12</span><h2>Descargas</h2><p>Los archivos de esta propuesta. Cada archivo se descarga con un clic.</p></header>
+    <div class="dl"><div class="dl-h">$ ls -l assets/</div><ul id="dl"></ul></div>
+    <div class="weak"><div style="font-size:12px;color:var(--dim);margin-bottom:10px">riesgos conocidos</div><pre>· Todo mono cansa en textos largos. Por eso Plex Mono para leer; igual conviene probarlo con usuarios de Cal y CRM.
+· VT323 es pixelada: a menos de 48 px se rompe. Solo display.
+· La Cero Terminal cubre minúsculas y los signos de los glifos. Para usarla en más lugares habría que completarla.
+· Los SVG con texto dependen de la mono del sistema: Menlo, Consolas o DejaVu cambian un poco el ancho.</pre></div>
+    <div class="foot"><span>[0] zerosoft · propuesta terminal</span><span>uso interno · noindex</span></div>
+  </div>
+</section>
+</main>
+
+<script>
+/* zerosoft · Terminal · motor compartido (página + generador de SVG) */
+(function (root) {
+  const Z = {};
+
+  Z.N = {
+    ink: '#0f0e0c', ink2: '#161411', ink3: '#1e1b17', line: '#2e2a24', line2: '#4a443a',
+    bone: '#ece4d2', bone2: '#c9bfa9', dim: '#9b927f',
+    paper: '#f4efe4', paper2: '#ebe4d4', bar: '#e2ead6', rule: '#d6cdb9', rule2: '#a69c86',
+    type: '#1a1814', type2: '#3d382f', typeDim: '#6a6254'
+  };
+
+  Z.P = [
+    { id: 'link', glyph: '0-0', base: '#2f6bff', dark: '#447aff', paper: '#295ee0', does: 'Links cortos, QR y analíticas.', repl: 'Bitly', team: 1 },
+    { id: 'crm', glyph: '{0}', base: '#7b4dff', dark: '#8d66ff', paper: '#7147eb', does: 'Contactos, empresas y negocios.', repl: 'HubSpot', team: 1 },
+    { id: 'cal', glyph: '0:00', base: '#0e9f6e', dark: '#0e9f6e', paper: '#0a7651', does: 'Páginas de reserva y agenda.', repl: 'Calendly', team: 1 },
+    { id: 'track', glyph: '#0', base: '#f2611d', dark: '#f2611d', paper: '#ae4615', does: 'Proyectos e issues.', repl: 'Linear', team: 1 },
+    { id: 'chat', glyph: '"0"', base: '#e23d7f', dark: '#e34584', paper: '#b93268', does: 'Soporte en vivo con tus clientes.', repl: 'Intercom', team: 1 },
+    { id: 'docs', glyph: '§0', base: '#c2700a', dark: '#c2700a', paper: '#975708', does: 'Páginas, wikis y bases de datos.', repl: 'Notion', team: 1 },
+    { id: 'flow', glyph: '0>>', base: '#0284c7', dark: '#118bca', paper: '#026ca3', does: 'Automatizaciones entre apps y APIs.', repl: 'n8n', team: 1 },
+    { id: 'agents', glyph: '0()', base: '#ff3b30', dark: '#ff3b30', paper: '#c22d24', does: 'Agentes de AI que atienden y actúan.', repl: '', team: 1 },
+    { id: 'notes', glyph: '¶0', base: '#e6b400', dark: '#e6b400', paper: '#816500', does: 'Notas y libretas.', repl: '', team: 0 },
+    { id: 'board', glyph: '0~~', base: '#00b8a9', dark: '#00b8a9', paper: '#00766c', does: 'Pizarras infinitas.', repl: '', team: 0 },
+    { id: 'robots', glyph: '0_0', base: '#6b7280', dark: '#7d838f', paper: '#626976', does: 'Robots de navegador que juntan datos.', repl: '', team: 1 }
+  ];
+  Z.byId = Object.fromEntries(Z.P.map(p => [p.id, p]));
+
+  /* ---------- contraste ---------- */
+  const h2r = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const lum = c => { const [r, g, b] = h2r(c).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  Z.contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+
+  /* ---------- tipografía construida: "Cero Terminal" ----------
+     Celda de 5 x 9 unidades (ascendente -3, línea de base 6). Trazo 1.3, puntas cuadradas. */
+  const dot = (x, y) => `M${x - 0.01} ${y}H${x + 0.01}`;
+  Z.G = {
+    a: 'M0 0H5V6H0V3H5', b: 'M0 -3V6H5V0H0', c: 'M5 0H0V6H5', d: 'M5 -3V6H0V0H5', e: 'M5 6H0V0H5V3H0',
+    f: 'M5 -3H2V6M0 0H5', g: 'M5 0H0V5H5M5 0V8.5H0', h: 'M0 -3V6M0 0H5V6', i: 'M0.8 0H2.5V6M0 6H5' + dot(2.5, -2.4),
+    k: 'M0 -3V6M5 0L0.6 3L5 6', l: 'M0.8 -3H2.5V4.8L3.7 6H5', m: 'M0 6V0H5V6M2.5 0V4.5', n: 'M0 6V0H5V6',
+    o: 'M1 0H4L5 1V5L4 6H1L0 5V1Z', r: 'M0 6V0H5V1.6', s: 'M5 0H0V3H5V6H0', t: 'M2 -3V6H5M0 0H5', u: 'M0 0V6H5V0',
+    w: 'M0 0V6H5V0M2.5 6V1.6', z: 'M0 0H5L0 6H5',
+    '0': 'M1 -3H4L5 -2V5L4 6H1L0 5V-2Z', '0/': 'M1.3 4.2L3.7 -1.2',
+    '-': 'M1 1.5H4', '_': 'M0 6H5', '|': 'M2.5 -3V6', ':': dot(2.5, 0) + dot(2.5, 4.5),
+    '{': 'M4.2 -3H3L2 -2V0.4L0.9 1.5L2 2.6V5L3 6H4.2', '}': 'M0.8 -3H2L3 -2V0.4L4.1 1.5L3 2.6V5L2 6H0.8',
+    '(': 'M4 -3H3.1L1.5 -1.4V4.4L3.1 6H4', ')': 'M1 -3H1.9L3.5 -1.4V4.4L1.9 6H1',
+    '#': 'M1.6 -2.2V5.4M3.4 -2.2V5.4M0 0H5M0 3H5', '"': 'M1.5 -3V-0.6M3.5 -3V-0.6',
+    '§': 'M4.4 -2V-3H1.2L0.5 -2.3V-0.7L1.2 0H3.8L4.5 0.7V2.3L3.8 3H1.2L0.5 2.3V0.7L1.2 0M3.8 3L4.5 3.7V5.3L3.8 6H0.6V5', '>': 'M0.6 -1.5L4.4 1.5L0.6 4.5',
+    '¶': 'M5 -3H1.5L0 -1.5V0L1.5 1.5H3.2M3.2 -3V6M5 -3V6', '~': 'M0 2.2L1.3 0.9L3.7 2.4L5 1.1',
+    '[': 'M2.6 -3.6H0.6V6.6H2.6', ']': 'M2.4 -3.6H4.4V6.6H2.4', '/': 'M0.6 6.4L4.4 -3.4', '.': dot(2.5, 6), '$': 'M5 -1.6H0V1.5H5V4.6H0M2.5 -3.4V6.4', ' ': ''
+  };
+  Z.ADV = 7;
+  Z.SW = 1.3;
+
+  /* devuelve {svg, w}: grupo de paths. color(ch,i) define el color de cada carácter */
+  Z.textPaths = function (str, color, opt) {
+    opt = opt || {};
+    const adv = opt.adv || Z.ADV; let x = 0; let out = '';
+    [...str].forEach((ch, i) => {
+      const d = Z.G[ch] !== undefined ? Z.G[ch] : Z.G[ch.toLowerCase()];
+      const col = typeof color === 'function' ? color(ch, i) : color;
+      if (d) out += `<path d="${d}" transform="translate(${x} 0)" stroke="${col}"/>`;
+      if (ch === '0' && opt.slash !== false) out += `<path d="${Z.G['0/']}" transform="translate(${x} 0)" stroke="${col}"/>`;
+      x += adv;
+    });
+    return { svg: out, w: x - adv + 5 };
+  };
+  const G0 = (inner, sw) => `<g fill="none" stroke-width="${sw || Z.SW}" stroke-linecap="square" stroke-linejoin="miter">${inner}</g>`;
+
+  /* símbolo [0]: corchetes y cero barrado. ancho 14.6 */
+  Z.symbolPaths = function (bracket, zero) {
+    return `<path d="M2.6 -3.6H0.6V6.6H2.6" stroke="${bracket}"/><path d="M12 -3.6H14V6.6H12" stroke="${bracket}"/>` +
+      `<path d="${Z.G['0']}" transform="translate(4.8 0)" stroke="${zero}"/><path d="${Z.G['0/']}" transform="translate(4.8 0)" stroke="${zero}"/>`;
+  };
+
+  Z.svgSymbol = function (o) {
+    o = o || {}; const b = o.bracket || Z.N.bone, z = o.zero || b;
+    const bg = o.bg ? `<rect x="-3" y="-7" width="20.6" height="17.2" fill="${o.bg}"/>` : '';
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -7 20.6 17.2" width="${o.w || 206}" height="${o.h || 172}">${bg}${G0(Z.symbolPaths(b, z))}</svg>`;
+  };
+
+  Z.lockupInner = function (word, o) {
+    const b = o.color, z = o.zero || b, wc = o.wordColor || b;
+    const t = Z.textPaths(word, wc, { slash: true });
+    const gap = 6.4;
+    let cursor = '';
+    if (o.cursor) cursor = `<rect class="z-cursor" x="${14 + gap + t.w + 2.2}" y="-3.6" width="4" height="10.2" fill="${o.cursorColor || b}"/>`;
+    const w = 14 + gap + t.w + (o.cursor ? 6.2 : 0);
+    return { svg: G0(Z.symbolPaths(b, z) + `<g transform="translate(${14 + gap} 0)">${t.svg}</g>`) + cursor, w };
+  };
+  Z.svgLockup = function (o) {
+    o = o || {}; const L = Z.lockupInner(o.wordText || 'zerosoft', o);
+    const pad = o.pad == null ? 3 : o.pad;
+    const desc = /[g]/.test(o.wordText || 'zerosoft') ? 2.6 : 0;
+    const vbx = -pad, vby = -3.6 - 0.7 - pad, vbw = L.w + 0.7 + pad * 2, vbh = 10.2 + 1.4 + pad * 2 + desc;
+    const bg = o.bg ? `<rect x="${vbx}" y="${vby}" width="${vbw}" height="${vbh}" fill="${o.bg}"/>` : '';
+    const sc = o.scale || 10;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbx} ${vby} ${vbw.toFixed(2)} ${vbh.toFixed(2)}" width="${(vbw * sc).toFixed(0)}" height="${(vbh * sc).toFixed(0)}">${o.title ? `<title>${o.title}</title>` : ''}${bg}${L.svg}</svg>`;
+  };
+
+  /* favicon 16 px dibujado a mano, píxel por píxel */
+  Z.FAV16 = [
+    '................',
+    '................',
+    '................',
+    '.##..######..##.',
+    '.#..##....##..#.',
+    '.#..#.....##..#.',
+    '.#..#....#.#..#.',
+    '.#..#....#.#..#.',
+    '.#..#...#..#..#.',
+    '.#..#..#...#..#.',
+    '.#..#.#....#..#.',
+    '.#..##.....#..#.',
+    '.##..######..##.',
+    '................',
+    '................',
+    '................'
+  ];
+  Z.svgFav16 = function (fg, bg, zero, w) {
+    let r = '';
+    Z.FAV16.forEach((row, y) => [...row].forEach((c, x) => {
+      if (c === '#') { const isZero = x >= 4 && x <= 11; r += `<rect x="${x}" y="${y}" width="1" height="1" fill="${isZero ? (zero || fg) : fg}"/>`; }
+    }));
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="${w || 16}" height="${w || 16}" shape-rendering="crispEdges"><rect width="16" height="16" fill="${bg}"/>${r}</svg>`;
+  };
+  Z.svgFav32 = function (fg, bg, zero, w) {
+    zero = zero || fg;
+    const s = `<rect x="3" y="6" width="2" height="20" fill="${fg}"/><rect x="3" y="6" width="5" height="2" fill="${fg}"/><rect x="3" y="24" width="5" height="2" fill="${fg}"/>` +
+      `<rect x="27" y="6" width="2" height="20" fill="${fg}"/><rect x="24" y="6" width="5" height="2" fill="${fg}"/><rect x="24" y="24" width="5" height="2" fill="${fg}"/>` +
+      `<path d="M13 7H19L21 9V23L19 25H13L11 23V9Z" fill="none" stroke="${zero}" stroke-width="2"/><path d="M13.6 21.4L18.4 10.6" stroke="${zero}" stroke-width="2" stroke-linecap="square"/>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="${w || 32}" height="${w || 32}"><rect width="32" height="32" fill="${bg}"/>${s}</svg>`;
+  };
+
+  /* glifo de producto en paths. los ceros llevan el color del producto */
+  Z.glyphPaths = function (p, fg, mode) {
+    const col = mode === 'paper' ? p.paper : p.dark;
+    return Z.textPaths(p.glyph, ch => ch === '0' ? col : fg);
+  };
+  Z.svgProductIcon = function (p, o) {
+    o = o || {}; const S = o.size || 512; const dark = o.mode !== 'paper';
+    const bg = dark ? Z.N.ink : Z.N.paper, fg = dark ? Z.N.bone : Z.N.type, ln = dark ? Z.N.line2 : Z.N.rule2;
+    const g = Z.glyphPaths(p, fg, o.mode);
+    const nm = Z.textPaths(p.id, dark ? Z.N.dim : Z.N.typeDim);
+    // caja interior estilo ┌─┐ con marcas de esquina
+    const k = 64;
+    const frame = `<path d="M40 40H472V472H40Z" fill="none" stroke="${ln}" stroke-width="3"/>` +
+      `<path d="M40 ${40 + k}V40H${40 + k}M${472 - k} 40H472V${40 + k}M472 ${472 - k}V472H${472 - k}M${40 + k} 472H40V${472 - k}" fill="none" stroke="${fg}" stroke-width="6"/>`;
+    const gs = Math.min(300 / g.w, 18);
+    const gx = 256 - (g.w * gs) / 2, gy = 236 - 1.5 * gs;
+    const ns = 5.2;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${S}" height="${S}"><title>${p.id}</title><rect width="512" height="512" fill="${bg}"/>${frame}` +
+      `<g transform="translate(${gx.toFixed(1)} ${gy.toFixed(1)}) scale(${gs.toFixed(3)})">${G0(g.svg)}</g>` +
+      `<g transform="translate(${(256 - nm.w * ns / 2).toFixed(1)} 392) scale(${ns})">${G0(nm.svg, 1.2)}</g></svg>`;
+  };
+
+  /* ---------- rampa y rasterizador de ceros ---------- */
+  Z.RAMP = [' ', '·', '°', 'o', '0', 'Ø'];
+  Z.raster = function (W, H, fn, opt) {
+    opt = opt || {}; const cw = opt.cw || 0.5, ss = opt.ss || 3, ramp = opt.ramp || Z.RAMP; const rows = [];
+    for (let j = 0; j < H; j++) {
+      let row = '';
+      for (let i = 0; i < W; i++) {
+        let acc = 0;
+        for (let sy = 0; sy < ss; sy++) for (let sx = 0; sx < ss; sx++) {
+          const x = (i + (sx + 0.5) / ss) * cw - (W * cw) / 2;
+          const y = (j + (sy + 0.5) / ss) - H / 2;
+          acc += fn(x, y);
+        }
+        let v = acc / (ss * ss); v = Math.max(0, Math.min(1, v));
+        row += ramp[Math.round(v * (ramp.length - 1))];
+      }
+      rows.push(row.replace(/\s+$/, ''));
+    }
+    return rows.join('\n');
+  };
+  const len = Math.hypot;
+  const seg = (px, py, ax, ay, bx, by) => { const pax = px - ax, pay = py - ay, bax = bx - ax, bay = by - ay; const h = Math.max(0, Math.min(1, (pax * bax + pay * bay) / (bax * bax + bay * bay))); return len(pax - bax * h, pay - bay * h); };
+  const box = (px, py, bx, by) => { const dx = Math.abs(px) - bx, dy = Math.abs(py) - by; return len(Math.max(dx, 0), Math.max(dy, 0)) + Math.min(Math.max(dx, dy), 0); };
+  const rbox = (px, py, bx, by, r) => box(px, py, bx - r, by - r) - r;
+  const rot = (x, y, a) => [x * Math.cos(a) + y * Math.sin(a), -x * Math.sin(a) + y * Math.cos(a)];
+  Z.sdf = { seg, box, rbox, rot };
+
+  Z.ILLOS = {
+    cal: {
+      title: 'Despertador', note: 'Cal. Las agujas marcan 10:10, la hora de las vidrieras.',
+      W: 64, H: 30, fn(x, y) {
+        y -= 1.5;
+        const R = 10.5, d = len(x, y), e = Math.abs(d - R);
+        let v = 0;
+        if (e < 0.75) v = 1; else if (e < 1.5) v = 0.3;
+        for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; const sx = Math.sin(a), sy = -Math.cos(a); const q = k % 3 === 0, L = q ? 2.2 : 0.9; if (seg(x, y, sx * (R - 1.8 - L), sy * (R - 1.8 - L), sx * (R - 1.9), sy * (R - 1.9)) < (q ? 0.45 : 0.32)) v = Math.max(v, q ? 0.8 : 0.6); }
+        const ah = (10 + 10 / 60) / 12 * Math.PI * 2, am = 10 / 60 * Math.PI * 2;
+        if (seg(x, y, 0, 0, Math.sin(ah) * 5, -Math.cos(ah) * 5) < 0.7) v = 1;
+        if (seg(x, y, 0, 0, Math.sin(am) * 7.4, -Math.cos(am) * 7.4) < 0.5) v = 1;
+        if (d < 1.2) v = 1;
+        [-1, 1].forEach(s => {
+          const bx = s * 7.8, by = -10.6; const db = len(x - bx, (y - by) * 1.15);
+          if (db < 3 && d > R + 0.6) v = Math.max(v, db < 2.2 ? 0.62 : 1);
+          if (seg(x, y, s * 6.6, 8.6, s * 8.6, 11.4) < 0.5) v = 1;
+        });
+        if (seg(x, y, -1.4, -13.2, 1.4, -13.2) < 0.5 || seg(x, y, 0, -13.2, 0, -11.4) < 0.4) v = 1;
+        return v;
+      }
+    },
+    crm: {
+      title: 'Ficha', note: 'CRM. Una persona hecha de ceros y sus datos, en una ficha.',
+      W: 64, H: 24, fn(x, y) {
+        let v = 0; const c = rbox(x, y, 14.5, 9.5, 1.2);
+        if (c < 0) v = 0.1; if (Math.abs(c) < 0.42) v = 1;
+        const hd = len(x + 8, y + 2.2); if (Math.abs(hd - 2.6) < 0.5) v = 1; else if (hd < 2) v = 0.5;
+        const sh = len((x + 8) * 0.8, y - 6.4); if (Math.abs(sh - 3.6) < 0.5 && y < 5.6) v = 1; else if (sh < 3.1 && y < 5.6) v = 0.5;
+        const L = [[-4.5, 12, 1], [-1.5, 9, 0.62], [1.5, 11, 0.62], [4.5, 5, 0.62]];
+        L.forEach(([ly, e, s], k) => { if (Math.abs(y - ly) < 0.5 && x > -2 && x < -2 + e) v = Math.max(v, s); });
+        if (Math.abs(x + 3.4) < 0.18 && Math.abs(y) < 7) v = Math.max(v, 0.3);
+        if (len(x - 11, y + 6) < 1.1) v = 1;
+        return v;
+      }
+    },
+    link: {
+      title: 'Eslabones', note: 'Link. Dos ceros que se cruzan arriba y abajo, con volumen.',
+      W: 64, H: 24, fn(x, y) {
+        const t = 0.95, r = 5.2;
+        const ringA = Math.abs(seg(x, y, -9.5, 0, -2.2, 0) - r), ringB = Math.abs(seg(x, y, 2.2, 0, 9.5, 0) - r);
+        const inA = ringA < t, inB = ringB < t;
+        const shade = 0.5 + 0.5 * Math.max(0, Math.min(1, (-y + 4) / 8));
+        if (inA && inB) return y < 0 ? 1 : 1;
+        if (inA) { if (y > 0 && ringB < t + 0.8 && x > -3.1) return 0; return shade; }
+        if (inB) { if (y < 0 && ringA < t + 0.8 && x < 3.1) return 0; return shade; }
+        if (Math.abs(seg(x, y, -9.5, 0, -2.2, 0) - r + 1.6) < 0.25 && y < -1) return 0.3;
+        if (Math.abs(seg(x, y, 2.2, 0, 9.5, 0) - r + 1.6) < 0.25 && y < -1) return 0.3;
+        if (y > 7.6 && y < 8.6 && Math.abs(x) < 15) return 0.17 * (1 - Math.abs(x) / 15) * 2;
+        return 0;
+      }
+    },
+    track: {
+      title: 'Burndown', note: 'Track. Barras que bajan hacia el cero; la ideal, punteada.',
+      W: 64, H: 24, fn(x, y) {
+        let v = 0;
+        if (Math.abs(x + 14) < 0.3 && y > -10.5 && y < 9.5) v = 0.8;
+        if (Math.abs(y - 9.5) < 0.45 && x > -14 && x < 15) v = 0.8;
+        const H = [17, 16, 16.5, 14, 12.5, 12.8, 10, 7.2, 6.5, 4, 2.4];
+        for (let k = 0; k < H.length; k++) { const cx = -12 + k * 2.55; if (Math.abs(x - cx) < 0.85 && y < 9 && y > 9 - H[k]) v = Math.max(v, y < 9 - H[k] + 0.9 ? 1 : 0.5); }
+        const ix = -14 + (y + 9.5) / 19 * 28;
+        if (Math.abs(x - ix) < 0.35 && y > -9.5 && y < 9 && Math.floor((y + 20) / 1.4) % 2 === 0) v = Math.max(v, 0.36);
+        const dd = len(x - 13.5, y - 8.2); if (Math.abs(dd - 1.4) < 0.4) v = 1;
+        return v;
+      }
+    },
+    chat: {
+      title: 'Conversación', note: 'Chat. Uno escribe, el otro responde. Los tres puntos son ceros.',
+      W: 64, H: 26, fn(x, y) {
+        let v = 0;
+        const a = rbox(x + 4, y + 5, 10, 4.6, 1.6);
+        if (a < 0) v = 0.14; if (Math.abs(a) < 0.45) v = 1;
+        if (seg(x, y, -10, -0.4, -12.5, 2.4) < 0.45 && a > -0.2) v = 1;
+        [-9, -4, 1].forEach((cx, k) => { if (len(x - cx, y + 5) < 1.25) v = k === 1 ? 1 : 0.82; });
+        const b = rbox(x - 6, y - 6, 9, 3.8, 1.6);
+        if (b < 0) { v = 0.6; for (let k = 0; k < 2; k++) if (Math.abs(y - 5 - k * 2.2) < 0.32 && x > -1 && x < (k ? 9 : 12)) v = 0.17; }
+        if (Math.abs(b) < 0.45) v = 1;
+        if (seg(x, y, 12, 9.4, 14.6, 11.6) < 0.5 && b > -0.3) v = 1;
+        return v;
+      }
+    },
+    robots: {
+      title: 'Robot', note: 'Robots. Ojos de cero, boca de guion bajo, antena con señal.',
+      W: 60, H: 28, fn(x, y) {
+        y -= 1.5; let v = 0;
+        const h = box(x, y - 1.5, 9, 6.6);
+        if (h < 0) v = 0.15; if (Math.abs(h) < 0.5) v = 1;
+        [-4.3, 4.3].forEach(cx => { const d = len((x - cx), y - 0.5); if (Math.abs(d - 2.1) < 0.55) v = 1; else if (d < 1.4) v = 0.5; });
+        if (seg(x, y, -3, 4.6, 3, 4.6) < 0.4) v = 1;
+        if (Math.abs(x) < 0.3 && y < -5 && y > -9) v = 0.85;
+        const da = len(x, y + 10); if (da < 1.3) v = 1;
+        if (Math.abs(da - 3) < 0.25 && y < -10.5) v = Math.max(v, 0.35);
+        if (Math.abs(da - 4.8) < 0.25 && y < -11.2) v = Math.max(v, 0.2);
+        [-1, 1].forEach(s => { if (box(x - s * 10.6, y - 1.5, 1.1, 2.6) < 0) v = 0.62; });
+        if (box(x, y - 9.6, 3, 1) < 0) v = 0.62;
+        return v;
+      }
+    },
+    flow: {
+      title: 'Ramificación', note: 'Flow. Un disparador, dos caminos, un final.',
+      W: 64, H: 24, fn(x, y) {
+        let v = 0;
+        const N = [[-12, 0, 1], [0, -6, 0], [0, 6, 0], [12, 0, 1]];
+        const E = [[0, 1], [0, 2], [1, 3], [2, 3]];
+        E.forEach(([a, b]) => { const A = N[a], B = N[b]; const mx = (A[0] + B[0]) / 2; if (seg(x, y, A[0] + 2.4, A[1], mx, A[1]) < 0.3 || seg(x, y, mx, A[1], mx, B[1]) < 0.3 || seg(x, y, mx, B[1], B[0] - 2.4, B[1]) < 0.3) v = Math.max(v, 0.6); if (x < B[0] - 2.4 && x > B[0] - 3.8 && Math.abs(y - B[1]) < (x - (B[0] - 3.8)) * 0.7 + 0.1) v = 1; });
+        N.forEach(([cx, cy, full]) => { const d = len(x - cx, y - cy); if (Math.abs(d - 2.3) < 0.45) v = 1; else if (d < 1.8) v = full ? 0.75 : 0.17; });
+        return v;
+      }
+    },
+    agents: {
+      title: 'Órbitas', note: 'Agents. Un núcleo y tres órbitas que trabajan alrededor.',
+      W: 64, H: 26, fn(x, y) {
+        let v = 0;
+        [0, Math.PI / 3, -Math.PI / 3].forEach((a, k) => {
+          const [u, w] = rot(x, y, a); const e = Math.sqrt((u / 12.5) ** 2 + (w / 4.2) ** 2);
+          if (Math.abs(e - 1) * 4.2 < 0.38) v = Math.max(v, 0.55);
+          const t = 0.8 + k * 2.1; const ex = Math.cos(t) * 12.5, ey = Math.sin(t) * 4.2; const [px, py] = rot(ex, ey, -a);
+          if (len(x - px, y - py) < 1.05) v = 1;
+        });
+        const d = len(x, y); if (d < 2.3) v = 1; else if (d < 3.1) v = Math.max(v, 0.2);
+        return v;
+      }
+    },
+    notes: {
+      title: 'Hoja', note: 'Notes. Una hoja con la punta doblada y renglones a medio escribir.',
+      W: 52, H: 28, fn(x, y) {
+        let v = 0; const inP = Math.abs(x) < 8.5 && Math.abs(y) < 11.5 && !(x - 4 > -(y + 11.5) + 0 && x > 4 && y < -7.5 + (x - 4) * 0);
+        const cut = x > 4.2 && y < -7.2 && (x - 4.5) > (y + 11.5) - 0.3;
+        if (Math.abs(x) < 8.5 && Math.abs(y) < 11.5 && !cut) {
+          v = 0.08;
+          const L = [[-9, 1, 3.2], [-6, 0.5, 5], [-3.5, 0.5, 7], [-1, 0.5, 3], [1.5, 0.5, 6.5], [4, 0.5, 4.5], [6.5, 0.5, 1]];
+          L.forEach(([ly, w, e], k) => { if (Math.abs(y - ly) < 0.32 * (k ? 1 : 1.6) && x > -5.5 && x < e - (k ? 0 : 0)) v = k ? 0.5 : 1; });
+          if (Math.abs(x + 6.7) < 0.22) v = Math.max(v, 0.3);
+        }
+        const edge = Math.abs(box(x, y, 8.5, 11.5)) < 0.42 && !cut;
+        if (edge) v = 1;
+        if (seg(x, y, 4.5, -11.5, 8.5, -7.5) < 0.42) v = 1;
+        if (seg(x, y, 4.5, -11.5, 4.5, -7.5) < 0.4 || seg(x, y, 4.5, -7.5, 8.5, -7.5) < 0.4) v = 1;
+        if (x > 4.5 && y < -7.5 && (x - 4.5) - (y + 11.5) < 0 && x < 8.5) v = Math.max(v, 0.62);
+        void inP; return v;
+      }
+    }
+  };
+  Z.illo = id => { const I = Z.ILLOS[id]; return Z.raster(I.W, I.H, I.fn); };
+
+  /* toroide: el cero en 3D. devuelve string de H filas */
+  Z.torus = function (W, H, A, B, opt) {
+    opt = opt || {}; const ramp = opt.ramp || Z.RAMP;
+    const out = new Array(W * H).fill(' '), zb = new Array(W * H).fill(0);
+    const cA = Math.cos(A), sA = Math.sin(A), cB = Math.cos(B), sB = Math.sin(B);
+    const K2 = 5, K1 = (W * K2 * 3) / (8 * 3.0) * (opt.k || 0.8);
+    for (let th = 0; th < 6.283; th += 0.07) {
+      const ct = Math.cos(th), st = Math.sin(th);
+      for (let ph = 0; ph < 6.283; ph += 0.022) {
+        const cp = Math.cos(ph), sp = Math.sin(ph);
+        const cx = 2 + ct, cy = st;
+        const x = cx * (cB * cp + sA * sB * sp) - cy * cA * sB;
+        const y = cx * (sB * cp - sA * cB * sp) + cy * cA * cB;
+        const z = K2 + cA * cx * sp + cy * sA; const ooz = 1 / z;
+        const xp = Math.floor(W / 2 + K1 * ooz * x), yp = Math.floor(H / 2 - K1 * ooz * y * 0.5);
+        const L = cp * ct * sB - cA * ct * sp - sA * st + cB * (cA * st - ct * sA * sp);
+        if (xp >= 0 && xp < W && yp >= 0 && yp < H) {
+          const idx = xp + yp * W;
+          if (ooz > zb[idx]) { zb[idx] = ooz; const n = Math.max(0, L); out[idx] = ramp[Math.min(ramp.length - 1, 1 + Math.floor(Math.pow(n / 1.42, 1.6) * (ramp.length - 1) * 0.999))]; }
+        }
+      }
+    }
+    // centrar por caja: la perspectiva corre el toro según el ángulo
+    let x0 = W, x1 = -1, y0 = H, y1 = -1;
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (out[i + j * W] !== ' ') { if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j; }
+    const dx = Math.round((W - 1 - x1 - x0) / 2), dy = Math.round((H - 1 - y1 - y0) / 2);
+    const rows = []; for (let j = 0; j < H; j++) { let r = ''; for (let i = 0; i < W; i++) { const si = i - dx, sj = j - dy; r += si >= 0 && si < W && sj >= 0 && sj < H ? out[si + sj * W] : ' '; } rows.push(r); }
+    return rows.join('\n');
+  };
+
+  /* ASCII como SVG: <text> monospace genérico, una fila por línea */
+  Z.esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  Z.asciiSVG = function (str, x, y, fs, fill, opt) {
+    opt = opt || {};
+    const lh = fs * (opt.lh || 1.2);
+    return `<g font-family="ui-monospace, Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="${fs}" fill="${fill}" xml:space="preserve" style="white-space:pre"${opt.attrs || ''}>` +
+      str.split('\n').map((r, i) => `<text x="${x}" y="${(y + i * lh).toFixed(1)}"${opt.anchor ? ` text-anchor="${opt.anchor}"` : ''}>${Z.esc(r).replace(/ /g, '\u00a0')}</text>`).join('') + '</g>';
+  };
+
+  if (typeof module !== 'undefined') module.exports = Z; else root.Z = Z;
+})(this);
+
+</script>
+<script>
+(function () {
+  const Z = window.Z, N = Z.N;
+  const $ = (s, r) => (r || document).querySelector(s), $$ = (s, r) => [...(r || document).querySelectorAll(s)];
+  const RM = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const reduced = () => RM.matches;
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const ASSETS = [["app-icon.svg","15.6 KB"],["favicon-32.svg","654 B"],["favicon.svg","3.5 KB"],["logo-dark.svg","1.1 KB"],["logo-on-ink.svg","1.2 KB"],["logo-on-paper.svg","1.2 KB"],["logo.svg","1.1 KB"],["symbol-dark.svg","442 B"],["symbol.svg","442 B"],["lockups-productos.svg","10.6 KB"],["icon-agents-paper.svg","1.4 KB"],["icon-agents.svg","1.4 KB"],["icon-board-paper.svg","1.3 KB"],["icon-board.svg","1.3 KB"],["icon-cal-paper.svg","1.4 KB"],["icon-cal.svg","1.4 KB"],["icon-chat-paper.svg","1.2 KB"],["icon-chat.svg","1.2 KB"],["icon-crm-paper.svg","1.2 KB"],["icon-crm.svg","1.2 KB"],["icon-docs-paper.svg","1.2 KB"],["icon-docs.svg","1.2 KB"],["icon-flow-paper.svg","1.2 KB"],["icon-flow.svg","1.2 KB"],["icon-link-paper.svg","1.3 KB"],["icon-link.svg","1.3 KB"],["icon-notes-paper.svg","1.2 KB"],["icon-notes.svg","1.2 KB"],["icon-robots-paper.svg","1.4 KB"],["icon-robots.svg","1.4 KB"],["icon-track-paper.svg","1.2 KB"],["icon-track.svg","1.2 KB"],["og-cal.svg","6.3 KB"],["og-crm.svg","5.8 KB"],["og-home.svg","20.2 KB"],["og-track.svg","4.8 KB"],["social-post.svg","21.7 KB"],["social-x-banner.svg","20.1 KB"],["card-back.svg","2.1 KB"],["card-front.svg","10.5 KB"],["email-header.svg","1.8 KB"],["pattern-greenbar.svg","279 B"],["pattern-zeros.svg","1.1 KB"],["slide-cover.svg","25.5 KB"],["stickers.svg","8.6 KB"],["tshirt.svg","5.5 KB"]];
+
+  /* ---------- tema ---------- */
+  const setTheme = t => {
+    document.documentElement.setAttribute('data-theme', t);
+    $$('.theme button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.set === t)));
+    try { localStorage.setItem('zs-term-theme', t); } catch (e) {}
+    drawThemed();
+  };
+  $$('.theme button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.set)));
+
+  /* ---------- logos inline ---------- */
+  const lock = (o) => Z.svgLockup(Object.assign({ pad: 0 }, o));
+  function drawThemed() {
+    const t = document.documentElement.getAttribute('data-theme');
+    const fg = t === 'papel' ? N.type : N.bone;
+    $('#brandLogo .bl').innerHTML = lock({ color: fg, scale: 1.6 });
+    $('#heroLogo').innerHTML = '<span class="sr">[0] zerosoft</span>' + lock({ color: fg, cursor: true, scale: 8 });
+  }
+  $('#lgDark').innerHTML = lock({ color: N.bone, cursor: true, scale: 7 });
+  $('#lgPaper').innerHTML = lock({ color: N.type, cursor: true, scale: 7 });
+  $('#symDark').innerHTML = Z.svgSymbol({ bracket: N.bone, w: 150, h: 125 });
+  $('#symPaper').innerHTML = Z.svgSymbol({ bracket: N.type, w: 126, h: 105 });
+  $$('.lg-s').forEach(el => { const th = el.closest('[data-theme]').getAttribute('data-theme'); el.innerHTML = lock({ color: th === 'papel' ? N.type : N.bone, scale: 2 }); });
+
+  // construcción con grilla
+  (function () {
+    const L = Z.lockupInner('zerosoft', { color: N.bone, cursor: true });
+    const x0 = -2, y0 = -6, w = L.w + 18, h = 17;
+    let g = '';
+    for (let x = Math.ceil(x0); x <= x0 + w; x++) g += `<line x1="${x}" y1="${y0}" x2="${x}" y2="${y0 + h}" stroke="${N.line}" stroke-width="0.06"/>`;
+    for (let y = Math.ceil(y0); y <= y0 + h; y++) g += `<line x1="${x0}" y1="${y}" x2="${x0 + w}" y2="${y}" stroke="${N.line}" stroke-width="0.06"/>`;
+    const mk = (y, lbl) => `<line x1="${x0}" y1="${y}" x2="${x0 + w}" y2="${y}" stroke="${N.dim}" stroke-width="0.08" stroke-dasharray="0.4 0.3"/><text x="${x0 + w - 0.2}" y="${y - 0.3}" font-size="0.9" fill="${N.dim}" text-anchor="end" font-family="ui-monospace,monospace">${lbl}</text>`;
+    const marks = mk(-3, 'ascendente −3') + mk(0, 'altura x 0') + mk(6, 'base 6');
+    const gw = `<svg viewBox="${x0} ${y0} ${w} ${h}" width="100%" style="display:block" role="img" aria-label="Construcción del logo sobre su grilla">${g}${marks}<g opacity="0.95">${L.svg}</g><path d="M20.4 8 H27.4" stroke="${N.dim}" stroke-width="0.1"/><text x="23.9" y="9.6" font-size="0.9" fill="${N.dim}" text-anchor="middle" font-family="ui-monospace,monospace">avance 7</text></svg>`;
+    $('#lgGrid').innerHTML = gw;
+  })();
+
+  // área de respeto
+  $('#respect').innerHTML = Z.svgLockup({ color: css('--fg') || N.bone, pad: 4.4 }) + '<span class="m" style="top:-18px;left:0">x</span><span class="m" style="bottom:-18px;right:0">x = 1 celda</span>';
+  // usos incorrectos
+  (function () {
+    const base = Z.svgLockup({ color: N.bone, pad: 0 });
+    const items = [
+      [`<div style="transform:scaleX(1.5) scaleY(.8);width:60%">${base}</div>`, 'No estirar ni deformar.'],
+      [`<div style="border:2px solid ${N.bone};border-radius:999px;padding:14px 26px;width:80%">${base}</div>`, 'No encerrar en una píldora ni redondear.'],
+      [`<div style="width:80%">${Z.svgLockup({ color: N.bone, zero: '#ff00aa', word: '#00e0ff', wordColor: '#00e0ff', pad: 0 })}</div>`, 'No pintar el nombre. El color va solo en el cero.'],
+      [`<div style="font:700 30px/1 Georgia,serif;color:${N.bone};letter-spacing:.02em;margin-bottom:12px">(o) Zerosoft</div>`, 'No rehacer con otra fuente ni en mayúscula.']
+    ];
+    $('#wrong').innerHTML = items.map(([h, t]) => `<div class="wrong" data-theme="terminal">${h}<p>${t}</p></div>`).join('');
+    $$('#wrong svg').forEach(s => { s.style.width = '100%'; });
+  })();
+  // lockups por producto
+  $('#lockups').innerHTML = Z.P.map(p => `<div data-theme="terminal">${Z.svgLockup({ color: N.bone, zero: p.dark, wordText: p.id, pad: 0 }).replace('<svg ', /g/.test(p.id) ? '<svg style="height:54px;margin-bottom:-10px" ' : '<svg ')}<span>${p.glyph} · zerosoft ${p.id}</span></div>`).join('');
+
+  // alfabeto Cero Terminal
+  (function () {
+    const rows = ['abcdefghik', 'lmnorstuwz', '0-{}:#"§>(', ')¶~_|[]/$.'];
+    $('#ctAlpha').innerHTML = rows.map(r => { const t = Z.textPaths(r, 'currentColor'); return `<svg viewBox="-1 -4.5 ${t.w + 2} 14" style="width:100%;max-width:${(t.w + 2) * 5}px;display:block;color:var(--fg)"><g fill="none" stroke-width="1.1" stroke-linecap="square">${t.svg}</g></svg>`; }).join('');
+  })();
+
+  /* ---------- 02 grilla, rampa ---------- */
+  $('#cellgrid').innerHTML =
+`┌──────────────────────────┐
+│ <span class="hl">[0]</span> Valentina Ruiz       │
+│     Panadería Ruiz       │
+├──────────────────────────┤
+│ etapa   (<span class="pc">0</span>) calificado   │
+│ dueño   lautaro          │
+│ próximo mar 20 · 10:00   │
+└──────────────────────────┘`;
+  $('#ramp').innerHTML = Z.RAMP.map((c, i) => `<div><b>${c === ' ' ? '&nbsp;' : c}</b><span>nivel ${i} · ${i * 20}%</span><span>${['vacío', 'punto', 'grado', 'o chica', 'cero', 'cero barrado'][i]}</span></div>`).join('');
+
+  /* ---------- fit de ASCII ---------- */
+  function fit(pre) {
+    const lines = pre.textContent.split('\n'); const cols = Math.max(...lines.map(l => l.length), 1);
+    const cs = getComputedStyle(pre);
+    const w = pre.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const max = parseFloat(pre.dataset.max || 13);
+    pre.style.fontSize = Math.min(max, (w / (cols * 0.6)) * 0.98).toFixed(2) + 'px';
+  }
+  const fitAll = () => $$('pre.art').forEach(fit);
+
+  /* ---------- 01 manifiesto y toro ---------- */
+  const MANIF = [
+    ['$ ', 'cat manifiesto.txt'],
+    ['', 'El software murió.'],
+    ['', 'Lo que pagás cada mes se puede escribir una vez y compartir.'],
+    ['', 'Rehicimos once apps y publicamos el código.'],
+    ['', 'Instalalas en tu servidor por $0.'],
+    ['', 'O usá la nube: te mostramos el costo y cobramos el costo × 3.'],
+    ['', 'Todo empieza en [0].']
+  ];
+  (function () {
+    const el = $('#manif');
+    const full = MANIF.map(([p, t]) => `<span class="p">${p}</span>${t}`).join('\n');
+    if (reduced()) { el.innerHTML = full; return; }
+    let li = 0, ci = 0; const done = [];
+    const tick = () => {
+      if (li >= MANIF.length) { el.innerHTML = done.join('\n') + '\n<span class="p">$ </span><span class="cur"></span>'; return; }
+      const [p, t] = MANIF[li]; ci += li === 0 ? 1 : 3;
+      el.innerHTML = done.concat([`<span class="p">${p}</span>${t.slice(0, ci)}<span class="cur"></span>`]).join('\n');
+      if (ci >= t.length) { done.push(`<span class="p">${p}</span>${t}`); li++; ci = 0; setTimeout(tick, li === 1 ? 380 : 140); }
+      else setTimeout(tick, li === 0 ? 55 : 22);
+    };
+    setTimeout(tick, 500);
+  })();
+
+  (function () {
+    const el = $('#torus'); const box = el.parentElement;
+    let A = 1.15, B = 0.35, vA = 0.018, vB = 0.009, drag = null;
+    const W = 64, H = 30;
+    const sizeIt = () => { const w = box.clientWidth, h = box.clientHeight - 24; el.style.fontSize = Math.min(w / (W * 0.6), h / (H * 1.12)).toFixed(2) + 'px'; };
+    const draw = () => { el.textContent = Z.torus(W, H, A, B); };
+    sizeIt(); draw(); window.addEventListener('resize', sizeIt);
+    let vis = true; new IntersectionObserver(e => { vis = e[0].isIntersecting; }).observe(box);
+    let last = 0;
+    const loop = t => { requestAnimationFrame(loop); if (!vis || t - last < 33) return; last = t; if (!drag && !reduced()) { A += vA; B += vB; draw(); } };
+    requestAnimationFrame(loop);
+    el.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, A, B }; el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing'; });
+    el.addEventListener('pointermove', e => { if (!drag) return; B = drag.B + (e.clientX - drag.x) * 0.012; A = drag.A + (e.clientY - drag.y) * 0.012; draw(); });
+    el.addEventListener('pointerup', () => { drag = null; el.style.cursor = ''; });
+  })();
+
+  /* ---------- 02 laboratorio ---------- */
+  function textZeros(str, cols, shadow) {
+    const c = document.createElement('canvas'), x = c.getContext('2d');
+    const FS = 100; const font = `800 ${FS}px "JetBrains Mono", ui-monospace, monospace`; x.font = font;
+    const tw = Math.max(1, x.measureText(str).width);
+    const cw = 4, ch = 8; const sc = (cols * cw) / tw; const rows = Math.max(3, Math.ceil(FS * 0.92 * sc / ch) + 1);
+    c.width = cols * cw; c.height = rows * ch; x.scale(sc, sc); x.font = font; x.textBaseline = 'middle'; x.fillStyle = '#fff';
+    x.fillText(str, 0, (c.height / sc) / 2 + FS * 0.04);
+    const d = x.getImageData(0, 0, c.width, c.height).data;
+    const val = (i, j) => { if (i < 0 || j < 0 || i >= cols || j >= rows) return 0; let a = 0; for (let yy = 0; yy < ch; yy++) for (let xx = 0; xx < cw; xx++) a += d[((j * ch + yy) * c.width + i * cw + xx) * 4 + 3]; return a / (255 * cw * ch); };
+    let out = [];
+    for (let j = 0; j < rows; j++) { let r = ''; for (let i = 0; i < cols; i++) { let v = val(i, j); if (shadow && v < 0.1) { const s = val(i - 1, j - 1); if (s > 0.4) v = 0.2; } r += Z.RAMP[Math.round(Math.min(1, v) * 5)]; } out.push(r.replace(/\s+$/, '')); }
+    while (out.length && !out[0].trim()) out.shift(); while (out.length && !out[out.length - 1].trim()) out.pop();
+    return out.join('\n');
+  }
+  (function () {
+    const sel = $('#labCol'); sel.innerHTML = Z.P.map(p => `<option value="${p.id}"${p.id === 'cal' ? ' selected' : ''}>${p.glyph}  ${p.id}</option>`).join('');
+    const lab = $('#lab'), out = $('#labOut'), txt = $('#labTxt'), res = $('#labRes'), sh = $('#labSh');
+    const run = () => {
+      const cols = +res.value; $('#labResV').textContent = cols + ' columnas';
+      lab.className = 'lab c-' + sel.value;
+      out.textContent = textZeros(txt.value || '0', cols, sh.checked);
+      const w = out.parentElement.clientWidth - 40; out.style.fontSize = Math.min(16, w / (cols * 0.6)).toFixed(2) + 'px';
+    };
+    [txt, res, sel].forEach(e => e.addEventListener('input', run));
+    $('.chk', lab).addEventListener('click', e => { e.preventDefault(); sh.checked = !sh.checked; $('#labShM').textContent = sh.checked ? 'x' : ' '; run(); });
+    document.fonts.ready.then(run); window.addEventListener('resize', run);
+  })();
+
+  /* ---------- 05 color ---------- */
+  (function () {
+    $('#colorbar').innerHTML = Z.P.map(p => `<div style="background:${p.base}">${p.id}</div>`).join('');
+    const nrow = (name, hex, bg, use) => `<div class="row"><div class="sw" style="background:${hex}"></div><div><b>${name}</b> <span class="dim">${hex}</span><br><span class="dim" style="font-size:12px">${use}</span></div><div style="font-size:12px">${bg ? Z.contrast(hex, bg).toFixed(1) + ':1' : 'fondo'}</div></div>`;
+    $('#nTerm').innerHTML = `<div class="row" style="display:block;font-size:12px;color:var(--dim)">terminal · fondo #0f0e0c</div>` +
+      nrow('negro', N.ink, '', 'fondo') + nrow('negro 2', N.ink2, '', 'paneles, sidebar') + nrow('línea', N.line, '', 'divisores') + nrow('línea fuerte', N.line2, '', 'bordes de control') +
+      nrow('hueso', N.bone, N.ink, 'texto principal') + nrow('hueso 2', N.bone2, N.ink, 'texto secundario') + nrow('apagado', N.dim, N.ink, 'metadatos, ayuda');
+    $('#nPap').innerHTML = `<div class="row" style="display:block;font-size:12px;color:var(--dim)">papel · fondo #f4efe4</div>` +
+      nrow('papel', N.paper, '', 'fondo') + nrow('banda', N.bar, '', 'filas pares, como el papel continuo') + nrow('regla', N.rule, '', 'divisores') + nrow('regla fuerte', N.rule2, '', 'bordes de control') +
+      nrow('tinta', N.type, N.paper, 'texto principal') + nrow('tinta 2', N.type2, N.paper, 'texto secundario') + nrow('lápiz', N.typeDim, N.bar, 'metadatos · medido sobre la banda');
+    const cr = (a, b) => { const v = Z.contrast(a, b); return `${v.toFixed(2)} <span class="${v >= 4.5 ? 'ok-t' : 'bad-t'}">${v >= 4.5 ? '[AA]' : '[--]'}</span>`; };
+    $('#ctable').innerHTML = `<tr><th>producto</th><th>glifo</th><th>base</th><th>sobre terminal</th><th>contraste</th><th>sobre papel</th><th>contraste</th></tr>` +
+      Z.P.map(p => `<tr><td><b>${p.id}</b></td><td style="font-weight:700">${p.glyph.replace(/0/g, `<span style="color:var(--${p.id})">0</span>`)}</td><td><span class="chip" style="background:${p.base}"></span> ${p.base}</td>` +
+        `<td><span class="cbox" style="background:${N.ink};color:${p.dark};border:1px solid ${N.line2}">[0] ${p.id}</span> ${p.dark}</td><td>${cr(p.dark, N.ink)}</td>` +
+        `<td><span class="cbox" style="background:${N.paper};color:${p.paper};border:1px solid ${N.rule2}">[0] ${p.id}</span> ${p.paper}</td><td>${cr(p.paper, N.paper)}</td></tr>`).join('');
+  })();
+
+  /* ---------- 06 íconos ---------- */
+  $('#icons').innerHTML = Z.P.map(p => `<figure><img src="assets/icon-${p.id}.svg" alt="ícono ${p.id}" loading="lazy" width="512" height="512"><figcaption><span>${p.id}</span><span>${p.glyph}</span></figcaption></figure>`).join('') + `<figure><img src="assets/app-icon.svg" alt="ícono de la suite" loading="lazy" width="1024" height="1024"><figcaption><span>suite</span><span>[0]</span></figcaption></figure>`;
+  $('#iconsP').innerHTML = Z.P.map(p => `<figure><img src="assets/icon-${p.id}-paper.svg" alt="ícono ${p.id} en papel" loading="lazy" width="512" height="512"><figcaption><span>${p.id}</span><span>${p.glyph}</span></figcaption></figure>`).join('') + `<figure><img src="assets/symbol.svg" alt="símbolo" loading="lazy" style="background:#f4efe4;padding:20%"><figcaption><span>símbolo</span><span>[0]</span></figcaption></figure>`;
+  const gl = (p) => p.glyph.replace(/0/g, '<b>0</b>');
+  $('#navdemo').innerHTML = Z.P.map(p => `<div class="c-${p.id}${p.id === 'cal' ? ' on' : ''}"><span style="font-weight:700">${gl(p)}</span><span>${p.id}</span><span class="dim">${p.team ? 'equipo' : 'personal'}</span></div>`).join('');
+
+  /* ---------- 07 ilustraciones ---------- */
+  (function () {
+    const order = ['cal', 'crm', 'link', 'track', 'chat', 'robots', 'flow', 'agents', 'notes'];
+    $('#illos').innerHTML = order.map((id, i) => { const I = Z.ILLOS[id]; return `<figure class="illo c-${id}" style="margin:0"><pre class="art" data-max="12" role="img" aria-label="${I.title}, dibujado con ceros">${Z.illo(id).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre><footer><b>${id}</b><span>${I.title}. ${I.note.replace(/^[^.]+\.\s*/, '')}</span></footer></figure>`; }).join('');
+    // lluvia
+    const rain = $('#patRain'); const cols = 60, rows = 22; const drops = Array.from({ length: cols }, (_, i) => ({ y: Math.random() * rows, v: 0.15 + Math.random() * 0.4, on: Math.random() < 0.55 }));
+    const drawRain = () => { const g = Array.from({ length: rows }, () => Array(cols).fill(' ')); drops.forEach((d, i) => { if (!d.on) return; for (let k = 0; k < 6; k++) { const y = Math.floor(d.y) - k; if (y >= 0 && y < rows) g[y][i] = Z.RAMP[5 - k] || ' '; } }); rain.textContent = g.map(r => r.join('')).join('\n'); };
+    drawRain();
+    let vis = false; new IntersectionObserver(e => { vis = e[0].isIntersecting; }).observe(rain.parentElement);
+    setInterval(() => { if (!vis || reduced()) return; drops.forEach(d => { d.y += d.v; if (d.y > rows + 6) { d.y = 0; d.on = Math.random() < 0.6; } }); drawRain(); }, 66);
+    // degradé
+    const dth = []; const B4 = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+    for (let j = 0; j < 22; j++) { let r = ''; for (let i = 0; i < 60; i++) { const v = i / 59 + (B4[j % 4][i % 4] / 16 - 0.5) * 0.22; r += Z.RAMP[Math.max(0, Math.min(5, Math.round(v * 5)))]; } dth.push(r); }
+    $('#patDither').textContent = dth.join('\n');
+  })();
+
+  /* ---------- 08 motion ---------- */
+  (function () {
+    const el = $('#moLoad'); let timer = null;
+    const SP = ['·', '°', 'o', '0', 'Ø', '0', 'o', '°'];
+    const steps = ['conectando workspace', 'leyendo ajustes', 'cargando cal', 'sincronizando agenda'];
+    const bar = (p) => { const n = 22, f = p * n; let s = ''; for (let i = 0; i < n; i++) { const d = f - i; s += d >= 1 ? 'Ø' : d > 0.8 ? '0' : d > 0.55 ? 'o' : d > 0.3 ? '°' : d > 0.05 ? '·' : ' '; } return s; };
+    const render = (p, t) => {
+      const k = Math.min(steps.length, Math.floor(p * steps.length + 0.001));
+      let s = `<span class="pc">[0]</span> zerosoft\n\n`;
+      steps.forEach((st, i) => { if (i < k) s += `<span class="dim">></span> ${st.padEnd(22, '.')} <span style="color:var(--ok)">ok</span>\n`; else if (i === k && p < 1) s += `<span class="dim">></span> ${st.padEnd(22, '.')} <span class="pc">${SP[t % SP.length]}</span>\n`; else s += '\n'; });
+      s += `\n[<span class="pc">${bar(p)}</span>] ${String(Math.round(p * 100)).padStart(3)}%`;
+      if (p >= 1) s += `\n\n<span class="dim">$</span> <span class="cur"></span>`;
+      el.innerHTML = s;
+    };
+    const run = () => {
+      clearInterval(timer);
+      if (reduced()) { render(1, 0); return; }
+      let p = 0, t = 0; timer = setInterval(() => { t++; p = Math.min(1, p + 0.006 + (t % 17 === 0 ? 0.05 : 0)); render(p, t); if (p >= 1) clearInterval(timer); }, 33);
+    };
+    $('#moLoadBtn').addEventListener('click', run); run();
+  })();
+  (function () {
+    const ids = ['link', 'cal', 'crm', 'track']; const tabs = $('#moTabs'), pre = $('#moTr'); const box = pre.closest('.mo');
+    const content = id => { const p = Z.byId[id]; return [`[${p.glyph}] ${p.id}`, '', p.does, '', id === 'cal' ? 'próxima: mar 20 · 10:00' : id === 'crm' ? '3 negocios abiertos' : id === 'link' ? 'zerosoft.ai/l/manifiesto' : '#0 pendientes en esta semana', p.repl ? `en vez de ${p.repl}` : '']; };
+    let cur = 'cal', anim = null;
+    const paint = (lines, id) => { pre.innerHTML = lines.map((l, i) => i === 0 ? l.replace(/0/g, `<span style="color:var(--${id})">0</span>`) : `<span class="${i > 3 ? 'dim' : ''}">${l.replace(/</g, '&lt;')}</span>`).join('\n'); };
+    tabs.innerHTML = ids.map(id => `<button type="button" data-id="${id}" aria-pressed="${id === cur}">${id}</button>`).join('');
+    paint(content(cur), cur);
+    tabs.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b || b.dataset.id === cur) return;
+      const to = b.dataset.id, from = content(cur), dest = content(to); cur = to;
+      $$('button', tabs).forEach(x => x.setAttribute('aria-pressed', String(x.dataset.id === to)));
+      box.className = 'mo c-' + to;
+      cancelAnimationFrame(anim);
+      if (reduced()) { paint(dest, to); return; }
+      const t0 = performance.now(), D = 420;
+      const step = t => {
+        const k = Math.min(1, (t - t0) / D);
+        const lines = dest.map((l, i) => { const f = from[i] || ''; const L = Math.max(l.length, f.length); let s = ''; for (let c = 0; c < L; c++) { const edge = k * (L + 8) - c; s += edge > 8 ? (l[c] || ' ') : edge > 0 ? Z.RAMP[1 + Math.floor(Math.random() * 5)] : (f[c] || ' '); } return s.replace(/\s+$/, ''); });
+        if (k < 1) { pre.textContent = lines.join('\n'); anim = requestAnimationFrame(step); } else paint(dest, to);
+      };
+      anim = requestAnimationFrame(step);
+    });
+  })();
+  (function () {
+    const seq = ['·', '°', 'o', '0', '[0]'];
+    const morph = (el, fwd) => { clearInterval(el._t); if (reduced()) { el.textContent = fwd ? '[0]' : '·'; return; } let i = fwd ? 0 : seq.length - 1; el._t = setInterval(() => { el.textContent = seq[i]; i += fwd ? 1 : -1; if (i < 0 || i >= seq.length) clearInterval(el._t); }, 33); };
+    $$('#hvList li').forEach(li => { const b = $('.b', li); ['mouseenter', 'focus'].forEach(ev => li.addEventListener(ev, () => morph(b, true))); ['mouseleave', 'blur'].forEach(ev => li.addEventListener(ev, () => morph(b, false))); });
+    const hb = $('#hvBtn .m'); $('#hvBtn').addEventListener('mouseenter', () => morph(hb, true)); $('#hvBtn').addEventListener('mouseleave', () => { clearInterval(hb._t); hb.textContent = '>'; });
+    $('#hvBtn').addEventListener('click', e => e.preventDefault());
+  })();
+
+  /* ---------- 09 sitio ---------- */
+  (function () {
+    const lines = [
+      ['$ ', 'git clone github.com/lschiaffino/zerosoft'],
+      ['', "Cloning into 'zerosoft'... done."],
+      ['$ ', 'cd zerosoft && cp .env.example .env'],
+      ['$ ', 'docker compose up -d'],
+      ['', '[+] Running 2/2'],
+      ['', ' ✔ Volume zerosoft-data     Created'],
+      ['', ' ✔ Container zerosoft       Started'],
+      ['$ ', 'open http://localhost:3000'],
+      ['', '[0] zerosoft corriendo. once apps, tu servidor.']
+    ];
+    const el = $('#siteTerm');
+    const fmt = (p, t) => p ? `<span class="p">${p}</span>${t}` : (t.includes('✔') ? t.replace('✔', '<span class="g">✔</span>') : `<span class="${t.startsWith('[0]') ? '' : 'p'}">${t}</span>`);
+    if (reduced()) { el.innerHTML = lines.map(l => fmt(...l)).join('\n'); return; }
+    let started = false;
+    new IntersectionObserver(e => { if (e[0].isIntersecting && !started) { started = true; go(); } }).observe(el);
+    function go() {
+      let li = 0, ci = 0; const done = [];
+      const tick = () => {
+        if (li >= lines.length) { el.innerHTML = done.join('\n') + '\n<span class="p">$ </span><span class="cur"></span>'; return; }
+        const [p, t] = lines[li];
+        if (!p) { done.push(fmt(p, t)); li++; el.innerHTML = done.join('\n'); setTimeout(tick, 160); return; }
+        ci += 3; el.innerHTML = done.concat([`<span class="p">${p}</span>${t.slice(0, ci)}<span class="cur"></span>`]).join('\n');
+        if (ci >= t.length) { done.push(fmt(p, t)); li++; ci = 0; setTimeout(tick, 200); } else setTimeout(tick, 18);
+      };
+      tick();
+    }
+  })();
+  $('#siteLs').innerHTML = Z.P.map((p, i) => `<tr class="c-${p.id}"><td class="gl">${gl(p)}</td><td class="perm">${p.team ? 'drwxr-xr-x' : 'drwx------'}</td><td class="nm">${p.id}</td><td>${p.does}</td><td class="rp">${p.repl ? 'en vez de ' + p.repl : p.team ? 'equipo' : 'personal'}</td></tr>`).join('');
+  (function () { const r = $('#pz'); const f = v => 'US$ ' + v; const up = () => { const c = +r.value; $('#pzCost').textContent = f(c); $('#pzMul').textContent = f(c * 3); $('#pzPrice').textContent = f(c * 3); }; r.addEventListener('input', up); up(); })();
+  const footZ = () => { const el = $('#footZeros'); const cols = Math.max(72, Math.min(120, Math.floor(el.clientWidth / 7.2))); el.textContent = textZeros('zerosoft', cols, true); fit(el); };
+  document.fonts.ready.then(footZ); window.addEventListener('resize', footZ);
+  // glifo cal
+  (function () { const p = Z.byId.cal; const g = Z.textPaths(p.glyph, ch => ch === '0' ? 'var(--cal)' : 'var(--fg)'); $('#calGlyph').innerHTML = `<svg viewBox="-1 -4.5 ${g.w + 2} 12" role="img" aria-label="0:00"><g fill="none" stroke-width="1.3" stroke-linecap="square">${g.svg}</g></svg>`; })();
+  (function () {
+    let h = ['lu', 'ma', 'mi', 'ju', 'vi', 'sá', 'do'].map(d => `<span class="wd">${d}</span>`).join('');
+    for (let i = 0; i < 3; i++) h += '<span></span>';
+    for (let d = 1; d <= 31; d++) { const wd = (d + 2) % 7; const av = d >= 16 && wd < 5; h += `<span class="${d === 20 ? 'free sel' : av ? 'free' : ''}">${d}</span>`; }
+    $('#calDays').innerHTML = h;
+    $('#calSlots').innerHTML += ['09:00', '09:30', '10:00', '11:30', '14:00', '15:30'].map(t => `<button type="button" class="${t === '10:00' ? 'on' : ''}"><span>${t}</span><span class="dim">${t === '10:00' ? '[0]' : ''}</span></button>`).join('');
+    $('#calSlots').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $$('#calSlots button').forEach(x => { x.classList.toggle('on', x === b); x.lastChild.textContent = x === b ? '[0]' : ''; }); });
+  })();
+
+  /* ---------- 10 app ---------- */
+  const PEOPLE = [
+    ['Valentina Ruiz', 'Panadería Ruiz', 'calificado', 'cal', 'hace 2 h'],
+    ['Martín Sosa', 'Estudio Sosa', 'lead', 'robots', 'hace 5 h'],
+    ['Lucía Fernández', 'Fernández Arq.', 'propuesta', 'crm', 'ayer'],
+    ['Tomás Pereyra', 'Pereyra Logística', 'lead', 'robots', 'ayer'],
+    ['Camila Ortiz', 'Ortiz & Hijos', 'ganado', 'cal', 'lun 13'],
+    ['Joaquín Méndez', 'Méndez Café', 'calificado', 'cal', 'dom 12'],
+    ['Sofía Acosta', 'Acosta Diseño', 'propuesta', 'crm', 'vie 10'],
+    ['Bruno Giménez', 'Giménez Hnos.', 'perdido', 'agents', 'jue 9'],
+    ['Ana Torres', 'Torres Viajes', 'lead', 'robots', 'mié 8'],
+    ['Diego Ríos', 'Ríos Imprenta', 'calificado', 'cal', 'mar 7'],
+    ['Paula Romero', 'Romero Studio', 'lead', 'robots', 'lun 6'],
+    ['Nicolás Vega', 'Vega Motos', 'ganado', 'cal', 'vie 3']
+  ];
+  function appHTML(theme) {
+    const fg = theme === 'papel' ? N.type : N.bone;
+    const sbProducts = Z.P.map(p => `<div class="sb-it c-${p.id}${p.id === 'crm' ? ' on' : ''}"><span class="g">${gl(p)}</span><span>${p.id}</span><span class="n">${p.id === 'chat' ? '3' : ''}</span></div>`).join('');
+    const rows = PEOPLE.map((r, i) => `<tr class="${i === 2 ? 'on' : ''}"><td class="mk">${i === 2 ? '[0]' : '[ ]'}</td><td><b>${r[0]}</b></td><td class="sub">${r[1]}</td><td><span class="stg" style="--sc:var(--${r[3]})">${r[2]}</span></td><td class="sub">lautaro</td><td class="sub">${r[4]}</td></tr>`).join('');
+    return `<aside class="sb"><div class="sb-top">${lock({ color: fg, scale: 1.3 })}<span class="kbd">⌘K</span></div>
+      <div class="sb-grp"><div class="h">crm</div><div class="sb-it on"><span class="g">></span><span>contactos</span><span class="n">128</span></div><div class="sb-it"><span class="g"> </span><span>empresas</span><span class="n">54</span></div><div class="sb-it"><span class="g"> </span><span>negocios</span><span class="n">17</span></div><div class="sb-it"><span class="g"> </span><span>listas</span><span class="n">4</span></div></div>
+      <div class="sb-grp" style="overflow:hidden"><div class="h">apps</div>${sbProducts}</div>
+      <div class="sb-bot"><span>lautaro · equipo</span><span>[?]</span></div></aside>
+    <div class="mn"><div class="mn-h"><div class="crumb">crm / contactos</div><div class="mn-t"><h1>Contactos<span>128</span></h1><div style="display:flex;gap:8px"><button class="btn sec sm" type="button">[↓] exportar</button><button class="btn sm" type="button">[+] nuevo contacto</button></div></div>
+      <div class="tabs" role="tablist"><button role="tab" aria-selected="true">todos<span class="ct">128</span></button><button role="tab" aria-selected="false">míos<span class="ct">41</span></button><button role="tab" aria-selected="false">recientes<span class="ct">12</span></button><button role="tab" aria-selected="false">sin dueño<span class="ct">6</span></button></div></div>
+      <div class="mn-bar"><input class="inp" placeholder="/ buscar por nombre, email o empresa" style="max-width:340px"><select class="inp" style="max-width:180px"><option>etapa: todas</option></select><select class="inp" style="max-width:180px"><option>dueño: todos</option></select></div>
+      <div class="mn-b"><table class="dt"><thead><tr><th></th><th>nombre</th><th>empresa</th><th>etapa</th><th>dueño</th><th>última actividad</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="mn-f"><span>1 de 128 seleccionado</span><span>↑↓ moverse · ↵ abrir · e editar</span></div></div>
+    <aside class="pn"><div class="pn-h"><div class="av">LF</div><div><h2>Lucía Fernández</h2><p>Fernández Arq. · Buenos Aires</p></div><span class="dim">[×]</span></div>
+      <div class="tabs" style="padding:0 18px" role="tablist"><button role="tab" aria-selected="true">resumen</button><button role="tab" aria-selected="false">actividad</button><button role="tab" aria-selected="false">notas</button></div>
+      <div class="pn-s"><div class="h">datos</div><dl class="kv"><dt>email</dt><dd>lucia@fernandezarq.com</dd><dt>teléfono</dt><dd>+54 11 4567 8901</dd><dt>origen</dt><dd>reserva en <b style="color:var(--cal)">cal</b></dd><dt>dueño</dt><dd>lautaro</dd></dl></div>
+      <div class="pn-s"><div class="h">etapa</div><div class="radios"><span class="chk"><i>( )</i>lead</span><span class="chk"><i>( )</i>calificado</span><span class="chk"><i>(<b>0</b>)</i>propuesta</span><span class="chk"><i>( )</i>ganado</span></div></div>
+      <div class="pn-s" style="border-bottom:0"><div class="h">actividad</div><pre class="tl"><span class="d">├─</span> hoy    propuesta enviada
+<span class="d">├─</span> mar 20 reunión en <b style="color:var(--cal)">cal</b> · 30 min
+<span class="d">├─</span> mar 13 respondió en <b style="color:var(--chat)">chat</b>
+<span class="d">└─</span> mar 12 creada desde <b style="color:var(--link)">link</b></pre></div></aside>
+    <div class="toast"><span class="pc" style="font-weight:700">[0]</span><span>Etapa cambiada a propuesta.</span><a href="#app">deshacer</a><span class="x">[×]</span></div>`;
+  }
+  $('#appT').innerHTML = appHTML('terminal'); $('#appP').innerHTML = appHTML('papel');
+  function phoneHTML() {
+    const items = PEOPLE.slice(0, 9).map(r => `<div class="ph-it"><b>${r[0]}</b><span class="stg" style="--sc:var(--${r[3]})">${r[2]}</span><span>${r[1]}</span><span>${r[4]}</span></div>`).join('');
+    return `<div class="ph-st"><span>9:41</span><span>▮▮▮ 100%</span></div><div class="ph-h"><b>[<i>0</i>] contactos</b><span class="dim">[≡]</span></div>
+      <div class="ph-s"><input class="inp" placeholder="/ buscar"></div>
+      <div class="tabs" style="padding:0 12px"><button aria-selected="true">todos<span class="ct">128</span></button><button aria-selected="false">míos</button><button aria-selected="false">recientes</button></div>
+      <div class="ph-l">${items}</div><div class="fab"><span>[+] nuevo contacto</span><span>n</span></div>
+      <div class="ph-tb"><div class="on"><b>{0}</b>contactos</div><div><b>▤</b>empresas</div><div><b>$</b>negocios</div><div><b>…</b>más</div></div>`;
+  }
+  $('#phT').innerHTML = phoneHTML(); $('#phP').innerHTML = phoneHTML();
+  const KIT = `<div class="h">botones</div><div class="row"><button class="btn" type="button">[+] crear</button><button class="btn sec" type="button">cancelar</button><button class="btn gh" type="button">ver todo</button><button class="btn dng" type="button">[×] borrar</button></div>
+    <div class="row"><button class="btn sm" type="button">guardar</button><button class="btn sec sm" type="button">[↓] exportar</button><span class="kbd">⌘K</span><span class="kbd">↵</span></div>
+    <div class="h">campos</div><label class="fld">nombre<input class="inp" value="Lucía Fernández"></label><label class="fld">email<input class="inp" placeholder="nombre@empresa.com"></label>
+    <div class="row"><select class="inp" style="max-width:220px"><option>etapa: propuesta</option></select><span class="chk"><i>[<b>x</b>]</i>avisarme</span><span class="chk"><i>[ ]</i>archivar</span><span class="toggle"><span>off</span><span class="on">on</span></span></div>
+    <div class="h">pestañas</div><div class="tabs"><button aria-selected="true">resumen</button><button aria-selected="false">actividad<span class="ct">8</span></button><button aria-selected="false">notas</button></div>
+    <div class="h">tabla</div><div style="overflow-x:auto"><table class="dt"><thead><tr><th></th><th>nombre</th><th>etapa</th><th>actividad</th></tr></thead><tbody>${PEOPLE.slice(0, 3).map((r, i) => `<tr class="${i === 1 ? 'on' : ''}"><td class="mk">${i === 1 ? '[0]' : '[ ]'}</td><td>${r[0]}</td><td><span class="stg" style="--sc:var(--${r[3]})">${r[2]}</span></td><td class="sub">${r[4]}</td></tr>`).join('')}</tbody></table></div>
+    <div class="h">estado vacío</div><div class="empty"><pre>${Z.illo('crm').replace(/</g, '&lt;')}</pre><b>Todavía no hay contactos.</b><p>Importá un CSV o creá el primero a mano.</p><div class="row" style="justify-content:center"><button class="btn sm" type="button">[+] nuevo contacto</button><button class="btn sec sm" type="button">importar CSV</button></div></div>
+    <div class="h">toast</div><div class="toast static"><span class="pc" style="font-weight:700">[0]</span><span>Contacto guardado.</span><a href="#app">deshacer</a><span class="x">[×]</span></div>`;
+  $$('.kitc').forEach(k => { k.innerHTML = KIT; });
+
+  /* ---------- escalado de mocks ---------- */
+  const scaleAll = () => $$('.scaler').forEach(s => { const W = +s.dataset.w; const inner = $('.inner', s); const k = Math.min(1.25, s.clientWidth / W); inner.style.transform = `scale(${k})`; s.style.height = (inner.offsetHeight * k) + 'px'; });
+
+  /* ---------- 11 piezas ---------- */
+  const PIECES = [
+    ['og-home.svg', 'OG home', '1200 × 630', 'w12'], ['og-cal.svg', 'OG cal', '1200 × 630', 'w4'], ['og-crm.svg', 'OG crm', '1200 × 630', 'w4'], ['og-track.svg', 'OG track', '1200 × 630', 'w4'],
+    ['social-post.svg', 'post cuadrado', '1080 × 1080', 'w6'], ['tshirt.svg', 'remera', '1200 × 1300', 'w6'],
+    ['social-x-banner.svg', 'banner X', '1500 × 500', 'w12'], ['email-header.svg', 'header de email', '1200 × 300', 'w8'], ['stickers.svg', 'stickers', '1200 × 1200', 'w4'],
+    ['card-front.svg', 'tarjeta · frente', '1050 × 600 · 89 × 51 mm', 'w6'], ['card-back.svg', 'tarjeta · dorso', '1050 × 600', 'w6'],
+    ['slide-cover.svg', 'portada de slide', '1920 × 1080', 'w8'], ['app-icon.svg', 'app icon', '1024 × 1024', 'w4'], ['lockups-productos.svg', 'lockups de producto', '1600 × 1000', 'w12']
+  ];
+  $('#pieces').innerHTML = PIECES.map(([f, t, s, w]) => `<figure class="pc-it ${w}"><img src="assets/${f}" alt="${t}" loading="lazy"><figcaption><span>${t} · ${s}</span><a href="assets/${f}" download>${f}</a></figcaption></figure>`).join('');
+
+  /* ---------- 12 descargas ---------- */
+  $('#dl').innerHTML = ASSETS.map(([f, sz]) => `<li><span class="pm">-rw-r--r--</span><a href="assets/${f}" download>${f}</a><span class="sz">${sz}</span></li>`).join('');
+
+  /* ---------- nav activa ---------- */
+  const navLinks = $$('#nav a');
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { navLinks.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id)); const on = navLinks.find(a => a.classList.contains('on')); if (on) { const nav = $('#nav'); nav.scrollLeft = on.offsetLeft - nav.clientWidth / 2 + on.clientWidth / 2; } } }), { rootMargin: '-45% 0px -50% 0px' });
+  $$('section.s').forEach(s => io.observe(s));
+
+  /* ---------- arranque ---------- */
+  let saved = null; try { saved = localStorage.getItem('zs-term-theme'); } catch (e) {}
+  setTheme(saved === 'papel' ? 'papel' : 'terminal');
+  const relayout = () => { fitAll(); scaleAll(); };
+  relayout(); window.addEventListener('resize', relayout); document.fonts.ready.then(relayout);
+})();
+</script>
+</body>
+</html>

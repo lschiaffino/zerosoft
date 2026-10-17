@@ -1,0 +1,1328 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>zerosoft Perforado</title>
+<meta name="description" content="Propuesta de marca Perforado para zerosoft: tarjetas perforadas, matriz de puntos y papel continuo.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Doto:ROND,wght@0..100,100..900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --papel:#f7f2e4; --papel-2:#efe7d2; --tarjeta:#e9dcb8; --tarjeta-2:#ddcda2; --barra:#e1ecd7; --barra-2:#d3e3c6; --regla:#cfc3a3;
+  --tinta:#1e1b15; --tinta-2:#575043; --tinta-3:#8a816f; --roja:#b3261e;
+  --mesa:#17150f; --mesa-2:#24211a; --mesa-3:#34302599; --claro:#efe7d2; --claro-2:#b9ae95;
+  --display:'Doto', ui-monospace, monospace; --mono:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --gut:clamp(16px, 4vw, 56px); --strip:28px;
+  --link:#2f6bff;--link-ink:#2b62eb;--link-light:#4077ff;--link-on:#f7f2e4;--crm:#7b4dff;--crm-ink:#764af5;--crm-light:#8d66ff;--crm-on:#f7f2e4;--cal:#0e9f6e;--cal-ink:#0b7c56;--cal-light:#0e9f6e;--cal-on:#1e1b15;--track:#f2611d;--track-ink:#b84a16;--track-light:#f2611d;--track-on:#1e1b15;--chat:#e23d7f;--chat-ink:#c2346d;--chat-light:#e34182;--chat-on:#1e1b15;--docs:#c2700a;--docs-ink:#9f5c08;--docs-light:#c2700a;--docs-on:#1e1b15;--flow:#0284c7;--flow-ink:#0272ab;--flow-light:#0c89c9;--flow-on:#1e1b15;--agents:#ff3b30;--agents-ink:#cc2f26;--agents-light:#ff3b30;--agents-on:#1e1b15;--notes:#e6b400;--notes-ink:#856800;--notes-light:#e6b400;--notes-on:#1e1b15;--board:#00b8a9;--board-ink:#007970;--board-light:#00b8a9;--board-on:#1e1b15;--robots:#6b7280;--robots-ink:#676d7b;--robots-light:#7a808d;--robots-on:#f7f2e4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:64px}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *,*::before,*::after{animation-duration:0s!important; animation-iteration-count:1!important; transition-duration:0s!important} }
+body{margin:0; background:var(--papel); color:var(--tinta); font:400 15px/1.65 var(--mono); -webkit-font-smoothing:antialiased; padding:0 var(--strip); overflow-x:hidden}
+img,svg{display:block; max-width:100%}
+a{color:inherit}
+::selection{background:var(--tinta); color:var(--papel)}
+:focus-visible{outline:2px dashed var(--tinta); outline-offset:3px}
+.strip{position:fixed; top:0; bottom:0; width:var(--strip); z-index:1; pointer-events:none;
+  background:radial-gradient(circle at 50% 12px, var(--regla) 0 5px, transparent 5.6px) 0 0/100% 24px repeat-y}
+.strip.l{left:0; border-right:1.5px dashed var(--regla)} .strip.r{right:0; border-left:1.5px dashed var(--regla)}
+.wrap{max-width:1240px; margin:0 auto; padding:0 var(--gut)}
+.disp{font-family:var(--display); font-variation-settings:"ROND" 100; font-weight:900; letter-spacing:0; line-height:.95}
+.kick{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--tinta-2); font-weight:500}
+p{max-width:66ch; margin:0 0 1em}
+h1,h2,h3,h4{margin:0; font-weight:600}
+h3{font-size:18px; letter-spacing:-.01em}
+.mut{color:var(--tinta-2)}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+.tear{height:12px; background:radial-gradient(circle at 6px 6px, var(--regla) 0 2.6px, transparent 3.1px) 0 0/12px 12px repeat-x}
+
+/* nav */
+.nav{position:sticky; top:0; z-index:5; background:var(--papel); border-bottom:1.5px solid var(--tinta)}
+.nav .wrap{display:flex; align-items:center; gap:20px; height:56px}
+.nav img{height:18px; width:auto; flex:none}
+.nav ol{list-style:none; display:flex; gap:2px; margin:0; padding:0; overflow-x:auto; scrollbar-width:none; flex:1}
+.nav ol::-webkit-scrollbar{display:none}
+.nav a{display:block; padding:6px 9px; text-decoration:none; font-size:12.5px; white-space:nowrap; color:var(--tinta-2)}
+.nav a b{font-weight:600; color:var(--tinta); margin-right:6px}
+.nav a:hover,.nav a.on{background:var(--tinta); color:var(--papel)} .nav a:hover b,.nav a.on b{color:var(--papel)}
+
+/* sections */
+section{padding:88px 0 72px; position:relative}
+.sh{display:grid; grid-template-columns:auto 1fr; gap:4px 28px; align-items:end; margin:0 0 44px}
+.sh .n{font-family:var(--display); font-variation-settings:"ROND" 100; font-weight:900; font-size:clamp(64px,9vw,120px); line-height:.8; grid-row:span 2}
+.sh h2{font-family:var(--display); font-variation-settings:"ROND" 100; font-weight:900; font-size:clamp(34px,5vw,60px); line-height:.95}
+.sh .meta{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--tinta-2); display:flex; justify-content:space-between; gap:12px; border-top:1.5px solid var(--tinta); padding-top:8px; grid-column:2}
+.sh + .intro{font-size:17px; max-width:62ch; margin:-12px 0 48px}
+.sub{display:flex; align-items:baseline; gap:14px; margin:64px 0 22px; border-bottom:1.5px solid var(--tinta); padding-bottom:8px}
+.sub .i{font-size:12px; color:var(--tinta-2)}
+.sub h3{font-size:20px}
+.grid{display:grid; gap:20px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))} .g3{grid-template-columns:repeat(3,minmax(0,1fr))} .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:900px){ .g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:620px){ .g2,.g3{grid-template-columns:minmax(0,1fr)} :root{--strip:12px} .strip{background-size:100% 18px; background-image:radial-gradient(circle at 50% 9px, var(--regla) 0 3px, transparent 3.6px)} section{padding:64px 0 48px} .sh{column-gap:16px} }
+.cap{font-size:12.5px; color:var(--tinta-2); margin-top:10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.cap b{color:var(--tinta); font-weight:600}
+.panel{background:var(--papel-2); padding:28px; position:relative}
+.panel.dark{background:var(--mesa); color:var(--claro)}
+.panel.card{background:var(--tarjeta); clip-path:polygon(22px 0,100% 0,100% 100%,0 100%,0 22px)}
+.bn{text-transform:none; letter-spacing:.04em}
+.bars{background:repeating-linear-gradient(180deg, var(--barra) 0 28px, transparent 28px 56px)}
+
+/* listing table */
+.listing{width:100%; border-collapse:collapse; font-size:13.5px}
+.listing th{text-align:left; font-weight:600; font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; padding:8px 12px; border-bottom:1.5px solid var(--tinta)}
+.listing td{padding:7px 12px; vertical-align:top; white-space:nowrap}
+.listing tbody tr:nth-child(4n+1) td,.listing tbody tr:nth-child(4n+2) td{background:var(--barra)}
+.listing .r{text-align:right; font-variant-numeric:tabular-nums}
+.scrollx{overflow-x:auto}
+
+/* ticket */
+.ticket{background:var(--papel); color:var(--tinta); padding:22px 24px 18px; position:relative; font-size:13.5px; box-shadow:0 1px 0 var(--regla)}
+.ticket::after{content:""; position:absolute; left:0; right:0; bottom:-8px; height:8px; background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='8'%3E%3Cpath d='M0 0h16L8 8z' fill='%23f7f2e4'/%3E%3C/svg%3E") repeat-x}
+.ticket .row{display:flex; justify-content:space-between; gap:12px; font-variant-numeric:tabular-nums}
+.ticket .row span:first-child{flex:1; min-width:0; overflow:hidden; white-space:nowrap}
+.ticket .row span:first-child::after{content:" ........................................................................"; color:var(--tinta-3)}
+.ticket hr{border:0; border-top:1.5px dashed var(--tinta-3); margin:10px 0}
+.ticket .t{font-weight:700}
+
+/* portada */
+#portada{padding-top:56px}
+.hero-top{display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; margin-bottom:28px}
+.hero h1{font-family:var(--display); font-variation-settings:"ROND" 100; font-weight:900; font-size:clamp(44px,13.4vw,220px); line-height:.82; letter-spacing:-.01em; margin:12px 0 24px}
+.concept{font-size:clamp(18px,2vw,24px); line-height:1.45; max-width:34ch; font-weight:500}
+.hero-grid{display:grid; grid-template-columns:minmax(0,5fr) minmax(0,7fr); gap:48px; align-items:start; margin-top:40px}
+@media (max-width:900px){ .hero-grid{grid-template-columns:minmax(0,1fr)} }
+.manifest{font-size:15.5px; line-height:1.8; background:var(--papel-2)}
+.manifest ol{list-style:none; margin:0; padding:20px 0}
+.manifest li{display:grid; grid-template-columns:52px 1fr; padding:2px 20px}
+.manifest li:nth-child(4n+1),.manifest li:nth-child(4n+2){background:var(--barra)}
+.manifest li::before{content:attr(data-n); color:var(--tinta-2); font-size:12.5px; padding-top:2px}
+.manifest .typed::after{content:"_"; animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.manifest .head{display:flex; justify-content:space-between; padding:12px 20px; border-bottom:1.5px solid var(--tinta); font-size:12px; letter-spacing:.1em; text-transform:uppercase}
+.cardwrap{position:relative}
+.cardwrap .ticket{position:absolute; right:-6px; bottom:-56px; width:min(300px,70%); transform:rotate(-2deg)}
+@media (max-width:620px){ .cardwrap .ticket{position:relative; right:auto; bottom:auto; width:100%; transform:none; margin-top:20px} }
+
+/* system */
+.rules{counter-reset:r}
+.rule{background:var(--papel-2); padding:22px; display:flex; flex-direction:column; gap:14px}
+.rule .ill{height:120px; display:flex; align-items:center; justify-content:center; background:var(--papel)}
+.rule .ill svg{max-height:100px; width:auto}
+.rule h4{font-size:15px}
+.rule p{font-size:13.5px; margin:0; color:var(--tinta-2)}
+.rule .no{font-size:12px; color:var(--tinta-2)}
+.ramp{display:grid; grid-template-columns:repeat(11,minmax(0,1fr)); gap:6px}
+.ramp div{aspect-ratio:1; background:var(--tarjeta); display:flex; align-items:center; justify-content:center}
+.ramp i{display:block; background:var(--mesa); border-radius:50%}
+.ramp-l{display:grid; grid-template-columns:repeat(11,minmax(0,1fr)); gap:6px; font-size:11px; color:var(--tinta-2); margin-top:6px; text-align:center}
+.variants{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:12px}
+@media (max-width:900px){ .variants{grid-template-columns:repeat(4,minmax(0,1fr))} }
+@media (max-width:620px){ .variants{grid-template-columns:repeat(2,minmax(0,1fr))} .ramp,.ramp-l{gap:3px} .ramp-l{font-size:9px} }
+.variant{background:var(--papel-2); padding:14px} .variant svg{width:100%; height:auto; background:var(--papel)} .variant b{display:block; font-size:13px; margin-top:10px} .variant span{font-size:12px; color:var(--tinta-2)}
+.punch{background:var(--mesa); color:var(--claro); padding:clamp(18px,3vw,36px)}
+.punch label{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--claro-2); display:block; margin-bottom:8px}
+.punch .ctrl{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:22px}
+.punch input[type=text]{flex:1 1 260px; min-width:0; background:var(--mesa-2); color:var(--claro); border:1.5px solid #4a4434; font:500 18px var(--mono); padding:12px 14px; border-radius:0}
+.punch input[type=text]:focus{outline:none; border-color:var(--claro)}
+.punch .stage{background:var(--mesa-2); padding:clamp(10px,2vw,24px); transition:background .3s}
+.punch .stage.lit{background:#fff3c9}
+.punch .read{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:20px; font-size:13px; color:var(--claro-2)}
+.punch .read b{display:block; color:var(--claro); font-size:15px; font-weight:500; word-break:break-all}
+@media (max-width:620px){ .punch .read{grid-template-columns:1fr} }
+#cardDemo rect.hit{cursor:crosshair; fill:transparent} #cardDemo rect.hit:hover{fill:#1e1b1533}
+.matrixout{margin-top:20px; background:var(--mesa-2); padding:16px; overflow:hidden}
+
+/* buttons (shared by guide + mocks) */
+.btn{--b:var(--tinta); --f:var(--papel); appearance:none; display:inline-flex; align-items:center; gap:10px; font:600 14px/1 var(--mono); padding:12px 16px 12px 14px; background:var(--b); color:var(--f); border:1.5px solid var(--b); border-radius:0; cursor:pointer; text-decoration:none; position:relative; white-space:nowrap}
+.btn::before{content:""; width:7px; height:10px; border-radius:4px; background:var(--f); flex:none}
+.btn:hover{background:#000; border-color:#000}
+.btn:active{transform:translateY(1px)}
+.btn.sec{background:transparent; color:var(--tinta); border-color:var(--tinta)} .btn.sec::before{background:var(--tinta)} .btn.sec:hover{background:var(--tinta); color:var(--papel)} .btn.sec:hover::before{background:var(--papel)}
+.btn.ghost{background:transparent; color:var(--tinta); border-color:transparent} .btn.ghost::before{display:none} .btn.ghost:hover{border-color:var(--tinta); background:transparent}
+.btn.danger{--b:var(--roja)} .btn.danger:hover{background:#8c1d16; border-color:#8c1d16}
+.btn.sm{font-size:12.5px; padding:8px 12px 8px 10px} .btn.sm::before{width:5px; height:8px}
+.btn[disabled]{opacity:1; background:var(--papel-2); color:var(--tinta-2); border-color:var(--regla); cursor:not-allowed} .btn[disabled]::before{background:var(--regla)}
+.btn.light{--b:var(--claro); --f:var(--mesa)} .btn.light:hover{background:#fff; border-color:#fff}
+.btn.sec.light{background:transparent; color:var(--claro); border-color:var(--claro)} .btn.sec.light::before{background:var(--claro)}
+
+/* logo */
+.logo-tile{display:flex; align-items:center; justify-content:center; min-height:220px; padding:40px}
+.logo-tile img{width:min(360px,90%); height:auto}
+.small-row{display:flex; gap:28px; align-items:flex-end; flex-wrap:wrap}
+.small-row figure{margin:0; display:flex; flex-direction:column; gap:8px; align-items:flex-start; font-size:12px; color:var(--tinta-2)}
+.small-row canvas{image-rendering:pixelated; width:128px; height:128px; background:var(--papel); border:1px solid var(--regla)}
+.tabmock{display:flex; gap:0; align-items:flex-end; background:#d9d0ba; padding:8px 8px 0}
+.tabmock div{display:flex; align-items:center; gap:8px; padding:8px 14px; font:12px/1 system-ui, sans-serif; color:#222; flex:0 1 200px; min-width:0; white-space:nowrap; overflow:hidden}
+.tabmock div.on{background:var(--papel)} .tabmock div.dk{background:#2b2924; color:#eee}
+.clear{position:relative; padding:56px; background:var(--papel-2); display:flex; justify-content:center}
+.clear .box{position:relative; outline:1.5px dashed var(--roja); outline-offset:0; padding:28px}
+.clear .box img{width:min(420px,60vw); height:auto; outline:1px solid #b3261e55}
+.clear .m{position:absolute; font-size:11px; color:var(--roja); font-weight:600}
+.wrong{background:var(--papel-2); padding:22px; position:relative}
+.wrong .vis{height:150px; display:flex; align-items:center; justify-content:center; background:var(--papel); position:relative; overflow:hidden}
+.wrong .vis::after{content:""; position:absolute; inset:0; background:linear-gradient(to top right, transparent calc(50% - 1px), var(--roja) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px))}
+.wrong b{display:block; margin-top:12px; font-size:13.5px} .wrong span{font-size:12.5px; color:var(--tinta-2)}
+.lockups{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; border-top:1.5px solid var(--tinta)}
+@media (max-width:760px){ .lockups{grid-template-columns:1fr} }
+.lockup{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:22px 16px; border-bottom:1px solid var(--regla)}
+.lockup:nth-child(4n+1),.lockup:nth-child(4n+2){background:var(--barra)}
+@media (max-width:760px){ .lockup:nth-child(4n+1),.lockup:nth-child(4n+2){background:none} .lockup:nth-child(odd){background:var(--barra)} }
+.lockup img{height:22px; width:auto; max-width:72%}
+.lockup .code{display:flex; align-items:center; gap:10px; font-size:11.5px; color:var(--tinta-2)}
+
+/* type */
+.fam{padding:28px; background:var(--papel-2); display:flex; flex-direction:column; gap:16px; min-height:300px}
+.fam .big{font-size:84px; line-height:1}
+.fam .meta{font-size:12.5px; color:var(--tinta-2); margin-top:auto}
+.scale{display:flex; flex-direction:column; border-top:1.5px solid var(--tinta)}
+.scale > div{display:grid; grid-template-columns:150px 1fr; gap:20px; align-items:baseline; padding:16px 0; border-bottom:1px solid var(--regla)}
+.scale .l{font-size:12px; color:var(--tinta-2)}
+.scale .s{overflow:hidden; text-overflow:ellipsis}
+@media (max-width:620px){ .scale > div{grid-template-columns:1fr; gap:4px} }
+.glyphs{display:flex; flex-wrap:wrap; gap:10px 8px}
+.glyphs span{display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10.5px; color:var(--tinta-2)}
+
+/* color */
+.sw{display:flex; flex-direction:column; background:var(--papel-2)}
+.sw .chip{height:120px; position:relative; clip-path:polygon(18px 0,100% 0,100% 100%,0 100%,0 18px)}
+.sw .chip::after{content:""; position:absolute; right:16px; top:16px; width:10px; height:16px; border-radius:5px; background:var(--papel)}
+.sw .info{padding:12px 14px 14px; font-size:12.5px; display:flex; flex-direction:column; gap:2px}
+.sw .info b{font-size:14px}
+.sw .info .c{display:flex; justify-content:space-between; color:var(--tinta-2)}
+.ok{color:#14532d; font-weight:600} .bad{color:var(--roja); font-weight:600}
+.pc{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px}
+@media (max-width:1000px){ .pc{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:700px){ .pc{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.pcard{background:var(--papel-2); display:flex; flex-direction:column}
+.pcard .top{height:132px; position:relative; padding:14px; display:flex; justify-content:space-between; align-items:flex-start; clip-path:polygon(18px 0,100% 0,100% 100%,0 100%,0 18px)}
+.pcard .top .nm{font-family:var(--display); font-variation-settings:"ROND" 100; font-weight:900; font-size:34px; align-self:flex-end; line-height:1}
+.pcard .rows{padding:12px 14px 14px; font-size:12px; display:flex; flex-direction:column; gap:3px}
+.pcard .rows div{display:flex; justify-content:space-between; gap:6px}
+.pcard .rows span:first-child{color:var(--tinta-2)}
+
+/* icons */
+.icons{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:16px}
+@media (max-width:900px){ .icons{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:520px){ .icons{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.ico{background:var(--papel-2); padding:16px; display:flex; flex-direction:column; gap:10px}
+.ico svg{width:100%; height:auto; background:var(--papel)}
+.ico .sm{display:flex; gap:12px; align-items:center}
+.ico b{font-size:13.5px}
+.ico .lbl{display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--tinta-2)}
+
+/* art */
+.arts{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px}
+@media (max-width:900px){ .arts{grid-template-columns:minmax(0,1fr)} }
+.art{background:var(--papel-2); padding:20px; display:flex; flex-direction:column; gap:12px}
+.art pre{margin:0; font:500 clamp(6.4px,1.05vw,12.5px)/1.18 var(--mono); background:var(--papel); padding:16px 12px; overflow:hidden; letter-spacing:0}
+@media (max-width:900px){ .art pre{font-size:clamp(4.6px,1.62vw,11.5px); padding:12px 8px} }
+.art .cap{margin:0}
+.tex{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px}
+@media (max-width:700px){ .tex{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.tex figure{margin:0} .tex .t{height:160px; border:1px solid var(--regla)} .tex figcaption{font-size:12.5px; margin-top:8px; color:var(--tinta-2)} .tex figcaption b{color:var(--tinta); display:block}
+
+/* motion */
+.mo{background:var(--mesa); color:var(--claro); padding:22px; display:flex; flex-direction:column; gap:16px; min-height:380px}
+.mo .stage{flex:1; background:var(--mesa-2); position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; min-height:220px}
+.mo .bar{display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:12.5px; color:var(--claro-2)}
+.mo h4{font-size:15px; color:var(--claro)}
+.load-row{display:grid; grid-template-columns:repeat(24,1fr); gap:3px; width:86%; position:relative; padding:18px 0}
+.load-row i{height:22px; background:var(--tarjeta); position:relative}
+.load-row i.p::after{content:""; position:absolute; left:50%; top:50%; width:5px; height:12px; margin:-6px 0 0 -2.5px; background:var(--mesa-2)}
+.load-head{position:absolute; top:0; width:calc((100% - 69px)/24 + 6px); height:100%; border:1.5px solid var(--claro); transform:translateX(-3px); transition:left .08s steps(1)}
+.load-txt{position:absolute; bottom:22px; left:7%; font-size:13px; color:var(--claro)}
+.feed{width:86%; height:200px; overflow:hidden; position:relative; background:var(--papel); color:var(--tinta)}
+.feed .paper{position:absolute; inset:0 0 auto 0; transition:transform .9s steps(9)}
+.feed .page{height:200px; padding:0 28px; font-size:11.5px; line-height:20px; white-space:pre; overflow:hidden; position:relative; background:repeating-linear-gradient(180deg, var(--barra) 0 20px, transparent 20px 40px)}
+.feed .page::before,.feed .page::after{content:""; position:absolute; top:0; bottom:0; width:18px; background:radial-gradient(circle at 50% 10px, var(--mesa-2) 0 3.5px, transparent 4px) 0 0/100% 20px}
+.feed .page::before{left:0} .feed .page::after{right:0}
+.feed .page + .page{border-top:1.5px dashed var(--tinta-3)}
+.feed .page b{font-weight:600}
+.hov{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; width:86%}
+.hk{background:var(--tarjeta); color:var(--tinta); padding:14px; position:relative; font-size:13px; cursor:pointer; overflow:visible; border:0; text-align:left; font-family:var(--mono)}
+.hk .h{position:absolute; right:12px; top:12px; width:10px; height:16px; border-radius:5px; background:var(--tarjeta-2); transition:background .12s}
+.hk .chad{position:absolute; right:12px; top:12px; width:10px; height:16px; border-radius:5px; background:var(--tarjeta); opacity:0; pointer-events:none}
+.hk:hover .h,.hk:focus-visible .h{background:var(--mesa-2)}
+.hk:hover .chad,.hk:focus-visible .chad{animation:chad .7s cubic-bezier(.3,.6,.6,1) forwards}
+@keyframes chad{0%{opacity:1; transform:none} 100%{opacity:0; transform:translate(14px,90px) rotate(160deg)}}
+@media (prefers-reduced-motion: reduce){ .hk:hover .chad{animation:none; opacity:0} }
+
+/* mocks */
+.frame{border:1.5px solid var(--tinta); background:var(--papel); overflow:hidden}
+.chrome{display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--papel-2); border-bottom:1.5px solid var(--tinta); font-size:12px; color:var(--tinta-2)}
+.chrome i{width:9px; height:9px; border-radius:50%; border:1.5px solid var(--tinta-3)}
+.chrome span{margin-left:8px; background:var(--papel); padding:3px 10px; flex:1; max-width:420px; overflow:hidden; white-space:nowrap}
+.site{--px:clamp(18px,4vw,56px)}
+.site .top{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px var(--px); border-bottom:1px solid var(--regla)}
+.site .top nav{display:flex; gap:22px; font-size:13.5px}
+.site .top nav a{text-decoration:none}
+.site .top .act{display:flex; gap:8px}
+@media (max-width:860px){ .site .top nav{display:none} }
+@media (max-width:480px){ .site .top .act .ghost{display:none} .site .top{padding:14px 16px} .site .top img{max-width:150px} }
+.s-hero{display:grid; grid-template-columns:minmax(0,5fr) minmax(0,6fr); gap:40px; padding:72px var(--px) 88px; align-items:center}
+@media (max-width:900px){ .s-hero{grid-template-columns:minmax(0,1fr); padding-top:48px} }
+.s-hero h1{font-family:var(--display); font-variation-settings:"ROND" 100; font-weight:900; font-size:clamp(46px,5.6vw,84px); line-height:.9; margin:16px 0 24px}
+.s-hero p{font-size:17px; max-width:42ch}
+.s-hero .cta{display:flex; gap:10px; flex-wrap:wrap; margin-top:28px}
+.s-sec{padding:72px var(--px); border-top:1.5px solid var(--tinta)}
+.s-sec h2{font-family:var(--display); font-variation-settings:"ROND" 100; font-weight:900; font-size:clamp(36px,5vw,64px); line-height:.95; margin-bottom:12px}
+.s-sec .lead{font-size:16px; color:var(--tinta-2); margin-bottom:36px}
+.prods{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px}
+@media (max-width:1000px){ .prods{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:700px){ .prods{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:440px){ .prods{grid-template-columns:1fr} }
+.prod{background:var(--tarjeta); padding:18px 16px 16px; position:relative; clip-path:polygon(16px 0,100% 0,100% 100%,0 100%,0 16px); display:flex; flex-direction:column; gap:10px; min-height:210px; text-decoration:none}
+.prod:hover{background:var(--tarjeta-2)}
+.prod .hd{display:flex; justify-content:space-between; align-items:flex-start}
+.prod .nm{font-family:var(--display); font-variation-settings:"ROND" 100; font-weight:900; font-size:32px; line-height:1}
+.prod p{font-size:13px; margin:0; color:var(--tinta)}
+.prod .rp{margin-top:auto; font-size:12px; color:var(--tinta-2)}
+.prod.more{background:var(--mesa); color:var(--claro); justify-content:space-between}
+.price{display:grid; grid-template-columns:minmax(0,7fr) minmax(0,4fr); gap:40px; align-items:start}
+@media (max-width:900px){ .price{grid-template-columns:minmax(0,1fr)} #mobGrid{grid-template-columns:minmax(0,1fr)!important} }
+.sfoot{background:var(--mesa); color:var(--claro); padding:0 0 28px}
+.sfoot .tearoff{height:14px; background:radial-gradient(circle at 7px 0, var(--papel) 0 5px, transparent 5.6px) 0 0/14px 14px repeat-x}
+.sfoot .cols{display:grid; grid-template-columns:2fr repeat(3,1fr); gap:28px; padding:48px var(--px) 36px}
+@media (max-width:760px){ .sfoot .cols{grid-template-columns:1fr 1fr} .sfoot .cols > div:first-child{grid-column:1/-1} }
+.sfoot h5{margin:0 0 12px; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--claro-2); font-weight:500}
+.sfoot ul{list-style:none; margin:0; padding:0; font-size:13.5px; display:flex; flex-direction:column; gap:6px}
+.sfoot a{text-decoration:none} .sfoot a:hover{text-decoration:underline}
+.sfoot .legal{display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:18px var(--px) 0; border-top:1px dashed #4a4434; font-size:12px; color:var(--claro-2)}
+.sfoot .big{padding:0 var(--px); opacity:.9}
+.pp-hero{display:grid; grid-template-columns:minmax(0,5fr) minmax(0,6fr); gap:48px; padding:64px var(--px) 72px; align-items:center}
+@media (max-width:900px){ .pp-hero{grid-template-columns:minmax(0,1fr)} }
+.pp-hero h1{font-family:var(--display); font-variation-settings:"ROND" 100; font-weight:900; font-size:clamp(80px,12vw,168px); line-height:.8; color:var(--cal-ink); margin:18px 0 18px}
+.book{background:var(--tarjeta); clip-path:polygon(22px 0,100% 0,100% 100%,0 100%,0 22px); display:grid; grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
+@media (max-width:560px){ .book{grid-template-columns:1fr} .book .cal{border-right:0; border-bottom:1.5px dashed var(--tinta-3)} }
+.book .cal{padding:22px; border-right:1.5px dashed var(--tinta-3)}
+.book .cal .mh{display:flex; justify-content:space-between; font-size:13px; font-weight:600; margin-bottom:14px}
+.book .days{display:grid; grid-template-columns:repeat(7,1fr); gap:5px; text-align:center; font-size:12px}
+.book .days span{padding:6px 0 4px; position:relative; color:var(--tinta-2)}
+.book .days .wd{font-size:10.5px; letter-spacing:.06em}
+.book .days .ok-d{color:var(--tinta); font-weight:600; cursor:pointer}
+.book .days .ok-d::after{content:""; display:block; margin:3px auto 0; width:5px; height:8px; border-radius:3px; background:var(--cal-ink)}
+.book .days .sel{background:var(--cal-ink); color:var(--papel)} .book .days .sel::after{background:var(--papel)}
+.book .slots{padding:22px; display:flex; flex-direction:column; gap:8px; font-size:13px}
+.book .slots button{font:500 13px var(--mono); text-align:left; padding:10px 12px; background:var(--papel); border:1.5px solid var(--tinta); cursor:pointer; color:var(--tinta)}
+.book .slots button:hover,.book .slots button.on{background:var(--tinta); color:var(--papel)}
+.feats{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; border-top:1.5px solid var(--tinta)}
+@media (max-width:760px){ .feats{grid-template-columns:1fr} }
+.feats > div{padding:24px 24px 28px 0; border-bottom:1px solid var(--regla)}
+.feats > div + div{padding-left:24px; border-left:1px dashed var(--regla)}
+@media (max-width:760px){ .feats > div + div{padding-left:0; border-left:0} }
+.feats b{display:block; font-size:15px; margin:14px 0 6px} .feats p{font-size:13.5px; color:var(--tinta-2); margin:0}
+
+/* app */
+.app{position:relative; display:grid; grid-template-columns:200px minmax(0,1fr) 290px; min-height:720px; font-size:13.5px; background:var(--papel); min-width:1080px}
+.app .side{background:var(--tarjeta); padding:16px 0; display:flex; flex-direction:column; gap:2px; position:relative; border-right:1.5px solid var(--tinta)}
+.app .side .ws{display:flex; align-items:center; gap:10px; padding:4px 16px 16px; border-bottom:1px dashed var(--tinta-3); margin-bottom:10px}
+.app .side .ws b{font-size:13.5px} .app .side .ws span{font-size:11.5px; color:var(--tinta-2); display:block}
+.app .side h6{margin:14px 16px 6px; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--tinta-2); font-weight:500}
+.app .side a{display:flex; align-items:center; gap:10px; padding:6px 16px; text-decoration:none; position:relative}
+.app .side a:hover{background:var(--tarjeta-2)}
+.app .side a.on{background:var(--papel)} .app .side a.on::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--track)}
+.app .side a .k{margin-left:auto; font-size:11px; color:var(--tinta-2)}
+.app .main{display:flex; flex-direction:column; min-width:0}
+.app .mh{display:flex; align-items:center; justify-content:space-between; padding:16px 22px; border-bottom:1.5px solid var(--tinta); gap:12px}
+.app .mh h2{font-size:18px; display:flex; align-items:center; gap:10px}
+.app .bc{font-size:12px; color:var(--tinta-2); font-weight:400}
+.tabs{display:flex; gap:0; border-bottom:1px solid var(--regla); padding:0 22px; overflow-x:auto; scrollbar-width:none}
+.tabs button{white-space:nowrap}
+.tabs button{font:500 13px var(--mono); background:none; border:0; padding:12px 14px 10px; cursor:pointer; color:var(--tinta-2); border-bottom:3px solid transparent; margin-bottom:-1px}
+.tabs button span{font-size:11px; margin-left:6px; color:var(--tinta-2)}
+.tabs button.on{color:var(--tinta); border-bottom-color:var(--track-ink); font-weight:600}
+.tabs button:hover{color:var(--tinta)}
+.tools{display:flex; gap:8px; padding:12px 22px; align-items:center}
+.inp{font:400 13.5px var(--mono); background:var(--papel); color:var(--tinta); border:1.5px solid var(--tinta-3); padding:9px 12px; border-radius:0; min-width:0}
+.inp:focus{outline:none; border-color:var(--tinta); box-shadow:0 0 0 3px var(--barra-2)}
+.inp.err{border-color:var(--roja)}
+.inp::placeholder{color:var(--tinta-2)}
+table.t{width:100%; border-collapse:collapse; font-size:13px}
+table.t th{text-align:left; font-weight:600; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--tinta-2); padding:8px 12px; border-bottom:1.5px solid var(--tinta)}
+table.t td{padding:9px 12px; white-space:nowrap}
+table.t tbody tr:nth-child(4n+1) td,table.t tbody tr:nth-child(4n+2) td{background:var(--barra)}
+table.t tbody tr{cursor:pointer} table.t tbody tr:hover td{background:var(--barra-2)}
+table.t tr.sel td{background:var(--tinta)!important; color:var(--papel)} table.t tr.sel .st,table.t tr.sel .id{color:var(--papel)} table.t tr.sel .prio i{background:#4a4434} table.t tr.sel .prio i.f{background:var(--papel)} table.t tr.sel .av{background:var(--papel); color:var(--tinta)}
+.id{color:var(--tinta-2); font-variant-numeric:tabular-nums}
+.st{display:inline-flex; align-items:center; gap:8px}
+.st::before{content:""; width:9px; height:9px; border:1.5px solid currentColor; flex:none}
+.st.doing::before{background:linear-gradient(to right, currentColor 50%, transparent 50%)}
+.st.done::before{background:currentColor}
+.prio{display:inline-flex; gap:2px; align-items:flex-end; height:12px} .prio i{width:3px; background:var(--regla)} .prio i:nth-child(1){height:5px} .prio i:nth-child(2){height:8px} .prio i:nth-child(3){height:12px} .prio i.f{background:var(--tinta)}
+.av{display:inline-flex; width:22px; height:22px; align-items:center; justify-content:center; background:var(--mesa); color:var(--claro); font-size:10.5px; font-weight:600}
+.app .panel-r{border-left:1.5px solid var(--tinta); background:var(--papel-2); display:flex; flex-direction:column}
+.app .panel-r .ph{padding:16px 20px; border-bottom:1px solid var(--regla); display:flex; justify-content:space-between; align-items:center}
+.app .panel-r .pb{padding:20px; display:flex; flex-direction:column; gap:16px; flex:1}
+.kv{display:grid; grid-template-columns:96px 1fr; gap:8px 12px; font-size:12.5px} .kv span{color:var(--tinta-2)}
+.act-log{font-size:12px; border-top:1px dashed var(--tinta-3); padding-top:14px; display:flex; flex-direction:column; gap:8px} .act-log div{display:grid; grid-template-columns:44px 1fr; color:var(--tinta-2)} .act-log b{color:var(--tinta); font-weight:500}
+.toast{display:flex; align-items:center; gap:12px; background:var(--mesa); color:var(--claro); padding:12px 14px; font-size:13px; box-shadow:4px 4px 0 var(--tinta-3)}
+.toast i{width:8px; height:12px; border-radius:4px; background:var(--papel); outline:3px solid var(--mesa-2); flex:none}
+.toast button{margin-left:auto; background:none; border:0; color:var(--claro); font:600 12px var(--mono); text-decoration:underline; cursor:pointer}
+.toast.err i{background:#ff8a80}
+.app > .toast{position:absolute; right:310px; bottom:20px}
+.apphost{position:relative; overflow:auto}
+.phone{width:390px; max-width:100%; margin:0 auto; border:1.5px solid var(--tinta); background:var(--papel); display:flex; flex-direction:column; height:780px; overflow:hidden; position:relative}
+.phone .sb{display:flex; justify-content:space-between; padding:10px 18px 6px; font-size:12px; font-weight:600}
+.phone .hd{display:flex; justify-content:space-between; align-items:center; padding:8px 16px 12px; border-bottom:1.5px solid var(--tinta)}
+.phone .hd h2{font-size:20px; display:flex; gap:8px; align-items:center}
+.phone .tabs{padding:0 8px}
+.phone .list{flex:1; overflow:hidden}
+.phone .it{display:grid; grid-template-columns:1fr auto; gap:4px 10px; padding:12px 16px; border-bottom:1px solid var(--regla)}
+.phone .it:nth-child(4n+1),.phone .it:nth-child(4n+2){background:var(--barra)}
+.phone .it b{font-weight:500; font-size:13.5px} .phone .it .m{font-size:11.5px; color:var(--tinta-2); display:flex; gap:10px; align-items:center}
+.phone .bn{display:grid; grid-template-columns:repeat(5,1fr); border-top:1.5px solid var(--tinta); background:var(--tarjeta)}
+.phone .bn a{display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 0 14px; font-size:10.5px; text-decoration:none}
+.phone .bn a.on{background:var(--papel); box-shadow:inset 0 3px 0 var(--track)}
+.phone .fab{position:absolute; right:16px; bottom:86px}
+.phone .toast{position:absolute; left:12px; right:12px; bottom:140px}
+.comp{background:var(--papel-2); padding:24px; display:flex; flex-direction:column; gap:16px}
+.comp h4{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--tinta-2); font-weight:500}
+.comp .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.field{display:flex; flex-direction:column; gap:6px; font-size:12.5px}
+.field .h{font-size:11.5px; color:var(--tinta-2)} .field .h.e{color:var(--roja)}
+.chk{display:inline-flex; align-items:center; gap:10px; font-size:13.5px; cursor:pointer}
+.chk input{appearance:none; width:18px; height:18px; border:1.5px solid var(--tinta); margin:0; background:var(--papel); position:relative; cursor:pointer; border-radius:0}
+.chk input:checked{background:var(--tinta)}
+.chk input:checked::after{content:""; position:absolute; left:4.5px; top:2.5px; width:6px; height:10px; border-radius:3px; background:var(--papel)}
+.chk input[type=radio]{border-radius:50%} .chk input[type=radio]:checked::after{left:3.5px; top:3.5px; width:8px; height:8px; border-radius:50%}
+.tog{width:44px; height:22px; border:1.5px solid var(--tinta); position:relative; background:var(--papel); cursor:pointer; padding:0}
+.tog::after{content:""; position:absolute; top:2px; left:2px; width:16px; height:15px; background:var(--tinta); transition:left .15s steps(3)}
+.tog[aria-pressed=true]{background:var(--track)} .tog[aria-pressed=true]::after{left:23px}
+.empty{background:var(--papel); padding:28px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px}
+.empty pre{margin:0; font:500 10px/1.15 var(--mono); color:var(--tinta-2)}
+.empty b{font-size:15px} .empty p{font-size:13px; color:var(--tinta-2); max-width:34ch; margin:0}
+
+/* pieces */
+.pieces{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:20px}
+.pieces figure{margin:0; grid-column:span 3}
+.pieces figure.w2{grid-column:span 2} .pieces figure.w6{grid-column:span 6} .pieces figure.w4{grid-column:span 4}
+@media (max-width:760px){ .pieces figure,.pieces figure.w2,.pieces figure.w4{grid-column:span 6} }
+.pieces .pv{background:var(--papel-2); padding:clamp(12px,2vw,24px); display:flex; align-items:center; justify-content:center}
+.pieces .pv img{width:100%; height:auto; box-shadow:0 0 0 1px var(--regla)}
+.pieces .pv.dk{background:var(--mesa-2)}
+.dl{columns:2; column-gap:40px; border-top:1.5px solid var(--tinta)}
+@media (max-width:700px){ .dl{columns:1} }
+.dl a{display:flex; justify-content:space-between; gap:12px; padding:9px 4px; border-bottom:1px solid var(--regla); text-decoration:none; break-inside:avoid; font-size:13.5px}
+.dl a:hover{background:var(--tinta); color:var(--papel)} .dl a:hover span{color:var(--papel)}
+.dl a span{color:var(--tinta-2); font-size:12px; white-space:nowrap}
+.foot{padding:56px 0 80px; font-size:12.5px; color:var(--tinta-2)}
+</style>
+</head>
+<body>
+<div class="strip l" aria-hidden="true"></div><div class="strip r" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap">
+    <a href="#portada" aria-label="zerosoft, inicio"><img src="assets/logo.svg" alt="zerosoft" width="222" height="28"></a>
+    <ol id="navlist">
+      <li><a href="#portada"><b>00</b>portada</a></li>
+      <li><a href="#sistema"><b>01</b>sistema</a></li>
+      <li><a href="#logo"><b>02</b>logo</a></li>
+      <li><a href="#tipo"><b>03</b>tipografía</a></li>
+      <li><a href="#color"><b>04</b>color</a></li>
+      <li><a href="#iconos"><b>05</b>íconos</a></li>
+      <li><a href="#patrones"><b>06</b>patrones</a></li>
+      <li><a href="#motion"><b>07</b>motion</a></li>
+      <li><a href="#sitio"><b>08</b>sitio</a></li>
+      <li><a href="#app"><b>09</b>app</a></li>
+      <li><a href="#piezas"><b>10</b>piezas</a></li>
+      <li><a href="#descargas"><b>11</b>descargas</a></li>
+    </ol>
+  </div>
+</header>
+
+<main>
+<!-- 00 PORTADA -->
+<section id="portada" class="hero">
+  <div class="wrap">
+    <div class="hero-top">
+      <span class="kick"><span class="bn">zerosoft</span> · propuesta de marca · dirección 05</span>
+      <span class="kick">listado 0001 · 17.10.2026</span>
+    </div>
+    <h1>Perforado</h1>
+    <p class="concept">Cada cero es un agujero. Lo que hace zerosoft queda perforado en papel, a la vista, con el costo impreso al pie.</p>
+    <div class="hero-grid">
+      <div class="manifest" aria-label="Manifiesto">
+        <div class="head"><span>manifiesto.txt</span><span>6 líneas</span></div>
+        <ol id="manifest">
+          <li data-n="0010">El software murió.</li>
+          <li data-n="0020">Quedan instrucciones en papel, y cualquiera las puede leer a contraluz.</li>
+          <li data-n="0030">El código está abierto. Lo corrés en tu máquina por $0.</li>
+          <li data-n="0040">Si preferís nuestra nube, el ticket trae dos números: lo que nos cuesta y lo que cobramos.</li>
+          <li data-n="0050">Costo × 3. Impreso, sin letra chica.</li>
+          <li data-n="0060">Once productos, una sola tarjeta.</li>
+        </ol>
+      </div>
+      <div class="cardwrap">
+        <div id="heroCard" role="img" aria-label="Tarjeta perforada de 80 columnas con el texto el software murió perforado"></div>
+        <div class="ticket" aria-label="Ticket de ejemplo">
+          <div class="row t"><span>zerosoft cloud</span><span>ejemplo</span></div>
+          <hr>
+          <div class="row"><span>costo de infra</span><span>$10,00</span></div>
+          <div class="row"><span>× 3</span><span></span></div>
+          <div class="row t"><span>precio</span><span>$30,00</span></div>
+          <hr>
+          <div class="row t"><span>self-host</span><span>$0,00</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 01 SISTEMA -->
+<section id="sistema">
+  <div class="wrap">
+    <header class="sh"><span class="n">01</span><h2>Sistema del cero</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 001</span></div></header>
+    <p class="intro">En este mundo el cero se resta. Es el agujero que la perforadora deja en la tarjeta, el punto que la aguja deja en el papel y el hueco por donde el tractor arrastra el formulario. Todo lo que dibujamos sale de esos tres gestos.</p>
+
+    <div class="grid g3 rules" id="rules"></div>
+
+    <div class="sub"><span class="i">01.1</span><h3>La grilla: una tarjeta de 80 columnas</h3></div>
+    <p class="mut">Todo layout se apoya en la tarjeta Hollerith: 80 columnas, 12 filas. Arriba las zonas 12, 11 y 0; abajo los dígitos del 1 al 9. Cada carácter ocupa una columna y se escribe con uno, dos o tres agujeros. En pantalla, una columna es la unidad horizontal (9 px a escala 1) y una fila la vertical (24 px). La esquina cortada orienta la tarjeta: siempre arriba a la izquierda.</p>
+    <div class="panel" style="padding:clamp(12px,3vw,32px)"><div id="gridDiagram"></div></div>
+
+    <div class="sub"><span class="i">01.2</span><h3>Rampa de densidad</h3></div>
+    <p class="mut">El tamaño del agujero hace de tono. Diez pasos, del papel liso al agujero completo. Con esta rampa se sombrean ilustraciones, fondos y fotos tramadas.</p>
+    <div class="ramp" id="ramp"></div>
+    <div class="ramp-l" id="rampL"></div>
+
+    <div class="sub"><span class="i">01.3</span><h3>Variantes del cero</h3></div>
+    <div class="variants" id="variants"></div>
+
+    <div class="sub"><span class="i">01.4</span><h3>Perforadora (demo viva)</h3></div>
+    <div class="punch">
+      <label for="punchIn">Escribí hasta 80 caracteres. También podés perforar a mano tocando la tarjeta.</label>
+      <div class="ctrl">
+        <input type="text" id="punchIn" maxlength="80" value="zerosoft: costo × 3" autocomplete="off" spellcheck="false">
+        <button class="btn light sm" id="litBtn" type="button" aria-pressed="false">a contraluz</button>
+        <button class="btn sec light sm" id="clearBtn" type="button">tarjeta nueva</button>
+      </div>
+      <div class="stage" id="punchStage"><div id="cardDemo"></div></div>
+      <div class="matrixout" id="matrixOut" aria-hidden="true"></div>
+      <div class="read">
+        <div>columnas usadas<b id="rCols">0 / 80</b></div>
+        <div>agujeros<b id="rHoles">0</b></div>
+        <div>lectura de la tarjeta<b id="rRead"></b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 02 LOGO -->
+<section id="logo">
+  <div class="wrap">
+    <header class="sh"><span class="n">02</span><h2>Logo</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 002</span></div></header>
+    <p class="intro">El símbolo es una tarjeta con la esquina cortada y un solo agujero: el cero. El nombre se escribe en la matriz de 5 × 7 puntos, siempre en minúscula. El agujero nunca se rellena; deja ver lo que hay detrás.</p>
+    <div class="grid g2">
+      <div><div class="panel logo-tile"><img src="assets/logo.svg" alt="Logo zerosoft sobre claro"></div><div class="cap"><b>Principal sobre claro</b><span>tinta #1e1b15 sobre papel</span></div></div>
+      <div><div class="panel dark logo-tile"><img src="assets/logo-dark.svg" alt="Logo zerosoft sobre oscuro"></div><div class="cap"><b>Principal sobre oscuro</b><span>claro #efe7d2 sobre mesa</span></div></div>
+      <div><div class="panel dark logo-tile"><img src="assets/logo-tarjeta.svg" alt="Logo en tarjeta perforada"></div><div class="cap"><b>Tarjeta</b><span>el nombre perforado, para fondos y piezas grandes</span></div></div>
+      <div class="grid g2" style="gap:20px">
+        <div><div class="panel logo-tile" style="min-height:220px"><img src="assets/symbol.svg" alt="Símbolo" style="width:84px"></div><div class="cap"><b>Símbolo</b><span>claro</span></div></div>
+        <div><div class="panel dark logo-tile" style="min-height:220px"><img src="assets/symbol-dark.svg" alt="Símbolo sobre oscuro" style="width:84px"></div><div class="cap"><b>Símbolo</b><span>oscuro</span></div></div>
+      </div>
+    </div>
+
+    <div class="sub"><span class="i">02.1</span><h3>Tamaños chicos, en píxeles reales</h3></div>
+    <p class="mut">A 16 px el símbolo se dibuja a mano sobre la grilla: tarjeta de 12 × 14, corte de 4, agujero de 4 × 7. A la derecha, el mismo archivo ampliado ×8 sin suavizar, para ver cada píxel.</p>
+    <div class="panel"><div class="small-row">
+      <figure><img src="assets/favicon-16.svg" width="16" height="16" alt="Favicon 16 px">16 px real</figure>
+      <figure><img src="assets/favicon.svg" width="32" height="32" alt="Favicon 32 px">32 px real</figure>
+      <figure><canvas id="px16" width="16" height="16"></canvas>16 px ×8</figure>
+      <figure><canvas id="px32" width="32" height="32"></canvas>32 px ×4</figure>
+      <figure style="flex:1; min-width:260px"><div class="tabmock"><div class="on"><img src="assets/favicon-16.svg" width="16" height="16" alt="">zerosoft cal</div><div class="dk"><img src="assets/symbol-dark.svg" width="13" height="16" alt="">zerosoft link</div></div>en pestaña clara y oscura</figure>
+    </div></div>
+
+    <div class="sub"><span class="i">02.2</span><h3>Área de respeto</h3></div>
+    <p class="mut">Alrededor del logo queda libre la altura de una fila de la matriz × 7, es decir la altura del símbolo. Ningún texto, borde ni imagen entra en esa zona. Tamaño mínimo: 88 px de ancho en pantalla, 22 mm impreso. Por debajo de eso se usa solo el símbolo.</p>
+    <div class="clear"><div class="box" style="padding:clamp(18px,4vw,40px)"><img src="assets/logo.svg" alt="Logo con área de respeto"><span class="m" style="top:4px;left:50%;transform:translateX(-50%)">h</span><span class="m" style="left:6px;top:50%;transform:translateY(-50%)">h</span><span class="m" style="right:6px;top:50%;transform:translateY(-50%)">h</span><span class="m" style="bottom:4px;left:50%;transform:translateX(-50%)">h</span></div></div>
+
+    <div class="sub"><span class="i">02.3</span><h3>Usos incorrectos</h3></div>
+    <div class="grid g4" id="wrongs"></div>
+
+    <div class="sub"><span class="i">02.4</span><h3>Lockup por producto</h3></div>
+    <p class="mut">El producto se escribe en su tinta después de un separador de una columna. A la derecha, su código: las dos primeras letras en Hollerith. Es la columna que el producto perfora en cualquier pieza.</p>
+    <div class="lockups" id="lockups"></div>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 03 TIPO -->
+<section id="tipo">
+  <div class="wrap">
+    <header class="sh"><span class="n">03</span><h2>Tipografía</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 003</span></div></header>
+    <p class="intro">Tres voces de máquina. Doto hace los titulares con puntos redondos; IBM Plex Mono escribe todo lo demás, como una impresora de líneas que se toma su trabajo en serio; la Matriz 5 × 7 es la nuestra, dibujada con ceros, y vive en el logo y en las piezas.</p>
+    <div class="grid g3">
+      <div class="fam"><span class="kick">display</span><div class="big disp">Aa 0</div><b>Doto</b><span class="mut" style="font-size:13px">Matriz de puntos variable. Peso 800 a 900, eje ROND en 100 para que cada punto sea un cero. Solo de 28 px para arriba.</span><span class="meta">Google Fonts · OFL</span></div>
+      <div class="fam"><span class="kick">texto y UI</span><div class="big" style="font-weight:500">Aa 0</div><b>IBM Plex Mono</b><span class="mut" style="font-size:13px">400 para texto, 500 para UI, 600 para énfasis. Números tabulares siempre: los precios se alinean como en un listado.</span><span class="meta">Google Fonts · OFL</span></div>
+      <div class="fam"><span class="kick">marca</span><div id="famMatrix" style="height:84px"></div><b>Matriz zerosoft 5 × 7</b><span class="mut" style="font-size:13px">Minúsculas, dígitos y signos. Cada punto es un círculo de 0,84 del paso. En SVG se dibuja con círculos, sin depender de ninguna fuente.</span><span class="meta">propia · incluida en assets</span></div>
+    </div>
+
+    <div class="sub"><span class="i">03.1</span><h3>Escala</h3></div>
+    <div class="scale">
+      <div><span class="l">display xl · Doto 900<br>clamp 76/220 · 0,82</span><span class="s disp" style="font-size:clamp(56px,9vw,128px); font-weight:900">murió.</span></div>
+      <div><span class="l">display · Doto 800<br>64 · 0,95</span><span class="s disp" style="font-size:clamp(40px,6vw,64px)">Once productos</span></div>
+      <div><span class="l">título · Doto 800<br>40 · 1</span><span class="s disp" style="font-size:40px">Lo que cuesta</span></div>
+      <div><span class="l">subtítulo · Plex 600<br>20 · 1,4</span><span class="s" style="font-size:20px; font-weight:600">Tu agenda con link propio</span></div>
+      <div><span class="l">cuerpo · Plex 400<br>15 · 1,65</span><span class="s" style="font-size:15px">Corrélo en tu servidor por $0, o usá la nube y pagá el costo × 3.</span></div>
+      <div><span class="l">UI · Plex 500<br>13,5 · 1,5</span><span class="s" style="font-size:13.5px; font-weight:500">Nueva issue · Filtrar · Guardar cambios</span></div>
+      <div><span class="l">etiqueta · Plex 500<br>12 · mayúsculas +0,12</span><span class="s kick">estado · prioridad · responsable</span></div>
+    </div>
+
+    <div class="sub"><span class="i">03.2</span><h3>Especímenes</h3></div>
+    <div class="grid g2">
+      <div class="panel bars" style="padding:32px">
+        <span class="kick">listado / changelog</span>
+        <div class="disp" style="font-size:clamp(40px,5vw,60px); margin:18px 0 16px">Semana 42</div>
+        <p style="font-size:15px">Cal ahora sincroniza con más de un calendario de Google. Track suma vista Gantt por ciclo. Link acepta dominios propios con certificado automático.</p>
+        <p class="mut" style="font-size:13px; margin:0">Texto de ejemplo para el espécimen. Los cambios reales viven en /changelog.</p>
+      </div>
+      <div class="panel dark" style="padding:32px">
+        <span class="kick" style="color:var(--claro-2)">matriz 5 × 7</span>
+        <div id="matrixSpec" style="margin-top:20px"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:20px"><div class="glyphs" id="glyphs"></div></div>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 04 COLOR -->
+<section id="color">
+  <div class="wrap">
+    <header class="sh"><span class="n">04</span><h2>Color</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 004</span></div></header>
+    <p class="intro">Los neutros salen del archivo: papel continuo, cartulina de tarjeta, barra verde de listado, cinta de tinta y la mesa oscura donde se apoya todo. Los once productos son once cintas de color. Cuando un color de producto va como texto sobre papel se usa su tinta, oscurecida hasta pasar AA.</p>
+    <div class="grid g4" id="neutrals"></div>
+    <div class="sub"><span class="i">04.1</span><h3>Once cintas de producto</h3></div>
+    <div class="pc" id="pcolors"></div>
+    <p class="mut" style="margin-top:18px; font-size:13px">Contraste calculado con la fórmula WCAG 2.2. AA texto normal: 4,5. AA texto grande: 3. La columna "texto" indica qué tinta va encima del color lleno.</p>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 05 ICONOS -->
+<section id="iconos">
+  <div class="wrap">
+    <header class="sh"><span class="n">05</span><h2>Iconografía</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 005</span></div></header>
+    <p class="intro">Cada producto tiene un glifo de 9 × 9 puntos. Un punto es un cero de la matriz. El trazo mide un punto, las curvas se resuelven en escalones y nada se suaviza. Detrás queda la grilla apagada, que se muestra a partir de 64 px.</p>
+    <div class="icons" id="icons"></div>
+    <div class="sub"><span class="i">05.1</span><h3>En uso, a 22 px</h3></div>
+    <div class="panel" id="iconRow" style="display:flex; flex-wrap:wrap; gap:18px 28px"></div>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 06 PATRONES -->
+<section id="patrones">
+  <div class="wrap">
+    <header class="sh"><span class="n">06</span><h2>Patrones e ilustraciones</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 006</span></div></header>
+    <p class="intro">Las texturas son el papel mismo. Las ilustraciones se componen con cuatro caracteres, del más claro al más denso: punto, o chica, O grande y cero. Se imprimen en la tinta del producto, como un listado salido de la impresora de línea.</p>
+    <div class="tex" id="tex"></div>
+    <div class="sub"><span class="i">06.1</span><h3>Ilustraciones de ceros</h3></div>
+    <div class="arts" id="arts"></div>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 07 MOTION -->
+<section id="motion">
+  <div class="wrap">
+    <header class="sh"><span class="n">07</span><h2>Motion</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 007</span></div></header>
+    <p class="intro">Las máquinas se mueven por pasos. Nada se desliza suave: la aguja avanza de columna en columna, el papel sube de línea en línea y el chad cae con gravedad. Con movimiento reducido, todo llega a su estado final sin recorrido.</p>
+    <div class="grid g3">
+      <div class="mo"><div class="bar"><h4>Carga: perforando</h4><button class="btn sm light" id="loadBtn" type="button">repetir</button></div>
+        <div class="stage"><div class="load-row" id="loadRow"><div class="load-head" id="loadHead"></div></div><div class="load-txt" id="loadTxt">00 / 24</div></div>
+        <div class="bar"><span>steps(1) · 60 ms por columna</span><span>sin easing</span></div></div>
+      <div class="mo"><div class="bar"><h4>Transición: avance de papel</h4><button class="btn sm light" id="feedBtn" type="button">avanzar</button></div>
+        <div class="stage"><div class="feed"><div class="paper" id="paper">
+          <div class="page"><b>link / links</b>
+0001  zero.link/doc .. 302
+0002  zero.link/cal .. 302
+0003  zero.link/gh ... 301
+0004  zero.link/blog . 302
+0005  zero.link/agpl . 301
+0006  zero.link/rm ... 302
+0007  zero.link/ch ... 302</div>
+          <div class="page"><b>cal / reservas</b>
+lun 19  10:00  demo producto
+lun 19  15:30  revisión diseño
+mar 20  09:00  llamada soporte
+mié 21  11:00  entrevista
+jue 22  16:00  retro ciclo 12
+vie 23  10:30  planning
+vie 23  17:00  cierre semana</div>
+          <div class="page"><b>track / ciclo 12</b>
+TRK-0041  hecho      exportar csv
+TRK-0042  en curso   vista gantt
+TRK-0043  abierto    atajos teclado
+TRK-0044  abierto    filtros guardados
+TRK-0045  hecho      modo oscuro
+TRK-0046  abierto    webhooks
+TRK-0047  en curso   import linear</div>
+        </div></div></div>
+        <div class="bar"><span>steps(9) · 900 ms · una línea por paso</span><span id="feedLbl">pág. 1 / 3</span></div></div>
+      <div class="mo"><div class="bar"><h4>Hover: el chad cae</h4><span>pasá el cursor</span></div>
+        <div class="stage"><div class="hov">
+          <button class="hk" type="button"><span class="h"></span><span class="chad"></span>Abrir link</button>
+          <button class="hk" type="button"><span class="h"></span><span class="chad"></span>Reservar</button>
+          <button class="hk" type="button"><span class="h"></span><span class="chad"></span>Nueva issue</button>
+          <button class="hk" type="button"><span class="h"></span><span class="chad"></span>Responder</button>
+        </div></div>
+        <div class="bar"><span>700 ms · cubic-bezier(.3,.6,.6,1)</span><span>el agujero queda</span></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 08 SITIO -->
+<section id="sitio">
+  <div class="wrap">
+    <header class="sh"><span class="n">08</span><h2>Aplicación al sitio</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 008</span></div></header>
+    <p class="intro">Home y página de producto en alta fidelidad. Todo es HTML real con los tokens de esta guía; cambiá el ancho de la ventana y se reacomoda.</p>
+  </div>
+  <div class="wrap">
+    <div class="frame site" id="homeMock">
+      <div class="chrome"><i></i><i></i><i></i><span>zerosoft.ai</span></div>
+      <div class="top"><img src="assets/logo.svg" alt="zerosoft" style="height:18px; width:auto"><nav><a href="#sitio">Productos</a><a href="#sitio">Precios</a><a href="#sitio">Docs</a><a href="#sitio">Changelog</a><a href="#sitio">GitHub</a></nav><div class="act"><a class="btn ghost sm" href="#sitio">Entrar</a><a class="btn sm" href="#sitio">Empezar</a></div></div>
+      <div class="s-hero">
+        <div>
+          <span class="kick">open source · AGPL v3 · self-host o nube</span>
+          <h1>El software murió.</h1>
+          <p>Once productos para tu equipo. Corrélos en tu servidor por $0, o usá nuestra nube y pagá el costo × 3 con los dos números a la vista.</p>
+          <div class="cta"><a class="btn" href="#sitio">Empezar en la nube</a><a class="btn sec" href="#sitio">Ver el código</a></div>
+        </div>
+        <div class="cardwrap"><div id="homeCard" role="img" aria-label="Tarjeta perforada"></div>
+          <div class="ticket" style="bottom:-40px"><div class="row t"><span>link · ejemplo</span><span></span></div><hr><div class="row"><span>costo</span><span>$1,00</span></div><div class="row t"><span>precio</span><span>$3,00</span></div><div class="row"><span>self-host</span><span>$0</span></div></div></div>
+      </div>
+      <div class="s-sec bars-soft">
+        <span class="kick">catálogo</span>
+        <h2>Once productos, una tarjeta.</h2>
+        <p class="lead">Cada uno perfora su columna. Mismo login, misma navegación, mismo precio honesto.</p>
+        <div class="prods" id="prods"></div>
+      </div>
+      <div class="s-sec">
+        <div class="price">
+          <div>
+            <span class="kick">precios</span>
+            <h2>Lo que cuesta, impreso.</h2>
+            <p class="lead">Mostramos el costo de infraestructura de cada producto y cobramos tres veces eso. Los asientos no se cobran. Si lo corrés vos, no nos debés nada.</p>
+            <div class="scrollx"><table class="listing" id="priceTable"><thead><tr><th>producto</th><th>self-host</th><th>nube</th><th>se mide por</th></tr></thead><tbody></tbody></table></div>
+          </div>
+          <div class="ticket" style="margin-top:12px">
+            <div class="row t"><span>tu factura · ejemplo</span><span></span></div><hr>
+            <div class="row"><span>link · costo</span><span>$1,00</span></div>
+            <div class="row"><span>cal · costo</span><span>$0,40</span></div>
+            <div class="row"><span>track · costo</span><span>$2,10</span></div>
+            <hr><div class="row"><span>costo total</span><span>$3,50</span></div>
+            <div class="row"><span>× 3</span><span></span></div>
+            <div class="row t"><span>pagás</span><span>$10,50</span></div>
+            <hr><div class="row"><span>asientos</span><span>$0</span></div>
+            <p style="font-size:12px; margin:12px 0 0; color:var(--tinta-2)">Valores ilustrativos para el mock.</p>
+          </div>
+        </div>
+      </div>
+      <footer class="sfoot"><div class="tearoff"></div>
+        <div class="cols">
+          <div><img src="assets/logo-dark.svg" alt="zerosoft" style="height:20px; width:auto; margin-bottom:16px"><p style="font-size:13.5px; color:var(--claro-2); max-width:34ch">El software murió. El código está en GitHub, bajo AGPL v3.</p></div>
+          <div><h5>Para equipos</h5><ul><li><a href="#sitio">Link</a></li><li><a href="#sitio">CRM</a></li><li><a href="#sitio">Cal</a></li><li><a href="#sitio">Track</a></li><li><a href="#sitio">Chat</a></li><li><a href="#sitio">Docs</a></li></ul></div>
+          <div><h5>Más</h5><ul><li><a href="#sitio">Flow</a></li><li><a href="#sitio">Agents</a></li><li><a href="#sitio">Robots</a></li><li><a href="#sitio">Notes</a></li><li><a href="#sitio">Board</a></li></ul></div>
+          <div><h5>Recursos</h5><ul><li><a href="#sitio">Docs</a></li><li><a href="#sitio">Changelog</a></li><li><a href="#sitio">Roadmap</a></li><li><a href="#sitio">Feedback</a></li><li><a href="#sitio">GitHub</a></li></ul></div>
+        </div>
+        <div class="big" id="footBig" aria-hidden="true"></div>
+        <div class="legal"><span>zerosoft · AGPL v3 · /ee comercial</span><span>es · en · pt</span></div>
+      </footer>
+    </div>
+    <div class="cap"><b>Home</b><span>hero, catálogo, precios y footer</span></div>
+
+    <div class="frame site" style="margin-top:56px" id="prodMock">
+      <div class="chrome"><i></i><i></i><i></i><span>zerosoft.ai/cal</span></div>
+      <div class="top"><img src="assets/lockup-cal.svg" alt="zerosoft cal" style="height:18px; width:auto"><nav><a href="#sitio">Funciones</a><a href="#sitio">Precio</a><a href="#sitio">Docs</a><a href="#sitio">Todos los productos</a></nav><div class="act"><a class="btn ghost sm" href="#sitio">Entrar</a><a class="btn sm" href="#sitio">Crear mi página</a></div></div>
+      <div class="pp-hero">
+        <div>
+          <div id="calGlyph" style="width:72px"></div>
+          <h1>cal</h1>
+          <p style="font-size:19px; max-width:30ch; font-weight:500">Páginas de reserva conectadas a Google Calendar.</p>
+          <p class="mut" style="font-size:14px">Reemplaza a Calendly. Self-host por $0 o en la nube a costo × 3.</p>
+          <div class="cta" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:22px"><a class="btn" href="#sitio" style="--b:var(--cal-ink)">Crear mi página</a><a class="btn sec" href="#sitio">Ver una de ejemplo</a></div>
+        </div>
+        <div class="book" aria-label="Widget de reserva de ejemplo">
+          <div class="cal"><div class="mh"><span>octubre 2026</span><span class="mut">30 min · demo</span></div><div class="days" id="days"></div></div>
+          <div class="slots"><span class="kick">jue 22</span><button type="button">09:30</button><button type="button" class="on">11:00</button><button type="button">14:30</button><button type="button">16:00</button><span class="mut" style="font-size:12px; margin-top:6px">hora de Buenos Aires</span></div>
+        </div>
+      </div>
+      <div class="s-sec">
+        <div class="feats">
+          <div><div class="ficon" data-i="cal"></div><b>Tu link de reserva</b><p>Una página por tipo de evento, con tu horario y tus reglas.</p></div>
+          <div><div class="ficon" data-i="link"></div><b>Conectado a Google Calendar</b><p>Lee tu disponibilidad real y agenda el evento en tu calendario.</p></div>
+          <div><div class="ficon" data-i="crm"></div><b>Cada reserva es un contacto</b><p>Si usás CRM, la persona queda cargada con su historial.</p></div>
+        </div>
+      </div>
+      <footer class="sfoot"><div class="tearoff"></div><div class="legal" style="border:0; padding-top:24px"><span>zerosoft cal · parte de zerosoft</span><span>AGPL v3</span></div></footer>
+    </div>
+    <div class="cap"><b>Página de producto</b><span>cal, con su tinta y su glifo</span></div>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 09 APP -->
+<section id="app">
+  <div class="wrap">
+    <header class="sh"><span class="n">09</span><h2>Aplicación a la app</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 009</span></div></header>
+    <p class="intro">La app es un listado de impresora que se puede tocar: barras verdes cada dos filas, la tarjeta como barra lateral y el color del producto marcando dónde estás. Tocá una fila para ver el panel.</p>
+    <div class="frame apphost" id="appHost">
+      <div class="app">
+        <aside class="side">
+          <div class="ws"><img src="assets/symbol.svg" alt="" style="width:20px"><div><b>equipo zerosoft</b><span>nube · plan por uso</span></div></div>
+          <h6>productos</h6>
+          <div id="appNav"></div>
+          <h6>track</h6>
+          <a href="#app">Mis issues <span class="k">7</span></a><a href="#app">Ciclo 12</a><a href="#app">Roadmap</a><a href="#app">Gantt</a>
+          <div style="margin-top:auto; padding:14px 16px 0; border-top:1px dashed var(--tinta-3); font-size:12px; color:var(--tinta-2)">Este mes<br><b style="color:var(--tinta)">costo $2,10 · pagás $6,30</b></div>
+        </aside>
+        <div class="main">
+          <div class="mh"><h2><span id="trackIco" style="width:22px"></span>Issues <span class="bc">track / ciclo 12</span></h2><div style="display:flex; gap:8px"><button class="btn sec sm" type="button">Exportar</button><button class="btn sm" type="button" style="--b:var(--track-ink)" id="newIssue">Nueva issue</button></div></div>
+          <div class="tabs" role="tablist" id="appTabs"><button class="on" role="tab" aria-selected="true">Todas<span>12</span></button><button role="tab" aria-selected="false">Abiertas<span>6</span></button><button role="tab" aria-selected="false">En curso<span>3</span></button><button role="tab" aria-selected="false">Hechas<span>3</span></button></div>
+          <div class="tools"><input class="inp" placeholder="Buscar en el ciclo" style="flex:1; max-width:340px" aria-label="Buscar"><button class="btn ghost sm" type="button">Filtrar</button><button class="btn ghost sm" type="button">Agrupar: estado</button></div>
+          <table class="t" id="issueTable"><thead><tr><th>id</th><th>título</th><th>estado</th><th>prio</th><th>resp.</th><th>vence</th></tr></thead><tbody></tbody></table>
+        </div>
+        <aside class="panel-r">
+          <div class="ph"><span class="id" id="pId">TRK-0042</span><button class="btn ghost sm" type="button">Cerrar</button></div>
+          <div class="pb">
+            <h3 id="pTitle" style="font-size:18px">Vista Gantt por ciclo</h3>
+            <div class="kv"><span>estado</span><b id="pSt" class="st doing">en curso</b><span>prioridad</span><b>alta</b><span>responsable</span><b>ana r.</b><span>ciclo</span><b>12</b><span>vence</span><b>24 oct</b></div>
+            <p style="font-size:13px; margin:0">Mostrar las issues del ciclo como barras en el tiempo. Arrastrar una barra cambia la fecha. Exportar a PNG.</p>
+            <div class="act-log"><div><span>10:42</span><span><b>ana r.</b> pasó a en curso</span></div><div><span>ayer</span><span><b>mateo g.</b> creó la issue</span></div></div>
+            <div style="margin-top:auto; display:flex; gap:8px"><input class="inp" placeholder="Comentar" style="flex:1" aria-label="Comentar"><button class="btn sm" type="button">Enviar</button></div>
+          </div>
+        </aside>
+        <div class="toast" id="appToast" role="status"><i></i>Issue TRK-0042 guardada.<button type="button">deshacer</button></div>
+      </div>
+    </div>
+    <div class="cap"><b>Desktop · 1440</b><span>en pantallas chicas este mock se desplaza en horizontal</span></div>
+
+    <div class="grid" style="grid-template-columns:minmax(0,390px) minmax(0,1fr); gap:40px; margin-top:56px; align-items:start" id="mobGrid">
+      <div>
+        <div class="phone">
+          <div class="sb"><span>9:41</span><span>zerosoft</span></div>
+          <div class="hd"><h2><span id="trackIco2" style="width:20px"></span>Issues</h2><button class="btn ghost sm" type="button">Filtrar</button></div>
+          <div class="tabs"><button class="on">Todas<span>12</span></button><button>Abiertas<span>6</span></button><button>Hechas<span>3</span></button></div>
+          <div class="list" id="mobList"></div>
+          <button class="btn fab" type="button" style="--b:var(--track-ink)">Nueva</button>
+          <div class="toast" role="status"><i></i>Issue creada.<button type="button">ver</button></div>
+          <nav class="bn" id="mobNav"></nav>
+        </div>
+        <div class="cap"><b>Mobile · 390</b><span>track</span></div>
+      </div>
+      <div class="grid g2" style="gap:16px">
+        <div class="comp"><h4>botones</h4><div class="row"><button class="btn" type="button">Primario</button><button class="btn sec" type="button">Secundario</button></div><div class="row"><button class="btn ghost" type="button">Fantasma</button><button class="btn danger" type="button">Borrar</button><button class="btn" type="button" disabled>Inactivo</button></div><div class="row"><button class="btn sm" type="button" style="--b:var(--link-ink)">link</button><button class="btn sm" type="button" style="--b:var(--cal-ink)">cal</button><button class="btn sm" type="button" style="--b:var(--track-ink)">track</button><button class="btn sm" type="button" style="--b:var(--chat-ink)">chat</button></div></div>
+        <div class="comp"><h4>campos</h4><label class="field">Nombre<input class="inp" value="Demo producto"></label><label class="field">Correo<input class="inp err" value="ana@" aria-invalid="true"><span class="h e">Falta el dominio.</span></label><label class="field">Slug<input class="inp" placeholder="mi-evento"><span class="h">zerosoft.ai/cal/vos/mi-evento</span></label></div>
+        <div class="comp"><h4>selección</h4><label class="chk"><input type="checkbox" checked> Notificar por correo</label><label class="chk"><input type="checkbox"> Repetir cada semana</label><label class="chk"><input type="radio" name="r1" checked> Nube</label><label class="chk"><input type="radio" name="r1"> Self-host</label><div class="row"><button class="tog" type="button" aria-pressed="true" aria-label="Activo" id="tog"></button><span style="font-size:13px">Página publicada</span></div></div>
+        <div class="comp"><h4>tabs y tabla</h4><div class="tabs" style="padding:0"><button class="on">Resumen</button><button>Actividad</button><button>Ajustes</button></div><table class="t"><thead><tr><th>link</th><th style="text-align:right">clics</th></tr></thead><tbody><tr><td>/doc</td><td style="text-align:right">1.204</td></tr><tr><td>/cal</td><td style="text-align:right">388</td></tr><tr><td>/gh</td><td style="text-align:right">97</td></tr></tbody></table></div>
+        <div class="comp"><h4>estado vacío</h4><div class="empty"><pre id="emptyArt"></pre><b>Tarjeta en blanco.</b><p>Todavía no hay issues en este ciclo. Creá la primera o importá desde Linear.</p><div class="row" style="justify-content:center"><button class="btn sm" type="button" style="--b:var(--track-ink)">Nueva issue</button><button class="btn sec sm" type="button">Importar</button></div></div></div>
+        <div class="comp"><h4>toasts</h4><div class="toast"><i></i>Cambios guardados.<button type="button">deshacer</button></div><div class="toast err"><i></i>No se pudo enviar. Reintentá.<button type="button">reintentar</button></div><div class="toast"><i></i>Link copiado.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 10 PIEZAS -->
+<section id="piezas">
+  <div class="wrap">
+    <header class="sh"><span class="n">10</span><h2>Piezas</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 010</span></div></header>
+    <p class="intro">Cada pieza es un SVG en assets/, dibujado con círculos, rectángulos y monospace genérica. Se ve igual sin la webfont.</p>
+    <div class="pieces" id="pieces"></div>
+  </div>
+</section>
+
+<div class="wrap"><div class="tear"></div></div>
+
+<!-- 11 DESCARGAS -->
+<section id="descargas">
+  <div class="wrap">
+    <header class="sh"><span class="n">11</span><h2>Descargas</h2><div class="meta"><span><span class="bn">zerosoft</span> / marca / perforado</span><span>pág. 011</span></div></header>
+    <p class="intro">Todos los archivos de esta propuesta. SVG, listos para usar o para pasar a PNG.</p>
+    <div class="dl" id="dl"></div>
+  </div>
+</section>
+</main>
+<footer class="foot"><div class="wrap"><div class="tear" style="margin-bottom:24px"></div>zerosoft · propuesta Perforado · fin del listado.</div></footer>
+
+<script>
+// Shared data for the Perforado brand system: 5x7 matrix font, 9x9 product glyphs, products, Hollerith.
+const G = {
+  ' ': ['.....','.....','.....','.....','.....','.....','.....'],
+  a: ['.....','.....','.###.','....#','.####','#...#','.####'],
+  b: ['#....','#....','####.','#...#','#...#','#...#','####.'],
+  c: ['.....','.....','.###.','#....','#....','#....','.###.'],
+  d: ['....#','....#','.####','#...#','#...#','#...#','.####'],
+  e: ['.....','.....','.###.','#...#','#####','#....','.###.'],
+  f: ['..##.','.#...','####.','.#...','.#...','.#...','.#...'],
+  g: ['.....','.####','#...#','#...#','.####','....#','.###.'],
+  h: ['#....','#....','####.','#...#','#...#','#...#','#...#'],
+  i: ['..#..','.....','.##..','..#..','..#..','..#..','.###.'],
+  j: ['...#.','.....','..##.','...#.','...#.','#..#.','.##..'],
+  k: ['#....','#....','#..#.','#.#..','##...','#.#..','#..#.'],
+  l: ['.##..','..#..','..#..','..#..','..#..','..#..','.###.'],
+  m: ['.....','.....','##.#.','#.#.#','#.#.#','#.#.#','#.#.#'],
+  n: ['.....','.....','####.','#...#','#...#','#...#','#...#'],
+  o: ['.....','.....','.###.','#...#','#...#','#...#','.###.'],
+  p: ['.....','####.','#...#','#...#','####.','#....','#....'],
+  q: ['.....','.####','#...#','#...#','.####','....#','....#'],
+  r: ['.....','.....','#.##.','##..#','#....','#....','#....'],
+  s: ['.....','.....','.####','#....','.###.','....#','####.'],
+  t: ['.#...','.#...','####.','.#...','.#...','.#..#','..##.'],
+  u: ['.....','.....','#...#','#...#','#...#','#..##','.##.#'],
+  v: ['.....','.....','#...#','#...#','#...#','.#.#.','..#..'],
+  w: ['.....','.....','#...#','#...#','#.#.#','#.#.#','.#.#.'],
+  x: ['.....','.....','#...#','.#.#.','..#..','.#.#.','#...#'],
+  y: ['.....','#...#','#...#','#...#','.####','....#','.###.'],
+  z: ['.....','.....','#####','...#.','..#..','.#...','#####'],
+  '0': ['.###.','#...#','#...#','#...#','#...#','#...#','.###.'],
+  '1': ['..#..','.##..','..#..','..#..','..#..','..#..','.###.'],
+  '2': ['.###.','#...#','....#','...#.','..#..','.#...','#####'],
+  '3': ['#####','...#.','..#..','...#.','....#','#...#','.###.'],
+  '4': ['...#.','..##.','.#.#.','#..#.','#####','...#.','...#.'],
+  '5': ['#####','#....','####.','....#','....#','#...#','.###.'],
+  '6': ['..##.','.#...','#....','####.','#...#','#...#','.###.'],
+  '7': ['#####','....#','...#.','..#..','.#...','.#...','.#...'],
+  '8': ['.###.','#...#','#...#','.###.','#...#','#...#','.###.'],
+  '9': ['.###.','#...#','#...#','.####','....#','...#.','.##..'],
+  '$': ['..#..','.####','#.#..','.###.','..#.#','####.','..#..'],
+  '.': ['.....','.....','.....','.....','.....','.....','..#..'],
+  ',': ['.....','.....','.....','.....','.....','..#..','.#...'],
+  ':': ['.....','.....','..#..','.....','.....','..#..','.....'],
+  ';': ['.....','.....','..#..','.....','.....','..#..','.#...'],
+  '-': ['.....','.....','.....','.###.','.....','.....','.....'],
+  '_': ['.....','.....','.....','.....','.....','.....','#####'],
+  '×': ['.....','#...#','.#.#.','..#..','.#.#.','#...#','.....'],
+  '*': ['.....','#.#.#','.###.','#####','.###.','#.#.#','.....'],
+  '=': ['.....','.....','#####','.....','#####','.....','.....'],
+  '+': ['.....','..#..','..#..','#####','..#..','..#..','.....'],
+  '%': ['##...','##..#','...#.','..#..','.#...','#..##','...##'],
+  '/': ['.....','....#','...#.','..#..','.#...','#....','.....'],
+  '!': ['..#..','..#..','..#..','..#..','..#..','.....','..#..'],
+  '?': ['.###.','#...#','....#','...#.','..#..','.....','..#..'],
+  '@': ['.###.','#...#','#.###','#.#.#','#.###','#....','.###.'],
+  '#': ['.#.#.','.#.#.','#####','.#.#.','#####','.#.#.','.#.#.'],
+  '(': ['...#.','..#..','.#...','.#...','.#...','..#..','...#.'],
+  ')': ['.#...','..#..','...#.','...#.','...#.','..#..','.#...'],
+  '>': ['.#...','..#..','...#.','....#','...#.','..#..','.#...'],
+  '<': ['...#.','..#..','.#...','#....','.#...','..#..','...#.'],
+  "'": ['..#..','..#..','.....','.....','.....','.....','.....'],
+  '"': ['.#.#.','.#.#.','.....','.....','.....','.....','.....'],
+  '·': ['.....','.....','.....','..#..','.....','.....','.....'],
+};
+// accents: replace rows 0-1
+const acute = ['...#.', '..#..'];
+[['á','a'],['é','e'],['í','i'],['ó','o'],['ú','u']].forEach(([k,b]) => { G[k] = acute.concat(G[b].slice(2)); });
+G['ñ'] = ['.##.#', '#..#.'].concat(G.n.slice(2));
+G['ü'] = ['.....', '.#.#.'].concat(G.u.slice(2));
+
+// 9x9 product glyphs (the "on" dots are printed zeros)
+const ICONS = {
+  link:  ['.........','.........','.##...##.','#..#.#..#','#...#...#','#..#.#..#','.##...##.','.........','.........'],
+  crm:   ['...###...','..#...#..','..#...#..','..#...#..','...###...','.........','.#######.','#.......#','#.......#'],
+  cal:   ['.#.....#.','#########','#.......#','#.#.#.#.#','#.......#','#.#.#.#.#','#.......#','#.#.#...#','#########'],
+  track: ['..#####..','.#.....#.','#.......#','#.....#.#','#.#..#..#','#..##...#','#.......#','.#.....#.','..#####..'],
+  chat:  ['.........','.#######.','#.......#','#.#.#.#.#','#.......#','.#######.','..#......','.#.......','.........'],
+  docs:  ['#####....','#...##...','#...#.#..','#...####.','#......#.','#.####.#.','#......#.','#.####.#.','########.'],
+  flow:  ['###......','#.######.','###....#.','.#.....#.','.#.....#.','.#....###','###...#.#','#.#...###','###......'],
+  agents:['....#....','....#....','...#.#...','..#...#..','##.....##','..#...#..','...#.#...','....#....','....#....'],
+  notes: ['.#.#.#.#.','#########','#.......#','#.#####.#','#.......#','#.#####.#','#.......#','#.###...#','#########'],
+  board: ['####.....','#..#.....','#..#..###','####..#.#','......###','.#####...','.#...#...','.#...#...','.#####...'],
+  robots:['....#....','....#....','.#######.','#.......#','#.##.##.#','#.......#','#..###..#','#.......#','.#######.'],
+};
+
+const PRODUCTS = [
+  { id:'link',   color:'#2f6bff', desc:'Links cortos con tu dominio y métricas de clics.', replaces:'Bitly' },
+  { id:'crm',    color:'#7b4dff', desc:'Contactos, deals y pipelines para tu equipo de ventas.', replaces:'HubSpot' },
+  { id:'cal',    color:'#0e9f6e', desc:'Páginas de reserva conectadas a Google Calendar.', replaces:'Calendly' },
+  { id:'track',  color:'#f2611d', desc:'Issues, ciclos y Gantt para equipos de producto.', replaces:'Linear' },
+  { id:'chat',   color:'#e23d7f', desc:'Chat web e inbox compartido para soporte.', replaces:'Intercom' },
+  { id:'docs',   color:'#c2700a', desc:'Wiki y documentos con editor de bloques.', replaces:'Notion' },
+  { id:'flow',   color:'#0284c7', desc:'Automatizaciones entre tus apps y cualquier API.', replaces:'n8n' },
+  { id:'agents', color:'#ff3b30', desc:'Agentes de IA que responden con tu conocimiento.', replaces:null },
+  { id:'notes',  color:'#e6b400', desc:'Notas rápidas, libretas y búsqueda en todo el texto.', replaces:null },
+  { id:'board',  color:'#00b8a9', desc:'Una pizarra infinita para tu equipo.', replaces:null },
+  { id:'robots', color:'#6b7280', desc:'Robots de navegador que completan formularios y extraen datos.', replaces:null },
+];
+
+// Hollerith (IBM 029). Row order top->bottom: 12, 11, 0, 1..9  => index 0..11
+const ROWS = [12, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+function holl(ch) {
+  ch = (ch || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const L = 'abcdefghijklmnopqrstuvwxyz';
+  const i = L.indexOf(ch);
+  if (i >= 0) {
+    if (i < 9) return [12, i + 1];
+    if (i < 18) return [11, i - 8];
+    return [0, i - 16];
+  }
+  if (/[0-9]/.test(ch)) return [Number(ch)];
+  const P = { '.':[12,3,8], '$':[11,3,8], ',':[0,3,8], '-':[11], '/':[0,1], '&':[12], '%':[0,4,8], ':':[2,8],
+    '=':[6,8], '+':[12,6,8], '?':[0,7,8], '!':[12,7,8], '*':[11,4,8], '(':[12,5,8], ')':[11,5,8], '#':[3,8], '@':[4,8], "'":[5,8], '"':[7,8], '×':[11,4,8], '_':[0,5,8], ';':[11,6,8], '<':[12,4,8], '>':[0,6,8] };
+  return P[ch] || [];
+}
+const rowIndex = r => ROWS.indexOf(r);
+
+// product code: first two letters, Hollerith, two columns
+const code = id => [holl(id[0]), holl(id[1])];
+
+
+const TINTS=[{"id":"link","ink":"#2b62eb","light":"#4077ff","cPapel":4.02,"cInkPapel":4.64,"cMesa":4.06,"cLightMesa":4.61,"onColor":"#f7f2e4","cOn":4.02},{"id":"crm","ink":"#764af5","light":"#8d66ff","cPapel":4.32,"cInkPapel":4.62,"cMesa":3.78,"cLightMesa":4.76,"onColor":"#f7f2e4","cOn":4.32},{"id":"cal","ink":"#0b7c56","light":"#0e9f6e","cPapel":3.03,"cInkPapel":4.66,"cMesa":5.39,"cLightMesa":5.39,"onColor":"#1e1b15","cOn":5.07},{"id":"track","ink":"#b84a16","light":"#f2611d","cPapel":2.89,"cInkPapel":4.66,"cMesa":5.65,"cLightMesa":5.65,"onColor":"#1e1b15","cOn":5.32},{"id":"chat","ink":"#c2346d","light":"#e34182","cPapel":3.61,"cInkPapel":4.69,"cMesa":4.53,"cLightMesa":4.65,"onColor":"#1e1b15","cOn":4.26},{"id":"docs","ink":"#9f5c08","light":"#c2700a","cPapel":3.34,"cInkPapel":4.68,"cMesa":4.88,"cLightMesa":4.88,"onColor":"#1e1b15","cOn":4.59},{"id":"flow","ink":"#0272ab","light":"#0c89c9","cPapel":3.66,"cInkPapel":4.7,"cMesa":4.46,"cLightMesa":4.73,"onColor":"#1e1b15","cOn":4.19},{"id":"agents","ink":"#cc2f26","light":"#ff3b30","cPapel":3.17,"cInkPapel":4.69,"cMesa":5.15,"cLightMesa":5.15,"onColor":"#1e1b15","cOn":4.84},{"id":"notes","ink":"#856800","light":"#e6b400","cPapel":1.72,"cInkPapel":4.72,"cMesa":9.47,"cLightMesa":9.47,"onColor":"#1e1b15","cOn":8.91},{"id":"board","ink":"#007970","light":"#00b8a9","cPapel":2.23,"cInkPapel":4.73,"cMesa":7.33,"cLightMesa":7.33,"onColor":"#1e1b15","cOn":6.89},{"id":"robots","ink":"#676d7b","light":"#7a808d","cPapel":4.32,"cInkPapel":4.64,"cMesa":3.78,"cLightMesa":4.61,"onColor":"#f7f2e4","cOn":4.32}];
+const FILES={"logo.svg":3847,"logo-dark.svg":3847,"wordmark.svg":3416,"symbol.svg":205,"symbol-dark.svg":205,"favicon.svg":309,"favicon-16.svg":285,"app-icon.svg":1070,"logo-tarjeta.svg":52606,"icon-link.svg":700,"lockup-link.svg":5560,"icon-crm.svg":822,"lockup-crm.svg":5186,"icon-cal.svg":1344,"lockup-cal.svg":5183,"icon-track.svg":1003,"lockup-track.svg":6056,"icon-chat.svg":886,"lockup-chat.svg":5790,"icon-docs.svg":1340,"lockup-docs.svg":5830,"icon-flow.svg":1190,"lockup-flow.svg":5636,"icon-agents.svg":608,"lockup-agents.svg":7004,"icon-notes.svg":1559,"lockup-notes.svg":6324,"icon-board.svg":1160,"lockup-board.svg":6474,"icon-robots.svg":1131,"lockup-robots.svg":6740,"pattern-papel-continuo.svg":753,"pattern-tarjeta.svg":69143,"pattern-cinta.svg":2463,"pattern-matriz.svg":7079,"pattern-chads.svg":7490,"og-home.svg":14427,"og-link.svg":9154,"og-cal.svg":9544,"og-track.svg":9978,"og-chat.svg":9417,"social-post-1080.svg":9364,"social-banner-x-1500x500.svg":11274,"email-header-600.svg":5544,"tarjeta-frente.svg":78243,"tarjeta-dorso.svg":3016,"sticker.svg":7100,"remera.svg":5012,"slide-portada.svg":15258};
+const COL={"papel":"#f7f2e4","papel2":"#efe7d2","tarjeta":"#e9dcb8","barra":"#e1ecd7","regla":"#cfc3a3","tinta":"#1e1b15","tinta2":"#575043","tinta3":"#8a816f","mesa":"#17150f","mesa2":"#24211a","roja":"#b3261e","claro":"#efe7d2","claro2":"#b9ae95"};
+
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const MONO = "ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
+const PC = Object.fromEntries(PRODUCTS.map(p => [p.id, Object.assign({}, p, TINTS.find(t => t.id === p.id))]));
+
+// ---------- dot matrix ----------
+function dotSVG(str, p, o = {}) {
+  const chars = [...str];
+  const cols = Math.max(1, chars.length * 6 - 1);
+  let on = '', off = '';
+  chars.forEach((ch, i) => {
+    const g = G[ch] || G[ch.toLowerCase()] || G['?'];
+    g.forEach((row, ry) => [...row].forEach((c, rx) => {
+      const cx = (i * 6 + rx + .5) * p, cy = (ry + .5) * p;
+      if (c === '#') on += `<circle cx="${cx}" cy="${cy}" r="${p * (o.r || .42)}"/>`;
+      else if (o.ghost) off += `<circle cx="${cx}" cy="${cy}" r="${p * .14}"/>`;
+    }));
+    if (o.ghost && i < chars.length - 1) for (let ry = 0; ry < 7; ry++) off += `<circle cx="${(i * 6 + 5 + .5) * p}" cy="${(ry + .5) * p}" r="${p * .14}"/>`;
+  });
+  const w = cols * p, h = 7 * p;
+  return `<svg viewBox="0 0 ${w} ${h}" width="${o.fit ? '100%' : w}" ${o.fit ? '' : `height="${h}"`} aria-hidden="true" style="${o.style || ''}">${o.ghost ? `<g fill="${o.ghost}">${off}</g>` : ''}<g fill="${o.color || 'currentColor'}">${on}</g></svg>`;
+}
+function iconSVG(id, p, color, ghost, extra = '') {
+  let on = '', off = '';
+  ICONS[id].forEach((row, ry) => [...row].forEach((c, rx) => {
+    const cx = (rx + .5) * p, cy = (ry + .5) * p;
+    if (c === '#') on += `<circle cx="${cx}" cy="${cy}" r="${p * (p <= 3 ? .5 : .4)}"/>`;
+    else if (ghost) off += `<circle cx="${cx}" cy="${cy}" r="${p * .12}"/>`;
+  }));
+  return `<svg viewBox="0 0 ${9 * p} ${9 * p}" ${extra} aria-hidden="true">${ghost ? `<g fill="${ghost}">${off}</g>` : ''}<g fill="${color}">${on}</g></svg>`;
+}
+const symSVG = (h, fill, o = {}) => `<svg viewBox="0 0 20 24" width="${h * 20 / 24}" height="${h}" aria-hidden="true" style="${o.style || ''}"><path fill="${fill}" fill-rule="evenodd" d="M6 0H20V24H0V6Z${o.noHole ? '' : 'M5.9 13.5a4.1 6.3 0 1 0 8.2 0a4.1 6.3 0 1 0-8.2 0Z'}"/></svg>`;
+
+// ---------- 80 column card ----------
+function cardSVG(cols, o = {}) { // cols: array of 80 arrays of punched rows; o.text interpretation
+  const cw = 9, rh = 24, mx = 26, top = 44, H = top + 12 * rh + 14, Wd = 80 * cw + 2 * mx;
+  const card = o.card || 'var(--tarjeta)', hole = o.hole || 'var(--mesa)', pr = o.print || '#9b8f6f';
+  let s = `<svg viewBox="0 0 ${Wd} ${H}" width="100%" style="display:block" ${o.id ? `id="${o.id}"` : ''}>`;
+  s += `<path fill="${card}" d="M30 0H${Wd}V${H}H0V30Z"/>`;
+  let digits = '', holes = '', hits = '';
+  for (let c = 0; c < 80; c++) {
+    const x = mx + c * cw + cw / 2;
+    ROWS.forEach((r, ri) => {
+      const y = top + ri * rh + rh / 2;
+      if (cols[c] && cols[c].includes(r)) holes += `<rect x="${x - 2.6}" y="${y - 6.5}" width="5.2" height="13"/>`;
+      else if (r >= 0 && r <= 9 && !o.noDigits) digits += `<text x="${x}" y="${y + 2.6}">${r}</text>`;
+      if (o.interactive) hits += `<rect class="hit" data-c="${c}" data-r="${r}" x="${x - cw / 2}" y="${y - rh / 2}" width="${cw}" height="${rh}"/>`;
+    });
+  }
+  s += `<g font-family="${MONO}" font-size="7.4" text-anchor="middle" fill="${pr}">${digits}</g>`;
+  if (o.text) { let t = ''; [...o.text].forEach((ch, c) => { if (c < 80 && ch !== ' ') t += `<text x="${mx + c * cw + cw / 2}" y="28">${ch.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`; }); s += `<g font-family="${MONO}" font-size="11" font-weight="600" text-anchor="middle" fill="${o.ink || 'var(--tinta)'}">${t}</g>`; }
+  if (o.labels) s += `<g font-family="${MONO}" font-size="9" fill="${o.ink || 'var(--tinta)'}" opacity=".85"><text x="${Wd - 12}" y="${top + rh / 2 + 3}" text-anchor="end">12</text><text x="${Wd - 12}" y="${top + rh * 1.5 + 3}" text-anchor="end">11</text></g>`;
+  s += `<g fill="${hole}" class="holes">${holes}</g>`;
+  if (hits) s += `<g>${hits}</g>`;
+  return s + '</svg>';
+}
+const encode = str => { const a = []; [...str.slice(0, 80)].forEach((ch, i) => a[i] = holl(ch)); for (let i = 0; i < 80; i++) a[i] = a[i] || []; return a; };
+const REV = {}; 'abcdefghijklmnopqrstuvwxyz0123456789.$,-/&%:=+?!×*()#@\'"_;<>'.split('').forEach(ch => { const k = holl(ch).slice().sort((a, b) => a - b).join(','); if (k && !(k in REV)) REV[k] = ch; });
+const decode = rows => { if (!rows.length) return ' '; const k = rows.slice().sort((a, b) => a - b).join(','); return REV[k] || '?'; };
+
+// ---------- portada ----------
+$('#heroCard').innerHTML = cardSVG(encode('el software murio.  self-host $0  nube costo x 3  zerosoft'), { text: 'el software murio.  self-host $0  nube costo x 3  zerosoft', hole: 'var(--papel)' });
+(function typeManifest() {
+  const lis = [...document.querySelectorAll('#manifest li')];
+  if (RM) return;
+  const texts = lis.map(l => l.textContent);
+  lis.forEach(l => { l.setAttribute('aria-label', l.textContent); l.dataset.full = l.textContent; l.textContent = ''; });
+  let li = 0, ci = 0;
+  const step = () => {
+    if (li >= lis.length) { lis[lis.length - 1].classList.remove('typed'); return; }
+    const el = lis[li]; el.classList.add('typed');
+    ci += 3; el.textContent = texts[li].slice(0, ci);
+    if (ci >= texts[li].length) { el.textContent = texts[li]; el.classList.remove('typed'); li++; ci = 0; setTimeout(step, 120); }
+    else setTimeout(step, 14);
+  };
+  setTimeout(step, 250);
+})();
+
+// ---------- sistema: reglas ----------
+const ruleIll = {
+  hole: `<svg viewBox="0 0 200 100" width="200"><path fill="var(--tarjeta)" d="M18 6H194V94H6V18Z"/><rect x="40" y="34" width="10" height="26" fill="var(--papel)"/><rect x="62" y="34" width="10" height="26" fill="var(--papel)"/><ellipse cx="140" cy="50" rx="18" ry="28" fill="var(--papel)"/></svg>`,
+  grid: (() => { let s = `<svg viewBox="0 0 200 100" width="200"><path fill="var(--tarjeta)" d="M14 4H196V96H4V14Z"/>`; for (let c = 0; c < 20; c++) for (let r = 0; r < 12; r++) s += `<rect x="${12 + c * 9.2}" y="${8 + r * 7.2}" width="3" height="4" fill="${(c * 7 + r * 3) % 13 === 0 ? 'var(--mesa)' : '#c9b98f'}"/>`; return s + '</svg>'; })(),
+  holl: (() => { let s = `<svg viewBox="0 0 200 100" width="200"><path fill="var(--tarjeta)" d="M14 4H196V96H4V14Z"/>`; const w = 'zero'; [...w].forEach((ch, i) => { s += `<text x="${42 + i * 38}" y="16" font-family="${MONO}" font-size="11" font-weight="700" text-anchor="middle" fill="var(--tinta)">${ch}</text>`; ROWS.forEach((r, ri) => { const y = 22 + ri * 6.2; if (holl(ch).includes(r)) s += `<rect x="${38 + i * 38}" y="${y}" width="8" height="4.4" fill="var(--mesa)"/>`; else s += `<rect x="${40 + i * 38}" y="${y + 1}" width="4" height="2.4" fill="#c9b98f"/>`; }); }); return s + '</svg>'; })(),
+  matrix: `<div style="display:flex; gap:16px; align-items:center">${dotSVG('o', 13, { ghost: 'var(--regla)', color: 'var(--tinta)' })}${dotSVG('0', 13, { ghost: 'var(--regla)', color: 'var(--tinta)' })}</div>`,
+  tractor: `<svg viewBox="0 0 200 100" width="200"><rect x="0" y="0" width="200" height="100" fill="var(--papel)"/><rect x="34" y="0" width="140" height="100" fill="var(--barra)"/><rect x="34" y="25" width="140" height="25" fill="var(--papel)"/><rect x="34" y="75" width="140" height="25" fill="var(--papel)"/>${[0, 1, 2, 3].map(i => `<circle cx="16" cy="${12.5 + i * 25}" r="5.5" fill="var(--mesa)"/><circle cx="192" cy="${12.5 + i * 25}" r="5.5" fill="var(--mesa)"/>`).join('')}<line x1="30" y1="0" x2="30" y2="100" stroke="var(--tinta-3)" stroke-dasharray="2 4"/></svg>`,
+  lower: `<div style="display:flex; flex-direction:column; gap:10px; align-items:flex-start">${dotSVG('zerosoft', 3.4, { color: 'var(--tinta)' })}<span style="position:relative; display:inline-block">${'<span style="font:600 22px var(--mono); color:var(--tinta-2)">ZeroSoft</span>'}<span style="position:absolute; left:-4px; right:-4px; top:50%; height:2px; background:var(--roja)"></span></span></div>`,
+};
+const rules = [
+  ['hole', '01', 'El cero se resta', 'Un cero es un agujero en la superficie, nunca una figura apoyada encima. Por el agujero se ve el fondo.'],
+  ['grid', '02', 'La tarjeta es la grilla', '80 columnas por 12 filas. Los layouts se cuentan en columnas; los márgenes, en agujeros de arrastre.'],
+  ['holl', '03', 'Todo se codifica', 'Cada letra tiene su perforación Hollerith. Los productos firman con sus dos primeras letras.'],
+  ['matrix', '04', 'La matriz imprime', '5 × 7 puntos por letra, 9 × 9 por glifo. Cada punto es un cero. El cero del nombre y el dígito 0 son la misma forma.'],
+  ['tractor', '05', 'El papel tiene bordes', 'Agujeros de arrastre cada 24 px y una línea de corte punteada. Las barras verdes alternan cada dos filas.'],
+  ['lower', '06', 'Minúscula, siempre', 'La matriz no tiene mayúsculas. zerosoft se escribe en minúscula en el logo, en las piezas y en los lockups.'],
+];
+$('#rules').innerHTML = rules.map(([k, n, h, p]) => `<div class="rule"><div class="ill">${ruleIll[k]}</div><span class="no">regla ${n}</span><h4>${h}</h4><p>${p}</p></div>`).join('');
+
+// grid diagram
+(function () {
+  const t = 'zerosoft 0123456789 abc';
+  let s = cardSVG(encode(t), { text: t, hole: 'var(--papel-2)', labels: true });
+  const W = 772, H = 346;
+  const ann = `<svg viewBox="-150 -40 ${W + 360} ${H + 90}" width="100%" style="display:block; font-family:${MONO}"><g>${s.replace('<svg viewBox="0 0 772 346" width="100%" style="display:block" >', '').replace(/<\/svg>$/, '')}</g>
+  <g font-size="13" fill="var(--tinta)">
+    <line x1="-12" y1="56" x2="-60" y2="56" stroke="var(--tinta)"/><text x="-66" y="60" text-anchor="end">fila 12</text>
+    <line x1="-12" y1="80" x2="-60" y2="80" stroke="var(--tinta)"/><text x="-66" y="84" text-anchor="end">fila 11</text>
+    <line x1="-12" y1="104" x2="-60" y2="104" stroke="var(--tinta)"/><text x="-66" y="108" text-anchor="end">fila 0</text>
+    <path d="M-12 128 L-24 128 L-24 320 L-12 320" fill="none" stroke="var(--tinta)"/><text x="-32" y="228" text-anchor="end">dígitos</text><text x="-32" y="244" text-anchor="end">1 a 9</text>
+    <line x1="16" y1="16" x2="-30" y2="-14" stroke="var(--roja)"/><text x="-34" y="-18" text-anchor="end" fill="var(--roja)">esquina cortada</text>
+    <line x1="30" y1="370" x2="30" y2="352" stroke="var(--tinta)"/><text x="30" y="388" text-anchor="middle">col. 1</text>
+    <line x1="742" y1="370" x2="742" y2="352" stroke="var(--tinta)"/><text x="742" y="388" text-anchor="middle">col. 80</text>
+    <line x1="${W + 12}" y1="24" x2="${W + 60}" y2="24" stroke="var(--tinta)"/><text x="${W + 66}" y="20">interpretación</text><text x="${W + 66}" y="36">impresa</text>
+    <line x1="${W + 12}" y1="104" x2="${W + 60}" y2="104" stroke="var(--tinta)"/><text x="${W + 66}" y="100">z = 0 + 9</text><text x="${W + 66}" y="116">e = 12 + 5</text>
+    <line x1="${W + 12}" y1="240" x2="${W + 60}" y2="240" stroke="var(--tinta)"/><text x="${W + 66}" y="236">1 columna = 9 px</text><text x="${W + 66}" y="252">1 fila = 24 px</text>
+  </g></svg>`;
+  $('#gridDiagram').innerHTML = ann;
+})();
+
+// ramp + variants
+$('#ramp').innerHTML = Array.from({ length: 11 }, (_, i) => { const s = Math.sqrt(i / 10) * 92; return `<div><i style="width:${s}%; height:${s}%"></i></div>`; }).join('');
+$('#rampL').innerHTML = Array.from({ length: 11 }, (_, i) => `<span>${i * 10}</span>`).join('');
+const V = [
+  ['punto de matriz', 'la aguja golpea la cinta', `<circle cx="50" cy="40" r="14" fill="var(--tinta)"/>`],
+  ['agujero de tarjeta', 'rectangular, 1 × 2,5', `<rect x="0" y="0" width="100" height="80" fill="var(--tarjeta)"/><rect x="43" y="22" width="14" height="36" fill="var(--mesa)"/>`],
+  ['agujero de cinta', 'redondo, ocho canales', `<rect x="0" y="0" width="100" height="80" fill="#e8d9a8"/><circle cx="50" cy="40" r="16" fill="var(--mesa)"/><circle cx="20" cy="40" r="5" fill="var(--mesa)"/><circle cx="80" cy="40" r="5" fill="var(--mesa)"/>`],
+  ['arrastre', 'el borde del papel', `<rect x="0" y="0" width="38" height="80" fill="var(--papel-2)"/><circle cx="19" cy="20" r="7" fill="var(--mesa)"/><circle cx="19" cy="60" r="7" fill="var(--mesa)"/><line x1="44" y1="0" x2="44" y2="80" stroke="var(--tinta-3)" stroke-dasharray="2 4"/><rect x="50" y="0" width="50" height="40" fill="var(--barra)"/>`],
+  ['chad', 'el pedazo que cae', `<rect x="40" y="18" width="14" height="36" fill="var(--tarjeta)" transform="rotate(28 47 36)"/><rect x="22" y="56" width="8" height="18" fill="var(--tarjeta-2)" transform="rotate(-50 26 65)"/><rect x="70" y="52" width="7" height="16" fill="var(--tarjeta-2)" transform="rotate(70 73 60)"/>`],
+  ['medio golpe', 'marcado, sin perforar', `<rect x="0" y="0" width="100" height="80" fill="var(--tarjeta)"/><rect x="43" y="22" width="14" height="36" fill="none" stroke="var(--tinta-2)" stroke-width="1.5" stroke-dasharray="3 2"/>`],
+  ['cero impreso', 'la forma del nombre', ''],
+];
+$('#variants').innerHTML = V.map(([b, s, d], i) => `<div class="variant">${i === 6 ? `<div style="background:var(--papel); padding:10px 0; display:flex; justify-content:center">${dotSVG('0', 8.6, { color: 'var(--tinta)', ghost: 'var(--regla)' })}</div>` : `<svg viewBox="0 0 100 80">${d}</svg>`}<b>${b}</b><span>${s}</span></div>`).join('');
+
+// punch demo
+(function () {
+  let cols = encode($('#punchIn').value);
+  const box = $('#cardDemo');
+  const draw = () => {
+    const lit = $('#punchStage').classList.contains('lit');
+    const txt = cols.map(decode).join('').replace(/\s+$/, '');
+    box.innerHTML = cardSVG(cols, { text: txt, interactive: true, hole: lit ? '#fff3c9' : 'var(--mesa-2)', card: lit ? '#3b3427' : 'var(--tarjeta)', print: lit ? '#5d5442' : '#9b8f6f', ink: lit ? '#efe7d2' : 'var(--tinta)' });
+    const used = cols.filter(c => c.length).length, holes = cols.reduce((a, c) => a + c.length, 0);
+    $('#rCols').textContent = `${used} / 80`; $('#rHoles').textContent = holes; $('#rRead').textContent = txt || '(vacía)';
+    $('#matrixOut').innerHTML = dotSVG(txt.slice(0, 40) || ' ', 6, { color: 'var(--claro)', ghost: '#3a3529', style: 'max-width:100%; height:auto' });
+  };
+  $('#punchIn').addEventListener('input', e => { cols = encode(e.target.value); draw(); });
+  box.addEventListener('click', e => { const t = e.target.closest('rect.hit'); if (!t) return; const c = +t.dataset.c, r = +t.dataset.r; const a = cols[c]; const i = a.indexOf(r); i >= 0 ? a.splice(i, 1) : a.push(r); draw(); });
+  $('#litBtn').addEventListener('click', e => { const on = $('#punchStage').classList.toggle('lit'); e.currentTarget.setAttribute('aria-pressed', on); draw(); });
+  $('#clearBtn').addEventListener('click', () => { $('#punchIn').value = ''; cols = encode(''); draw(); });
+  draw();
+})();
+
+// ---------- logo ----------
+(function () {
+  const pix = (id, src, n) => { const c = document.getElementById(id); const ctx = c.getContext('2d'); const im = new Image(); im.onload = () => { ctx.fillStyle = '#f7f2e4'; ctx.fillRect(0, 0, n, n); ctx.drawImage(im, 0, 0, n, n); }; im.src = src; };
+  pix('px16', 'assets/favicon-16.svg', 16); pix('px32', 'assets/favicon.svg', 32);
+  const W = [
+    ['Estirar o deformar', 'la matriz tiene paso fijo', `<img src="assets/logo.svg" alt="" style="width:70%; height:56px; transform:scaleX(1.25) skewX(-14deg)">`],
+    ['Redondear la tarjeta', 'el corte y las esquinas son rectos', `<svg viewBox="0 0 20 24" width="64"><rect width="20" height="24" rx="6" fill="var(--tinta)"/><ellipse cx="10" cy="13.5" rx="4.1" ry="6.3" fill="var(--papel)"/></svg>`],
+    ['Rellenar el agujero', 'el cero deja ver el fondo', `<div style="display:flex; align-items:center; gap:8px">${symSVG(64, 'var(--tinta)', { noHole: true })}<svg viewBox="0 0 20 24" width="54"><path fill="var(--tinta)" d="M6 0H20V24H0V6Z"/><ellipse cx="10" cy="13.5" rx="4.1" ry="6.3" fill="var(--agents)"/></svg></div>`],
+    ['Degradé, sombra o brillo', 'tinta plana, como sale de la cinta', `<img src="assets/logo.svg" alt="" style="width:76%; filter:drop-shadow(4px 5px 3px rgba(0,0,0,.45)) hue-rotate(0deg); background:linear-gradient(90deg,#2f6bff22,#e23d7f33)">`],
+  ];
+  $('#wrongs').innerHTML = W.map(([b, s, v]) => `<div class="wrong"><div class="vis">${v}</div><b>${b}</b><span>${s}</span></div>`).join('');
+  $('#lockups').innerHTML = PRODUCTS.map(p => {
+    const c = code(p.id);
+    const strip = `<svg viewBox="0 0 22 50" width="15" height="34" aria-hidden="true"><rect width="22" height="50" fill="var(--tarjeta)"/>${c.map((rows, ci) => ROWS.map((r, ri) => rows.includes(r) ? `<rect x="${3 + ci * 9}" y="${2 + ri * 4}" width="7" height="3" fill="${PC[p.id].ink}"/>` : '').join('')).join('')}</svg>`;
+    return `<div class="lockup"><img src="assets/lockup-${p.id}.svg" alt="zerosoft ${p.id}"><span class="code">${strip}${p.id.slice(0, 2)} · ${c.map(r => r.join('+')).join(' / ')}</span></div>`;
+  }).join('');
+})();
+
+// ---------- tipo ----------
+$('#famMatrix').innerHTML = dotSVG('aa 0', 11, { color: 'var(--tinta)' });
+$('#matrixSpec').innerHTML = ['el software', 'murió.', 'costo × 3', '$0,00'].map(t => `<div style="margin-bottom:14px">${dotSVG(t, 6.2, { color: 'var(--claro)', ghost: '#3a3529', style: 'max-width:100%;height:auto' })}</div>`).join('');
+$('#glyphs').innerHTML = Object.keys(G).filter(k => k !== ' ').map(k => `<span>${dotSVG(k, 4.2, { color: 'var(--tinta)', ghost: 'var(--regla)' })}${k === '"' ? '&quot;' : k}</span>`).join('');
+
+// ---------- color ----------
+(function () {
+  const L = h => { const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+  const CR = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+  const fmt = n => n.toFixed(2).replace('.', ',');
+  const tag = n => n >= 4.5 ? `<span class="ok">AA ${fmt(n)}</span>` : n >= 3 ? `<span>AA grande ${fmt(n)}</span>` : `<span class="bad">${fmt(n)}</span>`;
+  const N = [['papel', '#f7f2e4', 'fondo principal'], ['papel 2', '#efe7d2', 'paneles'], ['tarjeta', '#e9dcb8', 'cartulina, barra lateral'], ['barra verde', '#e1ecd7', 'filas alternas'], ['regla', '#cfc3a3', 'bordes, arrastre'], ['tinta', '#1e1b15', 'texto, logo'], ['tinta 2', '#575043', 'texto secundario'], ['cinta roja', '#b3261e', 'errores, anotaciones'], ['mesa', '#17150f', 'fondo oscuro'], ['mesa 2', '#24211a', 'paneles oscuros'], ['claro', '#efe7d2', 'texto sobre mesa'], ['claro 2', '#b9ae95', 'secundario sobre mesa']];
+  $('#neutrals').innerHTML = N.map(([n, h, u]) => { const dark = L(h) < .2; const ref = dark ? '#efe7d2' : '#1e1b15'; const onP = dark ? CR(h, '#f7f2e4') : CR(h, '#17150f'); return `<div class="sw"><div class="chip" style="background:${h}; ${h === '#f7f2e4' ? 'box-shadow:inset 0 0 0 1px var(--regla)' : ''}"></div><div class="info"><b>${n}</b><span>${h} · ${u}</span><span class="c"><span>con ${dark ? 'claro' : 'tinta'}</span>${tag(CR(h, ref))}</span></div></div>`; }).join('');
+  $('#pcolors').innerHTML = PRODUCTS.map(p => { const t = PC[p.id]; return `<div class="pcard"><div class="top" style="background:${p.color}; color:${t.onColor}">${iconSVG(p.id, 5, t.onColor, null, 'width="45"')}<span class="nm">${p.id}</span></div><div class="rows"><div><span>color</span><b>${p.color}</b></div><div><span>tinta</span><b style="color:${t.ink}">${t.ink}</b></div><div><span>sobre mesa</span><b>${t.light}</b></div><div><span>color / papel</span>${tag(CR(p.color, '#f7f2e4'))}</div><div><span>tinta / papel</span>${tag(CR(t.ink, '#f7f2e4'))}</div><div><span>texto ${t.onColor === '#1e1b15' ? 'tinta' : 'papel'} / color</span>${tag(CR(t.onColor, p.color))}</div></div></div>`; }).join('');
+})();
+
+// ---------- iconos ----------
+$('#icons').innerHTML = PRODUCTS.map(p => `<div class="ico">${iconSVG(p.id, 12, PC[p.id].ink, 'var(--regla)', 'width="100%"')}<div class="lbl"><b style="color:var(--tinta)">${p.id}</b><span class="sm">${iconSVG(p.id, 3, PC[p.id].ink, null, 'width="27"')}${iconSVG(p.id, 2, 'var(--tinta)', null, 'width="18"')}</span></div></div>`).join('') + `<div class="ico" style="justify-content:space-between; background:var(--mesa); color:var(--claro)">${iconSVG('agents', 12, 'var(--claro)', '#4a4434', 'width="100%" style="background:var(--mesa-2)"')}<div class="lbl" style="color:var(--claro-2)"><b style="color:var(--claro)">sobre mesa</b><span>9 × 9</span></div></div>`;
+$('#iconRow').innerHTML = PRODUCTS.map(p => `<span style="display:inline-flex; align-items:center; gap:8px; font-weight:500">${iconSVG(p.id, 2.4, PC[p.id].ink, null, 'width="22"')}${p.id}</span>`).join('');
+
+// ---------- patrones ----------
+$('#tex').innerHTML = [
+  ['papel continuo', 'barras verdes y arrastre', `background:url(assets/pattern-papel-continuo.svg) 0 0/480px 96px`],
+  ['tarjeta', 'dígitos impresos', `background:url(assets/pattern-tarjeta.svg) 0 0/360px 300px`],
+  ['cinta de papel', 'ocho canales y guía', `background:url(assets/pattern-cinta.svg) 0 0/320px 120px repeat`],
+  ['matriz', 'puntos apagados, uno encendido', `background:url(assets/pattern-matriz.svg) 0 0/120px 120px`],
+  ['confeti de chads', 'para fondos de lanzamiento', `background:url(assets/pattern-chads.svg) 0 0/240px 240px`],
+  ['listado zebra', 'para tablas y fondos de sección', `background:repeating-linear-gradient(180deg, var(--barra) 0 28px, var(--papel) 28px 56px)`],
+].map(([b, s, st]) => `<figure><div class="t" style="${st}"></div><figcaption><b>${b}</b>${s}</figcaption></figure>`).join('');
+
+// ASCII painter
+class Art {
+  constructor(w, h) { this.w = w; this.h = h; this.g = Array.from({ length: h }, () => Array(w).fill(' ')); }
+  set(x, y, ch) { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < this.w && y < this.h) this.g[y][x] = ch; }
+  get(x, y) { return (this.g[y] || [])[x]; }
+  rect(x0, y0, x1, y1, st = '0', fill = null) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const e = y === y0 || y === y1 || x === x0 || x === x1 || x === x0 + 1 || x === x1 - 1; if (e && st) this.set(x, y, st); else if (!e && fill !== null) this.set(x, y, typeof fill === 'function' ? fill(x, y) : fill); } }
+  ell(cx, cy, rx, ry, st = '0', fill = null, t = 1, clip = null) {
+    for (let y = Math.floor(cy - ry - 1); y <= cy + ry + 1; y++) for (let x = Math.floor(cx - rx - 2); x <= cx + rx + 2; x++) {
+      if (clip && !clip(x, y)) continue;
+      const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2, di = ((x - cx) / (rx - 2 * t)) ** 2 + ((y - cy) / (ry - t)) ** 2;
+      if (d <= 1 && di > 1 && st) this.set(x, y, typeof st === 'function' ? st(x, y) : st); else if (di <= 1 && fill !== null) this.set(x, y, typeof fill === 'function' ? fill(x, y) : fill);
+    }
+  }
+  line(x0, y0, x1, y1, ch = '0') { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)); for (let i = 0; i <= n; i++) this.set(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, ch); }
+  text(x, y, s) { [...s].forEach((c, i) => this.set(x + i, y, c)); }
+  dots(str, x, y, ch = '0', wide = 2) { [...str].forEach((c, i) => (G[c] || G['?']).forEach((row, ry) => [...row].forEach((v, rx) => { if (v === '#') for (let k = 0; k < wide; k++) this.set(x + (i * 6 + rx) * wide + k, y + ry, ch); }))); }
+  clear(x0, y0, x1, y1) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) this.set(x, y, ' '); }
+  toString() { return this.g.map(r => r.join('').replace(/\s+$/, '')).join('\n'); }
+}
+const ramp = v => v <= 0 ? ' ' : v < .25 ? '.' : v < .5 ? 'o' : v < .75 ? 'O' : '0';
+const ARTS = {
+  link: () => { const a = new Art(64, 22);
+    const ring = (cx, clip) => { a.ell(cx, 10, 13, 6.5, (x, y) => (y < 10 ? '0' : 'O'), null, 1, clip); a.ell(cx, 10, 10.6, 5.3, 'o', null, .6, clip); };
+    ring(14); ring(32); ring(14, (x, y) => x >= 22 && y > 10); ring(50); ring(32, (x, y) => x >= 40 && y > 10);
+    a.text(4, 19, 'zero.link/0'); a.text(40, 19, '302 · directo'); return a; },
+  cal: () => { const a = new Art(64, 22);
+    a.rect(6, 2, 57, 21, '0', ' '); a.rect(8, 3, 55, 5, null, 'o'); for (let x = 8; x <= 55; x++) a.set(x, 4, 'O');
+    [16, 26, 37, 47].forEach(x => { a.set(x, 1, '0'); a.set(x + 1, 1, '0'); a.set(x, 0, 'o'); a.set(x + 1, 0, 'o'); });
+    a.text(10, 4, ' octubre '); a.dots('22', 9, 8, '0', 2);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 7; c++) { const x = 36 + c * 3, y = 8 + r * 3; a.set(x, y, (r === 1 && c === 3) ? '0' : (c > 4 ? '.' : 'o')); }
+    a.text(9, 17, '11:00 demo'); a.text(9, 19, '30 min'); return a; },
+  chat: () => { const a = new Art(64, 22);
+    a.rect(2, 1, 54, 11, '0', ' '); a.dots('hola', 6, 3, 'O', 2); a.set(6, 12, '0'); a.set(5, 13, '0'); a.set(4, 14, '0'); a.set(7, 12, '0');
+    a.rect(30, 13, 62, 21, '0', '.'); a.clear(34, 15, 58, 19); [39, 46, 53].forEach(x => a.ell(x, 17, 3, 1.6, '0', '0'));
+    a.text(4, 16, 'escribiendo...'); return a; },
+  docs: () => { const a = new Art(64, 22);
+    for (let y = 0; y < 22; y++) { if (y % 2 === 0) { a.set(1, y, 'O'); a.set(62, y, 'O'); } a.set(4, y, ':'); a.set(59, y, ':'); }
+    for (let y = 0; y < 22; y++) if ((y % 4) < 2) for (let x = 6; x <= 57; x++) a.set(x, y, '.');
+    a.clear(6, 0, 57, 8); a.dots('docs', 8, 1, '0', 2);
+    a.text(8, 10, 'guía de instalación'); a.text(8, 12, '1. cloná el repo'); a.text(8, 13, '2. copiá .env'); a.text(8, 14, '3. docker compose up');
+    for (let x = 6; x <= 57; x += 2) a.set(x, 17, '-'); a.text(8, 19, 'página 0001'); a.text(46, 19, 'continúa'); return a; },
+  robots: () => { const a = new Art(64, 22);
+    a.set(32, 0, '0'); a.set(31, 0, '0'); a.set(33, 0, 'O'); a.set(30, 0, 'O'); a.line(31, 1, 31, 2, 'O'); a.line(32, 1, 32, 2, 'O');
+    a.rect(16, 3, 47, 16, '0', ' '); a.rect(10, 7, 15, 12, 'o', 'o'); a.rect(48, 7, 53, 12, 'o', 'o');
+    a.ell(24.5, 8, 4.5, 2.3, '0', 'O'); a.ell(39.5, 8, 4.5, 2.3, '0', 'O'); a.set(24, 8, '.'); a.set(25, 8, '.'); a.set(39, 8, '.'); a.set(40, 8, '.');
+    for (let x = 22; x <= 42; x++) { a.set(x, 12, x % 2 ? '0' : 'o'); a.set(x, 13, x % 2 ? 'o' : '0'); }
+    a.rect(28, 17, 35, 17, null); a.line(29, 17, 34, 17, 'O'); a.rect(18, 18, 45, 21, '0', '.'); a.text(26, 20, 'run 0007'); return a; },
+  track: () => { const a = new Art(64, 22);
+    const cols = [[1, 'abierto'], [22, 'en curso'], [43, 'hecho']];
+    cols.forEach(([x, t], ci) => { a.text(x + 1, 0, t); for (let xx = x; xx <= x + 19; xx++) a.set(xx, 1, '.');
+      const n = [3, 2, 3][ci]; for (let k = 0; k < n; k++) { const y = 3 + k * 6; a.rect(x, y, x + 19, y + 4, ci === 2 ? '0' : 'o', ' '); a.text(x + 3, y + 2, ['TRK-0043', 'TRK-0044', 'TRK-0046', 'TRK-0042', 'TRK-0047', 'TRK-0041', 'TRK-0045', 'TRK-0039'][ci * 3 + k] || '');
+        if (ci === 2) a.text(x + 13, y + 2, '[ok]');
+        if (ci === 1) { for (let q = 0; q < 6; q++) a.set(x + 3 + q, y + 3, q < (k ? 2 : 5) ? '0' : '.'); } } });
+    return a; },
+  board: () => { const a = new Art(64, 22);
+    for (let y = 1; y < 22; y += 2) for (let x = 1; x < 64; x += 4) a.set(x, y, '.');
+    a.rect(3, 1, 21, 8, '0', 'o'); a.clear(6, 4, 18, 5); a.text(7, 4, 'pizarra'); a.text(7, 5, 'ciclo 12');
+    a.rect(15, 7, 38, 16, '0', ' '); a.text(19, 10, 'idea 01'); a.text(19, 12, 'que el agujero'); a.text(19, 13, 'sea el logo');
+    a.line(39, 11, 43, 7, 'o'); a.set(44, 6, '>');
+    a.rect(45, 2, 61, 9, 'O', '.'); a.clear(48, 4, 58, 7); a.text(49, 5, 'boceto');
+    a.rect(45, 13, 61, 20, '0', '0'); a.clear(48, 15, 58, 18); a.text(50, 16, 'votar'); a.text(50, 17, '[ ]');
+    a.rect(4, 18, 30, 20, 'o', ' '); a.text(7, 19, 'arrastrá para mover'); return a; },
+  agents: () => { const a = new Art(64, 22);
+    for (let y = 0; y < 22; y++) for (let x = 0; x < 64; x++) { const nx = (x - 32) / 20, ny = (y - 11) / 10.5; const s = Math.abs(nx) ** .7 + Math.abs(ny) ** .7; if (s < 1) a.set(x, y, ramp((1 - s) * 2.4)); }
+    a.ell(32, 11, 30, 10.4, (x, y) => ((x + y) % 3 ? '.' : 'o'), null, .3, (x, y) => { const nx = (x - 32) / 20, ny = (y - 11) / 10.5; return Math.abs(nx) ** .7 + Math.abs(ny) ** .7 >= 1; });
+    a.set(54, 4, '0'); a.set(10, 17, 'O'); a.set(50, 18, 'o'); return a; },
+  flow: () => { const a = new Art(64, 22);
+    const node = (x, y, t, st = '0') => { a.rect(x, y, x + 15, y + 4, st, ' '); a.text(x + 3, y + 2, t); };
+    a.line(16, 4, 23, 4, 'o'); a.line(23, 4, 23, 12, 'o'); a.line(23, 12, 26, 12, 'o'); a.set(26, 12, '>');
+    a.line(42, 12, 45, 12, 'o'); a.line(45, 4, 45, 18, 'o'); a.line(45, 4, 47, 4, 'o'); a.set(47, 4, '>'); a.line(45, 18, 47, 18, 'o'); a.set(47, 18, '>');
+    node(0, 2, 'webhook'); node(27, 10, 'filtro', 'O'); node(48, 2, 'crm'); node(48, 16, 'email');
+    a.text(1, 9, 'cada 5 min'); a.text(27, 17, 'si monto > 0'); return a; },
+};
+const artList = [['link', 'cadena de ceros'], ['cal', 'hoja de agenda'], ['chat', 'conversación'], ['track', 'tablero de ciclo'], ['docs', 'papel continuo'], ['flow', 'automatización'], ['agents', 'estrella de densidad'], ['board', 'pizarra'], ['robots', 'robot de navegador']];
+$('#arts').innerHTML = artList.map(([id, t]) => `<figure class="art" style="margin:0"><pre style="color:${PC[id].ink}" aria-label="Ilustración ${id}: ${t}" role="img">${ARTS[id]().toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre><div class="cap"><b>${id}</b><span>${t} · 64 × 22 caracteres</span></div></figure>`).join('');
+
+// ---------- motion ----------
+(function () {
+  const row = $('#loadRow'), head = $('#loadHead'), txt = $('#loadTxt');
+  row.insertAdjacentHTML('beforeend', Array.from({ length: 24 }, () => '<i></i>').join(''));
+  const cells = [...row.querySelectorAll('i')];
+  let timer;
+  const run = () => {
+    clearTimeout(timer); cells.forEach(c => c.classList.remove('p'));
+    if (RM) { cells.forEach(c => c.classList.add('p')); txt.textContent = '24 / 24 listo'; head.style.left = `calc(${23 / 24 * 100}% + 0px)`; return; }
+    let i = 0;
+    const tick = () => { if (i < 24) { head.style.left = `calc(${i} * ((100% + 3px) / 24))`; cells[i].classList.add('p'); i++; txt.textContent = String(i).padStart(2, '0') + ' / 24'; timer = setTimeout(tick, i % 6 === 0 ? 260 : 60); } else { txt.textContent = '24 / 24 listo'; timer = setTimeout(run, 1600); } };
+    tick();
+  };
+  $('#loadBtn').addEventListener('click', run); run();
+  let pg = 0; const paper = $('#paper');
+  $('#feedBtn').addEventListener('click', () => { pg = (pg + 1) % 3; paper.style.transform = `translateY(${-pg * 200}px)`; $('#feedLbl').textContent = `pág. ${pg + 1} / 3`; });
+})();
+
+// ---------- sitio ----------
+$('#homeCard').innerHTML = cardSVG(encode('zerosoft  link crm cal track chat docs flow agents notes board robots'), { text: 'zerosoft  link crm cal track chat docs flow agents notes board robots', hole: 'var(--papel)' });
+const codeStrip = (id, color, w = 16, h = 38) => { const c = code(id); return `<svg viewBox="0 0 22 50" width="${w}" height="${h}" aria-hidden="true"><rect width="22" height="50" fill="var(--tarjeta-2)"/>${c.map((rows, ci) => ROWS.map((r, ri) => rows.includes(r) ? `<rect x="${3 + ci * 9}" y="${2 + ri * 4}" width="7" height="3" fill="var(--papel)"/>` : '').join('')).join('')}</svg>`; };
+$('#prods').innerHTML = PRODUCTS.map(p => `<a class="prod" href="#sitio"><div class="hd">${iconSVG(p.id, 4, PC[p.id].ink, null, 'width="36"')}${codeStrip(p.id)}</div><span class="nm" style="color:${PC[p.id].ink}">${p.id}</span><p>${p.desc}</p><span class="rp">${p.replaces ? 'reemplaza a ' + p.replaces : 'producto zerosoft'}</span></a>`).join('') + `<a class="prod more" href="#sitio"><span class="kick" style="color:var(--claro-2)">todo junto</span><span style="font-size:15px; font-weight:500">Un login, una factura, el costo a la vista.</span><span class="rp" style="color:var(--claro-2)">ver precios</span></a>`;
+const unit = { link: 'clics', crm: 'contactos', cal: 'reservas', track: 'issues', chat: 'conversaciones', docs: 'páginas', flow: 'ejecuciones', agents: 'tokens', notes: 'notas', board: 'tableros', robots: 'minutos de navegador' };
+$('#priceTable tbody').innerHTML = PRODUCTS.map(p => `<tr><td><span style="display:inline-flex; gap:8px; align-items:center">${iconSVG(p.id, 1.6, PC[p.id].ink, null, 'width="14"')}${p.id}</span></td><td>$0</td><td>costo × 3</td><td>${unit[p.id]}</td></tr>`).join('');
+$('#footBig').innerHTML = dotSVG('zerosoft', 10, { color: '#2e2a21', fit: true });
+$('#calGlyph').innerHTML = iconSVG('cal', 8, PC.cal.ink, 'var(--regla)', 'width="72"');
+document.querySelectorAll('.ficon').forEach(e => e.innerHTML = iconSVG(e.dataset.i, 3.2, PC.cal.ink, null, 'width="29"'));
+(function () { const d = $('#days'); let h = ['lu', 'ma', 'mi', 'ju', 'vi', 'sá', 'do'].map(x => `<span class="wd">${x}</span>`).join(''); h += '<span></span><span></span><span></span>'; for (let i = 1; i <= 31; i++) { const wd = (i + 2) % 7; const av = i >= 19 && wd < 5 && i !== 21; h += `<span class="${i === 22 ? 'sel ok-d' : av ? 'ok-d' : ''}">${i}</span>`; } d.innerHTML = h; })();
+
+// ---------- app ----------
+$('#appNav').innerHTML = PRODUCTS.slice(0, 7).map(p => `<a href="#app" class="${p.id === 'track' ? 'on' : ''}">${iconSVG(p.id, 1.8, PC[p.id].ink, null, 'width="16"')}${p.id}</a>`).join('');
+$('#trackIco').innerHTML = iconSVG('track', 2.4, PC.track.ink, null, 'width="22"');
+$('#trackIco2').innerHTML = iconSVG('track', 2.2, PC.track.ink, null, 'width="20"');
+const ISS = [['0042', 'Vista Gantt por ciclo', 'doing', 3, 'AR', '24 oct'], ['0043', 'Atajos de teclado en la lista', 'open', 2, 'MG', '25 oct'], ['0044', 'Filtros guardados por usuario', 'open', 2, 'LS', '28 oct'], ['0041', 'Exportar a CSV', 'done', 1, 'AR', '17 oct'], ['0046', 'Webhooks al cambiar de estado', 'open', 3, 'JP', '30 oct'], ['0047', 'Importar issues desde Linear', 'doing', 3, 'LS', '27 oct'], ['0045', 'Tinta oscura en modo noche', 'done', 1, 'MG', '16 oct'], ['0048', 'Comentarios con menciones', 'open', 2, 'JP', '31 oct'], ['0049', 'Estimación por puntos', 'open', 1, 'AR', '04 nov'], ['0039', 'Mover issue entre ciclos', 'done', 2, 'LS', '14 oct'], ['0050', 'Plantillas de issue', 'doing', 2, 'MG', '29 oct'], ['0051', 'Vista por responsable', 'open', 1, 'JP', '05 nov']];
+const stName = { open: 'abierta', doing: 'en curso', done: 'hecha' };
+const prio = n => `<span class="prio" aria-label="prioridad ${n}">${[1, 2, 3].map(i => `<i class="${i <= n ? 'f' : ''}"></i>`).join('')}</span>`;
+$('#issueTable tbody').innerHTML = ISS.map((r, i) => `<tr data-i="${i}" class="${i === 0 ? 'sel' : ''}"><td class="id">TRK-${r[0]}</td><td>${r[1]}</td><td><span class="st ${r[2]}">${stName[r[2]]}</span></td><td>${prio(r[3])}</td><td><span class="av">${r[4]}</span></td><td class="id">${r[5]}</td></tr>`).join('');
+$('#issueTable').addEventListener('click', e => { const tr = e.target.closest('tr[data-i]'); if (!tr) return; document.querySelectorAll('#issueTable tr.sel').forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); const r = ISS[+tr.dataset.i]; $('#pId').textContent = 'TRK-' + r[0]; $('#pTitle').textContent = r[1]; const st = $('#pSt'); st.className = 'st ' + r[2]; st.textContent = stName[r[2]]; });
+document.querySelectorAll('.tabs').forEach(t => t.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; t.querySelectorAll('button').forEach(x => { x.classList.toggle('on', x === b); if (x.hasAttribute('role')) x.setAttribute('aria-selected', x === b); }); }));
+$('#mobList').innerHTML = ISS.slice(0, 8).map(r => `<div class="it"><b>${r[1]}</b><span class="av">${r[4]}</span><span class="m"><span class="id">TRK-${r[0]}</span><span class="st ${r[2]}">${stName[r[2]]}</span>${prio(r[3])}</span><span class="m">${r[5]}</span></div>`).join('');
+$('#mobNav').innerHTML = ['track', 'link', 'cal', 'chat', 'crm'].map(id => `<a href="#app" class="${id === 'track' ? 'on' : ''}">${iconSVG(id, 2.2, PC[id].ink, null, 'width="20"')}${id}</a>`).join('');
+$('#tog').addEventListener('click', e => e.currentTarget.setAttribute('aria-pressed', e.currentTarget.getAttribute('aria-pressed') !== 'true'));
+$('#emptyArt').textContent = (() => { const a = new Art(30, 8); a.rect(0, 0, 29, 7, 'o', ' '); a.set(0, 0, ' '); a.set(1, 0, ' '); a.set(0, 1, ' '); for (let x = 3; x < 27; x += 2) a.set(x, 3, '.'); for (let x = 3; x < 27; x += 2) a.set(x, 5, '.'); a.set(14, 3, '0'); return a.toString(); })();
+$('#newIssue').addEventListener('click', () => { const t = $('#appToast'); t.firstChild.nextSibling.textContent = 'Issue TRK-0052 creada.'; t.animate && !RM && t.animate([{ transform: 'translateY(12px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 240, easing: 'steps(4)' }); });
+
+// ---------- piezas + descargas ----------
+const PIECES = [
+  ['og-home.svg', 'OG home', '1200 × 630', 'w6'], ['og-link.svg', 'OG link', '1200 × 630', ''], ['og-cal.svg', 'OG cal', '1200 × 630', ''], ['og-track.svg', 'OG track', '1200 × 630', ''], ['og-chat.svg', 'OG chat', '1200 × 630', ''],
+  ['social-post-1080.svg', 'Post cuadrado', '1080 × 1080', 'w2'], ['sticker.svg', 'Sticker troquelado', '800 × 800', 'w2 dk'], ['remera.svg', 'Remera', '1200 × 1400', 'w2'],
+  ['social-banner-x-1500x500.svg', 'Banner X', '1500 × 500', 'w6'], ['slide-portada.svg', 'Portada de slide', '1920 × 1080', 'w4'], ['email-header-600.svg', 'Header de email', '600 × 160', 'w2'],
+  ['tarjeta-frente.svg', 'Tarjeta personal, frente', '1050 × 600 · 3,5 × 2 in', ''], ['tarjeta-dorso.svg', 'Tarjeta personal, dorso', 'el nombre perforado', ''], ['app-icon.svg', 'Ícono de app', '1024 × 1024', 'w2'], ['logo-tarjeta.svg', 'Logo tarjeta', '640 × 286', 'w4 dk'],
+];
+$('#pieces').innerHTML = PIECES.map(([f, t, s, c]) => `<figure class="${c.replace(' dk', '')}"><div class="pv${c.includes('dk') ? ' dk' : ''}"><img src="assets/${f}" alt="${t}" loading="lazy"></div><div class="cap"><b>${t}</b><span>${s}</span></div></figure>`).join('');
+$('#dl').innerHTML = Object.entries(FILES).map(([f, b]) => `<a href="assets/${f}" download><b style="font-weight:500">${f}</b><span>${b < 1024 ? b + ' B' : (b / 1024).toFixed(1).replace('.', ',') + ' KB'}</span></a>`).join('');
+
+// nav highlight
+(function () { const links = [...document.querySelectorAll('#navlist a')]; const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(l => l.classList.toggle('on', l.getAttribute('href') === '#' + e.target.id)); }), { rootMargin: '-45% 0px -50% 0px' }); document.querySelectorAll('main section[id]').forEach(s => io.observe(s)); })();
+</script>
+</body>
+</html>

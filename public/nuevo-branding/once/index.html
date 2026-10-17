@@ -1,0 +1,1752 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Once ceros</title>
+<meta name="description" content="Propuesta de marca para zerosoft: una fila de ceros, uno por app.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Martian+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#fafaf7;--paper2:#f1f1ec;--rule:#dcdcd5;--off:#d3d3cc;
+  --ink:#0d0d0e;--ink2:#3d3d40;--ink3:#66666b;
+  --night:#0d0d0e;--night2:#171719;--nrule:#2b2b2f;--noff:#3a3a3f;--ntext2:#a8a8ad;
+  --sans:"Hanken Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --mono:"Martian Mono",ui-monospace,Menlo,monospace;
+  --side:232px;--pad:clamp(16px,4vw,56px);
+  --u:8px;
+  color-scheme:light;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font:400 16px/1.5 var(--sans);overflow-x:hidden}
+a{color:inherit}
+img,svg{display:block;max-width:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.mono{font-family:var(--mono)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- navegación ---------- */
+.side{position:fixed;inset:0 auto 0 0;width:var(--side);border-right:1px solid var(--rule);background:var(--paper);padding:28px 22px;display:flex;flex-direction:column;gap:28px;z-index:20}
+.side .brand{display:block;text-decoration:none}
+.side .brand small{display:block;margin-top:10px;font:500 11px/1.4 var(--mono);color:var(--ink3);letter-spacing:.02em}
+.side nav ol{list-style:none;display:grid;gap:2px}
+.side nav a{display:grid;grid-template-columns:30px 1fr;padding:5px 0;text-decoration:none;font-size:14px;color:var(--ink3)}
+.side nav a b{font:500 11px/21px var(--mono);color:var(--ink3)}
+.side nav a.on,.side nav a:hover{color:var(--ink)}
+.side nav a.on b{color:var(--ink)}
+.side nav a.on{box-shadow:inset 0 -1px 0 var(--ink)}
+.side .foot{margin-top:auto;font:400 11px/1.5 var(--mono);color:var(--ink3)}
+.topbar{display:none}
+main{margin-left:var(--side)}
+
+@media (max-width:1099px){
+  .side{display:none}
+  main{margin-left:0}
+  .topbar{display:block;position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--paper) 94%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--rule)}
+  .topbar .in{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:12px}
+  .topbar .chips{display:flex;overflow-x:auto;gap:18px;padding:0 16px 10px;scrollbar-width:none}
+  .topbar .chips::-webkit-scrollbar{display:none}
+  .topbar .chips a{flex:none;font:500 12px/1 var(--mono);text-decoration:none;color:var(--ink3);padding:6px 0}
+  .topbar .chips a.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+}
+
+/* ---------- secciones ---------- */
+.sec{border-bottom:1px solid var(--rule);padding:clamp(56px,8vw,112px) var(--pad)}
+.sec.dark{background:var(--night);color:#fff;border-color:var(--nrule)}
+.shead{display:grid;grid-template-columns:repeat(12,1fr);gap:0 24px;align-items:end;margin-bottom:clamp(40px,6vw,80px)}
+.shead .num{grid-column:1/5;font:800 clamp(88px,15vw,232px)/.78 var(--sans);letter-spacing:-.06em;font-variant-numeric:tabular-nums}
+.shead .tt{grid-column:5/13;padding-bottom:6px}
+.shead h2{font:700 clamp(28px,3.4vw,48px)/1.02 var(--sans);letter-spacing:-.025em}
+.shead p{margin-top:16px;max-width:62ch;color:var(--ink2);font-size:17px}
+.dark .shead p{color:var(--ntext2)}
+@media (max-width:760px){.shead .num,.shead .tt{grid-column:1/13}.shead .tt{margin-top:18px}}
+.lab{font:500 11px/1.4 var(--mono);letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--ink);padding-top:10px;margin-bottom:20px}
+.dark .lab{color:var(--ntext2);border-color:#fff}
+.lab span:last-child{text-align:right}
+.g12{display:grid;grid-template-columns:repeat(12,1fr);gap:clamp(16px,2vw,24px)}
+.c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+@media (max-width:1000px){.c3{grid-column:span 6}.c4,.c5,.c7,.c8{grid-column:span 12}.c6{grid-column:span 12}}
+@media (max-width:560px){.c3{grid-column:span 12}}
+.blk{margin-top:clamp(48px,6vw,88px)}
+.note{font-size:14px;color:var(--ink3);margin-top:12px;max-width:60ch}
+.dark .note{color:var(--ntext2)}
+.tile{background:#fff;border:1px solid var(--rule);padding:clamp(20px,3vw,40px);position:relative}
+.tile.k{background:var(--night);border-color:var(--night);color:#fff}
+.tile .cap{position:absolute;left:12px;top:10px;font:500 10px/1 var(--mono);color:var(--ink3);letter-spacing:.04em}
+.tile.k .cap{color:var(--ntext2)}
+
+/* ---------- portada ---------- */
+.cover{min-height:100svh;display:flex;flex-direction:column;padding:28px var(--pad) 40px;border-bottom:1px solid var(--rule);position:relative}
+.cover .meta{display:flex;justify-content:space-between;font:500 11px/1.5 var(--mono);color:var(--ink3);letter-spacing:.03em;gap:16px}
+.cover .rowbig{margin-top:auto;padding-top:56px}
+.cover .rowbig svg{width:100%;height:auto}
+.cover .idx{display:grid;grid-template-columns:repeat(11,1fr);gap:0;margin-top:12px;font:500 10px/1.3 var(--mono);color:var(--ink3)}
+.cover .idx span{overflow:hidden;text-overflow:clip;white-space:nowrap}
+.cover h1{font:800 clamp(44px,8.4vw,136px)/.92 var(--sans);letter-spacing:-.045em;margin-top:clamp(40px,6vw,72px);max-width:13ch}
+.cover .bottom{display:grid;grid-template-columns:repeat(12,1fr);gap:24px;margin-top:40px;align-items:end}
+.cover .concept{grid-column:1/6;font:500 clamp(18px,1.6vw,22px)/1.35 var(--sans);letter-spacing:-.01em}
+.cover .manif{grid-column:7/13;font:400 15px/1.7 var(--mono);color:var(--ink2);list-style:none;counter-reset:m}
+.cover .manif li{display:grid;grid-template-columns:44px 1fr;border-top:1px solid var(--rule);padding:6px 0}
+.cover .manif li::before{counter-increment:m;content:"0" counter(m);color:var(--ink3);font-size:12px}
+@media (max-width:760px){.cover{min-height:auto}.cover .rowbig{margin-top:0}}
+@media (max-width:860px){.cover .concept,.cover .manif{grid-column:1/13}.cover .idx{display:none}.cover .manif{font-size:13px}}
+
+/* ---------- sistema ---------- */
+.counter{display:grid;grid-template-columns:auto 1fr;gap:clamp(20px,4vw,56px);align-items:center}
+.counter .big{font:800 clamp(96px,16vw,240px)/.8 var(--sans);letter-spacing:-.06em;font-variant-numeric:tabular-nums;min-width:2ch}
+.counter .rw svg{width:100%;height:auto;overflow:visible}
+.counter .ctl{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px;align-items:center}
+@media (max-width:700px){.counter{grid-template-columns:1fr}}
+.rules{list-style:none;counter-reset:r;display:grid;grid-template-columns:repeat(2,1fr);gap:0 24px}
+.rules li{border-top:1px solid var(--rule);padding:14px 0 16px;display:grid;grid-template-columns:44px 1fr;font-size:15px}
+.rules li::before{counter-increment:r;content:"R" counter(r);font:500 12px/22px var(--mono);color:var(--ink3)}
+.rules b{font-weight:600}
+@media (max-width:700px){.rules{grid-template-columns:1fr}}
+.construct svg{width:100%;height:auto}
+.states{display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--ink)}
+.states>div{padding:18px 12px 16px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.states>div:last-child{border-right:0}
+.states svg{height:64px;width:auto;margin-bottom:14px}
+.states b{display:block;font:600 14px/1.2 var(--sans)}
+.states small{display:block;font:400 11px/1.4 var(--mono);color:var(--ink3);margin-top:4px}
+@media (max-width:760px){.states{grid-template-columns:repeat(3,1fr)}.states>div:nth-child(3n){border-right:0}}
+.ramp{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--ink)}
+.ramp div{padding:16px 0;border-bottom:1px solid var(--rule)}
+.ramp .ch{font:400 64px/1 var(--mono);height:72px}
+.ramp small{font:400 11px/1.4 var(--mono);color:var(--ink3)}
+.typer{background:var(--night);color:#fff;padding:clamp(18px,3vw,32px)}
+.typer label{display:block;font:500 11px/1 var(--mono);color:var(--ntext2);letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px}
+.typer input{width:100%;background:transparent;border:0;border-bottom:1px solid var(--nrule);font:500 22px/1.2 var(--mono);padding:8px 0;color:#fff;outline:none}
+.typer input:focus{border-color:#fff}
+.typer pre{margin-top:22px;overflow:hidden;color:#5a5a60}
+pre.z{font:400 11px/14px var(--mono);white-space:pre;color:var(--ink3);overflow:hidden}
+pre.z b{font-weight:500}
+pre.z i{font-style:normal;color:var(--ink)}
+.dark pre.z i,.typer pre.z i,.art.k pre.z i{color:#fff}.art.k pre.z{color:#7d7d83}
+
+/* ---------- logo ---------- */
+.lg-main{display:grid;grid-template-columns:7fr 5fr;gap:24px}
+.lg-main .tile{display:flex;align-items:center;justify-content:center;min-height:clamp(240px,30vw,420px)}
+.lg-main .tile svg{width:min(78%,520px);height:auto}
+.lg-sym{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+.lg-sym .tile svg{height:clamp(120px,14vw,200px);width:auto}
+@media (max-width:860px){.lg-main{grid-template-columns:1fr}}
+.sizes{display:flex;gap:28px;align-items:flex-end;flex-wrap:wrap}
+.sizes figure{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.sizes figcaption{font:400 11px/1.3 var(--mono);color:var(--ink3)}
+#isizes{display:grid;grid-template-columns:1fr 1fr;gap:0 40px;align-content:center}
+.isz{display:flex;align-items:flex-end;gap:22px;padding:18px 0 14px;border-bottom:1px solid var(--rule)}
+.isz b{font:500 11px/1 var(--mono);color:var(--ink3);width:40px;align-self:flex-start}
+.isz figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.isz figcaption{font:400 10px/1 var(--mono);color:var(--ink3)}
+@media (max-width:640px){#isizes{grid-template-columns:1fr}}
+.px16{width:16px;height:16px;image-rendering:auto}
+.px32{width:32px;height:32px}
+.tabmock{display:flex;align-items:center;gap:8px;background:#e9e9e4;border:1px solid var(--rule);padding:8px 12px;font:400 12px/1 var(--sans);width:max-content;max-width:100%}
+.clear svg{width:100%;height:auto}
+.wrong{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.wrong .tile{padding:28px 18px;min-height:180px;display:flex;align-items:center;justify-content:center}
+.wrong .tile svg{width:100%;height:auto}
+.wrong figcaption{font-size:14px;margin-top:10px;display:grid;grid-template-columns:20px 1fr}
+.wrong figcaption::before{content:"×";font:600 14px/1.4 var(--mono);color:#d43128}
+@media (max-width:900px){.wrong{grid-template-columns:repeat(2,1fr)}}
+.lockups{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--ink);border-left:1px solid var(--rule)}
+.lockups>div{border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:22px 18px;background:#fff}
+.lockups svg{width:100%;height:auto}
+@media (max-width:1000px){.lockups{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:480px){.lockups{grid-template-columns:1fr 1fr}.lockups>div{padding:14px 10px}}
+
+/* ---------- tipografía ---------- */
+.fam{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.fam .tile{min-height:340px;display:flex;flex-direction:column}
+.fam .sp{flex:1;display:flex;align-items:center}
+.fam h3{font:600 15px/1.2 var(--sans)}
+.fam p{font-size:13px;color:var(--ink3);margin-top:6px}
+.tile.k .fam p,.fam .tile.k p{color:var(--ntext2)}
+@media (max-width:1000px){.fam{grid-template-columns:1fr}}
+.alpha svg{width:100%;height:auto}
+.scale{border-top:1px solid var(--ink)}
+.scale>div{display:grid;grid-template-columns:140px 1fr;gap:16px;border-bottom:1px solid var(--rule);padding:18px 0;align-items:baseline}
+.scale .m{font:400 11px/1.5 var(--mono);color:var(--ink3)}
+.scale .x{overflow:hidden;text-overflow:ellipsis}
+@media (max-width:700px){.scale>div{grid-template-columns:1fr;gap:6px}}
+.t-d1{font:800 clamp(48px,7vw,104px)/.92 var(--sans);letter-spacing:-.045em}
+.t-d2{font:700 clamp(32px,4vw,56px)/1 var(--sans);letter-spacing:-.03em}
+.t-h{font:700 26px/1.15 var(--sans);letter-spacing:-.015em}
+.t-b{font:400 17px/1.55 var(--sans);max-width:60ch}
+.t-s{font:400 14px/1.5 var(--sans);color:var(--ink2)}
+.t-m{font:400 13px/1.6 var(--mono)}
+.t-l{font:500 11px/1.4 var(--mono);letter-spacing:.04em;text-transform:uppercase}
+.spec2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.spec2 .tile{min-height:260px;min-width:0;overflow:hidden}.spec2 pre{white-space:pre-wrap}
+@media (max-width:860px){.spec2{grid-template-columns:1fr}}
+
+/* ---------- color ---------- */
+.neu{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-top:1px solid var(--ink)}
+.neu div{padding:0 0 14px}
+.neu .sw{height:120px;border-bottom:1px solid var(--rule)}
+.neu b,.pc b{display:block;font:600 14px/1.3 var(--sans);margin-top:12px}
+.neu small,.pc small{display:block;font:400 11px/1.55 var(--mono);color:var(--ink3)}
+@media (max-width:760px){.neu{grid-template-columns:repeat(2,1fr)}}
+.pcs{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.pc .sw{height:140px;position:relative;display:flex;align-items:flex-end;justify-content:space-between;padding:10px 12px;color:#fff;font:500 12px/1 var(--mono)}
+.pc .sw span{font:800 44px/.9 var(--sans);letter-spacing:-.04em}
+.pc .tx{display:flex;gap:10px;margin-top:10px}
+.pc .tx div{flex:1;padding:8px 10px;font:500 13px/1.2 var(--sans);border:1px solid var(--rule)}
+.pc .tx div:last-child{background:var(--night);border-color:var(--night)}
+@media (max-width:1000px){.pcs{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:480px){.pcs{grid-template-columns:1fr}}
+.prop{display:flex;height:28px;margin-top:20px}
+
+/* ---------- íconos ---------- */
+.icons{display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--ink);border-left:1px solid var(--rule)}
+.icons>div{border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:18px;background:#fff;display:flex;flex-direction:column;gap:16px}
+.icons .gl{display:flex;align-items:center;gap:16px}
+.icons .apt{width:56px;height:56px;display:flex;align-items:center;justify-content:center;flex:none}
+.icons small{font:400 11px/1.4 var(--mono);color:var(--ink3)}
+.icons b{font:600 15px/1.2 var(--sans);display:block}
+@media (max-width:1100px){.icons{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:520px){.icons{grid-template-columns:repeat(2,1fr)}}
+.igrid svg{width:100%;height:auto}
+
+/* ---------- ascii ---------- */
+.arts{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+.art{background:#fff;border:1px solid var(--rule);padding:clamp(16px,2.4vw,28px);display:flex;flex-direction:column;gap:16px;overflow:hidden}
+.art.k{background:var(--night);border-color:var(--night)}
+.art .h{display:flex;justify-content:space-between;font:500 11px/1.3 var(--mono);color:var(--ink3);letter-spacing:.03em}
+.art.k .h{color:var(--ntext2)}
+.art pre{align-self:center;max-width:100%}
+.art p{font-size:14px;color:var(--ink2)}
+.art.k p{color:var(--ntext2)}
+@media (max-width:900px){.arts{grid-template-columns:1fr}}
+.tex{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.tex .art{min-height:260px;padding:0;position:relative}
+.tex .art pre{position:absolute;inset:0;align-self:auto}
+.tex figcaption{font-size:14px;margin-top:10px}
+@media (max-width:900px){.tex{grid-template-columns:1fr}}
+
+/* ---------- motion ---------- */
+.mot{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.mot .stage{background:#fff;border:1px solid var(--rule);height:300px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;padding:20px}
+.mot .stage.k{background:var(--night);border-color:var(--night);color:#fff}
+.mot h3{font:600 17px/1.2 var(--sans);margin-top:16px}
+.mot p{font-size:14px;color:var(--ink2);margin-top:6px}
+.mot .spec{font:400 11px/1.6 var(--mono);color:var(--ink3);margin-top:10px}
+@media (max-width:1000px){.mot{grid-template-columns:1fr}}
+.loader svg path{transition:stroke .12s}
+.ld-row path{stroke:var(--noff);animation:ld 2.2s steps(1) infinite}
+@keyframes ld{0%{stroke:var(--noff)}8%{stroke:var(--c)}62%{stroke:var(--c)}70%{stroke:var(--noff)}}
+.ld-txt{font:400 12px/1 var(--mono);color:var(--ntext2);font-variant-numeric:tabular-nums}
+.sw-row{display:flex;gap:6px}
+.sw-row button{background:none;border:0;padding:4px;cursor:pointer}
+.sw-row svg path{transition:stroke .3s}
+.sw-title{font:700 40px/1 var(--mono);letter-spacing:-.02em;min-height:40px}
+.sw-bar{position:absolute;left:0;right:0;bottom:0;height:6px;transition:background .4s}
+.hv{display:grid;gap:12px;width:100%}
+.hv a{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--rule);text-decoration:none;position:relative;transition:border-color .2s}
+.hv a svg path{transition:fill .25s,stroke .25s;fill:transparent}
+.hv a:hover,.hv a:focus-visible{border-color:var(--ink)}
+.hv a:hover svg path,.hv a:focus-visible svg path{fill:var(--c);stroke:var(--c)}
+.hv a .arr{font:400 12px/1 var(--mono);color:var(--ink3);transition:transform .25s}
+.hv a:hover .arr{transform:translateX(4px);color:var(--ink)}
+.hv a .tr{position:absolute;left:0;bottom:-1px;height:2px;width:0;background:var(--c);transition:width .35s cubic-bezier(.2,.7,.2,1)}
+.hv a:hover .tr,.hv a:focus-visible .tr{width:100%}
+.rmtoggle{display:flex;align-items:center;gap:10px;font:400 13px/1 var(--sans);margin-top:24px}
+.rmtoggle input{width:16px;height:16px;accent-color:var(--ink)}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+.rm *,.rm *::before,.rm *::after{animation:none!important;transition:none!important}
+.rm .ld-row path{stroke:var(--c)}
+
+/* ---------- mocks: marco ---------- */
+.frame{border:1px solid var(--ink);background:#fff;overflow:hidden}
+.frame .bar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--rule);background:var(--paper2);font:400 11px/1 var(--mono);color:var(--ink3)}
+.frame .bar i{width:9px;height:9px;border:1px solid #b8b8b0;display:inline-block}
+.frame .bar span{margin-left:8px}
+.scrollx{overflow-x:auto}
+
+/* sitio */
+.site{background:var(--paper);color:var(--ink)}
+.s-nav{display:flex;align-items:center;justify-content:space-between;padding:20px clamp(16px,4vw,48px);border-bottom:1px solid var(--rule);gap:16px}
+.s-nav nav{display:flex;gap:26px;font-size:14px;color:var(--ink2)}
+.s-nav .r{display:flex;gap:10px;align-items:center}
+@media (max-width:900px){.s-nav nav{display:none}}
+.s-hero{padding:clamp(40px,6vw,88px) clamp(16px,4vw,48px) 0}
+.s-hero .kick{font:500 12px/1.4 var(--mono);color:var(--ink3);display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px}
+.s-hero .kick span{white-space:nowrap}
+.s-hero .hl{margin-top:clamp(28px,4vw,52px)}
+.s-hero .hl svg{width:100%;height:auto}
+.s-hero .under{display:grid;grid-template-columns:repeat(12,1fr);gap:24px;margin-top:clamp(28px,4vw,48px);align-items:end}
+.s-hero .under p{grid-column:1/7;font-size:clamp(17px,1.5vw,21px);line-height:1.45;color:var(--ink2)}
+.s-hero .under .b{grid-column:9/13;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+@media (max-width:860px){.s-hero .under p,.s-hero .under .b{grid-column:1/13;justify-content:flex-start}}
+.s-row{margin-top:clamp(40px,6vw,72px);border-top:1px solid var(--ink);display:grid;grid-template-columns:repeat(11,1fr)}
+.s-row a{padding:16px 6px 18px 0;text-decoration:none;display:flex;flex-direction:column;gap:12px;border-right:1px solid var(--rule);padding-left:8px}
+.s-row a:last-child{border-right:0}
+.s-row a svg{width:clamp(14px,2.4vw,34px);height:auto}
+.s-row small{font:400 10px/1.3 var(--mono);color:var(--ink3)}
+.s-row b{font:600 13px/1.2 var(--sans)}
+@media (max-width:760px){.s-row{grid-template-columns:repeat(4,1fr)}.s-row a{border-bottom:1px solid var(--rule)}}
+.s-sec{padding:clamp(48px,7vw,104px) clamp(16px,4vw,48px);border-top:1px solid var(--rule)}
+.s-sec h3{font:800 clamp(34px,5vw,72px)/.95 var(--sans);letter-spacing:-.04em;max-width:14ch}
+.s-sec h3 span{color:var(--ink3)}
+.s-list{margin-top:clamp(28px,4vw,48px);border-top:1px solid var(--ink)}
+.s-list>div{display:grid;grid-template-columns:48px 36px 1fr 1.3fr .9fr 1.3fr 60px;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--rule);font-size:15px}
+.s-list .n{font:500 12px/1 var(--mono);color:var(--ink3)}
+.s-list .nm{font-weight:700;font-size:17px}
+.s-list .m{font:400 12px/1.3 var(--mono);color:var(--ink3);white-space:nowrap}
+.s-list .z{font:600 14px/1 var(--mono);text-align:right}
+.s-list .hd{font:500 10px/1 var(--mono)!important;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em}
+@media (max-width:860px){.s-list>div{grid-template-columns:36px 32px 1fr 64px}.s-list .tg,.s-list .rv{display:none}}
+.s-price{display:grid;grid-template-columns:repeat(12,1fr);gap:24px;margin-top:clamp(28px,4vw,56px)}
+.s-price>div{grid-column:span 6;border-top:1px solid var(--ink);padding-top:18px}
+.s-price .bn{font:800 clamp(80px,12vw,180px)/.8 var(--sans);letter-spacing:-.06em}
+.s-price p{margin-top:16px;color:var(--ink2);max-width:42ch}
+.s-price pre{margin-top:22px}
+@media (max-width:760px){.s-price>div{grid-column:span 12}}
+.s-foot{background:var(--night);color:#fff;padding:clamp(40px,6vw,80px) clamp(16px,4vw,48px) 28px}
+.s-foot .row svg{width:100%;height:auto}
+.s-foot .cols{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:24px;margin-top:48px;font-size:14px}
+.s-foot .cols h4{font:500 11px/1 var(--mono);color:var(--ntext2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px}
+.s-foot .cols a{display:block;text-decoration:none;color:#e5e5e7;padding:3px 0}
+.s-foot .cols p{color:var(--ntext2);max-width:34ch}
+.s-foot .legal{display:flex;justify-content:space-between;gap:12px;margin-top:56px;padding-top:16px;border-top:1px solid var(--nrule);font:400 11px/1.4 var(--mono);color:var(--ntext2);flex-wrap:wrap}
+@media (max-width:760px){.s-foot .cols{grid-template-columns:1fr 1fr}.s-foot .cols>div:first-child{grid-column:1/3}}
+
+/* producto */
+.p-hero{display:grid;grid-template-columns:repeat(12,1fr);gap:24px;padding:clamp(40px,6vw,80px) clamp(16px,4vw,48px);align-items:end}
+.p-hero .l{grid-column:1/8}
+.p-hero .n{font:800 clamp(120px,18vw,260px)/.78 var(--sans);letter-spacing:-.07em;color:var(--pt)}
+.p-hero h3{font:800 clamp(30px,4vw,56px)/1 var(--sans);letter-spacing:-.035em;margin-top:28px}
+.p-hero h3 span{color:var(--ink3)}
+.p-hero p{margin-top:18px;color:var(--ink2);max-width:52ch;font-size:17px}
+.p-hero .b{display:flex;gap:10px;margin-top:28px;flex-wrap:wrap}
+.p-hero .r{grid-column:8/13}
+@media (max-width:900px){.p-hero .l,.p-hero .r{grid-column:1/13}}
+.p-cmp{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--ink);margin:0 clamp(16px,4vw,48px)}
+.p-cmp>div{padding:20px 20px 24px 0;border-right:1px solid var(--rule)}
+.p-cmp>div+div{padding-left:20px}
+.p-cmp>div:last-child{border-right:0}
+.p-cmp small{font:500 11px/1.4 var(--mono);color:var(--ink3);text-transform:uppercase;letter-spacing:.04em}
+.p-cmp .v{font:800 clamp(44px,6vw,88px)/.9 var(--sans);letter-spacing:-.05em;margin-top:14px}
+.p-cmp p{font-size:14px;color:var(--ink2);margin-top:10px}
+.p-cmp .zero .v{color:var(--pt)}
+@media (max-width:760px){.p-cmp{grid-template-columns:1fr}.p-cmp>div{border-right:0;border-bottom:1px solid var(--rule);padding-left:0!important}}
+.p-feat{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:clamp(40px,6vw,80px) clamp(16px,4vw,48px)}
+.p-feat>div{border-top:1px solid var(--ink);padding-top:16px}
+.p-feat svg{width:28px;height:28px}
+.p-feat b{display:block;font:700 18px/1.2 var(--sans);margin-top:18px}
+.p-feat p{font-size:14px;color:var(--ink2);margin-top:8px}
+@media (max-width:900px){.p-feat{grid-template-columns:1fr 1fr}}
+
+/* botones */
+.btn{display:inline-flex;align-items:center;gap:10px;height:40px;padding:0 16px;border:1px solid var(--ink);background:var(--ink);color:#fff;font:600 14px/1 var(--sans);text-decoration:none;cursor:pointer;border-radius:0;white-space:nowrap}
+.btn svg{width:9px;height:14px}
+.btn.sec2{background:transparent;color:var(--ink)}
+.btn.gh{background:transparent;border-color:transparent;color:var(--ink)}
+.btn.dg{background:#d43128;border-color:#d43128}
+.btn.sm{height:32px;padding:0 12px;font-size:13px}
+.btn[disabled]{background:var(--paper2);border-color:var(--rule);color:#8a8a8e;cursor:not-allowed}
+.btn:hover:not([disabled]){background:#2a2a2e}
+.btn.sec2:hover,.btn.gh:hover{background:var(--paper2)}
+.btn.c{background:var(--pc);border-color:var(--pc)}
+
+/* ---------- app ---------- */
+.app{display:grid;grid-template-columns:220px 1fr 330px;min-width:1080px;height:720px;font-size:14px;background:#fff;--pc:#be4c17;--pl:#f2611d}
+.a-side{background:var(--paper);border-right:1px solid var(--rule);display:flex;flex-direction:column}
+.a-ws{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--rule)}
+.a-ws b{font-weight:700}
+.a-ws small{display:block;font:400 11px/1.3 var(--mono);color:var(--ink3)}
+.a-sw{padding:14px 16px;border-bottom:1px solid var(--rule)}
+.a-sw svg{width:100%;height:auto}
+.a-sw .lbl{display:flex;justify-content:space-between;font:500 11px/1 var(--mono);color:var(--ink3);margin-top:10px}
+.a-sw .lbl b{color:var(--pc)}
+.a-nav{padding:10px 8px;display:grid;gap:1px}
+.a-nav a{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;text-decoration:none;color:var(--ink2)}
+.a-nav a.on{color:var(--ink);font-weight:600;box-shadow:inset 2px 0 0 var(--pl);background:#fff}
+.a-nav a span{font:400 11px/1 var(--mono);color:var(--ink3)}
+.a-nav h5{font:500 10px/1 var(--mono);color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;padding:16px 10px 6px}
+.a-me{margin-top:auto;padding:14px 16px;border-top:1px solid var(--rule);display:flex;gap:10px;align-items:center;font-size:13px}
+.av{width:26px;height:26px;background:var(--ink);color:#fff;font:600 11px/26px var(--mono);text-align:center;flex:none}
+.a-main{display:flex;flex-direction:column;min-width:0}
+.a-top{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--rule)}
+.a-top h4{font:700 18px/1 var(--sans);letter-spacing:-.01em}
+.a-top h4 small{font:400 12px/1 var(--mono);color:var(--ink3);margin-left:8px}
+.tabs{display:flex;gap:22px;padding:0 20px;border-bottom:1px solid var(--rule)}
+.tabs button{background:none;border:0;padding:12px 0;font:500 13px/1 var(--sans);color:var(--ink3);cursor:pointer;display:flex;align-items:center;gap:6px}
+.tabs button.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+.tabs button span{font:400 11px/1 var(--mono);color:var(--ink3)}
+.tool{display:flex;gap:8px;padding:10px 20px;border-bottom:1px solid var(--rule);align-items:center}
+.inp{height:32px;border:1px solid var(--rule);background:#fff;padding:0 10px;font:400 13px/1 var(--sans);display:flex;align-items:center;gap:8px;color:var(--ink3);border-radius:0}
+.inp.grow{flex:1}
+.inp kbd{font:400 10px/1 var(--mono);border:1px solid var(--rule);padding:3px 4px;margin-left:auto;color:var(--ink3)}
+table.tb{width:100%;border-collapse:collapse}#aTable{table-layout:fixed}#aTable td.tt{max-width:none}
+.tb th{font:500 10px/1 var(--mono);color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:10px 10px;white-space:nowrap;overflow:hidden;border-bottom:1px solid var(--rule);background:var(--paper)}
+.tb td{padding:0 10px;height:42px;border-bottom:1px solid var(--rule);white-space:nowrap}
+.tb tr.sel td{background:#fff6f1}
+.tb tr.sel td:first-child{box-shadow:inset 2px 0 0 var(--pl)}
+.tb .id{font:400 12px/1 var(--mono);color:var(--ink3)}
+.tb .tt{max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.tb .grp td{height:34px;background:var(--paper2);font:500 11px/1 var(--mono);color:var(--ink2)}
+.st{display:inline-flex;align-items:center;gap:8px;font-size:13px}
+.st svg{width:11px;height:16px}
+.pri{display:inline-flex;gap:2px;align-items:flex-end;height:12px}
+.pri i{width:3px;background:var(--ink);display:block}
+.pri i.o{background:var(--off)}
+.a-panel{border-left:1px solid var(--rule);display:flex;flex-direction:column;background:#fff;position:relative}
+.a-panel .ph{padding:16px 20px;border-bottom:1px solid var(--rule)}
+.a-panel .ph small{font:400 12px/1 var(--mono);color:var(--ink3)}
+.a-panel .ph h4{font:700 19px/1.25 var(--sans);margin-top:8px;letter-spacing:-.01em}
+.fields{padding:8px 20px;display:grid;gap:2px;border-bottom:1px solid var(--rule)}
+.fields>div{display:grid;grid-template-columns:96px 1fr;align-items:center;min-height:36px;font-size:13px}
+.fields>div>span:first-child{color:var(--ink3)}
+.field{display:grid;gap:6px;padding:14px 20px 0}
+.field label{font:500 12px/1 var(--sans);color:var(--ink2)}
+.field textarea{border:1px solid var(--ink);padding:10px;min-height:74px;resize:none;font:400 13px/1.45 var(--sans);border-radius:0;outline:none;box-shadow:0 0 0 3px #f2611d33}
+.field .help{font-size:12px;color:var(--ink3)}
+.a-panel .act{display:flex;gap:8px;justify-content:flex-end;padding:14px 20px}
+.toast{position:absolute;left:20px;right:20px;bottom:18px;background:var(--night);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:12px;font-size:13px;box-shadow:0 10px 30px #0003}
+.toast a{margin-left:auto;font:500 12px/1 var(--mono);color:#fff}
+.toast svg{width:11px;height:16px;flex:none}
+
+/* app mobile */
+.phones{display:grid;grid-template-columns:repeat(2,minmax(0,390px));gap:32px;justify-content:start}
+@media (max-width:860px){.phones{grid-template-columns:minmax(0,390px)}}
+.phone{border:1px solid var(--ink);background:#fff;height:780px;display:flex;flex-direction:column;overflow:hidden;max-width:390px;width:100%;--pc:#be4c17;--pl:#f2611d;font-size:14px}
+.ph-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--rule)}
+.ph-top h4{font:700 20px/1 var(--sans)}
+.ph-list{flex:1;overflow:hidden}
+.ph-list>div{display:grid;grid-template-columns:18px 1fr auto;gap:10px;padding:12px 16px;border-bottom:1px solid var(--rule);align-items:center}
+.ph-list small{display:block;font:400 11px/1.3 var(--mono);color:var(--ink3);margin-top:3px}
+.ph-tab{border-top:1px solid var(--rule);padding:10px 16px 18px;background:var(--paper)}
+.ph-tab svg{width:100%;height:auto}
+.ph-tab .lbl{display:grid;grid-template-columns:repeat(11,1fr);font:500 8px/1 var(--mono);color:var(--ink3);margin-top:6px;text-align:center}
+.ph-tab .lbl b{color:var(--pc)}
+.fab{position:absolute;right:16px;bottom:96px}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:14px}
+.empty h5{font:700 18px/1.2 var(--sans)}
+.empty p{font-size:14px;color:var(--ink2);max-width:28ch}
+
+/* componentes */
+.comp{display:grid;grid-template-columns:repeat(12,1fr);gap:24px}
+.comp>.tile{grid-column:span 6;display:flex;flex-direction:column;gap:16px;padding-top:36px}
+.comp>.tile.w{grid-column:span 12}
+.row-f{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+@media (max-width:900px){.comp>.tile{grid-column:span 12}}
+.tin{display:grid;gap:6px;min-width:200px;flex:1}
+.tin label{font:500 12px/1 var(--sans);color:var(--ink2)}
+.tin input,.tin select{height:40px;border:1px solid var(--rule);padding:0 12px;background:#fff;border-radius:0;outline:none;font-size:14px;width:100%}
+.tin input:focus,.tin.f input{border-color:var(--ink);box-shadow:0 0 0 3px #0d0d0e1a}
+.tin.e input{border-color:#d43128}
+.tin small{font-size:12px;color:var(--ink3)}
+.tin.e small{color:#d43128}
+.chk{display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer}
+.chk input{appearance:none;width:18px;height:18px;border:1px solid var(--ink);display:grid;place-content:center;border-radius:0;margin:0}
+.chk input:checked{background:var(--ink)}
+.chk input:checked::after{content:"";width:8px;height:5px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+.tg{display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer}
+.tg input{appearance:none;width:36px;height:20px;border:1px solid var(--ink);position:relative;margin:0;border-radius:0;background:#fff}
+.tg input::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;background:var(--ink);transition:left .15s}
+.tg input:checked{background:var(--ink)}
+.tg input:checked::after{left:18px;background:#fff}
+
+/* ---------- piezas ---------- */
+.pieces{display:grid;grid-template-columns:repeat(12,1fr);gap:24px}
+.pieces figure{grid-column:span 6}
+.pieces figure.w{grid-column:span 12}
+.pieces figure.t{grid-column:span 4}
+.pieces img{width:100%;height:auto;border:1px solid var(--rule);background:#fff}
+.pieces figcaption{display:flex;justify-content:space-between;gap:12px;font:400 11px/1.4 var(--mono);color:var(--ink3);margin-top:10px}
+@media (max-width:860px){.pieces figure,.pieces figure.t{grid-column:span 12}}
+
+/* ---------- descargas ---------- */
+.dl{border-top:1px solid #fff;columns:3;column-gap:24px}
+.dl a{display:grid;grid-template-columns:1fr auto;gap:12px;break-inside:avoid;padding:12px 0;border-bottom:1px solid var(--nrule);text-decoration:none;font:400 13px/1.3 var(--mono);color:#fff}
+.dl a span{color:var(--ntext2)}
+.dl a:hover{color:#fff;background:var(--night2)}
+@media (max-width:1000px){.dl{columns:2}}
+@media (max-width:560px){.dl{columns:1}}
+.weak{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:64px}
+.weak div{border-top:1px solid var(--nrule);padding-top:14px;font-size:14px;color:var(--ntext2)}
+.weak b{display:block;color:#fff;font:600 15px/1.3 var(--sans);margin-bottom:6px}
+@media (max-width:860px){.weak{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<aside class="side" aria-label="Secciones">
+  <a class="brand" href="#top" aria-label="Once ceros, inicio"><span id="sideLogo"></span><small>Propuesta 04 de 05<br>Once ceros</small></a>
+  <nav><ol id="navlist"></ol></nav>
+  <div class="foot">Guía de marca · borrador<br>zerosoft · octubre 2026</div>
+</aside>
+
+<header class="topbar">
+  <div class="in"><a href="#top" aria-label="Inicio" id="topLogo" style="width:150px;display:block"></a><span class="mono" style="font-size:11px;color:var(--ink3)" id="topCount">00/12</span></div>
+  <nav class="chips" id="chips" aria-label="Secciones"></nav>
+</header>
+
+<main id="top">
+
+<!-- 01 PORTADA -->
+<section class="cover" id="s01" data-t="Portada">
+  <div class="meta"><span>zerosoft / guía de marca / propuesta “once ceros”</span><span>v0.1 · 17.10.2026</span></div>
+  <h1>Un cero por app.</h1>
+  <div class="rowbig" id="coverRow" role="img" aria-label="Once ceros en fila, uno por cada app, prendiéndose en su color"></div>
+  <div class="idx" id="coverIdx" aria-hidden="true"></div>
+  <div class="bottom">
+    <p class="concept">La marca es una fila de ceros, uno por cada app. Hoy son once. Cuando sumamos una app, sumamos un cero. Cada cero se prende en su color.</p>
+    <ol class="manif">
+      <li>El software murió.</li>
+      <li>Lo que pagás todos los meses se puede escribir de nuevo.</li>
+      <li>Lo escribimos once veces y abrimos el código.</li>
+      <li>Instalalo en tu servidor por $0.</li>
+      <li>O usá la nube y mirá cuánto nos cuesta a nosotros.</li>
+      <li>Cuando llegue la app doce, la fila crece.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 02 SISTEMA -->
+<section class="sec" id="s02" data-t="Sistema">
+  <div class="shead"><div class="num">02</div><div class="tt"><h2>El sistema del cero</h2><p>Todo sale de una sola pieza: un cero octogonal de 6 × 10 módulos con los ángulos cortados a 45°. Repetido once veces es el logo. Apagado y prendido es el selector de apps. Chico y en mono es la textura.</p></div></div>
+
+  <div class="lab"><span>Demo · la fila cuenta apps</span><span>probalo</span></div>
+  <div class="counter">
+    <div class="big" id="cnt" aria-live="polite">11</div>
+    <div>
+      <div class="rw" id="cntRow"></div>
+      <div class="ctl">
+        <button class="btn" id="addApp" type="button">Sumar una app</button>
+        <button class="btn sec2" id="subApp" type="button">Volver a once</button>
+        <button class="btn gh" id="litApp" type="button">Prender todas</button>
+      </div>
+      <p class="note" id="cntNote">Hoy: once apps, once ceros. La próxima entra punteada hasta que sale a producción.</p>
+    </div>
+  </div>
+
+  <div class="g12 blk">
+    <div class="c7">
+      <div class="lab"><span>Construcción</span><span>módulo = 1/6 del ancho</span></div>
+      <div class="construct tile" id="construct"></div>
+    </div>
+    <div class="c5">
+      <div class="lab"><span>Reglas</span><span>6</span></div>
+      <ol class="rules" style="grid-template-columns:1fr">
+        <li><span><b>Un cero, una app.</b> La fila nunca tiene ceros de relleno. Si hay 11 apps, hay 11 ceros.</span></li>
+        <li><span><b>El orden es fijo.</b> Link es el 01 y Robots el 11. Las apps nuevas entran a la derecha.</span></li>
+        <li><span><b>Prendido es color.</b> Un cero solo lleva color cuando su app está activa, cargando o en foco.</span></li>
+        <li><span><b>Apagado es gris.</b> Los ceros apagados usan #d3d3cc sobre claro y #3a3a3f sobre oscuro.</span></li>
+        <li><span><b>Nada redondo.</b> Todas las esquinas de la marca son rectas o cortadas a 45°.</span></li>
+        <li><span><b>El ASCII acompaña.</b> La textura de ceros va en diagramas, cargas y estados vacíos. Nunca detrás de texto.</span></li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="blk">
+    <div class="lab"><span>Estados del cero</span><span>se usan en la app como indicador</span></div>
+    <div class="states" id="states"></div>
+  </div>
+
+  <div class="g12 blk">
+    <div class="c5">
+      <div class="lab"><span>Rampa ASCII</span><span>4 niveles</span></div>
+      <div class="ramp"><div><div class="ch">&nbsp;</div><small>vacío · 0%</small></div><div><div class="ch">·</div><small>punto · 25%</small></div><div><div class="ch">o</div><small>o chica · 60%</small></div><div><div class="ch">0</div><small>cero · 100%</small></div></div>
+      <p class="note">La textura se arma solo con estos cuatro signos en Martian Mono, en una grilla de celdas de 0,62 de proporción. El 0 lleva el color del producto; el resto queda en gris.</p>
+    </div>
+    <div class="c7">
+      <div class="lab"><span>Demo · escribí y se arma con ceros</span><span>en vivo</span></div>
+      <div class="typer">
+        <label for="typeIn">Texto</label>
+        <input id="typeIn" value="hola" maxlength="12" autocomplete="off" spellcheck="false">
+        <pre class="z" id="typeOut" aria-hidden="true"></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 LOGO -->
+<section class="sec" id="s03" data-t="Logo">
+  <div class="shead"><div class="num">03</div><div class="tt"><h2>Logo</h2><p>La fila de once ceros sobre el nombre, a la misma medida. La versión en tinta es la principal; la de color se usa cuando la marca está sola en la pieza, como en un OG o la remera. El nombre está dibujado con el mismo trazo que el cero.</p></div></div>
+  <div class="lab"><span>Principal</span><span>sobre claro · sobre oscuro</span></div>
+  <div class="lg-main">
+    <div class="tile"><span class="cap">TINTA · PRINCIPAL</span><div id="lgInk" style="width:min(78%,520px)"></div></div>
+    <div class="tile k"><span class="cap">COLOR · SOBRE OSCURO</span><div id="lgDark" style="width:min(80%,420px)"></div></div>
+  </div>
+  <div class="g12 blk" style="margin-top:24px">
+    <div class="c4"><div class="tile" style="min-height:200px;display:flex;align-items:center;justify-content:center"><span class="cap">COLOR · SOBRE CLARO</span><div id="lgColor" style="width:80%"></div></div></div>
+    <div class="c8"><div class="tile" style="min-height:200px;display:flex;align-items:center;justify-content:center"><span class="cap">HORIZONTAL · NAV Y FIRMAS</span><div id="lgH" style="width:86%"></div></div></div>
+  </div>
+
+  <div class="g12 blk">
+    <div class="c6">
+      <div class="lab"><span>Símbolo</span><span>un cero + la tira de once</span></div>
+      <div class="lg-sym">
+        <div class="tile" style="display:flex;justify-content:center"><img src="assets/symbol.svg" alt="Símbolo de zerosoft sobre claro" style="height:clamp(120px,14vw,200px);width:auto"></div>
+        <div class="tile k" style="display:flex;justify-content:center"><img src="assets/app-icon.svg" alt="Ícono de app de zerosoft" style="height:clamp(120px,14vw,200px);width:auto"></div>
+      </div>
+      <p class="note">Cuando no entra la fila, el cero se queda solo y la fila se dobla en una tira con los once colores, en el mismo orden.</p>
+    </div>
+    <div class="c6">
+      <div class="lab"><span>Tamaños chicos</span><span>píxeles reales</span></div>
+      <div class="tile">
+        <div class="sizes">
+          <figure><img class="px16" src="assets/favicon-16.svg" alt="Favicon 16 px"><figcaption>16 px</figcaption></figure>
+          <figure><img class="px32" src="assets/favicon.svg" alt="Favicon 32 px"><figcaption>32 px</figcaption></figure>
+          <figure><img src="assets/favicon.svg" alt="" style="width:64px;height:64px"><figcaption>64 px</figcaption></figure>
+          <figure><img src="assets/app-icon.svg" alt="" style="width:120px;height:120px"><figcaption>app 1024</figcaption></figure>
+        </div>
+        <div class="tabmock" style="margin-top:28px"><img class="px16" src="assets/favicon-16.svg" alt=""><span>zerosoft · Track</span><span style="color:var(--ink3);margin-left:18px">×</span></div>
+        <p class="note">A 32 px el cero lleva la tira de 3 px. A 16 px la tira se empasta, así que queda solo el cero, con trazo de 2 px y alineado al pixel. Abajo de 24 px no se usa la fila.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="blk">
+    <div class="lab"><span>Área de respeto</span><span>x = alto de un cero</span></div>
+    <div class="tile clear" id="clear"></div>
+    <p class="note">Alrededor del logo queda libre un alto de cero en cada lado. El tamaño mínimo de la fila es 72 px de ancho en pantalla y 18 mm en impresión.</p>
+  </div>
+
+  <div class="blk">
+    <div class="lab"><span>Usos incorrectos</span><span>4</span></div>
+    <div class="wrong" id="wrong"></div>
+  </div>
+
+  <div class="blk">
+    <div class="lab"><span>Lockup por producto</span><span>11 · el cero de la app se prende</span></div>
+    <div class="lockups" id="lockups"></div>
+  </div>
+</section>
+
+<!-- 04 TIPOGRAFÍA -->
+<section class="sec" id="s04" data-t="Tipografía">
+  <div class="shead"><div class="num">04</div><div class="tt"><h2>Tipografía</h2><p>Tres voces. Cero Trazo, dibujada para la marca, solo en minúscula y solo en grande. Hanken Grotesk para leer. Martian Mono para números, código, etiquetas y la textura de ceros.</p></div></div>
+  <div class="fam">
+    <div class="tile k"><span class="cap">DISPLAY · DIBUJADA</span><div class="sp" id="famTrazo" style="padding-top:20px"></div><h3>Cero Trazo</h3><p>Monolínea, ángulos a 45°, sale del cero de la fila. Para logo, piezas, títulos de OG. Se entrega como trazos, no hace falta instalar nada.</p></div>
+    <div class="tile"><span class="cap">TEXTO · GOOGLE FONTS</span><div class="sp"><span style="font:700 104px/1 var(--sans);letter-spacing:-.05em">Aa</span></div><h3>Hanken Grotesk</h3><p>Grotesca neutra, 400 a 800. Títulos de sitio y app en 700 u 800 con interletra cerrada; texto en 400.</p></div>
+    <div class="tile"><span class="cap">MONO · GOOGLE FONTS</span><div class="sp"><span style="font:400 88px/1 var(--mono);letter-spacing:-.03em">0o</span></div><h3>Martian Mono</h3><p>Mono ancha y geométrica, con el cero cuadrado que se distingue de la O. IDs, precios, atajos y ASCII.</p></div>
+  </div>
+  <div class="blk">
+    <div class="lab"><span>Cero Trazo · juego completo</span><span>a–z 0–9 · acentos</span></div>
+    <div class="tile alpha" id="alpha"></div>
+  </div>
+  <div class="blk">
+    <div class="lab"><span>Escala</span><span>base 16 · razón 1,333</span></div>
+    <div class="scale">
+      <div><span class="m">Display 1<br>Hanken 800 · 104/96</span><span class="x t-d1">El software murió.</span></div>
+      <div><span class="m">Display 2<br>Hanken 700 · 56/56</span><span class="x t-d2">Once apps, un workspace.</span></div>
+      <div><span class="m">Título<br>Hanken 700 · 26/30</span><span class="x t-h">Planificá en ciclos. Seguí cada issue.</span></div>
+      <div><span class="m">Texto<br>Hanken 400 · 17/26</span><span class="x t-b">Compartís un link, la otra persona elige un horario y la reunión cae en tu Google Calendar con link de Meet.</span></div>
+      <div><span class="m">Chico<br>Hanken 400 · 14/21</span><span class="x t-s">El código está en GitHub bajo AGPL-3.0. Lo comercial vive en /ee.</span></div>
+      <div><span class="m">Mono<br>Martian 400 · 13/21</span><span class="x t-m">TRK-0142 · 3 puntos · ciclo 14 · 24.10</span></div>
+      <div><span class="m">Etiqueta<br>Martian 500 · 11 · mayús.</span><span class="x t-l">04 · Track · Gestión de proyectos</span></div>
+    </div>
+  </div>
+  <div class="spec2 blk">
+    <div class="tile"><span class="cap">ESPECIMEN · EDITORIAL</span>
+      <p style="font:800 clamp(36px,4.4vw,64px)/.95 var(--sans);letter-spacing:-.045em;margin-top:18px">Pagás doce suscripciones. Usás cuatro.</p>
+      <p style="margin-top:22px;max-width:52ch;color:var(--ink2);font-size:17px">Cada una cobra por usuario y sube el precio cuando el equipo crece. zerosoft junta once apps en un mismo workspace. El core es open source y corre en tu servidor.</p>
+      <p class="mono" style="margin-top:22px;font-size:12px;color:var(--ink3)">blog · 6 min · 12.10.2026</p>
+    </div>
+    <div class="tile k"><span class="cap">ESPECIMEN · NÚMEROS</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:22px">
+        <div><div style="font:800 clamp(64px,8vw,120px)/.8 var(--sans);letter-spacing:-.06em">$0</div><p class="mono" style="font-size:12px;color:var(--ntext2);margin-top:14px">self-host</p></div>
+        <div><div style="font:800 clamp(64px,8vw,120px)/.8 var(--sans);letter-spacing:-.06em">×3</div><p class="mono" style="font-size:12px;color:var(--ntext2);margin-top:14px">nube = costo × 3</p></div>
+      </div>
+      <pre class="mono" style="margin-top:30px;font-size:13px;line-height:1.8;color:#e5e5e7">costo   $0,40   0000
+precio  $1,20   000000000000
+<span style="color:var(--ntext2)">ejemplo ilustrativo de cómo se muestran los dos números</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- 05 COLOR -->
+<section class="sec" id="s05" data-t="Color">
+  <div class="shead"><div class="num">05</div><div class="tt"><h2>Color</h2><p>La base es papel y tinta. El color vive en los ceros: cada app tiene el suyo y lo usa solo para prenderse. Cada tono tiene una variante de texto que pasa AA sobre papel y otra para fondo oscuro.</p></div></div>
+  <div class="lab"><span>Neutros</span><span>contraste sobre papel</span></div>
+  <div class="neu" id="neu"></div>
+  <div class="prop" id="prop" aria-hidden="true"></div>
+  <p class="note">Proporción de uso en una pantalla típica: 78% papel, 14% tinta y grises, 8% color. El color no se usa como fondo de secciones enteras.</p>
+  <div class="blk">
+    <div class="lab"><span>Productos</span><span>tono · texto en claro · texto en oscuro</span></div>
+    <div class="pcs" id="pcs"></div>
+  </div>
+</section>
+
+<!-- 06 ICONOGRAFÍA -->
+<section class="sec" id="s06" data-t="Íconos">
+  <div class="shead"><div class="num">06</div><div class="tt"><h2>Iconografía</h2><p>Once glifos en grilla de 24 con trazo de 1,7. Todos parten del octógono del cero o de rectángulos con esquina cortada. Sin curvas.</p></div></div>
+  <div class="g12">
+    <div class="c4"><div class="lab"><span>Grilla</span><span>24 × 24 · margen 2</span></div><div class="tile igrid" id="igrid"></div></div>
+    <div class="c8"><div class="lab"><span>Tamaños</span><span>16 · 20 · 24 · 48</span></div><div class="tile" id="isizes"></div></div>
+  </div>
+  <div class="blk">
+    <div class="lab"><span>Los once</span><span>línea · ícono de app</span></div>
+    <div class="icons" id="icons"></div>
+  </div>
+</section>
+
+<!-- 07 ASCII -->
+<section class="sec" id="s07" data-t="ASCII">
+  <div class="shead"><div class="num">07</div><div class="tt"><h2>Ilustraciones y texturas de ceros</h2><p>La segunda capa de la marca. Diagramas hechos solo con la rampa de cuatro signos, en tipo real, así se copian y se pegan. Cada producto tiene su dibujo; el cero en color marca lo que importa.</p></div></div>
+  <div class="arts" id="arts"></div>
+  <div class="blk">
+    <div class="lab"><span>Texturas</span><span>fondos para piezas, cargas y vacíos</span></div>
+    <div class="tex" id="tex"></div>
+  </div>
+</section>
+
+<!-- 08 MOTION -->
+<section class="sec" id="s08" data-t="Motion">
+  <div class="shead"><div class="num">08</div><div class="tt"><h2>Movimiento</h2><p>Los ceros se prenden de a uno, en pasos secos, como un contador. Nada rebota. Con movimiento reducido todo pasa al estado final al instante.</p></div></div>
+  <div class="mot">
+    <div>
+      <div class="stage k loader"><div id="mLoad" style="width:86%"></div><div class="ld-txt" id="mLoadTxt">cargando 00/11</div></div>
+      <h3>Carga</h3><p>La fila se prende de izquierda a derecha, un cero cada 120 ms, y se apaga en el mismo orden.</p>
+      <div class="spec">steps(1) · 120 ms por cero · loop 2,2 s</div>
+    </div>
+    <div>
+      <div class="stage" id="mSw"><div class="sw-row" id="mSwRow" role="group" aria-label="Elegí una app"></div><div class="sw-title" id="mSwTitle">track</div><div class="mono" style="font-size:11px;color:var(--ink3)" id="mSwSub">04 · Gestión de proyectos</div><div class="sw-bar" id="mSwBar"></div></div>
+      <h3>Transición entre apps</h3><p>Tocá un cero. El nombre se rearma pasando por ceros y la barra cambia de color.</p>
+      <div class="spec">decode 24 ms por letra · color 400 ms ease-out</div>
+    </div>
+    <div>
+      <div class="stage"><div class="hv" id="mHv"></div></div>
+      <h3>Hover</h3><p>El cero de la fila se llena y una línea del color de la app cruza la tarjeta.</p>
+      <div class="spec">relleno 250 ms · línea 350 ms cubic-bezier(.2,.7,.2,1)</div>
+    </div>
+  </div>
+  <label class="rmtoggle"><input type="checkbox" id="rmT"> Ver como con movimiento reducido</label>
+</section>
+
+<!-- 09 SITIO -->
+<section class="sec" id="s09" data-t="Sitio">
+  <div class="shead"><div class="num">09</div><div class="tt"><h2>Aplicación al sitio</h2><p>Home y una página de producto. La fila de la portada es también el índice de apps: cada cero lleva a su producto.</p></div></div>
+  <div class="lab"><span>Home · zerosoft.ai</span><span>desktop</span></div>
+  <div class="frame">
+    <div class="bar"><i></i><i></i><i></i><span>zerosoft.ai</span></div>
+    <div class="site" id="home">
+      <div class="s-nav"><div id="hNavLogo" style="width:200px"></div><nav><a>Productos</a><a>Precios</a><a>Docs</a><a>Blog</a><a>GitHub</a></nav><div class="r"><a class="btn gh sm">Entrar</a><a class="btn sm">Abrir la app</a></div></div>
+      <div class="s-hero">
+        <div class="kick"><span>open source · agpl-3.0</span><span>11 apps · 1 workspace</span></div>
+        <div class="hl" id="hHead"><span class="sr">El software murió.</span></div>
+        <div class="under"><p>Once apps para reemplazar lo que pagás todos los meses. Instalalas en tu servidor por $0, o usá la nube y pagá lo que nos cuesta por tres. Mostramos los dos números.</p><div class="b"><a class="btn">Abrir la app</a><a class="btn sec2">Ver en GitHub</a></div></div>
+        <div class="s-row" id="hRow"></div>
+      </div>
+      <div class="s-sec">
+        <h3>Once apps. <span>Un solo workspace.</span></h3>
+        <div class="s-list" id="hList"></div>
+      </div>
+      <div class="s-sec">
+        <h3>Dos precios. <span>Los dos a la vista.</span></h3>
+        <div class="s-price">
+          <div><div class="bn">$0</div><p>Self-host. El core de las once apps está en GitHub bajo AGPL-3.0. Lo corrés en tu servidor y no nos pagás nada.</p><pre class="z" id="hP1"></pre></div>
+          <div><div class="bn">×3</div><p>zerosoft Cloud. Cada uso tiene su costo de infraestructura; el precio es ese costo por tres y en la factura ves los dos. Los asientos no se cobran.</p><pre class="z" id="hP2"></pre></div>
+        </div>
+      </div>
+      <div class="s-foot">
+        <div class="row" id="hFootRow"></div>
+        <div class="cols">
+          <div><h4>zerosoft</h4><p>Once apps open source para tu equipo. Hecho de ceros, en Buenos Aires.</p></div>
+          <div><h4>Para equipos</h4><a>CRM</a><a>Chat</a><a>Agents</a><a>Flow</a><a>Robots</a><a>Track</a><a>Link</a></div>
+          <div><h4>Para vos</h4><a>Docs</a><a>Notes</a><a>Cal</a><a>Board</a></div>
+          <div><h4>Código</h4><a>GitHub</a><a>Docs</a><a>Changelog</a><a>Roadmap</a></div>
+        </div>
+        <div class="legal"><span>AGPL-3.0 · /ee comercial</span><span>es · en · pt</span><span>zerosoft.ai</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="blk">
+    <div class="lab"><span>Producto · zerosoft.ai/track</span><span>desktop</span></div>
+    <div class="frame">
+      <div class="bar"><i></i><i></i><i></i><span>zerosoft.ai/track</span></div>
+      <div class="site" style="--pt:#be4c17;--pc:#be4c17">
+        <div class="s-nav"><div id="tNavLogo" style="width:200px"></div><nav><a>Funciones</a><a>Precio</a><a>Docs</a><a>Changelog</a></nav><div class="r"><a class="btn c sm">Abrir Track</a></div></div>
+        <div class="p-hero">
+          <div class="l"><div class="n">04</div><h3>Planificá en ciclos. <span>Seguí cada issue.</span></h3><p>Issues con sub-issues, relaciones, prioridades y estimaciones. Planificás en ciclos y seguís el trabajo en lista, tablero, calendario o Gantt.</p><div class="b"><a class="btn c">Abrir Track</a><a class="btn sec2">Instalar en tu servidor</a></div></div>
+          <div class="r"><pre class="z" id="tArt" aria-hidden="true"></pre><p class="mono" style="font-size:11px;color:var(--ink3);margin-top:10px">ciclo 14 · issues abiertos por día</p></div>
+        </div>
+        <div class="p-cmp">
+          <div><small>Linear Standard</small><div class="v">$8</div><p>por usuario por mes</p></div>
+          <div><small>Equipo de 10, un año</small><div class="v">$960</div><p>Linear, precio de lista</p></div>
+          <div class="zero"><small>Track en tu servidor</small><div class="v">$0</div><p>Mismo equipo, mismo año</p></div>
+        </div>
+        <div class="p-feat" id="tFeat"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 APP -->
+<section class="sec" id="s10" data-t="App">
+  <div class="shead"><div class="num">10</div><div class="tt"><h2>Aplicación a la app</h2><p>La fila es el selector de apps arriba del sidebar. El estado de cada issue usa el cero: vacío, a medias, lleno o tachado. El color de la app aparece en el cero activo, la selección y la acción principal.</p></div></div>
+  <div class="lab"><span>Track · issues</span><span>desktop 1440</span></div>
+  <div class="frame scrollx">
+    <div class="app" id="app">
+      <aside class="a-side">
+        <div class="a-ws"><div><b>Acme</b><small>workspace · 6 personas</small></div><span class="mono" style="font-size:11px;color:var(--ink3)">⌘K</span></div>
+        <div class="a-sw"><div id="aSw"></div><div class="lbl"><span>apps</span><b>04 track</b></div></div>
+        <nav class="a-nav">
+          <a>Mis issues <span>7</span></a><a>Bandeja <span>3</span></a>
+          <h5>Equipo producto</h5>
+          <a class="on">Issues <span>142</span></a><a>Ciclos <span>14</span></a><a>Proyectos <span>5</span></a><a>Vistas</a>
+          <h5>Equipo web</h5>
+          <a>Issues <span>38</span></a><a>Ciclos <span>6</span></a>
+        </nav>
+        <div class="a-me"><span class="av">LS</span><span>Lautaro<br><small class="mono" style="font-size:11px;color:var(--ink3)">admin</small></span></div>
+      </aside>
+      <div class="a-main">
+        <div class="a-top"><h4>Issues<small>producto · ciclo 14</small></h4><div class="row-f"><button class="btn sec2 sm" type="button">Filtrar</button><button class="btn c sm" type="button">Nuevo issue <span class="mono" style="font-size:10px;opacity:.7">C</span></button></div></div>
+        <div class="tabs" role="tablist"><button class="on" type="button" role="tab">Lista <span>142</span></button><button type="button" role="tab">Tablero</button><button type="button" role="tab">Calendario</button><button type="button" role="tab">Gantt</button></div>
+        <div class="tool"><div class="inp grow">Buscar issues<kbd>/</kbd></div><div class="inp">Estado: todos</div><div class="inp">Asignado: cualquiera</div></div>
+        <div style="overflow:hidden;flex:1"><table class="tb" id="aTable"></table></div>
+      </div>
+      <aside class="a-panel">
+        <div class="ph"><small>TRK-0142 · en curso</small><h4>El webhook de pagos no reintenta después de un 502</h4></div>
+        <div class="fields" id="aFields"></div>
+        <div class="field"><label for="cmt">Comentario</label><textarea id="cmt">Reproducido en staging. El retry queda en cola pero el worker no lo toma.</textarea><span class="help">Markdown. @ para mencionar.</span></div>
+        <div class="act"><button class="btn gh sm" type="button">Cancelar</button><button class="btn c sm" type="button">Comentar</button></div>
+        <div class="toast" role="status"><span id="toastIco"></span><span>TRK-0139 pasó a <b>Hecho</b></span><a>Deshacer</a></div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="blk">
+    <div class="lab"><span>Mobile</span><span>390 · lista y estado vacío</span></div>
+    <div class="phones">
+      <div class="phone" style="position:relative">
+        <div class="ph-top"><h4>Issues</h4><span class="mono" style="font-size:12px;color:var(--ink3)">ciclo 14</span></div>
+        <div class="tabs" style="padding:0 16px"><button class="on" type="button">Míos <span>7</span></button><button type="button">Equipo</button><button type="button">Hechos</button></div>
+        <div class="ph-list" id="mList"></div>
+        <a class="btn c fab">Nuevo</a>
+        <div class="ph-tab"><div id="mTab"></div><div class="lbl" id="mTabL"></div></div>
+      </div>
+      <div class="phone">
+        <div class="ph-top"><h4>Bandeja</h4><span class="mono" style="font-size:12px;color:var(--ink3)">0 sin leer</span></div>
+        <div class="empty"><pre class="z" id="mEmpty" aria-hidden="true"></pre><h5>Bandeja en cero.</h5><p>Cuando alguien te mencione o te asigne un issue, aparece acá.</p><a class="btn sec2 sm">Ver mis issues</a></div>
+        <div class="ph-tab"><div id="mTab2"></div><div class="lbl" id="mTabL2"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="blk">
+    <div class="lab"><span>Componentes</span><span>esquinas rectas · foco visible</span></div>
+    <div class="comp">
+      <div class="tile"><span class="cap">BOTONES</span>
+        <div class="row-f"><button class="btn" type="button">Principal</button><button class="btn sec2" type="button">Secundario</button><button class="btn gh" type="button">Fantasma</button></div>
+        <div class="row-f" style="--pc:#be4c17"><button class="btn c" type="button">Del producto</button><button class="btn dg" type="button">Borrar</button><button class="btn" type="button" disabled>Deshabilitado</button></div>
+        <div class="row-f"><button class="btn sm" type="button">Chico</button><button class="btn sec2 sm" type="button">Chico</button><span class="mono" style="font-size:11px;color:var(--ink3)">40 / 32 px de alto</span></div>
+      </div>
+      <div class="tile"><span class="cap">CAMPOS</span>
+        <div class="row-f"><div class="tin"><label for="i1">Nombre del link</label><input id="i1" value="lanzamiento-octubre"><small>Queda en zrs.ft/lanzamiento-octubre</small></div><div class="tin f"><label for="i2">Dominio</label><input id="i2" value="links.acme.com"></div></div>
+        <div class="row-f"><div class="tin e"><label for="i3">Email</label><input id="i3" value="hola@acme"><small>Falta el dominio después del @.</small></div><div class="tin"><label for="i4">Zona horaria</label><select id="i4"><option>America/Argentina/Buenos_Aires</option></select></div></div>
+        <div class="row-f"><label class="chk"><input type="checkbox" checked> Notificarme por email</label><label class="tg"><input type="checkbox" checked> Avanzado</label></div>
+      </div>
+      <div class="tile"><span class="cap">PESTAÑAS Y ESTADOS</span>
+        <div class="tabs" style="padding:0"><button class="on" type="button">General</button><button type="button">Miembros <span>6</span></button><button type="button">Facturación</button><button type="button">API</button></div>
+        <div class="row-f" id="stRow"></div>
+      </div>
+      <div class="tile k"><span class="cap">TOAST</span>
+        <div class="toast" style="position:static;box-shadow:none;border:1px solid var(--nrule)"><span id="toastIco2"></span><span>Link copiado: zrs.ft/lanzamiento-octubre</span><a>Abrir</a></div>
+        <div class="toast" style="position:static;box-shadow:none;border:1px solid var(--nrule)"><span style="font:600 13px/1 var(--mono);color:#ff6b5e">×</span><span>No pudimos conectar con Google Calendar.</span><a>Reintentar</a></div>
+      </div>
+      <div class="tile w"><span class="cap">TABLA Y VACÍO</span>
+        <div class="g12" style="gap:24px">
+          <div class="c7 scrollx"><table class="tb" id="cTable" style="min-width:460px"></table></div>
+          <div class="c5" style="border:1px dashed var(--rule);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;gap:10px"><pre class="z" id="cEmpty" aria-hidden="true"></pre><b style="font:700 17px/1.2 var(--sans)">Todavía no hay deals.</b><span style="font-size:14px;color:var(--ink2)">Importá el export de HubSpot o creá el primero.</span><div class="row-f" style="justify-content:center;--pc:#7b4dff"><a class="btn c sm">Nuevo deal</a><a class="btn sec2 sm">Importar CSV</a></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 PIEZAS -->
+<section class="sec" id="s11" data-t="Piezas">
+  <div class="shead"><div class="num">11</div><div class="tt"><h2>Piezas</h2><p>Todo dibujado con trazos: se ven igual sin las fuentes instaladas. Los archivos están en la sección siguiente.</p></div></div>
+  <div class="pieces" id="pieces"></div>
+</section>
+
+<!-- 12 DESCARGAS -->
+<section class="sec dark" id="s12" data-t="Descargas">
+  <div class="shead"><div class="num">12</div><div class="tt"><h2>Descargas</h2><p>SVG listos para usar. Los textos son trazos dibujados, así que no dependen de ninguna fuente.</p></div></div>
+  <div class="dl" id="dl"></div>
+  <div class="weak">
+    <div><b>Lo que hace bien</b>Se recuerda en una frase. Escala con el producto: la marca registra cada app nueva sin rediseño.</div>
+    <div><b>Lo que cuesta</b>La fila es larga (8:1). En espacios cuadrados manda el símbolo, que es menos propio que la fila.</div>
+    <div><b>Lo que falta decidir</b>Qué pasa con la fila a partir de 16 apps, y si Cero Trazo se amplía a mayúsculas para usarla en titulares del sitio.</div>
+  </div>
+</section>
+
+</main>
+
+<script id="core">
+const ZS = (function () {
+  /* ---------- datos ---------- */
+  const P = [
+    { id: 'link',   n: '01', name: 'Link',   c: '#2f6bff', t: '#2c65f0', d: '#3972ff', rival: 'Bitly',    tag: 'Links cortos y métricas', price: '$35 / mes' },
+    { id: 'crm',    n: '02', name: 'CRM',    c: '#7b4dff', t: '#7b4dff', d: '#885eff', rival: 'HubSpot',  tag: 'Clientes y ventas', price: '$50 / usuario / mes' },
+    { id: 'cal',    n: '03', name: 'Cal',    c: '#0e9f6e', t: '#0b8059', d: '#0e9f6e', rival: 'Calendly', tag: 'Agendamiento', price: '$12 / usuario / mes' },
+    { id: 'track',  n: '04', name: 'Track',  c: '#f2611d', t: '#be4c17', d: '#f2611d', rival: 'Linear',   tag: 'Gestión de proyectos', price: '$8 / usuario / mes' },
+    { id: 'chat',   n: '05', name: 'Chat',   c: '#e23d7f', t: '#c83670', d: '#e23d7f', rival: 'Intercom', tag: 'Chat con clientes', price: '$29 / asiento / mes' },
+    { id: 'docs',   n: '06', name: 'Docs',   c: '#c2700a', t: '#a76009', d: '#c2700a', rival: 'Notion',   tag: 'Docs y wiki', price: '$10 / usuario / mes' },
+    { id: 'flow',   n: '07', name: 'Flow',   c: '#0284c7', t: '#0275b0', d: '#0284c7', rival: 'Zapier',   tag: 'Automatizaciones', price: '$103,50 / mes' },
+    { id: 'agents', n: '08', name: 'Agents', c: '#ff3b30', t: '#d43128', d: '#ff3b30', rival: 'Intercom Fin', tag: 'Agentes de IA', price: '$0,99 / resolución' },
+    { id: 'notes',  n: '09', name: 'Notes',  c: '#e6b400', t: '#896b00', d: '#e6b400', rival: 'Evernote', tag: 'Notas', price: '$14,99 / mes' },
+    { id: 'board',  n: '10', name: 'Board',  c: '#00b8a9', t: '#008075', d: '#00b8a9', rival: 'Miro',     tag: 'Pizarra infinita', price: '$10 / usuario / mes' },
+    { id: 'robots', n: '11', name: 'Robots', c: '#6b7280', t: '#6b7280', d: '#79808c', rival: 'UiPath',   tag: 'Robots de navegador', price: '$25 / mes' }
+  ];
+  const N = {
+    paper: '#fafaf7', paper2: '#f1f1ec', rule: '#dcdcd5', off: '#d3d3cc',
+    ink: '#0d0d0e', ink2: '#3d3d40', ink3: '#66666b',
+    night: '#0d0d0e', night2: '#171719', nrule: '#2b2b2f', noff: '#3a3a3f', ntext2: '#a8a8ad'
+  };
+  const byId = Object.fromEntries(P.map(p => [p.id, p]));
+  const f = v => Math.round(v * 100) / 100;
+
+  /* ---------- geometría ---------- */
+  function oct(x0, y0, x1, y1, c) {
+    return [[x0 + c, y0], [x1 - c, y0], [x1, y0 + c], [x1, y1 - c], [x1 - c, y1], [x0 + c, y1], [x0, y1 - c], [x0, y0 + c]];
+  }
+  function poly(pts, close) {
+    return 'M' + pts.map(p => f(p[0]) + ' ' + f(p[1])).join('L') + (close ? 'Z' : '');
+  }
+  /* el cero de la marca: caja 6 x 10, chaflán 2 (45°), trazo 1.4 */
+  const ZERO = { w: 6, h: 10, c: 2, s: 1.4, gap: 1.5 };
+  function zeroD(x, y, k, o) {
+    o = Object.assign({}, ZERO, o || {});
+    const s = o.s * k, h = s / 2, w = o.w * k, H = o.h * k, c = o.c * k - h * 0.4142;
+    return poly(oct(x + h, y + h, x + w - h, y + H - h, c), true);
+  }
+  /* fila: n ceros. lit: 'all' | 'none' | array de índices | número */
+  function row(o) {
+    o = Object.assign({ n: 11, k: 1, x: 0, y: 0, lit: 'none', ink: N.ink, off: N.off, colors: true, extra: 0, dark: false, s: ZERO.s }, o);
+    let out = '';
+    const step = (ZERO.w + ZERO.gap) * o.k;
+    for (let i = 0; i < o.n + o.extra; i++) {
+      const isExtra = i >= o.n;
+      const on = o.lit === 'all' || o.lit === i || (Array.isArray(o.lit) && o.lit.includes(i));
+      const p = P[i % P.length];
+      let col = o.off;
+      if (on) col = o.colors ? (o.dark ? p.d : p.c) : o.ink;
+      if (o.lit === 'ink') col = o.ink;
+      const dash = isExtra ? ` stroke-dasharray="${f(o.k * 1.2)} ${f(o.k * 1)}"` : '';
+      out += `<path d="${zeroD(o.x + i * step, o.y, o.k, { s: o.s })}" fill="none" stroke="${isExtra ? o.off : col}" stroke-width="${f(o.s * o.k)}" stroke-linejoin="miter"${dash}/>`;
+    }
+    return out;
+  }
+  const rowW = (n, k) => (n * ZERO.w + (n - 1) * ZERO.gap) * (k || 1);
+
+  /* ---------- Cero Trazo: tipografía dibujada ---------- */
+  const O = (x0, y0, x1, y1, c) => ({ p: oct(x0, y0, x1, y1, c == null ? 1.5 : c), z: true });
+  const L = (...pts) => ({ p: pts });
+  const G = {
+    a: { w: 5, s: [O(0, 3, 5, 9), L([5, 3], [5, 9])] },
+    b: { w: 5, s: [L([0, 0], [0, 9]), O(0, 3, 5, 9)] },
+    c: { w: 4.5, s: [L([4.5, 3], [1.5, 3], [0, 4.5], [0, 7.5], [1.5, 9], [4.5, 9])] },
+    d: { w: 5, s: [O(0, 3, 5, 9), L([5, 0], [5, 9])] },
+    e: { w: 5, s: [L([0, 6], [5, 6], [5, 4.5], [3.5, 3], [1.5, 3], [0, 4.5], [0, 7.5], [1.5, 9], [4.5, 9])] },
+    f: { w: 4, s: [L([1.5, 9], [1.5, 1.5], [3, 0], [4, 0]), L([0, 3], [4, 3])] },
+    g: { w: 5, s: [O(0, 3, 5, 9), L([5, 3], [5, 10.8], [3.6, 12.2], [1.4, 12.2], [0, 10.8])] },
+    h: { w: 5, s: [L([0, 0], [0, 9]), L([0, 4.5], [1.5, 3], [3.5, 3], [5, 4.5], [5, 9])] },
+    i: { w: 0, s: [L([0, 3], [0, 9])], d: [[0, 1.1]] },
+    j: { w: 1.5, s: [L([1.5, 3], [1.5, 10.5], [0, 12])], d: [[1.5, 1.1]] },
+    k: { w: 4.5, s: [L([0, 0], [0, 9]), L([4.5, 3], [0, 7]), L([1.9, 5.3], [4.5, 9])] },
+    l: { w: 1.5, s: [L([0, 0], [0, 7.5], [1.5, 9])] },
+    m: { w: 7, s: [L([0, 9], [0, 3]), L([0, 4.5], [1.5, 3], [2, 3], [3.5, 4.5], [3.5, 9]), L([3.5, 4.5], [5, 3], [5.5, 3], [7, 4.5], [7, 9])] },
+    n: { w: 5, s: [L([0, 9], [0, 3]), L([0, 4.5], [1.5, 3], [3.5, 3], [5, 4.5], [5, 9])] },
+    o: { w: 5, s: [O(0, 3, 5, 9)] },
+    p: { w: 5, s: [L([0, 3], [0, 12]), O(0, 3, 5, 9)] },
+    q: { w: 5, s: [O(0, 3, 5, 9), L([5, 3], [5, 12])] },
+    r: { w: 3.5, s: [L([0, 9], [0, 3]), L([0, 4.5], [1.5, 3], [3.5, 3])] },
+    s: { w: 4.5, s: [L([4.5, 3], [1.2, 3], [0, 4.2], [0, 4.8], [1.2, 6], [3.3, 6], [4.5, 7.2], [4.5, 7.8], [3.3, 9], [0, 9])] },
+    t: { w: 4, s: [L([1.5, 0], [1.5, 7.5], [3, 9], [4, 9]), L([0, 3], [4, 3])] },
+    u: { w: 5, s: [L([0, 3], [0, 7.5], [1.5, 9], [3.5, 9], [5, 7.5]), L([5, 3], [5, 9])] },
+    v: { w: 5, s: [L([0, 3], [2.5, 9], [5, 3])] },
+    w: { w: 7, s: [L([0, 3], [1.75, 9], [3.5, 4], [5.25, 9], [7, 3])] },
+    x: { w: 5, s: [L([0, 3], [5, 9]), L([5, 3], [0, 9])] },
+    y: { w: 5, s: [L([0, 3], [0, 7.5], [1.5, 9], [5, 9]), L([5, 3], [5, 10.5], [3.5, 12], [0.5, 12])] },
+    z: { w: 5, s: [L([0, 3], [5, 3], [0, 9], [5, 9])] },
+    '0': { w: 5, s: [O(0, 0, 5, 9, 2)] },
+    '1': { w: 3, s: [L([0, 1.5], [1.5, 0], [1.5, 9])] },
+    '2': { w: 5, s: [L([0, 1.5], [1.5, 0], [3.5, 0], [5, 1.5], [5, 3.5], [0, 9], [5, 9])] },
+    '3': { w: 5, s: [L([0, 0], [5, 0], [2, 4], [3.5, 4], [5, 5.5], [5, 7.5], [3.5, 9], [0, 9])] },
+    '4': { w: 5, s: [L([3.5, 9], [3.5, 0], [0, 6.5], [5, 6.5])] },
+    '5': { w: 5, s: [L([5, 0], [0, 0], [0, 4], [3.5, 4], [5, 5.5], [5, 7.5], [3.5, 9], [0, 9])] },
+    '6': { w: 5, s: [L([4.5, 0], [1.5, 0], [0, 1.5], [0, 7.5], [1.5, 9], [3.5, 9], [5, 7.5], [5, 5.5], [3.5, 4], [0, 4])] },
+    '7': { w: 5, s: [L([0, 0], [5, 0], [1.5, 9])] },
+    '8': { w: 5, s: [O(0.4, 0, 4.6, 4, 1.2), O(0, 4, 5, 9, 1.5)] },
+    '9': { w: 5, s: [L([5, 5], [1.5, 5], [0, 3.5], [0, 1.5], [1.5, 0], [3.5, 0], [5, 1.5], [5, 7.5], [3.5, 9], [0.5, 9])] },
+    '.': { w: 0, s: [], d: [[0, 8.45]] },
+    ',': { w: 1, s: [L([0.8, 7.9], [0.8, 9], [0, 10.4])] },
+    ':': { w: 0, s: [], d: [[0, 4.2], [0, 8.45]] },
+    '-': { w: 3, s: [L([0, 6], [3, 6])] },
+    '/': { w: 4, s: [L([0, 10], [4, -0.5])] },
+    '×': { w: 4, s: [L([0, 4], [4, 8]), L([4, 4], [0, 8])] },
+    '+': { w: 4, s: [L([0, 6], [4, 6]), L([2, 4], [2, 8])] },
+    '=': { w: 4, s: [L([0, 5], [4, 5]), L([0, 7], [4, 7])] },
+    '$': { w: 5, s: [L([5, 1.5], [1.2, 1.5], [0, 2.7], [0, 3.8], [1.2, 5], [3.8, 5], [5, 6.2], [5, 7.3], [3.8, 8.5], [0, 8.5]), L([2.5, -0.3], [2.5, 10.3])] },
+    '?': { w: 5, s: [L([0, 1.5], [1.5, 0], [3.5, 0], [5, 1.5], [5, 3], [2.5, 5], [2.5, 6.6])], d: [[2.5, 8.45]] },
+    '¿': { w: 5, s: [L([5, 10.5], [3.5, 12], [1.5, 12], [0, 10.5], [0, 9], [2.5, 7], [2.5, 5.4])], d: [[2.5, 3.5]] },
+    '(': { w: 2, s: [L([2, -0.5], [0, 1.5], [0, 10], [2, 12])] },
+    ')': { w: 2, s: [L([0, -0.5], [2, 1.5], [2, 10], [0, 12])] },
+    '·': { w: 0, s: [], d: [[0, 6]] },
+    '_': { w: 5, s: [L([0, 9], [5, 9])] },
+    ' ': { w: 2.6, s: [] }
+  };
+  const ACC = { 'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u' };
+  function glyph(ch) {
+    if (ACC[ch]) {
+      const b = G[ACC[ch]];
+      const cx = b.w / 2;
+      return { w: b.w, s: b.s.concat([L([cx - 0.6, 1.9], [cx + 1, 0.2])]), d: [] };
+    }
+    if (ch === 'ñ') return { w: 5, s: G.n.s.concat([L([0.6, 1.8], [1.9, 0.6], [3.1, 1.8], [4.4, 0.6])]) };
+    return G[ch] || G[' '];
+  }
+  /* devuelve { d, dots, w } en unidades. track = espacio entre letras */
+  function shape(str, o) {
+    o = Object.assign({ track: 1.9, sw: 1.1 }, o);
+    let x = 0, d = '', dots = '';
+    const chars = [...String(str).toLowerCase()];
+    chars.forEach((ch, i) => {
+      const g = glyph(ch);
+      g.s.forEach(s => { d += poly(s.p.map(p => [p[0] + x, p[1]]), s.z); });
+      (g.d || []).forEach(p => {
+        const q = o.sw * 1.15;
+        dots += `M${f(p[0] + x - q / 2)} ${f(p[1] - q / 2)}h${f(q)}v${f(q)}h${f(-q)}Z`;
+      });
+      const nx = chars[i + 1];
+      const kern = (ch === 'f' && nx === 't') ? -1.4 : (ch === 'r' && nx !== ' ') ? -0.3 : 0;
+      x += g.w + (i < chars.length - 1 ? o.track + kern + (g.w === 0 ? 0.2 : 0) : 0);
+    });
+    return { d, dots, w: x };
+  }
+  /* texto como SVG. size = altura de x (px). x,y = esquina sup izq del ascendente */
+  function text(str, o) {
+    o = Object.assign({ x: 0, y: 0, size: 12, color: N.ink, sw: 1.1, track: 1.9, anchor: 'start' }, o);
+    const k = o.size / 6;
+    const sh = shape(str, o);
+    let x = o.x;
+    if (o.anchor === 'end') x -= sh.w * k + o.sw * k / 2;
+    if (o.anchor === 'middle') x -= sh.w * k / 2;
+    x += o.sw * k / 2;
+    return {
+      svg: `<g transform="translate(${f(x)} ${f(o.y + o.sw * k / 2)}) scale(${f(k * 1000) / 1000})"><path d="${sh.d}" fill="none" stroke="${o.color}" stroke-width="${o.sw}" stroke-linejoin="miter" stroke-miterlimit="1.5"/>${sh.dots ? `<path d="${sh.dots}" fill="${o.color}"/>` : ''}</g>`,
+      w: sh.w * k + o.sw * k, h: 9 * k + o.sw * k
+    };
+  }
+  const textW = (str, size, track) => shape(str, { track: track == null ? 1.9 : track }).w * size / 6 + 1.1 * size / 6;
+
+  /* ---------- logo ---------- */
+  function logo(o) {
+    o = Object.assign({ mode: 'stacked', ink: N.ink, off: N.off, lit: 'ink', dark: false, word: 'zerosoft', pad: 0, wordColor: null, index: false }, o);
+    const k = 10;
+    const rw = rowW(11, k);
+    let body = '', W, H;
+    if (o.mode === 'stacked') {
+      body += row({ k, lit: o.lit, ink: o.ink, off: o.off, dark: o.dark });
+      const ww = shape(o.word).w;
+      const size = (rw - 1.1 * 0) / (ww + 1.1) * 6;
+      const t = text(o.word, { x: 0, y: 10 * k + 3.2 * k, size, color: o.wordColor || o.ink });
+      body += t.svg;
+      W = rw; H = 10 * k + 3.2 * k + t.h + (o.word.match(/[gjpqy]/) ? size / 2 : 0);
+    } else {
+      body += row({ k: 0.9 * k, lit: o.lit, ink: o.ink, off: o.off, dark: o.dark });
+      const rwh = rowW(11, 0.9 * k);
+      const size = 9 * k * 6 / 9 * 0.98;
+      const t = text(o.word, { x: rwh + 3.2 * k, y: 0, size: size * 0.98, color: o.wordColor || o.ink });
+      body += t.svg;
+      W = rwh + 3.2 * k + t.w; H = 9 * k;
+    }
+    const p = o.pad;
+    return { svg: body, W: W + p * 2, H: H + p * 2, inner: `<g transform="translate(${p} ${p})">${body}</g>` };
+  }
+  function svgWrap(inner, W, H, bg, extra) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${f(W)} ${f(H)}" width="${f(W)}" height="${f(H)}"${extra || ''}>${bg ? `<rect width="100%" height="100%" fill="${bg}"/>` : ''}${inner}</svg>`;
+  }
+  function logoSVG(o) {
+    const l = logo(o);
+    return svgWrap(l.inner, l.W, l.H, o && o.bg);
+  }
+  /* símbolo: un cero + la tira de once colores */
+  function symbolInner(x, y, k, o) {
+    o = Object.assign({ ink: N.ink, dark: false, s: 1.4 }, o);
+    let s = `<path d="${zeroD(x, y, k, { s: o.s })}" fill="none" stroke="${o.ink}" stroke-width="${f(o.s * k)}" stroke-linejoin="miter"/>`;
+    const sw = 6 * k / 11, sy = y + 11.4 * k, sh = 1.3 * k;
+    P.forEach((p, i) => { s += `<rect x="${f(x + i * sw)}" y="${f(sy)}" width="${f(sw + 0.02)}" height="${f(sh)}" fill="${o.dark ? p.d : p.c}"/>`; });
+    return s;
+  }
+  function symbolSVG(o) {
+    o = Object.assign({ bg: null, ink: N.ink }, o);
+    const k = 10;
+    return svgWrap(symbolInner(0, 0, k, o), 60, 127, o.bg);
+  }
+  function faviconSVG(px) {
+    if (px === 16) {
+      /* a 16 px la tira se empasta: queda solo el cero, a pixel entero */
+      const s = `<rect width="16" height="16" fill="${N.ink}"/><path d="M6.6 3H9.4L11 4.6V11.4L9.4 13H6.6L5 11.4V4.6Z" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="miter"/>`;
+      return svgWrap(s, 16, 16);
+    }
+    let s = `<rect width="32" height="32" fill="${N.ink}"/><path d="M12 4.5H20L23.5 8V19.5L20 23H12L8.5 19.5V8Z" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="miter"/>`;
+    const w = 17 / 11;
+    P.forEach((p, i) => { s += `<rect x="${f(7.5 + i * w)}" y="26" width="${f(w + 0.02)}" height="3" fill="${p.d}"/>`; });
+    return svgWrap(s, 32, 32);
+  }
+  function appIconSVG(o) {
+    o = Object.assign({ bg: N.ink, ink: '#ffffff', dark: true, size: 1024 }, o);
+    const k = 46;
+    const x = (1024 - 6 * k) / 2, y = (1024 - 12.7 * k) / 2;
+    return svgWrap(symbolInner(x, y, k, o), 1024, 1024, o.bg);
+  }
+
+  /* ---------- íconos de producto (grilla 24) ---------- */
+  const R = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="currentColor" stroke="none"/>`;
+  const Pp = (d) => `<path d="${d}"/>`;
+  const PO = (x0, y0, x1, y1, c) => Pp(poly(oct(x0, y0, x1, y1, c), true));
+  const ICONS = {
+    link: PO(1.5, 7, 13.5, 17, 3) + PO(10.5, 7, 22.5, 17, 3),
+    crm: PO(8, 2.5, 16, 10.5, 2.2) + Pp('M3.5 21.5V17.5L6.5 14.5H17.5L20.5 17.5V21.5'),
+    cal: PO(3, 5, 21, 21.5, 3) + Pp('M3 10.5H21M8 2V7.5M16 2V7.5') + R(13.5, 14, 3.5, 3.5),
+    track: PO(2.5, 2.5, 21.5, 21.5, 5) + `<path d="M12 6.8H14L17.2 10V14L14 17.2H12Z" fill="currentColor" stroke="none"/>` + Pp('M12 6.5V17.5'),
+    chat: Pp('M6 3H18L21 6V13L18 16H10.5L5.5 20.5V16L3 13.5V6Z'),
+    docs: Pp('M4.5 2H14L19.5 7.5V22H4.5Z') + Pp('M14 2V7.5H19.5M8 12.5H16M8 16.5H13.5'),
+    flow: PO(1.5, 9, 7.5, 15, 1.5) + PO(16.5, 3, 22.5, 9, 1.5) + PO(16.5, 15, 22.5, 21, 1.5) + Pp('M7.5 12H12V6H16.5M12 12V18H16.5'),
+    agents: PO(2.5, 2.5, 21.5, 21.5, 5) + Pp('M12 7V17M7.67 9.5L16.33 14.5M7.67 14.5L16.33 9.5'),
+    notes: Pp('M4 3H20V15.5L14.5 21H4Z') + Pp('M14.5 21V15.5H20M7.5 8H16.5M7.5 12H16.5'),
+    board: Pp('M2 4H22V20H2Z') + Pp('M9 4V20M15 4V20') + R(4, 7, 3, 3) + R(4, 11.5, 3, 3) + R(10.5, 7, 3, 5) + R(16.5, 7, 3, 3),
+    robots: PO(3.5, 7.5, 20.5, 21.5, 3.5) + Pp('M12 7.5V3.5') + R(10.5, 1, 3, 3) + R(7.5, 12, 3, 3.5) + R(13.5, 12, 3, 3.5)
+  };
+  function icon(id, o) {
+    o = Object.assign({ size: 24, color: 'currentColor', sw: 1.7 }, o);
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${o.size}" height="${o.size}" fill="none" stroke="${o.color}" color="${o.color}" stroke-width="${o.sw}" stroke-linejoin="miter" stroke-linecap="butt" aria-hidden="true">${ICONS[id]}</svg>`;
+  }
+  function iconInner(id, x, y, size, color, sw) {
+    const k = size / 24;
+    return `<g transform="translate(${f(x)} ${f(y)}) scale(${f(k * 1000) / 1000})" fill="none" stroke="${color}" color="${color}" stroke-width="${sw || 1.7}" stroke-linejoin="miter">${ICONS[id]}</g>`;
+  }
+
+  /* ---------- ASCII de ceros ---------- */
+  const RAMP = [' ', '·', 'o', '0'];
+  /* cada celda: [char, tono] tono 0 = neutro, 1 = color del producto */
+  function octSD(x, y, a, b, k) {
+    const ax = Math.abs(x), ay = Math.abs(y);
+    return Math.max(ax - a, ay - b, (ax + ay - k) / 1.4142);
+  }
+  function segD(px, py, ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay;
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+    return Math.hypot(px - ax - t * dx, py - ay - t * dy);
+  }
+  const AR = 0.62; /* ancho/alto de la celda */
+  function field(cols, rows, fn) {
+    const g = [];
+    for (let r = 0; r < rows; r++) {
+      const line = [];
+      for (let c = 0; c < cols; c++) {
+        const v = fn((c + 0.5) * AR, r + 0.5, c, r) || [0, 0];
+        line.push(v);
+      }
+      g.push(line);
+    }
+    return g;
+  }
+  const lvl = (d, t) => d <= -t ? 0 : d < 0 ? 3 : d < 0.55 ? 2 : d < 1.2 ? 1 : 0;
+  const ring = (d, t) => { const a = Math.abs(d) - t; return a < 0 ? 3 : a < 0.5 ? 2 : a < 1.1 ? 1 : 0; };
+  const ART = {
+    link: { cols: 56, rows: 17, fn: (x, y) => {
+      const cy = 8.5, c1 = 11.6, c2 = 23.2;
+      const d1 = octSD(x - c1, y - cy, 8, 6, 11.5), d2 = octSD(x - c2, y - cy, 8, 3.8, 9.5);
+      const r1 = ring(d1, 0.55), r2 = ring(d2, 0.55);
+      const front2 = y > cy;
+      if (r1 === 3 && r2 === 3) return front2 ? [3, 1] : [3, 0];
+      if (r2 === 3) return [3, 1];
+      if (r1 === 3) return [3, 0];
+      if (d1 < 0 && d2 < 0) return [0, 0];
+      const m = Math.max(r1 === 2 ? 1 : 0, r2 === 2 ? 1 : 0); return [m, r2 >= r1 ? 1 : 0];
+    } },
+    cal: null,
+    track: null,
+    chat: { cols: 58, rows: 18, fn: (x, y) => {
+      const a = octSD(x - 13, y - 6, 10, 3.6, 11.5), b = octSD(x - 22.5, y - 12.2, 9, 3, 10);
+      const tailA = segD(x, y, 8, 9.5, 5, 13.5) < 0.9;
+      const tailB = segD(x, y, 28, 15, 31, 17.2) < 0.9;
+      if (b < 0 || tailB) return [b < -0.9 || tailB ? (((Math.floor(x / AR) + Math.floor(y)) % 3 === 0) ? 1 : 2) : 3, 1];
+      if (b < 0.7) return [0, 0];
+      if (a < 0 || tailA) return [a < -0.9 || tailA ? 1 : 3, 0];
+      return [0, 0];
+    } },
+    flow: { cols: 60, rows: 17, fn: (x, y) => {
+      const nodes = [[6, 8.5], [19, 3.5], [19, 13.5], [31.5, 8.5]];
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i], d = octSD(x - n[0], y - n[1], 3.6, 2.2, 4.4);
+        if (d < 0) return [d > -0.8 ? 3 : 2, i === 3 || i === 0 ? 1 : 0];
+      }
+      const edges = [[9.6, 8.5, 12.5, 8.5], [12.5, 8.5, 12.5, 3.5], [12.5, 3.5, 15.4, 3.5], [12.5, 8.5, 12.5, 13.5], [12.5, 13.5, 15.4, 13.5], [22.6, 3.5, 25.5, 3.5], [25.5, 3.5, 25.5, 13.5], [22.6, 13.5, 25.5, 13.5], [25.5, 8.5, 27.9, 8.5]];
+      for (const e of edges) if (segD(x, y, ...e) < 0.42) return [1, 1];
+      return [0, 0];
+    } },
+    board: null,
+    robots: { cols: 46, rows: 20, fn: (x, y) => {
+      const head = octSD(x - 14.2, y - 12, 9, 6.5, 12);
+      if (Math.abs(x - 14.2) < 0.45 && y > 2.6 && y < 5.5) return [1, 0];
+      if (octSD(x - 14.2, y - 2.2, 1, 0.6, 1.4) < 0) return [3, 1];
+      const eyeL = Math.abs(x - 10.6) < 1.5 && Math.abs(y - 10.5) < 1.2, eyeR = Math.abs(x - 17.8) < 1.5 && Math.abs(y - 10.5) < 1.2;
+      if (eyeL || eyeR) return [3, 1];
+      if (y > 14.5 && y < 15.6 && Math.abs(x - 14.2) < 4.2) return [Math.floor(x / AR) % 2 ? 3 : 2, 0];
+      const r = ring(head, 0.7); if (r) return [r, 0];
+      if (head < 0) return [((Math.floor(x / AR) + Math.floor(y)) % 4 === 0) ? 1 : 0, 0];
+      return [0, 0];
+    } },
+    agents: { cols: 58, rows: 19, fn: (x, y) => {
+      const cx = 18, cy = 9.5;
+      const d = octSD(x - cx, y - cy, 2.2, 1.8, 2.8);
+      if (d < 0) return [3, 1];
+      for (let i = 1; i <= 4; i++) {
+        const di = octSD(x - cx, y - cy, 2.2 + i * 3.6, 1.8 + i * 2.1, 2.8 + i * 4.8);
+        const a = Math.abs(di);
+        if (a < 0.42) return [i === 1 ? 3 : i === 2 ? 2 : 1, i === 1 ? 1 : 0];
+      }
+      return [0, 0];
+    } }
+  };
+  ART.cal = { cols: 52, rows: 17, text: true, fn: null };
+  function calArt() {
+    const L1 = '   lu  ma  mi  ju  vi  sá  do';
+    const lines = [L1, ''];
+    const booked = new Set([3, 4, 9, 10, 11, 16, 17, 22, 24, 30]);
+    let day = -2;
+    for (let w = 0; w < 5; w++) {
+      let l = '   ';
+      for (let d = 0; d < 7; d++) {
+        day++;
+        if (day < 1 || day > 31) l += '··  ';
+        else l += (booked.has(day) ? '00' : 'oo') + '  ';
+      }
+      lines.push(l, '');
+    }
+    return lines.slice(0, 12);
+  }
+  function grid(id) {
+    if (id === 'cal') {
+      const lines = calArt();
+      const pick = 17;
+      return lines.map((l, r) => [...l.padEnd(32)].map((ch, c) => {
+        const tone = ch === '0' ? 1 : 0;
+        if (r === 0) return [ch === ' ' ? 0 : -1, 0, ch];
+        return [ch === ' ' ? 0 : ch === '·' ? 1 : ch === 'o' ? 2 : ch === '0' ? 3 : -1, tone, ch];
+      }));
+    }
+    if (id === 'track') {
+      const cols = 56, rows = 17, H = [13, 13, 12, 11, 11, 9, 8, 8, 6, 5, 3, 2, 1, 0];
+      const g = [];
+      for (let r = 0; r < rows; r++) {
+        const line = [];
+        for (let c = 0; c < cols; c++) {
+          const bx = Math.floor((c - 2) / 4), inBar = c >= 2 && (c - 2) % 4 < 2 && bx < H.length;
+          const top = rows - 2 - (inBar ? H[bx] : 0);
+          const ideal = 2 + (c - 2) / (H.length * 4) * 14;
+          let v = [0, 0];
+          if (r === rows - 1 && c >= 1) v = [1, 0];
+          else if (inBar && r >= top && r < rows - 1) v = [r === top ? 3 : 2, bx >= 10 ? 1 : 0];
+          else if (c >= 2 && Math.abs(r - ideal) < 0.5 && c % 2 === 0 && c < 2 + H.length * 4) v = [1, 1];
+          line.push(v);
+        }
+        g.push(line);
+      }
+      return g;
+    }
+    if (id === 'board') {
+      const cols = 54, rows = 18, colsX = [[2, 17], [19, 34], [36, 51]];
+      const cards = [[0, 2, 4], [0, 6, 9], [0, 11, 13], [1, 2, 6], [1, 8, 10], [2, 2, 4], [2, 6, 8], [2, 10, 12], [2, 14, 16]];
+      const g = [];
+      for (let r = 0; r < rows; r++) {
+        const line = [];
+        for (let c = 0; c < cols; c++) {
+          let v = [0, 0];
+          if (r === 0) { colsX.forEach(cx => { if (c >= cx[0] && c <= cx[1]) v = [1, 0]; }); }
+          cards.forEach(k => {
+            const cx = colsX[k[0]];
+            if (c >= cx[0] && c <= cx[1] && r >= k[1] && r <= k[2]) {
+              const edge = r === k[1] || r === k[2] || c === cx[0] || c === cx[1];
+              v = [edge ? 3 : 1, k[0] === 1 ? 1 : 0];
+            }
+          });
+          line.push(v);
+        }
+        g.push(line);
+      }
+      return g;
+    }
+    const a = ART[id];
+    return field(a.cols, a.rows, a.fn);
+  }
+  function gridHTML(g, col) {
+    return g.map(line => line.map(v => {
+      const ch = v[2] && v[0] === -1 ? v[2] : RAMP[v[0]];
+      if (ch === ' ') return ' ';
+      return v[1] ? `<b style="color:${col}">${ch}</b>` : (v[0] === 3 ? `<i>${ch}</i>` : ch);
+    }).join('')).join('\n');
+  }
+  /* dibuja la grilla como formas, sin depender de fuentes */
+  function gridSVG(g, o) {
+    o = Object.assign({ x: 0, y: 0, cw: 12, ink: N.ink, mute: N.ink3, col: '#2f6bff' }, o);
+    const ch = o.cw / AR;
+    let out = '';
+    g.forEach((line, r) => line.forEach((v, c) => {
+      const x = o.x + c * o.cw, y = o.y + r * ch;
+      const color = v[1] ? o.col : (v[0] === 3 ? o.ink : o.mute);
+      if (v[0] === 3) out += `<path d="${poly(oct(x + o.cw * 0.16, y + ch * 0.2, x + o.cw * 0.84, y + ch * 0.8, o.cw * 0.2), true)}" fill="none" stroke="${color}" stroke-width="${f(o.cw * 0.13)}"/>`;
+      else if (v[0] === 2) out += `<path d="${poly(oct(x + o.cw * 0.22, y + ch * 0.4, x + o.cw * 0.78, y + ch * 0.8, o.cw * 0.14), true)}" fill="none" stroke="${color}" stroke-width="${f(o.cw * 0.12)}"/>`;
+      else if (v[0] === 1) out += `<rect x="${f(x + o.cw * 0.4)}" y="${f(y + ch * 0.52)}" width="${f(o.cw * 0.2)}" height="${f(o.cw * 0.2)}" fill="${color}"/>`;
+      else if (v[0] === -1 && v[2] && /[a-zá]/.test(v[2])) { const sz = o.cw * 0.62; out += text(v[2], { x: x + o.cw / 2, y: y + ch * 0.82 - 9 * sz / 6, size: sz, color: o.mute, anchor: 'middle', sw: 1.3 }).svg; }
+    }));
+    return out;
+  }
+
+  /* ---------- piezas ---------- */
+  const T = (s, o) => text(s, o).svg;
+  function hrule(x, y, w, c, sw) { return `<rect x="${x}" y="${y}" width="${w}" height="${sw || 1}" fill="${c}"/>`; }
+  function pieceOG(id) {
+    const W = 1200, H = 630;
+    const dark = !id;
+    const bg = dark ? N.night : N.paper, ink = dark ? '#fff' : N.ink, mute = dark ? N.ntext2 : N.ink3, off = dark ? N.noff : N.off;
+    let s = '';
+    const k = 6.2;
+    const idx = id ? P.findIndex(p => p.id === id) : -1;
+    s += `<g transform="translate(64 64)">${row({ k, lit: id ? idx : 'all', off, dark })}</g>`;
+    s += T(id ? 'zerosoft' : 'zerosoft.ai', { x: W - 64, y: 64, size: 18, color: mute, anchor: 'end' });
+    if (!id) {
+      s += T('el software', { x: 64, y: 250, size: 86, color: ink, sw: 1.05 });
+      s += T('murió.', { x: 64, y: 400, size: 86, color: ink, sw: 1.05 });
+      s += hrule(64, 560, W - 128, N.nrule);
+      s += T('once apps open source. self-host $0 o nube a costo × 3.', { x: 64, y: 576, size: 15, color: mute });
+      s += T('agpl-3.0', { x: W - 64, y: 576, size: 15, color: mute, anchor: 'end' });
+    } else {
+      const p = byId[id];
+      s += T(p.n, { x: 64, y: 160, size: 30, color: p.t, sw: 1.2 });
+      s += T(p.id, { x: 64, y: 222, size: 116, color: ink, sw: 0.95 });
+      s += hrule(64, 470, W - 128, N.rule);
+      s += T(p.tag, { x: 64, y: 498, size: 26, color: ink });
+      s += T('reemplaza a ' + p.rival + '. self-host $0.', { x: 64, y: 562, size: 15, color: mute });
+      const g = grid(id), gw = 430;
+      s += `<g transform="translate(${W - 64 - gw} 150)">${gridSVG(g, { cw: gw / g[0].length, col: p.c, ink: N.ink, mute: '#8d8d88' })}</g>`;
+    }
+    return svgWrap(s, W, H, bg);
+  }
+  function piecePost() {
+    const W = 1080; let s = '';
+    s += `<g transform="translate(80 80)">${row({ k: 11.4, lit: 'all', off: N.noff, dark: true })}</g>`;
+    s += T('una fila de ceros.', { x: 80, y: 400, size: 50, color: '#fff' });
+    s += T('uno por app.', { x: 80, y: 500, size: 50, color: '#fff' });
+    s += T('hoy son once.', { x: 80, y: 600, size: 50, color: N.ntext2 });
+    s += hrule(80, 900, W - 160, N.nrule);
+    s += T('zerosoft.ai', { x: 80, y: 930, size: 22, color: '#fff' });
+    s += T('open source · agpl-3.0', { x: W - 80, y: 930, size: 22, color: N.ntext2, anchor: 'end' });
+    return svgWrap(s, W, W, N.night);
+  }
+  function pieceBanner() {
+    const W = 1500, H = 500; let s = '';
+    const k = 15;
+    const rw = rowW(11, k);
+    s += `<g transform="translate(${(W - rw) / 2} 120)">${row({ k, lit: 'all', off: N.off })}</g>`;
+    s += T('el software murió.', { x: W / 2, y: 330, size: 30, color: N.ink, anchor: 'middle' });
+    s += T('01 link  02 crm  03 cal  04 track  05 chat  06 docs  07 flow  08 agents  09 notes  10 board  11 robots', { x: W / 2, y: 410, size: 11, color: N.ink3, anchor: 'middle', track: 1.7 });
+    return svgWrap(s, W, H, N.paper);
+  }
+  function pieceEmail() {
+    const W = 1200, H = 300; let s = '';
+    s += `<g transform="translate(60 64) scale(0.42)">${logo({ lit: 'all' }).svg}</g>`;
+    s += T('novedades', { x: W - 60, y: 70, size: 26, color: N.ink, anchor: 'end' });
+    s += T('octubre 2026 · número 10', { x: W - 60, y: 120, size: 15, color: N.ink3, anchor: 'end' });
+    s += hrule(60, 236, W - 120, N.ink, 2);
+    P.forEach((p, i) => { s += `<rect x="${60 + i * (W - 120) / 11}" y="236" width="${(W - 120) / 11 + 0.5}" height="6" fill="${p.c}"/>`; });
+    return svgWrap(s, W, H, N.paper);
+  }
+  function pieceCard(side) {
+    const W = 1050, H = 600; let s = '';
+    if (side === 'front') {
+      const l = logo({ lit: 'all', ink: '#fff', off: N.noff, dark: true });
+      const sc = 0.62;
+      s += `<g transform="translate(${(W - l.W * sc) / 2} ${(H - l.H * sc) / 2}) scale(${sc})">${l.svg}</g>`;
+      return svgWrap(s, W, H, N.night);
+    }
+    s += `<g transform="translate(70 70)">${row({ k: 3.2, lit: 3, off: N.off })}</g>`;
+    s += T('nombre apellido', { x: 70, y: 270, size: 34, color: N.ink });
+    s += T('fundador', { x: 70, y: 336, size: 20, color: N.ink3 });
+    s += hrule(70, 440, W - 140, N.rule);
+    s += T('github.com/lschiaffino/zerosoft', { x: 70, y: 470, size: 16, color: N.ink });
+    s += T('zerosoft.ai', { x: W - 70, y: 470, size: 18, color: N.ink3, anchor: 'end' });
+    return svgWrap(s, W, H, N.paper);
+  }
+  function pieceSticker() {
+    const W = 800; let s = '';
+    s += `<path d="${poly(oct(20, 20, 780, 780, 220), true)}" fill="${N.night}" stroke="#fff" stroke-width="14"/>`;
+    s += symbolInner(400 - 3 * 34, 120, 34, { ink: '#fff', dark: true });
+    s += T('hecho de ceros', { x: 400, y: 590, size: 30, color: '#fff', anchor: 'middle' });
+    return svgWrap(s, W, W);
+  }
+  function pieceTee() {
+    const W = 1200, H = 1300; let s = '';
+    s += `<path d="M420 90 L320 110 L80 260 L170 480 L290 420 L290 1220 L910 1220 L910 420 L1030 480 L1120 260 L880 110 L780 90 L740 140 L660 170 L540 170 L460 140 Z" fill="${N.night}"/>`;
+    s += `<path d="M460 140 L540 172 L660 172 L740 140" fill="none" stroke="#2a2a2e" stroke-width="10"/>`;
+    const k = 5.6, rw = rowW(11, k);
+    s += `<g transform="translate(${(W - rw) / 2} 380)">${row({ k, lit: 'all', off: N.noff, dark: true })}</g>`;
+    s += T('el software murió.', { x: W / 2, y: 470, size: 19, color: '#fff', anchor: 'middle' });
+    s += T('zerosoft.ai', { x: W / 2, y: 1100, size: 10, color: N.ntext2, anchor: 'middle' });
+    return svgWrap(s, W, H, N.paper2);
+  }
+  function pieceSlide() {
+    const W = 1920, H = 1080; let s = '';
+    for (let i = 1; i < 12; i++) s += `<rect x="${f(120 + i * (W - 240) / 12)}" y="0" width="1" height="${H}" fill="${N.nrule}"/>`;
+    s += `<g transform="translate(120 120)">${row({ k: 8, lit: 'all', off: N.noff, dark: true })}</g>`;
+    s += T('2026', { x: W - 120, y: 120, size: 26, color: N.ntext2, anchor: 'end' });
+    s += T('el software', { x: 120, y: 470, size: 130, color: '#fff', sw: 1 });
+    s += T('murió.', { x: 120, y: 690, size: 130, color: '#fff', sw: 1 });
+    s += hrule(120, 930, W - 240, '#fff', 2);
+    s += T('zerosoft · presentación', { x: 120, y: 960, size: 22, color: '#fff' });
+    s += T('01 / 24', { x: W - 120, y: 960, size: 22, color: N.ntext2, anchor: 'end' });
+    return svgWrap(s, W, H, N.night);
+  }
+  function lockupSVG(id, o) {
+    o = Object.assign({ dark: false }, o);
+    const p = byId[id], i = P.indexOf(p);
+    const k = 6;
+    const ink = o.dark ? '#fff' : N.ink, off = o.dark ? N.noff : N.off;
+    let s = row({ k, lit: i, off, dark: o.dark });
+    const t = text(p.id, { x: 0, y: 10 * k + 22, size: 40, color: ink });
+    s += t.svg;
+    s += T(p.n, { x: rowW(11, k), y: 10 * k + 22, size: 15, color: o.dark ? p.d : p.t, anchor: 'end' });
+    const desc = /[gjpqy]/.test(p.id) ? 3.4 * 40 / 6 : 0;
+    return svgWrap(s, rowW(11, k), 10 * k + 22 + t.h + 4 + desc, o.dark ? N.night : null);
+  }
+
+  return { P, N, byId, ZERO, oct, poly, zeroD, row, rowW, shape, text, textW, logo, logoSVG, svgWrap, symbolInner, symbolSVG, faviconSVG, appIconSVG, icon, iconInner, ICONS, grid, gridHTML, gridSVG, AR, RAMP, pieceOG, piecePost, pieceBanner, pieceEmail, pieceCard, pieceSticker, pieceTee, pieceSlide, lockupSVG };
+})();
+
+</script>
+<script>
+(function(){
+const Z = ZS, P = Z.P, N = Z.N;
+const $ = id => document.getElementById(id);
+const RM = () => document.body.classList.contains('rm') || matchMedia('(prefers-reduced-motion: reduce)').matches;
+const svg = (inner, W, H, attrs) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" ${attrs||''}>${inner}</svg>`;
+const rowSVG = (o, attrs) => { const k = o.k || 10, n = (o.n || 11) + (o.extra || 0); return svg(Z.row(Object.assign({k}, o)), Z.rowW(n, k), 10 * k, attrs); };
+const logoEl = (o, label) => { const l = Z.logo(o); return svg(l.inner, l.W, l.H, `role="img" aria-label="${label || 'zerosoft'}" style="width:100%;height:auto"`); };
+
+/* nav */
+const secs = [...document.querySelectorAll('main > section')];
+$('navlist').innerHTML = secs.map((s, i) => `<li><a href="#${s.id}"><b>${String(i + 1).padStart(2, '0')}</b>${s.dataset.t}</a></li>`).join('');
+$('chips').innerHTML = secs.map((s, i) => `<a href="#${s.id}">${String(i + 1).padStart(2, '0')} ${s.dataset.t}</a>`).join('');
+$('sideLogo').innerHTML = logoEl({});
+$('topLogo').innerHTML = logoEl({ mode: 'h', lit: 'none' });
+function onScroll(){
+  const y = scrollY + innerHeight * 0.3;
+  let cur = 0; secs.forEach((s, i) => { if (s.offsetTop <= y) cur = i; });
+  document.querySelectorAll('#navlist a, #chips a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + secs[cur].id));
+  const prog = Math.max(0, Math.min(1, scrollY / (document.documentElement.scrollHeight - innerHeight)));
+  const lit = Math.round(prog * 11);
+  const arr = [...Array(lit).keys()];
+  $('sideLogo').innerHTML = logoEl({ lit: lit ? arr : 'ink' });
+  $('topLogo').innerHTML = logoEl({ mode: 'h', lit: arr.length ? arr : 'none' });
+  $('topCount').textContent = String(cur + 1).padStart(2, '0') + '/12';
+}
+let raf; addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(onScroll); }, { passive: true });
+
+/* portada */
+let coverLit = 0;
+function drawCover(){ $('coverRow').innerHTML = rowSVG({ lit: coverLit >= 11 ? 'all' : [...Array(coverLit).keys()] }); }
+$('coverIdx').innerHTML = P.map(p => `<span>${p.n} ${p.id}</span>`).join('');
+drawCover();
+if (RM()) { coverLit = 11; drawCover(); } else { const t = setInterval(() => { coverLit++; drawCover(); if (coverLit >= 11) clearInterval(t); }, 110); }
+
+/* contador */
+let apps = 11, extra = 0, allLit = false;
+function drawCnt(){
+  $('cnt').textContent = apps + extra;
+  $('cntRow').innerHTML = rowSVG({ n: 11, extra, lit: allLit ? 'all' : 'ink' });
+  $('cntNote').textContent = extra ? `${11 + extra} apps, ${11 + extra} ceros. ${extra === 1 ? 'La nueva entra' : 'Las nuevas entran'} punteada${extra === 1 ? '' : 's'} a la derecha hasta salir a producción.` : 'Hoy: once apps, once ceros. La próxima entra punteada hasta que sale a producción.';
+}
+$('addApp').onclick = () => { if (extra < 4) extra++; drawCnt(); };
+$('subApp').onclick = () => { extra = 0; drawCnt(); };
+$('litApp').onclick = () => { allLit = !allLit; $('litApp').textContent = allLit ? 'Volver a tinta' : 'Prender todas'; drawCnt(); };
+drawCnt();
+
+/* construcción */
+(function(){
+  const k = 40, ox = 60, oy = 30, rk = 5.5, W = 60 + 6 * k + 60 + Z.rowW(7, rk) + 30, H = 10 * k + 80;
+  let s = '';
+  for (let i = 0; i <= 6; i++) s += `<line x1="${ox + i * k}" y1="${oy}" x2="${ox + i * k}" y2="${oy + 10 * k}" stroke="#e6e6e0" stroke-width="1"/>`;
+  for (let j = 0; j <= 10; j++) s += `<line x1="${ox}" y1="${oy + j * k}" x2="${ox + 6 * k}" y2="${oy + j * k}" stroke="#e6e6e0" stroke-width="1"/>`;
+  s += `<path d="${Z.poly(Z.oct(ox, oy, ox + 6 * k, oy + 10 * k, 2 * k), true)}" fill="none" stroke="#2f6bff" stroke-width="1" stroke-dasharray="4 4"/>`;
+  s += `<path d="${Z.zeroD(ox, oy, k)}" fill="none" stroke="${N.ink}" stroke-width="${1.4 * k}" stroke-linejoin="miter"/>`;
+  const lab = (x, y, t, a) => `<text x="${x}" y="${y}" font-family="Martian Mono, monospace" font-size="11" fill="${N.ink3}" text-anchor="${a || 'start'}">${t}</text>`;
+  s += lab(ox + 3 * k, oy + 10 * k + 26, '6 módulos', 'middle') + lab(ox - 14, oy + 5 * k, '10', 'end');
+  s += lab(ox + 6 * k + 12, oy + 2 * k - 30, 'chaflán 2 · 45°') + lab(ox + 6 * k + 12, oy + 5 * k, 'trazo 1,4');
+  s += `<line x1="${ox + 4 * k}" y1="${oy}" x2="${ox + 6 * k}" y2="${oy + 2 * k}" stroke="#2f6bff" stroke-width="1.5"/>`;
+  const rx = ox + 6 * k + 60;
+  s += `<g transform="translate(${rx} ${oy + 10 * k - 10 * rk})">${Z.row({ n: 7, k: rk, lit: 'ink' })}</g>`;
+  s += lab(rx, oy + 10 * k + 26, 'separación 1,5');
+  $('construct').innerHTML = svg(s, W, H, 'style="width:100%;height:auto" role="img" aria-label="Construcción del cero sobre una grilla de 6 por 10 módulos"');
+})();
+
+/* estados */
+const ST = [
+  ['Apagado', 'app sin uso', o => `<path d="${Z.zeroD(0, 0, 6)}" fill="none" stroke="${N.off}" stroke-width="8.4"/>`],
+  ['Tinta', 'logo, neutro', o => `<path d="${Z.zeroD(0, 0, 6)}" fill="none" stroke="${N.ink}" stroke-width="8.4"/>`],
+  ['Prendido', 'app activa', o => `<path d="${Z.zeroD(0, 0, 6)}" fill="none" stroke="#f2611d" stroke-width="8.4"/>`],
+  ['A medias', 'en curso', o => `<path d="${Z.zeroD(0, 0, 6)}" fill="none" stroke="#f2611d" stroke-width="8.4"/><path d="M18 8.4H25L28.6 12V48L25 51.6H18Z" fill="#f2611d"/>`],
+  ['Lleno', 'hecho', o => `<path d="${Z.zeroD(0, 0, 6)}" fill="#f2611d" stroke="#f2611d" stroke-width="8.4"/>`],
+  ['Tachado', 'cancelado', o => `<path d="${Z.zeroD(0, 0, 6)}" fill="none" stroke="${N.ink3}" stroke-width="8.4"/><path d="M4 56L32 4" stroke="${N.ink3}" stroke-width="5"/>`]
+];
+$('states').innerHTML = ST.map(s => `<div>${svg(s[2](), 36, 60)}<b>${s[0]}</b><small>${s[1]}</small></div>`).join('');
+const stMini = (i, c) => { let x = ST[i][2]().replace(/#f2611d/g, c || '#f2611d'); return svg(x, 36, 60, 'aria-hidden="true"'); };
+
+/* escribir con ceros */
+function cellMetrics(pre){
+  const cs = getComputedStyle(pre);
+  const c = document.createElement('canvas').getContext('2d');
+  c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const adv = c.measureText('0').width, lh = parseFloat(cs.lineHeight);
+  pre.style.letterSpacing = (lh * Z.AR - adv) + 'px';
+  return lh * Z.AR;
+}
+function fitArt(pre, html, cols){
+  pre.innerHTML = html;
+  const cw = cellMetrics(pre);
+  const avail = pre.parentElement.clientWidth - 2;
+  const need = cols * cw;
+  pre.style.transformOrigin = '0 0';
+  if (need > avail) { const sc = avail / need; pre.style.fontSize = (11 * sc) + 'px'; pre.style.lineHeight = (14 * sc) + 'px'; cellMetrics(pre); }
+}
+function typeZeros(){
+  const pre = $('typeOut');
+  const str = ($('typeIn').value || ' ').slice(0, 12);
+  const cols = Math.max(20, Math.min(96, Math.floor((pre.parentElement.clientWidth - 40) / (14 * Z.AR)))), rows = 16;
+  const cv = document.createElement('canvas'); cv.width = cols * 4; cv.height = rows * 4 / Z.AR;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#000'; x.fillRect(0, 0, cv.width, cv.height);
+  x.fillStyle = '#fff';
+  let fs = cv.height * 1.25; x.font = `800 ${fs}px "Hanken Grotesk"`;
+  const w = x.measureText(str).width; if (w > cv.width * 0.96) { fs *= cv.width * 0.96 / w; x.font = `800 ${fs}px "Hanken Grotesk"`; }
+  x.textBaseline = 'middle'; x.fillText(str, 2, cv.height / 2 + fs * 0.04);
+  const d = x.getImageData(0, 0, cv.width, cv.height).data;
+  const cwp = cv.width / cols, chp = cv.height / rows;
+  let out = '';
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let sum = 0, n = 0;
+      for (let yy = Math.floor(r * chp); yy < (r + 1) * chp; yy += 2) for (let xx = Math.floor(c * cwp); xx < (c + 1) * cwp; xx++) { sum += d[(yy * cv.width + xx) * 4]; n++; }
+      const v = sum / n / 255;
+      const p = P[Math.min(10, Math.floor(c / cols * 11))];
+      if (v > 0.7) out += `<b style="color:${p.d}">0</b>`; else if (v > 0.35) out += '<i>o</i>'; else if (v > 0.08) out += '·'; else out += ((r + c) % 7 === 0 ? '·' : ' ');
+    }
+    out += '\n';
+  }
+  pre.innerHTML = out; cellMetrics(pre);
+}
+$('typeIn').addEventListener('input', typeZeros);
+
+/* logo */
+$('lgInk').innerHTML = logoEl({}, 'Logo de zerosoft en tinta');
+$('lgDark').innerHTML = logoEl({ lit: 'all', ink: '#fff', off: N.noff, dark: true }, 'Logo de zerosoft en color sobre oscuro');
+$('lgColor').innerHTML = logoEl({ lit: 'all' }, 'Logo de zerosoft en color');
+$('lgH').innerHTML = logoEl({ mode: 'h', lit: 'all' }, 'Logo horizontal de zerosoft');
+(function(){
+  const l = Z.logo({}), x = 100, W = l.W + 2 * x, H = l.H + 2 * x;
+  let s = `<rect x="${x}" y="${x}" width="${l.W}" height="${l.H}" fill="none" stroke="#2f6bff" stroke-dasharray="4 4"/>`;
+  s += `<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" fill="none" stroke="#2f6bff"/>`;
+  s += `<rect x="0" y="0" width="${W}" height="${x}" fill="#2f6bff" opacity=".06"/><rect x="0" y="${H - x}" width="${W}" height="${x}" fill="#2f6bff" opacity=".06"/><rect x="0" y="${x}" width="${x}" height="${l.H}" fill="#2f6bff" opacity=".06"/><rect x="${W - x}" y="${x}" width="${x}" height="${l.H}" fill="#2f6bff" opacity=".06"/>`;
+  s += `<g transform="translate(${(x - 60) / 2} ${x})">${Z.row({ n: 1, k: 10, lit: [0], off: '#2f6bff' })}</g>`;
+  s += `<g transform="translate(${x} 0)">${Z.row({ n: 1, k: 10, lit: [0] }).replace(/stroke="[^"]+"/, 'stroke="#2f6bff"')}</g>`;
+  s += `<text x="${x / 2}" y="${x + 124}" font-family="Martian Mono, monospace" font-size="14" fill="#2f6bff" text-anchor="middle">x</text><text x="${x + 80}" y="${x / 2 + 5}" font-family="Martian Mono, monospace" font-size="14" fill="#2f6bff">x</text>`;
+  s += `<g transform="translate(${x} ${x})">${l.svg}</g>`;
+  $('clear').innerHTML = svg(s, W, H, 'style="width:100%;max-width:760px;height:auto;margin:0 auto" role="img" aria-label="Área de respeto del logo"');
+})();
+(function(){
+  const l = Z.logo({});
+  const W = l.W + 40, H = l.H + 40, g = s => svg(s, W, H, 'aria-hidden="true"');
+  const items = [
+    ['Estirar o deformar la fila', g(`<g transform="translate(20 20) scale(1 .62) translate(0 ${l.H * .3})">${l.svg}</g>`)],
+    ['Cambiar el orden de los colores', g(`<g transform="translate(20 20)">${Z.logo({ lit: 'all' }).svg.replace(/stroke="(#[0-9a-f]{6})"/g, (m, c) => { const i = P.findIndex(p => p.c === c); return i < 0 ? m : `stroke="${P[(i * 7 + 3) % 11].c}"`; })}</g>`)],
+    ['Redondear los ceros', g(`<g transform="translate(20 20)">${[...Array(11).keys()].map(i => `<rect x="${i * 75 + 7}" y="7" width="46" height="86" rx="23" fill="none" stroke="${N.ink}" stroke-width="14"/>`).join('')}${Z.text('zerosoft', { y: 132, size: (Z.logo({}).W) / (Z.shape('zerosoft').w + 1.1) * 6 }).svg}</g>`)],
+    ['Sumar ceros que no son apps', g(`<g transform="translate(20 20) scale(.8)">${Z.row({ n: 14, k: 10, lit: 'ink' })}${Z.text('zerosoft', { y: 132, size: (Z.logo({}).W) / (Z.shape('zerosoft').w + 1.1) * 6 }).svg}</g>`)]
+  ];
+  $('wrong').innerHTML = items.map(it => `<figure><div class="tile">${it[1]}</div><figcaption>${it[0]}</figcaption></figure>`).join('');
+})();
+$('lockups').innerHTML = P.map(p => `<div><img src="assets/lockup-${p.id}.svg" alt="Lockup de ${p.name}" style="width:100%;height:auto"></div>`).join('') + `<div style="display:flex;align-items:center"><p class="note" style="margin:0">El nombre del producto va en Cero Trazo, en tinta. El número de la app, en su color de texto.</p></div>`;
+
+/* tipografía */
+(function(){
+  const t1 = Z.text('ceros', { size: 56, color: '#fff', x: 0, y: 6 });
+  $('famTrazo').innerHTML = svg(t1.svg, t1.w + 2, t1.h + 10, 'style="width:78%;height:auto" aria-hidden="true"');
+  const lines = ['abcdefghijklm', 'nñopqrstuvwxyz', '0123456789', 'áéíóú .,:-/×+=$?¿()'];
+  let s = '', y = 0, W = 0;
+  lines.forEach((ln, i) => { const t = Z.text(ln, { size: 40, y, track: 3 }); s += t.svg; W = Math.max(W, t.w); y += 100; });
+  $('alpha').innerHTML = svg(s, W + 4, y - 20, 'style="width:100%;max-width:900px;height:auto" role="img" aria-label="Alfabeto de Cero Trazo"');
+})();
+
+/* color */
+const lum = h => { const c = [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+const cr = (a, b) => { const x = lum(a), y = lum(b); return ((Math.max(x, y) + .05) / (Math.min(x, y) + .05)).toFixed(2); };
+const NEU = [['Papel', N.paper, 'fondo'], ['Papel 2', N.paper2, 'superficies'], ['Regla', N.rule, 'bordes'], ['Apagado', N.off, 'ceros apagados'], ['Gris texto', N.ink3, 'secundario'], ['Gris 2', N.ink2, 'texto largo'], ['Tinta', N.ink, 'texto y logo'], ['Noche 2', N.night2, 'superficie oscura'], ['Regla noche', N.nrule, 'bordes oscuros'], ['Gris noche', N.ntext2, 'texto sobre oscuro']];
+$('neu').innerHTML = NEU.map((n, i) => { const nd = i >= 7; return `<div><div class="sw" style="background:${n[1]}"></div><b>${n[0]}</b><small>${n[1]}<br>${n[2]}<br>${nd ? (i === 9 ? cr(n[1], N.night) + ' : 1 sobre noche' : 'sobre noche') : cr(n[1], N.paper) + ' : 1 sobre papel'}</small></div>`; }).join('');
+$('prop').innerHTML = `<i style="flex:78;background:${N.paper};border:1px solid var(--rule)"></i><i style="flex:14;background:${N.ink}"></i>` + P.map(p => `<i style="flex:.727;background:${p.c}"></i>`).join('');
+$('pcs').innerHTML = P.map(p => `<div class="pc"><div class="sw" style="background:${p.c};color:${+cr(p.c, '#ffffff') >= 4.5 ? '#fff' : N.ink}"><span>${p.n}</span>${p.id}</div><b>${p.name}</b><small>tono ${p.c} · ${cr(p.c, N.paper)}:1<br>texto ${p.t} · ${cr(p.t, N.paper)}:1 AA<br>oscuro ${p.d} · ${cr(p.d, N.night)}:1 AA</small><div class="tx"><div style="color:${p.t}">Abrir ${p.name}</div><div style="color:${p.d}">Abrir ${p.name}</div></div></div>`).join('');
+
+/* íconos */
+(function(){
+  let s = '';
+  for (let i = 0; i <= 24; i++) s += `<line x1="${i}" y1="0" x2="${i}" y2="24" stroke="#e6e6e0" stroke-width=".05"/><line x1="0" y1="${i}" x2="24" y2="${i}" stroke="#e6e6e0" stroke-width=".05"/>`;
+  s += `<rect x="2" y="2" width="20" height="20" fill="none" stroke="#2f6bff" stroke-width=".06" stroke-dasharray=".3 .3"/>`;
+  s += Z.iconInner('track', 0, 0, 24, N.ink, 1.7);
+  $('igrid').innerHTML = svg(s, 24, 24, 'role="img" aria-label="Ícono de Track sobre la grilla de 24"');
+  $('isizes').innerHTML = ['link', 'cal', 'chat', 'flow'].map(id => `<div class="isz"><b>${id}</b>${[16, 20, 24, 48].map(sz => `<figure>${Z.icon(id, { size: sz, color: N.ink, sw: sz <= 16 ? 2 : 1.7 })}<figcaption>${sz}</figcaption></figure>`).join('')}</div>`).join('');
+  $('icons').innerHTML = P.map(p => `<div><div class="gl"><span style="color:${p.t}">${Z.icon(p.id, { size: 40, color: p.t })}</span><span class="apt" style="background:${p.c}">${Z.icon(p.id, { size: 32, color: lum(p.c) > .3 ? N.ink : '#fff' })}</span></div><div><b>${p.name}</b><small>${p.n} · ${p.tag}</small></div></div>`).join('') + `<div style="justify-content:center"><small>Trazo 1,7 a 24 px, 2 a 16 px. Unión en ángulo, extremos rectos.</small></div>`;
+})();
+
+/* ascii */
+const ARTS = [
+  ['link', 'Dos eslabones', 'Un link corto une dos lugares. El eslabón de adelante va en color.'],
+  ['cal', 'Un mes', 'Cada día es un par de ceros. Los ocupados se prenden.', 1],
+  ['track', 'Burndown', 'Issues abiertos por día en un ciclo. Los últimos días, en color.'],
+  ['chat', 'Conversación', 'Dos globos. El del cliente se rellena de ceros.', 1],
+  ['flow', 'Un flujo', 'Disparador, dos pasos en paralelo y una salida.'],
+  ['board', 'Tablero', 'Tres columnas de tarjetas. La del medio es la que se mueve.'],
+  ['agents', 'Agente escuchando', 'Un núcleo y cuatro anillos que se abren.', 1],
+  ['robots', 'Robot', 'Cabeza, antena y dos ojos. Se usa en el estado vacío de Robots.']
+];
+const artPre = [];
+$('arts').innerHTML = ARTS.map((a, i) => { const p = Z.byId[a[0]]; return `<figure class="art${a[3] ? ' k' : ''}"><div class="h"><span>${p.n} · ${p.id}</span><span>${a[1]}</span></div><pre class="z" data-i="${i}" aria-hidden="true"></pre><p>${a[2]}</p></figure>`; }).join('');
+function drawArts(){
+  document.querySelectorAll('#arts pre').forEach(pre => {
+    const a = ARTS[pre.dataset.i], p = Z.byId[a[0]], g = Z.grid(a[0]);
+    pre.style.fontSize = ''; pre.style.lineHeight = '';
+    fitArt(pre, Z.gridHTML(g, a[3] ? p.d : p.t), g[0].length);
+  });
+}
+function texture(kind, cols, rows){
+  let o = '';
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let ch = ' ';
+      if (kind === 0) { const v = Math.sin(c * 0.18 + r * 0.05) * 0.5 + 0.5 - r / rows * 0.6 + ((c * 7 + r * 13) % 10) / 40; ch = v > .75 ? '0' : v > .5 ? 'o' : v > .3 ? '·' : ' '; }
+      if (kind === 1) { const k = c % 14, lr = r % 3; ch = lr === 1 && k < 11 ? '0' : ' '; if (lr === 1 && k < 11 && (Math.floor(c / 14) + Math.floor(r / 3)) % 11 === k) ch = 'C' + k; }
+      if (kind === 2) { const num = String((r * Math.floor(cols / 3) + Math.floor(c / 3)) % 100).padStart(2, '0'); ch = c % 3 === 2 ? ' ' : num[c % 3]; if (ch !== '0') ch = r % 2 ? '·' : 'o'; }
+      if (ch.startsWith('C')) o += `<b style="color:${P[+ch.slice(1)].d}">0</b>`; else o += ch === '0' ? '<i>0</i>' : ch;
+    }
+    o += '\n';
+  }
+  return o;
+}
+$('tex').innerHTML = [['Campo', 'Densidad que baja. Fondo de OG y portadas.', 0, 1], ['Fila repetida', 'La fila en loop, con una app prendida por línea. Papel de regalo, remera.', 1, 1], ['Conteo', 'Del 00 al 99, solo quedan los ceros. Fondo de cargas.', 2, 0]].map(t => `<figure><div class="art${t[3] ? ' k' : ''}"><pre class="z" data-k="${t[2]}" aria-hidden="true"></pre></div><figcaption><b>${t[0]}.</b> ${t[1]}</figcaption></figure>`).join('');
+function drawTex(){ document.querySelectorAll('#tex pre').forEach(pre => { const w = pre.parentElement.clientWidth; pre.innerHTML = texture(+pre.dataset.k, Math.ceil(w / (14 * Z.AR)) + 1, 20); cellMetrics(pre); }); }
+
+/* motion */
+(function(){
+  const k = 10;
+  let s = '';
+  const step = (Z.ZERO.w + Z.ZERO.gap) * k;
+  P.forEach((p, i) => { s += `<path style="--c:${p.d};animation-delay:${i * 0.12}s" d="${Z.zeroD(i * step, 0, k)}" fill="none" stroke-width="${1.4 * k}"/>`; });
+  $('mLoad').innerHTML = svg(s, Z.rowW(11, k), 10 * k, 'class="ld-row" style="width:100%;height:auto" aria-hidden="true"');
+  let t0 = performance.now();
+  setInterval(() => { if (RM()) { $('mLoadTxt').textContent = 'cargando'; return; } const e = ((performance.now() - t0) / 1000) % 2.2; const n = Math.min(11, Math.floor(e / 0.12) + 1); $('mLoadTxt').textContent = 'cargando ' + String(e < 1.36 ? n : 11).padStart(2, '0') + '/11'; }, 60);
+})();
+let swCur = 3;
+function drawSw(){
+  $('mSwRow').innerHTML = P.map((p, i) => `<button type="button" aria-label="${p.name}" aria-pressed="${i === swCur}" data-i="${i}">${svg(`<path d="${Z.zeroD(0, 0, 2.4)}" fill="none" stroke="${i === swCur ? p.c : N.off}" stroke-width="${1.4 * 2.4}"/>`, 14.4, 24, 'style="width:12px;height:20px"')}</button>`).join('');
+  $('mSwBar').style.background = P[swCur].c;
+}
+function decode(el, to){
+  if (RM()) { el.textContent = to; return; }
+  const from = el.textContent, L = Math.max(from.length, to.length); let f = 0;
+  const id = setInterval(() => { f++; let s = ''; for (let i = 0; i < L; i++) { const done = f > i * 1.2 + 4; s += done ? (to[i] || '') : (f > i * 1.2 ? '0' : (from[i] || '')); } el.textContent = s; if (f > L * 1.2 + 5) { clearInterval(id); el.textContent = to; } }, 24);
+}
+$('mSwRow').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; swCur = +b.dataset.i; drawSw(); const p = P[swCur]; decode($('mSwTitle'), p.id); $('mSwTitle').style.color = p.t; $('mSwSub').textContent = p.n + ' · ' + p.tag; });
+drawSw(); $('mSwTitle').style.color = P[3].t;
+$('mHv').innerHTML = ['cal', 'chat', 'board'].map(id => { const p = Z.byId[id]; return `<a href="#s08" style="--c:${p.c}">${svg(`<path d="${Z.zeroD(0, 0, 2.6)}" stroke="${N.ink}" stroke-width="${1.4 * 2.6}"/>`, 15.6, 26, 'style="width:14px;height:24px"')}<span><b style="font-weight:600">${p.name}</b><br><small class="mono" style="font-size:11px;color:var(--ink3)">${p.tag}</small></span><span class="arr">${p.n} →</span><i class="tr"></i></a>`; }).join('');
+$('rmT').onchange = e => { document.body.classList.toggle('rm', e.target.checked); };
+
+/* sitio */
+$('hNavLogo').innerHTML = logoEl({ mode: 'h' });
+(function(){
+  const t1 = Z.text('el software murió.', { size: 60, x: 0, y: 2, sw: 1.05 });
+  $('hHead').insertAdjacentHTML('beforeend', svg(t1.svg, t1.w + 2, t1.h + 4, 'aria-hidden="true"'));
+})();
+$('hRow').innerHTML = P.map(p => `<a href="#s09" style="--c:${p.c}">${svg(`<path d="${Z.zeroD(0, 0, 6)}" fill="none" stroke="${p.c}" stroke-width="8.4"/>`, 36, 60)}<span><small>${p.n}</small><br><b>${p.name}</b></span></a>`).join('');
+$('hList').innerHTML = `<div><span class="n hd">#</span><span></span><span class="hd">App</span><span class="hd tg">Para</span><span class="hd rv">Reemplaza a</span><span class="hd rv">Precio de lista</span><span class="hd" style="text-align:right">Self-host</span></div>` + P.map(p => `<div><span class="n">${p.n}</span><span style="color:${p.t}">${Z.icon(p.id, { size: 24, color: p.t })}</span><span class="nm">${p.name}</span><span class="tg">${p.tag}</span><span class="rv">${p.rival}</span><span class="m rv">${p.price}</span><span class="z">$0</span></div>`).join('');
+function priceArts(){
+  $('hP1').innerHTML = 'tu servidor  <i>0</i>\nzerosoft     ·\nlicencia     <i>0</i>';
+  $('hP2').innerHTML = `costo        <i>0000</i>\nmargen       <b style="color:#be4c17">00000000</b>\nprecio       <i>000000000000</i>`;
+  [$('hP1'), $('hP2')].forEach(cellMetrics);
+}
+$('hFootRow').innerHTML = rowSVG({ lit: 'all', off: N.noff, dark: true }, 'style="width:100%;height:auto" aria-hidden="true"');
+$('tNavLogo').innerHTML = (function(){ const k = 3.2; let s = Z.row({ k, lit: 3 }); const t = Z.text('track', { x: Z.rowW(11, k) + 14, y: 0, size: 22 }); s += t.svg; return svg(s, Z.rowW(11, k) + 14 + t.w, 34, 'style="width:100%;height:auto" role="img" aria-label="zerosoft track"'); })();
+$('tFeat').innerHTML = [[0, 'Issues', 'Sub-issues, relaciones, prioridad y estimación en cada issue.'], [3, 'Ciclos', 'Planificás en ciclos y ves qué quedó pendiente al cerrar.'], [4, 'Vistas', 'Lista, tablero, calendario o Gantt sobre los mismos datos.'], [5, 'Importar', 'Traé tus issues de Linear y seguí donde estabas.']].map(f => `<div>${stMini(f[0] === 0 ? 2 : f[0], '#be4c17')}<b>${f[1]}</b><p>${f[2]}</p></div>`).join('');
+function drawProductArt(){ const g = Z.grid('track'); fitArt($('tArt'), Z.gridHTML(g, '#be4c17'), g[0].length); }
+
+/* app */
+$('aSw').innerHTML = rowSVG({ lit: 3, k: 10 }, 'style="width:100%;height:auto" role="img" aria-label="Selector de apps, Track activa"');
+const ISS = [
+  ['grp', 'En curso · 3'],
+  ['TRK-0142', 'El webhook de pagos no reintenta después de un 502', 3, 'En curso', 3, 'LS', '18 oct', 1],
+  ['TRK-0140', 'Exportar issues a CSV con sub-issues', 3, 'En curso', 2, 'MR', '19 oct'],
+  ['TRK-0137', 'Gantt: arrastrar dependencias entre ciclos', 3, 'En curso', 2, 'JP', '21 oct'],
+  ['grp', 'Por hacer · 4'],
+  ['TRK-0145', 'Atajo para mover un issue al ciclo siguiente', 2, 'Por hacer', 1, 'LS', '24 oct'],
+  ['TRK-0144', 'Vista calendario en mobile', 2, 'Por hacer', 2, 'AG', '25 oct'],
+  ['TRK-0143', 'Importar etiquetas desde Linear', 2, 'Por hacer', 3, 'MR', '28 oct'],
+  ['grp', 'Hecho · 2'],
+  ['TRK-0139', 'Estimaciones en puntos o en horas', 4, 'Hecho', 2, 'JP', '15 oct'],
+  ['TRK-0131', 'Plantillas de issue por equipo', 5, 'Cancelado', 1, 'AG', '12 oct']
+];
+const pri = n => `<span class="pri" aria-label="prioridad ${n} de 3">${[1, 2, 3].map(i => `<i class="${i > n ? 'o' : ''}" style="height:${i * 4}px"></i>`).join('')}</span>`;
+const stIco = i => stMini(i, '#f2611d');
+$('aTable').innerHTML = `<colgroup><col style="width:92px"><col><col style="width:112px"><col style="width:50px"><col style="width:46px"><col style="width:62px"></colgroup><thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Pri.</th><th>Asig.</th><th>Fecha</th></tr></thead><tbody>` + ISS.map(r => r[0] === 'grp' ? `<tr class="grp"><td colspan="6">${r[1]}</td></tr>` : `<tr class="${r[7] ? 'sel' : ''}"><td class="id">${r[0]}</td><td class="tt">${r[1]}</td><td><span class="st">${stIco(r[2])}${r[3]}</span></td><td>${pri(r[4])}</td><td><span class="av" style="width:22px;height:22px;line-height:22px;font-size:10px;display:inline-block">${r[5]}</span></td><td class="id">${r[6]}</td></tr>`).join('') + '</tbody>';
+$('aFields').innerHTML = [['Estado', `<span class="st">${stIco(3)}En curso</span>`], ['Prioridad', `${pri(3)} <span style="margin-left:6px">Urgente</span>`], ['Asignado', '<span style="display:flex;gap:8px;align-items:center"><span class="av" style="width:22px;height:22px;line-height:22px;font-size:10px">LS</span>Lautaro</span>'], ['Ciclo', '14 · termina 24 oct'], ['Estimación', '<span class="mono" style="font-size:12px">3 puntos</span>'], ['Proyecto', 'Pagos v2']].map(f => `<div><span>${f[0]}</span><span>${f[1]}</span></div>`).join('');
+$('toastIco').innerHTML = stMini(4, '#f2611d'); $('toastIco2').innerHTML = stMini(4, '#3972ff');
+$('stRow').innerHTML = [[0, 'Apagado'], [2, 'Por hacer'], [3, 'En curso'], [4, 'Hecho'], [5, 'Cancelado']].map(s => `<span class="st">${stMini(s[0], '#f2611d')}${s[1]}</span>`).join('');
+$('cTable').innerHTML = `<thead><tr><th>Contacto</th><th>Empresa</th><th>Etapa</th><th style="text-align:right">Valor</th></tr></thead><tbody>` + [['Ana Gómez', 'Pampa SRL', 3, 'Propuesta', '$4.800'], ['Martín Ruiz', 'Delta Labs', 2, 'Contacto', '$1.200'], ['Julia Paz', 'Norte Café', 4, 'Ganado', '$2.400']].map(r => `<tr><td>${r[0]}</td><td style="color:var(--ink2)">${r[1]}</td><td><span class="st">${stMini(r[2], '#7b4dff')}${r[3]}</span></td><td class="id" style="text-align:right;color:var(--ink)">${r[4]}</td></tr>`).join('') + '</tbody>';
+$('mList').innerHTML = ISS.filter(r => r[0] !== 'grp').slice(0, 8).map(r => `<div>${stIco(r[2])}<span>${r[1]}<small>${r[0]} · ${r[6]}</small></span>${pri(r[4])}</div>`).join('');
+['mTab', 'mTab2'].forEach((id, j) => { $(id).innerHTML = rowSVG({ lit: j ? 3 : 3, k: 10 }, 'style="width:100%;height:auto" aria-hidden="true"'); });
+['mTabL', 'mTabL2'].forEach(id => { $(id).innerHTML = P.map((p, i) => i === 3 ? `<b>${p.n}</b>` : `<span>${p.n}</span>`).join(''); });
+const emptyArt = (w, h) => { let o = ''; for (let r = 0; r < h; r++) { for (let c = 0; c < w; c++) { const dx = (c - (w - 1) / 2) * Z.AR, dy = r - (h - 1) / 2; const d = Math.max(Math.abs(dx) - 1.6, Math.abs(dy) - 2.6, (Math.abs(dx) + Math.abs(dy) - 3) / 1.4142); o += Math.abs(d) < 0.45 ? '<i>0</i>' : d < 0 ? ' ' : (Math.abs(d) < 1.3 ? '·' : ' '); } o += '\n'; } return o; };
+$('mEmpty').innerHTML = emptyArt(13, 8); $('cEmpty').innerHTML = emptyArt(13, 8);
+
+/* piezas */
+const PIECES = [
+  ['og-home.svg', 'OG · home', '1200 × 630', 'w'],
+  ['og-link.svg', 'OG · link', '1200 × 630', ''], ['og-cal.svg', 'OG · cal', '1200 × 630', ''],
+  ['og-track.svg', 'OG · track', '1200 × 630', ''], ['social-post.svg', 'Post cuadrado', '1080 × 1080', ''],
+  ['social-banner-x.svg', 'Banner X', '1500 × 500', 'w'],
+  ['email-header.svg', 'Header de email', '1200 × 300', 'w'],
+  ['card-front.svg', 'Tarjeta · frente', '85 × 55 mm', ''], ['card-back.svg', 'Tarjeta · dorso', '85 × 55 mm', ''],
+  ['sticker.svg', 'Sticker octogonal', '80 × 80 mm', 't'], ['tee.svg', 'Remera', 'estampa frente 28 cm', 't'], ['app-icon.svg', 'Ícono de app', '1024 × 1024', 't'],
+  ['slide-cover.svg', 'Portada de slide', '1920 × 1080', 'w']
+];
+$('pieces').innerHTML = PIECES.map(p => `<figure class="${p[3]}"><img src="assets/${p[0]}" alt="${p[1]}" decoding="async"><figcaption><span>${p[1]}</span><span>${p[2]}</span></figcaption></figure>`).join('');
+
+/* descargas */
+const FILES = [
+  ['logo.svg', 'logo · tinta'], ['logo-dark.svg', 'logo · sobre oscuro'], ['logo-color.svg', 'logo · color'], ['logo-color-dark.svg', 'logo · color oscuro'], ['logo-horizontal.svg', 'logo · horizontal'],
+  ['symbol.svg', 'símbolo'], ['symbol-dark.svg', 'símbolo · oscuro'], ['favicon.svg', 'favicon 32'], ['favicon-16.svg', 'favicon 16'], ['app-icon.svg', 'ícono 1024'],
+  ['icons.svg', 'sprite de íconos']
+].concat(P.map(p => ['icon-' + p.id + '.svg', 'ícono · ' + p.id])).concat(P.map(p => ['lockup-' + p.id + '.svg', 'lockup · ' + p.id])).concat(PIECES.filter(p => p[0] !== 'app-icon.svg').map(p => [p[0], p[1].toLowerCase()]));
+$('dl').innerHTML = FILES.map(f => `<a href="assets/${f[0]}" download>${f[0]}<span>${f[1]}</span></a>`).join('');
+
+function layout(){ drawArts(); drawTex(); typeZeros(); priceArts(); drawProductArt(); onScroll(); }
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(layout);
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 150); });
+layout();
+})();
+</script>
+</body>
+</html>

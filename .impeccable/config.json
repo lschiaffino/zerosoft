@@ -29,6 +29,15 @@
         ],
         "createdAt": "2026-10-17T05:44:17.002Z",
         "reason": "Claude: copia publicada de la misma página de exploración"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          "public/nuevo-branding/index.html"
+        ],
+        "createdAt": "2026-10-17T20:41:35.835Z",
+        "reason": "Claude: índice de propuestas de marca, página de exploración fuera del sistema de producto"
       }
     ]
   }

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propuestas de marca</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--ink:#0d0d0d;--ink-2:#4a4a4a;--line:#e3e3e3}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d0d0d;--ink:#f2f2ee;--ink-2:#a9a9a3;--line:#2a2a28}}
+:root[data-theme="dark"]{--bg:#0d0d0d;--ink:#f2f2ee;--ink-2:#a9a9a3;--line:#2a2a28}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5;font-family:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace}
+main{max-width:1080px;margin:0 auto;padding:64px 16px 96px}
+pre.zeros{font-size:11px;line-height:1;color:var(--ink-2);overflow:hidden;white-space:pre;user-select:none}
+h1{font-size:clamp(30px,5vw,52px);font-weight:600;letter-spacing:-.03em;line-height:1.05;margin-top:28px}
+p.lede{max-width:620px;margin-top:14px;color:var(--ink-2)}
+ol{list-style:none;margin-top:44px;border-top:1px solid var(--ink)}
+li a{display:grid;grid-template-columns:56px 1fr auto;gap:16px;align-items:baseline;padding:22px 0;border-bottom:1px solid var(--line);text-decoration:none;color:inherit}
+li a:hover .n,li a:focus-visible .n{text-decoration:underline;text-underline-offset:5px}
+.i{color:var(--ink-2)}
+.n{font-size:clamp(22px,3vw,32px);font-weight:600;letter-spacing:-.02em}
+.d{display:block;color:var(--ink-2);font-size:14px;margin-top:4px}
+.go{color:var(--ink-2)}
+h2{font-size:13px;font-weight:600;margin-top:56px;text-transform:uppercase;letter-spacing:.06em}
+.prev{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 28px}
+.prev a{color:inherit}
+@media (max-width:560px){li a{grid-template-columns:40px 1fr}.go{display:none}}
+</style>
+</head>
+<body>
+<main>
+<pre class="zeros" aria-hidden="true" id="z"></pre>
+<h1>Cinco marcas hechas de ceros.</h1>
+<p class="lede">Cada propuesta es una guía completa: sistema del cero, logo, tipografía, color, íconos de las 11 apps, ilustraciones, motion, el sitio y la app aplicados, piezas y archivos para descargar. Recorrelas y decime cuál seguimos, o qué mezclar.</p>
+<ol>
+  <li><a href="grabado/index.html"><span class="i">01</span><span><span class="n">Grabado</span><span class="d">Ceros de distintos tamaños como halftone de imprenta. Papel, tinta y color por producto.</span></span><span class="go">ver →</span></a></li>
+  <li><a href="terminal/index.html"><span class="i">02</span><span><span class="n">Terminal</span><span class="d">zerosoft como herramienta de línea de comando, con [0] como logo. Modo oscuro y modo papel.</span></span><span class="go">ver →</span></a></li>
+  <li><a href="bitmap/index.html"><span class="i">03</span><span><span class="n">Bitmap</span><span class="d">Un alfabeto de píxeles donde cada píxel es un 0. Afiche y merch.</span></span><span class="go">ver →</span></a></li>
+  <li><a href="once/index.html"><span class="i">04</span><span><span class="n">Once ceros</span><span class="d">Una fila de ceros, uno por app. Suiza, precisa, con un truco que se recuerda.</span></span><span class="go">ver →</span></a></li>
+  <li><a href="perforado/index.html"><span class="i">05</span><span><span class="n">Perforado</span><span class="d">Tarjetas perforadas, impresora matricial y papel continuo. Los ceros son agujeros.</span></span><span class="go">ver →</span></a></li>
+</ol>
+<h2>Antes</h2>
+<div class="prev"><a href="ceros.html">Exploración de 6 direcciones</a><a href="/es/nuevo-branding/subte">Marca subte</a><a href="/es/brand">Marca actual</a></div>
+</main>
+<script>
+(function(){
+  var el=document.getElementById('z'),R=' ·oO0',t=0;
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function draw(){
+    var cols=Math.max(20,Math.floor(el.clientWidth/6.6)),rows=9,s='';
+    for(var y=0;y<rows;y++){for(var x=0;x<cols;x++){
+      var v=(Math.sin(x*.22+t)+Math.sin(y*.9-t*.7)+Math.sin((x+y)*.12+t*.4))/3;
+      s+=R[Math.max(0,Math.min(4,Math.floor((v+1)/2*5)))];
+    }s+='\n'}
+    el.textContent=s;
+  }
+  draw();addEventListener('resize',draw);
+  if(!reduce)setInterval(function(){t+=.08;draw()},80);
+})();
+</script>
+</body>
+</html>
