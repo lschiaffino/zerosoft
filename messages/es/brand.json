@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Marca",
-    "description": "La guía de marca de zerosoft: el nombre, el logo, las estaciones, las once líneas, la tipografía, la voz y el plano de la suite. Con el kit para descargar."
+    "title": "Nuevo branding: Red de subte",
+    "description": "Tema de marca opcional en exploración: el nombre, el logo, las estaciones, las once líneas, la tipografía, la voz y el plano de la suite."
   },
   "nav": {
     "label": "Secciones de la guía",
@@ -249,5 +249,40 @@
     "body": "Para notas, entrevistas o material que no esté en el kit, escribinos.",
     "github": "El código, en GitHub",
     "site": "Ir a zerosoft.ai"
+  },
+  "default": {
+    "meta": {
+      "title": "Marca",
+      "description": "La marca de zerosoft: el cero, el color de cada app y la tipografía."
+    },
+    "title": "La marca",
+    "lead": "Blanco, negro y ceros. El color es de las apps: marca dónde estás.",
+    "home": "zerosoft.ai, inicio",
+    "backToSite": "Ir a zerosoft.ai",
+    "logoTitle": "Logo",
+    "logoBody": "El cero y el nombre en minúscula, en mono. El cero solo es el ícono: favicon, app y avatar.",
+    "onLight": "Sobre blanco",
+    "onDark": "Sobre tinta",
+    "symbol": "Ícono",
+    "colorsTitle": "Colores",
+    "neutralsTitle": "Neutros",
+    "neutrals": {
+      "white": "Blanco",
+      "ink": "Tinta",
+      "gray1": "Gris 1",
+      "gray2": "Gris 2",
+      "gray3": "Gris 3, el mínimo para texto",
+      "rule": "Filete"
+    },
+    "productsTitle": "Un color por app",
+    "productsBody": "Cada app tiene su color y se usa como acento: el cero de la app, el ítem activo, una línea de un gráfico. Nunca de fondo de una página.",
+    "typeTitle": "Tipografía",
+    "sans": "Títulos, interfaz y lectura.",
+    "mono": "Datos, código y rótulos.",
+    "copy": "Copiar {value}",
+    "copied": "Copiado",
+    "themesTitle": "Temas",
+    "themesBody": "Hay un tema alternativo en exploración: Red de subte. Se puede ver en su guía o probar en todo el sitio con ?brand=subte (?brand=default vuelve a esta marca).",
+    "themesLink": "Ver la guía de Red de subte"
   }
 }

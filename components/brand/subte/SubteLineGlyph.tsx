@@ -1,13 +1,13 @@
 import { BRAND_WHITE, brandLine } from '@/lib/brand';
 import type { ProductKey } from '@/lib/products';
-import Station from './Station';
+import Station from '../Station';
 
 /**
- * La marca de cada producto: su estación, con el anillo en el color de su
+ * Marca de producto del tema subte: su estación, con el anillo en el color de su
  * línea. `onLine` la dibuja sobre un tramo de la línea (16:8 del diámetro),
  * como aparece en el plano.
  */
-export default function LineGlyph({
+export default function SubteLineGlyph({
   product,
   size = 16,
   onLine = false,

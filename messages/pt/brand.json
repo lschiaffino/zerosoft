@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Marca",
-    "description": "O guia de marca da zerosoft: o nome, o logo, as estações, as onze linhas, a tipografia, a voz e o mapa da suíte. Com o kit para baixar."
+    "title": "Nova marca: Rede de metrô",
+    "description": "Tema de marca opcional em exploração: o nome, o logo, as estações, as onze linhas, a tipografia, a voz e o mapa da suíte."
   },
   "nav": {
     "label": "Seções do guia",
@@ -249,5 +249,40 @@
     "body": "Para matérias, entrevistas ou material que não esteja no kit, escreva para nós.",
     "github": "O código, no GitHub",
     "site": "Ir para zerosoft.ai"
+  },
+  "default": {
+    "meta": {
+      "title": "Marca",
+      "description": "A marca da zerosoft: o zero, a cor de cada app e a tipografia."
+    },
+    "title": "A marca",
+    "lead": "Branco, preto e zeros. A cor é dos apps: mostra onde você está.",
+    "home": "zerosoft.ai, início",
+    "backToSite": "Ir para zerosoft.ai",
+    "logoTitle": "Logo",
+    "logoBody": "O zero e o nome em minúscula, em mono. O zero sozinho é o ícone: favicon, app e avatar.",
+    "onLight": "Sobre branco",
+    "onDark": "Sobre tinta",
+    "symbol": "Ícone",
+    "colorsTitle": "Cores",
+    "neutralsTitle": "Neutros",
+    "neutrals": {
+      "white": "Branco",
+      "ink": "Tinta",
+      "gray1": "Cinza 1",
+      "gray2": "Cinza 2",
+      "gray3": "Cinza 3, o mínimo para texto",
+      "rule": "Filete"
+    },
+    "productsTitle": "Uma cor por app",
+    "productsBody": "Cada app tem sua cor, usada como destaque: o zero do app, o item ativo, uma linha de gráfico. Nunca como fundo de página.",
+    "typeTitle": "Tipografia",
+    "sans": "Títulos, interface e leitura.",
+    "mono": "Dados, código e rótulos.",
+    "copy": "Copiar {value}",
+    "copied": "Copiado",
+    "themesTitle": "Temas",
+    "themesBody": "Há um tema alternativo em exploração: Rede de metrô. Veja o guia ou teste no site inteiro com ?brand=subte (?brand=default volta para esta marca).",
+    "themesLink": "Ver o guia da Rede de metrô"
   }
 }

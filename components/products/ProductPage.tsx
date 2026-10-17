@@ -6,9 +6,10 @@ import Icon from '@/components/site/Icon';
 import { GITHUB_URL, HAS_API, PRODUCT_PAGES, SECTION_IDS, type PageSection } from '@/components/site/catalog';
 import SectionSign from '@/components/site/SectionSign';
 import SiteNetworkMap from '@/components/site/SiteNetworkMap';
+import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
 import EndLines from '@/components/site/EndLines';
-import Station from '@/components/brand/Station';
+import BrandSymbol from '@/components/brand/BrandSymbol';
 import BrowserFrame from './BrowserFrame';
 import ProductLineNav from './ProductLineNav';
 import VideoPlayer from '@/components/VideoPlayer';
@@ -111,7 +112,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
           <ol className="pd-steps">
             {STEP_IDS.map((id) => (
               <li className="pd-step" key={id}>
-                <Station size={24} className="pd-step-station" />
+                <BrandSymbol size={24} className="pd-step-station" />
                 <h3>{t(`${p}.steps.${id}.t`)}</h3>
                 <p>{t(`${p}.steps.${id}.d`)}</p>
               </li>
@@ -175,7 +176,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
             <p className="pd-compare-label">{t('product.compareZero')}</p>
             <span className="pd-compare-num">{t(`${p}.compare.zero`)}</span>
             <span className="pd-compare-line" aria-hidden="true">
-              <Station size={28} />
+              <BrandSymbol size={28} />
             </span>
             <p className="pd-compare-zero-note">{tcm('model.a.desc')}</p>
             <a className="btn btn-invert" href={GITHUB_URL} target="_blank" rel="noreferrer">
@@ -247,7 +248,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
             )}
           </div>
         </div>
-        <SiteNetworkMap focus={product} className="pd-hero-map" />
+        <HeroVisual focus={product} className="pd-hero-map" map={<SiteNetworkMap focus={product} className="pd-hero-map" />} />
       </section>
 
       <ProductLineNav product={product} stops={stops} label={t('product.navLabel', { name: cfg.name })} />

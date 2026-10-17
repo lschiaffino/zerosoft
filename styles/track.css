@@ -63,7 +63,7 @@
   gap: 10px;
   padding-bottom: 16px;
   margin-bottom: 24px;
-  border-bottom: 4px solid var(--brand-enamel);
+  border-bottom: var(--stroke-rule) solid var(--brand-enamel);
 }
 
 /* ---------- Cabecera del proyecto ---------- */
@@ -879,7 +879,7 @@ dialog.ui-drawer.track-drawer {
 .track-detail-head {
   padding-bottom: 16px;
   margin-bottom: 24px;
-  border-bottom: 4px solid var(--ink);
+  border-bottom: var(--stroke-rule) solid var(--ink);
 }
 
 .track-breadcrumb {
@@ -913,8 +913,8 @@ dialog.ui-drawer.track-drawer {
 .track-detail-title {
   margin-top: 8px;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 2rem;
   line-height: 1.05;
   letter-spacing: -0.005em;
@@ -1672,8 +1672,9 @@ a.track-board-card-title:hover {
 .track-calendar-title,
 .track-gantt-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.375rem;
   line-height: 1.1;
 }
@@ -2245,7 +2246,7 @@ a.track-board-card-title:hover {
     overflow: auto;
     padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
     background: var(--bg);
-    border-top: 4px solid var(--ink);
+    border-top: var(--stroke-rule) solid var(--ink);
   }
 
   .track-filters.is-sheet-open .track-filter-sheet-head {
@@ -2259,8 +2260,9 @@ a.track-board-card-title:hover {
 
   .track-filter-sheet-title {
     font-family: var(--font-signage);
-    font-stretch: 75%;
-    font-weight: 800;
+    letter-spacing: var(--signage-tracking);
+    font-stretch: var(--signage-stretch);
+    font-weight: var(--signage-weight);
     font-size: 1.25rem;
   }
 

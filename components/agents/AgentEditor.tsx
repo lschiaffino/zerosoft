@@ -19,7 +19,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import EmptyState from '@/components/ui/EmptyState';
-import LineGlyph from '@/components/brand/LineGlyph';
+import ProductGlyph from '@/components/brand/ProductGlyph';
 import AgentChat from './AgentChat';
 import AgentConversations from './AgentConversations';
 import { api, chatLabels, errorText } from './agents-ui';
@@ -931,7 +931,7 @@ export default function AgentEditor(props: Props) {
               {AGENT_TOOL_GROUP_ORDER.map((g) => (
                 <section key={g.key} className="ag-tool-group" aria-labelledby={`ag-group-${g.key}`}>
                   <h2 className="ag-tool-group-title" id={`ag-group-${g.key}`}>
-                    <LineGlyph product={g.product} size={12} onLine />
+                    <ProductGlyph product={g.product} size={12} onLine />
                     {PRODUCT_CONFIG[g.product].name}
                   </h2>
                   <ul className="ag-tool-list">{agentToolsInGroup(g.key).map(renderTool)}</ul>

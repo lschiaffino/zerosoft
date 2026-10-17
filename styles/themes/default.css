@@ -1,0 +1,98 @@
+/* ============================================
+   Tema de marca DEFAULT: zerosoft.ai.
+   Blanco, negro y ceros. El cero (ZeroMark) y "zerosoft.ai" en mono,
+   Space Grotesk para leer y titular, IBM Plex Mono para datos y rótulos.
+   El color es de los productos: marca dónde estás, no decora.
+
+   Estos tokens son la interfaz de un tema: cada tema opcional
+   (styles/themes/<tema>.css) redefine los mismos nombres bajo
+   html[data-brand="<tema>"]. Ver lib/brand-theme.ts.
+   ============================================ */
+
+:root {
+  /* Neutros (contraste sobre blanco medido con WCAG 2.2). */
+  --brand-white: #ffffff;
+  --brand-enamel: #f5f5f5;
+  --brand-ink: #0d0d0d;
+  --brand-gray-1: #4a4a4a; /* 8,9:1 */
+  --brand-gray-2: #5e5e5e; /* 6,5:1 */
+  --brand-gray-3: #6e6e6e; /* 5,1:1, el gris más claro para texto */
+  --brand-rule: #e8e8e8;
+  --brand-on-ink: #ffffff;
+  --brand-on-ink-2: #b3b3b3; /* 9,4:1 sobre #0d0d0d */
+
+  /* Tipografía. --font-signage es la voz de los títulos de cada tema. */
+  --font-signage: var(--font-space-grotesk), -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-ui: var(--font-space-grotesk), -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-data: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  /* Cómo se dibuja un título (los estilos usan estos tokens junto a --font-signage). */
+  --signage-stretch: 100%;
+  --signage-weight: 500;
+  --signage-tracking: -0.02em;
+  --signage-leading: 1.05;
+  /* Escala de títulos (px a 1440). */
+  --t-display: clamp(2.75rem, 5.2vw, 4.75rem); /* 76 */
+  --t-h1: clamp(2.25rem, 3.8vw, 3.5rem); /* 56 */
+  --t-h2: clamp(1.75rem, 2.9vw, 2.625rem); /* 42 */
+  --t-h3: 1.75rem; /* 28 */
+
+  /* Forma: casi recta. Nada de pastillas ni tarjetas infladas. */
+  --radius-0: 0;
+  --radius-1: 3px;
+
+  /* Filete de sección: una línea fina de tinta. */
+  --stroke-rule: 1px;
+
+  /* Superficies de la interfaz (ver styles/ui.css). */
+  --ui-hover: #f3f3f3;
+  --ui-press: #e8e8e8;
+  /* Borde de un campo: 3,3:1 sobre blanco (WCAG 1.4.11). */
+  --ui-field: #8c8c8c;
+
+  /* Chrome: header del sitio, banda de la app, header del board. */
+  --chrome-bg: var(--brand-white);
+  --chrome-fg: var(--brand-ink);
+  --chrome-fg-2: var(--brand-gray-2);
+  --chrome-fg-3: var(--brand-gray-3);
+  --chrome-line: var(--brand-rule);
+  --chrome-hover: var(--ui-hover);
+  --chrome-border: 1px solid var(--brand-rule);
+  --chrome-active-bg: var(--brand-ink);
+  --chrome-active-fg: var(--brand-white);
+  --chrome-focus: var(--brand-ink);
+
+  /* Sidebar de la app. */
+  --side-bg: #fafafa;
+
+  /* Cartel de sección del sitio (SectionSign): rótulo sobre blanco con filete. */
+  --sign-bg: transparent;
+  --sign-fg: var(--brand-ink);
+  --sign-fg-2: var(--brand-gray-2);
+  --sign-border: 1px solid var(--brand-ink);
+}
+
+/* El logo default: el cero y el nombre en mono. */
+.brand-logo-default {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  line-height: 1;
+}
+.brand-logo-default .zero-mark { display: block; flex-shrink: 0; transition: transform 0.4s var(--ease-out-expo); }
+a:hover > .brand-logo-default .zero-mark { transform: scaleX(0.82); }
+.brand-logo-default .brand-name {
+  font-family: var(--font-data);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* La marca de cada producto: un cero en su color. */
+.product-zero { display: inline-block; flex-shrink: 0; color: var(--accent); vertical-align: -0.08em; }
+.brand-symbol { display: inline-block; flex-shrink: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo-default .zero-mark { transition: none; }
+}

@@ -1,8 +1,10 @@
 /* ============================================================
-   APP SHELL: banda de señalética + el sidebar como línea del producto.
-   --accent es la línea activa (AppSidebar la inyecta por SSR):
+   APP SHELL: banda arriba + sidebar del producto.
+   --accent es el color del producto activo (AppSidebar lo inyecta por SSR):
    --accent (trazo y relleno), --accent-ink (texto), --accent-on (texto
    sobre relleno). Medidas: banda 48px, sidebar 240px (56px colapsado).
+   Colores del chrome: tokens --chrome-* del tema. Lo propio del tema subte
+   (banda negra, línea y estaciones) vive en styles/themes/subte.css.
    ============================================================ */
 
 .app-frame {
@@ -31,7 +33,7 @@
   padding: 24px 32px 104px;
 }
 
-/* ---------- Banda de señalética ---------- */
+/* ---------- Banda ---------- */
 
 .app-band {
   grid-area: band;
@@ -43,10 +45,11 @@
   gap: 4px;
   height: var(--band-h);
   padding: 0 10px 0 8px;
-  color: var(--brand-on-ink);
-  background: var(--brand-ink);
+  color: var(--chrome-fg);
+  background: var(--chrome-bg);
+  border-bottom: var(--chrome-border);
 }
-.app-band :focus-visible { outline-color: var(--brand-on-ink); outline-offset: -2px; }
+.app-band :focus-visible { outline-color: var(--chrome-focus); outline-offset: -2px; }
 
 .band-btn,
 .band-home {
@@ -64,7 +67,7 @@
   cursor: pointer;
 }
 .band-btn:hover,
-.band-home:hover { background: #262626; }
+.band-home:hover { background: var(--chrome-hover); }
 .band-menu { display: none; }
 
 .band-switcher { position: relative; flex-shrink: 0; }
@@ -81,19 +84,19 @@
   cursor: pointer;
 }
 .band-product:hover,
-.band-product[aria-expanded='true'] { background: #262626; }
+.band-product[aria-expanded='true'] { background: var(--chrome-hover); }
 .band-product-name {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.375rem;
   line-height: 1;
   letter-spacing: -0.005em;
 }
-.band-product svg:last-child { color: var(--brand-on-ink-2); transition: transform var(--ui-dur) var(--ease); }
+.band-product svg:last-child { color: var(--chrome-fg-2); transition: transform var(--ui-dur) var(--ease); }
 .band-product[aria-expanded='true'] svg:last-child { transform: rotate(180deg); }
 
-/* El switcher: las once líneas, cada una con su glifo. */
+/* El switcher: las once apps, cada una con su marca. */
 .band-menu-panel {
   position: absolute;
   top: calc(100% + 4px);
@@ -115,8 +118,9 @@
   height: 36px;
   padding: 0 10px;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.125rem;
   color: var(--ink);
   text-decoration: none;
@@ -141,9 +145,9 @@
   min-width: 0;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--brand-on-ink-2);
+  color: var(--chrome-fg-2);
 }
-.band-sep { margin: 0 10px 0 4px; color: #6b6b6b; }
+.band-sep { margin: 0 10px 0 4px; color: var(--chrome-fg-3); }
 .band-section-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .band-right { display: flex; align-items: center; gap: 4px; margin-left: auto; }
@@ -156,14 +160,14 @@
   padding: 0 6px 0 10px;
   font-family: var(--font-ui);
   font-size: 0.8125rem;
-  color: var(--brand-on-ink-2);
+  color: var(--chrome-fg-2);
   background: none;
-  border: 1px solid #3d3d3d;
+  border: 1px solid var(--chrome-line);
   border-radius: var(--radius-1);
   cursor: pointer;
   transition: border-color var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
 }
-.band-search:hover { color: var(--brand-on-ink); border-color: var(--brand-on-ink-2); }
+.band-search:hover { color: var(--chrome-fg); border-color: var(--chrome-fg-2); }
 .band-search .kbd { margin-left: auto; }
 
 /* Avisos en la banda. */
@@ -175,10 +179,10 @@
   border: 0;
 }
 .app-band .side-bell:hover,
-.app-band .side-bell[aria-expanded='true'] { background: #262626; }
+.app-band .side-bell[aria-expanded='true'] { background: var(--chrome-hover); }
 .app-band .side-bell svg { width: 16px; height: 16px; }
 
-/* ---------- Sidebar: la línea del producto ---------- */
+/* ---------- Sidebar del producto ---------- */
 
 .side {
   grid-area: side;
@@ -191,7 +195,7 @@
   padding: 12px 8px 8px;
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--brand-enamel);
+  background: var(--side-bg);
   border-right: 1px solid var(--line);
 }
 
@@ -207,29 +211,16 @@
   text-overflow: ellipsis;
 }
 
-/* La línea: un trazo de 6px que pasa por el centro de cada estación
-   (estación de 16px a 12px del borde del ítem: centro en x = 20). */
+/* La lista de ítems (en el tema subte, la línea con sus estaciones). */
 .side-line {
   position: relative;
   display: flex;
   flex-direction: column;
   padding: 4px 0;
 }
-.side-line::before {
-  content: '';
-  position: absolute;
-  z-index: 1;
-  top: 22px;
-  bottom: 22px;
-  left: 17px;
-  width: 6px;
-  border-radius: 3px;
-  background: var(--accent);
-  pointer-events: none;
-}
 
 .side-section {
-  padding: 14px 8px 4px 40px;
+  padding: 14px 8px 4px 12px;
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.2;
@@ -250,23 +241,13 @@
   transition: background-color var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
 }
 .side-stop:hover { color: var(--ink); background: var(--ui-hover); }
-.side-stop.active { color: var(--ink); font-weight: 600; background: var(--bg); }
+.side-stop.active { color: var(--ink); font-weight: 600; background: var(--bg); box-shadow: inset 2px 0 0 var(--accent); }
 .side-stop:focus-visible { outline-offset: -2px; }
 
-/* La estación: blanca con anillo de tinta (0,44 del radio); la activa se
-   rellena con el color de la línea. Es el único círculo del shell. */
-.side-station {
-  position: relative;
-  z-index: 2;
-  flex: 0 0 16px;
-  width: 16px;
-  height: 16px;
-  background: var(--brand-white);
-  border: 3.5px solid var(--brand-ink);
-  border-radius: 50%;
-  transition: background-color var(--ui-dur) var(--ease);
-}
-.side-stop.active .side-station { background: var(--accent); }
+/* El ícono de cada ítem; el del activo toma el color del producto. */
+.side-icon { display: inline-flex; flex: 0 0 16px; justify-content: center; color: var(--brand-gray-2); }
+.side-stop:hover .side-icon { color: var(--ink); }
+.side-stop.active .side-icon { color: var(--accent-ink); }
 
 .side-stop .side-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-badge {
@@ -389,7 +370,7 @@
 }
 .side-signout:hover { color: var(--ink); }
 
-/* ---------- Colapsado (≥1024px): solo las estaciones ---------- */
+/* ---------- Colapsado (≥1024px): solo los íconos (o las estaciones) ---------- */
 
 @media (min-width: 1024px) {
   .app-frame { transition: grid-template-columns 200ms var(--ease); }
@@ -423,8 +404,8 @@
   }
   .band-menu { display: inline-flex; }
   .band-crumb { display: none; }
-  .band-search { width: 40px; height: 40px; padding: 0; justify-content: center; border: 0; color: var(--brand-on-ink); }
-  .band-search:hover { background: #262626; }
+  .band-search { width: 40px; height: 40px; padding: 0; justify-content: center; border: 0; color: var(--chrome-fg); }
+  .band-search:hover { background: var(--chrome-hover); }
   .band-search-label,
   .band-search .kbd { display: none; }
 
@@ -458,7 +439,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-frame, .side, .side.open, .side-stop, .side-station { transition: none; }
+  .app-frame, .side, .side.open, .side-stop { transition: none; }
 }
 
 /* ---------- Búsqueda ⌘K ---------- */
@@ -717,8 +698,8 @@
   font-size: 0.625rem;
   line-height: 16px;
   text-align: center;
-  color: var(--brand-ink);
-  background: var(--brand-white);
+  color: var(--chrome-active-fg);
+  background: var(--chrome-active-bg);
   border-radius: var(--radius-1);
 }
 .side-bell-panel {
@@ -746,8 +727,9 @@
 }
 .side-bell-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.125rem;
 }
 .side-bell-markall {
@@ -937,8 +919,9 @@ button.view-tab {
 .page-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .page-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 2rem;
   line-height: 1.05;
 }
@@ -1008,4 +991,54 @@ td.cell-actions > * + * { margin-left: 4px; }
 @media (max-width: 720px) {
   .breakdown-row { grid-template-columns: minmax(70px, 110px) 1fr auto; }
   table.keys-table, .owner-table { display: block; overflow-x: auto; max-width: 100%; }
+}
+
+/* ---------- Inicio de la app ---------- */
+
+/* Marca default: las once apps en una grilla, cada una con su cero.
+   (En el tema subte el inicio es el plano de red: styles/network.css.) */
+.app-home-apps ul {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 12px;
+}
+.app-home-app {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  align-content: start;
+  column-gap: 12px;
+  row-gap: 4px;
+  height: 100%;
+  padding: 16px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  transition: border-color var(--ui-dur) var(--ease), background-color var(--ui-dur) var(--ease);
+}
+.app-home-app:hover { border-color: var(--ink); }
+.app-home-app:focus-visible { outline-offset: 2px; }
+.app-home-app .product-zero { justify-self: center; }
+.app-home-app-name { font-size: 1rem; font-weight: 600; line-height: 1.2; }
+.app-home-app-desc { grid-column: 2; font-size: 0.8125rem; line-height: 1.4; color: var(--brand-gray-1); }
+
+.app-home-sub {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+  font-family: var(--font-signage);
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+@media (max-width: 720px) {
+  .app-home-apps ul { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .app-home-app { padding: 12px; }
 }

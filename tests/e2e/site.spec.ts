@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Sitio público con la marca "Red de subte": el plano vivo en el home, la
- * línea del producto como índice de su página, los precios con costo y
- * precio, y las páginas de lectura sin errores de JS.
+ * Sitio público: el primer viewport (el cero de ceros en la marca default, el
+ * plano de la red en el tema subte), el índice de secciones de cada producto,
+ * los precios con costo y precio, y las páginas de lectura sin errores de JS.
  */
 
 const PAGES = [
@@ -31,8 +31,16 @@ for (const path of PAGES) {
   });
 }
 
-test('el home abre con el plano de la red y cada línea lleva a su producto', async ({ page }) => {
+test('marca default: el home abre con el cero de ceros, sin el plano de subte', async ({ page }) => {
   await page.goto('/es', { waitUntil: 'networkidle' });
+  await expect(page.locator('html')).toHaveAttribute('data-brand', 'default');
+  await expect(page.locator('.lp-hero .hero-field')).toBeVisible();
+  await expect(page.locator('.lp-hero .net')).toHaveCount(0);
+  await expect(page.locator('.site-header .brand')).toContainText('zerosoft.ai');
+});
+
+test('tema subte: el home abre con el plano de la red y cada línea lleva a su producto', async ({ page }) => {
+  await page.goto('/es?brand=subte', { waitUntil: 'networkidle' });
   const map = page.locator('.lp-hero .net');
   await expect(map).toBeVisible();
   // Once terminales, una por app, cada una con el link a su página.
@@ -43,8 +51,8 @@ test('el home abre con el plano de la red y cada línea lleva a su producto', as
   await expect(map.locator('.net-caption-text')).toContainText('Cal: cada reserva');
 });
 
-test('todas las estaciones del plano quedan visibles al terminar la animación', async ({ page }) => {
-  await page.goto('/es', { waitUntil: 'load' });
+test('tema subte: todas las estaciones del plano quedan visibles al terminar la animación', async ({ page }) => {
+  await page.goto('/es?brand=subte', { waitUntil: 'load' });
   await page.waitForTimeout(2000);
   const hidden = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.lp-hero .net-stop'))
@@ -66,7 +74,7 @@ test('la tabla de precios muestra costo y precio (× 3)', async ({ page }) => {
   await expect(clicks.locator('td').nth(3)).toHaveText(/2,50/);
 });
 
-test('la línea del producto es el índice de la página', async ({ page }) => {
+test('el índice de secciones del producto sigue la lectura', async ({ page }) => {
   await page.goto('/es/products/link', { waitUntil: 'networkidle' });
   const nav = page.getByRole('navigation', { name: 'Secciones de Link' });
   await expect(nav).toBeVisible();
@@ -75,7 +83,10 @@ test('la línea del producto es el índice de la página', async ({ page }) => {
   await nav.getByRole('link', { name: 'Preguntas' }).click();
   await expect(page).toHaveURL(/#faq$/);
   await expect(nav.getByRole('link', { name: 'Preguntas' })).toHaveAttribute('aria-current', 'location');
-  // El plano del primer viewport enciende la línea del producto.
+});
+
+test('tema subte: el plano del primer viewport enciende la línea del producto', async ({ page }) => {
+  await page.goto('/es/products/link?brand=subte', { waitUntil: 'networkidle' });
   await expect(page.locator('.pd-hero .net-caption-text')).toContainText('Link');
 });
 

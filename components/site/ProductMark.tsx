@@ -1,5 +1,5 @@
-import LineGlyph from '@/components/brand/LineGlyph';
-import Station from '@/components/brand/Station';
+import ProductGlyph from '@/components/brand/ProductGlyph';
+import BrandSymbol from '@/components/brand/BrandSymbol';
 import { PRODUCT_KEYS, type ProductKey } from '@/lib/products';
 
 /**
@@ -9,7 +9,7 @@ import { PRODUCT_KEYS, type ProductKey } from '@/lib/products';
  */
 export default function ProductMark({ product, size = 12 }: { product: string; size?: number }) {
   if ((PRODUCT_KEYS as string[]).includes(product)) {
-    return <LineGlyph product={product as ProductKey} size={size} onLine />;
+    return <ProductGlyph product={product as ProductKey} size={size} onLine />;
   }
-  return <Station size={size} className="product-mark-station" />;
+  return <BrandSymbol size={size} className="product-mark-station" />;
 }

@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Brand",
-    "description": "The zerosoft brand guide: the name, the logo, the stations, the eleven lines, type, voice and the suite map. With the kit to download."
+    "title": "New branding: Subway network",
+    "description": "Optional brand theme in exploration: the name, the logo, the stations, the eleven lines, the typefaces, the voice and the suite map."
   },
   "nav": {
     "label": "Guide sections",
@@ -249,5 +249,40 @@
     "body": "For stories, interviews or material that is not in the kit, write to us.",
     "github": "The code, on GitHub",
     "site": "Go to zerosoft.ai"
+  },
+  "default": {
+    "meta": {
+      "title": "Brand",
+      "description": "The zerosoft brand: the zero, the color of each app and the typefaces."
+    },
+    "title": "The brand",
+    "lead": "White, black and zeros. Color belongs to the apps: it tells you where you are.",
+    "home": "zerosoft.ai, home",
+    "backToSite": "Go to zerosoft.ai",
+    "logoTitle": "Logo",
+    "logoBody": "The zero and the lowercase name, in mono. The zero alone is the icon: favicon, app and avatar.",
+    "onLight": "On white",
+    "onDark": "On ink",
+    "symbol": "Icon",
+    "colorsTitle": "Colors",
+    "neutralsTitle": "Neutrals",
+    "neutrals": {
+      "white": "White",
+      "ink": "Ink",
+      "gray1": "Gray 1",
+      "gray2": "Gray 2",
+      "gray3": "Gray 3, the lightest for text",
+      "rule": "Rule"
+    },
+    "productsTitle": "One color per app",
+    "productsBody": "Each app has its color, used as an accent: the app zero, the active item, a chart line. Never as a page background.",
+    "typeTitle": "Typography",
+    "sans": "Headings, interface and reading.",
+    "mono": "Data, code and labels.",
+    "copy": "Copy {value}",
+    "copied": "Copied",
+    "themesTitle": "Themes",
+    "themesBody": "There is an alternative theme in exploration: Subway network. See its guide or try it across the site with ?brand=subte (?brand=default goes back to this brand).",
+    "themesLink": "See the Subway network guide"
   }
 }

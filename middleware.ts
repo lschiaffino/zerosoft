@@ -4,6 +4,7 @@ import { routing } from './i18n/routing';
 import { isAppHost } from './lib/hosts';
 import { surfaceForHost, surfaceRewritePath } from './lib/host-rewrite';
 import { requestLocale } from './lib/request-locale';
+import { BRAND_COOKIE, BRAND_HEADER, BRAND_PARAM, DEFAULT_BRAND, forcedBrandForPath, isBrandTheme } from './lib/brand-theme';
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -15,13 +16,52 @@ const RESERVED = new Set([
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',
-  'feedback-board', 'brand',
+  'feedback-board', 'brand', 'nuevo-branding',
 ]);
 
 /** Páginas de la app que un dominio propio sí sirve: la puerta de contraseña y /gone. */
 const CUSTOM_DOMAIN_PAGES = /^\/(en|es|pt)\/(gate\/[A-Za-z0-9_-]{1,64}|gone)\/?$/;
 
-export default function middleware(req: NextRequest) {
+/**
+ * ?brand=<tema> guarda el tema de marca en la cookie zs_brand (?brand=default
+ * la borra) y redirige a la misma URL sin el parámetro: el layout lee la
+ * cookie en el request siguiente. Un valor desconocido se ignora.
+ */
+function brandSwitch(req: NextRequest): NextResponse | null {
+  const value = req.nextUrl.searchParams.get(BRAND_PARAM);
+  if (value == null || !isAppHost(req.headers.get('host'))) return null;
+  const url = req.nextUrl.clone();
+  url.searchParams.delete(BRAND_PARAM);
+  const res = NextResponse.redirect(url, 307);
+  const brand = value.trim().toLowerCase();
+  if (!isBrandTheme(brand)) return res;
+  if (brand === DEFAULT_BRAND) {
+    res.cookies.delete(BRAND_COOKIE);
+  } else {
+    res.cookies.set(BRAND_COOKIE, brand, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
+  }
+  return res;
+}
+
+/** Rutas que fuerzan un tema (p. ej. /nuevo-branding/subte): lo pasan al layout por header. */
+function withForcedBrand(req: NextRequest): NextRequest {
+  const forced = forcedBrandForPath(req.nextUrl.pathname);
+  if (!forced) {
+    // Nadie de afuera puede forzar el tema con el header interno.
+    if (!req.headers.has(BRAND_HEADER)) return req;
+    const headers = new Headers(req.headers);
+    headers.delete(BRAND_HEADER);
+    return new NextRequest(req, { headers });
+  }
+  const headers = new Headers(req.headers);
+  headers.set(BRAND_HEADER, forced);
+  return new NextRequest(req, { headers });
+}
+
+export default function middleware(incoming: NextRequest) {
+  const switched = brandSwitch(incoming);
+  if (switched) return switched;
+  const req = withForcedBrand(incoming);
   const { pathname } = req.nextUrl;
 
   // Subdominios de superficie (feedback.zerosoft.ai → board público,
@@ -37,6 +77,9 @@ export default function middleware(req: NextRequest) {
     const headers = new Headers(req.headers);
     // next-intl lee el locale de este header (lo pone su propio middleware).
     headers.set('X-NEXT-INTL-LOCALE', target.locale);
+    // El tema se resuelve con el path final (branding.zerosoft.ai → /brand: default).
+    const forced = forcedBrandForPath(target.path);
+    if (forced) headers.set(BRAND_HEADER, forced);
     return NextResponse.rewrite(url, { request: { headers } });
   }
 

@@ -691,8 +691,9 @@
   align-items: baseline;
   gap: 8px;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.25rem;
   line-height: 1.1;
 }

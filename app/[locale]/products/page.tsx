@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import SuiteGrid from '@/components/site/SuiteGrid';
 import SectionSign from '@/components/site/SectionSign';
 import SiteNetworkMap from '@/components/site/SiteNetworkMap';
+import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
 import EndLines from '@/components/site/EndLines';
 import '@/styles/pages.css';
@@ -36,7 +37,7 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
             </Link>
           </div>
         </div>
-        <SiteNetworkMap className="lp-hero-map" />
+        <HeroVisual className="lp-hero-map" map={<SiteNetworkMap className="lp-hero-map" />} />
       </section>
 
       <section className="lp-section" aria-labelledby="h-suite">

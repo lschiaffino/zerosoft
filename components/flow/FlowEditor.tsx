@@ -18,8 +18,8 @@ import {
 } from '@xyflow/react';
 import { Link, useRouter } from '@/i18n/navigation';
 import AdvancedSection from '@/components/ui/AdvancedSection';
-import LineGlyph from '@/components/brand/LineGlyph';
-import Station from '@/components/brand/Station';
+import ProductGlyph from '@/components/brand/ProductGlyph';
+import BrandSymbol from '@/components/brand/BrandSymbol';
 import type { FlowDto } from '@/lib/flow';
 import {
   EVENT_SAMPLES,
@@ -801,7 +801,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                             }}
                             title={t(`nodes.${i18nKey(type)}.desc`)}
                           >
-                            {line ? <LineGlyph product={line} size={12} /> : <Station size={12} />}
+                            {line ? <ProductGlyph product={line} size={12} /> : <BrandSymbol size={12} />}
                             <span>{t(`nodes.${i18nKey(type)}.title`)}</span>
                           </button>
                         );

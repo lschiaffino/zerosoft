@@ -1,7 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import Icon from './Icon';
-import LineGlyph from '@/components/brand/LineGlyph';
+import ProductGlyph from '@/components/brand/ProductGlyph';
 import { AUDIENCE_PRODUCTS, PRODUCT_NAMES, RIVALS, type Audience } from './catalog';
 
 const AUDIENCES: readonly Audience[] = ['teams', 'personal'];
@@ -25,7 +25,7 @@ export default function SuiteGrid({ cta }: { cta?: { label: string; href: string
             {AUDIENCE_PRODUCTS[a].map((k) => (
               <li key={k} className={`suite-row card-${k}`}>
                 <Link href={`/products/${k}`} className="suite-row-link">
-                  <LineGlyph product={k} size={18} onLine className="suite-glyph" />
+                  <ProductGlyph product={k} size={18} onLine className="suite-glyph" />
                   <span className="suite-name">{PRODUCT_NAMES[k]}</span>
                   <span className="suite-line">{h(`suite.${k}.line`)}</span>
                   <span className="suite-vs">{h('suite.replaces', { rival: RIVALS[k] })}</span>

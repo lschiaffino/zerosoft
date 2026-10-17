@@ -15,7 +15,8 @@ import {
 } from './sidebar-nav';
 import NotificationBell from './NotificationBell';
 import Logo from '@/components/brand/Logo';
-import LineGlyph from '@/components/brand/LineGlyph';
+import ProductGlyph from '@/components/brand/ProductGlyph';
+import { useBrand } from '@/components/brand/BrandProvider';
 import type { ProductKey } from '@/lib/products';
 
 export type { SidebarLabels };
@@ -91,11 +92,13 @@ function menuKeys(e: KeyboardEvent<HTMLElement>, close: () => void) {
 }
 
 /**
- * Chrome de las apps: una banda negra de señalética arriba (marca, switcher de
- * líneas, sección, búsqueda, avisos) y el sidebar del producto, que es SU
- * LÍNEA: un trazo vertical en el color del producto con cada ítem como una
- * estación. La estación activa se rellena con el color de la línea.
- * Colapsado (≥1024px) quedan solo las estaciones; en <1024px es un drawer.
+ * Chrome de las apps: una banda arriba (marca, switcher de productos,
+ * sección, búsqueda, avisos) y el sidebar del producto. En la marca default
+ * la banda es blanca con un filete y cada ítem lleva su ícono; el activo se
+ * marca con el color del producto. En el tema subte la banda es negra y el
+ * sidebar es SU LÍNEA: un trazo vertical con cada ítem como una estación
+ * (styles/themes/subte.css). Colapsado (≥1024px) quedan los íconos (o las
+ * estaciones); en <1024px es un drawer.
  */
 export default function AppSidebar({
   labels,
@@ -114,6 +117,7 @@ export default function AppSidebar({
   crumb?: ReactNode;
 }) {
   const t = useTranslations('common.sidebar');
+  const brand = useBrand();
   const pathname = usePathname();
   const product = appProductFromPath(pathname);
   const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
@@ -228,7 +232,7 @@ export default function AppSidebar({
         </button>
 
         <Link href="/app" className="band-home" aria-label={t('home')}>
-          <Logo variant="symbol" tone="white" height={22} title="" />
+          <Logo variant="symbol" tone="current" height={22} title="" />
         </Link>
 
         <div className="band-switcher" ref={switcherRef}>
@@ -244,7 +248,7 @@ export default function AppSidebar({
             aria-expanded={switcherOpen}
             aria-label={`${current.name}. ${t('switchProduct')}`}
           >
-            <LineGlyph product={current.line} size={14} onLine className="band-product-glyph" />
+            <ProductGlyph product={current.line} size={14} onLine className="band-product-glyph" />
             <span className="band-product-name">{current.name}</span>
             <Icon name="chevronDown" size={14} />
           </button>
@@ -264,7 +268,7 @@ export default function AppSidebar({
                   onClick={() => setSwitcherOpen(false)}
                   aria-current={p.key === product ? 'page' : undefined}
                 >
-                  <LineGlyph product={p.line} size={14} onLine />
+                  <ProductGlyph product={p.line} size={14} onLine />
                   <span>{p.name}</span>
                 </Link>
               ))}
@@ -341,7 +345,13 @@ export default function AppSidebar({
                     aria-current={item.active ? 'page' : undefined}
                     title={collapsed ? item.label : undefined}
                   >
-                    <span className="side-station" aria-hidden="true" />
+                    {brand === 'subte' ? (
+                      <span className="side-station" aria-hidden="true" />
+                    ) : (
+                      <span className="side-icon" aria-hidden="true">
+                        <Icon name={item.icon} size={15} />
+                      </span>
+                    )}
                     <span className="side-label">{item.label}</span>
                     {item.badge ? <span className="side-badge data">{item.badge}</span> : null}
                   </Link>

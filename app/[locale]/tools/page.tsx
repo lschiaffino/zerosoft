@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import Icon from '@/components/site/Icon';
-import Station from '@/components/brand/Station';
+import BrandSymbol from '@/components/brand/BrandSymbol';
 import { jsonLd, localizedAlternates, siteUrl, TOOL_GROUPS, TOOLS, type ToolDef } from '@/lib/tools/registry';
 import '@/styles/tools.css';
 
@@ -71,7 +71,7 @@ export default async function ToolsHubPage(props: { params: Promise<{ locale: st
                 {items.map((tool) => (
                   <li key={tool.slug} className="tools-row">
                     <Link href={`/tools/${tool.slug}`} className="tools-row-link">
-                      <Station size={14} className="tools-glyph" />
+                      <BrandSymbol size={14} className="tools-glyph" />
                       <span className="tools-name">{t(`items.${tool.slug}.name`)}</span>
                       <span className="tools-line">{t(`items.${tool.slug}.short`)}</span>
                       <span className="tools-kind">{t(`common.kind.${kindKey(tool)}`)}</span>

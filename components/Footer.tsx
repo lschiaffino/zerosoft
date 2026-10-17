@@ -4,7 +4,7 @@ import LocaleSwitcher from './LocaleSwitcher';
 import Icon from './site/Icon';
 import { GITHUB_URL, PRODUCT_NAMES, SITE_PRODUCTS } from './site/catalog';
 import Logo from './brand/Logo';
-import LineGlyph from './brand/LineGlyph';
+import ProductGlyph from './brand/ProductGlyph';
 import '@/styles/site.css';
 
 export default async function Footer({ locale }: { locale: string }) {
@@ -16,8 +16,8 @@ export default async function Footer({ locale }: { locale: string }) {
     <footer className="site-footer">
       <div className="footer-grid">
         <div className="footer-brand">
-          <Link href="/" className="brand" aria-label="zerosoft">
-            <Logo tone="white" height={22} title="" />
+          <Link href="/" className="brand" aria-label="zerosoft.ai">
+            <Logo tone="current" height={22} title="" />
           </Link>
           <p>{tm('tagline')}</p>
           <p className="footer-tagline">{t('tagline')}</p>
@@ -33,7 +33,7 @@ export default async function Footer({ locale }: { locale: string }) {
             {SITE_PRODUCTS.map((k) => (
               <li key={k}>
                 <Link href={`/products/${k}`}>
-                  <LineGlyph product={k} size={11} onLine />
+                  <ProductGlyph product={k} size={11} onLine />
                   {PRODUCT_NAMES[k]}
                 </Link>
               </li>

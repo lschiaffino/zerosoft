@@ -2,7 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { ProductKey } from '@/lib/products';
-import LineGlyph from '@/components/brand/LineGlyph';
+import ProductGlyph from '@/components/brand/ProductGlyph';
 
 interface ShowcaseTabsProps {
   /** Nombre de la lista de pestañas para lectores de pantalla. */
@@ -51,7 +51,7 @@ export default function ShowcaseTabs({ label, tabs, panels }: ShowcaseTabsProps)
             className={`ui-tab showcase-tab card-${tab.key}`}
             onClick={() => setActive(i)}
           >
-            <LineGlyph product={tab.key} size={14} />
+            <ProductGlyph product={tab.key} size={14} />
             {tab.label}
           </button>
         ))}

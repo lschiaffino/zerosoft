@@ -25,8 +25,9 @@
 .flow-block-title,
 .flow-config-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   line-height: 1.05;
   color: var(--ink);
 }
@@ -85,8 +86,9 @@
   height: 36px;
   padding: 0 8px;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.625rem;
   line-height: 1;
   color: var(--ink);

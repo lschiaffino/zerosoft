@@ -1,6 +1,6 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
-import { Archivo, JetBrains_Mono } from 'next/font/google';
+import { Archivo, IBM_Plex_Mono, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 import { routing } from '@/i18n/routing';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -10,22 +10,40 @@ import FeedbackLauncher from '@/components/FeedbackLauncher';
 import { supportWidgetId } from '@/lib/support';
 import { surfaceForHost } from '@/lib/host-rewrite';
 import { headers } from 'next/headers';
+import BrandProvider from '@/components/brand/BrandProvider';
+import { getBrandTheme } from '@/lib/brand-theme-server';
 import '@/styles/board-public.css';
 import type { ReactNode } from 'react';
 
-// Archivo variable con el eje de ancho (wdth 62–125): señalética angosta y UI normal.
-const sans = Archivo({
+// Marca default: Space Grotesk (texto y títulos) e IBM Plex Mono (datos, rótulos).
+const sans = Space_Grotesk({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-space-grotesk',
+  display: 'swap',
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-plex-mono',
+  display: 'swap',
+});
+
+// Tema subte (opcional, html[data-brand="subte"]): Archivo con eje de ancho y
+// JetBrains Mono. Sin preload: el navegador solo las baja si el tema las usa.
+const subteSans = Archivo({
   subsets: ['latin', 'latin-ext'],
   axes: ['wdth'],
   variable: '--font-archivo',
   display: 'swap',
+  preload: false,
 });
 
-// JetBrains Mono: solo datos (cero con barra vía la clase .data de styles/brand.css).
-const mono = JetBrains_Mono({
+const subteMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-jetbrains',
   display: 'swap',
+  preload: false,
 });
 
 export function generateStaticParams() {
@@ -73,10 +91,17 @@ export default async function LocaleLayout(
   // feedback.zerosoft.ai / branding.zerosoft.ai: chrome propio (ver ChromeGate).
   // El layout ya es dinámico (el Header lee la sesión), leer el host no cambia eso.
   const surface = surfaceForHost((await headers()).get('host'));
+  // Tema de marca: cookie zs_brand (?brand=subte) o el que fuerce la ruta.
+  const brand = await getBrandTheme();
 
   return (
-    <html lang={locale} className={`${sans.variable} ${mono.variable}`}>
+    <html
+      lang={locale}
+      data-brand={brand}
+      className={`${sans.variable} ${mono.variable} ${subteSans.variable} ${subteMono.variable}`}
+    >
       <body>
+        <BrandProvider brand={brand}>
         <NextIntlClientProvider messages={messages}>
           <ChromeGate
             header={<Header locale={locale} />}
@@ -88,6 +113,7 @@ export default async function LocaleLayout(
             {children}
           </ChromeGate>
         </NextIntlClientProvider>
+        </BrandProvider>
       </body>
     </html>
   );

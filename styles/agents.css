@@ -110,8 +110,9 @@
   align-self: start;
   padding-top: 1px;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.125rem;
   line-height: 1.1;
 }
@@ -318,11 +319,12 @@
   flex-direction: column;
   gap: 16px;
 }
-.ag-public-head { display: flex; flex-direction: column; gap: 6px; padding-bottom: 16px; border-bottom: 4px solid var(--ink); }
+.ag-public-head { display: flex; flex-direction: column; gap: 6px; padding-bottom: 16px; border-bottom: var(--stroke-rule) solid var(--ink); }
 .ag-public-title {
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 2rem;
   line-height: 1.05;
   text-wrap: balance;

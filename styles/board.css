@@ -143,8 +143,9 @@
   border-radius: var(--radius-1);
   background: none;
   font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
   font-size: 1.25rem;
   color: var(--ink);
   outline: none;
@@ -234,7 +235,7 @@
   border-bottom: 1px solid var(--line);
 }
 
-.board-public-bar h1 { font-family: var(--font-signage); font-stretch: 75%; font-weight: 800; font-size: 1.25rem; }
+.board-public-bar h1 { font-family: var(--font-signage); letter-spacing: var(--signage-tracking); font-stretch: var(--signage-stretch); font-weight: var(--signage-weight); font-size: 1.25rem; }
 .board-public-bar span { font-size: 0.75rem; }
 .board-public + .powered-by { display: none; }
 

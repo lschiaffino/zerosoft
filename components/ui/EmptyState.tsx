@@ -1,6 +1,7 @@
 import { isValidElement, type ReactNode } from 'react';
 import { Link } from '@/i18n/navigation';
 import type { ProductKey } from '@/lib/products';
+import AccentGlyph from '@/components/brand/AccentGlyph';
 
 type Action = { label: string; href: string } | ReactNode;
 
@@ -16,9 +17,10 @@ function renderAction(action: Action, className: string) {
 }
 
 /**
- * Estado vacío: un tramo de la línea con su estación, qué va acá y UNA acción
- * primaria. `secondary` es el atajo o la importación ("o importá un CSV").
- * El tramo toma el color de la línea activa (--accent) o el de `product`.
+ * Estado vacío: el glifo de la marca (el cero; en subte, un tramo de línea),
+ * qué va acá y UNA acción primaria. `secondary` es el atajo o la importación
+ * ("o importá un CSV"). El glifo toma el color del producto activo (--accent)
+ * o el de `product`.
  *
  *   <EmptyState title="Todavía no hay links" body="…" action={{ label: 'Crear link', href: '/app/links/new' }}
  *     secondary={<>o <Link href="/app/settings#domains">importá desde Bitly</Link></>} />
@@ -66,10 +68,7 @@ export default function EmptyState({
   const stroke = product ? `var(--c-${product})` : 'var(--accent)';
   return (
     <div className={`ui-empty${quiet ? ' ui-empty-quiet' : ''} ${className}`.trim()}>
-      <svg className="ui-empty-glyph" viewBox="0 0 300 100" width="72" height="24" aria-hidden="true" focusable="false">
-        <line x1="18" y1="50" x2="282" y2="50" stroke={stroke} strokeWidth="36" strokeLinecap="round" />
-        <circle cx="150" cy="50" r="39" fill="#ffffff" stroke="#111111" strokeWidth="22" />
-      </svg>
+      <AccentGlyph className="ui-empty-glyph" color={stroke} height={24} />
       {title && <h2 className="ui-empty-title">{title}</h2>}
       {body && <p className="ui-empty-body">{body}</p>}
       {(action || secondary) && (
