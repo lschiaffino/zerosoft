@@ -4,14 +4,14 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Lint del copy del sitio público (docs/voice.md). Recorre cada string de
- * messages/<locale>/{common,pages,tools,brand}.json y falla si aparece un patrón
+ * messages/<locale>/{common,pages,tools,brand,changelog,feedbackBoard}.json y falla si aparece un patrón
  * prohibido. Si un string necesita una excepción legítima, agregalo a ALLOW
  * con la ruta exacta ("es/pages:docs.algo") y el nombre de la regla.
  */
 
 const root = join(__dirname, '..', '..');
 const LOCALES = ['es', 'en', 'pt'] as const;
-const NAMESPACES = ['common', 'pages', 'tools', 'brand', 'settings'] as const;
+const NAMESPACES = ['common', 'pages', 'tools', 'brand', 'settings', 'changelog', 'feedbackBoard'] as const;
 
 const RULES: Record<string, RegExp> = {
   'raya larga (—)': /—/,

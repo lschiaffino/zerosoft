@@ -92,7 +92,7 @@
     animation: net-draw 1.4s var(--ease-out-expo) both;
     animation-delay: calc(var(--i) * 80ms);
   }
-  .net-stop { animation: net-snap 1ms step-end both; animation-delay: calc(900ms + var(--i) * 30ms); }
+  .net-stop { animation: net-snap 1ms step-end backwards; animation-delay: calc(900ms + var(--i) * 30ms); }
 }
 
 @keyframes net-draw {
@@ -100,9 +100,11 @@
   to { stroke-dashoffset: 0; }
 }
 
+/* Solo `from`: con fill backwards la estación vuelve a su `visible` al
+   terminar. Con `to` + fill both, Chrome cierra la animación en
+   currentTime 1020.9999 y step-end se queda en `hidden`. */
 @keyframes net-snap {
   from { visibility: hidden; }
-  to { visibility: visible; }
 }
 
 

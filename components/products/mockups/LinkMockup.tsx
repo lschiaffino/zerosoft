@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl';
 import ZeroMark from '@/components/zero/ZeroMark';
+import { MkPlus } from './MkIcons';
 
 /** Bar heights for the fake 14-day click chart (decorative). */
 const BARS = [34, 48, 42, 60, 55, 72, 64, 80, 70, 92, 84, 98, 88, 104];
@@ -31,7 +32,10 @@ export default function LinkMockup() {
       <div className="mk-main">
         <div className="mk-head">
           <h4>{t('title')}</h4>
-          <span className="mk-btn">{t('new')}</span>
+          <span className="mk-btn">
+            <MkPlus />
+            {t('new')}
+          </span>
         </div>
 
         <div className="mk-stats">
@@ -58,7 +62,6 @@ export default function LinkMockup() {
                 y={110 - h}
                 width={28}
                 height={h}
-                rx={2}
                 style={{ fill: 'var(--accent, #0d0d0d)' }}
                 opacity={0.55 + (0.45 * h) / 104}
               />

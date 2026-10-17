@@ -2243,6 +2243,21 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE calendar_users ADD COLUMN display_name TEXT');
     },
   },
+  {
+    // Las ideas del roadmap inicial de Agents, Flow, Notes, Board y Robots se
+    // cargaron como 'other' (todavía no existían en la taxonomía). Ahora llevan
+    // su producto, así el board muestra su línea. Solo toca las que siguen en
+    // 'other' (si alguien las recategorizó desde el admin, se respeta).
+    id: '036_roadmap_seed_products',
+    async up(client) {
+      for (const product of ['agents', 'flow', 'notes', 'board', 'robots']) {
+        await client.execute({
+          sql: "UPDATE roadmap_items SET product = ? WHERE id = ? AND product = 'other'",
+          args: [product, `rm_seed_${product}`],
+        });
+      }
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

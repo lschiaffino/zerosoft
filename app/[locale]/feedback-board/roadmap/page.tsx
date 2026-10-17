@@ -44,7 +44,7 @@ export default async function BoardRoadmapPage(props: { params: Promise<{ locale
             <h1 className="bp-title">{t('roadmap.title')}</h1>
             <p className="bp-intro">{t('roadmap.intro')}</p>
           </div>
-          <a className="btn btn-ghost btn-small" href={boardPath(locale, ctx.onSurface, '/new')}>
+          <a className="btn btn-secondary" href={boardPath(locale, ctx.onSurface, '/new')}>
             {t('hero.propose')}
           </a>
         </div>

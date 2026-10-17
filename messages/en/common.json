@@ -187,9 +187,6 @@
     "feedback": "Feedback",
     "videos": "Videos"
   },
-  "showcase": {
-    "label": "A look inside"
-  },
   "home": {
     "hero": {
       "title1": "Eleven apps for your team.",
@@ -205,9 +202,9 @@
     },
     "proof": {
       "caption": "Interactive previews of each app. The real thing is one click away.",
-      "open": "Open {name}"
+      "title": "Every line, inside.",
+      "titleDim": "Interactive views of eight apps."
     },
-    "replaces": "Replaces",
     "suite": {
       "title": "What your team runs on.",
       "titleDim": "In one workspace.",
@@ -285,7 +282,6 @@
       "total": "Total per year",
       "zeroTitle": "zerosoft, on your server",
       "zeroNote": "All eleven apps. You only pay for your server.",
-      "cloudNote": "zerosoft Cloud: start free, then pay for usage. Seats are not billed.",
       "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat plan). Vendors change their prices, so check their sites. zerosoft is not affiliated with any of these companies."
     },
     "oss": {
@@ -359,5 +355,54 @@
   },
   "publicPage": {
     "poweredBy": "Powered by zerosoft"
+  },
+  "pricing": {
+    "title": "Price = cost × 3.",
+    "titleDim": "Both numbers in plain sight.",
+    "lead": "On your server, zerosoft costs $0. On zerosoft Cloud every workspace gets a free monthly plan, and above it we charge usage at three times what it costs us to serve.",
+    "selfHost": "Self-host",
+    "start": "Create a workspace",
+    "contact": "Email us",
+    "usageTitle": "Usage on zerosoft Cloud",
+    "usageLead": "What is charged above the plan, per workspace per month. First what it costs us, then what you pay.",
+    "caption": "zerosoft Cloud usage above the plan, per workspace per month",
+    "colResource": "Resource",
+    "colFree": "Included per month",
+    "colBlock": "Charged per",
+    "colCost": "Our cost",
+    "colPrice": "Your price (× {x})",
+    "usage": {
+      "clicks": {
+        "name": "Link clicks",
+        "free": "25,000 clicks",
+        "block": "100,000 clicks"
+      },
+      "bookings": {
+        "name": "Bookings",
+        "free": "50 bookings",
+        "block": "1,000 bookings"
+      },
+      "emails": {
+        "name": "Emails sent",
+        "free": "150 emails",
+        "block": "1,000 emails"
+      },
+      "storage": {
+        "name": "Storage",
+        "free": "0.5 GB",
+        "block": "1 GB per month"
+      }
+    },
+    "seats": "Seats are not charged: adding people to the team does not change the bill.",
+    "ai": "AI is billed per token, at the provider's price × {x}.",
+    "minimum": "A paid workspace has a {min} monthly minimum, credited to usage.",
+    "measured": "Infrastructure costs measured on {date} and rounded to the cent."
+  },
+  "notFound": {
+    "sign": "End of the line",
+    "title": "This page does not exist.",
+    "body": "The link may have a typo or the page moved. The home page takes you to all eleven apps.",
+    "cta": "Go to the home page",
+    "meta": "Page not found"
   }
 }

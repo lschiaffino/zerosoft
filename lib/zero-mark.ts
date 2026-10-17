@@ -1,7 +1,7 @@
 /**
  * El "0" de la marca como trazado SVG (sin depender de una fuente): la
  * estación de la red. Un anillo circular grueso (0,44 del radio, igual que la
- * "o" del wordmark en lib/brand-mark.ts). Lo usan ZeroMark/ProductZero en
+ * "o" del wordmark en lib/brand-mark.ts). Lo usa ZeroMark en
  * listas y menús y los separadores de ceros. La caja sigue siendo 20×24 para
  * no mover los layouts que ya lo usan.
  */

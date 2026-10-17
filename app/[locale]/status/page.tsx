@@ -1,69 +1,68 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import '@/styles/pages.css';
+import LineGlyph from '@/components/brand/LineGlyph';
+import Station from '@/components/brand/Station';
+import type { ProductKey } from '@/lib/products';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
+  const { locale } = await props.params;
   const t = await getTranslations({ locale, namespace: 'pages.status' });
   return { title: t('meta.title'), description: t('meta.description') };
 }
 
-const SERVICES = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'] as const;
+/** Los servicios de zerosoft.ai; los que son una app llevan su línea. */
+const SERVICES: Array<{ id: string; product?: ProductKey }> = [
+  { id: 's1', product: 'link' },
+  { id: 's2', product: 'crm' },
+  { id: 's3', product: 'track' },
+  { id: 's4', product: 'cal' },
+  { id: 's5', product: 'docs' },
+  { id: 's6', product: 'chat' },
+  { id: 's10', product: 'flow' },
+  { id: 's9', product: 'agents' },
+  { id: 's11', product: 'robots' },
+  { id: 's12', product: 'notes' },
+  { id: 's13', product: 'board' },
+  { id: 's7' },
+  { id: 's8' },
+];
 
 /**
- * Honest status page: the services that make up zerosoft.ai and a note that
- * live monitoring is not wired up yet. No uptime numbers or incidents until
- * there is real data behind them.
+ * Estado honesto: los servicios que forman zerosoft.ai y la aclaración de que
+ * el monitoreo en vivo todavía no está conectado. Sin números de uptime ni
+ * incidentes hasta que haya datos reales detrás.
  */
 export default async function StatusPage(props: { params: Promise<{ locale: string }> }) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
+  const { locale } = await props.params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'pages.status' });
 
   return (
-    <main>
-      {/* HERO */}
-      <section className="doc-hero container">
-        <h1 className="doc-title">{t('title')}</h1>
-        <p className="doc-intro">{t('sub')}</p>
-      </section>
+    <main className="container">
+      <header className="read-hero">
+        <h1 className="read-title">{t('title')}</h1>
+        <p className="read-intro">{t('sub')}</p>
+      </header>
 
-      {/* SERVICES */}
-      <section className="container" style={{ paddingTop: 0, paddingBottom: 90 }}>
-        <div className="status-rows">
+      <div className="read-body">
+        <ul className="status-rows" aria-label={t('title')}>
           {SERVICES.map((s) => (
-            <div className="status-row" key={s}>
-              <span className="status-name">{t(`${s}.name`)}</span>
-              <span className="status-note" style={{ marginTop: 0 }}>
-                {t(`${s}.desc`)}
+            <li className="status-row" key={s.id}>
+              <span className="status-name">
+                {s.product ? <LineGlyph product={s.product} size={12} onLine /> : <Station size={12} />}
+                {t(`${s.id}.name`)}
               </span>
-              <span className="status-val" style={{ color: 'var(--dim)' }}>
-                {t('noData')}
-              </span>
-            </div>
+              <span className="status-desc">{t(`${s.id}.desc`)}</span>
+              <span className="status-val">{t('noData')}</span>
+            </li>
           ))}
-        </div>
-      </section>
+        </ul>
 
-      {/* MONITORING */}
-      <section className="container" style={{ paddingTop: 0 }}>
-        <div className="incident">
-          <div className="incident-top">
-            <h3 className="incident-title">{t('monitoringTitle')}</h3>
-          </div>
+        <div className="status-note-block">
+          <h2>{t('monitoringTitle')}</h2>
           <p>{t('monitoringBody')}</p>
+          <p>{t('contact')}</p>
         </div>
-        <p className="status-note">{t('contact')}</p>
-      </section>
+      </div>
     </main>
   );
 }

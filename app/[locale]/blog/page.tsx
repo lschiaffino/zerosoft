@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { getAllPosts } from '@/lib/blog';
 import { formatDate } from '@/lib/utils';
 import BlogCover from '@/components/BlogCover';
+import EmptyState from '@/components/ui/EmptyState';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const params = await props.params;
@@ -27,15 +28,16 @@ export default async function BlogIndexPage(props: { params: Promise<{ locale: s
   const posts = getAllPosts(locale);
 
   return (
-    <main className="container" style={{ paddingTop: 100, paddingBottom: 140 }}>
-      <h1 className="section-title">
-        {t('title')}
-        <br />
-        <span className="dim">{t('titleDim')}</span>
-      </h1>
+    <main className="container">
+      <header className="read-hero">
+        <h1 className="read-title">
+          {t('title')} <span className="dim">{t('titleDim')}</span>
+        </h1>
+      </header>
 
+      <div className="read-body">
       {posts.length === 0 ? (
-        <p className="mono muted">{t('empty')}</p>
+        <EmptyState title={t('empty')} quiet />
       ) : (
         <div className="blog-index-grid">
           {posts.map((post) => (
@@ -54,6 +56,7 @@ export default async function BlogIndexPage(props: { params: Promise<{ locale: s
           ))}
         </div>
       )}
+      </div>
     </main>
   );
 }

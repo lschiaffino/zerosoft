@@ -54,7 +54,7 @@ export default function RobotsMockup() {
             ))}
           </tbody>
         </table>
-        <p className="mk-robots-json mk-mono">{t('json')}</p>
+        <p className="mk-robots-json">{t('json')}</p>
       </div>
     </div>
   );

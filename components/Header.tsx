@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { getCurrentUser } from '@/lib/session';
 import HeaderClient from './HeaderClient';
+import '@/styles/site.css';
 
 export default async function Header({ locale }: { locale: string }) {
   const t = await getTranslations({ locale, namespace: 'common.header' });

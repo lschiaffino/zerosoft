@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl';
+import { MkArrow } from './MkIcons';
 
 /** July 2026 starts on a Wednesday (Monday-first grid). */
 const LEADING_BLANKS = 2;
@@ -34,8 +35,8 @@ export default function CalMockup() {
         <div className="mk-cal-month">
           <span>{t('month')}</span>
           <nav aria-hidden="true">
-            <span>←</span>
-            <span>→</span>
+            <MkArrow dir="left" />
+            <MkArrow />
           </nav>
         </div>
         <div className="mk-cal-grid">
@@ -48,15 +49,10 @@ export default function CalMockup() {
             day === null ? (
               <span key={i} />
             ) : (
-              <span
-                key={i}
-                className={`mk-cal-d ${AVAILABLE.has(day) ? 'ok' : ''} ${
-                  day === TODAY ? 'today' : ''
-                }`}
-              >
+              <span key={i} className={`mk-cal-d ${AVAILABLE.has(day) ? 'ok' : ''} ${day === TODAY ? 'today' : ''}`}>
                 {day}
               </span>
-            )
+            ),
           )}
         </div>
       </div>

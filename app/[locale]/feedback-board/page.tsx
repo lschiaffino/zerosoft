@@ -62,7 +62,7 @@ export default async function FeedbackBoardPage(props: {
             <h1 className="bp-title">{t('hero.title')}</h1>
             <p className="bp-intro">{t('hero.intro')}</p>
           </div>
-          <a className="btn btn-solid btn-small" href={boardPath(locale, ctx.onSurface, '/new')}>
+          <a className="btn btn-primary" href={boardPath(locale, ctx.onSurface, '/new')}>
             {t('hero.propose')}
           </a>
         </div>

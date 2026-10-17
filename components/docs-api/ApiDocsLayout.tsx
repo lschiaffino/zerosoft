@@ -49,7 +49,7 @@ export default function ApiDocsLayout() {
           </h1>
           <p className="doc-intro">{t('intro')}</p>
           <p className="doc-intro">
-            <a className="btn btn-ghost btn-small" href="/api/v1/openapi.json" download="zerosoft-openapi.json">
+            <a className="btn btn-secondary btn-sm" href="/api/v1/openapi.json" download="zerosoft-openapi.json">
               {t('openapiCta')}
             </a>
           </p>

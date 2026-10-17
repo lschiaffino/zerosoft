@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl';
+import { MkPlus } from './MkIcons';
 
 const STAGES = [
   { key: 'lead', width: '32%' },
@@ -9,7 +10,7 @@ const STAGES = [
 
 const ROWS = ['r1', 'r2', 'r3', 'r4'] as const;
 
-/** Color del punto de estado por etapa (texto + punto, sin pastillas). */
+/** Color del marcador de estado por etapa (texto + cuadro, sin pastillas). */
 const STAGE_TONE: Record<(typeof ROWS)[number], string> = {
   r1: 'is-info',
   r2: 'is-warn',
@@ -25,7 +26,10 @@ export default function CrmMockup() {
     <div className="mk mk-crm">
       <div className="mk-head">
         <h4>{t('title')}</h4>
-        <span className="mk-btn">{t('new')}</span>
+        <span className="mk-btn">
+          <MkPlus />
+          {t('new')}
+        </span>
       </div>
 
       <div className="mk-pipe">

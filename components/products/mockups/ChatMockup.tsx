@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl';
+import { MkArrow } from './MkIcons';
 
 const ROWS = ['r1', 'r2', 'r3'] as const;
 
@@ -11,7 +12,7 @@ export default function ChatMockup() {
       <aside className="mk-chat-list">
         <div className="mk-chat-list-head">
           <h4>{t('listTitle')}</h4>
-          <span className="mk-chat-count">3</span>
+          <span className="mk-chat-count mk-mono">3</span>
         </div>
         {ROWS.map((r, i) => (
           <div className={`mk-chat-row${i === 0 ? ' active' : ''}`} key={r}>
@@ -51,7 +52,7 @@ export default function ChatMockup() {
         <div className="mk-chat-reply">
           <span className="mk-chat-reply-hint">{t('replyHint')}</span>
           <span className="mk-chat-send" aria-hidden="true">
-            →
+            <MkArrow />
           </span>
         </div>
       </div>

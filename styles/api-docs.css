@@ -1,13 +1,14 @@
 /* ============================================
-   API DOCS — Two-column reference, monochrome.
+   Docs de la API: referencia a dos columnas. Títulos en señalética, índice en
+   Archivo, mono solo para rutas, métodos y código.
    ============================================ */
 
 .api-docs {
   display: flex;
   align-items: flex-start;
   gap: 48px;
-  padding: 120px 32px 140px;
-  max-width: 1400px;
+  padding: 48px 32px 112px;
+  max-width: 1280px;
   margin: 0 auto;
 }
 
@@ -15,10 +16,10 @@
 
 .api-docs-sidebar {
   position: sticky;
-  top: 100px;
+  top: calc(var(--site-band-h, 64px) + 24px);
   width: 260px;
   flex-shrink: 0;
-  max-height: calc(100vh - 120px);
+  max-height: calc(100vh - var(--site-band-h, 64px) - 48px);
   overflow-y: auto;
   padding-right: 16px;
 }
@@ -29,15 +30,13 @@
 
 .api-docs-nav-section-title {
   display: block;
-  font-size: 0.92rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
   color: var(--ink);
-  transition: color 0.2s;
 }
 
-.api-docs-nav-section-title:hover { color: var(--dim); }
+.api-docs-nav-section-title:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 .api-docs-nav-list {
   list-style: none;
@@ -50,19 +49,16 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: #6a6a6a;
-  padding: 5px 0;
-  transition: color 0.2s;
+  font-size: 14px;
+  color: var(--brand-gray-1);
+  padding: 4px 0;
 }
 
 .api-docs-nav-link:hover { color: var(--ink); }
 
 .method-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 8px;
+  height: 4px;
   background: var(--ink);
   flex-shrink: 0;
 }
@@ -75,8 +71,10 @@
 }
 
 .api-docs-hero {
-  padding-top: 30px;
-  padding-bottom: 60px;
+  padding-top: 0;
+  padding-bottom: 40px;
+  margin-bottom: 48px;
+  border-bottom: 4px solid var(--brand-ink);
 }
 
 .api-docs-body {
@@ -86,26 +84,34 @@
   max-width: 800px;
 }
 
+.api-docs-base,
+.api-docs-section { padding-top: 0; padding-bottom: 0; }
 .api-docs-base { margin-bottom: -24px; }
 
 .api-docs-section h2 {
-  font-size: clamp(1.8rem, 3.2vw, 2.6rem);
-  font-weight: 500;
-  letter-spacing: -0.025em;
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: var(--t-h2);
+  line-height: 1;
   margin-bottom: 12px;
+  scroll-margin-top: calc(var(--site-band-h, 64px) + 24px);
 }
 
+.api-docs-section { scroll-margin-top: calc(var(--site-band-h, 64px) + 24px); }
+
 .api-docs-section > p {
-  max-width: 70ch;
-  font-size: 1rem;
-  line-height: 1.65;
-  color: #4a4a4a;
+  max-width: 68ch;
+  font-size: var(--t-body);
+  line-height: 1.6;
+  color: var(--brand-gray-1);
   margin-bottom: 32px;
 }
 
 /* ---------- Endpoint section ---------- */
 
 .endpoint-section {
+  scroll-margin-top: calc(var(--site-band-h, 64px) + 24px);
   border-top: 1px solid var(--line);
   padding-top: 34px;
   padding-bottom: 34px;
@@ -117,8 +123,7 @@
 
 .endpoint-section-title {
   font-size: 1.25rem;
-  font-weight: 500;
-  letter-spacing: -0.015em;
+  font-weight: 700;
   margin-bottom: 10px;
 }
 
@@ -131,14 +136,13 @@
 
 .method {
   font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  font-feature-settings: "zero" 1;
+  font-size: 12px;
+  font-weight: 600;
   background: var(--ink);
   color: var(--bg);
   border-radius: var(--r-sm);
-  padding: 5px 10px;
-  text-transform: uppercase;
+  padding: 4px 8px;
 }
 
 .endpoint-path {
@@ -150,9 +154,9 @@
 
 .endpoint-desc {
   max-width: 70ch;
-  font-size: 0.98rem;
+  font-size: 16px;
   line-height: 1.6;
-  color: #4a4a4a;
+  color: var(--brand-gray-1);
   margin-bottom: 22px;
 }
 
@@ -170,15 +174,12 @@
 }
 
 .params-table th {
-  font-family: var(--mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--dim);
-  font-weight: 400;
+  font-size: 13px;
+  color: var(--brand-gray-2);
+  font-weight: 600;
   text-align: left;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--brand-ink);
 }
 
 .params-table td {
@@ -200,10 +201,9 @@
 
 .code-tabs {
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
   overflow: hidden;
   margin-bottom: 28px;
-  background: #fafafa;
+  background: var(--brand-enamel);
 }
 
 .code-tabs-header {
@@ -222,9 +222,10 @@
 }
 
 .code-tab {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: #6a6a6a;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-gray-2);
   background: transparent;
   border: none;
   border-radius: var(--r-sm);
@@ -234,15 +235,14 @@
 }
 
 .code-tab:hover { color: var(--ink); }
-.code-tab.active { background: #f0f0f0; color: var(--ink); }
+.code-tab.active { background: var(--brand-enamel); color: var(--ink); }
 
 .code-copy {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
   background: transparent;
-  border: 1px solid var(--line);
+  border: 1px solid var(--ui-field);
   border-radius: var(--r-sm);
   padding: 5px 12px;
   cursor: pointer;
@@ -250,11 +250,14 @@
   transition: background 0.2s, border-color 0.2s;
 }
 
-.code-copy:hover { background: #f0f0f0; border-color: #c8c8c8; }
+.code-copy:hover { background: var(--ui-hover); border-color: var(--ink); }
+
+.api-docs-section > .code-block { margin-bottom: 16px; }
 
 .code-block {
-  background: #0d0d0d;
-  color: #f4f4f4;
+  background: var(--brand-ink);
+  color: var(--brand-on-ink);
+  font-feature-settings: "zero" 1;
   padding: 20px 22px;
   overflow-x: auto;
   font-family: var(--mono);
@@ -275,41 +278,32 @@
   margin-bottom: 28px;
 }
 
-.json-block-wrap .code-label {
-  font-family: var(--mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--dim);
-  margin-bottom: 10px;
+.json-block-wrap .code-label,
+.api-docs-base .code-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-gray-2);
+  margin-bottom: 8px;
 }
 
-/* ---------- Hero reuse ---------- */
-
-.api-docs-hero .section-label {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--dim);
-  margin-bottom: 18px;
-}
+/* ---------- Encabezado ---------- */
 
 .api-docs-hero .doc-title {
-  font-size: clamp(2.8rem, 6vw, 4.8rem);
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.03em;
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: var(--t-h1);
+  line-height: 0.95;
 }
 
-.api-docs-hero .doc-title .dim { color: var(--dim); }
+.api-docs-hero .doc-title .dim { color: var(--brand-gray-2); }
 
 .api-docs-hero .doc-intro {
-  margin-top: 26px;
-  max-width: 56ch;
-  font-size: 1.06rem;
-  line-height: 1.65;
-  color: #4a4a4a;
+  margin-top: 20px;
+  max-width: 60ch;
+  font-size: var(--t-lead);
+  line-height: 1.45;
+  color: var(--brand-gray-1);
 }
 
 /* ---------- Responsive ---------- */
@@ -318,7 +312,7 @@
   .api-docs {
     flex-direction: column;
     gap: 32px;
-    padding: 110px 20px 100px;
+    padding: 32px 16px 72px;
   }
 
   .api-docs-sidebar {

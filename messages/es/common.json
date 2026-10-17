@@ -187,9 +187,6 @@
     "feedback": "Feedback",
     "videos": "Videos"
   },
-  "showcase": {
-    "label": "Por dentro"
-  },
   "home": {
     "hero": {
       "title1": "Once apps para tu equipo.",
@@ -205,9 +202,9 @@
     },
     "proof": {
       "caption": "Vistas interactivas de cada app. La de verdad está a un clic.",
-      "open": "Abrir {name}"
+      "title": "Cada línea, por dentro.",
+      "titleDim": "Vistas interactivas de ocho apps."
     },
-    "replaces": "Reemplaza a",
     "suite": {
       "title": "Lo que usa tu equipo.",
       "titleDim": "En un solo workspace.",
@@ -285,7 +282,6 @@
       "total": "Total por año",
       "zeroTitle": "zerosoft, en tu servidor",
       "zeroNote": "Las once apps. Pagás solo tu servidor.",
-      "cloudNote": "zerosoft Cloud: empezás gratis y después pagás por uso. Los asientos no se cobran.",
       "footnote": "Precios de lista citados en nuestras páginas de producto, con facturación mensual, para 10 usuarios (Bitly Core es un plan fijo). Los proveedores cambian sus precios: chequeá sus sitios. zerosoft no está afiliado a ninguna de estas empresas."
     },
     "oss": {
@@ -359,5 +355,54 @@
   },
   "publicPage": {
     "poweredBy": "Hecho con zerosoft"
+  },
+  "pricing": {
+    "title": "Precio = costo × 3.",
+    "titleDim": "Los dos números, a la vista.",
+    "lead": "En tu servidor, zerosoft cuesta $0. En zerosoft Cloud cada workspace tiene un plan gratis por mes, y por encima cobramos el uso a tres veces lo que nos cuesta servirlo.",
+    "selfHost": "Hostealo vos",
+    "start": "Crear un workspace",
+    "contact": "Escribinos",
+    "usageTitle": "Uso en zerosoft Cloud",
+    "usageLead": "Lo que se cobra por encima del plan, por workspace y por mes. Primero lo que nos cuesta, después lo que pagás.",
+    "caption": "Uso de zerosoft Cloud por encima del plan, por workspace y por mes",
+    "colResource": "Recurso",
+    "colFree": "Incluido por mes",
+    "colBlock": "Se cobra cada",
+    "colCost": "Nuestro costo",
+    "colPrice": "Tu precio (× {x})",
+    "usage": {
+      "clicks": {
+        "name": "Clics en links",
+        "free": "25.000 clics",
+        "block": "100.000 clics"
+      },
+      "bookings": {
+        "name": "Reservas",
+        "free": "50 reservas",
+        "block": "1.000 reservas"
+      },
+      "emails": {
+        "name": "Emails enviados",
+        "free": "150 emails",
+        "block": "1.000 emails"
+      },
+      "storage": {
+        "name": "Almacenamiento",
+        "free": "0,5 GB",
+        "block": "1 GB por mes"
+      }
+    },
+    "seats": "Los asientos no se cobran: sumar gente al equipo no cambia la factura.",
+    "ai": "La IA se cobra por tokens, a lo que cobra el proveedor × {x}.",
+    "minimum": "Un workspace pago tiene un mínimo de {min} por mes, que se acredita al uso.",
+    "measured": "Costos de infraestructura medidos el {date} y redondeados al centavo."
+  },
+  "notFound": {
+    "sign": "Fin del recorrido",
+    "title": "Esta página no existe.",
+    "body": "El link puede tener un error o la página se mudó. Desde el inicio llegás a las once apps.",
+    "cta": "Ir al inicio",
+    "meta": "Página no encontrada"
   }
 }

@@ -1,10 +1,8 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import ZeroField from '@/components/ZeroField';
 import Icon from '@/components/site/Icon';
-import ZeroCounter from '@/components/zero/ZeroCounter';
+import Station from '@/components/brand/Station';
 import { jsonLd, localizedAlternates, siteUrl, TOOL_GROUPS, TOOLS, type ToolDef } from '@/lib/tools/registry';
-import '@/styles/pages.css';
 import '@/styles/tools.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -48,23 +46,19 @@ export default async function ToolsHubPage(props: { params: Promise<{ locale: st
     })),
   };
 
-  let n = 0;
   return (
     <main className="tools-hub">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
-      <section className="page-hero">
-        <ZeroField align="right" sizeFactor={0.9} />
-        <div className="container">
-          <h1 className="page-hero-title tools-hero-title">
-            {t('hub.title1')}
-            <br />
-            <span className="dim">{t('hub.title2')}</span>
+      <header className="container">
+        <div className="read-hero">
+          <h1 className="read-title">
+            {t('hub.title1')} <span className="dim">{t('hub.title2')}</span>
           </h1>
-          <p className="page-hero-sub">{t('hub.sub')}</p>
+          <p className="read-intro">{t('hub.sub')}</p>
         </div>
-      </section>
+      </header>
 
-      <section className="container tools-groups">
+      <div className="container tools-groups">
         {TOOL_GROUPS.map((g) => {
           const items = TOOLS.filter((tool) => tool.group === g);
           return (
@@ -74,20 +68,17 @@ export default async function ToolsHubPage(props: { params: Promise<{ locale: st
                 <p>{t(`hub.groups.${g}.desc`)}</p>
               </header>
               <ul className="tools-rows">
-                {items.map((tool) => {
-                  n += 1;
-                  return (
-                    <li key={tool.slug} className={`tools-row card-${tool.accent}`}>
-                      <Link href={`/tools/${tool.slug}`} className="tools-row-link">
-                        <ZeroCounter n={n} className="tools-num" />
-                        <span className="tools-name">{t(`items.${tool.slug}.name`)}</span>
-                        <span className="tools-line">{t(`items.${tool.slug}.short`)}</span>
-                        <span className="tools-kind">{t(`common.kind.${kindKey(tool)}`)}</span>
-                        <Icon name="arrow" size={16} />
-                      </Link>
-                    </li>
-                  );
-                })}
+                {items.map((tool) => (
+                  <li key={tool.slug} className="tools-row">
+                    <Link href={`/tools/${tool.slug}`} className="tools-row-link">
+                      <Station size={14} className="tools-glyph" />
+                      <span className="tools-name">{t(`items.${tool.slug}.name`)}</span>
+                      <span className="tools-line">{t(`items.${tool.slug}.short`)}</span>
+                      <span className="tools-kind">{t(`common.kind.${kindKey(tool)}`)}</span>
+                      <Icon name="arrow" size={16} />
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </section>
           );
@@ -100,7 +91,7 @@ export default async function ToolsHubPage(props: { params: Promise<{ locale: st
             {t('common.startFree')} <Icon name="arrow" size={14} />
           </Link>
         </div>
-      </section>
+      </div>
     </main>
   );
 }

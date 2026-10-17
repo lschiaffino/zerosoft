@@ -50,7 +50,7 @@ export default async function BoardChangelogPage(props: {
             <h1 className="bp-title">{t('title')}</h1>
             <p className="bp-intro">{t('intro')}</p>
           </div>
-          <a className="btn btn-ghost btn-small" href={`/${locale}/changelog/feed.xml`}>
+          <a className="btn btn-secondary" href={`/${locale}/changelog/feed.xml`}>
             {t('rss')}
           </a>
         </div>
