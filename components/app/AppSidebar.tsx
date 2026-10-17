@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
@@ -320,17 +320,20 @@ export default function AppSidebar({
             <div key={group.section ?? `top-${i}`} className="side-group">
               {group.section && <p className="side-section">{group.section}</p>}
               {group.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`side-stop${item.active ? ' active' : ''}`}
-                  aria-current={item.active ? 'page' : undefined}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <span className="side-station" aria-hidden="true" />
-                  <span className="side-label">{item.label}</span>
-                  {item.badge ? <span className="side-badge data">{item.badge}</span> : null}
-                </Link>
+                <Fragment key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`side-stop${item.active ? ' active' : ''}`}
+                    aria-current={item.active ? 'page' : undefined}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <span className="side-station" aria-hidden="true" />
+                    <span className="side-label">{item.label}</span>
+                    {item.badge ? <span className="side-badge data">{item.badge}</span> : null}
+                  </Link>
+                  {/* Hueco del ramal: la página del producto lo llena con un portal. */}
+                  {item.branch && <div id="side-branch" className="side-branch" />}
+                </Fragment>
               ))}
             </div>
           ))}

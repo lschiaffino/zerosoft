@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
@@ -41,12 +42,46 @@ function zoneFor(e: React.DragEvent<HTMLElement>): DropZone {
 }
 
 const COLLAPSED_KEY = 'docs.sidebar.collapsed';
+const DESKTOP = '(min-width: 1024px)';
 
 /**
- * Árbol de páginas de Docs: un ramal de la línea del producto. Cada página es
- * una estación sobre un trazo en el color de Docs; la página abierta es la
- * estación rellena (igual que el ítem activo del sidebar de la app). El ícono
- * que eligió la persona va al lado del título, nunca en lugar de la estación.
+ * Hueco del ramal en el sidebar del shell (#side-branch, bajo "Páginas").
+ * Solo en ≥1024px y con el sidebar abierto: colapsado (solo estaciones) o en
+ * mobile (drawer) el árbol vuelve a la columna propia / al botón "Páginas".
+ */
+function useShellBranch(): HTMLElement | null {
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia(DESKTOP);
+    const frame = document.querySelector('.app-frame');
+    let raf = 0;
+    const update = () => {
+      const slot = document.getElementById('side-branch');
+      const collapsed = frame?.classList.contains('sidebar-collapsed') ?? false;
+      setEl(mq.matches && !collapsed ? slot : null);
+      // Al entrar desde otro producto el hueco puede montarse un frame después.
+      if (!slot && mq.matches && !collapsed && !raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    mq.addEventListener('change', update);
+    const mo = frame ? new MutationObserver(update) : null;
+    mo?.observe(frame!, { attributes: true, attributeFilter: ['class'] });
+    return () => {
+      mq.removeEventListener('change', update);
+      mo?.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+  return el;
+}
+
+/**
+ * Árbol de páginas de Docs: un ramal de la línea del producto. En ≥1024px
+ * cuelga de la estación "Páginas" del sidebar del shell (portal a
+ * #side-branch), sin columna propia. Cada página es una estación unida a su
+ * madre por un trazo en el color de Docs (vertical + codo recto); la página
+ * abierta es la estación rellena. El ícono de la página no va en el árbol
+ * (sí en el editor): así todos los títulos arrancan en la misma x.
  * Nueva página y Papelera ya están en el sidebar del shell: acá no se repiten.
  */
 export default function DocsSidebar({
@@ -71,6 +106,7 @@ export default function DocsSidebar({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [mobileOpen, setMobileOpen] = useState(mobileOpenByDefault);
   const menuRef = useRef<HTMLSpanElement>(null);
+  const branch = useShellBranch();
 
   // Ramas plegadas: preferencia local del navegador.
   useEffect(() => {
@@ -201,19 +237,6 @@ export default function DocsSidebar({
           onDragLeave={() => setDropId((d) => (d === node.id ? null : d))}
           onDrop={(e) => handleDrop(e, node.id, reorderAction ? zoneFor(e) : 'inside')}
         >
-          {hasChildren ? (
-            <button
-              type="button"
-              className={`docs-tree-chevron${open ? ' open' : ''}`}
-              onClick={() => toggle(node.id)}
-              aria-label={`${open ? t('sidebar.collapse') : t('sidebar.expand')}: ${node.title || t('untitled')}`}
-              aria-expanded={open}
-            >
-              <Icon name="chevronRight" size={12} />
-            </button>
-          ) : (
-            <span className="docs-tree-chevron" aria-hidden="true" />
-          )}
           <span className="docs-tree-station" aria-hidden="true" />
           <Link
             href={`/app/docs/${node.id}`}
@@ -228,13 +251,9 @@ export default function DocsSidebar({
             }}
             aria-keyshortcuts={stepAction ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
           >
-            {node.icon && (
-              <span className="docs-tree-icon" aria-hidden="true">
-                {node.icon}
-              </span>
-            )}
             <span className="docs-tree-title">{node.title || t('untitled')}</span>
           </Link>
+          <span className="docs-tree-actions">
           {stepAction && (
             <span className="docs-tree-more-wrap" ref={menuId === node.id ? menuRef : undefined}>
               <button
@@ -286,6 +305,18 @@ export default function DocsSidebar({
           >
             <Icon name="plus" size={14} />
           </button>
+          </span>
+          {hasChildren && (
+            <button
+              type="button"
+              className={`docs-tree-chevron${open ? ' open' : ''}`}
+              onClick={() => toggle(node.id)}
+              aria-label={`${open ? t('sidebar.collapse') : t('sidebar.expand')}: ${node.title || t('untitled')}`}
+              aria-expanded={open}
+            >
+              <Icon name="chevronRight" size={12} />
+            </button>
+          )}
         </div>
         {open && <ul>{node.children!.map((c) => renderNode(c, depth + 1))}</ul>}
       </li>
@@ -293,6 +324,63 @@ export default function DocsSidebar({
   };
 
   const count = t('sidebar.count', { count: pages.length });
+
+  const body = (inShell: boolean) => (
+    <>
+      {tree.length === 0 ? (
+        <div className="docs-sidebar-empty">
+          <p>{labels.empty}</p>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => create(null)} disabled={isPending}>
+            <Icon name="plus" size={14} />
+            {labels.newPage}
+          </button>
+        </div>
+      ) : inShell ? (
+        // Ya está dentro del <nav> del sidebar: una lista, no otro landmark.
+        <ul className="docs-tree" aria-label={t('sidebar.pages')}>
+          {tree.map((n) => renderNode(n, 0))}
+        </ul>
+      ) : (
+        <nav aria-label={t('sidebar.pages')}>
+          <ul className="docs-tree">{tree.map((n) => renderNode(n, 0))}</ul>
+        </nav>
+      )}
+
+      {dragId && (
+        <div
+          className="docs-tree-drop-root"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => handleDrop(e, null)}
+        >
+          {t('sidebar.dropTopLevel')}
+        </div>
+      )}
+
+      {shared.length > 0 && (
+        <div className="docs-shared" role="group" aria-label={t('sidebar.sharedWithMe')}>
+          <p className="docs-shared-label">{t('sidebar.sharedWithMe')}</p>
+          <ul className="docs-shared-list">
+            {shared.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/app/docs/${p.id}`}
+                  className={`docs-shared-row${p.id === currentId ? ' active' : ''}`}
+                  aria-current={p.id === currentId ? 'page' : undefined}
+                  title={t('sidebar.sharedBy', { name: p.owner_name || p.owner_email })}
+                >
+                  <span className="docs-shared-title">{p.title || t('untitled')}</span>
+                  <span className="docs-shared-role">{t(`share.roles.${p.role}`)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+
+  // ≥1024px con el sidebar abierto: el árbol es un ramal de "Páginas".
+  if (branch) return createPortal(<div className="docs-branch">{body(true)}</div>, branch);
 
   return (
     <div className={`docs-sidebar${mobileOpen ? ' mobile-open' : ''}`}>
@@ -327,55 +415,7 @@ export default function DocsSidebar({
       </div>
 
       <div className="docs-sidebar-body" id="docs-sidebar-body">
-        {tree.length === 0 ? (
-          <div className="docs-sidebar-empty">
-            <p>{labels.empty}</p>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => create(null)} disabled={isPending}>
-              <Icon name="plus" size={14} />
-              {labels.newPage}
-            </button>
-          </div>
-        ) : (
-          <nav aria-label={t('sidebar.pages')}>
-            <ul className="docs-tree">{tree.map((n) => renderNode(n, 0))}</ul>
-          </nav>
-        )}
-
-        {dragId && (
-          <div
-            className="docs-tree-drop-root"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => handleDrop(e, null)}
-          >
-            {t('sidebar.dropTopLevel')}
-          </div>
-        )}
-
-        {shared.length > 0 && (
-          <nav className="docs-shared" aria-label={t('sidebar.sharedWithMe')}>
-            <p className="docs-shared-label">{t('sidebar.sharedWithMe')}</p>
-            <ul className="docs-shared-list">
-              {shared.map((p) => (
-                <li key={p.id}>
-                  <Link
-                    href={`/app/docs/${p.id}`}
-                    className={`docs-shared-row${p.id === currentId ? ' active' : ''}`}
-                    aria-current={p.id === currentId ? 'page' : undefined}
-                    title={t('sidebar.sharedBy', { name: p.owner_name || p.owner_email })}
-                  >
-                    {p.icon && (
-                      <span className="docs-tree-icon" aria-hidden="true">
-                        {p.icon}
-                      </span>
-                    )}
-                    <span className="docs-shared-title">{p.title || t('untitled')}</span>
-                    <span className="docs-shared-role">{t(`share.roles.${p.role}`)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
+        {body(false)}
       </div>
     </div>
   );

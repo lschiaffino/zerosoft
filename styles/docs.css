@@ -19,6 +19,14 @@
 
 .docs-main { min-width: 0; }
 
+/* ≥1024px con el sidebar del shell abierto, el árbol vive ahí (ramal de
+   "Páginas"): una sola columna a la izquierda y el editor con todo el ancho.
+   Colapsado (solo estaciones) vuelve la columna propia. */
+@media (min-width: 1024px) {
+  .app-frame:not(.sidebar-collapsed) .docs-layout { grid-template-columns: minmax(0, 1fr); }
+  .app-frame:not(.sidebar-collapsed) .docs-layout > .docs-sidebar { display: none; }
+}
+
 .docs-landing {
   width: 100%;
   max-width: 1040px;
@@ -103,32 +111,49 @@
   padding: 0;
   list-style: none;
 }
+.docs-tree { --row-h: 30px; position: relative; }
 .docs-tree li { position: relative; }
 
-/* El trazo: de la primera a la última estación de cada nivel. La estación
-   está en x = d·16 + 26 (chevrón 16 + hueco 4 + medio disco 6). */
-.docs-tree li::before {
+/* Diagrama de líneas. El tronco (la línea de Docs) pasa por x = 20, el mismo
+   eje que el trazo del sidebar del shell; la estación de nivel d tiene el
+   centro en x = 36 + d·16. Cada página baja de la estación de su madre
+   (vertical en x = 20 + d·16) y entra a la suya con un codo recto. */
+.docs-tree li::before,
+.docs-tree li::after {
   content: '';
   position: absolute;
   z-index: 1;
-  top: 0;
-  bottom: 0;
-  left: calc(var(--d, 0) * 16px + 24px);
-  width: 4px;
   background: var(--accent);
   pointer-events: none;
 }
-.docs-tree li:first-child::before { top: 15px; }
-.docs-tree li:last-child::before { bottom: auto; height: 15px; }
-.docs-tree li:first-child:last-child::before { display: none; }
+.docs-tree li::before {
+  top: 0;
+  bottom: 0;
+  left: calc(var(--d, 0) * 16px + 18px);
+  width: 4px;
+}
+.docs-tree ul > li:first-child::before { top: calc(var(--row-h) / -2); }
+.docs-tree li:last-child::before { bottom: auto; height: calc(var(--row-h) / 2 + 2px); }
+.docs-tree ul > li:first-child:last-child::before { height: calc(var(--row-h) + 2px); }
+.docs-tree li::after {
+  top: calc(var(--row-h) / 2 - 2px);
+  left: calc(var(--d, 0) * 16px + 18px);
+  width: 14px;
+  height: 4px;
+}
+/* El tronco va al grosor de la línea (6px) y nace en la primera estación. */
+.docs-tree > li::before { left: 17px; width: 6px; }
+.docs-tree > li:first-child::before { top: calc(var(--row-h) / 2); }
+.docs-tree > li:first-child:last-child::before { display: none; }
 
 .docs-tree-row {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 30px;
-  padding: 0 2px 0 calc(var(--d, 0) * 16px);
+  gap: 2px;
+  height: var(--row-h);
+  margin-left: 26px;
+  padding: 0 2px 0 calc(var(--d, 0) * 16px + 4px);
   border-radius: var(--radius-1);
   color: var(--brand-gray-1);
   transition: background-color var(--ui-dur) var(--ease);
@@ -137,13 +162,14 @@
 .docs-tree-row.active { background: var(--brand-enamel); color: var(--ink); }
 .docs-tree-row.dragging { opacity: 0.4; }
 
+/* Plegar/desplegar: al final de la fila, fuera del trazo. */
 .docs-tree-chevron {
-  flex: 0 0 16px;
+  flex: 0 0 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-1);
@@ -151,7 +177,8 @@
   color: var(--brand-gray-2);
   cursor: pointer;
 }
-button.docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press); }
+.docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press); }
+.docs-tree-chevron:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .docs-tree-chevron svg { transition: transform var(--ui-dur) var(--ease); }
 .docs-tree-chevron.open svg { transform: rotate(90deg); }
 
@@ -174,9 +201,8 @@ button.docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press);
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
   align-self: stretch;
-  padding: 0 4px;
+  padding: 0 6px;
   font-size: 0.875rem;
   font-weight: 500;
   color: inherit;
@@ -185,7 +211,6 @@ button.docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press);
 }
 .docs-tree-row.active .docs-tree-link { font-weight: 600; }
 .docs-tree-link:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
-.docs-tree-icon { flex-shrink: 0; font-size: 0.875rem; line-height: 1; }
 .docs-tree-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Botones de fila (subpágina, acciones) y "+" de la cabecera. */
@@ -208,20 +233,17 @@ button.docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press);
 .docs-tree-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .docs-sidebar-new { width: 32px; height: 32px; }
 
-.docs-tree-row .docs-tree-add,
-.docs-tree-row .docs-tree-more { opacity: 0; }
-.docs-tree-row:hover .docs-tree-add,
-.docs-tree-row:hover .docs-tree-more,
-.docs-tree-row:focus-within .docs-tree-add,
-.docs-tree-row:focus-within .docs-tree-more,
-.docs-tree-more[aria-expanded='true'] { opacity: 1; }
+/* Acciones de fila: fuera del flujo hasta pasar o enfocar (el título usa el ancho). */
+.docs-tree-actions { display: none; align-items: center; flex-shrink: 0; }
+.docs-tree-row:hover .docs-tree-actions,
+.docs-tree-row:focus-within .docs-tree-actions,
+.docs-tree-actions:has([aria-expanded='true']) { display: inline-flex; }
 @media (hover: none) {
-  .docs-tree-row .docs-tree-add,
-  .docs-tree-row .docs-tree-more { opacity: 1; }
+  .docs-tree-actions { display: inline-flex; }
 }
 
 .docs-tree-more-wrap { position: relative; display: inline-flex; }
-.docs-tree-menu { position: absolute; top: calc(100% + 2px); right: 0; min-width: 180px; }
+.docs-tree-menu { position: absolute; top: calc(100% + 2px); right: 0; z-index: 75; min-width: 180px; }
 
 /* Soltar: arriba/abajo reordena (filete), al centro anida (borde). */
 .docs-tree-row.drop.drop-inside { box-shadow: inset 0 0 0 2px var(--ink); }
@@ -229,7 +251,7 @@ button.docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press);
 .docs-tree-row.drop.drop-after::after {
   content: '';
   position: absolute;
-  left: calc(var(--d, 0) * 16px + 20px);
+  left: calc(var(--d, 0) * 16px + 4px);
   right: 4px;
   height: 2px;
   background: var(--ink);
@@ -237,6 +259,20 @@ button.docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press);
 }
 .docs-tree-row.drop.drop-before::after { top: -1px; }
 .docs-tree-row.drop.drop-after::after { bottom: -1px; }
+
+/* Ramal dentro del sidebar del shell (≥1024px): el eje x = 20 coincide con
+   el trazo del shell, así que el tronco del árbol queda bajo la línea. */
+.side-branch:empty { display: none; }
+.docs-branch { padding: 2px 0 6px; }
+.docs-branch .docs-tree { --row-h: 30px; }
+.docs-branch .docs-tree-row:hover { background: var(--ui-hover); }
+.docs-branch .docs-tree-row.active { background: var(--bg); }
+.docs-branch .docs-sidebar-empty { padding: 4px 8px 8px 40px; }
+.docs-branch .docs-shared { margin: 12px 0 0 26px; }
+.docs-branch .docs-shared-row:hover { background: var(--ui-hover); }
+.docs-branch .docs-shared-row.active { background: var(--bg); }
+.docs-branch .docs-tree-drop-root { margin-left: 26px; }
+.sidebar-collapsed .side-branch { display: none; }
 
 .docs-tree-drop-root {
   margin: 12px 4px 0;
@@ -388,19 +424,22 @@ button.docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press);
   padding: 0 16px 0 24px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
+  /* La barra se adapta a su ancho (cambia con el panel de comentarios). */
+  container: docsbar / inline-size;
 }
 
-.docs-breadcrumb { min-width: 0; }
+.docs-breadcrumb { flex: 1 1 auto; min-width: 0; }
 .docs-breadcrumb ol {
   display: flex;
   align-items: center;
   min-width: 0;
+  overflow: hidden;
   margin: 0;
   padding: 0;
   list-style: none;
   font-size: 0.8125rem;
 }
-.docs-breadcrumb-segment { display: inline-flex; align-items: center; min-width: 0; white-space: nowrap; }
+.docs-breadcrumb-segment { display: inline-flex; flex: 0 1 auto; align-items: center; min-width: 0; white-space: nowrap; }
 .docs-breadcrumb-segment + .docs-breadcrumb-segment::before {
   content: '/';
   margin: 0 8px;
@@ -416,7 +455,8 @@ button.docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press);
 }
 .docs-breadcrumb-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .docs-breadcrumb-title,
-.docs-breadcrumb-current { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docs-breadcrumb-current { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docs-breadcrumb-title { max-width: 160px; }
 .docs-breadcrumb-current { font-weight: 600; color: var(--ink); }
 
 .docs-page-actions { display: flex; align-items: center; flex-shrink: 0; gap: 6px; }
@@ -956,7 +996,7 @@ button.docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press);
 .docs-bmenu-sub { position: absolute; top: -5px; left: calc(100% + 4px); width: 210px; max-height: 300px; overflow-y: auto; }
 
 /* Menú "/" (anclado al caret: top/left/maxHeight vienen de JS). */
-.docs-command-menu { position: fixed; width: 260px; max-height: 340px; overflow-y: auto; }
+.docs-command-menu { position: fixed; width: 280px; max-height: 340px; overflow-y: auto; }
 .docs-command-title { padding: 8px 10px 4px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
 .docs-command-icon {
   display: inline-flex;
@@ -1200,7 +1240,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-access-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 .docs-access-row { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .docs-access-who { display: flex; flex: 1; flex-direction: column; min-width: 0; }
-.docs-access-who > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docs-access-who > span { overflow-wrap: anywhere; }
 .docs-access-name { font-size: 0.875rem; font-weight: 600; }
 .docs-access-role { padding-right: 36px; font-size: 0.8125rem; color: var(--brand-gray-2); }
 .app-frame select.docs-access-select,
@@ -1216,8 +1256,33 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-public-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .docs-share .ui-disclosure { margin-top: 4px; }
 
-/* Insignia "Publicada" en la barra. */
-.docs-published { margin-right: 4px; }
+/* "Publicada": estado en texto plano con una estación rellena, no una etiqueta. */
+.docs-published {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 6px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-1);
+  white-space: nowrap;
+}
+.docs-published-station {
+  flex: 0 0 10px;
+  width: 10px;
+  height: 10px;
+  border: 2.2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Barra angosta: primero se va el texto de guardado, después "Publicada"
+   (el error de guardado se queda: pide una acción). */
+@container docsbar (max-width: 620px) {
+  .docs-save-status:not(.is-error) { display: none; }
+}
+@container docsbar (max-width: 480px) {
+  .docs-published { display: none; }
+}
 
 /* ---------- 10. Modo lectura ---------- */
 
@@ -1228,8 +1293,24 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 
 /* ---------- 11. Responsive ---------- */
 
+/* 1024–1279px: comentarios y versiones flotan sobre el editor, debajo de su
+   barra, en vez de quitarle una columna (la barra no se aprieta). */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .docs-editor-wrap.has-side { grid-template-columns: minmax(0, 1fr); }
+  .docs-side {
+    position: fixed;
+    top: calc(var(--band-h) + 48px);
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+    width: 320px;
+    height: auto;
+    align-self: stretch;
+    border-left: 1px solid var(--ink);
+  }
+}
+
 @media (max-width: 1279px) {
-  .docs-editor-wrap.has-side { grid-template-columns: minmax(0, 1fr) 300px; }
   .docs-page-header,
   .docs-blocks,
   .docs-readonly-body { width: min(100% - 80px, var(--measure)); }
@@ -1260,10 +1341,8 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-sidebar.mobile-open .docs-sidebar-toggle svg { transform: rotate(180deg); }
   .docs-sidebar:not(.mobile-open) .docs-sidebar-body { display: none; }
   .docs-sidebar-body { max-height: 60dvh; padding-top: 0; border-top: 1px solid var(--line); }
-  .docs-tree-row { height: 36px; }
+  .docs-tree { --row-h: 36px; }
   .docs-landing .ui-page-actions .kbd { display: none; }
-  .docs-tree li:first-child::before { top: 18px; }
-  .docs-tree li:last-child::before { height: 18px; }
 
   .docs-editor-wrap.has-side { grid-template-columns: minmax(0, 1fr); }
   /* Comentarios y versiones: hoja inferior sobre el editor (abajo del todo nadie la veía). */
@@ -1293,7 +1372,23 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-block-comment { right: 0; }
   .docs-title { font-size: 2.25rem; }
   .docs-page-header { padding-top: 28px; }
+  /* Aire abajo para que el botón flotante de feedback no tape el texto. */
+  .docs-editor { padding-bottom: 160px; }
+  /* Con la hoja de comentarios abierta, el botón flotante no se le monta encima. */
+  body:has(.docs-side:not([hidden])) .fl-root { display: none; }
   .docs-cover { height: 160px; }
+}
+
+/* Teléfono y tablet angosta: el título arranca cerca de la barra. Ícono,
+   portada y comentario van debajo del título en vez de empujarlo. */
+@media (max-width: 899px) {
+  .docs-page-header { padding-top: 24px; }
+  /* Ícono/portada/comentario: debajo del título y solo al tocar el encabezado
+     (invisibles no dejan un hueco entre el título y el texto). */
+  .docs-page-header .docs-page-meta { order: 3; display: none; opacity: 1; }
+  .docs-page-header:focus-within .docs-page-meta,
+  .docs-page-header .docs-page-meta:has([aria-expanded='true']) { display: flex; }
+  .docs-cover + .docs-page-header { padding-top: 16px; }
 }
 
 @media (max-width: 720px) {

@@ -2,7 +2,6 @@
   "untitled": "Sem título",
   "landing": {
     "title": "Docs",
-    "subtitle": "Notas, wikis e documentos. Zero lock-in.",
     "newPage": "Nova página",
     "latest": "Páginas recentes",
     "emptyTitle": "Ainda não há páginas",
@@ -181,9 +180,10 @@
     "publishSection": "Publicar",
     "publicLink": "Link público",
     "openPublic": "Abrir",
-    "aiHint": "IA do Chat",
     "suggestions": "Sugestões",
-    "close": "Fechar"
+    "close": "Fechar",
+    "aiHintOn": "A IA do Chat usa esta página",
+    "aiHintOff": "A IA do Chat não usa"
   },
   "templates": {
     "title": "Começar de um modelo",
@@ -221,7 +221,7 @@
     "title": "Central de ajuda",
     "searchPlaceholder": "Buscar artigos",
     "search": "Buscar",
-    "resultsFor": "Resultados para \"{q}\"",
+    "resultsFor": "Resultados para “{q}”",
     "noResults": "Nenhum artigo encontrado. Tente outras palavras.",
     "empty": "Ainda não há artigos publicados.",
     "untitled": "Sem título",
@@ -237,10 +237,13 @@
     "thanks": "Obrigado pelo retorno.",
     "feedbackError": "Não conseguimos registrar sua resposta. Tente novamente mais tarde.",
     "articleCount": "{count, plural, one {# artigo} other {# artigos}}",
-    "noResultsTitle": "Nenhum artigo corresponde a \"{q}\"",
+    "noResultsTitle": "Nenhum artigo corresponde a “{q}”",
     "noResultsBody": "Tente outras palavras ou veja todos os artigos.",
     "allArticles": "Ver todos os artigos",
-    "emptyBody": "Os artigos aparecem aqui quando a equipe os publica no Docs."
+    "emptyBody": "Os artigos aparecem aqui quando a equipe os publica no Docs.",
+    "heroTitle": "Como podemos ajudar?",
+    "collectionOf": "{count, plural, one {Coleção de # artigo} other {Coleção de # artigos}}",
+    "articlesIn": "Artigos de {title}"
   },
   "versions": {
     "title": "Histórico de versões",

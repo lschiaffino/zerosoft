@@ -2,7 +2,6 @@
   "untitled": "Sin título",
   "landing": {
     "title": "Docs",
-    "subtitle": "Notas, wikis y documentos. Sin lock-in.",
     "newPage": "Nueva página",
     "latest": "Últimas páginas",
     "emptyTitle": "Todavía no hay páginas",
@@ -181,9 +180,10 @@
     "publishSection": "Publicar",
     "publicLink": "Link público",
     "openPublic": "Abrir",
-    "aiHint": "IA del Chat",
     "suggestions": "Sugerencias",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "aiHintOn": "La usa la IA del Chat",
+    "aiHintOff": "La IA del Chat no la usa"
   },
   "templates": {
     "title": "Empezar desde una plantilla",
@@ -221,7 +221,7 @@
     "title": "Centro de ayuda",
     "searchPlaceholder": "Buscar artículos",
     "search": "Buscar",
-    "resultsFor": "Resultados para \"{q}\"",
+    "resultsFor": "Resultados para “{q}”",
     "noResults": "No encontramos artículos. Probá con otras palabras.",
     "empty": "Todavía no hay artículos publicados.",
     "untitled": "Sin título",
@@ -237,10 +237,13 @@
     "thanks": "Gracias por contarnos.",
     "feedbackError": "No pudimos registrar tu respuesta. Probá de nuevo más tarde.",
     "articleCount": "{count, plural, one {# artículo} other {# artículos}}",
-    "noResultsTitle": "Ningún artículo coincide con \"{q}\"",
+    "noResultsTitle": "Ningún artículo coincide con “{q}”",
     "noResultsBody": "Probá con otras palabras o mirá todos los artículos.",
     "allArticles": "Ver todos los artículos",
-    "emptyBody": "Los artículos aparecen acá cuando el equipo los publica desde Docs."
+    "emptyBody": "Los artículos aparecen acá cuando el equipo los publica desde Docs.",
+    "heroTitle": "¿En qué te ayudamos?",
+    "collectionOf": "{count, plural, one {Colección de # artículo} other {Colección de # artículos}}",
+    "articlesIn": "Artículos de {title}"
   },
   "versions": {
     "title": "Historial de versiones",

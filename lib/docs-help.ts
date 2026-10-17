@@ -35,6 +35,11 @@ export interface HelpCollection extends HelpArticleSummary {
 export interface HelpArticle extends HelpArticleSummary {
   content: DocsBlock[];
   collection: HelpArticleSummary | null;
+  /**
+   * Hijas publicadas directas (con excerpt) y sus descendientes: una página
+   * con hijas es la portada de su colección y las lista como estaciones.
+   */
+  children: HelpCollection[];
   prev: HelpArticleSummary | null;
   next: HelpArticleSummary | null;
 }
@@ -203,10 +208,15 @@ export async function getHelpArticle(ownerId: string, slug: string): Promise<Hel
   }
   const idx = order.findIndex((o) => o.item.id === row.id);
   const collection = idx >= 0 && order[idx].collection.id !== row.id ? order[idx].collection : null;
+  // Hijas directas con sus propias descendientes (el mismo armado que las colecciones).
+  // Sin la página misma, sus hijas quedan como raíces del árbol.
+  const childIds = new Set(rows.filter((r) => r.parent_id === row.id).map((r) => r.id));
+  const subtree = buildHelpCollections(rows.filter((r) => r.id !== row.id)).filter((c) => childIds.has(c.id));
   return {
     ...summary(row),
     content: parseBlocks(row.content),
     collection,
+    children: await withHelpExcerpts(ownerId, subtree),
     prev: idx > 0 ? order[idx - 1].item : null,
     next: idx >= 0 && idx < order.length - 1 ? order[idx + 1].item : null,
   };
@@ -214,6 +224,10 @@ export async function getHelpArticle(ownerId: string, slug: string): Promise<Hel
 
 export interface HelpSearchResult extends HelpArticleSummary {
   score: number;
+  /** Colección del artículo (null si el resultado es una colección). */
+  collection: Pick<HelpArticleSummary, 'slug' | 'title'> | null;
+  /** Artículos de la colección cuando el resultado es una colección. */
+  articleCount: number;
 }
 
 /**
@@ -241,6 +255,13 @@ export function expandQuery(query: string, corpus: string[]): string {
 export async function searchHelpArticles(ownerId: string, query: string, k = 5): Promise<HelpSearchResult[]> {
   const rows = await publishedRows(ownerId);
   const byId = new Map(rows.map((r) => [r.id, r]));
+  // Cada artículo sabe a qué colección pertenece (para la miga del resultado).
+  const collectionOf = new Map<string, HelpArticleSummary>();
+  const countOf = new Map<string, number>();
+  for (const c of buildHelpCollections(rows)) {
+    countOf.set(c.id, c.articles.length);
+    for (const a of c.articles) collectionOf.set(a.id, c);
+  }
   const docs = rows.map((r) => ({ kind: 'doc' as const, title: r.title, text: pagePlainText(r.content), source: r.id }));
   const ranked = rankKnowledge(docs, expandQuery(query, docs.map((d) => `${d.title} ${d.text}`)), k * 4);
   const out: HelpSearchResult[] = [];
@@ -250,7 +271,13 @@ export async function searchHelpArticles(ownerId: string, query: string, k = 5):
     seen.add(c.source);
     const row = byId.get(c.source);
     if (!row) continue;
-    out.push({ ...summary(row), score: c.score });
+    const coll = collectionOf.get(row.id);
+    out.push({
+      ...summary(row),
+      score: c.score,
+      collection: coll ? { slug: coll.slug, title: coll.title } : null,
+      articleCount: coll ? 0 : countOf.get(row.id) ?? 0,
+    });
     if (out.length >= k) break;
   }
   return out;

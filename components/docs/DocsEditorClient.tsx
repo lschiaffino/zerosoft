@@ -284,7 +284,11 @@ export default function DocsEditorClient({
   const topActions = (
     <>
       {current.published && (
-        <span className="badge badge-ok docs-published">{t('editor.published')}</span>
+        // Estado, no etiqueta: una estación rellena con la línea y el texto plano.
+        <span className="docs-published">
+          <span className="docs-published-station" aria-hidden="true" />
+          {t('editor.published')}
+        </span>
       )}
       <button
         type="button"

@@ -110,6 +110,11 @@ export interface NavItem {
   active: boolean;
   icon: IconName;
   badge?: number;
+  /**
+   * La estación tiene un ramal: el producto monta ahí su propio árbol (Docs
+   * cuelga sus páginas de "Páginas"). El shell deja el hueco #side-branch.
+   */
+  branch?: boolean;
 }
 
 export interface NavGroup {
@@ -221,7 +226,7 @@ export function buildNav(
       return [
         {
           items: [
-            { href: '/app/docs', label: labels.docs.pages, active: at('/app/docs'), icon: 'docs' },
+            { href: '/app/docs', label: labels.docs.pages, active: at('/app/docs'), icon: 'docs', branch: true },
             // Plantillas y papelera son secciones de la portada de Docs.
             { href: '/app/docs#templates', label: labels.docs.templates, active: false, icon: 'templates' },
             { href: '/app/docs?trash=1#trash', label: labels.docs.trash, active: false, icon: 'trash' },

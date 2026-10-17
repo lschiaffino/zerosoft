@@ -71,7 +71,7 @@ export default async function DocsLandingPage(props: {
 
       <div className="docs-main docs-landing ui-page">
         {sp.new === '1' && <DocsAutoCreate action={createAction.bind(null, null)} />}
-        <PageHeader title={t('landing.title')} description={t('landing.subtitle')} actions={newPageButton} />
+        <PageHeader title={t('landing.title')} actions={newPageButton} />
 
         {pages.length === 0 ? (
           <EmptyState

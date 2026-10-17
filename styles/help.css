@@ -93,8 +93,7 @@
   letter-spacing: -0.005em;
   text-wrap: balance;
 }
-.help-lead { margin: 14px 0 28px; max-width: 52ch; font-size: 1.125rem; line-height: 1.5; color: var(--brand-gray-1); }
-.help-hero .help-search { max-width: 640px; }
+.help-hero .help-search { max-width: 640px; margin-top: 28px; }
 .help-search-btn { flex-shrink: 0; }
 
 .help-body-wrap { padding: 56px 0 96px; }
@@ -180,6 +179,7 @@
 .help-row { display: flex; flex-direction: column; gap: 4px; padding: 16px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
 .help-row-title { font-size: 1.0625rem; font-weight: 600; }
 .help-row:hover .help-row-title { color: var(--help-accent-ink); text-decoration: underline; text-underline-offset: 3px; }
+.help-row-crumb { font-size: 0.8125rem; color: var(--brand-gray-2); }
 .help-row-excerpt { max-width: 72ch; font-size: 0.9375rem; line-height: 1.5; color: var(--brand-gray-1); }
 
 /* ---------- Artículo ---------- */
@@ -229,6 +229,16 @@
 .help-feedback-q,
 .help-feedback-thanks { margin: 0; font-size: 0.9375rem; font-weight: 600; }
 .help-feedback-actions { display: flex; gap: 8px; }
+/* Mínimo de DESIGN.md: 44px (40px bajo 900px). */
+.help-feedback-btn { --btn-h: 44px; min-width: 72px; }
+@media (max-width: 899px) { .help-feedback-btn { --btn-h: 40px; } }
+
+/* Portada de colección: sus artículos como estaciones bajo la intro. */
+.help-line-children { margin-top: 48px; padding-top: 32px; border-top: 4px solid var(--ink); }
+.help-line-children::before { top: 46px; }
+.help-line-children .help-collection-title { font-size: 1.5rem; }
+.help-line-children .help-stop { padding-bottom: 36px; }
+.help-line-children .help-stop:last-child { padding-bottom: 0; }
 .help-feedback-error { flex-basis: 100%; margin: 0; }
 
 .help-pager { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }

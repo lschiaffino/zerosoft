@@ -82,7 +82,40 @@ export default async function HelpArticlePage(props: Props) {
             </header>
             <DocsBlocksView blocks={blocks} className="docs-prose help-body" />
 
-            <HelpFeedback pageId={article.id} />
+            {/* Portada de colección: sus artículos son las estaciones de la línea del workspace. */}
+            {article.children.length > 0 ? (
+              <ol className="help-line help-line-children" aria-label={t('articlesIn', { title: article.title || t('untitled') })}>
+                {article.children.map((c) => (
+                  <li key={c.id} className="help-stop">
+                    <span className="help-station" aria-hidden="true" />
+                    <div className="help-stop-body">
+                      <h2 className="help-collection-title">
+                        <a href={`${base}/${c.slug}`}>
+                          {c.icon && <span aria-hidden="true">{c.icon} </span>}
+                          {c.title || t('untitled')}
+                        </a>
+                      </h2>
+                      {c.excerpt && (
+                        <p className="help-collection-meta">
+                          <span className="help-collection-excerpt">{c.excerpt}</span>
+                        </p>
+                      )}
+                      {c.articles.length > 0 && (
+                        <ul className="help-collection-list">
+                          {c.articles.map((a) => (
+                            <li key={a.id}>
+                              <a href={`${base}/${a.slug}`}>{a.title || t('untitled')}</a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <HelpFeedback pageId={article.id} />
+            )}
 
             {(article.prev || article.next) && (
               <nav className="help-pager" aria-label={t('pager')}>

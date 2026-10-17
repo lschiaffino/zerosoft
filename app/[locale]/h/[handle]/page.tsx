@@ -53,8 +53,8 @@ export default async function HelpCenterHome(props: Props) {
 
       <section className="help-hero">
         <div className="help-wrap">
-          <h1 className="help-title">{t('metaTitle', { name: ws.name })}</h1>
-          <p className="help-lead">{t('metaDescription', { name: ws.name })}</p>
+          {/* El nombre del workspace ya está en el header: el título es la tarea. */}
+          <h1 className="help-title">{t('heroTitle')}</h1>
           <form action={base} method="get" className="help-search" role="search">
             <span className="help-search-icon" aria-hidden="true">
               <Icon name="search" size={18} />
@@ -96,6 +96,13 @@ export default async function HelpCenterHome(props: Props) {
                   <li key={a.id}>
                     <a href={`${base}/${a.slug}`} className="help-row">
                       <span className="help-row-title">{a.title || t('untitled')}</span>
+                      {a.collection ? (
+                        <span className="help-row-crumb">{a.collection.title || t('untitled')}</span>
+                      ) : a.articleCount > 0 ? (
+                        <span className="help-row-crumb">
+                          {t('collectionOf', { count: a.articleCount })}
+                        </span>
+                      ) : null}
                       {a.excerpt && <span className="help-row-excerpt">{a.excerpt}</span>}
                     </a>
                   </li>

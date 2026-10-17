@@ -84,15 +84,15 @@ const BLOCK_COMMANDS: {
   level?: 1 | 2 | 3;
   shortcut?: string;
 }[] = [
-  { key: 'p', type: 'paragraph', shortcut: 'plain text' },
-  { key: 'h1', type: 'heading', level: 1, shortcut: '# heading' },
-  { key: 'h2', type: 'heading', level: 2, shortcut: '## heading' },
-  { key: 'h3', type: 'heading', level: 3, shortcut: '### heading' },
-  { key: 'bulleted', type: 'bulleted_list_item', shortcut: '- list' },
-  { key: 'numbered', type: 'numbered_list_item', shortcut: '1. list' },
-  { key: 'todo', type: 'todo', shortcut: '[ ] todo' },
-  { key: 'quote', type: 'quote', shortcut: '> quote' },
-  { key: 'code', type: 'code', shortcut: '``` code' },
+  { key: 'p', type: 'paragraph' },
+  { key: 'h1', type: 'heading', level: 1, shortcut: '#' },
+  { key: 'h2', type: 'heading', level: 2, shortcut: '##' },
+  { key: 'h3', type: 'heading', level: 3, shortcut: '###' },
+  { key: 'bulleted', type: 'bulleted_list_item', shortcut: '-' },
+  { key: 'numbered', type: 'numbered_list_item', shortcut: '1.' },
+  { key: 'todo', type: 'todo', shortcut: '[ ]' },
+  { key: 'quote', type: 'quote', shortcut: '>' },
+  { key: 'code', type: 'code', shortcut: '```' },
   { key: 'divider', type: 'divider' },
   { key: 'table', type: 'table' },
   { key: 'database', type: 'database' },
@@ -277,7 +277,11 @@ export default function DocsEditor({
   /** Caret pendiente de aplicar después del próximo render (split/merge/conversión). */
   const pendingCaret = useRef<{ index: number; offset: number } | null>(null);
   /** Último índice enfocado conocido, para no re-mover el caret en cada render. */
-  const prevFocus = useRef<number>(-1);
+  // En el teléfono no se enfoca el primer bloque al abrir: el asa y el "+"
+  // aparecen recién cuando la persona toca un bloque.
+  const prevFocus = useRef<number>(
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches ? 0 : -1,
+  );
   /** Índice del bloque con menú contextual abierto (click en el grip ⋮⋮). */
   const [blockMenu, setBlockMenu] = useState<number | null>(null);
   const [turnIntoOpen, setTurnIntoOpen] = useState(false);
@@ -1498,12 +1502,8 @@ export default function DocsEditor({
       {!embedded && (
       <div className="docs-top-bar">
         <nav className="docs-breadcrumb" aria-label={t('editor.breadcrumb')}>
+          {/* La banda ya dice "Docs / Páginas": acá van solo ancestros y título. */}
           <ol>
-            <li className="docs-breadcrumb-segment">
-              <Link href="/app/docs" className="docs-breadcrumb-link">
-                Docs
-              </Link>
-            </li>
             {ancestorChain.map((a) => (
               <li key={a.id} className="docs-breadcrumb-segment">
                 <Link href={`/app/docs/${a.id}`} className="docs-breadcrumb-link">
@@ -1948,7 +1948,7 @@ export default function DocsEditor({
         createPortal(
         <div
           className="docs-command-menu"
-          style={caretMenuStyle(caretMenuPos, 240, 320)}
+          style={caretMenuStyle(caretMenuPos, 280, 320)}
           onMouseDown={(e) => e.preventDefault()}
         >
           <div className="docs-command-title">{t('editor.basicBlocks')}</div>

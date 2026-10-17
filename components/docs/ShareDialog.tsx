@@ -62,7 +62,7 @@ export default function ShareDialog({
   const [role, setRole] = useState<DocsShareRole>('view');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState<'public' | 'internal' | null>(null);
+  const [copied, setCopied] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -148,11 +148,11 @@ export default function ShareDialog({
   const [origin, setOrigin] = useState('');
   useEffect(() => setOrigin(window.location.origin), []);
 
-  async function copy(text: string, which: 'public' | 'internal') {
+  async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(which);
-      setTimeout(() => setCopied(null), 1500);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     } catch {
       /* sin permiso de portapapeles */
     }
@@ -368,9 +368,9 @@ export default function ShareDialog({
                 <button
                   type="button"
                   className="btn btn-secondary docs-public-copy"
-                  onClick={() => copy(`${window.location.origin}${publicPath}`, 'public')}
+                  onClick={() => copy(`${window.location.origin}${publicPath}`)}
                 >
-                  {copied === 'public' ? t('share.copied') : t('share.copyPublic')}
+                  {copied ? t('share.copied') : t('share.copyPublic')}
                 </button>
               </div>
               <span className="ui-help docs-public-meta">
@@ -382,7 +382,7 @@ export default function ShareDialog({
             </div>
           )}
 
-          <AdvancedSection storageKey="docs.share" hint={t('share.aiHint')}>
+          <AdvancedSection storageKey="docs.share" hint={page.is_public ? t('share.aiHintOn') : t('share.aiHintOff')}>
             <label className="ui-switch docs-switch-row">
               <input
                 type="checkbox"
@@ -399,16 +399,14 @@ export default function ShareDialog({
         </section>
       </div>
 
-      <div className="ui-modal-foot">
-        {helpBase && (
+      {/* Publicada, "Abrir" ya lleva al artículo: el pie solo aparece sin publicar. */}
+      {helpBase && !(page.published && publicPath) && (
+        <div className="ui-modal-foot">
           <a href={helpBase} target="_blank" rel="noopener noreferrer" className="ui-foot-note docs-inline-link">
             {t('share.openHelpCenter')}
           </a>
-        )}
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(window.location.href, 'internal')}>
-          {copied === 'internal' ? t('share.copied') : t('share.copyLink')}
-        </button>
-      </div>
+        </div>
+      )}
     </dialog>
   );
 }

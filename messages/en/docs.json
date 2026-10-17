@@ -2,7 +2,6 @@
   "untitled": "Untitled",
   "landing": {
     "title": "Docs",
-    "subtitle": "Notes, wikis and documents. Zero lock-in.",
     "newPage": "New page",
     "latest": "Latest pages",
     "emptyTitle": "No pages yet",
@@ -181,9 +180,10 @@
     "publishSection": "Publish",
     "publicLink": "Public link",
     "openPublic": "Open",
-    "aiHint": "Chat AI",
     "suggestions": "Suggestions",
-    "close": "Close"
+    "close": "Close",
+    "aiHintOn": "Chat AI uses it",
+    "aiHintOff": "Chat AI does not use it"
   },
   "templates": {
     "title": "Start from a template",
@@ -221,7 +221,7 @@
     "title": "Help center",
     "searchPlaceholder": "Search articles",
     "search": "Search",
-    "resultsFor": "Results for \"{q}\"",
+    "resultsFor": "Results for “{q}”",
     "noResults": "No articles found. Try other words.",
     "empty": "No published articles yet.",
     "untitled": "Untitled",
@@ -237,10 +237,13 @@
     "thanks": "Thanks for letting us know.",
     "feedbackError": "We couldn't record your answer. Try again later.",
     "articleCount": "{count, plural, one {# article} other {# articles}}",
-    "noResultsTitle": "No articles match \"{q}\"",
+    "noResultsTitle": "No articles match “{q}”",
     "noResultsBody": "Try other words or browse every article.",
     "allArticles": "See all articles",
-    "emptyBody": "Articles show up here once the team publishes them from Docs."
+    "emptyBody": "Articles show up here once the team publishes them from Docs.",
+    "heroTitle": "How can we help?",
+    "collectionOf": "{count, plural, one {Collection of # article} other {Collection of # articles}}",
+    "articlesIn": "Articles in {title}"
   },
   "versions": {
     "title": "Version history",
