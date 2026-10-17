@@ -149,7 +149,9 @@
 /* Grupo de botones pegados (segmented): bordes compartidos. */
 .btn-group { display: inline-flex; }
 .btn-group > .btn + .btn { margin-left: -1px; }
-.btn-group > .btn[aria-pressed='true'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); z-index: 1; }
+.btn-group > .btn[aria-pressed='true'],
+.btn-group > .btn[aria-selected='true'],
+.btn-group > .btn[aria-current='page'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); z-index: 1; }
 
 /* ---------- 2. Campos ---------- */
 

@@ -24,7 +24,7 @@
   "common": {
     "save": "Salvar",
     "saving": "Salvando…",
-    "saved": "Salvo ✓",
+    "saved": "Salvo",
     "cancel": "Cancelar",
     "delete": "Excluir",
     "confirm": "Confirmar",
@@ -67,7 +67,8 @@
     "adminOnly": "Só admins do workspace podem alterar isso.",
     "moreFilters": "Mais filtros",
     "sortBy": "Ordenar por",
-    "activityType": "Tipo de atividade"
+    "activityType": "Tipo de atividade",
+    "preview": "Pré-visualizar"
   },
   "assoc": {
     "associate": "Associar",
@@ -230,7 +231,7 @@
       "mergeKeep": "Manter este",
       "mergeDrop": "Mesclar no outro",
       "mergeConfirm": "Mesclar {drop} em {keep}? Isso não pode ser desfeito.",
-      "merged": "Contatos mesclados ✓",
+      "merged": "Contatos mesclados",
       "dangerZone": "Zona de perigo",
       "deleteTitle": "Excluir este contato",
       "deleteDesc": "Exclui o contato e o remove de negócios e listas. As atividades são mantidas.",
@@ -467,7 +468,7 @@
     "upcoming": "Próximas",
     "done": "Concluídas",
     "complete": "Concluir",
-    "completed": "Concluída ✓",
+    "completed": "Concluída",
     "reopen": "Reabrir",
     "dueLabel": "Vence",
     "noDue": "Sem data",
@@ -1614,5 +1615,95 @@
     "empty": "Nenhuma cota ainda.",
     "expected": "Esperado até agora: {pct}%",
     "manage": "Gerenciar"
+  },
+  "record": {
+    "tabsLabel": "Seções do registro",
+    "tabs": {
+      "activity": "Atividade",
+      "properties": "Propriedades",
+      "related": "Relacionados"
+    },
+    "moreLabel": "Mais",
+    "close": "Fechar",
+    "more": {
+      "duplicates": "Duplicados",
+      "history": "Histórico",
+      "deleteContact": "Excluir contato",
+      "deleteCompany": "Excluir empresa",
+      "deleteDeal": "Excluir deal"
+    },
+    "back": {
+      "contacts": "Contatos",
+      "companies": "Empresas",
+      "deals": "Deals",
+      "lists": "Listas"
+    },
+    "summary": "Resumo",
+    "manageRelated": "Ver e editar relacionados",
+    "confirmType": "Digite {token} para confirmar",
+    "createContact": "Criar contato",
+    "createCompany": "Criar empresa",
+    "createDeal": "Criar deal",
+    "createList": "Criar lista",
+    "createTask": "Criar tarefa",
+    "viewLabel": "Visualização",
+    "listsDesc": "Grupos de contatos para sequências, envios e relatórios.",
+    "taskBuckets": "Tarefas por data",
+    "loading": "Carregando…",
+    "noResults": "Sem resultados.",
+    "form": {
+      "contactTitle": "Dados do contato",
+      "contactDesc": "Um nome ou um email basta. O resto você completa depois.",
+      "companyTitle": "Dados da empresa",
+      "companyDesc": "O nome basta. O resto você completa depois.",
+      "dealTitle": "Dados do deal",
+      "dealDesc": "Nome, valor e etapa. O resto pode esperar.",
+      "moreFields": "Mais campos",
+      "contactMoreHint": "Cargo, site, localização, lifecycle, origem",
+      "companyMoreHint": "Setor, funcionários, telefone, site, localização",
+      "dealMoreHint": "Moeda, fechamento, prioridade, origem, descrição",
+      "domainHelp": "Se ficar vazio, vem do site.",
+      "contact": "Contato",
+      "noContact": "Sem contato"
+    },
+    "empty": {
+      "noMatchTitle": "Nada corresponde a estes filtros",
+      "noMatchBody": "Mude a busca ou limpe os filtros para ver tudo.",
+      "contactsTitle": "Ainda não há contatos",
+      "contactsBody": "Cadastre o primeiro ou importe um CSV com os que você já tem.",
+      "companiesTitle": "Ainda não há empresas",
+      "companiesBody": "Cadastre a primeira ou importe um CSV. Os contatos se associam pelo domínio.",
+      "dealsTitle": "Este pipeline não tem deals",
+      "dealsBody": "Crie o primeiro e mova-o pelas etapas no quadro.",
+      "importCsv": "ou importe um CSV",
+      "noPipelineTitle": "Ainda não há pipelines",
+      "noPipelineBody": "Um pipeline define as etapas por onde passa um deal.",
+      "noPipelineCta": "Criar pipeline",
+      "listsTitle": "Ainda não há listas",
+      "listsBody": "Uma lista estática você preenche à mão. Uma dinâmica se preenche sozinha com um filtro.",
+      "staticListTitle": "A lista está vazia",
+      "staticListBody": "Busque contatos acima para adicioná-los.",
+      "dynamicListTitle": "Nenhum contato atende ao filtro",
+      "dynamicListBody": "A lista se atualiza sozinha quando algum atender.",
+      "tasks": {
+        "overdue": "Nada vencido",
+        "today": "Nada para hoje",
+        "upcoming": "Nada nos próximos dias",
+        "done": "Nenhuma tarefa concluída ainda"
+      },
+      "tasksBody": "As tarefas de contatos, empresas e deals aparecem aqui por data."
+    },
+    "pager": {
+      "label": "Paginação",
+      "total": "{count, plural, one {# registro} other {# registros}}",
+      "prev": "Anterior",
+      "next": "Próxima",
+      "of": "Página {page} de {pages}"
+    },
+    "error": {
+      "title": "Não foi possível carregar esta tela",
+      "body": "Pode ser uma queda de conexão. Tente de novo; se continuar, avise a gente.",
+      "retry": "Tentar de novo"
+    }
   }
 }

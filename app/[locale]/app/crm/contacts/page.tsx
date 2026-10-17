@@ -23,6 +23,9 @@ import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
 import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+import CrmPager from '@/components/crm/CrmPager';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 
 export const dynamic = 'force-dynamic';
@@ -258,11 +261,11 @@ export default async function ContactsPage(props: ContactsPageProps) {
     Object.keys(custom).length > 0;
 
   return (
-    <div className="app-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('contacts.title')}</h1>
-        <CrmQuickCreate kind="contact" />
-      </div>
+    <div className="ui-page crm-list-page">
+      <PageHeader
+        title={t('contacts.title')}
+        actions={<CrmQuickCreate kind="contact" buttonClassName="btn btn-primary btn-sm" label={t('record.createContact')} />}
+      />
 
       <ContactsFilters
         q={q}
@@ -289,20 +292,22 @@ export default async function ContactsPage(props: ContactsPageProps) {
       </ContactsFilters>
 
       {tableRows.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-zeros mono" aria-hidden>
-            0 0 0 0 0 0 0
-          </p>
-          <h2>{t('contacts.emptyTitle')}</h2>
-          <p className="muted">{t('contacts.emptySub')}</p>
-          {hasFilters ? (
-            <Link href="/app/crm/contacts" className="btn btn-small">
-              {t('common.clear')}
-            </Link>
-          ) : (
-            <CrmQuickCreate kind="contact" variant="empty" label={t('contacts.emptyCta')} />
-          )}
-        </div>
+        hasFilters || advancedRules.length > 0 || activeView ? (
+          <EmptyState
+            title={t('record.empty.noMatchTitle')}
+            body={t('record.empty.noMatchBody')}
+            action={{ label: t('common.clear'), href: '/app/crm/contacts' }}
+          />
+        ) : (
+          <EmptyState
+            title={t('record.empty.contactsTitle')}
+            body={t('record.empty.contactsBody')}
+            action={<CrmQuickCreate kind="contact" variant="empty" buttonClassName="btn btn-primary" label={t('record.createContact')} />}
+            secondary={
+              <Link href="/app/crm/settings">{t('record.empty.importCsv')}</Link>
+            }
+          />
+        )
       ) : (
         <>
           <ContactsTable
@@ -316,37 +321,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
             sequences={(await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }))}
             allTags={tagOptions}
           />
-          {pages > 1 && (
-            <nav className="pager mono">
-              {page > 1 ? (
-                <Link
-                  href={{
-                    pathname: '/app/crm/contacts',
-                    query: { ...query, page: String(page - 1) },
-                  }}
-                  className="pager-btn"
-                >
-                  {t('common.pagePrev')}
-                </Link>
-              ) : (
-                <span className="pager-btn disabled">{t('common.pagePrev')}</span>
-              )}
-              <span className="pager-info">{t('common.pageOf', { page, pages })}</span>
-              {page < pages ? (
-                <Link
-                  href={{
-                    pathname: '/app/crm/contacts',
-                    query: { ...query, page: String(page + 1) },
-                  }}
-                  className="pager-btn"
-                >
-                  {t('common.pageNext')}
-                </Link>
-              ) : (
-                <span className="pager-btn disabled">{t('common.pageNext')}</span>
-              )}
-            </nav>
-          )}
+          <CrmPager pathname="/app/crm/contacts" query={query} page={page} pages={pages} total={total} locale={locale} />
         </>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import PageHeader from '@/components/ui/PageHeader';
 import { requireUser } from '@/lib/session';
 import { LIFECYCLE_STAGES } from '@/lib/crm';
 import CompanyForm from '@/components/crm/CompanyForm';
@@ -27,11 +27,8 @@ export default async function NewCompanyPage(props: {
   const lifecycles = LIFECYCLE_STAGES.map((value) => ({ value, label: t(`enums.lifecycle.${value}`) }));
 
   return (
-    <div className="app-page narrow">
-      <Link href="/app/crm/companies" className="mono back-link">
-        {t('companies.detail.back')}
-      </Link>
-      <h1 className="app-title">{t('companies.newTitle')}</h1>
+    <div className="ui-page ui-page-narrow">
+      <PageHeader back={{ href: '/app/crm/companies', label: t('record.back.companies') }} title={t('companies.newTitle')} />
       <CompanyForm lifecycles={lifecycles} />
     </div>
   );

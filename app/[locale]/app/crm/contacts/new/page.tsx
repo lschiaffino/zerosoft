@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import PageHeader from '@/components/ui/PageHeader';
 import { requireUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import {
@@ -61,11 +61,8 @@ export default async function NewContactPage(
       : undefined;
 
   return (
-    <div className="app-page narrow">
-      <Link href="/app/crm/contacts" className="mono back-link">
-        {t('contacts.detail.back')}
-      </Link>
-      <h1 className="app-title">{t('contacts.newTitle')}</h1>
+    <div className="ui-page ui-page-narrow">
+      <PageHeader back={{ href: '/app/crm/contacts', label: t('record.back.contacts') }} title={t('contacts.newTitle')} />
       <ContactForm
         companies={companies}
         customFields={customFields}

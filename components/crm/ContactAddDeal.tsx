@@ -13,7 +13,7 @@ interface ContactAddDealProps {
   sources: Array<{ value: string; label: string }>;
 }
 
-/** Botón "+ Add deal" en el detalle de contacto: abre DealForm con el contacto pre-vinculado. */
+/** Botón "Crear deal" en el detalle de contacto: abre DealForm con el contacto pre-vinculado. */
 export default function ContactAddDeal({
   pipelineId,
   stageId,
@@ -45,8 +45,8 @@ export default function ContactAddDeal({
   }
 
   return (
-    <button type="button" className="kb-add" onClick={() => setOpen(true)}>
-      {t('deals.addDeal')}
+    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(true)}>
+      {t('record.createDeal')}
     </button>
   );
 }

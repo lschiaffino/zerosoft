@@ -5,10 +5,11 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
-import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
+import { ColumnToggleInBar, useColumnVisibility } from './ColumnToggle';
 import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
+import CrmIcon from './CrmIcon';
 
 export interface ContactRow {
   id: string;
@@ -53,7 +54,7 @@ const COLS = [
   { id: 'lifecycle', labelKey: 'contacts.table.lifecycle', defaultVisible: true },
   { id: 'leadStatus', labelKey: 'contacts.table.leadStatus', defaultVisible: true },
   { id: 'source', labelKey: 'contacts.table.source', defaultVisible: false },
-  { id: 'score', labelKey: 'scoring.column', defaultVisible: true },
+  { id: 'score', labelKey: 'scoring.column', defaultVisible: false },
   { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
   { id: 'created', labelKey: 'contacts.table.created', defaultVisible: true },
 ];
@@ -144,14 +145,12 @@ export default function ContactsTable({
 
   return (
     <>
-      <div className="table-toolbar">
-        <ColumnToggle
-          columns={COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible }))}
-          visible={visible}
-          onToggle={toggleVisible}
-          label={t('common.columns')}
-        />
-      </div>
+      <ColumnToggleInBar
+        columns={COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible }))}
+        visible={visible}
+        onToggle={toggleVisible}
+        label={t('common.columns')}
+      />
 
       <div className="table-wrap">
         <table className="table crm-table">
@@ -188,11 +187,11 @@ export default function ContactsTable({
               )}
               {visible.has('tags') && <th>{t('tags.column')}</th>}
               {visible.has('created') && (
-                <th>
+                <th className="num cell-date">
                   <SortTh label={t('contacts.table.created')} asc="oldest" desc="newest" current={sort} />
                 </th>
               )}
-              <th className="cell-actions-head">{t('contacts.table.actions')}</th>
+              <th className="cell-actions-head"><span className="sr-only">{t('contacts.table.actions')}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -228,8 +227,9 @@ export default function ContactsTable({
                         href={`mailto:${row.email}`}
                         className="cell-quick"
                         title={t('enums.activityType.email')}
+                        aria-label={t('enums.activityType.email')}
                       >
-                        ✉
+                        <CrmIcon name="mail" />
                       </a>
                     ) : null}
                   </td>
@@ -247,8 +247,9 @@ export default function ContactsTable({
                         href={`tel:${row.phone}`}
                         className="cell-quick"
                         title={t('enums.activityType.call')}
+                        aria-label={t('enums.activityType.call')}
                       >
-                        ☎
+                        <CrmIcon name="phone" />
                       </a>
                     ) : null}
                   </td>
@@ -311,25 +312,25 @@ export default function ContactsTable({
                   </td>
                 )}
                 {visible.has('score') && (
-                  <td className="num mono cell-score" data-testid="contact-score">
+                  <td className="num cell-score" data-testid="contact-score">
                     {row.score}
                   </td>
                 )}
                 {visible.has('tags') && (
                   <td className="cell-crm-tags">
-                    <TagDots tags={row.tags ?? []} />
+                    <TagDots tags={row.tags ?? []} max={2} />
                   </td>
                 )}
-                {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
+                {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}
                 <td className="cell-actions">
                   <button
                     type="button"
                     className="icon-btn preview-btn"
                     onClick={() => setPreviewId(row.id)}
-                    title={t('common.viewAll')}
-                    aria-label={t('common.viewAll')}
+                    title={t('common.preview')}
+                    aria-label={t('common.preview')}
                   >
-                    👁
+                    <CrmIcon name="panel" />
                   </button>
                 </td>
               </tr>

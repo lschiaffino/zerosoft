@@ -24,7 +24,7 @@
   "common": {
     "save": "Save",
     "saving": "Saving…",
-    "saved": "Saved ✓",
+    "saved": "Saved",
     "cancel": "Cancel",
     "delete": "Delete",
     "confirm": "Confirm",
@@ -67,7 +67,8 @@
     "adminOnly": "Only workspace admins can change this.",
     "moreFilters": "More filters",
     "sortBy": "Sort by",
-    "activityType": "Activity type"
+    "activityType": "Activity type",
+    "preview": "Preview"
   },
   "assoc": {
     "associate": "Associate",
@@ -230,7 +231,7 @@
       "mergeKeep": "Keep this one",
       "mergeDrop": "Merge into the other",
       "mergeConfirm": "Merge {drop} into {keep}? This can't be undone.",
-      "merged": "Contacts merged ✓",
+      "merged": "Contacts merged",
       "dangerZone": "Danger zone",
       "deleteTitle": "Delete this contact",
       "deleteDesc": "This deletes the contact and removes it from deals and lists. Activities are kept.",
@@ -467,7 +468,7 @@
     "upcoming": "Upcoming",
     "done": "Done",
     "complete": "Complete",
-    "completed": "Completed ✓",
+    "completed": "Completed",
     "reopen": "Reopen",
     "dueLabel": "Due",
     "noDue": "No date",
@@ -1614,5 +1615,95 @@
     "empty": "No quotas yet.",
     "expected": "Expected by now: {pct}%",
     "manage": "Manage"
+  },
+  "record": {
+    "tabsLabel": "Record sections",
+    "tabs": {
+      "activity": "Activity",
+      "properties": "Properties",
+      "related": "Related"
+    },
+    "moreLabel": "More",
+    "close": "Close",
+    "more": {
+      "duplicates": "Duplicates",
+      "history": "History",
+      "deleteContact": "Delete contact",
+      "deleteCompany": "Delete company",
+      "deleteDeal": "Delete deal"
+    },
+    "back": {
+      "contacts": "Contacts",
+      "companies": "Companies",
+      "deals": "Deals",
+      "lists": "Lists"
+    },
+    "summary": "Summary",
+    "manageRelated": "View and edit related records",
+    "confirmType": "Type {token} to confirm",
+    "createContact": "Create contact",
+    "createCompany": "Create company",
+    "createDeal": "Create deal",
+    "createList": "Create list",
+    "createTask": "Create task",
+    "viewLabel": "View",
+    "listsDesc": "Groups of contacts for sequences, sends and reports.",
+    "taskBuckets": "Tasks by date",
+    "loading": "Loading…",
+    "noResults": "No results.",
+    "form": {
+      "contactTitle": "Contact details",
+      "contactDesc": "A name or an email is enough. Fill in the rest later.",
+      "companyTitle": "Company details",
+      "companyDesc": "The name is enough. Fill in the rest later.",
+      "dealTitle": "Deal details",
+      "dealDesc": "Name, amount and stage. The rest can wait.",
+      "moreFields": "More fields",
+      "contactMoreHint": "Job title, website, location, lifecycle, source",
+      "companyMoreHint": "Industry, employees, phone, website, location",
+      "dealMoreHint": "Currency, close date, priority, source, description",
+      "domainHelp": "Leave it empty to take it from the website.",
+      "contact": "Contact",
+      "noContact": "No contact"
+    },
+    "empty": {
+      "noMatchTitle": "Nothing matches these filters",
+      "noMatchBody": "Change the search or clear the filters to see everything.",
+      "contactsTitle": "No contacts yet",
+      "contactsBody": "Add the first one or import a CSV with the ones you already have.",
+      "companiesTitle": "No companies yet",
+      "companiesBody": "Add the first one or import a CSV. Contacts are matched by domain.",
+      "dealsTitle": "This pipeline has no deals",
+      "dealsBody": "Create the first one and move it through the stages on the board.",
+      "importCsv": "or import a CSV",
+      "noPipelineTitle": "No pipelines yet",
+      "noPipelineBody": "A pipeline sets the stages a deal goes through.",
+      "noPipelineCta": "Create pipeline",
+      "listsTitle": "No lists yet",
+      "listsBody": "You fill a static list by hand. A dynamic list fills itself from a filter.",
+      "staticListTitle": "This list is empty",
+      "staticListBody": "Search for contacts above to add them.",
+      "dynamicListTitle": "No contact matches the filter",
+      "dynamicListBody": "The list updates itself when one does.",
+      "tasks": {
+        "overdue": "Nothing overdue",
+        "today": "Nothing due today",
+        "upcoming": "Nothing coming up",
+        "done": "No completed tasks yet"
+      },
+      "tasksBody": "Tasks from contacts, companies and deals show up here by date."
+    },
+    "pager": {
+      "label": "Pagination",
+      "total": "{count, plural, one {# record} other {# records}}",
+      "prev": "Previous",
+      "next": "Next",
+      "of": "Page {page} of {pages}"
+    },
+    "error": {
+      "title": "This view could not load",
+      "body": "It may be a connection drop. Try again; if it keeps failing, let us know.",
+      "retry": "Try again"
+    }
   }
 }

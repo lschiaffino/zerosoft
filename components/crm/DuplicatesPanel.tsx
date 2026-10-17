@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 
@@ -19,16 +19,18 @@ interface DupGroup {
 
 interface DuplicatesPanelProps {
   contactId: string;
+  /** Busca apenas se monta (dentro del drawer "Más"): sin el clic extra. */
+  autoFind?: boolean;
 }
 
 /**
  * "Find duplicates" → grupos que comparten email e incluyen a este contacto.
  * Merge: keepId = este contacto, dropId = el elegido (con confirm).
  */
-export default function DuplicatesPanel({ contactId }: DuplicatesPanelProps) {
+export default function DuplicatesPanel({ contactId, autoFind = false }: DuplicatesPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
-  const [state, setState] = useState<'idle' | 'loading' | 'loaded'>('idle');
+  const [state, setState] = useState<'idle' | 'loading' | 'loaded' | 'error'>(autoFind ? 'loading' : 'idle');
   const [groups, setGroups] = useState<DupGroup[]>([]);
   const [dropId, setDropId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,7 +40,7 @@ export default function DuplicatesPanel({ contactId }: DuplicatesPanelProps) {
     setState('loading');
     const res = await fetch('/api/crm/contacts/duplicates').catch(() => null);
     if (!res || !res.ok) {
-      setState('idle');
+      setState('error');
       return;
     }
     const data = (await res.json()) as { groups: DupGroup[] };
@@ -48,6 +50,12 @@ export default function DuplicatesPanel({ contactId }: DuplicatesPanelProps) {
     setDropId(firstOther?.id ?? null);
     setState('loaded');
   }
+
+  useEffect(() => {
+    if (autoFind) void find();
+    // Solo al montar: find no cambia entre renders relevantes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function displayName(c: DupContact): string {
     return `${c.first_name} ${c.last_name}`.trim() || c.email || c.id;
@@ -76,19 +84,36 @@ export default function DuplicatesPanel({ contactId }: DuplicatesPanelProps) {
   }
 
   if (merged) {
-    return <p className="saved-note">{t('contacts.detail.merged')}</p>;
+    return <p className="ui-help" role="status">{t('contacts.detail.merged')}</p>;
   }
 
-  if (state === 'idle' || state === 'loading') {
+  if (autoFind && state === 'loading') {
     return (
-      <button
-        type="button"
-        className="btn btn-ghost btn-small"
-        onClick={find}
-        disabled={state === 'loading'}
-      >
-        {t('contacts.detail.findDuplicates')}
-      </button>
+      <div className="ui-loading-stack" aria-busy="true">
+        <span className="ui-skeleton ui-skeleton-row" />
+        <span className="ui-skeleton ui-skeleton-row" />
+      </div>
+    );
+  }
+
+  if (state === 'idle' || state === 'loading' || state === 'error') {
+    return (
+      <div className="dup-panel">
+        {state === 'error' && (
+          <p className="ui-error" role="alert">
+            {t('errors.generic')}
+          </p>
+        )}
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={find}
+          aria-busy={state === 'loading' || undefined}
+          disabled={state === 'loading'}
+        >
+          {t('contacts.detail.findDuplicates')}
+        </button>
+      </div>
     );
   }
 
@@ -101,11 +126,11 @@ export default function DuplicatesPanel({ contactId }: DuplicatesPanelProps) {
       {groups.map((group) => (
         <div key={group.email} className="dup-group">
           <p className="muted dup-sub">
-            {t('contacts.detail.duplicatesSub')} <span className="mono">{group.email}</span>
+            {t('contacts.detail.duplicatesSub')} <span className="data">{group.email}</span>
           </p>
           <div className="dup-list">
             {group.contacts.map((c) => (
-              <label key={c.id} className={`dup-row${c.id === contactId ? ' dup-keep' : ''}`}>
+              <label key={c.id} className={`dup-row ui-check${c.id === contactId ? ' dup-keep' : ''}`}>
                 {c.id === contactId ? (
                   <span className="badge">{t('contacts.detail.mergeKeep')}</span>
                 ) : (
@@ -123,7 +148,7 @@ export default function DuplicatesPanel({ contactId }: DuplicatesPanelProps) {
           </div>
           <button
             type="button"
-            className="btn btn-solid btn-small"
+            className="btn btn-primary btn-sm"
             onClick={merge}
             disabled={busy || !dropId}
           >

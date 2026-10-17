@@ -10,6 +10,8 @@ import { listMembers } from '@/lib/teams';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import AssociationPanel from '@/components/crm/AssociationPanel';
 import DangerDelete from '@/components/crm/DangerDelete';
+import PageHeader from '@/components/ui/PageHeader';
+import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import TaskFiles from '@/components/crm/TaskFiles';
 import TaskDonePin from '@/components/crm/TaskDonePin';
 import { ACTIVITY_TYPES } from '@/lib/crm-constants';
@@ -126,69 +128,76 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
   const associatedRecord = buildAssociation(task);
 
   return (
-    <div className="app-page">
-      <Link href="/app/crm/tasks" className="mono back-link">
-        {t('tasks.detail.back')}
-      </Link>
+    <div className="ui-page record-page">
+      <PageHeader
+        back={{ href: '/app/crm/tasks', label: t('tasks.title') }}
+        title={task.subject || t('tasks.detail.untitled')}
+        description={
+          <span className="record-meta">
+            {task.done === 1 && <span className="badge badge-ok">{t('tasks.done')}</span>}
+            {task.pinned === 1 && <span className="badge badge-outline">{t('common.pinned')}</span>}
+            {associatedRecord && (
+              <Link href={associatedRecord.href} className="record-meta-link">
+                {associatedRecord.label}
+              </Link>
+            )}
+            {task.due_at && (
+              <span>
+                {t('tasks.dueLabel')}: {formatDateTime(task.due_at, locale, timeZone)}
+              </span>
+            )}
+          </span>
+        }
+        actions={
+          <RecordMoreMenu
+            items={[
+              {
+                key: 'delete',
+                label: t('tasks.detail.deleteTitle'),
+                tone: 'danger',
+                content: (
+                  <DangerDelete
+                    bare
+                    endpoint={`/api/crm/activities/${task.id}`}
+                    confirmToken={task.subject}
+                    redirectTo="/app/crm/tasks"
+                    title={t('tasks.detail.deleteTitle')}
+                    desc={t('tasks.detail.deleteDesc')}
+                    buttonLabel={t('tasks.detail.deleteButton')}
+                    confirmLabel={t('record.confirmType', { token: task.subject })}
+                    errorLabel={t('errors.generic')}
+                  />
+                ),
+              },
+            ]}
+          />
+        }
+      />
 
-      <header className="detail-header">
-        <div className="detail-title-row">
-          <h1 className="detail-title">{task.subject || t('tasks.detail.untitled')}</h1>
-          {task.done === 1 && <span className="badge task-done">{t('tasks.done')}</span>}
-          {task.pinned === 1 && <span className="badge">{t('common.pinned')}</span>}
-        </div>
-        <div className="detail-meta">
-          {associatedRecord && (
-            <Link href={associatedRecord.href} className="detail-meta-item">
-              {associatedRecord.label}
-            </Link>
-          )}
-          {task.due_at && (
-            <span className="detail-meta-item muted">
-              {t('tasks.dueLabel')}: {formatDateTime(task.due_at, locale, timeZone)}
-            </span>
-          )}
-        </div>
-      </header>
-
-      <div className="detail-grid-3">
-        <div className="detail-col">
-          <section className="panel" id="properties">
-            <p className="section-label">{t('tasks.detail.properties')}</p>
-            <TaskDonePin taskId={task.id} done={task.done === 1} pinned={task.pinned === 1} />
-            <PropertiesPanel
-              endpoint={`/api/crm/activities/${task.id}`}
-              fields={fields}
-              sections={sections}
-              compactKeys={['subject', 'type', 'dueAt', 'ownerId', 'projectId']}
-              viewAllLabel={t('contacts.detail.viewAllProperties')}
-            />
-          </section>
-        </div>
-
-        <div className="detail-col">
-          <section className="panel">
-            <p className="section-label">{t('tasks.detail.files')}</p>
+      <div className="record-activity">
+        <div className="record-activity-main">
+          <TaskDonePin taskId={task.id} done={task.done === 1} pinned={task.pinned === 1} />
+          <PropertiesPanel endpoint={`/api/crm/activities/${task.id}`} fields={fields} sections={sections} />
+          <section className="record-block">
+            <div className="assoc-head">
+              <h2 className="assoc-title">{t('tasks.detail.files')}</h2>
+            </div>
             <TaskFiles taskId={task.id} files={files} />
           </section>
-
-          <section className="panel">
-            <p className="section-label">{t('tasks.detail.activity')}</p>
-            <div className="prop-table">
-              <div className="prop-row">
-                <dt className="prop-label">{t('tasks.detail.created')}</dt>
-                <dd className="prop-value">{formatDateTime(task.created_at, locale, timeZone)}</dd>
-              </div>
-              <div className="prop-row">
-                <dt className="prop-label">{t('tasks.detail.updated')}</dt>
-                <dd className="prop-value">{formatDateTime(task.updated_at, locale, timeZone)}</dd>
-              </div>
-            </div>
-          </section>
         </div>
 
-        <div className="detail-col detail-col-side">
-          <section className="panel">
+        <aside className="record-summary" aria-label={t('record.summary')}>
+          <dl className="record-facts">
+            <div>
+              <dt>{t('tasks.detail.created')}</dt>
+              <dd>{formatDateTime(task.created_at, locale, timeZone)}</dd>
+            </div>
+            <div>
+              <dt>{t('tasks.detail.updated')}</dt>
+              <dd>{formatDateTime(task.updated_at, locale, timeZone)}</dd>
+            </div>
+          </dl>
+          <section className="record-summary-block">
             <AssociationPanel
               title={t('tasks.detail.contact')}
               records={
@@ -210,7 +219,7 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
             />
           </section>
 
-          <section className="panel">
+          <section className="record-summary-block">
             <AssociationPanel
               title={t('tasks.detail.company')}
               records={
@@ -232,7 +241,7 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
             />
           </section>
 
-          <section className="panel">
+          <section className="record-summary-block">
             <AssociationPanel
               title={t('tasks.detail.deal')}
               records={
@@ -254,18 +263,7 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
             />
           </section>
 
-          <section className="panel danger-panel">
-            <p className="section-label">{t('contacts.detail.dangerZone')}</p>
-            <DangerDelete
-              endpoint={`/api/crm/activities/${task.id}`}
-              confirmToken={task.subject}
-              redirectTo="/app/crm/tasks"
-              title={t('tasks.detail.deleteTitle')}
-              desc={t('tasks.detail.deleteDesc')}
-              buttonLabel={t('tasks.detail.deleteButton')}
-            />
-          </section>
-        </div>
+        </aside>
       </div>
     </div>
   );

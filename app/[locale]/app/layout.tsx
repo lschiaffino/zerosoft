@@ -10,6 +10,7 @@ import { SupportIdentify } from '@/components/SupportWidget';
 import { supportWidgetId } from '@/lib/support';
 import '@/styles/link.css';
 import '@/styles/crm.css';
+import '@/styles/crm-records.css';
 import '@/styles/docs.css';
 import '@/styles/calendar.css';
 import '@/styles/track.css';

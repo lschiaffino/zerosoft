@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { EmailThreadView } from '@/lib/crm-email';
 import EmailThread from './EmailThread';
+import CrmIcon from './CrmIcon';
 
 export type TimelineRecordType = 'contact' | 'company' | 'deal';
 
@@ -318,12 +319,12 @@ export default function Timeline({
       {/* Una sola fila de tabs (como HubSpot): filtra la lista y define qué
           tipo de actividad crea el composer. En "All" el tipo se elige con
           un select compacto dentro del composer. */}
-      <div className="filter-chips tl-filters" role="tablist">
+      <div className="btn-group tl-filters" role="tablist" aria-label={t('common.activityType')}>
         <button
           type="button"
           role="tab"
           aria-selected={filter === 'all'}
-          className={`chip${filter === 'all' ? ' active' : ''}`}
+          className="btn btn-secondary btn-sm"
           onClick={() => setFilter('all')}
         >
           {t('common.all')}
@@ -337,7 +338,7 @@ export default function Timeline({
               type="button"
               role="tab"
               aria-selected={filter === v}
-              className={`chip${filter === v ? ' active' : ''}`}
+              className="btn btn-secondary btn-sm"
               onClick={() => {
                 setFilter(v);
                 setType(v);
@@ -594,12 +595,13 @@ export default function Timeline({
                       <>
                         <button
                           type="button"
-                          className="icon-btn"
+                          className={`icon-btn tl-pin${item.pinned ? ' is-pinned' : ''}`}
                           onClick={() => togglePin(item)}
                           title={item.pinned ? t('common.unpin') : t('common.pin')}
                           aria-label={item.pinned ? t('common.unpin') : t('common.pin')}
+                          aria-pressed={!!item.pinned}
                         >
-                          {item.pinned ? '◆' : '◇'}
+                          <CrmIcon name="pin" />
                         </button>
                         <button
                           type="button"
@@ -608,7 +610,7 @@ export default function Timeline({
                           title={t('common.edit')}
                           aria-label={t('common.edit')}
                         >
-                          ✎
+                          <CrmIcon name="edit" />
                         </button>
                         {confirmId === item.id ? (
                           <>
@@ -631,7 +633,7 @@ export default function Timeline({
                             title={t('common.delete')}
                             aria-label={t('common.delete')}
                           >
-                            ✕
+                            <CrmIcon name="x" />
                           </button>
                         )}
                       </>

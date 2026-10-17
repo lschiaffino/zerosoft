@@ -23,6 +23,9 @@ import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterB
 import { AddPipelineChip } from '@/components/crm/AddPipelineStage';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+import CrmPager from '@/components/crm/CrmPager';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import { getCurrencyContext } from '@/lib/crm-currency';
 import { convertAmount, formatMoney } from '@/lib/crm-money';
@@ -110,16 +113,13 @@ export default async function DealsPage(props: DealsPageProps) {
 
   if (!pipeline) {
     return (
-      <div className="app-page">
-        <div className="page-head">
-          <h1 className="app-title">{t('deals.title')}</h1>
-        </div>
-        <div className="empty-state">
-          <p className="empty-zeros mono" aria-hidden>
-            0 0 0 0 0 0 0
-          </p>
-          <h2>{t('deals.title')}</h2>
-        </div>
+      <div className="ui-page crm-list-page">
+        <PageHeader title={t('deals.title')} />
+        <EmptyState
+          title={t('record.empty.noPipelineTitle')}
+          body={t('record.empty.noPipelineBody')}
+          action={{ label: t('record.empty.noPipelineCta'), href: '/app/crm/settings' }}
+        />
       </div>
     );
   }
@@ -336,16 +336,31 @@ export default async function DealsPage(props: DealsPageProps) {
           sources={sources}
           owners={owners}
           customFields={customFields}
-        />
-        <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+        >
+          <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+        </DealsFilters>
         {tableRows.length === 0 ? (
-          <div className="empty-state">
-            <p className="empty-zeros mono" aria-hidden>
-              0 0 0 0 0 0 0
-            </p>
-            <h2>{t('deals.emptyStage')}</h2>
-            <CrmQuickCreate kind="deal" variant="empty" defaultPipelineId={pipeline.id} label={t('deals.newTitle')} />
-          </div>
+          Object.keys(query).length > 2 ? (
+            <EmptyState
+              title={t('record.empty.noMatchTitle')}
+              body={t('record.empty.noMatchBody')}
+              action={{ label: t('common.clear'), href: `/app/crm/deals?pipeline=${pipeline.id}&view=table` }}
+            />
+          ) : (
+            <EmptyState
+              title={t('record.empty.dealsTitle')}
+              body={t('record.empty.dealsBody')}
+              action={
+                <CrmQuickCreate
+                  kind="deal"
+                  variant="empty"
+                  defaultPipelineId={pipeline.id}
+                  buttonClassName="btn btn-primary"
+                  label={t('record.createDeal')}
+                />
+              }
+            />
+          )
         ) : (
           <>
             <DealsTable
@@ -362,31 +377,7 @@ export default async function DealsPage(props: DealsPageProps) {
               locale={locale}
               allTags={tagOptions}
             />
-            {pages > 1 && (
-              <nav className="pager mono">
-                {currentPage > 1 ? (
-                  <Link
-                    href={{ pathname: '/app/crm/deals', query: { ...query, page: String(currentPage - 1) } }}
-                    className="pager-btn"
-                  >
-                    {t('common.pagePrev')}
-                  </Link>
-                ) : (
-                  <span className="pager-btn disabled">{t('common.pagePrev')}</span>
-                )}
-                <span className="pager-info">{t('common.pageOf', { page: currentPage, pages })}</span>
-                {currentPage < pages ? (
-                  <Link
-                    href={{ pathname: '/app/crm/deals', query: { ...query, page: String(currentPage + 1) } }}
-                    className="pager-btn"
-                  >
-                    {t('common.pageNext')}
-                  </Link>
-                ) : (
-                  <span className="pager-btn disabled">{t('common.pageNext')}</span>
-                )}
-              </nav>
-            )}
+            <CrmPager pathname="/app/crm/deals" query={query} page={currentPage} pages={pages} total={total} locale={locale} />
           </>
         )}
       </>
@@ -406,44 +397,51 @@ export default async function DealsPage(props: DealsPageProps) {
     : null;
 
   return (
-    <div className="app-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('deals.title')}</h1>
-        <div className="page-head-actions">
-          <div className="kb-view-toggle">
-            <Link
-              href={{ pathname: '/app/crm/deals', query: viewQuery(pipeline.id, 'board') }}
-              className={`kb-view-btn${view === 'board' ? ' active' : ''}`}
-            >
-              {t('deals.board')}
-            </Link>
-            <Link
-              href={{ pathname: '/app/crm/deals', query: viewQuery(pipeline.id, 'table') }}
-              className={`kb-view-btn${view === 'table' ? ' active' : ''}`}
-            >
-              {t('deals.tableView')}
-            </Link>
-          </div>
-          <CrmQuickCreate kind="deal" defaultPipelineId={pipeline.id} />
-        </div>
-      </div>
+    <div className="ui-page crm-list-page">
+      <PageHeader
+        title={t('deals.title')}
+        actions={
+          <>
+            <nav className="btn-group" aria-label={t('record.viewLabel')}>
+              <Link
+                href={{ pathname: '/app/crm/deals', query: viewQuery(pipeline.id, 'board') }}
+                className="btn btn-secondary btn-sm"
+                aria-current={view === 'board' ? 'page' : undefined}
+              >
+                {t('deals.board')}
+              </Link>
+              <Link
+                href={{ pathname: '/app/crm/deals', query: viewQuery(pipeline.id, 'table') }}
+                className="btn btn-secondary btn-sm"
+                aria-current={view === 'table' ? 'page' : undefined}
+              >
+                {t('deals.tableView')}
+              </Link>
+            </nav>
+            <CrmQuickCreate kind="deal" defaultPipelineId={pipeline.id} buttonClassName="btn btn-primary btn-sm" label={t('record.createDeal')} />
+          </>
+        }
+      />
 
-      <div className="filter-chips" aria-label={t('deals.pipelineLabel')}>
-        {pipelines.map((p) => (
-          <Link
-            key={p.id}
-            href={{ pathname: '/app/crm/deals', query: viewQuery(p.id, view) }}
-            className={`chip${p.id === pipeline.id ? ' active' : ''}`}
-          >
-            {p.name}
-          </Link>
-        ))}
+      <div className="deals-pipelines">
+        <nav className="btn-group" aria-label={t('deals.pipelineLabel')}>
+          {pipelines.map((p) => (
+            <Link
+              key={p.id}
+              href={{ pathname: '/app/crm/deals', query: viewQuery(p.id, view) }}
+              className="btn btn-secondary btn-sm"
+              aria-current={p.id === pipeline.id ? 'page' : undefined}
+            >
+              {p.name}
+            </Link>
+          ))}
+        </nav>
         <AddPipelineChip />
       </div>
 
       {view === 'board' && boardStages && totals ? (
         <>
-          <div className="kb-totals mono">
+          <div className="kb-totals">
             <span>
               {t('deals.totals.open')}: <strong>{totals.openCount}</strong>
             </span>

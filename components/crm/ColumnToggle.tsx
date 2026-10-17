@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface ColumnDef {
   id: string;
@@ -108,6 +109,32 @@ export default function ColumnToggle({ columns, visible, onToggle, label }: Colu
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Id del lugar en la barra de filtros donde va "Columnas" (al lado del orden). */
+export const COLUMNS_SLOT_ID = 'crm-columns-slot';
+
+/** Lugar para "Columnas" dentro de la barra de filtros. */
+export function ColumnsSlot() {
+  return <div id={COLUMNS_SLOT_ID} className="filter-columns" />;
+}
+
+/**
+ * "Columnas" en la fila de filtros: se monta en ColumnsSlot si la página lo
+ * tiene; si no, queda en su propia barra arriba de la tabla.
+ */
+export function ColumnToggleInBar(props: ColumnToggleProps) {
+  const [slot, setSlot] = useState<HTMLElement | null | undefined>(undefined);
+  useEffect(() => {
+    setSlot(document.getElementById(COLUMNS_SLOT_ID));
+  }, []);
+  if (slot === undefined) return null;
+  if (slot) return createPortal(<ColumnToggle {...props} />, slot);
+  return (
+    <div className="table-toolbar">
+      <ColumnToggle {...props} />
     </div>
   );
 }

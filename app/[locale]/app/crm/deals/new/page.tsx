@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import { requireUser } from '@/lib/session';
 import { listPipelinesWithStages, PRIORITIES, SOURCES } from '@/lib/crm';
 import DealFullForm from '@/components/crm/DealFullForm';
@@ -35,13 +36,14 @@ export default async function NewDealPage(props: NewDealPageProps) {
   const contactId = typeof searchParams.contactId === 'string' ? searchParams.contactId : undefined;
 
   return (
-    <div className="app-page narrow">
-      <Link href="/app/crm/deals" className="mono back-link">
-        {t('deals.detail.back')}
-      </Link>
-      <h1 className="app-title">{t('deals.newTitle')}</h1>
+    <div className="ui-page ui-page-narrow">
+      <PageHeader back={{ href: '/app/crm/deals', label: t('record.back.deals') }} title={t('deals.newTitle')} />
       {pipelines.length === 0 ? (
-        <p className="muted">{t('deals.emptyStage')}</p>
+        <EmptyState
+          title={t('record.empty.noPipelineTitle')}
+          body={t('record.empty.noPipelineBody')}
+          action={{ label: t('record.empty.noPipelineCta'), href: '/app/crm/settings' }}
+        />
       ) : (
         <DealFullForm
           pipelines={pipelines}

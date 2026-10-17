@@ -71,7 +71,7 @@ export default async function TasksPage(props: TasksPageProps) {
       pinned: a.pinned === 1,
       record,
       ownerId: a.owner_id ?? undefined,
-      ownerName: a.owner_id ? ownerMap.get(a.owner_id) ?? '—' : '—',
+      ownerName: a.owner_id ? ownerMap.get(a.owner_id) ?? '' : '',
       projectId: a.project_id ?? undefined,
       projectName: a.project_name ?? undefined,
       projectColor: a.project_color ?? undefined,

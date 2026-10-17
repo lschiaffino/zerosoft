@@ -33,18 +33,18 @@
 .stat-trend-down, .trend-down { color: var(--bad-ink) !important; }
 
 /* ---------- Badges con significado ---------- */
-/* Placas rectas (ver .badge en ui.css). Tono suave de fondo + tinta AA. */
-.badge.stage-subscriber { background: var(--brand-enamel); color: var(--brand-gray-2); }
-.badge.stage-lead { background: #e6f1f8; color: #0b5f8c; }
-.badge.stage-mql { background: #ecebff; color: #4b44c9; }
-.badge.stage-sql { background: #f2ebff; color: #6c37d9; }
-.badge.stage-opportunity { background: var(--warn-soft); color: var(--warn-ink); }
-.badge.stage-customer { background: var(--ok-soft); color: var(--ok-ink); }
-.badge.stage-evangelist { background: #fbe8f0; color: #b8245f; }
-
-.badge.prio-low { background: var(--brand-enamel); color: var(--brand-gray-2); }
-.badge.prio-medium { background: var(--warn-soft); color: var(--warn-ink); }
-.badge.prio-high { background: var(--bad-soft); color: var(--bad-ink); }
+/* Placas rectas (ver .badge en ui.css). Lifecycle y prioridad van en un solo
+   tratamiento neutro: el color de las líneas es solo para ubicarse. La tinta
+   del CRM marca la etapa avanzada (cliente, evangelista) y la prioridad alta. */
+.badge.stage-subscriber, .badge.stage-lead, .badge.stage-mql, .badge.stage-sql,
+.badge.stage-opportunity, .badge.stage-customer, .badge.stage-evangelist,
+.badge.prio-low, .badge.prio-medium, .badge.prio-high {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--brand-gray-1);
+}
+.badge.stage-customer, .badge.stage-evangelist { border-color: var(--accent-line); color: var(--accent-ink); }
+.badge.prio-high { border-color: var(--ink); color: var(--ink); }
 
 .badge.task-overdue { background: var(--bad-soft); color: var(--bad-ink); }
 .badge.task-today { background: var(--accent-soft); color: var(--accent-ink); }
@@ -65,13 +65,8 @@
 .kb-col-head, .kb-head { position: relative; }
 .kb-card:hover { border-color: var(--ink); }
 .kb-card-amount { color: var(--ink); }
-.kb-card-rotting { color: var(--warn-ink); }
 .kb-totals strong, .kb-totals b { color: var(--ink); }
 
-.stage-step.done { background: var(--accent-line); color: var(--ink); }
-.stage-step.current { background: var(--accent); color: var(--accent-on); }
-.stage-step:hover:not(:disabled) { background: var(--accent-soft); color: var(--ink); }
-.stage-close .btn-danger.btn-solid { --btn-bg: var(--bad-ink); --btn-bd: var(--bad-ink); --btn-fg: #fff; }
 
 /* ---------- Estados vacíos y alertas ---------- */
 .empty-zeros { color: var(--brand-gray-3); }

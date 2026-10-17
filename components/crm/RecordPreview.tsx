@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
+import CrmIcon from './CrmIcon';
 
 export type PreviewType = 'contact' | 'company' | 'deal';
 
@@ -265,7 +266,7 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
                 rel="noopener noreferrer"
                 className="preview-meta-item"
               >
-                {c.domain} ↗
+                {c.domain} <CrmIcon name="external" size={12} />
               </a>
             )}
             {c.industry && <span className="preview-meta-item muted">{c.industry}</span>}
@@ -518,7 +519,7 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
             onClick={onClose}
             aria-label={t('common.close')}
           >
-            ✕
+            <CrmIcon name="x" />
           </button>
         </div>
 

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
+import CrmIcon from './CrmIcon';
 
 export interface AssociationRecord {
   id: string;
@@ -39,6 +40,8 @@ interface AssociationPanelProps {
   emptyLabel: string;
   busy?: boolean;
   count?: number;
+  /** Acción "Crear …" en la misma línea que el selector. */
+  action?: React.ReactNode;
 }
 
 /**
@@ -60,6 +63,7 @@ export default function AssociationPanel({
   emptyLabel,
   busy,
   count,
+  action,
 }: AssociationPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -94,28 +98,36 @@ export default function AssociationPanel({
   return (
     <div className="association-panel">
       {title && (
-        <div className="panel-head">
-          <h2 className="section-label">{title}</h2>
-          {count !== undefined && <span className="panel-more">{count}</span>}
+        <div className="assoc-head">
+          <h2 className="assoc-title">{title}</h2>
+          {count !== undefined && <span className="assoc-count num">{count}</span>}
         </div>
       )}
 
       {records.length === 0 ? (
-        <p className="muted">{emptyLabel}</p>
+        <p className="assoc-empty">{emptyLabel}</p>
       ) : (
-        <div className="chip-list">
+        <ul className="assoc-list">
           {records.map((r) => (
-            <span className="chip-contact" key={r.id}>
-              {r.href ? <Link href={r.href}>{r.name}</Link> : <span>{r.name}</span>}
-              {r.meta && <span className="muted chip-meta">{r.meta}</span>}
+            <li className={`assoc-row${pending.has(r.id) ? ' row-busy' : ''}`} key={r.id}>
+              <span className="assoc-main">
+                {r.href ? (
+                  <Link href={r.href} className="assoc-name">
+                    {r.name}
+                  </Link>
+                ) : (
+                  <span className="assoc-name">{r.name}</span>
+                )}
+                {r.meta && <span className="assoc-meta">{r.meta}</span>}
+              </span>
               {(r.primary !== undefined || (onSetLabel && labelOptions)) && (
                 <span className="assoc-row-meta">
                   {r.primary ? (
-                    <span className="assoc-primary mono">{t('assoc.primary')}</span>
+                    <span className="badge badge-ink">{t('assoc.primary')}</span>
                   ) : onSetPrimary ? (
                     <button
                       type="button"
-                      className="assoc-link-btn"
+                      className="btn btn-ghost btn-sm"
                       disabled={busyNow}
                       onClick={() => wrap(() => onSetPrimary(r.id), r.id)}
                     >
@@ -124,7 +136,7 @@ export default function AssociationPanel({
                   ) : null}
                   {onSetLabel && labelOptions && (
                     <select
-                      className="assoc-label-select"
+                      className="select assoc-label-select"
                       value={r.label ?? ''}
                       disabled={busyNow}
                       aria-label={`${t('assoc.label')} ${r.name}`}
@@ -145,40 +157,50 @@ export default function AssociationPanel({
               )}
               <button
                 type="button"
-                className="chip-remove"
+                className="btn btn-ghost btn-icon btn-sm assoc-remove"
                 aria-label={`${removeLabel ?? t('assoc.remove')} ${r.name}`}
+                title={removeLabel ?? t('assoc.remove')}
                 disabled={busyNow || pending.has(r.id)}
                 onClick={() => wrap(() => onRemove(r.id), r.id)}
               >
-                ✕
+                <CrmIcon name="x" />
               </button>
-            </span>
+            </li>
           ))}
+        </ul>
+      )}
+
+      {(available.length > 0 || action) && (
+        <div className="assoc-add-row">
+          {available.length > 0 && (
+            <select
+              className="select assoc-add"
+              value=""
+              disabled={busyNow}
+              aria-label={addLabel}
+              onChange={(e) => {
+                const id = e.target.value;
+                e.target.value = '';
+                if (id) void wrap(() => onAssociate(id), id);
+              }}
+            >
+              <option value="">{addLabel}</option>
+              {available.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.value}
+                </option>
+              ))}
+            </select>
+          )}
+          {action}
         </div>
       )}
 
-      {available.length > 0 && (
-        <select
-          className="filter-select"
-          value=""
-          disabled={busyNow}
-          aria-label={addLabel}
-          onChange={(e) => {
-            const id = e.target.value;
-            e.target.value = '';
-            if (id) void wrap(() => onAssociate(id), id);
-          }}
-        >
-          <option value="">{addLabel}</option>
-          {available.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.value}
-            </option>
-          ))}
-        </select>
+      {error && (
+        <p className="ui-error" role="alert">
+          {error}
+        </p>
       )}
-
-      {error && <p className="form-error">{error}</p>}
     </div>
   );
 }
