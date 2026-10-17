@@ -44,8 +44,9 @@ export default function NotesClipForm({ url, title, selection }: { url: string; 
         <PageHeader title={t('button')} description={t('lead')} />
         <ol className="notes-clip-steps">
           <li>
-            <p className="notes-clip-step-title">{t('step1')}</p>
-            <p className="ui-help">{t('step1Hint')}</p>
+            <p className="notes-clip-step-title notes-clip-desk">{t('step1')}</p>
+            <p className="ui-help notes-clip-desk">{t('step1Hint')}</p>
+            <p className="notes-clip-step-title notes-clip-touch">{t('touchInstall')}</p>
             <ClipBookmarklet locale={locale} />
           </li>
           <li>
@@ -93,7 +94,7 @@ export default function NotesClipForm({ url, title, selection }: { url: string; 
         }
       }}
     >
-      <PageHeader title={t('title')} />
+      <PageHeader title={t('bookmarkletName')} />
       <div className="ui-fields">
         <div className="ui-field">
           <span className="label">{t('source')}</span>
@@ -121,7 +122,7 @@ export default function NotesClipForm({ url, title, selection }: { url: string; 
         <button type="submit" className="btn btn-primary" aria-busy={state === 'saving'}>
           {state === 'saving' ? t('saving') : t('save')}
         </button>
-        <span className="ui-help">{t('saveHint')}</span>
+        <span className="ui-help notes-clip-shortcut">{t('saveHint')}</span>
       </div>
     </form>
   );

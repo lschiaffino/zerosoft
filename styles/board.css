@@ -81,37 +81,19 @@
 .board-rename { position: relative; z-index: 2; }
 
 .board-card-menu { position: absolute; right: 8px; bottom: 10px; z-index: 2; }
+.board-card-menu .row-menu { bottom: calc(100% + 4px); }
 
-.board-menu {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 4px);
-  z-index: 20;
-  min-width: 160px;
-  display: flex;
-  flex-direction: column;
-  padding: 4px;
-  border: 1px solid var(--ink);
-  border-radius: var(--radius-1);
-  background: var(--bg);
+/* Mobile: filas densas (miniatura chica a la izquierda) y aire abajo para el
+   botón de feedback, que si no tapa el menú de la última tarjeta. */
+@media (max-width: 600px) {
+  .board-grid { grid-template-columns: 1fr; gap: 8px; padding-bottom: 88px; }
+  .board-card { flex-direction: row; align-items: center; gap: 12px; padding: 8px 52px 8px 8px; }
+  .board-thumb { flex: 0 0 72px; height: 48px; aspect-ratio: auto; border: 1px solid var(--line); }
+  .board-thumb img { width: 90%; height: 90%; }
+  .board-card-body { flex: 1; padding: 0; gap: 2px; }
+  .board-card-shared { margin-top: 2px; }
+  .board-card-menu { top: 50%; bottom: auto; transform: translateY(-50%); }
 }
-
-.board-menu button {
-  min-height: 32px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--radius-1);
-  background: none;
-  font-family: var(--font-ui);
-  font-size: 0.875rem;
-  color: var(--ink);
-  text-align: left;
-  cursor: pointer;
-}
-
-.board-menu button:hover,
-.board-menu button:focus-visible { background: var(--ui-hover); outline: none; }
-.board-menu .is-danger { color: var(--bad-ink); }
 
 /* ---------- Editor ---------- */
 
@@ -152,8 +134,9 @@
 
 /* Nombre: se lee como título y se edita en el lugar. */
 .board-name {
-  flex: 0 1 360px;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 360px;
   min-height: 32px;
   padding: 0 8px;
   border: 1px solid transparent;
@@ -171,10 +154,10 @@
 .board-name:hover { border-color: var(--line); }
 .board-name:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 
-.board-status { margin-right: auto; font-size: 0.8125rem; color: var(--brand-gray-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.board-status { font-size: 0.8125rem; color: var(--brand-gray-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .board-status.is-error { color: var(--bad-ink); }
 
-.board-share-wrap { position: relative; }
+.board-share-wrap { position: relative; margin-left: auto; }
 .app-frame .board-share-wrap .btn.is-on { background: var(--ui-hover); border-color: var(--ink); }
 
 .board-pop {
@@ -224,6 +207,12 @@
   --color-primary-hover: #00756b;
   --color-primary-light: color-mix(in srgb, var(--c-board) 14%, white);
   --color-primary-light-darker: color-mix(in srgb, var(--c-board) 24%, white);
+  --color-selection: var(--c-board-ink);
+  --color-surface-primary-container: color-mix(in srgb, var(--c-board-ink) 14%, white);
+  --color-on-primary-container: #005c55;
+  --color-brand-hover: #00756b;
+  --color-brand-active: #006f66;
+  --color-slider-track: color-mix(in srgb, var(--c-board-ink) 24%, white);
 }
 
 .board-loading { position: absolute; inset: 0; background: var(--bg); }
@@ -252,4 +241,9 @@
 @media (max-width: 1023px) {
   .board-bar { padding: 8px 12px; gap: 8px; }
   .board-back-label { display: none; }
+}
+
+/* En pantallas chicas el estado solo aparece cuando hay algo que decir. */
+@media (max-width: 600px) {
+  .board-status.is-quiet { display: none; }
 }

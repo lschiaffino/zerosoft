@@ -282,8 +282,13 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
             if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
           }}
           aria-label={t('editor.name')}
+          // El ancho sigue al nombre: el estado de guardado queda pegado a él.
+          style={{ width: `${Math.max(name.length, 6) + 2}ch` }}
         />
-        <span className={`board-status${state === 'error' ? ' is-error' : ''}`} aria-live="polite">
+        <span
+          className={`board-status${state === 'error' ? ' is-error' : ''}${state === 'dirty' || state === 'error' ? '' : ' is-quiet'}`}
+          aria-live="polite"
+        >
           {statusText}
         </span>
         <div className="board-share-wrap" ref={share.wrapRef}>

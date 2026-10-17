@@ -24,7 +24,8 @@
     "delete": "Delete notebook",
     "confirmDelete": "Delete “{name}”? Its notes will move to the trash.",
     "empty": "Group notes into notebooks.",
-    "renameLabel": "New notebook name"
+    "renameLabel": "New notebook name",
+    "actions": "Notebook actions"
   },
   "list": {
     "search": "Search notes",
@@ -47,20 +48,21 @@
     "emptyNotebookBody": "Notes you create here stay in this notebook. You can also move a note from its toolbar.",
     "emptyPinnedTitle": "No pinned notes",
     "emptyPinnedBody": "Pin a note from its toolbar to keep it at the top.",
-    "searchHint": "Shortcut: /"
+    "searchHint": "Shortcut: /",
+    "resultCount": "{count, plural, =0 {0 results} one {# result} other {# results}}",
+    "clearSearch": "Clear search"
   },
   "trash": {
     "confirmDelete": "Delete this note forever? This can't be undone.",
     "confirmEmpty": "Delete every note in the trash forever?",
     "empty": "Empty trash",
-    "emptyState": "The trash is empty.",
+    "emptyState": "The trash is empty",
     "banner": "This note is in the trash.",
     "restore": "Restore",
     "deleteForever": "Delete forever",
     "emptyStateBody": "Notes you move to the trash stay here until you restore or delete them."
   },
   "editor": {
-    "emptyTitle": "Pick a note, or start a new one.",
     "back": "Notes",
     "moveTo": "Move to notebook",
     "noNotebook": "No notebook",
@@ -75,11 +77,12 @@
     "addTag": "Add tag",
     "source": "Source:",
     "created": "Created {date}",
-    "emptyHint": "N starts a new note. / searches.",
     "openError": "Couldn’t open the note.",
     "actionError": "Couldn’t save the change. Try again.",
     "more": "More actions",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "hintNew": "new note",
+    "hintSearch": "search"
   },
   "share": {
     "button": "Share",
@@ -106,7 +109,6 @@
   },
   "clip": {
     "button": "Clip pages",
-    "title": "Clip page",
     "bookmarkletName": "Clip to Notes",
     "saved": "Saved to Notes",
     "openNote": "Open note",
@@ -127,7 +129,8 @@
     "copyCode": "Copy code",
     "copied": "Copied",
     "source": "Source",
-    "saveHint": "⌘↵ to save"
+    "saveHint": "⌘↵ to save",
+    "touchInstall": "Install the clipper from a computer. Copy the code to paste it there as a bookmark."
   },
   "public": {
     "notFound": "Note not found",

@@ -249,8 +249,11 @@ export default function NoteEditorPane({
 
       <div className="note-meta">
         {tags.map((tg) => (
-          <span key={tg} className="badge note-tag">
-            #{tg}
+          <span key={tg} className="note-tag">
+            <span>
+              <span className="note-tag-hash" aria-hidden="true">#</span>
+              {tg}
+            </span>
             <button type="button" onClick={() => void saveTags(tags.filter((x) => x !== tg))} aria-label={t('editor.removeTag', { tag: tg })}>
               <NotesIcon name="close" size={11} />
             </button>

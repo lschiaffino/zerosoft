@@ -95,10 +95,54 @@
 .app-frame .notes-nav-input { min-height: 32px; padding: 4px 8px; }
 
 .notes-nav-row { position: relative; display: flex; align-items: center; }
-.notes-nav-actions { position: absolute; right: 2px; display: none; gap: 0; background: var(--brand-enamel); }
-.notes-nav-row:hover .notes-nav-actions,
-.notes-nav-row:focus-within .notes-nav-actions { display: flex; }
-.notes-nav-row .notes-nav-item[aria-current='true'] ~ .notes-nav-actions { background: var(--ui-hover); }
+
+/* Renombrar y borrar viven en un menú "…" por libreta; en desktop aparece
+   al pasar o enfocar la fila, tapando el conteo. */
+.notes-nav-menu { position: absolute; right: 2px; display: none; background: var(--brand-enamel); }
+.notes-nav-row:hover .notes-nav-menu,
+.notes-nav-row:focus-within .notes-nav-menu,
+.notes-nav-menu:has([aria-expanded='true']) { display: flex; }
+.notes-nav-row .notes-nav-item[aria-current='true'] ~ .notes-nav-menu { background: var(--ui-hover); }
+.notes-nav-menu .btn-icon { min-height: 28px; width: 28px; }
+.notes-nav-menu .row-menu { top: calc(100% + 4px); }
+
+/* Menú "…" compartido (libretas, pizarras): placa blanca con borde de tinta. */
+.row-menu-wrap { position: relative; }
+
+.row-menu {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+
+.row-menu button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  color: var(--ink);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.row-menu button:hover,
+.row-menu button:focus-visible { background: var(--ui-hover); outline: none; }
+.row-menu .is-danger { color: var(--bad-ink); }
+
+@media (pointer: coarse) {
+  .row-menu button { min-height: 44px; }
+}
 
 .notes-nav-hint { padding: 4px 8px; font-size: 0.8125rem; line-height: 1.4; color: var(--brand-gray-2); }
 .notes-nav-spacer { flex: 1; min-height: 16px; }
@@ -242,6 +286,7 @@
 .notes-empty { padding: 32px 16px; }
 .notes-no-results,
 .notes-list-error { padding: 24px 16px; font-size: 0.875rem; line-height: 1.45; color: var(--brand-gray-1); overflow-wrap: anywhere; }
+.notes-no-results,
 .notes-list-error { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
 
 .notes-back {
@@ -276,8 +321,8 @@
   text-align: center;
 }
 
-.notes-editor-empty-title { font-size: 0.9375rem; font-weight: 600; color: var(--brand-gray-1); }
-.notes-editor-empty-hint { font-size: 0.8125rem; color: var(--brand-gray-2); }
+.notes-editor-empty-hint { display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.notes-editor-empty-hint .kbd { color: var(--brand-gray-1); }
 
 .note-pane { display: flex; flex-direction: column; min-height: 100%; }
 
@@ -334,8 +379,20 @@
   padding: 16px 48px 0;
 }
 
-.note-tag { gap: 2px; padding-right: 2px; }
+/* Etiquetas: texto plano, sin placa; la × aparece al pasar o enfocar. */
+.note-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 24px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-1);
+}
+
+.note-tag-hash { color: var(--brand-gray-3); }
+
 .note-tag button {
+  opacity: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -349,7 +406,10 @@
   cursor: pointer;
 }
 
-.note-tag button:hover { color: var(--bad-ink); background: var(--bg); }
+.note-tag:hover button,
+.note-tag button:focus-visible { opacity: 1; }
+.note-tag button:hover { color: var(--bad-ink); }
+.note-meta { column-gap: 12px; }
 
 .note-tag-input {
   flex: 0 1 160px;
@@ -522,6 +582,26 @@
 .notes-clip-url { font-size: 0.8125rem; line-height: 1.5; color: var(--brand-gray-1); overflow-wrap: anywhere; }
 .notes-clip-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 
+/* Instalar el recorte: en el teléfono no hay barra de favoritos para arrastrar. */
+.notes-clip-touch { display: none; }
+
+@media (pointer: coarse), (max-width: 899px) {
+  .notes-clip-desk,
+  .notes-bookmarklet-row,
+  .notes-bookmarklet-manual .ui-help { display: none; }
+  .notes-clip-touch { display: block; }
+}
+
+/* Atajos de teclado: en pantallas táctiles no sirven. */
+@media (hover: none), (pointer: coarse) {
+  .notes-new .kbd,
+  .notes-search .kbd,
+  .notes-editor-empty-hint,
+  .notes-clip-shortcut { display: none; }
+  .notes-search .input { padding-right: 12px; }
+  .note-tag button { opacity: 1; }
+}
+
 /* ---------- Responsive: un panel por vez ---------- */
 
 @media (max-width: 1023px) {
@@ -538,8 +618,10 @@
   .notes-back { display: inline-flex; }
   .notes-list-new { display: inline-flex; }
   .notes-nav-item { min-height: 40px; }
-  .notes-nav-actions { display: flex; background: none; }
-  .notes-nav-row .notes-count { display: none; }
+  .notes-nav-row .notes-nav-item { padding-right: 48px; }
+  .notes-nav-menu { display: flex; right: 0; background: none; }
+  .notes-nav-row .notes-nav-item[aria-current='true'] ~ .notes-nav-menu { background: none; }
+  .notes-nav-menu .btn-icon { min-height: 40px; width: 40px; }
   .note-bar { padding: 8px 16px; flex-wrap: wrap; }
   .note-bar-label { display: none; }
   .note-meta, .note-source, .note-foot { padding-left: 16px; padding-right: 16px; }

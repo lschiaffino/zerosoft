@@ -24,7 +24,8 @@
     "delete": "Borrar libreta",
     "confirmDelete": "¿Borrar “{name}”? Sus notas van a ir a la papelera.",
     "empty": "Agrupá tus notas en libretas.",
-    "renameLabel": "Nuevo nombre de la libreta"
+    "renameLabel": "Nuevo nombre de la libreta",
+    "actions": "Acciones de la libreta"
   },
   "list": {
     "search": "Buscar notas",
@@ -47,20 +48,21 @@
     "emptyNotebookBody": "Las notas que crees acá quedan en esta libreta. También podés mover una nota desde su barra.",
     "emptyPinnedTitle": "No hay notas fijadas",
     "emptyPinnedBody": "Fijá una nota desde su barra y queda arriba de todo.",
-    "searchHint": "Atajo: /"
+    "searchHint": "Atajo: /",
+    "resultCount": "{count, plural, =0 {0 resultados} one {# resultado} other {# resultados}}",
+    "clearSearch": "Borrar búsqueda"
   },
   "trash": {
     "confirmDelete": "¿Borrar esta nota para siempre? No se puede deshacer.",
     "confirmEmpty": "¿Borrar para siempre todas las notas de la papelera?",
     "empty": "Vaciar papelera",
-    "emptyState": "La papelera está vacía.",
+    "emptyState": "La papelera está vacía",
     "banner": "Esta nota está en la papelera.",
     "restore": "Restaurar",
     "deleteForever": "Borrar para siempre",
     "emptyStateBody": "Las notas que mandás a la papelera quedan acá hasta que las restaures o las borres."
   },
   "editor": {
-    "emptyTitle": "Elegí una nota o empezá una nueva.",
     "back": "Notas",
     "moveTo": "Mover a libreta",
     "noNotebook": "Sin libreta",
@@ -75,11 +77,12 @@
     "addTag": "Agregar etiqueta",
     "source": "Fuente:",
     "created": "Creada el {date}",
-    "emptyHint": "N crea una nota nueva. / busca.",
     "openError": "No se pudo abrir la nota.",
     "actionError": "No se pudo guardar el cambio. Probá de nuevo.",
     "more": "Más acciones",
-    "dismiss": "Cerrar aviso"
+    "dismiss": "Cerrar aviso",
+    "hintNew": "nueva nota",
+    "hintSearch": "buscar"
   },
   "share": {
     "button": "Compartir",
@@ -106,7 +109,6 @@
   },
   "clip": {
     "button": "Recortar páginas",
-    "title": "Recortar página",
     "bookmarkletName": "Guardar en Notas",
     "saved": "Guardado en Notas",
     "openNote": "Abrir nota",
@@ -127,7 +129,8 @@
     "copyCode": "Copiar código",
     "copied": "Copiado",
     "source": "Fuente",
-    "saveHint": "⌘↵ para guardar"
+    "saveHint": "⌘↵ para guardar",
+    "touchInstall": "El recorte se instala desde la computadora. Copiá el código para pegarlo allá como favorito."
   },
   "public": {
     "notFound": "Nota no encontrada",

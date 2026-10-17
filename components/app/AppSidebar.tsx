@@ -43,17 +43,30 @@ const PRODUCTS: ReadonlyArray<{ key: AppProduct; line: ProductKey; name: string;
 
 const STORAGE_COLLAPSED = 'zs-side-collapsed';
 
-function readCollapsed(): boolean {
+/**
+ * Rutas que ya traen su propia columna de navegación (Notes: libretas · lista ·
+ * nota). Ahí el sidebar arranca colapsado y recuerda su estado aparte.
+ */
+function denseRoute(pathname: string): string | null {
+  return /^\/app\/notes\/?$/.test(pathname) ? 'notes' : null;
+}
+
+function storageKey(dense: string | null): string {
+  return dense ? `${STORAGE_COLLAPSED}-${dense}` : STORAGE_COLLAPSED;
+}
+
+function readCollapsed(dense: string | null): boolean {
   try {
-    return window.localStorage.getItem(STORAGE_COLLAPSED) === '1';
+    const v = window.localStorage.getItem(storageKey(dense));
+    return v == null ? dense != null : v === '1';
   } catch {
-    return false;
+    return dense != null;
   }
 }
 
-function writeCollapsed(v: boolean) {
+function writeCollapsed(dense: string | null, v: boolean) {
   try {
-    window.localStorage.setItem(STORAGE_COLLAPSED, v ? '1' : '0');
+    window.localStorage.setItem(storageKey(dense), v ? '1' : '0');
   } catch {
     // Sin storage (modo privado): el estado vive solo en esta pestaña.
   }
@@ -174,16 +187,17 @@ export default function AppSidebar({
   }, [drawerOpen]);
 
   // Colapsado: persiste en localStorage; la clase vive en .app-frame (grid).
+  const dense = denseRoute(pathname);
   useEffect(() => {
-    const v = readCollapsed();
+    const v = readCollapsed(dense);
     setCollapsed(v);
     asideRef.current?.closest('.app-frame')?.classList.toggle('sidebar-collapsed', v);
-  }, []);
+  }, [dense]);
 
   function toggleCollapsed() {
     const next = !collapsed;
     setCollapsed(next);
-    writeCollapsed(next);
+    writeCollapsed(dense, next);
     asideRef.current?.closest('.app-frame')?.classList.toggle('sidebar-collapsed', next);
   }
 

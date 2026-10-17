@@ -42,3 +42,11 @@ describe('notes ui: filtros y lista', () => {
     expect(stepIndex(-1, 'ArrowDown', 0)).toBeNull();
   });
 });
+
+describe('notes ui: snippet de la lista', () => {
+  it('las tareas van como texto plano, sin marcador', async () => {
+    const { makeSnippet } = await import('@/lib/notes-types');
+    expect(makeSnippet('[ ] Café\n[x] Pan')).toBe('Café, Pan');
+    expect(makeSnippet('Compras\n[ ] Café\nFin')).toBe('Compras Café, Fin');
+  });
+});

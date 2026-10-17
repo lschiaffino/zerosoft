@@ -17,6 +17,7 @@ import {
 import NoteEditorPane from './NoteEditorPane';
 import NotesAskPanel from './NotesAskPanel';
 import NotesIcon from './NotesIcon';
+import RowMenu from './RowMenu';
 import { emptyKind, filterQuery, isTypingTarget, listKey, sameFilter, stepIndex, type NotesFilter } from './notes-ui';
 
 export type { NotesFilter } from './notes-ui';
@@ -67,12 +68,15 @@ export default function NotesApp({
   const [askOpen, setAskOpen] = useState(false);
   const [newNotebook, setNewNotebook] = useState(false);
   const [renamingNotebook, setRenamingNotebook] = useState<string | null>(null);
+  const [notebookMenu, setNotebookMenu] = useState<string | null>(null);
   const [focusTitle, setFocusTitle] = useState(0);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [toast, setToast] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const itemsRef = useRef<HTMLDivElement>(null);
   const firstLoad = useRef(true);
+  /** Al cambiar de filtro, la nota abierta se cierra si no está en la lista nueva. */
+  const dropStaleNote = useRef(false);
   const reqSeq = useRef(0);
   /** POSTs de notas recién creadas aún en vuelo (id → ok). */
   const pendingCreates = useRef(new Map<string, Promise<boolean>>());
@@ -100,6 +104,12 @@ export default function NotesApp({
       const data = (await res.json()) as { notes: NoteSummary[] };
       if (seq === reqSeq.current) {
         setNotes(data.notes);
+        if (dropStaleNote.current) {
+          dropStaleNote.current = false;
+          setNote((cur) =>
+            cur && !pendingCreates.current.has(cur.id) && !data.notes.some((n) => n.id === cur.id) ? null : cur,
+          );
+        }
         setLoadedKey(key);
         setListError(false);
       }
@@ -386,6 +396,7 @@ export default function NotesApp({
   );
 
   function choose(f: NotesFilter) {
+    if (!sameFilter(f, filter)) dropStaleNote.current = true;
     setFilter(f);
     setPane('list');
   }
@@ -502,26 +513,29 @@ export default function NotesApp({
                   <span className="notes-nav-name">{nb.name}</span>
                   <span className="notes-count num">{nb.count}</span>
                 </button>
-                <span className="notes-nav-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm btn-icon"
-                    onClick={() => setRenamingNotebook(nb.id)}
-                    aria-label={`${t('notebooks.rename')}: ${nb.name}`}
-                    title={t('notebooks.rename')}
-                  >
-                    <NotesIcon name="pencil" size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm btn-icon"
-                    onClick={() => void deleteNotebook(nb)}
-                    aria-label={`${t('notebooks.delete')}: ${nb.name}`}
-                    title={t('notebooks.delete')}
-                  >
-                    <NotesIcon name="trash" size={13} />
-                  </button>
-                </span>
+                <RowMenu
+                  className="notes-nav-menu"
+                  open={notebookMenu === nb.id}
+                  label={`${t('notebooks.actions')}: ${nb.name}`}
+                  onToggle={(open) => setNotebookMenu(open ? nb.id : null)}
+                  items={[
+                    {
+                      label: t('notebooks.rename'),
+                      onSelect: () => {
+                        setNotebookMenu(null);
+                        setRenamingNotebook(nb.id);
+                      },
+                    },
+                    {
+                      label: t('notebooks.delete'),
+                      danger: true,
+                      onSelect: () => {
+                        setNotebookMenu(null);
+                        void deleteNotebook(nb);
+                      },
+                    },
+                  ]}
+                />
               </div>
             ),
           )}
@@ -553,18 +567,14 @@ export default function NotesApp({
           <div className="notes-nav-spacer" />
           {navItem({ kind: 'trash' }, t('nav.trash'), 'trash')}
         </nav>
-        <div className="notes-nav-foot">
-          {aiEnabled && (
+        {aiEnabled && (
+          <div className="notes-nav-foot">
             <button type="button" className="notes-nav-item" onClick={() => setAskOpen(true)}>
               <NotesIcon name="ask" size={14} />
               <span className="notes-nav-name">{t('ask.open')}</span>
             </button>
-          )}
-          <Link href="/app/notes/clip" className="notes-nav-item">
-            <NotesIcon name="clip" size={14} />
-            <span className="notes-nav-name">{t('clip.button')}</span>
-          </Link>
-        </div>
+          </div>
+        )}
       </aside>
 
       {/* ---------- Lista ---------- */}
@@ -616,7 +626,7 @@ export default function NotesApp({
             </label>
           </div>
           <div className="notes-list-meta">
-            <span className="notes-list-count">{t('list.count', { count: notes.length })}</span>
+            <span className="notes-list-count">{q.trim() ? t('list.resultCount', { count: notes.length }) : t('list.count', { count: notes.length })}</span>
             <select
               className="select notes-sort"
               value={sort}
@@ -658,7 +668,19 @@ export default function NotesApp({
             </div>
           ) : notes.length === 0 ? (
             empty === 'search' ? (
-              <p className="notes-no-results">{t('list.noResults', { q })}</p>
+              <div className="notes-no-results">
+                <p>{t('list.noResults', { q })}</p>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    setQ('');
+                    searchRef.current?.focus();
+                  }}
+                >
+                  {t('list.clearSearch')}
+                </button>
+              </div>
             ) : empty === 'trash' ? (
               <EmptyState quiet product="notes" className="notes-empty" title={t('trash.emptyState')} body={t('trash.emptyStateBody')} />
             ) : (
@@ -746,8 +768,15 @@ export default function NotesApp({
           />
         ) : (
           <div className="notes-editor-empty">
-            <p className="notes-editor-empty-title">{t('editor.emptyTitle')}</p>
-            <p className="notes-editor-empty-hint">{t('editor.emptyHint')}</p>
+            {notes.length > 0 && (
+              <p className="notes-editor-empty-hint">
+                <kbd className="kbd">N</kbd>
+                {t('editor.hintNew')}
+                <span aria-hidden="true">·</span>
+                <kbd className="kbd">/</kbd>
+                {t('editor.hintSearch')}
+              </p>
+            )}
           </div>
         )}
       </div>
