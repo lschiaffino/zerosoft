@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import EmptyState from '@/components/ui/EmptyState';
@@ -60,11 +60,16 @@ export default function SchedulesView({ initial, defaultTimezone }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const timezones = useMemo(() => {
+  // La lista de zonas de Node y la del navegador no coinciden (alias, versiones de
+  // ICU): el server y el primer render muestran solo UTC (más la zona del horario,
+  // que el select agrega) y la lista completa llega después de montar, así la
+  // hidratación no choca (mismo arreglo que CalendarSettingsForm).
+  const [timezones, setTimezones] = useState<string[]>(['UTC']);
+  useEffect(() => {
     try {
-      return (Intl as unknown as { supportedValuesOf(k: string): string[] }).supportedValuesOf('timeZone');
+      setTimezones((Intl as unknown as { supportedValuesOf(k: string): string[] }).supportedValuesOf('timeZone'));
     } catch {
-      return ['UTC'];
+      // Sin soporte: queda UTC.
     }
   }, []);
 
