@@ -3,10 +3,11 @@
   "subtitle": "Automations across every zerosoft app and any service with an API.",
   "sidebar": { "flows": "Flows", "credentials": "Credentials" },
   "list": {
+    "emptyTemplates": "See templates",
+    "emptyTitle": "No flows yet",
     "title": "Your flows",
-    "new": "New flow",
-    "empty": "0 flows yet.",
-    "emptyHint": "Start from scratch or pick a template below.",
+    "new": "Create flow",
+    "emptyHint": "A flow is a line: one trigger and the steps after it. Start from scratch or from a template.",
     "name": "Name",
     "trigger": "Trigger",
     "lastRun": "Last run",
@@ -38,6 +39,13 @@
     }
   },
   "editor": {
+    "nodeId": "Reference",
+    "copied": "Copied",
+    "retry": "Try again",
+    "flowSettings": "Flow settings",
+    "addStep": "Add step",
+    "advancedChanged": "{n, plural, one {# changed} other {# changed}}",
+    "createCredential": "Create credential",
     "back": "Back to flows",
     "nameLabel": "Flow name",
     "untitled": "Untitled flow",
@@ -57,7 +65,7 @@
     "search": "Search nodes",
     "noResults": "0 nodes match.",
     "settings": "Settings",
-    "selectNode": "Select a node to configure it. Drag nodes from the left or click them to add.",
+    "selectNode": "Select a node to configure it, or add a step from the palette.",
     "description": "Description",
     "deleteNode": "Delete node",
     "deleteFlow": "Delete flow",
@@ -85,7 +93,7 @@
     "condLeft": "Value",
     "condOp": "Operator",
     "condRight": "Compare with",
-    "canvasHint": "Add nodes from the left. Connect them by dragging from an output to the next node.",
+    "canvasHint": "Add a step from the palette. To connect two nodes, drag from an output to the next node.",
     "templateHelp": "Use '{{trigger.x}}' for trigger data and '{{nodes.<id>.output.x}}' for the output of an earlier node. Filters: json, join, lines, map:field, default:value, upper, lower, length, urlencode.",
     "everySummary": "Every {n} {unit}",
     "dailySummary": "Daily at {time} ({tz})",
@@ -96,7 +104,6 @@
     "errorFlowHint": "Runs another flow when a run fails. It receives '{{trigger.flow}}', '{{trigger.run.error}}' and '{{trigger.failedNode}}'.",
     "credentialNone": "Select a credential",
     "credentialMissing": "Deleted credential",
-    "credentialEmpty": "0 credentials of type {types}.",
     "manageCredentials": "Manage credentials",
     "pickFlow": "Select a flow",
     "pickAgent": "Select an agent",
@@ -111,7 +118,8 @@
     "delayGranularity": "Delay resumes the run on the scheduler's next pass. On zerosoft cloud it checks once an hour, so a short wait (seconds or minutes) can last up to an hour. Self-hosted, it follows your cron for /api/cron/tick.",
     "retryGranularity": "Each retry resumes on the scheduler's next pass (once an hour on zerosoft cloud), not a few seconds later.",
     "stripeHint": "Save the flow, copy the webhook URL into Stripe (Developers → Webhooks) and save its signing secret in the credential. Unsigned requests are rejected.",
-    "allEvents": "All events"
+    "allEvents": "All events",
+    "copyNodeRef": "Copy reference"
   },
   "categories": {
     "trigger": "Trigger",
@@ -349,9 +357,11 @@
     "is_false": "is false"
   },
   "runs": {
+    "loadError": "Couldn’t load the runs.",
+    "emptyBody": "Use Test run to try it with sample data, or turn it on so it runs by itself.",
+    "emptyTitle": "No runs yet",
     "title": "Runs",
     "loading": "Loading…",
-    "empty": "0 runs yet. Use Test run or turn the flow on.",
     "refresh": "Refresh",
     "selectRun": "Select a run to see its steps.",
     "input": "Input",
@@ -378,7 +388,8 @@
     "rerunHint": "Earlier steps reuse this run's output. Uses the saved flow.",
     "rerunDirty": "You have unsaved changes. The re-run uses the last saved version. Continue?",
     "cancel": "Cancel run",
-    "cancelConfirm": "Cancel this run? Pending steps (waits and retries) won't run."
+    "cancelConfirm": "Cancel this run? Pending steps (waits and retries) won't run.",
+    "openInEditor": "Open in editor"
   },
   "stepStatus": {
     "running": "Running",
@@ -386,6 +397,18 @@
     "failed": "Failed",
     "skipped": "Stopped by filter",
     "waiting": "Waiting"
+  },
+  "stepErrors": {
+    "missing_credential": "This step has no credential. Pick one in the editor.",
+    "credential_not_found": "The credential for this step no longer exists. Pick another one in the editor.",
+    "credential_wrong_type": "The credential for this step is the wrong type. Pick a matching one in the editor.",
+    "invalid_credential": "The service rejected the credential. Check it in Credentials or pick another one in the editor.",
+    "missing_field": "This step is missing a required value. Fill it in the editor.",
+    "missing_url": "This step has no URL. Add it in the editor.",
+    "invalid_email": "The recipient is not a valid email. Check it in the editor.",
+    "invalid_json": "The body is not valid JSON. Check it in the editor.",
+    "http": "The service responded with status {status}. Check the URL and the data this step sends.",
+    "rate_limited": "The service asked to wait. Try again in a few minutes."
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -425,29 +448,33 @@
     "branchHint": "Adds an Error output. Connect what should happen on failure."
   },
   "versions": {
+    "loadError": "Couldn’t load the versions.",
+    "emptyTitle": "No versions yet",
     "title": "Versions",
     "subtitle": "A version is saved every time the flow's nodes change.",
     "loading": "Loading…",
-    "empty": "0 versions yet.",
     "current": "Current",
     "first": "First version",
     "noChanges": "Same nodes",
     "nodes": "{n, plural, one {# node} other {# nodes}}",
-    "added": "+{n}: {ids}",
-    "removed": "−{n}: {ids}",
-    "changed": "{n} edited: {ids}",
-    "edges": "connections +{added} −{removed}",
+    "added": "Added: {names}",
+    "removed": "Removed: {names}",
+    "changed": "Edited: {names}",
     "restore": "Restore",
     "restoring": "Restoring…",
     "confirm": "Restore version {n}? The current flow is kept as a version too.",
     "confirmDirty": "Restore version {n}? Your unsaved changes will be lost.",
     "error": "Couldn't restore this version.",
-    "restored": "Restored. Now at version {n}."
+    "restored": "Restored. Now at version {n}.",
+    "edgesAdded": "{n, plural, one {One new connection} =2 {Two new connections} =3 {Three new connections} other {# new connections}}",
+    "edgesRemoved": "{n, plural, one {One connection removed} =2 {Two connections removed} =3 {Three connections removed} other {# connections removed}}"
   },
   "credentials": {
+    "emptyTitle": "No credentials yet",
+    "saveChanges": "Save changes",
+    "create": "Create credential",
     "title": "Credentials",
     "subtitle": "API keys and tokens for Flow integrations and Robots. Encrypted at rest and never shown again after saving.",
-    "new": "New credential",
     "newTitle": "New credential",
     "editTitle": "Edit {name}",
     "name": "Name",
@@ -458,7 +485,6 @@
     "edit": "Edit",
     "delete": "Delete",
     "confirmDelete": "Delete {name}? Flows and robots that use it will fail.",
-    "empty": "0 credentials yet.",
     "emptyHint": "Add one to use Slack, Google Sheets, Stripe, Notion, Discord or Telegram in your flows, or logins in Robots.",
     "listTitle": "Saved credentials",
     "adminOnly": "Only workspace admins and owners can add or edit credentials.",
@@ -509,6 +535,7 @@
       "duplicate_name": "A credential with this name already exists.",
       "invalid_json": "The service account JSON is invalid (needs client_email and private_key).",
       "invalid_input": "Invalid data."
-    }
+    },
+    "oneOf": {"slack": "Fill in the bot token or the webhook URL.", "google": "Fill in the access token or the service account JSON."}
   }
 }

@@ -2,6 +2,9 @@ import { createHmac, randomBytes } from 'crypto';
 import { getDb } from './db';
 import { safeFetch, UnsafeUrlError, assertPublicUrl } from './safe-fetch';
 import { open, seal } from './secret-box';
+import { WEBHOOK_EVENTS, type WebhookEvent } from './webhooks-events';
+
+export { WEBHOOK_EVENTS, type WebhookEvent };
 
 /**
  * Webhooks salientes por workspace. Cada evento se guarda como entrega
@@ -11,24 +14,6 @@ import { open, seal } from './secret-box';
  * Firma (estilo Stripe): header `Zerosoft-Signature: t=<unix>,v1=<hex>` donde
  * v1 = HMAC-SHA256(secret, `${t}.${body}`). Verificar con el secret `whsec_…`.
  */
-
-export const WEBHOOK_EVENTS = [
-  'booking.created',
-  'booking.rescheduled',
-  'booking.cancelled',
-  'link.created',
-  'link.clicked',
-  'contact.created',
-  'contact.updated',
-  'deal.created',
-  'deal.updated',
-  'deal.stage_changed',
-  'deal.won',
-  'deal.lost',
-  'robot.run.finished',
-  'robot.run.failed',
-] as const;
-export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
 export interface WebhookRow {
   id: string;

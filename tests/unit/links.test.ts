@@ -28,6 +28,11 @@ describe('links: normalización de URLs', () => {
     ['ftp://files.com', 'ftp://files.com', false],
     ['javascript:alert(1)', 'javascript:alert(1)', false],
     ['data:text/html,hi', 'data:text/html,hi', false],
+    ['x', 'https://x', false],
+    ['promo/abc', 'https://promo/abc', false],
+    ['localhost:3000/a', 'https://localhost:3000/a', true],
+    ['10.0.0.1/x', 'https://10.0.0.1/x', true],
+    ['münchen.de', 'https://münchen.de', true],
   ])('%s', (input, normalized, valid) => {
     expect(normalizeUrl(input)).toBe(normalized);
     expect(isValidUrl(normalizeUrl(input))).toBe(valid);

@@ -10,20 +10,13 @@ interface VisitorPanelProps {
   conversation: ChatConversationWithVisitor;
 }
 
-function initials(name: string | null, email: string | null): string {
-  const base = (name || email || '?').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim() || '?';
-  const parts = base.split(/\s+/);
-  if (parts.length > 1) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return base.slice(0, 2).toUpperCase();
-}
-
+/** Quién escribe y qué hay de esa persona en el CRM (tercera columna de la bandeja). */
 export default function VisitorPanel({ conversation }: VisitorPanelProps) {
   const t = useTranslations('chat');
   const locale = useLocale();
-  const [collapsed, setCollapsed] = useState(false);
   const [crmBusy, setCrmBusy] = useState(false);
   const [linkedId, setLinkedId] = useState<string | null>(null);
-  const [crmNotice, setCrmNotice] = useState<string | null>(null);
+  const [crmNotice, setCrmNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
 
   async function sendToCrm() {
     setCrmBusy(true);
@@ -33,106 +26,89 @@ export default function VisitorPanel({ conversation }: VisitorPanelProps) {
     const data = res ? ((await res.json().catch(() => null)) as { contactId?: string } | null) : null;
     if (res?.ok && data?.contactId) {
       setLinkedId(data.contactId);
-      setCrmNotice(t('visitorPanel.loggedToCrm'));
+      setCrmNotice({ tone: 'ok', text: t('visitorPanel.loggedToCrm') });
     } else {
-      setCrmNotice(t('visitorPanel.crmError'));
+      setCrmNotice({ tone: 'error', text: t('visitorPanel.crmError') });
     }
   }
 
   const visitor = conversation.visitor;
   const contact = conversation.crm_contact;
+  const contactId = contact?.id ?? linkedId;
+  const contactName = contact
+    ? `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.email
+    : visitor.name || visitor.email;
 
   return (
-    <aside className={`chat-visitor-panel${collapsed ? ' collapsed' : ''}`}>
-      <button
-        type="button"
-        className="chat-visitor-panel-toggle"
-        onClick={() => setCollapsed((v) => !v)}
-        aria-expanded={!collapsed}
-      >
-        <span>{t('visitorPanel.title')}</span>
-        <span aria-hidden>{collapsed ? '‹' : '›'}</span>
-      </button>
-
-      <div className="chat-visitor-panel-body">
-        <div className="chat-visitor-card">
-          <span className="chat-visitor-avatar">{initials(visitor.name, visitor.email)}</span>
-          <div className="chat-visitor-card-meta">
-            <p className="chat-visitor-name">
-              {visitor.name || visitor.email || visitor.external_id}
-            </p>
-            {visitor.email && visitor.name && (
-              <p className="chat-visitor-email mono muted">{visitor.email}</p>
-            )}
+    <>
+      <section className="chat-details-section" aria-labelledby="chat-details-visitor">
+        <h3 id="chat-details-visitor" className="chat-details-label">
+          {t('visitorPanel.title')}
+        </h3>
+        <dl className="chat-dl">
+          <div>
+            <dt>{t('visitorPanel.name')}</dt>
+            <dd>
+              <Link href={`/app/chat/people/${visitor.id}`}>{visitor.name || t('conversation.anonymous')}</Link>
+            </dd>
           </div>
-        </div>
-
-        <dl className="chat-visitor-details">
           {visitor.email && (
-            <div className="chat-visitor-detail">
-              <dt className="mono muted">{t('visitorPanel.email')}</dt>
-              <dd>{visitor.email}</dd>
+            <div>
+              <dt>{t('visitorPanel.email')}</dt>
+              <dd className="data">{visitor.email}</dd>
             </div>
           )}
-          {visitor.name && (
-            <div className="chat-visitor-detail">
-              <dt className="mono muted">{t('visitorPanel.name')}</dt>
-              <dd>{visitor.name}</dd>
-            </div>
-          )}
-          <div className="chat-visitor-detail">
-            <dt className="mono muted">{t('visitorPanel.firstSeen')}</dt>
-            <dd className="mono">{formatDateTime(visitor.created_at, locale)}</dd>
+          <div>
+            <dt>{t('visitorPanel.firstSeen')}</dt>
+            <dd className="data" suppressHydrationWarning>{formatDateTime(visitor.created_at, locale)}</dd>
           </div>
-          <div className="chat-visitor-detail">
-            <dt className="mono muted">{t('visitorPanel.widget')}</dt>
-            <dd>{conversation.widget_name}</dd>
+          <div>
+            <dt>{t('visitorPanel.started')}</dt>
+            <dd className="data" suppressHydrationWarning>{formatDateTime(conversation.created_at, locale)}</dd>
           </div>
-        </dl>
-
-        <div className="chat-visitor-crm">
-          <p className="mono muted">{t('visitorPanel.crmContact')}</p>
-          {contact || linkedId ? (
-            <Link href={`/app/crm/contacts/${contact?.id ?? linkedId}`} className="chat-visitor-crm-link">
-              {contact
-                ? contact.first_name || contact.last_name
-                  ? `${contact.first_name} ${contact.last_name}`.trim()
-                  : contact.email
-                : visitor.name || visitor.email}
-            </Link>
-          ) : null}
-          {visitor.email ? (
-            <button type="button" className="btn btn-ghost btn-small" disabled={crmBusy} onClick={sendToCrm}>
-              {contact || linkedId ? t('visitorPanel.logToCrm') : t('visitorPanel.createContact')}
-            </button>
-          ) : (
-            !contact && <p className="muted chat-visitor-crm-hint">{t('visitorPanel.needsEmail')}</p>
-          )}
-          {crmNotice && <p className="mono muted chat-visitor-crm-hint">{crmNotice}</p>}
-        </div>
-
-        <div className="chat-visitor-props">
-          <p className="chat-visitor-props-title mono muted">{t('conversation.subject')}</p>
-          <p className="chat-visitor-subject">{conversation.subject || '—'}</p>
-
-          {conversation.status === 'snoozed' && conversation.snoozed_until && (
-            <div className="chat-visitor-prop-row">
-              <span className="mono muted">{t('conversation.snoozeUntil')}</span>
-              <span className="mono">{formatDateTime(conversation.snoozed_until, locale)}</span>
+          {conversation.subject && (
+            <div>
+              <dt>{t('conversation.subject')}</dt>
+              <dd>{conversation.subject}</dd>
             </div>
           )}
           {conversation.csat_score != null && (
-            <div className="chat-visitor-prop-row">
-              <span className="mono muted">{t('visitorPanel.csat')}</span>
-              <span className="mono">{'★'.repeat(conversation.csat_score)}</span>
+            <div>
+              <dt>{t('visitorPanel.csat')}</dt>
+              <dd className="data">{conversation.csat_score} / 5</dd>
             </div>
           )}
-          <div className="chat-visitor-prop-row">
-            <span className="mono muted">{t('visitorPanel.started')}</span>
-            <span className="mono">{formatDateTime(conversation.created_at, locale)}</span>
-          </div>
-        </div>
-      </div>
-    </aside>
+        </dl>
+      </section>
+
+      <section className="chat-details-section" aria-labelledby="chat-details-crm">
+        <h3 id="chat-details-crm" className="chat-details-label">
+          {t('visitorPanel.crmContact')}
+        </h3>
+        {contactId && (
+          <Link href={`/app/crm/contacts/${contactId}`} className="chat-crm-link">
+            {contactName}
+          </Link>
+        )}
+        {visitor.email ? (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm btn-block"
+            disabled={crmBusy}
+            aria-busy={crmBusy || undefined}
+            onClick={sendToCrm}
+          >
+            {contactId ? t('visitorPanel.logToCrm') : t('visitorPanel.createContact')}
+          </button>
+        ) : (
+          !contact && <p className="ui-help">{t('visitorPanel.needsEmail')}</p>
+        )}
+        {crmNotice && (
+          <p className={crmNotice.tone === 'ok' ? 'ui-help chat-ok' : 'ui-error'} role="status">
+            {crmNotice.text}
+          </p>
+        )}
+      </section>
+    </>
   );
 }

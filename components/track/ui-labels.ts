@@ -24,6 +24,8 @@ export interface TrackUiLabels {
     priority: string;
     assignee: string;
     dueDate: string;
+    cycle: string;
+    noCycle: string;
     create: string;
     createMore: string;
     cancel: string;
@@ -48,6 +50,7 @@ export interface TrackUiLabels {
     pickDate: string;
     dragHint: string;
     dismiss: string;
+    loadError: string;
   };
 }
 
@@ -78,6 +81,8 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
       priority: t('issues.priority'),
       assignee: t('issues.assignee'),
       dueDate: t('issues.dueDate'),
+      cycle: t('quick.cycle'),
+      noCycle: t('quick.noCycle'),
       create: t('quick.create'),
       createMore: t('quick.createMore'),
       cancel: t('common.cancel'),
@@ -102,6 +107,7 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
       pickDate: t('inline.pickDate'),
       dragHint: t('inline.dragHint'),
       dismiss: t('inline.dismiss'),
+      loadError: t('inline.loadError'),
     },
   };
 }

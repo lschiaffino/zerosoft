@@ -33,7 +33,12 @@ export type IconName =
   | 'clip'
   | 'recorder'
   | 'bulk'
-  | 'domains';
+  | 'domains'
+  | 'menu'
+  | 'plus'
+  | 'close'
+  | 'chevronDown'
+  | 'chevronRight';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -238,13 +243,18 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z" />
     </>
   ),
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  close: <path d="M6 6l12 12M18 6L6 18" />,
+  chevronDown: <path d="M6 9l6 6 6-6" />,
+  chevronRight: <path d="M9 6l6 6-6 6" />,
 };
 
-export default function Icon({ name }: { name: IconName }) {
+export default function Icon({ name, size = 14 }: { name: IconName; size?: number }) {
   return (
     <svg
-      width={14}
-      height={14}
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

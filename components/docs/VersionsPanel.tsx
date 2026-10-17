@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { DocsBlock, DocsVersionSummary } from '@/lib/docs-types';
 import { formatDateTime, formatTimeAgo } from '@/lib/datetime';
 import DocsBlocksView from './DocsBlocksView';
+import Icon from '@/components/app/icons';
 
 interface VersionDetail extends DocsVersionSummary {
   content: DocsBlock[];
@@ -30,11 +31,20 @@ export default function VersionsPanel({
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const [loadError, setLoadError] = useState(false);
+
   const load = useCallback(async () => {
-    const res = await fetch(`/api/docs/pages/${pageId}/versions`);
-    if (!res.ok) return setRows([]);
-    const data = (await res.json()) as { rows: DocsVersionSummary[] };
-    setRows(data.rows);
+    setLoadError(false);
+    try {
+      const res = await fetch(`/api/docs/pages/${pageId}/versions`);
+      if (!res.ok) throw new Error(String(res.status));
+      const data = (await res.json()) as { rows: DocsVersionSummary[] };
+      setRows(data.rows);
+    } catch {
+      // Antes un error se mostraba como "no hay versiones".
+      setLoadError(true);
+      setRows((prev) => prev ?? []);
+    }
   }, [pageId]);
 
   useEffect(() => {
@@ -81,11 +91,12 @@ export default function VersionsPanel({
     return (
       <div className="docs-versions">
         <div className="docs-versions-head">
-          <button type="button" className="docs-versions-back" onClick={() => setPreview(null)}>
-            ‹ {t('back')}
+          <button type="button" className="btn btn-ghost btn-sm docs-versions-back" onClick={() => setPreview(null)}>
+            <Icon name="back" size={14} />
+            {t('back')}
           </button>
           {canEdit && (
-            <button type="button" className="btn btn-solid btn-small" onClick={restore} disabled={busy}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={restore} disabled={busy} aria-busy={busy || undefined}>
               {t('restore')}
             </button>
           )}
@@ -95,7 +106,7 @@ export default function VersionsPanel({
         </p>
         <div className="docs-versions-preview">
           <h3 className="docs-versions-title">{preview.title || t('untitled')}</h3>
-          <DocsBlocksView blocks={preview.content} />
+          <DocsBlocksView blocks={preview.content} className="docs-prose" />
         </div>
       </div>
     );
@@ -104,17 +115,28 @@ export default function VersionsPanel({
   return (
     <div className="docs-versions">
       <div className="docs-versions-head">
-        <p className="section-label">{t('title')}</p>
+        <h2 className="docs-side-title">{t('title')}</h2>
         {canEdit && (
-          <button type="button" className="btn btn-small" onClick={saveVersion} disabled={busy}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={saveVersion} disabled={busy} aria-busy={busy || undefined}>
             {saved ? t('saved') : t('save')}
           </button>
         )}
       </div>
-      {rows === null ? (
-        <p className="muted mono docs-versions-empty">{t('loading')}</p>
+      {loadError ? (
+        <div className="docs-versions-error" role="alert">
+          <p className="ui-error">{t('loadError')}</p>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => load()}>
+            {t('retry')}
+          </button>
+        </div>
+      ) : rows === null ? (
+        <div className="ui-loading-stack" aria-busy="true" aria-label={t('loading')}>
+          <span className="ui-skeleton ui-skeleton-row" />
+          <span className="ui-skeleton ui-skeleton-row" />
+          <span className="ui-skeleton ui-skeleton-row" />
+        </div>
       ) : rows.length === 0 ? (
-        <p className="muted docs-versions-empty">{t('empty')}</p>
+        <p className="docs-versions-empty">{t('empty')}</p>
       ) : (
         <ul className="docs-versions-list">
           {rows.map((v) => (
@@ -132,7 +154,7 @@ export default function VersionsPanel({
           ))}
         </ul>
       )}
-      <p className="docs-versions-note muted">{t('note')}</p>
+      <p className="docs-versions-note">{t('note')}</p>
     </div>
   );
 }

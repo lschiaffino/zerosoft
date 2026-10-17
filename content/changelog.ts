@@ -51,9 +51,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       pt: 'Flow e Robots: integrações, credenciais e um gravador',
     },
     items: [
-      { product: 'platform', en: 'Flow credentials: API keys, logins and tokens encrypted per workspace, never shown again and redacted from run logs. Native nodes for Slack, Google Sheets, Gmail, Stripe (including a signed webhook trigger), Notion, Discord and Telegram.', es: 'Credenciales en Flow: API keys, logins y tokens cifrados por workspace, que no se vuelven a mostrar y se ocultan en los logs. Nodos nativos para Slack, Google Sheets, Gmail, Stripe (con trigger de webhook firmado), Notion, Discord y Telegram.', pt: 'Credenciais no Flow: API keys, logins e tokens criptografados por workspace, que não aparecem de novo e ficam ocultos nos logs. Nós nativos para Slack, Google Sheets, Gmail, Stripe (com trigger de webhook assinado), Notion, Discord e Telegram.' },
-      { product: 'platform', en: 'Flow error handling: continue on fail or an error branch per node, an error flow per workflow and re-running a failed run from any step. New nodes to run an agent, run code in a sandbox, merge or aggregate data and call another flow. Cron schedules with time zones, version history with restore and 16 templates.', es: 'Errores en Flow: continuar si falla o rama de error por nodo, un flow de error por workflow y re-ejecutar una corrida fallida desde cualquier paso. Nodos nuevos para ejecutar un agente, correr código en un sandbox, combinar o agregar datos y llamar a otro flow. Schedules con cron y zona horaria, historial de versiones con restaurar y 16 plantillas.', pt: 'Erros no Flow: continuar se falhar ou ramo de erro por nó, um flow de erro por workflow e reexecutar uma execução com falha a partir de qualquer passo. Nós novos para executar um agente, rodar código em um sandbox, juntar ou agregar dados e chamar outro flow. Agendamentos com cron e fuso horário, histórico de versões com restaurar e 16 modelos.' },
-      { product: 'platform', en: 'Robots: a bookmarklet recorder that turns your clicks into steps, saved credentials in steps, sessions kept between runs, new download, upload, PDF and custom JavaScript steps, per-step retries, schedules every 15 minutes or by cron, and a local runner by default when self-hosting.', es: 'Robots: un grabador (bookmarklet) que convierte tus clics en pasos, credenciales guardadas en los pasos, sesiones que se mantienen entre corridas, pasos nuevos para descargar, subir archivos, PDF y JavaScript propio, reintentos por paso, schedules cada 15 minutos o por cron, y runner local por defecto en self-host.', pt: 'Robots: um gravador (bookmarklet) que transforma seus cliques em passos, credenciais salvas nos passos, sessões mantidas entre execuções, passos novos para baixar, enviar arquivos, PDF e JavaScript próprio, tentativas por passo, agendamentos a cada 15 minutos ou por cron, e runner local por padrão em self-host.' },
+      { product: 'flow', en: 'Flow credentials: API keys, logins and tokens encrypted per workspace, never shown again and redacted from run logs. Native nodes for Slack, Google Sheets, Gmail, Stripe (including a signed webhook trigger), Notion, Discord and Telegram.', es: 'Credenciales en Flow: API keys, logins y tokens cifrados por workspace, que no se vuelven a mostrar y se ocultan en los logs. Nodos nativos para Slack, Google Sheets, Gmail, Stripe (con trigger de webhook firmado), Notion, Discord y Telegram.', pt: 'Credenciais no Flow: API keys, logins e tokens criptografados por workspace, que não aparecem de novo e ficam ocultos nos logs. Nós nativos para Slack, Google Sheets, Gmail, Stripe (com trigger de webhook assinado), Notion, Discord e Telegram.' },
+      { product: 'flow', en: 'Flow error handling: continue on fail or an error branch per node, an error flow per workflow and re-running a failed run from any step. New nodes to run an agent, run code in a sandbox, merge or aggregate data and call another flow. Cron schedules with time zones, version history with restore and 16 templates.', es: 'Errores en Flow: continuar si falla o rama de error por nodo, un flow de error por workflow y re-ejecutar una corrida fallida desde cualquier paso. Nodos nuevos para ejecutar un agente, correr código en un sandbox, combinar o agregar datos y llamar a otro flow. Schedules con cron y zona horaria, historial de versiones con restaurar y 16 plantillas.', pt: 'Erros no Flow: continuar se falhar ou ramo de erro por nó, um flow de erro por workflow e reexecutar uma execução com falha a partir de qualquer passo. Nós novos para executar um agente, rodar código em um sandbox, juntar ou agregar dados e chamar outro flow. Agendamentos com cron e fuso horário, histórico de versões com restaurar e 16 modelos.' },
+      { product: 'robots', en: 'Robots: a bookmarklet recorder that turns your clicks into steps, saved credentials in steps, sessions kept between runs, new download, upload, PDF and custom JavaScript steps, per-step retries, schedules every 15 minutes or by cron, and a local runner by default when self-hosting.', es: 'Robots: un grabador (bookmarklet) que convierte tus clics en pasos, credenciales guardadas en los pasos, sesiones que se mantienen entre corridas, pasos nuevos para descargar, subir archivos, PDF y JavaScript propio, reintentos por paso, schedules cada 15 minutos o por cron, y runner local por defecto en self-host.', pt: 'Robots: um gravador (bookmarklet) que transforma seus cliques em passos, credenciais salvas nos passos, sessões mantidas entre execuções, passos novos para baixar, enviar arquivos, PDF e JavaScript próprio, tentativas por passo, agendamentos a cada 15 minutos ou por cron, e runner local por padrão em self-host.' },
     ],
   },
   {
@@ -96,8 +96,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       pt: 'Um visual novo feito de zeros',
     },
     items: [
-      { product: 'platform', en: 'New logo and favicon, zero dividers and numbering, and a colored zero for each app. Product pages lost the tags, cards and shadows.', es: 'Logo y favicon nuevos, separadores y numeración con ceros, y un cero de color por app. Las páginas de producto perdieron los tags, las cards y las sombras.', pt: 'Logo e favicon novos, divisores e numeração com zeros, e um zero colorido por app. As páginas de produto perderam as tags, os cards e as sombras.' },
-      { product: 'platform', en: 'Product pages for Flow, Agents, Notes, Board and Robots.', es: 'Páginas de producto para Flow, Agents, Notes, Board y Robots.', pt: 'Páginas de produto para Flow, Agents, Notes, Board e Robots.' },
+      { product: 'site', en: 'New logo and favicon, zero dividers and numbering, and a colored zero for each app. Product pages lost the tags, cards and shadows.', es: 'Logo y favicon nuevos, separadores y numeración con ceros, y un cero de color por app. Las páginas de producto perdieron los tags, las cards y las sombras.', pt: 'Logo e favicon novos, divisores e numeração com zeros, e um zero colorido por app. As páginas de produto perderam as tags, os cards e as sombras.' },
+      { product: 'site', en: 'Product pages for Flow, Agents, Notes, Board and Robots.', es: 'Páginas de producto para Flow, Agents, Notes, Board y Robots.', pt: 'Páginas de produto para Flow, Agents, Notes, Board e Robots.' },
     ],
   },
   {
@@ -167,7 +167,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
-        product: 'platform',
+        product: 'robots',
         en: 'New app: Robots, an open-source alternative to UiPath. Build step by step (open a page, click, fill, extract text or tables, take screenshots, loops and conditions), run on demand, on a schedule or from a Flow, and get the data back as JSON.',
         es: 'App nueva: Robots, una alternativa open source a UiPath. Armalos paso a paso (abrir una página, hacer clic, completar, extraer textos o tablas, sacar capturas, loops y condiciones), correlos a mano, con horario o desde un Flow, y recibí los datos en JSON.',
         pt: 'App novo: Robots, uma alternativa open source ao UiPath. Monte passo a passo (abrir uma página, clicar, preencher, extrair textos ou tabelas, tirar capturas, loops e condições), rode manualmente, com horário ou a partir de um Flow, e receba os dados em JSON.',
@@ -184,7 +184,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
-        product: 'platform',
+        product: 'agents',
         en: 'New app: Agents, an open-source alternative to Intercom Fin. Give an agent instructions and knowledge (your Docs and web pages), and tools across the suite: search knowledge, save leads to the CRM, offer times and book meetings in Cal, create Track issues, run Flow automations and hand off to a person.',
         es: 'App nueva: Agents, una alternativa open source a Intercom Fin. Dale a un agente instrucciones, conocimiento (tus Docs y páginas web) y herramientas de toda la suite: buscar en el conocimiento, guardar leads en el CRM, ofrecer horarios y agendar en Cal, crear issues en Track, correr automatizaciones de Flow y derivar a una persona.',
         pt: 'App novo: Agents, uma alternativa open source ao Intercom Fin. Dê a um agente instruções, conhecimento (seus Docs e páginas web) e ferramentas de toda a suíte: buscar no conhecimento, salvar leads no CRM, oferecer horários e agendar no Cal, criar issues no Track, rodar automações do Flow e transferir para uma pessoa.',
@@ -207,7 +207,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
-        product: 'platform',
+        product: 'site',
         en: 'zerosoft.ai/tools: email signature, QR code, invoice and privacy policy generators, a SaaS cost calculator, a website grader, a UTM builder, and AI tools for business names, emails, ad copy, buyer personas and blog ideas.',
         es: 'zerosoft.ai/tools: generadores de firma de email, códigos QR, facturas y política de privacidad, una calculadora de costos de SaaS, un evaluador de sitios web, un armador de UTMs, y herramientas con IA para nombres de empresa, emails, anuncios, buyer personas e ideas para el blog.',
         pt: 'zerosoft.ai/tools: geradores de assinatura de email, QR codes, faturas e política de privacidade, uma calculadora de custos de SaaS, um avaliador de sites, um montador de UTMs, e ferramentas com IA para nomes de empresa, emails, anúncios, buyer personas e ideias para o blog.',
@@ -240,13 +240,13 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
-        product: 'platform',
+        product: 'notes',
         en: 'Notes, an open-source alternative to Evernote: press N for a new note, notebooks, tags, pinning, checklists you can tick, full-text search, a web clipper, read-only share links and "Ask AI" over your notes. Your notes are private to you.',
         es: 'Notes, una alternativa open source a Evernote: apretá N para una nota nueva, libretas, tags, fijadas, checklists para tildar, búsqueda de texto completo, un clipper web, links de solo lectura y "Preguntale a la IA" sobre tus notas. Tus notas son solo tuyas.',
         pt: 'Notes, uma alternativa open source ao Evernote: aperte N para uma nota nova, cadernos, tags, fixadas, checklists para marcar, busca de texto completo, um clipper web, links somente leitura e "Pergunte à IA" sobre suas notas. Suas notas são só suas.',
       },
       {
-        product: 'platform',
+        product: 'board',
         en: 'Board, an open-source alternative to Miro: an infinite whiteboard with autosave, thumbnails, duplicate and read-only share links.',
         es: 'Board, una alternativa open source a Miro: una pizarra infinita con autoguardado, miniaturas, duplicar y links de solo lectura.',
         pt: 'Board, uma alternativa open source ao Miro: um quadro infinito com salvamento automático, miniaturas, duplicar e links somente leitura.',
@@ -263,13 +263,13 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
-        product: 'platform',
+        product: 'flow',
         en: 'New app: Flow, an open-source alternative to Zapier and n8n. Start from an event in any app (a booking, a click, a new deal, a task, a chat message), an incoming webhook or a schedule, then chain conditions, delays, loops, HTTP requests, emails, AI steps and native actions.',
         es: 'App nueva: Flow, una alternativa open source a Zapier y n8n. Arrancá desde un evento de cualquier app (una reserva, un clic, un deal nuevo, una tarea, un mensaje de chat), un webhook entrante o un horario, y encadená condiciones, esperas, loops, pedidos HTTP, emails, pasos con IA y acciones nativas.',
         pt: 'App novo: Flow, uma alternativa open source ao Zapier e ao n8n. Comece por um evento de qualquer app (uma reserva, um clique, um deal novo, uma tarefa, uma mensagem de chat), um webhook de entrada ou um horário, e encadeie condições, esperas, loops, requisições HTTP, emails, passos com IA e ações nativas.',
       },
       {
-        product: 'platform',
+        product: 'flow',
         en: 'Visual editor with a variable picker, test runs with step-by-step logs, and five starter templates.',
         es: 'Editor visual con selector de variables, ejecuciones de prueba con el log de cada paso y cinco plantillas para empezar.',
         pt: 'Editor visual com seletor de variáveis, execuções de teste com o log de cada passo e cinco modelos para começar.',
@@ -286,7 +286,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
-        product: 'platform',
+        product: 'site',
         en: 'zerosoft.ai/roadmap shows what is planned, in progress and done. Every piece of feedback is grouped into these items, and you can upvote what you need.',
         es: 'zerosoft.ai/roadmap muestra lo planeado, en curso y hecho. Cada feedback se agrupa en estos ítems, y podés votar lo que necesitás.',
         pt: 'zerosoft.ai/roadmap mostra o que está planejado, em andamento e feito. Cada feedback é agrupado nesses itens, e você pode votar no que precisa.',
@@ -355,13 +355,13 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
-        product: 'platform',
+        product: 'site',
         en: 'The zero made of zeros on the home page now reacts to the cursor everywhere, even over the headline, and also shows on phones.',
         es: 'El cero hecho de ceros del home ahora reacciona al cursor en todos lados, incluso sobre el título, y también se ve en el celular.',
         pt: 'O zero feito de zeros da home agora reage ao cursor em todo lugar, até sobre o título, e também aparece no celular.',
       },
       {
-        product: 'platform',
+        product: 'site',
         en: 'Fewer badges, square corners and plain lists: the suite is now split into "For teams" and "For you", with what is coming next marked as soon.',
         es: 'Menos etiquetas, esquinas rectas y listas simples: la suite ahora se divide en "Para equipos" y "Para vos", con lo que viene marcado como pronto.',
         pt: 'Menos etiquetas, cantos retos e listas simples: a suíte agora se divide em "Para equipes" e "Para você", com o que vem por aí marcado como em breve.',
@@ -378,13 +378,13 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
-        product: 'platform',
+        product: 'site',
         en: 'Redesigned website: suite overview, what your current stack costs, self-hosting in one command, and a developer section with real API examples. The code is now public on GitHub.',
         es: 'Sitio rediseñado: la suite de un vistazo, cuánto cuesta tu stack actual, self-hosting en un comando y una sección para developers con ejemplos reales de la API. El código ahora es público en GitHub.',
         pt: 'Site redesenhado: a suíte num relance, quanto custa seu stack atual, self-hosting em um comando e uma seção para devs com exemplos reais da API. O código agora é público no GitHub.',
       },
       {
-        product: 'platform',
+        product: 'site',
         en: 'Seven short videos recorded from the real app, on /videos and on each product page. 36 new blog posts.',
         es: 'Siete videos cortos grabados de la app real, en /videos y en cada página de producto. 36 artículos nuevos en el blog.',
         pt: 'Sete vídeos curtos gravados do app real, em /videos e em cada página de produto. 36 novos artigos no blog.',
@@ -766,7 +766,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         pt: 'Editor de políticas de SLA por widget e prioridade.',
       },
       {
-        product: 'platform',
+        product: 'site',
         en: 'Chat gets its own product page; the animated zeros on the site use less CPU and pause when off-screen.',
         es: 'Chat tiene su propia página de producto; los ceros animados del sitio usan menos CPU y se pausan fuera de pantalla.',
         pt: 'O Chat ganhou sua página de produto; os zeros animados do site usam menos CPU e pausam fora da tela.',
@@ -942,7 +942,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
-        product: 'platform',
+        product: 'site',
         en: 'First public version of zerosoft.ai, in English, Spanish and Portuguese.',
         es: 'Primera versión pública de zerosoft.ai, en inglés, español y portugués.',
         pt: 'Primeira versão pública do zerosoft.ai, em inglês, espanhol e português.',

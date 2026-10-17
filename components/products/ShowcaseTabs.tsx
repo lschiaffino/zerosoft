@@ -2,31 +2,40 @@
 
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { ProductKey } from '@/lib/products';
-import ProductZero from '@/components/zero/ProductZero';
+import LineGlyph from '@/components/brand/LineGlyph';
 
 interface ShowcaseTabsProps {
+  /** Nombre de la lista de pestañas para lectores de pantalla. */
+  label: string;
   tabs: Array<{ key: ProductKey; label: string }>;
   /** Un panel por pestaña, en el mismo orden (los mockups se renderizan en el servidor). */
   panels: ReactNode[];
 }
 
 /** Pestañas de la vitrina del home: muestra un producto por vez. */
-export default function ShowcaseTabs({ tabs, panels }: ShowcaseTabsProps) {
+export default function ShowcaseTabs({ label, tabs, panels }: ShowcaseTabsProps) {
   const [active, setActive] = useState(0);
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // Flechas izquierda/derecha recorren las pestañas (patrón WAI-ARIA tabs).
   const onKey = (e: KeyboardEvent) => {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const last = tabs.length - 1;
+    const moves: Record<string, number> = {
+      ArrowRight: (active + 1) % tabs.length,
+      ArrowLeft: (active + last) % tabs.length,
+      Home: 0,
+      End: last,
+    };
+    if (!(e.key in moves)) return;
     e.preventDefault();
-    const next = (active + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+    const next = moves[e.key];
     setActive(next);
     refs.current[next]?.focus();
   };
 
   return (
     <div className="showcase">
-      <div className="showcase-tabs" role="tablist" onKeyDown={onKey}>
+      <div className="showcase-tabs ui-tabs" role="tablist" aria-label={label} onKeyDown={onKey}>
         {tabs.map((tab, i) => (
           <button
             key={tab.key}
@@ -39,11 +48,11 @@ export default function ShowcaseTabs({ tabs, panels }: ShowcaseTabsProps) {
             aria-selected={i === active}
             aria-controls={`showcase-panel-${tab.key}`}
             tabIndex={i === active ? 0 : -1}
-            className={`showcase-tab card-${tab.key}${i === active ? ' active' : ''}`}
+            className={`ui-tab showcase-tab card-${tab.key}`}
             onClick={() => setActive(i)}
           >
-            <ProductZero product={tab.key} />
-            <span className="showcase-tab-name">{tab.label}</span>
+            <LineGlyph product={tab.key} size={14} />
+            {tab.label}
           </button>
         ))}
       </div>

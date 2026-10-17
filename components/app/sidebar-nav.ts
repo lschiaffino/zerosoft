@@ -1,4 +1,5 @@
 import type { IconName } from './icons';
+import { isNewLinkPath } from '@/lib/link-detail-tabs';
 
 /**
  * Navegación del sidebar de la app, en datos puros (sin React) para poder
@@ -110,6 +111,11 @@ export interface NavItem {
   active: boolean;
   icon: IconName;
   badge?: number;
+  /**
+   * La estación tiene un ramal: el producto monta ahí su propio árbol (Docs
+   * cuelga sus páginas de "Páginas"). El shell deja el hueco #side-branch.
+   */
+  branch?: boolean;
 }
 
 export interface NavGroup {
@@ -221,7 +227,7 @@ export function buildNav(
       return [
         {
           items: [
-            { href: '/app/docs', label: labels.docs.pages, active: at('/app/docs'), icon: 'docs' },
+            { href: '/app/docs', label: labels.docs.pages, active: at('/app/docs'), icon: 'docs', branch: true },
             // Plantillas y papelera son secciones de la portada de Docs.
             { href: '/app/docs#templates', label: labels.docs.templates, active: false, icon: 'templates' },
             { href: '/app/docs?trash=1#trash', label: labels.docs.trash, active: false, icon: 'trash' },
@@ -300,10 +306,10 @@ export function buildNav(
           section: labels.workspace,
           items: [
             {
-              href: '/app/chat/settings',
+              href: '/app/chat/widgets',
               label: labels.chat.settings,
-              // Las páginas de un widget cuelgan de Ajustes (ahí está la lista).
-              active: at('/app/chat/settings') || at('/app/chat/widgets'),
+              // La lista de widgets y las páginas de cada widget (/app/chat/settings redirige acá).
+              active: at('/app/chat/widgets') || at('/app/chat/settings'),
               icon: 'settings',
             },
           ],
@@ -358,22 +364,21 @@ export function buildNav(
               label: labels.link.links,
               active:
                 at('/app/links') &&
-                !at('/app/links/new') &&
-                !at('/app/links/bulk') &&
+                !isNewLinkPath(pathname) &&
                 !at('/app/links/bio') &&
-                !at('/app/links/analytics'),
+                !at('/app/links/analytics') &&
+                !at('/app/links/domains'),
               icon: 'links',
             },
-            { href: '/app/links/new', label: labels.link.new, active: at('/app/links/new'), icon: 'newLink' },
-            { href: '/app/links/bulk', label: labels.link.bulk, active: at('/app/links/bulk'), icon: 'bulk' },
+            // Una sola entrada para crear: Un link / En lote / Importar son pestañas de /app/links/new.
+            { href: '/app/links/new', label: labels.link.new, active: isNewLinkPath(pathname), icon: 'newLink' },
             { href: '/app/links/bio', label: labels.link.bio, active: at('/app/links/bio'), icon: 'contacts' },
             { href: '/app/links/analytics', label: labels.link.analytics, active: at('/app/links/analytics'), icon: 'reports' },
           ],
         },
         {
           section: labels.workspace,
-          // Dominios propios e import de Bitly viven en los Ajustes globales.
-          items: [{ href: '/app/settings#domains', label: labels.link.domains, active: false, icon: 'domains' }],
+          items: [{ href: '/app/links/domains', label: labels.link.domains, active: at('/app/links/domains'), icon: 'domains' }],
         },
       ];
   }

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
+import CrmIcon from './CrmIcon';
+import EmptyState from '@/components/ui/EmptyState';
 
 export interface MemberRow {
   id: string;
@@ -118,8 +120,9 @@ export default function ListMembers({ listId, members }: ListMembersProps) {
                   </span>
                   <button
                     type="button"
-                    className="icon-btn"
+                    className="btn btn-secondary btn-sm"
                     disabled={busyId === r.id}
+                    aria-busy={busyId === r.id || undefined}
                     onClick={() => addMember(r.id)}
                   >
                     {t('common.add')}
@@ -127,17 +130,30 @@ export default function ListMembers({ listId, members }: ListMembersProps) {
                 </div>
               ))}
             {!searching && results.filter((r) => !memberIds.has(r.id)).length === 0 && (
-              <p className="muted member-result-empty">0</p>
+              <p className="muted member-result-empty">{t('record.noResults')}</p>
             )}
           </div>
         )}
       </div>
 
       {members.length === 0 ? (
-        <p className="muted">{t('lists.emptyMembers')}</p>
+        <EmptyState quiet title={t('record.empty.staticListTitle')} body={t('record.empty.staticListBody')} />
       ) : (
         <div className="table-wrap">
           <table className="table crm-table">
+            <caption className="sr-only">{t('lists.membersTitle')}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{t('contacts.table.name')}</th>
+                <th scope="col">{t('contacts.table.email')}</th>
+                <th scope="col">{t('contacts.table.company')}</th>
+                <th scope="col">{t('contacts.table.lifecycle')}</th>
+                <th className="num cell-date" scope="col">{t('contacts.table.created')}</th>
+                <th scope="col">
+                  <span className="sr-only">{t('common.actions')}</span>
+                </th>
+              </tr>
+            </thead>
             <tbody>
               {members.map((m) => (
                 <tr key={m.id} className={busyId === m.id ? 'row-busy' : undefined}>
@@ -151,16 +167,17 @@ export default function ListMembers({ listId, members }: ListMembersProps) {
                   <td>
                     <span className={`badge stage-${m.lifecycle}`}>{m.lifecycleLabel}</span>
                   </td>
-                  <td className="mono muted cell-date">{m.created}</td>
+                  <td className="num muted cell-date">{m.created}</td>
                   <td>
                     <div className="cell-actions">
                       <button
                         type="button"
-                        className="icon-btn danger"
+                        className="btn btn-ghost btn-icon btn-sm row-delete"
                         title={t('lists.removeMember')}
+                        aria-label={t('lists.removeMember')}
                         onClick={() => removeMember(m.id)}
                       >
-                        ✕
+                        <CrmIcon name="x" />
                       </button>
                     </div>
                   </td>

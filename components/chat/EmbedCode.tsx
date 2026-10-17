@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import FormSection from '@/components/ui/FormSection';
+import ChatIcon from './icons';
 
 interface EmbedCodeProps {
   widgetId: string;
@@ -9,33 +11,41 @@ interface EmbedCodeProps {
   origin: string;
 }
 
+/** El snippet para pegar en el sitio, con Copiar al lado. Es el primer paso de un widget nuevo. */
 export default function EmbedCode({ widgetId, origin }: EmbedCodeProps) {
   const t = useTranslations('chat');
-  const [copied, setCopied] = useState(false);
-  // Antes usaba window.location.origin en el cliente y un fallback distinto en
-  // el server → hydration mismatch. Ahora el origen llega del server.
+  const [state, setState] = useState<'idle' | 'copied' | 'error'>('idle');
   const script = `<script src="${origin}/api/chat/widget.js?id=${widgetId}" async></script>`;
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(script);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setState('copied');
     } catch {
-      // ignore
+      setState('error');
     }
+    setTimeout(() => setState('idle'), 2000);
   }
 
   return (
-    <section className="panel chat-embed">
-      <div className="panel-head">
-        <p className="section-label">{t('embed.title')}</p>
-        <button type="button" className="btn btn-small" onClick={copy}>
-          {copied ? t('embed.copied') : t('embed.copy')}
+    <FormSection title={t('embed.title')} description={t('embed.instructions')}>
+      <div className="chat-embed">
+        <pre className="chat-embed-code data" tabIndex={0} aria-label={t('embed.title')}>
+          {script}
+        </pre>
+        <button type="button" className="btn btn-secondary" onClick={copy}>
+          <ChatIcon name="copy" size={14} />
+          {state === 'copied' ? t('embed.copied') : t('embed.copy')}
         </button>
       </div>
-      <p className="muted">{t('embed.instructions')}</p>
-      <pre className="chat-embed-code mono">{script}</pre>
-    </section>
+      {/* "Copiado" ya se ve en el botón; acá solo se anuncia. El error sí se muestra. */}
+      <p
+        className={state === 'error' ? 'ui-section-note' : 'sr-only'}
+        role="status"
+        data-tone={state === 'error' ? 'error' : undefined}
+      >
+        {state === 'copied' ? t('embed.copied') : state === 'error' ? t('embed.copyError') : null}
+      </p>
+    </FormSection>
   );
 }

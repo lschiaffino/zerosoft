@@ -12,6 +12,8 @@ import { formatDate } from '@/lib/utils';
 import FormBuilder from '@/components/crm/FormBuilder';
 import FormSubmissions from '@/components/crm/FormSubmissions';
 import CopyButton from '@/components/link/CopyButton';
+import PageHeader from '@/components/ui/PageHeader';
+import { FORM_TONE, badgeClass } from '@/lib/crm-ui-tones';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,32 +95,32 @@ export default async function FormDetailPage(props: {
     body = (
       <div className="forms-share">
         <section className="forms-share-block">
-          <h2>{t('forms.share.hosted')}</h2>
-          <p className="muted">{t('forms.share.hostedDesc')}</p>
+          <h2 className="crm-panel-title">{t('forms.share.hosted')}</h2>
+          <p className="ui-help">{t('forms.share.hostedDesc')}</p>
           <div className="forms-share-row">
-            <code className="mono forms-code">{hostedUrl}</code>
+            <code className="data forms-code">{hostedUrl}</code>
             <CopyButton text={hostedUrl} />
-            <a className="btn btn-small" href={hostedUrl} target="_blank" rel="noreferrer">
+            <a className="btn btn-secondary btn-sm" href={hostedUrl} target="_blank" rel="noreferrer">
               {t('forms.share.open')}
             </a>
           </div>
         </section>
         <section className="forms-share-block">
-          <h2>{t('forms.share.embed')}</h2>
-          <p className="muted">{t('forms.share.embedDesc')}</p>
+          <h2 className="crm-panel-title">{t('forms.share.embed')}</h2>
+          <p className="ui-help">{t('forms.share.embedDesc')}</p>
           <div className="forms-share-row">
-            <code className="mono forms-code" data-testid="form-embed-snippet">
+            <code className="data forms-code" data-testid="form-embed-snippet">
               {snippet}
             </code>
             <CopyButton text={snippet} />
           </div>
-          <p className="muted forms-share-note">{t('forms.share.utmNote')}</p>
+          <p className="ui-help">{t('forms.share.utmNote')}</p>
         </section>
         <section className="forms-share-block">
-          <h2>{t('forms.share.iframe')}</h2>
-          <p className="muted">{t('forms.share.iframeDesc')}</p>
+          <h2 className="crm-panel-title">{t('forms.share.iframe')}</h2>
+          <p className="ui-help">{t('forms.share.iframeDesc')}</p>
           <div className="forms-share-row">
-            <code className="mono forms-code">{iframe}</code>
+            <code className="data forms-code">{iframe}</code>
             <CopyButton text={iframe} />
           </div>
         </section>
@@ -127,27 +129,28 @@ export default async function FormDetailPage(props: {
   }
 
   return (
-    <div className="app-page">
-      <Link href="/app/crm/forms" className="mono back-link">
-        {t('common.back')}
-      </Link>
-      <div className="page-head">
-        <div>
-          <h1 className="app-title">{form.name}</h1>
-          <p className="muted app-sub mono">
-            {t(`forms.status.${form.status}`)} · {t('forms.submissionsCount', { count: form.submission_count })}
-          </p>
-        </div>
-        <a className="btn btn-small" href={hostedUrl} target="_blank" rel="noreferrer">
-          {t('forms.share.open')}
-        </a>
-      </div>
-      <nav className="report-type-tabs forms-tabs" aria-label={form.name}>
+    <div className="app-page ui-page">
+      <PageHeader
+        back={{ href: '/app/crm/forms', label: t('forms.title') }}
+        title={form.name}
+        description={
+          <span className="quote-head-meta">
+            <span className={badgeClass(FORM_TONE, form.status)}>{t(`forms.status.${form.status}`)}</span>
+            <span>{t('forms.submissionsCount', { count: form.submission_count })}</span>
+          </span>
+        }
+        actions={
+          <a className="btn btn-secondary" href={hostedUrl} target="_blank" rel="noreferrer">
+            {t('forms.share.open')}
+          </a>
+        }
+      />
+      <nav className="ui-tabs" aria-label={form.name}>
         {TABS.map((x) => (
           <Link
             key={x}
             href={{ pathname: `/app/crm/forms/${form.id}`, query: x === 'build' ? {} : { tab: x } }}
-            className={`report-type-tab${tab === x ? ' active' : ''}`}
+            className="ui-tab"
             aria-current={tab === x ? 'page' : undefined}
           >
             {t(`forms.tabs.${x}`)}

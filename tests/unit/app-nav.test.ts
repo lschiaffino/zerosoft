@@ -66,7 +66,10 @@ describe('sidebar de la app', () => {
       expect(items.length, product).toBeGreaterThan(1);
     }
     const linkHrefs = buildNav('link', '/app', labels).flatMap((g) => g.items.map((i) => i.href));
-    expect(linkHrefs).toContain('/app/links/bulk');
+    expect(linkHrefs).toContain('/app/links/new');
+    // Lote e importar son pestañas de "Nuevo"; dominios tiene su pantalla en Link.
+    expect(linkHrefs).not.toContain('/app/links/bulk');
+    expect(linkHrefs).toContain('/app/links/domains');
   });
 
   it('"+ Nuevo" crea en vez de llevar a la lista', () => {
@@ -111,13 +114,19 @@ describe('sidebar de la app', () => {
         .map((i) => i.href);
     expect(active('notes', '/app/notes/clip')).toEqual(['/app/notes/clip']);
     expect(active('robots', '/app/robots/recorder')).toEqual(['/app/robots/recorder']);
-    expect(active('link', '/app/links/bulk')).toEqual(['/app/links/bulk']);
+    expect(active('link', '/app/links/bulk')).toEqual(['/app/links/new']);
+    expect(active('link', '/app/links/import')).toEqual(['/app/links/new']);
+    expect(active('link', '/app/links/domains')).toEqual(['/app/links/domains']);
+    expect(active('link', '/app/links/abc123')).toEqual(['/app/links']);
     expect(active('track', '/app/track/projects')).toEqual(['/app/track/projects']);
   });
 
   it('Track › Proyectos es una lista real y /app/chat/widgets no da 404', () => {
     const projects = readFileSync(join(appDir, 'app', 'track', 'projects', 'page.tsx'), 'utf8');
-    expect(projects).toContain('ProjectList');
+    // La página delega en ProjectsPage (compartida con el Resumen), que renderiza la lista.
+    expect(projects).toContain('ProjectsPage');
+    const shared = readFileSync(join(root, 'components', 'track', 'ProjectsPage.tsx'), 'utf8');
+    expect(shared).toContain('ProjectList');
     expect(pageExists('/app/chat/widgets')).toBe(true);
   });
 
@@ -130,5 +139,30 @@ describe('sidebar de la app', () => {
       const docs = JSON.parse(readFileSync(join(root, 'messages', locale, 'docs.json'), 'utf8'));
       expect(docs.trash.empty, `${locale}: docs.trash.empty`).toBeTruthy();
     }
+  });
+});
+
+describe('base compartida del rediseño', () => {
+  it('los strings del shell y de components/ui existen en en/es/pt', () => {
+    for (const locale of ['en', 'es', 'pt']) {
+      const common = JSON.parse(readFileSync(join(root, 'messages', locale, 'common.json'), 'utf8'));
+      for (const key of ['home', 'switchProduct', 'closeMenu']) {
+        expect(common.sidebar[key], `${locale}: sidebar.${key}`).toBeTruthy();
+      }
+      for (const key of ['advanced', 'save', 'saving', 'saved', 'saveError', 'back', 'sections']) {
+        expect(common.ui[key], `${locale}: ui.${key}`).toBeTruthy();
+      }
+      for (const key of ['title', 'lead', 'mapTitle', 'lines', 'open', 'linkSummary']) {
+        expect(common.appHome[key], `${locale}: appHome.${key}`).toBeTruthy();
+      }
+    }
+  });
+
+  it('ui.css no trae sombras decorativas, mayúsculas ni radios de más de 2px', () => {
+    const css = readFileSync(join(root, 'styles', 'ui.css'), 'utf8');
+    expect(css).not.toMatch(/text-transform:\s*uppercase/);
+    expect(css).not.toMatch(/box-shadow:\s*\d+px\s+\d+px/);
+    expect(css).not.toMatch(/border-radius:\s*([3-9]|\d{2,})px/);
+    expect(css).not.toMatch(/gradient\(/);
   });
 });

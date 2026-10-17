@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl';
+import { MkArrow } from './MkIcons';
 
 const TOOLS = ['tool1', 'tool2', 'tool3', 'tool4'] as const;
 /** Herramientas prendidas en este agente (la cuarta queda apagada). */
@@ -41,7 +42,7 @@ export default function AgentsMockup() {
         <div className="mk-chat-reply">
           <span className="mk-chat-reply-hint">{t('replyHint')}</span>
           <span className="mk-chat-send" aria-hidden="true">
-            →
+            <MkArrow />
           </span>
         </div>
       </div>

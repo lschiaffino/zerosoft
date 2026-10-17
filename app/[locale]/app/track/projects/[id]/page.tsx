@@ -105,8 +105,8 @@ export default async function ProjectPage(
           { value: 'low', label: t('priorities.low') },
         ],
         ui: buildTrackUiLabels(t),
-          settings: t('project.settings'),
-          workflowStatuses: t('statusSettings.title'),
+        settings: t('project.settings'),
+        workflowStatuses: t('statusSettings.title'),
       }}
     />
   );

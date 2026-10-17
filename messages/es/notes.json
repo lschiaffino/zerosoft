@@ -1,8 +1,14 @@
 {
-  "meta": { "title": "Notas" },
+  "meta": {
+    "title": "Notas"
+  },
   "untitled": "Sin título",
-  "sidebar": { "all": "Todas las notas" },
-  "actions": { "newNote": "Nueva nota" },
+  "sidebar": {
+    "all": "Todas las notas"
+  },
+  "actions": {
+    "newNote": "Nueva nota"
+  },
   "nav": {
     "label": "Libretas",
     "all": "Todas las notas",
@@ -14,32 +20,49 @@
   "notebooks": {
     "new": "Nueva libreta",
     "namePlaceholder": "Nombre de la libreta",
-    "rename": "Renombrar",
-    "renamePrompt": "Renombrar libreta",
+    "rename": "Renombrar libreta",
     "delete": "Borrar libreta",
     "confirmDelete": "¿Borrar “{name}”? Sus notas van a ir a la papelera.",
-    "empty": "Agrupá tus notas en libretas."
+    "empty": "Agrupá tus notas en libretas.",
+    "renameLabel": "Nuevo nombre de la libreta",
+    "actions": "Acciones de la libreta"
   },
   "list": {
     "search": "Buscar notas",
     "sortLabel": "Ordenar",
-    "sort": { "updated": "Última edición", "created": "Creación", "title": "Título" },
+    "sort": {
+      "updated": "Última edición",
+      "created": "Creación",
+      "title": "Título"
+    },
     "count": "{count, plural, =0 {Sin notas} one {# nota} other {# notas}}",
     "noResults": "Nada coincide con “{q}”.",
-    "emptyTitle": "Todavía no hay notas acá.",
-    "justNow": "recién"
+    "emptyTitle": "Todavía no hay notas",
+    "justNow": "recién",
+    "loadError": "No se pudo cargar la lista.",
+    "retry": "Reintentar",
+    "loading": "Cargando notas",
+    "emptyBody": "Escribí lo que tengas en la cabeza. Se guarda solo mientras escribís.",
+    "emptyClip": "Recortar una página web",
+    "emptyNotebookTitle": "Esta libreta está vacía",
+    "emptyNotebookBody": "Las notas que crees acá quedan en esta libreta. También podés mover una nota desde su barra.",
+    "emptyPinnedTitle": "No hay notas fijadas",
+    "emptyPinnedBody": "Fijá una nota desde su barra y queda arriba de todo.",
+    "searchHint": "Atajo: /",
+    "resultCount": "{count, plural, =0 {0 resultados} one {# resultado} other {# resultados}}",
+    "clearSearch": "Borrar búsqueda"
   },
   "trash": {
     "confirmDelete": "¿Borrar esta nota para siempre? No se puede deshacer.",
     "confirmEmpty": "¿Borrar para siempre todas las notas de la papelera?",
     "empty": "Vaciar papelera",
-    "emptyState": "La papelera está vacía.",
+    "emptyState": "La papelera está vacía",
     "banner": "Esta nota está en la papelera.",
     "restore": "Restaurar",
-    "deleteForever": "Borrar para siempre"
+    "deleteForever": "Borrar para siempre",
+    "emptyStateBody": "Las notas que mandás a la papelera quedan acá hasta que las restaures o las borres."
   },
   "editor": {
-    "emptyTitle": "Elegí una nota o empezá una nueva.",
     "back": "Notas",
     "moveTo": "Mover a libreta",
     "noNotebook": "Sin libreta",
@@ -53,7 +76,13 @@
     "removeTag": "Quitar etiqueta {tag}",
     "addTag": "Agregar etiqueta",
     "source": "Fuente:",
-    "created": "Creada el {date}"
+    "created": "Creada el {date}",
+    "openError": "No se pudo abrir la nota.",
+    "actionError": "No se pudo guardar el cambio. Probá de nuevo.",
+    "more": "Más acciones",
+    "dismiss": "Cerrar aviso",
+    "hintNew": "nueva nota",
+    "hintSearch": "buscar"
   },
   "share": {
     "button": "Compartir",
@@ -80,11 +109,7 @@
   },
   "clip": {
     "button": "Recortar páginas",
-    "title": "Recortar página",
-    "hint": "Arrastrá este botón a tu barra de favoritos. Hacé clic en cualquier página para guardarla (con el texto seleccionado) como nota.",
     "bookmarkletName": "Guardar en Notas",
-    "missingUrl": "No hay nada para recortar. Usá el botón desde cualquier página web.",
-    "openNotes": "Abrir Notas",
     "saved": "Guardado en Notas",
     "openNote": "Abrir nota",
     "close": "Cerrar",
@@ -92,7 +117,20 @@
     "selection": "Texto",
     "error": "No se pudo guardar. Probá de nuevo.",
     "saving": "Guardando…",
-    "save": "Guardar nota"
+    "save": "Guardar nota",
+    "lead": "Guardá cualquier página web como nota, con el texto que tengas seleccionado.",
+    "step1": "Arrastrá el botón a tu barra de favoritos.",
+    "step1Hint": "Si no ves la barra, mostrala con ⌘⇧B (Ctrl+Shift+B en Windows).",
+    "step2": "En cualquier página, seleccioná texto y hacé clic en Guardar en Notas.",
+    "step2Hint": "Se abre una ventana chica con el título, el link y el texto. Revisás y guardás.",
+    "step3": "La nota aparece en Todas las notas, con el link a la fuente.",
+    "dragOnly": "Arrastralo a la barra de favoritos. Acá no recorta nada.",
+    "manual": "¿No podés arrastrarlo? Creá un favorito nuevo y pegá este código como dirección.",
+    "copyCode": "Copiar código",
+    "copied": "Copiado",
+    "source": "Fuente",
+    "saveHint": "⌘↵ para guardar",
+    "touchInstall": "El recorte se instala desde la computadora. Copiá el código para pegarlo allá como favorito."
   },
   "public": {
     "notFound": "Nota no encontrada",

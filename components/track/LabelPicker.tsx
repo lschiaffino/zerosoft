@@ -106,7 +106,7 @@ export default function LabelPicker({ value, onChange }: LabelPickerProps) {
         <span className="track-label-chips">
           {value.map((l) => (
             <span key={l.id} className="track-label-tag">
-              <span className="track-label-tag-dot" style={{ background: safeHexColor(l.color, '#666666') }} aria-hidden />
+              <span className="track-label-tag-dot" style={{ background: safeHexColor(l.color, '#767676') }} aria-hidden />
               {l.name}
               <button
                 type="button"
@@ -173,7 +173,7 @@ export default function LabelPicker({ value, onChange }: LabelPickerProps) {
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => add(l.id)}
               >
-                <span className="track-label-tag-dot" style={{ background: safeHexColor(l.color, '#666666') }} aria-hidden />
+                <span className="track-label-tag-dot" style={{ background: safeHexColor(l.color, '#767676') }} aria-hidden />
                 {l.name}
               </button>
             </li>

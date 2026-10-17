@@ -1,12 +1,22 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { signOut } from 'next-auth/react';
+import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import Icon from './icons';
-import { appProductFromPath, buildNav, buildNewItems, settingsNavItem, type SidebarLabels } from './sidebar-nav';
+import {
+  appProductFromPath,
+  buildNav,
+  buildNewItems,
+  settingsNavItem,
+  type AppProduct,
+  type SidebarLabels,
+} from './sidebar-nav';
 import NotificationBell from './NotificationBell';
 import Logo from '@/components/brand/Logo';
+import LineGlyph from '@/components/brand/LineGlyph';
+import type { ProductKey } from '@/lib/products';
 
 export type { SidebarLabels };
 
@@ -16,39 +26,76 @@ interface SideUser {
   image: string | null;
 }
 
-const PRODUCTS = [
-  { key: 'link', name: 'Link', href: '/app' },
-  { key: 'crm', name: 'CRM', href: '/app/crm' },
-  { key: 'docs', name: 'Docs', href: '/app/docs' },
-  { key: 'calendar', name: 'Cal', href: '/app/calendar' },
-  { key: 'track', name: 'Track', href: '/app/track' },
-  { key: 'chat', name: 'Chat', href: '/app/chat' },
-  { key: 'flow', name: 'Flow', href: '/app/flow' },
-  { key: 'notes', name: 'Notes', href: '/app/notes' },
-  { key: 'board', name: 'Board', href: '/app/board' },
-  { key: 'agents', name: 'Agents', href: '/app/agents' },
-  { key: 'robots', name: 'Robots', href: '/app/robots' },
-] as const;
+/** Las once líneas en el orden del switcher. `line` es la clave de marca (Cal = cal). */
+const PRODUCTS: ReadonlyArray<{ key: AppProduct; line: ProductKey; name: string; href: string }> = [
+  { key: 'link', line: 'link', name: 'Link', href: '/app' },
+  { key: 'crm', line: 'crm', name: 'CRM', href: '/app/crm' },
+  { key: 'docs', line: 'docs', name: 'Docs', href: '/app/docs' },
+  { key: 'calendar', line: 'cal', name: 'Cal', href: '/app/calendar' },
+  { key: 'track', line: 'track', name: 'Track', href: '/app/track' },
+  { key: 'chat', line: 'chat', name: 'Chat', href: '/app/chat' },
+  { key: 'flow', line: 'flow', name: 'Flow', href: '/app/flow' },
+  { key: 'notes', line: 'notes', name: 'Notes', href: '/app/notes' },
+  { key: 'board', line: 'board', name: 'Board', href: '/app/board' },
+  { key: 'agents', line: 'agents', name: 'Agents', href: '/app/agents' },
+  { key: 'robots', line: 'robots', name: 'Robots', href: '/app/robots' },
+];
 
-/** Color de cada producto (tokens --c-* de globals.css). */
-const PRODUCT_COLOR: Record<string, string> = {
-  link: 'var(--c-link)',
-  crm: 'var(--c-crm)',
-  docs: 'var(--c-docs)',
-  calendar: 'var(--c-cal)',
-  track: 'var(--c-track)',
-  chat: 'var(--c-chat)',
-  flow: 'var(--c-flow)',
-  notes: 'var(--c-notes)',
-  board: 'var(--c-board)',
-  agents: 'var(--c-agents)',
-  robots: 'var(--c-robots)',
-};
+const STORAGE_COLLAPSED = 'zs-side-collapsed';
 
 /**
- * Chrome de las apps: sidebar por producto estilo Twenty (switcher, búsqueda,
- * secciones agrupadas, quick actions, usuario abajo). Reemplaza al AppShell
- * de tabs. En <1024px colapsa a topbar + drawer.
+ * Rutas que ya traen su propia columna de navegación (Notes: libretas · lista ·
+ * nota). Ahí el sidebar arranca colapsado y recuerda su estado aparte.
+ */
+function denseRoute(pathname: string): string | null {
+  return /^\/app\/notes\/?$/.test(pathname) ? 'notes' : null;
+}
+
+function storageKey(dense: string | null): string {
+  return dense ? `${STORAGE_COLLAPSED}-${dense}` : STORAGE_COLLAPSED;
+}
+
+function readCollapsed(dense: string | null): boolean {
+  try {
+    const v = window.localStorage.getItem(storageKey(dense));
+    return v == null ? dense != null : v === '1';
+  } catch {
+    return dense != null;
+  }
+}
+
+function writeCollapsed(dense: string | null, v: boolean) {
+  try {
+    window.localStorage.setItem(storageKey(dense), v ? '1' : '0');
+  } catch {
+    // Sin storage (modo privado): el estado vive solo en esta pestaña.
+  }
+}
+
+/** Mueve el foco entre los ítems de un menú con flechas, Home y End. */
+function menuKeys(e: KeyboardEvent<HTMLElement>, close: () => void) {
+  const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+  const i = items.indexOf(document.activeElement as HTMLElement);
+  const go = (n: number) => {
+    e.preventDefault();
+    items[(n + items.length) % items.length]?.focus();
+  };
+  if (e.key === 'ArrowDown') go(i + 1);
+  else if (e.key === 'ArrowUp') go(i - 1);
+  else if (e.key === 'Home') go(0);
+  else if (e.key === 'End') go(items.length - 1);
+  else if (e.key === 'Escape') {
+    e.preventDefault();
+    close();
+  } else if (e.key === 'Tab') close();
+}
+
+/**
+ * Chrome de las apps: una banda negra de señalética arriba (marca, switcher de
+ * líneas, sección, búsqueda, avisos) y el sidebar del producto, que es SU
+ * LÍNEA: un trazo vertical en el color del producto con cada ítem como una
+ * estación. La estación activa se rellena con el color de la línea.
+ * Colapsado (≥1024px) quedan solo las estaciones; en <1024px es un drawer.
  */
 export default function AppSidebar({
   labels,
@@ -56,261 +103,314 @@ export default function AppSidebar({
   demo,
   tasksDue = 0,
   teamName = null,
+  crumb = null,
 }: {
   labels: SidebarLabels;
   user: SideUser;
   demo: boolean;
   tasksDue?: number;
   teamName?: string | null;
+  /** Sección actual (AppTopbar), se muestra en la banda. */
+  crumb?: ReactNode;
 }) {
+  const t = useTranslations('common.sidebar');
   const pathname = usePathname();
   const product = appProductFromPath(pathname);
+  const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
+
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const rootRef = useRef<HTMLDivElement>(null);
 
-  const bellLabels = {
-    title: labels.notifications.title,
-    markRead: labels.notifications.markRead,
-    markAllRead: labels.notifications.markAllRead,
-    empty: labels.notifications.empty,
-  };
+  const asideRef = useRef<HTMLElement>(null);
+  const switcherRef = useRef<HTMLDivElement>(null);
+  const switcherBtn = useRef<HTMLButtonElement>(null);
+  const newRef = useRef<HTMLDivElement>(null);
+  const newBtn = useRef<HTMLButtonElement>(null);
+  const menuBtn = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setSwitcherOpen(false);
-        setNewOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+  const bellLabels = labels.notifications;
+
+  const closeSwitcher = useCallback((focus = false) => {
+    setSwitcherOpen(false);
+    if (focus) switcherBtn.current?.focus();
+  }, []);
+  const closeNew = useCallback((focus = false) => {
+    setNewOpen(false);
+    if (focus) newBtn.current?.focus();
   }, []);
 
-  // Cierra el drawer al navegar.
+  // Clic afuera cierra los menús.
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (switcherRef.current && !switcherRef.current.contains(target)) setSwitcherOpen(false);
+      if (newRef.current && !newRef.current.contains(target)) setNewOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
+
+  // Al abrir un menú, el foco va al primer ítem (o al actual en el switcher).
+  useEffect(() => {
+    if (!switcherOpen) return;
+    const el =
+      switcherRef.current?.querySelector<HTMLElement>('[role="menuitem"][aria-current="page"]') ??
+      switcherRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
+    el?.focus();
+  }, [switcherOpen]);
+  useEffect(() => {
+    if (newOpen) newRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, [newOpen]);
+
+  // Navegar cierra drawer y menús.
   useEffect(() => {
     setDrawerOpen(false);
+    setSwitcherOpen(false);
+    setNewOpen(false);
   }, [pathname]);
 
-  // Una sola campana (un solo polling): en el sidebar en desktop y en la
-  // topbar en mobile (<1024px), donde el sidebar es un drawer oculto.
-  const [isMobile, setIsMobile] = useState(false);
+  // Drawer: Esc lo cierra y devuelve el foco al botón de menú.
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1023px)');
-    const sync = () => setIsMobile(mq.matches);
-    sync();
-    mq.addEventListener('change', sync);
-    return () => mq.removeEventListener('change', sync);
-  }, []);
+    if (!drawerOpen) return;
+    asideRef.current?.querySelector<HTMLElement>('a, button')?.focus();
+    function onKey(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setDrawerOpen(false);
+        menuBtn.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
 
-  // Sidebar colapsable (solo desktop ≥1024px; persiste en localStorage).
-  const [collapsed, setCollapsed] = useState(false);
-
+  // Colapsado: persiste en localStorage; la clase vive en .app-frame (grid).
+  const dense = denseRoute(pathname);
   useEffect(() => {
-    const v = window.localStorage.getItem('zs-side-collapsed') === '1';
+    const v = readCollapsed(dense);
     setCollapsed(v);
-    rootRef.current
-      ?.closest('.app-frame')
-      ?.classList.toggle('sidebar-collapsed', v);
-  }, []);
+    asideRef.current?.closest('.app-frame')?.classList.toggle('sidebar-collapsed', v);
+  }, [dense]);
 
   function toggleCollapsed() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      window.localStorage.setItem('zs-side-collapsed', next ? '1' : '0');
-      rootRef.current
-        ?.closest('.app-frame')
-        ?.classList.toggle('sidebar-collapsed', next);
-      return next;
-    });
+    const next = !collapsed;
+    setCollapsed(next);
+    writeCollapsed(dense, next);
+    asideRef.current?.closest('.app-frame')?.classList.toggle('sidebar-collapsed', next);
   }
 
   const nav = buildNav(product, pathname, labels, { tasksDue, unread: unreadCount });
   const newItems = buildNewItems(product, labels);
   const settingsItem = settingsNavItem(pathname, labels);
 
-  const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
-
   function openSearch() {
     window.dispatchEvent(new CustomEvent('zs:open-search'));
   }
 
-  const aside = (
-    <aside className={`side${drawerOpen ? ' open' : ''}`} ref={rootRef}>
-      <div className="side-head-row">
-        <div className="side-switcher" style={{ flex: 1 }}>
+  return (
+    <>
+      {/* Color de la línea activa (SSR, sin parpadeo). */}
+      <style>{`.app-frame{--accent:var(--c-${current.line});--accent-ink:var(--c-${current.line}-ink);--accent-on:var(--c-${current.line}-on)}`}</style>
+
+      <header className="app-band">
+        <button
+          ref={menuBtn}
+          type="button"
+          className="band-btn band-menu"
+          onClick={() => setDrawerOpen((v) => !v)}
+          aria-label={drawerOpen ? t('closeMenu') : labels.menu}
+          aria-expanded={drawerOpen}
+          aria-controls="app-side"
+        >
+          <Icon name={drawerOpen ? 'close' : 'menu'} size={18} />
+        </button>
+
+        <Link href="/app" className="band-home" aria-label={t('home')}>
+          <Logo variant="symbol" tone="white" height={22} title="" />
+        </Link>
+
+        <div className="band-switcher" ref={switcherRef}>
           <button
+            ref={switcherBtn}
             type="button"
-            className="side-product"
+            className="band-product"
             onClick={() => {
               setSwitcherOpen((v) => !v);
               setNewOpen(false);
             }}
+            aria-haspopup="menu"
             aria-expanded={switcherOpen}
+            aria-label={`${current.name}. ${t('switchProduct')}`}
           >
-            <span>{current.name}</span>
-            <span className="caret">▾</span>
+            <LineGlyph product={current.line} size={14} onLine className="band-product-glyph" />
+            <span className="band-product-name">{current.name}</span>
+            <Icon name="chevronDown" size={14} />
           </button>
           {switcherOpen && (
-            <div className="side-menu" role="menu">
+            <div
+              className="band-menu-panel"
+              role="menu"
+              aria-label={t('switchProduct')}
+              onKeyDown={(e) => menuKeys(e, () => closeSwitcher(true))}
+            >
               {PRODUCTS.map((p) => (
                 <Link
                   key={p.key}
                   href={p.href}
+                  role="menuitem"
+                  className="band-menu-item"
                   onClick={() => setSwitcherOpen(false)}
-                  data-product={p.key}
-                  style={{ '--dot': PRODUCT_COLOR[p.key] } as CSSProperties}
-                  aria-current={p.key === product ? 'true' : undefined}
+                  aria-current={p.key === product ? 'page' : undefined}
                 >
-                  {p.name}
+                  <LineGlyph product={p.line} size={14} onLine />
+                  <span>{p.name}</span>
                 </Link>
               ))}
             </div>
           )}
         </div>
-        {!isMobile && <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />}
-        <button type="button" className="side-close" onClick={() => setDrawerOpen(false)}>
-          ✕
-        </button>
-      </div>
 
-      <button type="button" className="side-search" onClick={openSearch}>
-        <span>{labels.search}</span>
-        <kbd>⌘K</kbd>
-      </button>
+        {crumb && <div className="band-crumb">{crumb}</div>}
 
-      {teamName && (
-        <p className="side-team mono" title={`${labels.team}: ${teamName}`}>
-          {labels.team}: {teamName}
-        </p>
-      )}
+        <div className="band-right">
+          <button type="button" className="band-search" onClick={openSearch} aria-label={labels.search}>
+            <Icon name="search" size={15} />
+            <span className="band-search-label">{labels.search}</span>
+            <kbd className="kbd">⌘K</kbd>
+          </button>
+          <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />
+        </div>
+      </header>
 
-      <div className="side-new">
-        <button
-          type="button"
-          className="side-new-btn"
-          onClick={() => {
-            setNewOpen((v) => !v);
-            setSwitcherOpen(false);
-          }}
-          aria-expanded={newOpen}
-        >
-          <span>{labels.new}</span>
-          <span>＋</span>
-        </button>
-        {newOpen && (
-          <div className="side-menu" role="menu">
-            {newItems.map((item) => (
-              <Link key={item.href + item.label} href={item.href} onClick={() => setNewOpen(false)}>
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+      {drawerOpen && <div className="side-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
 
-      <nav className="side-nav">
-        {nav.map((group, i) => (
-          <div key={group.section ?? `top-${i}`}>
-            {group.section && <p className="side-section">{group.section}</p>}
-            {group.items.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`side-link${item.active ? ' active' : ''}`}
-                aria-current={item.active ? 'page' : undefined}
-                title={item.label}
-              >
-                <Icon name={item.icon} />
-                {item.label}
-                {item.badge ? <span className="side-badge mono">{item.badge}</span> : null}
-              </Link>
-            ))}
-          </div>
-        ))}
-      </nav>
-
-      <div className="side-foot">
-        <Link
-          href={settingsItem.href}
-          className={`side-link${settingsItem.active ? ' active' : ''}`}
-          aria-current={settingsItem.active ? 'page' : undefined}
-          title={settingsItem.label}
-          data-testid="side-settings"
-        >
-          <Icon name={settingsItem.icon} />
-          {settingsItem.label}
-        </Link>
-        <Link href="/" className="side-link" title={labels.backToSite}>
-          <Icon name="back" />
-          {labels.backToSite}
-        </Link>
-        <Link href="/docs" className="side-link" title={labels.docsSite}>
-          <Icon name="docs" />
-          {labels.docsSite}
-        </Link>
-        <div className="side-user">
-          {user.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.image} alt="" referrerPolicy="no-referrer" />
-          ) : (
-            <span className="side-avatar">0</span>
+      <aside id="app-side" className={`side${drawerOpen ? ' open' : ''}`} ref={asideRef} aria-label={current.name}>
+        <div className="side-new" ref={newRef}>
+          <button
+            ref={newBtn}
+            type="button"
+            className="btn btn-secondary btn-block side-new-btn"
+            onClick={() => {
+              setNewOpen((v) => !v);
+              setSwitcherOpen(false);
+            }}
+            aria-haspopup="menu"
+            aria-expanded={newOpen}
+            title={labels.new}
+          >
+            <Icon name="plus" size={15} />
+            <span className="side-label">{labels.new}</span>
+          </button>
+          {newOpen && (
+            <div className="side-menu" role="menu" onKeyDown={(e) => menuKeys(e, () => closeNew(true))}>
+              {newItems.map((item) => (
+                <Link
+                  key={item.href + item.label}
+                  href={item.href}
+                  role="menuitem"
+                  className="side-menu-item"
+                  onClick={() => setNewOpen(false)}
+                >
+                  <Icon name={item.icon} />
+                  {item.label}
+                </Link>
+              ))}
+            </div>
           )}
-          <div className="side-user-meta">
-            <p className="side-user-name">{user.name ?? user.email}</p>
-            <p className="side-user-mail">{user.email}</p>
-          </div>
         </div>
-        {demo ? (
-          <Link href="/" className="side-signout">
-            {labels.signOut}
-          </Link>
-        ) : (
-          <button type="button" className="side-signout" onClick={() => signOut({ callbackUrl: '/' })}>
-            {labels.signOut}
-          </button>
+
+        {teamName && (
+          <p className="side-team" title={`${labels.team}: ${teamName}`}>
+            <span className="side-label">
+              {labels.team}: {teamName}
+            </span>
+          </p>
         )}
-      </div>
 
-      <button
-        type="button"
-        className="side-handle"
-        onClick={toggleCollapsed}
-        aria-label={collapsed ? labels.expand : labels.collapse}
-        aria-pressed={collapsed}
-        title={collapsed ? labels.expand : labels.collapse}
-      >
-        {collapsed ? '›' : '‹'}
-      </button>
-    </aside>
-  );
+        <nav className="side-line" aria-label={current.name}>
+          {nav.map((group, i) => (
+            <div key={group.section ?? `top-${i}`} className="side-group">
+              {group.section && <p className="side-section">{group.section}</p>}
+              {group.items.map((item) => (
+                <Fragment key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`side-stop${item.active ? ' active' : ''}`}
+                    aria-current={item.active ? 'page' : undefined}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <span className="side-station" aria-hidden="true" />
+                    <span className="side-label">{item.label}</span>
+                    {item.badge ? <span className="side-badge data">{item.badge}</span> : null}
+                  </Link>
+                  {/* Hueco del ramal: la página del producto lo llena con un portal. */}
+                  {item.branch && <div id="side-branch" className="side-branch" />}
+                </Fragment>
+              ))}
+            </div>
+          ))}
+        </nav>
 
-  return (
-    <>
-      {/* Color del producto activo (SSR, sin parpadeo). */}
-      <style>{`.app-frame{--accent:${PRODUCT_COLOR[product] ?? 'var(--ink)'}}`}</style>
-      <div className="app-topbar">
-        <div className="app-topbar-left">
-          <button type="button" className="side-close" onClick={() => setDrawerOpen(true)} aria-label={labels.menu}>
-            ☰
+        <div className="side-foot">
+          <Link
+            href={settingsItem.href}
+            className={`side-link${settingsItem.active ? ' active' : ''}`}
+            aria-current={settingsItem.active ? 'page' : undefined}
+            title={collapsed ? settingsItem.label : undefined}
+            data-testid="side-settings"
+          >
+            <Icon name={settingsItem.icon} size={15} />
+            <span className="side-label">{settingsItem.label}</span>
+          </Link>
+          <Link href="/docs" className="side-link" title={collapsed ? labels.docsSite : undefined}>
+            <Icon name="docs" size={15} />
+            <span className="side-label">{labels.docsSite}</span>
+          </Link>
+          <Link href="/" className="side-link" title={collapsed ? labels.backToSite : undefined}>
+            <Icon name="back" size={15} />
+            <span className="side-label">{labels.backToSite}</span>
+          </Link>
+          <div className="side-user">
+            {user.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.image} alt="" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="side-avatar" aria-hidden="true">
+                {(user.name ?? user.email).slice(0, 1).toUpperCase()}
+              </span>
+            )}
+            <div className="side-user-meta side-label">
+              <p className="side-user-name">{user.name ?? user.email}</p>
+              <p className="side-user-mail">{user.email}</p>
+            </div>
+            {demo ? (
+              <Link href="/" className="side-signout side-label">
+                {labels.signOut}
+              </Link>
+            ) : (
+              <button type="button" className="side-signout side-label" onClick={() => signOut({ callbackUrl: '/' })}>
+                {labels.signOut}
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            className="side-handle"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? labels.expand : labels.collapse}
+            aria-pressed={collapsed}
+            title={collapsed ? labels.expand : labels.collapse}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <rect x="1.5" y="2.5" width="13" height="11" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M6 3v10" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            <span className="side-label">{collapsed ? labels.expand : labels.collapse}</span>
           </button>
-          <Logo variant="symbol" height={26} title="" className="brand-zero" />
         </div>
-        <button type="button" className="side-product" onClick={() => setDrawerOpen(true)}>
-          <span>{current.name}</span>
-          <span className="caret">▾</span>
-        </button>
-        <div className="app-topbar-right">
-          {isMobile && <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />}
-          <button type="button" className="side-close" onClick={openSearch} aria-label={labels.search}>
-            ⌘K
-          </button>
-        </div>
-      </div>
-      {drawerOpen && <div className="side-backdrop" onClick={() => setDrawerOpen(false)} />}
-      {aside}
+      </aside>
     </>
   );
 }

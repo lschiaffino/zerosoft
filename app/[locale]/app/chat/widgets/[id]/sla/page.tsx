@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
 import { canAccessWidget } from '@/lib/chat-access';
-import WidgetHeader from '@/components/chat/WidgetHeader';
 import { requireUser } from '@/lib/session';
 import {
   CHAT_SLA_PRIORITIES,
@@ -43,9 +42,6 @@ export default async function WidgetSlaPage(
   });
 
   return (
-    <div className="app-page">
-      <WidgetHeader locale={locale} widget={widget} active="sla" />
-      <SlaClient widgetId={widget.id} initialPolicies={policies} />
-    </div>
+    <SlaClient widgetId={widget.id} initialPolicies={policies} />
   );
 }

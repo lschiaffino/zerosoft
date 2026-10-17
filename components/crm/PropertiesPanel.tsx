@@ -148,7 +148,7 @@ export default function PropertiesPanel({
           {editing ? (
             field.type === 'select' ? (
               <select
-                className="filter-select"
+                className="select"
                 value={draft}
                 onChange={(e) => save(field, e.target.value)}
                 onBlur={cancel}
@@ -196,8 +196,8 @@ export default function PropertiesPanel({
               {display || '—'}
             </button>
           )}
-          {savedKey === field.key && <span className="saved-note"> {t('common.saved')}</span>}
-          {savingKey === field.key && <span className="saved-note"> {t('common.saving')}</span>}
+          {savedKey === field.key && <span className="saved-note" role="status"> {t('common.saved')}</span>}
+          {savingKey === field.key && <span className="saved-note" role="status"> {t('common.saving')}</span>}
         </dd>
         {!editing && (
           <button
@@ -207,7 +207,9 @@ export default function PropertiesPanel({
             title={t('common.edit')}
             aria-label={t('common.edit')}
           >
-            ✎
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" />
+            </svg>
           </button>
         )}
       </div>
@@ -222,11 +224,11 @@ export default function PropertiesPanel({
     return (
       <div className="prop-section">
         <h3 className="prop-section-title">{title}</h3>
-        <div className="prop-table">
+        <dl className="prop-table">
           {sectionFields.map((field) => (
             <FieldRow key={field.key} field={field} />
           ))}
-        </div>
+        </dl>
       </div>
     );
   }
@@ -250,13 +252,13 @@ export default function PropertiesPanel({
         {viewAllLabel && compactKeys && (
           <button
             type="button"
-            className="btn btn-ghost btn-small prop-view-all"
+            className="btn btn-secondary btn-sm prop-view-all"
             onClick={() => setExpanded((v) => !v)}
           >
             {expanded ? t('common.close') : viewAllLabel}
           </button>
         )}
-        {error && <p className="form-error">{error}</p>}
+        {error && <p className="ui-error" role="alert">{error}</p>}
       </div>
     );
   }
@@ -271,13 +273,13 @@ export default function PropertiesPanel({
       {viewAllLabel && compactKeys && (
         <button
           type="button"
-          className="btn btn-ghost btn-small prop-view-all"
+          className="btn btn-secondary btn-sm prop-view-all"
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? t('common.close') : viewAllLabel}
         </button>
       )}
-      {error && <p className="form-error">{error}</p>}
+      {error && <p className="ui-error" role="alert">{error}</p>}
     </div>
   );
 }

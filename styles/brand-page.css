@@ -146,114 +146,12 @@ body:has(.bp) .site-footer { display: none; }
 
 .bp-hero-map { padding: 32px 40px 24px 0; }
 
-/* ---------- El plano ---------- */
-
-.net {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.net-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: calc(100svh - 74px - 136px);
-  overflow: visible;
-}
-
-.net-path {
-  fill: none;
-  stroke-width: var(--stroke-line);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.net-hit {
-  fill: none;
-  stroke: transparent;
-  stroke-width: 44px;
-  pointer-events: stroke;
-}
-
-.net-ring { fill: var(--brand-white); stroke: var(--brand-ink); stroke-width: var(--stroke-ring); }
-.net-bar { fill: var(--brand-ink); }
-
-.net-label {
-  font-family: var(--font-signage);
-  font-stretch: 75%;
-  font-weight: 800;
-  font-size: 26px;
-  fill: var(--brand-ink);
-}
-
-.net-station-name {
-  font-family: var(--font-ui);
-  font-size: 15px;
-  font-weight: 600;
-  fill: var(--brand-gray-1);
-  paint-order: stroke;
-  stroke: var(--brand-white);
-  stroke-width: 6px;
-  stroke-linejoin: round;
-}
-
-.net-stop { cursor: pointer; outline: none; }
-.net-stop:focus-visible { outline: none; }
-.net-focus { fill: none; stroke: var(--brand-ink); stroke-width: 3px; opacity: 0; }
-.net-stop:focus-visible .net-focus { opacity: 1; }
-.net-stop:hover .net-label,
-.net-stop:focus-visible .net-label { text-decoration: underline; text-decoration-thickness: 3px; }
-
-.net-line,
-.net-stop { transition: opacity 0.25s var(--ease-out-expo); }
-.net-line.is-dim,
-.net-stop.is-dim { opacity: 0.14; }
-
-.net-caption {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-height: 48px;
-  margin-top: 8px;
-  font-size: var(--t-ui);
-  color: var(--brand-gray-1);
-}
-
-.net-caption-line { flex: 0 0 48px; height: 8px; transition: background 0.2s var(--ease-out-expo); }
-.net-caption-text { max-width: 72ch; }
-.net-hint-touch { display: none; }
-@media (hover: none) {
-  .net-hint-hover { display: none; }
-  .net-hint-touch { display: inline; }
-}
-
-/* Zona de toque invisible alrededor de cada estación (≥ 24 px en pantalla). */
-.net-hit-stop { fill: transparent; stroke: none; pointer-events: all; }
+/* El plano (.net-*) vive en styles/network.css: lo comparten esta página y el inicio de la app. */
+.bp .net-svg { max-height: calc(100svh - 74px - 136px); }
 
 /* El segundo plano, en la sección "La red": solo en pantallas angostas, con scroll horizontal. */
 .bp-map-scroll { display: none; }
 .bp-cell-label { display: none; }
-
-/* La línea se dibuja una vez; las estaciones aparecen de golpe al final. */
-@media (prefers-reduced-motion: no-preference) {
-  .net-path {
-    stroke-dasharray: 1 2;
-    animation: net-draw 1.4s var(--ease-out-expo) both;
-    animation-delay: calc(var(--i) * 80ms);
-  }
-  .net-stop { animation: net-snap 1ms step-end both; animation-delay: calc(900ms + var(--i) * 30ms); }
-}
-
-@keyframes net-draw {
-  from { stroke-dashoffset: 1; }
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes net-snap {
-  from { visibility: hidden; }
-  to { visibility: visible; }
-}
 
 /* ---------- Secciones ---------- */
 
@@ -571,7 +469,7 @@ body:has(.bp) .site-footer { display: none; }
   .bp-hero-copy { padding: 40px 16px 8px; }
   .bp-hero-foot { padding-top: 24px; }
   .bp-hero-map { padding: 16px 16px 24px; }
-  .net-svg { max-height: none; }
+  .bp .net-svg { max-height: none; }
   .bp-hero-map .net-label { font-size: 40px; }
   .bp-hero-map .net-station-name { display: none; }
   .bp-map-scroll {

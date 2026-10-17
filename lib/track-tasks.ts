@@ -236,3 +236,80 @@ export function formatDay(isoDay: string, locale: string, today?: string): strin
     timeZone: 'UTC',
   }).format(new Date(Date.UTC(y, m - 1, d)));
 }
+
+/**
+ * Slug de un proyecto a partir del nombre: el mismo que deriva el servidor
+ * cuando no se manda uno. Es el prefijo de los identificadores (WEB-12).
+ */
+export function projectSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 64);
+}
+
+export type CycleState = 'active' | 'upcoming' | 'past';
+
+interface CycleLike {
+  start_at: string;
+  end_at: string;
+}
+
+/** Estado de un ciclo respecto de `today` (YYYY-MM-DD); inicio y fin inclusive. */
+export function cycleState(cycle: CycleLike, today: string): CycleState {
+  if (cycle.end_at.slice(0, 10) < today) return 'past';
+  if (cycle.start_at.slice(0, 10) > today) return 'upcoming';
+  return 'active';
+}
+
+/** El ciclo en curso (si hay varios, el que empezó último). */
+export function activeCycle<T extends CycleLike>(cycles: T[], today: string): T | null {
+  return (
+    cycles
+      .filter((c) => cycleState(c, today) === 'active')
+      .sort((a, b) => b.start_at.localeCompare(a.start_at))[0] ?? null
+  );
+}
+
+/** Primer ciclo que se pisa con el rango [startAt, endAt] (inclusive), sin contar `exceptId`. */
+export function overlappingCycle<T extends CycleLike & { id: string }>(
+  cycles: T[],
+  startAt: string,
+  endAt: string,
+  exceptId?: string,
+): T | undefined {
+  const s = startAt.slice(0, 10);
+  const e = endAt.slice(0, 10);
+  return cycles.find((c) => c.id !== exceptId && s <= c.end_at.slice(0, 10) && e >= c.start_at.slice(0, 10));
+}
+
+/** Días entre dos fechas YYYY-MM-DD (b − a). */
+export function daysBetween(a: string, b: string): number {
+  const toUtc = (x: string) => {
+    const [y, m, d] = x.slice(0, 10).split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((toUtc(b) - toUtc(a)) / 86_400_000);
+}
+
+/**
+ * Valores del ciclo nuevo: número N+1 (del último "Ciclo N") y fechas que
+ * arrancan el día después del último ciclo, con la misma duración. Sin
+ * ciclos, dos semanas desde hoy.
+ */
+export function nextCycleDraft(
+  cycles: Array<CycleLike & { name: string }>,
+  today: string,
+): { n: number; startAt: string; endAt: string } {
+  const numbers = cycles.map((c) => Number(/(\d+)\s*$/.exec(c.name)?.[1] ?? NaN)).filter((n) => Number.isFinite(n));
+  const n = (numbers.length > 0 ? Math.max(...numbers) : cycles.length) + 1;
+  const last = [...cycles].sort((a, b) => b.end_at.localeCompare(a.end_at))[0];
+  if (!last) return { n, startAt: today, endAt: addDays(today, 13) };
+  const length = Math.max(0, daysBetween(last.start_at, last.end_at));
+  const after = addDays(last.end_at.slice(0, 10), 1);
+  const startAt = after > today ? after : today;
+  return { n, startAt, endAt: addDays(startAt, length) };
+}

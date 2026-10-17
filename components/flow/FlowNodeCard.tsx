@@ -3,8 +3,9 @@
 import { memo, type CSSProperties } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { useTranslations } from 'next-intl';
+import { brandLine } from '@/lib/brand';
 import { NODE_DEFS, nodeOutputs, isTriggerType, type FlowNodeType } from '@/lib/flow-schema';
-import { CATEGORY_COLOR, i18nKey } from './flow-ui';
+import { i18nKey, interchangeLine } from './flow-ui';
 
 export type FlowNodeData = {
   type: FlowNodeType;
@@ -12,6 +13,9 @@ export type FlowNodeData = {
   /** Estado del último paso de este nodo en la corrida mostrada. */
   status?: string;
   summary?: string;
+  /** Hay una arista que llega / sale: solo entonces se dibuja ese medio tramo de línea. */
+  hasIn?: boolean;
+  hasOut?: boolean;
 };
 
 export type FlowCanvasNode = Node<FlowNodeData, 'flow'>;
@@ -25,25 +29,45 @@ function handleLabel(t: ReturnType<typeof useTranslations>, handle: string, conf
   return t(`handles.${handle}`);
 }
 
-/** Nodo del canvas: barra de color por categoría, título y salidas con nombre. */
+/**
+ * Nodo del canvas: una estación sobre la línea de Flow con su cartel al lado.
+ * La línea entra por arriba y sale por abajo pasando por la estación, pero
+ * cada mitad solo existe si hay una conexión: un nodo suelto es una estación
+ * sin línea y el último termina en su estación. Si el nodo toca otra app de
+ * zerosoft, el anillo toma el color de esa línea.
+ */
 function FlowNodeCard({ data, selected, id }: NodeProps<FlowCanvasNode>) {
   const t = useTranslations('flow');
   const def = NODE_DEFS[data.type];
   const outputs = nodeOutputs({ type: data.type, config: data.config });
   const named = outputs.length > 1 || outputs[0] !== 'out';
-  const style = { '--node-color': CATEGORY_COLOR[def.category] } as CSSProperties;
+  const trigger = isTriggerType(data.type);
+  const line = interchangeLine(data.type, data.config);
+  const style = (line ? { '--station-ring': brandLine(line).line } : undefined) as CSSProperties | undefined;
 
   return (
-    <div className={`flow-node${selected ? ' is-selected' : ''}${data.status ? ` has-${data.status}` : ''}`} style={style}>
-      {!isTriggerType(data.type) && <Handle type="target" position={Position.Top} className="flow-handle" />}
-      <div className="flow-node-head">
-        <span className="flow-node-cat">{t(`categories.${def.category}`)}</span>
-        {data.status && (
-          <span className={`flow-dot is-${data.status}`} title={t(`stepStatus.${data.status}`)} aria-label={t(`stepStatus.${data.status}`)} />
-        )}
+    <div
+      className={`flow-node${selected ? ' is-selected' : ''}`}
+      data-status={data.status}
+      data-trigger={trigger || undefined}
+      data-named={named || undefined}
+      style={style}
+    >
+      {!trigger && <Handle type="target" position={Position.Top} className="flow-handle flow-handle-in" />}
+      {data.hasIn && !trigger && <span className="flow-node-track flow-node-track-in" aria-hidden="true" />}
+      {data.hasOut && !named && <span className="flow-node-track flow-node-track-out" aria-hidden="true" />}
+      <span className="flow-node-station" aria-hidden="true" />
+      <div className="flow-node-body">
+        <div className="flow-node-head">
+          <span className="flow-node-cat">
+            {t(`categories.${def.category}`)}
+            {line && ` · ${brandLine(line).name}`}
+          </span>
+          {data.status && <span className={`flow-node-status is-${data.status}`}>{t(`stepStatus.${data.status}`)}</span>}
+        </div>
+        <div className="flow-node-title">{t(`nodes.${i18nKey(data.type)}.title`)}</div>
+        {data.summary ? <div className="flow-node-summary">{data.summary}</div> : <div className="flow-node-summary data">{id}</div>}
       </div>
-      <div className="flow-node-title">{t(`nodes.${i18nKey(data.type)}.title`)}</div>
-      {data.summary ? <div className="flow-node-summary">{data.summary}</div> : <div className="flow-node-id mono">{id}</div>}
       {named ? (
         <div className="flow-node-outputs">
           {outputs.map((h, i) => (
@@ -58,7 +82,7 @@ function FlowNodeCard({ data, selected, id }: NodeProps<FlowCanvasNode>) {
           ))}
         </div>
       ) : (
-        <Handle type="source" id="out" position={Position.Bottom} className="flow-handle" />
+        <Handle type="source" id="out" position={Position.Bottom} className="flow-handle flow-handle-out" />
       )}
     </div>
   );

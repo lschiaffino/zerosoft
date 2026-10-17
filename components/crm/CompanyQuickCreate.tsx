@@ -59,8 +59,8 @@ export default function CompanyQuickCreate({ contactId }: CompanyQuickCreateProp
 
   if (!open) {
     return (
-      <button type="button" className="kb-add" onClick={() => setOpen(true)}>
-        {t('contacts.detail.newCompany')}
+      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(true)}>
+        {t('record.createCompany')}
       </button>
     );
   }

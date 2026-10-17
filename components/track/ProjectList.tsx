@@ -1,57 +1,60 @@
-'use client';
-
-import { Link } from '@/i18n/navigation';
-import { safeHexColor } from '@/lib/track-color';
+import DataTable from '@/components/ui/DataTable';
+import EmptyState from '@/components/ui/EmptyState';
 import QuickProjectButton from './QuickProjectButton';
 import type { TrackProjectWithStats } from '@/lib/track-data';
 
 interface ProjectListProps {
   projects: TrackProjectWithStats[];
-  locale: string;
-  empty: {
-    title: string;
-    sub: string;
-    cta: string;
+  labels: {
+    caption: string;
+    project: string;
+    description: string;
+    openIssues: string;
+    emptyTitle: string;
+    emptyBody: string;
+    emptySecondary: string;
   };
-  openIssuesLabel: string;
 }
 
-export default function ProjectList({ projects, locale, empty, openIssuesLabel }: ProjectListProps) {
+/** Proyectos de Track en una tabla densa: nombre, descripción e issues abiertos. */
+export default function ProjectList({ projects, labels }: ProjectListProps) {
   if (projects.length === 0) {
     return (
-      <div className="empty-state">
-        <p className="empty-zeros mono" aria-hidden>
-          0 0 0 0 0
-        </p>
-        <p className="muted">{empty.sub}</p>
-        <QuickProjectButton className="btn btn-solid btn-small" testId="track-new-project-empty" />
-      </div>
+      <EmptyState
+        title={labels.emptyTitle}
+        body={labels.emptyBody}
+        action={<QuickProjectButton testId="track-new-project-empty" listenParam />}
+        secondary={labels.emptySecondary}
+      />
     );
   }
 
   return (
-    <div className="track-grid">
-      {projects.map((p) => (
-        <Link key={p.id} href={`/app/track/projects/${p.id}`} className="track-card">
-          <div className="track-card-head">
-            <span
-              className="track-card-icon"
-              style={{ background: safeHexColor(p.color, '#000000') }}
-              aria-hidden
-            >
-              {p.icon || '◆'}
-            </span>
-            <span className="track-card-title">{p.name}</span>
-          </div>
-          {p.description ? <p className="track-card-desc">{p.description}</p> : null}
-          <div className="track-card-meta">
-            <span>{p.slug}</span>
-            <span>
-              {p.open_issues} {openIssuesLabel}
-            </span>
-          </div>
-        </Link>
-      ))}
-    </div>
+    <DataTable
+      caption={labels.caption}
+      className="track-projects"
+      rows={projects}
+      rowKey={(p) => p.id}
+      rowHref={(p) => `/app/track/projects/${p.id}`}
+      columns={[
+        {
+          key: 'name',
+          header: labels.project,
+          width: '32%',
+          cell: (p) => (
+            <>
+              {p.icon ? <span className="track-project-icon">{p.icon}</span> : null}
+              {p.name}
+            </>
+          ),
+        },
+        {
+          key: 'description',
+          header: labels.description,
+          cell: (p) => <span className="track-cell-dim track-clamp">{p.description || ''}</span>,
+        },
+        { key: 'open', header: labels.openIssues, numeric: true, width: '120px', cell: (p) => p.open_issues },
+      ]}
+    />
   );
 }

@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/session';
-import { listRoutingForms } from '@/lib/calendar-routing';
+import { getRoutingForm, listRoutingForms } from '@/lib/calendar-routing';
 import RoutingFormsView from '@/components/calendar/RoutingFormsView';
 
 export const dynamic = 'force-dynamic';
@@ -13,13 +13,21 @@ export default async function RoutingFormsPage(props: {
 
   const user = await requireUser(locale);
   const forms = await listRoutingForms(user.id);
+  // Cuántas preguntas y reglas tiene cada uno: así se ve cuál está a medio armar.
+  const full = await Promise.all(forms.map((f) => getRoutingForm(user.id, f.id)));
 
   return (
-    <div className="app-page cal-page">
-      <RoutingFormsView
-        items={forms.map((f) => ({ id: f.id, title: f.title, slug: f.slug, active: f.active === 1 }))}
-        openNew={searchParams.new === '1'}
-      />
-    </div>
+    <RoutingFormsView
+      handle={user.handle ?? ''}
+      items={forms.map((f, i) => ({
+        id: f.id,
+        title: f.title,
+        slug: f.slug,
+        active: f.active === 1,
+        questions: full[i]?.fields.length ?? 0,
+        rules: full[i]?.rules.length ?? 0,
+      }))}
+      openNew={searchParams.new === '1'}
+    />
   );
 }

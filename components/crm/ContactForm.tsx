@@ -1,15 +1,13 @@
 'use client';
 
-import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import FormSection from '@/components/ui/FormSection';
+import AdvancedSection from '@/components/ui/AdvancedSection';
+import CustomFieldInput from './CustomFieldInput';
+import { contactPayload, type CustomFieldDef } from './formPayload';
 
-export interface CustomFieldDef {
-  name: string;
-  label: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'boolean';
-  options: string[];
-}
+export type { CustomFieldDef } from './formPayload';
 
 interface ContactFormProps {
   companies: Array<{ id: string; name: string }>;
@@ -23,7 +21,11 @@ interface ContactFormProps {
 
 const ERROR_CODES = ['invalid_email', 'missing_name', 'invalid_input', 'invalid_company', 'invalid_owner'] as const;
 
-/** Form de alta de contacto: campos estándar + empresa + custom fields por tipo. */
+/**
+ * Alta de contacto. Lo básico (nombre, apellido, email, teléfono, empresa)
+ * a la vista; cargo, web, ubicación, lifecycle, origen y campos propios en
+ * "Más campos". Un solo botón: Crear contacto.
+ */
 export default function ContactForm({
   companies,
   customFields,
@@ -34,55 +36,13 @@ export default function ContactForm({
 }: ContactFormProps) {
   const t = useTranslations('crm');
   const router = useRouter();
-  const [values, setValues] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    jobTitle: '',
-    website: '',
-    city: '',
-    country: '',
-    lifecycleStage: 'lead',
-    leadStatus: 'new',
-    source: '',
-    companyId: defaultCompanyId ?? '',
-  });
-  const [custom, setCustom] = useState<Record<string, unknown>>({});
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  function set(key: keyof typeof values) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setValues((prev) => ({ ...prev, [key]: e.target.value }));
-  }
-
-  function setCustomValue(name: string, value: unknown) {
-    setCustom((prev) => ({ ...prev, [name]: value }));
-  }
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
+  async function onSubmit(fd: FormData) {
+    const body = contactPayload(fd, customFields);
     const res = await fetch('/api/crm/contacts', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        firstName: values.firstName || undefined,
-        lastName: values.lastName || undefined,
-        email: values.email || undefined,
-        phone: values.phone || undefined,
-        jobTitle: values.jobTitle || undefined,
-        website: values.website || undefined,
-        city: values.city || undefined,
-        country: values.country || undefined,
-        lifecycleStage: values.lifecycleStage,
-        leadStatus: values.leadStatus,
-        source: values.source || undefined,
-        companyId: values.companyId || null,
-        custom,
-      }),
+      body: JSON.stringify(body),
     }).catch(() => null);
 
     if (res && res.status === 201) {
@@ -90,98 +50,49 @@ export default function ContactForm({
       router.push(`/app/crm/contacts/${contact.id}`);
       return;
     }
-
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     const code = data?.error ?? 'generic';
-    setError(
-      (ERROR_CODES as readonly string[]).includes(code) ? t(`errors.${code}`) : t('errors.generic'),
-    );
-    setBusy(false);
+    return (ERROR_CODES as readonly string[]).includes(code) ? t(`errors.${code}`) : t('errors.generic');
   }
 
   return (
-    <form className="crm-form" onSubmit={onSubmit}>
-      <div className="form-grid">
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.firstName')}</span>
-          <input className="input" value={values.firstName} onChange={set('firstName')} />
-        </label>
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.lastName')}</span>
-          <input className="input" value={values.lastName} onChange={set('lastName')} />
-        </label>
+    <FormSection
+      title={t('record.form.contactTitle')}
+      description={t('record.form.contactDesc')}
+      submitLabel={t('record.createContact')}
+      onSubmit={onSubmit}
+    >
+      <div className="ui-fields-2">
+        <div className="ui-field">
+          <label className="label" htmlFor="cf-first">
+            {t('contacts.form.firstName')}
+          </label>
+          <input id="cf-first" name="firstName" className="input" autoComplete="given-name" autoFocus />
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor="cf-last">
+            {t('contacts.form.lastName')}
+          </label>
+          <input id="cf-last" name="lastName" className="input" autoComplete="family-name" />
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor="cf-email">
+            {t('contacts.form.email')}
+          </label>
+          <input id="cf-email" name="email" className="input" type="email" autoComplete="email" spellCheck={false} />
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor="cf-phone">
+            {t('contacts.form.phone')}
+          </label>
+          <input id="cf-phone" name="phone" className="input" type="tel" autoComplete="tel" />
+        </div>
       </div>
-
-      <div className="form-grid">
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.email')}</span>
-          <input className="input" type="email" value={values.email} onChange={set('email')} />
+      <div className="ui-field">
+        <label className="label" htmlFor="cf-company">
+          {t('contacts.form.company')}
         </label>
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.phone')}</span>
-          <input className="input" value={values.phone} onChange={set('phone')} />
-        </label>
-      </div>
-
-      <div className="form-grid">
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.jobTitle')}</span>
-          <input className="input" value={values.jobTitle} onChange={set('jobTitle')} />
-        </label>
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.website')}</span>
-          <input className="input" value={values.website} onChange={set('website')} />
-        </label>
-      </div>
-
-      <div className="form-grid">
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.city')}</span>
-          <input className="input" value={values.city} onChange={set('city')} />
-        </label>
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.country')}</span>
-          <input className="input" value={values.country} onChange={set('country')} />
-        </label>
-      </div>
-
-      <div className="form-grid form-grid-3">
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.lifecycle')}</span>
-          <select className="select" value={values.lifecycleStage} onChange={set('lifecycleStage')}>
-            {lifecycles.map((v) => (
-              <option key={v} value={v}>
-                {t(`enums.lifecycle.${v}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.leadStatus')}</span>
-          <select className="select" value={values.leadStatus} onChange={set('leadStatus')}>
-            {leadStatuses.map((v) => (
-              <option key={v} value={v}>
-                {t(`enums.leadStatus.${v}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span className="prop-label">{t('contacts.form.source')}</span>
-          <select className="select" value={values.source} onChange={set('source')}>
-            <option value="">—</option>
-            {sources.map((v) => (
-              <option key={v} value={v}>
-                {t(`enums.source.${v}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <label className="field">
-        <span className="prop-label">{t('contacts.form.company')}</span>
-        <select className="select" value={values.companyId} onChange={set('companyId')}>
+        <select id="cf-company" name="companyId" className="select" defaultValue={defaultCompanyId ?? ''}>
           <option value="">{t('contacts.form.noCompany')}</option>
           {companies.map((c) => (
             <option key={c.id} value={c.id}>
@@ -189,67 +100,80 @@ export default function ContactForm({
             </option>
           ))}
         </select>
-      </label>
+      </div>
 
-      {customFields.length > 0 && (
-        <div className="form-grid">
-          {customFields.map((f) => (
-            <label key={f.name} className="field">
-              <span className="prop-label">{f.label}</span>
-              {f.type === 'select' ? (
-                <select
-                  className="select"
-                  value={typeof custom[f.name] === 'string' ? (custom[f.name] as string) : ''}
-                  onChange={(e) => setCustomValue(f.name, e.target.value)}
-                >
-                  <option value="">—</option>
-                  {f.options.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              ) : f.type === 'boolean' ? (
-                <input
-                  type="checkbox"
-                  checked={custom[f.name] === true}
-                  onChange={(e) => setCustomValue(f.name, e.target.checked)}
-                />
-              ) : f.type === 'number' ? (
-                <input
-                  className="input"
-                  type="number"
-                  value={typeof custom[f.name] === 'number' ? String(custom[f.name]) : ''}
-                  onChange={(e) =>
-                    setCustomValue(f.name, e.target.value === '' ? undefined : Number(e.target.value))
-                  }
-                />
-              ) : f.type === 'date' ? (
-                <input
-                  className="input"
-                  type="date"
-                  value={typeof custom[f.name] === 'string' ? (custom[f.name] as string) : ''}
-                  onChange={(e) => setCustomValue(f.name, e.target.value)}
-                />
-              ) : (
-                <input
-                  className="input"
-                  value={typeof custom[f.name] === 'string' ? (custom[f.name] as string) : ''}
-                  onChange={(e) => setCustomValue(f.name, e.target.value)}
-                />
-              )}
+      <AdvancedSection
+        storageKey="crm.contact.new"
+        label={t('record.form.moreFields')}
+        hint={t('record.form.contactMoreHint')}
+      >
+        <div className="ui-fields-2">
+          <div className="ui-field">
+            <label className="label" htmlFor="cf-job">
+              {t('contacts.form.jobTitle')}
             </label>
+            <input id="cf-job" name="jobTitle" className="input" autoComplete="organization-title" />
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="cf-web">
+              {t('contacts.form.website')}
+            </label>
+            <input id="cf-web" name="website" className="input" type="url" inputMode="url" placeholder="https://" />
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="cf-city">
+              {t('contacts.form.city')}
+            </label>
+            <input id="cf-city" name="city" className="input" autoComplete="address-level2" />
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="cf-country">
+              {t('contacts.form.country')}
+            </label>
+            <input id="cf-country" name="country" className="input" autoComplete="country-name" />
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="cf-lifecycle">
+              {t('contacts.form.lifecycle')}
+            </label>
+            <select id="cf-lifecycle" name="lifecycleStage" className="select" defaultValue="lead">
+              {lifecycles.map((v) => (
+                <option key={v} value={v}>
+                  {t(`enums.lifecycle.${v}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="cf-status">
+              {t('contacts.form.leadStatus')}
+            </label>
+            <select id="cf-status" name="leadStatus" className="select" defaultValue="new">
+              {leadStatuses.map((v) => (
+                <option key={v} value={v}>
+                  {t(`enums.leadStatus.${v}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="cf-source">
+              {t('contacts.form.source')}
+            </label>
+            <select id="cf-source" name="source" className="select" defaultValue="">
+              <option value="">—</option>
+              {sources.map((v) => (
+                <option key={v} value={v}>
+                  {t(`enums.source.${v}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          {customFields.map((f) => (
+            <CustomFieldInput key={f.name} field={f} idPrefix="cf" />
           ))}
         </div>
-      )}
-
-      {error && <p className="form-error">{error}</p>}
-
-      <div className="form-actions">
-        <button type="submit" className="btn btn-solid" disabled={busy}>
-          {busy ? t('common.creating') : t('common.create')}
-        </button>
-      </div>
-    </form>
+      </AdvancedSection>
+    </FormSection>
   );
 }

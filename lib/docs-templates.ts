@@ -7,7 +7,8 @@ import type { DocsBlock } from './docs-types';
 export interface DocTemplate {
   key: string;
   title: string;
-  icon: string;
+  /** Sin ícono: las páginas nuevas no traen emoji de fábrica (la estación las marca en el árbol). */
+  icon: string | null;
   description: string;
   makeBlocks: () => DocsBlock[];
 }
@@ -166,11 +167,11 @@ const RETRO: Record<string, TemplateCopy> = {
   },
 };
 
-const TEMPLATE_DEFS: { key: string; icon: string; copy: Record<string, TemplateCopy> }[] = [
-  { key: 'blank', icon: '📄', copy: BLANK },
-  { key: 'meeting', icon: '📝', copy: MEETING },
-  { key: 'spec', icon: '📋', copy: SPEC },
-  { key: 'retro', icon: '🔁', copy: RETRO },
+const TEMPLATE_DEFS: { key: string; icon: string | null; copy: Record<string, TemplateCopy> }[] = [
+  { key: 'blank', icon: null, copy: BLANK },
+  { key: 'meeting', icon: null, copy: MEETING },
+  { key: 'spec', icon: null, copy: SPEC },
+  { key: 'retro', icon: null, copy: RETRO },
 ];
 
 function pick(copy: Record<string, TemplateCopy>, locale: string): TemplateCopy {

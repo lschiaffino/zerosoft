@@ -34,15 +34,22 @@ export default function NetworkMap({
   labels,
   className = '',
   showStationNames = true,
+  hrefs,
+  focus,
 }: {
   locale: string;
   labels: NetworkMapLabels;
   className?: string;
   showStationNames?: boolean;
+  /** Destino de cada línea y estación. Por defecto, la página del producto en el sitio. */
+  hrefs?: Partial<Record<ProductKey, string>>;
+  /** Línea encendida cuando nada está en hover o foco (la página de un producto enciende la suya). */
+  focus?: ProductKey;
 }) {
-  const [active, setActive] = useState<{ lines: ProductKey[]; text: string } | null>(null);
+  const [hovered, setActive] = useState<{ lines: ProductKey[]; text: string } | null>(null);
+  const active = hovered ?? (focus ? { lines: [focus], text: labels.lines[focus] } : null);
   const on = (k: ProductKey) => !active || active.lines.includes(k);
-  const product = (k: ProductKey) => `/${locale}/products/${k}`;
+  const product = (k: ProductKey) => hrefs?.[k] ?? `/${locale}/products/${k}`;
 
   const lightLine = (k: ProductKey) => setActive({ lines: [k], text: labels.lines[k] });
   const lightStation = (s: NetStation) =>

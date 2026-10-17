@@ -52,6 +52,12 @@ const customField = z.object({
   required: z.boolean().optional(),
 });
 
+const logoUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .regex(/^(https:\/\/|http:\/\/|\/)/, { message: 'invalid_input' });
+
 // ---------- Config ----------
 
 /** Zona horaria IANA válida (Intl la acepta). */
@@ -76,15 +82,13 @@ export const calendarConfigUpdateSchema = z.object({
   bufferAfterMin: z.number().int().min(0).optional(),
   minNoticeHours: z.number().int().min(0).optional(),
   maxBookingDays: z.number().int().min(1).optional(),
+  // Marca del workspace en las páginas públicas. null = sin valor.
+  brandColor: hexColor.nullish(),
+  logoUrl: logoUrl.nullish(),
+  displayName: z.string().trim().max(80).nullish(),
 });
 
 // ---------- Event types ----------
-
-const logoUrl = z
-  .string()
-  .trim()
-  .max(500)
-  .regex(/^(https:\/\/|http:\/\/|\/)/, { message: 'invalid_input' });
 
 export const eventTypeCreateSchema = z.object({
   slug,

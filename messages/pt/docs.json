@@ -2,12 +2,13 @@
   "untitled": "Sem título",
   "landing": {
     "title": "Docs",
-    "subtitle": "Notas, wikis e documentos. Zero lock-in.",
     "newPage": "Nova página",
     "latest": "Páginas recentes",
     "emptyTitle": "Ainda não há páginas",
-    "emptySub": "Crie sua primeira página e comece a escrever.",
-    "edited": "Editada {date}"
+    "emptySub": "Escreva uma página do zero ou comece com um modelo. As páginas se aninham como pastas.",
+    "edited": "Editada {date}",
+    "colPage": "Página",
+    "colEdited": "Editada"
   },
   "sidebar": {
     "overview": "Resumo",
@@ -23,7 +24,8 @@
     "moveUp": "Mover para cima",
     "moveDown": "Mover para baixo",
     "sharedWithMe": "Compartilhadas comigo",
-    "sharedBy": "Compartilhada por {name}"
+    "sharedBy": "Compartilhada por {name}",
+    "count": "{count, plural, one {# página} other {# páginas}}"
   },
   "editor": {
     "untitled": "Página sem título",
@@ -79,7 +81,7 @@
       "moveUp": "Mover para cima",
       "moveDown": "Mover para baixo",
       "insertBelow": "Inserir abaixo",
-      "dragHandle": "Opções do bloco — arraste para reordenar"
+      "dragHandle": "Opções do bloco. Arraste para reordenar."
     },
     "commands": {
       "p": "Texto",
@@ -97,7 +99,9 @@
     },
     "breadcrumb": "Caminho",
     "closePanel": "Fechar painel",
-    "inTrash": "Esta página está na lixeira."
+    "inTrash": "Esta página está na lixeira.",
+    "removeIcon": "Remover ícone",
+    "published": "Publicada"
   },
   "database": {
     "columnName": "Coluna {n}",
@@ -110,7 +114,7 @@
     "view": "Visualização",
     "viewTable": "Tabela",
     "viewGallery": "Galeria",
-    "emptyGallery": "Ainda não há linhas — adicione-as na visualização em tabela."
+    "emptyGallery": "Ainda não há linhas. Adicione-as na visualização em tabela."
   },
   "mentions": {
     "noPages": "Sem páginas",
@@ -171,11 +175,20 @@
     "openHelpCenter": "Ver central de ajuda",
     "sharedEditBanner": "Compartilhada por {name}. Você pode editar.",
     "readOnlyBanner": "Compartilhada por {name}. Somente leitura.",
-    "readOnly": "Somente leitura."
+    "readOnly": "Somente leitura.",
+    "people": "Pessoas",
+    "publishSection": "Publicar",
+    "publicLink": "Link público",
+    "openPublic": "Abrir",
+    "suggestions": "Sugestões",
+    "close": "Fechar",
+    "aiHintOn": "A IA do Chat usa esta página",
+    "aiHintOff": "A IA do Chat não usa"
   },
   "templates": {
     "title": "Começar de um modelo",
-    "untitled": "Sem título"
+    "untitled": "Sem título",
+    "use": "Começar com um modelo"
   },
   "trash": {
     "title": "Lixeira",
@@ -183,7 +196,8 @@
     "deleteForever": "Excluir para sempre",
     "confirmDelete": "Excluir esta página para sempre? Esta ação não pode ser desfeita.",
     "help": "Páginas na lixeira mantêm suas subpáginas. Restaure-as ou exclua para sempre.",
-    "empty": "A lixeira está vazia."
+    "empty": "A lixeira está vazia.",
+    "count": "{count, plural, one {# página} other {# páginas}}"
   },
   "comments": {
     "title": "Comentários",
@@ -197,7 +211,8 @@
     "commentBlock": "Comentar este bloco",
     "blockThread": "Conversa do bloco",
     "showAll": "Ver todos",
-    "blockTag": "Bloco"
+    "blockTag": "Bloco",
+    "error": "Não foi possível publicar o comentário. Tente de novo."
   },
   "help": {
     "notFound": "Central de ajuda não encontrada",
@@ -206,7 +221,7 @@
     "title": "Central de ajuda",
     "searchPlaceholder": "Buscar artigos",
     "search": "Buscar",
-    "resultsFor": "Resultados para \"{q}\"",
+    "resultsFor": "Resultados para “{q}”",
     "noResults": "Nenhum artigo encontrado. Tente outras palavras.",
     "empty": "Ainda não há artigos publicados.",
     "untitled": "Sem título",
@@ -220,7 +235,15 @@
     "yes": "Sim",
     "no": "Não",
     "thanks": "Obrigado pelo retorno.",
-    "feedbackError": "Não conseguimos registrar sua resposta. Tente novamente mais tarde."
+    "feedbackError": "Não conseguimos registrar sua resposta. Tente novamente mais tarde.",
+    "articleCount": "{count, plural, one {# artigo} other {# artigos}}",
+    "noResultsTitle": "Nenhum artigo corresponde a “{q}”",
+    "noResultsBody": "Tente outras palavras ou veja todos os artigos.",
+    "allArticles": "Ver todos os artigos",
+    "emptyBody": "Os artigos aparecem aqui quando a equipe os publica no Docs.",
+    "heroTitle": "Como podemos ajudar?",
+    "collectionOf": "{count, plural, one {Coleção de # artigo} other {Coleção de # artigos}}",
+    "articlesIn": "Artigos de {title}"
   },
   "versions": {
     "title": "Histórico de versões",
@@ -238,12 +261,20 @@
       "manual": "Salva manualmente",
       "restore": "Antes de restaurar"
     },
-    "note": "As últimas 50 versões são mantidas."
+    "note": "As últimas 50 versões são mantidas.",
+    "loadError": "Não foi possível carregar o histórico.",
+    "retry": "Tentar de novo"
   },
   "export": {
     "markdown": "Exportar como Markdown",
     "pdf": "Exportar como PDF",
     "markdownShort": "Markdown",
     "pdfShort": "PDF"
+  },
+  "state": {
+    "errorTitle": "O Docs não carregou",
+    "errorBody": "Algo falhou ao carregar suas páginas. O que você escreveu está salvo.",
+    "retry": "Tentar de novo",
+    "loading": "Carregando páginas"
   }
 }

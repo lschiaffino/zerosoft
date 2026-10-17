@@ -1,5 +1,5 @@
 import { getDb } from './db';
-import { linkShortUrl, type LinkWithDomain } from './links';
+import { linkShortUrl, linkStatus, type LinkStatus, type LinkWithDomain } from './links';
 
 /** Página link-in-bio (/@handle): perfil + links elegidos, en orden. */
 
@@ -40,10 +40,12 @@ export interface BioEditorLink {
   label: string;
   short: string;
   archived: boolean;
+  /** Distinto de "active" = la página pública no lo muestra (archivado, vencido, con contraseña, sin cupo). */
+  status: LinkStatus;
 }
 
 function toEditorLink(l: LinkWithDomain): BioEditorLink {
-  return { id: l.id, label: l.title || l.url, short: linkShortUrl(l), archived: l.archived === 1 };
+  return { id: l.id, label: l.title || l.url, short: linkShortUrl(l), archived: l.archived === 1, status: linkStatus(l) };
 }
 
 /**

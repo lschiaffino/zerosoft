@@ -24,7 +24,7 @@
   "common": {
     "save": "Guardar",
     "saving": "Guardando…",
-    "saved": "Guardado ✓",
+    "saved": "Guardado",
     "cancel": "Cancelar",
     "delete": "Eliminar",
     "confirm": "Confirmar",
@@ -67,7 +67,8 @@
     "adminOnly": "Solo los admins del workspace pueden cambiar esto.",
     "moreFilters": "Más filtros",
     "sortBy": "Ordenar por",
-    "activityType": "Tipo de actividad"
+    "activityType": "Tipo de actividad",
+    "preview": "Vista previa"
   },
   "assoc": {
     "associate": "Asociar",
@@ -230,7 +231,7 @@
       "mergeKeep": "Conservar este",
       "mergeDrop": "Combinar en el otro",
       "mergeConfirm": "¿Combinar {drop} en {keep}? No se puede deshacer.",
-      "merged": "Contactos combinados ✓",
+      "merged": "Contactos combinados",
       "dangerZone": "Zona de peligro",
       "deleteTitle": "Eliminar este contacto",
       "deleteDesc": "Elimina el contacto y lo saca de deals y listas. Las actividades se conservan.",
@@ -467,7 +468,7 @@
     "upcoming": "Próximas",
     "done": "Hechas",
     "complete": "Completar",
-    "completed": "Completada ✓",
+    "completed": "Completada",
     "reopen": "Reabrir",
     "dueLabel": "Vence",
     "noDue": "Sin fecha",
@@ -549,7 +550,7 @@
     "name": "Nombre del workflow",
     "enabled": "Activo",
     "disabled": "Inactivo",
-    "triggers": "Triggers",
+    "triggers": "Disparadores",
     "actions": "Acciones",
     "triggerTypes": {
       "contact_created": "Contacto creado",
@@ -581,7 +582,7 @@
       "run_flow": "Ejecutar un Flow",
       "branch": "Si / si no"
     },
-    "addTrigger": "Agregar trigger",
+    "addTrigger": "Agregar disparador",
     "addAction": "Agregar acción",
     "save": "Guardar",
     "runNow": "Ejecutar ahora",
@@ -597,10 +598,7 @@
     "delete": "Eliminar workflow",
     "deleteConfirm": "¿Eliminar este workflow?",
     "emailAction": "Enviar email",
-    "fromStageId": "Desde etapa id",
-    "toStageId": "Hasta etapa id",
     "dueInDays": "Vence en días",
-    "ownerId": "Responsable id",
     "entity": "Entidad",
     "field": "Campo",
     "value": "Valor",
@@ -630,8 +628,114 @@
       "no": "Si no"
     },
     "trigger": "Trigger",
-    "quickCreate": "Crear y configurar",
-    "quickNote": "Se crea como borrador desactivado; agregás las acciones en el editor."
+    "subtitle": "Cuando pasa algo en el CRM, hacé lo que harías a mano: crear tareas, avisar, mandar emails.",
+    "create": "Crear workflow",
+    "createFirst": "Crear el primer workflow",
+    "derivedName": "{trigger}: {action}",
+    "whenTrigger": "Cuando",
+    "orWhen": "O cuando",
+    "removeTrigger": "Quitar disparador",
+    "noActions": "Agregá al menos una acción.",
+    "actionN": "Acción {n}",
+    "triggerN": "Disparador {n}",
+    "actionGroups": {
+      "basic": "Acciones",
+      "advanced": "Avanzado"
+    },
+    "triggerGroups": {
+      "contacts": "Contactos",
+      "deals": "Deals",
+      "email": "Email y reuniones",
+      "other": "Otros"
+    },
+    "templates": {
+      "copy": {
+        "taskSubject": "Coordinar el onboarding",
+        "emailSubject": "Gracias por escribirnos",
+        "emailBody": "Hola, recibimos tu mensaje. Te respondemos dentro del día.",
+        "notifyMessage": "Llegó un formulario nuevo.",
+        "followUpSubject": "Llamar: abrió el email"
+      },
+      "wonTask": {
+        "title": "Tarea al ganar un deal",
+        "desc": "Cuando se gana un deal, crea la tarea de onboarding para mañana."
+      },
+      "welcomeEmail": {
+        "title": "Email de bienvenida",
+        "desc": "Cuando entra un contacto nuevo, le manda un email."
+      },
+      "formAlert": {
+        "title": "Aviso de formulario",
+        "desc": "Cuando alguien envía un formulario, te avisa en la app."
+      },
+      "openFollowUp": {
+        "title": "Seguimiento al abrir",
+        "desc": "Cuando abren tu email, crea una tarea para llamar."
+      }
+    },
+    "problems": {
+      "name": "Poné un nombre.",
+      "trigger": "Elegí al menos un disparador.",
+      "action": "Agregá al menos una acción.",
+      "headers": "Los headers tienen que ser un objeto JSON.",
+      "save": "No se pudo guardar. Probá de nuevo.",
+      "required": "Completá este campo.",
+      "fields": "Completá los campos marcados en las acciones."
+    },
+    "saving": "Guardando…",
+    "saved": "Cambios guardados",
+    "unsaved": "Cambios sin guardar",
+    "readOnly": "Solo los admins del workspace pueden editar workflows.",
+    "nameDerived": "Se completa solo con el disparador y la primera acción.",
+    "state": "Estado",
+    "wizard": {
+      "label": "Pasos",
+      "trigger": "Disparador",
+      "actions": "Acciones",
+      "review": "Revisar",
+      "pickTemplate": "Empezá con una plantilla",
+      "orTrigger": "O elegí el disparador",
+      "thenDo": "Cuando pase «{trigger}», hacer:",
+      "summary": "Resumen",
+      "back": "Atrás",
+      "next": "Siguiente",
+      "create": "Crear workflow",
+      "desc": "Elegí cuándo corre, qué hace y revisalo antes de crearlo."
+    },
+    "confirmDelete": "Borrar workflow",
+    "cancel": "Cancelar",
+    "saveWorkflow": "Guardar workflow",
+    "fromStage": "Desde la etapa",
+    "toStage": "A la etapa",
+    "anyStage": "Cualquier etapa",
+    "directionLabel": "Sentido",
+    "entities": {
+      "contact": "Contacto",
+      "company": "Empresa",
+      "deal": "Deal"
+    },
+    "toContact": "El contacto del registro",
+    "toOther": "Otra dirección",
+    "toAddress": "Dirección",
+    "toAddressHint": "Un email fijo o una variable con un email del contacto.",
+    "variablesHint": "Acepta variables del contacto, la empresa y el deal.",
+    "taskTitle": "Título de la tarea",
+    "owner": "Responsable",
+    "ownerDefault": "El dueño del registro",
+    "activityType": "Tipo",
+    "fieldHint": "Por ejemplo lifecycle_stage o custom.plan",
+    "pick": "Elegí una opción",
+    "headersHint": "Opcional. Un objeto JSON.",
+    "condition": "Condición",
+    "noRunsBody": "Cada vez que se dispare, la ejecución queda acá con su resultado.",
+    "runWhen": "Cuándo",
+    "runState": "Estado",
+    "runResult": "Resultado",
+    "runActionsOk": "{ok} de {total} acciones bien",
+    "updated": "Actualizado",
+    "rowActions": "Acciones de la fila",
+    "noTrigger": "Sin disparador",
+    "ranNow": "Se ejecutó «{name}»."
   },
   "history": {
     "title": "Historial",
@@ -824,13 +928,26 @@
     "tags": "Tags",
     "tagsDesc": "Etiquetas compartidas para contactos, empresas y deals. Filtrá las listas por tag y etiquetá registros en masa.",
     "currency": "Moneda",
-    "currencyDesc": "La moneda base del workspace, los tipos de cambio manuales y qué pasa cuando aceptan una cotización."
+    "currencyDesc": "La moneda base del workspace y los tipos de cambio manuales.",
+    "tabs": {
+      "team": "Equipo",
+      "sales": "Ventas",
+      "data": "Datos",
+      "automation": "Automatización",
+      "integrations": "Integraciones",
+      "import": "Importar y exportar"
+    },
+    "subtitle": "Equipo, pipelines, campos y automatizaciones del CRM. Cada bloque se guarda solo.",
+    "gmailTitle": "Gmail",
+    "importDesc": "Subí un CSV de contactos, empresas o deals.",
+    "quotesTitle": "Cotizaciones",
+    "quotesDesc": "Qué pasa con el deal cuando el cliente acepta."
   },
   "importP": {
     "title": "Importar {entity}",
-    "stepUpload": "1 · Subir",
-    "stepMap": "2 · Mapear columnas",
-    "stepResult": "3 · Resultado",
+    "stepUpload": "Subir",
+    "stepMap": "Mapear columnas",
+    "stepResult": "Resultado",
     "dropHint": "Soltá un CSV o hacé clic para elegirlo",
     "mode": "Si el registro ya existe",
     "modeSkip": "Saltearlo",
@@ -894,7 +1011,8 @@
       "contacts": "Los contactos se cruzan por email. Una columna de empresa la vincula (o la crea) como primaria; el owner acepta el email o el nombre completo de alguien del equipo.",
       "companies": "Las empresas se cruzan por dominio. Una columna de empresa madre la vincula a una empresa que ya exista.",
       "deals": "El pipeline y la etapa se buscan por nombre (si no, el primer pipeline y su primera etapa). Las empresas se vinculan o se crean; los contactos se buscan por email y se crean si faltan."
-    }
+    },
+    "stepsLabel": "Pasos de la importación"
   },
   "errors": {
     "invalid_email": "Ese email no parece válido.",
@@ -1096,7 +1214,7 @@
     "businessDays": "Solo días hábiles (lun–vie)",
     "cronNote": "Los pasos corren cada hora: los emails salen dentro de la hora en que vencen, siempre dentro del horario de envío.",
     "gmailNote": "Los emails salen del Gmail de quien inscribe al contacto.",
-    "saved": "Guardado",
+    "saved": "Cambios guardados",
     "deleteSequence": "Borrar secuencia",
     "deleteConfirm": "¿Borrar esta secuencia y todas sus inscripciones?",
     "stats": {
@@ -1106,7 +1224,7 @@
       "replied": "Respondidos"
     },
     "enrollments": "Inscripciones",
-    "noEnrollments": "Nadie está inscripto todavía. Inscribí contactos desde su ficha o desde la lista de contactos.",
+    "noEnrollments": "Inscribí contactos desde su ficha o desde la lista.",
     "contact": "Contacto",
     "status": "Estado",
     "step": "Paso",
@@ -1139,7 +1257,22 @@
     "crumbNew": "Nueva secuencia",
     "back": "← Secuencias",
     "readOnly": "Solo los admins o quien creó esta secuencia pueden editarla.",
-    "noSteps": "Agregá el primer paso."
+    "noSteps": "Agregá el primer paso.",
+    "nameRequired": "Poné un nombre a la secuencia.",
+    "unsaved": "Cambios sin guardar",
+    "scheduleSummary": "{days}, {from} a {to} ({tz})",
+    "weekdays": "Lunes a viernes",
+    "everyDay": "Todos los días",
+    "windowToLabel": "Hasta",
+    "statsLine": "{sent} enviados · {opened} abiertos · {clicked} con click · {replied} respondidos",
+    "content": "Contenido",
+    "addEmailStep": "Agregar email",
+    "addWaitStep": "Agregar espera",
+    "addTaskStep": "Agregar tarea",
+    "confirmDeleteCta": "Borrar secuencia e inscripciones",
+    "saveSequence": "Guardar secuencia",
+    "createSubmit": "Crear secuencia",
+    "createNote": "Arranca con un email, 3 días de espera y un segundo email. Los cambiás en el editor."
   },
   "email": {
     "messages": "{n, plural, one {# mensaje} other {# mensajes}}",
@@ -1269,7 +1402,20 @@
       "accepted": "Aceptada por {name}",
       "declined": "Rechazada",
       "expired": "Vencida"
-    }
+    },
+    "linkCopied": "Link copiado",
+    "saveQuote": "Guardar cotización",
+    "parties": {
+      "label": "Remitente y destinatario",
+      "summary": "De {from} para {to}",
+      "missing": "sin completar",
+      "fromDeal": "el contacto del deal"
+    },
+    "emptyFilteredTitle": "No hay cotizaciones en «{status}»",
+    "seeAll": "Ver todas",
+    "pagination": "Páginas",
+    "prevPage": "Anterior",
+    "nextPage": "Siguiente"
   },
   "quotePublic": {
     "quote": "Cotización",
@@ -1333,7 +1479,8 @@
     "quoteMovesDeal": "Cuando aceptan una cotización, mover el deal a la etapa ganada",
     "saved": "Guardado.",
     "convertedHint": "Convertido a {base} con el tipo de cambio del workspace",
-    "reportNote": "Montos en {base}. Los deals en otras monedas se convierten con tus tipos de cambio."
+    "reportNote": "Montos en {base}. Los deals en otras monedas se convierten con tus tipos de cambio.",
+    "removeShort": "Quitar"
   },
   "forms": {
     "title": "Formularios",
@@ -1417,7 +1564,7 @@
       "consentPlaceholder": "Acepto recibir emails…",
       "consentRequired": "Hay que aceptar el consentimiento para enviar",
       "after": "Después de enviar",
-      "successMode": "Luego",
+      "successMode": "Cuando alguien lo envía",
       "showMessage": "Mostrar un mensaje de agradecimiento",
       "redirect": "Redirigir a una URL",
       "redirectUrl": "URL de redirección",
@@ -1438,7 +1585,28 @@
       "status": "Estado",
       "saved": "Guardado",
       "preview": "Vista previa",
-      "readOnly": "Solo los admins y quien creó el formulario pueden editarlo."
+      "readOnly": "Solo los admins y quien creó el formulario pueden editarlo.",
+      "tabs": {
+        "fields": "Campos",
+        "design": "Diseño",
+        "after": "Después del envío",
+        "crm": "CRM y avisos"
+      },
+      "tabsLabel": "Secciones del formulario",
+      "untitled": "Campo sin etiqueta",
+      "keyHint": "Se genera desde la etiqueta. Es el nombre del campo en la API y en el CSV.",
+      "internalName": "Nombre interno",
+      "internalNameHint": "Lo ves vos en la lista de formularios. Quien lo completa ve el título.",
+      "statusHint": "Solo los formularios activos aceptan envíos.",
+      "designAdvancedHint": "URL propia, consentimiento",
+      "slugExplain": "Vacío: el formulario usa su link generado.",
+      "useSlug": "Usar /f/{slug}",
+      "keepAsIs": "No cambiar",
+      "noneOption": "Ninguna",
+      "crmAdvancedHint": "Duplicados, anti-spam",
+      "unsaved": "Cambios sin guardar",
+      "confirmDelete": "Borrar formulario y envíos",
+      "saveForm": "Guardar formulario"
     },
     "types": {
       "text": "Texto",
@@ -1476,7 +1644,17 @@
     "newContact": "nuevo",
     "view": "Ver",
     "consent": "Consentimiento",
-    "page": "Página"
+    "page": "Página",
+    "createSubmit": "Crear formulario",
+    "never": "Nunca",
+    "defaults": {
+      "submit": "Enviar",
+      "success": "¡Gracias! Te contactamos pronto.",
+      "email": "Email",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "emailPlaceholder": "vos@empresa.com"
+    }
   },
   "formsPublic": {
     "notFound": "Formulario no encontrado",
@@ -1563,9 +1741,9 @@
       "team": "Los suyos y los de su equipo"
     },
     "visDesc": {
-      "all": "todos los contactos, empresas y deals del workspace",
-      "mine": "los registros de los que son owner",
-      "team": "los registros de cualquiera de sus equipos de venta"
+      "all": "Todos los contactos, empresas y deals del workspace",
+      "mine": "Los registros de los que son owner",
+      "team": "Los registros de cualquiera de sus equipos de venta"
     },
     "adminsSeeAll": "Aplica a listas, fichas, búsqueda, exports, reportes, dashboards y a las API keys que crean los members.",
     "teams": "Equipos de venta",
@@ -1573,7 +1751,7 @@
     "noTeams": "Todavía no hay equipos de venta.",
     "teamName": "Nombre del equipo",
     "teamNamePh": "ej. Enterprise",
-    "createTeam": "Crear equipo",
+    "createTeam": "Crear equipo de venta",
     "deleteTeamConfirm": "¿Borrar este equipo? Sus members conservan sus registros."
   },
   "assignment": {
@@ -1592,7 +1770,9 @@
     "poolDesc": "Las personas marcadas toman turnos en este orden. Los leads que ya tienen owner no se reasignan.",
     "outOfOffice": "Fuera de oficina",
     "history": "Asignaciones recientes",
-    "noHistory": "Todavía no se asignaron leads."
+    "noHistory": "Todavía no se asignaron leads.",
+    "advancedHint": "Orígenes, historial",
+    "assignedTo": "asignado a {name} ({source})"
   },
   "quotas": {
     "title": "Cuotas",
@@ -1614,5 +1794,100 @@
     "empty": "Todavía no hay cuotas.",
     "expected": "Esperado a esta altura: {pct}%",
     "manage": "Gestionar"
+  },
+  "record": {
+    "tabsLabel": "Secciones del registro",
+    "tabs": {
+      "activity": "Actividad",
+      "properties": "Propiedades",
+      "related": "Relacionados"
+    },
+    "moreLabel": "Más",
+    "close": "Cerrar",
+    "more": {
+      "duplicates": "Duplicados",
+      "history": "Historial",
+      "deleteContact": "Eliminar contacto",
+      "deleteCompany": "Eliminar empresa",
+      "deleteDeal": "Eliminar deal"
+    },
+    "back": {
+      "contacts": "Contactos",
+      "companies": "Empresas",
+      "deals": "Deals",
+      "lists": "Listas"
+    },
+    "summary": "Resumen",
+    "manageRelated": "Ver y editar relacionados",
+    "confirmType": "Escribí {token} para confirmar",
+    "createContact": "Crear contacto",
+    "createCompany": "Crear empresa",
+    "createDeal": "Crear deal",
+    "createList": "Crear lista",
+    "createTask": "Crear tarea",
+    "viewLabel": "Vista",
+    "listsDesc": "Grupos de contactos para secuencias, envíos y reportes.",
+    "taskBuckets": "Tareas por fecha",
+    "loading": "Cargando…",
+    "noResults": "Sin resultados.",
+    "form": {
+      "contactTitle": "Datos del contacto",
+      "contactDesc": "Con un nombre o un email alcanza. El resto se completa después.",
+      "companyTitle": "Datos de la empresa",
+      "companyDesc": "Con el nombre alcanza. El resto se completa después.",
+      "dealTitle": "Datos del deal",
+      "dealDesc": "Nombre, monto y etapa. Lo demás puede esperar.",
+      "moreFields": "Más campos",
+      "contactMoreHint": "Cargo, web, ubicación, lifecycle, origen",
+      "companyMoreHint": "Industria, empleados, teléfono, web, ubicación",
+      "dealMoreHint": "Moneda, cierre, prioridad, origen, descripción",
+      "domainHelp": "Si lo dejás vacío, sale del sitio web.",
+      "contact": "Contacto",
+      "noContact": "Sin contacto"
+    },
+    "empty": {
+      "noMatchTitle": "Nada coincide con estos filtros",
+      "noMatchBody": "Cambiá la búsqueda o limpiá los filtros para ver todo.",
+      "contactsTitle": "Todavía no hay contactos",
+      "contactsBody": "Cargá el primero o importá un CSV con los que ya tenés.",
+      "companiesTitle": "Todavía no hay empresas",
+      "companiesBody": "Cargá la primera o importá un CSV. Los contactos se asocian solos por dominio.",
+      "dealsTitle": "Este pipeline no tiene deals",
+      "dealsBody": "Creá el primero y movelo por las etapas desde el tablero.",
+      "importCsv": "o importá un CSV",
+      "noPipelineTitle": "Todavía no hay pipelines",
+      "noPipelineBody": "Un pipeline define las etapas por las que pasa un deal.",
+      "noPipelineCta": "Crear pipeline",
+      "listsTitle": "Todavía no hay listas",
+      "listsBody": "Una lista estática la llenás a mano. Una dinámica se llena sola con un filtro.",
+      "staticListTitle": "La lista está vacía",
+      "staticListBody": "Buscá contactos arriba para agregarlos.",
+      "dynamicListTitle": "Ningún contacto cumple el filtro",
+      "dynamicListBody": "La lista se actualiza sola cuando alguno lo cumpla.",
+      "tasks": {
+        "overdue": "Nada vencido",
+        "today": "Nada para hoy",
+        "upcoming": "Nada en los próximos días",
+        "done": "Todavía no completaste tareas"
+      },
+      "tasksBody": "Las tareas de contactos, empresas y deals aparecen acá según su fecha."
+    },
+    "pager": {
+      "label": "Paginación",
+      "total": "{count, plural, one {# registro} other {# registros}}",
+      "prev": "Anterior",
+      "next": "Siguiente",
+      "of": "Página {page} de {pages}"
+    },
+    "error": {
+      "title": "No se pudo cargar esta vista",
+      "body": "Puede ser un corte de conexión. Probá de nuevo; si sigue, avisanos.",
+      "retry": "Reintentar"
+    }
+  },
+  "rowTools": {
+    "up": "Subir",
+    "down": "Bajar",
+    "remove": "Quitar"
   }
 }

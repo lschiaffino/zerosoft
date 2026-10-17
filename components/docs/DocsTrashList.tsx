@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatDate } from '@/lib/utils';
 import type { DocsPageSummary } from '@/lib/docs-types';
 
 interface DocsTrashListProps {
@@ -18,6 +19,7 @@ interface DocsTrashListProps {
 
 export default function DocsTrashList({ pages, canDelete = true, labels }: DocsTrashListProps) {
   const t = useTranslations('docs');
+  const locale = useLocale();
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -47,17 +49,20 @@ export default function DocsTrashList({ pages, canDelete = true, labels }: DocsT
   };
 
   return (
-    <ul className="docs-list">
+    <ul className="docs-trash-list">
       {pages.map((page) => (
         <li key={page.id} className="docs-trash-row">
-          <span className="docs-list-icon">{page.icon ?? '📄'}</span>
-          <span className="docs-list-title">{page.title || t('untitled')}</span>
-          <span className="docs-list-date mono">{page.updated_at.slice(0, 10)}</span>
+          <span className="docs-trash-title">
+            {page.icon && <span aria-hidden="true">{page.icon}</span>}
+            {page.title || t('untitled')}
+          </span>
+          <span className="docs-trash-date num">{formatDate(page.updated_at, locale)}</span>
           <span className="docs-trash-actions">
             <button
               type="button"
-              className="btn btn-small"
+              className="btn btn-secondary btn-sm"
               disabled={pendingId === page.id}
+              aria-busy={pendingId === page.id || undefined}
               onClick={() => restore(page.id)}
             >
               {labels.restore}
@@ -65,7 +70,7 @@ export default function DocsTrashList({ pages, canDelete = true, labels }: DocsT
             {canDelete && (
               <button
                 type="button"
-                className="btn btn-small docs-trash-delete"
+                className="btn btn-ghost btn-danger btn-sm"
                 disabled={pendingId === page.id}
                 onClick={() => deleteForever(page.id)}
               >

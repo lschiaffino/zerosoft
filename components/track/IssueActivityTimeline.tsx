@@ -342,6 +342,8 @@ export default function IssueActivityTimeline({
         <div className="track-activity-composer-input">
           <textarea
             ref={textareaRef}
+            className="textarea"
+            aria-label={labels.addComment}
             value={comment}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
@@ -364,13 +366,13 @@ export default function IssueActivityTimeline({
             </div>
           )}
         </div>
-        <button type="submit" className="btn btn-solid" disabled={submitting || !comment.trim()}>
+        <button type="submit" className="btn btn-primary btn-sm" disabled={!comment.trim()} aria-busy={submitting || undefined}>
           {labels.submitComment}
         </button>
       </form>
 
       {sorted.length === 0 ? (
-        <p className="muted">{labels.empty}</p>
+        <p className="ui-help">{labels.empty}</p>
       ) : (
         <div className="track-activity-list">
           {sorted.map((activity) => (

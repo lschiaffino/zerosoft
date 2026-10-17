@@ -2,7 +2,9 @@ import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { bookingDateBounds, listUserBookings, localDate } from '@/lib/calendar';
 import { bookingListQuerySchema } from '@/lib/calendar-schema';
+import PageHeader from '@/components/ui/PageHeader';
 import BookingsList from '@/components/calendar/BookingsList';
+import { formatTimezone } from '@/components/calendar/cal-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +25,8 @@ export default async function BookingsPage(props: {
   const f = parsed.success ? parsed.data : {};
   // Días en la zona del calendario del workspace (también el "hoy" por defecto).
   const { timezone } = await bookingDateBounds(user.id, undefined, undefined);
-  const from = hasFilters ? f.from : localDate(new Date(), timezone);
+  const today = localDate(new Date(), timezone);
+  const from = hasFilters ? f.from : today;
   const bounds = await bookingDateBounds(user.id, from, f.to);
   const bookings = await listUserBookings(user.id, {
     q: f.q,
@@ -35,15 +38,13 @@ export default async function BookingsPage(props: {
   });
 
   return (
-    <div className="app-page cal-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('bookings.title')}</h1>
-      </div>
-
+    <div className="ui-page">
+      <PageHeader title={t('bookings.title')} description={t('bookings.lead', { timezone: formatTimezone(timezone, locale) })} />
       <BookingsList
         bookings={bookings}
         locale={locale}
         timezone={timezone}
+        defaultFrom={today}
         initialFilters={{ q: f.q ?? '', status: f.status ?? '', from: from ?? '', to: f.to ?? '' }}
       />
     </div>

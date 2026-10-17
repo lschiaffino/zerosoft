@@ -1,5 +1,6 @@
 'use client';
 
+import TrackIcon from './TrackIcon';
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { Link } from '@/i18n/navigation';
 import type { TrackStatusRow } from '@/lib/db';
@@ -289,21 +290,21 @@ export default function IssuesGantt({ issues, statuses, locale, onDatesChange, l
         <div className="track-gantt-title">
           {fmtDay(windowStart)} → {fmtDay(windowEnd)}
         </div>
-        <div className="track-gantt-nav">
-          <button type="button" onClick={() => setShiftWeeks((w) => w - 2)}>
+        <div className="btn-group track-gantt-nav">
+          <button type="button" className="btn btn-sm" onClick={() => setShiftWeeks((w) => w - 2)}>
             {labels.prev}
           </button>
-          <button type="button" onClick={() => setShiftWeeks(0)}>
+          <button type="button" className="btn btn-sm" onClick={() => setShiftWeeks(0)}>
             {labels.today}
           </button>
-          <button type="button" onClick={() => setShiftWeeks((w) => w + 2)}>
+          <button type="button" className="btn btn-sm" onClick={() => setShiftWeeks((w) => w + 2)}>
             {labels.next}
           </button>
         </div>
       </div>
 
       {dragError && (
-        <p className="form-error" role="alert" style={{ margin: '8px 0 0' }}>
+        <p className="ui-error" role="alert">
           {dragError}
         </p>
       )}
@@ -400,7 +401,12 @@ export default function IssuesGantt({ issues, statuses, locale, onDatesChange, l
               >
                 <span className="track-identifier">{issue.identifier}</span>
                 <span className="track-gantt-issue-title">{issue.title}</span>
-                {issue.child_count > 0 && <span className="track-subtask-indicator">⊞ {issue.child_count}</span>}
+                {issue.child_count > 0 && (
+                  <span className="track-subtask-indicator">
+                    <TrackIcon name="subtasks" size={12} />
+                    {issue.child_count}
+                  </span>
+                )}
                 <span className="track-gantt-issue-assignee">{issue.assignee_name ?? labels.noAssignee}</span>
               </Link>
             ))}

@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
+import { MkPlus } from './MkIcons';
 
-/** Punto de color por etiqueta (texto + punto, sin pastillas). */
+/** Marcador de color por etiqueta (texto + cuadro, sin pastillas). */
 const LABEL_TONE: Record<FakeIssue['label'], string> = {
   bug: 'is-bad',
   feature: 'is-info',
@@ -51,7 +52,10 @@ export default function TrackMockup() {
     <div className="mk mk-track">
       <div className="mk-track-top">
         <span className="mk-filter">{t('filter')}</span>
-        <span className="mk-btn">{t('new')}</span>
+        <span className="mk-btn">
+          <MkPlus />
+          {t('new')}
+        </span>
       </div>
 
       <div className="mk-board">
@@ -59,7 +63,7 @@ export default function TrackMockup() {
           <div className="mk-col" key={col.key}>
             <div className="mk-col-head">
               <span>{t(`col_${col.key}`)}</span>
-              <span>{col.issues.length}</span>
+              <span className="mk-mono">{col.issues.length}</span>
             </div>
             {col.issues.map((issue) => (
               <div className="mk-issue" key={issue.id}>

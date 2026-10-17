@@ -66,8 +66,20 @@ export default async function IssueDetailPage(
       initialRelations={relations}
       ui={buildTrackUiLabels(t)}
       labels={{
-        back: t('issues.back'),
-        description: t('issues.form.description'),
+        back: t('issues.breadcrumb'),
+        description: t('issues.description'),
+        untitled: t('issues.untitled'),
+        createdOn: t.raw('issues.createdOn') as string,
+        edit: {
+          title: t('issues.editTitle'),
+          descriptionPlaceholder: t('issues.descriptionPlaceholder'),
+          more: t('issues.moreActions'),
+          copyBranch: t('github.copyBranch'),
+          copied: t('github.copied'),
+          addSubtask: t('issues.addSubtask'),
+          addAttachment: t('issues.addAttachment'),
+          addRelation: t('issues.addRelation'),
+        },
         properties: {
           status: t('issues.status'),
           priority: t('issues.priority'),
@@ -77,7 +89,10 @@ export default async function IssueDetailPage(
           dueDate: t('issues.dueDate'),
           labels: t('issues.labels'),
           noAssignee: t('issues.noAssignee'),
-          none: '—',
+          none: t('issues.none'),
+          title: t('issues.detail.properties'),
+          estimatePlaceholder: t('issues.estimatePlaceholder'),
+          estimateUnit: t('issues.estimateUnit'),
         },
         priorities: [
           { value: 'urgent', label: t('priorities.urgent') },
@@ -124,7 +139,7 @@ export default async function IssueDetailPage(
           to: t.raw('activity.to') as string,
           unassigned: t.raw('activity.unassigned') as string,
           addComment: t('issues.detail.addComment'),
-          submitComment: t('common.create'),
+          submitComment: t('activity.submitComment'),
           empty: t('issues.detail.noComments'),
         },
         relations: {
@@ -136,7 +151,7 @@ export default async function IssueDetailPage(
           related: t('relations.related'),
           duplicates: t('relations.duplicates'),
           duplicatedBy: t('relations.duplicatedBy'),
-          add: t('common.create'),
+          add: t('relations.add'),
           remove: t('common.remove'),
           empty: t('relations.empty') ?? 'No relations yet.',
           selectIssue: t('relations.selectIssue') ?? 'Issue ID or identifier',
@@ -145,6 +160,7 @@ export default async function IssueDetailPage(
           duplicate: t('relations.duplicate'),
           self: t('relations.self'),
           error: t('relations.error'),
+          cancel: t('common.cancel'),
         },
         actions: {
           close: t('actions.close'),

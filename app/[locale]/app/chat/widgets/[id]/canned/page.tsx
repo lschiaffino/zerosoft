@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
 import { canAccessWidget } from '@/lib/chat-access';
-import WidgetHeader from '@/components/chat/WidgetHeader';
 import { requireUser } from '@/lib/session';
 import { getChatWidget, listChatAgents } from '@/lib/chat-data';
 import CannedClient from '@/components/chat/CannedClient';
@@ -29,9 +28,6 @@ export default async function WidgetCannedPage(
   const agents = await listChatAgents(widget.user_id, widget.team_id);
 
   return (
-    <div className="app-page">
-      <WidgetHeader locale={locale} widget={widget} active="canned" />
-      <CannedClient widgetId={widget.id} agents={agents} />
-    </div>
+    <CannedClient widgetId={widget.id} agents={agents} />
   );
 }

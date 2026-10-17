@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const STATE_COOKIE = 'zs-gmail-state';
 
 function redirectToSettings(req: NextRequest, params: string): NextResponse {
-  return NextResponse.redirect(new URL(`/app/crm/settings?${params}`, req.url));
+  return NextResponse.redirect(new URL(`/app/crm/settings?tab=integrations&${params}`, req.url));
 }
 
 /** Callback OAuth: valida state, cambia el code por tokens y guarda la integración. */

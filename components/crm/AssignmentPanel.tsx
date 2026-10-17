@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import AdvancedSection from '@/components/ui/AdvancedSection';
+import RowTools from './RowTools';
 
 interface Person {
   id: string;
@@ -30,7 +32,10 @@ interface Props {
 
 const SOURCES = ['form', 'chat', 'cal', 'import', 'api'] as const;
 
-/** Round-robin de leads nuevos: fuentes, pool ordenado, fuera de oficina e historial. */
+/**
+ * Round-robin de leads nuevos: encendido, pool ordenado y fuera de oficina a
+ * la vista; fuentes e historial en Avanzado.
+ */
 export default function AssignmentPanel({ rule, unavailable, history, people, selfId, canEdit }: Props) {
   const t = useTranslations('crm');
   const locale = useLocale();
@@ -85,28 +90,21 @@ export default function AssignmentPanel({ rule, unavailable, history, people, se
 
   return (
     <div className="assign-panel">
-      <label className="fb-check">
-        <input type="checkbox" checked={enabled} onChange={(e) => update({ enabled: e.target.checked })} disabled={!canEdit} data-testid="rr-enabled" />
+      <label className="ui-switch">
+        <input
+          type="checkbox"
+          role="switch"
+          checked={enabled}
+          onChange={(e) => update({ enabled: e.target.checked })}
+          disabled={!canEdit}
+          data-testid="rr-enabled"
+        />
         {t('assignment.enabled')}
       </label>
 
-      <fieldset className="assign-sources" disabled={!canEdit}>
-        <legend className="section-label">{t('assignment.sources')}</legend>
-        {SOURCES.map((s) => (
-          <label key={s} className="fb-check">
-            <input
-              type="checkbox"
-              checked={sources.includes(s)}
-              onChange={(e) => update({ sources: e.target.checked ? [...sources, s] : sources.filter((x) => x !== s) })}
-            />
-            {t(`assignment.source.${s}`)}
-          </label>
-        ))}
-      </fieldset>
-
       <div className="assign-pool">
-        <p className="section-label">{t('assignment.pool')}</p>
-        <p className="muted access-note">{t('assignment.poolDesc')}</p>
+        <h3 className="label">{t('assignment.pool')}</h3>
+        <p className="ui-help">{t('assignment.poolDesc')}</p>
         <ul className="assign-people">
           {people.map((p) => {
             const idx = pool.indexOf(p.id);
@@ -114,68 +112,68 @@ export default function AssignmentPanel({ rule, unavailable, history, people, se
             const isAway = away.includes(p.id);
             return (
               <li key={p.id} className={`assign-person${inPool ? '' : ' out'}`}>
-                <label className="fb-check">
+                <label className="ui-check">
                   <input
                     type="checkbox"
                     checked={inPool}
                     onChange={(e) => update({ pool: e.target.checked ? [...pool, p.id] : pool.filter((x) => x !== p.id) })}
                     disabled={!canEdit}
                   />
-                  <span className="mono muted assign-order">{inPool ? idx + 1 : '–'}</span>
+                  <span className="data assign-order">{inPool ? idx + 1 : ''}</span>
                   {p.label}
                 </label>
                 <span className="assign-person-actions">
                   {(canEdit || p.id === selfId) && (
-                    <label className="fb-check assign-ooo">
+                    <label className="ui-check">
                       <input type="checkbox" checked={isAway} onChange={(e) => setAvailable(p.id, !e.target.checked)} />
                       {t('assignment.outOfOffice')}
                     </label>
                   )}
-                  {canEdit && inPool && (
-                    <>
-                      <button type="button" className="icon-btn" onClick={() => move(idx, -1)} disabled={idx === 0} aria-label="↑">
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        onClick={() => move(idx, 1)}
-                        disabled={idx === pool.length - 1}
-                        aria-label="↓"
-                      >
-                        ↓
-                      </button>
-                    </>
-                  )}
+                  {canEdit && inPool && <RowTools index={idx} count={pool.length} onMove={(d) => move(idx, d)} name={p.label} />}
                 </span>
               </li>
             );
           })}
         </ul>
       </div>
-      {saved && <p className="mono muted">{t('common.saved')}</p>}
-      {error && <p className="form-error">{error}</p>}
+      <p className={`assign-status ${error ? 'ui-error' : 'ui-help'}`} role="status" aria-live="polite">
+        {error ?? (saved ? t('common.saved') : null)}
+      </p>
 
-      <div className="assign-history">
-        <p className="section-label">{t('assignment.history')}</p>
-        {history.length === 0 ? (
-          <p className="muted">{t('assignment.noHistory')}</p>
-        ) : (
-          <ul className="assign-history-list">
-            {history.slice(0, 15).map((h) => (
-              <li key={h.id}>
-                <span className="mono muted">{fmt(h.created_at)}</span>{' '}
-                {h.contact_id ? (
-                  <Link href={`/app/crm/contacts/${h.contact_id}`}>{h.contact_name || t('forms.contact')}</Link>
-                ) : (
-                  '—'
-                )}{' '}
-                → {name(h.person_id)} <span className="mono muted">· {t(`assignment.source.${h.source}`)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <AdvancedSection storageKey="crm.settings.assignment" hint={t('assignment.advancedHint')}>
+        <fieldset className="assign-sources" disabled={!canEdit}>
+          <legend className="label">{t('assignment.sources')}</legend>
+          {SOURCES.map((s) => (
+            <label key={s} className="ui-check">
+              <input
+                type="checkbox"
+                checked={sources.includes(s)}
+                onChange={(e) => update({ sources: e.target.checked ? [...sources, s] : sources.filter((x) => x !== s) })}
+              />
+              {t(`assignment.source.${s}`)}
+            </label>
+          ))}
+        </fieldset>
+
+        <div className="assign-history">
+          <h3 className="label">{t('assignment.history')}</h3>
+          {history.length === 0 ? (
+            <p className="ui-help">{t('assignment.noHistory')}</p>
+          ) : (
+            <ul className="assign-history-list">
+              {history.slice(0, 15).map((h) => (
+                <li key={h.id}>
+                  <span className="data">{fmt(h.created_at)}</span>{' '}
+                  {h.contact_id ? (
+                    <Link href={`/app/crm/contacts/${h.contact_id}`}>{h.contact_name || t('forms.contact')}</Link>
+                  ) : null}{' '}
+                  {t('assignment.assignedTo', { name: name(h.person_id), source: t(`assignment.source.${h.source}`) })}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </AdvancedSection>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { BRAND_LINES, WORDMARK } from '@/lib/brand';
 import { NET_LINES, NET_STATIONS } from '@/lib/brand-network';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey } from '@/lib/products';
 import { GITHUB_URL } from '@/components/site/catalog';
+import '@/styles/network.css';
 import '@/styles/brand-page.css';
 
 const KIT = '/brand/zerosoft-brand-kit.zip';

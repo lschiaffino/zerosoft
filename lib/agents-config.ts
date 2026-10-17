@@ -34,6 +34,39 @@ export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' 
   http_request: 'http',
 };
 
+/**
+ * Orden de los grupos en la pestaña Herramientas y la línea de la suite que
+ * cruza cada uno. `http` no está: vive en Avanzado.
+ */
+export const AGENT_TOOL_GROUP_ORDER = [
+  { key: 'knowledge', product: 'docs' },
+  { key: 'handoff', product: 'chat' },
+  { key: 'crm', product: 'crm' },
+  { key: 'cal', product: 'cal' },
+  { key: 'track', product: 'track' },
+  { key: 'flow', product: 'flow' },
+] as const;
+
+/** Herramientas de un grupo, en el orden de AGENT_TOOL_KEYS. */
+export function agentToolsInGroup(group: (typeof AGENT_TOOL_GROUP)[AgentToolKey]): AgentToolKey[] {
+  return AGENT_TOOL_KEYS.filter((k) => AGENT_TOOL_GROUP[k] === group);
+}
+
+/**
+ * Handle público sugerido a partir del nombre ("Soporte Acmé" → "soporte-acme"),
+ * válido para AGENT_HANDLE_RE. Devuelve null si el nombre no da para uno.
+ */
+export function suggestAgentHandle(name: string): string | null {
+  const slug = name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .slice(0, 40)
+    .replace(/^-+|-+$/g, '');
+  return AGENT_HANDLE_RE.test(slug) ? slug : null;
+}
+
 /** Máximo de pasos (llamadas al modelo) por respuesta. */
 export const AGENT_MAX_STEPS = 6;
 export const AGENT_MAX_URLS = 20;

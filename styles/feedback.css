@@ -158,18 +158,3 @@ button.side-link {
   .fb-page { grid-template-columns: 1fr; gap: 40px; }
   .fb-page-card { padding: 22px 18px; }
 }
-
-/* ---------- Listado del owner ---------- */
-
-.fb-admin-filters { display: flex; gap: 8px; flex-wrap: wrap; }
-.fb-admin-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
-.fb-admin-row { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
-.fb-admin-row:last-child { border-bottom: none; }
-.fb-admin-row.is-new { box-shadow: inset 3px 0 0 var(--accent, var(--ink)); }
-.fb-admin-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: 0.03em; }
-.fb-admin-tag { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); text-transform: uppercase; letter-spacing: 0.1em; font-size: 10px; }
-.fb-admin-tag i { width: 7px; height: 7px; border-radius: 50%; background: var(--dot, var(--dim)); display: inline-block; }
-.fb-admin-msg { white-space: pre-wrap; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
-.fb-admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.fb-admin-actions .btn { padding: 6px 12px; font-size: 10px; }
-.fb-admin-url { overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }

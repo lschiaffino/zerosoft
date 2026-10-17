@@ -1,226 +1,323 @@
 /* ============================================================
-   Track — project management (Linear/Asana style), monocromático
+   Track: issues, proyectos y ciclos en la red de subte.
+   Controles, tablas, tabs, modales y vacíos vienen de styles/ui.css;
+   acá solo va lo propio de Track. La línea (--accent, naranja de Track)
+   marca dónde estás: estación activa, barra de progreso, hoy, el hilo de
+   actividad. Las acciones son de tinta.
+   Edición inline, quick-create y selección: styles/track-quick.css.
    ============================================================ */
 
 .track-page {
-  max-width: 1100px;
+  max-width: 1240px;
 }
 
-.track-page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.track-page-header h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.track-page-header p {
-  margin: 4px 0 0;
-  color: var(--dim);
-  font-size: 14px;
-}
-
-.track-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+.app-page.track-page {
   gap: 16px;
 }
 
-.track-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg);
-  text-decoration: none;
-  color: var(--ink);
-  transition: border-color 0.15s ease;
+.app-page.track-detail {
+  gap: 0;
 }
 
-.track-card:hover {
-  border-color: var(--ink);
+/* globals.css le da a <section> el aire de las páginas de marketing. */
+.track-page section,
+.track-detail section {
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
-.track-card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.track-identifier {
+  font-family: var(--font-data);
+  font-feature-settings: "zero" 1, "tnum" 1;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+  white-space: nowrap;
 }
 
-.track-card-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  color: #fff;
-  flex-shrink: 0;
+.track-project-icon {
+  margin-right: 0.35em;
+  font-size: 0.85em;
 }
 
-.track-card-title {
-  font-weight: 600;
-  font-size: 15px;
-  line-height: 1.25;
+.track-cell-dim {
+  color: var(--brand-gray-2);
+  font-size: 0.8125rem;
 }
 
-.track-card-desc {
-  font-size: 13px;
-  color: var(--dim);
-  line-height: 1.4;
+.track-clamp {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.track-card-meta {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--dim);
+.track-kbd {
+  height: 18px;
+  margin-left: 2px;
+  font-size: 0.6875rem;
 }
 
-.track-form {
-  max-width: 560px;
+.track-skeleton-head {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-}
-
-.track-form-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.track-form-row label {
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--dim);
-}
-
-.track-form-row input[type="text"],
-.track-form-row input[type="date"],
-.track-form-row input[type="number"],
-.track-form-row textarea,
-.track-form-row select {
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 14px;
-  font-family: inherit;
-}
-
-.track-form-row input:focus,
-.track-form-row textarea:focus,
-.track-form-row select:focus {
-  outline: none;
-  border-color: var(--ink);
-}
-
-.track-form-row textarea {
-  min-height: 120px;
-  resize: vertical;
-}
-
-.track-form-actions {
-  display: flex;
-  align-items: center;
   gap: 10px;
-  padding-top: 8px;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 4px solid var(--brand-enamel);
 }
+
+/* ---------- Cabecera del proyecto ---------- */
+
+.track-cycle-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+}
+
+.track-toolbar + .track-filters {
+  margin-top: -6px;
+}
+
+/* ---------- Barra de vista y filtros ---------- */
 
 .track-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.track-pagination {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-top: 16px;
-}
-
-.track-pagination-count {
-  font-size: 12px;
-}
-
-.track-tabs {
-  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.track-tab {
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--dim);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.track-tab:hover {
-  color: var(--ink);
-}
-
-.track-tab.active {
-  border-color: var(--line);
-  color: var(--ink);
-}
-
-.track-table-wrap {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.track-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.track-table th,
-.track-table td {
-  padding: 10px 14px;
-  text-align: left;
+.track-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 
-.track-table th {
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--dim);
-  background: #fafafa;
+.track-filter-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
 }
 
-.track-table tr:last-child td {
-  border-bottom: none;
+.track-filter {
+  position: relative;
+}
+
+.track-filter-toggle {
+  color: var(--brand-gray-1);
+}
+
+.track-filter-toggle.is-active {
+  color: var(--ink);
+}
+
+.track-filter-toggle svg {
+  color: var(--brand-gray-3);
+}
+
+.track-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  color: var(--bg);
+  background: var(--ink);
+  border-radius: var(--radius-1);
+}
+
+.track-filter-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+}
+
+.track-filter-option {
+  align-items: center;
+  padding: 6px;
+  border-radius: var(--radius-1);
+}
+
+.track-filter-option:hover {
+  background: var(--brand-enamel);
+}
+
+.track-filter-option input[type='checkbox'] {
+  margin: 0;
+}
+
+.track-filter-swatch {
+  flex: 0 0 10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 0;
+}
+
+.track-filter-dates {
+  display: grid;
+  gap: 10px;
+  padding: 6px;
+  min-width: 220px;
+}
+
+.track-filter-search {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.track-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.track-search > svg {
+  position: absolute;
+  left: 10px;
+  color: var(--brand-gray-2);
+  pointer-events: none;
+}
+
+.app-frame .track-search .input {
+  width: 240px;
+  min-height: 32px;
+  padding-left: 30px;
+  padding-right: 30px;
+}
+
+.track-search-kbd {
+  position: absolute;
+  right: 8px;
+  height: 18px;
+  color: var(--brand-gray-2);
+  pointer-events: none;
+}
+
+.track-search .input:focus ~ .track-search-kbd,
+.track-search .input:not(:placeholder-shown) ~ .track-search-kbd {
+  display: none;
+}
+
+/* ---------- Vistas guardadas ---------- */
+
+.track-saved-views {
+  position: relative;
+}
+
+.track-saved-views-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 40;
+  min-width: 260px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+}
+
+.track-saved-view-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.track-saved-view {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: var(--radius-1);
+}
+
+.track-saved-view:hover,
+.track-saved-view.is-active {
+  background: var(--brand-enamel);
+}
+
+.track-saved-view-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.track-saved-view-name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-saved-view-name[aria-current='true'] {
+  font-weight: 600;
+}
+
+.track-saved-view-actions {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.track-saved-views-empty {
+  padding: 8px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+}
+
+/* ---------- Tabla de issues ---------- */
+
+.track-view {
+  min-width: 0;
+}
+
+.track-table td {
+  white-space: nowrap;
+}
+
+.track-table td.track-col-title {
+  width: 100%;
+  min-width: 200px;
+  white-space: normal;
+}
+
+.track-table .track-col-id {
+  width: 1%;
 }
 
 .track-table a {
@@ -228,365 +325,14 @@
   text-decoration: none;
 }
 
-.track-table a:hover {
+.track-table .track-col-title a:hover .track-issue-title {
   text-decoration: underline;
-}
-
-.track-identifier {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--dim);
+  text-underline-offset: 3px;
 }
 
 .track-issue-title {
   font-weight: 500;
 }
-
-.track-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  border: 1px solid currentColor;
-  white-space: nowrap;
-}
-
-.track-badge-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.track-priority {
-  font-family: var(--mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.track-empty {
-  padding: 48px 24px;
-  text-align: center;
-  color: var(--dim);
-}
-
-.track-empty-zeros {
-  font-family: var(--mono);
-  font-size: 22px;
-  color: var(--line);
-  margin-bottom: 8px;
-}
-
-.track-detail {
-  max-width: 820px;
-}
-
-.track-detail-head {
-  margin-bottom: 24px;
-}
-
-.track-detail-head h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.track-detail-meta {
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--dim);
-}
-
-.track-detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 24px;
-}
-
-.track-detail-main {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.track-detail-side {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.track-properties {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.track-property {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-}
-
-.track-property label {
-  color: var(--dim);
-}
-
-.track-property span {
-  font-weight: 500;
-}
-
-.track-comments {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.track-comment {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-
-.track-comment-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-}
-
-.track-comment-author {
-  font-weight: 600;
-}
-
-.track-comment-date {
-  color: var(--dim);
-  font-family: var(--mono);
-}
-
-.track-comment-body {
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-/* ---------- View switcher ---------- */
-
-.track-toolbar-wrap {
-  flex-wrap: wrap;
-}
-
-.track-toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.track-view-switcher {
-  display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.track-view-switcher button {
-  padding: 6px 12px;
-  border: none;
-  background: transparent;
-  color: var(--dim);
-  font-size: 13px;
-  cursor: pointer;
-  border-right: 1px solid var(--line);
-}
-
-.track-view-switcher button:last-child {
-  border-right: none;
-}
-
-.track-view-switcher button:hover {
-  color: var(--ink);
-}
-
-.track-view-switcher button.active {
-  background: var(--accent, var(--ink));
-  color: #fff;
-}
-
-/* ---------- Filters ---------- */
-
-.track-filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fafafa;
-}
-
-.track-filter-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0;
-  align-items: flex-end;
-}
-
-.track-filter-search {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.track-filter-search input[type="search"] {
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 14px;
-  min-width: 180px;
-}
-
-.track-filter-toggle,
-.track-filter-clear,
-.track-filter-save {
-  font-family: var(--mono);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 7px 14px;
-  border: 1px solid var(--line);
-  border-right: none;
-  border-radius: 0;
-  background: var(--bg);
-  color: var(--dim);
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s, background 0.2s;
-}
-
-.track-filter-group > .track-filter-toggle:first-child,
-.track-filter-group > .track-filter-clear:first-child,
-.track-filter-group > .track-filter-save:first-child {
-  border-radius: 8px 0 0 8px;
-}
-
-.track-filter-group > .track-filter-toggle:last-child,
-.track-filter-group > .track-filter-clear:last-child,
-.track-filter-group > .track-filter-save:last-child {
-  border-right: 1px solid var(--line);
-  border-radius: 0 8px 8px 0;
-}
-
-.track-filter-toggle:hover,
-.track-filter-clear:hover:not(:disabled),
-.track-filter-save:hover {
-  border-color: var(--ink);
-  color: var(--ink);
-  background: #fafafa;
-}
-
-.track-filter-toggle.active,
-.track-filter-clear.active,
-.track-filter-save.active {
-  background: var(--accent, var(--ink));
-  border-color: var(--ink);
-  color: #fff;
-}
-
-.track-filter-clear:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.track-filter-dropdown {
-  position: relative;
-}
-
-.track-filter-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 10;
-  min-width: 180px;
-  max-height: 260px;
-  overflow: auto;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.track-filter-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 4px;
-  font-size: 13px;
-  cursor: pointer;
-  border-radius: 6px;
-}
-
-.track-filter-option:hover {
-  background: #f5f5f5;
-}
-
-.track-filter-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.track-filter-count {
-  margin-left: 6px;
-  padding: 1px 5px;
-  border-radius: 10px;
-  background: var(--accent, var(--ink));
-  color: #fff;
-  font-size: 11px;
-}
-
-.track-filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.track-filter-field label {
-  font-size: 11px;
-  color: var(--dim);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.track-filter-dates {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.track-filter-dates input {
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 13px;
-}
-
-/* ---------- Table ---------- */
 
 .track-sortable {
   cursor: pointer;
@@ -598,20 +344,41 @@
 }
 
 .track-sort-arrow {
+  display: inline-flex;
   margin-left: 4px;
-  color: var(--dim);
+  vertical-align: -1px;
+}
+
+.track-table-empty {
+  height: 64px;
+  color: var(--brand-gray-2);
+  text-align: center;
+}
+
+.track-subtask-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  color: var(--brand-gray-2);
+  vertical-align: 1px;
+}
+
+.track-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  white-space: nowrap;
 }
 
 .track-priority {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.track-priority-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+  white-space: nowrap;
 }
 
 .track-label-chips {
@@ -620,375 +387,1450 @@
   gap: 4px;
 }
 
-.track-label-chip {
+.track-label-tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
+  gap: 5px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
 }
 
-.track-label-chip button {
+.track-label-tag-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 0;
+}
+
+.track-pagination {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.track-pagination-count {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-2);
+}
+
+/* ---------- Lista de proyectos ---------- */
+
+.track-projects .table td:first-child {
+  white-space: nowrap;
+}
+
+/* ---------- Drawer de ajustes del proyecto ---------- */
+
+dialog.ui-drawer.track-drawer {
+  width: min(560px, 100vw);
+}
+
+.track-drawer-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.track-drawer-sub {
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-drawer-tabs {
+  flex-shrink: 0;
+  padding: 0 10px;
+}
+
+.track-pane-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.track-pane-head .ui-help {
+  max-width: 48ch;
+}
+
+.track-pane-notice {
+  margin-bottom: 12px;
+  color: var(--ok-ink);
+}
+
+.track-inline-form,
+.track-cycle-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+
+.track-cycle-confirm {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+}
+
+.track-inline-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Ciclos */
+.track-cycle-list {
+  list-style: none;
+  margin: 0;
   padding: 0;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0.8;
+  border-top: 1px solid var(--line);
 }
 
-/* ---------- Labels input ---------- */
+.track-cycle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
 
-.track-label-input {
+.track-cycle.is-editing {
+  display: block;
+  padding: 12px 0 0;
+}
+
+.track-cycle-head {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
 }
 
-.track-label-input input {
+.track-cycle-name {
+  font-weight: 600;
+}
+
+/* Estado del ciclo en texto (sin etiquetas): el activo lleva la estación y peso. */
+.track-cycle-state {
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+}
+
+.track-cycle.is-active .track-cycle-state {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.track-cycle-station {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+}
+
+.track-cycle-dates {
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.track-cycle-progress {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* La barra es un tramo de la línea de Track. */
+.track-cycle-bar {
   flex: 1;
-  min-width: 80px;
-  border: none;
+  height: 4px;
+  background: var(--brand-enamel);
+  overflow: hidden;
+}
+
+.track-cycle-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.track-cycle-count {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-1);
+  white-space: nowrap;
+}
+
+.track-cycle-actions {
+  grid-row: 1;
+  grid-column: 2;
+  display: flex;
+  gap: 4px;
+}
+
+.track-cycle .track-cycle-confirm {
+  grid-column: 1 / -1;
+}
+
+/* Estados y labels: filas editables */
+.track-statuses > .ui-help {
+  margin-bottom: 16px;
+}
+
+.track-status-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.track-status-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-status-color {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--ui-field);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-status-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.track-status-color::-webkit-color-swatch {
+  border: 0;
+  border-radius: 0;
+}
+
+.app-frame .track-status-name {
+  flex: 1 1 160px;
+  width: auto;
+  min-height: 32px;
+}
+
+.app-frame .track-status-category {
+  flex: 0 0 140px;
+  width: 140px;
+  min-height: 32px;
+}
+
+.track-status-tools {
+  display: inline-flex;
+}
+
+/* Borrar un estado: gris en reposo, rojo solo al apuntar. */
+.track-status-remove {
+  color: var(--brand-gray-2);
+}
+
+.track-status-remove:hover:not(:disabled),
+.track-status-remove:focus-visible {
+  color: var(--bad-ink);
+}
+
+.track-status-delete {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  background: var(--bad-soft);
+  border-radius: var(--radius-1);
+}
+
+.track-status-reassign {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-frame .track-status-reassign .select {
+  width: auto;
+  min-height: 32px;
+}
+
+.track-status-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-frame .track-status-add .input {
+  flex: 1 1 180px;
+  width: auto;
+  min-height: 32px;
+}
+
+.app-frame .track-status-add .select {
+  flex: 0 0 140px;
+  width: 140px;
+  min-height: 32px;
+}
+
+.track-settings-count {
+  min-width: 64px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--brand-gray-2);
+}
+
+/* Triage */
+.track-triage-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.track-triage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.track-triage-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-triage-banner {
+  margin-top: 16px;
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  color: var(--warn-ink);
+  background: var(--warn-soft);
+  border: 0;
+  border-radius: var(--radius-1);
+}
+
+.track-triage-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.track-triage-title {
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-triage-title:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.track-triage-meta {
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-triage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.track-triage-accept-in {
+  font-size: 0.8125rem;
+  color: var(--brand-gray-1);
+}
+
+.app-frame .track-triage-actions .select {
+  width: auto;
+  min-height: 28px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.track-triage-dup {
+  flex-basis: 100%;
+  display: flex;
+  gap: 6px;
+}
+
+.app-frame .track-triage-dup .input {
+  max-width: 260px;
+  min-height: 28px;
+}
+
+/* ---------- Bandeja ---------- */
+
+.track-inbox-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.track-inbox-item {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto 110px;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-inbox-mark {
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 0;
+}
+
+.track-inbox-mark.is-read {
   background: transparent;
-  font-size: 14px;
+}
+
+.track-inbox-link {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  color: var(--brand-gray-1);
+  text-decoration: none;
+}
+
+.track-inbox-item.is-unread .track-inbox-link {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.track-inbox-link:hover .track-inbox-text {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.track-inbox-text {
+  overflow: hidden;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-inbox-project {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--brand-gray-2);
+}
+
+.track-inbox-time {
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+  white-space: nowrap;
+}
+
+.track-inbox-item > .btn {
+  justify-self: end;
+}
+
+/* ---------- Detalle del issue ----------
+   Mismo ancho que el resto de las páginas: el filete de 4px termina igual. */
+
+.track-detail-head {
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 4px solid var(--ink);
+}
+
+.track-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+}
+
+.track-breadcrumb a {
+  color: var(--brand-gray-1);
+  text-decoration: none;
+}
+
+.track-breadcrumb a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.track-breadcrumb-sep {
+  color: var(--brand-gray-3);
+}
+
+.track-breadcrumb-current {
+  color: var(--ink);
+}
+
+.track-detail-title {
+  margin-top: 8px;
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 2rem;
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+.track-detail-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 12px;
+}
+
+.track-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-1);
+}
+
+.track-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.track-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 40px;
+  align-items: start;
+}
+
+.track-detail-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.track-detail .track-detail-section {
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+}
+
+.track-detail .track-detail-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.track-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.track-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.track-detail-section > .track-section-title {
+  margin-bottom: 10px;
+}
+
+.track-description,
+.track-description-input {
+  display: block;
+  width: 100%;
+  max-width: 70ch;
+  margin: -6px -8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  text-align: left;
+  white-space: pre-wrap;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  box-sizing: content-box;
+}
+
+.track-description {
+  cursor: text;
+}
+
+.track-description:hover {
+  background: var(--brand-enamel);
+}
+
+.track-description.is-empty {
+  color: var(--brand-gray-2);
+}
+
+.track-description-input {
+  min-height: 96px;
+  resize: vertical;
+  border-color: var(--ink);
   outline: none;
 }
 
-.track-label-colors {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
+.track-description:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
 }
 
-.track-label-color {
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
+/* Agregar sub-issue, adjunto o relación: una sola fila en vez de secciones vacías. */
+.track-detail-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 8px -8px;
+}
+
+.track-detail-add .btn {
+  color: var(--brand-gray-1);
+}
+
+.track-detail-add .btn:hover {
+  color: var(--ink);
+}
+
+.track-detail .track-detail-section.track-detail-description {
+  padding: 6px 0 12px;
+  border-top: 0;
+}
+
+/* Título editable en línea: el mismo cartel, sin caja hasta que se enfoca. */
+.track-detail-title-input {
+  display: block;
+  width: 100%;
+  margin: 0 -8px;
+  padding: 2px 8px;
+  overflow: hidden;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  resize: none;
+  box-sizing: content-box;
+}
+
+.track-detail-title-input:hover {
+  background: var(--brand-enamel);
+}
+
+.track-detail-title-input:focus {
+  border-color: var(--ink);
+  outline: none;
+  background: var(--bg);
+}
+
+.app-frame .track-inline-trigger.track-detail-more {
+  justify-content: center;
+  width: 36px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ui-field);
+}
+
+.track-detail-side {
+  position: sticky;
+  top: calc(var(--band-h) + 24px);
+}
+
+.track-detail-props {
+  padding: 16px;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+
+.track-properties {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.track-property {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+}
+
+.track-property > label,
+.track-property-label {
+  color: var(--brand-gray-2);
+}
+
+.app-frame .track-property .select,
+.app-frame .track-property .input {
+  min-height: 32px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 0.8125rem;
+}
+
+.track-property-top {
+  align-items: start;
+}
+
+.track-property-top > .track-property-label {
+  padding-top: 7px;
+}
+
+.track-property-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-gray-2);
+}
+
+.app-frame .track-property-unit .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-property-date {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  padding-left: 6px;
+}
+
+.track-nowrap {
+  white-space: nowrap;
+}
+
+/* Sub-issues, adjuntos, relaciones */
+.track-subtask-list,
+.track-attachment-list,
+.track-relation-list,
+.track-gh-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.track-subtask,
+.track-attachment,
+.track-relation,
+.track-gh-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 4px 0;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-subtask > a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.track-subtask > a:hover .track-subtask-title {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.track-subtask-title {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-subtask-meta {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+}
+
+.track-attachment-upload {
+  position: relative;
+  display: inline-flex;
   cursor: pointer;
 }
 
-/* ---------- Board ---------- */
+.track-attachment-upload input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.track-attachment-upload:focus-within .btn {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.track-attachment-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-attachment-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.track-attachment-meta {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-relation-group + .track-relation-group {
+  margin-top: 12px;
+}
+
+.track-relation-heading {
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-gray-2);
+}
+
+.track-relation-type {
+  flex-shrink: 0;
+  min-width: 96px;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-relation a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-relation a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.track-relation-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  margin-top: 8px;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+
+.app-frame .track-relation-form .select {
+  flex: 0 0 160px;
+  width: 160px;
+}
+
+.app-frame .track-relation-form .input {
+  flex: 1 1 160px;
+  width: auto;
+}
+
+/* GitHub en el detalle */
+.track-gh-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: baseline;
+  padding: 8px 0;
+}
+
+.track-gh-kind {
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-gh-title {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-gh-state.is-merged {
+  color: var(--bg);
+  background: var(--ink);
+}
+
+.track-gh-repo {
+  grid-column: 2 / 4;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+/* Actividad: el hilo es un tramo de la línea de Track y cada evento, una estación. */
+.track-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.track-activity-composer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.track-activity-composer-input {
+  position: relative;
+  align-self: stretch;
+}
+
+.track-activity-list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-left: 28px;
+}
+
+.track-activity-list:has(> :nth-child(2))::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 4px;
+  background: var(--accent);
+}
+
+.track-activity-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.track-activity-item::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: -28px;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 3.5px solid var(--ink);
+  border-radius: 50%;
+}
+
+.track-activity-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+
+.track-activity-text {
+  line-height: 1.45;
+}
+
+.track-activity-comment {
+  display: block;
+  margin-top: 6px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+
+.track-activity-time {
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-activity-link {
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.track-avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--ui-hover);
+  border-radius: var(--radius-1);
+}
+
+.track-mention-dropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+}
+
+.track-mention-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-mention-option:hover,
+.track-mention-option.active {
+  background: var(--brand-enamel);
+}
+
+.track-mention-option span:last-child {
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-mention {
+  padding: 0 3px;
+  font-weight: 600;
+  background: var(--ui-hover);
+  border-radius: var(--radius-1);
+}
+
+/* ---------- Tablero ---------- */
 
 .track-board {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(264px, 1fr);
+  gap: 12px;
   align-items: start;
+  overflow-x: auto;
+  padding-bottom: 8px;
 }
 
 .track-board-column {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 6px;
-  background: #f7f7f7;
+  gap: 8px;
   min-height: 120px;
+  padding: 10px;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+  transition: background-color var(--ui-dur) var(--ease), box-shadow var(--ui-dur) var(--ease);
+}
+
+.track-board-column.is-drop-target {
+  background: var(--ui-hover);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .track-board-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
+  padding: 2px 2px 4px;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
+.track-board-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .track-board-count {
-  color: var(--dim);
-  font-family: var(--mono);
-  font-size: 12px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-2);
 }
 
 .track-board-cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .track-board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 12px;
+  border-radius: var(--radius-1);
+  transition: border-color var(--ui-dur) var(--ease), opacity var(--ui-dur) var(--ease);
+}
+
+.track-board-card.is-draggable {
+  cursor: grab;
+}
+
+.track-board-card.is-draggable:hover {
+  border-color: var(--ui-field);
+}
+
+.track-board-card.is-dragging {
+  opacity: 0.4;
+}
+
+.track-board-card.is-pending {
+  opacity: 0.55;
 }
 
 .track-board-card-link {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  text-decoration: none;
+  gap: 6px;
   color: var(--ink);
+  text-decoration: none;
 }
 
 .track-board-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+}
+
+.track-board-card-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.track-board-card-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .track-board-card-title {
-  margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.35;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+a.track-board-card-title:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.track-board-card.is-completed .track-board-card-title {
+  color: var(--brand-gray-2);
+  text-decoration: line-through;
 }
 
 .track-board-card-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--dim);
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-board-card-meta .track-inline-trigger {
+  min-height: 22px;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
 }
 
 .track-board-cycle,
 .track-board-due {
-  padding: 2px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-family: var(--mono);
-  font-size: 11px;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
 }
 
-.track-board-card-actions {
-  margin-top: 8px;
-}
-
-.track-board-card-actions select {
+.track-board-card-actions .select {
   width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 12px;
 }
 
 .track-board-empty {
-  margin: 0;
   padding: 16px 0;
+  font-size: 0.8125rem;
   text-align: center;
-  font-size: 13px;
-  color: var(--dim);
+  color: var(--brand-gray-2);
 }
 
-/* ---------- Calendar ---------- */
+/* ---------- Calendario ---------- */
 
-.track-calendar {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.track-calendar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.track-calendar-title {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.track-calendar-nav {
-  display: flex;
-  gap: 6px;
-}
-
-.track-calendar-nav button {
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.track-calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--line);
-}
-
-.track-calendar-weekday {
-  padding: 8px;
-  background: #fafafa;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--dim);
-}
-
-.track-calendar-day {
-  min-height: 100px;
-  padding: 8px;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.track-calendar-day.muted {
-  background: #fafafa;
-  color: var(--dim);
-}
-
-.track-calendar-day.today .track-calendar-day-number {
-  background: var(--accent, var(--ink));
-  color: #fff;
-}
-
-.track-calendar-day-number {
-  align-self: flex-start;
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-size: 12px;
-  font-family: var(--mono);
-}
-
-.track-calendar-day-issues {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.track-calendar-issue {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #fafafa;
-  font-size: 12px;
-  text-decoration: none;
-  color: var(--ink);
-  overflow: hidden;
-}
-
-.track-calendar-issue-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.track-calendar-more {
-  font-size: 11px;
-  color: var(--dim);
-}
-
-.track-calendar-unscheduled {
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fafafa;
-}
-
-.track-calendar-unscheduled-title {
-  margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.track-calendar-unscheduled-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.track-calendar-issue-assignee {
-  margin-left: auto;
-  color: var(--dim);
-  font-size: 11px;
-}
-
-/* ---------- Gantt ---------- */
-
+.track-calendar,
 .track-gantt {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+.track-calendar-header,
 .track-gantt-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
   flex-wrap: wrap;
+  gap: 12px;
 }
 
+.track-calendar-title,
 .track-gantt-title {
-  font-size: 16px;
+  font-family: var(--font-signage);
+  font-stretch: 75%;
+  font-weight: 800;
+  font-size: 1.375rem;
+  line-height: 1.1;
+}
+
+.track-calendar-title::first-letter {
+  text-transform: uppercase;
+}
+
+.track-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.track-calendar-weekday {
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-gray-2);
+  background: var(--bg);
+  border-bottom: 1px solid var(--ink);
+}
+
+.track-calendar-day {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: 104px;
+  padding: 6px;
+  background: var(--bg);
+}
+
+.track-calendar-day.muted {
+  background: var(--brand-enamel);
+}
+
+.track-calendar-day.muted .track-calendar-day-number {
+  color: var(--brand-gray-3);
+}
+
+.track-calendar-day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  width: 24px;
+  height: 24px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hoy es la estación activa: disco con el color de la línea y anillo de tinta. */
+.track-calendar-day.today .track-calendar-day-number {
+  font-weight: 700;
+  color: var(--accent-on);
+  background: var(--accent);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+}
+
+.track-calendar-day-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.track-calendar-issue,
+.track-gantt-issue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 6px;
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+
+.track-calendar-issue:hover,
+.track-gantt-issue:hover {
+  background: var(--ui-hover);
+}
+
+.track-calendar-issue-title,
+.track-gantt-issue-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-calendar-issue-assignee,
+.track-gantt-issue-assignee {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  color: var(--brand-gray-2);
+}
+
+.track-calendar-more {
+  font-size: 0.6875rem;
+  color: var(--brand-gray-2);
+}
+
+.track-calendar-unscheduled,
+.track-gantt-unscheduled {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.track-calendar-unscheduled-title,
+.track-gantt-unscheduled-title {
+  margin-bottom: 8px;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
-.track-gantt-nav {
+.track-calendar-unscheduled-list,
+.track-gantt-unscheduled-list {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
-.track-gantt-nav button {
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 13px;
-  cursor: pointer;
-}
+/* ---------- Cronograma ---------- */
 
 .track-gantt-body {
   display: flex;
-  border: 1px solid var(--line);
-  border-radius: 12px;
   overflow: hidden;
   background: var(--bg);
+  border: 1px solid var(--line);
 }
 
 .track-gantt-side {
   flex: 0 0 260px;
-  border-right: 1px solid var(--line);
   min-width: 0;
+  border-right: 1px solid var(--line);
 }
 
 .track-gantt-side-head {
   height: 40px;
-  background: #fafafa;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--ink);
 }
 
 .track-gantt-side-row {
-  height: 36px;
   display: flex;
   align-items: center;
   gap: 6px;
+  height: 36px;
   padding: 0 10px;
-  font-size: 12px;
-  white-space: nowrap;
   overflow: hidden;
+  font-size: 0.8125rem;
+  white-space: nowrap;
 }
 
 .track-gantt-side-row ~ .track-gantt-side-row {
@@ -997,9 +1839,9 @@
 
 .track-gantt-indent {
   flex: none;
-  color: var(--dim);
-  font-size: 10px;
+  font-size: 0.6875rem;
   text-align: right;
+  color: var(--brand-gray-3);
 }
 
 .track-gantt-side-title {
@@ -1010,8 +1852,8 @@
 
 .track-gantt-scroll {
   flex: 1;
-  overflow-x: auto;
   min-width: 0;
+  overflow-x: auto;
 }
 
 .track-gantt-canvas {
@@ -1023,48 +1865,43 @@
   position: relative;
   z-index: 1;
   height: 22px;
-  background: #fafafa;
 }
 
 .track-gantt-month {
   position: absolute;
   top: 0;
-  height: 100%;
-  box-sizing: border-box;
   display: flex;
   align-items: center;
+  box-sizing: border-box;
+  height: 100%;
   padding: 0 8px;
-  border-left: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--dim);
-  white-space: nowrap;
   overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-gray-1);
+  white-space: nowrap;
+  border-left: 1px solid var(--line);
 }
 
 .track-gantt-weekrow {
   position: relative;
   z-index: 1;
   height: 18px;
-  background: #fafafa;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--ink);
 }
 
 .track-gantt-week {
   position: absolute;
   top: 0;
-  height: 100%;
-  box-sizing: border-box;
   display: flex;
   align-items: center;
+  box-sizing: border-box;
+  height: 100%;
   padding-left: 4px;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-2);
   border-left: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--dim);
 }
 
 .track-gantt-row {
@@ -1079,35 +1916,35 @@
 .track-gantt-bar {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
-  height: 16px;
-  min-width: 6px;
-  border-radius: 999px;
-  background: var(--accent, var(--ink));
   z-index: 2;
+  min-width: 6px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: var(--radius-1);
+  transform: translateY(-50%);
   cursor: grab;
   touch-action: none;
   user-select: none;
-  transition: opacity 120ms ease;
+  transition: opacity 120ms var(--ease);
 }
 
 .track-gantt-bar:hover {
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 .track-gantt-bar.dragging {
+  z-index: 3;
   cursor: grabbing;
   opacity: 0.9;
-  z-index: 3;
 }
 
 .track-gantt-handle {
   position: absolute;
-  top: -4px;
-  bottom: -4px;
+  top: -6px;
+  bottom: -6px;
+  z-index: 3;
   width: 10px;
   cursor: ew-resize;
-  z-index: 3;
 }
 
 .track-gantt-handle-start {
@@ -1121,33 +1958,31 @@
 .track-gantt-handle::after {
   content: '';
   position: absolute;
-  top: 5px;
-  bottom: 5px;
+  top: 6px;
+  bottom: 6px;
   left: 50%;
-  width: 3px;
-  transform: translateX(-50%);
-  border-radius: 2px;
+  width: 2px;
   background: transparent;
+  transform: translateX(-50%);
 }
 
 .track-gantt-bar:hover .track-gantt-handle::after,
 .track-gantt-bar.dragging .track-gantt-handle::after {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--ink);
 }
 
 .track-gantt-dragtip {
   position: absolute;
   top: -4px;
-  transform: translateY(-100%);
-  padding: 2px 6px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--bg);
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--ink);
-  white-space: nowrap;
   z-index: 4;
+  padding: 2px 6px;
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  color: var(--bg);
+  white-space: nowrap;
+  background: var(--ink);
+  border-radius: var(--radius-1);
+  transform: translateY(-100%);
   pointer-events: none;
 }
 
@@ -1155,9 +1990,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
+  z-index: 0;
   width: 1px;
   background: var(--line);
-  z-index: 0;
   pointer-events: none;
 }
 
@@ -1165,58 +2000,178 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 1px;
-  background: var(--accent, var(--ink));
   z-index: 1;
+  width: 2px;
+  background: var(--ink);
   pointer-events: none;
 }
 
-.track-gantt-unscheduled {
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fafafa;
+/* ---------- Ajustes de Track ---------- */
+
+.track-settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.track-gantt-unscheduled-title {
-  margin: 0 0 10px;
-  font-size: 13px;
+.track-settings-note {
+  color: var(--warn-ink);
+}
+
+.track-color-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.track-color-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgb(17 17 17 / 0.15);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-color-swatch.is-active {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.track-github-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.track-copy-value {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  background: var(--brand-enamel);
+}
+
+.ui-input-group > .track-copy-btn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: -1px;
+}
+
+.ui-input-group > .track-copy-value {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.track-icon-input {
+  max-width: 120px;
+}
+
+/* ---------- Resumen ---------- */
+
+.track-overview-cycle {
+  display: grid;
+  grid-template-columns: minmax(80px, max-content) minmax(80px, 200px) max-content;
+  align-items: center;
+  gap: 12px;
+}
+
+.track-overview-cycle-name {
   font-weight: 600;
 }
 
-.track-gantt-unscheduled-list {
+.track-overview-cycle .track-cycle-bar {
+  display: block;
+}
+
+.track-overview-cycle-meta {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-2);
+}
+
+.track-overview-alert {
+  font-weight: 700;
+  color: var(--bad-ink);
+}
+
+/* ---------- Hoja de filtros (pantallas chicas) ---------- */
+
+.track-filter-sheet-head,
+.track-filter-sheet-btn,
+.track-filter-backdrop,
+.track-calendar-day-pick,
+.track-calendar-agenda {
+  display: none;
+}
+
+.track-filter-sheet-views {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-}
-
-.track-gantt-issue {
-  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg);
-  font-size: 12px;
-  text-decoration: none;
-  color: var(--ink);
-  overflow: hidden;
+  gap: 4px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
 }
 
-.track-gantt-issue-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.track-gantt-issue-assignee {
-  margin-left: auto;
-  color: var(--dim);
-  font-size: 11px;
-}
+/* ---------- Mobile ---------- */
 
 @media (max-width: 767px) {
+  .track-table .hide-sm {
+    display: none;
+  }
+
+  .track-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .track-detail-side {
+    position: static;
+    order: -1;
+  }
+
+  .track-detail-title {
+    font-size: 1.625rem;
+  }
+
+  .track-filter-search {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .track-search {
+    flex: 1;
+  }
+
+  .app-frame .track-search .input {
+    width: 100%;
+  }
+
+  .track-search-kbd {
+    display: none;
+  }
+
+  .track-inbox-item {
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+  }
+
+  .track-inbox-item > .btn,
+  .track-inbox-spacer {
+    display: none;
+  }
+
+  .track-inbox-project {
+    display: none;
+  }
+
   .track-gantt-side {
     flex-basis: 170px;
   }
@@ -1224,695 +2179,223 @@
   .track-gantt-canvas {
     min-width: 560px;
   }
-}
 
-/* ---------- Saved views ---------- */
-
-.track-saved-views {
-  position: relative;
-}
-
-.track-saved-views-toggle {
-  padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.track-saved-views-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 10;
-  min-width: 220px;
-  max-height: 320px;
-  overflow: auto;
-  padding: 6px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.track-saved-view {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 4px;
-  border-radius: 6px;
-}
-
-.track-saved-view:hover {
-  background: #f5f5f5;
-}
-
-.track-saved-view.active {
-  background: #f0f0f0;
-}
-
-.track-saved-view-name {
-  flex: 1;
-  text-align: left;
-  border: none;
-  background: transparent;
-  color: var(--ink);
-  font-size: 13px;
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.track-saved-view-default {
-  margin-left: 6px;
-  padding: 1px 5px;
-  border-radius: 10px;
-  background: var(--accent, var(--ink));
-  color: #fff;
-  font-size: 10px;
-}
-
-.track-saved-view-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.track-saved-view-actions button {
-  padding: 2px 5px;
-  border: none;
-  background: transparent;
-  color: var(--dim);
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.track-saved-view-actions button:hover {
-  color: var(--ink);
-}
-
-.track-saved-views-empty {
-  margin: 0;
-  padding: 8px;
-  font-size: 13px;
-  color: var(--dim);
-}
-
-/* ---------- Dialog ---------- */
-
-.track-dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.35);
-}
-
-.track-dialog {
-  width: 100%;
-  max-width: 400px;
-  padding: 20px;
-  border-radius: 6px;
-  background: var(--bg);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-}
-
-.track-dialog h3 {
-  margin: 0 0 16px;
-  font-size: 16px;
-}
-
-/* ---------- Avatar ---------- */
-
-.track-avatar {
-  width: 22px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--line);
-  color: var(--ink);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-/* ---------- Property panel edits ---------- */
-
-.track-property select,
-.track-property input[type="date"],
-.track-property input[type="number"] {
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 13px;
-  min-width: 120px;
-}
-
-.track-property-stack {
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 8px;
-}
-
-@media (max-width: 767px) {
-  .track-detail-grid {
-    grid-template-columns: 1fr;
+  .track-calendar-day {
+    min-height: 64px;
   }
 
-  .track-table th,
-  .track-table td {
-    padding: 8px 10px;
-  }
-
-  .track-table .hide-sm {
+  .track-calendar-issue-assignee {
     display: none;
   }
 
-  .track-board {
+  .track-subtask-meta > :not(.track-badge) {
+    display: none;
+  }
+
+  .track-cycle {
     grid-template-columns: 1fr;
   }
 
-  .track-filter-bar {
+  .track-cycle-actions {
+    grid-row: auto;
+    grid-column: 1;
+  }
+}
+
+/* ---------- Pantallas chicas (< 600px) ---------- */
+
+@media (max-width: 599px) {
+  .track-toolbar .track-saved-views,
+  .track-filter-save,
+  .track-filter-group {
+    display: none;
+  }
+
+  .track-filters {
+    flex-wrap: nowrap;
+  }
+
+  .track-filter-sheet-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+  }
+
+  .track-filters.is-sheet-open .track-filter-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: block;
+    background: rgb(17 17 17 / 0.4);
+  }
+
+  .track-filters.is-sheet-open .track-filter-group {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 121;
+    display: flex;
     flex-direction: column;
     align-items: stretch;
+    gap: 2px;
+    max-height: 80vh;
+    overflow: auto;
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+    background: var(--bg);
+    border-top: 4px solid var(--ink);
+  }
+
+  .track-filters.is-sheet-open .track-filter-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .track-filter-sheet-title {
+    font-family: var(--font-signage);
+    font-stretch: 75%;
+    font-weight: 800;
+    font-size: 1.25rem;
+  }
+
+  .track-filters.is-sheet-open .track-filter-toggle {
+    justify-content: space-between;
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .track-filters.is-sheet-open .track-filter-menu {
+    position: static;
+    max-height: none;
+    border: 0;
+    padding: 0 0 8px 8px;
+  }
+
+  .track-filters.is-sheet-open .track-saved-views-menu {
+    position: static;
+    margin-top: 4px;
+  }
+
+  .track-filter-sheet-views .track-saved-views {
+    flex-basis: 100%;
+  }
+
+  /* Calendario: un número por día y la lista del día elegido abajo. */
+  .track-calendar-day > .track-calendar-day-number,
+  .track-calendar-day-issues {
+    display: none;
   }
 
   .track-calendar-day {
-    min-height: 70px;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .track-calendar-weekday {
+    padding: 6px 2px;
+    text-align: center;
+  }
+
+  .track-calendar-day-pick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+    min-height: 52px;
+    padding: 4px 0;
+    font: inherit;
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .track-calendar-day-pick .track-calendar-day-number {
+    align-self: center;
+  }
+
+  .track-calendar-day.is-selected .track-calendar-day-pick {
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+
+  .track-calendar-day-count {
+    min-width: 18px;
+    padding: 0 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 16px;
+    text-align: center;
+    color: var(--bg);
+    background: var(--ink);
+    border-radius: var(--radius-1);
+  }
+
+  .track-calendar-agenda {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .track-calendar-agenda-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+
+  .track-calendar-agenda-title::first-letter {
+    text-transform: uppercase;
+  }
+
+  .track-calendar-agenda-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+  }
+
+  .track-calendar-agenda-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    min-width: 0;
+    font-size: 0.875rem;
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Proyectos y Resumen: sin descripción ni columnas secundarias. */
+  .track-projects th:nth-child(2),
+  .track-projects td:nth-child(2),
+  .track-overview th:nth-child(5),
+  .track-overview td:nth-child(5) {
+    display: none;
+  }
+
+  .track-overview-cycle {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .track-search .track-search-kbd {
+    display: none;
   }
 }
 
-/* ---------- Breadcrumb ---------- */
-
-.track-breadcrumb {
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--dim);
-  flex-wrap: wrap;
-}
-
-.track-breadcrumb a {
-  color: var(--dim);
-  text-decoration: none;
-}
-
-.track-breadcrumb a:hover {
-  color: var(--ink);
-  text-decoration: underline;
-}
-
-.track-breadcrumb-sep {
-  color: var(--line);
-}
-
-.track-breadcrumb-current {
-  color: var(--ink);
-  font-weight: 500;
-}
-
-/* ---------- Detail actions ---------- */
-
-.track-detail-actions {
-  margin-top: 12px;
-  display: flex;
-  gap: 10px;
-}
-
-.track-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.track-section-header .section-label {
-  margin: 0;
-}
-
-/* ---------- Subtasks ---------- */
-
-.track-subtask-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.track-subtask {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.track-subtask a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--ink);
-  text-decoration: none;
-  min-width: 0;
-}
-
-.track-subtask-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-.track-subtask-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--dim);
-  flex-shrink: 0;
-}
-
-.track-subtask-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: 8px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--dim);
-}
-
-/* ---------- Attachments ---------- */
-
-.track-attachment-upload {
-  display: inline-flex;
-  cursor: pointer;
-  margin-bottom: 12px;
-}
-
-.track-attachment-upload input[type="file"] {
-  position: absolute;
-  opacity: 0;
-  width: 1px;
-  height: 1px;
-}
-
-.track-attachment-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.track-attachment {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.track-attachment-name {
-  color: var(--ink);
-  text-decoration: none;
-  font-weight: 500;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.track-attachment-name:hover {
-  text-decoration: underline;
-}
-
-.track-attachment-meta {
-  color: var(--dim);
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.track-attachment-delete {
-  padding: 4px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--dim);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.track-attachment-delete:hover {
-  color: var(--ink);
-  border-color: var(--ink);
-}
-
-/* ---------- Relations ---------- */
-
-.track-relation-group {
-  margin-bottom: 14px;
-}
-
-.track-relation-heading {
-  margin: 0 0 8px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--dim);
-}
-
-.track-relation-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.track-relation {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.track-relation-type {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--dim);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
-}
-
-.track-relation a {
-  color: var(--ink);
-  text-decoration: none;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.track-relation a:hover {
-  text-decoration: underline;
-}
-
-.track-relation-delete {
-  padding: 2px 6px;
-  border: none;
-  background: transparent;
-  color: var(--dim);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.track-relation-delete:hover {
-  color: var(--ink);
-}
-
-.track-relation-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.track-relation-form input,
-.track-relation-form select {
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 13px;
-}
-
-/* ---------- Activity timeline ---------- */
-
-.track-activity {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.track-activity-composer {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.track-activity-composer textarea {
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 14px;
-  resize: vertical;
-  min-height: 80px;
-}
-
-.track-activity-composer textarea:focus {
-  outline: none;
-  border-color: var(--ink);
-}
-
-.track-activity-list {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-left: 14px;
-}
-
-.track-activity-list::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 4px;
-  bottom: 4px;
-  width: 1px;
-  background: var(--line);
-}
-
-.track-activity-item {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.track-activity-item::before {
-  content: '';
-  position: absolute;
-  left: -12px;
-  top: 8px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent, var(--ink));
-  border: 2px solid var(--bg);
-}
-
-.track-activity-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 13px;
-}
-
-.track-activity-text {
-  color: var(--ink);
-  line-height: 1.4;
-}
-
-.track-activity-comment {
-  display: block;
-  margin-top: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fafafa;
-  color: var(--ink);
-  font-style: italic;
-}
-
-.track-activity-time {
-  color: var(--dim);
-  font-size: 11px;
-  font-family: var(--mono);
-}
-
-.track-activity-link {
-  color: var(--ink);
-  text-decoration: underline;
-  font-weight: 500;
-}
-
-/* ---------- Inbox ---------- */
-
-.track-inbox-tabs {
-  display: flex;
-  gap: 8px;
-}
-
-.track-inbox-tab {
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--dim);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.track-inbox-tab:hover {
-  color: var(--ink);
-}
-
-.track-inbox-tab.active {
-  border-color: var(--line);
-  color: var(--ink);
-}
-
-.track-inbox-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.track-inbox-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  text-decoration: none;
-  color: var(--ink);
-}
-
-.track-inbox-item:hover {
-  border-color: var(--ink);
-}
-
-.track-inbox-item.unread {
-  background: #fafafa;
-}
-
-.track-inbox-item-main {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.track-inbox-item-text {
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.track-inbox-item-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--dim);
-}
-
-.track-inbox-item-actions button {
-  padding: 4px 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--dim);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.track-inbox-item-actions button:hover {
-  border-color: var(--ink);
-  color: var(--ink);
-}
-
-/* ---------- Mentions ---------- */
-
-.track-activity-composer-input {
-  position: relative;
-}
-
-.track-mention-dropdown {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  max-height: 200px;
-  overflow-y: auto;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  z-index: 10;
-}
-
-.track-mention-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  background: transparent;
-  color: var(--ink);
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.track-mention-option:hover,
-.track-mention-option.active {
-  background: #f5f5f5;
-}
-
-.track-mention-option span:last-child {
-  color: var(--dim);
-  font-size: 11px;
-}
-
-.track-mention {
-  font-weight: 600;
-  color: var(--ink);
-  background: #f0f0f0;
-  padding: 0 3px;
-  border-radius: 4px;
+@media (prefers-reduced-motion: reduce) {
+  .track-board-column,
+  .track-board-card,
+  .track-gantt-bar {
+    transition: none;
+  }
 }

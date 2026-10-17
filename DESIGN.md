@@ -83,6 +83,7 @@ typography:
     fontFeature: "\"zero\" 1, \"tnum\" 1"
 rounded:
   square: "0px"
+  control: "2px"
 spacing:
   s-1: "4px"
   s-2: "8px"
@@ -147,7 +148,7 @@ zerosoft is drawn as a transit network. Each of the eleven apps is a line with i
 
 The system is flat and literal. Depth comes from the contrast between the enamel field and the black band, never from shadows. Color is wayfinding: a line color tells you which app you are on, and nothing else in the interface competes with it. Type is one family, Archivo, used at two widths: condensed (wdth 75, weight 800) for signage and headings, normal width for reading and UI. JetBrains Mono appears only where the content is data.
 
-**Scope of application.** The full world is built on the brand guidelines page (`/[locale]/brand`, branding.zerosoft.ai). The rest of the marketing site and the apps carry only the minimal application: the new wordmark and station symbol (header, footer, app topbar, OG images, kit), Archivo and JetBrains Mono as the global `--sans`/`--mono`, the signage display face on the landing hero headline (`.lp-h1`), square Archivo hero CTAs, and the home particle field redrawn as station rings. Their full redesign is a later round. The app-sidebar pattern in the direction (the sidebar as the product's line, nav items as stations, the active station filled with the line color) is **not built yet**; do not treat it as an existing component.
+**Scope of application.** The full world is built on the brand guidelines page (`/[locale]/brand`, branding.zerosoft.ai) and on the public site (home, /products, product pages, tools, blog, API docs, changelog, status, legal and the feedback board; see Components: Site). The station-ring particle field (`ZeroField`) survives only on the sign-in, gate and error pages. The app shell is built on the same world (see Components: App shell): a black signage band on top, the sidebar drawn as the product's line with nav items as stations, and a shared control set in `styles/ui.css`. Product screens inside the shell move to it product by product.
 
 **Key Characteristics:**
 - White enamel field, #111 signage band for chrome and section headers.
@@ -236,11 +237,11 @@ Square. Every container, plate, button, band, swatch and focus outline has a 0 r
 ## Components
 
 ### Buttons
-Signage-plate buttons: solid, square, inverted on hover.
-- **Shape:** square (0), 2px border in the fill color, minimum height 44px (40px under 900px).
-- **Primary:** signage ink fill, white Archivo 600 15px, 10px 20px padding.
-- **Hover / Focus:** fill and text swap (ink to white) over 0.2s on the expo-out curve; focus is a 3px ink outline offset 3px, white on the black band.
-- **On-band / Outline:** on the black band the main action is a white plate ("Descargar kit"); a transparent white-bordered variant exists for secondary actions on ink.
+`.btn` in `styles/ui.css`, one component for site and app. Archivo 600, sentence case, no tracking, 2px corners, 1px border.
+- **Variants:** `.btn-primary` (alias `.btn-solid`): ink plate, white text, one per view. `.btn-secondary` (plain `.btn`, alias `.btn-outline`): white with a 3.2:1 field border. `.btn-ghost`: text only, enamel fill on hover, for tertiary actions. `.btn-danger`: red text; `.btn-primary.btn-danger` is the red plate. `.btn-invert` and `.btn-invert-solid` sit on the black band.
+- **Sizes:** default 40px on the site, 36px inside `.app-frame`; `.btn-sm` (alias `.btn-small`) 32px / 28px in the app; `.btn-lg` 48px. `.btn-icon` is square; `.btn-block` fills the row.
+- **States:** hover inverts the primary plate (white with an ink border and ink text; the red plate darkens) and lifts the secondary to enamel with an ink border; press scales to 0.98; focus is a 2px ink outline offset 2px (white on the band); disabled is 40% opacity with `not-allowed`; loading is `aria-busy="true"`: the label stays, clicks stop, and a 2px line draws along the bottom edge (static under reduced motion).
+- **Copy:** a verb and an object ("Crear link", "Guardar cambios"), never "OK" or "Enviar" alone.
 
 ### Signage Band (navigation)
 The site chrome on the brand page: a sticky 74px #111 band, wordmark left, Archivo 600 15px links with a 2px underline that appears on hover, one white action pushed to the right. Under 900px the links are hidden and the band is 64px.
@@ -259,6 +260,89 @@ Square enamel panels (240px tall for logo plates, 200px for stations, 160px for 
 
 ### Tables
 Full-width, rules only: 1px rule dividers, 16px cell padding, 13px gray-2 heads, no fills or zebra striping. HEX values are copy buttons: mono data with an underline on hover and a copied confirmation in the Cal ink.
+
+### App shell
+`app/[locale]/app/layout.tsx` + `components/app/AppSidebar.tsx` + `styles/app.css`.
+- **Signage band** (`.app-band`, 48px, #111, sticky): white station home link to `/app`, the line switcher (the current product's `LineGlyph` on its line plus the name in Sign type), the current section after a slash (`AppTopbar`, on-ink-2), search with `⌘K`, notifications. Under 1024px a menu button opens the drawer and the section and search label hide.
+- **The sidebar is the product's line** (`.side`, 240px, enamel plane): a 6px vertical stroke in `--accent` runs through every nav item; each item (`.side-stop`) is a station (`.side-station`, 16px white disc with a 3.5px ink ring). The active item has `aria-current="page"`, its station filled with the line color and a white row. Section names sit beside the line in 12px gray-2. Counts are ink plates in mono.
+- **Switcher:** a menu (`role="menu"`, arrow keys, Home/End, Esc returns focus) listing the eleven lines as glyphs; the current one carries `aria-current` and a small ink square.
+- **Collapsed** (≥1024px, `.sidebar-collapsed`, 56px, remembered in localStorage `zs-side-collapsed`): only the stations, labels kept for screen readers, tooltips by `title`.
+- **Mobile drawer** (<1024px): slides from the left under the band, backdrop at 48% ink, Esc closes and returns focus to the menu button, hidden content is not focusable.
+- **Color:** AppSidebar injects `--accent` (line), `--accent-ink` (text) and `--accent-on` (text on a line fill) on `.app-frame`. Use the line for wayfinding only (active station, active tab bar, charts); actions stay ink.
+- **Heights:** `--band-h` (48px) is the only chrome above content; full-height views use `calc(100dvh - var(--band-h))`.
+
+### UI kit (`styles/ui.css`)
+Loaded site-wide after `globals.css`. Product screens use these classes instead of their own versions.
+- **Fields:** `.input`, `.select`, `.textarea` (40px site, 36px app; 1px `--ui-field` border at 3.2:1; focus thickens the border to 2px ink inside; `aria-invalid="true"` turns it red; disabled is enamel). `.label` (13px 600, sentence case), `.ui-field` wraps label + control + `.ui-help` / `.ui-error`; `.ui-fields` and `.ui-fields-2` lay out groups; `.ui-input-group` + `.ui-addon` for prefixes like a domain.
+- **Checkbox and switch:** `<label class="ui-check"><input type="checkbox">` is a 16px square, ink when checked (supports indeterminate). `<label class="ui-switch"><input type="checkbox" role="switch">` is a straight 32×18 rail with a square plate; ink when on. Radios stay native with ink `accent-color`: a radio is already a station.
+- **Badges:** `.badge` is a 22px straight plate in Archivo 12px 600, enamel by default; `.badge-ok`, `-warn`, `-bad`, `-info`, `-ink`, `-outline`. Never a pill, never uppercase. `.kbd` for shortcuts.
+- **Dense tables:** `.table` (inside `.table-wrap`): 32px header with a 1px ink rule, 36px rows with 1px rules, tabular numerals, enamel on hover, `aria-selected` rows in hover gray. `.num` right-aligns numbers; `.data` sets values in mono; `.table-compact` (32px rows); `.table-sticky` header; `.cell-link` for the row's primary link.
+- **Tabs:** `.ui-tabs` with `.ui-tab` (links with `aria-current="page"` or `role="tab"` buttons with `aria-selected`). The active tab carries a 4px bar in the line color under ink text.
+- **Modal and drawer:** native `<dialog class="ui-modal">` / `<dialog class="ui-drawer">` opened with `showModal()` (focus trap and Esc for free). 1px ink border, 48% ink backdrop, no shadow. Parts: `-head`, `-title` (signage 22px), `-body`, `-foot` (enamel, actions right, `.ui-foot-note` left). `.ui-modal-wide` for 760px. Prefer inline or a drawer before a modal.
+- **Toasts:** `.ui-toasts` (fixed bottom right, `role="status"`) holding `.ui-toast` plates: ink with white text, `data-tone="error"` in red, optional `.ui-toast-action`.
+- **Empty and loading:** `.ui-empty` (see EmptyState). `.ui-skeleton` plates in enamel that breathe to hover gray (`-text`, `-title`, `-row`, `-block`); no shimmer gradient, static under reduced motion. Skeletons, not spinners, inside content.
+- **Page:** `.ui-page` (24px rhythm), `.ui-page-header` (title in signage 32px, 4px ink rule below), `.ui-section` (form section with enamel footer), `.ui-disclosure` (Avanzado), `.ui-settings` (secondary settings nav).
+- **Tokens added in `globals.css`:** `--ui-hover`, `--ui-press`, `--ui-field`, `--ui-backdrop`, `--ui-dur` (160ms), semantic `--ok`/`--warn`/`--bad` each with `-ink` (text, AA) and `-soft` (background). Old names (`--dim`, `--line`, `--ink-2`, `--subtle`, `--r-*`) are aliases of the brand tokens; `--r-*` are all 2px.
+
+### React components (`components/ui/`)
+- **`PageHeader`** `{ title, description?, actions?, back? }`: the top of every app page. One `.btn-primary` in `actions`.
+- **`EmptyState`** `{ title, body?, action?, secondary?, product?, quiet? }`: a stretch of the line with its station, what goes here, one primary action (`{ label, href }` or your own button) and a shortcut or import in `secondary`. `quiet` drops the border inside panels.
+- **`FormSection`** `{ title, description?, onSubmit?, submitLabel?, note?, footer?, tone? }`: a settings block with its own Guardar. With `onSubmit(formData)` it renders a `<form>` and handles saving, saved and error states (return a string or `{ error }` to show it). `tone="danger"` for destructive blocks.
+- **`AdvancedSection`** `{ storageKey, label?, hint?, defaultOpen? }`: the "Avanzado" disclosure (button with `aria-expanded` + region). Remembers open or closed per `storageKey` in localStorage, wrapped in try/catch.
+- **`SettingsTabs`** `{ items, mode: 'route' | 'query', param?, layout: 'side' | 'top' }`: settings navigation. `side` is a secondary nav on the left that becomes scrolling tabs under 900px; `top` uses `.ui-tabs`. Route mode activates the longest matching `href` (an item's `match` adds more prefixes, e.g. Admin covers feedback, roadmap and changelog); query mode writes `?tab=<key>` and defaults to the first item.
+- **`DataTable`** `{ columns, rows, rowKey, rowHref?, caption?, empty?, compact?, sticky? }`: a dense `.table` for server or client components. Columns declare `numeric` or `data`; `rowHref` links the first cell. Sorting and paging stay in the page.
+
+### Site (`components/site`, `styles/site.css`, `styles/pages.css`)
+Persuade and Read surfaces carry the world in full; the reading column stays calm.
+- **Signage band** (`.site-header`, 64px `--site-band-h`, sticky, #111): white wordmark, Archivo 600 links with a 2px underline on hover and on the current section (`aria-current="page"`), locale plates, one white action (`.btn-invert-solid`). The products menu is a white panel with a 1px ink border listing the eleven lines as `LineGlyph`. Under 1024px a drawn menu icon opens the panel.
+- **First viewport** (`.lp-hero`, `.pd-hero`): 2:3 split, display headline left, the live `NetworkMap` right (`SiteNetworkMap`, every line and station links to its product page), closed by a 4px ink rule. A product page passes `focus` so its line stays lit and the caption says what it connects. Under 900px the map goes below the copy.
+- **Section sign** (`SectionSign`): every section opens with a full-width 104px black band, a station and the Headline; the second clause sits in on-ink-2 after it. On a product page the station is the product's `LineGlyph`.
+- **The product's line as index** (`ProductLineNav`, `.pline`): sticky under the band, a 6px stroke in the product color with one station per section; the current one is filled with the line color and carries `aria-current="location"`. It scrolls sideways on phones and follows the reading position.
+- **Pricing** (`CloudPricing`, data in `lib/pricing.ts`): the three ways (self-host, Cloud, Enterprise) as rows with the price in signage, then the usage table with "Nuestro costo" and "Tu precio (× 3)" side by side in mono, plus seats, AI (× 1.2), the paid minimum and the date the costs were measured. On the home, /products and every product page.
+- **The math** (`.stack`): list prices as a `.table` with the bars drawn as 8px round-capped strokes in each line color, next to an ink plate with "$0". On product pages the rival's price sits next to the ink plate with a 16px stretch of the product's line through a station.
+- **Steps** (`.pd-steps`): three stations on a 6px stretch of the product's line, horizontal on desktop, vertical on phones.
+- **Closing band** (`.lp-end`): black, display headline, white actions and the eleven lines as `EndLines` (the current product marked).
+- **Reading pages** (`.read-hero`, `.read-title`, `.prose`): signage title, lead intro, 4px ink rule, a 68ch column. Legal pages share `LegalPage` with the index on an enamel plate. Blog covers (`lib/blog-cover.ts`) are a stretch of a line on the ink band, deterministic per slug, also used for the OG image.
+- **Changelog** (`ChangelogList`): a 6px ink line with one station per release, the day in signage, product filters as `.ui-tabs` (bar in the line color) and each change marked with its `LineGlyph` (`ProductMark` draws a plain station for platform and site).
+- **Feedback board** (`BoardChrome`, `styles/board-public.css`): the same black band with the wordmark (the station alone under 520px) and "feedback" in signage; signage titles, square avatars, product marks as line glyphs and the idea history as a small line with stations.
+- **Contrast:** inside site pages Link's accent is its ink (#2c66f8), because white on #2f6bff is 4.49:1.
+
+### App home (`/app`)
+The network map is the workspace launcher: `NetworkMap` with `hrefs` pointing each line and station into its app (no draw-in animation inside the app), next to the eleven lines as a list (glyph, name, one line). Link's numbers follow, since `/app` is also Link's overview.
+
+### Link (`/app/links`)
+- **Signature:** `LinkRoute` draws each link as a stretch of the Link line: the short URL and the destination are stations joined by a 6px stroke in `--accent`; with routing rules the destination becomes an interchange and the extra destinations are counted.
+- **Detail** is one header plus five tabs (`?tab=`: Resumen, Analytics, QR, Ruteo, Ajustes; `?edit=1` redirects to Ajustes). Numbers sit in a ruled strip (`.lk-stats`), never in cards. Charts and breakdown bars use the line color; the last point of a chart is a station.
+- **Create** has one entry, "Nuevo", with route tabs Un link / En lote / Importar. The basic path is URL + optional slug; everything else is in `AdvancedSection`. Custom domains have their own page at `/app/links/domains`.
+
+### CRM records (`styles/crm-records.css`)
+Contact, company and deal details share one shape: `PageHeader` (back link, name, badges and meta as the description, actions), tags, then `RecordTabs` (`?tab=activity|properties|related`, only the active tab is rendered). Activity is the timeline plus a sticky summary rail (key facts, first five related records). Duplicates, history and delete live in `RecordMoreMenu` ("More"), which opens a drawer, or a modal for delete. A deal's stages are its line: stations on a 6px stroke, done and current segments in the CRM color, the current station filled. Associated records are rows (`.assoc-row`), not pills. Create forms use `FormSection` with the basics visible and the rest behind `AdvancedSection` ("More fields"). Lists use dense one-line tables (36px rows, ellipsis), `CrmPager` and `EmptyState`; every CRM list route has `loading.tsx` (skeleton) and `error.tsx` (retry).
+
+### Step line (CRM workflows and sequences)
+`.crm-line` in `styles/crm.css`: an ordered list drawn as the product's line. Each step (`.crm-stop`) sits on a 4px `--accent` stroke with a station (`.crm-station`, 24px white disc, 3.5px ink ring, the step number in data type). The trigger of a workflow is the filled station; wait steps and the "add" row use a small gray station. The new-workflow wizard uses the same move for its three steps (`.wf-steps`): stations joined by a 4px rule that turns into the line color once a step is done. Editors on this line end in one sticky `.crm-savebar` with the only primary button.
+
+### CRM settings and builders
+CRM settings are `SettingsTabs` in query mode (`?tab=team|sales|data|automation|integrations|import`); each tab loads only its data and each block is a `FormSection`. Old anchors (`#quotas`) redirect to their tab. The form builder splits into four `role="tab"` panels inside one `<form>` (one Save); slug, consent, dedupe and spam live in `AdvancedSection`. Quote sender and recipient collapse to a one-line summary; a sequence's schedule collapses to "Mon to Fri, 09:00 to 17:00 (tz)".
+
+### Cal (`/app/calendar`, `/book`, `/r`)
+`styles/calendar.css` holds only what Cal adds on top of the UI kit.
+- **Event type editor:** one `.ui-section` form with `.ui-tabs` (General, Availability, Questions, Advanced, Share; arrow keys move between tabs, `?tab=` deep-links) and a single sticky "Save changes" foot that saves the event, its own hours and its reminders together. Validation errors switch to the tab that has them. Limits default to the calendar's values ("Use the calendar's defaults" switch); the URL slug and each question's key are derived from the title and label (`components/calendar/cal-utils.ts`).
+- **Quick create:** title, duration and location in the shared QuickModal; the URL is shown as a preview with "Change URL". A toast confirms and links to the editor.
+- **Event type colors** are 12px squares (`.cal-swatch`), never dots: a circle would read as a station.
+- **Routing form editor** is drawn as a line with three stations (`.cal-stepper`: Questions, Rules, Publish), the active one filled with the line color. Questions and rules save as you add them; Publish is a `FormSection` with one Save.
+- **Availability:** schedule list plus one editor with one Save; weekly hours are `WeeklyHours` (shared with an event's own hours); date overrides sit behind `AdvancedSection` with their count as the hint.
+- **Bookings** are grouped by day in the calendar's time zone, one dense row per booking (time in data type, guest, event, status badge, actions); reschedule, cancel and details open inline under the row.
+- **Public pages** (`.bk`) carry the workspace's brand, not zerosoft's: `--bk` is the event's brand color (or its color), `--bk-on` is white or ink by contrast (`textOn`). The color fills the selected day, the selected slot, the main button and a 4px top rule on the card; available days get a 9% tint. Logo or a square monogram, host name, then the event. No signage band, stations or condensed type there.
+
+### Docs (`styles/docs.css`, `styles/help.css`)
+- **Page tree as a branch of the line:** a 256px column next to the shell sidebar. Each level is a 4px stroke in `--accent` and every page is a 12px station (2.6px ink ring); the open page is the filled station on an enamel row with `aria-current`. A user-chosen emoji sits after the station, never in its place; pages have no default icon. New page and Trash live in the shell sidebar, so the tree does not repeat them. Under 1024px it folds into a "Pages" toggle.
+- **Editor:** a sticky 48px bar (breadcrumb, save state, a "Published" badge, Comments, Share, the "…" menu). Reading column of 42rem: title in signage 44px, headings in signage (32/26/20px) with more space above than below, body Archivo 17px/1.65, square bullets, square ink checkboxes, 2px ink quote rule, code on enamel in JetBrains Mono. Selection is the line color at 26%.
+- **Floating menus** (page menu, block menu, `/` commands, mentions, format bar, icon picker): one piece, 1px ink border, 4px padding, 32px items, enamel hover, no shadow. Block-type icons are drawn SVGs, not glyphs.
+- **Share:** `dialog.ui-modal` with two groups, People (invite combobox with arrow keys, role select, access list) and Publish (help-center switch, public link with copy, Chat AI under Advanced).
+- **Help center** (`/h/<handle>`): the workspace's brand. Its accent arrives split by `lib/docs-accent.ts` into stroke, AA text ink and text-on-fill. Header is the workspace name as a station on its line; the hero is an enamel band with the signage headline and a 48px search; collections are stations on a vertical 8px line in the workspace color, with their articles in ruled two-column lists. Articles read at 44rem with a sticky contents rail.
+
+### Global settings (`/app/settings`)
+Three route tabs (`SettingsTabs` top): **Cuenta** (read-only profile), **Workspace** (API keys, webhooks, credentials, AI usage, Link data) and **Admin** (feedback, roadmap, changelog; only `ADMIN_EMAILS`). Each block is a `FormSection`; the short path is visible (key name + Crear key, endpoint URL + events) and the rest sits in `AdvancedSection` (key permissions, webhook signature, changelog translations and closed ideas, roadmap merge and signals). Webhook events are grouped by resource with a group checkbox that goes indeterminate. Admin screens share a segmented `.btn-group` of links (`aria-current`) for sub-sections, views and status filters. A product is shown as a short stretch of its line (`ProductTag`), never a dot. The roadmap kanban opens items in a native `dialog.ui-drawer`. Layout lives in `styles/settings.css` (prefix `st-`).
 
 ## Do's and Don'ts
 

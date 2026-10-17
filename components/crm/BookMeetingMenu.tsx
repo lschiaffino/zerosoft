@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import CrmIcon from './CrmIcon';
 
 export interface MeetingEventType {
   slug: string;
@@ -116,7 +117,7 @@ export default function BookMeetingMenu({ eventTypes, name, email, locale }: Boo
       <button
         type="button"
         ref={triggerRef}
-        className="btn btn-ghost btn-small"
+        className="btn btn-secondary btn-sm"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -152,7 +153,7 @@ export default function BookMeetingMenu({ eventTypes, name, email, locale }: Boo
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {t('meetings.open')} ↗
+                    {t('meetings.open')} <CrmIcon name="external" size={12} />
                   </a>
                 </div>
               </div>

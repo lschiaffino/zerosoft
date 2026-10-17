@@ -28,7 +28,7 @@ export default async function IssuesPage(
   ]);
 
   return (
-    <div className="app-page track-page">
+    <div className="app-page track-page ui-page">
       <CrossProjectIssues
         initialIssues={issues}
         projects={projects}
@@ -36,6 +36,11 @@ export default async function IssuesPage(
         title={t('issues.pageTitle')}
         newIssueLabel={t('project.newIssue')}
         ui={buildTrackUiLabels(t)}
+        empty={{
+          noProjectsTitle: t('overview.emptyTitle'),
+          noProjectsBody: t('issues.noProjectsBody'),
+          noProjectsCta: t('projects.newCta'),
+        }}
         pagination={{
           total,
           pageSize: ISSUES_PAGE_SIZE,

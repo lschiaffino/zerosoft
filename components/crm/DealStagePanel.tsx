@@ -89,95 +89,112 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
 
   return (
     <div className="deal-stage">
-      <div className="stage-stepper" role="group" aria-label={t('deals.form.stage')}>
-        {openStages.map((s, i) => (
-          <button
-            key={s.id}
-            type="button"
-            className={`stage-step${closedWon || i <= currentIdx ? ' done' : ''}${s.id === currentStageId ? ' current' : ''}`}
-            aria-pressed={s.id === currentStageId}
-            disabled={busy}
-            onClick={() => onSelect(s.id)}
-            title={s.name}
-          >
-            <span>{s.name}</span>
-          </button>
-        ))}
-      </div>
-      <div className="stage-close">
-        {wonStage && (
-          <button
-            type="button"
-            className={`btn btn-small ${closedWon ? 'btn-solid' : 'btn-ghost'}`}
-            disabled={busy || closedWon}
-            onClick={() => onSelect(wonStage.id)}
-          >
-            ✓ {t('deals.won')}
-          </button>
-        )}
-        {lostStage && (
-          <button
-            type="button"
-            className={`btn btn-small ${closedLost ? 'btn-solid' : 'btn-ghost'} btn-danger`}
-            disabled={busy || closedLost}
-            onClick={() => onSelect(lostStage.id)}
-          >
-            ✕ {t('deals.lost')}
-          </button>
-        )}
+      <div className="stage-row-wrap">
+        <ol className={`stage-line${closedLost ? ' is-lost' : ''}`} aria-label={t('deals.form.stage')}>
+          {openStages.map((s, i) => {
+            const state =
+              s.id === currentStageId ? 'current' : closedWon || i < currentIdx ? 'done' : 'todo';
+            return (
+              <li key={s.id} className="stage-stop" data-state={state}>
+                <button
+                  type="button"
+                  className="stage-stop-btn"
+                  aria-current={s.id === currentStageId ? 'step' : undefined}
+                  disabled={busy}
+                  onClick={() => onSelect(s.id)}
+                  title={s.name}
+                >
+                  <span className="stage-dot" aria-hidden="true" />
+                  <span className="stage-name">{s.name}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        <div className="stage-close">
+          {wonStage && (
+            <button
+              type="button"
+              className={`btn btn-sm ${closedWon ? 'btn-primary' : 'btn-secondary'}`}
+              aria-pressed={closedWon}
+              disabled={busy || closedWon}
+              onClick={() => onSelect(wonStage.id)}
+            >
+              {t('deals.won')}
+            </button>
+          )}
+          {lostStage && (
+            <button
+              type="button"
+              className={`btn btn-sm btn-danger ${closedLost ? 'btn-primary' : 'btn-secondary'}`}
+              aria-pressed={closedLost}
+              disabled={busy || closedLost}
+              onClick={() => onSelect(lostStage.id)}
+            >
+              {t('deals.lost')}
+            </button>
+          )}
+        </div>
       </div>
       {pending?.is_lost ? (
-        <div className="stage-confirm">
-          <p className="muted">{t('deals.lostDialog.sub')}</p>
-          <select
-            className="select"
-            value={reasonKey}
-            onChange={(e) => setReasonKey(e.target.value)}
-            aria-label={t('deals.lostDialog.lostReason')}
-          >
-            <option value="">{t('deals.lostDialog.reasonPlaceholder')}</option>
-            {LOST_REASON_KEYS.map((k) => (
-              <option key={k} value={k}>
-                {t(`deals.lostDialog.reasons.${k}`)}
-              </option>
-            ))}
-          </select>
-          <input
-            className="input"
-            value={reasonText}
-            onChange={(e) => setReasonText(e.target.value)}
-            placeholder={t('deals.lostDialog.lostReason')}
-            maxLength={500}
-          />
-          <div className="form-actions">
-            <button type="button" className="btn btn-solid btn-small" disabled={busy} onClick={confirmLost}>
+        <div className="stage-confirm" role="group" aria-label={t('deals.lostDialog.title')}>
+          <p className="ui-help">{t('deals.lostDialog.sub')}</p>
+          <div className="ui-fields-2">
+            <select
+              className="select"
+              value={reasonKey}
+              onChange={(e) => setReasonKey(e.target.value)}
+              aria-label={t('deals.lostDialog.lostReason')}
+            >
+              <option value="">{t('deals.lostDialog.reasonPlaceholder')}</option>
+              {LOST_REASON_KEYS.map((k) => (
+                <option key={k} value={k}>
+                  {t(`deals.lostDialog.reasons.${k}`)}
+                </option>
+              ))}
+            </select>
+            <input
+              className="input"
+              value={reasonText}
+              onChange={(e) => setReasonText(e.target.value)}
+              placeholder={t('deals.lostDialog.lostReason')}
+              aria-label={t('deals.lostDialog.lostReason')}
+              maxLength={500}
+            />
+          </div>
+          <div className="stage-confirm-actions">
+            <button type="button" className="btn btn-primary btn-danger btn-sm" aria-busy={busy || undefined} disabled={busy} onClick={confirmLost}>
               {t('deals.lostDialog.confirm')}
             </button>
-            <button type="button" className="btn btn-ghost btn-small" onClick={() => setPending(null)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPending(null)}>
               {t('common.cancel')}
             </button>
           </div>
         </div>
       ) : pending?.is_won ? (
-        <div className="stage-confirm">
-          <p className="muted">{t('deals.wonDialog.sub')}</p>
-          <div className="form-actions">
+        <div className="stage-confirm" role="group" aria-label={t('deals.wonDialog.title')}>
+          <p className="ui-help">{t('deals.wonDialog.sub')}</p>
+          <div className="stage-confirm-actions">
             <button
               type="button"
-              className="btn btn-solid btn-small"
+              className="btn btn-primary btn-sm"
+              aria-busy={busy || undefined}
               disabled={busy}
               onClick={() => void move(pending.id)}
             >
               {t('deals.wonDialog.confirm')}
             </button>
-            <button type="button" className="btn btn-ghost btn-small" onClick={() => setPending(null)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPending(null)}>
               {t('common.cancel')}
             </button>
           </div>
         </div>
       ) : null}
-
-      {error && <p className="form-error">{error}</p>}
+      {error && (
+        <p className="ui-error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

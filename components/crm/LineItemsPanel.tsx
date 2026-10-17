@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { formatMoney } from '@/lib/crm-money';
+import CrmIcon from './CrmIcon';
 
 export interface LineItemView {
   id: string;
@@ -180,7 +181,7 @@ export default function LineItemsPanel({
                       disabled={busy}
                       onClick={() => call(`${base}/${item.id}`, 'DELETE')}
                     >
-                      ✕
+                      <CrmIcon name="x" size={12} />
                     </button>
                   </td>
                 </tr>

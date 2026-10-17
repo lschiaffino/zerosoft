@@ -1,53 +1,61 @@
 'use client';
 
+import { useLocale, useTranslations } from 'next-intl';
 import type { CrmWorkflowRunRow } from '@/lib/db';
+import EmptyState from '@/components/ui/EmptyState';
+import { runSummary } from '@/lib/crm-admin-format';
 
-interface WorkflowRunsProps {
-  runs: CrmWorkflowRunRow[];
-  labels: {
-    title: string;
-    noRuns: string;
-    status: Record<string, string>;
-  };
+const TONE: Record<string, string> = { done: 'badge-ok', failed: 'badge-bad', running: 'badge-info', pending: '' };
+
+function parseWhen(iso: string): Date {
+  return new Date(iso.includes('T') ? iso : `${iso.replace(' ', 'T')}Z`);
 }
 
-function formatWhen(iso: string): string {
-  const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
-  return new Intl.DateTimeFormat('default', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d);
-}
-
-export default function WorkflowRuns({ runs, labels }: WorkflowRunsProps) {
-  if (!runs.length) {
-    return <p className="muted">{labels.noRuns}</p>;
-  }
+/** Historial de ejecuciones de un workflow: tabla densa con estado y resultado. */
+export default function WorkflowRuns({ runs }: { runs: CrmWorkflowRunRow[] }) {
+  const t = useTranslations('crm.workflows');
+  const locale = useLocale();
+  const fmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="workflow-runs">
-      <p className="section-label">{labels.title}</p>
-      {runs.map((run) => {
-        let summary = '';
-        try {
-          const output: { results?: Array<{ type: string; ok: boolean; error?: string }> } =
-            JSON.parse(run.output || '{}');
-          const ok = output.results?.filter((r) => r.ok).length ?? 0;
-          const total = output.results?.length ?? 0;
-          summary = `${ok}/${total} actions OK`;
-        } catch {
-          summary = '—';
-        }
-        return (
-          <div key={run.id} className="workflow-run-row">
-            <span className={`badge run-${run.status}`}>{labels.status[run.status] ?? run.status}</span>
-            <span className="muted">{formatWhen(run.started_at)}</span>
-            <span className="run-summary">{summary}</span>
-          </div>
-        );
-      })}
-    </div>
+    <section className="wf-runs" aria-labelledby="wf-runs-title">
+      <h2 className="crm-panel-title" id="wf-runs-title">
+        {t('runs')}
+      </h2>
+      {runs.length === 0 ? (
+        <EmptyState compact body={t('noRunsBody')} />
+      ) : (
+        <div className="table-wrap">
+          <table className="table table-compact">
+            <caption className="sr-only">{t('runs')}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{t('runWhen')}</th>
+                <th scope="col">{t('runState')}</th>
+                <th scope="col" className="num">
+                  {t('runResult')}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((run) => {
+                const s = runSummary(run.output);
+                return (
+                  <tr key={run.id}>
+                    <td className="data">{fmt.format(parseWhen(run.started_at))}</td>
+                    <td>
+                      <span className={`badge ${TONE[run.status] ?? ''}`.trim()}>
+                        {t.has(`runStatus.${run.status}`) ? t(`runStatus.${run.status}` as 'runStatus.done') : run.status}
+                      </span>
+                    </td>
+                    <td className="num data">{s ? t('runActionsOk', { ok: s.ok, total: s.total }) : ''}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }

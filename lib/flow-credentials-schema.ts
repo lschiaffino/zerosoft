@@ -52,6 +52,12 @@ export const CREDENTIAL_TYPES = {
 } as const satisfies Record<string, { fields: readonly CredentialFieldDef[] }>;
 
 export type CredentialType = keyof typeof CREDENTIAL_TYPES;
+
+/** Tipos que piden uno de dos campos (Slack: token o webhook; Google: token o cuenta de servicio). */
+export const CREDENTIAL_ONE_OF: Partial<Record<CredentialType, readonly [string, string]>> = {
+  slack: ['botToken', 'webhookUrl'],
+  google: ['accessToken', 'serviceAccountJson'],
+};
 export const CREDENTIAL_TYPE_KEYS = Object.keys(CREDENTIAL_TYPES) as CredentialType[];
 
 export function isCredentialType(v: unknown): v is CredentialType {

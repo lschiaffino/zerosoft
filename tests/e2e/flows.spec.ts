@@ -261,7 +261,7 @@ test('Docs: subpágina desde el árbol y papelera que arrastra a los hijos', asy
   // "Move to trash" archiva (no borra) la página y sus subpáginas.
   await page.goto(`/en/app/docs/${parent.id}`);
   await page.locator('.docs-action-btn').click();
-  await page.getByRole('button', { name: 'Move to trash' }).click();
+  await page.getByRole('menuitem', { name: 'Move to trash' }).click();
   await page.waitForURL(/\/en\/app\/docs$/);
   await expect(page.locator('.docs-tree')).not.toContainText(child.title);
   const archivedChild = await (await request.get(`/api/docs/pages/${child.id}`)).json();
@@ -345,7 +345,7 @@ test('Cal: /event-types/new abre el modal sobre la lista', async ({ page }) => {
 test('Cal: routing form rápido abre el editor y se borra desde el detalle', async ({ page }) => {
   const title = `Route ${uid()}`;
   await page.goto('/en/app/calendar/routing');
-  await page.getByRole('button', { name: /New routing form/ }).first().click();
+  await page.getByRole('button', { name: /Create form/ }).first().click();
   await page.getByPlaceholder('Form name, e.g. Sales or support').fill(title);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/app\/calendar\/routing\/[0-9a-f-]+$/, { timeout: 15_000 });
@@ -464,7 +464,9 @@ test('Chat: crear widget desde el overview con "C" y abrir su configuración', a
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/en\/app\/chat\/widgets\/[0-9a-f-]+$/, { timeout: 60_000 });
   await expect(page.getByRole('heading', { name })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Canned responses' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Saved replies' })).toBeVisible();
+  // El editor del widget está en pestañas.
+  await expect(page.getByRole('navigation', { name: 'Widget settings' }).getByRole('link')).toHaveCount(4);
 });
 
 test('Chat: respuestas guardadas y reglas se crean en un modal, sin salir de la vista', async ({ request, page }) => {
@@ -472,7 +474,7 @@ test('Chat: respuestas guardadas y reglas se crean en un modal, sin salir de la 
   const { id: widgetId } = await w.json();
 
   await page.goto(`/en/app/chat/widgets/${widgetId}/canned`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Add response' }).click();
+  await page.getByRole('button', { name: 'Create reply' }).click();
   await page.getByRole('dialog').getByLabel('Shortcut').fill('Hola Mundo');
   await page.getByPlaceholder('Type your saved message here…').fill('Hi! How can we help?');
   await page.keyboard.press('Meta+Enter');
@@ -483,8 +485,8 @@ test('Chat: respuestas guardadas y reglas se crean en un modal, sin salir de la 
   await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Edited body')).toBeVisible();
 
-  await page.getByRole('link', { name: 'Assignment rules' }).click();
-  await page.getByRole('button', { name: 'Add rule' }).click();
+  await page.getByRole('link', { name: 'Rules', exact: true }).click();
+  await page.getByRole('button', { name: 'Create rule' }).click();
   await page.keyboard.type('Pricing questions');
   await page.getByRole('dialog').locator('select').first().selectOption('keyword');
   await page.getByPlaceholder('refund, pricing…').fill('pricing');
@@ -508,10 +510,10 @@ test('Chat: responder con Enter (y "/" inserta una respuesta guardada) y resolve
   await page.goto(`/en/app/chat/inbox/${message.conversation_id}`, { waitUntil: 'networkidle' });
   const composer = page.getByRole('textbox', { name: 'Reply' });
   await composer.fill('/than');
-  await expect(page.locator('.chat-canned-picker')).toBeVisible();
+  await expect(page.locator('.chat-picker')).toBeVisible();
   await composer.press('Enter'); // inserta la respuesta guardada
   await composer.press('Enter'); // envía
-  await expect(page.locator('.chat-message.agent').getByText('Thanks for writing in!')).toBeVisible();
+  await expect(page.locator('.chat-message[data-sender="user"]').getByText('Thanks for writing in!')).toBeVisible();
 
   await page.getByRole('button', { name: 'Resolve' }).click();
   await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible();
@@ -536,13 +538,16 @@ test('CRM: "Add deal" en la company abre el modal y el deal queda asociado, sin 
   await expect(page.getByRole('link', { name })).toBeVisible();
 });
 
-test('CRM: nuevo workflow en un modal (nombre + trigger) lleva al editor', async ({ page }) => {
-  await page.goto('/en/app/crm/workflows', { waitUntil: 'networkidle' });
-  await page.getByTestId(/workflow-quick-create/).first().click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByPlaceholder(/name/i).fill(`WF ${uid()}`);
-  await dialog.getByTestId('workflow-quick-trigger').selectOption('deal_won');
-  await dialog.getByRole('button', { name: /create/i }).click();
+test('CRM: nuevo workflow con el asistente (disparador, acciones, revisar) lleva al editor', async ({ page }) => {
+  await page.goto('/en/app/crm/workflows/new', { waitUntil: 'networkidle' });
+  await page.getByTestId('workflow-trigger').selectOption('deal_won');
+  await page.getByTestId('workflow-wizard-next').click();
+  await expect(page.getByTestId('workflow-action')).toHaveCount(1);
+  // La tarea necesita título: sin él, Siguiente no pasa a Revisar.
+  await page.getByTestId('workflow-action').getByLabel('Task title').fill('Kickoff call');
+  await page.getByTestId('workflow-wizard-next').click();
+  await page.getByLabel('Workflow name').fill(`WF ${uid()}`);
+  await page.getByTestId('workflow-create').click();
   await expect(page).toHaveURL(/\/app\/crm\/workflows\/[0-9a-f-]{36}/);
 });
 
@@ -559,15 +564,71 @@ test('Track: sub-issue, cycles y status del proyecto sin salir de la vista', asy
   await expect(page.locator('.track-subtask-list')).toContainText('Hijo');
   expect(page.url()).toContain(`/issues/${parent.id}`);
 
+  // Ciclos y status viven en el drawer de ajustes del proyecto, no sobre la lista.
   await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
-  await page.getByTestId('track-new-cycle').click();
-  await page.getByRole('dialog').getByRole('textbox').first().fill('Sprint E2E');
-  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByTestId('track-cycle')).toContainText('Sprint E2E');
-  await expect(page.getByTestId('track-cycle').getByRole('progressbar')).toBeVisible();
-
+  await expect(page.getByTestId('track-cycles')).toHaveCount(0);
   await page.getByTestId('track-project-settings').click();
-  await expect(page.getByTestId('track-status-item')).toHaveCount(5);
+  const drawer = page.getByTestId('track-project-drawer');
+  await expect(drawer).toBeVisible();
+  await drawer.getByTestId('track-new-cycle').click();
+  await drawer.getByLabel('Name').fill('Sprint E2E');
+  await drawer.getByRole('button', { name: 'Create cycle' }).click();
+  await expect(drawer.getByTestId('track-cycle')).toContainText('Sprint E2E');
+  await expect(drawer.getByTestId('track-cycle').getByRole('progressbar')).toBeVisible();
+
+  await drawer.getByTestId('track-settings-tab-statuses').click();
+  await expect(drawer.getByTestId('track-status-item')).toHaveCount(5);
+});
+
+test('Track: el drawer de ajustes cierra con Esc y devuelve el foco', async ({ request, page }) => {
+  const project = await (await request.post('/api/track/projects', { data: { name: `Drawer ${uid()}` } })).json();
+  await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
+  const opener = page.getByTestId('track-project-settings');
+  await opener.click();
+  const drawer = page.getByTestId('track-project-drawer');
+  await expect(drawer).toBeVisible();
+  // Flechas entre pestañas.
+  await drawer.getByTestId('track-settings-tab-cycles').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(drawer.getByTestId('track-settings-tab-statuses')).toHaveAttribute('aria-selected', 'true');
+  // C no abre el quick-create con el drawer abierto.
+  await page.keyboard.press('c');
+  await expect(page.getByPlaceholder('Issue title')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(drawer).toHaveCount(0);
+  await expect(opener).toBeFocused();
+});
+
+test('Track: /issues/new abre el quick-create en el proyecto y "/" enfoca la búsqueda', async ({ request, page }) => {
+  const project = await (await request.post('/api/track/projects', { data: { name: `Nuevo ${uid()}` } })).json();
+  await request.post(`/api/track/projects/${project.id}/issues`, { data: { title: 'Existente' } });
+  await page.goto(`/en/app/track/projects/${project.id}/issues/new`, { waitUntil: 'networkidle' });
+  await expect(page).toHaveURL(new RegExp(`/app/track/projects/${project.id}`));
+  const title = page.getByPlaceholder('Issue title');
+  await expect(title).toBeVisible();
+  await title.fill('Desde el link viejo');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.track-table')).toContainText('Desde el link viejo');
+
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('/');
+  await expect(page.getByTestId('track-search')).toBeFocused();
+});
+
+test('Track: proyecto nuevo deriva el identificador y GitHub arranca colapsado', async ({ page }) => {
+  const name = `Kit ${uid()}`;
+  await page.goto('/en/app/track/projects/new', { waitUntil: 'networkidle' });
+  await expect(page.getByTestId('track-project-slug')).toBeHidden();
+  await page.getByLabel('Name').fill(name);
+  await page.getByRole('button', { name: 'Advanced' }).click();
+  await expect(page.getByTestId('track-project-slug')).toHaveAttribute('placeholder', name.toLowerCase().replace(' ', '-'));
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page).toHaveURL(/\/app\/track\/projects\/[0-9a-f-]{36}/);
+
+  await page.goto('/en/app/track/settings?tab=github', { waitUntil: 'networkidle' });
+  await expect(page.getByTestId('track-github-repos')).toHaveCount(0);
+  await page.getByTestId('track-github-start').click();
+  await expect(page.getByTestId('track-github-repos')).toBeVisible();
 });
 
 test('Track: "New project" abre un modal en el overview', async ({ page }) => {
@@ -594,11 +655,54 @@ test('Link: multi-select archiva en lote y la edición abre un panel lateral', a
     .poll(async () => (await (await request.get(`/api/links/${ids[0]}`)).json()).archived)
     .toBeTruthy();
 
-  await page.goto(`/en/app/links/${ids[1]}`, { waitUntil: 'networkidle' });
-  await page.getByTestId('link-edit-open').click();
-  await expect(page.getByTestId('link-edit-panel')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByTestId('link-edit-panel')).toBeHidden();
+  // Editar ya no es un panel lateral: es la pestaña Ajustes (y ?edit=1 de links viejos lleva ahí).
+  await page.goto(`/en/app/links/${ids[1]}?edit=1`, { waitUntil: 'networkidle' });
+  await expect(page).toHaveURL(/tab=settings/);
+  await expect(page.getByRole('navigation', { name: 'Link sections' }).getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
+  await page.locator('#el-title').fill('Renamed by e2e');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText('Changes saved')).toBeVisible();
+  await expect.poll(async () => (await (await request.get(`/api/links/${ids[1]}`)).json()).title).toBe('Renamed by e2e');
+});
+
+test('Link: el detalle está en pestañas y cada una carga sola', async ({ request, page }) => {
+  const slug = `tabs${uid()}`;
+  const link = await (await request.post('/api/links', { data: { url: 'https://example.com/tabs', slug } })).json();
+  await page.goto(`/en/app/links/${link.id}`, { waitUntil: 'networkidle' });
+  const tabs = page.getByRole('navigation', { name: 'Link sections' });
+  for (const name of ['Overview', 'Analytics', 'QR', 'Routing', 'Settings']) {
+    await expect(tabs.getByRole('link', { name })).toBeVisible();
+  }
+  // Sin clicks, el resumen es un vacío con el link para copiar (la tira de cifras aparece con el primer click).
+  await expect(page.getByRole('heading', { name: 'No clicks yet' })).toBeVisible();
+  await expect(page.locator('.ui-empty').getByRole('button', { name: 'Copy link' })).toBeVisible();
+  await tabs.getByRole('link', { name: 'Routing' }).click();
+  await expect(page).toHaveURL(/tab=routing/);
+  await expect(page.getByRole('button', { name: 'Add rule' })).toBeVisible();
+  // A/B y deep links quedan en "Advanced".
+  await expect(page.getByRole('button', { name: 'Add variant' })).toBeHidden();
+  await page.getByRole('button', { name: /Advanced/ }).click();
+  await expect(page.getByRole('button', { name: 'Add variant' })).toBeVisible();
+});
+
+test('Link: "New" tiene Single / Bulk / Import y Dominios su propia pantalla', async ({ page }) => {
+  await page.goto('/en/app/links/new', { waitUntil: 'networkidle' });
+  const tabs = page.getByRole('navigation', { name: 'Ways to create' });
+  await expect(tabs.getByRole('link', { name: 'Single' })).toHaveAttribute('aria-current', 'page');
+  // Camino básico: URL y slug. El título está en Avanzado.
+  await expect(page.locator('#nl-url')).toBeVisible();
+  await expect(page.locator('#nl-slug')).toBeVisible();
+  await expect(page.locator('#nl-title')).toBeHidden();
+  await tabs.getByRole('link', { name: 'Bulk' }).click();
+  await expect(page).toHaveURL(/\/app\/links\/bulk$/);
+  await expect(page.locator('#bulk-urls')).toBeVisible();
+  await page.getByRole('navigation', { name: 'Ways to create' }).getByRole('link', { name: 'Import' }).click();
+  await expect(page).toHaveURL(/\/app\/links\/import$/);
+  await expect(page.getByRole('heading', { name: 'Import from Bitly' })).toBeVisible();
+
+  await page.goto('/en/app/links/domains', { waitUntil: 'networkidle' });
+  await expect(page.getByRole('heading', { name: 'Domains', level: 1 })).toBeVisible();
+  await expect(page.getByLabel('Domain', { exact: true })).toBeVisible();
 });
 
 test('Chat: Reports tiene su propia entrada en la navegación', async ({ page }) => {
@@ -652,10 +756,10 @@ test('Chat: nota interna visible para agentes, nunca para el visitante', async (
 
   await page.goto(`/en/app/chat/inbox/${message.conversation_id}`, { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Internal note' }).click();
-  const composer = page.getByRole('textbox', { name: 'Reply' });
+  const composer = page.getByRole('textbox', { name: 'Internal note' });
   await composer.fill('Cliente VIP, revisar plan');
   await composer.press('Enter');
-  await expect(page.locator('.chat-message.note').getByText('Cliente VIP, revisar plan')).toBeVisible();
+  await expect(page.locator('.chat-message[data-note]').getByText('Cliente VIP, revisar plan')).toBeVisible();
 
   const thread = await request.get(`/api/chat/messages?widgetId=${widgetId}&visitorId=${visitorId}`);
   const text = JSON.stringify(await thread.json());
@@ -697,6 +801,10 @@ test.describe('cal d9', () => {
 
     await page.goto('/en/app/calendar/availability', { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: new RegExp(schedule.name) }).click();
+    // Las excepciones van plegadas: el disclosure dice cuántas hay.
+    const overrides = page.getByRole('button', { name: /Date overrides/ });
+    await expect(overrides).toContainText('1 date');
+    if ((await overrides.getAttribute('aria-expanded')) !== 'true') await overrides.click();
     await expect(page.locator('.cal-override-row input[type="date"]')).toHaveValue(monday, { timeout: 20_000 });
   });
 
@@ -733,19 +841,16 @@ test.describe('cal d9', () => {
   test('recordatorios y precio se guardan desde el tipo de evento', async ({ request, page }) => {
     const slug = `d9w-${uid()}`;
     const et = await (await request.post('/api/calendar/event-types', { data: { slug, title: 'D9 wf', durationMin: 30 } })).json();
-    await page.goto(`/en/app/calendar/event-types/${et.id}`, { waitUntil: 'networkidle' });
-    const reminders = page.locator('section.panel', { hasText: 'Reminders' });
-    await reminders.getByRole('button', { name: '+ Add step' }).click();
-    await reminders.getByRole('button', { name: 'Save' }).click();
-    await expect(reminders.getByRole('button', { name: /Saved/ })).toBeVisible({ timeout: 20_000 });
+    await page.goto(`/en/app/calendar/event-types/${et.id}?tab=advanced`, { waitUntil: 'networkidle' });
+    await expect(page.getByRole('tab', { name: 'Advanced' })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('button', { name: 'Add step' }).click();
+    await page.getByLabel('Price').fill('25');
+    await expect(page.getByText('To charge, connect Stripe in Settings.')).toBeVisible({ timeout: 20_000 });
+    // Un solo Guardar para todo el tipo de evento.
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Changes saved' })).toBeVisible({ timeout: 20_000 });
     const steps = (await (await request.get(`/api/calendar/event-types/${et.id}/workflows`)).json()).steps;
     expect(steps).toEqual([expect.objectContaining({ recipient: 'guest', offsetMin: -60, subject: 'Reminder: {{event.title}}' })]);
-
-    const payment = page.locator('section.panel', { hasText: 'Payment' });
-    await payment.getByRole('textbox').fill('25');
-    await expect(payment.getByText('To charge, connect Stripe in Settings.')).toBeVisible({ timeout: 20_000 });
-    await payment.getByRole('button', { name: 'Save' }).click();
-    await expect(payment.getByRole('button', { name: /Saved/ })).toBeVisible({ timeout: 20_000 });
     expect((await (await request.get(`/api/calendar/event-types/${et.id}`)).json()).price_cents).toBe(2500);
     // Sin Stripe conectado, la reserva paga se rechaza.
     const day = nextDow(2);
@@ -828,12 +933,15 @@ test.describe('track d9', () => {
     expect(bad.status()).toBe(401);
     await page.goto(`/en/app/track/issues/${ids[0]}`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('track-issue-github')).toContainText('#7');
+    await page.getByRole('button', { name: 'More actions' }).click();
     await expect(page.getByTestId('track-copy-branch')).toHaveAttribute('data-branch', /-uno$/);
 
     // Triage: se activa desde la configuración del proyecto.
     await page.goto(`/en/app/track/projects/${project.id}`, { waitUntil: 'networkidle' });
     await page.getByTestId('track-project-settings').click();
+    await page.getByTestId('track-settings-tab-triage').click();
     await page.getByTestId('track-triage-toggle').check();
+    await page.getByTestId('track-project-drawer-close').click();
     await page.getByTestId('track-triage-tab').click();
     await expect(page.getByText('No issues waiting for triage.')).toBeVisible();
   });
@@ -869,10 +977,92 @@ test.describe('link d9', () => {
     });
     expect(android.headers()['location']).toBe('https://example.com/android');
 
-    await page.goto(`/en/app/links/${link.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/links/${link.id}?tab=routing`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('tg-rule')).toHaveCount(1);
+    await page.goto(`/en/app/links/${link.id}?tab=qr`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('qr-preview').locator('svg')).toBeVisible();
     await page.getByRole('button', { name: 'Save design' }).click();
-    await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible();
+    await expect(page.getByText('Changes saved')).toBeVisible();
   });
+});
+
+// ---------- CRM core: detalle en tabs, menú "More" y altas cortas ----------
+
+test('CRM: el detalle del contacto separa Actividad, Propiedades y Relacionados', async ({ request, page }) => {
+  const email = `tabs-${uid()}@example.com`;
+  const contact = await (await request.post('/api/crm/contacts', { data: { email, firstName: 'Tabs' } })).json();
+  await page.goto(`/en/app/crm/contacts/${contact.id}`);
+  const tabs = page.getByRole('navigation', { name: 'Record sections' });
+  await expect(tabs.getByRole('link', { name: 'Activity' })).toHaveAttribute('aria-current', 'page');
+  // El resumen de Actividad muestra el email sin cambiar de tab.
+  await expect(page.getByRole('complementary', { name: 'Summary' }).getByText(email)).toBeVisible();
+
+  await tabs.getByRole('link', { name: 'Properties' }).click();
+  await expect(page).toHaveURL(/tab=properties/);
+  await expect(page.getByTestId('contact-score-card')).toBeVisible();
+
+  await tabs.getByRole('link', { name: 'Related' }).click();
+  await expect(page).toHaveURL(/tab=related/);
+  await expect(page.getByRole('heading', { name: 'Lists' })).toBeVisible();
+});
+
+test('CRM: "More" abre el historial en un drawer, Esc devuelve el foco y eliminar pide confirmación', async ({
+  request,
+  page,
+}) => {
+  const email = `more-${uid()}@example.com`;
+  const contact = await (await request.post('/api/crm/contacts', { data: { email, firstName: 'More' } })).json();
+  await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+
+  const more = page.getByTestId('record-more');
+  await more.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('menu')).toBeVisible();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'History' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  const drawer = page.getByRole('dialog', { name: 'History' });
+  await expect(drawer).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(drawer).toBeHidden();
+  await expect(more).toBeFocused();
+
+  await more.click();
+  await page.getByRole('menuitem', { name: 'Delete contact' }).click();
+  const modal = page.getByRole('dialog');
+  const confirm = modal.getByRole('button', { name: 'Delete forever' });
+  await expect(confirm).toBeDisabled();
+  await modal.getByLabel(`Type ${email} to confirm`).fill(email);
+  await confirm.click();
+  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts$/, { timeout: 15_000 });
+});
+
+test('CRM: el alta completa de contacto muestra lo básico y guarda el resto en "More fields"', async ({ page }) => {
+  const first = `Full${uid()}`;
+  await page.goto('/en/app/crm/contacts/new?full=1');
+  await expect(page.getByLabel('Job title')).toBeHidden();
+  await page.getByLabel('First name').fill(first);
+  await page.getByLabel('Email').fill(`${first.toLowerCase()}@example.com`);
+  const toggle = page.getByRole('button', { name: /More fields/ });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await page.getByLabel('Job title').fill('CTO');
+  await page.getByRole('button', { name: 'Create contact' }).click();
+  await expect(page).toHaveURL(/\/en\/app\/crm\/contacts\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+  await expect(page.getByRole('heading', { level: 1, name: first })).toBeVisible();
+  await expect(page.getByText('CTO').first()).toBeVisible();
+});
+
+test('CRM: el alta completa de deal pide nombre, monto y etapa; la moneda acompaña al monto', async ({ page }) => {
+  const name = `FullDeal ${uid()}`;
+  await page.goto('/en/app/crm/deals/new?full=1');
+  await expect(page.getByLabel('Currency')).toBeHidden();
+  await page.getByLabel('Name').fill(name);
+  await page.getByLabel('Amount').fill('2500');
+  await page.getByRole('button', { name: /More fields/ }).click();
+  await page.getByLabel('Currency').fill('eur');
+  await expect(page.locator('.ui-addon')).toHaveText('EUR');
+  await page.getByRole('button', { name: 'Create deal' }).click();
+  await expect(page).toHaveURL(/\/en\/app\/crm\/deals\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 });

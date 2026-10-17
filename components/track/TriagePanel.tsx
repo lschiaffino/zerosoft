@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { relDate } from '@/lib/utils';
+import EmptyState from '@/components/ui/EmptyState';
 import type { TrackStatusRow } from '@/lib/db';
 import type { TrackIssueWithStatus } from '@/lib/track-data';
 
@@ -71,7 +72,16 @@ export function TriageActions({
   return (
     <>
       <div className="track-triage-actions">
-        <select value={statusId} onChange={(e) => setStatusId(e.target.value)} aria-label={t('triage.acceptAs')} disabled={busy}>
+        <label className="track-triage-accept-in" htmlFor={`accept-${issue.id}`}>
+          {t('triage.acceptAs')}
+        </label>
+        <select
+          id={`accept-${issue.id}`}
+          className="select"
+          value={statusId}
+          onChange={(e) => setStatusId(e.target.value)}
+          disabled={busy}
+        >
           {statuses
             .filter((s) => s.category !== 'cancelled')
             .map((s) => (
@@ -82,17 +92,17 @@ export function TriageActions({
         </select>
         <button
           type="button"
-          className="btn btn-small btn-solid"
+          className="btn btn-sm btn-primary"
           disabled={busy}
           onClick={() => void act({ action: 'accept', statusId: statusId || undefined })}
           data-testid="track-triage-accept"
         >
           {t('triage.accept')}
         </button>
-        <button type="button" className="btn btn-small" disabled={busy} onClick={() => void act({ action: 'decline' })}>
+        <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void act({ action: 'decline' })}>
           {t('triage.decline')}
         </button>
-        <button type="button" className="btn btn-small" disabled={busy} onClick={() => setDupOpen((v) => !v)} aria-expanded={dupOpen}>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setDupOpen((v) => !v)} aria-expanded={dupOpen}>
           {t('triage.duplicate')}
         </button>
       </div>
@@ -104,23 +114,24 @@ export function TriageActions({
             void markDuplicate();
           }}
         >
-          <label className="track-sr-only" htmlFor={`dup-${issue.id}`}>
+          <label className="sr-only" htmlFor={`dup-${issue.id}`}>
             {t('triage.duplicateOf')}
           </label>
           <input
+            className="input data"
             id={`dup-${issue.id}`}
             value={dupOf}
             onChange={(e) => setDupOf(e.target.value)}
             placeholder={t('triage.duplicatePlaceholder')}
             maxLength={80}
           />
-          <button type="submit" className="btn btn-small" disabled={busy || !dupOf.trim()}>
+          <button type="submit" className="btn btn-sm" disabled={busy || !dupOf.trim()}>
             {t('triage.duplicateOf')}
           </button>
         </form>
       )}
       {error && (
-        <p className="form-error" role="alert">
+        <p className="ui-error" role="alert">
           {error}
         </p>
       )}
@@ -141,9 +152,9 @@ function TriageRow({
     <li className="track-triage-item" data-testid="track-triage-item">
       <div className="track-triage-main">
         <Link href={`/app/track/issues/${issue.id}`} className="track-triage-title">
-          <span className="track-identifier">{issue.identifier}</span> {issue.title || '—'}
+          <span className="track-identifier">{issue.identifier}</span> {issue.title || t('issues.untitled')}
         </Link>
-        <span className="muted mono track-triage-meta">
+        <span className="track-triage-meta">
           {t('triage.from', { source: t(`triage.sources.${source}`) })} · {relDate(issue.created_at, locale)}
         </span>
       </div>
@@ -177,11 +188,7 @@ export function TriageBanner({
 export default function TriagePanel(props: TriagePanelProps) {
   const t = useTranslations('track');
   if (props.issues.length === 0) {
-    return (
-      <div className="track-empty">
-        <p>{t('triage.empty')}</p>
-      </div>
-    );
+    return <EmptyState quiet title={t('triage.empty')} body={t('triage.emptyBody')} />;
   }
   return (
     <ul className="track-triage-list" data-testid="track-triage-list">

@@ -264,6 +264,56 @@ export async function listProjects(
   return { rows, total, page, pageSize };
 }
 
+export interface TrackProjectOverview {
+  id: string;
+  name: string;
+  icon: string | null;
+  open_issues: number;
+  overdue: number;
+  triage: number;
+  cycle_id: string | null;
+  cycle_name: string | null;
+  cycle_end: string | null;
+  cycle_total: number;
+  cycle_done: number;
+}
+
+/**
+ * Resumen de Track: por proyecto activo, el ciclo en curso con su avance,
+ * los issues vencidos (abiertos, fuera de triage) y los que esperan triage.
+ */
+export async function listProjectOverview(
+  teamId: string | null,
+  userId: string,
+  today: string,
+): Promise<TrackProjectOverview[]> {
+  const scope = projectScope(teamId, userId);
+  const open = `SELECT s.id FROM track_statuses s WHERE s.project_id = p.id AND s.category IN ('backlog','todo','in_progress')`;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT p.id, p.name, p.icon,
+        (SELECT COUNT(*) FROM track_issues i WHERE i.project_id = p.id AND i.triage = 0 AND i.status_id IN (${open})) AS open_issues,
+        (SELECT COUNT(*) FROM track_issues i WHERE i.project_id = p.id AND i.triage = 0 AND i.due_date IS NOT NULL
+           AND substr(i.due_date, 1, 10) < ? AND i.status_id IN (${open})) AS overdue,
+        (SELECT COUNT(*) FROM track_issues i WHERE i.project_id = p.id AND i.triage = 1) AS triage,
+        c.id AS cycle_id, c.name AS cycle_name, c.end_at AS cycle_end,
+        (SELECT COUNT(*) FROM track_issues i WHERE c.id IS NOT NULL AND i.cycle_id = c.id) AS cycle_total,
+        (SELECT COUNT(*) FROM track_issues i JOIN track_statuses s ON s.id = i.status_id
+           WHERE c.id IS NOT NULL AND i.cycle_id = c.id AND s.category IN ('done', 'cancelled')) AS cycle_done
+       FROM track_projects p
+       LEFT JOIN track_cycles c ON c.id = (
+         SELECT c2.id FROM track_cycles c2
+         WHERE c2.project_id = p.id AND substr(c2.start_at, 1, 10) <= ? AND substr(c2.end_at, 1, 10) >= ?
+         ORDER BY c2.start_at DESC LIMIT 1
+       )
+       WHERE ${scope.where} AND p.status = 'active'
+       ORDER BY p.name ASC
+       LIMIT 100`,
+    )
+    .all(today, today, today, scope.arg)) as TrackProjectOverview[];
+  return rows;
+}
+
 export async function getProject(id: string): Promise<TrackProjectRow | undefined> {
   return (await getDb().prepare('SELECT * FROM track_projects WHERE id = ?').get(id)) as
     | TrackProjectRow

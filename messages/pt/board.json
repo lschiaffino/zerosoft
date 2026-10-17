@@ -1,6 +1,10 @@
 {
-  "meta": { "title": "Board" },
-  "sidebar": { "boards": "Quadros" },
+  "meta": {
+    "title": "Board"
+  },
+  "sidebar": {
+    "boards": "Quadros"
+  },
   "list": {
     "title": "Quadros",
     "subtitle": "Quadros infinitos para o seu time. Todos no workspace podem abrir e editar.",
@@ -8,13 +12,16 @@
     "untitled": "Quadro sem título",
     "copyName": "{name} (cópia)",
     "confirmDelete": "Excluir “{name}”? Não dá para desfazer.",
-    "emptyTitle": "Ainda não há quadros.",
+    "emptyTitle": "Ainda não há quadros",
     "emptyHint": "Desenhe, planeje e compartilhe uma ideia em uma tela infinita.",
     "rename": "Renomear",
     "duplicate": "Duplicar",
     "delete": "Excluir",
     "actions": "Ações do quadro",
-    "updated": "Editado {when}"
+    "updated": "Editado {when}",
+    "createError": "Não foi possível criar o quadro. Tente de novo.",
+    "actionError": "Não foi possível concluir. Tente de novo.",
+    "creating": "Criando…"
   },
   "share": {
     "button": "Compartilhar",
@@ -37,7 +44,9 @@
     "conflictBy": "{name} mudou este quadro em outro lugar.",
     "reload": "Recarregar",
     "keepMine": "Manter minha versão",
-    "tooLarge": "Este quadro passa de {mb} MB, quase sempre por causa das imagens. Remova ou reduza algumas para continuar salvando."
+    "tooLarge": "Este quadro passa de {mb} MB, quase sempre por causa das imagens. Remova ou reduza algumas para continuar salvando.",
+    "loading": "Carregando quadro",
+    "dismiss": "Fechar aviso"
   },
   "public": {
     "notFound": "Quadro não encontrado",

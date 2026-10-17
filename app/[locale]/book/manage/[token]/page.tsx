@@ -5,7 +5,9 @@ import {
   getBookingByManageToken,
   getCalendarUser,
   getEventTypeById,
+  getWorkspaceBrand,
 } from '@/lib/calendar';
+import { resolveBrand } from '@/components/calendar/cal-utils';
 import { abandonCheckout, reconcileCheckout } from '@/lib/calendar-payments';
 import { afterBookingCreated } from '@/lib/calendar-lifecycle';
 import ManageBooking from '@/components/calendar/ManageBooking';
@@ -42,6 +44,7 @@ export default async function ManageBookingPage(props: {
   const eventType = await getEventTypeById(booking.event_type_id);
   if (!eventType) notFound();
   const calendarUser = await getCalendarUser(eventType.user_id);
+  const brand = resolveBrand(await getWorkspaceBrand(eventType.user_id), eventType);
 
   return (
     <ManageBooking
@@ -49,6 +52,7 @@ export default async function ManageBookingPage(props: {
       locale={locale}
       eventType={eventType}
       weekStart={calendarUser?.week_start ?? 1}
+      brand={brand}
       maxFutureDays={effectiveMaxFutureDays(eventType, calendarUser)}
       paidNotice={paid === '1'}
       booking={{

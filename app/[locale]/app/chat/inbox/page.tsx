@@ -1,31 +1,37 @@
 import { getTranslations } from 'next-intl/server';
-import { realUserId, requireUser } from '@/lib/session';
-import { listChatWidgets } from '@/lib/chat-data';
-import InboxClient from '@/components/chat/InboxClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ChatInboxPage(
-  props: {
-    params: Promise<{ locale: string }>;
-  }
-) {
-  const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
-  const user = await requireUser(locale);
+/** Sin conversación elegida: la columna central explica cómo moverse. En mobile se ve solo la lista. */
+export default async function ChatInboxPage(props: { params: Promise<{ locale: string }> }) {
+  const { locale } = await props.params;
   const t = await getTranslations({ locale, namespace: 'chat' });
-  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
 
   return (
-    <div className="app-page">
-      <div className="page-head">
-        <h1 className="app-title">{t('inbox.title')}</h1>
+    <section className="chat-thread chat-thread-idle" aria-label={t('inbox.pickTitle')}>
+      <div className="chat-idle">
+        <h2 className="chat-idle-title">{t('inbox.pickTitle')}</h2>
+        <dl className="chat-keys">
+          <div>
+            <dt>
+              <kbd className="kbd">J</kbd> <kbd className="kbd">K</kbd>
+            </dt>
+            <dd>{t('inbox.keysNav')}</dd>
+          </div>
+          <div>
+            <dt>
+              <kbd className="kbd">/</kbd>
+            </dt>
+            <dd>{t('inbox.keysSearch')}</dd>
+          </div>
+          <div>
+            <dt>
+              <kbd className="kbd">Enter</kbd>
+            </dt>
+            <dd>{t('inbox.keysSend')}</dd>
+          </div>
+        </dl>
       </div>
-      <InboxClient widgetIds={widgets.map((w) => w.id)} currentUserId={realUserId(user)} />
-    </div>
+    </section>
   );
 }

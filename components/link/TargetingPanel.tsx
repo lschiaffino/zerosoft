@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { LinkTargeting, DeviceTarget } from '@/lib/link-targeting';
+import FormSection from '@/components/ui/FormSection';
+import AdvancedSection from '@/components/ui/AdvancedSection';
 
 const DEVICES: DeviceTarget[] = ['ios', 'android', 'desktop'];
 
@@ -19,7 +21,10 @@ interface Props {
   initial: LinkTargeting | null;
 }
 
-/** Reglas por país/dispositivo, A/B con pesos y deep links de un link. */
+/**
+ * Ruteo de un link: reglas por país y dispositivo a la vista; A/B con pesos y
+ * deep links a apps en "Avanzado". Un solo Guardar para todo.
+ */
 export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
   const t = useTranslations('link.targeting');
   const te = useTranslations('link.errors');
@@ -32,8 +37,9 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
   const [iosFallback, setIosFallback] = useState(initial?.ios?.fallback ?? '');
   const [androidApp, setAndroidApp] = useState(initial?.android?.app ?? '');
   const [androidFallback, setAndroidFallback] = useState(initial?.android?.fallback ?? '');
-  const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [error, setError] = useState<string | null>(null);
+  const [clearError, setClearError] = useState<string | null>(null);
+
+  const hasAdvanced = (initial?.ab.length ?? 0) > 0 || !!initial?.ios || !!initial?.android;
 
   function payload() {
     return {
@@ -61,39 +67,24 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
     );
   }
 
-  async function save(targeting: ReturnType<typeof payload> | null) {
-    setError(null);
-    if (targeting && hasIncompleteRows()) {
-      setError(t('incompleteRow'));
-      return;
-    }
-    if (targeting?.rules.some((r) => r.countries.some((c) => !/^[A-Z]{2}$/.test(c)))) {
-      setError(t('countriesInvalid'));
-      return;
-    }
-    setState('saving');
+  async function send(targeting: ReturnType<typeof payload> | null): Promise<string | void> {
+    if (targeting && hasIncompleteRows()) return t('incompleteRow');
+    if (targeting?.rules.some((r) => r.countries.some((c) => !/^[A-Z]{2}$/.test(c)))) return t('countriesInvalid');
     const res = await fetch(`/api/links/${linkId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ targeting }),
     }).catch(() => null);
-    if (!res) {
-      setError(te('generic'));
-      setState('idle');
-      return;
-    }
+    if (!res) return te('generic');
     if (!res.ok) {
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       const code = data?.error;
-      setError(code && te.has(code) ? te(code) : t('error', { code: code ?? res.status }));
-      setState('idle');
-      return;
+      return code && te.has(code) ? te(code) : t('error', { code: code ?? res.status });
     }
-    setState('saved');
     router.refresh();
   }
 
-  function clearAll() {
+  async function clearAll() {
     if (!window.confirm(t('clearConfirm'))) return;
     setRules([]);
     setAb([]);
@@ -101,172 +92,208 @@ export default function TargetingPanel({ linkId, defaultUrl, initial }: Props) {
     setIosFallback('');
     setAndroidApp('');
     setAndroidFallback('');
-    void save(null);
+    setClearError((await send(null)) ?? null);
   }
 
-  const touched = () => state === 'saved' && setState('idle');
+  const hasAny = rules.length > 0 || ab.length > 0 || !!iosApp || !!androidApp;
 
   return (
-    <div className="tg" onChange={touched}>
-      <p className="muted tg-hint">{t('hint')}</p>
-
-      <div className="tg-block">
-        <p className="section-label">{t('rules')}</p>
-        <p className="field-hint">{t('rulesHint')}</p>
-        <p className="field-hint">{t('ipadNote')}</p>
-        {rules.map((r, i) => (
-          <div className="tg-row" key={i} data-testid="tg-rule">
-            <input
-              className="input tg-countries mono"
-              aria-label={t('countries')}
-              placeholder={t('countriesPlaceholder')}
-              value={r.countries}
-              onChange={(e) => setRules(rules.map((x, j) => (j === i ? { ...x, countries: e.target.value } : x)))}
-            />
-            <div className="tg-devices" role="group" aria-label={t('devices')}>
-              {DEVICES.map((d) => (
-                <label key={d} className="tg-check mono">
-                  <input
-                    type="checkbox"
-                    checked={r.devices.includes(d)}
-                    onChange={(e) =>
-                      setRules(
-                        rules.map((x, j) =>
-                          j === i
-                            ? { ...x, devices: e.target.checked ? [...x.devices, d] : x.devices.filter((y) => y !== d) }
-                            : x,
-                        ),
-                      )
-                    }
-                  />
-                  {t(d)}
-                </label>
-              ))}
-            </div>
-            <input
-              className="input tg-url"
-              aria-label={t('destination')}
-              placeholder="https://"
-              value={r.url}
-              onChange={(e) => setRules(rules.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
-            />
-            <button type="button" className="btn btn-ghost btn-small" onClick={() => setRules(rules.filter((_, j) => j !== i))}>
-              {t('remove')}
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="btn btn-ghost btn-small"
-          onClick={() => setRules([...rules, { countries: '', devices: [], url: '' }])}
-        >
-          {t('addRule')}
-        </button>
-      </div>
-
-      <div className="tg-block">
-        <p className="section-label">{t('ab')}</p>
-        <p className="field-hint">{t('abHint')}</p>
-        {ab.map((v, i) => (
-          <div className="tg-row tg-row-ab" key={i} data-testid="tg-variant">
-            <span className="mono tg-variant">{t('variant', { name: String.fromCharCode(65 + i) })}</span>
-            <input
-              className="input tg-url"
-              aria-label={t('destination')}
-              placeholder="https://"
-              value={v.url}
-              onChange={(e) => setAb(ab.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
-            />
-            <label className="tg-weight mono">
-              {t('weight')}
-              <input
-                className="input"
-                type="number"
-                min={0}
-                max={100}
-                value={v.weight}
-                onChange={(e) =>
-                  setAb(ab.map((x, j) => (j === i ? { ...x, weight: Math.max(0, Math.min(100, Number(e.target.value) || 0)) } : x)))
-                }
-              />
-            </label>
-            <button type="button" className="btn btn-ghost btn-small" onClick={() => setAb(ab.filter((_, j) => j !== i))}>
-              {t('remove')}
-            </button>
-          </div>
-        ))}
-        {ab.length < 5 && (
+    <FormSection title={t('title')} titleHidden description={t('hint')} onSubmit={() => send(payload())} submitLabel={t('save')} className="lk-form">
+      <fieldset className="lk-fieldset">
+        <legend className="label">{t('rules')}</legend>
+        <p className="ui-help">
+          {t('rulesHint')} {t('ipadNote')}
+        </p>
+        {rules.length > 0 && (
+          <ol className="lk-rules">
+            {rules.map((r, i) => (
+              <li className="lk-rule" key={i} data-testid="tg-rule">
+                <span className="lk-rule-n data" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <input
+                  className="input mono lk-rule-countries"
+                  aria-label={t('countries')}
+                  placeholder={t('countriesPlaceholder')}
+                  value={r.countries}
+                  onChange={(e) => setRules(rules.map((x, j) => (j === i ? { ...x, countries: e.target.value } : x)))}
+                />
+                <div className="lk-rule-devices" role="group" aria-label={t('devices')}>
+                  {DEVICES.map((d) => (
+                    <label key={d} className="ui-check">
+                      <input
+                        type="checkbox"
+                        checked={r.devices.includes(d)}
+                        onChange={(e) =>
+                          setRules(
+                            rules.map((x, j) =>
+                              j === i
+                                ? { ...x, devices: e.target.checked ? [...x.devices, d] : x.devices.filter((y) => y !== d) }
+                                : x,
+                            ),
+                          )
+                        }
+                      />
+                      {t(d)}
+                    </label>
+                  ))}
+                </div>
+                <input
+                  className="input lk-rule-url"
+                  aria-label={t('destination')}
+                  placeholder="https://"
+                  inputMode="url"
+                  value={r.url}
+                  onChange={(e) => setRules(rules.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
+                />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRules(rules.filter((_, j) => j !== i))}>
+                  {t('remove')}
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
+        <div>
           <button
             type="button"
-            className="btn btn-ghost btn-small"
-            onClick={() =>
-              setAb(
-                ab.length === 0
-                  ? [
-                      { url: defaultUrl, weight: 50 },
-                      { url: '', weight: 50 },
-                    ]
-                  : [...ab, { url: '', weight: 50 }],
-              )
-            }
+            className="btn btn-sm"
+            onClick={() => setRules([...rules, { countries: '', devices: [], url: '' }])}
           >
-            {t('addVariant')}
+            {t('addRule')}
           </button>
-        )}
-      </div>
-
-      <div className="tg-block">
-        <p className="section-label">{t('deep')}</p>
-        <p className="field-hint">{t('deepHint')}</p>
-        <div className="tg-deep">
-          <label className="field">
-            <span className="label">{t('iosApp')}</span>
-            <input className="input mono" placeholder={t('appPlaceholder')} value={iosApp} onChange={(e) => setIosApp(e.target.value)} />
-          </label>
-          <label className="field">
-            <span className="label">{t('fallback')}</span>
-            <input
-              className="input"
-              placeholder="https://apps.apple.com/…"
-              value={iosFallback}
-              onChange={(e) => setIosFallback(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span className="label">{t('androidApp')}</span>
-            <input
-              className="input mono"
-              placeholder={t('appPlaceholder')}
-              value={androidApp}
-              onChange={(e) => setAndroidApp(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span className="label">{t('fallback')}</span>
-            <input
-              className="input"
-              placeholder="https://play.google.com/…"
-              value={androidFallback}
-              onChange={(e) => setAndroidFallback(e.target.value)}
-            />
-          </label>
         </div>
-      </div>
+      </fieldset>
 
-      <div className="tg-actions">
-        <button type="button" className="btn btn-small" disabled={state === 'saving'} onClick={() => void save(payload())}>
-          {state === 'saving' ? t('saving') : t('save')}
-        </button>
-        <button type="button" className="btn btn-ghost btn-small" onClick={clearAll}>
-          {t('clear')}
-        </button>
-        {state === 'saved' && <span className="mono muted">{t('saved')}</span>}
-        {error && (
-          <span className="tg-error" role="alert">
-            {error}
-          </span>
-        )}
-      </div>
-    </div>
+      <AdvancedSection storageKey="link.routing" hint={t('advancedHint')} defaultOpen={hasAdvanced}>
+        <fieldset className="lk-fieldset">
+          <legend className="label">{t('ab')}</legend>
+          <p className="ui-help">{t('abHint')}</p>
+          {ab.length > 0 && (
+            <ol className="lk-rules">
+              {ab.map((v, i) => (
+                <li className="lk-rule lk-rule-ab" key={i} data-testid="tg-variant">
+                  <span className="lk-rule-n data" aria-hidden="true">
+                    {String.fromCharCode(65 + i)}
+                  </span>
+                  <input
+                    className="input lk-rule-url"
+                    aria-label={`${t('variant', { name: String.fromCharCode(65 + i) })}: ${t('destination')}`}
+                    placeholder="https://"
+                    inputMode="url"
+                    value={v.url}
+                    onChange={(e) => setAb(ab.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
+                  />
+                  <div className="ui-input-group lk-rule-weight">
+                    <input
+                      className="input mono"
+                      type="number"
+                      min={0}
+                      max={100}
+                      aria-label={`${t('variant', { name: String.fromCharCode(65 + i) })}: ${t('weight')}`}
+                      value={v.weight}
+                      onChange={(e) =>
+                        setAb(
+                          ab.map((x, j) =>
+                            j === i ? { ...x, weight: Math.max(0, Math.min(100, Number(e.target.value) || 0)) } : x,
+                          ),
+                        )
+                      }
+                    />
+                    <span className="ui-addon">%</span>
+                  </div>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAb(ab.filter((_, j) => j !== i))}>
+                    {t('remove')}
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+          {ab.length < 5 && (
+            <div>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() =>
+                  setAb(
+                    ab.length === 0
+                      ? [
+                          { url: defaultUrl, weight: 50 },
+                          { url: '', weight: 50 },
+                        ]
+                      : [...ab, { url: '', weight: 50 }],
+                  )
+                }
+              >
+                {t('addVariant')}
+              </button>
+            </div>
+          )}
+        </fieldset>
+
+        <fieldset className="lk-fieldset">
+          <legend className="label">{t('deep')}</legend>
+          <p className="ui-help">{t('deepHint')}</p>
+          <div className="ui-fields-2">
+            <div className="ui-field">
+              <label className="label" htmlFor="tg-ios">
+                {t('iosApp')}
+              </label>
+              <input id="tg-ios" className="input mono" placeholder={t('appPlaceholder')} value={iosApp} onChange={(e) => setIosApp(e.target.value)} />
+            </div>
+            <div className="ui-field">
+              <label className="label" htmlFor="tg-ios-fb">
+                {t('fallback')}
+              </label>
+              <input
+                id="tg-ios-fb"
+                className="input"
+                inputMode="url"
+                placeholder="https://apps.apple.com/…"
+                value={iosFallback}
+                onChange={(e) => setIosFallback(e.target.value)}
+              />
+            </div>
+            <div className="ui-field">
+              <label className="label" htmlFor="tg-android">
+                {t('androidApp')}
+              </label>
+              <input
+                id="tg-android"
+                className="input mono"
+                placeholder={t('appPlaceholder')}
+                value={androidApp}
+                onChange={(e) => setAndroidApp(e.target.value)}
+              />
+            </div>
+            <div className="ui-field">
+              <label className="label" htmlFor="tg-android-fb">
+                {t('fallback')}
+              </label>
+              <input
+                id="tg-android-fb"
+                className="input"
+                inputMode="url"
+                placeholder="https://play.google.com/…"
+                value={androidFallback}
+                onChange={(e) => setAndroidFallback(e.target.value)}
+              />
+            </div>
+          </div>
+        </fieldset>
+      </AdvancedSection>
+
+      {hasAny && (
+        <div className="lk-clear">
+          <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => void clearAll()}>
+            {t('clear')}
+          </button>
+          {clearError && (
+            <span className="ui-error" role="alert">
+              {clearError}
+            </span>
+          )}
+        </div>
+      )}
+    </FormSection>
   );
 }

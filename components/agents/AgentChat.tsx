@@ -34,6 +34,7 @@ export interface AgentChatLabels {
   input: string;
   output: string;
   toolError: string;
+  running: string;
   /** Mensaje para un código de error (agents.errors.*). */
   error: (code: string) => string;
   toolName: (tool: string) => string;
@@ -237,46 +238,22 @@ export default function AgentChat({
         {turns.map((t) => (
           <div key={t.key} className={`ag-msg is-${t.role}`}>
             {showTools && t.tools.length > 0 && (
-              <div className="ag-tools">
-                {t.tools.map((c) => (
-                  <details key={c.id} className={`ag-tool${c.error ? ' is-error' : ''}${c.done ? '' : ' is-running'}`}>
-                    <summary>
-                      <span className="ag-tool-dot" aria-hidden="true" />
-                      <span className="ag-tool-name">{labels.toolName(c.tool)}</span>
-                      <span className="ag-tool-meta mono">
-                        {c.tool}
-                        {c.done && c.durationMs !== undefined ? ` · ${c.durationMs} ms` : ''}
-                        {c.error ? ` · ${c.error}` : ''}
-                      </span>
-                    </summary>
-                    <div className="ag-tool-body">
-                      <p className="ag-tool-label">{labels.input}</p>
-                      <pre>{pretty(c.input)}</pre>
-                      {c.done && (
-                        <>
-                          <p className="ag-tool-label">{c.error ? labels.toolError : labels.output}</p>
-                          <pre>{pretty(c.output)}</pre>
-                        </>
-                      )}
-                    </div>
-                  </details>
-                ))}
-              </div>
+              <ToolCalls
+                calls={t.tools}
+                labels={{ name: labels.toolName, input: labels.input, output: labels.output, error: labels.toolError, running: labels.running }}
+              />
             )}
             {(t.text || t.role === 'user') && <p className="ag-msg-text">{t.text}</p>}
             {t.pending && !t.text && (
-              <p className="ag-msg-text ag-thinking">
-                <span className="ag-dots" aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                <span className="ag-sr-only">{labels.thinking}</span>
-              </p>
+              <div className="ag-thinking" aria-busy="true">
+                <span className="ui-skeleton ui-skeleton-text" />
+                <span className="ui-skeleton ui-skeleton-text ag-thinking-short" />
+                <span className="sr-only">{labels.thinking}</span>
+              </div>
             )}
-            {t.error && <p className="ag-msg-error">{labels.error(t.error)}</p>}
-            {t.handoff && <p className="ag-msg-note">{labels.handoff}</p>}
-            {t.status === 'step_limit' && showTools && <p className="ag-msg-note">{labels.stepLimit}</p>}
+            {t.error && <p className="ui-error">{labels.error(t.error)}</p>}
+            {t.handoff && <p className="ui-help">{labels.handoff}</p>}
+            {t.status === 'step_limit' && showTools && <p className="ui-help">{labels.stepLimit}</p>}
           </div>
         ))}
       </div>
@@ -296,16 +273,71 @@ export default function AgentChat({
           />
           <div className="ag-chat-actions">
             {turns.length > 0 && (
-              <button type="button" className="ag-link" onClick={reset} disabled={busy}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={reset} disabled={busy}>
                 {labels.newConversation}
               </button>
             )}
-            <button type="submit" className="ag-send" disabled={busy || !draft.trim()}>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={!draft.trim()} aria-busy={busy || undefined}>
               {labels.send}
             </button>
           </div>
         </form>
       )}
     </div>
+  );
+}
+
+export interface ToolCallView {
+  id: string;
+  tool: string;
+  input: unknown;
+  output?: unknown;
+  error?: string | null;
+  durationMs?: number;
+  done?: boolean;
+}
+
+/** Llamadas a herramientas de un turno: una fila por llamada, entrada y salida al abrirla. */
+export function ToolCalls({
+  calls,
+  labels,
+}: {
+  calls: ToolCallView[];
+  labels: { name: (tool: string) => string; input: string; output: string; error: string; running: string };
+}) {
+  return (
+    <ul className="ag-tools">
+      {calls.map((c) => {
+        const done = c.done !== false;
+        return (
+          <li key={c.id}>
+            <details className="ag-tool">
+              <summary>
+                <svg className="ag-tool-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+                <span className="ag-tool-name">{labels.name(c.tool)}</span>
+                {!done ? (
+                  <span className="badge">{labels.running}</span>
+                ) : c.error ? (
+                  <span className="badge badge-bad">{labels.error}</span>
+                ) : null}
+                {done && c.durationMs !== undefined && <span className="ag-tool-ms data">{c.durationMs} ms</span>}
+              </summary>
+              <div className="ag-tool-body">
+                <p className="label">{labels.input}</p>
+                <pre className="data">{pretty(c.input)}</pre>
+                {done && (
+                  <>
+                    <p className="label">{c.error ? `${labels.error}: ${c.error}` : labels.output}</p>
+                    <pre className="data">{pretty(c.output)}</pre>
+                  </>
+                )}
+              </div>
+            </details>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

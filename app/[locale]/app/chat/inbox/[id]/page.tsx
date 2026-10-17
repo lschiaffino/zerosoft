@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import {
   getChatConversationWithVisitor,
@@ -10,20 +9,15 @@ import ConversationClient from '@/components/chat/ConversationClient';
 
 export const dynamic = 'force-dynamic';
 
+/** Conversación y detalles: columnas 2 y 3 de la bandeja (la lista vive en el layout). */
 export default async function ChatConversationPage(
   props: {
     params: Promise<{ locale: string; id: string }>;
   }
 ) {
-  const params = await props.params;
-
-  const {
-    locale,
-    id
-  } = params;
+  const { locale, id } = await props.params;
 
   const user = await requireUser(locale);
-  const t = await getTranslations({ locale, namespace: 'chat' });
 
   const conversation = await getChatConversationWithVisitor(id);
   if (!conversation) notFound();
@@ -38,20 +32,18 @@ export default async function ChatConversationPage(
   const me = user.actingUser ?? user;
 
   return (
-    <div className="app-page chat-conversation-page">
-      <h1 className="chat-sr-only">{t('inbox.title')}</h1>
-      <ConversationClient
-        conversationId={id}
-        initialConversation={conversation}
-        initialMessages={messages}
-        agents={agents}
-        currentUser={{
-          id: me.id,
-          email: me.email,
-          name: me.name,
-          image: me.image,
-        }}
-      />
-    </div>
+    <ConversationClient
+      key={id}
+      conversationId={id}
+      initialConversation={conversation}
+      initialMessages={messages}
+      agents={agents}
+      currentUser={{
+        id: me.id,
+        email: me.email,
+        name: me.name,
+        image: me.image,
+      }}
+    />
   );
 }

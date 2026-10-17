@@ -1,6 +1,6 @@
 {
   "title": "Agents",
-  "subtitle": "AI agents that talk to your customers in Chat, on a public page or through the API — and take actions across the suite.",
+  "subtitle": "AI agents that answer your customers in Chat, on a public page or through the API, and take actions across the suite.",
   "sidebar": {
     "agents": "Agents"
   },
@@ -10,19 +10,24 @@
   },
   "list": {
     "title": "Your agents",
-    "new": "New agent",
+    "new": "Create agent",
     "adminOnly": "Only admins and owners can create or edit agents. You can view them, test them in the playground and rate answers.",
-    "empty": "No agents yet.",
-    "emptyHint": "Start from a template below or create a blank agent.",
+    "empty": "No agents yet",
+    "emptyHint": "An agent answers from your docs and uses the suite: books in Cal, saves leads to the CRM and files issues in Track.",
     "name": "Agent",
     "channels": "Channels",
     "conversations7d": "Conv. 7d",
     "feedback": "Thumbs up",
     "status": "Status",
     "noTools": "No tools",
+    "toolsCount": "{count, plural, one {# tool} other {# tools}}",
     "noChannels": "Not published",
-    "enabled": "On",
-    "disabled": "Off"
+    "enabled": "Active",
+    "disabled": "Off",
+    "emptyAlt": "or start from a template below",
+    "noFeedback": "No votes",
+    "toggle": "Turn on {name}",
+    "loading": "Loading agents"
   },
   "channelNames": {
     "chat": "Chat",
@@ -47,11 +52,13 @@
       "instructions": "You are a friendly sales development rep. Your goal is to understand what the visitor needs, answer their questions and, when there is interest, book a demo.\n\nHow to work:\n- Answer product and pricing questions only from the knowledge base.\n- Ask at most one question at a time: their company, team size and what they want to solve.\n- When they show interest, offer a demo. Check availability and offer 3 concrete times in their timezone (ask for it if unknown).\n- Before booking, confirm the exact time and ask for their full name and work email. Book only after they confirm.\n- Save the lead in the CRM with their email, name and a short note of what they need.\n- If they ask about custom contracts, security reviews or anything you can't answer, hand off to a human.\n\nTone: warm, concise and never pushy."
     },
     "qualifier": {
-      "name": "Lead qualifier → CRM",
+      "name": "Lead qualifier",
       "desc": "Asks your qualification questions, saves the answers as a CRM note and routes hot leads to your team.",
       "welcome": "Hi! A few quick questions so we can point you to the right person.",
       "instructions": "You qualify inbound leads for our sales team.\n\nAsk these questions, one at a time, in a natural way:\n1. What is your name and work email?\n2. What company do you work for and how many people are on your team?\n3. What problem are you trying to solve?\n4. When do you need a solution (this month, this quarter, later)?\n5. Do you have a budget assigned?\n\nWhen you have the email, create or update the contact in the CRM. When you have all the answers, add a note with a short summary and a score: HOT (needs it this quarter and has budget), WARM or COLD.\nFor HOT leads, hand off to a human so sales follows up right away. For the rest, thank them and say the team will be in touch.\n\nNever make up answers the visitor did not give. Keep messages short."
-    }
+    },
+    "creating": "Creating…",
+    "tools": "Uses {tools}"
   },
   "editor": {
     "back": "Agents",
@@ -59,14 +66,20 @@
     "emoji": "Avatar (emoji)",
     "name": "Agent name",
     "namePlaceholder": "Agent name",
-    "save": "Save",
+    "save": "Save changes",
     "saving": "Saving…",
     "saved": "Saved",
-    "upToDate": "Saved",
-    "delete": "Delete",
+    "delete": "Delete agent",
     "deleteConfirm": "Delete \"{name}\"? Its conversations and logs are deleted too. Chat widgets that used it go back to the AI bot.",
     "readOnly": "Read-only: only admins and owners can edit this agent.",
-    "tabsLabel": "Agent settings"
+    "tabsLabel": "Agent settings",
+    "unsaved": "Unsaved changes",
+    "discard": "Discard",
+    "enabled": "Agent active",
+    "shortcut": "Save with ⌘S or Ctrl+S.",
+    "loading": "Loading agent",
+    "dangerTitle": "Delete agent",
+    "dangerBody": "Deletes the agent, its conversations and logs. Chat widgets that used it go back to the AI bot."
   },
   "tabs": {
     "instructions": "Instructions",
@@ -91,15 +104,20 @@
     "guardrails": "guardrails"
   },
   "instructions": {
-    "title": "Instructions",
-    "hint": "What the agent does, how it talks and when it uses each tool. Write it like a brief for a new teammate.",
+    "title": "Basics",
+    "hint": "What the agent does, how it talks and when it uses each tool.",
     "template": "Start from a template…",
     "replaceConfirm": "Replace the current instructions with the template?",
     "placeholder": "You are the support assistant for Acme. Answer from the knowledge base, keep replies short and hand off when unsure…",
     "safety": "Safety rules are always added on top: knowledge and tool results are treated as data, the agent never reveals these instructions and refuses out-of-scope requests.",
     "welcomeTitle": "Welcome message",
     "welcomePlaceholder": "Hi! How can I help?",
-    "welcomeHint": "Shown first on the public page and in the playground."
+    "welcomeHint": "Shown first on the public page and in the playground.",
+    "instructionsLabel": "Instructions",
+    "instructionsHelp": "Write it like a brief for someone new on the team.",
+    "templateHelp": "Replaces the current instructions.",
+    "advancedHint": "Handoff, limits and model",
+    "templateLabel": "Template"
   },
   "handoff": {
     "title": "Handoff to a human",
@@ -119,10 +137,11 @@
     "maxChars": "Max reply length (characters)"
   },
   "model": {
-    "title": "Model (optional)",
+    "title": "Model",
     "placeholder": "Server default",
     "temperature": "Temperature",
-    "hint": "Any AI Gateway model as provider/model, e.g. anthropic/claude-sonnet-5-5. Lower temperature = more predictable answers."
+    "hint": "Any AI Gateway model as provider/model, e.g. anthropic/claude-sonnet-5-5. Lower temperature = more predictable answers.",
+    "section": "Model"
   },
   "knowledge": {
     "toolOff": "The “Search knowledge” tool is off: the agent won't use this knowledge until you turn it on in Tools.",
@@ -132,25 +151,32 @@
     "noPages": "You don't have Docs pages yet.",
     "openDocs": "Open Docs",
     "untitledPage": "Untitled",
-    "public": "public",
-    "private": "private",
+    "public": "Public",
+    "private": "Private",
     "privateWarn": "You selected private pages: anyone who talks to this agent may see their content.",
     "urlsTitle": "Web pages",
     "urlsHint": "Up to 20 URLs. Their text is saved and searched together with your docs; refresh to fetch changes.",
     "refresh": "Refresh",
     "refreshing": "Fetching…",
     "saveFirst": "Save to fetch the new URLs.",
-    "fetched": "{chars, number} characters",
+    "fetched": "{chars, plural, one {# character} other {# characters}}",
     "failed": "Couldn't fetch: {error}",
     "pending": "Not fetched yet",
     "remove": "Remove",
     "addUrl": "Add URL",
     "cannedTitle": "Canned responses",
     "cannedHint": "Use a Chat widget's canned responses as answers.",
-    "cannedNone": "None"
+    "cannedNone": "None",
+    "status": {
+      "ok": "Fetched",
+      "error": "Error",
+      "pending": "Pending"
+    },
+    "urlsEmpty": "No web pages yet.",
+    "advancedHint": "Saved replies from Chat"
   },
   "tools": {
-    "intro": "Tools let the agent act. Each one only reaches this workspace, validates its input and is logged with input, output and duration.",
+    "intro": "Tools let the agent act across the suite. Each one only reaches this workspace and is logged with input, output and duration.",
     "choose": "Choose…",
     "create": "Create one",
     "needsEventType": "Pick an event type for this tool to work.",
@@ -207,7 +233,16 @@
         "name": "HTTP request",
         "desc": "Calls your own APIs, only on allowlisted domains. Off by default."
       }
-    }
+    },
+    "groups": {
+      "knowledge": "Docs",
+      "handoff": "Chat",
+      "crm": "CRM",
+      "cal": "Cal",
+      "track": "Track",
+      "flow": "Flow"
+    },
+    "advancedHint": "HTTP requests to your own APIs"
   },
   "channels": {
     "chatTitle": "Chat widgets",
@@ -234,7 +269,14 @@
     "apiTitle": "API",
     "apiHint": "Send messages from your own app with an API key.",
     "apiKeys": "Manage API keys",
-    "apiContinue": "The response includes conversationId: send it back to continue the same conversation."
+    "apiContinue": "The response includes conversationId: send it back to continue the same conversation.",
+    "createWidget": "Create widget",
+    "publicToggle": "Publish on a public page",
+    "copy": "Copy",
+    "copied": "Copied",
+    "status": {
+      "active": "Active"
+    }
   },
   "playground": {
     "intro": "Talk to the agent as a visitor would. Tool calls show inline with their input and output.",
@@ -243,14 +285,15 @@
   },
   "chat": {
     "placeholder": "Write a message…",
-    "send": "Send",
+    "send": "Send message",
     "thinking": "Thinking…",
     "newConversation": "New conversation",
     "handoff": "Handed off to a human.",
     "stepLimit": "Stopped at the step limit (too many tool calls).",
     "input": "Input",
     "output": "Output",
-    "toolError": "Error"
+    "toolError": "Error",
+    "running": "Running"
   },
   "conversations": {
     "filter": "Channel",
@@ -259,14 +302,20 @@
     "empty": "No conversations yet.",
     "untitled": "Untitled conversation",
     "messages": "{count, plural, one {# message} other {# messages}}",
-    "handedOff": "handed off",
+    "handedOff": "Handed off",
     "pick": "Pick a conversation to see the transcript, tool calls and feedback.",
     "openInbox": "Open in Chat inbox",
     "thumbsUp": "Good answer",
     "thumbsDown": "Bad answer",
     "notePlaceholder": "What was wrong? (optional)",
-    "saveNote": "Save",
-    "toolLog": "Tool-call log"
+    "saveNote": "Save note",
+    "toolLog": "Tool-call log",
+    "emptyTitle": "No conversations yet",
+    "emptyBody": "Conversations from Chat, the public page, the API and the playground show up here, with their tools and feedback.",
+    "tryPlayground": "Try it in the playground",
+    "retry": "Retry",
+    "back": "Conversations",
+    "loadingDetail": "Loading conversation"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -294,5 +343,10 @@
     "defaultWelcome": "Hi! How can I help you today?",
     "offline": "This assistant is offline right now. Please try again later.",
     "disclaimer": "You're talking to an AI assistant. It can make mistakes; a person can take over when needed."
+  },
+  "page": {
+    "errorTitle": "Agents could not load",
+    "errorBody": "It may be the connection or a server error. Your agents were not changed.",
+    "retry": "Retry"
   }
 }

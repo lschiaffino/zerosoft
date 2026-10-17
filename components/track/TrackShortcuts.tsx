@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import QuickIssueModal from './QuickIssueModal';
-import { useToday } from './InlineEditors';
+import { TrackToast, useToday } from './InlineEditors';
 import { buildTrackUiLabels } from './ui-labels';
 import { openTrackNewIssue, TRACK_NEW_ISSUE_EVENT, type IssueDraft, type ProjectContext } from './useIssueStore';
 
@@ -16,7 +16,7 @@ function isTypingTarget(el: EventTarget | null): boolean {
     node.isContentEditable ||
     Boolean(
       node.closest(
-        'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"], [role="listbox"]',
+        'input, textarea, select, [contenteditable="true"], dialog, [role="dialog"], [role="menu"], [role="listbox"]',
       ),
     )
   );
@@ -64,7 +64,7 @@ export default function TrackShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
-      if (isTypingTarget(e.target) || document.querySelector('[role="dialog"]')) return;
+      if (isTypingTarget(e.target) || document.querySelector('[role="dialog"], dialog[open]')) return;
       const key = e.key.toLowerCase();
       if (key === 'c') {
         window.setTimeout(() => {
@@ -159,11 +159,7 @@ export default function TrackShortcuts() {
           today={today}
         />
       )}
-      {error && (
-        <p className="form-error track-shortcut-error" role="alert" onClick={() => setError(null)}>
-          {error}
-        </p>
-      )}
+      <TrackToast message={error} onDismiss={() => setError(null)} dismissLabel={ui.inline.dismiss} />
     </>
   );
 }

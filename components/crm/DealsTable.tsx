@@ -6,8 +6,9 @@ import { Link } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
 import InlineStageCell from './InlineStageCell';
-import ColumnToggle, { useColumnVisibility } from './ColumnToggle';
+import { ColumnToggleInBar, useColumnVisibility } from './ColumnToggle';
 import RecordPreview from './RecordPreview';
+import CrmIcon from './CrmIcon';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
 
@@ -90,14 +91,12 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
 
   return (
     <>
-      <div className="table-toolbar">
-        <ColumnToggle
-          columns={COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible }))}
-          visible={visible}
-          onToggle={toggleVisible}
-          label={t('common.columns')}
-        />
-      </div>
+      <ColumnToggleInBar
+        columns={COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible }))}
+        visible={visible}
+        onToggle={toggleVisible}
+        label={t('common.columns')}
+      />
 
       <div className="table-wrap">
         <table className="table crm-table">
@@ -114,7 +113,7 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
               </th>
               {visible.has('name') && <th>{t('deals.table.name')}</th>}
               {visible.has('amount') && (
-                <th className="th-num">
+                <th className="num">
                   <SortTh label={t('deals.table.amount')} asc="amount_asc" desc="amount" current={sort} />
                 </th>
               )}
@@ -122,7 +121,7 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
               {visible.has('priority') && <th>{t('deals.table.priority')}</th>}
               {visible.has('source') && <th>{t('deals.table.source')}</th>}
               {visible.has('closeDate') && (
-                <th>
+                <th className="num cell-date">
                   <SortTh
                     label={t('deals.table.closeDate')}
                     asc="close_date"
@@ -131,16 +130,16 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
                   />
                 </th>
               )}
-              {visible.has('age') && <th className="th-num">{t('deals.table.age')}</th>}
-              {visible.has('contacts') && <th className="th-num">{t('deals.table.contacts')}</th>}
+              {visible.has('age') && <th className="num">{t('deals.table.age')}</th>}
+              {visible.has('contacts') && <th className="num">{t('deals.table.contacts')}</th>}
               {visible.has('company') && <th>{t('deals.detail.company')}</th>}
               {visible.has('tags') && <th>{t('tags.column')}</th>}
               {visible.has('created') && (
-                <th>
+                <th className="num cell-date">
                   <SortTh label={t('deals.table.created')} asc="oldest" desc="newest" current={sort} />
                 </th>
               )}
-              <th className="cell-actions-head">{t('deals.table.actions')}</th>
+              <th className="cell-actions-head"><span className="sr-only">{t('deals.table.actions')}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -163,15 +162,16 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
                   </td>
                 )}
                 {visible.has('amount') && (
-                  <td className="cell-amount td-num">
+                  <td className="cell-amount num">
                     <InlineEditCell
                       endpoint={`/api/crm/deals/${row.id}`}
                       field="amount"
                       value={String(row.amountValue)}
+                      displayValue={row.amount}
                       type="number"
-                      className="mono"
+                      className="num"
                     />
-                    {row.amountBase && <span className="muted mono cell-converted">≈ {row.amountBase}</span>}
+                    {row.amountBase && <span className="muted num cell-converted">≈ {row.amountBase}</span>}
                   </td>
                 )}
                 {visible.has('stage') && (
@@ -204,35 +204,36 @@ export default function DealsTable({ rows, sort, stages, priorities, sources, lo
                   </td>
                 )}
                 {visible.has('closeDate') && (
-                  <td className="mono muted cell-date">
+                  <td className="num muted cell-date">
                     <InlineEditCell
                       endpoint={`/api/crm/deals/${row.id}`}
                       field="closeDate"
                       value={row.closeDateIso}
+                      displayValue={row.closeDate}
                       type="date"
                       nullOption
                       className="muted"
                     />
                   </td>
                 )}
-                {visible.has('age') && <td className="mono muted td-num">{row.age}d</td>}
-                {visible.has('contacts') && <td className="mono td-num">{row.contacts}</td>}
+                {visible.has('age') && <td className="num muted">{row.age}d</td>}
+                {visible.has('contacts') && <td className="num">{row.contacts}</td>}
                 {visible.has('company') && <td className="muted cell-sub">{row.companyName || '—'}</td>}
                 {visible.has('tags') && (
                   <td className="cell-crm-tags">
-                    <TagDots tags={row.tags ?? []} />
+                    <TagDots tags={row.tags ?? []} max={2} />
                   </td>
                 )}
-                {visible.has('created') && <td className="mono muted cell-date">{row.created}</td>}
+                {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}
                 <td className="cell-actions">
                   <button
                     type="button"
                     className="icon-btn preview-btn"
                     onClick={() => setPreviewId(row.id)}
-                    title={t('common.viewAll')}
-                    aria-label={t('common.viewAll')}
+                    title={t('common.preview')}
+                    aria-label={t('common.preview')}
                   >
-                    👁
+                    <CrmIcon name="panel" />
                   </button>
                 </td>
               </tr>

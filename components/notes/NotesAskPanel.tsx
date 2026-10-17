@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import NotesIcon from './NotesIcon';
 
 interface Answer {
   answer: string | null;
@@ -9,7 +10,10 @@ interface Answer {
   error?: string;
 }
 
-/** "Preguntale a tus notas": respuesta de la AI con las notas citadas. */
+/**
+ * "Preguntale a tus notas": drawer nativo (<dialog class="ui-drawer">) con la
+ * respuesta de la AI y las notas citadas. Esc y el foco atrapado vienen del dialog.
+ */
 export default function NotesAskPanel({
   onClose,
   onOpenNote,
@@ -21,16 +25,15 @@ export default function NotesAskPanel({
   const [question, setQuestion] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Answer | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    const d = dialogRef.current;
+    if (d && !d.open) d.showModal();
     inputRef.current?.focus();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    return () => d?.close();
+  }, []);
 
   async function ask() {
     const q = question.trim();
@@ -67,51 +70,86 @@ export default function NotesAskPanel({
   };
 
   return (
-    <div className="notes-ask" role="dialog" aria-label={t('title')}>
-      <div className="notes-ask-head">
-        <p>{t('title')}</p>
-        <button type="button" className="notes-icon-btn" onClick={onClose} aria-label={t('close')}>
-          ×
+    <dialog
+      ref={dialogRef}
+      className="ui-drawer notes-ask"
+      aria-labelledby="notes-ask-title"
+      onClose={onClose}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+      onClick={(e) => {
+        // Clic en el telón (fuera del panel) cierra.
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="ui-drawer-head">
+        <h2 id="notes-ask-title" className="ui-drawer-title">
+          {t('title')}
+        </h2>
+        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={onClose} aria-label={t('close')}>
+          <NotesIcon name="close" size={16} />
         </button>
       </div>
-      <p className="notes-ask-hint">{t('hint')}</p>
-      <textarea
-        ref={inputRef}
-        className="notes-ask-input"
-        rows={3}
-        maxLength={500}
-        value={question}
-        onChange={(e) => setQuestion(e.target.value)}
-        placeholder={t('placeholder')}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            void ask();
-          }
+      <form
+        className="ui-drawer-body notes-ask-body"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void ask();
         }}
-      />
-      <button type="button" className="btn btn-solid btn-small" disabled={busy || question.trim().length < 2} onClick={() => void ask()}>
-        {busy ? t('thinking') : t('submit')}
-      </button>
-      {result && (
-        <div className="notes-ask-result" aria-live="polite">
-          {result.answer ? <p className="notes-ask-answer">{result.answer}</p> : <p className="dim">{errorText(result.error ?? 'ai_failed')}</p>}
-          {result.sources.length > 0 && (
-            <>
-              <p className="notes-ask-sources-label">{t('sources')}</p>
-              <ul className="notes-ask-sources">
-                {result.sources.map((s) => (
-                  <li key={s.id}>
-                    <button type="button" className="notes-link-btn" onClick={() => onOpenNote(s.id)}>
-                      {s.title}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+      >
+        <p className="ui-help">{t('hint')}</p>
+        <textarea
+          ref={inputRef}
+          className="textarea"
+          rows={3}
+          maxLength={500}
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder={t('placeholder')}
+          aria-label={t('title')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              void ask();
+            }
+          }}
+        />
+        <button type="submit" className="btn btn-primary notes-ask-submit" aria-busy={busy} disabled={question.trim().length < 2}>
+          {busy ? t('thinking') : t('submit')}
+        </button>
+        {busy && (
+          <div className="ui-loading-stack" aria-hidden="true">
+            <span className="ui-skeleton ui-skeleton-text" />
+            <span className="ui-skeleton ui-skeleton-text" style={{ width: '80%' }} />
+            <span className="ui-skeleton ui-skeleton-text" style={{ width: '45%' }} />
+          </div>
+        )}
+        {result && (
+          <div className="notes-ask-result" aria-live="polite">
+            {result.answer ? (
+              <p className="notes-ask-answer">{result.answer}</p>
+            ) : (
+              <p className={result.error === 'no_matches' ? 'ui-help' : 'ui-error'}>{errorText(result.error ?? 'ai_failed')}</p>
+            )}
+            {result.sources.length > 0 && (
+              <>
+                <h3 className="notes-ask-sources-label">{t('sources')}</h3>
+                <ul className="notes-ask-sources">
+                  {result.sources.map((s) => (
+                    <li key={s.id}>
+                      <button type="button" className="notes-ask-source" onClick={() => onOpenNote(s.id)}>
+                        {s.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+      </form>
+    </dialog>
   );
 }

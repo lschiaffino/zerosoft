@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import QuickModal from '@/components/app/QuickModal';
+import AdvancedSection from '@/components/ui/AdvancedSection';
+import { partySummary } from '@/lib/crm-admin-format';
 
 export interface QuoteEditable {
   id: string;
@@ -78,50 +80,54 @@ export default function QuoteActions({ quote, publicUrl, dealHref }: QuoteAction
     <div className="quote-actions">
       <div className="quote-actions-row">
         {draft ? (
-          <button type="button" className="btn btn-solid btn-small" disabled={busy} onClick={() => patch({ status: 'sent' })}>
+          <button type="button" className="btn btn-primary btn-sm" aria-busy={busy || undefined} onClick={() => patch({ status: 'sent' })}>
             {t('quotes.markSent')}
           </button>
         ) : (
           <>
-            <button type="button" className="btn btn-solid btn-small" onClick={copy}>
-              {copied ? t('quotes.copied') : t('quotes.copyLink')}
+            <button type="button" className="btn btn-primary btn-sm" onClick={copy}>
+              {copied ? t('quotes.linkCopied') : t('quotes.copyLink')}
             </button>
-            <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn btn-small">
-              {t('quotes.openPublic')} ↗
+            <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
+              {t('quotes.openPublic')}
             </a>
           </>
         )}
-        <button type="button" className="btn btn-small" onClick={() => window.print()}>
+        {draft && (
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setEditing(true)}>
+            {t('common.edit')}
+          </button>
+        )}
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.print()}>
           {t('quotes.print')}
         </button>
         {draft && (
-          <>
-            <button type="button" className="btn btn-small" disabled={busy} onClick={() => setEditing(true)}>
-              {t('common.edit')}
-            </button>
-            <button type="button" className="btn btn-small" disabled={busy} onClick={() => patch({ refreshItems: true })}>
-              {t('quotes.refreshItems')}
-            </button>
-          </>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => patch({ refreshItems: true })}>
+            {t('quotes.refreshItems')}
+          </button>
         )}
         <span className="quote-actions-spacer" />
         {confirmDelete ? (
           <>
-            <button type="button" className="link-btn danger" disabled={busy} onClick={remove}>
+            <button type="button" className="btn btn-primary btn-danger btn-sm" disabled={busy} onClick={remove}>
               {t('quotes.confirmDelete')}
             </button>
-            <button type="button" className="link-btn" onClick={() => setConfirmDelete(false)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>
               {t('common.cancel')}
             </button>
           </>
         ) : (
-          <button type="button" className="link-btn" onClick={() => setConfirmDelete(true)}>
+          <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setConfirmDelete(true)}>
             {t('common.delete')}
           </button>
         )}
       </div>
-      {draft && <p className="muted quote-hint">{t('quotes.draftHint')}</p>}
-      {error && <p className="form-error">{error}</p>}
+      {draft && <p className="ui-help">{t('quotes.draftHint')}</p>}
+      {error && (
+        <p className="ui-error" role="alert">
+          {error}
+        </p>
+      )}
       {editing && <QuoteEditModal quote={quote} onClose={() => setEditing(false)} onSave={patch} />}
     </div>
   );
@@ -164,7 +170,7 @@ function QuoteEditModal({
         setBusy(false);
         if (ok) onClose();
       }}
-      submitLabel={busy ? t('common.saving') : t('common.save')}
+      submitLabel={busy ? t('common.saving') : t('quotes.saveQuote')}
       cancelLabel={t('common.cancel')}
       busy={busy}
       width={640}
@@ -187,7 +193,11 @@ export interface QuoteFieldValues {
   recipientCompany?: string;
 }
 
-/** Campos del quote (compartidos por "Crear quote" y "Editar"). */
+/**
+ * Campos del quote (compartidos por "Crear quote" y "Editar"). Remitente y
+ * destinatario vienen precargados (tu perfil y el contacto del deal), así que
+ * quedan colapsados en un resumen; se abren solo para cambiarlos.
+ */
 export function QuoteFields<T extends QuoteFieldValues>({
   values,
   onChange,
@@ -196,6 +206,11 @@ export function QuoteFields<T extends QuoteFieldValues>({
   onChange: (k: keyof T) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
 }) {
   const t = useTranslations('crm');
+  const hasRecipient = values.recipientName !== undefined;
+  const from = partySummary(values.senderName, values.senderCompany, values.senderEmail) || t('quotes.parties.missing');
+  const to = hasRecipient
+    ? partySummary(values.recipientName, values.recipientCompany, values.recipientEmail) || t('quotes.parties.missing')
+    : t('quotes.parties.fromDeal');
   return (
     <>
       <input
@@ -213,36 +228,6 @@ export function QuoteFields<T extends QuoteFieldValues>({
           <input type="date" value={values.expiresAt} onChange={onChange('expiresAt')} />
         </label>
       </div>
-      <div className="qm-row">
-        <label className="qm-field">
-          <span>{t('quotes.form.senderName')}</span>
-          <input value={values.senderName} onChange={onChange('senderName')} maxLength={500} />
-        </label>
-        <label className="qm-field">
-          <span>{t('quotes.form.senderEmail')}</span>
-          <input type="email" value={values.senderEmail} onChange={onChange('senderEmail')} maxLength={320} />
-        </label>
-        <label className="qm-field">
-          <span>{t('quotes.form.senderCompany')}</span>
-          <input value={values.senderCompany} onChange={onChange('senderCompany')} maxLength={500} />
-        </label>
-      </div>
-      {values.recipientName !== undefined && (
-        <div className="qm-row">
-          <label className="qm-field">
-            <span>{t('quotes.form.recipientName')}</span>
-            <input value={values.recipientName} onChange={onChange('recipientName')} maxLength={500} />
-          </label>
-          <label className="qm-field">
-            <span>{t('quotes.form.recipientEmail')}</span>
-            <input type="email" value={values.recipientEmail ?? ''} onChange={onChange('recipientEmail')} maxLength={320} />
-          </label>
-          <label className="qm-field">
-            <span>{t('quotes.form.recipientCompany')}</span>
-            <input value={values.recipientCompany ?? ''} onChange={onChange('recipientCompany')} maxLength={500} />
-          </label>
-        </div>
-      )}
       <label className="qm-field">
         <span>{t('quotes.form.notes')}</span>
         <textarea rows={2} value={values.notes} onChange={onChange('notes')} maxLength={5000} />
@@ -251,6 +236,44 @@ export function QuoteFields<T extends QuoteFieldValues>({
         <span>{t('quotes.form.terms')}</span>
         <textarea rows={3} value={values.terms} onChange={onChange('terms')} maxLength={5000} />
       </label>
+      <AdvancedSection
+        storageKey="crm.quote.parties"
+        label={t('quotes.parties.label')}
+        hint={t('quotes.parties.summary', { from, to })}
+        className="quote-parties"
+        defaultOpen={!values.senderName.trim() && !values.senderEmail.trim()}
+      >
+        <div className="qm-row">
+          <label className="qm-field">
+            <span>{t('quotes.form.senderName')}</span>
+            <input value={values.senderName} onChange={onChange('senderName')} maxLength={500} />
+          </label>
+          <label className="qm-field">
+            <span>{t('quotes.form.senderEmail')}</span>
+            <input type="email" value={values.senderEmail} onChange={onChange('senderEmail')} maxLength={320} />
+          </label>
+          <label className="qm-field">
+            <span>{t('quotes.form.senderCompany')}</span>
+            <input value={values.senderCompany} onChange={onChange('senderCompany')} maxLength={500} />
+          </label>
+        </div>
+        {hasRecipient && (
+          <div className="qm-row">
+            <label className="qm-field">
+              <span>{t('quotes.form.recipientName')}</span>
+              <input value={values.recipientName} onChange={onChange('recipientName')} maxLength={500} />
+            </label>
+            <label className="qm-field">
+              <span>{t('quotes.form.recipientEmail')}</span>
+              <input type="email" value={values.recipientEmail ?? ''} onChange={onChange('recipientEmail')} maxLength={320} />
+            </label>
+            <label className="qm-field">
+              <span>{t('quotes.form.recipientCompany')}</span>
+              <input value={values.recipientCompany ?? ''} onChange={onChange('recipientCompany')} maxLength={500} />
+            </label>
+          </div>
+        )}
+      </AdvancedSection>
     </>
   );
 }

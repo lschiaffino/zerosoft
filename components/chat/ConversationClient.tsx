@@ -9,14 +9,15 @@ import type {
   ChatAttachment,
   ChatCannedResponseRow,
   ChatConversationWithVisitor,
-  ChatConversationListRow,
   ChatMessageWithUser,
   ConversationUpdatePayload,
 } from '@/lib/chat-data';
 import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
 import { CHAT_MESSAGE_MAX, CHAT_UPLOAD_MAX, sendErrorKey } from '@/lib/chat-schema';
-import ConversationList from './ConversationList';
 import VisitorPanel from './VisitorPanel';
+import ChatIcon, { initials } from './icons';
+import SlaNote from './SlaNote';
+import { useInbox } from './InboxShell';
 
 interface CurrentUser {
   id: string;
@@ -33,20 +34,13 @@ interface ConversationClientProps {
   currentUser: CurrentUser;
 }
 
-function initials(name: string | null, email: string | null): string {
-  const base = (name || email || '?').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim() || '?';
-  const parts = base.split(/\s+/);
-  if (parts.length > 1) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return base.slice(0, 2).toUpperCase();
-}
-
 function senderName(
   m: ChatMessageWithUser,
   visitor: ChatConversationWithVisitor['visitor'],
   currentUser: CurrentUser,
   t: (k: string) => string,
 ): string {
-  if (m.sender_type === 'visitor') return visitor.name || visitor.email || visitor.external_id;
+  if (m.sender_type === 'visitor') return visitor.name || visitor.email || t('conversation.anonymous');
   if (m.sender_type === 'system') return t('conversation.system');
   if (m.sender_type === 'bot') return t('conversation.bot');
   if (m.user_id === currentUser.id) return t('conversation.you');
@@ -92,9 +86,8 @@ export default function ConversationClient({
   const [sendError, setSendError] = useState<string | null>(null);
   /** Error al cambiar estado, prioridad o asignación (antes el select volvía atrás sin aviso). */
   const [updateError, setUpdateError] = useState<string | null>(null);
-  const [listOpen, setListOpen] = useState(false);
-  const [listRows, setListRows] = useState<ChatConversationListRow[] | null>(null);
   const router = useRouter();
+  const inbox = useInbox();
   const [canned, setCanned] = useState<ChatCannedResponseRow[]>([]);
   const [cannedIndex, setCannedIndex] = useState(0);
   const [visitorTyping, setVisitorTyping] = useState(false);
@@ -112,6 +105,10 @@ export default function ConversationClient({
   const [macroApplied, setMacroApplied] = useState<string | null>(null);
   /** Macro elegida en el composer: sus acciones se aplican al enviar la respuesta. */
   const [pendingMacro, setPendingMacro] = useState<{ id: string; shortcut: string } | null>(null);
+  /** Panel de detalles en pantallas angostas (en desktop es la tercera columna fija). */
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsRef = useRef<HTMLElement>(null);
+  const detailsToggleRef = useRef<HTMLButtonElement>(null);
 
   async function fetchTags() {
     try {
@@ -176,18 +173,8 @@ export default function ConversationClient({
     }
   }
 
-  async function fetchList() {
-    try {
-      // Todas las conversaciones del workspace (como el inbox), no solo las
-      // del widget de esta conversación.
-      const params = new URLSearchParams({ limit: '50' });
-      const res = await fetch(`/api/chat/conversations?${params.toString()}`);
-      if (!res.ok) return;
-      const data = (await res.json()) as { rows: ChatConversationListRow[] };
-      setListRows(data.rows);
-    } catch {
-      // ignore
-    }
+  function fetchList() {
+    inbox.refresh();
   }
 
   async function fetchCanned() {
@@ -239,18 +226,14 @@ export default function ConversationClient({
   useEffect(() => {
     setPendingMacro(null);
     fetchMessages();
-    fetchList();
     fetchCanned();
     fetchTags();
     markRead();
-    let tick = 0;
     const interval = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       fetchMessages();
       fetchTyping();
       fetchConversation();
-      tick += 1;
-      if (tick % 5 === 0) fetchList();
     }, 3000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,9 +253,10 @@ export default function ConversationClient({
 
   // J / K: conversación siguiente / anterior de la lista (como Intercom).
   function step(delta: 1 | -1) {
-    if (!listRows || listRows.length === 0) return;
-    const index = listRows.findIndex((c) => c.id === conversationId);
-    const next = listRows[index < 0 ? 0 : index + delta];
+    const rows = inbox.rows;
+    if (rows.length === 0) return;
+    const index = rows.findIndex((c) => c.id === conversationId);
+    const next = rows[index < 0 ? 0 : index + delta];
     if (next) router.push(`/app/chat/inbox/${next.id}`);
   }
   useKeyShortcut('j', () => step(1));
@@ -504,86 +488,88 @@ export default function ConversationClient({
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  function openDetails() {
+    setDetailsOpen(true);
+    requestAnimationFrame(() => detailsRef.current?.focus());
+  }
+
+  function closeDetails() {
+    setDetailsOpen(false);
+    detailsToggleRef.current?.focus();
+  }
+
+  // Con el panel abierto (pantallas angostas), Esc lo cierra desde cualquier foco.
+  useEffect(() => {
+    if (!detailsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setDetailsOpen(false);
+      detailsToggleRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [detailsOpen]);
+
+  const visitorLabel = visitor.name || visitor.email || t('conversation.anonymous');
   return (
-    <div className="chat-conversation-layout">
-      <button
-        type="button"
-        className="chat-list-toggle"
-        onClick={() => setListOpen((v) => !v)}
-        aria-expanded={listOpen}
-      >
-        {listOpen ? '‹' : '›'} {t('sidebar.inbox')}
-      </button>
-
-      <div className={`chat-conversation-list-pane${listOpen ? ' open' : ''}`}>
-        {listRows ? (
-          <ConversationList conversations={listRows} currentId={conversationId} />
-        ) : (
-          <p className="muted chat-inbox-loading mono">{t('common.loading')}</p>
-        )}
-      </div>
-
-      <div className="chat-conversation-thread-pane">
-        <header className="chat-conversation-header">
-          <div className="chat-conversation-header-main">
-            <Link href="/app/chat/inbox" className="chat-back-link">‹ {t('sidebar.inbox')}</Link>
-            <div className="chat-conversation-header-visitor">
-              <span className="chat-conversation-header-name">
-                {visitor.name || visitor.email || visitor.external_id}
-              </span>
-              {visitor.email && visitor.name && (
-                <span className="chat-conversation-header-email mono muted">{visitor.email}</span>
-              )}
-              <span className={`chat-status chat-status-${conversation.status}`}>
-                {t(`conversation.${conversation.status}`)}
-              </span>
-              {conversation.sla_breached === 1 ? (
-                <span className="chat-sla-badge chat-sla-breached">
-                  {conversation.sla_breach_kind === 'resolution'
-                    ? t('sla.breachedResolution')
-                    : t('sla.breachedFirst')}
-                </span>
-              ) : conversation.resolved_at ? null : conversation.sla_due_in_minutes != null ? (
-                <span className="chat-sla-badge chat-sla-due">
-                  {t('sla.dueIn', { minutes: conversation.sla_due_in_minutes })}
-                </span>
-              ) : null}
-            </div>
+    <>
+      <section className="chat-thread" aria-labelledby="chat-thread-title">
+        <header className="chat-thread-head">
+          <Link href="/app/chat/inbox" className="btn btn-ghost btn-icon btn-sm chat-thread-back" aria-label={t('inbox.backToList')}>
+            <ChatIcon name="back" />
+          </Link>
+          <div className="chat-thread-who">
+            <h2 id="chat-thread-title" className="chat-thread-name">
+              {visitorLabel}
+            </h2>
+            <p className="chat-thread-sub">
+              {visitor.email && visitor.name && <span className="data">{visitor.email}</span>}
+              <span>{conversation.widget_name}</span>
+              <SlaNote c={conversation} />
+            </p>
           </div>
-
-          <div className="chat-conversation-header-actions">
-            <div className="chat-header-field">
-              <label className="mono muted" htmlFor="chat-header-status">{t('conversation.statusLabel')}</label>
-              <select
-                id="chat-header-status"
-                className="select chat-header-select"
-                value={conversation.status}
-                onChange={(e) => changeStatus(e.target.value)}
-              >
-                {(['open', 'pending', 'snoozed', 'resolved'] as const).map((s) => (
-                  <option key={s} value={s}>{t(`conversation.${s}`)}</option>
-                ))}
-              </select>
-            </div>
-
-            {conversation.status === 'snoozed' && (
-              <div className="chat-header-field">
-                <label className="mono muted" htmlFor="chat-header-snooze">{t('conversation.snoozeUntil')}</label>
+          <button
+            ref={detailsToggleRef}
+            type="button"
+            className="btn btn-ghost btn-sm chat-details-toggle"
+            aria-expanded={detailsOpen}
+            aria-controls="chat-details"
+            onClick={() => (detailsOpen ? closeDetails() : openDetails())}
+          >
+            {t('conversation.details')}
+          </button>
+          <div className="chat-thread-actions">
+            <select
+              className="select chat-compact-select"
+              aria-label={t('conversation.assignedTo')}
+              value={conversation.assigned_to ?? ''}
+              onChange={(e) => updateConversation({ assignedTo: e.target.value || null })}
+            >
+              <option value="">{t('conversation.unassigned')}</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.id === currentUser.id ? t('conversation.assignedToYou') : a.name || a.email}
+                </option>
+              ))}
+            </select>
+            {!isResolved && (
+              <>
+                <label className="sr-only" htmlFor="chat-snooze">
+                  {t('conversation.snoozeLabel')}
+                </label>
                 <select
-                  id="chat-header-snooze"
-                  className="select chat-header-select"
+                  id="chat-snooze"
+                  className="select chat-compact-select"
                   value=""
                   onChange={(e) => {
                     const ms = Number(e.target.value);
-                    if (ms > 0) {
-                      updateConversation({ status: 'snoozed', snoozedUntil: snoozeUntilFor(ms) });
-                    }
+                    if (ms > 0) updateConversation({ status: 'snoozed', snoozedUntil: snoozeUntilFor(ms) });
                   }}
                 >
-                  <option value="">
-                    {conversation.snoozed_until
-                      ? formatDateTime(conversation.snoozed_until, locale)
-                      : '—'}
+                  <option value="" suppressHydrationWarning>
+                    {conversation.status === 'snoozed' && conversation.snoozed_until
+                      ? t('conversation.snoozedUntilShort', { when: formatDateTime(conversation.snoozed_until, locale) })
+                      : t('conversation.snoozeLabel')}
                   </option>
                   {SNOOZE_OPTIONS.map((opt) => (
                     <option key={opt.key} value={opt.value}>
@@ -591,96 +577,22 @@ export default function ConversationClient({
                     </option>
                   ))}
                 </select>
-              </div>
+              </>
             )}
-
-            <div className="chat-header-field">
-              <label className="mono muted" htmlFor="chat-header-priority">{t('conversation.priority')}</label>
-              <select
-                id="chat-header-priority"
-                className="select chat-header-select"
-                value={conversation.priority}
-                onChange={(e) =>
-                  updateConversation({ priority: e.target.value as ConversationUpdatePayload['priority'] })
-                }
-              >
-                {(['low', 'medium', 'high', 'urgent'] as const).map((p) => (
-                  <option key={p} value={p}>{t(`priorities.${p}`)}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="chat-header-field">
-              <label className="mono muted" htmlFor="chat-header-assignee">{t('conversation.assignedTo')}</label>
-              <select
-                id="chat-header-assignee"
-                className="select chat-header-select"
-                value={conversation.assigned_to ?? ''}
-                onChange={(e) =>
-                  updateConversation({ assignedTo: e.target.value || null })
-                }
-              >
-                <option value="">{t('conversation.unassigned')}</option>
-                {agents.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name || a.email}</option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              type="button"
-              className={`btn btn-small${isResolved ? '' : ' btn-solid'}`}
-              onClick={toggleResolved}
-            >
+            <button type="button" className={`btn btn-sm ${isResolved ? 'btn-secondary' : 'btn-primary'}`} onClick={toggleResolved}>
               {isResolved ? t('conversation.reopen') : t('conversation.resolve')}
             </button>
           </div>
-          <p className="form-error" role="alert" hidden={!updateError}>
+          <p className="ui-error chat-thread-error" role="alert" hidden={!updateError}>
             {updateError}
           </p>
         </header>
 
-        <div className="chat-tags-row">
-          <span className="chat-tags-label mono muted">{t('tags.title')}</span>
-          {tags.map((tag) => (
-            <span key={tag} className="chat-tag mono">
-              #{tag}
-              <button type="button" onClick={() => removeTag(tag)} aria-label={t('tags.remove', { tag })}>
-                ×
-              </button>
-            </span>
-          ))}
-          <input
-            className="chat-tag-input mono"
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ',') {
-                e.preventDefault();
-                addTag(tagInput);
-              }
-            }}
-            onBlur={() => {
-              if (tagInput.trim()) addTag(tagInput);
-            }}
-            placeholder={t('tags.add')}
-            aria-label={t('tags.add')}
-            maxLength={40}
-          />
-          {macroApplied && <span className="chat-macro-applied mono muted">{t('macros.applied', { shortcut: macroApplied })}</span>}
-          {pendingMacro && !macroApplied && (
-            <span className="chat-macro-applied mono muted">{t('macros.pending', { shortcut: pendingMacro.shortcut })}</span>
-          )}
-        </div>
-
         <div className="chat-messages" ref={messagesRef}>
           {messages.length === 0 ? (
-            <div className="chat-messages-empty">
-              <p className="empty-zeros mono" aria-hidden>0 0 0</p>
-              <p className="muted">{t('conversation.noMessages')}</p>
-            </div>
+            <p className="chat-quiet chat-messages-empty">{t('conversation.noMessages')}</p>
           ) : (
-            <ul className="chat-message-list">
+            <ol className="chat-message-list" aria-label={t('conversation.messages')}>
               {messages.map((m) => {
                 const isVisitor = m.sender_type === 'visitor';
                 const name = senderName(m, visitor, currentUser, t);
@@ -692,157 +604,113 @@ export default function ConversationClient({
                     return [];
                   }
                 })();
+                // Bot y sistema llevan un glifo dibujado; personas, sus iniciales.
+                const plate =
+                  m.sender_type === 'bot' || m.sender_type === 'system' ? (
+                    <ChatIcon name={m.sender_type} size={16} />
+                  ) : isVisitor ? (
+                    visitor.name || visitor.email ? initials(visitor.name, visitor.email) : '?'
+                  ) : (
+                    initials(m.user_name, m.user_email)
+                  );
                 return (
-                  <li
-                    key={m.id}
-                    className={`chat-message${isVisitor ? ' visitor' : ' agent'}${m.sender_type === 'bot' ? ' bot' : ''}${m.is_note ? ' note' : ''}`}
-                  >
-                    <span className="chat-message-avatar">
-                      {isVisitor
-                        ? visitor.name || visitor.email
-                          ? initials(visitor.name, visitor.email)
-                          : '?'
-                        : m.sender_type === 'user'
-                          ? initials(m.user_name, m.user_email)
-                          : initials(name, null)}
+                  <li key={m.id} className="chat-message" data-sender={m.sender_type} data-note={m.is_note ? true : undefined}>
+                    <span className="chat-plate" aria-hidden="true">
+                      {plate}
                     </span>
                     <div className="chat-message-body">
-                      <div className="chat-message-meta">
+                      <p className="chat-message-meta">
                         <span className="chat-message-name">{name}</span>
-                        {m.sender_type === 'bot' && (
-                          <span className="chat-bot-badge mono">{t('conversation.botBadge')}</span>
-                        )}
-                        {m.is_note ? <span className="chat-note-label mono">{t('notes.label')}</span> : null}
-                        <span className="chat-message-time mono muted" title={formatDateTime(m.created_at, locale)}>
+                        {m.is_note ? <span className="badge badge-warn">{t('notes.label')}</span> : null}
+                        <time suppressHydrationWarning className="chat-message-time" dateTime={m.created_at} title={formatDateTime(m.created_at, locale)}>
                           {formatTimeAgo(m.created_at, locale)}
-                        </span>
-                      </div>
-                      <div className="chat-message-bubble">
-                        {m.body ? <p>{m.body}</p> : null}
-                        {attachments.length > 0 && (
-                          <div className="chat-message-attachments">
-                            {attachments.map((a, idx) => {
-                              const type = attachmentType(a.mime);
-                              if (type === 'image') {
-                                return (
-                                  <a
-                                    key={idx}
-                                    href={a.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="chat-attachment-thumb"
-                                  >
-                                    {/* Adjunto subido (Blob o local): sin optimización de next/image. */}
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={a.url} alt={a.name} />
-                                  </a>
-                                );
-                              }
-                              if (type === 'audio') {
-                                return (
-                                  <div key={idx} className="chat-attachment-audio">
-                                    <audio src={a.url} controls preload="metadata" />
-                                  </div>
-                                );
-                              }
-                              return (
-                                <a
-                                  key={idx}
-                                  href={a.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="chat-attachment-file"
-                                >
-                                  <span>📎</span>
-                                  <span>{a.name}</span>
-                                  <span className="chat-attachment-size">({formatBytes(a.size)})</span>
-                                </a>
-                              );
-                            })}
-                          </div>
-                        )}
+                        </time>
                         {!isVisitor && !m.is_note && m.read_at && (
-                          <span className="chat-read-receipt" title={formatDateTime(m.read_at, locale)}>
+                          <span className="chat-message-read" suppressHydrationWarning title={formatDateTime(m.read_at, locale)}>
                             {t('read.read')}
                           </span>
                         )}
-                      </div>
+                      </p>
+                      {m.body ? <p className="chat-message-text">{m.body}</p> : null}
+                      {attachments.length > 0 && (
+                        <div className="chat-attachments">
+                          {attachments.map((a, idx) => {
+                            const type = attachmentType(a.mime);
+                            if (type === 'image') {
+                              return (
+                                <a key={idx} href={a.url} target="_blank" rel="noopener noreferrer" className="chat-attachment-image">
+                                  {/* Adjunto subido (Blob o local): sin optimización de next/image. */}
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={a.url} alt={a.name} />
+                                </a>
+                              );
+                            }
+                            if (type === 'audio') {
+                              return <audio key={idx} src={a.url} controls preload="metadata" className="chat-attachment-audio" />;
+                            }
+                            return (
+                              <a key={idx} href={a.url} target="_blank" rel="noopener noreferrer" className="chat-attachment-file">
+                                <ChatIcon name="attach" size={14} />
+                                <span>{a.name}</span>
+                                <span className="data">{formatBytes(a.size)}</span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </li>
                 );
               })}
-            </ul>
+            </ol>
           )}
         </div>
 
-        {visitorTyping && (
-          <div className="chat-typing-indicator">
-            <span className="chat-typing-dots"><span /><span /><span /></span>
-            {t('typing.visitorTyping')}
-          </div>
-        )}
-
-        {selectedFile && (
-          <div className="chat-attachment-preview">
-            <span>📎 {selectedFile.name} ({formatBytes(selectedFile.size)})</span>
-            <button type="button" onClick={clearSelectedFile} aria-label={t('attachments.remove')}>×</button>
-          </div>
-        )}
-
-        <div className="chat-composer-modes" role="tablist" aria-label={t('notes.mode')}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'reply'}
-            className={`chat-composer-mode${mode === 'reply' ? ' active' : ''}`}
-            onClick={() => setMode('reply')}
-          >
-            {t('conversation.reply')}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'note'}
-            className={`chat-composer-mode${mode === 'note' ? ' active note' : ''}`}
-            onClick={() => {
-              setMode('note');
-              setPendingMacro(null);
-              clearSelectedFile();
-              // Si venía escribiendo una respuesta, el visitante deja de ver el indicador.
-              if (typingSentAt.current > 0) {
-                typingSentAt.current = 0;
-                fetch(`/api/chat/conversations/${conversationId}/typing`, { method: 'DELETE' }).catch(() => {});
-              }
-            }}
-          >
-            {t('notes.label')}
-          </button>
-        </div>
-        <div className={`chat-composer${mode === 'note' ? ' note' : ''}`}>
-          {mode === 'reply' && (
+        <div className={`chat-composer${mode === 'note' ? ' is-note' : ''}`}>
+          <div className="ui-tabs chat-composer-tabs" role="tablist" aria-label={t('notes.mode')}>
             <button
               type="button"
-              className="chat-composer-attach"
-              onClick={() => fileInputRef.current?.click()}
-              title={t('attachments.upload')}
-              aria-label={t('attachments.upload')}
+              role="tab"
+              className="ui-tab"
+              aria-selected={mode === 'reply'}
+              onClick={() => setMode('reply')}
             >
-              <span aria-hidden="true">⊕</span>
+              {t('conversation.reply')}
             </button>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="chat-composer-file-input"
-            aria-hidden="true"
-            tabIndex={-1}
-            onChange={handleFileChange}
-          />
+            <button
+              type="button"
+              role="tab"
+              className="ui-tab"
+              aria-selected={mode === 'note'}
+              onClick={() => {
+                setMode('note');
+                setPendingMacro(null);
+                clearSelectedFile();
+                // Si venía escribiendo una respuesta, el visitante deja de ver el indicador.
+                if (typingSentAt.current > 0) {
+                  typingSentAt.current = 0;
+                  fetch(`/api/chat/conversations/${conversationId}/typing`, { method: 'DELETE' }).catch(() => {});
+                }
+              }}
+            >
+              {t('notes.label')}
+            </button>
+            <span className="chat-composer-status" aria-live="polite">
+              {visitorTyping
+                ? t('typing.visitorTyping')
+                : macroApplied
+                  ? t('macros.applied', { shortcut: macroApplied })
+                  : pendingMacro
+                    ? t('macros.pending', { shortcut: pendingMacro.shortcut })
+                    : ''}
+            </span>
+          </div>
+
           <div className="chat-composer-field">
             <textarea
               className="textarea chat-composer-input"
-              placeholder={mode === 'note' ? t('notes.hint') : t('conversation.replyHint')}
-              aria-label={t('conversation.reply')}
+              placeholder={mode === 'note' ? t('notes.hint') : t('conversation.replyPlaceholder')}
+              aria-label={mode === 'note' ? t('notes.label') : t('conversation.reply')}
               value={reply}
               onChange={(e) => {
                 setReply(e.target.value);
@@ -851,56 +719,175 @@ export default function ConversationClient({
                 sendTyping();
               }}
               onKeyDown={handleComposerKeyDown}
-              rows={1}
+              rows={3}
             />
             {mentionOpen && (
-              <ul className="chat-canned-picker">
+              <ul className="chat-picker" role="listbox" aria-label={t('notes.mentions')}>
                 {mentionMatches.map((a, i) => (
-                  <li key={a.id}>
-                    <button
-                      type="button"
-                      className={`chat-canned-picker-item${i === mentionIndex ? ' active' : ''}`}
-                      onClick={() => insertMention(a)}
-                    >
-                      <span className="chat-canned-picker-title">{a.name || a.email}</span>
-                      <span className="chat-canned-picker-shortcut mono">{a.email}</span>
+                  <li key={a.id} role="option" aria-selected={i === mentionIndex}>
+                    <button type="button" tabIndex={-1} onClick={() => insertMention(a)}>
+                      <span>{a.name || a.email}</span>
+                      <span className="data">{a.email}</span>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
             {pickerOpen && !mentionOpen && (
-              <ul className="chat-canned-picker">
+              <ul className="chat-picker" role="listbox" aria-label={t('canned.title')}>
                 {pickerMatches.map((r, i) => (
-                  <li key={r.id}>
-                    <button
-                      type="button"
-                      className={`chat-canned-picker-item${i === cannedIndex ? ' active' : ''}`}
-                      onClick={() => insertCanned(r)}
-                    >
-                      <span className="chat-canned-picker-shortcut mono">{r.shortcut}</span>
-                      <span className="chat-canned-picker-title">{r.title}</span>
+                  <li key={r.id} role="option" aria-selected={i === cannedIndex}>
+                    <button type="button" tabIndex={-1} onClick={() => insertCanned(r)}>
+                      <span className="data">{r.shortcut}</span>
+                      <span>{r.title}</span>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
           </div>
-          <button
-            type="button"
-            className="btn btn-solid btn-small chat-composer-send"
-            onClick={sendReply}
-            disabled={sending || (!reply.trim() && !selectedFile)}
-          >
-            {sending ? t('common.loading') : mode === 'note' ? t('notes.add') : t('conversation.send')}
+
+          {selectedFile && (
+            <div className="chat-file-chip">
+              <ChatIcon name="attach" size={14} />
+              <span className="chat-file-name">{selectedFile.name}</span>
+              <span className="data">{formatBytes(selectedFile.size)}</span>
+              <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={clearSelectedFile} aria-label={t('attachments.remove')}>
+                <ChatIcon name="close" size={14} />
+              </button>
+            </div>
+          )}
+
+          <div className="chat-composer-foot">
+            {mode === 'reply' && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon btn-sm"
+                onClick={() => fileInputRef.current?.click()}
+                title={t('attachments.upload')}
+                aria-label={t('attachments.upload')}
+              >
+                <ChatIcon name="attach" />
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="chat-file-input"
+              aria-hidden="true"
+              tabIndex={-1}
+              onChange={handleFileChange}
+            />
+            <p className="chat-composer-hint">
+              {mode === 'note' ? (
+                t('notes.footHint')
+              ) : (
+                <>
+                  <kbd className="kbd">Enter</kbd> {t('conversation.hintSend')} <kbd className="kbd">/</kbd> {t('conversation.hintCanned')}
+                </>
+              )}
+            </p>
+            <p className="ui-error chat-composer-error" role="alert" hidden={!sendError}>
+              {sendError}
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={sendReply}
+              aria-busy={sending || undefined}
+              disabled={sending || (!reply.trim() && !selectedFile)}
+            >
+              {mode === 'note' ? t('notes.add') : t('conversation.send')}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <aside
+        id="chat-details"
+        ref={detailsRef}
+        className="chat-details"
+        data-open={detailsOpen || undefined}
+        aria-label={t('conversation.details')}
+        tabIndex={-1}
+      >
+        <div className="chat-details-head">
+          <h2 className="chat-details-title">{t('conversation.details')}</h2>
+          <button type="button" className="btn btn-ghost btn-icon btn-sm chat-details-close" onClick={closeDetails} aria-label={t('common.close')}>
+            <ChatIcon name="close" />
           </button>
         </div>
-        <p className="form-error chat-composer-error" role="alert" hidden={!sendError}>
-          {sendError}
-        </p>
-      </div>
 
-      <VisitorPanel conversation={conversation} />
-    </div>
+        <section className="chat-details-section" aria-labelledby="chat-details-conv">
+          <h3 id="chat-details-conv" className="chat-details-label">
+            {t('conversation.conversation')}
+          </h3>
+          <div className="ui-field">
+            <label className="label" htmlFor="chat-status">
+              {t('conversation.statusLabel')}
+            </label>
+            <select id="chat-status" className="select" value={conversation.status} onChange={(e) => changeStatus(e.target.value)}>
+              {(['open', 'pending', 'snoozed', 'resolved'] as const).map((s) => (
+                <option key={s} value={s}>
+                  {t(`conversation.${s}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="chat-priority">
+              {t('conversation.priority')}
+            </label>
+            <select
+              id="chat-priority"
+              className="select"
+              value={conversation.priority}
+              onChange={(e) => updateConversation({ priority: e.target.value as ConversationUpdatePayload['priority'] })}
+            >
+              {(['low', 'medium', 'high', 'urgent'] as const).map((p) => (
+                <option key={p} value={p}>
+                  {t(`priorities.${p}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="chat-tag-input">
+              {t('tags.title')}
+            </label>
+            <div className="chat-tags">
+              {tags.map((tag) => (
+                <span key={tag} className="badge badge-outline chat-tag">
+                  #{tag}
+                  <button type="button" onClick={() => removeTag(tag)} aria-label={t('tags.remove', { tag })}>
+                    <ChatIcon name="close" size={12} />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="chat-tag-input"
+                className="chat-tag-input"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addTag(tagInput);
+                  }
+                }}
+                onBlur={() => {
+                  if (tagInput.trim()) addTag(tagInput);
+                }}
+                placeholder={t('tags.add')}
+                maxLength={40}
+              />
+            </div>
+          </div>
+        </section>
+
+        <VisitorPanel conversation={conversation} />
+      </aside>
+      {detailsOpen && <div className="chat-details-backdrop" onClick={closeDetails} aria-hidden="true" />}
+    </>
   );
 }

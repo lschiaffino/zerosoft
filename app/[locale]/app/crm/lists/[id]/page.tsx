@@ -1,6 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 import { requireUser } from '@/lib/session';
 import { getList, LIFECYCLE_STAGES } from '@/lib/crm';
 import { formatDate } from '@/lib/utils';
@@ -40,61 +42,61 @@ export default async function ListDetailPage(props: ListDetailPageProps) {
     created: formatDate(c.created_at, locale),
   }));
 
+  const head = (
+    <thead>
+      <tr>
+        <th scope="col">{t('contacts.table.name')}</th>
+        <th scope="col">{t('contacts.table.email')}</th>
+        <th scope="col">{t('contacts.table.company')}</th>
+        <th scope="col">{t('contacts.table.lifecycle')}</th>
+        <th scope="col">{t('contacts.table.created')}</th>
+      </tr>
+    </thead>
+  );
+
   return (
-    <div className="app-page">
-      <div>
-        <Link href="/app/crm/lists" className="back-link">
-          {t('lists.back')}
-        </Link>
-      </div>
+    <div className="ui-page crm-list-page">
+      <PageHeader
+        back={{ href: '/app/crm/lists', label: t('record.back.lists') }}
+        title={list.name}
+        description={
+          <span className="record-meta">
+            <span className={`badge kind-${list.kind}`}>{t(`lists.${list.kind}`)}</span>
+            <span>{t('lists.members', { count: memberCount })}</span>
+            {list.kind === 'dynamic' && <span>{t('lists.dynamicNote')}</span>}
+          </span>
+        }
+      />
 
-      <header className="detail-header">
-        <div className="detail-title-row">
-          <h1 className="detail-title">{list.name}</h1>
-          <span className={`badge kind-${list.kind}`}>{t(`lists.${list.kind}`)}</span>
+      {list.kind === 'static' ? (
+        <ListMembers listId={list.id} members={memberRows} />
+      ) : memberRows.length === 0 ? (
+        <EmptyState title={t('record.empty.dynamicListTitle')} body={t('record.empty.dynamicListBody')} />
+      ) : (
+        <div className="table-wrap">
+          <table className="table crm-table">
+            <caption className="sr-only">{t('lists.membersTitle')}</caption>
+            {head}
+            <tbody>
+              {memberRows.map((m) => (
+                <tr key={m.id}>
+                  <td>
+                    <Link href={`/app/crm/contacts/${m.id}`} className="cell-name">
+                      {m.name}
+                    </Link>
+                  </td>
+                  <td className="muted cell-email">{m.email || '—'}</td>
+                  <td className="muted">{m.company || '—'}</td>
+                  <td>
+                    <span className={`badge stage-${m.lifecycle}`}>{m.lifecycleLabel}</span>
+                  </td>
+                  <td className="num muted cell-date">{m.created}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div className="detail-meta">
-          <span className="detail-meta-item muted">{t('lists.members', { count: memberCount })}</span>
-          {list.kind === 'dynamic' && (
-            <span className="detail-meta-item muted">{t('lists.dynamicNote')}</span>
-          )}
-        </div>
-      </header>
-
-      <section className="panel">
-        <div className="panel-head">
-          <h2 className="section-label">{t('lists.membersTitle')}</h2>
-          <span className="panel-more">{memberCount}</span>
-        </div>
-
-        {list.kind === 'static' ? (
-          <ListMembers listId={list.id} members={memberRows} />
-        ) : memberRows.length === 0 ? (
-          <p className="muted">{t('lists.emptyMembers')}</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="table crm-table">
-              <tbody>
-                {memberRows.map((m) => (
-                  <tr key={m.id}>
-                    <td>
-                      <Link href={`/app/crm/contacts/${m.id}`} className="cell-name">
-                        {m.name}
-                      </Link>
-                    </td>
-                    <td className="muted cell-email">{m.email || '—'}</td>
-                    <td className="muted">{m.company || '—'}</td>
-                    <td>
-                      <span className={`badge stage-${m.lifecycle}`}>{m.lifecycleLabel}</span>
-                    </td>
-                    <td className="mono muted cell-date">{m.created}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import PageHeader from '@/components/ui/PageHeader';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { getSequence, listEnrollments, sequenceStepStats } from '@/lib/crm-sequences';
 import { canManageOwned, listEmailTemplates, parseDbDate } from '@/lib/crm-email';
@@ -29,10 +29,8 @@ export default async function SequenceDetailPage(props: { params: Promise<{ loca
   });
 
   return (
-    <div className="app-page">
-      <Link href="/app/crm/sequences" className="mono back-link">
-        {t('sequences.back')}
-      </Link>
+    <div className="app-page ui-page ui-page-narrow">
+      <PageHeader title={seq.sequence.name} back={{ href: '/app/crm/sequences', label: t('sequences.title') }} />
       <SequenceEditor
         sequence={{
           id: seq.sequence.id,

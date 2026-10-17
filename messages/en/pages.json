@@ -9,57 +9,11 @@
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
-    "compare": {
-      "todayTitle": "Today you pay",
-      "r1name": "Bitly",
-      "r1price": "$35 / month",
-      "r2name": "Linear",
-      "r2price": "$8 / user / month",
-      "r3name": "HubSpot",
-      "r3price": "$50 / user / month",
-      "r4name": "Calendly",
-      "r4price": "$12 / user / mo",
-      "withTitle": "With zerosoft",
-      "big": "$0",
-      "note": "On your server, the core costs $0 a month. On zerosoft Cloud you start free and pay for usage; seats are not billed.",
-      "r5name": "Notion",
-      "r5price": "$10 / user / month",
-      "r6name": "Intercom",
-      "r6price": "$29 / seat / month"
-    },
-    "roadmap": {
-      "title": "The plan, in the open.",
-      "titleDim": "What shipped and what is next.",
-      "i1": {
-        "when": "2026 · Q3",
-        "name": "Link · CRM · Docs · Chat",
-        "what": "Short links, pipelines, a block-editor wiki and a support inbox.",
-        "state": "Shipped"
-      },
-      "i2": {
-        "when": "2026 · Q4",
-        "name": "Track · Cal · Agents · Flow · Robots · Notes · Board",
-        "what": "Issues, cycles and Gantt. Booking pages with Google Calendar. AI agents, automations, browser robots, notes and a whiteboard.",
-        "state": "Shipped"
-      },
-      "i3": {
-        "when": "Next",
-        "name": "Connect",
-        "what": "API and webhooks for Track. Outlook and iCloud calendars for Cal.",
-        "state": "Planned"
-      },
-      "i4": {
-        "when": "Next",
-        "name": "Move in",
-        "what": "Importers from Linear and Notion. Full export for Docs and Chat.",
-        "state": "Planned"
-      }
-    },
     "cta": {
       "title1": "Try all eleven apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
-      "button": "Open the app →"
+      "button": "Open the app"
     },
     "link": {
       "meta": {
@@ -143,7 +97,7 @@
         "title1": "Shorten your first link.",
         "title2": "It takes ten seconds.",
         "sub": "Paste a URL, pick the alias and share it.",
-        "button": "Open Link →"
+        "button": "Open Link"
       },
       "steps": {
         "s1": {
@@ -241,7 +195,7 @@
         "title1": "Plan your first cycle.",
         "title2": "With the whole team.",
         "sub": "Create a project, invite the team and add this week’s issues.",
-        "button": "Open Track →"
+        "button": "Open Track"
       },
       "steps": {
         "s1": {
@@ -339,7 +293,7 @@
         "title1": "Set up your pipeline.",
         "title2": "With the data you already have.",
         "sub": "Import a CSV from HubSpot or a spreadsheet and start moving deals.",
-        "button": "Open CRM →"
+        "button": "Open CRM"
       },
       "steps": {
         "s1": {
@@ -437,7 +391,7 @@
         "title1": "Share your link.",
         "title2": "Let them pick the time.",
         "sub": "Create an event type, connect Google Calendar and send the link.",
-        "button": "Open Cal →"
+        "button": "Open Cal"
       },
       "steps": {
         "s1": {
@@ -535,7 +489,7 @@
         "title1": "Write the first page.",
         "title2": "Then build the wiki.",
         "sub": "Start from a template and nest pages as it grows.",
-        "button": "Open Docs →"
+        "button": "Open Docs"
       },
       "steps": {
         "s1": {
@@ -633,7 +587,7 @@
         "title1": "Add the widget.",
         "title2": "Answer from the inbox.",
         "sub": "Create a widget, paste the script on your site and get your first message.",
-        "button": "Open Chat →"
+        "button": "Open Chat"
       },
       "steps": {
         "s1": {
@@ -719,7 +673,7 @@
         "title1": "Answer your customers",
         "title2": "at 3 a.m.",
         "sub": "Create an agent from a template and try it in the playground before you publish it.",
-        "button": "Open Agents →"
+        "button": "Open Agents"
       },
       "steps": {
         "s1": {
@@ -805,7 +759,7 @@
         "title1": "Connect your apps.",
         "title2": "Stop copying and pasting.",
         "sub": "Start from a template and turn on your first flow today.",
-        "button": "Open Flow →"
+        "button": "Open Flow"
       },
       "steps": {
         "s1": {
@@ -891,7 +845,7 @@
         "title1": "Let the robot do it.",
         "title2": "You check the result.",
         "sub": "Start from a template: read a table, track a price, fill in a form or take a screenshot.",
-        "button": "Open Robots →"
+        "button": "Open Robots"
       },
       "steps": {
         "s1": {
@@ -977,7 +931,7 @@
         "title1": "Write it down now.",
         "title2": "Find it later.",
         "sub": "Press N and start typing. Your notes are yours alone.",
-        "button": "Open Notes →"
+        "button": "Open Notes"
       }
     },
     "board": {
@@ -1048,7 +1002,7 @@
         "title1": "Draw it.",
         "title2": "Then everyone gets it.",
         "sub": "Open a new board and share it with your team.",
-        "button": "Open Board →"
+        "button": "Open Board"
       }
     }
   },
@@ -1058,26 +1012,6 @@
     "compareZero": "With zerosoft",
     "compareTeam": "Team of 10",
     "compareYear": "/ year",
-    "model": {
-      "a": {
-        "title": "Self-host it",
-        "desc": "The core is AGPLv3, with every core feature. Run it on your server and change it however you like. There is no trial and no license key.",
-        "price": "$0",
-        "priceNote": "/ month, on your server"
-      },
-      "b": {
-        "title": "zerosoft Cloud",
-        "desc": "We run it: login, backups, updates and uptime. Every workspace starts on a free plan, then pays for usage: clicks, bookings, emails and storage. Seats are not billed, and AI is billed by tokens.",
-        "price": "Free",
-        "priceNote": "/ to start · then usage-based"
-      },
-      "c": {
-        "title": "Enterprise",
-        "desc": "A commercial license with direct support from the team, on your servers or in our cloud. SSO/SAML, audit logs, custom roles and white-label are in development.",
-        "price": "Let's talk",
-        "priceNote": "/ commercial license + support"
-      }
-    },
     "faqTitle": "{name} questions.",
     "faqTitleDim": "Migration, limits and API.",
     "alternative": "The open-source alternative to {rival}",
@@ -1087,7 +1021,21 @@
     "howTitleDim": "Three steps.",
     "suiteTitle": "One workspace.",
     "suiteTitleDim": "Eleven apps, same login.",
-    "previewNote": "Interactive preview of the product UI."
+    "previewNote": "Interactive preview of the product UI.",
+    "shotTitle": "{name}, inside.",
+    "crumbs": "Breadcrumb",
+    "navLabel": "{name} sections",
+    "nav": {
+      "shot": "View",
+      "features": "Features",
+      "how": "How it works",
+      "video": "Video",
+      "compare": "The math",
+      "model": "Pricing",
+      "faq": "Questions"
+    },
+    "compareTitle": "{rival} at list price.",
+    "compareTitleDim": "Against $0 on your server."
   },
   "mockups": {
     "link": {
@@ -1096,7 +1044,7 @@
       "navQr": "QR codes",
       "navSettings": "Settings",
       "title": "Links",
-      "new": "+ New link",
+      "new": "Create link",
       "statClicks": "Total clicks",
       "statLinks": "Active links",
       "statTop": "Top link",
@@ -1119,7 +1067,7 @@
     },
     "track": {
       "filter": "Filter tasks…",
-      "new": "+ New task",
+      "new": "Create task",
       "col_backlog": "Backlog",
       "col_todo": "Todo",
       "col_progress": "In progress",
@@ -1138,7 +1086,7 @@
     },
     "crm": {
       "title": "Deals",
-      "new": "+ New deal",
+      "new": "Create deal",
       "stage_lead": "Lead",
       "stage_qualified": "Qualified",
       "stage_proposal": "Proposal",
@@ -1350,6 +1298,26 @@
     "s8": {
       "name": "Auth",
       "desc": "Google sign-in"
+    },
+    "s9": {
+      "name": "Agents",
+      "desc": "Agents, knowledge, tools"
+    },
+    "s10": {
+      "name": "Flow",
+      "desc": "Workflows, triggers, runs"
+    },
+    "s11": {
+      "name": "Robots",
+      "desc": "Browser robots, schedules, runner"
+    },
+    "s12": {
+      "name": "Notes",
+      "desc": "Notes, notebooks, search"
+    },
+    "s13": {
+      "name": "Board",
+      "desc": "Whiteboards, autosave, share links"
     },
     "noData": "No data yet",
     "monitoringTitle": "Coming soon.",

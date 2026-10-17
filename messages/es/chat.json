@@ -3,13 +3,13 @@
     "overview": "Resumen",
     "inbox": "Bandeja",
     "people": "Personas",
-    "settings": "Ajustes",
+    "settings": "Widgets",
     "reports": "Reportes",
     "widgets": "Widgets"
   },
   "overview": {
     "title": "Chat",
-    "subtitle": "Habla con visitantes. Un widget a la vez.",
+    "subtitle": "Lo que pide respuesta ahora en tus widgets.",
     "widgets": "Widgets",
     "conversations": "Conversaciones",
     "noWidgets": "Aún no hay widgets.",
@@ -17,11 +17,14 @@
     "recentConversations": "Conversaciones recientes",
     "unreadMessages": "Mensajes sin leer",
     "deleteConfirm": "¿Borrar el widget “{name}”? Sus conversaciones dejan de estar disponibles desde tu sitio. No se puede deshacer.",
-    "openInbox": "Abrir inbox",
+    "openInbox": "Abrir bandeja",
     "openConversations": "Conversaciones abiertas",
     "noOpen": "No hay conversaciones abiertas. Estás al día.",
     "emptyTitle": "Creá tu primer widget",
-    "emptySub": "Un widget es la burbuja de chat que insertás en tu sitio. Creá uno, pegá el snippet y las conversaciones nuevas llegan al inbox."
+    "emptySub": "Un widget es la burbuja de chat que insertás en tu sitio. Creá uno, pegá el snippet y las conversaciones nuevas llegan al inbox.",
+    "unassignedOpen": "Abiertas sin asignar",
+    "mineOpen": "Abiertas asignadas a vos",
+    "seeAll": "Ver las {count}"
   },
   "widgetForm": {
     "name": "Nombre",
@@ -37,12 +40,7 @@
     "fieldType": "Tipo",
     "fieldTypeText": "Texto",
     "fieldTypeNumber": "Número",
-    "save": "Guardar widget",
     "create": "Crear widget",
-    "newTitle": "Nuevo widget",
-    "newSub": "Configura cómo se ve el widget y qué pregunta.",
-    "editTitle": "Editar widget",
-    "preview": "Vista previa",
     "days": {
       "sun": "Dom",
       "mon": "Lun",
@@ -51,13 +49,38 @@
       "thu": "Jue",
       "fri": "Vie",
       "sat": "Sáb"
-    }
+    },
+    "customColor": "Elegir otro color",
+    "tabs": {
+      "look": "Apariencia",
+      "form": "Formulario previo",
+      "bot": "Bot",
+      "hours": "Horario"
+    },
+    "tabsLabel": "Ajustes del widget",
+    "lookSub": "Cómo se ve la burbuja en tu sitio y qué dice al abrirse.",
+    "welcomePlaceholder": "Hola. Contanos qué necesitás.",
+    "deleteTitle": "Borrar widget",
+    "deleteSub": "El chat deja de aparecer en tu sitio. Las conversaciones se borran con el widget.",
+    "delete": "Borrar widget",
+    "formSub": "Lo que el visitante completa antes de escribir. Sin campos, escribe directo.",
+    "noFields": "Sin campos: el visitante escribe directo.",
+    "removeField": "Quitar el campo {name}",
+    "botSub": "Responde mientras nadie del equipo contestó.",
+    "lookTitle": "Burbuja y bienvenida",
+    "formTitle": "Campos antes del chat",
+    "botTitle": "Respuesta automática",
+    "hoursTitle": "Horario de atención",
+    "deleteConfirmTitle": "¿Borrar {name}?",
+    "deleteConfirmBody": "{count, plural, =0 {El widget no tiene conversaciones.} one {Se borra # conversación con todo su historial.} other {Se borran # conversaciones con todo su historial.}} El chat deja de aparecer en tu sitio. No se puede deshacer.",
+    "deleteConfirmAction": "Borrar widget"
   },
   "embed": {
-    "title": "Código para embeber",
-    "copy": "Copiar",
-    "copied": "Copiado",
-    "instructions": "Pegá este snippet justo antes del cierre de la etiqueta body de tu sitio."
+    "title": "Código de instalación",
+    "copy": "Copiar código",
+    "copied": "Código copiado",
+    "instructions": "Pegá este snippet justo antes del cierre de la etiqueta body de tu sitio.",
+    "copyError": "No se pudo copiar. Seleccioná el código y copialo a mano."
   },
   "inbox": {
     "title": "Bandeja",
@@ -68,7 +91,8 @@
       "snoozed": "Pospuestas",
       "resolved": "Resueltas",
       "unassigned": "Sin asignar",
-      "mine": "Mías"
+      "mine": "Mías",
+      "anyone": "De cualquiera"
     },
     "search": "Buscar visitantes o asuntos…",
     "empty": "Ninguna conversación coincide con tus filtros.",
@@ -76,7 +100,15 @@
     "unread": "No leída",
     "emptyOpen": "No hay conversaciones abiertas. Estás al día.",
     "noWidgetsTitle": "Todavía no hay widgets",
-    "noWidgetsSub": "Las conversaciones llegan a través de un widget en tu sitio. Creá uno para empezar a recibir chats acá."
+    "noWidgetsSub": "Las conversaciones llegan a través de un widget en tu sitio. Creá uno para empezar a recibir chats acá.",
+    "loadError": "No se pudo cargar la bandeja.",
+    "listLabel": "Conversaciones",
+    "snoozedUntil": "Pospuesta, vuelve {when}",
+    "backToList": "Volver a la bandeja",
+    "pickTitle": "Elegí una conversación",
+    "keysNav": "Siguiente y anterior",
+    "keysSearch": "Buscar",
+    "keysSend": "Enviar la respuesta (Shift+Enter para otra línea)"
   },
   "conversation": {
     "open": "Abierta",
@@ -108,14 +140,22 @@
     "you": "Tú",
     "system": "Sistema",
     "bot": "Bot",
-    "botBadge": "BOT",
     "priorities": {
       "low": "Baja",
       "medium": "Media",
       "high": "Alta",
       "urgent": "Urgente"
     },
-    "replyHint": "Responder… Enter envía · / respuestas guardadas"
+    "anonymous": "Visitante anónimo",
+    "assignedToYou": "Vos",
+    "snoozeLabel": "Posponer",
+    "snoozedUntilShort": "Hasta {when}",
+    "details": "Detalles",
+    "conversation": "Conversación",
+    "replyPlaceholder": "Escribí tu respuesta…",
+    "hintSend": "envía",
+    "hintCanned": "respuestas guardadas",
+    "nobody": "Nadie"
   },
   "visitorPanel": {
     "title": "Visitante",
@@ -128,7 +168,7 @@
     "csat": "CSAT",
     "createContact": "Crear contacto en el CRM",
     "logToCrm": "Guardar conversación en el CRM",
-    "loggedToCrm": "Guardada en el timeline del contacto ✓",
+    "loggedToCrm": "Guardada en el timeline del contacto.",
     "crmError": "No se pudo guardar en el CRM. Probá de nuevo.",
     "needsEmail": "Pedile un email para crear el contacto en el CRM.",
     "started": "Inicio"
@@ -146,12 +186,26 @@
     "conversations": "{count, plural, one {# conversación} other {# conversaciones}}",
     "notes": "Notas",
     "editNotes": "Editar notas",
-    "notesPlaceholder": "Agregá una nota sobre esta persona… se guarda sola",
-    "lastSeen": "Última vez"
+    "notesPlaceholder": "Contexto sobre esta persona para el equipo",
+    "lastSeen": "Última vez",
+    "subtitle": "Quienes escribieron por alguno de tus widgets.",
+    "count": "{count, plural, one {# persona} other {# personas}}",
+    "emptyTitle": "Todavía no escribió nadie",
+    "emptyBody": "Cada visitante que abre una conversación aparece acá con su historial.",
+    "emptyAction": "Ver widgets",
+    "noEmail": "Sin email",
+    "noConversations": "Sin conversaciones",
+    "updated": "Última actividad",
+    "noSubject": "Sin asunto",
+    "data": "Datos",
+    "notesHint": "Se guarda al salir del campo. Solo la ve tu equipo.",
+    "notesSaving": "Guardando…",
+    "notesSaved": "Nota guardada",
+    "notesError": "No se pudo guardar la nota. Probá de nuevo."
   },
   "rules": {
     "title": "Reglas de asignación",
-    "add": "Agregar regla",
+    "add": "Crear regla",
     "matchAll": "Todas",
     "matchKeyword": "Palabra clave",
     "matchTime": "Rango horario",
@@ -159,7 +213,7 @@
     "assignTo": "Asignar a",
     "active": "Activa",
     "inactive": "Inactiva",
-    "empty": "Aún no hay reglas de asignación.",
+    "empty": "Todavía no hay reglas",
     "matchType": "Tipo de coincidencia",
     "keyword": "Palabra clave",
     "timeRange": "Rango horario",
@@ -170,16 +224,28 @@
     "deleteConfirm": "¿Borrar esta regla de asignación?",
     "moveUp": "Subir",
     "moveDown": "Bajar",
-    "namePlaceholder": "Nombre de la regla, p. ej. Precios a ventas"
+    "namePlaceholder": "Nombre de la regla, p. ej. Precios a ventas",
+    "create": "Crear regla",
+    "order": "Orden",
+    "name": "Nombre",
+    "condition": "Condición",
+    "state": "Estado",
+    "roundRobinTeam": "Todo el equipo, por turnos",
+    "toggle": "Activar {name}",
+    "moveUpNamed": "Subir {name}",
+    "moveDownNamed": "Bajar {name}",
+    "deleteNamed": "Borrar {name}",
+    "newTitle": "Nueva regla",
+    "editTitle": "Editar regla"
   },
   "sla": {
     "title": "SLA",
     "firstResponse": "Primera respuesta",
     "resolution": "Resolución",
     "breached": "Incumplido",
-    "breachedFirst": "SLA de 1ª respuesta",
-    "breachedResolution": "SLA de resolución",
-    "dueIn": "Responder en {minutes}m",
+    "breachedFirst": "1ª respuesta vencida",
+    "breachedResolution": "Resolución vencida",
+    "dueIn": "Responder en {age}",
     "resolved": "Resuelto",
     "policies": "Políticas de SLA",
     "priority": "Prioridad",
@@ -187,16 +253,18 @@
     "resolutionMinutes": "Resolución (min)",
     "default": "Por defecto",
     "saved": "Guardado.",
-    "policiesNote": "Objetivos por prioridad para este widget. Sin política, la primera respuesta es 60 min por defecto y no hay objetivo de resolución. Deja la resolución vacía para no fijar objetivo."
+    "policiesNote": "Objetivos por prioridad para este widget, en minutos. Sin objetivo de resolución, dejá el campo vacío.",
+    "invalid": "Usá minutos enteros entre 1 y {max}.",
+    "noTarget": "Sin objetivo",
+    "breachedFirstAgo": "1ª respuesta vencida hace {age}",
+    "breachedResolutionAgo": "Resolución vencida hace {age}",
+    "allDefault": "Las cuatro prioridades usan el valor por defecto: primera respuesta en 60 min, sin objetivo de resolución."
   },
   "settings": {
-    "title": "Ajustes de chat",
-    "subtitle": "Widgets, código para insertar, reglas, respuestas guardadas y SLA.",
     "avgFirstResponse": "Primera respuesta prom.",
     "withinSla": "Dentro del SLA de 1ª respuesta",
     "avgResolution": "Resolución prom.",
-    "resolvedCount": "Conversaciones resueltas",
-    "widgetsNote": "Cada widget tiene su aspecto, código para insertar, reglas de asignación, respuestas guardadas y SLA."
+    "resolvedCount": "Conversaciones resueltas"
   },
   "csat": {
     "title": "CSAT",
@@ -211,34 +279,47 @@
     "greeting": "Saludo",
     "greetingPlaceholder": "¡Hola! Soy el asistente. ¿En qué te ayudo?…",
     "source": "Fuente de conocimiento",
-    "sourceCanned": "Respuestas prediseñadas",
+    "sourceCanned": "Respuestas guardadas",
     "sourceDocs": "Páginas de docs",
     "hint": "El bot responde una vez por conversación, solo si nadie contestó todavía. Puntúa las keywords del visitante contra la fuente (el título pesa doble); sin match manda solo el saludo.",
-    "sourceAi": "AI (Docs + respuestas prediseñadas)",
-    "hintAi": "El bot con AI responde cada mensaje del visitante hasta que conteste alguien del equipo, usando solo tus páginas de Docs públicas y las respuestas prediseñadas de este widget. Si no está seguro o el visitante pide una persona, deriva: la conversación queda con prioridad alta en el inbox. Si la AI falla o se agota la cuota mensual, responde el bot por keywords.",
-    "aiNotConfigured": "La AI no está configurada en este servidor (definí AI_GATEWAY_API_KEY). Mientras tanto el bot usa keywords sobre Docs y respuestas prediseñadas.",
+    "sourceAi": "AI (Docs + respuestas guardadas)",
+    "hintAi": "El bot con AI responde cada mensaje del visitante hasta que conteste alguien del equipo, usando solo tus páginas de Docs públicas y las respuestas guardadas de este widget. Si no está seguro o el visitante pide una persona, deriva: la conversación queda con prioridad alta en el inbox. Si la AI falla o se agota la cuota mensual, responde el bot por keywords.",
+    "aiNotConfigured": "La AI no está configurada en este servidor (definí AI_GATEWAY_API_KEY). Mientras tanto el bot usa keywords sobre Docs y respuestas guardadas.",
     "sourceAgent": "Agente de AI (desde Agents)",
     "hintAgent": "Este widget lo atiende un agente de AI. Sus instrucciones, conocimiento y herramientas se gestionan en Agents → Canales. El agente se detiene cuando alguien del equipo responde o cuando deriva la conversación."
   },
   "officeHours": {
     "title": "Horario de atención",
-    "enabled": "Configurar horario",
+    "enabled": "Atender en un horario",
     "disabled": "Sin horario: el widget está siempre en línea.",
     "timezone": "Zona horaria",
-    "hint": "Fuera de este horario el widget muestra un mensaje de ausencia con el tiempo de respuesta esperado."
+    "hint": "Fuera de este horario el widget muestra un mensaje de ausencia con el tiempo de respuesta esperado.",
+    "zoneNote": "Zona horaria: {zone}",
+    "from": "{day}, desde",
+    "to": "{day}, hasta"
   },
   "canned": {
-    "title": "Respuestas prediseñadas",
-    "add": "Agregar respuesta",
+    "title": "Respuestas guardadas",
+    "add": "Crear respuesta",
     "shortcut": "Atajo",
-    "body": "Cuerpo",
-    "empty": "Aún no hay respuestas prediseñadas.",
+    "body": "Texto",
+    "empty": "Todavía no hay respuestas guardadas",
     "placeholder": "Escribe aquí tu mensaje guardado…",
-    "sub": "Respuestas guardadas de este widget. En una conversación, escribí / para insertar una.",
+    "sub": "Escribí / en una conversación para insertar una.",
     "emptySub": "Guardá las respuestas que escribís seguido e insertalas con / mientras respondés.",
     "deleteConfirm": "¿Borrar la respuesta guardada {shortcut}?",
-    "titleLabel": "Título",
-    "titlePlaceholder": "Opcional — por defecto, el atajo"
+    "titleLabel": "Nombre",
+    "titlePlaceholder": "p. ej. Saludo inicial",
+    "create": "Crear respuesta",
+    "shortcutHelp": "Sale del nombre. Escribilo en una conversación para insertar el texto.",
+    "shortcutTaken": "Ya hay una respuesta con el atajo {shortcut}.",
+    "autoActions": "Acciones automáticas",
+    "autoActionsAdvanced": "Acciones automáticas (Avanzado)",
+    "actionsCount": "{count, plural, one {# acción} other {# acciones}}",
+    "delete": "Borrar {shortcut}",
+    "tagsPlaceholder": "facturacion urgente",
+    "newTitle": "Nueva respuesta",
+    "editTitle": "Editar respuesta"
   },
   "attachments": {
     "image": "Imagen",
@@ -263,7 +344,10 @@
     "delete": "Eliminar",
     "edit": "Editar",
     "loading": "Cargando…",
-    "empty": "Aún no hay nada aquí."
+    "empty": "Aún no hay nada aquí.",
+    "retry": "Reintentar",
+    "close": "Cerrar",
+    "actions": "Acciones"
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -272,10 +356,12 @@
     "messageTooLong": "Mensaje demasiado largo (máx. 5.000 caracteres).",
     "invalid_input": "Algunos campos son inválidos. Revísalos e intenta de nuevo.",
     "missing_name": "El nombre es obligatorio.",
-    "invalid_assignee": "No se puede asignar a esa persona en esta conversación."
+    "invalid_assignee": "No se puede asignar a esa persona en esta conversación.",
+    "loadFailed": "No se pudo cargar. Revisá la conexión y reintentá.",
+    "pageTitle": "No se pudo cargar esta pantalla",
+    "pageBody": "Puede ser la conexión o un error nuestro. Reintentá; si sigue, avisanos desde Feedback."
   },
   "quick": {
-    "create": "Crear",
     "hint": "Enter para crear · Esc para cancelar",
     "saveHint": "⌘↵ para guardar · Esc para cancelar",
     "widgetPlaceholder": "Nombre del widget, p. ej. Soporte web",
@@ -283,8 +369,9 @@
   },
   "widgetNav": {
     "settings": "Widget",
-    "back": "Todos los widgets",
-    "conversations": "{count, plural, one {# conversación} other {# conversaciones}}"
+    "rules": "Reglas",
+    "canned": "Respuestas guardadas",
+    "sla": "SLA"
   },
   "reports": {
     "title": "Reportes",
@@ -292,7 +379,7 @@
     "exportCsv": "Exportar CSV",
     "from": "Desde",
     "to": "Hasta",
-    "apply": "Aplicar",
+    "apply": "Aplicar rango",
     "lastDays": "Últimos {days} días",
     "conversations": "Conversaciones",
     "responses": "{count, plural, one {# respuesta} other {# respuestas}}",
@@ -302,25 +389,31 @@
     "firstResponse": "Primera respuesta",
     "resolution": "Resolución",
     "resolved": "Resueltas",
-    "note": "Los tiempos son promedios desde que se creó la conversación. CSAT de 1 a 5."
+    "note": "Los tiempos son promedios desde que se creó la conversación. CSAT de 1 a 5.",
+    "csatLabel": "CSAT ({count, plural, one {# respuesta} other {# respuestas}})",
+    "range": "Rango del reporte",
+    "presets": "Rangos rápidos",
+    "emptyBody": "Probá con un rango más largo."
   },
   "tags": {
     "title": "Tags",
     "filter": "Filtrar por tag",
     "all": "Todos los tags",
     "remove": "Quitar #{tag}",
-    "add": "+ tag"
+    "add": "Agregar tag"
   },
   "notes": {
     "label": "Nota interna",
     "mode": "Tipo de mensaje",
     "hint": "Nota interna… solo la ve tu equipo. @ para mencionar",
-    "add": "Agregar nota"
+    "add": "Agregar nota",
+    "mentions": "Mencionar",
+    "footHint": "Solo la ve tu equipo. @ para mencionar."
   },
   "macros": {
     "applied": "Macro {shortcut} aplicada",
     "pending": "Macro {shortcut}: se aplica al enviar",
-    "title": "Acciones al usar esta respuesta (macro)",
+    "title": "Se aplican al enviar la respuesta en una conversación.",
     "status": "Estado",
     "assign": "Asignar a",
     "tags": "Agregar tags",
@@ -328,10 +421,11 @@
     "none": "Sin cambios",
     "me": "Quien la usa",
     "summary": {
-      "snooze": "Pospone {hours} h",
-      "status": "Pasa a {status}",
-      "unassign": "Desasigna",
-      "assign": "Asigna a {name}"
+      "snooze": "pospone {hours} h",
+      "status": "pasa a {status}",
+      "unassign": "desasigna",
+      "assign": "asigna a {name}",
+      "assignMe": "asigna a quien la usa"
     }
   },
   "help": {
@@ -339,5 +433,16 @@
     "enabled": "Mostrar pestaña de ayuda",
     "hint": "El widget suma una pestaña con los artículos publicados de Docs y los sugiere mientras el visitante escribe su pregunta.",
     "open": "Ver centro de ayuda"
+  },
+  "widgets": {
+    "title": "Widgets",
+    "subtitle": "Cada widget es la burbuja de chat de un sitio, con su código, bot, horario, reglas y respuestas.",
+    "open": "Abiertas",
+    "on": "Activo",
+    "off": "Apagado",
+    "hoursSet": "Con horario",
+    "alwaysOn": "Siempre en línea",
+    "created": "Creado",
+    "openInbox": "{count, plural, =0 {Abrir bandeja} one {# abierta en la bandeja} other {{formatted} abiertas en la bandeja}}"
   }
 }

@@ -62,22 +62,20 @@ export default async function BlogPostPage(
   const t = await getTranslations({ locale, namespace: 'common.blog' });
 
   return (
-    <main className="container" style={{ paddingTop: 100, paddingBottom: 140 }}>
-      <article>
-        <div className="blog-post-cover" aria-hidden="true">
-          <BlogCover slug={post.slug} title={post.title} variant="hero" />
-        </div>
-        <header className="blog-post-header">
-          <p className="blog-post-meta">
-            <Link href="/blog" style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}>
-              {t('back')}
-            </Link>
-          </p>
+    <main className="container read-body">
+      <article className="blog-post">
+        <header className="read-hero">
+          <Link href="/blog" className="blog-back">
+            {t('back')}
+          </Link>
           <h1 className="blog-post-title">{post.title}</h1>
           <p className="blog-post-meta">
             {formatDate(post.date, locale)} · {post.author} · {post.readingTime} {t('readingTime')}
           </p>
         </header>
+        <div className="blog-post-cover" aria-hidden="true">
+          <BlogCover slug={post.slug} title={post.title} variant="hero" />
+        </div>
         <div className="prose" dangerouslySetInnerHTML={{ __html: post.html }} />
       </article>
     </main>

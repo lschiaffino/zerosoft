@@ -9,57 +9,11 @@
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
-    "compare": {
-      "todayTitle": "Hoy pagás",
-      "r1name": "Bitly",
-      "r1price": "$35 / mes",
-      "r2name": "Linear",
-      "r2price": "$8 / usuario / mes",
-      "r3name": "HubSpot",
-      "r3price": "$50 / usuario / mes",
-      "r4name": "Calendly",
-      "r4price": "$12 / usuario / mes",
-      "withTitle": "Con zerosoft",
-      "big": "$0",
-      "note": "En tu servidor, el core cuesta $0 por mes. En zerosoft Cloud empezás gratis y pagás por uso; los asientos no se cobran.",
-      "r5name": "Notion",
-      "r5price": "$10 / usuario / mes",
-      "r6name": "Intercom",
-      "r6price": "$29 / asiento / mes"
-    },
-    "roadmap": {
-      "title": "El plan, a la vista.",
-      "titleDim": "Lo hecho y lo que sigue.",
-      "i1": {
-        "when": "2026 · Q3",
-        "name": "Link · CRM · Docs · Chat",
-        "what": "Links cortos, pipelines, una wiki con editor de bloques y un inbox de soporte.",
-        "state": "Disponible"
-      },
-      "i2": {
-        "when": "2026 · Q4",
-        "name": "Track · Cal · Agents · Flow · Robots · Notes · Board",
-        "what": "Issues, ciclos y Gantt. Páginas de reserva con Google Calendar. Agentes de IA, automatizaciones, robots de navegador, notas y una pizarra.",
-        "state": "Disponible"
-      },
-      "i3": {
-        "when": "Lo que sigue",
-        "name": "Conectar",
-        "what": "API y webhooks para Track. Calendarios de Outlook e iCloud para Cal.",
-        "state": "Pendiente"
-      },
-      "i4": {
-        "when": "Lo que sigue",
-        "name": "Mudarse",
-        "what": "Importadores desde Linear y Notion. Export completo para Docs y Chat.",
-        "state": "Pendiente"
-      }
-    },
     "cta": {
       "title1": "Probá las once apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
-      "button": "Abrir la app →"
+      "button": "Abrir la app"
     },
     "link": {
       "meta": {
@@ -143,7 +97,7 @@
         "title1": "Acortá tu primer link.",
         "title2": "Tarda diez segundos.",
         "sub": "Pegá una URL, elegí el alias y compartila.",
-        "button": "Abrir Link →"
+        "button": "Abrir Link"
       },
       "steps": {
         "s1": {
@@ -241,7 +195,7 @@
         "title1": "Armá tu primer ciclo.",
         "title2": "Con el equipo adentro.",
         "sub": "Creá un proyecto, invitá al equipo y cargá los issues de esta semana.",
-        "button": "Abrir Track →"
+        "button": "Abrir Track"
       },
       "steps": {
         "s1": {
@@ -339,7 +293,7 @@
         "title1": "Armá tu pipeline.",
         "title2": "Con los datos que ya tenés.",
         "sub": "Importá un CSV de HubSpot o de una planilla y empezá a mover deals.",
-        "button": "Abrir CRM →"
+        "button": "Abrir CRM"
       },
       "steps": {
         "s1": {
@@ -437,7 +391,7 @@
         "title1": "Compartí tu link.",
         "title2": "Que elijan el horario.",
         "sub": "Creá un tipo de evento, conectá Google Calendar y mandá el link.",
-        "button": "Abrir Cal →"
+        "button": "Abrir Cal"
       },
       "steps": {
         "s1": {
@@ -535,7 +489,7 @@
         "title1": "Escribí la primera página.",
         "title2": "Después armá la wiki.",
         "sub": "Empezá de una plantilla y anidá páginas a medida que crece.",
-        "button": "Abrir Docs →"
+        "button": "Abrir Docs"
       },
       "steps": {
         "s1": {
@@ -633,7 +587,7 @@
         "title1": "Poné el widget.",
         "title2": "Respondé desde el inbox.",
         "sub": "Creá un widget, pegá el script en tu sitio y recibí el primer mensaje.",
-        "button": "Abrir Chat →"
+        "button": "Abrir Chat"
       },
       "steps": {
         "s1": {
@@ -719,7 +673,7 @@
         "title1": "Que tus clientes",
         "title2": "tengan respuesta a las 3 a.m.",
         "sub": "Creá un agente desde una plantilla y probalo en el playground antes de publicarlo.",
-        "button": "Abrir Agents →"
+        "button": "Abrir Agents"
       },
       "steps": {
         "s1": {
@@ -805,7 +759,7 @@
         "title1": "Conectá tus apps.",
         "title2": "Dejá de copiar y pegar.",
         "sub": "Empezá con una plantilla y activá tu primer flow hoy.",
-        "button": "Abrir Flow →"
+        "button": "Abrir Flow"
       },
       "steps": {
         "s1": {
@@ -891,7 +845,7 @@
         "title1": "Que lo haga el robot.",
         "title2": "Vos revisá el resultado.",
         "sub": "Arrancá con una plantilla: leer una tabla, seguir un precio, completar un formulario o sacar una captura.",
-        "button": "Abrir Robots →"
+        "button": "Abrir Robots"
       },
       "steps": {
         "s1": {
@@ -977,7 +931,7 @@
         "title1": "Anotalo ahora.",
         "title2": "Encontralo después.",
         "sub": "Apretá N y escribí. Tus notas son solo tuyas.",
-        "button": "Abrir Notes →"
+        "button": "Abrir Notes"
       }
     },
     "board": {
@@ -1048,7 +1002,7 @@
         "title1": "Dibujalo.",
         "title2": "Así se entiende.",
         "sub": "Abrí una pizarra nueva y compartila con tu equipo.",
-        "button": "Abrir Board →"
+        "button": "Abrir Board"
       }
     }
   },
@@ -1058,26 +1012,6 @@
     "compareZero": "Con zerosoft",
     "compareTeam": "Equipo de 10",
     "compareYear": "/ año",
-    "model": {
-      "a": {
-        "title": "Hostealo vos",
-        "desc": "El core es AGPLv3, con todas sus funciones. Corrélo en tu servidor y modificalo como quieras. No hay período de prueba ni clave de licencia.",
-        "price": "$0",
-        "priceNote": "/ mes, en tu servidor"
-      },
-      "b": {
-        "title": "zerosoft Cloud",
-        "desc": "Lo operamos nosotros: login, backups, actualizaciones y uptime. Cada workspace empieza con un plan gratis y después paga por uso: clics, reservas, emails y almacenamiento. Los asientos no se cobran y la IA se cobra por tokens.",
-        "price": "Gratis",
-        "priceNote": "/ para empezar · después, por uso"
-      },
-      "c": {
-        "title": "Enterprise",
-        "desc": "Licencia comercial con soporte directo del equipo, en tu servidor o en nuestra nube. SSO/SAML, logs de auditoría, roles a medida y white-label están en desarrollo.",
-        "price": "Hablemos",
-        "priceNote": "/ licencia comercial + soporte"
-      }
-    },
     "faqTitle": "Preguntas sobre {name}.",
     "faqTitleDim": "Migración, límites y API.",
     "alternative": "La alternativa open source a {rival}",
@@ -1087,7 +1021,21 @@
     "howTitleDim": "En tres pasos.",
     "suiteTitle": "Un workspace.",
     "suiteTitleDim": "Once apps, el mismo login.",
-    "previewNote": "Vista interactiva de la interfaz del producto."
+    "previewNote": "Vista interactiva de la interfaz del producto.",
+    "shotTitle": "{name}, por dentro.",
+    "crumbs": "Ubicación",
+    "navLabel": "Secciones de {name}",
+    "nav": {
+      "shot": "Vista",
+      "features": "Funciones",
+      "how": "Cómo se usa",
+      "video": "Video",
+      "compare": "La cuenta",
+      "model": "Precios",
+      "faq": "Preguntas"
+    },
+    "compareTitle": "{rival}, a precio de lista.",
+    "compareTitleDim": "Contra $0 en tu servidor."
   },
   "mockups": {
     "link": {
@@ -1096,7 +1044,7 @@
       "navQr": "Códigos QR",
       "navSettings": "Ajustes",
       "title": "Links",
-      "new": "+ Nuevo link",
+      "new": "Crear link",
       "statClicks": "Clicks totales",
       "statLinks": "Links activos",
       "statTop": "Link top",
@@ -1119,7 +1067,7 @@
     },
     "track": {
       "filter": "Filtrar tareas…",
-      "new": "+ Nueva tarea",
+      "new": "Crear tarea",
       "col_backlog": "Backlog",
       "col_todo": "Por hacer",
       "col_progress": "En curso",
@@ -1138,7 +1086,7 @@
     },
     "crm": {
       "title": "Negocios",
-      "new": "+ Nuevo negocio",
+      "new": "Crear negocio",
       "stage_lead": "Lead",
       "stage_qualified": "Calificado",
       "stage_proposal": "Propuesta",
@@ -1314,10 +1262,10 @@
   },
   "status": {
     "meta": {
-      "title": "Status",
+      "title": "Estado",
       "description": "Qué corre zerosoft.ai y cómo vamos a reportar su salud. Sin números inventados."
     },
-    "title": "Status.",
+    "title": "Estado.",
     "sub": "El monitoreo en vivo todavía no está conectado. Hasta que lo esté, no te vamos a mostrar números que no medimos.",
     "s1": {
       "name": "Link",
@@ -1350,6 +1298,26 @@
     "s8": {
       "name": "Auth",
       "desc": "Login con Google"
+    },
+    "s9": {
+      "name": "Agents",
+      "desc": "Agentes, conocimiento, herramientas"
+    },
+    "s10": {
+      "name": "Flow",
+      "desc": "Workflows, disparadores, corridas"
+    },
+    "s11": {
+      "name": "Robots",
+      "desc": "Robots del navegador, schedules, runner"
+    },
+    "s12": {
+      "name": "Notes",
+      "desc": "Notas, libretas, búsqueda"
+    },
+    "s13": {
+      "name": "Board",
+      "desc": "Pizarras, autosave, links para compartir"
     },
     "noData": "Sin datos aún",
     "monitoringTitle": "Próximamente.",

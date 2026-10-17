@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { ViewType } from './ViewSwitcher';
 import type { FilterState } from './IssueFilters';
 
 interface SaveViewDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (name: string) => void;
+  onSave: (name: string) => Promise<void> | void;
   viewType: ViewType;
   filters: FilterState;
   labels: {
@@ -16,47 +16,93 @@ interface SaveViewDialogProps {
     namePlaceholder: string;
     save: string;
     cancel: string;
+    error?: string;
   };
 }
 
-export default function SaveViewDialog({ open, onClose, onSave, labels }: SaveViewDialogProps) {
+/** Guardar la vista actual (tipo, filtros y orden) con un nombre. */
+export default function SaveViewDialog(props: SaveViewDialogProps) {
+  if (!props.open) return null;
+  return <SaveViewDialogBody {...props} />;
+}
+
+function SaveViewDialogBody({ onClose, onSave, labels }: SaveViewDialogProps) {
+  const ref = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(false);
+  const id = useId();
 
-  if (!open) return null;
+  useEffect(() => {
+    const dialog = ref.current;
+    const opener = document.activeElement as HTMLElement | null;
+    if (dialog && !dialog.open) dialog.showModal();
+    return () => {
+      if (dialog?.open) dialog.close();
+      opener?.focus?.();
+    };
+  }, []);
 
   return (
-    <div className="track-dialog-overlay" onClick={onClose}>
-      <div className="track-dialog" onClick={(e) => e.stopPropagation()}>
-        <h3>{labels.title}</h3>
-        <div className="track-form-row">
-          <label htmlFor="viewName">{labels.name}</label>
-          <input
-            id="viewName"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={labels.namePlaceholder}
-            autoFocus
-          />
+    <dialog
+      ref={ref}
+      className="ui-modal"
+      aria-labelledby={`${id}-title`}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+    >
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!name.trim() || submitting) return;
+          setSubmitting(true);
+          setError(false);
+          try {
+            await onSave(name.trim());
+          } catch {
+            setError(true);
+            setSubmitting(false);
+          }
+        }}
+      >
+        <div className="ui-modal-head">
+          <h2 className="ui-modal-title" id={`${id}-title`}>
+            {labels.title}
+          </h2>
         </div>
-        <div className="track-form-actions">
-          <button
-            type="button"
-            className="btn btn-solid"
-            disabled={!name.trim() || submitting}
-            onClick={() => {
-              setSubmitting(true);
-              onSave(name.trim());
-            }}
-          >
-            {submitting ? labels.save + '…' : labels.save}
-          </button>
-          <button type="button" className="btn" onClick={onClose}>
+        <div className="ui-modal-body">
+          <div className="ui-field">
+            <label className="label" htmlFor={`${id}-name`}>
+              {labels.name}
+            </label>
+            <input
+              id={`${id}-name`}
+              className="input"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={labels.namePlaceholder}
+              maxLength={100}
+              autoFocus
+            />
+            {error && labels.error && (
+              <p className="ui-error" role="alert">
+                {labels.error}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="ui-modal-foot">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
             {labels.cancel}
           </button>
+          <button type="submit" className="btn btn-primary" disabled={!name.trim()} aria-busy={submitting || undefined}>
+            {labels.save}
+          </button>
         </div>
-      </div>
-    </div>
+      </form>
+    </dialog>
   );
 }

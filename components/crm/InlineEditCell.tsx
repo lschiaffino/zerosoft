@@ -17,6 +17,8 @@ interface InlineEditCellProps {
   /** Campo del schema (camelCase, ej. 'email', 'phone', 'lifecycleStage'). */
   field: string;
   value: string;
+  /** Texto a mostrar fuera de edición (monto o fecha formateados). Al editar se usa `value`. */
+  displayValue?: string;
   className?: string;
   type?: InlineEditType;
   /** Opciones para type='select'. */
@@ -36,6 +38,7 @@ export default function InlineEditCell({
   endpoint,
   field,
   value,
+  displayValue,
   className = '',
   type = 'text',
   options = [],
@@ -141,9 +144,11 @@ export default function InlineEditCell({
   }
 
   const display =
-    type === 'select'
-      ? options.find((o) => o.value === value)?.label ?? value
-      : value;
+    value && displayValue
+      ? displayValue
+      : type === 'select'
+        ? options.find((o) => o.value === value)?.label ?? value
+        : value;
 
   return (
     <button

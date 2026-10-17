@@ -2232,6 +2232,32 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // Cal: la marca (color, logo, nombre) es del workspace y se ve en todas
+    // las páginas públicas (/book, /r, gestión). El color y el logo del tipo
+    // de evento quedan como excepción opcional.
+    id: '035_cal_workspace_brand',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE calendar_users ADD COLUMN brand_color TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_users ADD COLUMN logo_url TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_users ADD COLUMN display_name TEXT');
+    },
+  },
+  {
+    // Las ideas del roadmap inicial de Agents, Flow, Notes, Board y Robots se
+    // cargaron como 'other' (todavía no existían en la taxonomía). Ahora llevan
+    // su producto, así el board muestra su línea. Solo toca las que siguen en
+    // 'other' (si alguien las recategorizó desde el admin, se respeta).
+    id: '036_roadmap_seed_products',
+    async up(client) {
+      for (const product of ['agents', 'flow', 'notes', 'board', 'robots']) {
+        await client.execute({
+          sql: "UPDATE roadmap_items SET product = ? WHERE id = ? AND product = 'other'",
+          args: [product, `rm_seed_${product}`],
+        });
+      }
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

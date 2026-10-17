@@ -31,13 +31,13 @@ export function AddPipelineChip() {
 
   if (!open) {
     return (
-      <button type="button" className="chip chip-add" onClick={() => setOpen(true)}>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
         {t('addPipeline')}
       </button>
     );
   }
   return (
-    <span className="chip chip-add-input">
+    <span className="chip-add-input">
       <input
         autoFocus
         value={name}
