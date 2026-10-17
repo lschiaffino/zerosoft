@@ -79,7 +79,7 @@
       "steps": "Pasos",
       "inputs": "Entradas",
       "runs": "Corridas",
-      "schedule": "Programación",
+      "schedule": "Horario",
       "advanced": "Avanzado"
     },
     "record": "Grabar pasos",
@@ -87,7 +87,9 @@
     "sections": "Secciones del robot",
     "descriptionLabel": "Descripción",
     "deleteTitle": "Borrar robot",
-    "deleteDesc": "Se borran el robot y todo su historial de corridas. No se puede deshacer."
+    "deleteDesc": "Se borran el robot y todo su historial de corridas. No se puede deshacer.",
+    "deleteDialogTitle": "¿Borrar {name}?",
+    "cancel": "Cancelar"
   },
   "steps": {
     "empty": "Elegí el tipo abajo y agregá el primero, normalmente Ir a URL.",
@@ -293,18 +295,20 @@
       "weekly": "Todos los lunes",
       "weeklyHint": "Una vez por semana, a la hora que elijas.",
       "custom": "Personalizado",
-      "customHint": "Cada N minutos u horas, o una expresión cron."
+      "customHint": "Cada N minutos u horas, o una expresión cron.",
+      "noneHintOff": "Corre solo cuando lo corrés vos."
     },
     "customMode": "Tipo de horario",
     "automaticTitle": "Corridas automáticas",
-    "scheduleOff": "Las corridas automáticas están apagadas: el horario no corre hasta que las prendas.",
+    "scheduleOff": "Las corridas automáticas están apagadas: el horario no corre hasta que las prendás.",
     "sessionTitle": "Sesión",
     "timeoutTitle": "Tiempo máximo",
     "credentialsTitle": "Credenciales",
     "credentialsDesc": "Los logins se guardan cifrados en Credenciales, que Robots comparte con Flow. Los pasos los usan sin que el valor aparezca en logs ni capturas.",
     "credentialsOpen": "Abrir Credenciales",
     "globalSettings": "Ir a Ajustes globales",
-    "usageTitle": "Uso y runner"
+    "usageTitle": "Uso y runner",
+    "turnOn": "Prender"
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",

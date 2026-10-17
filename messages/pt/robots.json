@@ -79,7 +79,7 @@
       "steps": "Passos",
       "inputs": "Entradas",
       "runs": "Execuções",
-      "schedule": "Agendamento",
+      "schedule": "Horário",
       "advanced": "Avançado"
     },
     "record": "Gravar passos",
@@ -87,7 +87,9 @@
     "sections": "Seções do robô",
     "descriptionLabel": "Descrição",
     "deleteTitle": "Excluir robô",
-    "deleteDesc": "Exclui o robô e todo o histórico de execuções. Não dá para desfazer."
+    "deleteDesc": "Exclui o robô e todo o histórico de execuções. Não dá para desfazer.",
+    "deleteDialogTitle": "Excluir {name}?",
+    "cancel": "Cancelar"
   },
   "steps": {
     "empty": "Escolha o tipo abaixo e adicione o primeiro, normalmente Ir para URL.",
@@ -293,7 +295,8 @@
       "weekly": "Toda segunda-feira",
       "weeklyHint": "Uma vez por semana, no horário que você escolher.",
       "custom": "Personalizado",
-      "customHint": "A cada N minutos ou horas, ou uma expressão cron."
+      "customHint": "A cada N minutos ou horas, ou uma expressão cron.",
+      "noneHintOff": "Executa só quando você executa."
     },
     "customMode": "Tipo de agendamento",
     "automaticTitle": "Execuções automáticas",
@@ -304,7 +307,8 @@
     "credentialsDesc": "Os logins ficam criptografados em Credenciais, que o Robots compartilha com o Flow. Os passos usam sem que o valor apareça em logs nem capturas.",
     "credentialsOpen": "Abrir Credenciais",
     "globalSettings": "Ir para Configurações globais",
-    "usageTitle": "Uso e runner"
+    "usageTitle": "Uso e runner",
+    "turnOn": "Ligar"
   },
   "errors": {
     "generic": "Algo deu errado. Tente novamente.",

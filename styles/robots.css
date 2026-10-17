@@ -25,6 +25,7 @@
   border: 1px solid color-mix(in srgb, var(--bad-ink) 30%, white);
   border-radius: var(--radius-1);
 }
+.robots-note-action { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
 .robots-note-warn {
   max-width: 76ch;
   padding: 10px 14px;
@@ -43,7 +44,6 @@
 .robots-narrow { max-width: 200px; }
 
 /* ---------- Uso y runner ---------- */
-.robots-strip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .robots-usage,
 .robots-runner {
   display: flex;
@@ -63,6 +63,7 @@
 .robots-runner { gap: 4px; }
 .robots-runner.is-none { color: var(--warn-ink); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn-ink) 25%, white); }
 .robots-runner.is-none p { max-width: 90ch; }
+.robots-home .robots-usage { max-width: 480px; }
 .robots-advanced .robots-usage,
 .robots-advanced .robots-runner { padding: 0; border: 0; }
 
@@ -127,8 +128,12 @@
   border-bottom: 2px solid transparent;
   border-radius: 0;
 }
+/* La descripción tiene su propio ancho: no depende del largo del nombre. */
+.robots-editor .ui-page-header-text { flex: 1 1 32ch; }
+.robots-editor .ui-page-desc { align-self: stretch; }
 .robots-desc-input {
-  width: min(65ch, 100%);
+  width: 100%;
+  min-width: 0;
   padding: 2px 0;
   font: inherit;
   font-size: 0.9375rem;
@@ -145,6 +150,7 @@
 .robots-title-input:focus,
 .robots-desc-input:focus { outline: none; border-bottom-color: var(--ink); }
 .robots-save-state { font-size: 0.8125rem; color: var(--brand-gray-2); }
+.robots-save-state:empty { display: none; }
 .robots-save-state[data-dirty] { color: var(--warn-ink); }
 
 /* ---------- Editor: pasos ---------- */
@@ -204,6 +210,10 @@
 
 .robots-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; }
 .robots-wide { grid-column: 1 / -1; }
+/* Números sin las flechitas nativas: se escriben, como en el resto del sistema. */
+.robots-editor input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
+.robots-editor input[type='number']::-webkit-inner-spin-button,
+.robots-editor input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .robots-retry { display: grid; grid-template-columns: repeat(2, minmax(0, 200px)); gap: 12px 16px; }
 
 /* Loop: los pasos de adentro van en un plano de esmalte con su línea fina. */
@@ -284,7 +294,11 @@
   .robots-input-table .input,
   .robots-input-table .select,
   .robots-input-table .textarea { min-width: 0; }
-  .robots-input-table td.robots-input-remove { align-items: flex-end; justify-content: flex-end; }
+  /* Última fila del bloque: Obligatoria y el × juntos, a la misma altura. */
+  .robots-input-table td.robots-input-required { flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: 8px; align-self: center; }
+  .robots-input-table td.robots-input-required .ui-check { height: 36px; align-items: center; }
+  .robots-input-table td.robots-input-required .ui-check input[type='checkbox'] { margin: 0; }
+  .robots-input-table td.robots-input-remove { align-self: center; align-items: flex-end; justify-content: center; }
 }
 
 /* ---------- Editor: programación y avanzado ---------- */
@@ -376,7 +390,7 @@
 .robots-shot-missing { padding: 16px; }
 
 /* ---------- Grabador ---------- */
-.robots-recorder-drag { display: flex; align-items: center; gap: 20px; padding: 24px; font-size: 0.875rem; color: var(--brand-gray-1); background: var(--brand-enamel); border-radius: var(--radius-1); }
+.robots-recorder .robots-recorder-drag { display: flex; align-items: center; gap: 20px; padding: 24px; font-size: 0.875rem; color: var(--brand-gray-1); background: var(--brand-enamel); border-radius: var(--radius-1); }
 .robots-bookmarklet { cursor: grab; }
 .robots-bookmarklet:active { cursor: grabbing; }
 .robots-howto .robots-stop { padding-bottom: 8px; }
@@ -395,17 +409,24 @@
   .robots-template .btn { justify-self: start; }
 }
 @media (max-width: 720px) {
-  .robots-strip { grid-template-columns: minmax(0, 1fr); }
-  .robots-recorder-drag { flex-direction: column; align-items: flex-start; }
+  .robots-recorder .robots-recorder-drag { flex-direction: column; align-items: flex-start; padding: 20px; }
   .robots-title-input { font-size: 1.625rem; }
   .robots-retry { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .robots-add { padding-left: 0; }
   .robots-add .select { flex: 1; min-width: 0; }
   .robots-run-body { padding: 16px; }
-  .robots-log th:nth-child(2),
-  .robots-log td:nth-child(2) { display: none; }
+  /* En el teléfono se va el tiempo, no el tipo de paso: sin el tipo la fila no se lee. */
+  .robots-log th:nth-child(4),
+  .robots-log td:nth-child(4) { display: none; }
   .robots-log th:nth-child(1) { width: 36px; }
-  .robots-log th:nth-child(4) { width: 72px; }
+  .robots-log th:nth-child(2) { width: 96px; }
+  .robots-log-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Cinco pestañas en 390px: menos aire entre ellas. */
+  .robots-editor .ui-tabs { gap: 0; }
+  .robots-editor .ui-tab { padding: 0 7px; font-size: 0.8125rem; }
+  .robots-editor .ui-tab[aria-selected='true']::after { left: 7px; right: 7px; }
+  /* Estado de guardado debajo de los botones, no entre ellos. */
+  .robots-editor .ui-page-actions .robots-save-state { order: 1; flex-basis: 100%; }
   /* Lista de robots en el teléfono: nombre y última corrida. */
   .robots-home .table th:nth-child(n + 3),
   .robots-home .table td:nth-child(n + 3) { display: none; }

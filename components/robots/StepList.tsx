@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { useStableKeys } from './useStableKeys';
 import { defaultStep, STEP_TYPES, type RobotLeafStep, type RobotStep, type RobotStepType } from '@/lib/robots-schema';
 
 type AnyStep = RobotStep | RobotLeafStep;
@@ -27,6 +28,7 @@ export default function StepList<S extends AnyStep>({ steps, onChange, readOnly,
   const types = STEP_TYPES.filter((x) => !nested || x !== 'loop_over');
   const listRef = useRef<HTMLOListElement>(null);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
+  const stable = useStableKeys(steps.length);
 
   // Después de agregar o mover, el foco va al paso (no se pierde en el body).
   useEffect(() => {
@@ -45,9 +47,11 @@ export default function StepList<S extends AnyStep>({ steps, onChange, readOnly,
     if (j < 0 || j >= steps.length) return;
     const copy = [...steps];
     [copy[i], copy[j]] = [copy[j], copy[i]];
+    stable.swap(i, j);
     onChange(copy);
   }
   function remove(i: number) {
+    stable.remove(i);
     onChange(steps.filter((_, k) => k !== i));
   }
   function add() {
@@ -61,7 +65,7 @@ export default function StepList<S extends AnyStep>({ steps, onChange, readOnly,
         <ol className="robots-line" ref={listRef}>
           {steps.map((s, i) => (
             <StepItem
-              key={i}
+              key={stable.keys[i]}
               step={s}
               num={`${prefix}${i + 1}`}
               invalid={invalidIndex === i}
@@ -150,7 +154,15 @@ function StepItem({
     menu.push(
       showRetry
         ? { key: 'retry', label: t('retriesRemove'), run: clearRetries }
-        : { key: 'retry', label: t('retriesAdd'), run: () => setRetryOpen(true) },
+        : {
+            key: 'retry',
+            label: t('retriesAdd'),
+            // Agregar ya deja un reintento con un segundo de espera: la acción hace algo.
+            run: () => {
+              onChange({ ...rec, retries: 1, retryDelayMs: 1000 } as AnyStep);
+              setRetryOpen(true);
+            },
+          },
     );
   }
   menu.push({ key: 'remove', label: t('remove'), danger: true, run: onRemove });

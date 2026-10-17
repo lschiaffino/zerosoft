@@ -87,7 +87,9 @@
     "sections": "Robot sections",
     "descriptionLabel": "Description",
     "deleteTitle": "Delete robot",
-    "deleteDesc": "Deletes the robot and its whole run history. This cannot be undone."
+    "deleteDesc": "Deletes the robot and its whole run history. This cannot be undone.",
+    "deleteDialogTitle": "Delete {name}?",
+    "cancel": "Cancel"
   },
   "steps": {
     "empty": "Pick a type below and add the first one, usually Go to URL.",
@@ -293,7 +295,8 @@
       "weekly": "Every Monday",
       "weeklyHint": "Once a week, at the time you pick.",
       "custom": "Custom",
-      "customHint": "Every N minutes or hours, or a cron expression."
+      "customHint": "Every N minutes or hours, or a cron expression.",
+      "noneHintOff": "Runs only when you run it."
     },
     "customMode": "Schedule type",
     "automaticTitle": "Automatic runs",
@@ -304,7 +307,8 @@
     "credentialsDesc": "Logins are stored encrypted in Credentials, which Robots shares with Flow. Steps use them without the value showing up in logs or screenshots.",
     "credentialsOpen": "Open Credentials",
     "globalSettings": "Go to global Settings",
-    "usageTitle": "Usage and runner"
+    "usageTitle": "Usage and runner",
+    "turnOn": "Turn on"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",

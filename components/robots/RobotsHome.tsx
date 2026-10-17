@@ -92,19 +92,14 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
             <Link href="/app/robots/recorder" className="btn btn-ghost">
               {t('list.record')}
             </Link>
-            {createButton}
+            {/* Sin robots, la acción principal vive en el estado vacío: una sola. */}
+            {robots.length > 0 && createButton}
           </>
         }
       />
 
-      {usage.backend === 'none' ? (
-        <RunnerNote backend="none" />
-      ) : (
-        <div className="robots-strip">
-          <UsageMeter usage={usage} />
-          <RunnerNote backend={usage.backend} />
-        </div>
-      )}
+      {/* Dónde corre vive en Avanzado; acá solo aparece si falta el runner. */}
+      {usage.backend === 'none' ? <RunnerNote backend="none" /> : robots.length > 0 && <UsageMeter usage={usage} />}
 
       {!canEdit && <p className="robots-muted">{t('list.adminOnly')}</p>}
       {error && (

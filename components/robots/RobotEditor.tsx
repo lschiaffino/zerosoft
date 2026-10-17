@@ -33,6 +33,7 @@ import FormSection from '@/components/ui/FormSection';
 import StepList from './StepList';
 import RunsPanel from './RunsPanel';
 import { errorText, RobotDialog, RunnerNote, UsageMeter } from './robots-ui';
+import { useStableKeys } from './useStableKeys';
 
 const TABS = ['steps', 'inputs', 'schedule', 'runs', 'advanced'] as const;
 type Tab = (typeof TABS)[number];
@@ -82,6 +83,8 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [runOpen, setRunOpen] = useState(false);
   const [runValues, setRunValues] = useState<Record<string, string>>({});
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const readOnly = !canEdit;
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
 
@@ -114,6 +117,11 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       // Sin history (vista previa): la pestaña igual cambia.
     }
   }, []);
+
+  // En el teléfono la barra de pestañas se desplaza: la activa siempre a la vista.
+  useEffect(() => {
+    tabRefs.current[tab]?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }, [tab]);
 
   // Avisa antes de cerrar la pestaña con cambios sin guardar (como el editor de Flow).
   useEffect(() => {
@@ -248,9 +256,11 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   }
 
   async function remove() {
-    if (!window.confirm(t('editor.confirmDelete'))) return;
+    setDeleting(true);
     const res = await fetch(`/api/robots/${robot.id}`, { method: 'DELETE' }).catch(() => null);
     if (!res?.ok) {
+      setDeleting(false);
+      setDeleteOpen(false);
       setError(t('errors.generic'));
       return;
     }
@@ -507,7 +517,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
                 title={t('editor.deleteTitle')}
                 description={t('editor.deleteDesc')}
                 footer={
-                  <button type="button" className="btn btn-primary btn-danger" onClick={() => void remove()}>
+                  <button type="button" className="btn btn-primary btn-danger" onClick={() => setDeleteOpen(true)}>
                     {t('editor.delete')}
                   </button>
                 }
@@ -622,6 +632,31 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
         </form>
       </RobotDialog>
 
+      <RobotDialog
+        open={deleteOpen}
+        busy={deleting}
+        onClose={() => setDeleteOpen(false)}
+        title={t('editor.deleteDialogTitle', { name: name || t('editor.untitled') })}
+        foot={
+          <>
+            <button type="button" className="btn btn-ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+              {t('editor.cancel')}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-danger"
+              onClick={() => void remove()}
+              disabled={deleting}
+              aria-busy={deleting || undefined}
+            >
+              {t('editor.delete')}
+            </button>
+          </>
+        }
+      >
+        <p>{t('editor.deleteDesc')}</p>
+      </RobotDialog>
+
       <div className="ui-toasts" role="status" aria-live="polite">
         {toast && <div className="ui-toast">{toast}</div>}
       </div>
@@ -716,7 +751,7 @@ function ScheduleEditor({
               <input type="radio" name={`${id}-preset`} checked={shown === p} onChange={() => pick(p)} />
               <span className="robots-preset-text">
                 <span className="robots-preset-name">{t(`presets.${p}`)}</span>
-                <span className="robots-preset-hint">{t(`presets.${p}Hint`)}</span>
+                <span className="robots-preset-hint">{t(p === 'none' && !enabled ? 'presets.noneHintOff' : `presets.${p}Hint`)}</span>
               </span>
             </label>
           ))}
@@ -783,7 +818,16 @@ function ScheduleEditor({
           <input type="checkbox" role="switch" checked={enabled} disabled={readOnly} onChange={(e) => onEnabled(e.target.checked)} />
           <span>{t('enabled')}</span>
         </label>
-        {schedule && !enabled && <p className="robots-note-warn">{t('scheduleOff')}</p>}
+        {schedule && !enabled && (
+          <div className="robots-note-warn robots-note-action">
+            <p>{t('scheduleOff')}</p>
+            {!readOnly && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => onEnabled(true)}>
+                {t('turnOn')}
+              </button>
+            )}
+          </div>
+        )}
       </FormSection>
     </div>
   );
@@ -918,6 +962,7 @@ function InputsEditor({
   const t = useTranslations('robots.inputs');
   const uid = useId();
   const [focusLast, setFocusLast] = useState(false);
+  const stable = useStableKeys(inputs.length);
   const tableRef = useRef<HTMLTableSectionElement>(null);
 
   useEffect(() => {
@@ -979,7 +1024,7 @@ function InputsEditor({
               </thead>
               <tbody ref={tableRef}>
                 {inputs.map((d, i) => (
-                  <tr key={i}>
+                  <tr key={stable.keys[i]}>
                     <td data-label={t('label')}>
                       <input
                         className="input"
@@ -1015,7 +1060,7 @@ function InputsEditor({
                         <input className="input" value={d.default} readOnly={readOnly} aria-label={`${t('default')} ${i + 1}`} onChange={(e) => set(i, { default: e.target.value })} />
                       )}
                     </td>
-                    <td data-label={t('required')}>
+                    <td data-label={t('required')} className="robots-input-required">
                       <label className="ui-check">
                         <input type="checkbox" checked={d.required} disabled={readOnly} onChange={(e) => set(i, { required: e.target.checked })} />
                         <span className="sr-only">{`${t('required')} ${i + 1}`}</span>
@@ -1028,7 +1073,10 @@ function InputsEditor({
                           className="btn btn-ghost btn-sm btn-icon"
                           aria-label={`${t('remove')} ${d.label || d.name}`}
                           title={t('remove')}
-                          onClick={() => onChange(inputs.filter((_, k) => k !== i))}
+                          onClick={() => {
+                            stable.remove(i);
+                            onChange(inputs.filter((_, k) => k !== i));
+                          }}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                             <path d="M6 6l12 12M18 6L6 18" />
