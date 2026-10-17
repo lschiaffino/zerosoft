@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marca de ceros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fff; --ink:#0d0d0d; --ink-2:#4a4a4a; --ink-3:#6e6e6e; --line:#e6e6e6;
+  --sans:"Space Grotesk",-apple-system,Helvetica,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --c-link:#2f6bff;--c-crm:#7b4dff;--c-cal:#0e9f6e;--c-track:#f2611d;--c-chat:#e23d7f;--c-docs:#c2700a;
+  --c-flow:#0284c7;--c-agents:#ff3b30;--c-notes:#e6b400;--c-board:#00b8a9;--c-robots:#6b7280;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+pre{font-family:inherit;white-space:pre;line-height:1.05}
+
+/* ---------- Índice ---------- */
+.intro{max-width:1180px;margin:0 auto;padding:72px 24px 40px}
+.intro h1{font-size:clamp(34px,5vw,60px);font-weight:500;letter-spacing:-.03em;line-height:1}
+.intro p{max-width:640px;margin-top:18px;color:var(--ink-2);font-size:17px;line-height:1.5}
+.toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:0;margin-top:40px;border-top:1px solid var(--ink)}
+.toc a{display:block;padding:16px 14px 18px 0;text-decoration:none;border-bottom:1px solid var(--line)}
+.toc a b{display:block;font-family:var(--mono);font-size:12px;font-weight:500;color:var(--ink-3)}
+.toc a span{display:block;margin-top:6px;font-size:18px;font-weight:500}
+.toc a:hover span{text-decoration:underline;text-underline-offset:4px}
+
+/* ---------- Sección genérica ---------- */
+.opt{position:relative;border-top:1px solid var(--ink)}
+.opt-head{max-width:1180px;margin:0 auto;padding:28px 24px 0;display:grid;grid-template-columns:80px 1fr;gap:16px;align-items:baseline}
+.opt-num{font-family:var(--mono);font-size:13px}
+.opt-head h2{font-size:clamp(26px,3.4vw,40px);font-weight:500;letter-spacing:-.02em}
+.opt-head p{grid-column:2;max-width:720px;color:var(--ink-2);line-height:1.5;margin-top:6px}
+.stage{margin-top:24px}
+.inner{max-width:1180px;margin:0 auto;padding:0 24px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.meta{max-width:1180px;margin:0 auto;padding:22px 24px 56px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;font-size:14px;line-height:1.5;color:var(--ink-2)}
+.meta h4{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin-bottom:6px}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.6;margin-bottom:10px;display:block}
+@media (max-width:860px){
+  .grid2,.meta{grid-template-columns:1fr}
+  .opt-head{grid-template-columns:1fr}
+  .opt-head p{grid-column:1}
+}
+
+/* Pre que se llena con ASCII vivo */
+.field{display:block;width:100%;overflow:hidden;user-select:none;cursor:crosshair}
+
+/* =========================================================
+   01 · DENSIDAD — todo es un campo de ceros con rampa · o O 0
+   ========================================================= */
+.d1{background:#f4f3ef;color:#111}
+.d1 .stage{font-family:"JetBrains Mono",monospace}
+.d1 .hero{position:relative;padding:0 24px;max-width:1180px;margin:0 auto}
+.d1 .hero .field{font-size:13px;line-height:1;color:#111;height:min(62vh,560px)}
+.d1 .hero-copy{position:absolute;left:48px;bottom:36px;background:#f4f3ef;padding:18px 22px 20px;max-width:440px;border:1px solid #111}
+.d1 .hero-copy h3{font-family:"Space Grotesk";font-size:clamp(28px,4vw,46px);font-weight:500;letter-spacing:-.03em;line-height:1}
+.d1 .hero-copy p{margin-top:10px;font-size:13px;line-height:1.5;color:#3d3d3d}
+.d1 .btn{display:inline-block;margin-top:14px;font:600 13px "JetBrains Mono";background:#111;color:#f4f3ef;padding:10px 14px;text-decoration:none;border:0}
+.d1 .btn.ghost{background:transparent;color:#111;border:1px solid #111;margin-left:6px}
+.d1 .logos{display:flex;gap:40px;align-items:flex-end;flex-wrap:wrap;padding:28px 0}
+.d1 .logo-big{font-size:5px;line-height:1;letter-spacing:0}
+.d1 .lockup{display:flex;align-items:center;gap:10px;font:600 22px "JetBrains Mono";letter-spacing:-.02em}
+.d1 .lockup pre{font-size:3px;line-height:1}
+.d1 .prod{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;padding-bottom:28px}
+.d1 .prod div{font-size:12px}
+.d1 .prod pre{font-size:7px;line-height:1;margin-bottom:6px}
+@media (max-width:860px){.d1 .hero-copy{position:relative;left:auto;bottom:auto;margin-top:-80px}}
+
+/* =========================================================
+   02 · TERMINAL — TUI con cajas de línea, todo mono
+   ========================================================= */
+.d2{background:#0b0c0b;color:#d8d8d0}
+.d2 .opt-head p,.d2 .meta{color:#a6a69e}
+.d2 .meta h4,.d2 .opt-head h2{color:#f2f2ea}
+.d2 .stage{font-family:"IBM Plex Mono",monospace}
+.d2 .term{border:1px solid #3a3b38;max-width:1132px;margin:0 auto;font-size:14px}
+.d2 .term-bar{display:flex;justify-content:space-between;padding:6px 12px;border-bottom:1px solid #3a3b38;font-size:12px;color:#8d8d86}
+.d2 .term-body{padding:18px 18px 22px;min-height:340px}
+.d2 .cursor{display:inline-block;width:.6em;background:#d8d8d0;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.d2 .bigzero{color:#f2f2ea;font-size:11px;line-height:1}
+.d2 .tui{font-size:13px;line-height:1.35;color:#d8d8d0}
+.d2 .tui .hl{background:#d8d8d0;color:#0b0c0b}
+.d2 .btn{display:inline-block;font:500 13px "IBM Plex Mono";color:#0b0c0b;background:#d8d8d0;padding:6px 10px;text-decoration:none;margin-right:8px}
+.d2 .btn.ghost{background:none;color:#d8d8d0;outline:1px solid #6b6b66}
+.d2 .lockup{font:500 24px "IBM Plex Mono";color:#f2f2ea}
+.d2 .glyphs{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px 18px;font-size:14px}
+
+/* =========================================================
+   03 · BITMAP — una tipografía de píxeles donde cada píxel es un 0
+   ========================================================= */
+.d3{background:#fff;color:#0d0d0d}
+.d3 .stage{font-family:"Space Mono",monospace}
+.d3 .head{line-height:1;letter-spacing:.4em;font-weight:700;padding:12px 0 18px}
+.d3 pre.px{letter-spacing:.4em;line-height:1}
+.d3 .head .on{color:#0d0d0d}
+
+.d3 .sub{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-top:1px solid #0d0d0d;padding:14px 0 26px;font-size:14px}
+.d3 .btn{display:inline-block;font:700 13px "Space Mono";background:#0d0d0d;color:#fff;padding:10px 14px;text-decoration:none;margin-left:8px}
+.d3 .btn.ghost{background:#fff;color:#0d0d0d;box-shadow:inset 0 0 0 2px #0d0d0d}
+.d3 .logo-row{display:flex;gap:44px;align-items:flex-end;flex-wrap:wrap;padding:20px 0 28px}
+.d3 .logo-row pre{line-height:1;font-weight:700}
+.d3 .prod{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:20px 14px;padding-bottom:28px;font-size:12px}
+.d3 .prod pre{font-size:6px;line-height:1;margin-bottom:8px;font-weight:700}
+
+/* =========================================================
+   04 · ONCE CEROS — el logo es una fila de 11 ceros, uno por app
+   ========================================================= */
+.d4{background:#fafafa;color:#111}
+.d4 .stage{font-family:"Space Grotesk"}
+.d4 .row{display:flex;justify-content:space-between;align-items:flex-end;max-width:1132px;margin:0 auto;padding:10px 0 0}
+.d4 .z{font:700 clamp(46px,9.4vw,130px)/.85 "Space Mono",monospace;color:#111;cursor:pointer;position:relative;transition:color .18s,transform .18s;text-decoration:none}
+.d4 .z:hover,.d4 .z:focus-visible{color:var(--c);transform:translateY(-6px);outline:none}
+.d4 .z small{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:10px;font:500 12px "IBM Plex Mono";white-space:nowrap;opacity:0;transition:opacity .18s;color:#111}
+.d4 .z:hover small,.d4 .z:focus-visible small{opacity:1}
+.d4 .tag{max-width:1132px;margin:48px auto 0;display:grid;grid-template-columns:1.3fr 1fr;gap:24px;border-top:1px solid #111;padding-top:18px}
+.d4 .tag h3{font-size:clamp(28px,4vw,50px);font-weight:500;letter-spacing:-.03em;line-height:1}
+.d4 .price{font:400 14px "IBM Plex Mono";line-height:1.7}
+.d4 .price b{font-weight:600}
+.d4 .btn{display:inline-block;margin-top:16px;font:500 14px "Space Grotesk";background:#111;color:#fafafa;padding:11px 16px;text-decoration:none;margin-right:8px}
+.d4 .btn.ghost{background:transparent;color:#111;box-shadow:inset 0 0 0 1px #111}
+.d4 .lockups{display:flex;gap:44px;flex-wrap:wrap;align-items:center;padding:30px 0}
+.d4 .lk{font:700 26px "Space Mono"}
+.d4 .lk i{font-style:normal;margin-right:.3em}
+@media (max-width:860px){.d4 .tag{grid-template-columns:1fr}}
+
+/* =========================================================
+   05 · ONDAS — el campo de anillos de antes, ahora ASCII
+   ========================================================= */
+.d5{background:#fff;color:#0d0d0d}
+.d5 .stage{font-family:"IBM Plex Mono",monospace}
+.d5 .hero{position:relative;max-width:1180px;margin:0 auto;padding:0 24px}
+.d5 .hero .field{font-size:12px;line-height:1;height:min(60vh,520px);color:#0d0d0d}
+.d5 .over{position:absolute;inset:auto 0 0 0;padding:0 48px 40px;pointer-events:none}
+.d5 .over h3{font:500 clamp(36px,6vw,84px)/1.08 "Space Grotesk";letter-spacing:-.04em;background:#fff;display:inline;box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:0 8px}
+.d5 .over p{display:inline-block;margin-top:14px;background:#fff;padding:4px 8px;font-size:14px}
+.d5 .btn{pointer-events:auto;display:inline-block;margin-top:12px;font:500 13px "IBM Plex Mono";background:#0d0d0d;color:#fff;padding:10px 14px;text-decoration:none}
+.d5 .lockup{display:flex;align-items:center;gap:12px;font:500 24px "Space Grotesk";letter-spacing:-.02em}
+.d5 .lockup pre{font-size:4px;line-height:1}
+@media (max-width:860px){.d5 .over{position:relative;padding:12px 0 0}}
+
+/* =========================================================
+   06 · EDITORIAL — sobrio, Space Grotesk, ilustraciones ASCII de ceros
+   ========================================================= */
+.d6{background:#fff;color:#0d0d0d}
+.d6 .stage{font-family:"Space Grotesk"}
+.d6 h3{font-size:clamp(38px,6vw,88px);font-weight:500;letter-spacing:-.045em;line-height:.95;max-width:900px}
+.d6 .lede{max-width:560px;margin-top:20px;font-size:18px;line-height:1.5;color:#4a4a4a}
+.d6 .btn{display:inline-block;margin-top:22px;font:500 15px "Space Grotesk";background:#0d0d0d;color:#fff;padding:12px 18px;text-decoration:none;margin-right:8px}
+.d6 .btn.ghost{background:#fff;color:#0d0d0d;box-shadow:inset 0 0 0 1px #0d0d0d}
+.d6 .ills{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:48px;border-top:1px solid #0d0d0d}
+.d6 .ill{padding:20px 20px 24px 0;border-right:1px solid #e6e6e6}
+.d6 .ill+.ill{padding-left:20px}
+.d6 .ill:last-child{border-right:0}
+.d6 .ill pre{font:400 13px/1.25 "IBM Plex Mono";color:#0d0d0d;margin:14px 0}
+.d6 .ill h5{font-size:18px;font-weight:500}
+.d6 .ill p{font-size:14px;color:#4a4a4a;line-height:1.45}
+.d6 .lockup{display:flex;align-items:center;gap:8px;font:500 22px "Space Grotesk";letter-spacing:-.02em}
+@media (max-width:860px){.d6 .ills{grid-template-columns:1fr}.d6 .ill,.d6 .ill+.ill{padding:18px 0;border-right:0;border-bottom:1px solid #e6e6e6}}
+
+/* =========================================================
+   Mini app (cómo se vería el producto) — se tematiza por sección
+   ========================================================= */
+.app{display:grid;grid-template-columns:200px minmax(0,1fr);border:1px solid currentColor;min-height:300px;font-size:13px;overflow:hidden}
+.app-side{border-right:1px solid currentColor;padding:12px 0}
+.app-side .ws{padding:4px 14px 12px;font-weight:600}
+.app-side a{display:flex;gap:10px;align-items:center;padding:6px 14px;text-decoration:none}
+.app-side a.on{font-weight:600}
+.app-main{padding:16px 18px;min-width:0}
+.app-main h6{font-size:18px;font-weight:500;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.app-main table{width:100%;border-collapse:collapse}
+.app-main th{text-align:left;font-weight:500;opacity:.6;padding:6px 8px 6px 0;font-size:12px}
+.app-main td{padding:7px 8px 7px 0;border-top:1px solid color-mix(in srgb,currentColor 18%,transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.app-main .empty{margin-top:18px;font-size:12px;opacity:.75}
+@media (max-width:640px){.app{grid-template-columns:minmax(0,1fr)}.app-side{display:none}.app-main th:nth-child(2),.app-main td:nth-child(2){display:none}}
+
+.d1 .app{font-family:"JetBrains Mono";background:#fff}
+.d1 .app-side a.on{background:#111;color:#f4f3ef}
+.d2 .app{font-family:"IBM Plex Mono";border-color:#3a3b38}
+.d2 .app-side{border-color:#3a3b38}
+.d2 .app-side a.on{background:#d8d8d0;color:#0b0c0b}
+.d3 .app{font-family:"Space Mono";border-width:2px}
+.d3 .app-side{border-right-width:2px}
+.d3 .app-side a.on{box-shadow:inset 4px 0 0 #0d0d0d}
+.d4 .app{font-family:"Space Grotesk";background:#fff}
+.d4 .app-side a.on{box-shadow:inset 3px 0 0 var(--c-link)}
+.d5 .app{font-family:"IBM Plex Mono"}
+.d5 .app-side a.on{text-decoration:underline;text-underline-offset:4px}
+.d6 .app{font-family:"Space Grotesk";border-color:#e6e6e6}
+.d6 .app-side{border-color:#e6e6e6;background:#fafafa}
+.d6 .app-side a.on{background:#fff;box-shadow:inset 0 0 0 1px #e6e6e6}
+
+/* ---------- Cierre ---------- */
+.end{border-top:1px solid var(--ink);max-width:1180px;margin:0 auto;padding:40px 24px 90px}
+.end h2{font-size:32px;font-weight:500;letter-spacing:-.02em}
+.end p{margin-top:10px;max-width:640px;color:var(--ink-2);line-height:1.5}
+.end pre{margin-top:18px;font:13px/1.5 var(--mono);color:var(--ink-2)}
+
+@media (prefers-reduced-motion:reduce){.d2 .cursor{animation:none}}
+</style>
+</head>
+<body>
+
+<header class="intro">
+  <h1>El 0 como pieza de todo.</h1>
+  <p>Seis direcciones para la marca. En todas el cero es la unidad básica y casi todo se arma con muchos ceros, en clave ASCII. Cada una muestra el hero del sitio, el logo, cómo se marcan los productos y cómo se vería la app. Los fondos se mueven y reaccionan al mouse.</p>
+  <nav class="toc" aria-label="Opciones">
+    <a href="#o1"><b>01</b><span>Densidad</span></a>
+    <a href="#o2"><b>02</b><span>Terminal</span></a>
+    <a href="#o3"><b>03</b><span>Bitmap</span></a>
+    <a href="#o4"><b>04</b><span>Once ceros</span></a>
+    <a href="#o5"><b>05</b><span>Ondas</span></a>
+    <a href="#o6"><b>06</b><span>Editorial</span></a>
+  </nav>
+</header>
+
+<!-- ================= 01 ================= -->
+<section class="opt d1" id="o1">
+  <div class="opt-head"><span class="opt-num">01</span><h2>Densidad</h2>
+    <p>Todo es un campo de ceros de distintos tamaños: <code>· ∘ o O 0</code>. Con esa sola rampa se dibujan el logo, las ilustraciones, las imágenes de OG y los fondos, como un grabado hecho con tipos de imprenta.</p></div>
+  <div class="stage">
+    <div class="hero">
+      <pre class="field" id="f1" aria-hidden="true"></pre>
+      <div class="hero-copy">
+        <h3>El software murió.</h3>
+        <p>Once apps abiertas para reemplazar lo que pagás todos los meses. Instalalas vos o usá la nube al costo × 3.</p>
+        <a class="btn" href="#">Empezar</a><a class="btn ghost" href="#">Ver en GitHub</a>
+      </div>
+    </div>
+    <div class="inner">
+      <div class="logos">
+        <div><span class="label">Logo grande</span><pre class="logo-big" id="l1"></pre></div>
+        <div><span class="label">Lockup</span><div class="lockup"><pre id="l1s"></pre>zerosoft</div></div>
+      </div>
+      <span class="label">Productos: el mismo cero con su color</span>
+      <div class="prod" id="p1"></div>
+      <span class="label">App</span>
+      <div id="a1"></div>
+    </div>
+  </div>
+  <div class="meta">
+    <div><h4>Personalidad</h4>Artesanal y técnica a la vez. El cero texturado se reconoce de lejos aunque no se lea el nombre.</div>
+    <div><h4>En la app</h4>La app queda sobria en mono, con fondo papel. La textura de ceros solo aparece en estados vacíos, cargas y el inicio.</div>
+    <div><h4>Riesgo</h4>Si se abusa del campo, todo se ve ruidoso. Necesita reglas claras de dónde va la textura.</div>
+  </div>
+</section>
+
+<!-- ================= 02 ================= -->
+<section class="opt d2" id="o2">
+  <div class="opt-head"><span class="opt-num">02</span><h2>Terminal</h2>
+    <p>zerosoft como herramienta de línea de comando: fondo negro, mono, cajas dibujadas con <code>┌─┐</code>, un cursor que parpadea. El cero vive en <code>[0]</code>, que es logo, prompt y viñeta. Le habla directo al dev que se lo instala.</p></div>
+  <div class="stage">
+    <div class="term">
+      <div class="term-bar"><span>~/zerosoft</span><span>agpl-3.0</span></div>
+      <div class="term-body"><pre class="tui" id="t2"></pre></div>
+    </div>
+    <div class="inner" style="margin-top:28px">
+      <div class="grid2">
+        <div><span class="label">Logo</span><div class="lockup">[0] zerosoft</div>
+          <div style="margin-top:22px"><span class="label">Botones</span><a class="btn" href="#">$ zerosoft up</a><a class="btn ghost" href="#">docs</a></div></div>
+        <div><span class="label">Productos: el cero con un glifo propio</span><div class="glyphs" id="p2"></div></div>
+      </div>
+      <div style="margin-top:28px"><span class="label">App</span><div id="a2"></div></div>
+    </div>
+  </div>
+  <div class="meta">
+    <div><h4>Personalidad</h4>La más fuerte y la más nerd. Se nota que es open source y que se puede instalar.</div>
+    <div><h4>En la app</h4>Modo oscuro por defecto, todo mono, atajos de teclado a la vista. Ideal para Track, Flow o Robots.</div>
+    <div><h4>Riesgo</h4>Para una persona no técnica que entra a Cal o CRM puede sentirse hostil. Hace falta un modo claro bien resuelto.</div>
+  </div>
+</section>
+
+<!-- ================= 03 ================= -->
+<section class="opt d3" id="o3">
+  <div class="opt-head"><span class="opt-num">03</span><h2>Bitmap</h2>
+    <p>Una tipografía de píxeles propia donde cada píxel es un <code>0</code>. Los titulares, el logo y los íconos de producto se dibujan con esa grilla. De cerca son ceros, de lejos son letras.</p></div>
+  <div class="stage">
+    <div class="inner">
+      <pre class="head" id="h3" aria-label="EL SOFTWARE MURIÓ."></pre>
+      <div class="sub"><span>Once apps abiertas. Instalalas vos o usá la nube al costo × 3.</span><span><a class="btn" href="#">Empezar</a><a class="btn ghost" href="#">GitHub</a></span></div>
+      <div class="logo-row">
+        <div><span class="label">Logo</span><pre class="px" id="l3" style="font-size:7px"></pre></div>
+        <div><span class="label">Chico</span><pre class="px" id="l3s" style="font-size:3px"></pre></div>
+        <div><span class="label">Favicon</span><pre class="px" id="l3f" style="font-size:5px"></pre></div>
+      </div>
+      <span class="label">Productos: inicial en píxeles de ceros</span>
+      <div class="prod" id="p3"></div>
+      <span class="label">App</span>
+      <div id="a3"></div>
+    </div>
+  </div>
+  <div class="meta">
+    <div><h4>Personalidad</h4>Gráfica y de afiche. El "cero hecho de ceros" es un sistema que se puede llevar a cualquier pieza: remeras, stickers, OG.</div>
+    <div><h4>En la app</h4>Tipografía mono normal para la UI. El bitmap se usa solo en títulos grandes, logo e íconos.</div>
+    <div><h4>Riesgo</h4>En tamaños chicos el bitmap no se lee. Hacen falta versiones simplificadas a 16 y 32 px.</div>
+  </div>
+</section>
+
+<!-- ================= 04 ================= -->
+<section class="opt d4" id="o4">
+  <div class="opt-head"><span class="opt-num">04</span><h2>Once ceros</h2>
+    <p>El logo es una fila de once ceros, uno por app. Pasá el mouse: cada cero se prende con el color de su producto. Al sumar una app se suma un cero. La marca es literalmente el catálogo.</p></div>
+  <div class="stage">
+    <div class="inner"><nav class="row" id="r4" aria-label="Productos"></nav>
+      <div class="tag">
+        <h3>El software murió.</h3>
+        <div class="price"><b>Self-host</b> · cada app, código abierto, $0<br><b>Nube</b> · precio = costo × 3, mostramos los dos números<br><a class="btn" href="#">Empezar</a><a class="btn ghost" href="#">GitHub</a></div>
+      </div>
+      <div class="lockups">
+        <div><span class="label">Lockup</span><span class="lk"><i>0</i>zerosoft</span></div>
+        <div><span class="label">Por producto</span><span class="lk"><i style="color:var(--c-cal)">0</i>cal</span></div>
+        <div><span class="label">Firma corta</span><span class="lk" id="mini4"></span></div>
+      </div>
+      <span class="label">App</span>
+      <div id="a4"></div>
+    </div>
+  </div>
+  <div class="meta">
+    <div><h4>Personalidad</h4>Mínima, tipo Apple o Linear, con un truco memorable. Es la más cercana a la marca anterior.</div>
+    <div><h4>En la app</h4>Blanco y Space Grotesk. El cero del producto es el único acento de color. El selector de apps es la fila de ceros.</div>
+    <div><h4>Riesgo</h4>Menos "ASCII". La personalidad depende de la interacción y en una imagen estática se pierde un poco.</div>
+  </div>
+</section>
+
+<!-- ================= 05 ================= -->
+<section class="opt d5" id="o5">
+  <div class="opt-head"><span class="opt-num">05</span><h2>Ondas</h2>
+    <p>El campo de anillos del hero anterior, rehecho en ASCII. Cada onda es un cero que se expande con <code>· o O 0</code>. El mouse tira piedras al agua. Mantiene la idea original y le suma textura de texto.</p></div>
+  <div class="stage">
+    <div class="hero">
+      <pre class="field" id="f5" aria-hidden="true"></pre>
+      <div class="over"><h3>El software<br>murió.</h3><br><p>Once apps abiertas. Nube al costo × 3.</p><br><a class="btn" href="#">Empezar</a></div>
+    </div>
+    <div class="inner" style="margin-top:28px">
+      <div class="grid2">
+        <div><span class="label">Lockup</span><div class="lockup"><pre id="l5"></pre>zerosoft</div></div>
+        <div><span class="label">Uso</span><p style="font-size:14px;line-height:1.5">La onda aparece en el hero, en el inicio de la app y como animación de carga: un cero que late en el color del producto.</p></div>
+      </div>
+      <div style="margin-top:28px"><span class="label">App</span><div id="a5"></div></div>
+    </div>
+  </div>
+  <div class="meta">
+    <div><h4>Personalidad</h4>Calma y viva. Es la evolución natural de lo que ya había.</div>
+    <div><h4>En la app</h4>Igual que la marca anterior, con un estado de carga y estados vacíos animados en ASCII.</div>
+    <div><h4>Riesgo</h4>Es la menos sorprendente. Si lo que buscás es un salto grande de personalidad, se queda corta.</div>
+  </div>
+</section>
+
+<!-- ================= 06 ================= -->
+<section class="opt d6" id="o6">
+  <div class="opt-head"><span class="opt-num">06</span><h2>Editorial</h2>
+    <p>La base sobria de antes (blanco, Space Grotesk, mucho aire), y toda la personalidad puesta en ilustraciones ASCII hechas de ceros: cada producto tiene su dibujo. La app queda limpia y el sitio cuenta.</p></div>
+  <div class="stage">
+    <div class="inner">
+      <h3>El software murió.</h3>
+      <p class="lede">Once apps abiertas para reemplazar lo que pagás todos los meses. Instalalas vos o usá la nube al costo × 3.</p>
+      <a class="btn" href="#">Empezar</a><a class="btn ghost" href="#">GitHub</a>
+      <div class="ills" id="i6"></div>
+      <div style="margin:30px 0 22px"><span class="label">Lockup</span><div class="lockup"><svg width="20" height="24" viewBox="0 0 20 24" aria-hidden="true"><path d="M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z" fill="currentColor" fill-rule="evenodd"/></svg>zerosoft.ai</div></div>
+      <span class="label">App</span>
+      <div id="a6"></div>
+    </div>
+  </div>
+  <div class="meta">
+    <div><h4>Personalidad</h4>Seria y cálida. El ASCII se lee como el dibujo de alguien, no como un efecto.</div>
+    <div><h4>En la app</h4>Prácticamente la marca anterior. Las ilustraciones aparecen en estados vacíos y onboarding.</div>
+    <div><h4>Riesgo</h4>Hay que dibujar a mano una ilustración por producto (11 o más) para que no se vea genérico.</div>
+  </div>
+</section>
+
+<section class="end">
+  <h2>¿Cuál?</h2>
+  <p>Decime el número. También se pueden mezclar, por ejemplo:</p>
+  <pre>"4 para el logo y la app, 1 para el sitio"
+"3 pero con la app de la 6"
+"2 en modo claro"</pre>
+</section>
+
+<script>
+const PRODUCTS=[
+ ['link','Link','#2f6bff'],['crm','CRM','#7b4dff'],['cal','Cal','#0e9f6e'],['track','Track','#f2611d'],
+ ['chat','Chat','#e23d7f'],['docs','Docs','#c2700a'],['flow','Flow','#0284c7'],['agents','Agents','#ff3b30'],
+ ['notes','Notes','#e6b400'],['board','Board','#00b8a9'],['robots','Robots','#6b7280']];
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+
+/* ---------- Campo ASCII genérico ---------- */
+function field(pre,fn,{ratio=0.6,fps=24}={}){
+  let cols=0,rows=0,mx=-9,my=-9,t=0,last=0,visible=true;
+  function size(){
+    const fs=parseFloat(getComputedStyle(pre).fontSize);
+    const lh=parseFloat(getComputedStyle(pre).lineHeight)||fs;
+    cols=Math.max(10,Math.floor(pre.clientWidth/(fs*ratio)));
+    rows=Math.max(5,Math.floor(pre.clientHeight/lh));
+  }
+  function draw(){
+    let s='';
+    for(let y=0;y<rows;y++){
+      for(let x=0;x<cols;x++) s+=fn(x/cols,y/rows,t,mx,my,cols,rows);
+      s+='\n';
+    }
+    pre.textContent=s;
+  }
+  function loop(now){
+    if(visible&&now-last>1000/fps){t+=0.04;last=now;draw();}
+    requestAnimationFrame(loop);
+  }
+  pre.addEventListener('pointermove',e=>{const r=pre.getBoundingClientRect();mx=(e.clientX-r.left)/r.width;my=(e.clientY-r.top)/r.height;});
+  pre.addEventListener('pointerleave',()=>{mx=my=-9});
+  new IntersectionObserver(es=>{visible=es[0].isIntersecting}).observe(pre);
+  addEventListener('resize',()=>{size();draw()});
+  size();draw();
+  if(!reduce) requestAnimationFrame(loop);
+}
+const RAMP=' ·∘oO0';
+const ramp=v=>RAMP[Math.max(0,Math.min(RAMP.length-1,Math.floor(v*RAMP.length)))];
+
+/* ---------- 01 Densidad ---------- */
+field($('f1'),(x,y,t,mx,my,c,r)=>{
+  const asp=(c*0.6)/r; // corrige proporción de la celda
+  const cx=0.68,cy=0.5;
+  const dx=(x-cx)*asp,dy=(y-cy);
+  const d=Math.sqrt((dx/0.34)**2+(dy/0.44)**2);
+  const ring=Math.exp(-Math.abs(d-1)*9);
+  const grain=0.5+0.5*Math.sin(x*31+t*1.3)*Math.cos(y*23-t);
+  let v=ring*0.95+grain*0.18*Math.exp(-Math.abs(d-1)*2);
+  if(mx>-1){const md=Math.hypot((x-mx)*asp,y-my);v+=Math.exp(-md*14)*0.8;}
+  return ramp(v);
+});
+function zeroGlyph(w,h,thick=0.32){
+  let s='';
+  for(let y=0;y<h;y++){for(let x=0;x<w;x++){
+    const dx=(x+.5)/w*2-1,dy=(y+.5)/h*2-1,d=Math.hypot(dx,dy);
+    const v=d<=1&&d>=1-thick?1-Math.abs(d-(1-thick/2))/(thick/2)*0.7:0;
+    s+=ramp(v*1.05);
+  }s+='\n'}
+  return s;
+}
+$('l1').textContent=zeroGlyph(54,40);
+$('l1s').textContent=zeroGlyph(14,10,0.4);
+$('p1').innerHTML=PRODUCTS.map(([k,n,c])=>`<div><pre style="color:${c}">${zeroGlyph(14,10,0.42)}</pre>${n}</div>`).join('');
+
+/* ---------- 02 Terminal ---------- */
+const GLY={link:'0=0',crm:'(0)',cal:'[0]',track:'0>',chat:'0..',docs:'0|',flow:'0~',agents:'0*',notes:'0/',board:'0#',robots:'0_0'};
+$('p2').innerHTML=PRODUCTS.map(([k,n,c])=>`<div><span style="color:${c}">${GLY[k].padEnd(4,' ')}</span> ${n.toLowerCase()}</div>`).join('');
+(function(){
+  const pre=$('t2');
+  const big=[
+'   ████████   ',' ███      ███ ','███        ███','███        ███','███        ███',' ███      ███ ','   ████████   '].map(l=>l.replace(/█/g,'0').replace(/ /g,' '));
+  const lines=[
+   '$ npx zerosoft up',
+   '',
+   ...big.map((l,i)=>l+'   '+['','zerosoft 0.x','el software murió.','agpl-3.0 · self-host o nube','','',''][i]),
+   '',
+   ...PRODUCTS.map(([k,n])=>`  ${GLY[k].padEnd(4)} ${n.toLowerCase().padEnd(8)} listo   /app/${k}`),
+   '',
+   '$ _'];
+  let i=0;
+  function render(n){
+    const shown=lines.slice(0,n);
+    const html=shown.map(l=>{
+      let e=l.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      PRODUCTS.forEach(([k,,c])=>{const g=GLY[k].replace(/&/g,'&amp;').replace(/</g,'&lt;');e=e.replace(new RegExp('^  '+g.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')),'  <span style="color:'+c+'">'+g+'</span>')});
+      return e.replace('$ _','$ <span class="cursor">&nbsp;</span>');
+    }).join('\n');
+    pre.innerHTML=html;
+  }
+  if(reduce){render(lines.length);return}
+  (function step(){render(++i);if(i<lines.length)setTimeout(step,i<3?380:70);else setTimeout(()=>{i=0;step()},6000)})();
+})();
+
+/* ---------- 03 Bitmap ---------- */
+const F={
+ A:['01110','10001','10001','11111','10001','10001','10001'],E:['11111','10000','10000','11110','10000','10000','11111'],
+ F:['11111','10000','10000','11110','10000','10000','10000'],I:['11111','00100','00100','00100','00100','00100','11111'],
+ L:['10000','10000','10000','10000','10000','10000','11111'],M:['10001','11011','10101','10101','10001','10001','10001'],
+ O:['01110','10001','10001','10001','10001','10001','01110'],R:['11110','10001','10001','11110','10100','10010','10001'],
+ S:['01111','10000','10000','01110','00001','00001','11110'],T:['11111','00100','00100','00100','00100','00100','00100'],
+ U:['10001','10001','10001','10001','10001','10001','01110'],W:['10001','10001','10001','10101','10101','10101','01010'],
+ C:['01111','10000','10000','10000','10000','10000','01111'],K:['10001','10010','10100','11000','10100','10010','10001'],
+ D:['11110','10001','10001','10001','10001','10001','11110'],N:['10001','11001','10101','10011','10001','10001','10001'],
+ B:['11110','10001','10001','11110','10001','10001','11110'],G:['01111','10000','10000','10011','10001','10001','01111'],
+ H:['10001','10001','10001','11111','10001','10001','10001'],
+ z:['00000','00000','11111','00010','00100','01000','11111'],e:['00000','00000','01110','10001','11111','10000','01110'],
+ r:['00000','00000','10110','11001','10000','10000','10000'],o:['00000','00000','01110','10001','10001','10001','01110'],
+ s:['00000','00000','01111','10000','01110','00001','11110'],f:['00110','01001','01000','11100','01000','01000','01000'],
+ t:['01000','01000','11100','01000','01000','01001','00110'],
+ '.':['00000','00000','00000','00000','00000','00000','00100'],' ':['000','000','000','000','000','000','000'],
+};
+F['Ó']=F.O;
+function bitmap(text,{html=false}={}){
+  const chars=[...text];const accent=chars.includes('Ó');
+  const rows=Array.from({length:accent?8:7},()=> '');
+  chars.forEach(ch=>{
+    const g=F[ch]||F[' '];const w=g[0].length;
+    const rr=accent?[(ch==='Ó'?'00010':'0'.repeat(w)),...g]:g;
+    rr.forEach((r,i)=>{rows[i]+=r.replace(/[01]/g,b=>b==='1'?'0':' ')+' '});
+  });
+  let out=rows.join('\n');
+  if(html) out=out.replace(/0/g,'<span class="on">0</span>');
+  return out;
+}
+function headline(){
+  const el=$('h3');const w=el.parentElement.clientWidth;
+  const lines=w<700?['EL','SOFTWARE','MURIÓ.']:['EL SOFTWARE','MURIÓ.'];
+  const cols=Math.max(...lines.map(l=>[...l].reduce((a,c)=>a+(F[c]||F[' '])[0].length+1,0)));
+  el.style.fontSize=Math.min(16,Math.floor(w/(cols+1)*0.92*10)/10)+'px';
+  el.innerHTML=lines.map(l=>bitmap(l,{html:true})).join('\n\n');
+}
+headline();addEventListener('resize',headline);
+$('l3').textContent=bitmap('zerosoft');
+$('l3s').textContent=bitmap('zerosoft');
+$('l3f').textContent=bitmap('o');
+$('p3').innerHTML=PRODUCTS.map(([k,n,c])=>`<div><pre class="px" style="color:${c}">${bitmap(n[0].toUpperCase())}</pre>${n}</div>`).join('');
+
+/* ---------- 04 Once ceros ---------- */
+$('r4').innerHTML=PRODUCTS.map(([k,n,c])=>`<a class="z" href="#" style="--c:${c}" aria-label="${n}">0<small>${n}</small></a>`).join('');
+$('mini4').innerHTML=PRODUCTS.map(([,,c])=>`<span style="color:${c}">0</span>`).join('');
+
+/* ---------- 05 Ondas ---------- */
+const drops=[[0.78,0.35,0],[0.62,0.7,2.1],[0.9,0.78,4.3]];
+field($('f5'),(x,y,t,mx,my,c,r)=>{
+  const asp=(c*0.6)/r;let v=0;
+  for(const [dx,dy,ph] of drops){const d=Math.hypot((x-dx)*asp,y-dy);v+=Math.max(0,Math.sin(d*28-t*2.2+ph))*Math.exp(-d*2.4);}
+  if(mx>-1){const d=Math.hypot((x-mx)*asp,y-my);v+=Math.max(0,Math.sin(d*34-t*4))*Math.exp(-d*5)*1.2;}
+  return ' ·oO0'[Math.min(4,Math.floor(v*3.2))];
+},{fps:20});
+(function(){let s='';for(let y=0;y<9;y++){for(let x=0;x<12;x++){const d=Math.hypot((x-5.5)/6,(y-4)/4.5);s+=d>0.62&&d<1?'0':d>0.25&&d<0.45?'o':' '}s+='\n'}$('l5').textContent=s})();
+
+/* ---------- 06 Editorial ---------- */
+const ILL=[
+ ['Cal','Tu agenda pública, con los horarios que vos elegís.',
+` L  M  M  J  V  S  D
+ 0  0  0  0  0  ·  ·
+ 0  0  <b style="color:var(--c-cal)">●</b>  0  0  ·  ·
+ 0  0  0  0  0  ·  ·
+ 0  0  0  0  0  ·  ·
+
+ 10:00  0────────────0
+ 11:30  0──────0
+ 15:00  <b style="color:var(--c-cal)">0──────────────────0</b>`],
+ ['Link','Links cortos, QR y analytics que son tuyos.',
+`  zerosoft.ai/<b style="color:var(--c-link)">o0</b>
+        │
+        0───0───0───0
+        │           │
+     ar · 0      mx · 0
+     br · 0      es · 0
+        │           │
+        └─────0─────┘
+          destino`],
+ ['Track','Issues, ciclos y proyectos sin pagar por asiento.',
+` todo        en curso    hecho
+ ─────────   ─────────   ─────────
+ 0 Login     <b style="color:var(--c-track)">0 Pagos</b>     0 Deploy
+ 0 Exportar  0 Webhooks  0 Docs
+ 0 Filtros               0 i18n
+ 0 Mobile`]];
+$('i6').innerHTML=ILL.map(([n,p,a])=>`<div class="ill"><h5>${n}</h5><pre>${a}</pre><p>${p}</p></div>`).join('');
+
+/* ---------- Mini app ---------- */
+const ICON={
+ d1:(c)=>`<span style="color:${c}">0</span>`,
+ d2:(c,k)=>`<span style="color:${c}">${GLY[k].padEnd(3,' ').slice(0,3)}</span>`,
+ d3:(c)=>`<span style="color:${c};font-weight:700">0</span>`,
+ d4:(c)=>`<span style="color:${c};font:700 14px 'Space Mono'">0</span>`,
+ d5:(c)=>`<span style="color:${c}">o</span>`,
+ d6:(c)=>`<svg width="10" height="12" viewBox="0 0 20 24" aria-hidden="true"><path d="M10 1A8.5 11 0 1 1 10 23A8.5 11 0 1 1 10 1ZM10 4.1A5.3 7.9 0 1 0 10 19.9A5.3 7.9 0 1 0 10 4.1Z" fill="${c}" fill-rule="evenodd"/></svg>`,
+};
+function miniApp(id,d,{empty}={}){
+  const side=PRODUCTS.slice(0,7).map(([k,n,c],i)=>`<a href="#" class="${i===0?'on':''}">${ICON[d](c,k)}${n}</a>`).join('');
+  const rows=[['zerosoft.ai/lanzamiento','producthunt.com/posts/…','hoy'],['zerosoft.ai/cal','zerosoft.ai/es/book/lauta','ayer'],['zerosoft.ai/gh','github.com/lschiaffino/zerosoft','12 oct'],['zerosoft.ai/docs','zerosoft.ai/es/docs','10 oct']];
+  const btn={d1:'<a class="btn" style="margin:0">Nuevo</a>',d2:'<a class="btn" style="margin:0">n · nuevo</a>',d3:'<a class="btn" style="margin:0">Nuevo</a>',d4:'<a class="btn" style="margin:0">Nuevo</a>',d5:'<a class="btn" style="margin:0">Nuevo</a>',d6:'<a class="btn" style="margin:0">Nuevo link</a>'}[d];
+  $(id).innerHTML=`<div class="app"><div class="app-side"><div class="ws">${d==='d2'?'[0] mi-equipo':'mi equipo'}</div>${side}</div>
+  <div class="app-main"><h6>Links ${btn}</h6><table><thead><tr><th>Link</th><th>Destino</th><th>Creado</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table>
+  ${empty||''}</div></div>`;
+}
+miniApp('a1','d1',{empty:`<pre class="empty" style="font-size:9px;line-height:1">${zeroGlyph(22,10,0.5)}</pre>`});
+miniApp('a2','d2');miniApp('a3','d3');miniApp('a4','d4');miniApp('a5','d5');miniApp('a6','d6');
+</script>
+</body>
+</html>

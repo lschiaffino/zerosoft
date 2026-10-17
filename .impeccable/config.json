@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/zeros/index.html"
+        ],
+        "createdAt": "2026-10-17T05:42:09.888Z",
+        "reason": "Claude: página de exploración de marcas alternativas; las fuentes de cada opción son intencionales"
+      }
+    ]
+  }
+}
