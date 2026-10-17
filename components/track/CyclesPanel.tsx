@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
-import QuickModal from '@/components/app/QuickModal';
+import { useLocale, useTranslations } from 'next-intl';
+import EmptyState from '@/components/ui/EmptyState';
 import type { TrackCycleRow } from '@/lib/db';
+import { cycleState, formatDay, nextCycleDraft, overlappingCycle } from '@/lib/track-tasks';
 
 export type CycleWithProgress = TrackCycleRow & { total?: number; done?: number };
 
@@ -17,210 +18,298 @@ interface CyclesPanelProps {
 
 const day = (s: string) => s.slice(0, 10);
 
+const STATE_ORDER = { active: 0, upcoming: 1, past: 2 } as const;
+
 /**
- * Cycles del proyecto: crear / editar (nombre, inicio, fin), barra de progreso
- * (terminados / totales) y "Completar" que pasa los issues sin terminar al
- * siguiente cycle.
+ * Ciclos del proyecto (vive en el drawer de ajustes): crear y editar en línea
+ * (nombre, inicio, fin), progreso (terminados / totales) y "Completar", que
+ * pasa los issues sin terminar al ciclo siguiente.
  */
 export default function CyclesPanel({ projectId, cycles, today, onChanged }: CyclesPanelProps) {
   const t = useTranslations('track');
-  const [editing, setEditing] = useState<CycleWithProgress | 'new' | null>(null);
-  const [completing, setCompleting] = useState<CycleWithProgress | null>(null);
+  const locale = useLocale();
+  const [editing, setEditing] = useState<string | 'new' | null>(null);
+  const [completing, setCompleting] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const ordered = [...cycles].sort((a, b) => a.start_at.localeCompare(b.start_at));
   const nextOf = (c: CycleWithProgress) => ordered.find((x) => x.id !== c.id && x.start_at > c.start_at) ?? null;
+  // El activo primero, después los próximos (el más cercano arriba) y al final los terminados.
+  const listed = [...cycles].sort((a, b) => {
+    const sa = STATE_ORDER[cycleState(a, today)];
+    const sb = STATE_ORDER[cycleState(b, today)];
+    if (sa !== sb) return sa - sb;
+    return sa === 1 ? a.start_at.localeCompare(b.start_at) : b.start_at.localeCompare(a.start_at);
+  });
+  const range = (c: CycleWithProgress) => `${formatDay(day(c.start_at), locale, today)} – ${formatDay(day(c.end_at), locale, today)}`;
 
-  const state = (c: CycleWithProgress) =>
-    day(c.end_at) < today ? 'past' : day(c.start_at) > today ? 'upcoming' : 'active';
+  const saved = async () => {
+    setEditing(null);
+    await onChanged();
+  };
 
   return (
-    <section className="panel track-cycles" style={{ marginTop: 32 }} data-testid="track-cycles">
-      <div className="track-section-header">
-        <p className="section-label">{t('project.cycles')}</p>
-        <button type="button" className="btn btn-small" onClick={() => setEditing('new')} data-testid="track-new-cycle">
-          {t('project.newCycle')}
-        </button>
+    <div className="track-cycles" data-testid="track-cycles">
+      <div className="track-pane-head">
+        <p className="ui-help">{t('cycles.help')}</p>
+        {editing !== 'new' && cycles.length > 0 && (
+          <button type="button" className="btn btn-sm" onClick={() => setEditing('new')} data-testid="track-new-cycle">
+            {t('project.newCycle')}
+          </button>
+        )}
       </div>
+
       {notice && (
-        <p className="muted" role="status">
+        <p className="ui-help track-pane-notice" role="status">
           {notice}
         </p>
       )}
-      {cycles.length === 0 ? (
-        <p className="muted">{t('project.noCycles')}</p>
+
+      {editing === 'new' && (
+        <CycleForm projectId={projectId} cycle={null} cycles={cycles} today={today} onCancel={() => setEditing(null)} onSaved={saved} />
+      )}
+
+      {cycles.length === 0 && editing !== 'new' ? (
+        <EmptyState
+          quiet
+          title={t('cycles.emptyTitle')}
+          body={t('cycles.emptyBody')}
+          action={
+            <button type="button" className="btn btn-primary" onClick={() => setEditing('new')} data-testid="track-new-cycle">
+              {t('project.newCycle')}
+            </button>
+          }
+        />
       ) : (
         <ul className="track-cycle-list">
-          {[...cycles]
-            .sort((a, b) => b.start_at.localeCompare(a.start_at))
-            .map((c) => {
-              const total = c.total ?? 0;
-              const done = c.done ?? 0;
-              const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-              const st = state(c);
+          {listed.map((c) => {
+            const total = c.total ?? 0;
+            const done = c.done ?? 0;
+            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            const st = cycleState(c, today);
+            const next = nextOf(c);
+            if (editing === c.id) {
               return (
-                <li key={c.id} className={`track-cycle is-${st}`} data-testid="track-cycle">
-                  <div className="track-cycle-head">
-                    <span className="track-cycle-name">{c.name}</span>
-                    <span className="track-cycle-badge mono">{t(`cycles.state.${st}`)}</span>
-                    <span className="mono track-cycle-dates">
-                      {day(c.start_at)} → {day(c.end_at)}
-                    </span>
+                <li key={c.id} className="track-cycle is-editing">
+                  <CycleForm projectId={projectId} cycle={c} cycles={cycles} today={today} onCancel={() => setEditing(null)} onSaved={saved} />
+                </li>
+              );
+            }
+            return (
+              <li key={c.id} className={`track-cycle is-${st}`} data-testid="track-cycle">
+                <div className="track-cycle-head">
+                  {st === 'active' && <span className="track-cycle-station" aria-hidden />}
+                  <span className="track-cycle-name">{c.name}</span>
+                  <span className="track-cycle-state">{t(`cycles.state.${st}`)}</span>
+                  <span className="track-cycle-dates">{range(c)}</span>
+                </div>
+                {st === 'upcoming' && total === 0 ? null : (
+                <div className="track-cycle-progress">
+                  <div
+                    className="track-cycle-bar"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={total}
+                    aria-valuenow={done}
+                    aria-label={t('cycles.progress', { done, total })}
+                  >
+                    <span style={{ width: `${pct}%` }} />
                   </div>
-                  <div className="track-cycle-progress">
-                    <div
-                      className="track-cycle-bar"
-                      role="progressbar"
-                      aria-valuemin={0}
-                      aria-valuemax={total}
-                      aria-valuenow={done}
-                      aria-label={t('cycles.progress', { done, total })}
-                    >
-                      <span style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="mono track-cycle-count">{t('cycles.progress', { done, total })}</span>
-                  </div>
+                  <span className="track-cycle-count">{t('cycles.progress', { done, total })}</span>
+                </div>
+                )}
+                {completing === c.id ? (
+                  <CompleteCycle
+                    cycle={c}
+                    next={next}
+                    onCancel={() => setCompleting(null)}
+                    onDone={async (moved, targetName) => {
+                      setCompleting(null);
+                      setNotice(
+                        targetName
+                          ? t('cycles.movedTo', { count: moved, name: targetName })
+                          : t('cycles.movedOut', { count: moved }),
+                      );
+                      await onChanged();
+                    }}
+                  />
+                ) : (
                   <div className="track-cycle-actions">
-                    <button type="button" className="btn btn-small" onClick={() => setEditing(c)}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(c.id)}>
                       {t('cycles.edit')}
                     </button>
                     {st !== 'upcoming' && total > done && (
                       <button
                         type="button"
-                        className="btn btn-small"
-                        onClick={() => setCompleting(c)}
+                        className="btn btn-sm"
+                        onClick={() => setCompleting(c.id)}
                         data-testid="track-complete-cycle"
                       >
                         {t('cycles.complete')}
                       </button>
                     )}
                   </div>
-                </li>
-              );
-            })}
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
-
-      {editing && (
-        <CycleForm
-          projectId={projectId}
-          cycle={editing === 'new' ? null : editing}
-          today={today}
-          onClose={() => setEditing(null)}
-          onSaved={async () => {
-            setEditing(null);
-            await onChanged();
-          }}
-        />
-      )}
-
-      {completing && (
-        <CompleteCycleDialog
-          cycle={completing}
-          next={nextOf(completing)}
-          onClose={() => setCompleting(null)}
-          onDone={async (moved, targetName) => {
-            setCompleting(null);
-            setNotice(
-              targetName ? t('cycles.movedTo', { count: moved, name: targetName }) : t('cycles.movedOut', { count: moved }),
-            );
-            await onChanged();
-          }}
-        />
-      )}
-    </section>
+    </div>
   );
-}
-
-function addDays(iso: string, n: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
 }
 
 function CycleForm({
   projectId,
   cycle,
+  cycles,
   today,
-  onClose,
+  onCancel,
   onSaved,
 }: {
   projectId: string;
   cycle: CycleWithProgress | null;
+  cycles: CycleWithProgress[];
   today: string;
-  onClose: () => void;
+  onCancel: () => void;
   onSaved: () => void;
 }) {
   const t = useTranslations('track');
-  const [name, setName] = useState(cycle?.name ?? '');
-  const [startAt, setStartAt] = useState(cycle ? day(cycle.start_at) : today);
-  const [endAt, setEndAt] = useState(cycle ? day(cycle.end_at) : addDays(today, 13));
+  const locale = useLocale();
+  const [draft] = useState(() => nextCycleDraft(cycles, today));
+  const defaultName = t('cycles.defaultName', { n: draft.n });
+  const [name, setName] = useState(cycle?.name ?? defaultName);
+  const [startAt, setStartAt] = useState(cycle ? day(cycle.start_at) : draft.startAt);
+  const [endAt, setEndAt] = useState(cycle ? day(cycle.end_at) : draft.endAt);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const invalidRange = !!startAt && !!endAt && endAt < startAt;
+  // Dos ciclos no pueden pisarse: un issue tendría dos "ciclos activos".
+  const overlap =
+    !invalidRange && startAt && endAt
+      ? overlappingCycle(cycles, startAt, endAt, cycle?.id)
+      : undefined;
+  const problem = invalidRange
+    ? t('cycles.invalidRange')
+    : overlap
+      ? t('cycles.overlap', {
+          name: overlap.name,
+          range: `${formatDay(day(overlap.start_at), locale, today)} – ${formatDay(day(overlap.end_at), locale, today)}`,
+        })
+      : null;
+  const prefix = cycle ? `cycle-${cycle.id}` : 'cycle-new';
+  const finalName = name.trim() || (cycle ? cycle.name : defaultName);
 
-  async function submit() {
-    if (!name.trim() || !startAt || !endAt || invalidRange || busy) return;
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!startAt || !endAt || problem || busy) return;
     setBusy(true);
     setError(null);
     const res = await fetch(cycle ? `/api/track/cycles/${cycle.id}` : `/api/track/projects/${projectId}/cycles`, {
       method: cycle ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), startAt, endAt }),
+      body: JSON.stringify({ name: finalName, startAt, endAt }),
     }).catch(() => null);
     setBusy(false);
     if (res?.ok) {
       onSaved();
       return;
     }
-    setError(t('errors.generic'));
+    setError(res?.status === 409 ? t('errors.cycle_overlap') : t('errors.generic'));
   }
 
   return (
-    <QuickModal
-      open
-      onClose={onClose}
-      crumb={`Track › ${cycle ? t('cycles.editTitle') : t('project.newCycle')}`}
+    <form
+      className="track-inline-form"
       onSubmit={submit}
-      submitLabel={busy ? t('common.saving') : cycle ? t('common.save') : t('common.create')}
-      cancelLabel={t('common.cancel')}
-      submitDisabled={!name.trim() || !startAt || !endAt || invalidRange}
-      busy={busy}
-      error={error ?? (invalidRange ? t('cycles.invalidRange') : null)}
-      width={480}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          onCancel();
+        }
+      }}
+      data-testid="track-cycle-form"
     >
-      <input
-        data-autofocus
-        className="qm-title"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder={t('cycles.form.namePlaceholder')}
-        aria-label={t('cycles.form.name')}
-        maxLength={200}
-      />
-      <div className="qm-row">
-        <label className="qm-field">
-          <span>{t('cycles.form.startAt')}</span>
-          <input type="date" value={startAt} onChange={(e) => setStartAt(e.target.value)} required />
+      <div className="ui-field">
+        <label className="label" htmlFor={`${prefix}-name`}>
+          {t('cycles.form.name')} <span className="ui-optional">{t('common.optional')}</span>
         </label>
-        <label className="qm-field">
-          <span>{t('cycles.form.endAt')}</span>
-          <input type="date" value={endAt} onChange={(e) => setEndAt(e.target.value)} required />
-        </label>
+        <input
+          id={`${prefix}-name`}
+          className="input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={cycle ? cycle.name : defaultName}
+          maxLength={200}
+          autoFocus
+        />
       </div>
-    </QuickModal>
+      <div className="ui-fields-2">
+        <div className="ui-field">
+          <label className="label" htmlFor={`${prefix}-start`}>
+            {t('cycles.form.startAt')}
+          </label>
+          <input
+            id={`${prefix}-start`}
+            className="input"
+            type="date"
+            lang={locale}
+            value={startAt}
+            onChange={(e) => setStartAt(e.target.value)}
+            aria-invalid={Boolean(overlap) || undefined}
+            aria-describedby={problem ? `${prefix}-err` : undefined}
+            required
+          />
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor={`${prefix}-end`}>
+            {t('cycles.form.endAt')}
+          </label>
+          <input
+            id={`${prefix}-end`}
+            className="input"
+            type="date"
+            lang={locale}
+            value={endAt}
+            onChange={(e) => setEndAt(e.target.value)}
+            aria-invalid={Boolean(problem) || undefined}
+            aria-describedby={problem ? `${prefix}-err` : undefined}
+            required
+          />
+        </div>
+      </div>
+      {(error || problem) && (
+        <p className="ui-error" id={`${prefix}-err`} role="alert">
+          {error ?? problem}
+        </p>
+      )}
+      <div className="track-inline-form-actions">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
+          {t('common.cancel')}
+        </button>
+        <button
+          type="submit"
+          className="btn btn-primary btn-sm"
+          disabled={!startAt || !endAt || Boolean(problem)}
+          aria-busy={busy || undefined}
+        >
+          {cycle ? t('cycles.save') : t('cycles.create')}
+        </button>
+      </div>
+    </form>
   );
 }
 
-function CompleteCycleDialog({
+function CompleteCycle({
   cycle,
   next,
-  onClose,
+  onCancel,
   onDone,
 }: {
   cycle: CycleWithProgress;
   next: CycleWithProgress | null;
-  onClose: () => void;
+  onCancel: () => void;
   onDone: (moved: number, targetName: string | null) => void;
 }) {
   const t = useTranslations('track');
@@ -234,7 +323,7 @@ function CompleteCycleDialog({
     const res = await fetch(`/api/track/cycles/${cycle.id}/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(next ? { targetCycleId: next.id } : { targetCycleId: null }),
+      body: JSON.stringify({ targetCycleId: next ? next.id : null }),
     }).catch(() => null);
     setBusy(false);
     if (!res?.ok) {
@@ -246,22 +335,31 @@ function CompleteCycleDialog({
   }
 
   return (
-    <QuickModal
-      open
-      onClose={onClose}
-      crumb={`Track › ${t('cycles.completeTitle', { name: cycle.name })}`}
-      onSubmit={submit}
-      submitLabel={busy ? t('common.saving') : t('cycles.complete')}
-      cancelLabel={t('common.cancel')}
-      busy={busy}
-      error={error}
-      width={480}
-    >
+    <div className="track-cycle-confirm" role="group" aria-label={t('cycles.completeTitle', { name: cycle.name })}>
       <p>
         {next
           ? t('cycles.completeMove', { count: unfinished, name: next.name })
           : t('cycles.completeNoNext', { count: unfinished })}
       </p>
-    </QuickModal>
+      {error && (
+        <p className="ui-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="track-inline-form-actions">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
+          {t('common.cancel')}
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => void submit()}
+          aria-busy={busy || undefined}
+          data-testid="track-complete-cycle-confirm"
+        >
+          {t('cycles.completeConfirm')}
+        </button>
+      </div>
+    </div>
   );
 }

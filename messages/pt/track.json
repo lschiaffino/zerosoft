@@ -21,34 +21,50 @@
     "hide": "Ocultar",
     "search": "Buscar",
     "noResults": "Sem resultados",
-    "loading": "Carregando…"
+    "loading": "Carregando…",
+    "retry": "Tentar de novo",
+    "optional": "opcional"
   },
   "overview": {
-    "title": "Track",
-    "subtitle": "Projetos, ciclos e issues. Sem fricção.",
-    "emptyTitle": "0 projetos",
-    "emptySub": "Crie seu primeiro projeto e comece a entregar.",
-    "emptyCta": "Novo projeto",
+    "title": "Resumo",
+    "subtitle": "O ciclo atual de cada projeto, o que está vencido e o que espera triage.",
+    "emptyTitle": "Ainda não há projetos",
+    "emptySub": "Um projeto agrupa issues, ciclos e visualizações. Crie um por produto ou por equipe.",
     "projects": "Projetos",
-    "recentIssues": "Issues recentes"
+    "recentIssues": "Issues recentes",
+    "emptySecondary": "Também pelo ⌘K.",
+    "cycle": "Ciclo atual",
+    "noCycle": "Sem ciclo atual",
+    "cycleMeta": "{done}/{total} · fecha em {end}",
+    "triage": "Triage"
   },
   "projects": {
     "title": "Projetos",
-    "newCta": "+ Novo projeto",
+    "newCta": "Novo projeto",
     "newTitle": "Novo projeto",
-    "newSub": "Nomeie. Defina o slug. Entregue.",
+    "newSub": "O identificador dos issues vem do nome.",
     "back": "← Todos os projetos",
     "empty": "Ainda não há projetos.",
     "openIssues": "abertos",
     "form": {
       "name": "Nome",
-      "namePlaceholder": "Acme Mobile App",
-      "slug": "Slug",
-      "slugPlaceholder": "acme-mobile",
+      "namePlaceholder": "App mobile",
+      "slug": "Identificador",
+      "slugPlaceholder": "app-mobile",
       "description": "Descrição",
       "icon": "Ícone",
-      "color": "Cor"
-    }
+      "slugHelp": "Prefixo dos issues: {example}. Se ficar vazio, vem do nome.",
+      "advancedHint": "Identificador e ícone",
+      "iconHelp": "Um emoji ou até 8 caracteres, ao lado do nome."
+    },
+    "create": "Criar projeto",
+    "formTitle": "Dados básicos",
+    "backToList": "Voltar aos projetos",
+    "column": {
+      "project": "Projeto",
+      "open": "Abertos"
+    },
+    "subtitle": "Todos os projetos da equipe e seus issues abertos."
   },
   "project": {
     "title": "Projeto",
@@ -63,13 +79,18 @@
     "pastCycles": "Ciclos anteriores",
     "loadMore": "Carregar mais",
     "showing": "Mostrando {shown} de {total}",
-    "settings": "Configurações"
+    "settings": "Ajustes",
+    "loadErrorTitle": "Não foi possível carregar o projeto",
+    "loadErrorBody": "Verifique a conexão e tente de novo.",
+    "emptyTitle": "Ainda não há issues",
+    "emptyBody": "Um issue é uma tarefa com status, prioridade e responsável. Os que você criar aparecem aqui.",
+    "emptyShortcut": "Atalho: C",
+    "noMatches": "Nenhum issue corresponde aos filtros.",
+    "activeCycleMeta": "{name}: {done} de {total} concluídos. Termina em {end}."
   },
   "issues": {
     "pageTitle": "Issues",
     "newCta": "+ Novo issue",
-    "newTitle": "Novo issue",
-    "newSub": "Crie um issue neste projeto.",
     "back": "← Voltar ao projeto",
     "empty": "Nenhum issue corresponde.",
     "identifier": "ID",
@@ -81,21 +102,7 @@
     "estimate": "Estimativa",
     "created": "Criado",
     "noAssignee": "Não atribuído",
-    "form": {
-      "title": "Título",
-      "titlePlaceholder": "Corrigir redirect do login",
-      "description": "Descrição",
-      "status": "Status",
-      "priority": "Prioridade",
-      "assignee": "Responsável",
-      "cycle": "Ciclo",
-      "estimate": "Estimativa (pontos)",
-      "dueDate": "Data de vencimento",
-      "labels": "Etiquetas",
-      "removeLabel": "Remover label",
-      "labelsPlaceholder": "Digite e pressione Enter"
-    },
-    "dueDate": "Data de vencimento",
+    "dueDate": "Prazo",
     "labels": "Etiquetas",
     "detail": {
       "comments": "Comentários",
@@ -103,13 +110,27 @@
       "noComments": "Ainda não há comentários.",
       "properties": "Propriedades"
     },
-    "changeStatus": "Mudar status"
+    "changeStatus": "Mudar status",
+    "untitled": "Sem título",
+    "createdOn": "Criado em {date}",
+    "breadcrumb": "Local do issue",
+    "description": "Descrição",
+    "noProjectsBody": "Crie um projeto para começar a registrar issues.",
+    "none": "Nenhum",
+    "editTitle": "Título do issue",
+    "descriptionPlaceholder": "Adicione uma descrição…",
+    "moreActions": "Mais ações",
+    "addSubtask": "Sub-issue",
+    "addAttachment": "Anexo",
+    "addRelation": "Relação",
+    "estimatePlaceholder": "Pontos",
+    "estimateUnit": "pts"
   },
   "subtasks": {
-    "title": "Subtarefas",
-    "add": "Adicionar subtarefa",
-    "empty": "Ainda não há subtarefas.",
-    "hasSubtasks": "Tem subtarefas"
+    "title": "Sub-issues",
+    "add": "Adicionar sub-issue",
+    "empty": "Ainda não há sub-issues.",
+    "hasSubtasks": "Tem sub-issues"
   },
   "attachments": {
     "title": "Anexos",
@@ -136,7 +157,7 @@
     "relationAdded": "{user} adicionou relação com",
     "relationRemoved": "{user} removeu uma relação",
     "attachmentAdded": "{user} adicionou o anexo {filename}",
-    "subtaskAdded": "{user} adicionou isto como subtarefa",
+    "subtaskAdded": "{user} adicionou isto como sub-issue",
     "closed": "{user} fechou este issue",
     "reopened": "{user} reabriu este issue",
     "commented": "{user} comentou",
@@ -146,7 +167,8 @@
     "mentionedYou": "{actor} mencionou você em {identifier}",
     "assignedYou": "{actor} atribuiu {identifier} a você",
     "commentedOn": "{actor} comentou em {identifier}",
-    "changedStatus": "{actor} alterou o status de {identifier}"
+    "changedStatus": "{actor} alterou o status de {identifier}",
+    "submitComment": "Comentar"
   },
   "relations": {
     "title": "Relações",
@@ -160,10 +182,11 @@
     "empty": "Ainda não há relações.",
     "selectIssue": "ID ou identificador do issue",
     "selectType": "Tipo",
-    "notFound": "Nenhum issue encontrado com esse ID ou identifier.",
+    "notFound": "Nenhum issue encontrado com esse ID ou identificador.",
     "duplicate": "Esses issues já estão relacionados.",
     "self": "Um issue não pode ser relacionado consigo mesmo.",
-    "error": "Não foi possível adicionar a relação. Tente de novo."
+    "error": "Não foi possível adicionar a relação. Tente de novo.",
+    "add": "Adicionar relação"
   },
   "actions": {
     "close": "Fechar issue",
@@ -173,25 +196,34 @@
     "title": "Ciclos",
     "form": {
       "name": "Nome",
-      "namePlaceholder": "Sprint 1",
+      "namePlaceholder": "Ciclo {n}",
       "startAt": "Início",
       "endAt": "Fim"
     },
     "edit": "Editar",
-    "editTitle": "Editar cycle",
+    "editTitle": "Editar ciclo",
     "complete": "Concluir",
     "completeTitle": "Concluir {name}",
     "completeMove": "{count, plural, =0 {Não há issues pendentes.} one {O issue pendente passa para {name}.} other {Os # issues pendentes passam para {name}.}}",
-    "completeNoNext": "{count, plural, =0 {Não há issues pendentes.} one {Não há próximo cycle: o issue pendente fica sem cycle.} other {Não há próximo cycle: os # issues pendentes ficam sem cycle.}}",
+    "completeNoNext": "{count, plural, =0 {Não há issues pendentes.} one {Não há próximo ciclo: o issue pendente fica sem ciclo.} other {Não há próximo ciclo: os # issues pendentes ficam sem ciclo.}}",
     "movedTo": "{count, plural, one {# issue movido} other {# issues movidos}} para {name}.",
-    "movedOut": "{count, plural, one {# issue ficou} other {# issues ficaram}} sem cycle.",
+    "movedOut": "{count, plural, one {# issue ficou} other {# issues ficaram}} sem ciclo.",
     "progress": "{done}/{total} concluídos",
     "invalidRange": "A data de fim não pode ser anterior ao início.",
     "state": {
       "active": "Ativo",
       "upcoming": "Próximo",
       "past": "Encerrado"
-    }
+    },
+    "help": "Períodos de trabalho, em geral de duas semanas. Ao concluir um, o que ficou pendente passa para o próximo.",
+    "emptyTitle": "Ainda não há ciclos",
+    "emptyBody": "Crie o primeiro para planejar por períodos e acompanhar o avanço.",
+    "save": "Salvar ciclo",
+    "create": "Criar ciclo",
+    "completeConfirm": "Concluir ciclo",
+    "defaultName": "Ciclo {n}",
+    "overlap": "Sobrepõe {name} ({range}). Escolha outras datas.",
+    "next": "Próximo"
   },
   "statuses": {
     "title": "Status",
@@ -211,7 +243,8 @@
     "list": "Lista",
     "board": "Quadro",
     "calendar": "Calendário",
-    "gantt": "Cronograma"
+    "gantt": "Cronograma",
+    "group": "Visualização"
   },
   "filters": {
     "status": "Status",
@@ -219,11 +252,13 @@
     "assignee": "Responsável",
     "cycle": "Ciclo",
     "labels": "Etiquetas",
-    "dueDate": "Data de vencimento",
+    "dueDate": "Prazo",
     "search": "Buscar issues…",
     "clear": "Limpar",
     "dueFrom": "De",
-    "dueTo": "Até"
+    "dueTo": "Até",
+    "button": "Filtrar",
+    "done": "Pronto"
   },
   "savedViews": {
     "title": "Visualizações salvas",
@@ -240,7 +275,10 @@
     "prev": "Anterior",
     "next": "Próximo",
     "today": "Hoje",
-    "unscheduled": "Sem data"
+    "unscheduled": "Sem data",
+    "more": "+{count} mais",
+    "dayCount": "{count, plural, one {# issue} other {# issues}}",
+    "nothingDue": "Nada vence neste dia."
   },
   "gantt": {
     "prev": "Anterior",
@@ -255,9 +293,13 @@
     "mentions": "Menções",
     "assigned": "Atribuídas",
     "updates": "Atualizações",
-    "empty": "Nenhuma notificação.",
+    "empty": "Não há notificações",
     "markAllRead": "Marcar todas como lidas",
-    "loadMore": "Carregar mais"
+    "loadMore": "Carregar mais",
+    "emptyBody": "Aqui chegam menções, atribuições e mudanças de status dos seus issues.",
+    "unread": "Não lida",
+    "loadError": "Não foi possível carregar a caixa de entrada.",
+    "someone": "Alguém"
   },
   "notifications": {
     "title": "Notificações",
@@ -274,28 +316,31 @@
     "invalid_input": "Alguns campos são inválidos. Revise e tente novamente.",
     "generic": "Algo deu errado. Tente novamente.",
     "invalid_range": "A data de fim não pode ser anterior ao início.",
-    "last_status": "O projeto precisa de pelo menos um status."
+    "last_status": "O projeto precisa de pelo menos um status.",
+    "cycle_overlap": "Sobrepõe outro ciclo. Escolha outras datas."
   },
   "quick": {
-    "newTask": "Nova tarefa",
-    "placeholder": "Título da tarefa, Enter para salvar, Esc para cancelar",
-    "hint": "!alta @amanhã",
+    "newTask": "Novo issue",
+    "placeholder": "Título do issue, Enter para salvar, Esc para cancelar",
+    "hint": "Escreva !alta ou @amanhã no título para definir prioridade e prazo.",
     "project": "Projeto",
-    "modalTitle": "Nova issue",
-    "titlePlaceholder": "Título da issue",
+    "modalTitle": "Novo issue",
+    "titlePlaceholder": "Título do issue",
     "descriptionPlaceholder": "Adicione uma descrição…",
     "create": "Criar issue",
-    "createMore": "Criar outra",
+    "createMore": "Criar outro",
     "submitHint": "Enter ou ⌘↵ para criar",
-    "shortcutHint": "Pressione C para criar uma issue",
-    "subModalTitle": "Novo sub-issue"
+    "shortcutHint": "Pressione C para criar um issue",
+    "subModalTitle": "Novo sub-issue",
+    "cycle": "Ciclo",
+    "noCycle": "Sem ciclo"
   },
   "inline": {
-    "markDone": "Marcar como concluída",
+    "markDone": "Marcar como concluído",
     "markOpen": "Marcar como pendente",
     "noDoneStatus": "Este projeto não tem um status “Concluído”.",
     "saveError": "Não foi possível salvar a alteração. Ela foi revertida.",
-    "createError": "Não foi possível criar a tarefa. Tente de novo.",
+    "createError": "Não foi possível criar o issue. Tente de novo.",
     "noDate": "Sem data",
     "today": "Hoje",
     "tomorrow": "Amanhã",
@@ -303,7 +348,8 @@
     "clear": "Remover data",
     "pickDate": "Escolher data",
     "dragHint": "Arraste para outra coluna para mudar o status",
-    "dismiss": "Fechar"
+    "dismiss": "Fechar",
+    "loadError": "Não foi possível carregar mais issues."
   },
   "myTasks": {
     "title": "Minhas tarefas",
@@ -312,7 +358,8 @@
     "today": "Hoje",
     "upcoming": "Próximas",
     "noDate": "Sem data",
-    "empty": "Nada atribuído a você. Aproveite a calma."
+    "empty": "Nada atribuído a você",
+    "emptyBody": "O que for atribuído a você em qualquer projeto aparece aqui, agrupado por vencimento."
   },
   "cmdk": {
     "newIssue": "Novo issue",
@@ -333,31 +380,33 @@
     "adminOnly": "Só um admin pode excluir status.",
     "confirmDelete": "Excluir status",
     "newPlaceholder": "Novo status",
-    "add": "Adicionar"
+    "add": "Adicionar",
+    "help": "Os status ordenam o quadro. A categoria define o que conta como concluído."
   },
   "settingsPage": {
     "title": "Ajustes do Track",
-    "subtitle": "Labels do workspace e integração com o GitHub."
+    "subtitle": "Etiquetas do workspace e integração com o GitHub."
   },
   "labelsSettings": {
-    "title": "Labels",
-    "help": "Os labels são do workspace e valem para todos os projetos.",
-    "newPlaceholder": "Novo label",
+    "title": "Etiquetas",
+    "help": "As etiquetas são do workspace e valem para todos os projetos.",
+    "newPlaceholder": "Nova etiqueta",
     "add": "Adicionar",
-    "name": "Nome do label",
+    "name": "Nome da etiqueta",
     "color": "Cor",
     "delete": "Excluir",
-    "confirmDelete": "Excluir label",
+    "confirmDelete": "Excluir etiqueta",
     "deleteHelp": "Ele sai de {count, plural, one {# issue} other {# issues}}.",
     "issues": "{count, plural, one {# issue} other {# issues}}",
-    "duplicate": "Já existe um label com esse nome.",
-    "empty": "Ainda não há labels.",
-    "error": "Não foi possível salvar o label.",
-    "adminOnly": "Só um admin pode editar ou excluir labels."
+    "duplicate": "Já existe uma etiqueta com esse nome.",
+    "empty": "Ainda não há etiquetas.",
+    "error": "Não foi possível salvar a etiqueta.",
+    "adminOnly": "Só um admin pode editar ou excluir etiquetas.",
+    "loadError": "Não foi possível carregar as etiquetas."
   },
   "github": {
     "title": "GitHub",
-    "help": "Conecte um webhook do GitHub. PRs e commits que citam um issue (ZER-123) no branch, no título ou na descrição ficam vinculados a ele.",
+    "help": "Conecte um webhook do GitHub. PRs e commits que citam um issue (<id>{example}</id>) no branch, no título ou na descrição ficam vinculados a ele.",
     "steps": "No GitHub: Settings do repo, Webhooks, Add webhook. Content type application/json, eventos Pull requests e Pushes.",
     "webhookUrl": "Payload URL",
     "secret": "Secret",
@@ -372,7 +421,7 @@
     "onMergeMove": "Mover o issue para Concluído",
     "doNothing": "Manter o status",
     "connect": "Conectar GitHub",
-    "save": "Salvar",
+    "save": "Salvar repos",
     "disconnect": "Desconectar",
     "regenerate": "Gerar novo secret",
     "lastDelivery": "Última entrega: {date}",
@@ -396,7 +445,17 @@
     },
     "regenerateConfirm": "Gerar um novo secret? O atual para de funcionar na hora: as entregas do GitHub vão falhar até você colar o novo secret no webhook.",
     "disconnectConfirm": "Desconectar o GitHub? PRs e commits deixam de ser vinculados aos issues.",
-    "moveHelp": "Só mudam de status os issues do branch, do título ou precedidos de fixes, closes ou resolves na descrição."
+    "moveHelp": "Só mudam de status os issues do branch, do título ou precedidos de fixes, closes ou resolves na descrição.",
+    "reposRequired": "Adicione pelo menos um repo.",
+    "loadError": "Não foi possível carregar a integração.",
+    "notConnected": "Não conectado.",
+    "connectNote": "Depois mostramos a URL e o secret para colar no GitHub.",
+    "webhookTitle": "Webhook",
+    "reposTitle": "Repos",
+    "dangerTitle": "Secret e conexão",
+    "dangerHelp": "Um secret novo invalida o atual. Ao desconectar, PRs e commits deixam de ser vinculados.",
+    "statusRules": "Regras de status",
+    "statusRulesHint": "O que acontece ao abrir e mergear um PR"
   },
   "bulk": {
     "selected": "{count} selecionados",
@@ -406,7 +465,7 @@
     "status": "Status",
     "priority": "Prioridade",
     "assignee": "Responsável",
-    "labels": "Labels",
+    "labels": "Etiquetas",
     "cycle": "Ciclo",
     "delete": "Excluir",
     "confirmDelete": "Excluir {count} issues? Não dá para desfazer.",
@@ -428,7 +487,7 @@
     "adminOnly": "Só um admin pode ligar ou desligar o triage.",
     "empty": "Nenhum issue esperando triage.",
     "accept": "Aceitar",
-    "acceptAs": "Aceitar como",
+    "acceptAs": "Aceitar em",
     "decline": "Recusar",
     "duplicate": "Duplicado",
     "duplicateOf": "Duplicado de",
@@ -445,6 +504,16 @@
       "github": "GitHub",
       "agent": "Agents",
       "app": "o app"
+    },
+    "emptyBody": "Os issues que chegam pela API, Chat, Flow ou GitHub esperam aqui até alguém aceitá-los."
+  },
+  "projectSettings": {
+    "title": "Ajustes do projeto",
+    "close": "Fechar ajustes",
+    "tabs": {
+      "cycles": "Ciclos",
+      "statuses": "Status",
+      "triage": "Triagem"
     }
   }
 }

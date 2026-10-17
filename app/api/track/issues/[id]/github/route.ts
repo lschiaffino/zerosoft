@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { canAccessTrackProject, getIssue, getProject } from '@/lib/track-data';
-import { branchNameFor, listIssueLinks } from '@/lib/track-github';
+import { branchNameFor, getGithubConfig, listIssueLinks } from '@/lib/track-github';
+import { projectWorkspaceId } from '@/lib/track-labels';
 import { notFound, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
@@ -15,8 +16,14 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const issue = await getIssue(id);
   const project = issue ? await getProject(issue.project_id) : undefined;
   if (!issue || !project || !canAccessTrackProject(project, user.team?.id ?? null, user.id)) return notFound();
+  const workspaceId = projectWorkspaceId(project);
+  const [rows, config] = await Promise.all([
+    listIssueLinks(id),
+    workspaceId ? getGithubConfig(workspaceId) : Promise.resolve(null),
+  ]);
   return NextResponse.json({
     branchName: branchNameFor(issue.identifier, issue.title),
-    rows: await listIssueLinks(id),
+    connected: Boolean(config),
+    rows,
   });
 }

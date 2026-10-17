@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
-import { deleteCycle, getCycle, getProject, canAccessTrackProject, updateCycle } from '@/lib/track-data';
+import { deleteCycle, getCycle, getProject, canAccessTrackProject, listCycles, updateCycle } from '@/lib/track-data';
+import { overlappingCycle } from '@/lib/track-tasks';
 import { cycleUpdateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
 
@@ -42,6 +43,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const start = (parsed.data.startAt ?? cycle.start_at).slice(0, 10);
   const end = (parsed.data.endAt ?? cycle.end_at).slice(0, 10);
   if (end < start) return trackError(400, 'invalid_range');
+  if (overlappingCycle(await listCycles(cycle.project_id), start, end, cycle.id)) return trackError(409, 'cycle_overlap');
 
   const updated = await updateCycle(params.id, parsed.data);
   return NextResponse.json(updated);

@@ -123,7 +123,10 @@ describe('sidebar de la app', () => {
 
   it('Track › Proyectos es una lista real y /app/chat/widgets no da 404', () => {
     const projects = readFileSync(join(appDir, 'app', 'track', 'projects', 'page.tsx'), 'utf8');
-    expect(projects).toContain('ProjectList');
+    // La página delega en ProjectsPage (compartida con el Resumen), que renderiza la lista.
+    expect(projects).toContain('ProjectsPage');
+    const shared = readFileSync(join(root, 'components', 'track', 'ProjectsPage.tsx'), 'utf8');
+    expect(shared).toContain('ProjectList');
     expect(pageExists('/app/chat/widgets')).toBe(true);
   });
 

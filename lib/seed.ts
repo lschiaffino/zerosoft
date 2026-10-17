@@ -85,26 +85,67 @@ async function seedDocs(userId: string) {
   });
 }
 
-async function seedTrack(userId: string) {
-  const project = await createProject(userId, null, {
+type SeedLocale = 'en' | 'es' | 'pt';
+
+/**
+ * Idioma de la request que dispara el seed (header de next-intl, cookie o
+ * Accept-Language). Fuera de una request (scripts) queda en inglés.
+ */
+async function requestLocale(): Promise<SeedLocale> {
+  const pick = (v: string | null | undefined): SeedLocale | null => {
+    const l = (v ?? '').slice(0, 2).toLowerCase();
+    return l === 'es' || l === 'pt' || l === 'en' ? l : null;
+  };
+  try {
+    const { cookies, headers } = await import('next/headers');
+    const h = await headers();
+    return (
+      pick(h.get('x-next-intl-locale')) ??
+      pick((await cookies()).get('NEXT_LOCALE')?.value) ??
+      pick(h.get('accept-language')) ??
+      'en'
+    );
+  } catch {
+    return 'en';
+  }
+}
+
+const TRACK_SEED: Record<SeedLocale, { name: string; description: string; issues: [string, 'high' | 'medium' | 'low'][] }> = {
+  en: {
     name: 'Launch',
     description: 'Sample project. Switch views, open an issue, drag it on the board.',
-  });
-  await createIssue(project.id, userId, {
-    title: 'Design the landing page',
-    priority: 'high',
-    description: [],
-  });
-  await createIssue(project.id, userId, {
-    title: 'Set up CI and deploys',
-    priority: 'medium',
-    description: [],
-  });
-  await createIssue(project.id, userId, {
-    title: 'Write the announcement post',
-    priority: 'low',
-    description: [],
-  });
+    issues: [
+      ['Design the landing page', 'high'],
+      ['Set up CI and deploys', 'medium'],
+      ['Write the announcement post', 'low'],
+    ],
+  },
+  es: {
+    name: 'Lanzamiento',
+    description: 'Proyecto de ejemplo. Cambiá de vista, abrí un issue, arrastralo en el tablero.',
+    issues: [
+      ['Diseñar la landing', 'high'],
+      ['Configurar CI y deploys', 'medium'],
+      ['Escribir el post del anuncio', 'low'],
+    ],
+  },
+  pt: {
+    name: 'Lançamento',
+    description: 'Projeto de exemplo. Troque de visualização, abra um issue, arraste no quadro.',
+    issues: [
+      ['Desenhar a landing', 'high'],
+      ['Configurar CI e deploys', 'medium'],
+      ['Escrever o post de anúncio', 'low'],
+    ],
+  },
+};
+
+async function seedTrack(userId: string) {
+  const copy = TRACK_SEED[await requestLocale()];
+  const project = await createProject(userId, null, { name: copy.name, description: copy.description });
+  for (const [title, priority] of copy.issues) {
+    await createIssue(project.id, userId, { title, priority, description: [] });
+  }
 }
 
 async function seedCalendar(userId: string) {

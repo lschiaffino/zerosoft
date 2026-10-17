@@ -10,14 +10,16 @@ import type { TrackUiLabels } from './ui-labels';
 
 // ---------- Visuales chicos ----------
 
+/**
+ * Prioridad en tinta: el color de la línea queda solo para orientarse. Urgente
+ * en rojo, alta y media en tinta, baja en gris (≥3:1 como gráfico).
+ */
 export function priorityColor(priority: string): string {
   return priority === 'urgent'
     ? 'var(--bad)'
-    : priority === 'high'
-      ? 'var(--c-track)'
-      : priority === 'medium'
-        ? 'var(--warn)'
-        : '#bbbbbb';
+    : priority === 'high' || priority === 'medium'
+      ? 'var(--ink)'
+      : 'var(--brand-gray-3)';
 }
 
 /** Barras de prioridad estilo Linear (1–4 barras llenas). */
@@ -33,17 +35,31 @@ export function PriorityIcon({ priority }: { priority: string }) {
   );
 }
 
+/**
+ * Glifo de status: un cuadrado (los círculos son de las estaciones). Backlog
+ * punteado, por hacer vacío, en progreso lleno a la mitad, hecho lleno con
+ * tilde y cancelado lleno en gris con cruz.
+ */
 export function StatusDot({ color, category }: { color: string | null; category: string | null }) {
-  const c = safeHexColor(color, '#999999');
-  const done = category === 'done';
   const cancelled = category === 'cancelled';
-  const progress = category === 'in_progress';
+  const c = cancelled ? 'var(--brand-gray-3)' : safeHexColor(color, '#767676');
+  const filled = category === 'done' || cancelled;
   return (
-    <span
-      className={`track-status-dot${done ? ' is-done' : ''}${cancelled ? ' is-cancelled' : ''}${progress ? ' is-progress' : ''}`}
-      style={{ '--dot': c } as CSSProperties}
-      aria-hidden
-    />
+    <svg className="track-status-glyph" viewBox="0 0 12 12" width="12" height="12" aria-hidden style={{ color: c } as CSSProperties}>
+      <rect
+        x="0.75"
+        y="0.75"
+        width="10.5"
+        height="10.5"
+        fill={filled ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeDasharray={category === 'backlog' ? '2 1.5' : undefined}
+      />
+      {category === 'in_progress' && <rect x="0.75" y="0.75" width="5.25" height="10.5" fill="currentColor" />}
+      {category === 'done' && <path d="M3.2 6.2l1.9 1.9 3.7-4" fill="none" stroke="var(--bg)" strokeWidth="1.6" />}
+      {cancelled && <path d="M3.8 3.8l4.4 4.4M8.2 3.8l-4.4 4.4" fill="none" stroke="var(--bg)" strokeWidth="1.6" />}
+    </svg>
   );
 }
 
@@ -52,29 +68,35 @@ function initials(name: string | null | undefined, email?: string | null): strin
   return src[0]?.toUpperCase() ?? '?';
 }
 
-// ---------- Checkbox de "hecho" ----------
+// ---------- Glifo de status que completa ----------
 
-export function DoneCheckbox({
+/**
+ * El glifo de status es el control de terminado (como en Linear): un clic
+ * pasa el issue al primer "Hecho" y otro lo reabre.
+ */
+export function StatusToggle({
+  color,
   category,
   disabled,
   onToggle,
   labels,
 }: {
+  color: string | null;
   category: string | null;
   disabled?: boolean;
   onToggle: () => void;
   labels: TrackUiLabels['inline'];
 }) {
   const checked = isCompletedCategory(category);
-  const cancelled = category === 'cancelled';
+  const label = checked ? labels.markOpen : labels.markDone;
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={checked}
-      aria-label={checked ? labels.markOpen : labels.markDone}
-      title={checked ? labels.markOpen : labels.markDone}
-      className={`track-check${checked ? ' is-checked' : ''}${cancelled ? ' is-cancelled' : ''}`}
+      aria-label={label}
+      title={label}
+      className="track-status-toggle"
       disabled={disabled}
       onClick={(e) => {
         e.preventDefault();
@@ -82,9 +104,7 @@ export function DoneCheckbox({
         onToggle();
       }}
     >
-      <svg viewBox="0 0 12 12" aria-hidden>
-        {cancelled ? <path d="M3.5 3.5l5 5M8.5 3.5l-5 5" /> : <path d="M2.8 6.2l2.2 2.2 4.2-4.6" />}
-      </svg>
+      <StatusDot color={color} category={category} />
     </button>
   );
 }
@@ -267,7 +287,7 @@ export function StatusMenu({
   onChange,
   disabled,
   label,
-  compact,
+  textOnly,
 }: {
   statusId: string | null;
   statusName: string | null;
@@ -277,16 +297,17 @@ export function StatusMenu({
   onChange: (statusId: string) => void;
   disabled?: boolean;
   label: string;
-  compact?: boolean;
+  /** Solo el nombre: el glifo va aparte como control de terminado. */
+  textOnly?: boolean;
 }) {
   return (
     <Popover
-      ariaLabel={`${label}: ${statusName ?? '—'}`}
+      ariaLabel={`${label}: ${statusName ?? '–'}`}
       disabled={disabled || statuses.length === 0}
       trigger={
         <>
-          <StatusDot color={statusColor} category={statusCategory} />
-          {!compact && <span className="track-inline-text">{statusName ?? '—'}</span>}
+          {!textOnly && <StatusDot color={statusColor} category={statusCategory} />}
+          <span className="track-inline-text">{statusName ?? '–'}</span>
         </>
       }
     >
@@ -371,7 +392,7 @@ export function AssigneeMenu({
   noAssignee: string;
   compact?: boolean;
 }) {
-  const display = assigneeId ? assigneeName || assigneeEmail || '—' : noAssignee;
+  const display = assigneeId ? assigneeName || assigneeEmail || '–' : noAssignee;
   return (
     <Popover
       ariaLabel={`${label}: ${display}`}
@@ -537,7 +558,10 @@ export function QuickAdd({
   if (!open) {
     return (
       <button type="button" className={`track-quick-add-btn track-quick-add-${variant}`} onClick={() => setOpen(true)}>
-        <span aria-hidden>+</span> {labels.newTask}
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        {labels.newTask}
       </button>
     );
   }
@@ -584,7 +608,7 @@ export function QuickAdd({
           }
         }}
       />
-      <span className="track-quick-add-hint mono" aria-hidden>
+      <span className="track-quick-add-hint" aria-hidden>
         {labels.hint}
       </span>
     </div>
@@ -595,11 +619,13 @@ export function QuickAdd({
 export function TrackToast({ message, onDismiss, dismissLabel }: { message: string | null; onDismiss: () => void; dismissLabel: string }) {
   if (!message) return null;
   return (
-    <div className="track-toast" role="status" aria-live="polite">
-      <span>{message}</span>
-      <button type="button" onClick={onDismiss} aria-label={dismissLabel}>
-        ×
-      </button>
+    <div className="ui-toasts" role="status" aria-live="polite">
+      <div className="ui-toast" data-tone="error">
+        <span>{message}</span>
+        <button type="button" className="ui-toast-action" onClick={onDismiss}>
+          {dismissLabel}
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { relDate } from '@/lib/utils';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 
 type NotificationType = 'mention' | 'assigned' | 'status_change' | 'comment' | 'subtask' | 'relation';
 
@@ -20,14 +22,21 @@ interface Notification {
 interface InboxClientProps {
   locale: string;
   labels: {
+    title: string;
     all: string;
     mentions: string;
     assigned: string;
     updates: string;
     empty: string;
+    emptyBody: string;
     markAllRead: string;
     loadMore: string;
     markRead: string;
+    unread: string;
+    loading: string;
+    loadError: string;
+    retry: string;
+    someone: string;
     mentionedYou: string;
     assignedYou: string;
     commentedOn: string;
@@ -35,37 +44,56 @@ interface InboxClientProps {
   };
 }
 
-const TABS = [
-  { key: 'all', labelKey: 'all' as const, types: undefined as NotificationType[] | undefined },
-  { key: 'mentions', labelKey: 'mentions' as const, types: ['mention'] as NotificationType[] },
-  { key: 'assigned', labelKey: 'assigned' as const, types: ['assigned'] as NotificationType[] },
-  { key: 'updates', labelKey: 'updates' as const, types: ['status_change', 'comment', 'subtask', 'relation'] as NotificationType[] },
-];
+const PAGE = 25;
 
+const TABS = [
+  { key: 'all', types: undefined as NotificationType[] | undefined },
+  { key: 'mentions', types: ['mention'] as NotificationType[] },
+  { key: 'assigned', types: ['assigned'] as NotificationType[] },
+  { key: 'updates', types: ['status_change', 'comment', 'subtask', 'relation'] as NotificationType[] },
+] as const;
+
+type TabKey = (typeof TABS)[number]['key'];
+
+function parseMeta(meta: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(meta);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Bandeja de Track: menciones, asignaciones y cambios, con filtro por tipo. */
 export default function InboxClient({ locale, labels }: InboxClientProps) {
-  const [tab, setTab] = useState<(typeof TABS)[number]['key']>('all');
+  const [tab, setTab] = useState<TabKey>('all');
   const [rows, setRows] = useState<Notification[]>([]);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const request = useRef(0);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const load = useCallback(
-    async (reset = false) => {
+    async (reset: boolean) => {
+      const seq = ++request.current;
       setLoading(true);
+      setError(false);
       const active = TABS.find((t) => t.key === tab)!;
       const nextPage = reset ? 1 : page;
-      const params = new URLSearchParams({ limit: '25', page: String(nextPage) });
-      if (active.types) {
-        active.types.forEach((t) => params.append('type', t));
-      }
-      const res = await fetch(`/api/notifications?${params.toString()}`);
-      if (res.ok) {
+      const params = new URLSearchParams({ limit: String(PAGE), page: String(nextPage) });
+      active.types?.forEach((t) => params.append('type', t));
+      const res = await fetch(`/api/notifications?${params.toString()}`).catch(() => null);
+      if (seq !== request.current) return;
+      if (res?.ok) {
         const data = (await res.json()) as { rows: Notification[] };
         const newRows = data.rows ?? [];
         setRows((prev) => (reset ? newRows : [...prev, ...newRows]));
-        setHasMore(newRows.length === 25);
-        if (reset) setPage(2);
-        else setPage((p) => p + 1);
+        setHasMore(newRows.length === PAGE);
+        setPage(nextPage + 1);
+      } else {
+        setError(true);
       }
       setLoading(false);
     },
@@ -73,19 +101,17 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
   );
 
   useEffect(() => {
-    load(true);
+    void load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  async function markRead(e: React.MouseEvent, id: string) {
-    e.preventDefault();
-    e.stopPropagation();
+  async function markRead(id: string) {
     const res = await fetch(`/api/notifications/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ read: true }),
-    });
-    if (res.ok) {
+    }).catch(() => null);
+    if (res?.ok) {
       setRows((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: n.read_at ?? new Date().toISOString() } : n)));
     }
   }
@@ -95,109 +121,143 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ readAll: true }),
-    });
-    if (res.ok) {
+    }).catch(() => null);
+    if (res?.ok) {
       const now = new Date().toISOString();
       setRows((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? now })));
     }
   }
 
-  function parseMeta(meta: string): Record<string, string> {
-    try {
-      const parsed = JSON.parse(meta);
-      return typeof parsed === 'object' && parsed !== null ? parsed : {};
-    } catch {
-      return {};
-    }
-  }
-
   function actionText(n: Notification, meta: Record<string, string>): string {
-    const actor = meta.actorName ?? 'Someone';
+    const actor = meta.actorName ?? labels.someone;
     const identifier = meta.issueIdentifier ?? '';
+    const fill = (tpl: string) => tpl.replace('{actor}', actor).replace('{identifier}', identifier);
     switch (n.type) {
       case 'mention':
-        return labels.mentionedYou.replace('{actor}', actor).replace('{identifier}', identifier);
+        return fill(labels.mentionedYou);
       case 'assigned':
-        return labels.assignedYou.replace('{actor}', actor).replace('{identifier}', identifier);
+        return fill(labels.assignedYou);
       case 'comment':
-        return labels.commentedOn.replace('{actor}', actor).replace('{identifier}', identifier);
+        return fill(labels.commentedOn);
       case 'status_change':
-        return labels.changedStatus.replace('{actor}', actor).replace('{identifier}', identifier);
+        return fill(labels.changedStatus);
       default:
         return n.title;
     }
   }
 
-  const tabLabels: Record<(typeof TABS)[number]['labelKey'], string> = {
-    all: labels.all,
-    mentions: labels.mentions,
-    assigned: labels.assigned,
-    updates: labels.updates,
+  const firstLoad = loading && rows.length === 0;
+
+  const onTabKey = (e: React.KeyboardEvent, index: number) => {
+    const delta = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!delta) return;
+    e.preventDefault();
+    const next = TABS[(index + delta + TABS.length) % TABS.length].key;
+    setTab(next);
+    tabRefs.current[next]?.focus();
   };
 
   return (
-    <div>
-      <div className="track-toolbar">
-        <div className="track-inbox-tabs">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              className={`track-inbox-tab${tab === t.key ? ' active' : ''}`}
-              onClick={() => setTab(t.key)}
-            >
-              {tabLabels[t.labelKey]}
+    <div className="ui-page">
+      <PageHeader
+        title={labels.title}
+        actions={
+          rows.length > 0 ? (
+            <button type="button" className="btn" onClick={() => void markAllRead()}>
+              {labels.markAllRead}
             </button>
-          ))}
-        </div>
-        <button type="button" className="btn btn-outline" onClick={markAllRead}>
-          {labels.markAllRead}
-        </button>
+          ) : null
+        }
+      />
+
+      <div className="ui-tabs" role="tablist" aria-label={labels.title}>
+        {TABS.map((t, i) => (
+          <button
+            key={t.key}
+            ref={(el) => {
+              tabRefs.current[t.key] = el;
+            }}
+            type="button"
+            role="tab"
+            className="ui-tab"
+            aria-selected={tab === t.key}
+            tabIndex={tab === t.key ? 0 : -1}
+            onClick={() => setTab(t.key)}
+            onKeyDown={(e) => onTabKey(e, i)}
+          >
+            {labels[t.key]}
+          </button>
+        ))}
       </div>
 
-      <div className="track-inbox-list">
-        {rows.length === 0 && !loading ? (
-          <div className="track-empty">
-            <p className="track-empty-zeros">0</p>
-            <p>{labels.empty}</p>
+      <div role="tabpanel" aria-busy={loading || undefined}>
+        {firstLoad ? (
+          <div className="ui-loading-stack">
+            <span className="sr-only" role="status">
+              {labels.loading}
+            </span>
+            {Array.from({ length: 6 }, (_, i) => (
+              <span key={i} className="ui-skeleton ui-skeleton-row" />
+            ))}
           </div>
+        ) : error && rows.length === 0 ? (
+          <EmptyState
+            quiet
+            title={labels.loadError}
+            action={
+              <button type="button" className="btn btn-primary" onClick={() => void load(true)}>
+                {labels.retry}
+              </button>
+            }
+          />
+        ) : rows.length === 0 ? (
+          <EmptyState quiet title={labels.empty} body={labels.emptyBody} />
         ) : (
-          rows.map((n) => {
-            const meta = parseMeta(n.meta);
-            const unread = !n.read_at;
-            return (
-              <Link
-                key={n.id}
-                href={n.href ?? '/app/track'}
-                className={`track-inbox-item${unread ? ' unread' : ''}`}
-              >
-                <div className="track-inbox-item-main">
-                  <div className="track-inbox-item-text">{actionText(n, meta)}</div>
-                  <div className="track-inbox-item-meta">
-                    <span>{meta.projectName}</span>
-                    <time dateTime={n.created_at}>{relDate(n.created_at, locale)}</time>
-                  </div>
-                </div>
-                {unread && (
-                  <div className="track-inbox-item-actions">
-                    <button type="button" onClick={(e) => markRead(e, n.id)}>
+          <ul className="track-inbox-list">
+            {rows.map((n) => {
+              const meta = parseMeta(n.meta);
+              const unread = !n.read_at;
+              return (
+                <li key={n.id} className={`track-inbox-item${unread ? ' is-unread' : ''}`}>
+                  {unread ? (
+                    <span className="track-inbox-mark" title={labels.unread}>
+                      <span className="sr-only">{labels.unread}</span>
+                    </span>
+                  ) : (
+                    <span className="track-inbox-mark is-read" aria-hidden />
+                  )}
+                  <Link href={n.href ?? '/app/track'} className="track-inbox-link">
+                    <span className="track-inbox-text">{actionText(n, meta)}</span>
+                    {meta.projectName && <span className="track-inbox-project">{meta.projectName}</span>}
+                  </Link>
+                  <time className="track-inbox-time" dateTime={n.created_at}>
+                    {relDate(n.created_at, locale)}
+                  </time>
+                  {unread ? (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => void markRead(n.id)}>
                       {labels.markRead}
                     </button>
-                  </div>
-                )}
-              </Link>
-            );
-          })
+                  ) : (
+                    <span className="track-inbox-spacer" aria-hidden />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {error && rows.length > 0 && (
+          <p className="ui-error" role="alert">
+            {labels.loadError}
+          </p>
+        )}
+        {hasMore && rows.length > 0 && (
+          <div className="track-pagination">
+            <button type="button" className="btn btn-sm" onClick={() => void load(false)} aria-busy={loading || undefined}>
+              {labels.loadMore}
+            </button>
+          </div>
         )}
       </div>
-
-      {hasMore && (
-        <div style={{ marginTop: 16 }}>
-          <button type="button" className="btn btn-outline" onClick={() => load()} disabled={loading}>
-            {labels.loadMore}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -5,6 +5,8 @@ import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
 import type { IssueLabel } from '@/lib/track-schema';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
 import LabelPicker from './LabelPicker';
+import { DueDateMenu } from './InlineEditors';
+import type { TrackUiLabels } from './ui-labels';
 
 interface IssuePropertiesPanelProps {
   issue: TrackIssueWithStatus;
@@ -22,8 +24,13 @@ interface IssuePropertiesPanelProps {
     labels: string;
     noAssignee: string;
     none: string;
+    estimatePlaceholder: string;
+    estimateUnit: string;
   };
   priorities: Array<{ value: string; label: string }>;
+  /** Textos del selector de fecha (Hoy, Mañana, Elegir fecha). */
+  dateLabels: TrackUiLabels['inline'];
+  today: string;
   onChange?: () => void;
   /** Un cambio no se pudo guardar (ya se revirtió en el panel). */
   onError?: () => void;
@@ -53,8 +60,11 @@ export default function IssuePropertiesPanel({
   statuses,
   cycles,
   members,
+  locale,
   labels,
   priorities,
+  dateLabels,
+  today,
   onChange,
   onError,
 }: IssuePropertiesPanelProps) {
@@ -137,8 +147,8 @@ export default function IssuePropertiesPanel({
   return (
     <div className="track-properties">
       <div className="track-property">
-        <label>{labels.status}</label>
-        <select value={localIssue.status_id ?? ''} onChange={(e) => setStatus(e.target.value)}>
+        <label htmlFor="prop-status">{labels.status}</label>
+        <select id="prop-status" className="select" value={localIssue.status_id ?? ''} onChange={(e) => setStatus(e.target.value)}>
           <option value="">{labels.none}</option>
           {statuses.map((s) => (
             <option key={s.id} value={s.id}>
@@ -148,8 +158,10 @@ export default function IssuePropertiesPanel({
         </select>
       </div>
       <div className="track-property">
-        <label>{labels.priority}</label>
+        <label htmlFor="prop-priority">{labels.priority}</label>
         <select
+          id="prop-priority"
+          className="select"
           value={localIssue.priority}
           onChange={(e) => update({ priority: e.target.value })}
         >
@@ -161,8 +173,8 @@ export default function IssuePropertiesPanel({
         </select>
       </div>
       <div className="track-property">
-        <label>{labels.assignee}</label>
-        <select value={localIssue.assignee_id ?? ''} onChange={(e) => setAssignee(e.target.value)}>
+        <label htmlFor="prop-assignee">{labels.assignee}</label>
+        <select id="prop-assignee" className="select" value={localIssue.assignee_id ?? ''} onChange={(e) => setAssignee(e.target.value)}>
           <option value="">{labels.noAssignee}</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>
@@ -172,8 +184,8 @@ export default function IssuePropertiesPanel({
         </select>
       </div>
       <div className="track-property">
-        <label>{labels.cycle}</label>
-        <select value={localIssue.cycle_id ?? ''} onChange={(e) => setCycle(e.target.value)}>
+        <label htmlFor="prop-cycle">{labels.cycle}</label>
+        <select id="prop-cycle" className="select" value={localIssue.cycle_id ?? ''} onChange={(e) => setCycle(e.target.value)}>
           <option value="">{labels.none}</option>
           {cycles.map((c) => (
             <option key={c.id} value={c.id}>
@@ -183,25 +195,36 @@ export default function IssuePropertiesPanel({
         </select>
       </div>
       <div className="track-property">
-        <label>{labels.dueDate}</label>
-        <input
-          type="date"
-          value={localIssue.due_date ?? ''}
-          onChange={(e) => update({ dueDate: e.target.value || null })}
-        />
+        <span className="track-property-label">{labels.dueDate}</span>
+        <span className="track-property-date">
+          <DueDateMenu
+            dueDate={localIssue.due_date}
+            locale={locale}
+            today={today}
+            labels={dateLabels}
+            onChange={(dueDate) => void update({ dueDate })}
+          />
+        </span>
       </div>
-      <div className="track-property track-property-stack">
-        <label>{labels.labels}</label>
+      <div className="track-property track-property-top">
+        <span className="track-property-label">{labels.labels}</span>
         <LabelPicker value={issueLabels} onChange={(next) => void setLabels(next)} />
       </div>
       <div className="track-property">
-        <label>{labels.estimate}</label>
-        <input
-          type="number"
-          min={0}
-          value={localIssue.estimate ?? ''}
-          onChange={(e) => update({ estimate: e.target.value ? Number(e.target.value) : null })}
-        />
+        <label htmlFor="prop-estimate">{labels.estimate}</label>
+        <span className="track-property-unit">
+          <input
+            id="prop-estimate"
+            className="input"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            placeholder={labels.estimatePlaceholder}
+            value={localIssue.estimate ?? ''}
+            onChange={(e) => update({ estimate: e.target.value ? Number(e.target.value) : null })}
+          />
+          <span aria-hidden>{labels.estimateUnit}</span>
+        </span>
       </div>
     </div>
   );

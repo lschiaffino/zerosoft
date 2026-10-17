@@ -1,136 +1,115 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import FormSection from '@/components/ui/FormSection';
+import AdvancedSection from '@/components/ui/AdvancedSection';
+import { projectSlug } from '@/lib/track-tasks';
 
-interface ProjectFormProps {
-  locale: string;
-  labels: {
-    name: string;
-    namePlaceholder: string;
-    slug: string;
-    slugPlaceholder: string;
-    description: string;
-    icon: string;
-    color: string;
-    create: string;
-    cancel: string;
-    saving: string;
-    genericError: string;
-  };
-}
+const KNOWN_ERRORS = new Set(['invalid_slug', 'slug_taken', 'missing_name', 'invalid_input']);
 
-export default function ProjectForm({ locale, labels }: ProjectFormProps) {
+/**
+ * Proyecto nuevo: nombre y descripción. El identificador (slug, prefijo de
+ * los issues) se deriva del nombre; cambiarlo y el ícono quedan en Avanzado.
+ */
+export default function ProjectForm() {
+  const t = useTranslations('track');
   const router = useRouter();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
-  const [description, setDescription] = useState('');
-  const [icon, setIcon] = useState('◆');
-  const [color, setColor] = useState('#000000');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const derived = projectSlug(name);
+  const effective = projectSlug(slug) || derived;
 
-  function slugify(value: string): string {
-    return value
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 64);
-  }
-
-  function onNameChange(value: string) {
-    setName(value);
-    if (!slug) setSlug(slugify(value));
-  }
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      const res = await fetch('/api/track/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          slug: slug.trim() || slugify(name),
-          description: description.trim(),
-          icon: icon.trim() || null,
-          color,
-        }),
-      });
-
-      const data: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const code = (data as { error?: string }).error ?? 'generic';
-        setError(code);
-        setSubmitting(false);
-        return;
-      }
-
-      const project = data as { id: string };
-      router.push(`/app/track/projects/${project.id}`);
-    } catch {
-      setError('generic');
-      setSubmitting(false);
+  async function submit(fd: FormData): Promise<string | void> {
+    const res = await fetch('/api/track/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: name.trim(),
+        // Sin slug propio, el servidor lo deriva del nombre y lo hace único.
+        slug: projectSlug(slug) || undefined,
+        description: String(fd.get('description') ?? '').trim(),
+        icon: String(fd.get('icon') ?? '').trim() || undefined,
+      }),
+    }).catch(() => null);
+    const data = res ? ((await res.json().catch(() => null)) as { id?: string; error?: string } | null) : null;
+    if (res?.ok && data?.id) {
+      router.push(`/app/track/projects/${data.id}`);
+      return;
     }
+    const code = data?.error ?? 'generic';
+    return t(KNOWN_ERRORS.has(code) ? `errors.${code}` : 'errors.generic');
   }
 
   return (
-    <form className="track-form" onSubmit={onSubmit}>
-      {error && <p className="form-error">{labels.genericError}</p>}
-
-      <div className="track-form-row">
-        <label htmlFor="name">{labels.name}</label>
+    <FormSection
+      title={t('projects.formTitle')}
+      description={t('projects.newSub')}
+      onSubmit={submit}
+      submitLabel={t('projects.create')}
+      disabled={!name.trim()}
+    >
+      <div className="ui-field">
+        <label className="label" htmlFor="project-name">
+          {t('projects.form.name')}
+        </label>
         <input
-          id="name"
-          type="text"
+          id="project-name"
+          name="name"
+          className="input"
           value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder={labels.namePlaceholder}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('projects.form.namePlaceholder')}
+          maxLength={200}
           required
+          autoFocus
         />
       </div>
-
-      <div className="track-form-row">
-        <label htmlFor="slug">{labels.slug}</label>
-        <input
-          id="slug"
-          type="text"
-          value={slug}
-          onChange={(e) => setSlug(slugify(e.target.value))}
-          placeholder={labels.slugPlaceholder}
-        />
+      <div className="ui-field">
+        <label className="label" htmlFor="project-description">
+          {t('projects.form.description')} <span className="ui-optional">{t('common.optional')}</span>
+        </label>
+        <textarea id="project-description" name="description" className="textarea" rows={3} maxLength={5000} />
       </div>
-
-      <div className="track-form-row">
-        <label htmlFor="description">{labels.description}</label>
-        <textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={4}
-        />
-      </div>
-
-      <div className="track-form-row">
-        <label htmlFor="icon">{labels.icon}</label>
-        <input id="icon" type="text" value={icon} onChange={(e) => setIcon(e.target.value)} />
-      </div>
-
-      <div className="track-form-row">
-        <label htmlFor="color">{labels.color}</label>
-        <input id="color" type="color" value={color} onChange={(e) => setColor(e.target.value)} />
-      </div>
-
-      <div className="track-form-actions">
-        <button type="submit" className="btn btn-solid" disabled={submitting || !name.trim()}>
-          {submitting ? labels.saving : labels.create}
-        </button>
-      </div>
-    </form>
+      <AdvancedSection storageKey="track.project.new" hint={t('projects.form.advancedHint')}>
+        <div className="ui-field">
+          <label className="label" htmlFor="project-slug">
+            {t('projects.form.slug')}
+          </label>
+          <input
+            id="project-slug"
+            className="input data"
+            value={slug}
+            onChange={(e) =>
+              // Mientras se escribe se permite el guion final; al enviar se normaliza.
+              setSlug(
+                e.target.value
+                  .toLowerCase()
+                  .replace(/[^a-z0-9-]+/g, '-')
+                  .replace(/-{2,}/g, '-')
+                  .slice(0, 64),
+              )
+            }
+            placeholder={derived || t('projects.form.slugPlaceholder')}
+            aria-describedby="project-slug-help"
+            maxLength={64}
+            data-testid="track-project-slug"
+          />
+          <p className="ui-help" id="project-slug-help">
+            {t('projects.form.slugHelp', { example: `${(effective || 'web').toUpperCase()}-1` })}
+          </p>
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor="project-icon">
+            {t('projects.form.icon')} <span className="ui-optional">{t('common.optional')}</span>
+          </label>
+          <input id="project-icon" name="icon" className="input track-icon-input" maxLength={8} aria-describedby="project-icon-help" />
+          <p className="ui-help" id="project-icon-help">
+            {t('projects.form.iconHelp')}
+          </p>
+        </div>
+      </AdvancedSection>
+    </FormSection>
   );
 }

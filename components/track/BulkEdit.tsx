@@ -9,7 +9,7 @@ import type { WorkspaceLabel } from './LabelPicker';
 function isTypingTarget(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null;
   if (!node || typeof node.closest !== 'function') return false;
-  return node.isContentEditable || Boolean(node.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]'));
+  return node.isContentEditable || Boolean(node.closest('input, textarea, select, [contenteditable="true"], dialog, [role="dialog"]'));
 }
 
 export interface IssueSelection {
@@ -141,7 +141,7 @@ export function BulkBar({
 
   const select = (label: string, onPick: (v: string) => void, options: Array<{ value: string; label: string }>, testId: string) => (
     <select
-      className="track-bulk-select"
+      className="select track-bulk-select"
       value=""
       disabled={busy}
       aria-label={label}
@@ -162,7 +162,7 @@ export function BulkBar({
 
   return (
     <div className="track-bulk-bar" role="toolbar" aria-label={t('bulk.selected', { count })} data-testid="track-bulk-bar">
-      <span className="track-bulk-count mono">{t('bulk.selected', { count })}</span>
+      <span className="track-bulk-count">{t('bulk.selected', { count })}</span>
       {select(
         t('bulk.status'),
         (v) => void run(() => onApply({ statusId: v })),
@@ -202,7 +202,7 @@ export function BulkBar({
             <span>{t('bulk.confirmDelete', { count })}</span>
             <button
               type="button"
-              className="btn btn-small btn-solid"
+              className="btn btn-sm btn-primary btn-danger"
               disabled={busy}
               onClick={() =>
                 void run(async () => {
@@ -213,17 +213,20 @@ export function BulkBar({
             >
               {t('bulk.delete')}
             </button>
-            <button type="button" className="btn btn-small" onClick={() => setConfirming(false)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(false)}>
               {t('common.cancel')}
             </button>
           </span>
         ) : (
-          <button type="button" className="btn btn-small" disabled={busy} onClick={() => setConfirming(true)}>
+          <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirming(true)}>
             {t('bulk.delete')}
           </button>
         ))}
-      <button type="button" className="btn btn-small track-bulk-clear" onClick={onClear} title="Esc">
+      <button type="button" className="btn btn-ghost btn-sm track-bulk-clear" onClick={onClear} aria-keyshortcuts="Escape">
         {t('bulk.clear')}
+        <kbd className="kbd track-kbd" aria-hidden>
+          Esc
+        </kbd>
       </button>
     </div>
   );
