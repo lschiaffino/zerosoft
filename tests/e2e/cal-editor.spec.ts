@@ -28,7 +28,7 @@ test('Cal: el editor del tipo de evento guarda todas las pestañas con un solo G
   await page.keyboard.press('ArrowRight');
   await expect(tabs).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('switch', { name: "Use the calendar's defaults" }).uncheck();
-  await page.getByLabel('Minimum notice (hours)').fill('2');
+  await page.getByRole('spinbutton', { name: 'Minimum notice' }).fill('2');
 
   await save.click();
   await expect(page.getByRole('status').filter({ hasText: 'Changes saved' })).toBeVisible({ timeout: 20_000 });

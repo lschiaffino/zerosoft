@@ -48,7 +48,9 @@ test('Notes: libreta vacía muestra su estado vacío y se renombra en el lugar',
   await page.getByRole('button', { name: empty, exact: false }).first().click();
   await expect(page.locator('.notes-empty .ui-empty-title')).toBeVisible();
 
-  await page.getByRole('button', { name: `Rename notebook: ${empty}` }).click();
+  // Renombrar vive en el menú "..." de la fila de la libreta.
+  await page.getByRole('button', { name: `Notebook actions: ${empty}` }).click();
+  await page.getByRole('menuitem', { name: 'Rename notebook' }).click();
   const input = page.getByRole('textbox', { name: 'New notebook name' });
   await input.fill(renamed);
   await input.press('Enter');

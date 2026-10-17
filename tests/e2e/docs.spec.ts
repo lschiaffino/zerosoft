@@ -87,11 +87,12 @@ test('Centro de ayuda: colecciones como línea, artículo con feedback y búsque
       data: { published: true, content: [{ id: 'b1', type: 'paragraph', content: `Texto ${tag}` }] },
     });
   }
-  // El handle del workspace sale del link "Open help center" del diálogo.
+  // El handle del workspace sale del link público de la página publicada (/en/h/<handle>/<slug>).
   await page.goto(`/en/app/docs/${coll.id}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /^Share/ }).click();
-  const helpHref = await page.getByRole('link', { name: 'Open help center' }).getAttribute('href');
-  expect(helpHref).toMatch(/^\/en\/h\/[^/]+$/);
+  const publicHref = await page.locator('.docs-public-meta a').first().getAttribute('href');
+  expect(publicHref).toMatch(/^\/en\/h\/[^/]+\/[^/]+$/);
+  const helpHref = publicHref!.replace(/\/[^/]+$/, '');
 
   await page.goto(helpHref!, { waitUntil: 'networkidle' });
   const stop = page.locator('.help-stop', { hasText: `Guías ${tag}` });
@@ -101,6 +102,6 @@ test('Centro de ayuda: colecciones como línea, artículo con feedback y búsque
   await expect(page.getByText('Was this article helpful?')).toBeVisible();
 
   await page.goto(`${helpHref}?q=zzz${tag}`, { waitUntil: 'networkidle' });
-  await expect(page.getByRole('heading', { name: `No articles match "zzz${tag}"` })).toBeVisible();
+  await expect(page.getByRole('heading', { name: `No articles match “zzz${tag}”` })).toBeVisible();
   await expect(page.getByRole('link', { name: 'See all articles' })).toHaveAttribute('href', helpHref!);
 });

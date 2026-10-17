@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import FormSection from '@/components/ui/FormSection';
 import CalCopyButton from './CalCopyButton';
@@ -45,13 +45,17 @@ export default function CalendarSettingsForm({ initial, accountName, origin, loc
   const shownName = displayName.trim() || accountName;
   const shownLogo = safeLogo(logoUrl);
 
-  const timezones = useMemo(() => {
+  // La lista de zonas de Node y la del navegador no coinciden (alias, versiones de ICU):
+  // el server y el primer render muestran solo la zona actual y la lista completa llega
+  // después de montar, así la hidratación no choca.
+  const [timezones, setTimezones] = useState<string[]>([initial.timezone]);
+  useEffect(() => {
     try {
-      return Intl.supportedValuesOf('timeZone');
+      setTimezones(Intl.supportedValuesOf('timeZone'));
     } catch {
-      return [initial.timezone];
+      // Sin soporte: queda la zona actual.
     }
-  }, [initial.timezone]);
+  }, []);
 
   async function post(body: Record<string, unknown>) {
     const res = await fetch('/api/calendar/config', {

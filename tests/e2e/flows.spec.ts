@@ -673,7 +673,9 @@ test('Link: el detalle está en pestañas y cada una carga sola', async ({ reque
   for (const name of ['Overview', 'Analytics', 'QR', 'Routing', 'Settings']) {
     await expect(tabs.getByRole('link', { name })).toBeVisible();
   }
-  await expect(page.getByTestId('detail-qr-scans')).toBeVisible();
+  // Sin clicks, el resumen es un vacío con el link para copiar (la tira de cifras aparece con el primer click).
+  await expect(page.getByRole('heading', { name: 'No clicks yet' })).toBeVisible();
+  await expect(page.locator('.ui-empty').getByRole('button', { name: 'Copy link' })).toBeVisible();
   await tabs.getByRole('link', { name: 'Routing' }).click();
   await expect(page).toHaveURL(/tab=routing/);
   await expect(page.getByRole('button', { name: 'Add rule' })).toBeVisible();

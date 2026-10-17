@@ -33,7 +33,7 @@ test('robots: pestañas con flechas y ?tab= en la URL', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Avanzado' })).toHaveAttribute('aria-selected', 'true');
 
   await page.goto(`/es/app/robots/${id}?tab=schedule`, { waitUntil: 'networkidle' });
-  await expect(page.getByRole('tab', { name: 'Programación' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Horario' })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('robots: reintentos detrás del menú ⋯ del paso, que cierra con Esc', async ({ page }) => {

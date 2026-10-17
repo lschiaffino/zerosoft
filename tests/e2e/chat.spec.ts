@@ -65,7 +65,7 @@ test('chat: widget nuevo por modal, editor en pestañas y bandeja de tres column
   await expect(page.getByRole('complementary', { name: 'Detalles' })).toBeVisible();
 
   // Filtros: estado y asignación son independientes.
-  await expect(page.locator('.chat-assign select')).toHaveValue('');
+  await expect(page.locator('.chat-thread-actions').getByRole('combobox', { name: 'Asignada a' })).toHaveValue('');
   await page.locator('#chat-filter-status').selectOption('resolved');
   await expect(page.locator('.chat-row', { hasText: 'Ana Prueba' })).toHaveCount(0);
   await page.locator('#chat-filter-status').selectOption('open');
