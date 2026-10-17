@@ -27,7 +27,8 @@
 .app-content {
   flex: 1;
   min-width: 0;
-  padding: 24px 32px 64px;
+  /* Abajo deja libre la franja del launcher de feedback (fijo, abajo a la derecha). */
+  padding: 24px 32px 104px;
 }
 
 /* ---------- Banda de señalética ---------- */
@@ -449,7 +450,7 @@
     background: var(--ui-backdrop);
   }
 
-  .app-content { padding: 16px 16px 56px; }
+  .app-content { padding: 16px 16px 96px; }
 }
 
 @media (max-width: 380px) {

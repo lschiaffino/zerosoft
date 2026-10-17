@@ -12,7 +12,7 @@ interface FilterBarProps {
   tags: string[];
 }
 
-/** Search box, tag chips, archived toggle and sort selector (all server-side via query params). */
+/** Búsqueda, estado, tag y orden (todo por query params, del lado del server). */
 export default function FilterBar({ q, tag, archived, sort, tags }: FilterBarProps) {
   const t = useTranslations('link');
   const router = useRouter();
@@ -42,69 +42,68 @@ export default function FilterBar({ q, tag, archived, sort, tags }: FilterBarPro
   ];
 
   return (
-    <div className="filter-bar">
+    <div className="lk-filters">
       <form
-        className="filter-search"
+        className="lk-search"
+        role="search"
         onSubmit={(e) => {
           e.preventDefault();
           go({ q: search.trim() || undefined });
         }}
       >
+        <svg className="lk-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-4-4" />
+        </svg>
         <input
           className="input"
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t('table.searchPlaceholder')}
-          aria-label={t('table.searchPlaceholder')}
+          aria-label={t('table.searchLabel')}
         />
       </form>
 
-      <div className="filter-row">
-        <div className="filter-chips">
+      <div className="btn-group" role="group" aria-label={t('table.status')}>
+        {archivedOptions.map((opt) => (
           <button
+            key={opt.value}
             type="button"
-            className={`chip${!tag ? ' active' : ''}`}
-            onClick={() => go({ tag: undefined })}
+            className="btn btn-sm"
+            aria-pressed={archived === opt.value}
+            onClick={() => go({ archived: opt.value === '0' ? undefined : opt.value })}
           >
-            {t('table.allTags')}
+            {opt.label}
           </button>
-          {tags.map((tagName) => (
-            <button
-              key={tagName}
-              type="button"
-              className={`chip${tag === tagName ? ' active' : ''}`}
-              onClick={() => go({ tag: tag === tagName ? undefined : tagName })}
-            >
-              {tagName}
-            </button>
-          ))}
-        </div>
-
-        <div className="filter-right">
-          <div className="filter-chips">
-            {archivedOptions.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                className={`chip${archived === opt.value ? ' active' : ''}`}
-                onClick={() => go({ archived: opt.value === '0' ? undefined : opt.value })}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <select
-            className="select filter-sort"
-            value={sort}
-            onChange={(e) => go({ sort: e.target.value === 'clicks' ? 'clicks' : undefined })}
-            aria-label={t('table.sortLabel')}
-          >
-            <option value="created">{t('table.sortDate')}</option>
-            <option value="clicks">{t('table.sortClicks')}</option>
-          </select>
-        </div>
+        ))}
       </div>
+
+      {tags.length > 0 && (
+        <select
+          className="select lk-select-auto"
+          value={tag ?? ''}
+          onChange={(e) => go({ tag: e.target.value || undefined })}
+          aria-label={t('table.tagLabel')}
+        >
+          <option value="">{t('table.allTags')}</option>
+          {tags.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <select
+        className="select lk-select-auto"
+        value={sort}
+        onChange={(e) => go({ sort: e.target.value === 'clicks' ? 'clicks' : undefined })}
+        aria-label={t('table.sortLabel')}
+      >
+        <option value="created">{t('table.sortDate')}</option>
+        <option value="clicks">{t('table.sortClicks')}</option>
+      </select>
     </div>
   );
 }

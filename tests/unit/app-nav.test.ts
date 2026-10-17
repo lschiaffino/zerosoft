@@ -66,7 +66,10 @@ describe('sidebar de la app', () => {
       expect(items.length, product).toBeGreaterThan(1);
     }
     const linkHrefs = buildNav('link', '/app', labels).flatMap((g) => g.items.map((i) => i.href));
-    expect(linkHrefs).toContain('/app/links/bulk');
+    expect(linkHrefs).toContain('/app/links/new');
+    // Lote e importar son pestañas de "Nuevo"; dominios tiene su pantalla en Link.
+    expect(linkHrefs).not.toContain('/app/links/bulk');
+    expect(linkHrefs).toContain('/app/links/domains');
   });
 
   it('"+ Nuevo" crea en vez de llevar a la lista', () => {
@@ -111,7 +114,10 @@ describe('sidebar de la app', () => {
         .map((i) => i.href);
     expect(active('notes', '/app/notes/clip')).toEqual(['/app/notes/clip']);
     expect(active('robots', '/app/robots/recorder')).toEqual(['/app/robots/recorder']);
-    expect(active('link', '/app/links/bulk')).toEqual(['/app/links/bulk']);
+    expect(active('link', '/app/links/bulk')).toEqual(['/app/links/new']);
+    expect(active('link', '/app/links/import')).toEqual(['/app/links/new']);
+    expect(active('link', '/app/links/domains')).toEqual(['/app/links/domains']);
+    expect(active('link', '/app/links/abc123')).toEqual(['/app/links']);
     expect(active('track', '/app/track/projects')).toEqual(['/app/track/projects']);
   });
 

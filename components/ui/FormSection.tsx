@@ -28,10 +28,13 @@ export default function FormSection({
   footer,
   disabled = false,
   tone = 'default',
+  titleHidden = false,
   id,
   className = '',
 }: {
   title: ReactNode;
+  /** El título solo nombra la sección para lectores de pantalla (cuando la pestaña o la página ya lo dicen). */
+  titleHidden?: boolean;
   description?: ReactNode;
   children?: ReactNode;
   onSubmit?: (data: FormData) => Promise<SaveResult> | SaveResult;
@@ -80,7 +83,7 @@ export default function FormSection({
   const cls = `ui-section${tone === 'danger' ? ' ui-section-danger' : ''} ${className}`.trim();
   const head = (
     <div className="ui-section-head">
-      <h2 className="ui-section-title" id={titleId}>
+      <h2 className={titleHidden ? 'sr-only' : 'ui-section-title'} id={titleId}>
         {title}
       </h2>
       {description && <p className="ui-section-desc">{description}</p>}

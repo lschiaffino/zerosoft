@@ -594,11 +594,52 @@ test('Link: multi-select archiva en lote y la edición abre un panel lateral', a
     .poll(async () => (await (await request.get(`/api/links/${ids[0]}`)).json()).archived)
     .toBeTruthy();
 
-  await page.goto(`/en/app/links/${ids[1]}`, { waitUntil: 'networkidle' });
-  await page.getByTestId('link-edit-open').click();
-  await expect(page.getByTestId('link-edit-panel')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByTestId('link-edit-panel')).toBeHidden();
+  // Editar ya no es un panel lateral: es la pestaña Ajustes (y ?edit=1 de links viejos lleva ahí).
+  await page.goto(`/en/app/links/${ids[1]}?edit=1`, { waitUntil: 'networkidle' });
+  await expect(page).toHaveURL(/tab=settings/);
+  await expect(page.getByRole('navigation', { name: 'Link sections' }).getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
+  await page.locator('#el-title').fill('Renamed by e2e');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText('Changes saved')).toBeVisible();
+  await expect.poll(async () => (await (await request.get(`/api/links/${ids[1]}`)).json()).title).toBe('Renamed by e2e');
+});
+
+test('Link: el detalle está en pestañas y cada una carga sola', async ({ request, page }) => {
+  const slug = `tabs${uid()}`;
+  const link = await (await request.post('/api/links', { data: { url: 'https://example.com/tabs', slug } })).json();
+  await page.goto(`/en/app/links/${link.id}`, { waitUntil: 'networkidle' });
+  const tabs = page.getByRole('navigation', { name: 'Link sections' });
+  for (const name of ['Overview', 'Analytics', 'QR', 'Routing', 'Settings']) {
+    await expect(tabs.getByRole('link', { name })).toBeVisible();
+  }
+  await expect(page.getByTestId('detail-qr-scans')).toBeVisible();
+  await tabs.getByRole('link', { name: 'Routing' }).click();
+  await expect(page).toHaveURL(/tab=routing/);
+  await expect(page.getByRole('button', { name: 'Add rule' })).toBeVisible();
+  // A/B y deep links quedan en "Advanced".
+  await expect(page.getByRole('button', { name: 'Add variant' })).toBeHidden();
+  await page.getByRole('button', { name: /Advanced/ }).click();
+  await expect(page.getByRole('button', { name: 'Add variant' })).toBeVisible();
+});
+
+test('Link: "New" tiene Single / Bulk / Import y Dominios su propia pantalla', async ({ page }) => {
+  await page.goto('/en/app/links/new', { waitUntil: 'networkidle' });
+  const tabs = page.getByRole('navigation', { name: 'Ways to create' });
+  await expect(tabs.getByRole('link', { name: 'Single' })).toHaveAttribute('aria-current', 'page');
+  // Camino básico: URL y slug. El título está en Avanzado.
+  await expect(page.locator('#nl-url')).toBeVisible();
+  await expect(page.locator('#nl-slug')).toBeVisible();
+  await expect(page.locator('#nl-title')).toBeHidden();
+  await tabs.getByRole('link', { name: 'Bulk' }).click();
+  await expect(page).toHaveURL(/\/app\/links\/bulk$/);
+  await expect(page.locator('#bulk-urls')).toBeVisible();
+  await page.getByRole('navigation', { name: 'Ways to create' }).getByRole('link', { name: 'Import' }).click();
+  await expect(page).toHaveURL(/\/app\/links\/import$/);
+  await expect(page.getByRole('heading', { name: 'Import from Bitly' })).toBeVisible();
+
+  await page.goto('/en/app/links/domains', { waitUntil: 'networkidle' });
+  await expect(page.getByRole('heading', { name: 'Domains', level: 1 })).toBeVisible();
+  await expect(page.getByLabel('Domain', { exact: true })).toBeVisible();
 });
 
 test('Chat: Reports tiene su propia entrada en la navegación', async ({ page }) => {
@@ -869,10 +910,11 @@ test.describe('link d9', () => {
     });
     expect(android.headers()['location']).toBe('https://example.com/android');
 
-    await page.goto(`/en/app/links/${link.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/links/${link.id}?tab=routing`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('tg-rule')).toHaveCount(1);
+    await page.goto(`/en/app/links/${link.id}?tab=qr`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('qr-preview').locator('svg')).toBeVisible();
     await page.getByRole('button', { name: 'Save design' }).click();
-    await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible();
+    await expect(page.getByText('Changes saved')).toBeVisible();
   });
 });

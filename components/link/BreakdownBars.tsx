@@ -17,7 +17,7 @@ export default function BreakdownBars({ items, emptyLabel, labelFor }: Breakdown
     <div className="breakdown">
       {items.map((item) => (
         <div className="breakdown-row" key={item.name}>
-          <span className="breakdown-name mono" title={item.name}>
+          <span className="breakdown-name" title={item.name}>
             {labelFor ? labelFor(item.name) : item.name}
           </span>
           <span className="breakdown-track">
@@ -26,7 +26,7 @@ export default function BreakdownBars({ items, emptyLabel, labelFor }: Breakdown
               style={{ width: `${Math.max((item.count / max) * 100, 2)}%` }}
             />
           </span>
-          <span className="breakdown-count mono">{item.count}</span>
+          <span className="breakdown-count data">{item.count}</span>
         </div>
       ))}
     </div>

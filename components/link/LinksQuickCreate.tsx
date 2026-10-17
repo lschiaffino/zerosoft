@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import QuickLinkModal, { type CreatedLink } from './QuickLinkModal';
+import LinkIcon from './LinkIcon';
 
 /** Evento para abrir el modal desde otros lugares de la página (empty state). */
 export const OPEN_NEW_LINK_EVENT = 'zs:new-link';
@@ -30,7 +31,7 @@ async function copy(text: string): Promise<boolean> {
 }
 
 /**
- * Botón "New link" de la lista + modal de creación rápida. Atajos: "C" abre
+ * Botón "Crear link" de la lista + modal de creación rápida. Atajos: "C" abre
  * el modal; pegar una URL en cualquier parte de la página (fuera de un campo)
  * lo abre con esa URL. Al crear, copia el link corto y lo muestra arriba.
  */
@@ -81,32 +82,28 @@ export default function LinksQuickCreate({ domain, customDomains }: LinksQuickCr
 
   return (
     <>
-      <button type="button" className="btn btn-solid btn-small" onClick={() => openWith()}>
+      <button type="button" className="btn btn-primary" onClick={() => openWith()} aria-keyshortcuts="c">
         {t('table.newCta')}
-        <span className="kbd-hint" aria-hidden>
+        <kbd className="kbd" aria-hidden="true">
           C
-        </span>
+        </kbd>
       </button>
-      {created && (
-        <div className="link-created mono" role="status">
-          <span className="link-created-dot" aria-hidden />
-          <span className="link-created-text">
-            {created.copied ? t('quick.createdCopied') : t('quick.created')}{' '}
-            <strong>{created.link.short_url.replace(/^https?:\/\//, '')}</strong>
-          </span>
-          <Link href={`/app/links/${created.link.id}`} className="link-created-action">
-            {t('table.analytics')} →
-          </Link>
-          <button
-            type="button"
-            className="link-created-close"
-            onClick={() => setCreated(null)}
-            aria-label={t('quick.dismiss')}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      <div className="ui-toasts" role="status" aria-live="polite">
+        {created && (
+          <div className="ui-toast">
+            <span className="lk-toast-text">
+              {created.copied ? t('quick.createdCopied') : t('quick.created')}{' '}
+              <span className="data">{created.link.short_url.replace(/^https?:\/\//, '')}</span>
+            </span>
+            <Link href={`/app/links/${created.link.id}`} className="ui-toast-action">
+              {t('quick.view')}
+            </Link>
+            <button type="button" className="ui-toast-action lk-toast-close" onClick={() => setCreated(null)} aria-label={t('quick.dismiss')}>
+              <LinkIcon name="close" size={12} />
+            </button>
+          </div>
+        )}
+      </div>
       <QuickLinkModal
         open={open}
         onClose={() => setOpen(false)}
@@ -124,7 +121,7 @@ export function NewLinkButton({ label }: { label: string }) {
   return (
     <button
       type="button"
-      className="btn btn-solid btn-small"
+      className="btn btn-primary"
       onClick={() => window.dispatchEvent(new Event(OPEN_NEW_LINK_EVENT))}
     >
       {label}
