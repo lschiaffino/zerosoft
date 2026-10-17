@@ -1,7 +1,7 @@
 /* ============================================================
    QuickModal — creación/edición rápida compartida por las apps.
-   Mismo lenguaje que el quick-create de Track: radios chicos,
-   hairlines, acento del producto vía --accent.
+   Mismo lenguaje que el ui-modal del kit: borde de tinta, esquinas
+   rectas, sin sombra (se separa por el telón), foco en tinta.
    ============================================================ */
 
 .qm-overlay {
@@ -12,16 +12,15 @@
   align-items: flex-start;
   justify-content: center;
   padding: 12vh 16px 16px;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--ui-backdrop, rgba(0, 0, 0, 0.25));
   overflow-y: auto;
 }
 
 .qm {
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1, 0);
   background: var(--bg);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
   animation: qm-in 0.15s var(--ease);
 }
 
@@ -41,12 +40,13 @@
   flex-direction: column;
 }
 
+/* Etiquetas en Archivo de ancho normal: el ancho angosto es solo señalética. */
 .qm-head {
   padding: 12px 16px 0;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--dim);
+  font-family: var(--font-ui, inherit);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--brand-gray-2, var(--dim));
 }
 
 .qm-body {
@@ -89,12 +89,15 @@
 }
 
 .qm-field > span {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dim);
+  font-family: var(--font-ui, inherit);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
 }
+/* Ayuda y error bajo un campo: texto común, no etiqueta. */
+.qm-field > span.ui-help { font-weight: 400; color: var(--brand-gray-2); }
+.qm-field > span.ui-error { font-weight: 400; color: var(--bad-ink); }
+.qm-field > span.lk-ok { color: var(--ok-ink); }
 
 .qm-input,
 .qm-field input,
@@ -103,8 +106,8 @@
   width: 100%;
   min-width: 0;
   padding: 7px 9px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  border: 1px solid var(--ui-field, var(--line));
+  border-radius: var(--radius-1, 0);
   background: var(--bg);
   color: var(--ink);
   font: inherit;
@@ -116,7 +119,8 @@
 .qm-field input:focus,
 .qm-field select:focus,
 .qm-field textarea:focus {
-  border-color: var(--accent);
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
 }
 
 .qm-prefix {
@@ -131,7 +135,7 @@
   padding: 0 8px;
   border: 1px solid var(--line);
   border-right: none;
-  border-radius: var(--r-md) 0 0 var(--r-md);
+  border-radius: 0;
   background: var(--subtle);
   color: var(--dim);
   font-family: var(--mono);
@@ -142,7 +146,7 @@
 }
 
 .qm-prefix input {
-  border-radius: 0 var(--r-md) var(--r-md) 0;
+  border-radius: 0;
 }
 
 .qm-error {
@@ -157,12 +161,13 @@
   gap: 10px;
   padding: 10px 16px;
   border-top: 1px solid var(--line);
+  background: var(--brand-enamel, transparent);
 }
 
 .qm-hint {
   margin-right: auto;
-  font-size: 10px;
-  color: var(--dim);
+  font-size: 0.75rem;
+  color: var(--brand-gray-2, var(--dim));
 }
 
 .qm-link {

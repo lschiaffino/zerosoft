@@ -4,14 +4,14 @@ import { useState, type CSSProperties } from 'react';
 import { useTranslations } from 'next-intl';
 import type { EventTypeWithRules } from '@/lib/calendar';
 import PublicBookingPage, { BookingInfo } from './PublicBookingPage';
-import { brandOr, textOn } from './cal-utils';
+import type { PublicBrand } from './cal-utils';
 
 interface Props {
   token: string;
   locale: string;
   eventType: EventTypeWithRules;
   weekStart: number;
-  hostName?: string;
+  brand: PublicBrand;
   /** Máximo de días para reservar (regla del evento o del workspace). */
   maxFutureDays?: number;
   booking: {
@@ -27,7 +27,7 @@ interface Props {
 }
 
 /** Página del invitado para ver, cancelar o reprogramar su reserva (sin cuenta). */
-export default function ManageBooking({ token, locale, eventType, weekStart, hostName, maxFutureDays, booking, paidNotice = false }: Props) {
+export default function ManageBooking({ token, locale, eventType, weekStart, brand, maxFutureDays, booking, paidNotice = false }: Props) {
   const t = useTranslations('calendar');
   const [mode, setMode] = useState<'view' | 'cancel' | 'reschedule' | 'cancelled'>(
     booking.status === 'cancelled' ? 'cancelled' : 'view',
@@ -43,7 +43,7 @@ export default function ManageBooking({ token, locale, eventType, weekStart, hos
         eventType={eventType}
         locale={locale}
         weekStart={weekStart}
-        hostName={hostName}
+        brand={brand}
         maxFutureDays={maxFutureDays}
         reschedule={{ token, name: booking.name, email: booking.email }}
       />
@@ -67,8 +67,6 @@ export default function ManageBooking({ token, locale, eventType, weekStart, hos
     setError(t('errors.generic'));
   }
 
-  const brand = brandOr(eventType.brand_color, brandOr(eventType.color, '#111111'));
-  const logoUrl = eventType.logo_url && /^(https?:\/\/|\/)/.test(eventType.logo_url) ? eventType.logo_url : null;
   const tz = booking.timezone;
   const date = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }).format(
     new Date(booking.startsAt),
@@ -78,11 +76,11 @@ export default function ManageBooking({ token, locale, eventType, weekStart, hos
   const cancelled = mode === 'cancelled';
 
   return (
-    <div className="bk" style={{ '--bk': brand, '--bk-on': textOn(brand) } as CSSProperties}>
+    <div className="bk" style={{ '--bk': brand.color, '--bk-on': brand.on } as CSSProperties}>
       <div className="bk-card">
         <BookingInfo
-          logoUrl={logoUrl}
-          hostName={hostName}
+          logoUrl={brand.logoUrl}
+          hostName={brand.name}
           title={eventType.title}
           meta={[
             { icon: 'clock', text: t('booking.minutes', { n: eventType.duration_min }) },

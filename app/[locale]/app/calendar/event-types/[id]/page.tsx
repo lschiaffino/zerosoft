@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { getEventType, getOrCreateCalendarUser, listAvailability, listEventHosts } from '@/lib/calendar';
+import { getEventType, getOrCreateCalendarUser, getWorkspaceBrand, listAvailability, listEventHosts } from '@/lib/calendar';
 import { ensureDefaultSchedule, listSchedules, type ScheduleRule } from '@/lib/calendar-schedules';
 import { getPaymentSettings } from '@/lib/calendar-payments';
 import { listWorkflowSteps } from '@/lib/calendar-workflows';
@@ -51,12 +51,13 @@ export default async function EventTypeDetailPage(props: {
   if (!eventType) notFound();
   const config = await getOrCreateCalendarUser(user.id);
   await ensureDefaultSchedule(user.id, config.timezone);
-  const [availability, schedules, payments, workflowSteps, hosts] = await Promise.all([
+  const [availability, schedules, payments, workflowSteps, hosts, workspaceBrand] = await Promise.all([
     listAvailability(id),
     listSchedules(user.id),
     getPaymentSettings(user.id),
     listWorkflowSteps(user.id, id),
     listEventHosts(id),
+    getWorkspaceBrand(user.id),
   ]);
 
   // Pool de hosts: members del team del event type o del team activo.
@@ -93,6 +94,7 @@ export default async function EventTypeDetailPage(props: {
         timezone: s.timezone,
         summary: scheduleSummary(s.rules, (d) => t(`availability.day.${d}`)),
       }))}
+      workspaceBrand={workspaceBrand}
       customRules={availability.map((r) => ({ dayOfWeek: r.day_of_week, startTime: r.start_time, endTime: r.end_time }))}
       defaults={{
         bufferBeforeMin: config.buffer_before_min,

@@ -4,6 +4,8 @@ import {
   brandOr,
   contrast,
   fieldKeyFromLabel,
+  formatTimezone,
+  resolveBrand,
   slugify,
   textOn,
   usesDefaultLimits,
@@ -71,5 +73,44 @@ describe('Cal UI: límites por defecto del evento', () => {
     const prev = { bufferBeforeMin: 30, allowGuests: true };
     expect(bookingRulesPayload(prev, true, limits)).toEqual({ allowGuests: true });
     expect(bookingRulesPayload(prev, false, limits)).toEqual({ allowGuests: true, ...limits });
+  });
+});
+
+describe('resolveBrand', () => {
+  const ws = { color: '#2f6bff', logoUrl: 'https://acme.test/logo.svg', name: 'Acme' };
+
+  it('usa la marca del workspace si el evento no la cambia', () => {
+    expect(resolveBrand(ws, { brand_color: null, logo_url: null })).toEqual({
+      color: '#2f6bff',
+      on: '#ffffff',
+      logoUrl: 'https://acme.test/logo.svg',
+      name: 'Acme',
+    });
+  });
+
+  it('el color y el logo del evento reemplazan a los del workspace', () => {
+    const b = resolveBrand(ws, { brand_color: '#e6b400', logo_url: '/otro.png' });
+    expect(b.color).toBe('#e6b400');
+    expect(b.on).toBe('#111111');
+    expect(b.logoUrl).toBe('/otro.png');
+  });
+
+  it('sin color en ningún lado cae a tinta y descarta logos inválidos', () => {
+    const b = resolveBrand({ color: null, logoUrl: 'javascript:alert(1)', name: 'X' });
+    expect(b.color).toBe('#111111');
+    expect(b.logoUrl).toBeNull();
+  });
+});
+
+describe('formatTimezone', () => {
+  const winter = new Date('2026-01-15T12:00:00Z');
+  it('muestra la ciudad sin guiones bajos y el desfase', () => {
+    expect(formatTimezone('America/Argentina/Buenos_Aires', 'es', winter)).toBe('Buenos Aires (GMT-3)');
+  });
+  it('UTC queda como UTC', () => {
+    expect(formatTimezone('UTC', 'es', winter)).toBe('UTC');
+  });
+  it('una zona inválida devuelve el nombre legible', () => {
+    expect(formatTimezone('Nada/Por_Aca', 'es', winter)).toBe('Por Aca');
   });
 });

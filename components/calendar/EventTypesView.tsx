@@ -290,13 +290,13 @@ function NewEventTypeModal({
       open={open}
       onClose={onClose}
       crumb={t('quick.eventCrumb')}
+      showCrumb={false}
       onSubmit={submit}
       submitLabel={t('quick.create')}
       cancelLabel={t('common.cancel')}
       submitDisabled={!title.trim() || !effectiveSlug}
       busy={busy}
       error={error}
-      hint={t('quick.hint')}
     >
       <input
         className="qm-title"
@@ -323,7 +323,7 @@ function NewEventTypeModal({
             </button>
           ))}
           <input
-            className="input data cal-duration-other"
+            className="input cal-num cal-duration-other"
             type="number"
             min={1}
             max={720}

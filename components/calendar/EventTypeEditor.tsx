@@ -15,8 +15,10 @@ import {
   bookingRulesPayload,
   brandOr,
   fieldKeyFromLabel,
+  formatTimezone,
+  resolveBrand,
+  safeLogo,
   slugify,
-  textOn,
   usesDefaultLimits,
   type LimitKey,
   type Limits,
@@ -72,6 +74,8 @@ export interface EventTypeEditorProps {
     currency: string;
   };
   schedules: ScheduleOption[];
+  /** Marca del workspace (Ajustes > Perfil): la que usa la página si el evento no la cambia. */
+  workspaceBrand: { color: string | null; logoUrl: string | null; name: string };
   customRules: HourRule[];
   /** Límites del calendario (Configuración): los que usa el evento si no define los suyos. */
   defaults: Limits;
@@ -135,6 +139,8 @@ interface Draft {
   singleUse: boolean;
   fields: QuestionDef[];
   hostIds: string[];
+  /** El evento usa otro color o logo que la marca del workspace. */
+  brandOverride: boolean;
   brandColor: string;
   logoUrl: string;
   welcomeMessage: string;
@@ -166,6 +172,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       singleUse: et.singleUse,
       fields: et.fields,
       hostIds: props.hostIds,
+      brandOverride: !!(et.brandColor || et.logoUrl),
       brandColor: et.brandColor ?? '',
       logoUrl: et.logoUrl,
       welcomeMessage: et.welcomeMessage,
@@ -276,7 +283,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
     if (d.fields.some((f) => !f.label.trim())) return fail('questions', t('editor.questionLabelRequired'));
     const pErr = priceError();
     if (pErr) return fail('advanced', pErr);
-    if (d.logoUrl.trim() && !/^(https?:\/\/|\/)/.test(d.logoUrl.trim())) return fail('advanced', t('editor.logoInvalid'));
+    if (d.brandOverride && d.logoUrl.trim() && !safeLogo(d.logoUrl)) return fail('advanced', t('editor.logoInvalid'));
 
     setState('saving');
     const taken: string[] = [];
@@ -302,8 +309,8 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         bookingRules: bookingRulesPayload(et.bookingRules, d.useDefaults, d.limits),
         singleUse: d.singleUse,
         fields,
-        brandColor: d.brandColor || null,
-        logoUrl: d.logoUrl.trim() || null,
+        brandColor: d.brandOverride ? d.brandColor || null : null,
+        logoUrl: d.brandOverride ? d.logoUrl.trim() || null : null,
         welcomeMessage: d.welcomeMessage.trim(),
         hostIds: orderedHosts,
         teamId: orderedHosts && orderedHosts.length > 0 ? (teamId ?? undefined) : undefined,
@@ -346,7 +353,9 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
 
   const publicUrl = `${bookBase}/${handle}/${baseline.slug}`;
   const selectedSchedule = schedules.find((s) => s.id === d.schedule);
-  const brand = brandOr(d.brandColor, d.color);
+  const wsBrand = resolveBrand(props.workspaceBrand);
+  const brand = brandOr(d.brandColor, wsBrand.color);
+  const pageBrand = d.brandOverride ? resolveBrand(props.workspaceBrand, { brand_color: d.brandColor, logo_url: d.logoUrl }) : wsBrand;
   const idFor = (k: string) => `${baseId}-${k}`;
 
   const tabLabel: Record<Tab, string> = {
@@ -381,7 +390,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         }
         description={
           <span className="cal-head-meta">
-            <span className="data">{t('editor.minutes', { n: baseline.durationMin })}</span>
+            <span className="cal-num">{t('editor.minutes', { n: baseline.durationMin })}</span>
             {baseline.location && <span>{baseline.location}</span>}
             <a href={publicUrl} target="_blank" rel="noreferrer" className="cal-head-url data">
               {publicUrl.replace(/^https?:\/\//, '')}
@@ -460,14 +469,14 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                 <div className="ui-input-group">
                   <input
                     id={idFor('duration')}
-                    className="input data"
+                    className="input cal-num"
                     type="number"
                     min={1}
                     max={720}
                     value={Number.isFinite(d.durationMin) ? d.durationMin : ''}
                     onChange={(e) => set('durationMin', e.target.value === '' ? NaN : Number(e.target.value))}
                   />
-                  <span className="ui-addon">min</span>
+                  <span className="ui-addon cal-unit">min</span>
                 </div>
               </div>
               <div className="ui-field">
@@ -496,6 +505,16 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                 onChange={(e) => set('description', e.target.value)}
               />
             </div>
+            <div className="ui-field">
+              <label className="label" htmlFor={idFor('color')}>
+                {t('editor.eventColor')}
+              </label>
+              <div className="cal-color">
+                <input id={idFor('color')} type="color" className="cal-color-input" value={d.color} onChange={(e) => set('color', e.target.value)} />
+                <span className="data">{d.color.toUpperCase()}</span>
+              </div>
+              <p className="ui-help">{t('editor.eventColorHelp')}</p>
+            </div>
             <label className="ui-switch">
               <input type="checkbox" role="switch" checked={d.active} onChange={(e) => set('active', e.target.checked)} />
               <span>
@@ -514,7 +533,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
               <select id={idFor('schedule')} className="select cal-select-wide" value={d.schedule} onChange={(e) => set('schedule', e.target.value)}>
                 {schedules.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {scheduleDisplayName(s.name, t('schedules.defaultName'))} · {s.timezone}
+                    {scheduleDisplayName(s.name, t('schedules.defaultName'))} · {formatTimezone(s.timezone, locale)}
                   </option>
                 ))}
                 <option value={CUSTOM}>{t('schedules.custom')}</option>
@@ -647,13 +666,13 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                       <div className="ui-input-group">
                         <input
                           id={idFor(k)}
-                          className="input data"
+                          className="input cal-num"
                           type="number"
                           min={min}
                           value={d.limits[k]}
                           onChange={(e) => set('limits', { ...d.limits, [k]: Math.max(min, Number(e.target.value) || min) })}
                         />
-                        <span className="ui-addon">{unit}</span>
+                        <span className="ui-addon cal-unit">{unit}</span>
                       </div>
                     </div>
                   ))}
@@ -691,58 +710,59 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
             )}
 
             <SubSection title={t('form.branding')} description={t('editor.brandLead')}>
-              <div className="ui-fields-2">
-                <div className="ui-field">
-                  <label className="label" htmlFor={idFor('brand')}>
-                    {t('form.brandColor')}
-                  </label>
-                  <div className="cal-color">
-                    <input
-                      id={idFor('brand')}
-                      type="color"
-                      className="cal-color-input"
-                      value={brand}
-                      onChange={(e) => set('brandColor', e.target.value)}
-                    />
-                    <span className="data">{brand.toUpperCase()}</span>
-                    {d.brandColor && (
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => set('brandColor', '')}>
-                        {t('editor.useEventColor')}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="ui-field">
-                  <span className="label" id={idFor('preview')}>
-                    {t('editor.preview')}
+              <div className="cal-brand-current">
+                <span className="cal-brand-chip" style={{ background: pageBrand.color }} aria-hidden="true" />
+                <span className="cal-brand-current-text">
+                  <strong>{pageBrand.name}</strong>
+                  <span className="cal-muted">
+                    {d.brandOverride ? t('editor.brandOwn') : t('editor.brandWorkspace')}{' '}
+                    <Link href="/app/calendar/settings" className="cal-inline-link">
+                      {t('editor.brandEdit')}
+                    </Link>
                   </span>
-                  <span className="cal-brand-preview" aria-labelledby={idFor('preview')} style={{ background: brand, color: textOn(brand) }}>
-                    {t('booking.confirm')}
-                  </span>
-                </div>
-                <div className="ui-field">
-                  <label className="label" htmlFor={idFor('color')}>
-                    {t('editor.eventColor')}
-                  </label>
-                  <div className="cal-color">
-                    <input id={idFor('color')} type="color" className="cal-color-input" value={d.color} onChange={(e) => set('color', e.target.value)} />
-                    <span className="data">{d.color.toUpperCase()}</span>
-                  </div>
-                  <p className="ui-help">{t('editor.eventColorHelp')}</p>
-                </div>
-                <div className="ui-field">
-                  <label className="label" htmlFor={idFor('logo')}>
-                    {t('form.logoUrl')} <span className="ui-optional">{t('editor.optional')}</span>
-                  </label>
-                  <input
-                    id={idFor('logo')}
-                    className="input data"
-                    value={d.logoUrl}
-                    placeholder="https://…/logo.svg"
-                    onChange={(e) => set('logoUrl', e.target.value)}
-                  />
-                </div>
+                </span>
+                <span className="cal-brand-preview" style={{ background: pageBrand.color, color: pageBrand.on }}>
+                  {t('booking.confirm')}
+                </span>
               </div>
+              <label className="ui-switch">
+                <input type="checkbox" role="switch" checked={d.brandOverride} onChange={(e) => set('brandOverride', e.target.checked)} />
+                <span>
+                  {t('editor.brandOverride')}
+                  <span className="cal-switch-help">{t('editor.brandOverrideHelp')}</span>
+                </span>
+              </label>
+              {d.brandOverride && (
+                <div className="ui-fields-2">
+                  <div className="ui-field">
+                    <label className="label" htmlFor={idFor('brand')}>
+                      {t('form.brandColor')}
+                    </label>
+                    <div className="cal-color">
+                      <input
+                        id={idFor('brand')}
+                        type="color"
+                        className="cal-color-input"
+                        value={brand}
+                        onChange={(e) => set('brandColor', e.target.value)}
+                      />
+                      <span className="data">{brand.toUpperCase()}</span>
+                    </div>
+                  </div>
+                  <div className="ui-field">
+                    <label className="label" htmlFor={idFor('logo')}>
+                      {t('form.logoUrl')} <span className="ui-optional">{t('editor.optional')}</span>
+                    </label>
+                    <input
+                      id={idFor('logo')}
+                      className="input data"
+                      value={d.logoUrl}
+                      placeholder={props.workspaceBrand.logoUrl ?? 'https://…/logo.svg'}
+                      onChange={(e) => set('logoUrl', e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="ui-field">
                 <label className="label" htmlFor={idFor('welcome')}>
                   {t('form.welcomeMessage')} <span className="ui-optional">{t('editor.optional')}</span>

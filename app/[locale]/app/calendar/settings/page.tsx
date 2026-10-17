@@ -42,7 +42,16 @@ export default async function CalendarSettingsPage(props: {
           { key: 'payments', label: t('settings.tabPayments') },
         ]}
       >
-        {tab === 'profile' && <ProfileTab userId={user.id} handle={user.handle ?? ''} origin={origin} locale={locale} canEdit={isWorkspaceAdmin(user)} />}
+        {tab === 'profile' && (
+          <ProfileTab
+            userId={user.id}
+            handle={user.handle ?? ''}
+            accountName={user.name || user.handle || ''}
+            origin={origin}
+            locale={locale}
+            canEdit={isWorkspaceAdmin(user)}
+          />
+        )}
         {tab === 'connections' && (
           <GoogleCalendarPanel
             configured={googleOAuthConfigured()}
@@ -59,7 +68,21 @@ export default async function CalendarSettingsPage(props: {
   );
 }
 
-async function ProfileTab({ userId, handle, origin, locale, canEdit }: { userId: string; handle: string; origin: string; locale: string; canEdit: boolean }) {
+async function ProfileTab({
+  userId,
+  handle,
+  accountName,
+  origin,
+  locale,
+  canEdit,
+}: {
+  userId: string;
+  handle: string;
+  accountName: string;
+  origin: string;
+  locale: string;
+  canEdit: boolean;
+}) {
   const config = await getOrCreateCalendarUser(userId);
   return (
     <CalendarSettingsForm
@@ -74,7 +97,11 @@ async function ProfileTab({ userId, handle, origin, locale, canEdit }: { userId:
         bufferAfterMin: config.buffer_after_min,
         minNoticeHours: config.min_notice_hours,
         maxBookingDays: config.max_booking_days,
+        brandColor: config.brand_color ?? '',
+        logoUrl: config.logo_url ?? '',
+        displayName: config.display_name ?? '',
       }}
+      accountName={accountName}
     />
   );
 }

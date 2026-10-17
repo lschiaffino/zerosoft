@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useId, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ScheduleDetail, ScheduleOverride, ScheduleRule } from '@/lib/calendar-schedules';
 import { scheduleDisplayName } from '@/lib/calendar-schedule-name';
 import CalIcon from './cal-icons';
 import WeeklyHours from './WeeklyHours';
+import { formatTimezone } from './cal-utils';
 
 interface Props {
   initial: ScheduleDetail[];
@@ -47,6 +48,7 @@ function today(): string {
  */
 export default function SchedulesView({ initial, defaultTimezone }: Props) {
   const t = useTranslations('calendar');
+  const locale = useLocale();
   const baseId = useId();
   const defaultName = t('schedules.defaultName');
   const [schedules, setSchedules] = useState<Draft[]>(initial.map((s) => toDraft(s, defaultName)));
@@ -206,7 +208,7 @@ export default function SchedulesView({ initial, defaultTimezone }: Props) {
                   {isDirty(s) && <span className="cal-dirty" aria-label={t('editor.unsaved')} />}
                 </span>
                 <span className="cal-sched-meta">
-                  <span className="data">{s.timezone}</span>
+                  <span>{formatTimezone(s.timezone, locale)}</span>
                   {s.isDefault && <span className="badge badge-ink">{t('schedules.isDefault')}</span>}
                 </span>
               </button>
@@ -236,7 +238,7 @@ export default function SchedulesView({ initial, defaultTimezone }: Props) {
                 <select id={idFor('tz')} className="select" value={draft.timezone} onChange={(e) => patch({ timezone: e.target.value })}>
                   {(timezones.includes(draft.timezone) ? timezones : [draft.timezone, ...timezones]).map((tz) => (
                     <option key={tz} value={tz}>
-                      {tz.replace(/_/g, ' ')}
+                      {formatTimezone(tz, locale)}
                     </option>
                   ))}
                 </select>

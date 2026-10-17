@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getRoutingFormByHandle } from '@/lib/calendar-routing';
-import { getPublicProfile } from '@/lib/calendar';
+import { getWorkspaceBrand } from '@/lib/calendar';
+import { resolveBrand } from '@/components/calendar/cal-utils';
 import PublicRoutingForm from '@/components/calendar/PublicRoutingForm';
 import '@/styles/calendar.css';
 
@@ -11,12 +12,12 @@ export default async function RoutingFormPage(props: { params: Promise<{ handle:
 
   const form = await getRoutingFormByHandle(handle, slug);
   if (!form) notFound();
-  const hostName = (await getPublicProfile(handle))?.name;
+  const brand = resolveBrand(await getWorkspaceBrand(form.user_id));
 
   return (
     <PublicRoutingForm
       locale={locale}
-      hostName={hostName}
+      brand={brand}
       form={{
         id: form.id,
         slug: form.slug,

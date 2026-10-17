@@ -118,13 +118,13 @@ export default function RoutingFormsView({ items, handle, openNew }: RoutingForm
         open={open}
         onClose={close}
         crumb={t('quick.routingCrumb')}
+        showCrumb={false}
         onSubmit={submit}
         submitLabel={t('quick.routingCreate')}
         cancelLabel={t('common.cancel')}
         submitDisabled={!title.trim() || !slug}
         busy={busy}
         error={error}
-        hint={t('quick.hint')}
       >
         <input
           className="qm-title"

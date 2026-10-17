@@ -653,6 +653,10 @@ export interface CalendarUserRow {
   buffer_after_min: number;
   min_notice_hours: number;
   max_booking_days: number;
+  /** Marca del workspace en las páginas públicas (migración 035). */
+  brand_color: string | null;
+  logo_url: string | null;
+  display_name: string | null;
   created_at: string;
   updated_at: string;
 }

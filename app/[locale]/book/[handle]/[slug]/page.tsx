@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { getEventTypeByHandle, getCalendarUser, getPublicProfile, effectiveMaxFutureDays } from '@/lib/calendar';
+import { getEventTypeByHandle, getCalendarUser, getWorkspaceBrand, effectiveMaxFutureDays } from '@/lib/calendar';
 import PublicBookingPage, { BookingInfo } from '@/components/calendar/PublicBookingPage';
-import { brandOr, textOn } from '@/components/calendar/cal-utils';
+import { resolveBrand } from '@/components/calendar/cal-utils';
 import { paymentsEnabled } from '@/lib/calendar-payments';
 import '@/styles/calendar.css';
 
@@ -17,7 +17,8 @@ export default async function BookPage(props: {
 
   const eventType = await getEventTypeByHandle(handle, slug);
   if (!eventType) notFound();
-  const hostName = (await getPublicProfile(handle))?.name;
+  // Marca del workspace; el color y el logo del evento, si los tiene, la reemplazan.
+  const brand = resolveBrand(await getWorkspaceBrand(eventType.user_id), eventType);
 
   // Pre-fill opcional del invitado (links generados desde el CRM).
   const prefillName = typeof searchParams.name === 'string' ? searchParams.name.slice(0, 200) : '';
@@ -33,13 +34,12 @@ export default async function BookPage(props: {
         : null;
   if (closed) {
     const t = await getTranslations({ locale, namespace: 'calendar' });
-    const brand = brandOr(eventType.brand_color, brandOr(eventType.color, '#111111'));
     return (
-      <div className="bk" style={{ '--bk': brand, '--bk-on': textOn(brand) } as React.CSSProperties}>
+      <div className="bk" style={{ '--bk': brand.color, '--bk-on': brand.on } as React.CSSProperties}>
         <div className="bk-card">
           <BookingInfo
-            hostName={hostName}
-            logoUrl={eventType.logo_url && /^(https?:\/\/|\/)/.test(eventType.logo_url) ? eventType.logo_url : null}
+            hostName={brand.name}
+            logoUrl={brand.logoUrl}
             title={eventType.title}
           />
           <div className="bk-main">
@@ -59,7 +59,7 @@ export default async function BookPage(props: {
     <PublicBookingPage
       eventType={eventType}
       locale={locale}
-      hostName={hostName}
+      brand={brand}
       weekStart={calendarUser?.week_start ?? 1}
       maxFutureDays={effectiveMaxFutureDays(eventType, calendarUser)}
       prefillName={prefillName}

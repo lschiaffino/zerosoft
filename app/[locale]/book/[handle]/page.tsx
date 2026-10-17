@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getPublicProfile, legacyBookPath } from '@/lib/calendar';
 import CalIcon from '@/components/calendar/cal-icons';
+import { resolveBrand } from '@/components/calendar/cal-utils';
 import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
@@ -29,14 +30,20 @@ export default async function BookHandlePage(props: {
   const profile = await getPublicProfile(handle);
   if (!profile) notFound();
   const t = await getTranslations({ locale, namespace: 'calendar.profile' });
+  const brand = resolveBrand(profile.brand);
 
   return (
-    <main className="bk bk-profile">
+    <main className="bk bk-profile" style={{ '--bk': brand.color, '--bk-on': brand.on } as React.CSSProperties}>
       <div className="bk-profile-inner">
         <header className="bk-profile-head">
-          <span className="bk-monogram bk-monogram-lg" aria-hidden="true">
-            {profile.name.trim().slice(0, 1).toUpperCase()}
-          </span>
+          {brand.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={brand.logoUrl} alt="" className="bk-logo bk-logo-lg" />
+          ) : (
+            <span className="bk-monogram bk-monogram-lg" aria-hidden="true">
+              {profile.name.trim().slice(0, 1).toUpperCase()}
+            </span>
+          )}
           <h1 className="bk-title">{profile.name}</h1>
           <p className="bk-muted">{t('sub')}</p>
         </header>
@@ -47,7 +54,7 @@ export default async function BookHandlePage(props: {
             {profile.eventTypes.map((et) => (
               <li key={et.id}>
                 <Link href={`/book/${profile.handle}/${et.slug}`} className="bk-profile-item">
-                  <span className="bk-profile-swatch" style={{ background: et.brand_color || et.color || '#111111' }} aria-hidden="true" />
+                  <span className="bk-profile-swatch" style={{ background: et.brand_color || et.color || brand.color }} aria-hidden="true" />
                   <span className="bk-profile-text">
                     <strong>{et.title}</strong>
                     {et.description && <span className="bk-muted">{et.description}</span>}

@@ -27,18 +27,15 @@
   "overview": {
     "title": "Calendario",
     "eventTypes": "Tipos de evento",
-    "bookingsThisWeek": "Reservas esta semana",
     "timezone": "Zona horaria",
-    "lead": "Lo que viene, tus links de reserva y tus bloqueos.",
-    "activeEventTypes": "Tipos de evento activos",
+    "lead": "Lo que viene y tus links de reserva.",
     "allBookings": "Ver todas las reservas",
     "allEventTypes": "Ver los {n} tipos de evento",
-    "colEvent": "Tipo de evento",
-    "colGuest": "Invitado",
-    "colWhen": "Cuándo",
     "noUpcoming": "Sin reservas próximas",
     "noUpcomingBody": "Cuando alguien reserve con uno de tus links, aparece acá.",
-    "upcoming": "Próximas reservas"
+    "upcoming": "Próximas reservas",
+    "nextWeek": "{n, plural, =0 {Sin reservas en los próximos 7 días} one {# reserva en los próximos 7 días} other {# reservas en los próximos 7 días}}",
+    "activeOf": "{active} de {total} tipos activos"
   },
   "eventTypes": {
     "title": "Tipos de evento",
@@ -113,7 +110,8 @@
     "missing": "Elegí desde y hasta.",
     "note": "Solo te afecta a vos, no al resto del equipo.",
     "reason": "Motivo",
-    "remove": "Quitar bloqueo {range}"
+    "remove": "Quitar bloqueo {range}",
+    "count": "{n, plural, =0 {Ninguno} one {# bloqueo} other {# bloqueos}}"
   },
   "bookings": {
     "title": "Reservas",
@@ -280,24 +278,30 @@
   "settings": {
     "title": "Configuración",
     "publicLink": "Link público",
-    "handle": "Tu handle",
+    "handle": "Tu dirección",
     "handleHint": "Todas tus páginas de reserva viven bajo esta dirección. Si lo cambiás, se rompen los links que ya compartiste.",
     "handleTaken": "Ese handle ya está tomado.",
     "handleInvalid": "Usá entre 3 y 32 minúsculas, números o guiones.",
     "defaults": "Zona horaria y valores por defecto",
     "weekStart": "La semana empieza el",
-    "bufferBefore": "Margen antes (min)",
-    "bufferAfter": "Margen después (min)",
-    "minNotice": "Aviso mínimo (horas)",
-    "maxDays": "Reservable hasta (días)",
+    "bufferBefore": "Margen antes",
+    "bufferAfter": "Margen después",
+    "minNotice": "Aviso mínimo",
+    "maxDays": "Reservable hasta",
     "copyLink": "Copiar link",
     "webhookMissing": "Falta el signing secret: los tipos de evento pagos quedan deshabilitados hasta que lo cargues, así cada pago se confirma aunque el invitado cierre la pestaña.",
     "defaultsLead": "Los usan todos los tipos de evento que no definen los suyos en Avanzado.",
-    "lead": "Tu link público, tus conexiones y cómo cobrás.",
+    "lead": "Tu link público, tu marca, tus conexiones y cómo cobrás.",
     "tabProfile": "Perfil",
     "tabConnections": "Conexiones",
     "tabPayments": "Pagos",
-    "timezoneInvalid": "Esa zona horaria no existe."
+    "timezoneInvalid": "Esa zona horaria no existe.",
+    "brandTitle": "Marca",
+    "brandLead": "Todas tus páginas públicas (perfil, reserva, ruteo y gestión) llevan este nombre, color y logo. Un tipo de evento puede usar otros en Avanzado.",
+    "displayName": "Nombre visible",
+    "noColor": "Sin color: se usa tinta",
+    "clearColor": "Quitar color",
+    "logoHelp": "Una imagen con fondo transparente, de 40 px de alto o más."
   },
   "manage": {
     "title": "Tu reserva",
@@ -323,7 +327,7 @@
     "notConnected": "Sin conectar."
   },
   "embed": {
-    "title": "Embeber en tu sitio",
+    "title": "Insertar en tu sitio",
     "inline": "En línea",
     "popup": "Botón popup",
     "inlineDesc": "Pegalo donde querés que aparezca el calendario. El alto se ajusta solo.",
@@ -336,17 +340,16 @@
     "minutes": "{n} min"
   },
   "quick": {
-    "eventCrumb": "Cal › Nuevo tipo de evento",
+    "eventCrumb": "Nuevo tipo de evento",
     "titlePlaceholder": "Nombre del evento, p. ej. Llamada inicial",
     "slug": "URL",
     "duration": "Duración",
     "custom": "Otra",
     "location": "Ubicación",
     "create": "Crear",
-    "hint": "⌘↵ crear · Esc cerrar",
     "defaultHours": "Usa tu horario principal. Lo cambiás después en Disponibilidad.",
     "moreOptions": "Abrir al crear",
-    "routingCrumb": "Cal › Nuevo formulario de ruteo",
+    "routingCrumb": "Nuevo formulario de ruteo",
     "routingTitlePlaceholder": "Nombre del formulario, p. ej. Ventas o soporte",
     "routingCreate": "Crear y agregar preguntas",
     "created": "Creaste {title}.",
@@ -447,7 +450,7 @@
     "subject": "Asunto",
     "body": "Mensaje",
     "variables": "Variables: {vars}",
-    "cronNote": "Salen en la corrida horaria del cron, así que pueden llegar hasta una hora más tarde.",
+    "cronNote": "Se envían cada hora; pueden llegar hasta una hora tarde.",
     "defaultSubject": "Recordatorio: {{event.title}}",
     "defaultBody": "Hola {{guest.name}},\n\nTe esperamos en {{event.title}} el {{start}}.\n\n{{link}}"
   },
@@ -488,7 +491,7 @@
     "always": "Siempre",
     "amount": "Cantidad",
     "answerType": "Tipo de respuesta",
-    "brandLead": "La página de reserva usa tu color y tu logo, no los de zerosoft.",
+    "brandLead": "La página de reserva lleva la marca de tu workspace, no la de zerosoft.",
     "changeDefaults": "Cambiar valores por defecto",
     "copyCode": "Copiar código",
     "daysUnit": "días",
@@ -496,7 +499,7 @@
     "descriptionPlaceholder": "Qué van a hablar y qué conviene traer",
     "durationInvalid": "La duración tiene que ser de al menos 1 minuto.",
     "eventColor": "Color en tus listas",
-    "eventColorHelp": "Para reconocerlo en la app. Si no hay color de marca, la página usa este.",
+    "eventColorHelp": "Para reconocerlo en la app. La página de reserva usa la marca del workspace.",
     "goToPayments": "Ir a Pagos",
     "hasError": "Hay un error en esta pestaña",
     "limits": "Límites de reserva",
@@ -531,10 +534,14 @@
     "unit": "Unidad",
     "unsaved": "Cambios sin guardar",
     "useDefaults": "Usar los valores por defecto del calendario",
-    "useEventColor": "Usar el color del evento",
     "useTitleSlug": "Usar {slug}",
     "variables": "Variables:",
-    "when": "Cuándo"
+    "when": "Cuándo",
+    "brandWorkspace": "Usa la marca del workspace.",
+    "brandOwn": "Usa su propio color o logo.",
+    "brandEdit": "Cambiar la marca",
+    "brandOverride": "Usar otro color o logo en este evento",
+    "brandOverrideHelp": "Para un evento de otra marca. El logo que dejes vacío sale de la marca del workspace."
   },
   "errorPage": {
     "title": "No se pudo cargar esta pantalla",

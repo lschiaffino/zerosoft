@@ -4,14 +4,14 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { useTranslations } from 'next-intl';
 import type { EventTypeWithRules } from '@/lib/calendar';
 import CalIcon from './cal-icons';
-import { brandOr, textOn } from './cal-utils';
+import { formatTimezone, type PublicBrand } from './cal-utils';
 
 interface Props {
   eventType: EventTypeWithRules;
   locale: string;
   weekStart?: number;
-  /** Nombre del anfitrión (o del workspace) que se muestra arriba del título. */
-  hostName?: string;
+  /** Marca del workspace (con la excepción del evento) ya resuelta en el server. */
+  brand: PublicBrand;
   /** Pre-fill de los campos del invitado (p.ej. desde ?name=&email=). */
   prefillName?: string;
   prefillEmail?: string;
@@ -112,7 +112,7 @@ export default function PublicBookingPage({
   eventType,
   locale,
   weekStart = 1,
-  hostName,
+  brand,
   prefillName = '',
   prefillEmail = '',
   reschedule,
@@ -125,9 +125,7 @@ export default function PublicBookingPage({
     return Math.max(1, Number(maxFutureDays ?? rules.maxFutureDays ?? 30));
   }, [eventType, maxFutureDays]);
 
-  const brand = brandOr(eventType.brand_color, brandOr(eventType.color, '#111111'));
-  const logoUrl = eventType.logo_url && /^(https?:\/\/|\/)/.test(eventType.logo_url) ? eventType.logo_url : null;
-  const brandStyle = { '--bk': brand, '--bk-on': textOn(brand) } as CSSProperties;
+  const brandStyle = { '--bk': brand.color, '--bk-on': brand.on } as CSSProperties;
 
   const priceLabel = useMemo(() => {
     if (!eventType.price_cents || eventType.price_cents <= 0 || reschedule) return null;
@@ -356,8 +354,8 @@ export default function PublicBookingPage({
     <div className="bk" style={brandStyle}>
       <div className={`bk-card${step === 'date' && selectedDate ? ' bk-has-slots' : ''}`}>
         <BookingInfo
-          logoUrl={logoUrl}
-          hostName={hostName}
+          logoUrl={brand.logoUrl}
+          hostName={brand.name}
           title={eventType.title}
           meta={[
             { icon: 'clock', text: t('booking.minutes', { n: eventType.duration_min }) },
@@ -371,7 +369,7 @@ export default function PublicBookingPage({
             <div className="bk-when">
               <p className="bk-when-date">{when.date}</p>
               <p className="bk-when-time data">{when.time}</p>
-              <p className="bk-when-tz">{timezone}</p>
+              <p className="bk-when-tz">{formatTimezone(timezone, locale)}</p>
               {step === 'form' && (
                 <button type="button" className="bk-link" onClick={() => setStep('date')}>
                   {t('booking.changeTime')}
@@ -396,7 +394,7 @@ export default function PublicBookingPage({
                   <dd>
                     {when.date}
                     <br />
-                    <span className="data">{when.time}</span> <span className="bk-muted">{timezone}</span>
+                    <span className="data">{when.time}</span> <span className="bk-muted">{formatTimezone(timezone, locale)}</span>
                   </dd>
                 </div>
                 <div>
@@ -581,7 +579,7 @@ export default function PublicBookingPage({
                   <select className="select" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
                     {tzOptions.map((tz) => (
                       <option key={tz} value={tz}>
-                        {tz.replace(/_/g, ' ')}
+                        {formatTimezone(tz, locale)}
                       </option>
                     ))}
                   </select>

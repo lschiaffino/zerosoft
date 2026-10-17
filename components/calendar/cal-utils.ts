@@ -75,6 +75,56 @@ export function brandOr(hex: string | null | undefined, fallback: string): strin
   return hex && /^#[0-9a-f]{6}$/i.test(hex) ? hex : fallback;
 }
 
+/** Logo usable en una página pública: https, http o una ruta propia. */
+export function safeLogo(url: string | null | undefined): string | null {
+  const v = url?.trim();
+  return v && /^(https?:\/\/|\/)/.test(v) ? v : null;
+}
+
+/** Marca ya resuelta para una página pública: color, texto sobre el color, logo y nombre. */
+export interface PublicBrand {
+  color: string;
+  on: '#ffffff' | '#111111';
+  logoUrl: string | null;
+  name: string;
+}
+
+/**
+ * La marca del workspace, con el color y el logo del tipo de evento como
+ * excepción si los tiene. Sin color en ningún lado, tinta.
+ */
+export function resolveBrand(
+  workspace: { color: string | null; logoUrl: string | null; name: string },
+  eventType?: { brand_color?: string | null; logo_url?: string | null } | null,
+): PublicBrand {
+  const color = brandOr(eventType?.brand_color, brandOr(workspace.color, '#111111'));
+  return {
+    color,
+    on: textOn(color),
+    logoUrl: safeLogo(eventType?.logo_url) ?? safeLogo(workspace.logoUrl),
+    name: workspace.name,
+  };
+}
+
+/**
+ * Zona horaria legible: "America/Argentina/Buenos_Aires" → "Buenos Aires (GMT-3)".
+ * Es para leer, no para copiar: va en Archivo, no en mono.
+ */
+export function formatTimezone(tz: string, locale = 'en', at: Date = new Date()): string {
+  const city = (tz.split('/').pop() || tz).replace(/_/g, ' ');
+  let offset = '';
+  try {
+    offset =
+      new Intl.DateTimeFormat(locale, { timeZone: tz, timeZoneName: 'shortOffset' })
+        .formatToParts(at)
+        .find((p) => p.type === 'timeZoneName')?.value ?? '';
+  } catch {
+    return city;
+  }
+  if (!offset || tz === 'UTC' || tz === 'Etc/UTC') return tz === 'Etc/UTC' ? 'UTC' : city;
+  return `${city} (${offset})`;
+}
+
 export const LIMIT_KEYS = ['bufferBeforeMin', 'bufferAfterMin', 'minNoticeHours', 'maxFutureDays'] as const;
 export type LimitKey = (typeof LIMIT_KEYS)[number];
 export type Limits = Record<LimitKey, number>;

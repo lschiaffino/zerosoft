@@ -97,3 +97,22 @@ test('Cal: la página pública usa el color de marca del evento', async ({ page,
   expect(vars).toEqual({ bk: '#e6b400', on: '#111111' });
   await expect(page.getByRole('heading', { name: 'Branded' })).toBeVisible();
 });
+
+test('Cal: la marca del workspace llega al perfil público y a la reserva', async ({ page, request }) => {
+  const before = await (await request.get('/api/calendar/config')).json();
+  const res = await request.post('/api/calendar/config', { data: { brandColor: '#7b4dff', displayName: 'Estudio Norte' } });
+  expect(res.ok()).toBe(true);
+  try {
+    const slug = `ws-${uid()}`;
+    await request.post('/api/calendar/event-types', { data: { slug, title: 'Sin marca propia', durationMin: 30 } });
+    await page.goto(`/en/book/${before.handle}`, { waitUntil: 'networkidle' });
+    await expect(page.getByRole('heading', { name: 'Estudio Norte' })).toBeVisible();
+    expect(await page.locator('.bk').evaluate((el) => getComputedStyle(el).getPropertyValue('--bk').trim())).toBe('#7b4dff');
+    await page.goto(`/en/book/${before.handle}/${slug}`, { waitUntil: 'networkidle' });
+    await expect(page.locator('.bk-host-name')).toHaveText('Estudio Norte');
+  } finally {
+    await request.post('/api/calendar/config', {
+      data: { brandColor: before.brand_color ?? null, displayName: before.display_name ?? null },
+    });
+  }
+});

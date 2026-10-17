@@ -57,7 +57,7 @@ export default function WeeklyHours({ rules, onChange }: { rules: HourRule[]; on
               {!on ? (
                 <span className="cal-week-off">{t('schedules.unavailable')}</span>
               ) : (
-                ranges.map(({ r, i }) => {
+                ranges.map(({ r, i }, n) => {
                   const bad = r.endTime <= r.startTime;
                   return (
                     <div key={i} className="cal-range">
@@ -78,31 +78,34 @@ export default function WeeklyHours({ rules, onChange }: { rules: HourRule[]; on
                         aria-invalid={bad || undefined}
                         onChange={(e) => update(i, { endTime: e.target.value })}
                       />
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon btn-sm"
-                        onClick={() => remove(i)}
-                        aria-label={t('schedules.removeRange', { day: dayName(day) })}
-                        title={t('common.remove')}
-                      >
-                        <CalIcon name="close" />
-                      </button>
+                      <span className="cal-range-actions">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon btn-sm"
+                          onClick={() => remove(i)}
+                          aria-label={t('schedules.removeRange', { day: dayName(day) })}
+                          title={t('common.remove')}
+                        >
+                          <CalIcon name="close" />
+                        </button>
+                        {/* Sumar otro rango va junto al último, no al borde de la fila. */}
+                        {n === ranges.length - 1 && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon btn-sm"
+                            onClick={() => addRange(day)}
+                            aria-label={t('schedules.addRangeFor', { day: dayName(day) })}
+                            title={t('schedules.addRange')}
+                          >
+                            <CalIcon name="plus" />
+                          </button>
+                        )}
+                      </span>
                     </div>
                   );
                 })
               )}
             </div>
-            {on && (
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon btn-sm cal-week-add"
-                onClick={() => addRange(day)}
-                aria-label={t('schedules.addRangeFor', { day: dayName(day) })}
-                title={t('schedules.addRange')}
-              >
-                <CalIcon name="plus" />
-              </button>
-            )}
           </div>
         );
       })}

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { BookingInfo } from './PublicBookingPage';
+import type { PublicBrand } from './cal-utils';
 
 interface PublicField {
   name: string;
@@ -15,7 +16,7 @@ interface PublicField {
 
 interface PublicRoutingFormProps {
   locale: string;
-  hostName?: string;
+  brand: PublicBrand;
   form: {
     id: string;
     slug: string;
@@ -31,7 +32,7 @@ interface PublicRoutingFormProps {
  * event type destino. Las respuestas de campos llamados `name`/`email` se
  * llevan como query params (?name=&email=) para pre-llenar el booking.
  */
-export default function PublicRoutingForm({ form, hostName }: PublicRoutingFormProps) {
+export default function PublicRoutingForm({ form, brand }: PublicRoutingFormProps) {
   const t = useTranslations('calendar');
   const router = useRouter();
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
@@ -69,9 +70,9 @@ export default function PublicRoutingForm({ form, hostName }: PublicRoutingFormP
   }
 
   return (
-    <div className="bk">
+    <div className="bk" style={{ '--bk': brand.color, '--bk-on': brand.on } as CSSProperties}>
       <div className="bk-card">
-        <BookingInfo hostName={hostName} title={form.title} description={form.description} />
+        <BookingInfo hostName={brand.name} logoUrl={brand.logoUrl} title={form.title} description={form.description} />
         <div className="bk-main">
           <form className="bk-form" onSubmit={submit}>
             <h2 className="bk-h2">{t('routing.publicLead')}</h2>
@@ -129,7 +130,7 @@ export default function PublicRoutingForm({ form, hostName }: PublicRoutingFormP
               </p>
             )}
             <div className="bk-actions bk-actions-end">
-              <button type="submit" className="btn btn-primary" aria-busy={busy || undefined}>
+              <button type="submit" className="btn bk-cta" aria-busy={busy || undefined}>
                 {t('routing.submit')}
               </button>
             </div>

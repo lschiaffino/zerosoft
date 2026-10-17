@@ -6,8 +6,10 @@ import '@/styles/quick-modal.css';
 export interface QuickModalProps {
   open: boolean;
   onClose: () => void;
-  /** Breadcrumb chico arriba a la izquierda (p. ej. "Link › New link"). */
+  /** Breadcrumb chico arriba a la izquierda (p. ej. "Link › New link"). Si es texto, también nombra el diálogo. */
   crumb: ReactNode;
+  /** false: el crumb solo nombra el diálogo (aria-label) y no se dibuja. */
+  showCrumb?: boolean;
   /** Contenido del formulario (campos). */
   children: ReactNode;
   onSubmit: () => void;
@@ -38,6 +40,7 @@ export default function QuickModal(props: QuickModalProps) {
 function QuickModalBody({
   onClose,
   crumb,
+  showCrumb = true,
   children,
   onSubmit,
   submitLabel,
@@ -120,7 +123,7 @@ function QuickModalBody({
             submit();
           }}
         >
-          <div className="qm-head mono">{crumb}</div>
+          {showCrumb && <div className="qm-head">{crumb}</div>}
           <div className="qm-body">{children}</div>
           {error && (
             <p className="qm-error" role="alert">
@@ -128,7 +131,7 @@ function QuickModalBody({
             </p>
           )}
           <div className="qm-foot">
-            {hint ? <span className="qm-hint mono">{hint}</span> : <span className="qm-hint" />}
+            {hint ? <span className="qm-hint">{hint}</span> : <span className="qm-hint" />}
             {footExtra}
             <button type="button" className="btn btn-small" onClick={onClose}>
               {cancelLabel}

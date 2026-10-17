@@ -4,6 +4,7 @@ import { bookingDateBounds, listUserBookings, localDate } from '@/lib/calendar';
 import { bookingListQuerySchema } from '@/lib/calendar-schema';
 import PageHeader from '@/components/ui/PageHeader';
 import BookingsList from '@/components/calendar/BookingsList';
+import { formatTimezone } from '@/components/calendar/cal-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +39,7 @@ export default async function BookingsPage(props: {
 
   return (
     <div className="ui-page">
-      <PageHeader title={t('bookings.title')} description={t('bookings.lead', { timezone: timezone.replace(/_/g, ' ') })} />
+      <PageHeader title={t('bookings.title')} description={t('bookings.lead', { timezone: formatTimezone(timezone, locale) })} />
       <BookingsList
         bookings={bookings}
         locale={locale}
