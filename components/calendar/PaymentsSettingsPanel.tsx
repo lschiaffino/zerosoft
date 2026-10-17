@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import CopyButton from '@/components/link/CopyButton';
+import FormSection from '@/components/ui/FormSection';
+import CalCopyButton from './CalCopyButton';
 
 interface View {
   configured: boolean;
@@ -13,70 +14,70 @@ interface View {
 }
 
 /** Conexión con la cuenta de Stripe del workspace (clave y signing secret, guardados cifrados). */
-export default function PaymentsSettingsPanel({
-  initial,
-  origin,
-  canEdit,
-}: {
-  initial: View;
-  origin: string;
-  canEdit: boolean;
-}) {
+export default function PaymentsSettingsPanel({ initial, origin, canEdit }: { initial: View; origin: string; canEdit: boolean }) {
   const t = useTranslations('calendar');
+  const id = useId();
   const [view, setView] = useState(initial);
   const [key, setKey] = useState('');
   const [whsec, setWhsec] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
   const webhookUrl = `${origin}${view.webhookPath}`;
 
-  async function send(body: Record<string, string>) {
-    setBusy(true);
-    setError(null);
-    setSaved(false);
+  async function send(body: Record<string, string>): Promise<string | undefined> {
     const res = await fetch('/api/calendar/payments', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     }).catch(() => null);
-    setBusy(false);
     if (res && res.ok) {
       setView((await res.json()) as View);
       setKey('');
       setWhsec('');
-      setSaved(true);
       return;
     }
     const data = res ? ((await res.json().catch(() => null)) as { error?: string | { code?: string } } | null) : null;
     const code = typeof data?.error === 'string' ? data.error : data?.error?.code;
-    setError(code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
+    return code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic');
   }
 
-  function save(e: React.FormEvent) {
-    e.preventDefault();
+  async function save() {
     const body: Record<string, string> = {};
     if (key.trim()) body.stripeSecretKey = key.trim();
     if (whsec.trim()) body.stripeWebhookSecret = whsec.trim();
-    if (Object.keys(body).length === 0) return;
-    void send(body);
+    if (Object.keys(body).length === 0) return t('payments.nothingToSave');
+    return send(body);
   }
 
+  async function disconnect() {
+    if (!confirm(t('payments.removeConfirm'))) return;
+    setRemoving(true);
+    setRemoveError((await send({ stripeSecretKey: '', stripeWebhookSecret: '' })) ?? null);
+    setRemoving(false);
+  }
+
+  const status = view.configured && view.keyHint ? t('payments.connected', { hint: view.keyHint, mode: view.mode ?? '' }) : t('payments.notConnected');
+
   return (
-    <form className="panel cal-pay-settings" onSubmit={save}>
-      <p className="section-label">{t('payments.settingsTitle')}</p>
-      <p className="muted">{t('payments.settingsSub')}</p>
-      <p className="mono cal-pay-status">
-        {view.configured && view.keyHint
-          ? t('payments.connected', { hint: view.keyHint, mode: view.mode ?? '' })
-          : t('payments.notConnected')}
+    <FormSection
+      title={t('payments.settingsTitle')}
+      description={t('payments.settingsSub')}
+      onSubmit={canEdit ? save : undefined}
+      footer={canEdit ? undefined : <p className="ui-section-note">{t('payments.adminOnly')}</p>}
+    >
+      <p className="cal-status-line">
+        <span className={view.configured ? 'badge badge-ok' : 'badge'}>{view.configured ? t('payments.on') : t('payments.off')}</span>
+        <span className="data">{status}</span>
       </p>
-      {view.configured && !view.hasWebhookSecret && <p className="cal-warn">{t('payments.webhookMissing')}</p>}
-      <div className="form-grid">
-        <label className="field">
-          <span className="prop-label">{t('payments.secretKey')}</span>
+      {view.configured && !view.hasWebhookSecret && <p className="cal-callout">{t('payments.webhookMissing')}</p>}
+      <div className="ui-fields-2">
+        <div className="ui-field">
+          <label className="label" htmlFor={`${id}-key`}>
+            {t('payments.secretKey')}
+          </label>
           <input
-            className="input mono"
+            id={`${id}-key`}
+            className="input data"
             type="password"
             autoComplete="off"
             value={key}
@@ -84,11 +85,14 @@ export default function PaymentsSettingsPanel({
             onChange={(e) => setKey(e.target.value)}
             disabled={!canEdit}
           />
-        </label>
-        <label className="field">
-          <span className="prop-label">{t('payments.webhookSecret')}</span>
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor={`${id}-whsec`}>
+            {t('payments.webhookSecret')}
+          </label>
           <input
-            className="input mono"
+            id={`${id}-whsec`}
+            className="input data"
             type="password"
             autoComplete="off"
             value={whsec}
@@ -96,33 +100,24 @@ export default function PaymentsSettingsPanel({
             onChange={(e) => setWhsec(e.target.value)}
             disabled={!canEdit}
           />
-        </label>
+        </div>
       </div>
-      <p className="prop-label">{t('payments.webhookUrl')}</p>
-      <div className="calendar-public-link">
-        <span className="mono">{webhookUrl}</span>
-        <CopyButton text={webhookUrl} />
+      <div className="ui-field">
+        <span className="label">{t('payments.webhookUrl')}</span>
+        <div className="cal-share-url">
+          <span className="data">{webhookUrl}</span>
+          <CalCopyButton text={webhookUrl} label={t('payments.copyUrl')} />
+        </div>
+        <p className="ui-help">{t('payments.webhookHint')}</p>
       </div>
-      <p className="muted cal-sched-hint">{t('payments.webhookHint')}</p>
-      {!canEdit && <p className="muted">{t('payments.adminOnly')}</p>}
-      {error && <p className="form-error">{error}</p>}
-      {canEdit && (
-        <div className="form-actions">
-          {view.configured && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-small btn-danger"
-              disabled={busy}
-              onClick={() => void send({ stripeSecretKey: '', stripeWebhookSecret: '' })}
-            >
-              {t('payments.remove')}
-            </button>
-          )}
-          <button type="submit" className="btn btn-solid" disabled={busy || (!key.trim() && !whsec.trim())}>
-            {busy ? t('common.saving') : saved ? t('common.saved') : t('common.save')}
+      {canEdit && view.configured && (
+        <div className="cal-danger-row">
+          <button type="button" className="btn btn-sm btn-danger" onClick={disconnect} aria-busy={removing || undefined}>
+            {t('payments.remove')}
           </button>
+          {removeError && <span className="ui-error">{removeError}</span>}
         </div>
       )}
-    </form>
+    </FormSection>
   );
 }

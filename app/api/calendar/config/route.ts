@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return invalidBody(parsed.error);
 
   const { handle, ...rest } = parsed.data;
+  // La marca de las páginas públicas es del workspace: como el handle, la cambia un admin.
+  const touchesBrand = rest.brandColor !== undefined || rest.logoUrl !== undefined || rest.displayName !== undefined;
+  if (touchesBrand && !isWorkspaceAdmin(user)) return crmError(403, 'forbidden');
   if (handle !== undefined && handle !== user.handle) {
     // El handle es del usuario (dueño del workspace): solo un admin lo cambia.
     if (!isWorkspaceAdmin(user)) return crmError(403, 'forbidden');

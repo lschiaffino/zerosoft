@@ -69,7 +69,7 @@ export default function ChromeGate({
     return (
       <>
         {children}
-        <p className="powered-by mono">
+        <p className="powered-by">
           <a href="https://zerosoft.ai" target="_blank" rel="noreferrer">
             Powered by zerosoft
           </a>

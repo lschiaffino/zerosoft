@@ -904,16 +904,17 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
   .footer-bottom { flex-direction: column; align-items: flex-start; width: calc(100% - 32px); }
 }
 
-/* Pie mínimo de las páginas públicas de reserva (sin chrome de marketing). */
+/* Pie mínimo de las páginas públicas (sin chrome de marketing): Archivo, sentence case, marca en minúscula. */
 .powered-by {
   text-align: center;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-ui, var(--sans));
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
   padding: 0 0 24px;
 }
 .powered-by a {
-  color: var(--dim);
+  color: var(--brand-gray-2, var(--dim));
   text-decoration: none;
 }
 .powered-by a:hover {

@@ -1,10 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import EmptyState from '@/components/ui/EmptyState';
+import FormSection from '@/components/ui/FormSection';
 import type { RoutingFormWithChildren, RoutingFieldWithOptions } from '@/lib/calendar-routing';
 import type { CalendarRoutingRuleRow } from '@/lib/db';
+import CalIcon from './cal-icons';
+import CalCopyButton from './CalCopyButton';
+import { fieldKeyFromLabel } from './cal-utils';
 
 interface EventTypeOption {
   id: string;
@@ -13,122 +18,79 @@ interface EventTypeOption {
 }
 
 interface RoutingFormEditorProps {
-  initial?: RoutingFormWithChildren | null;
+  initial: RoutingFormWithChildren;
   eventTypes: EventTypeOption[];
-  locale: string;
+  /** URL pública completa sin el slug: https://…/es/r/<handle>/ */
+  publicBase: string;
 }
 
 type FieldType = 'text' | 'select' | 'boolean';
 type RuleOperator = 'is' | 'is_not' | 'contains' | 'truthy';
-
 const OPERATORS: RuleOperator[] = ['is', 'is_not', 'contains', 'truthy'];
-const ERROR_CODES = ['invalid_slug', 'slug_taken', 'invalid_input', 'generic'] as const;
-
 const OP_LABEL_KEY: Record<RuleOperator, 'opIs' | 'opIsNot' | 'opContains' | 'opTruthy'> = {
   is: 'opIs',
   is_not: 'opIsNot',
   contains: 'opContains',
   truthy: 'opTruthy',
 };
+const STEPS = ['questions', 'rules', 'publish'] as const;
+type Step = (typeof STEPS)[number];
 
-const emptyNewField = () => ({
-  label: '',
-  name: '',
-  type: 'text' as FieldType,
-  optionsText: '',
-  required: false,
-});
+const emptyField = () => ({ label: '', type: 'text' as FieldType, optionsText: '', required: true });
+const emptyRule = () => ({ fieldId: '', operator: 'is' as RuleOperator, value: '', eventTypeId: '' });
 
-export default function RoutingFormEditor({ initial, eventTypes, locale }: RoutingFormEditorProps) {
+/**
+ * Editor de un routing form en tres paradas: Preguntas → Reglas → Publicar.
+ * Preguntas y reglas se guardan al agregarlas o quitarlas; los datos del
+ * formulario (nombre, URL, activo) tienen un solo Guardar en Publicar. La
+ * clave técnica de cada pregunta sale de su etiqueta.
+ */
+export default function RoutingFormEditor({ initial, eventTypes, publicBase }: RoutingFormEditorProps) {
   const t = useTranslations('calendar');
   const router = useRouter();
-  const [values, setValues] = useState({
-    slug: initial?.slug ?? '',
-    title: initial?.title ?? '',
-    description: initial?.description ?? '',
-    active: initial ? initial.active === 1 : true,
-    defaultEventTypeId: initial?.default_event_type_id ?? '',
-  });
-  const [fields, setFields] = useState<RoutingFieldWithOptions[]>(initial?.fields ?? []);
-  const [rules, setRules] = useState<CalendarRoutingRuleRow[]>(initial?.rules ?? []);
-  const [newField, setNewField] = useState(emptyNewField());
-  const [newRule, setNewRule] = useState({
-    fieldId: '',
-    operator: 'is' as RuleOperator,
-    value: '',
-    eventTypeId: '',
-  });
+  const baseId = useId();
+  const [step, setStep] = useState<Step>(initial.fields.length === 0 ? 'questions' : initial.rules.length === 0 ? 'rules' : 'publish');
+  const [fields, setFields] = useState<RoutingFieldWithOptions[]>(initial.fields);
+  const [rules, setRules] = useState<CalendarRoutingRuleRow[]>(initial.rules);
+  const [defaultEventTypeId, setDefaultEventTypeId] = useState(initial.default_event_type_id ?? '');
+  const [newField, setNewField] = useState(emptyField());
+  const [newRule, setNewRule] = useState(emptyRule());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [defaultSaved, setDefaultSaved] = useState(false);
+  const [slug, setSlug] = useState(initial.slug);
+  const [savedSlug, setSavedSlug] = useState(initial.slug);
+  const stepRefs = useRef<Record<Step, HTMLButtonElement | null>>({} as Record<Step, HTMLButtonElement | null>);
 
-  function showError(code: string) {
-    setError(
-      (ERROR_CODES as readonly string[]).includes(code) ? t(`errors.${code}`) : t('errors.generic'),
-    );
-  }
-
-  async function onSubmitBasics(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-
-    const payload = {
-      slug: values.slug,
-      title: values.title,
-      description: values.description || undefined,
-      active: values.active,
-      defaultEventTypeId: values.defaultEventTypeId || null,
-    };
-
-    const url = initial ? `/api/calendar/routing/${initial.id}` : '/api/calendar/routing';
-    const method = initial ? 'PATCH' : 'POST';
-    const res = await fetch(url, {
-      method,
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).catch(() => null);
-
-    if (res && (res.status === 200 || res.status === 201)) {
-      const data = (await res.json()) as { id: string };
-      if (!initial) {
-        // Recién creado: a la pantalla de edición para sumar preguntas y reglas.
-        router.push(`/app/calendar/routing/${data.id}`);
-        return;
-      }
-      setBusy(false);
-      router.refresh();
-      return;
-    }
-
-    const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
-    showError(data?.error ?? 'generic');
-    setBusy(false);
+  async function code(res: Response | null): Promise<string> {
+    const data = res ? ((await res.json().catch(() => null)) as { error?: string | { code?: string } } | null) : null;
+    const c = typeof data?.error === 'string' ? data.error : data?.error?.code;
+    return c && t.has(`errors.${c}`) ? c : 'generic';
   }
 
   async function addField(e: React.FormEvent) {
     e.preventDefault();
-    if (!initial) return;
-    setBusy(true);
-    setError(null);
-    const name = newField.name
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9_]/g, '_')
-      .replace(/_+/g, '_');
+    const label = newField.label.trim();
+    if (!label) return;
     const options =
       newField.type === 'select'
         ? newField.optionsText
-            .split(',')
+            .split(/[\n,]/)
             .map((o) => o.trim())
             .filter(Boolean)
         : undefined;
+    if (newField.type === 'select' && (!options || options.length < 2)) {
+      setError(t('routing.optionsRequired'));
+      return;
+    }
+    setBusy(true);
+    setError(null);
     const res = await fetch(`/api/calendar/routing/${initial.id}/fields`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        name,
-        label: newField.label.trim(),
+        name: fieldKeyFromLabel(label, fields.map((f) => f.name)),
+        label,
         type: newField.type,
         options,
         required: newField.required,
@@ -138,28 +100,24 @@ export default function RoutingFormEditor({ initial, eventTypes, locale }: Routi
     if (res && res.status === 201) {
       const field = (await res.json()) as RoutingFieldWithOptions;
       setFields((prev) => [...prev, field]);
-      setNewField(emptyNewField());
+      setNewField(emptyField());
       return;
     }
-    const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
-    showError(data?.error ?? 'generic');
+    setError(t(`errors.${await code(res)}`));
   }
 
   async function removeField(fieldId: string) {
-    if (!initial) return;
-    const res = await fetch(`/api/calendar/routing/${initial.id}/fields/${fieldId}`, {
-      method: 'DELETE',
-    }).catch(() => null);
+    const res = await fetch(`/api/calendar/routing/${initial.id}/fields/${fieldId}`, { method: 'DELETE' }).catch(() => null);
     if (res && res.status === 204) {
       setFields((prev) => prev.filter((f) => f.id !== fieldId));
       // Las reglas que apuntaban al field caen en cascada en el server.
       setRules((prev) => prev.filter((r) => r.field_id !== fieldId));
-    }
+    } else setError(t('errors.generic'));
   }
 
   async function addRule(e: React.FormEvent) {
     e.preventDefault();
-    if (!initial || !newRule.fieldId || !newRule.eventTypeId) return;
+    if (!newRule.fieldId || !newRule.eventTypeId) return;
     setBusy(true);
     setError(null);
     const res = await fetch(`/api/calendar/routing/${initial.id}/rules`, {
@@ -176,169 +134,156 @@ export default function RoutingFormEditor({ initial, eventTypes, locale }: Routi
     if (res && res.status === 201) {
       const rule = (await res.json()) as CalendarRoutingRuleRow;
       setRules((prev) => [...prev, rule]);
-      setNewRule({ fieldId: '', operator: 'is', value: '', eventTypeId: '' });
+      setNewRule(emptyRule());
       return;
     }
-    const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
-    showError(data?.error ?? 'generic');
+    setError(t(`errors.${await code(res)}`));
   }
 
   async function removeRule(ruleId: string) {
-    if (!initial) return;
-    const res = await fetch(`/api/calendar/routing/${initial.id}/rules/${ruleId}`, {
-      method: 'DELETE',
+    const res = await fetch(`/api/calendar/routing/${initial.id}/rules/${ruleId}`, { method: 'DELETE' }).catch(() => null);
+    if (res && res.status === 204) setRules((prev) => prev.filter((r) => r.id !== ruleId));
+    else setError(t('errors.generic'));
+  }
+
+  async function saveDefault(next: string) {
+    setDefaultEventTypeId(next);
+    setDefaultSaved(false);
+    const res = await fetch(`/api/calendar/routing/${initial.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ defaultEventTypeId: next || null }),
     }).catch(() => null);
-    if (res && res.status === 204) {
-      setRules((prev) => prev.filter((r) => r.id !== ruleId));
+    if (res && res.ok) setDefaultSaved(true);
+    else setError(t('errors.generic'));
+  }
+
+  async function savePublish(fd: FormData) {
+    const nextSlug = String(fd.get('slug') ?? '').trim();
+    const res = await fetch(`/api/calendar/routing/${initial.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title: String(fd.get('title') ?? '').trim(),
+        description: String(fd.get('description') ?? '').trim(),
+        slug: nextSlug,
+        active: fd.get('active') === 'on',
+      }),
+    }).catch(() => null);
+    if (res && res.ok) {
+      setSavedSlug(nextSlug);
+      router.refresh();
+      return;
     }
+    return t(`errors.${await code(res)}`);
   }
 
-  async function copyPublicLink() {
-    const url = `${window.location.origin}/${locale}/r/${values.slug}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* sin clipboard API: no se copia */
-    }
-  }
-
-  function fieldLabel(fieldId: string): string {
-    return fields.find((f) => f.id === fieldId)?.label ?? '—';
-  }
-
-  function eventTypeTitle(id: string): string {
-    return eventTypes.find((et) => et.id === id)?.title ?? '—';
-  }
-
+  const fieldLabel = (id: string) => fields.find((f) => f.id === id)?.label ?? '?';
+  const eventTitle = (id: string) => eventTypes.find((et) => et.id === id)?.title ?? '?';
   const ruleField = fields.find((f) => f.id === newRule.fieldId);
+  const publicUrl = `${publicBase}${savedSlug}`;
+  const idFor = (k: string) => `${baseId}-${k}`;
+
+  function onStepKey(e: KeyboardEvent<HTMLButtonElement>, from: Step) {
+    const i = STEPS.indexOf(from);
+    const map: Record<string, number> = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: STEPS.length - 1 };
+    if (!(e.key in map)) return;
+    e.preventDefault();
+    const next = STEPS[(map[e.key] + STEPS.length) % STEPS.length];
+    setStep(next);
+    stepRefs.current[next]?.focus();
+  }
+
+  const stepMeta: Record<Step, { label: string; hint: string }> = {
+    questions: { label: t('routing.stepQuestions'), hint: t('routing.nQuestions', { n: fields.length }) },
+    rules: { label: t('routing.stepRules'), hint: t('routing.nRules', { n: rules.length }) },
+    publish: { label: t('routing.stepPublish'), hint: initial.active ? t('routing.live') : t('routing.inactive') },
+  };
 
   return (
-    <div className="calendar-form">
-      <form className="calendar-form" onSubmit={onSubmitBasics}>
-        <div className="form-grid">
-          <label className="field">
-            <span className="prop-label">{t('form.title')}</span>
-            <input
-              className="input"
-              value={values.title}
-              onChange={(e) => setValues((v) => ({ ...v, title: e.target.value }))}
-              required
-            />
-          </label>
-          <label className="field">
-            <span className="prop-label">{t('form.slug')}</span>
-            <input
-              className="input mono"
-              value={values.slug}
-              onChange={(e) => setValues((v) => ({ ...v, slug: e.target.value }))}
-              pattern="[a-z0-9\-]+"
-              required
-              placeholder="sales-or-support"
-            />
-          </label>
-        </div>
-
-        <label className="field">
-          <span className="prop-label">{t('form.description')}</span>
-          <textarea
-            className="input textarea"
-            rows={3}
-            value={values.description}
-            onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
-          />
-        </label>
-
-        <div className="form-grid">
-          <label className="field">
-            <span className="prop-label">{t('routing.defaultEventType')}</span>
-            <select
-              className="select"
-              value={values.defaultEventTypeId}
-              onChange={(e) => setValues((v) => ({ ...v, defaultEventTypeId: e.target.value }))}
-            >
-              <option value="">{t('routing.noDefault')}</option>
-              {eventTypes.map((et) => (
-                <option key={et.id} value={et.id}>
-                  {et.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field checkbox-field">
-            <input
-              type="checkbox"
-              checked={values.active}
-              onChange={(e) => setValues((v) => ({ ...v, active: e.target.checked }))}
-            />
-            <span className="prop-label">{t('form.active')}</span>
-          </label>
-        </div>
-
-        {initial && (
-          <div className="field">
-            <span className="prop-label">{t('routing.publicLink')}</span>
-            <div className="routing-link-row">
-              <span className="mono muted">/{locale}/r/{values.slug}</span>
-              <button type="button" className="btn btn-ghost btn-small" onClick={copyPublicLink}>
-                {copied ? t('routing.copied') : t('routing.copy')}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {error && <p className="form-error">{error}</p>}
-
-        <div className="form-actions">
-          <button type="submit" className="btn btn-solid" disabled={busy}>
-            {busy ? t('common.saving') : initial ? t('common.save') : t('common.create')}
+    <div className="ui-page">
+      <div className="cal-stepper" role="tablist" aria-label={t('routing.steps')}>
+        {STEPS.map((s, i) => (
+          <button
+            key={s}
+            ref={(el) => {
+              stepRefs.current[s] = el;
+            }}
+            type="button"
+            role="tab"
+            id={idFor(`tab-${s}`)}
+            aria-selected={step === s}
+            aria-controls={idFor(`panel-${s}`)}
+            tabIndex={step === s ? 0 : -1}
+            className="cal-stop"
+            data-done={STEPS.indexOf(step) > i || undefined}
+            onClick={() => setStep(s)}
+            onKeyDown={(e) => onStepKey(e, s)}
+          >
+            <span className="cal-stop-station" aria-hidden="true" />
+            <span className="cal-stop-text">
+              <span className="cal-stop-label">{stepMeta[s].label}</span>
+              <span className="cal-stop-hint">{stepMeta[s].hint}</span>
+            </span>
           </button>
-        </div>
-      </form>
+        ))}
+      </div>
 
-      {initial && (
-        <>
-          <section className="panel fields-panel">
-            <p className="section-label">{t('routing.fields')}</p>
-            {fields.length === 0 ? (
-              <p className="muted">{t('routing.noFields')}</p>
-            ) : (
-              <div className="custom-fields">
-                {fields.map((f) => (
-                  <div key={f.id} className="routing-field-row">
-                    <span className="routing-field-label">{f.label}</span>
-                    <span className="mono calendar-event-slug">{f.name}</span>
-                    <span className="badge">{t(`routing.fieldType${f.type === 'select' ? 'Select' : f.type === 'boolean' ? 'Boolean' : 'Text'}`)}</span>
-                    {f.required === 1 && <span className="badge">{t('form.fieldRequired')}</span>}
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-small"
-                      onClick={() => removeField(f.id)}
-                    >
-                      {t('common.remove')}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+      {error && (
+        <p className="ui-error" role="alert">
+          {error}
+        </p>
+      )}
 
-            <form className="routing-add-form" onSubmit={addField}>
+      {/* ---------- Preguntas ---------- */}
+      <div id={idFor('panel-questions')} role="tabpanel" aria-labelledby={idFor('tab-questions')} hidden={step !== 'questions'} className="cal-route-panel">
+        <FormSection title={t('routing.fields')} description={t('routing.fieldsLead')}>
+          {fields.length === 0 ? (
+            <p className="cal-muted">{t('routing.noFields')}</p>
+          ) : (
+            <ol className="cal-route-list">
+              {fields.map((f) => (
+                <li key={f.id}>
+                  <span className="cal-route-main">
+                    <strong>{f.label}</strong>
+                    <span className="cal-muted">
+                      {t(`routing.fieldType${f.type === 'select' ? 'Select' : f.type === 'boolean' ? 'Boolean' : 'Text'}`)}
+                      {f.type === 'select' && f.optionsParsed.length > 0 && `: ${f.optionsParsed.join(', ')}`}
+                    </span>
+                  </span>
+                  {f.required === 1 && <span className="badge">{t('form.fieldRequired')}</span>}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon btn-sm"
+                    aria-label={t('routing.removeQuestion', { label: f.label })}
+                    title={t('common.remove')}
+                    onClick={() => removeField(f.id)}
+                  >
+                    <CalIcon name="trash" />
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+          <form className="cal-route-add" onSubmit={addField}>
+            <div className="ui-field cal-route-grow">
+              <label className="label" htmlFor={idFor('flabel')}>
+                {t('routing.newQuestion')}
+              </label>
               <input
+                id={idFor('flabel')}
                 className="input"
-                placeholder={t('form.fieldLabel')}
                 value={newField.label}
+                placeholder={t('routing.questionPlaceholder')}
                 onChange={(e) => setNewField((v) => ({ ...v, label: e.target.value }))}
-                required
               />
-              <input
-                className="input mono"
-                placeholder={t('form.fieldName')}
-                value={newField.name}
-                onChange={(e) => setNewField((v) => ({ ...v, name: e.target.value }))}
-                required
-              />
+            </div>
+            <div className="ui-field">
+              <label className="label" htmlFor={idFor('ftype')}>
+                {t('editor.answerType')}
+              </label>
               <select
+                id={idFor('ftype')}
                 className="select"
                 value={newField.type}
                 onChange={(e) => setNewField((v) => ({ ...v, type: e.target.value as FieldType }))}
@@ -347,153 +292,263 @@ export default function RoutingFormEditor({ initial, eventTypes, locale }: Routi
                 <option value="select">{t('routing.fieldTypeSelect')}</option>
                 <option value="boolean">{t('routing.fieldTypeBoolean')}</option>
               </select>
-              {newField.type === 'select' && (
+            </div>
+            {newField.type === 'select' && (
+              <div className="ui-field cal-route-full">
+                <label className="label" htmlFor={idFor('fopts')}>
+                  {t('routing.fieldOptions')}
+                </label>
                 <input
+                  id={idFor('fopts')}
                   className="input"
-                  placeholder={t('routing.fieldOptions')}
                   value={newField.optionsText}
+                  placeholder={t('routing.optionsPlaceholder')}
                   onChange={(e) => setNewField((v) => ({ ...v, optionsText: e.target.value }))}
-                  required
                 />
-              )}
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={newField.required}
-                  onChange={(e) => setNewField((v) => ({ ...v, required: e.target.checked }))}
-                />
-                <span>{t('form.fieldRequired')}</span>
-              </label>
-              <button type="submit" className="btn btn-small" disabled={busy}>
-                {t('routing.addField')}
-              </button>
-            </form>
-          </section>
+              </div>
+            )}
+            <label className="ui-check cal-route-check">
+              <input type="checkbox" checked={newField.required} onChange={(e) => setNewField((v) => ({ ...v, required: e.target.checked }))} />
+              <span>{t('form.fieldRequired')}</span>
+            </label>
+            <button type="submit" className="btn" aria-busy={busy || undefined} disabled={!newField.label.trim()}>
+              <CalIcon name="plus" />
+              {t('routing.addField')}
+            </button>
+          </form>
+          <p className="ui-help">{t('routing.prefillHint')}</p>
+        </FormSection>
+        <div className="cal-step-next">
+          <button type="button" className="btn btn-primary" onClick={() => setStep('rules')} disabled={fields.length === 0}>
+            {t('routing.nextRules')}
+            <CalIcon name="next" />
+          </button>
+        </div>
+      </div>
 
-          <section className="panel rules-panel">
-            <p className="section-label">{t('routing.rules')}</p>
-            <p className="muted hosts-help">{t('routing.rulesHelp')}</p>
+      {/* ---------- Reglas ---------- */}
+      <div id={idFor('panel-rules')} role="tabpanel" aria-labelledby={idFor('tab-rules')} hidden={step !== 'rules'} className="cal-route-panel">
+        {eventTypes.length === 0 ? (
+          <EmptyState
+            title={t('routing.noEventTypesTitle')}
+            body={t('routing.noEventTypesBody')}
+            action={{ label: t('eventTypes.newCta'), href: '/app/calendar/event-types?new=1' }}
+          />
+        ) : (
+          <FormSection title={t('routing.rules')} description={t('routing.rulesHelp')}>
             {rules.length === 0 ? (
-              <p className="muted">{t('routing.noRules')}</p>
+              <p className="cal-muted">{t('routing.noRules')}</p>
             ) : (
-              <div className="custom-fields">
+              <ol className="cal-route-list">
                 {rules.map((r) => (
-                  <div key={r.id} className="routing-rule-row">
-                    <span className="routing-rule-text">
-                      {fieldLabel(r.field_id)}
-                      {' '}
-                      <span className="mono">{t(`routing.${OP_LABEL_KEY[r.operator]}`)}</span>
+                  <li key={r.id}>
+                    <span className="cal-route-main cal-rule-text">
+                      <span className="cal-muted">{t('routing.if')}</span> <strong>{fieldLabel(r.field_id)}</strong>{' '}
+                      {t(`routing.${OP_LABEL_KEY[r.operator]}`)}
                       {r.operator !== 'truthy' && r.value && (
                         <>
                           {' '}
-                          <span className="mono">“{r.value}”</span>
+                          <strong>{r.value}</strong>
                         </>
                       )}
-                      {' → '}
-                      {eventTypeTitle(r.event_type_id)}
+                      <CalIcon name="next" />
+                      <strong>{eventTitle(r.event_type_id)}</strong>
                     </span>
                     <button
                       type="button"
-                      className="btn btn-ghost btn-small"
+                      className="btn btn-ghost btn-icon btn-sm"
+                      aria-label={t('routing.removeRule')}
+                      title={t('common.remove')}
                       onClick={() => removeRule(r.id)}
                     >
-                      {t('common.remove')}
+                      <CalIcon name="trash" />
                     </button>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ol>
             )}
-
-            {fields.length > 0 && eventTypes.length > 0 && (
-              <form className="routing-add-form" onSubmit={addRule}>
-                <select
-                  className="select"
-                  value={newRule.fieldId}
-                  onChange={(e) => setNewRule((v) => ({ ...v, fieldId: e.target.value, value: '' }))}
-                  required
-                >
-                  <option value="" disabled>
-                    {t('routing.ruleField')}
-                  </option>
-                  {fields.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.label}
+            {fields.length === 0 ? (
+              <p className="ui-help">{t('routing.rulesNeedQuestions')}</p>
+            ) : (
+              <form className="cal-route-add" onSubmit={addRule}>
+                <div className="ui-field">
+                  <label className="label" htmlFor={idFor('rfield')}>
+                    {t('routing.if')}
+                  </label>
+                  <select
+                    id={idFor('rfield')}
+                    className="select"
+                    value={newRule.fieldId}
+                    onChange={(e) => setNewRule((v) => ({ ...v, fieldId: e.target.value, value: '' }))}
+                  >
+                    <option value="" disabled>
+                      {t('routing.ruleField')}
                     </option>
-                  ))}
-                </select>
-                <select
-                  className="select"
-                  value={newRule.operator}
-                  onChange={(e) => setNewRule((v) => ({ ...v, operator: e.target.value as RuleOperator }))}
-                >
-                  {OPERATORS.map((op) => (
-                    <option key={op} value={op}>
-                      {t(`routing.${OP_LABEL_KEY[op]}`)}
-                    </option>
-                  ))}
-                </select>
-                {newRule.operator !== 'truthy' &&
-                  (ruleField?.type === 'select' ? (
-                    <select
-                      className="select"
-                      value={newRule.value}
-                      onChange={(e) => setNewRule((v) => ({ ...v, value: e.target.value }))}
-                      required
-                    >
-                      <option value="" disabled>
-                        {t('routing.ruleValue')}
+                    {fields.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.label}
                       </option>
-                      {ruleField.optionsParsed.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
+                    ))}
+                  </select>
+                </div>
+                <div className="ui-field">
+                  <label className="label" htmlFor={idFor('rop')}>
+                    {t('routing.condition')}
+                  </label>
+                  <select
+                    id={idFor('rop')}
+                    className="select"
+                    value={newRule.operator}
+                    onChange={(e) => setNewRule((v) => ({ ...v, operator: e.target.value as RuleOperator }))}
+                  >
+                    {OPERATORS.map((op) => (
+                      <option key={op} value={op}>
+                        {t(`routing.${OP_LABEL_KEY[op]}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {newRule.operator !== 'truthy' && (
+                  <div className="ui-field">
+                    <label className="label" htmlFor={idFor('rval')}>
+                      {t('routing.ruleValue')}
+                    </label>
+                    {ruleField?.type === 'select' || ruleField?.type === 'boolean' ? (
+                      <select
+                        id={idFor('rval')}
+                        className="select"
+                        value={newRule.value}
+                        onChange={(e) => setNewRule((v) => ({ ...v, value: e.target.value }))}
+                      >
+                        <option value="" disabled>
+                          {t('routing.choose')}
                         </option>
-                      ))}
-                    </select>
-                  ) : ruleField?.type === 'boolean' ? (
-                    <select
-                      className="select"
-                      value={newRule.value}
-                      onChange={(e) => setNewRule((v) => ({ ...v, value: e.target.value }))}
-                      required
-                    >
-                      <option value="" disabled>
-                        {t('routing.ruleValue')}
-                      </option>
-                      <option value="true">{t('routing.valueTrue')}</option>
-                      <option value="false">{t('routing.valueFalse')}</option>
-                    </select>
-                  ) : (
-                    <input
-                      className="input"
-                      placeholder={t('routing.ruleValue')}
-                      value={newRule.value}
-                      onChange={(e) => setNewRule((v) => ({ ...v, value: e.target.value }))}
-                      required
-                    />
-                  ))}
-                <select
-                  className="select"
-                  value={newRule.eventTypeId}
-                  onChange={(e) => setNewRule((v) => ({ ...v, eventTypeId: e.target.value }))}
-                  required
-                >
-                  <option value="" disabled>
+                        {ruleField.type === 'select' ? (
+                          ruleField.optionsParsed.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))
+                        ) : (
+                          <>
+                            <option value="true">{t('routing.valueTrue')}</option>
+                            <option value="false">{t('routing.valueFalse')}</option>
+                          </>
+                        )}
+                      </select>
+                    ) : (
+                      <input id={idFor('rval')} className="input" value={newRule.value} onChange={(e) => setNewRule((v) => ({ ...v, value: e.target.value }))} />
+                    )}
+                  </div>
+                )}
+                <div className="ui-field">
+                  <label className="label" htmlFor={idFor('rtarget')}>
                     {t('routing.ruleTarget')}
-                  </option>
-                  {eventTypes.map((et) => (
-                    <option key={et.id} value={et.id}>
-                      {et.title}
+                  </label>
+                  <select
+                    id={idFor('rtarget')}
+                    className="select"
+                    value={newRule.eventTypeId}
+                    onChange={(e) => setNewRule((v) => ({ ...v, eventTypeId: e.target.value }))}
+                  >
+                    <option value="" disabled>
+                      {t('routing.choose')}
                     </option>
-                  ))}
-                </select>
-                <button type="submit" className="btn btn-small" disabled={busy}>
+                    {eventTypes.map((et) => (
+                      <option key={et.id} value={et.id}>
+                        {et.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  className="btn"
+                  aria-busy={busy || undefined}
+                  disabled={!newRule.fieldId || !newRule.eventTypeId || (newRule.operator !== 'truthy' && !newRule.value.trim())}
+                >
+                  <CalIcon name="plus" />
                   {t('routing.addRule')}
                 </button>
               </form>
             )}
-          </section>
-        </>
-      )}
+            <div className="ui-field cal-route-default">
+              <label className="label" htmlFor={idFor('default')}>
+                {t('routing.defaultEventType')}
+              </label>
+              <select id={idFor('default')} className="select" value={defaultEventTypeId} onChange={(e) => void saveDefault(e.target.value)}>
+                <option value="">{t('routing.noDefault')}</option>
+                {eventTypes.map((et) => (
+                  <option key={et.id} value={et.id}>
+                    {et.title}
+                  </option>
+                ))}
+              </select>
+              <p className="ui-help" role="status">
+                {defaultSaved ? t('editor.saved') : t('routing.defaultHelp')}
+              </p>
+            </div>
+          </FormSection>
+        )}
+        <div className="cal-step-next">
+          <button type="button" className="btn btn-ghost" onClick={() => setStep('questions')}>
+            <CalIcon name="prev" />
+            {t('routing.stepQuestions')}
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => setStep('publish')}>
+            {t('routing.nextPublish')}
+            <CalIcon name="next" />
+          </button>
+        </div>
+      </div>
+
+      {/* ---------- Publicar ---------- */}
+      <div id={idFor('panel-publish')} role="tabpanel" aria-labelledby={idFor('tab-publish')} hidden={step !== 'publish'} className="cal-route-panel">
+        <FormSection title={t('routing.stepPublish')} description={t('routing.publishLead')} onSubmit={savePublish} submitLabel={t('editor.save')}>
+          <div className="ui-field">
+            <label className="label" htmlFor={idFor('title')}>
+              {t('form.title')}
+            </label>
+            <input id={idFor('title')} name="title" className="input" defaultValue={initial.title} required maxLength={200} />
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor={idFor('desc')}>
+              {t('form.description')} <span className="ui-optional">{t('editor.optional')}</span>
+            </label>
+            <textarea id={idFor('desc')} name="description" className="textarea" rows={2} defaultValue={initial.description ?? ''} />
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor={idFor('slug')}>
+              {t('editor.link')}
+            </label>
+            <div className="ui-input-group">
+              <span className="ui-addon">{publicBase.replace(/^https?:\/\/[^/]+/, '')}</span>
+              <input
+                id={idFor('slug')}
+                name="slug"
+                className="input data"
+                value={slug}
+                pattern="[a-z0-9\-]+"
+                required
+                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+              />
+            </div>
+            <p className="ui-help">{slug !== savedSlug ? t('editor.slugWarning') : t('routing.slugHelp')}</p>
+          </div>
+          <label className="ui-switch">
+            <input type="checkbox" role="switch" name="active" defaultChecked={initial.active === 1} />
+            <span>{t('routing.activeLabel')}</span>
+          </label>
+          <div className="cal-share-url">
+            <span className="data">{publicUrl}</span>
+            <CalCopyButton text={publicUrl} />
+            <a className="btn btn-sm btn-ghost" href={publicUrl} target="_blank" rel="noreferrer">
+              <CalIcon name="external" />
+              {t('routing.openForm')}
+            </a>
+          </div>
+        </FormSection>
+      </div>
     </div>
   );
 }

@@ -1,8 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import CopyButton from '@/components/link/CopyButton';
+import FormSection from '@/components/ui/FormSection';
+import CalCopyButton from './CalCopyButton';
+import { brandOr, formatTimezone, safeLogo, textOn } from './cal-utils';
 
 export interface CalendarSettingsValues {
   handle: string;
@@ -12,22 +14,36 @@ export interface CalendarSettingsValues {
   bufferAfterMin: number;
   minNoticeHours: number;
   maxBookingDays: number;
+  /** Marca del workspace ('' = sin valor). */
+  brandColor: string;
+  logoUrl: string;
+  displayName: string;
 }
 
 interface Props {
   initial: CalendarSettingsValues;
+  /** Nombre de la cuenta: el que se usa si no hay nombre visible. */
+  accountName: string;
   origin: string;
   locale: string;
   canEditHandle: boolean;
 }
 
-/** Configuración de Cal: link público (handle), zona horaria y reglas por defecto. */
-export default function CalendarSettingsForm({ initial, origin, locale, canEditHandle }: Props) {
+/**
+ * Perfil de Cal: el link público (handle), la marca del workspace que llevan
+ * todas las páginas públicas y, aparte, la zona horaria y los límites que usan
+ * los tipos de evento que no definen los suyos. Cada bloque tiene su Guardar.
+ */
+export default function CalendarSettingsForm({ initial, accountName, origin, locale, canEditHandle }: Props) {
   const t = useTranslations('calendar');
-  const [values, setValues] = useState(initial);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const id = useId();
+  const [handle, setHandle] = useState(initial.handle);
+  const [brandColor, setBrandColor] = useState(initial.brandColor);
+  const [logoUrl, setLogoUrl] = useState(initial.logoUrl);
+  const [displayName, setDisplayName] = useState(initial.displayName);
+  const shownColor = brandOr(brandColor, '#111111');
+  const shownName = displayName.trim() || accountName;
+  const shownLogo = safeLogo(logoUrl);
 
   const timezones = useMemo(() => {
     try {
@@ -37,114 +53,205 @@ export default function CalendarSettingsForm({ initial, origin, locale, canEditH
     }
   }, [initial.timezone]);
 
-  const publicBase = `${origin}/${locale}/book/${values.handle}`;
-
-  function setNum(key: keyof CalendarSettingsValues) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setValues((v) => ({ ...v, [key]: Number(e.target.value) }));
-  }
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    setSaved(false);
+  async function post(body: Record<string, unknown>) {
     const res = await fetch('/api/calendar/config', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(canEditHandle ? values : { ...values, handle: undefined }),
+      body: JSON.stringify(body),
     }).catch(() => null);
-    setBusy(false);
-    if (res?.ok) {
-      setSaved(true);
-      return;
-    }
+    if (res?.ok) return;
     const data = res ? ((await res.json().catch(() => null)) as { error?: string | { code?: string } } | null) : null;
     const code = typeof data?.error === 'string' ? data.error : data?.error?.code;
-    setError(
-      code === 'handle_taken'
-        ? t('settings.handleTaken')
-        : code === 'invalid_handle'
-          ? t('settings.handleInvalid')
-          : t('errors.generic'),
-    );
+    return code === 'handle_taken'
+      ? t('settings.handleTaken')
+      : code === 'invalid_handle'
+        ? t('settings.handleInvalid')
+        : code === 'invalid_timezone'
+          ? t('settings.timezoneInvalid')
+          : code === 'forbidden'
+            ? t('payments.adminOnly')
+            : t('errors.generic');
   }
 
-  return (
-    <form className="calendar-form" onSubmit={onSubmit}>
-      <section className="panel">
-        <p className="section-label">{t('settings.publicLink')}</p>
-        <label className="field">
-          <span className="prop-label">{t('settings.handle')}</span>
-          <input
-            className="input mono"
-            value={values.handle}
-            onChange={(e) => setValues((v) => ({ ...v, handle: e.target.value.toLowerCase() }))}
-            pattern="[a-z0-9][a-z0-9\-]{1,30}[a-z0-9]"
-            disabled={!canEditHandle}
-            required
-          />
-        </label>
-        <p className="muted">{t('settings.handleHint')}</p>
-        <div className="calendar-public-link">
-          <span className="mono">{publicBase}/…</span>
-          <CopyButton text={publicBase} />
-        </div>
-      </section>
+  const publicBase = `${origin}/${locale}/book/${handle}`;
+  const num = (fd: FormData, k: string, min: number) => Math.max(min, Math.round(Number(fd.get(k)) || 0));
 
-      <section className="panel">
-        <p className="section-label">{t('settings.defaults')}</p>
-        <div className="form-grid">
-          <label className="field">
-            <span className="prop-label">{t('overview.timezone')}</span>
+  return (
+    <>
+      <FormSection
+        title={t('settings.publicLink')}
+        description={t('settings.handleHint')}
+        onSubmit={canEditHandle ? () => post({ handle }) : undefined}
+        footer={canEditHandle ? undefined : <p className="ui-section-note">{t('payments.adminOnly')}</p>}
+      >
+        <div className="ui-field">
+          <label className="label" htmlFor={`${id}-handle`}>
+            {t('settings.handle')}
+          </label>
+          <div className="ui-input-group">
+            <span className="ui-addon">/{locale}/book/</span>
             <input
-              className="input"
-              list="zs-cal-timezones"
-              value={values.timezone}
-              onChange={(e) => setValues((v) => ({ ...v, timezone: e.target.value }))}
+              id={`${id}-handle`}
+              className="input data"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+              minLength={3}
+              maxLength={32}
+              disabled={!canEditHandle}
               required
             />
-            <datalist id="zs-cal-timezones">
-              {timezones.map((tz) => (
-                <option key={tz} value={tz} />
+          </div>
+        </div>
+        <div className="cal-share-url">
+          <span className="data">{publicBase}</span>
+          <CalCopyButton text={publicBase} />
+        </div>
+      </FormSection>
+
+      <FormSection
+        title={t('settings.brandTitle')}
+        description={t('settings.brandLead')}
+        onSubmit={
+          canEditHandle
+            ? () => {
+                if (logoUrl.trim() && !safeLogo(logoUrl)) return t('editor.logoInvalid');
+                return post({ brandColor: brandColor || null, logoUrl: logoUrl.trim() || null, displayName: displayName.trim() || null });
+              }
+            : undefined
+        }
+        footer={canEditHandle ? undefined : <p className="ui-section-note">{t('payments.adminOnly')}</p>}
+      >
+        <div className="cal-brand">
+          <div className="cal-brand-fields">
+            <div className="ui-field">
+              <label className="label" htmlFor={`${id}-name`}>
+                {t('settings.displayName')}
+              </label>
+              <input
+                id={`${id}-name`}
+                className="input"
+                value={displayName}
+                maxLength={80}
+                placeholder={accountName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                disabled={!canEditHandle}
+              />
+            </div>
+            <div className="ui-field">
+              <label className="label" htmlFor={`${id}-color`}>
+                {t('form.brandColor')}
+              </label>
+              <div className="cal-color">
+                <input
+                  id={`${id}-color`}
+                  type="color"
+                  className="cal-color-input"
+                  value={shownColor}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  disabled={!canEditHandle}
+                />
+                {brandColor ? <span className="data">{shownColor.toUpperCase()}</span> : <span className="cal-muted">{t('settings.noColor')}</span>}
+                {brandColor && canEditHandle && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBrandColor('')}>
+                    {t('settings.clearColor')}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="ui-field">
+              <label className="label" htmlFor={`${id}-logo`}>
+                {t('form.logoUrl')} <span className="ui-optional">{t('editor.optional')}</span>
+              </label>
+              <input
+                id={`${id}-logo`}
+                className="input data"
+                value={logoUrl}
+                placeholder="https://…/logo.svg"
+                onChange={(e) => setLogoUrl(e.target.value)}
+                disabled={!canEditHandle}
+              />
+              <p className="ui-help">{t('settings.logoHelp')}</p>
+            </div>
+          </div>
+          <figure className="cal-brand-sample" style={{ borderTopColor: shownColor }}>
+            <figcaption className="cal-brand-sample-cap">{t('editor.preview')}</figcaption>
+            <div className="cal-brand-sample-host">
+              {shownLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={shownLogo} alt="" className="cal-brand-sample-logo" />
+              ) : (
+                <span className="cal-brand-sample-mono" style={{ background: shownColor, color: textOn(shownColor) }} aria-hidden="true">
+                  {shownName.trim().slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              <span className="cal-brand-sample-name">{shownName}</span>
+            </div>
+            <span className="cal-brand-preview" style={{ background: shownColor, color: textOn(shownColor) }}>
+              {t('booking.confirm')}
+            </span>
+          </figure>
+        </div>
+      </FormSection>
+
+      <FormSection
+        title={t('settings.defaults')}
+        description={t('settings.defaultsLead')}
+        onSubmit={(fd) =>
+          post({
+            timezone: String(fd.get('timezone') ?? '').trim(),
+            weekStart: Number(fd.get('weekStart')),
+            bufferBeforeMin: num(fd, 'bufferBeforeMin', 0),
+            bufferAfterMin: num(fd, 'bufferAfterMin', 0),
+            minNoticeHours: num(fd, 'minNoticeHours', 0),
+            maxBookingDays: num(fd, 'maxBookingDays', 1),
+          })
+        }
+      >
+        <div className="ui-fields-2">
+          <div className="ui-field">
+            <label className="label" htmlFor={`${id}-tz`}>
+              {t('overview.timezone')}
+            </label>
+            <select id={`${id}-tz`} name="timezone" className="select" defaultValue={initial.timezone}>
+              {(timezones.includes(initial.timezone) ? timezones : [initial.timezone, ...timezones]).map((tz) => (
+                <option key={tz} value={tz}>
+                  {formatTimezone(tz, locale)}
+                </option>
               ))}
-            </datalist>
-          </label>
-          <label className="field">
-            <span className="prop-label">{t('settings.weekStart')}</span>
-            <select className="input" value={values.weekStart} onChange={setNum('weekStart')}>
+            </select>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor={`${id}-week`}>
+              {t('settings.weekStart')}
+            </label>
+            <select id={`${id}-week`} name="weekStart" className="select" defaultValue={initial.weekStart}>
               {[1, 0, 6].map((d) => (
                 <option key={d} value={d}>
                   {t(`availability.day.${d}`)}
                 </option>
               ))}
             </select>
-          </label>
-          <label className="field">
-            <span className="prop-label">{t('settings.bufferBefore')}</span>
-            <input className="input" type="number" min={0} value={values.bufferBeforeMin} onChange={setNum('bufferBeforeMin')} />
-          </label>
-          <label className="field">
-            <span className="prop-label">{t('settings.bufferAfter')}</span>
-            <input className="input" type="number" min={0} value={values.bufferAfterMin} onChange={setNum('bufferAfterMin')} />
-          </label>
-          <label className="field">
-            <span className="prop-label">{t('settings.minNotice')}</span>
-            <input className="input" type="number" min={0} value={values.minNoticeHours} onChange={setNum('minNoticeHours')} />
-          </label>
-          <label className="field">
-            <span className="prop-label">{t('settings.maxDays')}</span>
-            <input className="input" type="number" min={1} value={values.maxBookingDays} onChange={setNum('maxBookingDays')} />
-          </label>
+          </div>
+          {(
+            [
+              ['bufferBeforeMin', t('settings.bufferBefore'), 'min', 0, initial.bufferBeforeMin],
+              ['bufferAfterMin', t('settings.bufferAfter'), 'min', 0, initial.bufferAfterMin],
+              ['minNoticeHours', t('settings.minNotice'), 'h', 0, initial.minNoticeHours],
+              ['maxBookingDays', t('settings.maxDays'), t('editor.daysUnit'), 1, initial.maxBookingDays],
+            ] as Array<[string, string, string, number, number]>
+          ).map(([k, label, unit, min, value]) => (
+            <div key={k} className="ui-field">
+              <label className="label" htmlFor={`${id}-${k}`}>
+                {label}
+              </label>
+              <div className="ui-input-group">
+                <input id={`${id}-${k}`} name={k} className="input cal-num" type="number" min={min} defaultValue={value} />
+                <span className="ui-addon cal-unit">{unit}</span>
+              </div>
+            </div>
+          ))}
         </div>
-      </section>
-
-      {error && <p className="form-error">{error}</p>}
-      <div className="form-actions">
-        <button type="submit" className="btn btn-solid" disabled={busy}>
-          {busy ? t('common.saving') : saved ? t('common.saved') : t('common.save')}
-        </button>
-      </div>
-    </form>
+      </FormSection>
+    </>
   );
 }

@@ -105,7 +105,7 @@ export async function updateCalendarUser(
 ): Promise<CalendarUserRow> {
   const user = await getOrCreateCalendarUser(userId);
   const sets: string[] = [];
-  const values: (string | number)[] = [];
+  const values: (string | number | null)[] = [];
 
   if (payload.timezone !== undefined) {
     sets.push('timezone = ?');
@@ -131,6 +131,18 @@ export async function updateCalendarUser(
     sets.push('max_booking_days = ?');
     values.push(payload.maxBookingDays);
   }
+  if (payload.brandColor !== undefined) {
+    sets.push('brand_color = ?');
+    values.push(payload.brandColor || null);
+  }
+  if (payload.logoUrl !== undefined) {
+    sets.push('logo_url = ?');
+    values.push(payload.logoUrl || null);
+  }
+  if (payload.displayName !== undefined) {
+    sets.push('display_name = ?');
+    values.push(payload.displayName || null);
+  }
   if (sets.length === 0) return user;
 
   sets.push('updated_at = ?');
@@ -151,6 +163,33 @@ export async function updateCalendarUser(
       .run(payload.timezone, now(), userId, user.timezone);
   }
   return (await getDb().prepare('SELECT * FROM calendar_users WHERE id = ?').get(user.id)) as CalendarUserRow;
+}
+
+/** Marca del workspace para las páginas públicas: color, logo y nombre visible. */
+export interface WorkspaceBrand {
+  color: string | null;
+  logoUrl: string | null;
+  name: string;
+}
+
+/**
+ * Marca del workspace (Ajustes > Perfil). El nombre cae al de la cuenta y
+ * después al handle; el color y el logo pueden faltar.
+ */
+export async function getWorkspaceBrand(userId: string): Promise<WorkspaceBrand> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT u.name, u.handle, c.brand_color, c.logo_url, c.display_name
+       FROM users u LEFT JOIN calendar_users c ON c.user_id = u.id WHERE u.id = ?`,
+    )
+    .get(userId)) as
+    | { name: string | null; handle: string | null; brand_color: string | null; logo_url: string | null; display_name: string | null }
+    | undefined;
+  return {
+    color: row?.brand_color && /^#[0-9a-f]{6}$/i.test(row.brand_color) ? row.brand_color : null,
+    logoUrl: row?.logo_url && /^(https?:\/\/|\/)/.test(row.logo_url) ? row.logo_url : null,
+    name: row?.display_name?.trim() || row?.name?.trim() || row?.handle || '',
+  };
 }
 
 // ---------- Event types ----------
@@ -217,14 +256,16 @@ export async function getEventTypeByHandle(
  */
 export async function getPublicProfile(
   handle: string,
-): Promise<{ name: string; handle: string; eventTypes: EventTypeWithRules[] } | null> {
+): Promise<{ name: string; handle: string; brand: WorkspaceBrand; eventTypes: EventTypeWithRules[] } | null> {
   const user = (await getDb()
     .prepare('SELECT id, name, email, handle FROM users WHERE handle = ?')
     .get(handle.toLowerCase())) as { id: string; name: string | null; email: string; handle: string } | undefined;
   if (!user) return null;
+  const brand = await getWorkspaceBrand(user.id);
   return {
-    name: user.name || user.handle,
+    name: brand.name || user.handle,
     handle: user.handle,
+    brand,
     eventTypes: (await listEventTypes(user.id, { activeOnly: true })).filter((e) => e.single_use !== 1),
   };
 }
@@ -679,6 +720,19 @@ export async function countBookingsThisWeek(userId: string): Promise<number> {
        WHERE e.user_id = ? AND b.status = 'confirmed' AND b.starts_at >= ? AND b.starts_at <= ?`,
     )
     .get(userId, start, end)) as { c: number } | undefined;
+  return Number(row?.c ?? 0);
+}
+
+/** Reservas confirmadas que empiezan en los próximos `days` días. */
+export async function countUpcomingBookings(userId: string, days = 7, from = new Date()): Promise<number> {
+  const end = new Date(from.getTime() + days * 86_400_000);
+  const row = (await getDb()
+    .prepare(
+      `SELECT COUNT(*) AS c FROM calendar_bookings b
+       JOIN calendar_event_types e ON e.id = b.event_type_id
+       WHERE e.user_id = ? AND b.status = 'confirmed' AND b.starts_at >= ? AND b.starts_at < ?`,
+    )
+    .get(userId, from.toISOString(), end.toISOString())) as { c: number } | undefined;
   return Number(row?.c ?? 0);
 }
 

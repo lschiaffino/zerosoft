@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import CalIcon from './cal-icons';
 
 interface CalDeleteButtonProps {
   /** Endpoint DELETE del recurso. */
@@ -17,31 +18,34 @@ export default function CalDeleteButton({ url, confirmText, redirectTo }: CalDel
   const t = useTranslations('calendar');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onClick() {
     if (!confirm(confirmText)) return;
     setBusy(true);
-    setError(false);
+    setError(null);
     const res = await fetch(url, { method: 'DELETE' }).catch(() => null);
     if (res && res.status === 204) {
       router.push(redirectTo);
       router.refresh();
       return;
     }
+    const code = ((await res?.json().catch(() => null)) as { error?: string } | null)?.error;
     setBusy(false);
-    setError(true);
+    setError(code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
   }
 
   return (
-    <button
-      type="button"
-      className="btn btn-small btn-ghost cal-delete-btn"
-      onClick={onClick}
-      disabled={busy}
-      title={error ? t('errors.generic') : undefined}
-    >
-      {busy ? t('common.deleting') : error ? t('errors.generic') : t('common.delete')}
-    </button>
+    <>
+      <button type="button" className="btn btn-sm btn-ghost btn-danger" onClick={onClick} aria-busy={busy || undefined}>
+        <CalIcon name="trash" />
+        {t('common.delete')}
+      </button>
+      {error && (
+        <p className="ui-error cal-delete-error" role="alert">
+          {error}
+        </p>
+      )}
+    </>
   );
 }
