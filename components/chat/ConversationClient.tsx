@@ -16,6 +16,7 @@ import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
 import { CHAT_MESSAGE_MAX, CHAT_UPLOAD_MAX, sendErrorKey } from '@/lib/chat-schema';
 import VisitorPanel from './VisitorPanel';
 import ChatIcon, { initials } from './icons';
+import SlaNote from './SlaNote';
 import { useInbox } from './InboxShell';
 
 interface CurrentUser {
@@ -510,15 +511,6 @@ export default function ConversationClient({
   }, [detailsOpen]);
 
   const visitorLabel = visitor.name || visitor.email || t('conversation.anonymous');
-  const slaBadge =
-    conversation.sla_breached === 1 ? (
-      <span className="badge badge-bad">
-        {conversation.sla_breach_kind === 'resolution' ? t('sla.breachedResolution') : t('sla.breachedFirst')}
-      </span>
-    ) : conversation.resolved_at ? null : conversation.sla_due_in_minutes != null ? (
-      <span className="badge badge-warn">{t('sla.dueIn', { minutes: conversation.sla_due_in_minutes })}</span>
-    ) : null;
-
   return (
     <>
       <section className="chat-thread" aria-labelledby="chat-thread-title">
@@ -533,25 +525,33 @@ export default function ConversationClient({
             <p className="chat-thread-sub">
               {visitor.email && visitor.name && <span className="data">{visitor.email}</span>}
               <span>{conversation.widget_name}</span>
-              {slaBadge}
+              <SlaNote c={conversation} />
             </p>
           </div>
+          <button
+            ref={detailsToggleRef}
+            type="button"
+            className="btn btn-ghost btn-sm chat-details-toggle"
+            aria-expanded={detailsOpen}
+            aria-controls="chat-details"
+            onClick={() => (detailsOpen ? closeDetails() : openDetails())}
+          >
+            {t('conversation.details')}
+          </button>
           <div className="chat-thread-actions">
-            <label className="chat-assign">
-              {t('conversation.assignedTo')}
-              <select
-                className="select chat-compact-select"
-                value={conversation.assigned_to ?? ''}
-                onChange={(e) => updateConversation({ assignedTo: e.target.value || null })}
-              >
-                <option value="">{t('conversation.nobody')}</option>
-                {agents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.id === currentUser.id ? t('conversation.assignedToYou') : a.name || a.email}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <select
+              className="select chat-compact-select"
+              aria-label={t('conversation.assignedTo')}
+              value={conversation.assigned_to ?? ''}
+              onChange={(e) => updateConversation({ assignedTo: e.target.value || null })}
+            >
+              <option value="">{t('conversation.unassigned')}</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.id === currentUser.id ? t('conversation.assignedToYou') : a.name || a.email}
+                </option>
+              ))}
+            </select>
             {!isResolved && (
               <>
                 <label className="sr-only" htmlFor="chat-snooze">
@@ -582,16 +582,6 @@ export default function ConversationClient({
             <button type="button" className={`btn btn-sm ${isResolved ? 'btn-secondary' : 'btn-primary'}`} onClick={toggleResolved}>
               {isResolved ? t('conversation.reopen') : t('conversation.resolve')}
             </button>
-            <button
-              ref={detailsToggleRef}
-              type="button"
-              className="btn btn-ghost btn-sm chat-details-toggle"
-              aria-expanded={detailsOpen}
-              aria-controls="chat-details"
-              onClick={() => (detailsOpen ? closeDetails() : openDetails())}
-            >
-              {t('conversation.details')}
-            </button>
           </div>
           <p className="ui-error chat-thread-error" role="alert" hidden={!updateError}>
             {updateError}
@@ -614,13 +604,15 @@ export default function ConversationClient({
                     return [];
                   }
                 })();
-                const plate = isVisitor
-                  ? visitor.name || visitor.email
-                    ? initials(visitor.name, visitor.email)
-                    : '?'
-                  : m.sender_type === 'user'
-                    ? initials(m.user_name, m.user_email)
-                    : initials(name, null);
+                // Bot y sistema llevan un glifo dibujado; personas, sus iniciales.
+                const plate =
+                  m.sender_type === 'bot' || m.sender_type === 'system' ? (
+                    <ChatIcon name={m.sender_type} size={16} />
+                  ) : isVisitor ? (
+                    visitor.name || visitor.email ? initials(visitor.name, visitor.email) : '?'
+                  ) : (
+                    initials(m.user_name, m.user_email)
+                  );
                 return (
                   <li key={m.id} className="chat-message" data-sender={m.sender_type} data-note={m.is_note ? true : undefined}>
                     <span className="chat-plate" aria-hidden="true">
@@ -629,9 +621,8 @@ export default function ConversationClient({
                     <div className="chat-message-body">
                       <p className="chat-message-meta">
                         <span className="chat-message-name">{name}</span>
-                        {m.sender_type === 'bot' && <span className="badge">{t('conversation.bot')}</span>}
                         {m.is_note ? <span className="badge badge-warn">{t('notes.label')}</span> : null}
-                        <time suppressHydrationWarning className="chat-message-time data" dateTime={m.created_at} title={formatDateTime(m.created_at, locale)}>
+                        <time suppressHydrationWarning className="chat-message-time" dateTime={m.created_at} title={formatDateTime(m.created_at, locale)}>
                           {formatTimeAgo(m.created_at, locale)}
                         </time>
                         {!isVisitor && !m.is_note && m.read_at && (

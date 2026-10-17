@@ -51,9 +51,17 @@ export default function SlaClient({ widgetId, initialPolicies }: SlaClientProps)
     setDefaults(rows.map(() => false));
   }
 
+  // Si todas usan el valor por defecto se dice una vez en el pie; si no, se marca cada fila.
+  const allDefault = defaults.every(Boolean);
+
   return (
-    <FormSection title={t('sla.policies')} description={t('sla.policiesNote')} note={t('sla.minutesNote')} onSubmit={save}>
-      <div className="table-wrap">
+    <FormSection
+      title={t('sla.policies')}
+      description={t('sla.policiesNote')}
+      note={allDefault ? t('sla.allDefault') : undefined}
+      onSubmit={save}
+    >
+      <div className="table-wrap chat-stack">
         <table className="table chat-sla-table">
           <thead>
             <tr>
@@ -71,9 +79,9 @@ export default function SlaClient({ widgetId, initialPolicies }: SlaClientProps)
                 <tr key={row.priority}>
                   <th scope="row" className="chat-sla-priority">
                     {label}
-                    {defaults[i] && <span className="badge badge-outline">{t('sla.default')}</span>}
+                    {defaults[i] && !allDefault && <span className="chat-sla-default">{t('sla.default')}</span>}
                   </th>
-                  <td>
+                  <td data-label={t('sla.firstResponseMinutes')}>
                     <input
                       className="input data chat-sla-input"
                       type="number"
@@ -88,7 +96,7 @@ export default function SlaClient({ widgetId, initialPolicies }: SlaClientProps)
                       onChange={(e) => updateRow(i, 'firstResponse', e.target.value)}
                     />
                   </td>
-                  <td>
+                  <td data-label={t('sla.resolutionMinutes')}>
                     <input
                       className="input data chat-sla-input"
                       type="number"

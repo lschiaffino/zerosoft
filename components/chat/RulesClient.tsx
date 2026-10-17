@@ -198,7 +198,7 @@ export default function RulesClient({ widgetId, agents, timeZone }: RulesClientP
       ) : rules.length === 0 ? (
         <EmptyState title={t('rules.empty')} body={t('rules.emptySub')} action={createButton} product="chat" />
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap chat-stack">
           <table className="table chat-rules-table">
             <thead>
               <tr>
@@ -217,18 +217,20 @@ export default function RulesClient({ widgetId, agents, timeZone }: RulesClientP
             <tbody>
               {rules.map((rule, index) => (
                 <tr key={rule.id} data-inactive={rule.active === 1 ? undefined : true}>
-                  <td className="num data chat-rule-pos">{index + 1}</td>
+                  <td className="num data chat-rule-pos chat-stack-hide">{index + 1}</td>
                   <td>
                     <button type="button" className="chat-row-button" onClick={() => startEdit(rule)}>
                       {rule.name}
                     </button>
                   </td>
-                  <td>
-                    {matchTypeLabel(rule.match_type)}
-                    {rule.match_value && <span className="chat-rule-value data">{rule.match_value}</span>}
+                  <td data-label={t('rules.condition')}>
+                    <span>
+                      {matchTypeLabel(rule.match_type)}
+                      {rule.match_value && <span className="chat-rule-value data">{rule.match_value}</span>}
+                    </span>
                   </td>
-                  <td>{rule.match_type === 'round_robin' ? t('rules.roundRobinTeam') : agentLabel(rule.assign_to)}</td>
-                  <td>
+                  <td data-label={t('rules.assignTo')}>{rule.match_type === 'round_robin' ? t('rules.roundRobinTeam') : agentLabel(rule.assign_to)}</td>
+                  <td data-label={t('rules.state')}>
                     <label className="ui-switch">
                       <input
                         type="checkbox"
@@ -281,7 +283,7 @@ export default function RulesClient({ widgetId, agents, timeZone }: RulesClientP
       <QuickModal
         open={editingId !== null}
         onClose={cancelEdit}
-        crumb={`${t('rules.title')} › ${editingId === 'new' ? t('rules.add') : t('common.edit')}`}
+        title={editingId === 'new' ? t('rules.newTitle') : t('rules.editTitle')}
         onSubmit={save}
         submitLabel={editingId === 'new' ? t('rules.create') : t('common.save')}
         cancelLabel={t('common.cancel')}

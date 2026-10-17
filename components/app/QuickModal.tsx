@@ -6,8 +6,10 @@ import '@/styles/quick-modal.css';
 export interface QuickModalProps {
   open: boolean;
   onClose: () => void;
-  /** Breadcrumb chico arriba a la izquierda (p. ej. "Link › New link"). */
-  crumb: ReactNode;
+  /** Breadcrumb chico arriba a la izquierda (p. ej. "Link › New link"). Se ignora si hay `title`. */
+  crumb?: ReactNode;
+  /** Título del diálogo en la letra de señalética ("Nuevo widget"). Reemplaza al crumb. */
+  title?: string;
   /** Contenido del formulario (campos). */
   children: ReactNode;
   onSubmit: () => void;
@@ -38,6 +40,7 @@ export default function QuickModal(props: QuickModalProps) {
 function QuickModalBody({
   onClose,
   crumb,
+  title,
   children,
   onSubmit,
   submitLabel,
@@ -109,7 +112,7 @@ function QuickModalBody({
         className="qm"
         role="dialog"
         aria-modal="true"
-        aria-label={typeof crumb === 'string' ? crumb : undefined}
+        aria-label={title ?? (typeof crumb === 'string' ? crumb : undefined)}
         style={{ maxWidth: width }}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
@@ -120,7 +123,13 @@ function QuickModalBody({
             submit();
           }}
         >
-          <div className="qm-head mono">{crumb}</div>
+          {title ? (
+            <div className="qm-head">
+              <h2 className="qm-heading">{title}</h2>
+            </div>
+          ) : (
+            <div className="qm-head">{crumb}</div>
+          )}
           <div className="qm-body">{children}</div>
           {error && (
             <p className="qm-error" role="alert">
@@ -128,7 +137,7 @@ function QuickModalBody({
             </p>
           )}
           <div className="qm-foot">
-            {hint ? <span className="qm-hint mono">{hint}</span> : <span className="qm-hint" />}
+            {hint ? <span className="qm-hint">{hint}</span> : <span className="qm-hint" />}
             {footExtra}
             <button type="button" className="btn btn-small" onClick={onClose}>
               {cancelLabel}

@@ -83,7 +83,7 @@ export default function NewWidgetButton({
       <QuickModal
         open={open}
         onClose={close}
-        crumb={`Chat › ${t('overview.newWidget')}`}
+        title={t('overview.newWidget')}
         onSubmit={create}
         submitLabel={t('widgetForm.create')}
         cancelLabel={t('common.cancel')}

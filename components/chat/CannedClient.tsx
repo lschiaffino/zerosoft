@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { ChatAgent, ChatCannedResponseRow } from '@/lib/chat-data';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
 import AdvancedSection from '@/components/ui/AdvancedSection';
@@ -11,6 +11,7 @@ import {
   cannedPayload,
   countCannedActions,
   emptyCannedForm,
+  joinSummary,
   normalizeShortcut,
   parseCannedActions,
   type CannedActions,
@@ -29,6 +30,7 @@ interface CannedClientProps {
  */
 export default function CannedClient({ widgetId, agents = [] }: CannedClientProps) {
   const t = useTranslations('chat');
+  const locale = useLocale();
   const [responses, setResponses] = useState<ChatCannedResponseRow[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -116,19 +118,19 @@ export default function CannedClient({ widgetId, agents = [] }: CannedClientProp
   function describe(a: CannedActions): string {
     const parts: string[] = [];
     if (a.snoozeHours) parts.push(t('macros.summary.snooze', { hours: a.snoozeHours }));
-    else if (a.status) parts.push(t('macros.summary.status', { status: t(`conversation.${a.status}`) }));
+    else if (a.status) parts.push(t('macros.summary.status', { status: t(`conversation.${a.status}`).toLocaleLowerCase(locale) }));
     if (a.assignTo !== undefined) {
       const agent = agents.find((x) => x.id === a.assignTo);
       parts.push(
         a.assignTo === ''
           ? t('macros.summary.unassign')
-          : t('macros.summary.assign', {
-              name: a.assignTo === 'me' ? t('macros.me') : agent?.name || agent?.email || '?',
-            }),
+          : a.assignTo === 'me'
+            ? t('macros.summary.assignMe')
+            : t('macros.summary.assign', { name: agent?.name || agent?.email || '?' }),
       );
     }
     if (a.addTags?.length) parts.push(a.addTags.map((x) => `#${x}`).join(' '));
-    return parts.join(', ');
+    return joinSummary(parts, locale);
   }
 
   async function remove(r: ChatCannedResponseRow) {
@@ -178,7 +180,7 @@ export default function CannedClient({ widgetId, agents = [] }: CannedClientProp
       ) : responses.length === 0 ? (
         <EmptyState title={t('canned.empty')} body={t('canned.emptySub')} action={createButton} product="chat" />
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap chat-stack">
           <table className="table chat-canned-table">
             <thead>
               <tr>
@@ -203,10 +205,10 @@ export default function CannedClient({ widgetId, agents = [] }: CannedClientProp
                         )}
                       </button>
                     </td>
-                    <td className="chat-canned-body">
+                    <td className="chat-canned-body" data-label={t('canned.body')}>
                       <span className="chat-clamp">{r.body}</span>
                     </td>
-                    <td className="chat-canned-macro">{summary || <span className="chat-quiet">{t('macros.none')}</span>}</td>
+                    <td className="chat-canned-macro" data-label={t('canned.autoActions')}>{summary || <span className="chat-quiet">{t('macros.none')}</span>}</td>
                     <td className="chat-row-actions">
                       <button
                         type="button"
@@ -229,7 +231,7 @@ export default function CannedClient({ widgetId, agents = [] }: CannedClientProp
       <QuickModal
         open={editingId !== null}
         onClose={close}
-        crumb={`${t('canned.title')} › ${editingId === 'new' ? t('canned.add') : t('common.edit')}`}
+        title={editingId === 'new' ? t('canned.newTitle') : t('canned.editTitle')}
         onSubmit={save}
         submitLabel={editingId === 'new' ? t('canned.create') : t('common.save')}
         cancelLabel={t('common.cancel')}

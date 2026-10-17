@@ -41,7 +41,7 @@ test('chat: widget nuevo por modal, editor en pestañas y bandeja de tres column
   expect(saved.bot_enabled).toBe(1);
 
   // La lista se llama Widgets y el sidebar también.
-  await page.goto('/es/app/chat/settings');
+  await page.goto('/es/app/chat/widgets');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Widgets');
   await expect(page.locator('.side-line [aria-current="page"]')).toHaveText(/Widgets/);
   await expect(page.getByRole('link', { name }).first()).toBeVisible();

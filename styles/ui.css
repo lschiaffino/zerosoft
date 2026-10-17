@@ -359,6 +359,7 @@ select.select,
 .badge-ink { color: var(--bg); background: var(--ink); }
 .badge-outline { background: transparent; border-color: var(--line); }
 
+/* La pista de teclado no aplica en pantallas táctiles (ver el @media de abajo). */
 .kbd, kbd.kbd {
   display: inline-flex;
   align-items: center;
@@ -371,6 +372,7 @@ select.select,
   border-radius: var(--radius-1);
   opacity: 0.75;
 }
+@media (pointer: coarse) { .btn > .kbd { display: none; } }
 
 /* Datos: cifras alineadas, cero con barra. */
 .num { font-variant-numeric: tabular-nums; text-align: right; }

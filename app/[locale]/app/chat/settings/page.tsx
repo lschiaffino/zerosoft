@@ -1,11 +1,7 @@
-import { requireUser } from '@/lib/session';
-import WidgetsIndex from '@/components/chat/WidgetsIndex';
+import { redirect } from '@/i18n/navigation';
 
-export const dynamic = 'force-dynamic';
-
-/** "Widgets" en el sidebar de Chat (la ruta sigue siendo /app/chat/settings). */
-export default async function ChatWidgetsPage(props: { params: Promise<{ locale: string }> }) {
+// Ruta vieja de la lista de widgets ("Ajustes"): la canónica es /app/chat/widgets.
+export default async function ChatSettingsRedirect(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  const user = await requireUser(locale);
-  return <WidgetsIndex locale={locale} userId={user.id} teamId={user.team?.id ?? null} />;
+  redirect({ href: '/app/chat/widgets', locale });
 }

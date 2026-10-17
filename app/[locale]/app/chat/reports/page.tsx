@@ -116,7 +116,7 @@ export default async function ChatReportsPage(props: {
         {report.agents.length === 0 ? (
           <EmptyState quiet title={t('reports.empty')} body={t('reports.emptyBody')} product="chat" />
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap chat-stack">
             <table className="table">
               <thead>
                 <tr>
@@ -142,13 +142,23 @@ export default async function ChatReportsPage(props: {
                 {report.agents.map((a) => (
                   <tr key={a.agentId ?? 'unassigned'}>
                     <td>{a.agentId ? a.name || a.email : <span className="chat-quiet">{t('conversation.unassigned')}</span>}</td>
-                    <td className="num data">{formatNumber(a.conversations, locale)}</td>
-                    <td className="num data">{formatMinutes(a.avgFirstResponseMinutes, locale)}</td>
-                    <td className="num data">{formatMinutes(a.avgResolutionMinutes, locale)}</td>
-                    <td className="num data">{formatNumber(a.resolvedCount, locale)}</td>
-                    <td className="num data">
-                      {formatCsat(a.csatAverage, locale)}
-                      {a.csatCount > 0 && <span className="chat-quiet"> ({a.csatCount})</span>}
+                    <td className="num data" data-label={t('reports.conversations')}>
+                      {formatNumber(a.conversations, locale)}
+                    </td>
+                    <td className="num data" data-label={t('reports.firstResponse')}>
+                      {formatMinutes(a.avgFirstResponseMinutes, locale)}
+                    </td>
+                    <td className="num data" data-label={t('reports.resolution')}>
+                      {formatMinutes(a.avgResolutionMinutes, locale)}
+                    </td>
+                    <td className="num data" data-label={t('reports.resolved')}>
+                      {formatNumber(a.resolvedCount, locale)}
+                    </td>
+                    <td className="num data" data-label="CSAT">
+                      <span>
+                        {formatCsat(a.csatAverage, locale)}
+                        {a.csatCount > 0 && <span className="chat-quiet"> ({a.csatCount})</span>}
+                      </span>
                     </td>
                   </tr>
                 ))}

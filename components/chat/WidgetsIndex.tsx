@@ -31,7 +31,7 @@ export default async function WidgetsIndex({
   const counts = await Promise.all(widgets.map((w) => countChatConversations([w.id], { status: 'open' })));
   const rows: WidgetRowView[] = widgets.map((w, i) => ({ ...w, open: counts[i] }));
   const createButton = (
-    <NewWidgetButton defaultOpen={openNew} closeHref={openNew ? '/app/chat/settings' : undefined} shortcut={!openNew} />
+    <NewWidgetButton defaultOpen={openNew} closeHref={openNew ? '/app/chat/widgets' : undefined} shortcut={!openNew} />
   );
 
   return (
@@ -49,6 +49,7 @@ export default async function WidgetsIndex({
           rows={rows}
           rowKey={(w) => w.id}
           rowHref={(w) => `/app/chat/widgets/${w.id}`}
+          className="chat-stack"
           columns={[
             {
               key: 'name',
@@ -72,7 +73,12 @@ export default async function WidgetsIndex({
               cell: (w) =>
                 w.office_hours ? t('widgets.hoursSet') : <span className="chat-quiet">{t('widgets.alwaysOn')}</span>,
             },
-            { key: 'created', header: t('widgets.created'), data: true, cell: (w) => formatDate(w.created_at, locale) },
+            {
+              key: 'created',
+              header: t('widgets.created'),
+              data: true,
+              cell: (w) => <span className="chat-nowrap">{formatDate(w.created_at, locale)}</span>,
+            },
           ]}
         />
       )}

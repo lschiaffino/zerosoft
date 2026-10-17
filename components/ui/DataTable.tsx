@@ -65,7 +65,12 @@ export default function DataTable<T>({
           {rows.map((row) => (
             <tr key={rowKey(row)}>
               {columns.map((c, i) => (
-                <td key={c.key} className={cellCls(c)}>
+                <td
+                  key={c.key}
+                  className={cellCls(c)}
+                  // Etiqueta para las tablas que se apilan en pantallas angostas (pares etiqueta / valor).
+                  data-label={i > 0 && typeof c.header === 'string' ? c.header : undefined}
+                >
                   {i === 0 && rowHref ? (
                     <Link href={rowHref(row)} className="cell-link">
                       {c.cell(row)}

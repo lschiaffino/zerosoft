@@ -6,6 +6,7 @@ import type { ChatConversationListRow } from '@/lib/chat-data';
 import { formatTimeAgo, formatDateTime } from '@/lib/datetime';
 import EmptyState from '@/components/ui/EmptyState';
 import { initials } from './icons';
+import SlaNote from './SlaNote';
 
 interface ConversationListProps {
   conversations: ChatConversationListRow[];
@@ -21,7 +22,8 @@ function preview(c: ChatConversationListRow): string {
 /**
  * Filas de conversación densas: placa con iniciales, nombre y hora, la última
  * línea del hilo y una sola fila de metadatos. Solo lo que pide atención
- * (prioridad alta, SLA, estado distinto de abierta) lleva color.
+ * (prioridad, SLA, estado distinto de abierta) va en tinta; la única placa
+ * es Urgente.
  */
 export default function ConversationList({ conversations, currentId, emptyTitle, emptyBody }: ConversationListProps) {
   const t = useTranslations('chat');
@@ -53,25 +55,16 @@ export default function ConversationList({ conversations, currentId, emptyTitle,
               <span className="chat-row-main">
                 <span className="chat-row-top">
                   <span className="chat-row-name">{name}</span>
-                  <time suppressHydrationWarning className="chat-row-time data" dateTime={c.updated_at} title={formatDateTime(c.updated_at, locale)}>
+                  <time suppressHydrationWarning className="chat-row-time" dateTime={c.updated_at} title={formatDateTime(c.updated_at, locale)}>
                     {formatTimeAgo(c.updated_at, locale)}
                   </time>
                 </span>
                 {c.subject && c.last_message_body && <span className="chat-row-subject">{c.subject}</span>}
                 <span className="chat-row-preview">{text || t('conversation.noMessages')}</span>
                 <span className="chat-row-meta">
-                  {c.sla_breached === 1 ? (
-                    <span className="badge badge-bad">
-                      {c.sla_breach_kind === 'resolution' ? t('sla.breachedResolution') : t('sla.breachedFirst')}
-                    </span>
-                  ) : !c.resolved_at && c.sla_due_in_minutes != null ? (
-                    <span className="badge badge-warn">{t('sla.dueIn', { minutes: c.sla_due_in_minutes })}</span>
-                  ) : null}
-                  {(c.priority === 'high' || c.priority === 'urgent') && (
-                    <span className={`badge ${c.priority === 'urgent' ? 'badge-ink' : 'badge-outline'}`}>
-                      {t(`priorities.${c.priority}`)}
-                    </span>
-                  )}
+                  {c.priority === 'urgent' && <span className="badge badge-ink">{t('priorities.urgent')}</span>}
+                  {c.priority === 'high' && <span className="chat-row-priority">{t('priorities.high')}</span>}
+                  <SlaNote c={c} />
                   {c.status !== 'open' && (
                     <span className="chat-row-status" suppressHydrationWarning>
                       {c.status === 'snoozed' && c.snoozed_until

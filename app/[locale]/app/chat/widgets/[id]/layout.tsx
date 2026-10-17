@@ -28,7 +28,7 @@ export default async function WidgetLayout(props: { children: ReactNode; params:
   return (
     <div className="ui-page">
       <PageHeader
-        back={{ href: '/app/chat/settings', label: t('widgets.title') }}
+        back={{ href: '/app/chat/widgets', label: t('widgets.title') }}
         title={
           <span className="chat-widget-name">
             <span className="chat-swatch-lg" style={{ backgroundColor: widget.color }} aria-hidden="true" />
@@ -44,6 +44,7 @@ export default async function WidgetLayout(props: { children: ReactNode; params:
       <SettingsTabs
         mode="route"
         label={widget.name}
+        className="chat-widget-sections"
         items={[
           { key: 'settings', href: base, label: t('widgetNav.settings') },
           { key: 'rules', href: `${base}/rules`, label: t('widgetNav.rules') },

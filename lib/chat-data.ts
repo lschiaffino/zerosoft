@@ -669,6 +669,8 @@ export interface SlaComputedFields {
   sla_breached: 0 | 1;
   sla_breach_kind: SlaBreachKind | null;
   sla_due_in_minutes: number | null;
+  /** Minutos desde que venció el objetivo, si está vencido y la conversación sigue abierta. */
+  sla_overdue_minutes: number | null;
 }
 
 type SlaInput = Pick<
@@ -703,22 +705,23 @@ export function computeSlaFields(
   if (c.resolved_at) {
     const resolvedMs = parseTs(c.resolved_at);
     if (resDue != null && resolvedMs > resDue) {
-      return { sla_breached: 1, sla_breach_kind: 'resolution', sla_due_in_minutes: null };
+      return { sla_breached: 1, sla_breach_kind: 'resolution', sla_due_in_minutes: null, sla_overdue_minutes: null };
     }
-    return { sla_breached: 0, sla_breach_kind: null, sla_due_in_minutes: null };
+    return { sla_breached: 0, sla_breach_kind: null, sla_due_in_minutes: null, sla_overdue_minutes: null };
   }
+  const overdue = (due: number) => Math.max(1, Math.floor((nowMs - due) / 60_000));
   if (!c.first_response_at && nowMs > firstDue) {
-    return { sla_breached: 1, sla_breach_kind: 'first_response', sla_due_in_minutes: null };
+    return { sla_breached: 1, sla_breach_kind: 'first_response', sla_due_in_minutes: null, sla_overdue_minutes: overdue(firstDue) };
   }
   if (resDue != null && nowMs > resDue) {
-    return { sla_breached: 1, sla_breach_kind: 'resolution', sla_due_in_minutes: null };
+    return { sla_breached: 1, sla_breach_kind: 'resolution', sla_due_in_minutes: null, sla_overdue_minutes: overdue(resDue) };
   }
   const dueIn = !c.first_response_at
     ? Math.max(0, Math.ceil((firstDue - nowMs) / 60_000))
     : resDue != null
       ? Math.max(0, Math.ceil((resDue - nowMs) / 60_000))
       : null;
-  return { sla_breached: 0, sla_breach_kind: null, sla_due_in_minutes: dueIn };
+  return { sla_breached: 0, sla_breach_kind: null, sla_due_in_minutes: dueIn, sla_overdue_minutes: null };
 }
 
 // Reabre conversaciones cuyo snooze ya venció (lazy un-snooze al listar).

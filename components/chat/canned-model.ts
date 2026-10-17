@@ -73,3 +73,12 @@ export function cannedPayload(form: CannedForm) {
   const title = form.title.trim() || shortcut.replace(/^\//, '');
   return { shortcut, title, body: form.body.trim(), actions: cannedActionsFromForm(form) };
 }
+
+/**
+ * Resumen de acciones en una sola frase: las partes vienen en minúscula
+ * ("asigna a quien la usa") y solo la primera letra del total va en mayúscula.
+ */
+export function joinSummary(parts: string[], locale = 'es'): string {
+  const text = parts.filter(Boolean).join(', ');
+  return text ? text.charAt(0).toLocaleUpperCase(locale) + text.slice(1) : '';
+}

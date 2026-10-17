@@ -131,7 +131,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   text-overflow: ellipsis;
 }
 .chat-row[data-status='resolved'] .chat-row-name { font-weight: 500; color: var(--brand-gray-1); }
-.chat-row-time { flex-shrink: 0; font-size: 0.75rem; color: var(--brand-gray-2); }
+.chat-row-time { flex-shrink: 0; font-size: 0.75rem; color: var(--brand-gray-2); font-variant-numeric: tabular-nums; }
 .chat-row-subject,
 .chat-row-preview {
   overflow: hidden;
@@ -152,6 +152,10 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 }
 .chat-row-meta .badge { height: 20px; padding: 0 6px; }
 .chat-row-status { color: var(--brand-gray-1); font-weight: 600; }
+/* Prioridad alta y SLA van como texto de tinta: la única placa es Urgente. */
+.chat-row-priority { color: var(--ink); font-weight: 600; }
+.chat-sla { color: var(--ink); font-variant-numeric: tabular-nums; }
+.chat-sla[data-breached] { font-weight: 600; }
 
 /* ---------- Bandeja: tres columnas a alto completo ---------- */
 
@@ -159,7 +163,9 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 .chat-inbox {
   flex: 1;
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr) 300px;
+  /* El hilo nunca queda más angosto que la lista: por debajo de 1440 los
+     detalles pasan a panel (ver el @media de 1439px). */
+  grid-template-columns: 320px minmax(0, 1fr) 300px;
   height: calc(100dvh - var(--band-h));
   min-height: 0;
   min-width: 0;
@@ -224,16 +230,18 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 .chat-keys dd { margin: 0; }
 
 .chat-thread-head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: 8px 12px;
   min-height: 60px;
   padding: 10px 20px;
   border-bottom: 1px solid var(--line);
 }
 .chat-thread-back { display: none; }
-.chat-thread-who { grid-column: 2; min-width: 0; }
+/* La identidad tiene prioridad: si no entra junto a las acciones, las
+   acciones bajan a una segunda fila en lugar de aplastar el nombre. */
+.chat-thread-who { flex: 1 1 320px; min-width: 180px; }
 .chat-thread-name {
   overflow: hidden;
   font-family: var(--font-ui);
@@ -246,20 +254,18 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 .chat-thread-sub {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 2px 10px;
   margin-top: 2px;
   font-size: 0.75rem;
   color: var(--brand-gray-2);
 }
-.chat-thread-sub .badge { height: 20px; padding: 0 6px; }
-.chat-thread-sub > span:not(.badge) { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-@media (min-width: 1024px) { .chat-thread-sub { flex-wrap: nowrap; } }
-.chat-thread-actions { display: flex; align-items: center; gap: 8px; }
+.chat-thread-sub > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.chat-thread-sub > .chat-sla { flex-shrink: 0; }
+.chat-thread-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .chat-compact-select { width: auto; max-width: 190px; }
-.chat-assign { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--brand-gray-2); }
 .chat-details-toggle { display: none; }
-.chat-thread-error { grid-column: 1 / -1; }
+.chat-thread-error { flex-basis: 100%; }
 
 .chat-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; }
 .chat-messages-empty { padding: 24px 0; font-size: 0.875rem; }
@@ -281,7 +287,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 .chat-message-meta .badge { height: 20px; padding: 0 6px; align-self: center; }
 .chat-message-name { font-size: 0.8125rem; font-weight: 600; }
 .chat-message-time,
-.chat-message-read { font-size: 0.75rem; color: var(--brand-gray-2); }
+.chat-message-read { font-size: 0.75rem; color: var(--brand-gray-2); font-variant-numeric: tabular-nums; }
 .chat-message-text {
   max-width: 68ch;
   margin-top: 2px;
@@ -321,6 +327,10 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 
 /* Composer */
 .chat-composer { padding: 0 20px 14px; border-top: 1px solid var(--line); }
+/* En el hilo abierto el launcher de feedback y la burbuja de soporte taparían
+   Enviar (abajo a la derecha): se ocultan mientras hay un composer. */
+body:has(.chat-composer) .fl-root,
+body:has(.chat-composer) #zs-chat-root { display: none !important; }
 .chat-composer-tabs { border-bottom: 0; }
 .chat-composer-tabs .ui-tab { height: 36px; }
 .chat-composer-status {
@@ -449,8 +459,8 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 }
 .chat-crm-link { font-size: 0.875rem; font-weight: 600; color: var(--ink); text-underline-offset: 3px; }
 
-@media (max-width: 1279px) {
-  .chat-inbox { grid-template-columns: 320px minmax(0, 1fr); }
+@media (max-width: 1439px) {
+  .chat-inbox { grid-template-columns: 300px minmax(0, 1fr); }
   .chat-details-toggle { display: inline-flex; }
   .chat-details { display: none; }
   .chat-details[data-open] {
@@ -473,20 +483,27 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   }
 }
 
+@media (max-width: 1179px) {
+  .chat-inbox { grid-template-columns: 280px minmax(0, 1fr); }
+}
+
 @media (max-width: 1023px) {
   .chat-inbox { grid-template-columns: minmax(0, 1fr); }
   .chat-inbox[data-view='list'] > .chat-thread { display: none; }
   .chat-inbox[data-view='thread'] > .chat-inbox-list { display: none; }
   .chat-inbox-list { border-right: 0; }
   .chat-thread-back { display: inline-flex; }
-  .chat-thread-head { grid-template-columns: auto minmax(0, 1fr); padding: 8px 12px; }
-  .chat-thread-actions { grid-column: 1 / -1; flex-wrap: wrap; }
-  .chat-thread-actions .chat-compact-select { flex: 1 1 120px; max-width: none; }
-  .chat-assign { flex: 1 1 140px; }
-  .chat-assign .chat-compact-select { flex: 1; }
+  .chat-thread-head { padding: 8px 12px; }
+  .chat-thread-who { flex-basis: 0; min-width: 0; }
+  .chat-thread-sub { flex-wrap: wrap; }
+  .chat-thread-actions { flex-basis: 100%; flex-wrap: wrap; margin-left: 0; }
+  .chat-thread-actions .chat-compact-select { flex: 1 1 100px; max-width: none; }
   .chat-messages { padding: 16px; }
   .chat-composer { padding: 0 12px 12px; }
   .chat-composer-hint { display: none; }
+  /* Objetivos táctiles de 44px en el pie del composer. */
+  .app-frame .chat-composer-foot .btn { --btn-h: 44px; }
+  .chat-composer-foot > .btn-primary { padding: 0 20px; }
 }
 
 /* ---------- Widgets ---------- */
@@ -539,11 +556,11 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 }
 .chat-swatch-value { margin-left: 4px; font-size: 0.8125rem; color: var(--brand-gray-1); }
 
-.chat-fieldset { margin: 0; padding: 0; border: 0; }
-.chat-fieldset legend { margin-bottom: 6px; padding: 0; }
-.chat-radios { display: flex; flex-wrap: wrap; gap: 8px 24px; }
-.chat-radio { display: inline-flex; align-items: center; gap: 8px; font-size: 0.875rem; cursor: pointer; }
-.chat-radio input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
+/* Segmentado cuadrado (Posición): mismo trato que los rangos de Reportes. */
+.chat-segmented { align-self: flex-start; }
+.chat-segmented .btn[aria-checked='true'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); --btn-bg-hover: var(--ink); z-index: 1; }
+
+.chat-confirm-body { max-width: 52ch; font-size: 0.9375rem; line-height: 1.5; }
 
 .chat-field-rows { display: flex; flex-direction: column; gap: 8px; }
 .chat-field-row {
@@ -563,6 +580,12 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 .chat-day[data-off] .ui-check { color: var(--brand-gray-2); }
 .chat-day-sep { text-align: center; color: var(--brand-gray-2); }
 
+/* Snippet y Copiar en la misma línea; en angosto, Copiar baja. */
+.chat-embed { display: flex; align-items: flex-start; gap: 8px; }
+.chat-embed .chat-embed-code { flex: 1; min-width: 0; }
+.chat-embed .btn { flex-shrink: 0; }
+.chat-embed + .ui-section-note:empty { display: none; }
+.chat-nowrap { white-space: nowrap; }
 .chat-embed-code {
   margin: 0;
   padding: 12px 14px;
@@ -575,7 +598,6 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   border-radius: var(--radius-1);
 }
 .chat-embed-code:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.ui-section-foot .btn svg { margin-right: 2px; }
 
 /* Reglas, respuestas y SLA */
 .chat-rules-table tr[data-inactive] td { color: var(--brand-gray-2); }
@@ -604,8 +626,10 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   color: var(--ink);
   border-bottom: 1px solid var(--line);
 }
-.chat-sla-priority .badge { margin-left: 8px; }
+.chat-sla-default { margin-left: 8px; font-size: 0.8125rem; font-weight: 400; color: var(--brand-gray-2); }
 .chat-sla-table .chat-sla-input { width: 140px; }
+/* "Sin objetivo" es texto, no un dato: el placeholder va en Archivo. */
+.chat-sla-input::placeholder { font-family: var(--font-ui); font-feature-settings: normal; }
 
 /* ---------- Personas y reportes ---------- */
 
@@ -635,9 +659,82 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 
 @media (max-width: 900px) {
   .chat-person { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+
+  /* Tablas apiladas: cada fila es un bloque con el nombre (y las acciones)
+     arriba y el resto como pares etiqueta / valor. La etiqueta sale del
+     data-label de la celda; la cabecera queda solo para lectores. */
+  .chat-stack { overflow-x: visible; }
+  .chat-stack .table,
+  .chat-stack .table tbody { display: block; }
+  .chat-stack .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .chat-stack .table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .chat-stack .table tbody tr:last-child { border-bottom: 0; }
+  .chat-stack .table tbody tr:hover { background: none; }
+  .chat-stack .table td,
+  .chat-stack .table tbody th {
+    display: grid;
+    grid-template-columns: 116px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 12px;
+    grid-column: 1 / -1;
+    width: auto;
+    height: auto;
+    padding: 0;
+    text-align: left;
+    white-space: normal;
+    border: 0;
+  }
+  .chat-stack .table td[data-label]::before {
+    content: attr(data-label);
+    font-family: var(--font-ui);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--brand-gray-2);
+  }
+  /* Primera celda (nombre) y acciones comparten la primera línea. */
+  .chat-stack .table td:not([data-label]),
+  .chat-stack .table tbody th { display: block; grid-column: 1; grid-row: 1; font-weight: 600; }
+  .chat-stack .table td.chat-row-actions { grid-column: 2; grid-row: 1; display: flex; gap: 2px; }
+  .app-frame .chat-stack .chat-row-actions .btn { --btn-h: 40px; }
+  .chat-stack .table td.chat-stack-hide { display: none; }
+  .chat-stack .chat-clamp { -webkit-line-clamp: 3; }
+  .chat-stack .chat-sla-input { width: 100%; max-width: 200px; }
 }
 
 @media (max-width: 720px) {
+  /* Dos barras de pestañas apiladas no se leen como padre e hija: las
+     secciones del widget pasan a links de texto, sin el subrayado de acento. */
+  .chat-widget-sections > .ui-settings-nav { flex-wrap: wrap; gap: 4px 16px; overflow: visible; border-bottom: 0; }
+  .chat-widget-sections .ui-settings-link {
+    min-height: 40px;
+    padding: 0;
+    font-weight: 500;
+    color: var(--brand-gray-1);
+    box-shadow: none;
+  }
+  .chat-widget-sections .ui-settings-link[aria-current='page'] {
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: none;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+  .chat-embed { flex-direction: column; align-items: stretch; }
   .chat-field-row { grid-template-columns: minmax(0, 1fr) auto; }
   .chat-field-row .select { grid-column: 1; }
   .chat-field-row .ui-check { grid-column: 1; }

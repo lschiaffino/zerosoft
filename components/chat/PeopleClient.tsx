@@ -107,12 +107,12 @@ export default function PeopleClient({ widgetIds }: PeopleClientProps) {
           <EmptyState
             title={t('people.emptyTitle')}
             body={t('people.emptyBody')}
-            action={{ label: t('people.emptyAction'), href: '/app/chat/settings' }}
+            action={{ label: t('people.emptyAction'), href: '/app/chat/widgets' }}
             product="chat"
           />
         )
       ) : (
-        <div className="table-wrap" aria-busy={loading}>
+        <div className="table-wrap chat-stack" aria-busy={loading}>
           <table className="table">
             <caption className="sr-only">{t('people.title')}</caption>
             <thead>
@@ -133,9 +133,13 @@ export default function PeopleClient({ widgetIds }: PeopleClientProps) {
                       {v.name || v.email || t('conversation.anonymous')}
                     </Link>
                   </td>
-                  <td className="data">{v.email ?? <span className="chat-quiet">{t('people.noEmail')}</span>}</td>
-                  <td className="num data">{v.conversation_count}</td>
-                  <td>
+                  <td data-label={t('visitorPanel.email')}>
+                    {v.email ? <span className="data">{v.email}</span> : <span className="chat-quiet">{t('people.noEmail')}</span>}
+                  </td>
+                  <td className="num data" data-label={t('overview.conversations')}>
+                    {v.conversation_count}
+                  </td>
+                  <td data-label={t('people.lastSeen')}>
                     {v.last_conversation_at ? (
                       <time suppressHydrationWarning dateTime={v.last_conversation_at} title={formatDateTime(v.last_conversation_at, locale)}>
                         {formatTimeAgo(v.last_conversation_at, locale)}

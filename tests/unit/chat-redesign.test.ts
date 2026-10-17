@@ -9,8 +9,8 @@ import {
   widgetTab,
   type WidgetFormValues,
 } from '@/components/chat/widget-form-model';
-import { cannedPayload, emptyCannedForm, normalizeShortcut, parseCannedActions } from '@/components/chat/canned-model';
-import { conversationIdFromPath, inboxQuery, parseSavedFilters } from '@/components/chat/inbox-model';
+import { cannedPayload, emptyCannedForm, joinSummary, normalizeShortcut, parseCannedActions } from '@/components/chat/canned-model';
+import { conversationIdFromPath, formatSlaAge, inboxQuery, parseSavedFilters } from '@/components/chat/inbox-model';
 
 const root = join(__dirname, '..', '..');
 
@@ -152,5 +152,20 @@ describe('SLA y rutas', () => {
       expect(JSON.parse(raw).sidebar.settings).toBe('Widgets');
       expect(raw).not.toMatch(/—/);
     }
+  });
+});
+
+describe('textos cortos de Chat', () => {
+  it('el resumen de acciones solo capitaliza la primera palabra', () => {
+    expect(joinSummary(['pospone 4 h', 'asigna a quien la usa', '#facturacion'])).toBe(
+      'Pospone 4 h, asigna a quien la usa, #facturacion',
+    );
+    expect(joinSummary([])).toBe('');
+  });
+
+  it('la antigüedad del SLA vencido se escribe en m, h o d', () => {
+    expect(formatSlaAge(12)).toBe('12m');
+    expect(formatSlaAge(125)).toBe('2h');
+    expect(formatSlaAge(3000)).toBe('2d');
   });
 });

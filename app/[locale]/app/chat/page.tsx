@@ -80,7 +80,7 @@ export default async function ChatOverviewPage(props: { params: Promise<{ locale
         <div className="chat-count">
           <dt>{t('overview.widgets')}</dt>
           <dd className="data">
-            <Link href="/app/chat/settings">{formatNumber(widgets.length, locale)}</Link>
+            <Link href="/app/chat/widgets">{formatNumber(widgets.length, locale)}</Link>
           </dd>
         </div>
       </dl>

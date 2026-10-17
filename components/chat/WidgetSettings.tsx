@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -31,6 +31,8 @@ interface WidgetSettingsProps {
   widget: ChatWidgetRow;
   origin: string;
   aiAvailable: boolean;
+  /** Conversaciones del widget (todas): se borran con él. */
+  conversationCount: number;
   /** Ruta del centro de ayuda del workspace (/<locale>/h/<handle>), si hay handle. */
   helpCenterPath: string | null;
 }
@@ -41,7 +43,7 @@ interface WidgetSettingsProps {
  * widget entero; las opciones que el camino básico no necesita (fuente del
  * bot, zona horaria) quedan en Avanzado.
  */
-export default function WidgetSettings({ widget, origin, aiAvailable, helpCenterPath }: WidgetSettingsProps) {
+export default function WidgetSettings({ widget, origin, aiAvailable, conversationCount, helpCenterPath }: WidgetSettingsProps) {
   const t = useTranslations('chat');
   const router = useRouter();
   const search = useSearchParams();
@@ -53,6 +55,16 @@ export default function WidgetSettings({ widget, origin, aiAvailable, helpCenter
   const [office, setOffice] = useState(() => parseOfficeHours(widget.office_hours));
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmRef = useRef<HTMLDialogElement>(null);
+
+  // <dialog> del kit con showModal(): foco atrapado y Esc gratis.
+  useEffect(() => {
+    const d = confirmRef.current;
+    if (!d) return;
+    if (confirmOpen && !d.open) d.showModal();
+    if (!confirmOpen && d.open) d.close();
+  }, [confirmOpen]);
 
   const timezones = useMemo(() => {
     try {
@@ -91,12 +103,11 @@ export default function WidgetSettings({ widget, origin, aiAvailable, helpCenter
   }
 
   async function remove() {
-    if (!window.confirm(t('overview.deleteConfirm', { name: widget.name }))) return;
     setDeleting(true);
     setDeleteError(null);
     const res = await fetch(`/api/chat/widgets/${widget.id}`, { method: 'DELETE' }).catch(() => null);
     if (res?.ok) {
-      router.push('/app/chat/settings');
+      router.push('/app/chat/widgets');
       router.refresh();
       return;
     }
@@ -116,7 +127,7 @@ export default function WidgetSettings({ widget, origin, aiAvailable, helpCenter
       {tab === 'look' && (
         <>
           <EmbedCode widgetId={widget.id} origin={origin} />
-          <FormSection title={t('widgetForm.tabs.look')} description={t('widgetForm.lookSub')} onSubmit={save}>
+          <FormSection title={t('widgetForm.lookTitle')} description={t('widgetForm.lookSub')} onSubmit={save}>
             <div className="ui-field">
               <label className="label" htmlFor={`${uid}-name`}>
                 {t('widgetForm.name')}
@@ -136,23 +147,39 @@ export default function WidgetSettings({ widget, origin, aiAvailable, helpCenter
               </span>
               <ColorField labelId={`${uid}-color`} value={values.color} onChange={(c) => set('color', c)} />
             </div>
-            <fieldset className="ui-field chat-fieldset">
-              <legend className="label">{t('widgetForm.position')}</legend>
-              <div className="chat-radios">
-                {(['bottom-right', 'bottom-left'] as const).map((p) => (
-                  <label key={p} className="chat-radio">
-                    <input
-                      type="radio"
-                      name={`${uid}-position`}
-                      value={p}
-                      checked={values.position === p}
-                      onChange={() => set('position', p)}
-                    />
+            <div className="ui-field">
+              <span className="label" id={`${uid}-position`}>
+                {t('widgetForm.position')}
+              </span>
+              {/* Control segmentado cuadrado (como los rangos de Reportes): el círculo es de las estaciones. */}
+              <div className="btn-group chat-segmented" role="radiogroup" aria-labelledby={`${uid}-position`}>
+                {(['bottom-left', 'bottom-right'] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    role="radio"
+                    className="btn btn-sm"
+                    aria-checked={values.position === p}
+                    tabIndex={values.position === p ? 0 : -1}
+                    onClick={() => set('position', p)}
+                    onKeyDown={(e) => {
+                      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                        e.preventDefault();
+                        const next = p === 'bottom-left' ? 'bottom-right' : 'bottom-left';
+                        set('position', next);
+                        const sibling = (e.currentTarget.parentElement?.querySelector(
+                          `[data-value="${next}"]`,
+                        ) ?? null) as HTMLButtonElement | null;
+                        sibling?.focus();
+                      }
+                    }}
+                    data-value={p}
+                  >
                     {t(p === 'bottom-right' ? 'widgetForm.positionBottomRight' : 'widgetForm.positionBottomLeft')}
-                  </label>
+                  </button>
                 ))}
               </div>
-            </fieldset>
+            </div>
             <div className="ui-field">
               <label className="label" htmlFor={`${uid}-welcome`}>
                 {t('widgetForm.welcomeMessage')}
@@ -192,26 +219,55 @@ export default function WidgetSettings({ widget, origin, aiAvailable, helpCenter
             tone="danger"
             footer={
               <>
-                <p className="ui-section-note" role="alert">
-                  {deleteError}
-                </p>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-danger"
-                  onClick={remove}
-                  disabled={deleting}
-                  aria-busy={deleting || undefined}
-                >
+                <p className="ui-section-note" />
+                <button type="button" className="btn btn-primary btn-danger" onClick={() => setConfirmOpen(true)}>
                   {t('widgetForm.delete')}
                 </button>
               </>
             }
           />
+          <dialog
+            ref={confirmRef}
+            className="ui-modal"
+            aria-labelledby={`${uid}-confirm-title`}
+            aria-describedby={`${uid}-confirm-body`}
+            onClose={() => setConfirmOpen(false)}
+          >
+            <div className="ui-modal-head">
+              <h2 className="ui-modal-title" id={`${uid}-confirm-title`}>
+                {t('widgetForm.deleteConfirmTitle', { name: widget.name })}
+              </h2>
+            </div>
+            <div className="ui-modal-body">
+              <p id={`${uid}-confirm-body`} className="chat-confirm-body">
+                {t('widgetForm.deleteConfirmBody', { count: conversationCount })}
+              </p>
+              {deleteError && (
+                <p className="ui-error" role="alert">
+                  {deleteError}
+                </p>
+              )}
+            </div>
+            <div className="ui-modal-foot">
+              <button type="button" className="btn btn-secondary" onClick={() => setConfirmOpen(false)} autoFocus>
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-danger"
+                onClick={remove}
+                disabled={deleting}
+                aria-busy={deleting || undefined}
+              >
+                {t('widgetForm.deleteConfirmAction')}
+              </button>
+            </div>
+          </dialog>
         </>
       )}
 
       {tab === 'form' && (
-        <FormSection title={t('widgetForm.tabs.form')} description={t('widgetForm.formSub')} onSubmit={save}>
+        <FormSection title={t('widgetForm.formTitle')} description={t('widgetForm.formSub')} onSubmit={save}>
           {fields.length === 0 ? (
             <p className="chat-quiet">{t('widgetForm.noFields')}</p>
           ) : (
@@ -266,7 +322,7 @@ export default function WidgetSettings({ widget, origin, aiAvailable, helpCenter
       )}
 
       {tab === 'bot' && (
-        <FormSection title={t('widgetForm.tabs.bot')} description={t('widgetForm.botSub')} onSubmit={save}>
+        <FormSection title={t('widgetForm.botTitle')} description={t('widgetForm.botSub')} onSubmit={save}>
           <label className="ui-switch">
             <input
               type="checkbox"
@@ -322,7 +378,7 @@ export default function WidgetSettings({ widget, origin, aiAvailable, helpCenter
 
       {tab === 'hours' && (
         <FormSection
-          title={t('widgetForm.tabs.hours')}
+          title={t('widgetForm.hoursTitle')}
           description={t('officeHours.hint')}
           note={office.enabled ? t('officeHours.zoneNote', { zone: office.timezone }) : undefined}
           onSubmit={save}

@@ -66,7 +66,14 @@
     "formSub": "Lo que el visitante completa antes de escribir. Sin campos, escribe directo.",
     "noFields": "Sin campos: el visitante escribe directo.",
     "removeField": "Quitar el campo {name}",
-    "botSub": "Responde mientras nadie del equipo contestó."
+    "botSub": "Responde mientras nadie del equipo contestó.",
+    "lookTitle": "Burbuja y bienvenida",
+    "formTitle": "Campos antes del chat",
+    "botTitle": "Respuesta automática",
+    "hoursTitle": "Horario de atención",
+    "deleteConfirmTitle": "¿Borrar {name}?",
+    "deleteConfirmBody": "{count, plural, =0 {El widget no tiene conversaciones.} one {Se borra # conversación con todo su historial.} other {Se borran # conversaciones con todo su historial.}} El chat deja de aparecer en tu sitio. No se puede deshacer.",
+    "deleteConfirmAction": "Borrar widget"
   },
   "embed": {
     "title": "Código de instalación",
@@ -227,16 +234,18 @@
     "toggle": "Activar {name}",
     "moveUpNamed": "Subir {name}",
     "moveDownNamed": "Bajar {name}",
-    "deleteNamed": "Borrar {name}"
+    "deleteNamed": "Borrar {name}",
+    "newTitle": "Nueva regla",
+    "editTitle": "Editar regla"
   },
   "sla": {
     "title": "SLA",
     "firstResponse": "Primera respuesta",
     "resolution": "Resolución",
     "breached": "Incumplido",
-    "breachedFirst": "SLA de 1ª respuesta",
-    "breachedResolution": "SLA de resolución",
-    "dueIn": "Responder en {minutes}m",
+    "breachedFirst": "1ª respuesta vencida",
+    "breachedResolution": "Resolución vencida",
+    "dueIn": "Responder en {age}",
     "resolved": "Resuelto",
     "policies": "Políticas de SLA",
     "priority": "Prioridad",
@@ -244,10 +253,12 @@
     "resolutionMinutes": "Resolución (min)",
     "default": "Por defecto",
     "saved": "Guardado.",
-    "policiesNote": "Objetivos por prioridad para este widget. Sin política, la primera respuesta es 60 min por defecto y no hay objetivo de resolución. Deja la resolución vacía para no fijar objetivo.",
+    "policiesNote": "Objetivos por prioridad para este widget, en minutos. Sin objetivo de resolución, dejá el campo vacío.",
     "invalid": "Usá minutos enteros entre 1 y {max}.",
-    "minutesNote": "Todo en minutos. Vacío en resolución: sin objetivo.",
-    "noTarget": "Sin objetivo"
+    "noTarget": "Sin objetivo",
+    "breachedFirstAgo": "1ª respuesta vencida hace {age}",
+    "breachedResolutionAgo": "Resolución vencida hace {age}",
+    "allDefault": "Las cuatro prioridades usan el valor por defecto: primera respuesta en 60 min, sin objetivo de resolución."
   },
   "settings": {
     "avgFirstResponse": "Primera respuesta prom.",
@@ -294,7 +305,7 @@
     "body": "Texto",
     "empty": "Todavía no hay respuestas guardadas",
     "placeholder": "Escribe aquí tu mensaje guardado…",
-    "sub": "Respuestas guardadas de este widget. En una conversación, escribí / para insertar una.",
+    "sub": "Escribí / en una conversación para insertar una.",
     "emptySub": "Guardá las respuestas que escribís seguido e insertalas con / mientras respondés.",
     "deleteConfirm": "¿Borrar la respuesta guardada {shortcut}?",
     "titleLabel": "Nombre",
@@ -306,7 +317,9 @@
     "autoActionsAdvanced": "Acciones automáticas (Avanzado)",
     "actionsCount": "{count, plural, one {# acción} other {# acciones}}",
     "delete": "Borrar {shortcut}",
-    "tagsPlaceholder": "facturacion urgente"
+    "tagsPlaceholder": "facturacion urgente",
+    "newTitle": "Nueva respuesta",
+    "editTitle": "Editar respuesta"
   },
   "attachments": {
     "image": "Imagen",
@@ -408,10 +421,11 @@
     "none": "Sin cambios",
     "me": "Quien la usa",
     "summary": {
-      "snooze": "Pospone {hours} h",
-      "status": "Pasa a {status}",
-      "unassign": "Desasigna",
-      "assign": "Asigna a {name}"
+      "snooze": "pospone {hours} h",
+      "status": "pasa a {status}",
+      "unassign": "desasigna",
+      "assign": "asigna a {name}",
+      "assignMe": "asigna a quien la usa"
     }
   },
   "help": {
