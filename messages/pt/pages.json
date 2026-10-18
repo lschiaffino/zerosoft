@@ -1364,7 +1364,7 @@
     "linksListTitle": "Listar links",
     "linksListDesc": "Seus links, do mais novo ao mais antigo. Paginação com page e pageSize (máx 100).",
     "linksDeleteTitle": "Excluir um link",
-    "linksDeleteDesc": "Arquive ou exclua um link por id.",
+    "linksDeleteDesc": "Exclua um link por id, junto com o histórico de cliques. Quem criou a chave de API precisa ser admin do workspace.",
     "linksPatchTitle": "Atualizar um link",
     "linksPatchDesc": "Atualize qualquer campo editável de um link.",
     "linksStatsTitle": "Estatísticas de um link",

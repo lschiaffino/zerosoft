@@ -9,10 +9,12 @@ interface DangerZoneProps {
   id: string;
   slug: string;
   archived: boolean;
+  /** Borrar es solo para admins (como el borrado masivo); el resto puede archivar. */
+  canDelete: boolean;
 }
 
 /** Archivar o borrar. Borrar pide escribir el slug. */
-export default function DangerZone({ id, slug, archived }: DangerZoneProps) {
+export default function DangerZone({ id, slug, archived, canDelete }: DangerZoneProps) {
   const t = useTranslations('link');
   const router = useRouter();
   const [confirmText, setConfirmText] = useState('');
@@ -68,35 +70,37 @@ export default function DangerZone({ id, slug, archived }: DangerZoneProps) {
         </button>
       </div>
 
-      <form className="lk-danger-row" onSubmit={onDelete}>
-        <div>
-          <p className="lk-danger-title">{t('detail.deleteTitle')}</p>
-          <p className="ui-help">{t('detail.deleteDesc')}</p>
-        </div>
-        <div className="lk-danger-delete">
-          <label className="label" htmlFor="lk-delete-confirm">
-            {t('detail.deleteHint', { slug })}
-          </label>
-          <input
-            id="lk-delete-confirm"
-            className="input mono"
-            type="text"
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            placeholder={slug}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <button
-            type="submit"
-            className="btn btn-primary btn-danger"
-            disabled={busy !== null || confirmText !== slug}
-            aria-busy={busy === 'delete' || undefined}
-          >
-            {t('detail.deleteButton')}
-          </button>
-        </div>
-      </form>
+      {canDelete && (
+        <form className="lk-danger-row" onSubmit={onDelete}>
+          <div>
+            <p className="lk-danger-title">{t('detail.deleteTitle')}</p>
+            <p className="ui-help">{t('detail.deleteDesc')}</p>
+          </div>
+          <div className="lk-danger-delete">
+            <label className="label" htmlFor="lk-delete-confirm">
+              {t('detail.deleteHint', { slug })}
+            </label>
+            <input
+              id="lk-delete-confirm"
+              className="input mono"
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={slug}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button
+              type="submit"
+              className="btn btn-primary btn-danger"
+              disabled={busy !== null || confirmText !== slug}
+              aria-busy={busy === 'delete' || undefined}
+            >
+              {t('detail.deleteButton')}
+            </button>
+          </div>
+        </form>
+      )}
     </FormSection>
   );
 }

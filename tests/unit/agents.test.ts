@@ -282,6 +282,77 @@ describe('herramientas de la suite', () => {
     expect(res.result.toolCalls[1].output).toMatchObject({ found: true, firstName: 'Me' });
   });
 
+  it('crm y cal: las herramientas que escriben solo aceptan el email que escribió el visitante', async () => {
+    const owner = await makeUser('crm-write');
+    await getOrCreateCalendarUser(owner.id);
+    const et = await createEventType(owner.id, {
+      slug: `w-${crypto.randomUUID().slice(0, 6)}`,
+      title: 'Intro call',
+      durationMin: 30,
+      active: true,
+    } as Parameters<typeof createEventType>[1]);
+    const created = await createAgent(owner.id, owner.id, { name: 'Writer' });
+    const upd = await updateAgent(
+      owner.id,
+      created.id,
+      tools(['crm_find_contact', 'crm_upsert_contact', 'crm_log_note', 'cal_book_meeting'], { calEventTypeId: et.id }),
+    );
+    expect(upd.ok).toBe(true);
+    const agent = (await getAgentRow(owner.id, created.id)) as AgentRow;
+    const ceo = await createContact(owner.id, { email: 'ceo@bigco.com', firstName: 'Ceo' });
+    setAiModelOverride(
+      scriptedModel([
+        { tool: 'crm_log_note', input: { email: 'ceo@bigco.com', note: 'Refund approved' } },
+        { tool: 'crm_log_note', input: { email: 'nobody@bigco.com', note: 'Refund approved' } },
+        { tool: 'crm_upsert_contact', input: { email: 'ceo@bigco.com', name: 'Mallory', note: 'x' } },
+        { tool: 'crm_upsert_contact', input: { email: 'new@bigco.com', name: 'Mallory' } },
+        {
+          tool: 'cal_book_meeting',
+          input: { start: '2031-01-01T10:00:00.000Z', name: 'Ceo', email: 'ceo@bigco.com', visitorConfirmed: true },
+        },
+        // "xceo@bigco.com" contiene "ceo@bigco.com", pero no es el mismo email.
+        { tool: 'crm_find_contact', input: { email: 'ceo@bigco.com' } },
+        { text: 'ok' },
+      ]),
+    );
+    const res = await sendAgentMessage({ agent, channel: 'public', visitorKey: 'w'.repeat(20), text: 'Hi, I am xceo@bigco.com' });
+    // Mismo error exista o no el contacto: no revela qué emails hay en el CRM.
+    expect(res.result.toolCalls.map((c) => [c.tool, c.output])).toEqual([
+      ['crm_log_note', { error: 'email_not_given_by_visitor' }],
+      ['crm_log_note', { error: 'email_not_given_by_visitor' }],
+      ['crm_upsert_contact', { error: 'email_not_given_by_visitor' }],
+      ['crm_upsert_contact', { error: 'email_not_given_by_visitor' }],
+      ['cal_book_meeting', { error: 'email_not_given_by_visitor' }],
+      ['crm_find_contact', { error: 'email_not_given_by_visitor' }],
+    ]);
+    const notes = (await getDb()
+      .prepare('SELECT COUNT(*) AS c FROM crm_activities WHERE user_id = ? AND contact_id = ?')
+      .get(owner.id, ceo.id)) as { c: number };
+    expect(Number(notes.c)).toBe(0);
+    const contacts = (await getDb().prepare('SELECT email, first_name FROM crm_contacts WHERE user_id = ?').all(owner.id)) as Array<{
+      email: string;
+      first_name: string;
+    }>;
+    expect(contacts).toEqual([{ email: 'ceo@bigco.com', first_name: 'Ceo' }]);
+
+    // Con el email que sí escribió (en mayúsculas y con punto final), escribe.
+    setAiModelOverride(
+      scriptedModel([
+        { tool: 'crm_upsert_contact', input: { email: 'me@x.com', name: 'Me' } },
+        { tool: 'crm_log_note', input: { email: 'me@x.com', note: 'Wants pricing' } },
+        { text: 'ok' },
+      ]),
+    );
+    const res2 = await sendAgentMessage({
+      agent,
+      channel: 'public',
+      visitorKey: 'w'.repeat(20),
+      conversationId: res.conversation.id,
+      text: 'Sorry, my email is ME@x.com.',
+    });
+    expect(res2.result.toolCalls.map((c) => c.error)).toEqual([null, null]);
+  });
+
   it('crm: upsert solo toca el workspace del agente', async () => {
     const { owner, agent } = await setupAgent('crm-a', tools(['crm_upsert_contact', 'crm_find_contact']));
     const other = await makeUser('crm-b');

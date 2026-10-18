@@ -1364,7 +1364,7 @@
     "linksListTitle": "List links",
     "linksListDesc": "Your links, newest first. Paginate with page and pageSize (max 100).",
     "linksDeleteTitle": "Delete a link",
-    "linksDeleteDesc": "Archive or delete a link by id.",
+    "linksDeleteDesc": "Delete a link by id, along with its click history. The person who created the API key must be a workspace admin.",
     "linksPatchTitle": "Update a link",
     "linksPatchDesc": "Update any writable field of a link.",
     "linksStatsTitle": "Link stats",

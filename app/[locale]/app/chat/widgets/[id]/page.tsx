@@ -1,7 +1,8 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { canAccessWidget } from '@/lib/chat-access';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
+import { getWidgetIdentitySecret } from '@/lib/chat-identity';
 import { countChatConversations, getChatWidget } from '@/lib/chat-data';
 import { aiEnabled } from '@/lib/ai';
 import { publicOrigin } from '@/components/calendar/event-type-items';
@@ -19,6 +20,9 @@ export default async function EditWidgetPage(props: { params: Promise<{ locale: 
   const origin = publicOrigin((await headers()).get('host'));
   // Para el diálogo de borrar: cuántas conversaciones se van con el widget.
   const conversationCount = await countChatConversations([widget.id]);
+  // El secreto de verificación de identidad solo lo ven owner/admin.
+  const canManageIdentity = isWorkspaceAdmin(user);
+  const identitySecret = canManageIdentity ? await getWidgetIdentitySecret(widget.id) : null;
 
   return (
     <WidgetSettings
@@ -26,6 +30,8 @@ export default async function EditWidgetPage(props: { params: Promise<{ locale: 
       origin={origin}
       aiAvailable={aiEnabled()}
       conversationCount={conversationCount}
+      canManageIdentity={canManageIdentity}
+      identitySecret={identitySecret}
       helpCenterPath={user.handle ? `/${locale}/h/${user.handle}` : null}
     />
   );

@@ -4,6 +4,8 @@ import {
   createDocComment,
   createDocPage,
   createDocShare,
+  deleteDocShare,
+  getDocComment,
   getDocPage,
   listDocPages,
   moveDocPage,
@@ -29,6 +31,7 @@ vi.mock('next/navigation', () => ({
 const actions = await import('@/lib/docs-actions');
 const versionsRoute = await import('@/app/api/docs/pages/[id]/versions/route');
 const commentsRoute = await import('@/app/api/docs/pages/[id]/comments/route');
+const commentRoute = await import('@/app/api/docs/pages/[id]/comments/[commentId]/route');
 const pageRoute = await import('@/app/api/docs/pages/[id]/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -109,6 +112,34 @@ describe('Docs: publicar no expone historial ni comentarios', () => {
     const url = `http://x/api/docs/pages/${page.id}`;
     expect((await versionsRoute.GET(jsonReq(`${url}/versions`, 'GET'), ctx(page.id))).status).toBe(200);
     expect((await commentsRoute.GET(jsonReq(`${url}/comments`, 'GET'), ctx(page.id))).status).toBe(200);
+  });
+});
+
+describe('Docs: borrar un comentario propio', () => {
+  it('con el share revocado ya no puede borrar sus comentarios; con acceso, sí', async () => {
+    const owner = await makeUser('own');
+    const guest = await makeUser('gst');
+    const page = await createDocPage(owner.id, { title: 'Review' });
+    const share = await createDocShare(owner.id, page.id, 'user', guest.id, 'view');
+    if (!share) throw new Error('share');
+    const kept = await createDocComment(page.id, guest.id, { body: 'Cambiar el precio' });
+    const removed = await createDocComment(page.id, guest.id, { body: 'Typo' });
+    const del = (commentId: string) =>
+      commentRoute.DELETE(jsonReq(`http://x/api/docs/pages/${page.id}/comments/${commentId}`, 'DELETE'), {
+        params: Promise.resolve({ id: page.id, commentId }),
+      });
+
+    session.user = { id: guest.id, email: guest.email };
+    expect((await del(removed.id)).status).toBe(204);
+    expect(await getDocComment(removed.id)).toBeFalsy();
+
+    expect(await deleteDocShare(owner.id, page.id, share.id)).toBe(true);
+    expect((await del(kept.id)).status).toBe(404);
+    expect(await getDocComment(kept.id)).toBeTruthy();
+
+    // El dueño de la página sigue pudiendo borrarlo.
+    session.user = { id: owner.id, email: owner.email };
+    expect((await del(kept.id)).status).toBe(204);
   });
 });
 

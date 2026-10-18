@@ -99,7 +99,8 @@ export default function LinksTable({ rows }: { rows: TableRow[] }) {
     const res = await fetch(`/api/links/${id}`, { method: 'DELETE' }).catch(() => null);
     setBusyId(null);
     setConfirmingId(null);
-    if (!res?.ok) setNotice({ kind: 'error', text: t('errors.generic') });
+    // Borrar es solo para admins (como el borrado masivo).
+    if (!res?.ok) setNotice({ kind: 'error', text: t(res?.status === 403 ? 'errors.forbidden' : 'errors.generic') });
     router.refresh();
   }
 

@@ -1364,7 +1364,7 @@
     "linksListTitle": "Listar links",
     "linksListDesc": "Tus links, del más nuevo al más viejo. Paginá con page y pageSize (máx 100).",
     "linksDeleteTitle": "Borrar un link",
-    "linksDeleteDesc": "Archivá o borrá un link por id.",
+    "linksDeleteDesc": "Borrá un link por id, junto con su historial de clicks. Quien creó la API key tiene que ser admin del workspace.",
     "linksPatchTitle": "Actualizar un link",
     "linksPatchDesc": "Actualizá cualquier campo editable de un link.",
     "linksStatsTitle": "Estadísticas de un link",

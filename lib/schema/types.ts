@@ -995,6 +995,11 @@ export interface ChatVisitorRow {
   name: string | null;
   notes: string | null;
   metadata: string; // JSON object
+  /**
+   * 1 si el email está verificado: firmado por el sitio con el secreto del
+   * widget (HMAC) o cargado por alguien del equipo. 0 = lo declaró el widget.
+   */
+  email_verified?: 0 | 1;
   created_at: string;
 }
 

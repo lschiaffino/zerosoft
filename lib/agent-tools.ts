@@ -33,6 +33,29 @@ export interface AgentRunContext {
 type ToolOutput = Record<string, unknown>;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_IN_TEXT_RE = /[^\s@<>()[\]{},;:"'`]+@[^\s@<>()[\]{},;:"'`]+/g;
+
+/** Emails que aparecen en lo que escribió el visitante (minúsculas, sin puntuación final). */
+function emailsInText(text: string): Set<string> {
+  const found = new Set<string>();
+  for (const m of text.matchAll(EMAIL_IN_TEXT_RE)) {
+    const e = m[0].replace(/[.!?…]+$/u, '').toLowerCase();
+    if (EMAIL_RE.test(e)) found.add(e);
+  }
+  return found;
+}
+
+/**
+ * Las herramientas que buscan o escriben un contacto por email solo aceptan un
+ * email que el propio visitante escribió (completo, no como parte de otro).
+ * Así el agente no sirve para tocar contactos ajenos, averiguar qué emails
+ * están en el CRM ni mandarle confirmaciones a terceros. El playground es el
+ * dueño probando: no aplica.
+ */
+function visitorGaveEmail(ctx: AgentRunContext, email: string): boolean {
+  if (ctx.channel === 'playground') return true;
+  return emailsInText(ctx.visitorText ?? '').has(email.trim().toLowerCase());
+}
 
 function toJson(value: unknown, max = 8000): string {
   const s = JSON.stringify(value ?? null) ?? 'null';
@@ -197,9 +220,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
           if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
           // Solo el email que el propio visitante escribió: evita usar al agente
           // para averiguar si un email cualquiera está en el CRM.
-          if (ctx.channel !== 'playground' && !(ctx.visitorText ?? '').toLowerCase().includes(email.toLowerCase())) {
-            return { error: 'email_not_given_by_visitor' };
-          }
+          if (!visitorGaveEmail(ctx, email)) return { error: 'email_not_given_by_visitor' };
           const c = await findContact(workspaceId, email);
           if (!c) return { found: false };
           return { found: true, contactId: c.id, firstName: c.first_name, lifecycleStage: c.lifecycle_stage };
@@ -221,6 +242,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
         }),
         execute: logged(ctx, 'crm_upsert_contact', async (input: { email: string; name?: string; note?: string }) => {
           if (!EMAIL_RE.test(input.email)) return { error: 'invalid_email' };
+          if (!visitorGaveEmail(ctx, input.email)) return { error: 'email_not_given_by_visitor' };
           const { findOrCreateContact } = await import('./crm-integrations');
           const { createActivity, updateContact } = await import('./crm');
           const { contact, created } = await findOrCreateContact(workspaceId, {
@@ -256,6 +278,8 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
         inputSchema: z.object({ email: z.string().trim().max(200), note: z.string().trim().min(1).max(2000) }),
         execute: logged(ctx, 'crm_log_note', async ({ email, note }: { email: string; note: string }) => {
           if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
+          // Se valida antes de buscar: la respuesta no dice si un email ajeno existe.
+          if (!visitorGaveEmail(ctx, email)) return { error: 'email_not_given_by_visitor' };
           const c = await findContact(workspaceId, email);
           if (!c) return { error: 'contact_not_found' };
           const { createActivity } = await import('./crm');
@@ -347,6 +371,8 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
           async (input: { start: string; name: string; email: string; timezone?: string; visitorConfirmed: boolean; notes?: string }) => {
             if (input.visitorConfirmed !== true) return { error: 'not_confirmed' };
             if (!EMAIL_RE.test(input.email)) return { error: 'invalid_email' };
+            // La confirmación sale por email: solo al que dio el visitante.
+            if (!visitorGaveEmail(ctx, input.email)) return { error: 'email_not_given_by_visitor' };
             const startDate = new Date(input.start);
             if (Number.isNaN(startDate.getTime())) return { error: 'invalid_start' };
             // El horario tiene que haberse ofrecido antes (en una corrida

@@ -95,25 +95,36 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
 
   // Identidad opcional del visitante (p. ej. la persona logueada en el sitio
   // que embebe el widget). Se declara antes de cargar con
-  // window.zsChatSettings = { email, name } o data-email / data-name en el
-  // <script>, o después con window.zsChat.identify({ email, name }). Es
-  // información declarada por la página (no verificada): solo completa el
-  // email y el nombre del visitante en el inbox.
+  // window.zsChatSettings = { email, name, userHash } o data-email /
+  // data-name / data-user-hash en el <script>, o después con
+  // window.zsChat.identify({ email, name, userHash }). Sin userHash es
+  // información declarada (no verificada). userHash es el HMAC-SHA256 del
+  // email en minúsculas con el secreto del widget, calculado en el server del
+  // sitio: con una firma válida el email queda verificado en el inbox.
   var SCRIPT_EL = document.currentScript;
-  var identity = { email: null, name: null };
+  var identity = { email: null, name: null, userHash: null };
   function cleanIdentity(o) {
     if (!o || typeof o !== 'object') return;
     if (typeof o.email === 'string') {
       var e = o.email.trim().slice(0, 254);
-      if (/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(e)) identity.email = e;
+      if (/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(e)) {
+        // La firma es de un email: si cambia el email, la anterior ya no vale.
+        if (e !== identity.email) identity.userHash = null;
+        identity.email = e;
+      }
     }
+    if (typeof o.userHash === 'string' && /^[0-9a-fA-F]{64}$/.test(o.userHash)) identity.userHash = o.userHash;
     if (typeof o.name === 'string') {
       var n = o.name.replace(/[\\u0000-\\u001f]/g, '').trim().slice(0, 120);
       if (n) identity.name = n;
     }
   }
   if (SCRIPT_EL && SCRIPT_EL.getAttribute) {
-    cleanIdentity({ email: SCRIPT_EL.getAttribute('data-email'), name: SCRIPT_EL.getAttribute('data-name') });
+    cleanIdentity({
+      email: SCRIPT_EL.getAttribute('data-email'),
+      name: SCRIPT_EL.getAttribute('data-name'),
+      userHash: SCRIPT_EL.getAttribute('data-user-hash'),
+    });
   }
   try { cleanIdentity(window.zsChatSettings); } catch (e) {}
   var zsChat = (window.zsChat = window.zsChat || {});
@@ -127,6 +138,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   function withIdentity(payload) {
     if (identity.email) payload.email = identity.email;
     if (identity.name) payload.name = identity.name;
+    if (identity.email && identity.userHash) payload.userHash = identity.userHash;
     return payload;
   }
 
@@ -782,6 +794,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     if (text) formData.append('body', text);
     if (identity.email) formData.append('email', identity.email);
     if (identity.name) formData.append('name', identity.name);
+    if (identity.email && identity.userHash) formData.append('userHash', identity.userHash);
 
     api('/api/chat/messages/upload', { method: 'POST', body: formData })
       .then(function (r) {

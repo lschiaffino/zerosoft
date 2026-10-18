@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { applyLinkPatch, getUserLink, linkPatchSchema, toLinkDto } from '@/lib/links';
 import { todayClicksForLink } from '@/lib/track';
 
@@ -45,6 +45,8 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  // Borrar se lleva todo el historial de clicks: solo admins, igual que el borrado masivo.
+  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const link = await getUserLink(user.id, params.id);
   if (!link) return notFound();
   await getDb().prepare('DELETE FROM links WHERE id = ?').run(link.id);

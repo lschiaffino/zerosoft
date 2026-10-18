@@ -15,6 +15,7 @@ import {
   updateChatVisitor,
   visitorFormAnswers,
 } from '@/lib/chat-data';
+import { verifyVisitorIdentity } from '@/lib/chat-identity';
 import { afterVisitorMessage } from '@/lib/chat-visitor-message';
 import { visitorMessageLimitsSchema } from '@/lib/chat-schema';
 
@@ -77,9 +78,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
+  // Identidad: verificada solo si el sitio firmó el email (userHash); el email
+  // del formulario pre-chat es siempre declarado.
   const identity = cleanVisitorIdentity(body.email, body.name);
+  const verified = await verifyVisitorIdentity(widgetId, identity.email, body.userHash);
   if (!identity.email && answers.email) identity.email = answers.email;
-  let visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, identity);
+  let visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, { ...identity, verified });
   if (answers.entries.length > 0) {
     let metadata: Record<string, unknown> = {};
     try {
