@@ -41,7 +41,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   font-size: 0.875rem;
   color: var(--bad-ink);
   background: var(--bad-soft);
-  border: 1px solid color-mix(in srgb, var(--bad-ink) 30%, white);
+  border: 1px solid color-mix(in srgb, var(--bad-ink) 30%, var(--bg));
   border-radius: var(--radius-1);
 }
 .chat-inbox-error { margin: 12px 16px; }
@@ -302,7 +302,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   margin-top: 6px;
   padding: 8px 12px;
   background: var(--warn-soft);
-  border: 1px solid color-mix(in srgb, var(--warn-ink) 25%, white);
+  border: 1px solid color-mix(in srgb, var(--warn-ink) 25%, var(--bg));
   border-radius: var(--radius-1);
 }
 .chat-attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }

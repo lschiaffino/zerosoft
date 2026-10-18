@@ -403,5 +403,11 @@
     "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos onze apps.",
     "cta": "Ir para o início",
     "meta": "Página não encontrada"
+  },
+  "theme": {
+    "label": "Tema",
+    "system": "Sistema",
+    "light": "Claro",
+    "dark": "Escuro"
   }
 }

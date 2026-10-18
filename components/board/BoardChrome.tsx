@@ -4,6 +4,7 @@ import { boardLoginHref, type BoardContext } from '@/lib/board-context';
 import { authBaseUrl, siteUrl } from '@/lib/board-urls';
 import type { BoardPerson } from '@/lib/board-session';
 import Logo from '@/components/brand/Logo';
+import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
 
 export type BoardSection = 'board' | 'roadmap' | 'changelog';
 
@@ -46,6 +47,7 @@ export default async function BoardChrome({
           ))}
         </nav>
         <div className="bp-head-end">
+          <ThemeSwitcher className="bp-theme" />
           {person ? (
             <a className="bp-user" href={appHref} title={person.email}>
               {person.image ? (

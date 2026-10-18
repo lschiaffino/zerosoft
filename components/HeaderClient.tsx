@@ -5,6 +5,7 @@ import { signIn, signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
+import ThemeSwitcher from './theme/ThemeSwitcher';
 import Icon from './site/Icon';
 import { AUDIENCE_PRODUCTS, GITHUB_URL, PRODUCT_NAMES, type Audience } from './site/catalog';
 import Logo from './brand/Logo';
@@ -179,6 +180,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         </nav>
 
         <div className="hd-right">
+          <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
           {user ? (
             <Link className="btn btn-chrome btn-sm" href="/app" title={user.email}>
@@ -242,6 +244,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
           </a>
         </div>
         <div className="mobile-panel-foot">
+          <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
           {user ? (
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => signOut({ callbackUrl: '/' })}>

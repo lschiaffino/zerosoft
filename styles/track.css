@@ -1992,7 +1992,7 @@ a.track-board-card-title:hover {
   width: 20px;
   height: 20px;
   padding: 0;
-  border: 1px solid rgb(17 17 17 / 0.15);
+  border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
   border-radius: var(--radius-1);
   cursor: pointer;
 }
@@ -2192,7 +2192,7 @@ a.track-board-card-title:hover {
     inset: 0;
     z-index: 120;
     display: block;
-    background: rgb(17 17 17 / 0.4);
+    background: var(--ui-backdrop);
   }
 
   .track-filters.is-sheet-open .track-filter-group {

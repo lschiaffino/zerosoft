@@ -206,14 +206,14 @@
   --color-primary-darker: #006f66;
   --color-primary-darkest: #005c55;
   --color-primary-hover: #00756b;
-  --color-primary-light: color-mix(in srgb, var(--c-board) 14%, white);
-  --color-primary-light-darker: color-mix(in srgb, var(--c-board) 24%, white);
+  --color-primary-light: color-mix(in srgb, var(--c-board) 14%, var(--bg));
+  --color-primary-light-darker: color-mix(in srgb, var(--c-board) 24%, var(--bg));
   --color-selection: var(--c-board-ink);
-  --color-surface-primary-container: color-mix(in srgb, var(--c-board-ink) 14%, white);
+  --color-surface-primary-container: color-mix(in srgb, var(--c-board-ink) 14%, var(--bg));
   --color-on-primary-container: #005c55;
   --color-brand-hover: #00756b;
   --color-brand-active: #006f66;
-  --color-slider-track: color-mix(in srgb, var(--c-board-ink) 24%, white);
+  --color-slider-track: color-mix(in srgb, var(--c-board-ink) 24%, var(--bg));
 }
 
 .board-loading { position: absolute; inset: 0; background: var(--bg); }

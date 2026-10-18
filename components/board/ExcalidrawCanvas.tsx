@@ -8,6 +8,7 @@
 import { Excalidraw, exportToSvg } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import type { BoardScene } from '@/lib/boards-types';
+import { useResolvedTheme } from '@/components/theme/ThemeProvider';
 
 // Tipos laxos: los .d.ts de Excalidraw arrastran paquetes internos.
 export interface CanvasApi {
@@ -35,8 +36,11 @@ export default function ExcalidrawCanvas({
   onChange?: CanvasChange;
   onApi?: (api: CanvasApi) => void;
 }) {
+  // El lienzo sigue el modo de color del sitio (selector sistema/claro/oscuro).
+  const theme = useResolvedTheme();
   return (
     <Excalidraw
+      theme={theme}
       initialData={{
         elements: scene.elements as never,
         appState: { ...scene.appState, collaborators: undefined } as never,
@@ -51,7 +55,7 @@ export default function ExcalidrawCanvas({
         canvasActions: {
           loadScene: false,
           saveToActiveFile: false,
-          toggleTheme: true,
+          toggleTheme: false,
           export: viewMode ? false : { saveFileToDisk: true },
         },
       }}

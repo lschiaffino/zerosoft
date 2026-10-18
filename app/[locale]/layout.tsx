@@ -12,6 +12,9 @@ import { surfaceForHost } from '@/lib/host-rewrite';
 import { headers } from 'next/headers';
 import BrandProvider from '@/components/brand/BrandProvider';
 import { getBrandTheme } from '@/lib/brand-theme-server';
+import ThemeProvider from '@/components/theme/ThemeProvider';
+import { getThemePref } from '@/lib/color-theme-server';
+import { themeAttr } from '@/lib/color-theme';
 import '@/styles/board-public.css';
 import type { ReactNode } from 'react';
 
@@ -76,11 +79,19 @@ export default async function LocaleLayout(
   const surface = surfaceForHost((await headers()).get('host'));
   // Tema de marca (hoy solo default; ver lib/brand-theme.ts).
   const brand = await getBrandTheme();
+  // Modo de color: cookie zs_theme (light/dark); sin cookie sigue al sistema.
+  const themePref = await getThemePref();
 
   return (
-    <html lang={locale} data-brand={brand} className={`${sans.variable} ${mono.variable}`}>
+    <html
+      lang={locale}
+      data-brand={brand}
+      data-theme={themeAttr(themePref)}
+      className={`${sans.variable} ${mono.variable}`}
+    >
       <body>
         <BrandProvider brand={brand}>
+        <ThemeProvider initial={themePref}>
         <NextIntlClientProvider messages={messages}>
           <ChromeGate
             header={<Header locale={locale} />}
@@ -92,6 +103,7 @@ export default async function LocaleLayout(
             {children}
           </ChromeGate>
         </NextIntlClientProvider>
+        </ThemeProvider>
         </BrandProvider>
       </body>
     </html>

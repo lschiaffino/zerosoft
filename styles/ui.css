@@ -382,7 +382,7 @@ select.select,
 .badge-ok { color: var(--ok-ink); background: var(--ok-soft); }
 .badge-warn { color: var(--warn-ink); background: var(--warn-soft); }
 .badge-bad { color: var(--bad-ink); background: var(--bad-soft); }
-.badge-info { color: var(--info-ink); background: color-mix(in srgb, var(--c-link) 9%, white); }
+.badge-info { color: var(--info-ink); background: color-mix(in srgb, var(--c-link) 9%, var(--bg)); }
 .badge-ink { color: var(--bg); background: var(--ink); }
 .badge-outline { background: transparent; border-color: var(--line); }
 
@@ -734,7 +734,7 @@ section.ui-section { padding: 0; }
 .ui-section-note[data-tone='ok'] { color: var(--ok-ink); }
 .ui-section-note[data-tone='error'] { color: var(--bad-ink); }
 .ui-section-danger { border-color: var(--bad-ink); }
-.ui-section-danger .ui-section-foot { background: var(--bad-soft); border-top-color: color-mix(in srgb, var(--bad-ink) 30%, white); }
+.ui-section-danger .ui-section-foot { background: var(--bad-soft); border-top-color: color-mix(in srgb, var(--bad-ink) 30%, var(--bg)); }
 @media (max-width: 720px) {
   .ui-section-body { padding: 16px; }
   .ui-section-foot { padding: 10px 16px; }
@@ -828,4 +828,42 @@ section.ui-section { padding: 0; }
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ---------- Modo de color: sistema / claro / oscuro ---------- */
+/* Tres placas rectas, como el selector de idioma (styles/site.css). */
+.theme-switcher { display: inline-flex; border: 1px solid var(--line); }
+.theme-switcher button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  color: var(--brand-gray-2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: background-color var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
+}
+.theme-switcher button + button { border-left: 1px solid var(--line); }
+.theme-switcher button:hover { color: var(--ink); }
+.theme-switcher button.active { background: var(--ink); color: var(--bg); }
+.theme-switcher button:focus-visible { outline-offset: -2px; }
+.site-header .theme-switcher,
+.bp-head .theme-switcher { border-color: var(--chrome-line); }
+.site-header .theme-switcher button,
+.bp-head .theme-switcher button { color: var(--chrome-fg-2); }
+.site-header .theme-switcher button + button,
+.bp-head .theme-switcher button + button { border-left-color: var(--chrome-line); }
+.site-header .theme-switcher button:hover,
+.bp-head .theme-switcher button:hover { color: var(--chrome-fg); }
+.site-header .theme-switcher button.active,
+.bp-head .theme-switcher button.active { background: var(--chrome-active-bg); color: var(--chrome-active-fg); }
+@media (max-width: 640px) { .bp-theme { display: none; } }
+/* En el pie del sidebar: alineado con los links; colapsado, en columna. */
+.side-theme { align-self: flex-start; margin: 4px 12px; }
+@media (min-width: 1024px) {
+  .sidebar-collapsed .side-theme { flex-direction: column; align-self: center; margin: 4px 0; }
+  .sidebar-collapsed .side-theme button + button { border-left: 0; border-top: 1px solid var(--line); }
 }

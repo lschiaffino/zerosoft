@@ -188,7 +188,8 @@
 
 @media (max-width: 1180px) {
   .hd-gh { display: none; }
-  .hd-right .locale-switcher { display: none; }
+  .hd-right .locale-switcher,
+  .hd-right .theme-switcher { display: none; }
 }
 
 @media (max-width: 1024px) {

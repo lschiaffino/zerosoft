@@ -14,7 +14,7 @@
   background: var(--bg);
   color: var(--ink);
 }
-.help ::selection { background: color-mix(in srgb, var(--help-accent) 28%, white); color: var(--ink); }
+.help ::selection { background: color-mix(in srgb, var(--help-accent) 28%, var(--bg)); color: var(--ink); }
 
 .help-wrap {
   width: min(100% - 64px, var(--help-wrap));
@@ -347,7 +347,7 @@
 }
 .dbv .dbv-todo.done input {
   background-color: var(--ink);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  background-image: var(--check-img);
 }
 .dbv .dbv-todo.done span { color: var(--brand-gray-2); text-decoration: line-through; text-decoration-color: var(--brand-gray-3); }
 .dbv-table { overflow-x: auto; }

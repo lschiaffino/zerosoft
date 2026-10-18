@@ -5,6 +5,8 @@ import '@/styles/brand.css';
 import '@/styles/themes/default.css';
 import '@/styles/globals.css';
 import '@/styles/ui.css';
+// Modo oscuro (sistema o data-theme="dark", ver lib/color-theme.ts).
+import '@/styles/themes/dark.css';
 
 // El <html> real vive en app/[locale]/layout.tsx (patrón next-intl).
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -454,13 +454,13 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   height: 22px;
   padding: 0;
   color: transparent;
-  background: #ffffff;
+  background: var(--bg);
   border: 3px solid var(--ink);
   border-radius: 50%;
   cursor: pointer;
   transition: background-color var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
 }
-.task-check:hover { color: var(--ink); background: #ffffff; }
+.task-check:hover { color: var(--ink); background: var(--bg); }
 .task-check.checked { color: var(--accent-on); background: var(--accent); }
 .task-check svg { width: 12px; height: 12px; }
 .task-subject { font-size: 0.875rem; font-weight: 500; color: var(--ink); }

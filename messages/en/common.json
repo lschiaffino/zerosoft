@@ -403,5 +403,11 @@
     "body": "The link may have a typo or the page moved. The home page takes you to all eleven apps.",
     "cta": "Go to the home page",
     "meta": "Page not found"
+  },
+  "theme": {
+    "label": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
   }
 }

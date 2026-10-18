@@ -1,0 +1,166 @@
+/* ============================================
+   Modo oscuro: los mismos tokens del tema default, redefinidos.
+   El bloque está dos veces (preferencia del sistema y data-theme="dark"):
+   tienen que ser iguales, lo verifica tests/unit/color-theme.test.ts.
+
+   - Sistema (sin data-theme): sigue a prefers-color-scheme.
+   - data-theme="dark": siempre oscuro. data-theme="light": siempre claro.
+   Ver lib/color-theme.ts.
+   ============================================ */
+
+:root { color-scheme: light dark; }
+:root[data-theme='light'] { color-scheme: light; }
+
+/* --- dark:system --- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    /* Neutros: casi negro cálido, ni #000 ni gris azulado.
+       Contraste sobre --brand-white (#0f0e0d), WCAG 2.2. */
+    --brand-white: #0f0e0d; /* el papel */
+    --brand-enamel: #1d1c1a; /* superficie elevada / relleno sutil */
+    --brand-ink: #ecebe6; /* 16,2:1 */
+    --brand-gray-1: #b9b8b2; /* 9,7:1 */
+    --brand-gray-2: #a3a29c; /* 7,5:1 */
+    --brand-gray-3: #8d8c86; /* 5,7:1 (5,1:1 sobre #1d1c1a) */
+    --brand-rule: #2a2927;
+    --brand-on-ink: #0f0e0d;
+    --brand-on-ink-2: #55544f; /* 6,4:1 sobre #ecebe6 */
+
+    --ui-hover: #1d1c1a;
+    --ui-press: #2a2927;
+    /* Borde de un campo: 3,8:1 sobre el fondo, 3,3:1 sobre #1d1c1a. */
+    --ui-field: #6f6e69;
+    --ui-backdrop: rgb(0 0 0 / 0.62);
+    --ui-shadow: rgb(0 0 0 / 0.45);
+    --ui-shadow-strong: rgb(0 0 0 / 0.65);
+    --surface-1: #171615;
+    --surface-2: #1d1c1a;
+
+    --side-bg: #141312;
+    --bg-soft: #141312;
+    --ink-disabled: #4d4c48;
+    --check-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230f0e0d' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+    --on-dark-3: #8d8c86;
+
+    /* Texto de cada producto sobre el fondo oscuro (≥ 5:1 sobre #1d1c1a). */
+    --c-link-ink: #5486ff;
+    --c-crm-ink: #9874ff;
+    --c-cal-ink: #14a874;
+    --c-track-ink: #f2611d;
+    --c-chat-ink: #e65891;
+    --c-docs-ink: #c77b1e;
+    --c-flow-ink: #2595cf;
+    --c-agents-ink: #ff473c;
+    --c-notes-ink: #e6b400;
+    --c-board-ink: #00b8a9;
+    --c-robots-ink: #898e99;
+
+    /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
+    --ok-ink: #2bb062;
+    --ok-soft: color-mix(in srgb, var(--ok) 16%, var(--brand-white));
+    --warn-ink: #e08a1a;
+    --warn-soft: color-mix(in srgb, var(--warn) 16%, var(--brand-white));
+    --bad-ink: #e1656a;
+    --bad-soft: color-mix(in srgb, var(--bad) 16%, var(--brand-white));
+    /* Cuánto color lleva un tinte (--accent-soft, --accent-line). */
+    --tint-soft: 16%;
+    --tint-line: 40%;
+  }
+  :root:not([data-theme='light']) .site-footer,
+  :root:not([data-theme='light']) .lp-end,
+  :root:not([data-theme='light']) .cl-cta,
+  :root:not([data-theme='light']) .tool-cta-inner,
+  :root:not([data-theme='light']) .code-win,
+  :root:not([data-theme='light']) .term,
+  :root:not([data-theme='light']) .stack-zero,
+  :root:not([data-theme='light']) .pd-compare-zero,
+  :root:not([data-theme='light']) .prose pre,
+  :root:not([data-theme='light']) .code-block,
+  :root:not([data-theme='light']) .hd-mega-cta-dark {
+    --brand-ink: #1d1c1a;
+    --brand-on-ink: #ecebe6;
+    --brand-on-ink-2: #a3a29c;
+    --brand-white: #ecebe6;
+    --brand-enamel: #d6d5cf;
+    --brand-gray-1: #3a3936;
+    --brand-gray-2: #6f6e69;
+  }}
+/* --- end:system --- */
+
+/* --- dark:explicit --- */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Neutros: casi negro cálido, ni #000 ni gris azulado.
+     Contraste sobre --brand-white (#0f0e0d), WCAG 2.2. */
+  --brand-white: #0f0e0d; /* el papel */
+  --brand-enamel: #1d1c1a; /* superficie elevada / relleno sutil */
+  --brand-ink: #ecebe6; /* 16,2:1 */
+  --brand-gray-1: #b9b8b2; /* 9,7:1 */
+  --brand-gray-2: #a3a29c; /* 7,5:1 */
+  --brand-gray-3: #8d8c86; /* 5,7:1 (5,1:1 sobre #1d1c1a) */
+  --brand-rule: #2a2927;
+  --brand-on-ink: #0f0e0d;
+  --brand-on-ink-2: #55544f; /* 6,4:1 sobre #ecebe6 */
+
+  --ui-hover: #1d1c1a;
+  --ui-press: #2a2927;
+  /* Borde de un campo: 3,8:1 sobre el fondo, 3,3:1 sobre #1d1c1a. */
+  --ui-field: #6f6e69;
+  --ui-backdrop: rgb(0 0 0 / 0.62);
+  --ui-shadow: rgb(0 0 0 / 0.45);
+  --ui-shadow-strong: rgb(0 0 0 / 0.65);
+  --surface-1: #171615;
+  --surface-2: #1d1c1a;
+
+  --side-bg: #141312;
+  --bg-soft: #141312;
+  --ink-disabled: #4d4c48;
+  --check-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230f0e0d' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  --on-dark-3: #8d8c86;
+
+  /* Texto de cada producto sobre el fondo oscuro (≥ 5:1 sobre #1d1c1a). */
+  --c-link-ink: #5486ff;
+  --c-crm-ink: #9874ff;
+  --c-cal-ink: #14a874;
+  --c-track-ink: #f2611d;
+  --c-chat-ink: #e65891;
+  --c-docs-ink: #c77b1e;
+  --c-flow-ink: #2595cf;
+  --c-agents-ink: #ff473c;
+  --c-notes-ink: #e6b400;
+  --c-board-ink: #00b8a9;
+  --c-robots-ink: #898e99;
+
+  /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
+  --ok-ink: #2bb062;
+  --ok-soft: color-mix(in srgb, var(--ok) 16%, var(--brand-white));
+  --warn-ink: #e08a1a;
+  --warn-soft: color-mix(in srgb, var(--warn) 16%, var(--brand-white));
+  --bad-ink: #e1656a;
+  --bad-soft: color-mix(in srgb, var(--bad) 16%, var(--brand-white));
+  /* Cuánto color lleva un tinte (--accent-soft, --accent-line). */
+  --tint-soft: 16%;
+  --tint-line: 40%;
+}
+:root[data-theme='dark'] .site-footer,
+:root[data-theme='dark'] .lp-end,
+:root[data-theme='dark'] .cl-cta,
+:root[data-theme='dark'] .tool-cta-inner,
+:root[data-theme='dark'] .code-win,
+:root[data-theme='dark'] .term,
+:root[data-theme='dark'] .stack-zero,
+:root[data-theme='dark'] .pd-compare-zero,
+:root[data-theme='dark'] .prose pre,
+:root[data-theme='dark'] .code-block,
+:root[data-theme='dark'] .hd-mega-cta-dark {
+  --brand-ink: #1d1c1a;
+  --brand-on-ink: #ecebe6;
+  --brand-on-ink-2: #a3a29c;
+  --brand-white: #ecebe6;
+  --brand-enamel: #d6d5cf;
+  --brand-gray-1: #3a3936;
+  --brand-gray-2: #6f6e69;
+}/* --- end:explicit --- */

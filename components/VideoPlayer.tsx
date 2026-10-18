@@ -72,7 +72,7 @@ export default function VideoPlayer({
       playsInline
       loop={loop}
       preload="none"
-      style={{ display: 'block', width: '100%', height: 'auto', aspectRatio: `${width} / ${height}`, background: '#f5f5f5' }}
+      style={{ display: 'block', width: '100%', height: 'auto', aspectRatio: `${width} / ${height}`, background: 'var(--brand-enamel)' }}
     />
   );
 }

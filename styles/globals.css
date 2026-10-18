@@ -19,6 +19,21 @@
   /* Lo mismo sobre fondos de tinta (pie, bandas oscuras). */
   --on-dark-2: var(--brand-on-ink-2);
   --on-dark-3: #8f8f8f;
+  /* Superficies elevadas (menús, popovers, tarjetas sobre el fondo). */
+  --surface-1: var(--brand-white);
+  --surface-2: var(--brand-white);
+  /* Fondo apenas distinto del papel (filas fijadas, paneles quietos). */
+  --bg-soft: #fafafa;
+  /* Texto deshabilitado o de relleno (no lleva información). */
+  --ink-disabled: #c8c8c8;
+  /* La tilde de una casilla marcada (sobre --ink). */
+  --check-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  /* Sombra de lo que flota (menús, modales). */
+  --ui-shadow: rgb(13 13 13 / 0.12);
+  --ui-shadow-strong: rgb(13 13 13 / 0.24);
+  /* Cuánto color lleva un tinte: en oscuro, más (themes/dark.css). */
+  --tint-soft: 10%;
+  --tint-line: 28%;
   --mono: var(--font-data);
   --sans: var(--font-ui);
   --ease: var(--ease-out-expo);
@@ -72,8 +87,8 @@
   /* Texto sobre un fondo del color del producto (ver .card-* abajo). */
   --on-accent: #ffffff;
   --accent-on: var(--on-accent);
-  --accent-soft: color-mix(in srgb, var(--accent) 10%, white);
-  --accent-line: color-mix(in srgb, var(--accent) 28%, white);
+  --accent-soft: color-mix(in srgb, var(--accent) var(--tint-soft), var(--bg));
+  --accent-line: color-mix(in srgb, var(--accent) var(--tint-line), var(--bg));
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -119,7 +134,7 @@ body {
 .card-board { --accent: var(--c-board); --on-accent: var(--ink); }
 .card-robots { --accent: var(--c-robots); --on-accent: #ffffff; }
 /* El color del producto, oscurecido para usarlo como texto sobre blanco. */
-[class*='card-'] { --accent-ink: color-mix(in srgb, var(--accent) 74%, black); }
+[class*='card-'] { --accent-ink: color-mix(in srgb, var(--accent) 74%, var(--ink)); }
 
 ::selection { background: var(--ink); color: var(--bg); }
 

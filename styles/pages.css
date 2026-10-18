@@ -934,7 +934,7 @@
   text-overflow: ellipsis;
 }
 
-.bframe-body { background: #fff; overflow-x: auto; }
+.bframe-body { background: var(--bg); overflow-x: auto; }
 
 /* ---------- Mockups con el color del producto ----------
    El color del producto va donde la app lo usa: el gráfico, la barra de

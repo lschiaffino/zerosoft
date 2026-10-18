@@ -16,6 +16,7 @@ import {
 import NotificationBell from './NotificationBell';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
+import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
 import type { ProductKey } from '@/lib/products';
 
 export type { SidebarLabels };
@@ -374,6 +375,7 @@ export default function AppSidebar({
             <Icon name="back" size={15} />
             <span className="side-label">{labels.backToSite}</span>
           </Link>
+          <ThemeSwitcher className="side-theme" />
           <div className="side-user">
             {user.image ? (
               // eslint-disable-next-line @next/next/no-img-element

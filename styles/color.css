@@ -8,8 +8,8 @@
    ============================================================ */
 
 .app-frame {
-  --accent-soft: color-mix(in srgb, var(--accent) 9%, white);
-  --accent-line: color-mix(in srgb, var(--accent) 30%, white);
+  --accent-soft: color-mix(in srgb, var(--accent) var(--tint-soft), var(--bg));
+  --accent-line: color-mix(in srgb, var(--accent) var(--tint-line), var(--bg));
 }
 
 /* ---------- Controles con el color de la app ---------- */
@@ -76,8 +76,8 @@
 /* ---------- Detalles por producto ---------- */
 .page-head .app-sub { margin-top: 4px; }
 .next-task-banner .next-task-label { color: var(--ink); font-weight: 600; }
-.next-task-banner.overdue { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad-ink) 35%, white) !important; }
+.next-task-banner.overdue { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad-ink) 35%, var(--bg)) !important; }
 .next-task-banner .bulk-btn { color: var(--ink); border-color: var(--ui-field); background: var(--bg); }
 .next-task-banner .bulk-btn:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.track-calendar-day.today .track-calendar-day-number { color: #fff; }
+.track-calendar-day.today .track-calendar-day-number { color: var(--accent-on); }
 .docs-tree-link.active { color: #fff; }

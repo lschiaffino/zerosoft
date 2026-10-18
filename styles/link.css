@@ -156,7 +156,7 @@
   transition: border-color 0.2s, background 0.2s, color 0.2s;
 }
 .icon-btn:hover { border-color: var(--ink); }
-.icon-btn.danger:hover { background: var(--bad-ink); border-color: var(--bad-ink); color: #fff; }
+.icon-btn.danger:hover { background: var(--bad-ink); border-color: var(--bad-ink); color: var(--bg); }
 
 .pager {
   display: flex;
@@ -215,7 +215,7 @@
 }
 .detail-meta { display: flex; align-items: center; gap: 14px; }
 
-.danger-panel { border-color: color-mix(in srgb, var(--bad-ink) 35%, white); }
+.danger-panel { border-color: color-mix(in srgb, var(--bad-ink) 35%, var(--bg)); }
 .danger-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
 .danger-title { font-weight: 500; margin-bottom: 6px; }
 .danger-desc { font-size: 0.85rem; }

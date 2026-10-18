@@ -466,7 +466,7 @@
   color: var(--ink);
 }
 .docs-banner > span { margin-right: auto; }
-.docs-banner-bad { background: var(--bad-soft); color: var(--bad-ink); border-bottom-color: color-mix(in srgb, var(--bad-ink) 30%, white); }
+.docs-banner-bad { background: var(--bad-soft); color: var(--bad-ink); border-bottom-color: color-mix(in srgb, var(--bad-ink) 30%, var(--bg)); }
 .docs-shared-banner { margin: 0; padding: 10px 24px; border-bottom: 1px solid var(--line); background: var(--brand-enamel); font-size: 0.875rem; color: var(--brand-gray-1); }
 
 .docs-cover { position: relative; height: 220px; background: var(--brand-enamel); }
@@ -627,7 +627,7 @@
 }
 .docs-check:checked {
   background-color: var(--ink);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  background-image: var(--check-img);
 }
 .docs-check:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .docs-block-todo:has(.docs-check:checked) .docs-editable { color: var(--brand-gray-2); text-decoration: line-through; text-decoration-color: var(--brand-gray-3); }
@@ -682,7 +682,7 @@
 
 /* Selección y caret con la tinta de Docs. */
 .docs-editor ::selection,
-.docs-prose ::selection { background: color-mix(in srgb, var(--accent) 26%, white); color: var(--ink); }
+.docs-prose ::selection { background: color-mix(in srgb, var(--accent) 26%, var(--bg)); color: var(--ink); }
 
 /* Tabla simple y base de datos. */
 .docs-table-wrap { width: 100%; min-width: 0; overflow-x: auto; }

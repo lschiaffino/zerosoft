@@ -54,7 +54,7 @@ interface DragPreview {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const INK = '#000000';
+const INK = 'var(--ink)';
 const DRAG_THRESHOLD = 6; // px antes de activar el drag (permite clicks que navegan)
 
 /** Date-only parse: usa los primeros 10 chars (YYYY-MM-DD) como fecha local. */
