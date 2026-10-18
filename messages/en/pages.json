@@ -90,7 +90,7 @@
         },
         "f5": {
           "q": "What is missing compared to Bitly?",
-          "a": "Folders, deep links into mobile apps, routing by country or device, branded QR codes, and bulk actions in the links table."
+          "a": "Folders with permissions, analytics filtered by tag, and deep links that open the right content in the app after it is installed. Routing by country or device, A/B destinations, QR codes with a logo and colors, and bulk actions are already in Link."
         }
       },
       "cta": {
@@ -384,7 +384,7 @@
         },
         "f5": {
           "q": "What is missing compared to Calendly?",
-          "a": "Stripe payments, group or collective events, SMS reminders and reusable schedules: availability is set per event type today."
+          "a": "Group or collective events, SMS reminders and Outlook or iCloud calendars. Stripe payments, email workflows and reusable schedules are already in Cal."
         }
       },
       "cta": {
@@ -470,11 +470,11 @@
         },
         "f2": {
           "q": "Can several people edit at once?",
-          "a": "Not in real time. If two people edit the same page at the same time, the last save wins. There is no version history yet either."
+          "a": "Not in real time. If two people edit the same page at the same time, the second one to save gets a warning and chooses between loading the new version or overwriting it. Each page keeps up to 50 versions you can restore."
         },
         "f3": {
           "q": "Can I publish a page on the web?",
-          "a": "Not yet. Sharing today controls who can read the page through the API; there is no public read-only page."
+          "a": "Yes. The pages you publish form a public help center at /h/ plus your handle, with collections, search and a vote per article. On zerosoft Cloud there is no custom domain yet. For a single person, share the page as view only."
         },
         "f4": {
           "q": "What can databases do?",
@@ -580,7 +580,7 @@
         },
         "f5": {
           "q": "What is missing compared to Intercom?",
-          "a": "Internal notes, mentions and tags inside conversations, a help center, proactive messages, and reports per agent or by date range."
+          "a": "Proactive messages, a public API with webhooks, and conversation export. Internal notes with mentions, tags, macros, the help center and reports per agent or by date range are already in Chat."
         }
       },
       "cta": {
@@ -620,7 +620,7 @@
       },
       "f2": {
         "t": "Your knowledge",
-        "d": "It searches your Docs pages, up to 20 websites and your saved Chat replies."
+        "d": "It searches your Docs pages, up to 20 URLs (each one is read as a single page; it does not crawl the site) and your saved Chat replies."
       },
       "f3": {
         "t": "Tools across the suite",
@@ -666,7 +666,7 @@
         },
         "f5": {
           "q": "Can I bring my Fin setup?",
-          "a": "There is no importer. Paste your instructions as the brief and add your Docs pages and websites as knowledge."
+          "a": "There is no importer. Paste your instructions as the brief and add your Docs pages and the URLs of your web pages as knowledge."
         }
       },
       "cta": {
@@ -752,7 +752,7 @@
         },
         "f5": {
           "q": "What is missing compared to Zapier?",
-          "a": "A catalog of third-party integrations. Outside zerosoft, Flow speaks HTTP: if a service has an API or webhooks, you connect it with an HTTP request."
+          "a": "The number of integrations. Flow has nodes for Slack, Google Sheets, Gmail, Stripe, Notion, Discord and Telegram; Zapier connects thousands of apps. For the rest, Flow speaks HTTP: if a service has an API or webhooks, you connect it with an HTTP request."
         }
       },
       "cta": {
@@ -830,7 +830,7 @@
         },
         "f3": {
           "q": "Does it work on sites with a login?",
-          "a": "Robots are meant for public pages. Inputs are stored in plain text and the whole workspace can see them, so do not store passwords."
+          "a": "Yes. Store the username and password in Flow Credentials: they are encrypted with AES-256-GCM and the robot uses them without showing them in the logs. It can also keep the session between runs, encrypted. Regular inputs are stored in plain text and the whole workspace can see them, so do not put passwords there."
         },
         "f4": {
           "q": "How do I use what it extracts?",
@@ -838,7 +838,7 @@
         },
         "f5": {
           "q": "What is missing compared to UiPath?",
-          "a": "Robots automates the browser, not the desktop: it does not drive Windows apps or local files. It also does not store encrypted credentials for sites behind a login."
+          "a": "Robots automates the browser, not the desktop: it does not drive Windows apps or local files. It also does not solve captchas."
         }
       },
       "cta": {

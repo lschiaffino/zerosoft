@@ -47,7 +47,7 @@ A regra que seguimos é export completo em formatos abertos. Nem todas as apps c
 - **Link:** links em CSV ou JSON, cliques em CSV por link, e tudo pela API pública.
 - **CRM:** contatos, empresas e negócios em CSV ou JSON, e a API v1 para o resto (atividades, cotações, formulários).
 - **Cal:** tipos de evento e reservas pela API v1.
-- **Docs:** ainda não tem export. Hoje dá para copiar o conteúdo de uma página ou ler as páginas pela API interna.
+- **Docs:** cada página exporta para Markdown ou PDF, uma por vez. Ainda não há export do espaço inteiro.
 - **Track:** ainda não tem API pública nem export.
 
 Em self-host, todos os dados de todas as apps ficam num único arquivo SQLite que é seu. E o código é open source: se um dia fizermos as coisas mal, você precisa de um VPS de $5 e uma tarde para seguir sem a gente.

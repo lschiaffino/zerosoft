@@ -105,7 +105,7 @@ Cal le manda al invitado un recordatorio **24 horas antes** de la reunión, en s
 
 En producción el endpoint se niega a correr sin `CRON_SECRET`, y lo exige como Bearer token. Como el job corre cada hora, el recordatorio sale entre 24 y 23 horas antes de la reunión. Si el envío falla, no se marca como enviado, así que el próximo run lo reintenta. Las reservas canceladas descartan su recordatorio pendiente; las reprogramadas reciben uno nuevo. Las reuniones reservadas con menos de 24 horas de anticipación no tienen recordatorio, porque la confirmación acaba de llegar.
 
-Hoy es el único recordatorio. Todavía no hay recordatorios por SMS ni horarios de recordatorio a medida (por ejemplo, una hora antes).
+Si querés otros tiempos (por ejemplo, tres horas antes), sumá pasos de workflow en el tipo de evento: reemplazan a este recordatorio y salen con el mismo cron. Todavía no hay recordatorios por SMS.
 
 ## Checklist de cinco minutos
 

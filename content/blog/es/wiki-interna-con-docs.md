@@ -67,7 +67,7 @@ Resolvé un comentario cuando está atendido; lo podés reabrir si no lo estaba.
 
 Cada página tiene un panel **Compartir** con tres tipos: público, con un equipo o con un usuario puntual. Para una wiki interna, el workspace de equipo ya le da a tu equipo el árbol completo, así que la mayoría de las páginas no necesita nada más.
 
-Dos aclaraciones honestas. Primero, Docs no es un constructor de sitios públicos: si lo que querés es un centro de ayuda para clientes con dominio propio y SEO, eso es otra herramienta. Segundo, la edición sigue al workspace: no hay un "solo lectura" por página para miembros del mismo equipo.
+Cada share elige si la persona o el equipo puede ver o editar; quien solo puede ver abre la página en modo lectura. Dos aclaraciones honestas. Primero, si querés que tus clientes lean algunas páginas, publicalas: arman un [centro de ayuda](/blog/centro-de-ayuda-con-docs) en `/h/<tu-handle>`, sin dominio propio en zerosoft Cloud. Segundo, dentro del workspace la edición es de todos: no hay un "solo lectura" por página para miembros del mismo equipo.
 
 ## Paso 7: la papelera, y el hábito del archivo
 
@@ -81,6 +81,6 @@ Si también usás Chat, el bot de respuesta automática puede usar tus páginas 
 
 ## Los límites que conviene saber antes de arrancar
 
-Docs no tiene coedición en tiempo real: si dos personas editan la misma página al mismo tiempo, gana el último que guarda. Pensá en dueños de página, no en multitudes. Tampoco hay búsqueda de texto completo, ni exportación a JSON o Markdown todavía, ni importación desde Notion. Si tu equipo vive en una página gigante que editan diez personas a la vez, o necesitás traer años de contenido de Notion, esos huecos pesan.
+Docs no tiene coedición en tiempo real: si dos personas editan la misma página al mismo tiempo, la segunda en guardar ve un aviso y elige entre cargar la versión nueva o sobrescribirla. Pensá en dueños de página, no en multitudes. Cada página guarda un historial de hasta 50 versiones y se exporta a Markdown o PDF, pero no hay búsqueda de texto completo, ni export de todo el espacio, ni importación desde Notion. Si tu equipo vive en una página gigante que editan diez personas a la vez, o necesitás traer años de contenido de Notion, esos huecos pesan.
 
 Para un equipo que quiere una wiki ordenada, linkeada y propia, en su propio servidor, gratis si la hosteás vos, o en zerosoft Cloud con un tier gratuito, las piezas de arriba alcanzan. El resto es disciplina, y eso no lo vende ninguna herramienta.

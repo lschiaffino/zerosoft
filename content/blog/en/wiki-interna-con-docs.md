@@ -67,7 +67,7 @@ Resolve a comment when it's handled; you can reopen it if it wasn't. A good habi
 
 Each page has a **Share** panel with three kinds of share: public, with a team, or with a specific user. For an internal wiki, the team workspace already gives your team the full tree, so most pages won't need anything extra.
 
-Two honest notes. First, Docs isn't a public website builder: if what you want is a customer-facing help center with its own domain and SEO, that's a different tool. Second, edits follow the workspace: there's no per-page "view only" for members of the same team.
+Each share sets whether the person or team can view or edit; people with view access open the page read-only. Two honest notes. First, if you want customers to read some pages, publish them: they form a [help center](/blog/centro-de-ayuda-con-docs) at `/h/<your-handle>`, with no custom domain on zerosoft Cloud. Second, inside the workspace everyone can edit: there's no per-page "view only" for members of the same team.
 
 ## Step 7: the trash, and the archive habit
 
@@ -81,6 +81,6 @@ If you also use Chat, the auto-answer bot can use your Docs pages as its knowled
 
 ## The limits to know before you start
 
-Docs doesn't have realtime co-editing: if two people edit the same page at the same time, the last save wins. Plan for page owners rather than crowds. There's also no full-text search, no JSON or Markdown export yet, and no Notion import. If your team lives in one giant page edited by ten people at once, or you need to bring over years of Notion content, those gaps matter.
+Docs doesn't have realtime co-editing: if two people edit the same page at the same time, the second one to save gets a warning and chooses between loading the new version or overwriting it. Plan for page owners rather than crowds. Each page keeps a history of up to 50 versions and exports to Markdown or PDF, but there's no full-text search, no export of the whole space and no Notion import. If your team lives in one giant page edited by ten people at once, or you need to bring over years of Notion content, those gaps matter.
 
 For a team that wants a tidy, linked, owned wiki on its own server (free to self-host, or on zerosoft Cloud with a free tier), the pieces above are enough. The rest is discipline, and no tool sells that.

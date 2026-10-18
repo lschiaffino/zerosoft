@@ -3,7 +3,8 @@
 What each zerosoft app does today, where it lives in the UI, which API backs it, how it compares
 with the incumbent, and which test covers it. Built on 2026-10-13 by walking every screen on a
 `DEMO_MODE` dev server with seed data (desktop 1440×900 and mobile 390×844) and running the main
-create/edit/delete flows with Playwright.
+create/edit/delete flows with Playwright. Updated on 2026-10-18 against the code for Link, Cal, Chat,
+Docs and Track (rows added since the walk cite the unit test that covers them).
 
 **Status:** `works` = verified end to end · `partial` = exists but limited vs the incumbent ·
 `broken` = exists but fails · `missing` = the incumbent has it, we don't.
@@ -16,7 +17,7 @@ it was checked in the Playwright walk but has no automated test yet.
 ⌘↵ submits, focus trap) and `useKeyShortcut` (single-key `C` to create, ignored while typing or
 when a dialog is open). Link, Cal, Chat, Docs and CRM all use them for their main create action.
 
-- [Link](#link-vs-bitly--dub) · [Cal](#cal-vs-calendly) · [Chat](#chat-vs-intercom) · [Docs](#docs-vs-notion) · [CRM](#crm-vs-hubspot)
+- [Link](#link-vs-bitly--dub) · [Cal](#cal-vs-calendly) · [Chat](#chat-vs-intercom) · [Docs](#docs-vs-notion) · [Track](#track-vs-linear) · [CRM](#crm-vs-hubspot)
 
 ## Link (vs Bitly / Dub)
 
@@ -40,18 +41,21 @@ when a dialog is open). Link, Cal, Chat, Docs and CRM all use them for their mai
 | Link-in-bio | Public `/@handle` page with chosen links, ordered | Bio page | `PUT /api/links/bio` | works (no live preview) | e2e `link-domains.spec` "página bio pública" |
 | API keys + REST API | Programmatic access | Settings › API | `/api/keys`, `/api/v1/*` | works | unit `roles-and-secrets.test.ts` |
 | Webhooks | Click/link events to an URL | Settings › Webhooks | `/api/webhooks` | works | manual |
-| Folders / workspaces sharing | Group links, share with team | — | — | missing | — |
-| Deep links (app links / iOS-Android) | Open in native app | — | — | missing | — |
-| Geo/device targeting, A/B destinations | Route by country/device | — | — | missing | — |
-| Bulk select / bulk actions in the table | Archive/tag/delete many | — | — | missing | — |
-| Branded QR (logo, colors) | Custom QR styling | — | — | missing | — |
+| Bulk select / bulk actions in the table | Select many links, then archive, unarchive, tag or delete them (delete is admin only; ids from other workspaces are ignored) | Links table (checkboxes + bulk bar) | `POST /api/links/batch` | works | unit `link-bulk.test.ts` |
+| Geo/device targeting, A/B destinations | Rules by country and device (first match wins, up to 20), then weighted A/B destinations (up to 5), sticky per visitor via the `zs_vid` cookie. Clicks record which rule or variant served them | Link detail › Targeting | `PATCH /api/links/:id` (`targeting`) | works | unit `link-targeting.test.ts` |
+| Deep links (iOS / Android) | App URL per platform (custom scheme or universal link) with a fallback (store or web) if the app doesn't open | Link detail › Targeting | `PATCH /api/links/:id` (`targeting.ios` / `targeting.android`) | works (no deferred deep linking after install) | unit `link-targeting.test.ts` |
+| Branded QR | Foreground/background colors with a contrast check, dot shape (square, rounded, dots), centered logo; SVG/PNG. Scans (`?qr=1`) are counted apart from clicks | Link detail › QR | `GET/PUT /api/links/:id/qr` | works (no frames or templates) | unit `link-analytics.test.ts` (scans) |
+| Workspace analytics | Clicks and QR scans across all links for a range (max 366 days) vs the previous range: by day, top links, referrers, countries, devices, browsers; CSV export | Links › Analytics | `GET /api/links/analytics`, `GET /api/links/analytics/export.csv`, `GET /api/v1/links/analytics` | works (no tag, domain or link filters) | unit `link-analytics.test.ts` |
+| Folders / per-folder permissions | Group links, share with view/edit per folder | — | — | missing | — |
+| Analytics filters | Filter workspace analytics by tag, domain, link, country or device; choose the timezone | — | — | missing | — |
+| Query parameter forwarding | Pass `?utm_…` from the short link to the destination | — | — | missing | — |
 
 ### Top gaps (Link)
-1. No multi-select in the table (bulk archive/tag/delete), and you can't edit a link's title or tags inline in the row.
-2. Edit is a long form at the bottom of the detail page. It should be a side panel or modal.
-3. No geo/device targeting, no deep links, no branded QR. Bitly/Dub paid features users ask for.
+1. No folders or per-folder sharing; every member of the workspace sees every link.
+2. Workspace analytics can't be filtered by tag, domain or link, and there's no shareable read-only analytics page.
+3. Edit is a long form at the bottom of the detail page. It should be a side panel or modal.
 4. Bio page editor has no live preview and doesn't let you add a link that isn't already a short link.
-5. No folders or per-team sharing of links.
+5. Query parameters on the short link aren't forwarded to the destination, and expired or missing links can't redirect to a custom URL.
 
 ## Cal (vs Calendly)
 
@@ -63,13 +67,13 @@ Verified against a DEMO_MODE dev server on desktop (1440×900) and mobile (390×
 | Event type list actions | Inline on/off switch, copy link, open booking page, delete | Overview, Event types | `PATCH/DELETE /api/calendar/event-types/{id}` | works | e2e "Cal: crear event type desde el modal rápido…" |
 | Edit event type | Title, slug, duration, color, location, description, branding (color, logo, welcome), buffers, notice, horizon, guests, single-use link, custom questions, host pool. Sticky Save shows "Saved ✓" | Event type detail | `PATCH /api/calendar/event-types/{id}` | works | e2e `cal-api.spec.ts` (API) |
 | Delete event type | Delete from the detail header or the list. The confirm says bookings are deleted too | Event type detail / list | `DELETE /api/calendar/event-types/{id}` | works (was missing from the UI) | e2e "Cal: crear event type desde el modal rápido…" |
-| Weekly availability | Per-event weekly rules. "Add" picks the next free day | Event type detail › Availability | `POST /api/calendar/event-types/{id}/availability` | partial: per event only, no reusable schedules and no date overrides | unit `calendar-slots.test.ts` |
+| Availability schedules | Reusable schedules (name, timezone, weekly hours) assigned to event types, plus date overrides (day off or different hours on a date). One is the default | Cal › Availability; Event type detail › Availability | `/api/calendar/schedules`, `/api/calendar/schedules/{id}` | works | unit `cal-schedules.test.ts` |
 | Blocked slots | One-off busy ranges across all event types | Overview › Blocked slots | `/api/calendar/blocked-slots` | works | unit `calendar-slots.test.ts` ("excluye bookings confirmados y bloqueos") |
 | Public booking page | Month calendar (available days highlighted), slots in the guest's timezone, form with custom questions | `/{locale}/book/{handle}/{slug}` | `GET …/slots`, `POST /api/calendar/bookings` | works | e2e `flows.spec.ts` › "Cal: crear evento, ver slots y reservar" |
 | Public profile | Lists the user's active event types | `/{locale}/book/{handle}` | — | works | e2e "Cal: cambiar el handle…" |
 | Handle and global defaults | Handle, timezone, week start, buffers, notice, horizon | Cal › Settings | `GET/POST /api/calendar/config` | works | e2e "Cal: cambiar el handle actualiza el link público" |
 | Guest reschedule / cancel | Link in the confirmation email | `/manage/{token}` | `/api/calendar/bookings/manage` | works | e2e `cal-guest.spec.ts` |
-| Bookings admin | Upcoming / Past / Cancelled tabs with counts, details, host cancel | Cal › Bookings | `PATCH /api/calendar/bookings/{id}` | partial: no search, no date filter, no host-side reschedule | — |
+| Bookings admin | Search, status filter (confirmed, pending, cancelled, no-show), date range, details, host cancel, mark as no-show, host-side reschedule to a free slot | Cal › Bookings | `GET /api/calendar/bookings?q=&status=&from=&to=`, `PATCH /api/calendar/bookings/{id}`, `POST /api/calendar/bookings/{id}/reschedule` | works | unit `cal-admin.test.ts` |
 | Emails + .ics + reminders | Confirmation in the guest's language with .ics; cron reminders | — | `/api/calendar/reminders/due` | works | unit `cal-emails.test.ts` |
 | Google Calendar | Busy times block slots; creates the event with Meet | Settings › Google Calendar | `/api/integrations/google-calendar/*` | partial: needs OAuth env vars; no Outlook/iCloud | unit `google-calendar.test.ts` |
 | Round-robin / team hosts | Host pool per event type; assigns a free host | Event type detail › Hosts (with a team) | event-types `hostIds` | works (no collective events) | unit `calendar-slots.test.ts` (round-robin) |
@@ -77,17 +81,18 @@ Verified against a DEMO_MODE dev server on desktop (1440×900) and mobile (390×
 | Routing forms | Questions → rules → event type. Quick-create modal opens the editor; delete from the header | Cal › Routing forms | `/api/calendar/routing/*` | works | e2e "Cal: routing form rápido abre el editor y se borra…" |
 | Embed | Inline / popup script for third-party sites | Event type detail › Embed | `/api/calendar/embed.js` | works | e2e `cal-embed.spec.ts` |
 | Public API v1 + webhooks | Signed booking webhooks | Settings (API keys / webhooks) | `/api/v1/*` | works | e2e `cal-api.spec.ts` |
-| Payments (Stripe) | Charge to book | — | — | missing | — |
-| Workflows (SMS / custom reminders) | Configurable reminders / follow-ups | — | — | missing (fixed reminder emails only) | — |
+| Payments (Stripe) | Price per event type, charged through Stripe Checkout with the workspace's own Stripe key (encrypted). The slot is held 35 min while the guest pays; the Stripe webhook confirms it. Cancelling a paid booking refunds it in full | Cal › Settings (Stripe key); Event type detail (price) | `/api/calendar/payments`, `POST /api/calendar/payments/webhook/{token}` | works | unit `cal-payments.test.ts` |
+| Workflows (email steps) | Up to 10 steps per event type: an email to the guest or the host, X minutes before or after the start, with its own subject, body and variables. Steps replace the default 24 h reminder; a no-show stops later steps | Event type detail › Workflows | `/api/calendar/event-types/{id}/workflows` | works (email only; sent by the hourly cron, so up to an hour late) | unit `cal-workflows.test.ts` |
+| SMS / WhatsApp reminders | — | — | — | missing | — |
 | Group / collective events, seats | Several invitees per slot, all hosts required | — | — | missing | — |
 | Analytics | Bookings over time, conversion | — | — | missing (only "bookings this week") | — |
 
 ### Top gaps (Cal)
-1. Availability is per event type. There are no reusable schedules ("Working hours") and no date-specific overrides, which are Calendly's core model.
-2. Bookings admin is thin: no search or date range, no host-side reschedule and no no-show marking.
-3. No payments, no SMS or custom workflows, and no group or collective events.
-4. Calendar sync is Google only: no Outlook or iCloud, and there is no conflict check across several calendars.
-5. No analytics beyond the weekly count.
+1. Calendar sync is Google only: no Outlook or iCloud, and there is no conflict check across several calendars.
+2. No group or collective events (seats, all hosts required).
+3. Reminders are email only, and they go out from the hourly cron, so an "X minutes before" step can arrive up to an hour late.
+4. No analytics beyond the weekly count (created, cancelled, no-show, popular times).
+5. Locations are a free-text field: no structured Zoom/Teams/phone options for the guest to pick.
 
 ## Chat (vs Intercom)
 
@@ -113,19 +118,23 @@ Verified on a DEMO_MODE dev server (desktop 1440×900 and mobile 390×844), exer
 | CRM link | Create CRM contact / log conversation to the contact timeline (needs visitor email) | Conversation › visitor panel | `POST /api/chat/conversations/:id/crm` | works | — (manual) |
 | AI / keyword bot | Answers until a human replies, hands off as high priority | Widget › AI bot | (server side, `lib/chat-bot-ai.ts`) | works with `AI_GATEWAY_API_KEY`; keyword fallback otherwise | unit `chat-bot-ai.test.ts` |
 | CSAT | 1–5 rating after resolve, average in reports | Chat › Settings | `POST /api/chat/csat` | works | — |
-| Reports | Avg first response, % within SLA, avg resolution, resolved count, CSAT | Chat › Settings | (server-rendered) | partial — no date range or per-agent breakdown | — |
+| Reports | Conversations, avg first response, avg resolution, resolved count and CSAT for a date range (default last 30 days), in total and per assigned agent; CSV export | Chat › Reports | `GET /api/chat/reports?from=&to=` | works (no per-widget breakdown) | unit `chat-inbox.test.ts` |
+| Internal notes | Agent messages marked as a note; the visitor never sees them. `@` mentions a teammate and sends a notification | Conversation composer (Reply / Note toggle) | `POST /api/chat/conversations/:id/messages` (`note`, `mentions`) | works (with @mentions that notify the agent; notes can't be edited or deleted) | unit `chat-inbox.test.ts` |
+| Conversation tags | Add/remove normalized tags per conversation; workspace tag list with counts | Conversation header | `/api/chat/conversations/:id/tags`, `GET /api/chat/tags` | works | unit `chat-inbox.test.ts` |
+| Macros | A canned response can also set status, assign, snooze or add tags when inserted | Widget › Canned responses | `/api/chat/canned/:id` (`actions`) | works | unit `chat-inbox.test.ts` |
+| Help center + widget Help tab | Published Docs pages form a public help center at `/h/<handle>` (collections, BM25 search, "Was this helpful?" vote). With help enabled, the widget shows a Help tab that lists and searches those articles | Widget tab (Help toggle); Docs › Share › Publish | `GET /api/chat/help`, `POST /api/docs/help/feedback` | works (no custom domain on Cloud) | unit `docs-help.test.ts` |
 | Office hours / away message | Widget shows away state outside hours | Widget tab | — | works | — |
 | Email / WhatsApp / social channels | — | — | — | missing (Intercom: omnichannel inbox) | — |
-| Help center / articles in widget | — | — | — | missing (bot can use public Docs pages as knowledge) | — |
 | Proactive messages / outbound campaigns | — | — | — | missing | — |
-| Macros with actions, tags, internal notes in thread | — | — | — | missing (canned responses only insert text) | — |
+| Public API / webhooks for chat events, transcript export | — | — | — | missing | — |
+| Bulk actions in the inbox, real-time push | — | — | — | missing (inbox refreshes every 10 s) | — |
 
 ### Top gaps (Chat)
 
-1. No internal notes or @mentions inside a conversation (Intercom's most-used team feature); no tags on conversations.
-2. Single channel (web widget). No email inbound/outbound replies when the visitor leaves the page.
-3. Reports have no date range, per-agent or per-widget breakdown, and no export.
-4. No help center / article suggestions in the widget, and no proactive/outbound messages.
+1. Single channel (web widget). No email inbound/outbound replies when the visitor leaves the page.
+2. No public API or webhooks for chat events, and no transcript export.
+3. Notes and agent messages can't be edited or deleted, and there are no AI tools for agents (summarize, rephrase, translate).
+4. No proactive/outbound messages, and no bulk select in the inbox.
 5. Topbar breadcrumb says "Overview" on widget sub-pages (app shell, not Chat code); embed snippet host causes a hydration warning on the widget page (embed work in progress).
 
 ## Docs (vs Notion)
@@ -137,35 +146,65 @@ Verified on DEMO_MODE (desktop 1440×900 and mobile 390×844) by driving the UI 
 | Page tree | Nested pages with collapsible branches (state remembered per browser); the current page's ancestors are always expanded | Docs sidebar (landing + editor); on mobile it folds into a "Pages (n)" toggle | `GET /api/docs/pages` | works | e2e `Docs: "C" crea una página…`, `Docs: en mobile el árbol se pliega…`; `screens.spec` `/en/app/docs` |
 | New page (one click + shortcut) | Creates a blank page, opens it and focuses the title | Sidebar "+", sidebar footer "New page", landing primary button, `C` key | server action `createDocPageAction` (`POST /api/docs/pages` for API) | works | e2e `Docs: "C" crea una página…` |
 | New subpage | Creates a child page in one click | Hover "+" on any tree row (always visible on mobile) | `POST /api/docs/pages` (`parent_id`) | works | e2e `Docs: subpágina desde el árbol…` |
-| Move pages (re-parent) | Drag a row onto another row, or onto "Drop here to make top-level" | Sidebar tree (drag & drop) | server action `moveDocPageAction` | partial (no reordering between siblings, no keyboard alternative) | — (manual) |
+| Move and reorder pages | Drag a row onto another row to nest it, or above/below it to reorder among siblings; "Move up" / "Move down" in the row menu as the keyboard alternative | Sidebar tree | server actions `moveDocPageAction`, `reorderDocPageAction`, `moveDocPageStepAction` | works | unit `docs-tree.test.ts` |
 | Inline title editing | Edit the title in place; it autosaves and shows in the breadcrumb and tree | Editor title | `PATCH /api/docs/pages/:id` | works | e2e `Docs: "C" crea una página…` |
 | Autosave | Saves 600 ms after the last edit. The status reads "Saving…" while there are unsaved changes. Pending edits are sent when you leave the page | Editor top bar status | `PATCH /api/docs/pages/:id` | works | e2e `Docs: "C" crea una página…` |
 | Blocks | Text, H1–H3, bulleted/numbered lists, to-do, quote, code, divider, table; `/` menu; markdown shortcuts; drag to reorder; block menu (turn into, duplicate, delete, move) | Editor | `PATCH /api/docs/pages/:id` (`content`) | works | unit `docs-sanitize.test.ts`; manual walk |
 | Rich text | Bold, italic, underline, strikethrough, inline code, links | Selection toolbar, ⌘B/⌘I/⌘U | — | works | unit `docs-sanitize.test.ts` |
 | Database block | Inline table with text/select/date/number columns and a table/gallery toggle | `/database` | stored in `content` | partial (no filter/sort/group, no full-page database, no relations) | manual walk (`/database` inserted and rendered) |
 | Page links and @mentions | `[[` links another page; `@` mentions a workspace member | Editor | `GET /api/docs/search`, `GET /api/docs/members`, `POST /api/docs/pages/:id/mentions` | works | — (manual) |
-| Icon (emoji) | Pick a page emoji | Click the page icon | `PATCH` (`icon`) | partial (emoji search only matches the emoji character, not names) | manual walk |
+| Icon (emoji) | Pick a page emoji | Click the page icon | `PATCH` (`icon`) | works (search matches emoji names) | manual walk |
 | Cover | Cover image from a pasted URL or one of 4 presets | "Add cover" under the title | `PATCH` (`cover_url`) | partial (no upload) | — |
 | Comments | Page comments and per-block threads; resolve, reopen, delete; open count shown on the button | "Comments" in the top bar, the per-block comment icon, or "Add comment" | `GET/POST /api/docs/pages/:id/comments`, `PATCH/DELETE …/comments/:commentId` | works | e2e `Docs: Share y Comments se abren a demanda…` |
-| Share | Toggle "anyone signed in with the link"; share with an owned team or a workspace member picked from a list; copy link | "Share" in the top bar | `POST /api/docs/pages/:id/share`, `DELETE …/share/:shareId`, `PATCH` (`is_public`) | partial (shares only control API read access; shared users can't open the page in the app UI; there is no public read-only web page) | e2e `Docs: Share y Comments se abren a demanda…` |
+| Share | "Anyone signed in with the link" (view only); share with a team or a member with a view or edit role; copy link. View shares open a read-only page in the app (with print/PDF), edit shares open the editor | "Share" in the top bar | `POST /api/docs/pages/:id/share`, `DELETE …/share/:shareId` | works (inside the workspace every member can edit; no per-page read-only for members; sharing isn't inherited by subpages) | unit `docs-share-versions.test.ts`; e2e `Docs: Share y Comments se abren a demanda…` |
 | Trash | "Move to trash" archives the page and its subpages. Restore brings back the whole branch. "Delete forever" lives in the trash. A page that's in the trash shows a banner with Restore | Page "···" menu → Move to trash; landing "Trash (n)" section; sidebar "Trash" link | `PATCH` (`archived`), `DELETE /api/docs/pages/:id` | works | e2e `Docs: subpágina desde el árbol y papelera…` |
 | Duplicate page | Copies the page and its subpages | "···" → Duplicate | `POST /api/docs/pages/:id/duplicate` | works | — (manual) |
 | Templates | Untitled, meeting notes, project spec, weekly retro | Landing, "Start from a template" | server action `createDocPageFromTemplateAction` | works (4 templates; Notion has a gallery) | — |
 | Recent pages | Last 10 edited pages with localized "Edited <date>" | Landing | — | works | `screens.spec` |
 | Global search | Docs pages appear in ⌘K | App ⌘K | `GET /api/search` | works | — |
 | Page options | Copy link, copy contents, small text, full width | "···" menu | — | works (small text and full width aren't persisted) | — |
-| Version history / restore | — | — | — | missing | — |
-| Real-time collaboration | — | — | — | missing (last write wins) | — |
-| Export (Markdown/PDF), import | — | — | — | missing (only "Copy page contents") | — |
-| Public web publishing | — | — | — | missing (`is_public` only affects API access) | — |
+| Version history / restore | Automatic snapshot at most every 5 min while editing, manual "Save version", up to 50 per page. Restore saves the current state first | Version history panel (editor and read-only view) | `GET/POST /api/docs/pages/:id/versions`, `GET …/versions/:versionId`, `POST …/versions/:versionId/restore` | works (no diff highlighting) | unit `docs-share-versions.test.ts` |
+| Real-time collaboration | — | — | — | missing (optimistic concurrency: a stale save gets a 409 and the editor offers "Load the new version" or "Overwrite with my changes") | — |
+| Export | One page to Markdown (`.md` download) or PDF through the print dialog | Page "···" menu | `GET /api/docs/pages/:id/export?format=md` | partial (one page at a time; no workspace export, no HTML) | — (manual) |
+| Import (Markdown, .docx, Notion) | — | — | — | missing | — |
+| Help center (public web publishing) | Published pages become a public help center at `/h/<handle>`: collections from top-level published pages, BM25 search, per-article "Was this helpful?" votes (counts in the Share panel). The Chat widget can show it in a Help tab | Share › Publish; public `/h/<handle>/<slug>` | `PATCH /api/docs/pages/:id` (`published`), `POST /api/docs/help/feedback` | works (no custom domain on Cloud; no images or video blocks; no search analytics) | unit `docs-help.test.ts` |
 
 ### Top gaps (Docs)
-1. **Sharing doesn't reach the UI.** Shared and "public" pages can be read only through the API. The editor route is owner-only, there's no read-only viewer for recipients, and there's no public web page.
-2. **No real-time collaboration or version history.** Two people editing the same page overwrite each other (last write wins), and an edit can't be undone after a reload.
-3. **Databases are basic.** There are no filters, sorts, grouping, board/calendar views, full-page databases or relations.
-4. **No export or import** (Markdown/PDF/HTML, Notion import), and covers can't be uploaded.
-5. **Tree ordering.** Pages can be re-parented but not reordered among siblings, and moving has no keyboard alternative to drag & drop.
-6. **Emoji search** matches only the emoji character, not names (for example "rocket").
+1. **No real-time collaboration.** A second editor gets a conflict warning instead of a merge, and there's no live presence.
+2. **Databases are basic.** There are no filters, sorts, grouping, board/calendar views, full-page databases or relations.
+3. **No import and no workspace export.** Export is one page at a time (Markdown or PDF); there's no Notion, Markdown or .docx import, and covers can't be uploaded.
+4. **Search is title only** in the app (the help center searches content), and there are no custom templates or backlinks.
+5. **Help center** has no custom domain on Cloud and articles can't hold images or video.
+6. **Sharing isn't inherited** by subpages, and members of the workspace always have edit access.
+
+## Track (vs Linear)
+
+Checked against the code on 2026-10-18 (routes, components and unit tests); not re-walked in the browser.
+
+| Feature | What it does | Where in the UI | API endpoint | Status | Covering test |
+|---|---|---|---|---|---|
+| Projects | Each project owns its issues, statuses, cycles, members and saved views; identifiers come from the slug (`APP-1`) | Track › Projects | `/api/track/projects`, `/api/track/projects/:id` | works | e2e `flows.spec` "Track: crear proyecto e issue" |
+| Issues | Title, description, status, priority, assignee, labels (up to 10), start/due date, estimate, cycle; sub-issues; relations `blocks` / `related` / `duplicates` shown from both ends; comments with @mentions; attachments up to 10 MB; activity log | Project page, issue detail | `/api/track/issues/:id`, `…/children`, `…/relations`, `…/comments`, `…/attachments`, `…/activities` | works (description is plain text; authors can't edit their comments) | unit `track-gauntlet-r2.test.ts`, `track-issues-access.test.ts` |
+| Views | List, board (drag a card to another column), calendar by due date, Gantt (drag bars) | Project page › view switcher | `/api/track/projects/:id/issues` | works | e2e `flows.spec` |
+| Saved views | Named view + filters + sort, one default per project | Project page › Saved views | `/api/track/projects/:id/views`, `/api/track/views/:id`, `…/default` | works (personal only; not shared with the team) | — |
+| Statuses | Add, rename, recolor, reorder and delete statuses (delete reassigns the issues), each mapped to backlog / todo / in progress / done / cancelled | Project › Settings › Statuses | `/api/track/projects/:id/statuses`, `…/statuses/reorder`, `/api/track/statuses/:id` | works | unit `track-cycles.test.ts` "borrar con reasignación" |
+| Cycles | Create (next number and dates suggested, overlap check), edit, delete; progress done/total; "Complete" moves unfinished issues to the next cycle (or to a chosen one / none) | Project › Settings › Cycles | `/api/track/projects/:id/cycles`, `/api/track/cycles/:id`, `POST /api/track/cycles/:id/complete` | works (no velocity or burndown; cycles aren't created on a cadence) | unit `track-cycles.test.ts`, `track-gauntlet-r3.test.ts` |
+| Triage | Issues from API, Chat, Flow, GitHub or Agents wait in a queue when the project has triage on: accept (pick status), decline, or mark duplicate | Project › Triage; banner on the issue | `/api/track/projects/:id/triage`, `/api/track/issues/:id/triage` | works | unit `track-gauntlet-r4.test.ts`, `track-gauntlet-r5.test.ts` |
+| GitHub integration | Per-workspace webhook with its own secret (encrypted) and repo list. PRs and commits naming an issue (`APP-12`) in branch, title, body or message get linked; optionally PR opened → in progress, merged → done. Suggested branch name per issue | Track › Settings; issue detail › GitHub | `/api/track/github`, `POST /api/track/github/webhook/:hookId`, `/api/track/issues/:id/github` | works (GitHub only, no GitLab; no installable GitHub App) | unit `track-github.test.ts` |
+| Keyboard shortcuts | `C` new issue, `J`/`K` move through issue rows, `Enter` opens, `X` selects, `Esc` clears the selection | Everywhere under /app/track | — | works (no command palette, no property shortcuts) | — (manual) |
+| Bulk edit | Select up to 200 issues and change status, priority, assignee, cycle or labels | Lists (checkbox, shift-click, `X`) | `POST /api/track/issues/bulk` | works | unit `track-labels-bulk.test.ts`, `track-gauntlet-r4.test.ts` |
+| Inbox, My tasks | Notifications for mentions, assignments, status changes and comments; issues assigned to you across projects | Track › Inbox, My tasks | — | works (no email notifications or digest) | — |
+| Public API / webhooks | — | — | — | missing (internal session routes only; Flow can create issues) | — |
+| Real-time sync | — | — | — | missing (refresh to see a teammate's change) | — |
+| Import (Linear, Jira) | — | — | — | missing | — |
+| Issue templates, recurring issues, milestones | — | — | — | missing | — |
+
+### Top gaps (Track)
+1. No public API or webhooks (`/api/v1` covers Link, CRM, Cal and Agents only).
+2. No real-time updates and no command palette.
+3. Cycles have no velocity or burndown and aren't created on a cadence; completing a cycle doesn't log activity on the moved issues.
+4. Descriptions and comments are plain text; no issue templates, recurring issues or milestones.
+5. No importer from Linear or Jira, and saved views can't be shared with the team.
 
 ## CRM (vs HubSpot)
 

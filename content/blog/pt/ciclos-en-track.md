@@ -1,6 +1,6 @@
 ---
 title: "Como rodar ciclos no Track: um playbook para times pequenos"
-description: "Como um time pequeno roda ciclos de duas semanas no Track com issues, sub-issues, relações, estimativas, status próprios e quatro visões, e onde ainda precisa de um workaround."
+description: "Como um time pequeno roda ciclos de duas semanas no Track com issues, sub-issues, relações, estimativas, status próprios e quatro visões, e o que ainda falta."
 date: "2026-07-26"
 author: "zerosoft"
 tags: ["track", "ciclos", "playbook"]
@@ -8,7 +8,7 @@ tags: ["track", "ciclos", "playbook"]
 
 Ciclos são a ideia boa menos glamorosa da gestão de projetos. Você escolhe uma janela (normalmente duas semanas), decide o que cabe nela, faz e olha o que ficou de fora. Sem planning poker, sem formulário do Jira com quarenta campos. Uma caixa de tempo e uma lista.
 
-É assim que a gente rodaria ciclos no Track para um time de três a dez pessoas. É um playbook, não um tour de features, então inclui as partes em que o Track faz você trabalhar um pouco: ainda não existe botão de "novo ciclo", e a gente mostra o workaround exato.
+É assim que a gente rodaria ciclos no Track para um time de três a dez pessoas. É um playbook, não um tour de features, então também diz o que ainda falta no Track.
 
 ## Passo 0: um projeto por time, não por feature
 
@@ -20,39 +20,19 @@ A tentação é criar um projeto por iniciativa. Resista. Os ciclos vivem dentro
 
 Um projeto novo vem com cinco status: **Backlog, Todo, In progress, Done, Cancelled**. Por baixo, cada status pertence a uma dessas cinco categorias, e é isso que mantém tudo organizado quando você adiciona os seus.
 
-A maioria dos times pequenos precisa de exatamente mais um: **Em revisão**. Hoje, status próprios são criados pelo endpoint do próprio app, não por uma tela de configurações. Logado, abra o console do navegador em qualquer página do Track e rode:
-
-```js
-await fetch('/api/track/projects/<project-id>/statuses', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'Em revisão', category: 'in_progress', color: '#666666' }),
-}).then((r) => r.json());
-```
-
-O id do projeto é o UUID da URL (`/app/track/projects/<project-id>`). A `category` precisa ser `backlog`, `todo`, `in_progress`, `done` ou `cancelled`. Status novos vão para o fim da lista; para reordenar, envie a lista completa de ids para `PATCH /api/track/projects/<project-id>/statuses/reorder` como `{ "statusIds": [...] }`.
-
-Sim, é meio tosco. Uma tela de configurações para status e ciclos é o próximo passo óbvio. Atenção: são rotas internas autenticadas pela sua sessão, o Track ainda não tem API pública.
+A maioria dos times pequenos precisa de exatamente mais um: **Em revisão**. Na página do projeto, abra **Ajustes**, aba **Status**, e adicione com a categoria In progress. Ali você também muda nome e cor de qualquer status, reordena (a ordem é a das colunas do board) e apaga os que não usa, passando as issues para outro status.
 
 ## Passo 2: crie o ciclo
 
-Mesma história: ciclos são criados com um POST e depois aparecem em toda a interface, o formulário de issue, o painel de propriedades, os filtros e a lista de ciclos no rodapé da página do projeto.
+Em **Ajustes**, aba **Ciclos**, clique em **Novo ciclo**. O formulário sugere o número e as datas que seguem o último ciclo, com a mesma duração, e avisa se houver sobreposição com outro. Depois o ciclo aparece em toda a interface: o formulário de issue, o painel de propriedades e os filtros.
 
-```js
-await fetch('/api/track/projects/<project-id>/cycles', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'Ciclo 14', startAt: '2026-08-03', endAt: '2026-08-14' }),
-}).then((r) => r.json());
-```
-
-Nosso conselho: crie os próximos dois ou três ciclos de uma vez, para o planejamento nunca travar esperando alguém abrir o console. Nomes sem graça ("Ciclo 14", "Ciclo 15"). Ainda não existe endpoint para editar um ciclo: se errou as datas, apague (`DELETE /api/track/cycles/<id>`) e crie de novo.
+Nosso conselho: crie os próximos dois ou três ciclos de uma vez, para o planejamento nunca travar. Nomes sem graça ("Ciclo 14", "Ciclo 15"). Se errou as datas, edite na mesma lista.
 
 ## Passo 3: planejamento, issues, sub-issues, estimativas
 
 Aqui o Track volta a parecer normal. Tudo abaixo está na interface.
 
-- **Issues**: título, descrição com formatação, status, prioridade (urgent, high, medium, low), responsável, labels, data de entrega, ciclo e estimativa.
+- **Issues**: título, descrição, status, prioridade (urgent, high, medium, low), responsável, labels, data de entrega, ciclo e estimativa.
 - **Estimativas**: números inteiros, e só. O Track não impõe escala. Escolha uma e mantenha: a gente gosta de 1, 2, 3, 5, e tudo acima de 5 é quebrado.
 - **Sub-issues**: a partir de qualquer issue você cria uma subtarefa. É uma issue completa, com status e responsável próprios, e a mãe mostra as filhas. Use quando um "5" vira três "2".
 - **Relações**: `blocks`, `related` e `duplicates`. Adicione pelo detalhe da issue digitando o identificador da outra. A outra issue mostra o inverso ("blocked by", "duplicated by"), então as dependências aparecem dos dois lados.
@@ -64,7 +44,7 @@ Uma reunião de planejamento prática: filtre a lista pelo status **Backlog**, o
 O Track tem quatro visões, e cada uma responde uma pergunta diferente.
 
 - **Lista**: "o que tem neste ciclo?" Filtre por ciclo, ordene por prioridade ou identificador. É sua visão de planejamento e triagem.
-- **Board**: "onde está cada coisa?" As colunas são seus status, em ordem. Para mover um card, troque o status pelo seletor do card (ainda não há drag-and-drop no board). É a visão da daily.
+- **Board**: "onde está cada coisa?" As colunas são seus status, em ordem. Para mover um card, arraste para outra coluna ou troque o status pelo seletor do card. É a visão da daily.
 - **Calendário**: "o que vence quando?" As issues caem na data de entrega; as sem data vão para uma lista de Não agendadas. Bom para trabalho preso a datas reais: um lançamento, uma entrega para cliente.
 - **Gantt**: "a ordem faz sentido?" As barras vão da data de início à de entrega, e dá para arrastar uma barra para movê-la ou puxar as bordas para mudar início ou fim. Aliás, é assim que se define a data de início. Junto com relações `blocks`, é o melhor lugar para achar uma dependência agendada depois daquilo que ela bloqueia.
 
@@ -90,12 +70,12 @@ O loop diário é curto:
 
 ## Passo 7: fechando o ciclo
 
-No último dia, filtre a lista pelo ciclo e veja o que não está numa categoria de concluído. Para cada sobra, decida: passar para o próximo ciclo (uma mudança no painel de propriedades), devolver ao backlog ou cancelar. Cancelled é um status de verdade por um motivo: matar trabalho de propósito é uma feature.
+No último dia, filtre a lista pelo ciclo e veja o que não está numa categoria de concluído. Para cada sobra, decida: deixar para o próximo ciclo, devolver ao backlog ou cancelar. Depois clique em **Concluir** na lista de ciclos: tudo o que ficou inacabado passa de uma vez para o ciclo seguinte (ou fica sem ciclo, se não houver um). Cancelled é um status de verdade por um motivo: matar trabalho de propósito é uma feature.
 
 Depois, uma retro de cinco minutos. Se você usa o Docs, o template **Retro semanal** que já vem incluído serve bem, e dá para linkar a página nas issues do próximo ciclo.
 
 ## O que falta (de verdade)
 
-O Track cobre o núcleo de um fluxo com ciclos, mas não tudo. Hoje não há tela de configurações para status nem ciclos, não há gráficos de velocity nem burndown, não há passagem automática do que ficou inacabado, não há atalhos de teclado nem sincronização em tempo real: atualize a página para ver as mudanças de um colega. Se isso é central no jeito do seu time trabalhar, um tracker mais maduro como o Linear ainda vai servir melhor, e a gente prefere dizer isso agora.
+O Track cobre o núcleo de um fluxo com ciclos, mas não tudo. Hoje não há gráficos de velocity nem burndown, os ciclos não são criados sozinhos numa cadência, não há paleta de comandos nem sincronização em tempo real: atualize a página para ver as mudanças de um colega. Se isso é central no jeito do seu time trabalhar, um tracker mais maduro como o Linear ainda vai servir melhor, e a gente prefere dizer isso agora.
 
 Se o que você precisa é uma caixa de tempo, uma lista e um time que concorda sobre o que significa "pronto", você tem tudo acima. E roda no seu próprio servidor de graça, ou no zerosoft Cloud com um plano gratuito.

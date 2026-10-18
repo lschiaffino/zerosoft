@@ -17,19 +17,19 @@ Este post es un mapa: dónde Notion está claramente adelante, qué hace Docs en
 
 ## Dónde Notion está claramente adelante
 
-**Coedición en tiempo real.** En Notion, varias personas escriben en la misma página a la vez y ven el cursor de los demás. Docs guarda solo, pero no combina ediciones simultáneas: si dos personas editan la misma página al mismo tiempo, gana el último que guarda. Para una wiki con dueños de página, se maneja. Para un equipo que escribe junto en vivo, no va.
+**Coedición en tiempo real.** En Notion, varias personas escriben en la misma página a la vez y ven el cursor de los demás. Docs guarda solo, pero no combina ediciones simultáneas: si dos personas editan la misma página al mismo tiempo, la segunda en guardar ve un aviso y elige entre cargar la versión nueva o sobrescribirla. Para una wiki con dueños de página, se maneja. Para un equipo que escribe junto en vivo, no va.
 
 **Bases de datos.** Es el superpoder de Notion. Relaciones entre bases, rollups, fórmulas, muchos tipos de propiedades y vistas como board, calendario y timeline sobre los mismos datos. Docs tiene un **bloque de base de datos**: una tabla chica con columnas tipadas (texto, número, select, fecha) que podés ver como tabla o como galería. Sirve para una lista de herramientas o de lecturas. No reemplaza una base de Notion que maneja la mitad de tu operación.
 
 **IA.** Notion trae IA integrada para escribir, resumir y responder preguntas sobre todo tu espacio. Docs no tiene funciones de IA.
 
-**Importación y exportación.** Notion importa desde muchas herramientas y formatos, y exporta a Markdown, HTML y PDF. Docs no importa desde Notion y todavía no exporta a JSON ni Markdown; lo más parecido es "Copiar contenido de la página", que copia la página como texto plano. Si lo hosteás vos, tus páginas viven en tu propia base de datos, pero una exportación como la gente sigue siendo deuda nuestra.
+**Importación y exportación.** Notion importa desde muchas herramientas y formatos, y exporta a Markdown, HTML y PDF. Docs exporta cada página a Markdown, y a PDF con el diálogo de impresión, de a una página por vez: no hay export de todo el espacio. Tampoco importa desde Notion.
 
 **Búsqueda.** Notion busca en el contenido de todas las páginas. Docs busca por título de página, es lo que hace funcionar los links con `[[`, y no busca dentro del cuerpo.
 
 **Integraciones y API.** Notion tiene API pública y un ecosistema enorme de integraciones y automatizaciones. Docs todavía no tiene ninguna de las dos.
 
-**Apps, offline y pulido.** Apps nativas de escritorio y móviles, historial de páginas, páginas públicas que podés publicar como sitio, bloques sincronizados, años de refinamiento. Docs corre en el navegador, y ahí termina.
+**Apps, offline y pulido.** Apps nativas de escritorio y móviles, sitios publicados con dominio propio, bloques sincronizados, años de refinamiento. Docs corre en el navegador, y ahí termina.
 
 **Enterprise.** SSO, logs de auditoría, permisos granulares. Nuestras piezas enterprise, SSO/SAML, logs de auditoría, roles personalizados, están en desarrollo en `/ee`, no lanzadas.
 
@@ -45,7 +45,11 @@ Este post es un mapa: dónde Notion está claramente adelante, qué hace Docs en
 
 **Comentarios.** Sobre la página entera o sobre un bloque específico, con resolver y reabrir.
 
-**Compartir y papelera.** Un panel para compartir con opciones público, equipo y usuario puntual; una papelera donde las páginas se restauran o se eliminan definitivamente.
+**Compartir y papelera.** Un panel para compartir con cualquiera que tenga el link, con un equipo o con una persona, para ver o para editar; quien solo puede ver abre la página en modo lectura. Una papelera donde las páginas se restauran o se eliminan definitivamente.
+
+**Historial de versiones.** Docs guarda una versión automática como mucho cada 5 minutos mientras editás, más las que guardás a mano, hasta 50 por página. Restaurar una versión guarda antes la actual, así no se pierde nada.
+
+**Centro de ayuda.** Las páginas que publicás forman un [centro de ayuda](/blog/centro-de-ayuda-con-docs) público en `/h/<tu-handle>`, con colecciones, búsqueda y un "¿Te sirvió?" por artículo. No es un sitio con dominio y diseño propios como uno publicado desde Notion.
 
 Escribimos una [guía paso a paso para armar una wiki interna con Docs](/blog/wiki-interna-con-docs) si querés ver estas piezas funcionando juntas.
 
@@ -67,7 +71,7 @@ Quedate si:
 - Corrés flujos reales sobre bases de Notion: relaciones, rollups, fórmulas, vistas de board y calendario.
 - Usás Notion AI todos los días.
 - Necesitás búsqueda de texto completo en un espacio grande.
-- Dependés de integraciones, de la API o de publicar páginas públicas.
+- Dependés de integraciones, de la API o de publicar un sitio con tu propio dominio.
 - Necesitás apps móviles o de escritorio, o acceso offline.
 - Tenés años de contenido en Notion. Sin importador, mudarlo sería trabajo manual.
 
@@ -82,4 +86,4 @@ Para esos equipos, Docs sería un paso atrás, y preferimos que lo sepas antes d
 
 ## En resumen
 
-Notion es el producto más amplio y capaz, y para muchos equipos es la herramienta correcta. Docs es un editor liviano, abierto y self-hosteable que hace páginas, links, templates y comentarios lo bastante bien como para sostener una wiki de equipo, y que es tuyo. Vamos a seguir cerrando huecos; la coedición en tiempo real y la exportación están en nuestro roadmap. Hasta que salgan, no las vamos a prometer.
+Notion es el producto más amplio y capaz, y para muchos equipos es la herramienta correcta. Docs es un editor liviano, abierto y self-hosteable que hace páginas, links, templates y comentarios lo bastante bien como para sostener una wiki de equipo, y que es tuyo. Vamos a seguir cerrando huecos; la coedición en tiempo real está en nuestro roadmap. Hasta que salga, no la vamos a prometer.

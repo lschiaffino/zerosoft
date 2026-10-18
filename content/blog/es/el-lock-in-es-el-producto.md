@@ -29,4 +29,4 @@ Al evaluar una herramienta SaaS mirás funciones, precio de entrada e interfaz. 
 
 El código es open source: si nuestra nube no te sirve, lo corrés vos con tus datos. Un workspace self-hosteado es un archivo SQLite y una carpeta de adjuntos. Link exporta links y clics en CSV y el CRM exporta en CSV o JSON; todas las apps con API pública (Link, CRM, Cal) se pueden leer completas por REST.
 
-Todavía hay huecos: Docs no tiene exportación a Markdown o PDF, y Track no tiene API pública. Están en la lista.
+Todavía hay huecos: Docs exporta de a una página (Markdown o PDF), sin un export de todo el espacio, y Track no tiene API pública. Están en la lista.

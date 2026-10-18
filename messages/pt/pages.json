@@ -90,7 +90,7 @@
         },
         "f5": {
           "q": "O que falta em relação ao Bitly?",
-          "a": "Pastas, deep links para apps móveis, roteamento por país ou dispositivo, QR codes com logo e cores, e ações em lote na tabela de links."
+          "a": "Pastas com permissões, analytics filtradas por tag e deep links que abrem o conteúdo certo no app depois da instalação. Roteamento por país ou dispositivo, destinos A/B, QR codes com logo e cores e ações em lote já estão no Link."
         }
       },
       "cta": {
@@ -384,7 +384,7 @@
         },
         "f5": {
           "q": "O que falta em relação ao Calendly?",
-          "a": "Cobrança com Stripe, eventos em grupo ou coletivos, lembretes por SMS e horários reutilizáveis: hoje a disponibilidade é definida em cada tipo de evento."
+          "a": "Eventos em grupo ou coletivos, lembretes por SMS e agendas do Outlook ou iCloud. Cobrança com Stripe, workflows de email e horários reutilizáveis já estão no Cal."
         }
       },
       "cta": {
@@ -470,11 +470,11 @@
         },
         "f2": {
           "q": "Várias pessoas editam ao mesmo tempo?",
-          "a": "Não em tempo real. Se duas pessoas editam a mesma página ao mesmo tempo, fica a última versão salva. Também ainda não tem histórico de versões."
+          "a": "Não em tempo real. Se duas pessoas editam a mesma página ao mesmo tempo, a segunda a salvar vê um aviso e escolhe entre carregar a versão nova ou sobrescrevê-la. Cada página guarda até 50 versões que você pode restaurar."
         },
         "f3": {
           "q": "Posso publicar uma página na web?",
-          "a": "Ainda não. Compartilhar hoje controla quem pode ler a página pela API; não existe página pública somente leitura."
+          "a": "Sim. As páginas que você publica formam uma central de ajuda pública em /h/ e o seu handle, com coleções, busca e um voto por artigo. No zerosoft Cloud ainda não há domínio próprio. Para uma pessoa específica, compartilhe a página em modo leitura."
         },
         "f4": {
           "q": "O que os bancos de dados fazem?",
@@ -580,7 +580,7 @@
         },
         "f5": {
           "q": "O que falta em relação ao Intercom?",
-          "a": "Notas internas, menções e tags dentro da conversa, central de ajuda, mensagens proativas e relatórios por agente ou por período."
+          "a": "Mensagens proativas, uma API pública com webhooks e exportação de conversas. Notas internas com menções, tags, macros, a central de ajuda e relatórios por agente ou por período já estão no Chat."
         }
       },
       "cta": {
@@ -620,7 +620,7 @@
       },
       "f2": {
         "t": "O seu conhecimento",
-        "d": "Ele busca nas suas páginas do Docs, em até 20 sites e nas respostas salvas do Chat."
+        "d": "Ele busca nas suas páginas do Docs, em até 20 URLs (cada uma é lida como uma página só, sem percorrer o site) e nas respostas salvas do Chat."
       },
       "f3": {
         "t": "Ferramentas da suíte",
@@ -666,7 +666,7 @@
         },
         "f5": {
           "q": "Dá para trazer a configuração do Fin?",
-          "a": "Não tem importador. Cole as suas instruções como brief e adicione as suas páginas do Docs e os seus sites como conhecimento."
+          "a": "Não tem importador. Cole as suas instruções como brief e adicione as suas páginas do Docs e as URLs das suas páginas web como conhecimento."
         }
       },
       "cta": {
@@ -752,7 +752,7 @@
         },
         "f5": {
           "q": "O que falta em relação ao Zapier?",
-          "a": "Um catálogo de integrações com serviços de terceiros. Fora da zerosoft, o Flow fala HTTP: se o serviço tem API ou webhooks, você conecta com uma requisição HTTP."
+          "a": "A quantidade de integrações. O Flow tem nós para Slack, Google Sheets, Gmail, Stripe, Notion, Discord e Telegram; o Zapier conecta milhares de apps. Para o resto, o Flow fala HTTP: se o serviço tem API ou webhooks, você conecta com uma requisição HTTP."
         }
       },
       "cta": {
@@ -830,7 +830,7 @@
         },
         "f3": {
           "q": "Funciona em sites com login?",
-          "a": "Os robôs são pensados para páginas públicas. As entradas ficam em texto puro e todo o workspace vê, então não guarde senhas."
+          "a": "Sim. Guarde usuário e senha nas Credenciais do Flow: elas são criptografadas com AES-256-GCM e o robô usa sem mostrar nos logs. Ele também pode guardar a sessão entre execuções, criptografada. As entradas comuns ficam em texto puro e todo o workspace vê, então não coloque senhas nelas."
         },
         "f4": {
           "q": "Como uso o que ele extrai?",
@@ -838,7 +838,7 @@
         },
         "f5": {
           "q": "O que falta em relação ao UiPath?",
-          "a": "O Robots automatiza o navegador, não o desktop: não controla apps do Windows nem arquivos locais. Também não guarda credenciais criptografadas para sites com login."
+          "a": "O Robots automatiza o navegador, não o desktop: não controla apps do Windows nem arquivos locais. Também não resolve captchas."
         }
       },
       "cta": {

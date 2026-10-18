@@ -75,7 +75,7 @@ Todo link tem seu QR code, para baixar em **SVG** (vetorial, para impressão) ou
 
 Uma dica prática se você pretende trocar destinos: mantenha o tipo de redirect em **302 Temporário**, o padrão. Um **301 Permanente** diz aos navegadores que eles podem guardar o redirecionamento em cache, então alguém que escaneou antes da mudança pode continuar caindo no destino antigo. Use 301 só quando o destino realmente nunca for mudar.
 
-O que o QR ainda não faz: cores, logos ou molduras. São códigos pretos sobre branco com uma margem pequena. Para a maioria das impressões, é o que escaneia melhor de qualquer jeito. Se você precisa de um com a sua marca, o SVG é fácil de estilizar em qualquer ferramenta de design, desde que mantenha bom contraste.
+O QR pode ser personalizado no detalhe do link: cores (com uma checagem de contraste para continuar escaneando), formato dos pontos e um logo no centro. O que ele ainda não faz são molduras. Para impressões pequenas, preto sobre branco continua sendo o que escaneia melhor.
 
 ## Guia rápido para decidir
 
