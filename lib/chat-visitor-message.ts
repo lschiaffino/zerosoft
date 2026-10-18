@@ -28,7 +28,7 @@ export async function afterVisitorMessage(input: {
     const conv = conversation;
     const eventBase = {
       conversation: { id: conv.id, subject: conv.subject, status: conv.status },
-      visitor: { id: visitor.id, name: visitor.name, email: visitor.email },
+      visitor: { id: visitor.id, name: visitor.name, email: visitor.email, emailVerified: visitor.email_verified === 1 },
       widget: { id: widget.id, name: widget.name },
     };
     schedule(async () => {

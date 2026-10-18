@@ -11,6 +11,7 @@ import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import ColorField from './ColorField';
 import EmbedCode from './EmbedCode';
+import IdentityVerification from './IdentityVerification';
 import ChatIcon from './icons';
 import {
   buildWidgetPayload,
@@ -35,6 +36,9 @@ interface WidgetSettingsProps {
   conversationCount: number;
   /** Ruta del centro de ayuda del workspace (/<locale>/h/<handle>), si hay handle. */
   helpCenterPath: string | null;
+  /** Owner/admin: puede ver y cambiar el secreto de verificación de identidad. */
+  canManageIdentity: boolean;
+  identitySecret: string | null;
 }
 
 /**
@@ -43,7 +47,15 @@ interface WidgetSettingsProps {
  * widget entero; las opciones que el camino básico no necesita (fuente del
  * bot, zona horaria) quedan en Avanzado.
  */
-export default function WidgetSettings({ widget, origin, aiAvailable, conversationCount, helpCenterPath }: WidgetSettingsProps) {
+export default function WidgetSettings({
+  widget,
+  origin,
+  aiAvailable,
+  conversationCount,
+  helpCenterPath,
+  canManageIdentity,
+  identitySecret,
+}: WidgetSettingsProps) {
   const t = useTranslations('chat');
   const router = useRouter();
   const search = useSearchParams();
@@ -127,6 +139,7 @@ export default function WidgetSettings({ widget, origin, aiAvailable, conversati
       {tab === 'look' && (
         <>
           <EmbedCode widgetId={widget.id} origin={origin} />
+          <IdentityVerification widgetId={widget.id} canManage={canManageIdentity} initialSecret={identitySecret} />
           <FormSection title={t('widgetForm.lookTitle')} description={t('widgetForm.lookSub')} onSubmit={save}>
             <div className="ui-field">
               <label className="label" htmlFor={`${uid}-name`}>

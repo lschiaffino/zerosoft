@@ -17,16 +17,25 @@ export default function VisitorPanel({ conversation }: VisitorPanelProps) {
   const [crmBusy, setCrmBusy] = useState(false);
   const [linkedId, setLinkedId] = useState<string | null>(null);
   const [crmNotice, setCrmNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  // El email sin verificar coincide con un contacto: el agente tiene que confirmarlo.
+  const [needsConfirm, setNeedsConfirm] = useState(false);
 
-  async function sendToCrm() {
+  async function sendToCrm(confirm = false) {
     setCrmBusy(true);
     setCrmNotice(null);
-    const res = await fetch(`/api/chat/conversations/${conversation.id}/crm`, { method: 'POST' }).catch(() => null);
+    const res = await fetch(`/api/chat/conversations/${conversation.id}/crm`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ confirm }),
+    }).catch(() => null);
     setCrmBusy(false);
-    const data = res ? ((await res.json().catch(() => null)) as { contactId?: string } | null) : null;
+    const data = res ? ((await res.json().catch(() => null)) as { contactId?: string; error?: string } | null) : null;
     if (res?.ok && data?.contactId) {
+      setNeedsConfirm(false);
       setLinkedId(data.contactId);
       setCrmNotice({ tone: 'ok', text: t('visitorPanel.loggedToCrm') });
+    } else if (res?.status === 409 && data?.error === 'unverified_email') {
+      setNeedsConfirm(true);
     } else {
       setCrmNotice({ tone: 'error', text: t('visitorPanel.crmError') });
     }
@@ -56,6 +65,9 @@ export default function VisitorPanel({ conversation }: VisitorPanelProps) {
             <div>
               <dt>{t('visitorPanel.email')}</dt>
               <dd className="data">{visitor.email}</dd>
+              <dd className="ui-help">
+                {visitor.email_verified === 1 ? t('visitorPanel.emailVerified') : t('visitorPanel.emailUnverified')}
+              </dd>
             </div>
           )}
           <div>
@@ -90,13 +102,26 @@ export default function VisitorPanel({ conversation }: VisitorPanelProps) {
             {contactName}
           </Link>
         )}
-        {visitor.email ? (
+        {visitor.email && needsConfirm ? (
+          <>
+            <p className="ui-help">{t('visitorPanel.confirmUnverified')}</p>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm btn-block"
+              disabled={crmBusy}
+              aria-busy={crmBusy || undefined}
+              onClick={() => sendToCrm(true)}
+            >
+              {t('visitorPanel.confirmLog')}
+            </button>
+          </>
+        ) : visitor.email ? (
           <button
             type="button"
             className="btn btn-secondary btn-sm btn-block"
             disabled={crmBusy}
             aria-busy={crmBusy || undefined}
-            onClick={sendToCrm}
+            onClick={() => sendToCrm()}
           >
             {contactId ? t('visitorPanel.logToCrm') : t('visitorPanel.createContact')}
           </button>

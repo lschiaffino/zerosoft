@@ -101,6 +101,9 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
               <div>
                 <dt>{t('visitorPanel.email')}</dt>
                 <dd className="data">{visitor.email}</dd>
+                <dd className="ui-help">
+                  {visitor.email_verified === 1 ? t('visitorPanel.emailVerified') : t('visitorPanel.emailUnverified')}
+                </dd>
               </div>
             )}
             <div>

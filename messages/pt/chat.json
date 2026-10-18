@@ -82,6 +82,20 @@
     "instructions": "Cole este snippet logo antes do fechamento da tag body do seu site.",
     "copyError": "Não foi possível copiar. Selecione o código e copie manualmente."
   },
+  "identity": {
+    "title": "Verificação de identidade",
+    "description": "Assine o email do visitante no seu servidor para que o inbox possa confiar nele. Emails sem uma assinatura válida aparecem como não verificados e nunca são associados sozinhos a contatos do CRM.",
+    "instructions": "No seu servidor, calcule um HMAC-SHA256 do email em minúsculas com este segredo como chave, em hex. Passe como userHash em window.zsChat.identify, junto com email e name. Nunca coloque o segredo na página.",
+    "secretLabel": "Segredo de identidade",
+    "copy": "Copiar segredo",
+    "copied": "Segredo copiado",
+    "regenerateHint": "Ao gerar um segredo novo, as assinaturas feitas com o anterior deixam de funcionar.",
+    "regenerate": "Gerar um novo",
+    "turnOff": "Desativar",
+    "generate": "Gerar segredo",
+    "off": "Desativada. Os emails enviados pelo widget aparecem como não verificados.",
+    "adminOnly": "Só o dono e os admins do workspace podem ver e mudar o segredo."
+  },
   "inbox": {
     "title": "Caixa de entrada",
     "filters": {
@@ -171,7 +185,11 @@
     "loggedToCrm": "Salva na timeline do contato.",
     "crmError": "Não foi possível salvar no CRM. Tente de novo.",
     "needsEmail": "Peça um email para criar o contato no CRM.",
-    "started": "Início"
+    "started": "Início",
+    "emailVerified": "Verificado",
+    "emailUnverified": "Não verificado",
+    "confirmUnverified": "Este email não está verificado e coincide com um contato do CRM. Salve o chat ali só se você confirmou que é essa pessoa.",
+    "confirmLog": "Confirmar e salvar no contato"
   },
   "priorities": {
     "low": "Baixa",

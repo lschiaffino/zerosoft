@@ -2272,6 +2272,22 @@ export const MIGRATIONS: Migration[] = [
         )`);
     },
   },
+  {
+    // Identidad del visitante del chat: el email que manda el widget es
+    // declarado (no verificado) salvo que venga firmado con el secreto del
+    // widget (HMAC) o lo cargue alguien del equipo. El secreto vive en su
+    // propia tabla para que ningún SELECT * de chat_widgets lo exponga.
+    id: '038_chat_visitor_identity',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS chat_widget_secrets (
+          widget_id TEXT PRIMARY KEY REFERENCES chat_widgets(id) ON DELETE CASCADE,
+          secret TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

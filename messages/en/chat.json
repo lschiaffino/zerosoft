@@ -82,6 +82,20 @@
     "instructions": "Paste this snippet right before the closing body tag of your site.",
     "copyError": "Couldn’t copy. Select the code and copy it by hand."
   },
+  "identity": {
+    "title": "Identity verification",
+    "description": "Sign the visitor’s email on your server so the inbox can trust it. Emails without a valid signature show as not verified and are never matched to CRM contacts on their own.",
+    "instructions": "On your server, compute an HMAC-SHA256 of the email in lowercase with this secret as the key, as hex. Pass it as userHash to window.zsChat.identify, along with email and name. Never put the secret in the page.",
+    "secretLabel": "Identity secret",
+    "copy": "Copy secret",
+    "copied": "Secret copied",
+    "regenerateHint": "Regenerating the secret makes signatures made with the old one stop working.",
+    "regenerate": "Regenerate secret",
+    "turnOff": "Turn off",
+    "generate": "Generate secret",
+    "off": "Off. Emails sent by the widget are shown as not verified.",
+    "adminOnly": "Only workspace owners and admins can see and change the secret."
+  },
   "inbox": {
     "title": "Inbox",
     "filters": {
@@ -171,7 +185,11 @@
     "loggedToCrm": "Saved to the contact timeline.",
     "crmError": "Couldn't save to the CRM. Try again.",
     "needsEmail": "Ask for an email to create a CRM contact.",
-    "started": "Started"
+    "started": "Started",
+    "emailVerified": "Verified",
+    "emailUnverified": "Not verified",
+    "confirmUnverified": "This email isn’t verified and matches an existing CRM contact. Save the chat there only if you confirmed it’s this person.",
+    "confirmLog": "Confirm and save to contact"
   },
   "priorities": {
     "low": "Low",

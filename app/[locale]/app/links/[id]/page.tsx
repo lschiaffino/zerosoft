@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Link, redirect } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { getUserLink, linkStatus, toLinkDto } from '@/lib/links';
 import {
   getAnalytics,
@@ -362,7 +362,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
     body = (
       <>
         <EditLinkForm link={toLinkDto(link)} />
-        <DangerZone id={link.id} slug={link.slug} archived={link.archived === 1} />
+        <DangerZone id={link.id} slug={link.slug} archived={link.archived === 1} canDelete={isWorkspaceAdmin(user)} />
       </>
     );
   }

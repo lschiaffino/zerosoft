@@ -50,6 +50,11 @@ export async function DELETE(
 
   const page = await getDocPageRow(params.id);
   if (!page) return notFound();
+  // Mismo acceso que para comentar: sin acceso a la página (p. ej. un share
+  // revocado) tampoco se pueden borrar los comentarios propios.
+  if (!(await canReadPage(page, { id: user.id, actingUser: user.actingUser, team: user.team }, DOC_INTERNAL_WRITE))) {
+    return notFound();
+  }
 
   const comment = await getDocComment(params.commentId);
   if (!comment || comment.page_id !== params.id) return notFound();

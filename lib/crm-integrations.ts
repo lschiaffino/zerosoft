@@ -179,10 +179,21 @@ export async function logChatToCrm(
     visitor: ChatVisitorRow;
     messages: Array<Pick<ChatMessageRow, 'sender_type' | 'body' | 'created_at'>>;
     actorId?: string | null;
+    /** El agente confirmó la identidad de un visitante con email sin verificar. */
+    confirmed?: boolean;
   },
-): Promise<{ contact: CrmContactRow; created: boolean } | { error: 'missing_email' }> {
+): Promise<{ contact: CrmContactRow; created: boolean } | { error: 'missing_email' | 'unverified_email' }> {
   const email = input.visitor.email?.trim();
   if (!email) return { error: 'missing_email' };
+  // Un email sin verificar (lo escribió cualquiera en el widget) no se asocia
+  // solo a un contacto que ya existe: hace falta que el agente lo confirme.
+  // Si esta conversación ya se guardó en un contacto, eso ya fue confirmado.
+  if (input.visitor.email_verified !== 1 && !input.confirmed) {
+    const logged = await getDb()
+      .prepare('SELECT id FROM crm_activities WHERE user_id = ? AND chat_conversation_id = ? LIMIT 1')
+      .get(workspaceId, input.conversationId);
+    if (!logged && (await findContactByEmail(workspaceId, email))) return { error: 'unverified_email' };
+  }
   const result = await findOrCreateContact(workspaceId, {
     email,
     name: input.visitor.name,

@@ -367,11 +367,18 @@ export function getOfficeHoursState(widget: ChatWidgetRow, now = new Date()): Of
 export interface VisitorPayload {
   email?: string | null;
   name?: string | null;
+  /**
+   * true solo si el email vino firmado con el secreto del widget
+   * (lib/chat-identity.ts). Sin firma, la identidad es declarada.
+   */
+  verified?: boolean;
 }
 
 export interface VisitorUpdatePayload {
   name?: string | null;
   email?: string | null;
+  /** Un email que carga alguien del equipo cuenta como verificado. */
+  emailVerified?: boolean;
   notes?: string | null;
   metadata?: Record<string, unknown>;
 }
@@ -450,21 +457,13 @@ export async function getOrCreateChatVisitor(
     .prepare('SELECT * FROM chat_visitors WHERE widget_id = ? AND external_id = ?')
     .get(widgetId, externalId)) as ChatVisitorRow | undefined;
 
-  if (existing) {
-    if (payload?.email || payload?.name) {
-      await db
-        .prepare('UPDATE chat_visitors SET email = COALESCE(?, email), name = COALESCE(?, name) WHERE id = ?')
-        .run(payload.email ?? null, payload.name ?? null, existing.id);
-      return (await db.prepare('SELECT * FROM chat_visitors WHERE id = ?').get(existing.id)) as ChatVisitorRow;
-    }
-    return existing;
-  }
+  if (existing) return applyVisitorIdentity(existing, payload);
 
   // Dos requests en paralelo del mismo visitante (formulario pre-chat + primer
   // mensaje) pasan los dos por el SELECT: el segundo INSERT no debe dar 500.
   await db
     .prepare(
-      `INSERT INTO chat_visitors (id, widget_id, external_id, email, name, created_at) VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO chat_visitors (id, widget_id, external_id, email, name, email_verified, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(widget_id, external_id) DO NOTHING`,
     )
     .run(
@@ -473,11 +472,36 @@ export async function getOrCreateChatVisitor(
       externalId,
       payload?.email ?? null,
       payload?.name ?? null,
+      payload?.verified && payload.email ? 1 : 0,
       nowIso(),
     );
-  return (await db
+  const row = (await db
     .prepare('SELECT * FROM chat_visitors WHERE widget_id = ? AND external_id = ?')
     .get(widgetId, externalId)) as ChatVisitorRow;
+  // Si otro request creó la fila primero, la identidad de este se aplica igual.
+  return payload?.verified && row.email_verified !== 1 ? applyVisitorIdentity(row, payload) : row;
+}
+
+/**
+ * Identidad que manda el widget para un visitante que ya existe:
+ * - firmada (verified): reemplaza email y nombre y queda verificada;
+ * - declarada: nunca pisa una identidad verificada; si no hay, la completa o
+ *   la actualiza, y el email sigue sin verificar.
+ */
+async function applyVisitorIdentity(existing: ChatVisitorRow, payload?: VisitorPayload): Promise<ChatVisitorRow> {
+  const db = getDb();
+  if (payload?.verified && payload.email) {
+    await db
+      .prepare('UPDATE chat_visitors SET email = ?, name = COALESCE(?, name), email_verified = 1 WHERE id = ?')
+      .run(payload.email, payload.name ?? null, existing.id);
+  } else if (existing.email_verified === 1 || !(payload?.email || payload?.name)) {
+    return existing;
+  } else {
+    await db
+      .prepare('UPDATE chat_visitors SET email = COALESCE(?, email), name = COALESCE(?, name) WHERE id = ?')
+      .run(payload.email ?? null, payload.name ?? null, existing.id);
+  }
+  return (await db.prepare('SELECT * FROM chat_visitors WHERE id = ?').get(existing.id)) as ChatVisitorRow;
 }
 
 export async function getChatVisitorByExternalId(
@@ -613,8 +637,14 @@ export async function updateChatVisitor(
     args.push(payload.name ?? null);
   }
   if (payload.email !== undefined) {
+    const email = payload.email ? payload.email.trim().toLowerCase() : null;
     fields.push('email = ?');
-    args.push(payload.email ? payload.email.trim().toLowerCase() : null);
+    args.push(email);
+    // Un email distinto deja de estar verificado, salvo que lo cargue el equipo.
+    if (email !== existing.email) {
+      fields.push('email_verified = ?');
+      args.push(email && payload.emailVerified ? 1 : 0);
+    }
   }
   if (payload.notes !== undefined) {
     fields.push('notes = ?');
@@ -895,7 +925,7 @@ export async function getChatConversationWithVisitor(
         c.created_at, c.updated_at,
         v.id AS v_id, v.widget_id AS v_widget_id, v.external_id AS v_external_id,
         v.email AS v_email, v.name AS v_name, v.notes AS v_notes, v.metadata AS v_metadata,
-        v.created_at AS v_created_at,
+        v.email_verified AS v_email_verified, v.created_at AS v_created_at,
         w.name AS widget_name, w.user_id AS widget_user_id, w.team_id AS widget_team_id, w.color AS widget_color,
         u.name AS assigned_name, u.email AS assigned_email, u.image AS assigned_image,
         co.id AS co_id, co.user_id AS co_user_id, co.owner_id AS co_owner_id,
@@ -910,7 +940,12 @@ export async function getChatConversationWithVisitor(
        JOIN chat_visitors v ON v.id = c.visitor_id
        JOIN chat_widgets w ON w.id = c.widget_id
        LEFT JOIN users u ON u.id = c.assigned_to
-       LEFT JOIN crm_contacts co ON co.user_id = w.user_id AND co.email = v.email
+       -- El contacto del CRM: por email solo si está verificado; si no, el
+       -- contacto donde alguien del equipo ya guardó esta conversación.
+       LEFT JOIN crm_contacts co ON co.user_id = w.user_id AND (
+         (v.email_verified = 1 AND co.email = v.email)
+         OR co.id = (SELECT a.contact_id FROM crm_activities a WHERE a.user_id = w.user_id AND a.chat_conversation_id = c.id LIMIT 1)
+       )
        WHERE c.id = ?`,
     )
     .get(id)) as Record<string, unknown> | undefined;
@@ -925,6 +960,7 @@ export async function getChatConversationWithVisitor(
     name: (row.v_name as string | null) ?? null,
     notes: (row.v_notes as string | null) ?? null,
     metadata: (row.v_metadata as string) ?? '{}',
+    email_verified: Number(row.v_email_verified ?? 0) === 1 ? 1 : 0,
     created_at: row.v_created_at as string,
   };
 

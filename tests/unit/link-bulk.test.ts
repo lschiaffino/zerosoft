@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { getDb } from '@/lib/db';
 import { bulkLinkAction, createLink, getUserLink, parseTags } from '@/lib/links';
+import { createApiKey } from '@/lib/api-auth';
+import { addMember, createTeam } from '@/lib/teams';
 import { makeUser } from './helpers';
 
 const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown> }));
@@ -12,6 +14,8 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const batchRoute = await import('@/app/api/links/batch/route');
+const linkRoute = await import('@/app/api/links/[id]/route');
+const v1LinkRoute = await import('@/app/api/v1/links/[id]/route');
 
 const post = (body: unknown) =>
   new NextRequest('http://x/api/links/batch', {
@@ -74,5 +78,48 @@ describe('Link: acciones masivas', () => {
     expect(row).toBeDefined();
     expect(a.id).not.toBe(b.id);
     session.user = null;
+  });
+
+  it('borrar un link suelto pide el mismo rol que el borrado masivo (admin), por sesión y por API', async () => {
+    const owner = await makeUser('ldel');
+    const member = await makeUser('ldel-m');
+    const admin = await makeUser('ldel-a');
+    const team = await createTeam(owner.id, 'Links');
+    await addMember(team.id, member.id, 'member');
+    await addMember(team.id, admin.id, 'admin');
+    const mk = async () => {
+      const r = await createLink(owner.id, { url: 'https://example.com', slug: slug('d') });
+      if (!r.ok) throw new Error(r.code);
+      return r.link;
+    };
+    const exists = async (id: string) => Boolean(await getDb().prepare('SELECT id FROM links WHERE id = ?').get(id));
+    const del = (id: string) =>
+      linkRoute.DELETE(new NextRequest(`http://x/api/links/${id}`, { method: 'DELETE' }), { params: Promise.resolve({ id }) });
+    const v1Del = (id: string, key: string) =>
+      v1LinkRoute.DELETE(
+        new NextRequest(`http://x/api/v1/links/${id}`, { method: 'DELETE', headers: { authorization: `Bearer ${key}` } }),
+        { params: Promise.resolve({ id }) },
+      );
+
+    // Sesión: un member actúa sobre el workspace del owner (user.id = owner).
+    const l1 = await mk();
+    session.user = { ...owner, team, role: 'member' };
+    expect((await del(l1.id)).status).toBe(403);
+    expect(await exists(l1.id)).toBe(true);
+    session.user = { ...owner, team, role: 'admin' };
+    expect((await del(l1.id)).status).toBe(204);
+    expect(await exists(l1.id)).toBe(false);
+    session.user = null;
+
+    // API v1: la key actúa con el rol de quien la creó.
+    const l2 = await mk();
+    const memberKey = (await createApiKey(owner.id, 'm', member.id)).key;
+    const adminKey = (await createApiKey(owner.id, 'a', admin.id)).key;
+    const res = await v1Del(l2.id, memberKey);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: { code: 'forbidden', message: expect.any(String) } });
+    expect(await exists(l2.id)).toBe(true);
+    expect((await v1Del(l2.id, adminKey)).status).toBe(204);
+    expect(await exists(l2.id)).toBe(false);
   });
 });

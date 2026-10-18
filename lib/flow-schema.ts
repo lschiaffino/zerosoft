@@ -140,7 +140,7 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   'message.received': {
     message: { id: 'm_1', body: 'Hello! I need help with my order.' },
     conversation: { id: 'cv_1' },
-    visitor: { id: 'v_1', name: '', email: '' },
+    visitor: { id: 'v_1', name: '', email: '', emailVerified: false },
     widget: { id: 'w_1', name: 'Site' },
   },
   'page.created': { page: { id: 'pg_1', title: 'Untitled' } },

@@ -14,6 +14,7 @@ import {
 } from '@/lib/chat-data';
 import { CHAT_MESSAGE_MAX } from '@/lib/chat-schema';
 import { MAX_UPLOAD_SIZE, isAllowedUpload, saveUpload, UploadError } from '@/lib/uploads';
+import { verifyVisitorIdentity } from '@/lib/chat-identity';
 import { afterVisitorMessage } from '@/lib/chat-visitor-message';
 
 export const runtime = 'nodejs';
@@ -49,11 +50,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'file_type_not_allowed' }, { status: 415 });
   }
 
-  const visitor = await getOrCreateChatVisitor(
-    widgetId,
-    visitorExternalId,
-    cleanVisitorIdentity(form.get('email'), form.get('name')),
-  );
+  const identity = cleanVisitorIdentity(form.get('email'), form.get('name'));
+  const visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, {
+    ...identity,
+    verified: await verifyVisitorIdentity(widgetId, identity.email, form.get('userHash')),
+  });
 
   let conversation = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))
     ?.conversation ?? null;

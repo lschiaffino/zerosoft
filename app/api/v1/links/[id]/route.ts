@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { getDb } from '@/lib/db';
+import { roleAtLeast } from '@/lib/teams';
 import { applyLinkPatch, getUserLink, linkPatchSchema, toLinkDto } from '@/lib/links';
 
 export const runtime = 'nodejs';
@@ -34,6 +35,10 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const params = await props.params;
   const auth = await requireApiUser(req, 'links:write');
   if ('res' in auth) return auth.res;
+  // La key actúa con el rol de quien la creó: borrar es solo para admins, como en la app.
+  if (!roleAtLeast(auth.role, 'admin')) {
+    return apiError(403, 'forbidden', 'Deleting links requires a workspace admin. Archive it instead.');
+  }
   const link = await getUserLink(auth.user.id, params.id);
   if (!link) return apiError(404, 'not_found', 'Link not found.');
   await getDb().prepare('DELETE FROM links WHERE id = ?').run(link.id);

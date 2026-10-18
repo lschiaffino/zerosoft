@@ -58,6 +58,8 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
   const updated = await updateChatVisitor(params.id, {
     name: typeof body.name === 'string' ? body.name : undefined,
     email: typeof body.email === 'string' ? body.email : undefined,
+    // Lo carga alguien del equipo desde el inbox o la API: cuenta como verificado.
+    emailVerified: true,
     // null borra la nota.
     notes: typeof body.notes === 'string' || body.notes === null ? body.notes : undefined,
     metadata,
