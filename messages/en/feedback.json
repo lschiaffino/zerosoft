@@ -40,7 +40,7 @@
     "cancel": "Cancel",
     "close": "Close",
     "count": "{count} / {max}",
-    "successTitle": "Thanks — got it.",
+    "successTitle": "Thanks, got it.",
     "successBody": "We read every message. If you left an email and it needs a reply, we'll write back.",
     "another": "Send another",
     "errorInvalid": "Write at least a few words (and check the email, if you added one).",

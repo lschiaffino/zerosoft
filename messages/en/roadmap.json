@@ -1,10 +1,10 @@
 {
   "metaTitle": "Roadmap",
-  "metaDescription": "What we're building next at zerosoft.ai — shaped by your feedback and support conversations. Vote for what matters to you.",
+  "metaDescription": "What we're building next at zerosoft.ai, shaped by your feedback and support conversations. Vote for what matters to you.",
   "label": "Roadmap",
   "title": "What's next.",
   "titleDim": "Built from what you tell us.",
-  "intro": "Every piece of feedback and every support conversation is read and grouped into these items. Upvote what you need — it moves things up the list.",
+  "intro": "Every piece of feedback and every support conversation is read and grouped into these items. Upvote what you need: it moves things up the list.",
   "column": {
     "planned": "Planned",
     "in_progress": "In progress",
@@ -15,7 +15,7 @@
   "voted": "Voted",
   "votes": "{count, plural, one {# vote} other {# votes}}",
   "voteError": "Couldn't count your vote. Try again later.",
-  "shipped": "Shipped — see changelog",
+  "shipped": "Shipped · see changelog",
   "kind": {
     "idea": "Idea",
     "bug": "Fix"

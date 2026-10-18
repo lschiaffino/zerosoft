@@ -5,6 +5,7 @@ import SectionSign from '@/components/site/SectionSign';
 import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
 import ProductLinks from '@/components/site/ProductLinks';
+import { ZeroEdge } from '@/components/zero/ZeroTexture';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -40,7 +41,7 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
       </section>
 
       <section className="lp-section" aria-labelledby="h-suite">
-        <SectionSign id="h-suite" title={tc('home.suite.title')} sub={tc('home.suite.titleDim')} />
+        <SectionSign id="h-suite" title={tc('home.suite.title')} />
         <div className="container">
           <SuiteGrid />
         </div>
@@ -54,6 +55,7 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
         </div>
       </section>
 
+      <ZeroEdge />
       <section className="lp-end" aria-labelledby="h-end">
         <div className="container lp-end-inner">
           <h2 id="h-end">

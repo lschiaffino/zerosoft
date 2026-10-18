@@ -45,7 +45,7 @@
 .lp-ctas,
 .pd-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 
-.lp-notes { margin-top: 20px; font-size: 14px; color: var(--brand-gray-2); }
+.lp-notes { margin-top: 20px; font-family: var(--font-data); font-size: 13px; color: var(--brand-gray-2); }
 .lp-notes a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 .lp-hero-map,
@@ -53,6 +53,9 @@
 /* El cero en 3D (ZeroTorus). En la página de un producto toma su color. */
 .hero-field { position: relative; min-width: 0; height: clamp(340px, 42vw, 600px); }
 .hero-field[class*="card-"] .zero-torus { color: var(--accent); }
+.hero-field.has-caption { display: flex; flex-direction: column; margin: 0; }
+.hero-field.has-caption .zero-torus { flex: 1; min-height: 0; height: auto; }
+.hero-fig-cap { justify-content: center; gap: 8px 32px; flex-wrap: wrap; margin-top: 0; }
 @media (max-width: 860px) {
   .hero-field { height: 260px; }
 }
@@ -81,6 +84,7 @@
 /* ---------- Tour en video ---------- */
 
 .lp-tour { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(240px, 1fr); gap: 48px; align-items: start; }
+.lp-video { margin: 0; min-width: 0; }
 .lp-video video,
 .lp-video .video-player { display: block; width: 100%; border: 1px solid var(--brand-ink); }
 .lp-tour-side { display: grid; gap: 16px; }
@@ -100,6 +104,7 @@
   font-size: 14px;
   color: var(--brand-gray-2);
 }
+.lp-proof-foot .fig-cap { margin-top: 0; }
 
 /* ---------- La suite: once apps ---------- */
 
@@ -189,7 +194,7 @@
 .stack-price { color: var(--brand-gray-1); white-space: nowrap; }
 .stack-bar-col { width: 28%; }
 .stack-bar { display: block; height: 8px; }
-.stack-bar i { display: block; height: 8px; width: var(--w); background: var(--bar); border-radius: 4px; }
+.stack-bar i { display: block; height: 8px; width: var(--w); background: var(--bar); }
 .stack-total th,
 .stack-total td { font-weight: 700; border-top: 1px solid var(--brand-ink); }
 .stack-total .data { font-size: 1rem; }
@@ -212,7 +217,23 @@
   line-height: 0.9;
 }
 .stack-zero-note { font-size: 15px; line-height: 1.5; }
-.stack-zero .btn { margin-top: auto; align-self: flex-start; }
+
+/* El recibo de la placa de $0: renglones en mono con puntos guía de ceros. */
+.zero-receipt { display: grid; gap: 6px; margin-top: auto; padding-top: 24px; font-family: var(--font-data); font-size: 13px; line-height: 1.5; }
+.zero-receipt div { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.zero-receipt dt { color: var(--brand-on-ink-2); white-space: nowrap; }
+.zero-receipt dd { order: 3; margin: 0; color: var(--brand-on-ink); white-space: nowrap; }
+.zero-receipt div::after {
+  content: "························································································································";
+  order: 2;
+  flex: 1;
+  min-width: 16px;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--brand-on-ink-2);
+  opacity: 0.45;
+}
+.zero-receipt + .stack-zero-note { color: var(--brand-on-ink-2); font-size: 14px; }
 
 /* ---------- Precios (CloudPricing) ---------- */
 
@@ -263,9 +284,10 @@
 .lp-split-code { min-width: 0; display: grid; gap: 16px; }
 
 .lp-checks { list-style: none; margin-top: 24px; display: grid; gap: 10px; }
-.lp-checks li { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; line-height: 1.45; }
-.lp-checks svg { flex-shrink: 0; margin-top: 2px; }
+.lp-checks li { display: flex; align-items: baseline; gap: 10px; font-size: 15px; line-height: 1.45; }
+.lp-check-box { flex-shrink: 0; font-family: var(--font-data); font-size: 13px; white-space: pre; color: var(--ink); }
 .lp-checks li.is-soon { color: var(--brand-gray-2); }
+.lp-checks li.is-soon .lp-check-box { color: var(--brand-gray-3); }
 
 /* Ventanas de código: un borde y un título. */
 .term,
@@ -286,6 +308,16 @@
 .lp-code code { font-family: inherit; white-space: pre; }
 .tk-p { color: var(--brand-on-ink-2); user-select: none; }
 .tk-c { color: var(--brand-on-ink-2); }
+/* TypedTerminal: lo que falta escribir ocupa su lugar; el cursor solo vive mientras escribe. */
+.term-ghost { visibility: hidden; }
+.term-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.2em;
+  margin-left: 1px;
+  vertical-align: -0.25em;
+  background: currentColor;
+}
 .tk-k { color: #8fb4ff; }
 .tk-s { color: #8fe0b0; }
 
@@ -425,6 +457,7 @@
 
 .pd-page .lp-section { scroll-margin-top: calc(var(--site-band-h) + 72px); }
 .pd-shot-note { margin-top: 16px; }
+.pd-shot-note.lp-proof-foot { margin-top: 12px; }
 
 /* Funciones: filas con filete, sin íconos. */
 .pd-feat-list {
@@ -442,9 +475,9 @@
 .pd-features--split .pd-feat p { margin-top: 0; }
 
 /* Cómo se usa: tres pasos, cada uno con el cero en el color del producto. */
-.pd-steps { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
-.pd-step { position: relative; padding-top: 44px; }
-.pd-step-mark { position: absolute; top: 0; left: 0; z-index: 1; color: var(--accent); }
+.pd-steps { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; border-top: 1px solid var(--line); }
+.pd-step { position: relative; padding-top: 48px; }
+.pd-step-mark { position: absolute; top: 16px; left: 0; font-family: var(--font-data); font-size: 13px; color: var(--accent-ink, var(--brand-gray-2)); }
 .pd-step h3 { font-size: 1.25rem; font-weight: 700; }
 .pd-step p { margin-top: 8px; max-width: 46ch; font-size: 16px; line-height: 1.55; color: var(--brand-gray-1); }
 
@@ -477,7 +510,7 @@
   line-height: 0.9;
 }
 .pd-compare-zero-note { font-size: 15px; line-height: 1.5; color: var(--brand-on-ink-2); }
-.pd-compare-zero .btn { margin-top: auto; align-self: flex-start; }
+
 
 /* Link: su azul queda a 4,49:1 con texto blanco; en el sitio usa su tinta (4,75:1). */
 .pd-page.card-link,
@@ -807,8 +840,8 @@
 .mk-docs { display: grid; grid-template-columns: 160px 1fr; min-height: 320px; }
 .mk-docs .mk-doc { display: flex; flex-direction: column; gap: 10px; max-width: 680px; padding: 32px; }
 .mk-docs .mk-doc-title { margin-bottom: 8px; font-size: 22px; font-weight: 700; }
-.mk-docs .mk-doc-line { height: 10px; background: var(--brand-enamel); }
-.mk-docs .mk-doc-h { height: 1px; margin: 8px 0; background: var(--line); }
+.mk-docs .mk-doc-p { max-width: 60ch; font-size: 14px; line-height: 1.6; color: var(--brand-gray-1); }
+.mk-docs .mk-doc-h2 { margin-top: 12px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 16px; font-weight: 700; }
 .mk-docs .mk-doc-list { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: var(--brand-gray-1); }
 .mk-docs .mk-doc-list span { display: flex; align-items: center; }
 
@@ -1036,7 +1069,8 @@
   .plan-row-action { align-self: start; }
 
   .pd-steps { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .pd-step { padding: 0 0 32px 48px; }
+  .pd-step { padding: 16px 0 32px 64px; border-bottom: 1px solid var(--line); }
+  .pd-step-mark { top: 19px; }
   .pd-step p { max-width: none; }
 }
 

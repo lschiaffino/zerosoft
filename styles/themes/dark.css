@@ -70,6 +70,7 @@
   }
   :root:not([data-theme='light']) .site-footer,
   :root:not([data-theme='light']) .lp-end,
+  :root:not([data-theme='light']) .zero-edge,
   :root:not([data-theme='light']) .cl-cta,
   :root:not([data-theme='light']) .tool-cta-inner,
   :root:not([data-theme='light']) .code-win,
@@ -147,6 +148,7 @@
 }
 :root[data-theme='dark'] .site-footer,
 :root[data-theme='dark'] .lp-end,
+:root[data-theme='dark'] .zero-edge,
 :root[data-theme='dark'] .cl-cta,
 :root[data-theme='dark'] .tool-cta-inner,
 :root[data-theme='dark'] .code-win,

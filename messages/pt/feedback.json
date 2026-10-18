@@ -40,7 +40,7 @@
     "cancel": "Cancelar",
     "close": "Fechar",
     "count": "{count} / {max}",
-    "successTitle": "Obrigado — recebemos.",
+    "successTitle": "Obrigado, recebemos.",
     "successBody": "Lemos cada mensagem. Se você deixou um email e precisar de resposta, a gente escreve.",
     "another": "Enviar outro",
     "errorInvalid": "Escreva pelo menos algumas palavras (e confira o email, se colocou um).",

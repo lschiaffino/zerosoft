@@ -1018,10 +1018,8 @@
     "selfHost": "Self-host",
     "apiDocs": "API docs",
     "howTitle": "How it works.",
-    "howTitleDim": "Three steps.",
     "suiteTitle": "One workspace.",
     "suiteTitleDim": "Eleven apps, same login.",
-    "previewNote": "Interactive preview of the product UI.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -1035,7 +1033,10 @@
       "faq": "Questions"
     },
     "compareTitle": "{rival} at list price.",
-    "compareTitleDim": "Against $0 on your server."
+    "compareTitleDim": "Against $0 on your server.",
+    "shotFig": "fig. 1 · {name}, interactive view",
+    "zeroApp": "{name} on your server",
+    "zeroLicense": "License"
   },
   "mockups": {
     "link": {
@@ -1141,7 +1142,10 @@
       "title": "Kitchen handbook",
       "item1": "Base recipes and portions",
       "item2": "Suppliers and order days",
-      "item3": "Staff shifts"
+      "item3": "Staff shifts",
+      "p1": "How we run the kitchen at the Palermo location: base recipes, suppliers and shifts. If you change something, leave a comment on the block.",
+      "h2": "Before opening",
+      "p2": "Check the fridge, write down what's missing and tell the supplier before 10."
     },
     "chat": {
       "listTitle": "Inbox",

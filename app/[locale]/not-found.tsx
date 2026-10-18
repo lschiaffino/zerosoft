@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import BrandSymbol from '@/components/brand/BrandSymbol';
+import { ZeroRule } from '@/components/zero/ZeroTexture';
 import '@/styles/pages.css';
 
 export async function generateMetadata() {
@@ -16,10 +17,7 @@ export default async function LocaleNotFound() {
       <div className="sign-band">
         <div className="container sign-inner">
           <BrandSymbol size={28} className="sign-mark" />
-          <p className="sign-title">
-            {t('sign')}
-            <span className="sign-sub">404</span>
-          </p>
+          <p className="sign-title">{t('sign')}</p>
         </div>
       </div>
       <div className="container">
@@ -32,6 +30,7 @@ export default async function LocaleNotFound() {
             </Link>
           </div>
         </header>
+        <ZeroRule className="nf-rule" />
       </div>
     </main>
   );

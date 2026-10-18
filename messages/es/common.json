@@ -149,7 +149,6 @@
     "title": "Entrá a zerosoft",
     "sub": "Entrás con tu cuenta de Google. No hay contraseña que crear.",
     "google": "Continuar con Google",
-    "why": "Usamos solo Google para entrar, así no guardamos contraseñas.",
     "legal": "Al entrar aceptás los <terms>Términos</terms> y la <privacy>Privacidad</privacy>."
   },
   "blog": {
@@ -191,32 +190,32 @@
     "hero": {
       "title1": "Once apps para tu equipo.",
       "title2": "Cero licencias.",
-      "sub": "Alternativas open source a HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, UiPath y Bitly, con agentes de IA incluidos. Corrélas en tu servidor por $0 o empezá gratis en zerosoft Cloud.",
+      "sub": "Alternativas open source a HubSpot, Intercom, Calendly, Linear, Notion y cinco productos más que tu equipo paga cada mes. Corrélas en tu servidor por $0 o usalas en zerosoft Cloud.",
       "ctaStart": "Empezá gratis",
       "ctaSelfHost": "Hostealo vos",
       "note1": "Sin tarjeta",
       "note2": "Todas las funciones del core",
       "note3": "AGPLv3",
       "star": "Estrella en GitHub",
-      "license": "Open source · AGPLv3"
+      "license": "Open source · AGPLv3",
+      "fig": "fig. 0 · el cero, hecho de ceros",
+      "figHint": "arrastrá para girar"
     },
     "proof": {
-      "caption": "Vistas interactivas de cada app. La de verdad está a un clic.",
-      "title": "Cada app, por dentro.",
-      "titleDim": "Vistas interactivas de ocho apps."
+      "caption": "fig. 2 · {name}, vista interactiva",
+      "title": "Cada app, por dentro."
     },
     "suite": {
       "title": "Lo que usa tu equipo.",
-      "titleDim": "En un solo workspace.",
       "explore": "Conocé {name}",
       "link": {
-        "line": "Links cortos con métricas reales.",
+        "line": "Links cortos con tu dominio, QR y clics por país.",
         "b1": "Dominios propios y códigos QR",
         "b2": "Métricas de clics sin cookies",
         "b3": "Link-in-bio e importación de Bitly"
       },
       "crm": {
-        "line": "Todo tu pipeline, de punta a punta.",
+        "line": "Contactos, empresas y negocios en un pipeline kanban.",
         "b1": "Pipelines en un tablero kanban",
         "b2": "Workflows, listas y reportes",
         "b3": "Importación CSV con deduplicado"
@@ -234,13 +233,13 @@
         "b3": "Vistas guardadas e inbox"
       },
       "chat": {
-        "line": "Un inbox para cada conversación con clientes.",
+        "line": "Widget de chat para tu web y un inbox compartido.",
         "b1": "Widget de chat web embebible",
         "b2": "Timers de SLA y reglas de asignación",
         "b3": "Respuestas guardadas, horarios y CSAT"
       },
       "docs": {
-        "line": "Notas y wikis que son tuyas.",
+        "line": "Wikis con páginas anidadas y editor de bloques.",
         "b1": "Editor de bloques con menú /",
         "b2": "Páginas anidadas y menciones [[",
         "b3": "Plantillas, comentarios y permisos"
@@ -255,7 +254,7 @@
       "personalDesc": "Escribir, planificar y cuidar tu tiempo.",
       "replaces": "Reemplaza a {rival}",
       "agents": {
-        "line": "Agentes de IA que responden y actúan."
+        "line": "Agentes de IA que responden con tus documentos."
       },
       "flow": {
         "line": "Automatizaciones entre todas las apps."
@@ -281,8 +280,12 @@
       "perMonth": "/ mes, fijo",
       "total": "Total por año",
       "zeroTitle": "zerosoft, en tu servidor",
-      "zeroNote": "Las once apps. Pagás solo tu servidor.",
-      "footnote": "Precios de lista citados en nuestras páginas de producto, con facturación mensual, para 10 usuarios (Bitly Core es un plan fijo). Los proveedores cambian sus precios: chequeá sus sitios. zerosoft no está afiliado a ninguna de estas empresas."
+      "footnote": "Precios de lista citados en nuestras páginas de producto, con facturación mensual, para 10 usuarios (Bitly Core es un plan fijo). Los proveedores cambian sus precios: chequeá sus sitios. zerosoft no está afiliado a ninguna de estas empresas.",
+      "rApps": "Las once apps",
+      "rSeats": "Usuarios",
+      "rLicense": "Licencia",
+      "rData": "Tus datos",
+      "vData": "un archivo SQLite"
     },
     "oss": {
       "title": "Hostealo con un solo comando.",
@@ -314,7 +317,6 @@
     },
     "faq": {
       "title": "Preguntas frecuentes.",
-      "titleDim": "Respuestas cortas.",
       "q1": "¿Cuánto cuesta?",
       "a1": "Hostearlo vos cuesta $0: el core de cada app es AGPLv3, con todas sus funciones. En zerosoft Cloud cada workspace empieza con un plan gratis y, si lo pasa, paga por uso: clics, reservas, emails y almacenamiento. Los asientos no se cobran. La IA se cobra por tokens.",
       "q2": "¿Cómo gana plata zerosoft?",
@@ -334,6 +336,9 @@
       "title1": "Empezá en un minuto.",
       "title2": "O corrélo vos.",
       "sub": "Entrá con Google y usá el plan gratis, o cloná el repo y levantalo con Docker. El core es el mismo."
+    },
+    "tour": {
+      "fig": "fig. 1 · modo demo, datos de ejemplo, 48 s"
     }
   },
   "ui": {

@@ -22,13 +22,9 @@ export default function DocsMockup() {
       <div className="mk-main">
         <div className="mk-doc">
           <h4 className="mk-doc-title">{t('title')}</h4>
-          <div className="mk-doc-line" style={{ width: '92%' }} />
-          <div className="mk-doc-line" style={{ width: '88%' }} />
-          <div className="mk-doc-line" style={{ width: '96%' }} />
-          <div className="mk-doc-line" style={{ width: '60%' }} />
-          <div className="mk-doc-h" />
-          <div className="mk-doc-line" style={{ width: '80%' }} />
-          <div className="mk-doc-line" style={{ width: '76%' }} />
+          <p className="mk-doc-p">{t('p1')}</p>
+          <h5 className="mk-doc-h2">{t('h2')}</h5>
+          <p className="mk-doc-p">{t('p2')}</p>
           <div className="mk-doc-list">
             <span>
               <MkCheck done={false} />

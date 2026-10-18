@@ -4,7 +4,7 @@
       "title": "Terms of Service",
       "description": "The terms that govern the use of zerosoft.ai and the zerosoft cloud. Written to be read."
     },
-    "label": "Legal — 01",
+    "label": "Legal · 01",
     "title": "Terms of Service",
     "updated": "Last updated: October 12, 2026",
     "intro": "These terms govern your use of zerosoft.ai and the zerosoft cloud. They are written to be read, not to scare you. We review them periodically and whenever the product changes in a way that affects them. If anything is unclear, write to hola@zerosoft.ai before accepting.",
@@ -151,7 +151,7 @@
       "title": "Privacy Policy",
       "description": "What zerosoft.ai collects, what it never collects, and why. We collect the minimum, keep it no longer than needed, and never sell it."
     },
-    "label": "Legal — 02",
+    "label": "Legal · 02",
     "title": "Privacy Policy",
     "updated": "Last updated: October 13, 2026",
     "intro": "We collect the minimum, keep it no longer than needed, and never sell it. This policy explains exactly what that means, in the same plain language we use everywhere else. We review it periodically and whenever the product changes in a way that affects your data.",
@@ -310,9 +310,9 @@
   "security": {
     "meta": {
       "title": "Security",
-      "description": "How zerosoft.ai protects the service: Google sign-in without passwords, hashed keys, encrypted secrets, HTTPS, minimal data — and how to report a vulnerability."
+      "description": "How zerosoft.ai protects the service: Google sign-in without passwords, hashed keys, encrypted secrets, HTTPS, minimal data, and how to report a vulnerability."
     },
-    "label": "Legal — 03",
+    "label": "Legal · 03",
     "title": "Security",
     "updated": "Last updated: October 12, 2026",
     "intro": "Trust is earned with specifics, not badges. Here is exactly how we protect the service today, what we do not claim, and how to tell us when we got something wrong. We review this page periodically and whenever these controls change.",

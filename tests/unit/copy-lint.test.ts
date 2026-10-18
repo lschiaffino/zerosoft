@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 const root = join(__dirname, '..', '..');
 const LOCALES = ['es', 'en', 'pt'] as const;
-const NAMESPACES = ['common', 'pages', 'tools', 'brand', 'settings', 'changelog', 'feedbackBoard'] as const;
+const NAMESPACES = ['common', 'pages', 'tools', 'brand', 'settings', 'changelog', 'feedbackBoard', 'roadmap', 'feedback', 'videos'] as const;
 
 const RULES: Record<string, RegExp> = {
   'raya larga (—)': /—/,

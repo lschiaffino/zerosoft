@@ -190,6 +190,39 @@ a { color: inherit; text-decoration: none; }
   opacity: 0.09;
 }
 
+/* ---------- Texturas de ceros (lib/zero-texture.ts) ----------
+   La rampa del toroide como trama: un filete (ZeroRule) y el paso de la página
+   a una banda de tinta (ZeroEdge). Decorativas, sin movimiento. */
+
+.zero-rule,
+.zero-edge {
+  margin: 0;
+  overflow: hidden;
+  white-space: pre;
+  font-family: var(--font-data);
+  font-feature-settings: normal;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.zero-rule { font-size: 11px; line-height: 1; letter-spacing: 0.1em; color: currentColor; opacity: 0.3; }
+/* Toma el color de la banda que sigue: --brand-ink, que el modo oscuro
+   redefine para .zero-edge igual que para .lp-end (styles/themes/dark.css). */
+.zero-edge { font-size: 12px; line-height: 1.05; color: var(--brand-ink); }
+
+/* Epígrafe de figura: "fig. 0 · …", en mono, bajo una pieza visual. */
+.fig-cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  font-family: var(--font-data);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--brand-gray-3);
+}
+.fig-cap-hint { white-space: nowrap; }
+
 /* ---------- Secciones ---------- */
 
 section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw, 112px); }

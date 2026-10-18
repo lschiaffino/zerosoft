@@ -4,7 +4,7 @@
       "title": "Términos de Servicio",
       "description": "Los términos que rigen el uso de zerosoft.ai y la nube de zerosoft. Escritos para ser leídos."
     },
-    "label": "Legal — 01",
+    "label": "Legal · 01",
     "title": "Términos de Servicio",
     "updated": "Última actualización: 12 de octubre de 2026",
     "intro": "Estos términos rigen tu uso de zerosoft.ai y de la nube de zerosoft. Están escritos para ser leídos, no para asustarte. Los revisamos periódicamente y cada vez que el producto cambia de una forma que los afecte. Si algo no queda claro, escribinos a hola@zerosoft.ai antes de aceptar.",
@@ -151,7 +151,7 @@
       "title": "Política de Privacidad",
       "description": "Qué recolecta zerosoft.ai, qué no recolecta nunca, y por qué. Recolectamos lo mínimo, lo guardamos lo necesario y nunca lo vendemos."
     },
-    "label": "Legal — 02",
+    "label": "Legal · 02",
     "title": "Política de Privacidad",
     "updated": "Última actualización: 13 de octubre de 2026",
     "intro": "Recolectamos lo mínimo, lo guardamos solo lo necesario y nunca lo vendemos. Esta política explica exactamente qué significa eso, con el mismo lenguaje llano que usamos en todos lados. La revisamos periódicamente y cada vez que el producto cambia de una forma que afecte tus datos.",
@@ -310,9 +310,9 @@
   "security": {
     "meta": {
       "title": "Seguridad",
-      "description": "Cómo protege zerosoft.ai el servicio: inicio de sesión con Google sin contraseñas, claves hasheadas, secretos cifrados, HTTPS, datos mínimos — y cómo reportar una vulnerabilidad."
+      "description": "Cómo protege zerosoft.ai el servicio: inicio de sesión con Google sin contraseñas, claves hasheadas, secretos cifrados, HTTPS, datos mínimos, y cómo reportar una vulnerabilidad."
     },
-    "label": "Legal — 03",
+    "label": "Legal · 03",
     "title": "Seguridad",
     "updated": "Última actualización: 12 de octubre de 2026",
     "intro": "La confianza se gana con detalles, no con sellos. Acá está exactamente cómo protegemos el servicio hoy, qué no afirmamos, y cómo avisarnos cuando algo nos salió mal. Revisamos esta página periódicamente y cada vez que cambian estos controles.",

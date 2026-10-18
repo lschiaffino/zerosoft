@@ -5,6 +5,7 @@ import Icon from './site/Icon';
 import { GITHUB_URL, PRODUCT_NAMES, SITE_PRODUCTS } from './site/catalog';
 import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
+import { ZeroRule } from './zero/ZeroTexture';
 import '@/styles/site.css';
 
 export default async function Footer({ locale }: { locale: string }) {
@@ -84,6 +85,7 @@ export default async function Footer({ locale }: { locale: string }) {
         </div>
       </div>
 
+      <ZeroRule className="footer-rule" />
       <div className="footer-bottom">
         <span>{t('copyright')}</span>
         <span className="footer-oss">

@@ -1,6 +1,6 @@
 {
   "metaTitle": "Roadmap",
-  "metaDescription": "Lo próximo que construimos en zerosoft.ai — a partir de tu feedback y de las conversaciones de soporte. Votá lo que te importa.",
+  "metaDescription": "Lo próximo que construimos en zerosoft.ai, a partir de tu feedback y de las conversaciones de soporte. Votá lo que te importa.",
   "label": "Roadmap",
   "title": "Lo que viene.",
   "titleDim": "Hecho con lo que nos contás.",
@@ -15,7 +15,7 @@
   "voted": "Votado",
   "votes": "{count, plural, one {# voto} other {# votos}}",
   "voteError": "No pudimos contar tu voto. Probá más tarde.",
-  "shipped": "Salió — ver changelog",
+  "shipped": "Salió · ver changelog",
   "kind": {
     "idea": "Idea",
     "bug": "Arreglo"

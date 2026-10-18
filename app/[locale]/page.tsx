@@ -19,6 +19,8 @@ import SuiteGrid from '@/components/site/SuiteGrid';
 import SectionSign from '@/components/site/SectionSign';
 import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
+import TypedTerminal from '@/components/site/TypedTerminal';
+import { ZeroEdge } from '@/components/zero/ZeroTexture';
 import ProductLinks from '@/components/site/ProductLinks';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, annualCost } from '@/components/site/catalog';
@@ -84,24 +86,25 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             </a>
           </p>
         </div>
-        <HeroVisual className="lp-hero-map" />
+        <HeroVisual className="lp-hero-map" caption={h('hero.fig')} hint={h('hero.figHint')} />
       </section>
 
       {/* La app real, grabada: 48 s por seis apps. */}
       <section className="lp-section" id="tour" aria-labelledby="h-tour">
-        <SectionSign id="h-tour" title={v('items.zerosoft-intro.title')} sub={v('embedTitleDim')} />
+        <SectionSign id="h-tour" title={v('embedTitleDim')} />
         <div className="container lp-tour">
-          <div className="lp-video">
+          <figure className="lp-video">
             <VideoPlayer
               src="/videos/zerosoft-intro.mp4"
               poster="/videos/zerosoft-intro.jpg"
               title={v('items.zerosoft-intro.title')}
             />
-          </div>
+            <figcaption className="fig-cap">{h('tour.fig')}</figcaption>
+          </figure>
           <div className="lp-tour-side">
             <p className="lp-lede">{v('items.zerosoft-intro.desc')}</p>
             <p className="lp-video-note">
-              {v('note')} <Link href="/videos">{v('allVideos')}</Link>
+              <Link href="/videos">{v('allVideos')}</Link>
             </p>
           </div>
         </div>
@@ -109,7 +112,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
 
       {/* Cada línea por dentro: vistas interactivas de las apps. */}
       <section className="lp-section" id="vistas" aria-labelledby="h-proof">
-        <SectionSign id="h-proof" title={h('proof.title')} sub={h('proof.titleDim')} />
+        <SectionSign id="h-proof" title={h('proof.title')} />
         <div className="container">
           <ShowcaseTabs
             label={h('proof.title')}
@@ -120,7 +123,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                   <p.Mockup />
                 </BrowserFrame>
                 <div className="lp-proof-foot">
-                  <span>{h('proof.caption')}</span>
+                  <span className="fig-cap">{h('proof.caption', { name: PRODUCT_NAMES[p.key].toLowerCase() })}</span>
                   <Link href={`/products/${p.key}`} className="lp-textlink">
                     {h('suite.explore', { name: PRODUCT_NAMES[p.key] })} <Icon name="arrow" size={14} />
                   </Link>
@@ -133,7 +136,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
 
       {/* La suite: once apps, dos audiencias. */}
       <section className="lp-section" id="productos" aria-labelledby="h-suite">
-        <SectionSign id="h-suite" title={h('suite.title')} sub={h('suite.titleDim')} />
+        <SectionSign id="h-suite" title={h('suite.title')} />
         <div className="container">
           <SuiteGrid cta={{ label: t('header.allProducts'), href: '/products' }} />
         </div>
@@ -199,10 +202,21 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             <div className="stack-zero">
               <p className="stack-zero-label">{h('stack.zeroTitle')}</p>
               <span className="stack-zero-num">$0</span>
-              <p className="stack-zero-note">{h('stack.zeroNote')}</p>
-              <a className="btn btn-invert" href={GITHUB_URL} target="_blank" rel="noreferrer">
-                <Icon name="github" size={15} /> {h('hero.ctaSelfHost')}
-              </a>
+              <dl className="zero-receipt">
+                {(
+                  [
+                    [h('stack.rApps'), '$0'],
+                    [h('stack.rSeats'), '$0'],
+                    [h('stack.rLicense'), 'AGPLv3'],
+                    [h('stack.rData'), h('stack.vData')],
+                  ] as const
+                ).map(([k, val]) => (
+                  <div key={k}>
+                    <dt>{k}</dt>
+                    <dd>{val}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
           <p className="lp-footnote">{h('stack.footnote')}</p>
@@ -227,7 +241,9 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             <ul className="lp-checks">
               {(['b1', 'b2', 'b3', 'b4'] as const).map((b) => (
                 <li key={b} className={b === 'b4' ? 'is-soon' : undefined}>
-                  <Icon name={b === 'b4' ? 'clock' : 'check'} size={16} />
+                  <span className="lp-check-box" aria-hidden="true">
+                    {b === 'b4' ? '[ ]' : '[x]'}
+                  </span>
                   {h(`oss.${b}`)}
                 </li>
               ))}
@@ -242,22 +258,15 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             </div>
           </div>
           <div className="lp-split-code">
-            <div className="term">
-              <div className="term-bar">
-                <span className="term-title">{h('oss.terminal')}</span>
-              </div>
-              <pre className="lp-code">
-                <code>
-                  <span className="tk-p">$ </span>git clone {GITHUB_URL}
-                  {'\n'}
-                  <span className="tk-p">$ </span>cd zerosoft && cp .env.example .env
-                  {'\n'}
-                  <span className="tk-p">$ </span>docker compose up -d
-                  {'\n'}
-                  <span className="tk-c"># → http://localhost:3000</span>
-                </code>
-              </pre>
-            </div>
+            <TypedTerminal
+              title={h('oss.terminal')}
+              lines={[
+                { kind: 'cmd', text: `git clone ${GITHUB_URL}` },
+                { kind: 'cmd', text: 'cd zerosoft && cp .env.example .env' },
+                { kind: 'cmd', text: 'docker compose up -d' },
+                { kind: 'out', text: '# → http://localhost:3000' },
+              ]}
+            />
             <div className="term term-file">
               <div className="term-bar">
                 <span className="term-title">{h('oss.compose')}</span>
@@ -312,7 +321,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
               panels={[
                 <pre className="lp-code" key="req">
                   <code>
-                    curl -X <span className="tk-k">POST</span> https://zerosoft.ai/api/v1/links \{'\n'}
+                    <span className="tk-p">$ </span>curl -X <span className="tk-k">POST</span> https://zerosoft.ai/api/v1/links \{'\n'}
                     {'  '}-H <span className="tk-s">&quot;Authorization: Bearer zs_…&quot;</span> \{'\n'}
                     {'  '}-H <span className="tk-s">&quot;Content-Type: application/json&quot;</span> \{'\n'}
                     {'  '}-d <span className="tk-s">&apos;{'{'}</span>
@@ -374,7 +383,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
 
       {/* Preguntas */}
       <section className="lp-section" id="faq" aria-labelledby="h-faq">
-        <SectionSign id="h-faq" title={h('faq.title')} sub={h('faq.titleDim')} />
+        <SectionSign id="h-faq" title={h('faq.title')} />
         <div className="container">
           <div className="faq">
             {FAQ.map((n) => (
@@ -390,7 +399,8 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
         </div>
       </section>
 
-      {/* Cierre: la banda negra con las once apps. */}
+      {/* Cierre: la página se vuelve tinta, de a ceros, y la banda con las once apps. */}
+      <ZeroEdge />
       <section className="lp-end" id="sumate" aria-labelledby="h-end">
         <div className="container lp-end-inner">
           <h2 id="h-end">

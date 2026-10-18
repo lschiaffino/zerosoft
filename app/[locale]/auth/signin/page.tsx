@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/session';
 import ZeroTorus from '@/components/zero/ZeroTorus';
+import Logo from '@/components/brand/Logo';
 import GoogleButton from '@/components/auth/GoogleButton';
 import { safeCallbackUrl } from '@/lib/hosts';
 
@@ -32,13 +33,10 @@ export default async function SignInPage(props: {
     <main className="auth-page">
       <ZeroTorus interactive={false} className="zero-torus-bg" />
       <div className="auth-card">
-        <span className="brand-zero" style={{ width: 44, height: 44, fontSize: 20 }}>0</span>
+        <Logo variant="symbol" tone="current" height={36} title="" />
         <h1>{t('title')}</h1>
         <p className="auth-sub">{t('sub')}</p>
         <GoogleButton label={t('google')} locale={locale} callbackUrl={callbackUrl} />
-        <p className="auth-sub" style={{ marginTop: 18, fontSize: 12, color: 'var(--dim)' }}>
-          {t('why')}
-        </p>
         <p className="auth-legal">
           {t.rich('legal', {
             terms: (chunks) => <a href={`/${locale}/terms`}>{chunks}</a>,

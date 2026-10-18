@@ -4,7 +4,7 @@
       "title": "Termos de Serviço",
       "description": "Os termos que regem o uso do zerosoft.ai e da nuvem da zerosoft. Escritos para serem lidos."
     },
-    "label": "Legal — 01",
+    "label": "Legal · 01",
     "title": "Termos de Serviço",
     "updated": "Última atualização: 12 de outubro de 2026",
     "intro": "Estes termos regem o seu uso do zerosoft.ai e da nuvem da zerosoft. Eles foram escritos para serem lidos, não para assustar. Nós os revisamos periodicamente e sempre que o produto muda de um jeito que os afete. Se algo não estiver claro, escreva para hola@zerosoft.ai antes de aceitar.",
@@ -151,7 +151,7 @@
       "title": "Política de Privacidade",
       "description": "O que o zerosoft.ai coleta, o que nunca coleta, e por quê. Coletamos o mínimo, guardamos só pelo tempo necessário e nunca vendemos."
     },
-    "label": "Legal — 02",
+    "label": "Legal · 02",
     "title": "Política de Privacidade",
     "updated": "Última atualização: 13 de outubro de 2026",
     "intro": "Coletamos o mínimo, guardamos só pelo tempo necessário e nunca vendemos. Esta política explica exatamente o que isso significa, na mesma linguagem simples que usamos em todo lugar. Nós a revisamos periodicamente e sempre que o produto muda de um jeito que afete seus dados.",
@@ -310,9 +310,9 @@
   "security": {
     "meta": {
       "title": "Segurança",
-      "description": "Como o zerosoft.ai protege o serviço: login com Google sem senhas, chaves com hash, segredos criptografados, HTTPS, dados mínimos — e como reportar uma vulnerabilidade."
+      "description": "Como o zerosoft.ai protege o serviço: login com Google sem senhas, chaves com hash, segredos criptografados, HTTPS, dados mínimos, e como reportar uma vulnerabilidade."
     },
-    "label": "Legal — 03",
+    "label": "Legal · 03",
     "title": "Segurança",
     "updated": "Última atualização: 12 de outubro de 2026",
     "intro": "Confiança se conquista com detalhes, não com selos. Aqui está exatamente como protegemos o serviço hoje, o que não afirmamos, e como nos avisar quando erramos algo. Revisamos esta página periodicamente e sempre que esses controles mudam.",

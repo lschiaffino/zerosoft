@@ -1018,10 +1018,8 @@
     "selfHost": "Hostealo vos",
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
-    "howTitleDim": "En tres pasos.",
     "suiteTitle": "Un workspace.",
     "suiteTitleDim": "Once apps, el mismo login.",
-    "previewNote": "Vista interactiva de la interfaz del producto.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -1035,7 +1033,10 @@
       "faq": "Preguntas"
     },
     "compareTitle": "{rival}, a precio de lista.",
-    "compareTitleDim": "Contra $0 en tu servidor."
+    "compareTitleDim": "Contra $0 en tu servidor.",
+    "shotFig": "fig. 1 · {name}, vista interactiva",
+    "zeroApp": "{name} en tu servidor",
+    "zeroLicense": "Licencia"
   },
   "mockups": {
     "link": {
@@ -1141,7 +1142,10 @@
       "title": "Manual de la cocina",
       "item1": "Recetas base y porciones",
       "item2": "Proveedores y días de pedido",
-      "item3": "Turnos del personal"
+      "item3": "Turnos del personal",
+      "p1": "Cómo trabajamos en la cocina del local de Palermo: recetas base, proveedores y turnos. Si cambiás algo, dejá un comentario en el bloque.",
+      "h2": "Antes de abrir",
+      "p2": "Revisá la heladera, anotá lo que falta y avisale al proveedor antes de las 10."
     },
     "chat": {
       "listTitle": "Bandeja",

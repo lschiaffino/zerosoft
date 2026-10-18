@@ -316,7 +316,7 @@
     "notfoundTitle": "Este link se foi",
     "notfoundSub": "Nunca existiu, foi excluído ou arquivado. Como todo software morto.",
     "expiredTitle": "Este link expirou",
-    "expiredSub": "Chegou à data de expiração. Nada dura para sempre.",
+    "expiredSub": "Chegou à data de expiração e não redireciona mais.",
     "limitTitle": "Limite de cliques atingido",
     "limitSub": "Este link já serviu todos os cliques permitidos.",
     "passwordTitle": "Link protegido",

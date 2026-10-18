@@ -8,7 +8,7 @@ import SectionSign from '@/components/site/SectionSign';
 import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
 import ProductLinks from '@/components/site/ProductLinks';
-import BrandSymbol from '@/components/brand/BrandSymbol';
+import { ZeroEdge } from '@/components/zero/ZeroTexture';
 import BrowserFrame from './BrowserFrame';
 import ProductSectionNav from './ProductSectionNav';
 import VideoPlayer from '@/components/VideoPlayer';
@@ -67,12 +67,13 @@ export default async function ProductPage({ locale, product }: { locale: string;
   const blocks: Record<PageSection, () => ReactNode> = {
     shot: () => (
       <section className="lp-section" id={SECTION_IDS.shot} key="shot" aria-labelledby={`h-${SECTION_IDS.shot}`}>
-        {sign('shot', t('product.shotTitle', { name: cfg.name }), t('product.previewNote'))}
+        {sign('shot', t('product.shotTitle', { name: cfg.name }))}
         <div className="container">
           <BrowserFrame url={`zerosoft.ai/app/${cfg.path}`}>
             <Mockup />
           </BrowserFrame>
-          <p className="pd-shot-note">
+          <p className="pd-shot-note lp-proof-foot">
+            <span className="fig-cap">{t('product.shotFig', { name: cfg.name.toLowerCase() })}</span>
             <Link href={cfg.launch} className="lp-textlink">
               {t('product.launch', { name: cfg.name })} <Icon name="arrow" size={14} />
             </Link>
@@ -102,15 +103,17 @@ export default async function ProductPage({ locale, product }: { locale: string;
       </section>
     ),
 
-    // Los tres pasos, cada uno con el cero del producto.
+    // Los tres pasos, numerados como un contador de terminal (1 / 3).
     how: () => (
       <section className="lp-section pd-how" id={SECTION_IDS.how} key="how" aria-labelledby={`h-${SECTION_IDS.how}`}>
-        {sign('how', t('product.howTitle'), t('product.howTitleDim'))}
+        {sign('how', t('product.howTitle'))}
         <div className="container">
           <ol className="pd-steps">
-            {STEP_IDS.map((id) => (
+            {STEP_IDS.map((id, i) => (
               <li className="pd-step" key={id}>
-                <BrandSymbol size={24} className="pd-step-mark" />
+                <span className="pd-step-mark" aria-hidden="true">
+                  {i + 1} / {STEP_IDS.length}
+                </span>
                 <h3>{t(`${p}.steps.${id}.t`)}</h3>
                 <p>{t(`${p}.steps.${id}.d`)}</p>
               </li>
@@ -122,7 +125,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
 
     video: () => (
       <section className="lp-section" id={SECTION_IDS.video} key="video" aria-labelledby={`h-${SECTION_IDS.video}`}>
-        {sign('video', tv(`items.${product}.title`), tv('embedTitleDim'))}
+        {sign('video', tv('embedTitleDim'))}
         <div className="container lp-tour">
           <div className="lp-video">
             <VideoPlayer
@@ -173,10 +176,23 @@ export default async function ProductPage({ locale, product }: { locale: string;
           <div className="pd-compare-zero">
             <p className="pd-compare-label">{t('product.compareZero')}</p>
             <span className="pd-compare-num">{t(`${p}.compare.zero`)}</span>
-            <p className="pd-compare-zero-note">{tcm('model.a.desc')}</p>
-            <a className="btn btn-invert" href={GITHUB_URL} target="_blank" rel="noreferrer">
-              <Icon name="github" size={15} /> {t('product.selfHost')}
-            </a>
+            <dl className="zero-receipt">
+              <div>
+                <dt>{t('product.zeroApp', { name: cfg.name })}</dt>
+                <dd>{t(`${p}.compare.zero`)}</dd>
+              </div>
+              <div>
+                <dt>
+                  {t.has(`${p}.compare.teamLabel`) ? t(`${p}.compare.teamLabel`) : t('product.compareTeam')}{' '}
+                  {t('product.compareYear')}
+                </dt>
+                <dd>{t(`${p}.compare.zero`)}</dd>
+              </div>
+              <div>
+                <dt>{t('product.zeroLicense')}</dt>
+                <dd>AGPLv3</dd>
+              </div>
+            </dl>
           </div>
         </div>
       </section>
@@ -250,7 +266,8 @@ export default async function ProductPage({ locale, product }: { locale: string;
 
       {spec.sections.map((s) => blocks[s]())}
 
-      {/* Cierre: la banda negra con las once apps. */}
+      {/* Cierre: la página se vuelve tinta, de a ceros, y la banda con las once apps. */}
+      <ZeroEdge />
       <section className="lp-end" aria-labelledby="h-end">
         <div className="container lp-end-inner">
           <h2 id="h-end">
