@@ -5,13 +5,12 @@ import { PRODUCT_CONFIG, type SiteProductKey as ProductKey } from '@/lib/product
 import Icon from '@/components/site/Icon';
 import { GITHUB_URL, HAS_API, PRODUCT_PAGES, SECTION_IDS, type PageSection } from '@/components/site/catalog';
 import SectionSign from '@/components/site/SectionSign';
-import SiteNetworkMap from '@/components/site/SiteNetworkMap';
 import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
-import EndLines from '@/components/site/EndLines';
+import ProductLinks from '@/components/site/ProductLinks';
 import BrandSymbol from '@/components/brand/BrandSymbol';
 import BrowserFrame from './BrowserFrame';
-import ProductLineNav from './ProductLineNav';
+import ProductSectionNav from './ProductSectionNav';
 import VideoPlayer from '@/components/VideoPlayer';
 import LinkMockup from './mockups/LinkMockup';
 import TrackMockup from './mockups/TrackMockup';
@@ -46,10 +45,9 @@ const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `
 /**
  * Página de producto. Una sola plantilla para las once apps: el orden de los
  * bloques, la cantidad de features y la forma de la lista salen de
- * components/site/catalog.ts (PRODUCT_PAGES). La línea del producto es el
- * hilo de la página: se enciende en el plano del primer viewport, hace de
- * índice (ProductLineNav) y su estación abre cada sección. El copy vive en
- * messages/<locale>/pages.json (products.<key> y product.*).
+ * components/site/catalog.ts (PRODUCT_PAGES). El color del producto tiñe el
+ * cero del primer viewport y el índice de secciones (ProductSectionNav). El
+ * copy vive en messages/<locale>/pages.json (products.<key> y product.*).
  */
 export default async function ProductPage({ locale, product }: { locale: string; product: ProductKey }) {
   const t = await getTranslations({ locale, namespace: 'pages' });
@@ -104,7 +102,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
       </section>
     ),
 
-    // Los tres pasos son tres estaciones sobre la línea del producto.
+    // Los tres pasos, cada uno con el cero del producto.
     how: () => (
       <section className="lp-section pd-how" id={SECTION_IDS.how} key="how" aria-labelledby={`h-${SECTION_IDS.how}`}>
         {sign('how', t('product.howTitle'), t('product.howTitleDim'))}
@@ -112,7 +110,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
           <ol className="pd-steps">
             {STEP_IDS.map((id) => (
               <li className="pd-step" key={id}>
-                <BrandSymbol size={24} className="pd-step-station" />
+                <BrandSymbol size={24} className="pd-step-mark" />
                 <h3>{t(`${p}.steps.${id}.t`)}</h3>
                 <p>{t(`${p}.steps.${id}.d`)}</p>
               </li>
@@ -175,9 +173,6 @@ export default async function ProductPage({ locale, product }: { locale: string;
           <div className="pd-compare-zero">
             <p className="pd-compare-label">{t('product.compareZero')}</p>
             <span className="pd-compare-num">{t(`${p}.compare.zero`)}</span>
-            <span className="pd-compare-line" aria-hidden="true">
-              <BrandSymbol size={28} />
-            </span>
             <p className="pd-compare-zero-note">{tcm('model.a.desc')}</p>
             <a className="btn btn-invert" href={GITHUB_URL} target="_blank" rel="noreferrer">
               <Icon name="github" size={15} /> {t('product.selfHost')}
@@ -217,7 +212,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
     ),
   };
 
-  const stops = spec.sections.map((s) => ({ id: SECTION_IDS[s], label: t(`product.nav.${s}`) }));
+  const sections = spec.sections.map((s) => ({ id: SECTION_IDS[s], label: t(`product.nav.${s}`) }));
 
   return (
     <main className={`pd-page card-${product}`}>
@@ -248,14 +243,14 @@ export default async function ProductPage({ locale, product }: { locale: string;
             )}
           </div>
         </div>
-        <HeroVisual focus={product} className="pd-hero-map" map={<SiteNetworkMap focus={product} className="pd-hero-map" />} />
+        <HeroVisual focus={product} className="pd-hero-map" />
       </section>
 
-      <ProductLineNav product={product} stops={stops} label={t('product.navLabel', { name: cfg.name })} />
+      <ProductSectionNav product={product} sections={sections} label={t('product.navLabel', { name: cfg.name })} />
 
       {spec.sections.map((s) => blocks[s]())}
 
-      {/* Cierre: la banda negra con las once líneas. */}
+      {/* Cierre: la banda negra con las once apps. */}
       <section className="lp-end" aria-labelledby="h-end">
         <div className="container lp-end-inner">
           <h2 id="h-end">
@@ -272,7 +267,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
               <Icon name="github" size={16} /> {t('product.selfHost')}
             </a>
           </div>
-          <EndLines label={tcm('header.products')} current={product} />
+          <ProductLinks label={tcm('header.products')} current={product} />
         </div>
       </section>
     </main>

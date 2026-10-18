@@ -82,13 +82,12 @@ export default async function HelpArticlePage(props: Props) {
             </header>
             <DocsBlocksView blocks={blocks} className="docs-prose help-body" />
 
-            {/* Portada de colección: sus artículos son las estaciones de la línea del workspace. */}
+            {/* Portada de colección: la lista de sus artículos. */}
             {article.children.length > 0 ? (
-              <ol className="help-line help-line-children" aria-label={t('articlesIn', { title: article.title || t('untitled') })}>
+              <ol className="help-collections help-collections-children" aria-label={t('articlesIn', { title: article.title || t('untitled') })}>
                 {article.children.map((c) => (
-                  <li key={c.id} className="help-stop">
-                    <span className="help-station" aria-hidden="true" />
-                    <div className="help-stop-body">
+                  <li key={c.id} className="help-collection">
+                    <div className="help-collection-body">
                       <h2 className="help-collection-title">
                         <a href={`${base}/${c.slug}`}>
                           {c.icon && <span aria-hidden="true">{c.icon} </span>}

@@ -8,8 +8,8 @@ const AUDIENCES: readonly Audience[] = ['teams', 'personal'];
 
 /**
  * La suite dividida en "Para equipos" y "Para vos": una lista de filas finas
- * (sin tarjetas). Cada app es su línea: el tramo de color con su estación, el
- * nombre en señalética, qué hace y lo que reemplaza. Home y /products.
+ * (sin tarjetas). Cada app con su cero de color, el nombre en señalética,
+ * qué hace y lo que reemplaza. Home y /products.
  */
 export default function SuiteGrid({ cta }: { cta?: { label: string; href: string } }) {
   const h = useTranslations('common.home');
@@ -25,7 +25,7 @@ export default function SuiteGrid({ cta }: { cta?: { label: string; href: string
             {AUDIENCE_PRODUCTS[a].map((k) => (
               <li key={k} className={`suite-row card-${k}`}>
                 <Link href={`/products/${k}`} className="suite-row-link">
-                  <ProductGlyph product={k} size={18} onLine className="suite-glyph" />
+                  <ProductGlyph product={k} size={18} className="suite-glyph" />
                   <span className="suite-name">{PRODUCT_NAMES[k]}</span>
                   <span className="suite-line">{h(`suite.${k}.line`)}</span>
                   <span className="suite-vs">{h('suite.replaces', { rival: RIVALS[k] })}</span>

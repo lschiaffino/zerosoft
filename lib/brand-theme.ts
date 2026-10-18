@@ -1,8 +1,9 @@
 /**
  * Temas de marca. `default` es la marca de zerosoft (el cero ZeroMark +
- * "zerosoft.ai", Space Grotesk + IBM Plex Mono, blanco y negro). Los demás
- * son opcionales y se activan por cookie: visitar cualquier página con
- * `?brand=<tema>` la guarda y `?brand=default` la borra (middleware.ts).
+ * "zerosoft.ai", Space Grotesk + IBM Plex Mono, blanco y negro) y hoy es el
+ * único. El mecanismo queda para un tema opcional futuro: se activaría por
+ * cookie, visitando cualquier página con `?brand=<tema>` (y `?brand=default`
+ * la borra; ver middleware.ts). Un valor desconocido se ignora.
  *
  * Agregar un tema:
  * 1. Sumar su clave a BRAND_THEMES.
@@ -13,14 +14,14 @@
  * Sin imports de Node ni de React: lo usan el middleware y los layouts.
  */
 
-export const BRAND_THEMES = ['default', 'subte'] as const;
+export const BRAND_THEMES = ['default'] as const;
 export type BrandTheme = (typeof BRAND_THEMES)[number];
 
 export const DEFAULT_BRAND: BrandTheme = 'default';
 
 /** Cookie que guarda el tema elegido. Ausente = default. */
 export const BRAND_COOKIE = 'zs_brand';
-/** Query param que cambia el tema (`?brand=subte`, `?brand=default`). */
+/** Query param que cambia el tema (`?brand=<tema>`, `?brand=default`). */
 export const BRAND_PARAM = 'brand';
 /** Header interno: el middleware lo pone en las rutas que fuerzan un tema. */
 export const BRAND_HEADER = 'x-zs-brand';
@@ -38,8 +39,6 @@ export function parseBrand(value: string | null | undefined): BrandTheme {
 const FORCED: ReadonlyArray<{ re: RegExp; brand: BrandTheme }> = [
   // La página de la marca default se ve siempre en default.
   { re: /^\/brand(?:\/|$)/, brand: 'default' },
-  // La guía de cada tema opcional, siempre en su tema.
-  { re: /^\/nuevo-branding\/subte(?:\/|$)/, brand: 'subte' },
 ];
 
 /** Tema forzado por la ruta, si lo hay. Acepta el path con o sin locale. */

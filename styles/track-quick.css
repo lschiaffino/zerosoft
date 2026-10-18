@@ -17,8 +17,7 @@
 }
 
 /* ---------- Glifo de status (y control de terminado) ----------
-   Cuadrado: los círculos son de las estaciones. El color del status va
-   solo en el glifo; el nombre siempre en tinta. */
+   El color del status va solo en el glifo; el nombre siempre en tinta. */
 
 .track-status-glyph {
   display: block;
@@ -327,7 +326,7 @@
   text-decoration-color: var(--brand-gray-3);
 }
 
-/* Fila activa con J/K (TrackShortcuts) y filas seleccionadas: la estación de la izquierda. */
+/* Fila activa con J/K (TrackShortcuts) y filas seleccionadas: un filete a la izquierda. */
 .track-table tr.is-kb-active td,
 .track-table tr.is-selected td {
   background: var(--ui-hover);

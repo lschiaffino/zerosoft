@@ -1289,7 +1289,7 @@ tr:hover .cell-quick { opacity: 0.8; }
 
 .imp { display: flex; flex-direction: column; gap: 18px; }
 
-/* .imp-steps usa la línea de estaciones de .wf-steps (ver Workflows). */
+/* .imp-steps usa los pasos numerados de .wf-steps (ver Workflows). */
 .imp-steps .wf-steps-btn { cursor: default; }
 
 .imp-body { display: flex; flex-direction: column; gap: 16px; }
@@ -2426,10 +2426,11 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
 .quote-actions-spacer { flex: 1; }
 .quote-layout { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 28px; align-items: start; }
 .quote-side { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 12px; }
-.quote-line .crm-stop { padding-bottom: 16px; }
-.quote-line .crm-stop:last-child { padding-bottom: 0; }
-.quote-line-text { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; font-size: 0.875rem; line-height: 1.35; }
-.quote-line-text .data { color: var(--brand-gray-2); }
+.quote-history { margin: 0; padding: 0; list-style: none; }
+.quote-history-item { padding: 10px 0; border-top: 1px solid var(--line); }
+.quote-history-item:first-child { padding-top: 0; border-top: 0; }
+.quote-history-text { display: flex; flex-direction: column; gap: 2px; font-size: 0.875rem; line-height: 1.35; }
+.quote-history-text .data { color: var(--dim); }
 @media (max-width: 900px) {
   .quote-layout { grid-template-columns: minmax(0, 1fr); }
   .quote-side { position: static; }
@@ -2709,59 +2710,45 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
 }
 .crm-table td:not(.cell-check), .crm-table th:not(.cell-check) { padding-left: 8px; padding-right: 8px; }
 /* ============================================================
-   CRM admin (red de subte): ajustes, formularios, workflows,
-   cotizaciones y secuencias. Controles de ui.css; acá solo el
-   layout propio y la línea con estaciones.
+   CRM admin: ajustes, formularios, workflows, cotizaciones y
+   secuencias. Controles de ui.css; acá solo el layout propio y los
+   pasos numerados.
    ============================================================ */
 
 /* <section> trae el padding vertical del sitio: dentro de estas vistas, no. */
 .wf section, .wf-page section, .seq-editor section, .crm-settings section, .forms-share section { padding-top: 0; padding-bottom: 0; }
 
-/* La línea: pasos de un workflow o una secuencia como estaciones sobre el
-   trazo del producto (--accent). El disparador es la estación llena. */
-.crm-line { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.crm-stop {
-  position: relative;
+/* Pasos de un workflow o una secuencia: una lista numerada, sin líneas que
+   los unan. El disparador y la fila de agregar dejan el hueco del número. */
+.crm-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.crm-step {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   gap: 0 12px;
-  padding-bottom: 24px;
 }
-.crm-stop::before {
-  content: '';
-  position: absolute;
-  left: 14px;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--accent);
-}
-.crm-stop:first-child::before { top: 18px; }
-.crm-stop:last-child { padding-bottom: 0; }
-.crm-stop:last-child::before { bottom: auto; height: 18px; }
-.crm-stop:only-child::before { display: none; }
-.crm-station {
-  position: relative;
-  z-index: 1;
+.crm-step-n {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
   width: 24px;
   height: 24px;
-  margin: 6px 0 0 4px;
-  border: 3.5px solid var(--ink);
-  border-radius: 50%;
-  background: var(--bg);
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  font-family: var(--font-data);
+  font-feature-settings: "zero" 1, "tnum" 1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--dim);
 }
-.crm-station-n { font-family: var(--font-data); font-feature-settings: "zero" 1, "tnum" 1; font-size: 0.6875rem; font-weight: 600; line-height: 1; }
-.crm-station-ghost { width: 16px; height: 16px; margin: 10px 0 0 8px; border-width: 3px; border-color: var(--brand-gray-3); }
-.crm-stop-trigger .crm-station { background: var(--accent); }
-.crm-stop-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-top: 4px; }
-.crm-stop-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 36px; }
-.crm-stop-kicker { font-size: 0.8125rem; font-weight: 600; color: var(--brand-gray-2); }
-.crm-stop-add { align-items: center; }
-.crm-stop-add > .btn, .crm-stop-add > .seq-add { justify-self: start; }
+.crm-step-n.is-empty { border: 0; }
+.crm-step-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-top: 4px; }
+.crm-step-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 36px; }
+.crm-step-kicker { font-size: 0.8125rem; font-weight: 600; color: var(--brand-gray-2); }
+.crm-step-add { align-items: center; }
+.crm-step-add > .btn, .crm-step-add > .seq-add { justify-self: start; }
 
 .crm-panel-title {
   margin-bottom: 12px;
@@ -2792,7 +2779,6 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
 .crm-savebar-secondary { display: contents; }
 /* Eliminar, Ejecutar, Vista previa: en el celular salen de la barra y van debajo del contenido. */
 .crm-savebar-more { display: none; }
-.crm-station-wait { border-color: var(--brand-gray-2); }
 .crm-subhead { font-size: 0.9375rem; font-weight: 600; line-height: 1.3; }
 .crm-row-tools { display: inline-flex; gap: 2px; margin-left: auto; }
 td.crm-row-actions { text-align: right; white-space: nowrap; }
@@ -2870,13 +2856,12 @@ td.crm-row-actions > * + * { margin-left: 4px; }
 .wf-empty[data-invalid] { color: var(--bad-ink); }
 .wf-table .ui-switch { font-size: 0.8125rem; }
 
-/* Asistente: los tres pasos son estaciones sobre una línea. */
+/* Asistente: tres pasos numerados, separados por un filete. */
 .wf-steps { list-style: none; margin: 0; padding: 0; display: flex; gap: 12px; }
 .wf-steps-item { flex: 1; display: flex; align-items: center; gap: 12px; }
 .wf-steps-item:last-child { flex: 0 0 auto; }
-.wf-steps-item::after { content: ''; flex: 1; height: 4px; background: var(--line); }
+.wf-steps-item::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .wf-steps-item:last-child::after { display: none; }
-.wf-steps-item[data-state='done']::after { background: var(--accent); }
 .wf-steps-btn {
   display: inline-flex;
   align-items: center;
@@ -2894,18 +2879,25 @@ td.crm-row-actions > * + * { margin-left: 4px; }
 .wf-steps-btn:disabled { cursor: default; color: var(--brand-gray-3); }
 .wf-steps-btn[aria-current='step'] { color: var(--ink); }
 .wf-steps-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.wf-steps-station {
+.wf-steps-n {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
-  width: 16px;
-  height: 16px;
-  border: 3.5px solid var(--ink);
-  border-radius: 50%;
-  background: var(--bg);
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--ui-field);
+  border-radius: var(--radius-1);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
 }
-.wf-steps-item[data-state='current'] .wf-steps-station,
-.wf-steps-item[data-state='done'] .wf-steps-station { background: var(--accent); }
-.wf-steps-item[data-state='next'] .wf-steps-station { border-color: var(--brand-gray-3); }
+.wf-steps-item[data-state='current'] .wf-steps-n { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.wf-steps-item[data-state='done'] .wf-steps-n { border-color: var(--ink); color: var(--ink); }
+.wf-steps-item[data-state='next'] .wf-steps-n { border-color: var(--line); color: var(--dim); }
+
 
 .wf-templates {
   list-style: none;

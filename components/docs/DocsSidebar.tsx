@@ -45,8 +45,8 @@ const COLLAPSED_KEY = 'docs.sidebar.collapsed';
 const DESKTOP = '(min-width: 1024px)';
 
 /**
- * Hueco del ramal en el sidebar del shell (#side-branch, bajo "Páginas").
- * Solo en ≥1024px y con el sidebar abierto: colapsado (solo estaciones) o en
+ * Hueco del árbol en el sidebar del shell (#side-branch, bajo "Páginas").
+ * Solo en ≥1024px y con el sidebar abierto: colapsado (solo íconos) o en
  * mobile (drawer) el árbol vuelve a la columna propia / al botón "Páginas".
  */
 function useShellBranch(): HTMLElement | null {
@@ -76,12 +76,12 @@ function useShellBranch(): HTMLElement | null {
 }
 
 /**
- * Árbol de páginas de Docs: un ramal de la línea del producto. En ≥1024px
- * cuelga de la estación "Páginas" del sidebar del shell (portal a
- * #side-branch), sin columna propia. Cada página es una estación unida a su
- * madre por un trazo en el color de Docs (vertical + codo recto); la página
- * abierta es la estación rellena. El ícono de la página no va en el árbol
- * (sí en el editor): así todos los títulos arrancan en la misma x.
+ * Árbol de páginas de Docs, como el sidebar de Notion. En ≥1024px vive bajo
+ * "Páginas" en el sidebar del shell (portal a #side-branch), sin columna
+ * propia. Cada fila: flecha para plegar (si tiene subpáginas), el ícono de la
+ * página (o un documento genérico), el título y, al pasar, "…" y "+" para
+ * crear una subpágina. Cada nivel se sangra 14px, sin líneas que los unan; la
+ * página abierta lleva un fondo suave.
  * Nueva página y Papelera ya están en el sidebar del shell: acá no se repiten.
  */
 export default function DocsSidebar({
@@ -237,7 +237,19 @@ export default function DocsSidebar({
           onDragLeave={() => setDropId((d) => (d === node.id ? null : d))}
           onDrop={(e) => handleDrop(e, node.id, reorderAction ? zoneFor(e) : 'inside')}
         >
-          <span className="docs-tree-station" aria-hidden="true" />
+          {hasChildren ? (
+            <button
+              type="button"
+              className={`docs-tree-chevron${open ? ' open' : ''}`}
+              onClick={() => toggle(node.id)}
+              aria-label={`${open ? t('sidebar.collapse') : t('sidebar.expand')}: ${node.title || t('untitled')}`}
+              aria-expanded={open}
+            >
+              <Icon name="chevronRight" size={12} />
+            </button>
+          ) : (
+            <span className="docs-tree-chevron-spacer" aria-hidden="true" />
+          )}
           <Link
             href={`/app/docs/${node.id}`}
             className="docs-tree-link"
@@ -251,6 +263,9 @@ export default function DocsSidebar({
             }}
             aria-keyshortcuts={stepAction ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
           >
+            <span className="docs-tree-icon" aria-hidden="true">
+              {node.icon ? node.icon : <DocsGlyph name="page" size={16} />}
+            </span>
             <span className="docs-tree-title">{node.title || t('untitled')}</span>
           </Link>
           <span className="docs-tree-actions">
@@ -306,17 +321,6 @@ export default function DocsSidebar({
             <Icon name="plus" size={14} />
           </button>
           </span>
-          {hasChildren && (
-            <button
-              type="button"
-              className={`docs-tree-chevron${open ? ' open' : ''}`}
-              onClick={() => toggle(node.id)}
-              aria-label={`${open ? t('sidebar.collapse') : t('sidebar.expand')}: ${node.title || t('untitled')}`}
-              aria-expanded={open}
-            >
-              <Icon name="chevronRight" size={12} />
-            </button>
-          )}
         </div>
         {open && <ul>{node.children!.map((c) => renderNode(c, depth + 1))}</ul>}
       </li>
@@ -379,7 +383,7 @@ export default function DocsSidebar({
     </>
   );
 
-  // ≥1024px con el sidebar abierto: el árbol es un ramal de "Páginas".
+  // ≥1024px con el sidebar abierto: el árbol cuelga de "Páginas".
   if (branch) return createPortal(<div className="docs-branch">{body(true)}</div>, branch);
 
   return (

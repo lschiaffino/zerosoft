@@ -106,7 +106,6 @@ export default function VersionsPanel({ flowId, currentVersion, canEdit, dirty, 
             const current = i === 0;
             return (
               <li key={v.id} className="flow-version" aria-current={current ? 'true' : undefined}>
-                <span className="flow-version-station" aria-hidden="true" />
                 <div className="flow-version-main">
                   <span className="flow-version-n data">v{v.version}</span>
                   <span suppressHydrationWarning>{format.relativeTime(new Date(v.createdAt), now)}</span>

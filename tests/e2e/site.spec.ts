@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Sitio público: el primer viewport (el cero de ceros en la marca default, el
- * plano de la red en el tema subte), el índice de secciones de cada producto,
+ * Sitio público: el primer viewport (el cero de ceros), el índice de
+ * secciones de cada producto,
  * los precios con costo y precio, y las páginas de lectura sin errores de JS.
  */
 
@@ -31,38 +31,12 @@ for (const path of PAGES) {
   });
 }
 
-test('marca default: el home abre con el cero de ceros, sin el plano de subte', async ({ page }) => {
+test('el home abre con el cero de ceros, sin plano de red', async ({ page }) => {
   await page.goto('/es', { waitUntil: 'networkidle' });
   await expect(page.locator('html')).toHaveAttribute('data-brand', 'default');
   await expect(page.locator('.lp-hero .hero-field')).toBeVisible();
   await expect(page.locator('.lp-hero .net')).toHaveCount(0);
   await expect(page.locator('.site-header .brand')).toContainText('zerosoft.ai');
-});
-
-test('tema subte: el home abre con el plano de la red y cada línea lleva a su producto', async ({ page }) => {
-  await page.goto('/es?brand=subte', { waitUntil: 'networkidle' });
-  const map = page.locator('.lp-hero .net');
-  await expect(map).toBeVisible();
-  // Once terminales, una por app, cada una con el link a su página.
-  await expect(map.locator('a.net-terminal')).toHaveCount(11);
-  await expect(map.locator('a.net-terminal', { hasText: 'Cal' })).toHaveAttribute('href', '/es/products/cal');
-  // Pasar por una terminal cuenta con qué combina en el pie del plano.
-  await map.locator('a.net-terminal', { hasText: 'Cal' }).hover();
-  await expect(map.locator('.net-caption-text')).toContainText('Cal: cada reserva');
-});
-
-test('tema subte: todas las estaciones del plano quedan visibles al terminar la animación', async ({ page }) => {
-  await page.goto('/es?brand=subte', { waitUntil: 'load' });
-  await page.waitForTimeout(2000);
-  const hidden = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.lp-hero .net-stop'))
-      .filter((el) => getComputedStyle(el).visibility !== 'visible')
-      .map((el) => el.textContent?.trim() || el.getAttribute('aria-label') || '?'),
-  );
-  expect(hidden, `estaciones ocultas: ${hidden.join(', ')}`).toEqual([]);
-  const terminals = page.locator('.lp-hero a.net-terminal');
-  await expect(terminals).toHaveCount(11);
-  for (let i = 0; i < 11; i++) await expect(terminals.nth(i)).toBeVisible();
 });
 
 test('la tabla de precios muestra costo y precio (× 3)', async ({ page }) => {
@@ -78,16 +52,11 @@ test('el índice de secciones del producto sigue la lectura', async ({ page }) =
   await page.goto('/es/products/link', { waitUntil: 'networkidle' });
   const nav = page.getByRole('navigation', { name: 'Secciones de Link' });
   await expect(nav).toBeVisible();
-  const stops = nav.locator('a.pline-stop');
+  const stops = nav.locator('a.pline-link');
   await expect(stops.first()).toHaveAttribute('href', '#vista');
   await nav.getByRole('link', { name: 'Preguntas' }).click();
   await expect(page).toHaveURL(/#faq$/);
   await expect(nav.getByRole('link', { name: 'Preguntas' })).toHaveAttribute('aria-current', 'location');
-});
-
-test('tema subte: el plano del primer viewport enciende la línea del producto', async ({ page }) => {
-  await page.goto('/es/products/link?brand=subte', { waitUntil: 'networkidle' });
-  await expect(page.locator('.pd-hero .net-caption-text')).toContainText('Link');
 });
 
 test('el menú de productos no se cierra con el clic que sigue al hover, y Esc devuelve el foco', async ({ page }) => {

@@ -1,34 +1,27 @@
 /* ---------- Changelog público ----------
-   Una línea con una estación por versión. Cada cambio lleva el tramo de la
-   línea de su app. Lo usan /changelog y el changelog del board. */
+   Una lista con fecha por versión, separada por filetes. Cada cambio lleva
+   la marca de su app. Lo usan /changelog y el changelog del board. */
 
 .cl-main { padding-bottom: 112px; }
 
-/* Filtros por producto: pestañas con la barra en el color de la línea. */
+/* Filtros por producto: pestañas con la barra en el color de cada app. */
 .cl-toolbar { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 48px; }
 .cl-filters { flex: 1; min-width: 0; }
 .cl-count { padding-bottom: 10px; font-size: 13px; color: var(--brand-gray-2); white-space: nowrap; }
 
-/* Línea de tiempo: fecha | estación | versión. */
-.cl-list { list-style: none; position: relative; display: flex; flex-direction: column; gap: 48px; }
-.cl-list::before {
-  content: '';
-  position: absolute;
-  /* Centrada en la columna del hito (x = 175). 1px en default; 6px en subte. */
-  left: calc(175px - var(--timeline-w, 1px) / 2);
-  top: 12px;
-  bottom: 12px;
-  width: var(--timeline-w, 1px);
-  background: var(--brand-ink);
-}
+/* Fecha | versión, una debajo de otra. */
+.cl-list { list-style: none; display: flex; flex-direction: column; }
 
 .cl-entry {
   display: grid;
-  grid-template-columns: 140px 22px minmax(0, 1fr);
-  column-gap: 24px;
+  grid-template-columns: 140px minmax(0, 1fr);
+  column-gap: 40px;
   align-items: start;
+  padding: 40px 0;
+  border-top: 1px solid var(--line);
   scroll-margin-top: calc(var(--site-band-h, 64px) + 24px);
 }
+.cl-entry:first-child { padding-top: 0; border-top: 0; }
 
 .cl-date { position: sticky; top: calc(var(--site-band-h, 64px) + 24px); text-align: right; }
 .cl-date time { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
@@ -41,9 +34,6 @@
   line-height: 0.9;
 }
 .cl-month { font-size: 13px; color: var(--brand-gray-2); }
-
-.cl-node { position: relative; z-index: 1; margin-top: 2px; }
-.cl-node.brand-symbol { justify-self: center; padding: 2px 0; background: var(--bg); }
 
 .cl-card { min-width: 0; }
 .cl-entry:target .cl-title a { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
@@ -83,7 +73,7 @@
 .cl-closed ul { list-style: none; display: grid; gap: 4px; }
 .cl-closed a { text-decoration: underline; text-underline-offset: 3px; }
 
-.cl-end { margin-top: 40px; padding-left: 186px; font-size: 14px; color: var(--brand-gray-2); }
+.cl-end { margin-top: 40px; padding-left: 180px; font-size: 14px; color: var(--brand-gray-2); }
 
 .cl-cta {
   display: flex;
@@ -110,15 +100,12 @@
 @media (max-width: 860px) {
   .cl-toolbar { margin-bottom: 32px; }
   .cl-count { display: none; }
-  .cl-list::before { left: calc(11px - var(--timeline-w, 1px) / 2); }
-  .cl-entry { grid-template-columns: 22px minmax(0, 1fr); column-gap: 16px; row-gap: 8px; }
-  .cl-date { grid-column: 2; grid-row: 1; position: static; text-align: left; }
+  .cl-entry { grid-template-columns: minmax(0, 1fr); row-gap: 8px; padding: 28px 0; }
+  .cl-date { position: static; text-align: left; }
   .cl-date time { flex-direction: row; align-items: baseline; gap: 10px; }
   .cl-day { font-size: 1.75rem; }
-  .cl-node { grid-column: 1; grid-row: 1; }
-  .cl-card { grid-column: 2; }
   .cl-title { font-size: 1.5rem; }
   .cl-items li { grid-template-columns: minmax(0, 1fr); gap: 2px; font-size: 15px; }
-  .cl-end { padding-left: 38px; }
+  .cl-end { padding-left: 0; }
   .cl-cta { padding: 24px 16px; margin-top: 56px; }
 }

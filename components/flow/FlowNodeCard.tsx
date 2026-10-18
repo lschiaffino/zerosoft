@@ -1,11 +1,11 @@
 'use client';
 
-import { memo, type CSSProperties } from 'react';
+import { memo } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { useTranslations } from 'next-intl';
-import { brandLine } from '@/lib/brand';
+import { PRODUCT_CONFIG } from '@/lib/products';
 import { NODE_DEFS, nodeOutputs, isTriggerType, type FlowNodeType } from '@/lib/flow-schema';
-import { i18nKey, interchangeLine } from './flow-ui';
+import { i18nKey, nodeApp } from './flow-ui';
 
 export type FlowNodeData = {
   type: FlowNodeType;
@@ -13,9 +13,6 @@ export type FlowNodeData = {
   /** Estado del último paso de este nodo en la corrida mostrada. */
   status?: string;
   summary?: string;
-  /** Hay una arista que llega / sale: solo entonces se dibuja ese medio tramo de línea. */
-  hasIn?: boolean;
-  hasOut?: boolean;
 };
 
 export type FlowCanvasNode = Node<FlowNodeData, 'flow'>;
@@ -30,11 +27,9 @@ function handleLabel(t: ReturnType<typeof useTranslations>, handle: string, conf
 }
 
 /**
- * Nodo del canvas: una estación sobre la línea de Flow con su cartel al lado.
- * La línea entra por arriba y sale por abajo pasando por la estación, pero
- * cada mitad solo existe si hay una conexión: un nodo suelto es una estación
- * sin línea y el último termina en su estación. Si el nodo toca otra app de
- * zerosoft, el anillo toma el color de esa línea.
+ * Nodo del canvas: una tarjeta con la categoría (y la app de zerosoft que
+ * toca, si toca una), el título y un resumen. Entra por arriba y sale por
+ * abajo; con varias salidas, cada una lleva su nombre.
  */
 function FlowNodeCard({ data, selected, id }: NodeProps<FlowCanvasNode>) {
   const t = useTranslations('flow');
@@ -42,8 +37,7 @@ function FlowNodeCard({ data, selected, id }: NodeProps<FlowCanvasNode>) {
   const outputs = nodeOutputs({ type: data.type, config: data.config });
   const named = outputs.length > 1 || outputs[0] !== 'out';
   const trigger = isTriggerType(data.type);
-  const line = interchangeLine(data.type, data.config);
-  const style = (line ? { '--station-ring': brandLine(line).line } : undefined) as CSSProperties | undefined;
+  const app = nodeApp(data.type, data.config);
 
   return (
     <div
@@ -51,17 +45,13 @@ function FlowNodeCard({ data, selected, id }: NodeProps<FlowCanvasNode>) {
       data-status={data.status}
       data-trigger={trigger || undefined}
       data-named={named || undefined}
-      style={style}
     >
       {!trigger && <Handle type="target" position={Position.Top} className="flow-handle flow-handle-in" />}
-      {data.hasIn && !trigger && <span className="flow-node-track flow-node-track-in" aria-hidden="true" />}
-      {data.hasOut && !named && <span className="flow-node-track flow-node-track-out" aria-hidden="true" />}
-      <span className="flow-node-station" aria-hidden="true" />
       <div className="flow-node-body">
         <div className="flow-node-head">
           <span className="flow-node-cat">
             {t(`categories.${def.category}`)}
-            {line && ` · ${brandLine(line).name}`}
+            {app && ` · ${PRODUCT_CONFIG[app].name}`}
           </span>
           {data.status && <span className={`flow-node-status is-${data.status}`}>{t(`stepStatus.${data.status}`)}</span>}
         </div>

@@ -3,18 +3,18 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { ProductKey } from '@/lib/products';
 
-export interface LineStop {
-  /** id de la sección a la que lleva la estación. */
+export interface SectionLink {
+  /** id de la sección a la que lleva el link. */
   id: string;
   label: string;
 }
 
 /**
- * La línea del producto como índice de la página: un tramo en su color con
- * una estación por sección. La estación de la sección que se está leyendo se
- * llena con el color de la línea (aria-current="location").
+ * Índice de secciones de la página de producto: una fila fija de links. El de
+ * la sección que se está leyendo se subraya en el color del producto
+ * (aria-current="location").
  */
-export default function ProductLineNav({ product, stops, label }: { product: ProductKey; stops: LineStop[]; label: string }) {
+export default function ProductSectionNav({ product, sections, label }: { product: ProductKey; sections: SectionLink[]; label: string }) {
   const [current, setCurrent] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,13 +23,13 @@ export default function ProductLineNav({ product, stops, label }: { product: Pro
       frame = 0;
       const doc = document.documentElement;
       const atBottom = window.scrollY + window.innerHeight >= doc.scrollHeight - 2;
-      // La sección actual es la última cuyo cartel ya pasó la línea de lectura
-      // (debajo del header y la línea). Al final de la página, la última que se ve.
-      const line = atBottom ? window.innerHeight - 1 : 160;
+      // La sección actual es la última cuyo cartel ya pasó la altura de lectura
+      // (debajo del header y del índice). Al final de la página, la última que se ve.
+      const readAt = atBottom ? window.innerHeight - 1 : 160;
       let next: string | null = null;
-      for (const s of stops) {
+      for (const s of sections) {
         const el = document.getElementById(s.id);
-        if (el && el.getBoundingClientRect().top <= line) next = s.id;
+        if (el && el.getBoundingClientRect().top <= readAt) next = s.id;
       }
       setCurrent(next);
     };
@@ -44,12 +44,12 @@ export default function ProductLineNav({ product, stops, label }: { product: Pro
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
     };
-  }, [stops]);
+  }, [sections]);
 
-  // En pantallas chicas la línea se desplaza sola para mostrar la estación actual.
+  // En pantallas chicas el índice se desplaza solo para mostrar la sección actual.
   useEffect(() => {
     if (!current) return;
-    const link = document.querySelector<HTMLElement>(`.pline-stop[href="#${current}"]`);
+    const link = document.querySelector<HTMLElement>(`.pline-link[href="#${current}"]`);
     const list = link?.closest('ol');
     if (!link || !list || list.scrollWidth <= list.clientWidth) return;
     const left = list.scrollLeft + link.getBoundingClientRect().left - list.getBoundingClientRect().left - 16;
@@ -59,11 +59,10 @@ export default function ProductLineNav({ product, stops, label }: { product: Pro
 
   return (
     <nav className="pline" aria-label={label} style={{ '--pline': `var(--c-${product})` } as CSSProperties}>
-      <ol className="pline-stops container">
-        {stops.map((s) => (
+      <ol className="pline-list container">
+        {sections.map((s) => (
           <li key={s.id}>
-            <a href={`#${s.id}`} className="pline-stop" aria-current={current === s.id ? 'location' : undefined}>
-              <span className="pline-station" aria-hidden="true" />
+            <a href={`#${s.id}`} className="pline-link" aria-current={current === s.id ? 'location' : undefined}>
               <span className="pline-label">{s.label}</span>
             </a>
           </li>

@@ -1,9 +1,9 @@
 /* ============================================================
-   COLOR — se carga último en la app. La línea activa la inyecta AppSidebar:
-   .app-frame { --accent: var(--c-<línea>); --accent-ink: var(--c-<línea>-ink);
-   --accent-on: var(--c-<línea>-on) }.
+   COLOR — se carga último en la app. El color de la app activa lo inyecta
+   AppSidebar: .app-frame { --accent: var(--c-<app>); --accent-ink:
+   var(--c-<app>-ink); --accent-on: var(--c-<app>-on) }.
 
-   Regla: el color de la línea dice dónde estás (sidebar, pestaña activa,
+   Regla: el color de la app dice dónde estás (sidebar, pestaña activa,
    gráficos). Las acciones son de tinta. Texto en color: siempre --accent-ink.
    ============================================================ */
 
@@ -12,7 +12,7 @@
   --accent-line: color-mix(in srgb, var(--accent) 30%, white);
 }
 
-/* ---------- Controles con la línea ---------- */
+/* ---------- Controles con el color de la app ---------- */
 .filter-select.on, .filter-more.on { border-color: var(--ink); color: var(--ink); background-color: var(--brand-enamel); }
 .filter-count { background: var(--ink); color: var(--bg); }
 .chip.active, .kb-view-btn.active { border-color: var(--ink); color: var(--ink); background: var(--ui-hover); }
@@ -34,7 +34,7 @@
 
 /* ---------- Badges con significado ---------- */
 /* Placas rectas (ver .badge en ui.css). Lifecycle y prioridad van en un solo
-   tratamiento neutro: el color de las líneas es solo para ubicarse. La tinta
+   tratamiento neutro: el color de las apps es solo para ubicarse. La tinta
    del CRM marca la etapa avanzada (cliente, evangelista) y la prioridad alta. */
 .badge.stage-subscriber, .badge.stage-lead, .badge.stage-mql, .badge.stage-sql,
 .badge.stage-opportunity, .badge.stage-customer, .badge.stage-evangelist,

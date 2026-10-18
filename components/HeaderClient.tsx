@@ -104,7 +104,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <p className="hd-group-title">{ts(`${a}Title`)}</p>
         {AUDIENCE_PRODUCTS[a].map((key) => (
           <Link key={key} href={`/products/${key}`} className={`hd-prod card-${key} hd-prod-${variant}`}>
-            <ProductGlyph product={key} size={14} onLine className="hd-prod-icon" />
+            <ProductGlyph product={key} size={14} className="hd-prod-icon" />
             <span className="hd-prod-text">
               <span className="hd-prod-name">{PRODUCT_NAMES[key]}</span>
               <span className="hd-prod-desc">{th(`desc.${key}`)}</span>

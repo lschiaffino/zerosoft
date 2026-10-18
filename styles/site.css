@@ -1,7 +1,7 @@
 /* ============================================
    Sitio público: el header, el pie, el blog y las páginas de lectura
    (legal, estado). Los colores del header salen de los tokens --chrome-*
-   del tema (default: blanco con filete; subte: banda negra).
+   del tema (blanco con filete).
    ============================================ */
 
 :root {
@@ -355,7 +355,7 @@
 
 .read-body { padding-top: 0; padding-bottom: 112px; }
 
-/* Legal: índice de secciones como lista de estaciones. */
+/* Legal: índice de secciones numerado. */
 .legal-toc { margin-bottom: 56px; padding: 20px 24px; background: var(--brand-enamel); }
 .legal-toc ol { list-style: none; counter-reset: toc; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 32px; }
 .legal-toc li { counter-increment: toc; }
@@ -498,5 +498,5 @@
 /* ---------- 404 ---------- */
 
 .nf-hero { padding-top: 8px; padding-bottom: 112px; margin-bottom: 0; border-bottom: 0; }
-/* Un tramo de campo blanco entre la banda del header y el cartel. */
+/* Aire blanco entre la banda del header y el cartel. */
 .nf .sign-band { margin-top: 32px; }

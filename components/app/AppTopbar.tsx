@@ -13,9 +13,8 @@ export function productFromPath(pathname: string): AppProduct {
 }
 
 /**
- * La sección actual dentro de la banda de señalética ("CRM / Contactos").
- * El nombre del producto lo pone el switcher de AppSidebar; acá va solo la
- * sección, como el nombre de la estación en el cartel.
+ * La sección actual dentro de la banda ("CRM / Contactos"). El nombre del
+ * producto lo pone el switcher de AppSidebar; acá va solo la sección.
  */
 export default function AppTopbar({ sections }: AppTopbarProps) {
   const pathname = usePathname();

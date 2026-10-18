@@ -37,7 +37,7 @@ export interface HelpArticle extends HelpArticleSummary {
   collection: HelpArticleSummary | null;
   /**
    * Hijas publicadas directas (con excerpt) y sus descendientes: una página
-   * con hijas es la portada de su colección y las lista como estaciones.
+   * con hijas es la portada de su colección y las lista debajo.
    */
   children: HelpCollection[];
   prev: HelpArticleSummary | null;

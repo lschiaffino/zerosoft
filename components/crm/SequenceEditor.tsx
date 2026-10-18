@@ -60,7 +60,7 @@ const STATUS_TONE: Record<EnrollmentView['status'], string> = {
 };
 
 /**
- * Editor de secuencia: los pasos como estaciones de la línea (email, tarea,
+ * Editor de secuencia: los pasos como una lista numerada (email, tarea,
  * espera), el horario de envío colapsado en un resumen y un solo Guardar.
  * Debajo, las inscripciones.
  */
@@ -313,10 +313,10 @@ export default function SequenceEditor({ sequence, steps: initialSteps, template
           <h2 className="crm-panel-title" id={fid('steps')}>
             {t('sequences.steps')}
           </h2>
-          <ol className="crm-line">
+          <ol className="crm-steps">
             {steps.length === 0 && (
-              <li className="crm-stop">
-                <span className="crm-station crm-station-ghost" aria-hidden="true" />
+              <li className="crm-step">
+                <span className="crm-step-n is-empty" aria-hidden="true" />
                 <p className="ui-help">{t('sequences.noSteps')}</p>
               </li>
             )}
@@ -325,12 +325,10 @@ export default function SequenceEditor({ sequence, steps: initialSteps, template
               const isFirstEmail = s.type === 'email' && emailIndex++ === 0;
               const typeLabel = t(`sequences.stepTypes.${s.type}`);
               return (
-                <li key={s.key} className={`crm-stop seq-step seq-${s.type}`}>
-                  <span className={`crm-station${s.type === 'wait' ? ' crm-station-wait' : ''}`} aria-hidden="true">
-                    <span className="crm-station-n">{i + 1}</span>
-                  </span>
-                  <div className="crm-stop-body">
-                    <div className="crm-stop-head">
+                <li key={s.key} className={`crm-step seq-step seq-${s.type}`}>
+                  <span className="crm-step-n" aria-hidden="true">{i + 1}</span>
+                  <div className="crm-step-body">
+                    <div className="crm-step-head">
                       <span className="seq-step-type">{typeLabel}</span>
                       {s.type === 'email' && st && st.sent > 0 && (
                         <span className="seq-stats data">
@@ -480,8 +478,8 @@ export default function SequenceEditor({ sequence, steps: initialSteps, template
               );
             })}
             {canEdit && (
-              <li className="crm-stop crm-stop-add">
-                <span className="crm-station crm-station-ghost" aria-hidden="true" />
+              <li className="crm-step crm-step-add">
+                <span className="crm-step-n is-empty" aria-hidden="true" />
                 <span className="seq-add">
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => add('email')}>
                     {t('sequences.addEmailStep')}

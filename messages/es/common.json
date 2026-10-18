@@ -349,10 +349,6 @@
     "title": "Tus apps",
     "lead": "Las once apps de tu workspace. Elegí una para empezar.",
     "apps": "Apps",
-    "subteTitle": "Tu red",
-    "subteLead": "Cada app es una línea. Las estaciones compartidas son las integraciones que ya funcionan entre ellas.",
-    "mapTitle": "Plano de tus apps",
-    "lines": "Líneas",
     "open": "Abrir {name}",
     "linkSummary": "Resumen de Link"
   },
@@ -402,7 +398,7 @@
     "measured": "Costos de infraestructura medidos el {date} y redondeados al centavo."
   },
   "notFound": {
-    "sign": "Fin del recorrido",
+    "sign": "Error 404",
     "title": "Esta página no existe.",
     "body": "El link puede tener un error o la página se mudó. Desde el inicio llegás a las once apps.",
     "cta": "Ir al inicio",

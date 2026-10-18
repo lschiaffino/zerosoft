@@ -531,23 +531,13 @@
     "strokes": [
       {
         "name": "stroke-rule",
-        "value": "1px (subte: 4px)",
+        "value": "1px",
         "purpose": "Heavy rule under page headers and closing the hero (var(--stroke-rule))."
       },
       {
         "name": "divider",
         "value": "1px solid #e8e8e8",
         "purpose": "Table and list dividers."
-      },
-      {
-        "name": "stroke-line",
-        "value": "16px",
-        "purpose": "Subte theme only: network map lines."
-      },
-      {
-        "name": "stroke-ring",
-        "value": "8px",
-        "purpose": "Subte theme only: station rings on the map."
       }
     ],
     "focus": [
@@ -594,14 +584,6 @@
         "selector": ":root",
         "file": "styles/themes/default.css",
         "description": "zerosoft.ai: ZeroMark + \"zerosoft.ai\", Space Grotesk + IBM Plex Mono, white/black/zeros."
-      },
-      {
-        "name": "subte",
-        "selector": "html[data-brand=\"subte\"]",
-        "file": "styles/themes/subte.css",
-        "optional": true,
-        "activate": "?brand=subte (cookie zs_brand); ?brand=default clears it; forced on /[locale]/nuevo-branding/subte",
-        "description": "Red de subte: apps as lines, zeros as stations, Archivo condensed 800 + JetBrains Mono, black signage band, sidebar as the product line, NetworkMap launcher."
       }
     ]
   },
@@ -661,35 +643,11 @@
       "description": "HEX/OKLCH copy button in data type: underline on hover, confirmation in the Cal ink.",
       "html": "<button class=\"ds-copy\"><span class=\"ds-copy-v\">#0E9F6E</span><span class=\"ds-copy-s\">Copiado</span></button>",
       "css": ".ds-copy { display: flex; align-items: baseline; gap: 10px; padding: 3px 0; border: 0; background: none; color: var(--brand-ink, #0d0d0d); font-family: var(--font-data, 'IBM Plex Mono', ui-monospace, Menlo, monospace); font-feature-settings: 'zero' 1, 'tnum' 1; font-size: 13px; cursor: pointer; } .ds-copy-v { text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 4px; } .ds-copy:hover .ds-copy-v { text-decoration-color: currentColor; } .ds-copy:focus-visible { outline: 3px solid var(--brand-ink, #0d0d0d); outline-offset: 3px; } .ds-copy-s { color: #008358; font-family: var(--font-ui, 'Space Grotesk', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-weight: 600; }"
-    },
-    {
-      "name": "Signage Band (theme: subte)",
-      "kind": "nav",
-      "refersTo": "signage-band",
-      "description": "Optional subte theme (html[data-brand=\"subte\"]). Sticky #111 band: wordmark left, links, one white action right.",
-      "html": "<header class=\"ds-band\"><span class=\"ds-band-mark\">zer<svg class=\"ds-o\" width=\"17\" height=\"17\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#111\" stroke=\"#fff\" stroke-width=\"22\"/></svg>soft</span><nav class=\"ds-band-nav\"><a href=\"#\">Logo</a><a href=\"#\">Líneas</a><a href=\"#\">Tipografía</a></nav><a class=\"ds-band-btn\" href=\"#\">Descargar kit</a></header>",
-      "css": ".ds-band { display: flex; align-items: center; gap: 36px; height: 74px; padding: 0 32px; background: var(--brand-ink, #111111); color: #fff; } .ds-band-mark { display: inline-flex; align-items: center; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-weight: 800; font-size: 26px; letter-spacing: -0.02em; } .ds-o { margin: 0 1px; } .ds-band-nav { display: flex; gap: 28px; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; } .ds-band-nav a { color: #fff; text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 6px; transition: text-decoration-color 0.2s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-band-nav a:hover { text-decoration-color: currentColor; } .ds-band-nav a:focus-visible, .ds-band-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; } .ds-band-btn { margin-left: auto; padding: 10px 20px; background: #fff; color: var(--brand-ink, #111111); border: 2px solid #fff; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; font-weight: 600; text-decoration: none; } .ds-band-btn:hover { background: var(--brand-ink, #111111); color: #fff; }"
-    },
-    {
-      "name": "Network Line (theme: subte)",
-      "kind": "custom",
-      "refersTo": "network-map",
-      "description": "Optional subte theme (html[data-brand=\"subte\"]). A line as on the map: 16px round-capped stroke, stations with 0.44 rings, an interchange as linked double rings, name in signage type.",
-      "html": "<svg class=\"ds-net\" viewBox=\"0 0 420 120\" role=\"img\" aria-label=\"Línea Cal\"><g class=\"ds-net-line\"><path d=\"M30 80 H250 L290 40 H390\" fill=\"none\" stroke=\"#0e9f6e\" stroke-width=\"16\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"30\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><rect x=\"150\" y=\"76\" width=\"22\" height=\"8\" fill=\"#111\"/><circle cx=\"150\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><circle cx=\"172\" cy=\"80\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><circle cx=\"390\" cy=\"40\" r=\"11\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"8\"/><text x=\"22\" y=\"52\" class=\"ds-net-label\">Cal</text></g></svg>",
-      "css": ".ds-net { width: 100%; max-width: 420px; height: auto; } .ds-net-label { font-family: var(--font-signage, 'Archivo', 'Arial Narrow', Arial, sans-serif); font-stretch: 75%; font-weight: 800; font-size: 26px; fill: #111; } .ds-net-line { transition: opacity 0.25s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-net-line:hover .ds-net-label { text-decoration: underline; text-decoration-thickness: 3px; }"
-    },
-    {
-      "name": "Product Station (LineGlyph) (theme: subte)",
-      "kind": "chip",
-      "refersTo": "line-glyph",
-      "description": "Optional subte theme (html[data-brand=\"subte\"]). A product's station with the ring in its line color, used as a list marker beside the product name. Never a pill.",
-      "html": "<ul class=\"ds-glyphs\"><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#2f6bff\" stroke-width=\"22\"/></svg>Link</li><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#7b4dff\" stroke-width=\"22\"/></svg>CRM</li><li><svg width=\"16\" height=\"16\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"39\" fill=\"#fff\" stroke=\"#0e9f6e\" stroke-width=\"22\"/></svg>Cal</li></ul>",
-      "css": ".ds-glyphs { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px 16px; flex-wrap: wrap; font-family: var(--font-ui, 'Archivo', -apple-system, 'Helvetica Neue', Arial, sans-serif); font-size: 15px; color: var(--brand-ink, #111111); } .ds-glyphs li { display: inline-flex; align-items: center; gap: 6px; }"
     }
   ],
   "narrative": {
     "northStar": "Hecho de ceros",
-    "overview": "zerosoft is white, black and zeros. The mark is a zero (an oval ring, ZeroMark) next to \"zerosoft.ai\" in lowercase mono; the site's first viewport is a big zero made of small zeros (ZeroField). Everything else is quiet: white field, ink type, 1px rules, 3px corners. Color belongs to the eleven apps and only says where you are (the app's zero, the active item, a chart).\n\nType is Space Grotesk for reading, interface and headings (500 for titles) and IBM Plex Mono for data, code and the wordmark. Flat: no shadows, gradients or pills.\n\n**Brand themes.** This is the default theme. Optional themes restyle the same structure through tokens in styles/themes/<theme>.css under html[data-brand], chosen with ?brand=<theme> (cookie zs_brand). Today: \"Red de subte\" (apps as subway lines, zeros as stations), guide at /[locale]/nuevo-branding/subte. See DESIGN.md, Themes.",
+    "overview": "zerosoft is white, black and zeros. The mark is a zero (an oval ring, ZeroMark) next to \"zerosoft.ai\" in lowercase mono; the site's first viewport is a big zero made of small zeros (ZeroField). Everything else is quiet: white field, ink type, 1px rules, 3px corners. Color belongs to the eleven apps and only says where you are (the app's zero, the active item, a chart).\n\nType is Space Grotesk for reading, interface and headings (500 for titles) and IBM Plex Mono for data, code and the wordmark. Flat: no shadows, gradients or pills.\n\n**Brand themes.** This is the default theme. Optional themes restyle the same structure through tokens in styles/themes/<theme>.css under html[data-brand], chosen with ?brand=<theme> (cookie zs_brand). Today only the default ships: the \"Red de subte\" theme was retired. See DESIGN.md, Themes.",
     "keyCharacteristics": [
       "White field, ink text, 1px rules; ink bands only for the closing band, footer and code.",
       "Eleven app colors as accents, each paired with a darkened text ink.",
@@ -737,7 +695,7 @@
       "**Do** separate surfaces by plane or a 1px rule."
     ],
     "donts": [
-      "**Don't** hardcode a theme's look (condensed 800 titles, 4px rules, black chrome, stations) outside its theme.",
+      "**Don't** hardcode a theme's look (condensed 800 titles, 4px rules, black chrome) outside its theme.",
       "**Don't** add shadows, glows or gradients.",
       "**Don't** use pills, emoji or decorative circles.",
       "**Don't** set a raw app color as text, or let it stand without its name.",

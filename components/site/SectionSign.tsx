@@ -4,10 +4,9 @@ import ProductGlyph from '@/components/brand/ProductGlyph';
 import type { ProductKey } from '@/lib/products';
 
 /**
- * El cartel que abre cada sección del sitio: una banda negra de lado a lado
- * con una estación y el título en señalética. Reemplaza a los rótulos chicos
- * sobre el título. En la página de un producto, la estación lleva el anillo
- * del color de su línea.
+ * El cartel que abre cada sección del sitio: el cero y el título en
+ * señalética sobre un filete. En la página de un producto, el cero va en el
+ * color del producto.
  */
 export default function SectionSign({
   id,
@@ -26,9 +25,9 @@ export default function SectionSign({
     <div className="sign-band">
       <div className="container sign-inner">
         {product ? (
-          <ProductGlyph product={product} size={28} className="sign-station" />
+          <ProductGlyph product={product} size={28} className="sign-mark" />
         ) : (
-          <BrandSymbol size={28} ring="#ffffff" fill="#111111" className="sign-station" />
+          <BrandSymbol size={28} className="sign-mark" />
         )}
         <h2 id={id} className="sign-title">
           {title}

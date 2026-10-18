@@ -284,9 +284,9 @@ export default function DocsEditorClient({
   const topActions = (
     <>
       {current.published && (
-        // Estado, no etiqueta: una estación rellena con la línea y el texto plano.
+        // Estado: un punto en el color de Docs y el texto plano.
         <span className="docs-published">
-          <span className="docs-published-station" aria-hidden="true" />
+          <span className="docs-published-dot" aria-hidden="true" />
           {t('editor.published')}
         </span>
       )}

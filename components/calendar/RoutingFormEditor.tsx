@@ -215,15 +215,17 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase }: R
             aria-selected={step === s}
             aria-controls={idFor(`panel-${s}`)}
             tabIndex={step === s ? 0 : -1}
-            className="cal-stop"
+            className="cal-step"
             data-done={STEPS.indexOf(step) > i || undefined}
             onClick={() => setStep(s)}
             onKeyDown={(e) => onStepKey(e, s)}
           >
-            <span className="cal-stop-station" aria-hidden="true" />
-            <span className="cal-stop-text">
-              <span className="cal-stop-label">{stepMeta[s].label}</span>
-              <span className="cal-stop-hint">{stepMeta[s].hint}</span>
+            <span className="cal-step-n" aria-hidden="true">
+              {i + 1}
+            </span>
+            <span className="cal-step-text">
+              <span className="cal-step-label">{stepMeta[s].label}</span>
+              <span className="cal-step-hint">{stepMeta[s].hint}</span>
             </span>
           </button>
         ))}

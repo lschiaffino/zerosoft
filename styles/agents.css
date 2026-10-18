@@ -17,7 +17,7 @@
 
 /* ---------- Lista ---------- */
 .ag-home .table .ui-switch { font-size: 0.8125rem; }
-/* Herramientas: las líneas que cruza el agente y cuántas usa. */
+/* Herramientas: las apps que toca el agente y cuántas usa. */
 .ag-cell-tools { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; color: var(--brand-gray-1); }
 .ag-cell-lines { display: inline-flex; align-items: center; gap: 3px; }
 
@@ -100,7 +100,7 @@
 .ag-add-row > .ui-field, .ag-add-row > .input { flex: 1; }
 .ag-widget-name { flex: 1; min-width: 0; font-size: 0.875rem; font-weight: 600; }
 
-/* Herramientas, agrupadas por la línea que cruzan. */
+/* Herramientas, agrupadas por la app que tocan. */
 .ag-tool-groups { display: flex; flex-direction: column; border-top: 1px solid var(--ink); }
 .ag-tool-groups > .ag-tool-group { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line); }
 .ag-tool-group-title {

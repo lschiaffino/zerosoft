@@ -48,7 +48,7 @@ export default async function StatusPage(props: { params: Promise<{ locale: stri
           {SERVICES.map((s) => (
             <li className="status-row" key={s.id}>
               <span className="status-name">
-                {s.product ? <ProductGlyph product={s.product} size={12} onLine /> : <BrandSymbol size={12} />}
+                {s.product ? <ProductGlyph product={s.product} size={12} /> : <BrandSymbol size={12} />}
                 {t(`${s.id}.name`)}
               </span>
               <span className="status-desc">{t(`${s.id}.desc`)}</span>

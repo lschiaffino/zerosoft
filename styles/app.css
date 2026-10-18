@@ -3,8 +3,7 @@
    --accent es el color del producto activo (AppSidebar lo inyecta por SSR):
    --accent (trazo y relleno), --accent-ink (texto), --accent-on (texto
    sobre relleno). Medidas: banda 48px, sidebar 240px (56px colapsado).
-   Colores del chrome: tokens --chrome-* del tema. Lo propio del tema subte
-   (banda negra, línea y estaciones) vive en styles/themes/subte.css.
+   Colores del chrome: tokens --chrome-* del tema (styles/themes/default.css).
    ============================================================ */
 
 .app-frame {
@@ -211,7 +210,7 @@
   text-overflow: ellipsis;
 }
 
-/* La lista de ítems (en el tema subte, la línea con sus estaciones). */
+/* La lista de ítems del sidebar, cada uno con su ícono. */
 .side-line {
   position: relative;
   display: flex;
@@ -370,7 +369,7 @@
 }
 .side-signout:hover { color: var(--ink); }
 
-/* ---------- Colapsado (≥1024px): solo los íconos (o las estaciones) ---------- */
+/* ---------- Colapsado (≥1024px): solo los íconos ---------- */
 
 @media (min-width: 1024px) {
   .app-frame { transition: grid-template-columns 200ms var(--ease); }
@@ -761,7 +760,7 @@
 .side-bell-item-title { line-height: 1.35; }
 .side-bell-item-body { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--brand-gray-2); }
 .side-bell-item-meta { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--brand-gray-2); }
-/* Sin leer: una placa cuadrada (el círculo es solo una estación). */
+/* Sin leer: una placa cuadrada. */
 .side-bell-dot { width: 6px; height: 6px; background: var(--ink); }
 .side-bell-footer { padding: 8px 12px; }
 .side-bell-footer button {
@@ -995,8 +994,7 @@ td.cell-actions > * + * { margin-left: 4px; }
 
 /* ---------- Inicio de la app ---------- */
 
-/* Marca default: las once apps en una grilla, cada una con su cero.
-   (En el tema subte el inicio es el plano de red: styles/network.css.) */
+/* Inicio: las once apps en una grilla, cada una con su cero. */
 .app-home-apps ul {
   list-style: none;
   display: grid;

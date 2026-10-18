@@ -7,7 +7,7 @@
     "emptyTitle": "Todavía no hay flows",
     "title": "Tus flows",
     "new": "Crear flow",
-    "emptyHint": "Un flow es una línea: un disparador y los pasos que siguen. Empezá de cero o con una plantilla.",
+    "emptyHint": "Un flow arranca con un disparador y corre los pasos que siguen. Empezá de cero o con una plantilla.",
     "name": "Nombre",
     "trigger": "Disparador",
     "lastRun": "Última ejecución",

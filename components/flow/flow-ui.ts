@@ -4,9 +4,8 @@ import type { ProductKey } from '@/lib/products';
 export const CATEGORY_ORDER = ['trigger', 'logic', 'data', 'action', 'app', 'integration', 'ai'] as const;
 
 /**
- * La red de subte en el canvas: el flow es la línea de Flow y cada nodo una
- * estación. Un nodo que entra o sale por otra app de zerosoft es una
- * combinación con la línea de esa app (devuelve su clave). El resto, null.
+ * La app de zerosoft que toca un nodo (CRM, Cal, Track...), para nombrarla
+ * en el nodo y marcarla en la paleta. El resto, null.
  */
 const EVENT_LINES: Array<[string, ProductKey]> = [
   ['booking.', 'cal'],
@@ -35,7 +34,7 @@ const NODE_LINES: Partial<Record<FlowNodeType, ProductKey>> = {
   'ai.agent': 'agents',
 };
 
-export function interchangeLine(type: FlowNodeType, config: Record<string, unknown> = {}): ProductKey | null {
+export function nodeApp(type: FlowNodeType, config: Record<string, unknown> = {}): ProductKey | null {
   if (type === 'trigger.event') {
     const ev = String(config.event ?? '');
     return EVENT_LINES.find(([prefix]) => ev.startsWith(prefix))?.[1] ?? null;

@@ -11,7 +11,7 @@ import type { TrackUiLabels } from './ui-labels';
 // ---------- Visuales chicos ----------
 
 /**
- * Prioridad en tinta: el color de la línea queda solo para orientarse. Urgente
+ * Prioridad en tinta: el color de Track queda solo para orientarse. Urgente
  * en rojo, alta y media en tinta, baja en gris (≥3:1 como gráfico).
  */
 export function priorityColor(priority: string): string {
@@ -36,7 +36,7 @@ export function PriorityIcon({ priority }: { priority: string }) {
 }
 
 /**
- * Glifo de status: un cuadrado (los círculos son de las estaciones). Backlog
+ * Glifo de status: un cuadrado. Backlog
  * punteado, por hacer vacío, en progreso lleno a la mitad, hecho lleno con
  * tilde y cancelado lleno en gris con cruz.
  */

@@ -28,8 +28,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 /**
  * La marca default, en una página: el logo (el cero y "zerosoft.ai"), los
  * colores (neutros y uno por app) y la tipografía. También la sirve
- * branding.zerosoft.ai. La guía del tema opcional vive en
- * /nuevo-branding/subte.
+ * branding.zerosoft.ai.
  */
 export default async function BrandPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
@@ -141,18 +140,6 @@ export default async function BrandPage(props: { params: Promise<{ locale: strin
               <p className="bd-body">{t('mono')}</p>
             </div>
           </div>
-        </section>
-
-        <section className="bd-section" aria-labelledby="bd-themes">
-          <h2 id="bd-themes" className="bd-h2">
-            {t('themesTitle')}
-          </h2>
-          <p className="bd-body">{t('themesBody')}</p>
-          <p>
-            <a className="bd-link" href={`${site}/nuevo-branding/subte`}>
-              {t('themesLink')}
-            </a>
-          </p>
         </section>
       </main>
     </div>

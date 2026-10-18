@@ -1,14 +1,14 @@
 /* ============================================================
-   zerosoft UI: el set de controles de la red de subte.
+   zerosoft UI: el set de controles de la marca.
    Se carga en todo el sitio después de globals.css. Tokens en brand.css
    (marca) y globals.css (alias y semánticos). Documentado en DESIGN.md,
    sección Componentes.
 
-   Reglas: Archivo para todo lo operable (sentence case, sin tracking),
-   JetBrains Mono solo para datos (.data / .mono / .num), esquinas de 2px
-   como máximo, sin sombras ni gradientes; el círculo es solo una estación.
-   La tinta (#111) es la acción principal; el color de la línea (--accent)
-   marca dónde estás: pestaña activa, estación activa, gráficos.
+   Reglas: la fuente de UI del tema para todo lo operable (sentence case),
+   la mono solo para datos (.data / .mono / .num), esquinas chicas
+   (--radius-1), sin sombras ni gradientes.
+   La tinta es la acción principal; el color de la app (--accent) marca
+   dónde estás: pestaña activa, ítem activo, gráficos.
 
    Índice
    1. Botones ............ .btn .btn-primary .btn-secondary .btn-ghost .btn-danger
@@ -121,7 +121,7 @@
 .btn-invert:focus-visible, .btn-invert-solid:focus-visible { outline-color: var(--brand-on-ink); }
 
 /* Sobre el chrome del tema (header del sitio, header del board): en default
-   es una placa de tinta sobre blanco; en subte, blanca sobre la banda negra. */
+   es una placa de tinta sobre blanco. */
 .btn-chrome {
   --btn-bg: var(--chrome-active-bg);
   --btn-fg: var(--chrome-active-fg);
@@ -452,7 +452,7 @@ select.select,
 
 /* <nav class="ui-tabs" aria-label="…"><a class="ui-tab" aria-current="page">…</a></nav>
    o role="tablist" con <button class="ui-tab" role="tab" aria-selected="true">.
-   La activa lleva un tramo de 4px del color de la línea. */
+   La activa lleva una barra de 4px del color de la app. */
 .ui-tabs {
   display: flex;
   align-items: stretch;
@@ -618,7 +618,7 @@ dialog.ui-drawer[open] { display: flex; }
 
 /* ---------- 9. Vacíos y carga ---------- */
 
-/* Estado vacío: un tramo de la línea con su estación, qué es esto y una acción. */
+/* Estado vacío: el cero de la marca, qué es esto y una acción. */
 .ui-empty {
   display: flex;
   flex-direction: column;

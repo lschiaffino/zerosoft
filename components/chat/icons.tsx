@@ -36,7 +36,7 @@ export default function ChatIcon({ name, size = 16 }: { name: ChatIconName; size
   );
 }
 
-/** Iniciales para la placa del visitante o del agente (cuadrada: el círculo es una estación). */
+/** Iniciales para la placa (cuadrada) del visitante o del agente. */
 export function initials(name: string | null | undefined, email: string | null | undefined): string {
   const base = (name || email || '?').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim() || '?';
   const parts = base.split(/\s+/);

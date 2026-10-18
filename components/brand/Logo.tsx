@@ -1,9 +1,9 @@
 'use client';
 
-import type { MarkTone } from '@/lib/brand';
-import { useBrand } from './BrandProvider';
 import DefaultLogo from './default/DefaultLogo';
-import SubteLogo from './subte/SubteLogo';
+
+/** `current` hereda el color del texto; `ink` y `white` fijan el tono. */
+export type MarkTone = 'current' | 'ink' | 'white';
 
 export interface LogoProps {
   /** `current` hereda el color del texto (chrome); `ink`/`white` lo fijan. */
@@ -17,15 +17,9 @@ export interface LogoProps {
 }
 
 /**
- * El logo de zerosoft según el tema de marca del request (BrandProvider).
- * Un tema nuevo suma acá su caso.
+ * El logo de zerosoft: el cero y "zerosoft.ai". Si algún día vuelve un tema
+ * de marca con logo propio, este es el punto donde se despacha.
  */
 export default function Logo(props: LogoProps) {
-  const brand = useBrand();
-  switch (brand) {
-    case 'subte':
-      return <SubteLogo {...props} title={props.title ?? 'zerosoft'} />;
-    default:
-      return <DefaultLogo {...props} />;
-  }
+  return <DefaultLogo {...props} />;
 }

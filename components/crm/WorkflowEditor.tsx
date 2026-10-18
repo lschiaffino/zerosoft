@@ -45,9 +45,8 @@ type Ctx = Required<Omit<WorkflowEditorProps, 'workflow' | 'runs' | 'canEdit'>> 
 
 /**
  * Editor de workflows. Nuevo: asistente en tres pasos (Disparador →
- * Acciones → Revisar) con plantillas. Existente: el workflow dibujado como
- * una línea, con el disparador y cada acción como estaciones, y un solo
- * Guardar. Los triggers y acciones van agrupados; webhook, Flow y si/si no
+ * Acciones → Revisar) con plantillas. Existente: el disparador y las acciones
+ * como una lista numerada, y un solo Guardar. Los triggers y acciones van agrupados; webhook, Flow y si/si no
  * quedan en el grupo Avanzado.
  */
 export default function WorkflowEditor({
@@ -201,13 +200,13 @@ export default function WorkflowEditor({
   }
 
   const triggerBlock = (
-    <ol className="crm-line" aria-label={t('triggers')}>
+    <ol className="crm-steps" aria-label={t('triggers')}>
       {triggers.map((tr, i) => (
-        <li key={i} className="crm-stop crm-stop-trigger">
-          <span className="crm-station" aria-hidden="true" />
-          <div className="crm-stop-body">
-            <div className="crm-stop-head">
-              <span className="crm-stop-kicker">{i === 0 ? t('whenTrigger') : t('orWhen')}</span>
+        <li key={i} className="crm-step crm-step-trigger">
+          <span className="crm-step-n is-empty" aria-hidden="true" />
+          <div className="crm-step-body">
+            <div className="crm-step-head">
+              <span className="crm-step-kicker">{i === 0 ? t('whenTrigger') : t('orWhen')}</span>
               {canEdit && triggers.length > 1 && (
                 <button
                   type="button"
@@ -232,8 +231,8 @@ export default function WorkflowEditor({
         </li>
       ))}
       {canEdit && (
-        <li className="crm-stop crm-stop-add">
-          <span className="crm-station crm-station-ghost" aria-hidden="true" />
+        <li className="crm-step crm-step-add">
+          <span className="crm-step-n is-empty" aria-hidden="true" />
           <button
             type="button"
             className="btn btn-ghost btn-sm"
@@ -250,10 +249,10 @@ export default function WorkflowEditor({
   );
 
   const actionBlock = (
-    <ol className="crm-line" aria-label={t('actions')}>
+    <ol className="crm-steps" aria-label={t('actions')}>
       {actions.length === 0 && (
-        <li className="crm-stop">
-          <span className="crm-station crm-station-ghost" aria-hidden="true" />
+        <li className="crm-step">
+          <span className="crm-step-n is-empty" aria-hidden="true" />
           <p className="ui-help wf-empty" data-invalid={showErrors || undefined}>
             {t('noActions')}
           </p>
@@ -262,12 +261,10 @@ export default function WorkflowEditor({
       {actions.map((a, i) => {
         const afterBranch = a.type !== 'branch' && actions.slice(0, i).some((p) => p.type === 'branch');
         return (
-          <li key={i} className="crm-stop" data-testid="workflow-action">
-            <span className="crm-station" aria-hidden="true">
-              <span className="crm-station-n">{i + 1}</span>
-            </span>
-            <div className="crm-stop-body">
-              <div className="crm-stop-head">
+          <li key={i} className="crm-step" data-testid="workflow-action">
+            <span className="crm-step-n" aria-hidden="true">{i + 1}</span>
+            <div className="crm-step-body">
+              <div className="crm-step-head">
                 <select
                   className="select wf-type"
                   value={a.type}
@@ -331,8 +328,8 @@ export default function WorkflowEditor({
         );
       })}
       {canEdit && (
-        <li className="crm-stop crm-stop-add">
-          <span className="crm-station crm-station-ghost" aria-hidden="true" />
+        <li className="crm-step crm-step-add">
+          <span className="crm-step-n is-empty" aria-hidden="true" />
           <button type="button" className="btn btn-secondary btn-sm" onClick={addAction} data-testid="workflow-add-action">
             {t('addAction')}
           </button>
@@ -412,7 +409,7 @@ export default function WorkflowEditor({
                 aria-current={i === step ? 'step' : undefined}
                 disabled={i > step}
               >
-                <span className="wf-steps-station" aria-hidden="true" />
+                <span className="wf-steps-n" aria-hidden="true">{i + 1}</span>
                 <span>{label}</span>
               </button>
             </li>
@@ -454,20 +451,18 @@ export default function WorkflowEditor({
               {t('wizard.review')}
             </h2>
             {nameField}
-            <ol className="crm-line wf-summary" aria-label={t('wizard.summary')}>
+            <ol className="crm-steps wf-summary" aria-label={t('wizard.summary')}>
               {triggers.map((tr, i) => (
-                <li key={`t${i}`} className="crm-stop crm-stop-trigger">
-                  <span className="crm-station" aria-hidden="true" />
+                <li key={`t${i}`} className="crm-step crm-step-trigger">
+                  <span className="crm-step-n is-empty" aria-hidden="true" />
                   <p className="wf-summary-text">
                     {i === 0 ? t('whenTrigger') : t('orWhen')} {triggerLabel(tr.type)}
                   </p>
                 </li>
               ))}
               {actions.map((a, i) => (
-                <li key={`a${i}`} className="crm-stop">
-                  <span className="crm-station" aria-hidden="true">
-                    <span className="crm-station-n">{i + 1}</span>
-                  </span>
+                <li key={`a${i}`} className="crm-step">
+                  <span className="crm-step-n" aria-hidden="true">{i + 1}</span>
                   <p className="wf-summary-text">
                     {actionLabel(a.type)}
                     {summaryDetail(a) && <span className="wf-summary-detail"> {summaryDetail(a)}</span>}

@@ -1,6 +1,6 @@
 ---
 name: zerosoft
-description: White, black and zeros. The zero is the mark; color belongs to the eleven apps. Optional brand themes (today "Red de subte") restyle the same structure.
+description: White, black and zeros. The zero is the mark; color belongs to the eleven apps. A brand-theme layer exists for future themes; today only the default ships.
 colors:
   white: "#ffffff"
   panel: "#f5f5f5"
@@ -128,7 +128,7 @@ zerosoft is white, black and zeros. The mark is a zero (an oval ring, `ZeroMark`
 
 Type is Space Grotesk for reading, interface and headings (weight 500 for titles, tight tracking) and IBM Plex Mono for data, code and the wordmark. The system is flat: no shadows, gradients or pills.
 
-**Brand themes.** This is the **default** theme. The same structure (shell, UI kit, pages) can be restyled by an optional brand theme, chosen per browser with a cookie. Today there is one: **Red de subte** (see Themes). A third theme based on zeros/ASCII is planned; the layer is built so it only adds files.
+**Brand themes.** This is the **default** theme. The same structure (shell, UI kit, pages) could be restyled by an optional brand theme, chosen per browser with a cookie. Today there is none: the "Red de subte" theme was retired and its line-and-stations visuals replaced by conventional patterns (see Themes). The layer is kept so a future theme only adds files.
 
 **Key Characteristics:**
 - White field, ink text, 1px rules. Ink only as a band where it means "the end" (closing band, footer, code).
@@ -142,15 +142,15 @@ Type is Space Grotesk for reading, interface and headings (weight 500 for titles
 Themes change the brand layer only: tokens, typefaces, logo and a few signature drawings. Structure, routes, copy and UX (tabs, `AdvancedSection`, `SettingsTabs`, `FormSection`, `EmptyState`, `PageHeader`, `DataTable`) are shared.
 
 - **Registry:** `lib/brand-theme.ts` (`BRAND_THEMES`, cookie `zs_brand`, routes that force a theme). Server: `getBrandTheme()` in `lib/brand-theme-server.ts`. Client: `BrandProvider` / `useBrand()` in `components/brand/BrandProvider.tsx`.
-- **Switching:** any URL with `?brand=subte` stores the cookie and redirects to the same URL without the parameter; `?brand=default` clears it (`middleware.ts`). The root locale layout reads it and sets `<html data-brand="…">`.
-- **Forced routes:** `/[locale]/brand` (and branding.zerosoft.ai) is always default; `/[locale]/nuevo-branding/subte` is always subte. The middleware passes the forced theme in the internal `x-zs-brand` header.
+- **Switching:** any URL with `?brand=<theme>` stores the cookie and redirects to the same URL without the parameter; `?brand=default` clears it and unknown values are ignored (`middleware.ts`). The root locale layout reads it and sets `<html data-brand="…">`.
+- **Forced routes:** `/[locale]/brand` (and branding.zerosoft.ai) is always default. The middleware passes the forced theme in the internal `x-zs-brand` header.
 - **Tokens:** `styles/brand.css` holds what every theme shares (spacing, body scale, app `-ink`/`-on` colors). Each theme defines the same token names in `styles/themes/<theme>.css`: default in `:root`, the others under `html[data-brand="<theme>"]`. Token families: neutrals (`--brand-*`), type (`--font-signage`, `--font-ui`, `--font-data`, `--signage-stretch|weight|tracking|leading`, `--t-display|h1|h2|h3`), shape (`--radius-1`, `--stroke-rule`), interface (`--ui-hover`, `--ui-press`, `--ui-field`), chrome (`--chrome-bg|fg|fg-2|fg-3|line|hover|border|active-bg|active-fg|focus`), sidebar (`--side-bg`) and section signs (`--sign-bg|fg|fg-2|border`). Product CSS never hardcodes a theme value: titles use `font-family: var(--font-signage)` with the `--signage-*` tokens, heavy rules use `var(--stroke-rule)`, chrome uses `--chrome-*`.
-- **Brand components:** `Logo` (wordmark or symbol), `ProductGlyph` (an app's mark), `BrandSymbol` (bullet/milestone), `AccentGlyph` (empty states, public headers) and `HeroVisual` (first viewport) dispatch on the theme. Default renders live in `components/brand/default` and `components/zero`; subte in `components/brand/subte`, `Station`, `NetworkMap`.
+- **Brand components:** `Logo` (wordmark or symbol), `ProductGlyph` (an app's mark), `BrandSymbol` (bullet/milestone), `AccentGlyph` (empty states, public headers) and `HeroVisual` (first viewport) render the default brand (`components/brand/default`, `components/zero`); a future theme would dispatch there.
 - **Adding a theme:** add the key to `BRAND_THEMES`, create `styles/themes/<theme>.css` and import it in `app/layout.tsx`, add its case to the dispatching components, load its fonts (without preload) in `app/[locale]/layout.tsx`, and (optionally) a guide at `/[locale]/nuevo-branding/<theme>` forced in `lib/brand-theme.ts`.
 
-### Optional theme: Red de subte
+### Retired theme: Red de subte
 
-Each app is a subway line, integrations are interchange stations, the zeros are the stations (white circles with a ring 0.44 of the radius). Neutrals `#ffffff` / enamel `#f4f4f2` / signage ink `#111111` (grays `#3d3d3d`, `#5c5c5c`, `#767676`; rule `#d9d9d6`). Archivo condensed (wdth 75, weight 800) for signage and titles, Archivo normal width for UI, JetBrains Mono for data. 2px corners, 4px ink rules. Chrome is a black signage band; section signs are full-width black bands with a station; the app sidebar is the product's line (a 6px stroke in `--accent`) with each item as a station; `/app` and the site's first viewport show the live `NetworkMap`. Logo: the outlined "zerosoft" wordmark with the station as its "o" (`lib/brand-mark.ts`). Full guide, kit and assets: `/[locale]/nuevo-branding/subte` (`public/brand/`).
+The optional "Red de subte" theme (apps as subway lines, stations, network map) was retired. Its guide, kit, `NetworkMap`, `Station` and theme CSS are gone, and every line-and-stations drawing in the product now uses the familiar pattern for that UI: a Notion-style page tree in Docs, a segmented progress bar for deal stages, numbered steps for wizards, workflows, sequences and Cal routing, plain dated lists for histories (quotes, ideas, changelog, Track activity), a "short → destination" row for the Link route, and card nodes with thin gray edges in Flow.
 
 ## Colors
 
@@ -211,21 +211,21 @@ Flat. No box shadows. Surfaces separate by plane (white, panel, ink) or by a 1px
 
 ## Shapes
 
-Controls and plates have 3px corners (`--radius-1`). Avatars and plates are square. The zero is an oval ring. Rules are 1px; the heavy rule (`--stroke-rule`) is 1px of ink in default (4px in subte).
+Controls and plates have 3px corners (`--radius-1`). Avatars and plates are square. The zero is an oval ring. Rules are 1px; the heavy rule (`--stroke-rule`) is 1px of ink.
 
 ## Components
 
 ### Buttons
 `.btn` in `styles/ui.css`, one component for site and app. Sentence case, 1px border, `--radius-1` corners.
-- **Variants:** `.btn-primary` (alias `.btn-solid`): ink plate, one per view. `.btn-secondary` (plain `.btn`, alias `.btn-outline`): white with a 3.3:1 field border. `.btn-ghost`: text only, hover fill. `.btn-danger`: red text; `.btn-primary.btn-danger` is the red plate. `.btn-chrome` / `.btn-chrome-outline` sit on the theme's chrome (site header, board header): ink on white in default, white on the black band in subte. `.btn-invert` / `.btn-invert-solid` sit on ink bands (closing band).
+- **Variants:** `.btn-primary` (alias `.btn-solid`): ink plate, one per view. `.btn-secondary` (plain `.btn`, alias `.btn-outline`): white with a 3.3:1 field border. `.btn-ghost`: text only, hover fill. `.btn-danger`: red text; `.btn-primary.btn-danger` is the red plate. `.btn-chrome` / `.btn-chrome-outline` sit on the theme's chrome (site header, board header): ink on white. `.btn-invert` / `.btn-invert-solid` sit on ink bands (closing band).
 - **Sizes:** default 40px on the site, 36px inside `.app-frame`; `.btn-sm` 32px / 28px; `.btn-lg` 48px.
 - **States:** hover inverts the primary plate; press scales to 0.98; focus is a 2px ink outline offset 2px (`--chrome-focus` on chrome); disabled is 40% opacity; loading is `aria-busy="true"`.
 - **Copy:** a verb and an object ("Crear link", "Guardar cambios").
 
 ### Logo and marks
 - **`Logo`** `{ tone?: 'current' | 'ink' | 'white', height?, variant?: 'wordmark' | 'symbol', title? }`: in default, `ZeroMark` + "zerosoft.ai" in mono (`.brand-logo-default`); the symbol is the zero alone. `tone="current"` (chrome) inherits the text color.
-- **`ProductGlyph`** `{ product, size?, onLine? }`: an app's mark. Default: the zero in the app color (`.product-zero card-<key>`). `onLine` only applies to subte.
-- **`BrandSymbol`**: the zero as bullet or milestone (changelog nodes, product steps, section signs).
+- **`ProductGlyph`** `{ product, size? }`: an app's mark, the zero in the app color (`.product-zero card-<key>`).
+- **`BrandSymbol`**: the zero as a bullet (product steps, section signs).
 - **`AccentGlyph`** `{ color, height? }`: the zero in a given color, used by `EmptyState` and the help-center header.
 - **Favicon / app icon / OG:** `app/icon.svg` and `app/apple-icon.tsx` are the white zero on an ink square; product, changelog and tool OG images (`lib/product-og.ts`) are a zero made of zeros on ink; blog covers (`lib/blog-cover.ts`) are zeros only.
 
@@ -240,7 +240,7 @@ Controls and plates have 3px corners (`--radius-1`). Avatars and plates are squa
 - **Heights:** `--band-h` (48px) is the only chrome above content.
 
 ### App home (`/app`)
-Default: the eleven apps as a grid of plates (`.app-home-apps`), each with its zero in the app color, name and one line; Link's numbers follow, since `/app` is also Link's overview. Subte: the `NetworkMap` as launcher next to the list of lines.
+Default: the eleven apps as a grid of plates (`.app-home-apps`), each with its zero in the app color, name and one line; Link's numbers follow, since `/app` is also Link's overview.
 
 ### UI kit (`styles/ui.css`)
 Loaded site-wide after `globals.css`. Product screens use these classes instead of their own versions.
@@ -279,7 +279,7 @@ Product-specific notes (shared by every theme):
 - **Cal:** one event-type editor with `.ui-tabs` and a single sticky save; quick create in QuickModal; bookings grouped by day; public pages (`.bk`) carry the workspace's brand, not zerosoft's.
 - **Docs:** page tree next to the shell sidebar; editor with a sticky 48px bar; floating menus with a 1px ink border; help center (`/h/<handle>`) in the workspace's color.
 - **Global settings:** `SettingsTabs` (Cuenta, Workspace, Admin), each block a `FormSection`, details in `AdvancedSection`.
-- **Product diagrams** (Link route, CRM step line and deal stages, Docs tree, Flow nodes, Cal routing stepper) are still drawn as a line with stations in every theme; moving them to theme tokens is pending.
+- **Product diagrams** use conventional patterns, never a line with stations: Docs tree like Notion (chevron, page icon, 14px indent per level, no connectors), deal stages as a segmented bar, steps numbered in a small square, histories as plain dated lists, Link route as "short → destination", Flow nodes as cards with thin gray edges.
 
 ## Do's and Don'ts
 
@@ -291,9 +291,9 @@ Product-specific notes (shared by every theme):
 - **Do** separate surfaces by plane or a 1px rule.
 
 ### Don't:
-- **Don't** hardcode a theme's look (condensed 800 titles, 4px rules, black chrome, stations) outside its theme file or component.
+- **Don't** hardcode a theme's look (condensed 800 titles, 4px rules, black chrome) outside its theme file or component.
 - **Don't** add shadows, glows or gradients.
-- **Don't** use pills, emoji or decorative circles.
+- **Don't** use pills, emoji or decorative circles, and don't draw lines with stations (subway diagrams).
 - **Don't** set a raw app color as text, or let it stand without its name.
 - **Don't** color the zerosoft zero with an app color, stretch it, or retype the name in another font.
 - **Don't** set buttons or navigation in mono or uppercase.

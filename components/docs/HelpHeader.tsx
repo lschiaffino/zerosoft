@@ -3,9 +3,8 @@ import AccentGlyph from '@/components/brand/AccentGlyph';
 import Icon from '@/components/app/icons';
 
 /**
- * Cabecera del centro de ayuda público: el nombre del workspace como una
- * estación sobre su línea (el color del workspace) y, en los artículos, la
- * búsqueda. Es la marca del cliente: el logo de zerosoft no aparece acá.
+ * Cabecera del centro de ayuda público: el nombre del workspace con el cero
+ * en su color y, en los artículos, la búsqueda. Es la marca del cliente: el logo de zerosoft no aparece acá.
  */
 export default async function HelpHeader({
   locale,

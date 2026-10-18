@@ -77,7 +77,7 @@ export const HAS_API: readonly ProductKey[] = ['link', 'crm', 'cal'];
  */
 export type PageSection = 'shot' | 'features' | 'how' | 'video' | 'compare' | 'model' | 'faq';
 
-/** id de cada bloque en la página: las anclas de las estaciones de la línea (ProductLineNav). */
+/** id de cada bloque en la página: las anclas del índice de secciones (ProductSectionNav). */
 export const SECTION_IDS: Record<PageSection, string> = {
   shot: 'vista',
   features: 'features',

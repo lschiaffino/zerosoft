@@ -15,7 +15,7 @@ export default async function LocaleNotFound() {
     <main className="nf">
       <div className="sign-band">
         <div className="container sign-inner">
-          <BrandSymbol size={28} ring="#ffffff" fill="#111111" className="sign-station" />
+          <BrandSymbol size={28} className="sign-mark" />
           <p className="sign-title">
             {t('sign')}
             <span className="sign-sub">404</span>

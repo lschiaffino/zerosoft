@@ -19,8 +19,7 @@ interface ListProps<S extends AnyStep> {
 }
 
 /**
- * Lista editable de pasos, dibujada como la línea del robot: cada paso es una
- * estación. Reordenar, reintentos y quitar viven en el menú "⋯" de cada paso.
+ * Lista editable de pasos, numerada y separada por filetes. Reordenar, reintentos y quitar viven en el menú "⋯" de cada paso.
  */
 export default function StepList<S extends AnyStep>({ steps, onChange, readOnly, nested, prefix = '', invalidIndex }: ListProps<S>) {
   const t = useTranslations('robots.steps');
@@ -62,7 +61,7 @@ export default function StepList<S extends AnyStep>({ steps, onChange, readOnly,
   return (
     <div className={`robots-steps${nested ? ' is-nested' : ''}`}>
       {steps.length > 0 && (
-        <ol className="robots-line" ref={listRef}>
+        <ol className="robots-steplist" ref={listRef}>
           {steps.map((s, i) => (
             <StepItem
               key={stable.keys[i]}
@@ -168,18 +167,17 @@ function StepItem({
   menu.push({ key: 'remove', label: t('remove'), danger: true, run: onRemove });
 
   return (
-    <li className={`robots-stop${invalid ? ' is-invalid' : ''}`} aria-labelledby={titleId}>
-      <span className="robots-station" aria-hidden="true" />
-      <div className="robots-stop-head">
-        <span className="robots-stop-num data">{num}</span>
-        <h3 className="robots-stop-type" id={titleId}>
+    <li className={`robots-step${invalid ? ' is-invalid' : ''}`} aria-labelledby={titleId}>
+      <div className="robots-step-head">
+        <span className="robots-step-num data">{num}</span>
+        <h3 className="robots-step-type" id={titleId}>
           {t(`types.${step.type}`)}
-          {invalid && <span className="robots-stop-flag">{t('invalid')}</span>}
+          {invalid && <span className="robots-step-flag">{t('invalid')}</span>}
         </h3>
         {retries > 0 && <span className="badge">{t('retriesBadge', { count: retries })}</span>}
         {!readOnly && <StepMenu label={t('options', { num })} items={menu} />}
       </div>
-      <div className="robots-stop-body">
+      <div className="robots-step-body">
         <TypeFields step={step} readOnly={readOnly} onChange={onChange} prefix={`${num}.`} />
         {showRetry && (
           <div className="robots-retry">

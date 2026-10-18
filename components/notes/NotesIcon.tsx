@@ -4,7 +4,7 @@ export type NotesIconName = 'pin' | 'share' | 'trash' | 'pencil' | 'close' | 'pl
 
 /**
  * Íconos de Notes y Board: mismo trazo que components/app/icons (1.5px,
- * estilo Feather). Los puntos de "más" son cuadrados: el círculo es una estación.
+ * estilo Feather). Los puntos de "más" son cuadrados.
  */
 const PATHS: Record<NotesIconName, ReactNode> = {
   pin: <path d="M9 4h6l-1 6 3 3H7l3-3-1-6zM12 13v7" />,

@@ -33,7 +33,7 @@ export default async function Footer({ locale }: { locale: string }) {
             {SITE_PRODUCTS.map((k) => (
               <li key={k}>
                 <Link href={`/products/${k}`}>
-                  <ProductGlyph product={k} size={11} onLine />
+                  <ProductGlyph product={k} size={11} />
                   {PRODUCT_NAMES[k]}
                 </Link>
               </li>

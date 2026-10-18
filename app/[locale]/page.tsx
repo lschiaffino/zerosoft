@@ -17,10 +17,9 @@ import Icon from '@/components/site/Icon';
 import CodeTabs from '@/components/site/CodeTabs';
 import SuiteGrid from '@/components/site/SuiteGrid';
 import SectionSign from '@/components/site/SectionSign';
-import SiteNetworkMap from '@/components/site/SiteNetworkMap';
 import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
-import EndLines from '@/components/site/EndLines';
+import ProductLinks from '@/components/site/ProductLinks';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, annualCost } from '@/components/site/catalog';
 import { PRODUCT_CONFIG } from '@/lib/products';
@@ -85,7 +84,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             </a>
           </p>
         </div>
-        <HeroVisual className="lp-hero-map" map={<SiteNetworkMap className="lp-hero-map" />} />
+        <HeroVisual className="lp-hero-map" />
       </section>
 
       {/* La app real, grabada: 48 s por seis apps. */}
@@ -132,7 +131,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
         </div>
       </section>
 
-      {/* La suite: once líneas, dos audiencias. */}
+      {/* La suite: once apps, dos audiencias. */}
       <section className="lp-section" id="productos" aria-labelledby="h-suite">
         <SectionSign id="h-suite" title={h('suite.title')} sub={h('suite.titleDim')} />
         <div className="container">
@@ -170,7 +169,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                           <span className="stack-tool">
                             <strong>{inc.rival}</strong>
                             <span className="stack-arrow">
-                              <ProductGlyph product={k} size={12} onLine /> {PRODUCT_NAMES[k]}
+                              <ProductGlyph product={k} size={12} /> {PRODUCT_NAMES[k]}
                             </span>
                           </span>
                         </th>
@@ -391,7 +390,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
         </div>
       </section>
 
-      {/* Cierre: la banda negra con las once líneas. */}
+      {/* Cierre: la banda negra con las once apps. */}
       <section className="lp-end" id="sumate" aria-labelledby="h-end">
         <div className="container lp-end-inner">
           <h2 id="h-end">
@@ -408,7 +407,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
               <Icon name="github" size={16} /> {h('hero.ctaSelfHost')}
             </a>
           </div>
-          <EndLines label={t('header.products')} />
+          <ProductLinks label={t('header.products')} />
         </div>
       </section>
     </main>

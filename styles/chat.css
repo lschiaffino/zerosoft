@@ -46,7 +46,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 }
 .chat-inbox-error { margin: 12px 16px; }
 
-/* Placa de iniciales: cuadrada, porque el círculo es una estación. */
+/* Placa de iniciales: cuadrada, como el resto de las placas. */
 .chat-plate {
   display: inline-flex;
   align-items: center;

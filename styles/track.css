@@ -1,9 +1,8 @@
 /* ============================================================
-   Track: issues, proyectos y ciclos en la red de subte.
+   Track: issues, proyectos y ciclos.
    Controles, tablas, tabs, modales y vacíos vienen de styles/ui.css;
-   acá solo va lo propio de Track. La línea (--accent, naranja de Track)
-   marca dónde estás: estación activa, barra de progreso, hoy, el hilo de
-   actividad. Las acciones son de tinta.
+   acá solo va lo propio de Track. El color de Track (--accent) marca
+   dónde estás: barra de progreso y hoy. Las acciones son de tinta.
    Edición inline, quick-create y selección: styles/track-quick.css.
    ============================================================ */
 
@@ -525,7 +524,7 @@ dialog.ui-drawer.track-drawer {
   font-weight: 600;
 }
 
-/* Estado del ciclo en texto (sin etiquetas): el activo lleva la estación y peso. */
+/* Estado del ciclo en texto (sin etiquetas): el activo va en peso y tinta. */
 .track-cycle-state {
   font-size: 0.8125rem;
   color: var(--brand-gray-2);
@@ -534,16 +533,6 @@ dialog.ui-drawer.track-drawer {
 .track-cycle.is-active .track-cycle-state {
   font-weight: 600;
   color: var(--ink);
-}
-
-.track-cycle-station {
-  flex-shrink: 0;
-  box-sizing: border-box;
-  width: 14px;
-  height: 14px;
-  background: var(--accent);
-  border: 3px solid var(--ink);
-  border-radius: 50%;
 }
 
 .track-cycle-dates {
@@ -559,7 +548,7 @@ dialog.ui-drawer.track-drawer {
   gap: 10px;
 }
 
-/* La barra es un tramo de la línea de Track. */
+/* Barra de progreso del ciclo. */
 .track-cycle-bar {
   flex: 1;
   height: 4px;
@@ -1337,7 +1326,7 @@ dialog.ui-drawer.track-drawer {
   color: var(--brand-gray-2);
 }
 
-/* Actividad: el hilo es un tramo de la línea de Track y cada evento, una estación. */
+/* Actividad: una lista simple de eventos con su fecha. */
 .track-activity {
   display: flex;
   flex-direction: column;
@@ -1357,21 +1346,9 @@ dialog.ui-drawer.track-drawer {
 }
 
 .track-activity-list {
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-left: 28px;
-}
-
-.track-activity-list:has(> :nth-child(2))::before {
-  content: '';
-  position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: 6px;
-  width: 4px;
-  background: var(--accent);
 }
 
 .track-activity-item {
@@ -1379,19 +1356,6 @@ dialog.ui-drawer.track-drawer {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-}
-
-.track-activity-item::before {
-  content: '';
-  position: absolute;
-  top: 4px;
-  left: -28px;
-  width: 16px;
-  height: 16px;
-  box-sizing: border-box;
-  background: var(--bg);
-  border: 3.5px solid var(--ink);
-  border-radius: 50%;
 }
 
 .track-activity-body {
@@ -1729,12 +1693,11 @@ a.track-board-card-title:hover {
   font-variant-numeric: tabular-nums;
 }
 
-/* Hoy es la estación activa: disco con el color de la línea y anillo de tinta. */
+/* Hoy: el número sobre un disco del color de Track, como en un calendario. */
 .track-calendar-day.today .track-calendar-day-number {
   font-weight: 700;
   color: var(--accent-on);
   background: var(--accent);
-  border: 3px solid var(--ink);
   border-radius: 50%;
 }
 

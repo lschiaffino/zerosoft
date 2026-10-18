@@ -2,8 +2,8 @@
  * Color del workspace en el centro de ayuda público (/h/<handle>).
  *
  * El acento viene del widget de Chat (cualquier HEX que eligió el cliente),
- * así que no se puede asumir contraste. Se separa en tres usos, como las
- * líneas de la marca: el trazo/relleno tal cual, una versión para texto que
+ * así que no se puede asumir contraste. Se separa en tres usos, como los
+ * colores de las apps: el trazo/relleno tal cual, una versión para texto que
  * pase AA sobre blanco y el texto que va encima del relleno.
  */
 
@@ -51,7 +51,7 @@ function inkFor(accent: string): string {
 }
 
 export interface HelpAccent {
-  /** Trazo y relleno (la línea del workspace). */
+  /** Trazo y relleno (el color del workspace). */
   line: string;
   /** Texto en el color del workspace, ≥ 4,5:1 sobre blanco. */
   ink: string;

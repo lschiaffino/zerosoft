@@ -38,7 +38,7 @@
 
   /* Escala (px a 1440): lectura y datos. Los títulos (--t-display, --t-h1,
      --t-h2, --t-h3) los define cada tema según su voz. */
-  --t-sign: 1.625rem; /* 26: nombres de línea */
+  --t-sign: 1.625rem; /* 26: carteles de sección */
   --t-lead: 1.25rem; /* 20 */
   --t-body: 1.0625rem; /* 17 */
   --t-ui: 0.9375rem; /* 15 */
@@ -55,9 +55,6 @@
   --s-8: 96px;
   --s-9: 128px;
 
-  /* Trazos del plano de red (tema subte: NetworkMap y la guía de marca). */
-  --stroke-line: 16px;
-  --stroke-ring: 8px;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }

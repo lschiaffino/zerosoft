@@ -3,7 +3,7 @@ import { join } from 'path';
 import { describe, expect, it } from 'vitest';
 import { NODE_DEFS, NODE_TYPES, defaultConfig, type FieldDef, type FlowNodeType } from '@/lib/flow-schema';
 import { CREDENTIAL_NAME_RE } from '@/lib/flow-credentials-schema';
-import { changedCount, interchangeLine, splitFields, stepErrorInfo, suggestCredentialName } from '@/components/flow/flow-ui';
+import { changedCount, nodeApp, splitFields, stepErrorInfo, suggestCredentialName } from '@/components/flow/flow-ui';
 
 const fields = (type: FlowNodeType) => NODE_DEFS[type].fields as readonly FieldDef[];
 const keys = (list: FieldDef[]) => list.map((f) => f.key);
@@ -68,15 +68,15 @@ describe('Flow: nombres técnicos derivados', () => {
   });
 });
 
-describe('Flow: combinaciones con otras líneas', () => {
-  it('los nodos de apps de zerosoft se pintan con la línea de esa app', () => {
-    expect(interchangeLine('app.crm_contact')).toBe('crm');
-    expect(interchangeLine('app.track_issue')).toBe('track');
-    expect(interchangeLine('ai.agent')).toBe('agents');
-    expect(interchangeLine('trigger.event', { event: 'booking.created' })).toBe('cal');
-    expect(interchangeLine('trigger.event', { event: 'link.clicked' })).toBe('link');
-    expect(interchangeLine('action.http')).toBeNull();
-    expect(interchangeLine('app.slack')).toBeNull();
+describe('Flow: nodos que tocan otras apps', () => {
+  it('los nodos de apps de zerosoft devuelven la app que tocan', () => {
+    expect(nodeApp('app.crm_contact')).toBe('crm');
+    expect(nodeApp('app.track_issue')).toBe('track');
+    expect(nodeApp('ai.agent')).toBe('agents');
+    expect(nodeApp('trigger.event', { event: 'booking.created' })).toBe('cal');
+    expect(nodeApp('trigger.event', { event: 'link.clicked' })).toBe('link');
+    expect(nodeApp('action.http')).toBeNull();
+    expect(nodeApp('app.slack')).toBeNull();
   });
 });
 

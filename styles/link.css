@@ -1,10 +1,9 @@
 /* ============================================================
    LINK: lista, detalle, crear, dominios, analytics, bio.
-   Red de subte: la línea de Link (--accent) marca dónde estás y los
-   gráficos; las acciones son tinta. Todo lo operable sale de ui.css
-   (.btn, .input, .table, FormSection, AdvancedSection); acá solo vive
-   el layout propio de Link (prefijo lk-) y su firma: el link dibujado
-   como un tramo de línea entre dos estaciones.
+   El color de Link (--accent) marca dónde estás y los gráficos; las
+   acciones son tinta. Todo lo operable sale de ui.css (.btn, .input,
+   .table, FormSection, AdvancedSection); acá solo vive el layout propio
+   de Link (prefijo lk-), como el recorrido "link corto → destino".
 
    1. Compartido con otras apps (pendiente de migrar en cada producto)
    2. Gráfico y barras (LinkChart, BreakdownBars: también los usa CRM)
@@ -275,7 +274,7 @@
 
 /* ---------- 2. Gráfico y barras ---------- */
 
-/* La serie va en el color de la línea; el último punto es una estación. */
+/* La serie va en el color de Link; el último punto lleva un marcador. */
 .link-chart { width: 100%; height: auto; display: block; font-family: var(--font-data); }
 /* LinkChartView: el SVG se dibuja al tamaño de esta caja (texto siempre a 11px). */
 .link-chart-wrap { width: 100%; height: 240px; min-width: 0; }
@@ -305,33 +304,17 @@
 
 /* ---------- 3. Link ---------- */
 
-/* Firma: el link como un tramo de su línea. Origen (link corto) y destino
-   son estaciones; con ruteo, el destino es una combinación (doble anillo). */
+/* El recorrido: link corto → destino, en una fila de texto. */
 .lk-route {
-  display: grid;
-  grid-template-columns: auto minmax(48px, 1fr) minmax(0, auto);
+  display: flex;
   align-items: center;
-  gap: 0;
-  padding: 16px 20px;
-  background: var(--brand-enamel);
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
 }
-.lk-route-stop { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.lk-route-station {
-  flex: 0 0 18px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--bg);
-  border: 4px solid var(--ink);
-  position: relative;
-  z-index: 1;
-}
-.lk-route-ix { display: inline-flex; align-items: center; flex-shrink: 0; }
-.lk-route-ix-bar { width: 6px; height: 4px; background: var(--ink); }
-.lk-route-line { height: 6px; background: var(--accent); margin: 0 -2px; }
-.lk-route-stop:first-child .lk-route-name { margin-right: 12px; }
-.lk-route-end { padding-left: 12px; }
-.lk-route-end > .lk-route-station, .lk-route-end > .lk-route-ix { margin-left: -12px; }
+.lk-route-arrow { flex-shrink: 0; color: var(--dim); }
 .lk-route-name {
   font-size: 0.8125rem;
   color: var(--ink);
@@ -368,7 +351,7 @@ a.lk-route-name:hover { text-decoration: underline; text-underline-offset: 3px; 
 /* Bloque sobre el campo: título y un filete arriba, sin caja. */
 .lk-block { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-top: 16px; border-top: 1px solid var(--line); }
 
-/* Leyenda: un tramo corto del trazo de cada serie. */
+/* Leyenda: una muestra corta del trazo de cada serie. */
 .lk-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; color: var(--brand-gray-1); }
 .lk-key { display: inline-flex; align-items: center; gap: 8px; }
 .lk-key::before { content: ''; flex: 0 0 16px; width: 16px; height: 0; border-top: 3px solid var(--accent); }
@@ -601,10 +584,7 @@ section.lk-block { padding-bottom: 0; }
   .lk-grid-2, .lk-grid-3, .lk-utm { grid-template-columns: 1fr; }
   .lk-rule, .lk-rule-ab { grid-template-columns: 24px minmax(0, 1fr); }
   .lk-rule > :not(.lk-rule-n) { grid-column: 2; }
-  .lk-route { grid-template-columns: 1fr; padding: 12px 16px; }
-  .lk-route-line { width: 6px; height: 20px; margin: -2px 0 -2px 6px; }
-  .lk-route-end { padding-left: 0; }
-  .lk-route-end > .lk-route-station, .lk-route-end > .lk-route-ix { margin-left: 0; }
+  .lk-route { flex-wrap: wrap; row-gap: 4px; }
   .lk-search { max-width: none; flex-basis: 100%; }
   .lk-danger-delete, .lk-danger-delete .input { width: 100%; }
   .lk-panel { padding: 16px; }

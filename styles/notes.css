@@ -1,7 +1,7 @@
 /* ============================================
    NOTES: tres paneles (libretas · lista · editor), como Apple Notes.
-   Red de subte en modo Operate: controles de ui.css, títulos en
-   señalética, el color de la línea solo en el vacío y la marca de fijada.
+   Modo Operate: controles de ui.css, títulos en señalética, el color
+   de Notes solo en el vacío y la marca de fijada.
    ============================================ */
 
 .app-content:has(> .notes-app) {
@@ -255,7 +255,7 @@
   white-space: nowrap;
 }
 
-/* Fijada: el único lugar de la lista con la tinta de la línea. */
+/* Fijada: el único lugar de la lista con el color de Notes. */
 .notes-pin { display: inline-flex; flex-shrink: 0; color: var(--c-notes-ink); }
 .notes-untitled { font-weight: 400; color: var(--brand-gray-2); }
 
@@ -506,13 +506,13 @@
 
 .notes-clip-page { padding-bottom: 32px; }
 
-/* Los pasos son estaciones sobre un tramo de la línea de Notes. */
+/* Pasos numerados: el número en un cuadro chico a la izquierda. */
 .notes-clip-steps {
-  --stop: 18px;
   list-style: none;
   counter-reset: clip;
   display: flex;
   flex-direction: column;
+  gap: 28px;
 }
 
 .notes-clip-steps li {
@@ -520,35 +520,28 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0 0 32px 44px;
+  padding-left: 40px;
+  counter-increment: clip;
 }
 
 .notes-clip-steps li::before {
-  content: '';
+  content: counter(clip);
   position: absolute;
   left: 0;
-  top: 1px;
-  width: var(--stop);
-  height: var(--stop);
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
-  border: 4px solid var(--ink);
-  border-radius: 50%;
-  background: var(--bg);
-  z-index: 1;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ui-field);
+  border-radius: var(--radius-1);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink);
 }
-
-.notes-clip-steps li::after {
-  content: '';
-  position: absolute;
-  left: calc(var(--stop) / 2 - 3px);
-  top: 10px;
-  bottom: -10px;
-  width: 6px;
-  background: var(--c-notes);
-}
-
-.notes-clip-steps li:last-child { padding-bottom: 0; }
-.notes-clip-steps li:last-child::after { display: none; }
 
 .notes-clip-step-title { font-size: 1rem; font-weight: 600; line-height: 1.35; }
 

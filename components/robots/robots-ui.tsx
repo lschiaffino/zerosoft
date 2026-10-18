@@ -19,7 +19,7 @@ const BADGE: Record<RobotRunDto['status'], string> = {
   running: 'badge badge-ink',
 };
 
-/** Estado de una corrida como badge recto (nunca un punto: el círculo es una estación). */
+/** Estado de una corrida como badge recto, con texto. */
 export function StatusBadge({ status }: { status: RobotRunDto['status'] }) {
   const t = useTranslations('robots.runs.status');
   return <span className={BADGE[status] ?? 'badge'}>{t(status)}</span>;

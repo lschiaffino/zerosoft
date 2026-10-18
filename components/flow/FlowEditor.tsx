@@ -37,7 +37,7 @@ import FlowNodeCard, { type FlowCanvasNode } from './FlowNodeCard';
 import NodeConfigPanel, { type EditorRefs, type VariableOption } from './NodeConfigPanel';
 import RunsPanel, { type RunDetail } from './RunsPanel';
 import VersionsPanel from './VersionsPanel';
-import { CATEGORY_ORDER, flattenPaths, i18nKey, interchangeLine } from './flow-ui';
+import { CATEGORY_ORDER, flattenPaths, i18nKey, nodeApp } from './flow-ui';
 
 interface Props {
   flow: FlowDto;
@@ -258,22 +258,17 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     return map;
   }, [shownRun]);
 
-  // El tramo de línea de cada nodo se dibuja solo donde hay conexión: un nodo
-  // suelto es una estación sin línea y el último termina en su estación.
+  // Estado del último paso y resumen de la config en cada nodo.
   const displayNodes = useMemo(() => {
-    const into = new Set(edges.map((e) => e.target));
-    const outOf = new Set(edges.map((e) => e.source));
     return nodes.map((n) => ({
       ...n,
       data: {
         ...n.data,
         status: stepStatus.get(n.id),
         summary: summaryOf(n.data.type, n.data.config, t),
-        hasIn: into.has(n.id),
-        hasOut: outOf.has(n.id),
       },
     }));
-  }, [nodes, edges, stepStatus, t]);
+  }, [nodes, stepStatus, t]);
 
   // Aristas de la rama de error: en otro color.
   const displayEdges = useMemo(
@@ -784,7 +779,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                         {t(`categories.${g.cat}`)}
                       </p>
                       {g.items.map((type) => {
-                        const line = interchangeLine(type);
+                        const app = nodeApp(type);
                         return (
                           <button
                             key={type}
@@ -801,7 +796,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                             }}
                             title={t(`nodes.${i18nKey(type)}.desc`)}
                           >
-                            {line ? <ProductGlyph product={line} size={12} /> : <BrandSymbol size={12} />}
+                            {app ? <ProductGlyph product={app} size={12} /> : <BrandSymbol size={12} />}
                             <span>{t(`nodes.${i18nKey(type)}.title`)}</span>
                           </button>
                         );

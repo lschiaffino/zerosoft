@@ -151,7 +151,7 @@ export default function WidgetSettings({ widget, origin, aiAvailable, conversati
               <span className="label" id={`${uid}-position`}>
                 {t('widgetForm.position')}
               </span>
-              {/* Control segmentado cuadrado (como los rangos de Reportes): el círculo es de las estaciones. */}
+              {/* Control segmentado (como los rangos de Reportes). */}
               <div className="btn-group chat-segmented" role="radiogroup" aria-labelledby={`${uid}-position`}>
                 {(['bottom-left', 'bottom-right'] as const).map((p) => (
                   <button

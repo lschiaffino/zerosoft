@@ -7,7 +7,7 @@ import type { DocsBlock } from './docs-types';
 export interface DocTemplate {
   key: string;
   title: string;
-  /** Sin ícono: las páginas nuevas no traen emoji de fábrica (la estación las marca en el árbol). */
+  /** Sin ícono: las páginas nuevas no traen emoji de fábrica (el árbol les pone un documento genérico). */
   icon: string | null;
   description: string;
   makeBlocks: () => DocsBlock[];

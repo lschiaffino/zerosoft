@@ -73,7 +73,7 @@ body:has(.bp-root) .fl-root {
 .bp-head-end { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 14px; }
 .bp-user { display: inline-flex; align-items: center; gap: 8px; color: var(--chrome-fg-2); }
 .bp-user:hover { color: var(--chrome-fg); }
-/* Avatares cuadrados: el círculo es solo para estaciones. */
+/* Avatares cuadrados. */
 .bp-user img, .bp-avatar {
   width: 24px; height: 24px; object-fit: cover; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: var(--chrome-active-bg);
@@ -168,11 +168,10 @@ body:has(.bp-root) .fl-root {
 .bp-shipped a { text-decoration: underline; text-underline-offset: 3px; }
 .bp-side { display: flex; flex-direction: column; gap: 24px; }
 .bp-side-block h3 { font-size: 14px; font-weight: 700; color: var(--bp-ink); padding-bottom: 8px; margin-bottom: 12px; border-bottom: var(--stroke-rule) solid var(--brand-ink); }
-/* El historial de una idea: una línea con una estación por cambio de estado. */
-.bp-timeline { list-style: none; position: relative; padding-left: 26px; }
-.bp-timeline::before { content: ''; position: absolute; left: 5px; top: 6px; bottom: 10px; width: 4px; background: var(--brand-ink); }
-.bp-timeline li { position: relative; padding: 0 0 14px; font-size: 14px; line-height: 1.45; }
-.bp-timeline li::before { content: ''; position: absolute; left: -26px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--bp-bg); border: 3px solid var(--brand-ink); }
+/* El historial de una idea: una lista con fecha por cambio de estado. */
+.bp-timeline { list-style: none; padding: 0; }
+.bp-timeline li { padding: 8px 0; border-top: 1px solid var(--bp-line); font-size: 14px; line-height: 1.45; }
+.bp-timeline li:first-child { padding-top: 0; border-top: 0; }
 .bp-timeline time { display: block; font-size: 13px; color: var(--bp-ink-3); }
 .bp-timeline p { color: var(--bp-ink-2); margin-top: 2px; }
 

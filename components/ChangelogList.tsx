@@ -2,7 +2,6 @@ import { getTranslations } from 'next-intl/server';
 import { pick } from '@/content/changelog';
 import type { UnifiedChangelogEntry } from '@/lib/changelog';
 import { PRODUCT_KEYS, type ProductKey } from '@/lib/product-taxonomy';
-import BrandSymbol from '@/components/brand/BrandSymbol';
 import ProductMark from '@/components/site/ProductMark';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -17,8 +16,8 @@ function dateParts(iso: string, locale: string) {
 
 /**
  * Lista del changelog (repo + base), con filtro por producto. La usan
- * /changelog y el changelog del board. Se dibuja como una línea con una
- * estación por versión; cada cambio lleva el tramo de la línea de su app.
+ * /changelog y el changelog del board. Una lista con fecha por versión;
+ * cada cambio lleva la marca y el nombre de su app.
  * Las entradas de la base traen el cuerpo en HTML ya sanitizado
  * (lib/changelog.ts) y los ítems que cerraron.
  */
@@ -80,7 +79,6 @@ export default async function ChangelogList({
                     <span className="cl-month">{d.month}</span>
                   </time>
                 </div>
-                <BrandSymbol size={22} className="cl-node" />
                 <article className="cl-card">
                   <h2 className="cl-title">
                     <a href={`#${e.id}`}>{pick(e.title, locale)}</a>

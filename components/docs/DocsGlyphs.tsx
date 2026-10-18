@@ -4,6 +4,8 @@ const PATHS = {
   up: <path d="M12 19V5M6 11l6-6 6 6" />,
   down: <path d="M12 5v14M6 13l6 6 6-6" />,
   plus: <path d="M12 5v14M5 12h14" />,
+  // Página sin ícono propio en el árbol.
+  page: <path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5" />,
   // Tipos de bloque (menú "/" y "Convertir en").
   paragraph: <path d="M5 6h14M12 6v13" />,
   heading: <path d="M6 5v14M18 5v14M6 12h12" />,

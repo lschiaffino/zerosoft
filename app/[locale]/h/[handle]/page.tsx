@@ -29,8 +29,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 }
 
 /**
- * Centro de ayuda público del workspace: búsqueda y las colecciones dibujadas
- * como una línea en el color del workspace, una estación por colección.
+ * Centro de ayuda público del workspace: búsqueda y las colecciones en una
+ * lista simple.
  */
 export default async function HelpCenterHome(props: Props) {
   const { locale, handle } = await props.params;
@@ -113,11 +113,10 @@ export default async function HelpCenterHome(props: Props) {
         ) : collections.length === 0 ? (
           <EmptyState title={t('empty')} body={t('emptyBody')} />
         ) : (
-          <ol className="help-line">
+          <ol className="help-collections">
             {collections.map((c) => (
-              <li key={c.id} className="help-stop">
-                <span className="help-station" aria-hidden="true" />
-                <div className="help-stop-body">
+              <li key={c.id} className="help-collection">
+                <div className="help-collection-body">
                   <h2 className="help-collection-title">
                     <a href={`${base}/${c.slug}`}>
                       {c.icon && <span aria-hidden="true">{c.icon} </span>}

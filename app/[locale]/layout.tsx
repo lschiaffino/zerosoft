@@ -1,6 +1,6 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
-import { Archivo, IBM_Plex_Mono, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
+import { IBM_Plex_Mono, Space_Grotesk } from 'next/font/google';
 import { routing } from '@/i18n/routing';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -27,23 +27,6 @@ const mono = IBM_Plex_Mono({
   weight: ['400', '500'],
   variable: '--font-plex-mono',
   display: 'swap',
-});
-
-// Tema subte (opcional, html[data-brand="subte"]): Archivo con eje de ancho y
-// JetBrains Mono. Sin preload: el navegador solo las baja si el tema las usa.
-const subteSans = Archivo({
-  subsets: ['latin', 'latin-ext'],
-  axes: ['wdth'],
-  variable: '--font-archivo',
-  display: 'swap',
-  preload: false,
-});
-
-const subteMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-jetbrains',
-  display: 'swap',
-  preload: false,
 });
 
 export function generateStaticParams() {
@@ -91,15 +74,11 @@ export default async function LocaleLayout(
   // feedback.zerosoft.ai / branding.zerosoft.ai: chrome propio (ver ChromeGate).
   // El layout ya es dinámico (el Header lee la sesión), leer el host no cambia eso.
   const surface = surfaceForHost((await headers()).get('host'));
-  // Tema de marca: cookie zs_brand (?brand=subte) o el que fuerce la ruta.
+  // Tema de marca (hoy solo default; ver lib/brand-theme.ts).
   const brand = await getBrandTheme();
 
   return (
-    <html
-      lang={locale}
-      data-brand={brand}
-      className={`${sans.variable} ${mono.variable} ${subteSans.variable} ${subteMono.variable}`}
-    >
+    <html lang={locale} data-brand={brand} className={`${sans.variable} ${mono.variable}`}>
       <body>
         <BrandProvider brand={brand}>
         <NextIntlClientProvider messages={messages}>

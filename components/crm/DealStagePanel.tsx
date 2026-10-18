@@ -90,21 +90,21 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
   return (
     <div className="deal-stage">
       <div className="stage-row-wrap">
-        <ol className={`stage-line${closedLost ? ' is-lost' : ''}`} aria-label={t('deals.form.stage')}>
+        <ol className={`stage-progress${closedLost ? ' is-lost' : ''}`} aria-label={t('deals.form.stage')}>
           {openStages.map((s, i) => {
             const state =
               s.id === currentStageId ? 'current' : closedWon || i < currentIdx ? 'done' : 'todo';
             return (
-              <li key={s.id} className="stage-stop" data-state={state}>
+              <li key={s.id} className="stage-step" data-state={state}>
                 <button
                   type="button"
-                  className="stage-stop-btn"
+                  className="stage-step-btn"
                   aria-current={s.id === currentStageId ? 'step' : undefined}
                   disabled={busy}
                   onClick={() => onSelect(s.id)}
                   title={s.name}
                 >
-                  <span className="stage-dot" aria-hidden="true" />
+                  <span className="stage-seg" aria-hidden="true" />
                   <span className="stage-name">{s.name}</span>
                 </button>
               </li>

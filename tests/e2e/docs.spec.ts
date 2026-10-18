@@ -6,18 +6,30 @@ async function createPage(request: APIRequestContext, data: Record<string, unkno
   return (await (await request.post('/api/docs/pages', { data })).json()) as { id: string; title: string; slug?: string };
 }
 
-test('Docs: el árbol es un ramal con estaciones y marca la página abierta', async ({ request, page }) => {
-  const parent = await createPage(request, { title: `Ramal ${uid()}` });
-  const child = await createPage(request, { title: `Estación ${uid()}`, parent_id: parent.id });
+test('Docs: el árbol es como Notion (flecha, ícono, sangría) y marca la página abierta', async ({ request, page }) => {
+  const parent = await createPage(request, { title: `Madre ${uid()}` });
+  const child = await createPage(request, { title: `Hija ${uid()}`, parent_id: parent.id });
   await page.goto(`/en/app/docs/${child.id}`, { waitUntil: 'networkidle' });
 
   const active = page.locator('.docs-tree-row.active');
   await expect(active).toHaveCount(1);
   await expect(active.locator('.docs-tree-link')).toHaveAttribute('aria-current', 'page');
   await expect(active).toContainText(child.title);
-  // Cada página es una estación; sin ícono elegido no aparece un emoji de fábrica.
-  await expect(active.locator('.docs-tree-station')).toBeVisible();
+  // Sin ícono elegido va el documento genérico (no un emoji de fábrica) y no hay estaciones.
+  await expect(active.locator('.docs-tree-icon svg')).toBeVisible();
   await expect(page.locator('.docs-tree')).not.toContainText('📄');
+  await expect(page.locator('.docs-tree-station')).toHaveCount(0);
+  // La madre tiene flecha de plegado; la hija está sangrada un nivel más.
+  const parentRow = page.locator('.docs-tree-row', { hasText: parent.title });
+  await expect(parentRow.locator('.docs-tree-chevron')).toHaveAttribute('aria-expanded', 'true');
+  const [px, cx] = await Promise.all([
+    parentRow.locator('.docs-tree-icon').boundingBox(),
+    active.locator('.docs-tree-icon').boundingBox(),
+  ]);
+  expect(cx!.x - px!.x).toBeGreaterThanOrEqual(12);
+  // "+" crea una subpágina al pasar el mouse.
+  await active.hover();
+  await expect(active.locator('.docs-tree-add')).toBeVisible();
   // El sidebar del shell ya tiene Nuevo y Papelera: el árbol no los repite al pie.
   await expect(page.locator('.docs-sidebar-foot')).toHaveCount(0);
 });
@@ -78,7 +90,7 @@ test('Docs: una página nueva no trae ícono y se le puede agregar uno', async (
     .toBeTruthy();
 });
 
-test('Centro de ayuda: colecciones como línea, artículo con feedback y búsqueda vacía', async ({ request, page }) => {
+test('Centro de ayuda: colecciones en lista, artículo con feedback y búsqueda vacía', async ({ request, page }) => {
   const tag = uid();
   const coll = await createPage(request, { title: `Guías ${tag}` });
   const art = await createPage(request, { title: `Primer paso ${tag}`, parent_id: coll.id });
@@ -95,8 +107,9 @@ test('Centro de ayuda: colecciones como línea, artículo con feedback y búsque
   const helpHref = publicHref!.replace(/\/[^/]+$/, '');
 
   await page.goto(helpHref!, { waitUntil: 'networkidle' });
-  const stop = page.locator('.help-stop', { hasText: `Guías ${tag}` });
-  await expect(stop.locator('.help-station')).toBeVisible();
+  const stop = page.locator('.help-collection', { hasText: `Guías ${tag}` });
+  await expect(stop).toBeVisible();
+  await expect(page.locator('.help-station')).toHaveCount(0);
   await stop.getByRole('link', { name: `Primer paso ${tag}` }).click();
   await expect(page.getByRole('heading', { level: 1, name: `Primer paso ${tag}` })).toBeVisible();
   await expect(page.getByText('Was this article helpful?')).toBeVisible();

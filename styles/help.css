@@ -2,7 +2,8 @@
    Centro de ayuda público (/h/<handle>) y prosa de solo lectura (.dbv).
    La marca es la del workspace: su color (--help-accent, que llega ya
    separado en trazo, texto AA y texto sobre relleno; lib/docs-accent.ts)
-   dibuja su línea, y las colecciones son estaciones sobre ella.
+   marca el nombre del workspace y los links; las colecciones son una
+   lista simple.
    ============================================================ */
 
 .help {
@@ -20,7 +21,7 @@
   margin-inline: auto;
 }
 
-/* ---------- Cabecera: el workspace como estación ---------- */
+/* ---------- Cabecera: el nombre del workspace ---------- */
 
 .help-head { border-bottom: 1px solid var(--line); background: var(--bg); }
 .help-head-inner {
@@ -109,32 +110,12 @@
   line-height: 1.1;
 }
 
-/* Colecciones: una línea vertical en el color del workspace, una estación por colección. */
-.help-line { position: relative; margin: 0; padding: 0; list-style: none; }
-.help-line::before {
-  content: '';
-  position: absolute;
-  top: 14px;
-  bottom: 14px;
-  left: 8px;
-  width: 8px;
-  border-radius: 4px;
-  background: var(--help-accent);
-}
-.help-line:has(> .help-stop:only-child)::before { display: none; }
-.help-stop { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 28px; padding-bottom: 48px; }
-.help-stop:last-child { padding-bottom: 0; }
-.help-station {
-  position: relative;
-  z-index: 1;
-  width: 24px;
-  height: 24px;
-  margin-top: 4px;
-  border: 5.3px solid var(--ink);
-  border-radius: 50%;
-  background: var(--bg);
-}
-.help-stop-body { min-width: 0; }
+/* Colecciones: una lista plana separada por filetes. */
+.help-collections { margin: 0; padding: 0; list-style: none; }
+.help-collection { padding: 32px 0; border-top: 1px solid var(--line); }
+.help-collection:first-child { padding-top: 0; border-top: 0; }
+.help-collection:last-child { padding-bottom: 0; }
+.help-collection-body { min-width: 0; }
 .help-collection-title {
   margin: 0;
   font-family: var(--font-signage);
@@ -236,12 +217,11 @@
 .help-feedback-btn { --btn-h: 44px; min-width: 72px; }
 @media (max-width: 899px) { .help-feedback-btn { --btn-h: 40px; } }
 
-/* Portada de colección: sus artículos como estaciones bajo la intro. */
-.help-line-children { margin-top: 48px; padding-top: 32px; border-top: var(--stroke-rule) solid var(--ink); }
-.help-line-children::before { top: 46px; }
-.help-line-children .help-collection-title { font-size: 1.5rem; }
-.help-line-children .help-stop { padding-bottom: 36px; }
-.help-line-children .help-stop:last-child { padding-bottom: 0; }
+/* Portada de colección: la lista de sus artículos bajo la intro. */
+.help-collections-children { margin-top: 48px; padding-top: 32px; border-top: var(--stroke-rule) solid var(--ink); }
+.help-collections-children .help-collection-title { font-size: 1.5rem; }
+.help-collections-children .help-collection { padding: 24px 0; }
+.help-collections-children .help-collection:first-child { padding-top: 0; }
 .help-feedback-error { flex-basis: 100%; margin: 0; }
 
 .help-pager { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
@@ -282,7 +262,7 @@
   .help-search-btn { flex: 1; }
   .help-hero .help-search-icon { bottom: auto; height: 48px; }
   .help-body-wrap { padding: 40px 0 64px; }
-  .help-stop { gap: 16px; padding-bottom: 36px; }
+  .help-collection { padding: 24px 0; }
   .help-collection-title { font-size: 1.5rem; }
   .help-collection-list { grid-template-columns: minmax(0, 1fr); }
   .help-pager { grid-template-columns: minmax(0, 1fr); }

@@ -931,7 +931,7 @@ export default function AgentEditor(props: Props) {
               {AGENT_TOOL_GROUP_ORDER.map((g) => (
                 <section key={g.key} className="ag-tool-group" aria-labelledby={`ag-group-${g.key}`}>
                   <h2 className="ag-tool-group-title" id={`ag-group-${g.key}`}>
-                    <ProductGlyph product={g.product} size={12} onLine />
+                    <ProductGlyph product={g.product} size={12} />
                     {PRODUCT_CONFIG[g.product].name}
                   </h2>
                   <ul className="ag-tool-list">{agentToolsInGroup(g.key).map(renderTool)}</ul>

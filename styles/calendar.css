@@ -4,7 +4,7 @@
       Acá solo va lo propio de Cal (filas de eventos, semana, stepper,
       reservas por día); botones, campos, tabs y secciones son de ui.css.
    2. Las páginas públicas (/book, /r): son del cliente del usuario, con
-      SU color de marca (--bk) y su logo. Sin señalética ni estaciones de
+      SU color de marca (--bk) y su logo. Sin la señalética de
       zerosoft: rellenos del color de marca con texto blanco o tinta según
       contraste (--bk-on, calculado en el componente).
    ============================================================ */
@@ -33,7 +33,7 @@
 }
 .cal-inline-link:hover { text-decoration-color: var(--ink); }
 
-/* Muestra del color de un tipo de evento: un cuadrado, nunca un círculo (el círculo es una estación). */
+/* Muestra del color de un tipo de evento: un cuadrado. */
 .cal-swatch {
   flex: 0 0 auto;
   width: 12px;
@@ -423,49 +423,48 @@
 .cal-bk-slots .btn { min-width: 72px; }
 .cal-slot-skeleton { width: 72px; height: 28px; }
 
-/* Routing: el editor es una línea con tres paradas. */
-.cal-stepper { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 720px; }
-.cal-stop {
-  position: relative;
+/* Routing: el editor tiene tres pasos numerados, como pestañas. */
+.cal-stepper { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 720px; border-bottom: 1px solid var(--line); }
+.cal-step {
   display: flex;
-  flex-direction: column;
   align-items: flex-start;
   gap: 10px;
-  padding: 0 12px 4px 0;
+  margin-bottom: -1px;
+  padding: 0 12px 12px 0;
   font: inherit;
   text-align: left;
   color: var(--brand-gray-2);
   background: none;
   border: 0;
+  border-bottom: 2px solid transparent;
   cursor: pointer;
 }
-/* El tramo de línea hasta la próxima parada. */
-.cal-stop:not(:last-child)::before {
-  content: '';
-  position: absolute;
-  top: 7px;
-  left: 10px;
-  right: -10px;
-  height: 6px;
-  background: var(--accent);
+.cal-step[aria-selected='true'] { border-bottom-color: var(--accent); }
+.cal-step-n {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--ui-field);
+  border-radius: var(--radius-1);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--dim);
+  transition: background-color var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
 }
-.cal-stop-station {
-  position: relative;
-  z-index: 1;
-  width: 20px;
-  height: 20px;
-  background: var(--bg);
-  border: 4.5px solid var(--ink);
-  border-radius: 50%;
-  transition: background-color var(--ui-dur) var(--ease);
-}
-.cal-stop[aria-selected='true'] .cal-stop-station { background: var(--accent); }
-.cal-stop-text { display: flex; flex-direction: column; gap: 2px; }
-.cal-stop-label { font-size: 0.9375rem; font-weight: 600; color: var(--ink); }
-.cal-stop[aria-selected='false'] .cal-stop-label { font-weight: 500; color: var(--brand-gray-1); }
-.cal-stop-hint { font-size: 0.8125rem; }
-.cal-stop:hover .cal-stop-label { text-decoration: underline; text-underline-offset: 3px; }
-.cal-stop:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.cal-step[data-done] .cal-step-n { border-color: var(--ink); color: var(--ink); }
+.cal-step[aria-selected='true'] .cal-step-n { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.cal-step-text { display: flex; flex-direction: column; gap: 2px; }
+.cal-step-label { font-size: 0.9375rem; font-weight: 600; color: var(--ink); }
+.cal-step[aria-selected='false'] .cal-step-label { font-weight: 500; color: var(--brand-gray-1); }
+.cal-step-hint { font-size: 0.8125rem; }
+.cal-step:hover .cal-step-label { text-decoration: underline; text-underline-offset: 3px; }
+.cal-step:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 .cal-route-panel { display: flex; flex-direction: column; gap: 16px; max-width: 880px; }
 .cal-route-panel[hidden] { display: none; }
 .cal-route-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
@@ -534,7 +533,7 @@
   .cal-bk-detail { grid-template-columns: 1fr; gap: 2px; }
   .cal-bk-detail dd { margin-bottom: 8px; }
   .cal-stepper { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .cal-stop-hint { display: none; }
+  .cal-step-hint { display: none; }
   .cal-code pre { padding-right: 14px; padding-top: 48px; }
 }
 
@@ -781,7 +780,7 @@ html:not(.zs-embed) body:has(.bk) { background: var(--brand-enamel); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bk-day, .bk-slot, .cal-row, .cal-sched-item, .cal-stop-station, .cal-bk-groups { transition: none; }
+  .bk-day, .bk-slot, .cal-row, .cal-sched-item, .cal-step-n, .cal-bk-groups { transition: none; }
 }
 
 /* Dentro del iframe del embed: sin alto mínimo (el alto lo maneja el host) ni márgenes extra. */

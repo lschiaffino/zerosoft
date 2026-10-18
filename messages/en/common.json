@@ -349,10 +349,6 @@
     "title": "Your apps",
     "lead": "The eleven apps in your workspace. Pick one to get started.",
     "apps": "Apps",
-    "subteTitle": "Your network",
-    "subteLead": "Each app is a line. Shared stations are the integrations that already work between them.",
-    "mapTitle": "Map of your apps",
-    "lines": "Lines",
     "open": "Open {name}",
     "linkSummary": "Link overview"
   },
@@ -402,7 +398,7 @@
     "measured": "Infrastructure costs measured on {date} and rounded to the cent."
   },
   "notFound": {
-    "sign": "End of the line",
+    "sign": "Error 404",
     "title": "This page does not exist.",
     "body": "The link may have a typo or the page moved. The home page takes you to all eleven apps.",
     "cta": "Go to the home page",

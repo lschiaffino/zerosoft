@@ -2,8 +2,8 @@
    AJUSTES GLOBALES: /app/settings (Cuenta, Workspace, Admin).
    Todo lo operable sale de ui.css (FormSection, AdvancedSection,
    DataTable, .btn, .input, .ui-check, .badge). Acá vive solo el layout
-   propio de Ajustes (prefijo st-) y sus dos firmas: el producto como un
-   tramo de su línea y el kanban del roadmap como columnas de andén.
+   propio de Ajustes (prefijo st-): el producto con su muestra de color
+   y el kanban del roadmap.
 
    1. Página y bloques
    2. Perfil y cifras
@@ -160,7 +160,7 @@
 .st-facts-row { grid-template-columns: repeat(auto-fit, minmax(160px, max-content)); gap: 16px 48px; }
 .st-figure { font-size: 1.5rem; line-height: 1.1; font-feature-settings: "zero" 1, "tnum" 1; }
 
-/* Cuota de IA: un tramo de la línea que se llena con el color de la línea activa. */
+/* Cuota de IA: una barra que se llena con el color de la app activa. */
 .st-meter-wrap { display: flex; align-items: center; gap: 12px; max-width: 560px; }
 .st-meter { flex: 1; height: 6px; background: var(--brand-enamel); border-radius: var(--radius-1); overflow: hidden; }
 .st-meter > span { display: block; height: 100%; background: var(--accent); }
@@ -248,9 +248,9 @@
 .btn-group > .btn[aria-current='page'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); --btn-bg-hover: var(--ink); z-index: 1; }
 .btn-group > .btn[aria-current='page']:hover { color: var(--bg); }
 
-/* Producto: un tramo de su línea con extremos redondos, como en el plano. */
+/* Producto: una muestra cuadrada de su color y el nombre. */
 .st-product { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--ink); white-space: nowrap; }
-.st-product i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; background: var(--line); }
+.st-product i { display: inline-block; width: 8px; height: 8px; border-radius: var(--radius-1); background: var(--line); }
 
 /* Feedback: lista densa, una fila por mensaje. */
 .st-fb-list { list-style: none; border: 1px solid var(--line); border-radius: var(--radius-1); }
@@ -278,7 +278,7 @@
 .st-fb-promote .select { width: auto; flex: 0 1 280px; min-width: 0; max-width: 100%; }
 .st-fb-status { display: flex; gap: 6px; }
 
-/* Roadmap: kanban de andenes. Columnas sobre esmalte, cabecera con filete de tinta. */
+/* Roadmap: kanban. Columnas sobre esmalte, cabecera con filete de tinta. */
 .st-kb-bar { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
 .st-kb-bar .st-kb-new { flex: 1 1 480px; }
 .st-kb-new .st-kb-status { width: auto; min-width: 160px; }

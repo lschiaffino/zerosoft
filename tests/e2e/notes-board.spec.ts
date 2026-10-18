@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Notes y Board en la red de subte: teclado, estados vacíos, bookmarklet y
+ * Notes y Board: teclado, estados vacíos, bookmarklet y
  * el menú de las pizarras. Corre en DEMO_MODE con una base nueva.
  */
 

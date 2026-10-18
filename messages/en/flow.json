@@ -7,7 +7,7 @@
     "emptyTitle": "No flows yet",
     "title": "Your flows",
     "new": "Create flow",
-    "emptyHint": "A flow is a line: one trigger and the steps after it. Start from scratch or from a template.",
+    "emptyHint": "A flow starts with a trigger and runs the steps after it. Start from scratch or from a template.",
     "name": "Name",
     "trigger": "Trigger",
     "lastRun": "Last run",

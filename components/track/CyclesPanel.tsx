@@ -98,7 +98,6 @@ export default function CyclesPanel({ projectId, cycles, today, onChanged }: Cyc
             return (
               <li key={c.id} className={`track-cycle is-${st}`} data-testid="track-cycle">
                 <div className="track-cycle-head">
-                  {st === 'active' && <span className="track-cycle-station" aria-hidden />}
                   <span className="track-cycle-name">{c.name}</span>
                   <span className="track-cycle-state">{t(`cycles.state.${st}`)}</span>
                   <span className="track-cycle-dates">{range(c)}</span>

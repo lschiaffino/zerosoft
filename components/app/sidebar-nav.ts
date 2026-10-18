@@ -112,7 +112,7 @@ export interface NavItem {
   icon: IconName;
   badge?: number;
   /**
-   * La estación tiene un ramal: el producto monta ahí su propio árbol (Docs
+   * El ítem tiene un hueco debajo: el producto monta ahí su propio árbol (Docs
    * cuelga sus páginas de "Páginas"). El shell deja el hueco #side-branch.
    */
   branch?: boolean;

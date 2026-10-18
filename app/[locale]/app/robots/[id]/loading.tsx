@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 
-/** Carga del editor: cabecera, pestañas y la línea de pasos. */
+/** Carga del editor: cabecera, pestañas y la lista de pasos. */
 export default async function RobotLoading() {
   const t = await getTranslations('robots');
   return (

@@ -29,7 +29,7 @@ export default async function PublicAgentPage(props: Props) {
       <header className="ag-public-head">
         <h1 className="ag-public-title">{agent.name}</h1>
         <p className="ui-help ag-public-sub">
-          <ProductGlyph product="agents" size={12} onLine />
+          <ProductGlyph product="agents" size={12} />
           {t('public.subtitle')}
         </p>
       </header>

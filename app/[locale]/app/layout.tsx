@@ -24,7 +24,6 @@ import '@/styles/agents.css';
 import '@/styles/robots.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
-import '@/styles/network.css';
 
 export const dynamic = 'force-dynamic';
 

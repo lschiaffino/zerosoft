@@ -152,7 +152,7 @@ describe('base compartida del rediseño', () => {
       for (const key of ['advanced', 'save', 'saving', 'saved', 'saveError', 'back', 'sections']) {
         expect(common.ui[key], `${locale}: ui.${key}`).toBeTruthy();
       }
-      for (const key of ['title', 'lead', 'mapTitle', 'lines', 'open', 'linkSummary']) {
+      for (const key of ['title', 'lead', 'apps', 'open', 'linkSummary']) {
         expect(common.appHome[key], `${locale}: appHome.${key}`).toBeTruthy();
       }
     }

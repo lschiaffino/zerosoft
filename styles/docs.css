@@ -1,10 +1,9 @@
 /* ============================================================
    DOCS: árbol de páginas, editor de bloques, compartir y paneles.
-   Red de subte en modo Operate: el árbol es un ramal de la línea de
-   Docs (--accent, que inyecta el shell), cada página una estación; la
-   lectura usa Archivo a medida de lectura y los títulos en señalética.
+   El árbol sigue el sidebar de Notion: filas planas con flecha, ícono y
+   título, sangría por nivel y la página abierta con un fondo suave.
    Controles: los de styles/ui.css (.btn, .input, .ui-switch, dialog.ui-modal).
-   Sin sombras, sin pastillas, esquinas de 2px; el círculo es solo una estación.
+   Sin sombras, sin pastillas, esquinas chicas (--radius-1).
    ============================================================ */
 
 /* ---------- 1. Layout: árbol + página (+ panel) ---------- */
@@ -19,9 +18,9 @@
 
 .docs-main { min-width: 0; }
 
-/* ≥1024px con el sidebar del shell abierto, el árbol vive ahí (ramal de
+/* ≥1024px con el sidebar del shell abierto, el árbol vive ahí (bajo
    "Páginas"): una sola columna a la izquierda y el editor con todo el ancho.
-   Colapsado (solo estaciones) vuelve la columna propia. */
+   Colapsado (solo íconos) vuelve la columna propia. */
 @media (min-width: 1024px) {
   .app-frame:not(.sidebar-collapsed) .docs-layout { grid-template-columns: minmax(0, 1fr); }
   .app-frame:not(.sidebar-collapsed) .docs-layout > .docs-sidebar { display: none; }
@@ -45,7 +44,7 @@
   --docs-link: var(--accent-ink, var(--c-docs-ink));
 }
 
-/* ---------- 2. Árbol (ramal de la línea) ---------- */
+/* ---------- 2. Árbol de páginas ---------- */
 
 .docs-sidebar {
   position: sticky;
@@ -111,70 +110,41 @@
   padding: 0;
   list-style: none;
 }
-.docs-tree { --row-h: 30px; position: relative; }
-.docs-tree li { position: relative; }
+.docs-tree { --row-h: 28px; --indent: 14px; }
 
-/* Diagrama de líneas. El tronco (la línea de Docs) pasa por x = 20, el mismo
-   eje que el trazo del sidebar del shell; la estación de nivel d tiene el
-   centro en x = 36 + d·16. Cada página baja de la estación de su madre
-   (vertical en x = 20 + d·16) y entra a la suya con un codo recto. */
-.docs-tree li::before,
-.docs-tree li::after {
-  content: '';
-  position: absolute;
-  z-index: 1;
-  background: var(--accent);
-  pointer-events: none;
-}
-.docs-tree li::before {
-  top: 0;
-  bottom: 0;
-  left: calc(var(--d, 0) * 16px + 18px);
-  width: 4px;
-}
-.docs-tree ul > li:first-child::before { top: calc(var(--row-h) / -2); }
-.docs-tree li:last-child::before { bottom: auto; height: calc(var(--row-h) / 2 + 2px); }
-.docs-tree ul > li:first-child:last-child::before { height: calc(var(--row-h) + 2px); }
-.docs-tree li::after {
-  top: calc(var(--row-h) / 2 - 2px);
-  left: calc(var(--d, 0) * 16px + 18px);
-  width: 14px;
-  height: 4px;
-}
-/* El tronco va al grosor de la línea (6px) y nace en la primera estación. */
-.docs-tree > li::before { left: 17px; width: 6px; }
-.docs-tree > li:first-child::before { top: calc(var(--row-h) / 2); }
-.docs-tree > li:first-child:last-child::before { display: none; }
-
+/* Filas como el sidebar de Notion: flecha, ícono, título; sangría por nivel
+   y ninguna línea que una a las páginas. */
 .docs-tree-row {
   position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
   height: var(--row-h);
-  margin-left: 26px;
-  padding: 0 2px 0 calc(var(--d, 0) * 16px + 4px);
+  padding: 0 2px 0 calc(var(--d, 0) * var(--indent) + 4px);
   border-radius: var(--radius-1);
-  color: var(--brand-gray-1);
+  color: var(--dim);
   transition: background-color var(--ui-dur) var(--ease);
 }
-.docs-tree-row:hover { background: var(--brand-enamel); }
-.docs-tree-row.active { background: var(--brand-enamel); color: var(--ink); }
+.docs-tree-row:hover { background: var(--ui-hover); color: var(--ink); }
+.docs-tree-row.active { background: var(--ui-hover); color: var(--ink); }
 .docs-tree-row.dragging { opacity: 0.4; }
 
-/* Plegar/desplegar: al final de la fila, fuera del trazo. */
+/* Plegar/desplegar: antes del ícono. Las hojas dejan el mismo hueco. */
+.docs-tree-chevron,
+.docs-tree-chevron-spacer {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
 .docs-tree-chevron {
-  flex: 0 0 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-1);
   background: none;
-  color: var(--brand-gray-2);
+  color: var(--dim);
   cursor: pointer;
 }
 .docs-tree-chevron:hover { color: var(--ink); background: var(--ui-press); }
@@ -182,19 +152,18 @@
 .docs-tree-chevron svg { transition: transform var(--ui-dur) var(--ease); }
 .docs-tree-chevron.open svg { transform: rotate(90deg); }
 
-/* La estación: disco blanco, anillo de tinta; la página abierta se rellena. */
-.docs-tree-station {
-  position: relative;
-  z-index: 2;
-  flex: 0 0 12px;
-  width: 12px;
-  height: 12px;
-  border: 2.6px solid var(--ink);
-  border-radius: 50%;
-  background: var(--bg);
-  transition: background-color var(--ui-dur) var(--ease);
+/* El ícono de la página (emoji) o un documento genérico. */
+.docs-tree-icon {
+  flex: 0 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 0.9375rem;
+  line-height: 1;
+  color: var(--dim);
 }
-.docs-tree-row.active .docs-tree-station { background: var(--accent); }
 
 .docs-tree-link {
   flex: 1;
@@ -202,7 +171,8 @@
   display: flex;
   align-items: center;
   align-self: stretch;
-  padding: 0 6px;
+  gap: 6px;
+  padding: 0 4px;
   font-size: 0.875rem;
   font-weight: 500;
   color: inherit;
@@ -210,6 +180,7 @@
   border-radius: var(--radius-1);
 }
 .docs-tree-row.active .docs-tree-link { font-weight: 600; }
+.docs-tree-row.active .docs-tree-icon { color: var(--ink); }
 .docs-tree-link:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .docs-tree-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -251,7 +222,7 @@
 .docs-tree-row.drop.drop-after::after {
   content: '';
   position: absolute;
-  left: calc(var(--d, 0) * 16px + 4px);
+  left: calc(var(--d, 0) * var(--indent) + 4px);
   right: 4px;
   height: 2px;
   background: var(--ink);
@@ -260,18 +231,12 @@
 .docs-tree-row.drop.drop-before::after { top: -1px; }
 .docs-tree-row.drop.drop-after::after { bottom: -1px; }
 
-/* Ramal dentro del sidebar del shell (≥1024px): el eje x = 20 coincide con
-   el trazo del shell, así que el tronco del árbol queda bajo la línea. */
+/* Dentro del sidebar del shell (≥1024px): alineado con los ítems del shell. */
 .side-branch:empty { display: none; }
-.docs-branch { padding: 2px 0 6px; }
-.docs-branch .docs-tree { --row-h: 30px; }
-.docs-branch .docs-tree-row:hover { background: var(--ui-hover); }
-.docs-branch .docs-tree-row.active { background: var(--bg); }
-.docs-branch .docs-sidebar-empty { padding: 4px 8px 8px 40px; }
-.docs-branch .docs-shared { margin: 12px 0 0 26px; }
+.docs-branch { padding: 2px 0 6px 8px; }
+.docs-branch .docs-sidebar-empty { padding: 4px 8px 8px 12px; }
+.docs-branch .docs-shared { margin: 12px 0 0; }
 .docs-branch .docs-shared-row:hover { background: var(--ui-hover); }
-.docs-branch .docs-shared-row.active { background: var(--bg); }
-.docs-branch .docs-tree-drop-root { margin-left: 26px; }
 .sidebar-collapsed .side-branch { display: none; }
 
 .docs-tree-drop-root {
@@ -627,7 +592,7 @@
 .docs-block-heading:has(.docs-h3) { padding-top: 14px; }
 .docs-blocks > .docs-block-outer:first-child .docs-block-heading { padding-top: 6px; }
 
-/* Listas: viñeta cuadrada (el círculo es de las estaciones). */
+/* Listas: viñeta cuadrada. */
 .docs-bulleted_list_item,
 .docs-numbered_list_item { position: relative; padding-left: 26px; }
 .docs-bulleted_list_item::before {
@@ -715,7 +680,7 @@
   font-feature-settings: "zero" 1;
 }
 
-/* Selección y caret con la tinta de la línea. */
+/* Selección y caret con la tinta de Docs. */
 .docs-editor ::selection,
 .docs-prose ::selection { background: color-mix(in srgb, var(--accent) 26%, white); color: var(--ink); }
 
@@ -1019,7 +984,7 @@
 /* Menciones [[página]] y @persona. */
 .docs-mention-popover { position: fixed; display: flex; flex-direction: column; width: 280px; max-height: 300px; overflow-y: auto; }
 .docs-mention-icon { flex-shrink: 0; font-size: 0.875rem; }
-.docs-mention-station { flex: 0 0 10px; width: 10px; height: 10px; border: 2.2px solid var(--ink); border-radius: 50%; background: var(--bg); }
+.docs-mention-page { display: inline-flex; flex: 0 0 16px; color: var(--dim); }
 .docs-mention-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .docs-mention-avatar,
 .docs-comment-avatar {
@@ -1258,7 +1223,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-public-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .docs-share .ui-disclosure { margin-top: 4px; }
 
-/* "Publicada": estado en texto plano con una estación rellena, no una etiqueta. */
+/* "Publicada": estado en texto plano con un punto, no una etiqueta. */
 .docs-published {
   display: inline-flex;
   align-items: center;
@@ -1268,11 +1233,10 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   color: var(--brand-gray-1);
   white-space: nowrap;
 }
-.docs-published-station {
-  flex: 0 0 10px;
-  width: 10px;
-  height: 10px;
-  border: 2.2px solid var(--ink);
+.docs-published-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--accent);
 }
@@ -1343,7 +1307,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-sidebar.mobile-open .docs-sidebar-toggle svg { transform: rotate(180deg); }
   .docs-sidebar:not(.mobile-open) .docs-sidebar-body { display: none; }
   .docs-sidebar-body { max-height: 60dvh; padding-top: 0; border-top: 1px solid var(--line); }
-  .docs-tree { --row-h: 36px; }
+  .docs-tree { --row-h: 36px; --indent: 16px; }
   .docs-landing .ui-page-actions .kbd { display: none; }
 
   .docs-editor-wrap.has-side { grid-template-columns: minmax(0, 1fr); }
@@ -1426,7 +1390,6 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 
 @media (prefers-reduced-motion: reduce) {
   .docs-tree-row,
-  .docs-tree-station,
   .docs-tree-chevron svg,
   .docs-template,
   .docs-toggle::after,

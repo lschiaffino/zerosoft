@@ -43,7 +43,7 @@ function brandSwitch(req: NextRequest): NextResponse | null {
   return res;
 }
 
-/** Rutas que fuerzan un tema (p. ej. /nuevo-branding/subte): lo pasan al layout por header. */
+/** Rutas que fuerzan un tema (p. ej. /brand): lo pasan al layout por header. */
 function withForcedBrand(req: NextRequest): NextRequest {
   const forced = forcedBrandForPath(req.nextUrl.pathname);
   if (!forced) {

@@ -16,7 +16,6 @@ import {
 import NotificationBell from './NotificationBell';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
-import { useBrand } from '@/components/brand/BrandProvider';
 import type { ProductKey } from '@/lib/products';
 
 export type { SidebarLabels };
@@ -27,7 +26,7 @@ interface SideUser {
   image: string | null;
 }
 
-/** Las once líneas en el orden del switcher. `line` es la clave de marca (Cal = cal). */
+/** Las once apps en el orden del switcher. `line` es la clave de color (Cal = cal). */
 const PRODUCTS: ReadonlyArray<{ key: AppProduct; line: ProductKey; name: string; href: string }> = [
   { key: 'link', line: 'link', name: 'Link', href: '/app' },
   { key: 'crm', line: 'crm', name: 'CRM', href: '/app/crm' },
@@ -93,12 +92,10 @@ function menuKeys(e: KeyboardEvent<HTMLElement>, close: () => void) {
 
 /**
  * Chrome de las apps: una banda arriba (marca, switcher de productos,
- * sección, búsqueda, avisos) y el sidebar del producto. En la marca default
- * la banda es blanca con un filete y cada ítem lleva su ícono; el activo se
- * marca con el color del producto. En el tema subte la banda es negra y el
- * sidebar es SU LÍNEA: un trazo vertical con cada ítem como una estación
- * (styles/themes/subte.css). Colapsado (≥1024px) quedan los íconos (o las
- * estaciones); en <1024px es un drawer.
+ * sección, búsqueda, avisos) y el sidebar del producto. La banda es blanca
+ * con un filete y cada ítem lleva su ícono; el activo se marca con el color
+ * del producto. Colapsado (≥1024px) quedan los íconos; en <1024px es un
+ * drawer.
  */
 export default function AppSidebar({
   labels,
@@ -117,7 +114,6 @@ export default function AppSidebar({
   crumb?: ReactNode;
 }) {
   const t = useTranslations('common.sidebar');
-  const brand = useBrand();
   const pathname = usePathname();
   const product = appProductFromPath(pathname);
   const current = PRODUCTS.find((p) => p.key === product) ?? PRODUCTS[0];
@@ -215,7 +211,7 @@ export default function AppSidebar({
 
   return (
     <>
-      {/* Color de la línea activa (SSR, sin parpadeo). */}
+      {/* Color de la app activa (SSR, sin parpadeo). */}
       <style>{`.app-frame{--accent:var(--c-${current.line});--accent-ink:var(--c-${current.line}-ink);--accent-on:var(--c-${current.line}-on)}`}</style>
 
       <header className="app-band">
@@ -248,7 +244,7 @@ export default function AppSidebar({
             aria-expanded={switcherOpen}
             aria-label={`${current.name}. ${t('switchProduct')}`}
           >
-            <ProductGlyph product={current.line} size={14} onLine className="band-product-glyph" />
+            <ProductGlyph product={current.line} size={14} className="band-product-glyph" />
             <span className="band-product-name">{current.name}</span>
             <Icon name="chevronDown" size={14} />
           </button>
@@ -268,7 +264,7 @@ export default function AppSidebar({
                   onClick={() => setSwitcherOpen(false)}
                   aria-current={p.key === product ? 'page' : undefined}
                 >
-                  <ProductGlyph product={p.line} size={14} onLine />
+                  <ProductGlyph product={p.line} size={14} />
                   <span>{p.name}</span>
                 </Link>
               ))}
@@ -345,17 +341,13 @@ export default function AppSidebar({
                     aria-current={item.active ? 'page' : undefined}
                     title={collapsed ? item.label : undefined}
                   >
-                    {brand === 'subte' ? (
-                      <span className="side-station" aria-hidden="true" />
-                    ) : (
-                      <span className="side-icon" aria-hidden="true">
-                        <Icon name={item.icon} size={15} />
-                      </span>
-                    )}
+                    <span className="side-icon" aria-hidden="true">
+                      <Icon name={item.icon} size={15} />
+                    </span>
                     <span className="side-label">{item.label}</span>
                     {item.badge ? <span className="side-badge data">{item.badge}</span> : null}
                   </Link>
-                  {/* Hueco del ramal: la página del producto lo llena con un portal. */}
+                  {/* Hueco bajo el ítem: la página del producto lo llena con un portal (el árbol de Docs). */}
                   {item.branch && <div id="side-branch" className="side-branch" />}
                 </Fragment>
               ))}

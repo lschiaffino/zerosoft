@@ -35,8 +35,8 @@ export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' 
 };
 
 /**
- * Orden de los grupos en la pestaña Herramientas y la línea de la suite que
- * cruza cada uno. `http` no está: vive en Avanzado.
+ * Orden de los grupos en la pestaña Herramientas y la app de la suite que
+ * toca cada uno. `http` no está: vive en Avanzado.
  */
 export const AGENT_TOOL_GROUP_ORDER = [
   { key: 'knowledge', product: 'docs' },

@@ -2,10 +2,9 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import SuiteGrid from '@/components/site/SuiteGrid';
 import SectionSign from '@/components/site/SectionSign';
-import SiteNetworkMap from '@/components/site/SiteNetworkMap';
 import HeroVisual from '@/components/site/HeroVisual';
 import CloudPricing from '@/components/site/CloudPricing';
-import EndLines from '@/components/site/EndLines';
+import ProductLinks from '@/components/site/ProductLinks';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -14,7 +13,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   return { title: t('meta.title'), description: t('meta.description') };
 }
 
-/** /products: el plano de la suite, las once líneas y los precios. */
+/** /products: el cero, las once apps y los precios. */
 export default async function ProductsPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   setRequestLocale(locale);
@@ -37,7 +36,7 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
             </Link>
           </div>
         </div>
-        <HeroVisual className="lp-hero-map" map={<SiteNetworkMap className="lp-hero-map" />} />
+        <HeroVisual className="lp-hero-map" />
       </section>
 
       <section className="lp-section" aria-labelledby="h-suite">
@@ -68,7 +67,7 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
               {t('cta.button')}
             </Link>
           </div>
-          <EndLines label={tc('header.products')} />
+          <ProductLinks label={tc('header.products')} />
         </div>
       </section>
     </main>

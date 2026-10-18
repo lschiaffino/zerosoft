@@ -17,7 +17,7 @@ function renderAction(action: Action, className: string) {
 }
 
 /**
- * Estado vacío: el glifo de la marca (el cero; en subte, un tramo de línea),
+ * Estado vacío: el glifo de la marca (el cero en el color del producto),
  * qué va acá y UNA acción primaria. `secondary` es el atajo o la importación
  * ("o importá un CSV"). El glifo toma el color del producto activo (--accent)
  * o el de `product`.
@@ -47,7 +47,7 @@ export default function EmptyState({
   quiet?: boolean;
   /**
    * Dentro de una sección que ya tiene su título: solo el texto y la acción,
-   * sin estación ni titular (si no, el vacío grita más que la sección).
+   * sin glifo ni titular (si no, el vacío grita más que la sección).
    */
   compact?: boolean;
   className?: string;

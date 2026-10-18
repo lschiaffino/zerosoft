@@ -53,12 +53,11 @@ export default function RecorderPage() {
         <h2 className="ui-section-title" id="recorder-how">
           {t('howTitle')}
         </h2>
-        <ol className="robots-line robots-howto">
+        <ol className="robots-steplist robots-howto">
           {(['step1', 'step2', 'step3', 'step4'] as const).map((k, i) => (
-            <li key={k} className="robots-stop">
-              <span className="robots-station" aria-hidden="true" />
-              <div className="robots-stop-head">
-                <span className="robots-stop-num data">{i + 1}</span>
+            <li key={k} className="robots-step">
+              <div className="robots-step-head">
+                <span className="robots-step-num data">{i + 1}</span>
                 <p className="robots-howto-text">{t(k)}</p>
               </div>
             </li>

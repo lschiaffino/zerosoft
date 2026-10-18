@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslations } from 'next-intl';
 import type { DocsPage } from '@/lib/docs-types';
+import DocsGlyph from './DocsGlyphs';
 
 interface MentionPopoverProps {
   query: string;
@@ -98,7 +99,9 @@ export default function MentionPopover({ query, style, onSelect, onClose }: Ment
             {page.icon ? (
               <span className="docs-mention-icon" aria-hidden="true">{page.icon}</span>
             ) : (
-              <span className="docs-mention-station" aria-hidden="true" />
+              <span className="docs-mention-page" aria-hidden="true">
+                <DocsGlyph name="page" size={16} />
+              </span>
             )}
             <span className="docs-mention-title">{page.title || t('untitled')}</span>
           </button>

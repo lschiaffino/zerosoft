@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * CRM admin en la red de subte: ajustes en pestañas, builder de formularios
+ * CRM admin: ajustes en pestañas, builder de formularios
  * con un solo Guardar, asistente de workflows con plantillas, horario de
  * secuencias resumido y remitente/destinatario colapsados en cotizaciones.
  */

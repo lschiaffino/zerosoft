@@ -8,9 +8,8 @@ import DataTable from '@/components/ui/DataTable';
 import EmptyState from '@/components/ui/EmptyState';
 import PageHeader from '@/components/ui/PageHeader';
 import type { FlowListItem } from '@/lib/flow';
-import { FLOW_TEMPLATES, triggerNode, type FlowNodeType } from '@/lib/flow-schema';
-import FlowLineGlyph from './FlowLineGlyph';
-import { i18nKey, interchangeLine, RUN_BADGE } from './flow-ui';
+import { FLOW_TEMPLATES, triggerNode } from '@/lib/flow-schema';
+import { i18nKey, RUN_BADGE } from './flow-ui';
 
 interface Props {
   flows: FlowListItem[];
@@ -80,9 +79,6 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
     return base;
   }
 
-  const stops = (nodes: Array<{ type: string; config?: Record<string, unknown> }>) =>
-    nodes.map((n) => interchangeLine(n.type as FlowNodeType, n.config ?? {}));
-
   const createButton = canEdit ? (
     <button
       type="button"
@@ -131,7 +127,6 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
               header: t('list.name'),
               cell: (f) => (
                 <span className="flow-name-cell">
-                  <FlowLineGlyph stops={stops(f.graph.nodes)} />
                   <span className="flow-ellipsis">{f.name}</span>
                 </span>
               ),
@@ -184,7 +179,6 @@ export default function FlowsHome({ flows: initial, canEdit }: Props) {
         <ul className="flow-templates">
           {FLOW_TEMPLATES.map((tpl) => (
             <li className="flow-template" key={tpl.key}>
-              <FlowLineGlyph stops={stops(tpl.graph.nodes)} />
               <div className="flow-template-text">
                 <h3 className="flow-template-name">{t(`templates.items.${tpl.key}.name`)}</h3>
                 <p className="flow-template-desc">{t(`templates.items.${tpl.key}.desc`)}</p>

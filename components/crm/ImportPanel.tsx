@@ -200,12 +200,12 @@ export default function ImportPanel() {
   return (
     <div className="imp">
       {/* Stepper */}
-      {/* Los tres pasos son estaciones sobre una línea, como el asistente de workflows. */}
+      {/* Pasos numerados, como el asistente de workflows. */}
       <ol className="wf-steps imp-steps" aria-label={t('importP.stepsLabel')}>
         {[t('importP.stepUpload'), t('importP.stepMap'), t('importP.stepResult')].map((label, i) => (
           <li key={label} className="wf-steps-item" data-state={i + 1 < step ? 'done' : i + 1 === step ? 'current' : 'next'}>
             <span className="wf-steps-btn" aria-current={i + 1 === step ? 'step' : undefined}>
-              <span className="wf-steps-station" aria-hidden="true" />
+              <span className="wf-steps-n" aria-hidden="true">{i + 1}</span>
               <span>{label}</span>
             </span>
           </li>

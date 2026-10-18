@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
+import Icon from '@/components/app/icons';
 import type { FlowRunDto, FlowStepDto } from '@/lib/flow';
 import { i18nKey, formatDuration, pretty, RUN_BADGE, stepErrorInfo } from './flow-ui';
 
@@ -235,7 +236,9 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
                 return (
                   <li key={s.id} className="flow-step" data-status={s.status}>
                     <button type="button" className="flow-step-head" onClick={() => setOpenStep(open ? null : s.id)} aria-expanded={open}>
-                      <span className="flow-step-station" aria-hidden="true" />
+                      <span className="flow-step-chevron" aria-hidden="true">
+                        <Icon name="chevronRight" size={12} />
+                      </span>
                       <span className="flow-step-name">
                         {t(`nodes.${i18nKey(s.nodeType)}.title`)} <span className="flow-muted data">{s.nodeId}</span>
                       </span>
