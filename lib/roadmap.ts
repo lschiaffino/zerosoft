@@ -337,6 +337,16 @@ export async function getRoadmapItem(id: string): Promise<RoadmapItemRow | undef
   return (await getDb().prepare('SELECT * FROM roadmap_items WHERE id = ?').get(id)) as RoadmapItemRow | undefined;
 }
 
+/** Ítem con el mismo título, sin importar mayúsculas, acentos ni espacios. */
+export async function findRoadmapItemByTitle(title: string): Promise<RoadmapItemRow | undefined> {
+  const fold = (s: string) =>
+    s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const target = fold(title);
+  if (!target) return undefined;
+  const rows = (await getDb().prepare('SELECT * FROM roadmap_items').all()) as RoadmapItemRow[];
+  return rows.find((r) => fold(r.title) === target);
+}
+
 export async function listRoadmapItemsAdmin(status?: RoadmapItemStatus): Promise<RoadmapItemWithSignals[]> {
   const db = getDb();
   const items = (status
