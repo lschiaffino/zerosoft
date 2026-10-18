@@ -24,7 +24,7 @@ Casi nadie pregunta antes de contratar un SaaS cómo se va a ir. El botón de ex
 - **Cal**: tipos de evento y reservas por API.
 - **Self-host**: la base de datos completa es un archivo SQLite. Lo copiás y tenés todo.
 
-Lo que todavía no pasa el test: Docs no exporta a Markdown ni PDF (solo copiar el contenido de una página), y Track no tiene API pública. Están en la lista.
+Lo que todavía no pasa el test: Docs exporta cada página a Markdown o PDF, pero no todo el espacio de una vez, y Track no tiene API pública. Están en la lista.
 
 ## Lo que pasa afuera
 

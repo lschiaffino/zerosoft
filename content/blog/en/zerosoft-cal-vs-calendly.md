@@ -10,7 +10,7 @@ Comparison posts written by vendors are usually useless: a feature table where e
 
 ## The short version
 
-- **Stay on Calendly** if you live in Outlook / Microsoft 365, need to charge for meetings, need native Salesforce-style integrations, mobile apps, or enterprise controls like SSO and audit logs.
+- **Stay on Calendly** if you live in Outlook / Microsoft 365, need native Salesforce-style integrations, mobile apps, or enterprise controls like SSO and audit logs.
 - **Look at Cal** if you're on Google Workspace, you're paying per seat for several people who mostly need "a booking link that works", you want an API and webhooks without an enterprise contract, or you want to self-host and own your scheduling data.
 
 The rest of this post is the detail behind those two lines.
@@ -23,13 +23,11 @@ Let's start here, because it's the part vendor comparisons skip.
 
 **Video conferencing.** Calendly generates Zoom, Teams, Webex and Meet links. Cal creates **Google Meet** links through Google Calendar. For anything else, you put a fixed link in the event location.
 
-**Payments.** Calendly can collect payment at booking time. Cal has **no payments**. If you're a coach, consultant or tutor who charges per session, that alone settles it.
-
 **Integrations ecosystem.** Calendly has native integrations with major CRMs, marketing tools and an app marketplace, plus browser extensions. Cal has `booking.created`, `booking.rescheduled` and `booking.cancelled` webhooks, a REST API, and native ties to zerosoft CRM. Anything else, you build or wire up yourself.
 
 **Mobile apps.** Calendly has iOS and Android apps. Cal doesn't. The booking page and the dashboard work in a mobile browser, but there's no native app.
 
-**Workflows and reminders.** Calendly lets you build reminder and follow-up sequences, including SMS on paid plans. Cal sends a confirmation, a reschedule/cancel email and **one** reminder 24 hours before. No SMS, no custom schedules, no follow-ups.
+**Workflows and reminders.** Calendly lets you build reminder and follow-up sequences, including SMS on paid plans. Cal sends the confirmation and the reschedule/cancel emails, and each event type can add up to 10 workflow steps: an email to the invitee or the host, before or after the meeting, with its own subject and body. They're email only, no SMS. On zerosoft Cloud the steps go out from a cron that runs once an hour, so they can arrive up to an hour late.
 
 **Meeting types.** Calendly supports collective events (several hosts on the same call), group events (many invitees in one slot) and meeting polls. Cal supports one-on-one events, optionally with a [round-robin](/blog/round-robin-con-cal) host pool. No collective, group or poll events yet.
 
@@ -41,7 +39,7 @@ Let's start here, because it's the part vendor comparisons skip.
 
 None of the following is unique in the world. It's what you get, for free, with source code.
 
-**The core is solid.** Event types with custom questions, weekly availability per event type, buffers, minimum notice, booking window, blocked slots, single-use links, and per-event branding (color, logo, welcome message). That covers what most people actually use a scheduling tool for. We wrote a whole guide on [using those rules well](/blog/buffers-aviso-minimo-y-ventana).
+**The core is solid.** Event types with custom questions, reusable schedules with date overrides, buffers, minimum notice, booking window, blocked slots, single-use links, per-event branding (color, logo, welcome message), and payment at booking through your own Stripe account, refunded automatically if the booking is cancelled. That covers what most people actually use a scheduling tool for. We wrote a whole guide on [using those rules well](/blog/buffers-aviso-minimo-y-ventana).
 
 **Team scheduling without the per-seat math.** Round-robin pools of up to 50 hosts and routing forms are included. There's no "upgrade to Teams" step.
 
@@ -68,7 +66,6 @@ The honest framing: if Cal is missing something you need, the price difference d
 ## Who should stay on Calendly
 
 - Teams on **Outlook / Microsoft 365**, Exchange or iCloud.
-- Anyone who needs **payment at booking**.
 - Sales teams that depend on **native CRM routing and sync** with Salesforce or HubSpot.
 - People who manage their schedule from a **mobile app**.
 - Companies that need **SSO, SCIM, audit logs** and a vendor security review today.

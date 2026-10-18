@@ -17,19 +17,19 @@ So this post is a map: where Notion is clearly ahead, what Docs actually does, a
 
 ## Where Notion is clearly ahead
 
-**Realtime co-editing.** In Notion, several people can type on the same page at once and see each other's cursors. Docs saves automatically, but it doesn't merge simultaneous edits: if two people edit the same page at the same time, the last save wins. For a wiki with page owners that's manageable. For a team that writes together live, it's a dealbreaker.
+**Realtime co-editing.** In Notion, several people can type on the same page at once and see each other's cursors. Docs saves automatically, but it doesn't merge simultaneous edits: if two people edit the same page at the same time, the second one to save gets a warning and chooses between loading the new version or overwriting it. For a wiki with page owners that's manageable. For a team that writes together live, it's a dealbreaker.
 
 **Databases.** This is Notion's superpower. Relations between databases, rollups, formulas, many property types, and views like board, calendar and timeline over the same data. Docs has a **database block**: a small table with typed columns (text, number, select, date) that you can view as a table or a gallery. Useful for a list of tools or a reading list. It's not a replacement for a Notion database that runs half your operations.
 
 **AI.** Notion has AI built in for writing, summarizing and answering questions across your workspace. Docs has no AI features.
 
-**Import and export.** Notion imports from many tools and file formats, and exports to Markdown, HTML and PDF. Docs has no Notion import, and no JSON or Markdown export yet; the closest thing is "Copy page contents", which copies the page as plain text. If you self-host, your pages live in your own database, but a proper export is still on us to build.
+**Import and export.** Notion imports from many tools and file formats, and exports to Markdown, HTML and PDF. Docs exports each page to Markdown, and to PDF through the print dialog, one page at a time: there's no export of the whole space. There's no Notion import either.
 
 **Search.** Notion searches across the content of every page. Docs searches page titles. It's what powers `[[` links, and doesn't search inside page bodies.
 
 **Integrations and API.** Notion has a public API and a large ecosystem of integrations and automations. Docs has neither yet.
 
-**Apps, offline and polish.** Native desktop and mobile apps, page history, public pages you can publish as a site, synced blocks, years of refinement. Docs runs in the browser, and that's it.
+**Apps, offline and polish.** Native desktop and mobile apps, published sites on your own domain, synced blocks, years of refinement. Docs runs in the browser, and that's it.
 
 **Enterprise.** SSO, audit logs, granular permissions. Our enterprise pieces (SSO/SAML, audit logs, custom roles) are in development in `/ee`, not shipped.
 
@@ -45,7 +45,11 @@ So this post is a map: where Notion is clearly ahead, what Docs actually does, a
 
 **Comments.** On the whole page or on a specific block, with resolve and reopen.
 
-**Sharing and trash.** A share panel with public, team and single-user options; a trash where pages can be restored or deleted for good.
+**Sharing and trash.** A share panel for anyone with the link, a team or one person, with view or edit access; people with view access open the page read-only. A trash where pages can be restored or deleted for good.
+
+**Version history.** Docs saves an automatic version at most every 5 minutes while you edit, plus the ones you save by hand, up to 50 per page. Restoring a version first saves the current one, so nothing is lost.
+
+**Help center.** The pages you publish become a public [help center](/blog/centro-de-ayuda-con-docs) at `/h/<your-handle>`, with collections, search and a "Was this helpful?" vote per article. It isn't a site with its own domain and design like one published from Notion.
 
 We wrote a [step-by-step guide to building an internal wiki with Docs](/blog/wiki-interna-con-docs) if you want to see these pieces working together.
 
@@ -67,7 +71,7 @@ Stay if:
 - You run real workflows on Notion databases: relations, rollups, formulas, board and calendar views.
 - You use Notion AI daily.
 - You need full-text search across a big workspace.
-- You depend on integrations, the API, or publishing public pages.
+- You depend on integrations, the API, or publishing a site on your own domain.
 - You need mobile or desktop apps, or offline access.
 - You have years of content in Notion. With no importer, moving it would be manual work.
 
@@ -82,4 +86,4 @@ For those teams, Docs would be a step down, and we'd rather you know that before
 
 ## The bottom line
 
-Notion is the broader, more capable product, and for many teams it's the right tool. Docs is a lean, open, self-hostable editor that does pages, links, templates and comments well enough to run a team wiki, and that you own. We'll keep closing the gaps; realtime co-editing and export are on our roadmap. Until they ship, we won't claim them.
+Notion is the broader, more capable product, and for many teams it's the right tool. Docs is a lean, open, self-hostable editor that does pages, links, templates and comments well enough to run a team wiki, and that you own. We'll keep closing the gaps; realtime co-editing is on our roadmap. Until it ships, we won't claim it.

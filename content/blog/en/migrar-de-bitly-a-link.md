@@ -37,7 +37,7 @@ Be clear-eyed about this before you start:
 - **Custom domains.** The domain itself has to be added and verified in Link separately (see below).
 - **Archived status.** Archived bitlinks come in as active links. Archive them again in Link if they should stay dead.
 - **Other groups.** The API route only reads the default group. If you use several Bitly groups, export each one to CSV.
-- **QR code designs, campaigns, and anything specific to Bitly's apps.** Link generates its own plain QR (SVG and PNG) for every link, pointing at the same short URL.
+- **QR code designs, campaigns, and anything specific to Bitly's apps.** Link generates its own QR (SVG and PNG) for every link, pointing at the same short URL. You pick the colors and logo again in Link.
 
 ## How back-halves are kept
 

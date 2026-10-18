@@ -22,11 +22,11 @@ Let's start with the uncomfortable part.
 
 **Mobile apps and browser extension.** Bitly has them. Link is a web app; it works fine on a phone browser, but there's no native app and no extension.
 
-**QR code design.** Bitly lets you customize QR codes with colors, logos and frames, and treats QR scans as a first-class thing. Link gives you a plain, high-contrast QR per link, in SVG and PNG. It scans great and costs nothing; it's not pretty.
+**QR code design.** Bitly lets you customize QR codes with colors, logos and frames. In Link you pick the colors (with a contrast check so it still scans), the dot shape and a logo in the center, and download it as SVG or PNG; scans are counted separately from clicks. There are no frames or design templates.
 
-**Mobile deep links.** Bitly offers ways to send people into a native app instead of a web page. Link redirects to URLs, period.
+**Mobile deep links.** Bitly offers ways to send people into a native app instead of a web page. So does Link: each link can carry an app URL for iOS and for Android, with a fallback if the app doesn't open, plus rules by country and device and weighted A/B destinations. What it doesn't do is open the right content in the app after it's installed (deferred deep linking).
 
-**Richer link-in-bio and campaign tooling.** Bitly's pages have more design options than our [bio page](/blog/pagina-link-in-bio), which is deliberately bare: title, bio, avatar, buttons. Bitly also groups links into campaigns with rollup reporting; Link has tags and per-link analytics, with no tag-level dashboard yet.
+**Richer link-in-bio and campaign tooling.** Bitly's pages have more design options than our [bio page](/blog/pagina-link-in-bio), which is deliberately bare: title, bio, avatar, buttons. Bitly also groups links into campaigns with rollup reporting; Link has tags, per-link analytics and a panel with clicks across the whole workspace, with no tag-level dashboard yet.
 
 **Enterprise.** SSO, granular permissions, account managers, contracts, compliance paperwork. For Link, SSO/SAML, audit logs and custom roles are in our `/ee` folder and still in development. If your procurement checklist has those items, today Bitly ticks them and we don't.
 
@@ -53,8 +53,7 @@ Let's start with the uncomfortable part.
 Honestly, if one of these is you, don't switch for the sake of it:
 
 - **Your workflow lives in integrations.** If links get created from inside your CRM, design tool or social scheduler with one click, losing that costs you more than any subscription.
-- **You need branded QR codes at scale.** Packaging, retail, events where the QR is part of the design.
-- **You send people into native apps.** Deep linking isn't something Link does.
+- **You need QR codes with frames and design templates.** Packaging, retail, events where the QR is part of the design.
 - **Procurement needs SSO, audit logs and a contract.** Ours aren't ready yet.
 - **Your team lives on phones.** No native app here.
 - **You're happy and it's cheap enough for you.** Switching has a cost, even a small one. If Bitly isn't hurting, there's no prize for migrating.

@@ -33,6 +33,6 @@ Cal es nuestra herramienta de agenda. Hoy tiene:
 - **Emails con .ics**, recordatorio 24 horas antes y reprogramación o cancelación desde el email.
 - **API REST y webhooks** firmados.
 
-Lo que todavía no tiene: Outlook o iCloud, cobros con Stripe, eventos grupales y horarios reutilizables entre tipos de evento.
+Lo que todavía no tiene: Outlook o iCloud y eventos grupales. Los cobros con Stripe y los horarios reutilizables entre tipos de evento ya están.
 
 Es open source y lo corrés por $0. En zerosoft Cloud, el workspace tiene un plan gratis y después paga por reserva; los asientos no se cobran. La comparación completa está en [Cal vs Calendly](/blog/zerosoft-cal-vs-calendly).

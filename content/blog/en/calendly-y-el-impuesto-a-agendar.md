@@ -33,6 +33,6 @@ The price comes from perceived value ("one extra meeting a month pays for it"), 
 - **Emails with .ics invites,** a 24-hour reminder, and guest cancel and reschedule links.
 - **Embeds** (inline or popup), a REST API and signed webhooks.
 
-What it doesn't have yet: Outlook or iCloud calendars, payments, group events and reusable schedules. The full list is in [Cal vs Calendly](/blog/zerosoft-cal-vs-calendly).
+What it doesn't have yet: Outlook or iCloud calendars and group events. Stripe payments and reusable schedules are already there. The full list is in [Cal vs Calendly](/blog/zerosoft-cal-vs-calendly).
 
 Self-hosting Cal costs $0. On zerosoft Cloud you get a free tier, then pay per booking and email beyond it. Seats are free.

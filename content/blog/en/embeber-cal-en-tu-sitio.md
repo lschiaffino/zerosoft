@@ -105,7 +105,7 @@ Cal sends the guest a reminder **24 hours before** the meeting, in their languag
 
 In production the endpoint refuses to run without `CRON_SECRET`, and requires it as a Bearer token. Because the job runs hourly, a reminder goes out somewhere between 24 and 23 hours before the meeting. If sending fails, it isn't marked as sent, so the next run retries. Cancelled bookings drop their pending reminder; rescheduled ones get a new one. Meetings booked less than 24 hours ahead skip the reminder, since the confirmation just arrived.
 
-That's the only reminder today. There are no SMS reminders and no custom reminder schedules (say, one hour before) yet.
+If you want other timings (say, three hours before), add workflow steps to the event type: they replace this reminder and go out from the same cron. There are no SMS reminders yet.
 
 ## A five-minute checklist
 

@@ -42,7 +42,7 @@ None of this is an accident. A complete export is a customer who can leave.
 
 ## Our rule: export ships with the product
 
-At zerosoft the rule is single and non-negotiable: no product launches without complete export from day one. JSON and CSV from the interface, a documented public API, open formats. Link already does it. The CRM, Cal and Track (all coming soon) will open with the same guarantee the day they launch.
+At zerosoft the rule is single and non-negotiable: no product launches without complete export from day one. JSON and CSV from the interface, a documented public API, open formats. Link, the CRM and Cal already do it. Docs exports each page to Markdown or PDF, one at a time, and Track still has no public API or export: those are the gaps we're closing.
 
 And the code is open source: if we ever do things wrong, you won't need the export. You'll need a $5 VPS and an afternoon.
 

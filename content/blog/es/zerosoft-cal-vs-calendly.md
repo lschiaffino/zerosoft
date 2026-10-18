@@ -10,7 +10,7 @@ Las comparaciones escritas por el propio vendedor suelen ser inútiles: una tabl
 
 ## La versión corta
 
-- **Quedate en Calendly** si vivís en Outlook / Microsoft 365, necesitás cobrar las reuniones, integraciones nativas tipo Salesforce, apps móviles o controles enterprise como SSO y audit logs.
+- **Quedate en Calendly** si vivís en Outlook / Microsoft 365, necesitás integraciones nativas tipo Salesforce, apps móviles o controles enterprise como SSO y audit logs.
 - **Mirá Cal** si usás Google Workspace, pagás por asiento para varias personas que en general solo necesitan "un link de reservas que funcione", querés API y webhooks sin un contrato enterprise, o querés hacer self-hosting y ser dueño de tus datos de agenda.
 
 El resto del post es el detalle detrás de esas dos líneas.
@@ -23,13 +23,11 @@ Arrancamos por acá, porque es la parte que las comparaciones de vendedores se s
 
 **Videollamadas.** Calendly genera links de Zoom, Teams, Webex y Meet. Cal crea links de **Google Meet** a través de Google Calendar. Para cualquier otra cosa, ponés un link fijo en la ubicación del evento.
 
-**Pagos.** Calendly puede cobrar al momento de reservar. Cal **no tiene pagos**. Si sos coach, consultor o profe y cobrás por sesión, eso solo ya define la cuestión.
-
 **Ecosistema de integraciones.** Calendly tiene integraciones nativas con los CRMs grandes, herramientas de marketing y un marketplace de apps, además de extensiones de navegador. Cal tiene webhooks `booking.created`, `booking.rescheduled` y `booking.cancelled`, una API REST e integración nativa con zerosoft CRM. Para todo lo demás, lo armás o lo conectás vos.
 
 **Apps móviles.** Calendly tiene apps para iOS y Android. Cal no. La página de reservas y el panel funcionan en el navegador del celular, pero no hay app nativa.
 
-**Workflows y recordatorios.** Calendly te deja armar secuencias de recordatorios y seguimientos, incluido SMS en planes pagos. Cal manda una confirmación, los mails de reprogramación o cancelación y **un** recordatorio 24 horas antes. No hay SMS, recordatorios a medida ni seguimientos.
+**Workflows y recordatorios.** Calendly te deja armar secuencias de recordatorios y seguimientos, incluido SMS en planes pagos. Cal manda la confirmación y los mails de reprogramación o cancelación, y cada tipo de evento puede sumar hasta 10 pasos: un email al invitado o al anfitrión, antes o después de la reunión, con asunto y texto propios. Son solo emails, no hay SMS. En zerosoft Cloud los pasos salen con un cron que corre una vez por hora, así que pueden llegar hasta una hora tarde.
 
 **Tipos de reunión.** Calendly soporta eventos colectivos (varios hosts en la misma llamada), eventos grupales (muchos invitados en un slot) y encuestas de horario. Cal soporta eventos uno a uno, opcionalmente con un pool de hosts en [round-robin](/blog/round-robin-con-cal). Todavía no hay eventos colectivos, grupales ni encuestas.
 
@@ -41,7 +39,7 @@ Arrancamos por acá, porque es la parte que las comparaciones de vendedores se s
 
 Nada de lo que sigue es único en el mundo. Es lo que obtenés gratis, con el código fuente.
 
-**El núcleo es sólido.** Event types con preguntas personalizadas, disponibilidad semanal por event type, buffers, aviso mínimo, ventana de reservas, blocked slots, links de un solo uso y branding por evento (color, logo, mensaje de bienvenida). Eso cubre lo que la mayoría de la gente realmente usa de una herramienta de agenda. Escribimos una guía entera sobre [cómo usar bien esas reglas](/blog/buffers-aviso-minimo-y-ventana).
+**El núcleo es sólido.** Event types con preguntas personalizadas, horarios reutilizables con excepciones por fecha, buffers, aviso mínimo, ventana de reservas, blocked slots, links de un solo uso, branding por evento (color, logo, mensaje de bienvenida) y cobro al reservar con tu propia cuenta de Stripe, con reembolso automático si la reserva se cancela. Eso cubre lo que la mayoría de la gente realmente usa de una herramienta de agenda. Escribimos una guía entera sobre [cómo usar bien esas reglas](/blog/buffers-aviso-minimo-y-ventana).
 
 **Agenda de equipo sin la cuenta por asiento.** Los pools de round-robin de hasta 50 hosts y los routing forms vienen incluidos. No hay paso de "pasate al plan Teams".
 
@@ -68,7 +66,6 @@ El planteo honesto: si a Cal le falta algo que necesitás, la diferencia de prec
 ## Quién debería quedarse en Calendly
 
 - Equipos en **Outlook / Microsoft 365**, Exchange o iCloud.
-- Quien necesite **cobrar al reservar**.
 - Equipos de ventas que dependen de **ruteo y sincronización nativos** con Salesforce o HubSpot.
 - Quien maneja su agenda desde una **app móvil**.
 - Empresas que necesitan **SSO, SCIM, audit logs** y una revisión de seguridad de proveedor hoy.

@@ -1,6 +1,6 @@
 ---
 title: "Chat vs Intercom: what each does today"
-description: "Intercom is far ahead on AI, channels, integrations and help center. Chat is a self-hostable webchat inbox with SLAs and CSAT. Who should switch, and who shouldn't."
+description: "Intercom is far ahead on AI, channels and integrations. Chat is a self-hostable webchat inbox with SLAs and CSAT. Who should switch, and who shouldn't."
 date: "2026-09-23"
 author: "zerosoft"
 tags: ["chat", "intercom", "comparison"]
@@ -11,7 +11,7 @@ Let's get the uncomfortable part out of the way: Intercom and zerosoft Chat are 
 ## The short version
 
 - **Intercom** is a mature customer service suite: an AI agent that answers on its own, many channels, a help center, outbound messaging, mobile SDKs and a big integrations marketplace. If support is a core function with real volume, it's built for you.
-- **Chat** is open source (AGPLv3), self-hostable, and does the essentials: an embeddable webchat widget, a shared inbox, assignment rules, SLA policies, canned responses, office hours and CSAT. It fits small teams that want a clean inbox they own, without per-seat pricing.
+- **Chat** is open source (AGPLv3), self-hostable, and does the essentials: an embeddable webchat widget, a shared inbox, assignment rules, SLA policies, canned responses and macros, internal notes, tags, office hours, CSAT and a help center built from your Docs pages. It fits small teams that want a clean inbox they own, without per-seat pricing.
 
 ## Where Intercom is clearly ahead
 
@@ -19,7 +19,7 @@ Let's get the uncomfortable part out of the way: Intercom and zerosoft Chat are 
 
 **Channels.** Intercom handles conversations across multiple channels (email, messaging apps, social and more) in one inbox. Chat is a website widget. That's it, for now.
 
-**Help center.** Intercom ships a public help center with articles, collections and search. Chat doesn't. You can point Chat's bot at your Docs pages, but Docs is an internal knowledge tool, not a public, SEO-ready help site.
+**Help center.** Intercom ships a public help center with articles, collections, search and a custom domain. In zerosoft, the Docs pages you publish become a [help center](/blog/centro-de-ayuda-con-docs) at `/h/<your-handle>`, with collections, search and a "Was this helpful?" vote per article, and the Chat widget shows them in a Help tab. It's simpler than Intercom's: on zerosoft Cloud it lives under `zerosoft.ai/h/` with no custom domain, and articles can't hold images or video.
 
 **Outbound and in-product messaging.** Product tours, banners, targeted messages, email campaigns. Chat only responds; it doesn't reach out.
 
@@ -27,7 +27,7 @@ Let's get the uncomfortable part out of the way: Intercom and zerosoft Chat are 
 
 **Integrations and API.** Intercom has an app marketplace and a public API. Chat has no public API yet, no webhooks for chat events and no conversation export.
 
-**Ticketing, workflows and reporting depth.** Intercom has tickets, visual workflow builders, and detailed reporting. Chat's reports are a single, focused panel: average first response, percentage within the first-response SLA, average resolution time, resolved count, and CSAT.
+**Ticketing, workflows and reporting depth.** Intercom has tickets, visual workflow builders, and detailed reporting. Chat's reports cover a date range, in total and per agent: conversations, average first response, average resolution time, resolved count and CSAT, with CSV export. Chat has no tickets and no workflow builder.
 
 **Maturity.** Years of production use at very large companies, security certifications, enterprise features. Our enterprise pieces (SSO/SAML, audit logs, custom roles, and white-label for the widget) are in development in `/ee`, not shipped.
 
@@ -39,7 +39,8 @@ Let's get the uncomfortable part out of the way: Intercom and zerosoft Chat are 
 - **Inbox:** open, pending, snoozed and resolved states; filters for unassigned and mine; priorities (low, medium, high, urgent); snooze that reopens on its own.
 - **Assignment rules:** keyword, time range, round-robin and catch-all, evaluated in order, never overriding a manual assignment.
 - **SLA policies:** a first-response and optional resolution target per widget and per priority, with a live "Reply in Xm" or "Breached" badge on every conversation. We wrote a [playbook on support SLAs with Chat](/blog/slas-de-soporte-con-chat), including where the clock is simpler than you might want (it runs on wall-clock time, not business hours).
-- **Canned responses:** type `/` in the reply box to search and insert.
+- **Canned responses and macros:** type `/` in the reply box to search and insert. A canned response can also change the status, assign, snooze or tag the conversation.
+- **Internal notes and tags:** notes in the thread that the visitor never sees, with `@` to notify a teammate, and tags per conversation.
 - **Office hours:** per-day schedule and timezone; outside hours the widget shows an away banner with when you're back.
 - **CSAT:** a 1–5 rating with optional comment, asked when a conversation is resolved.
 - **People:** a list of visitors with their conversations and notes. If a visitor's email matches a contact in zerosoft CRM, the conversation shows that contact.
@@ -56,7 +57,7 @@ Honestly, many teams. Stay if:
 
 - You rely on an AI agent to resolve a meaningful share of conversations. Chat's bot is simpler and less proven.
 - You support customers on more than one channel (email, WhatsApp, social) and want them in one place.
-- You need a public help center, product tours or outbound messaging.
+- You need a help center on your own domain, product tours or outbound messaging.
 - You support users inside a native mobile app.
 - Your support stack depends on integrations (CRM sync, ticketing, data warehouses) or on Intercom's API.
 - You need enterprise requirements today: SSO, audit logs, custom roles, formal compliance.

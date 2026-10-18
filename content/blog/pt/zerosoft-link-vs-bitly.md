@@ -22,11 +22,11 @@ Vamos começar pela parte desconfortável.
 
 **Apps móveis e extensão de navegador.** O Bitly tem. O Link é um web app; funciona bem no navegador do celular, mas não há app nativo nem extensão.
 
-**Design de QR code.** O Bitly permite personalizar QR codes com cores, logos e molduras, e trata leituras de QR como algo de primeira classe. O Link entrega um QR simples e de alto contraste por link, em SVG e PNG. Escaneia muito bem e não custa nada; não é bonito.
+**Design de QR code.** O Bitly permite personalizar QR codes com cores, logos e molduras. No Link você escolhe as cores (com uma checagem de contraste para continuar escaneando), o formato dos pontos e um logo no centro, e baixa em SVG ou PNG; as leituras são contadas separadas dos cliques. Não há molduras nem modelos de design.
 
-**Deep links para apps.** O Bitly oferece formas de levar as pessoas direto para um app nativo em vez de uma página web. O Link redireciona para URLs, ponto.
+**Deep links para apps.** O Bitly oferece formas de levar as pessoas direto para um app nativo em vez de uma página web. O Link também: cada link pode ter a URL do app para iOS e para Android, com um destino de reserva se o app não abrir, além de regras por país e dispositivo e destinos A/B com pesos. O que ele não faz é abrir o conteúdo certo no app depois da instalação (deferred deep linking).
 
-**Link na bio e campanhas mais completos.** As páginas do Bitly têm mais opções de design que a nossa [página bio](/blog/pagina-link-in-bio), que é deliberadamente enxuta: título, bio, avatar, botões. O Bitly também agrupa links em campanhas com relatórios consolidados; o Link tem tags e analytics por link, ainda sem dashboard por tag.
+**Link na bio e campanhas mais completos.** As páginas do Bitly têm mais opções de design que a nossa [página bio](/blog/pagina-link-in-bio), que é deliberadamente enxuta: título, bio, avatar, botões. O Bitly também agrupa links em campanhas com relatórios consolidados; o Link tem tags, analytics por link e um painel com os cliques do workspace inteiro, ainda sem dashboard por tag.
 
 **Enterprise.** SSO, permissões granulares, gerentes de conta, contratos, papelada de compliance. No Link, SSO/SAML, logs de auditoria e papéis customizados estão na nossa pasta `/ee` e ainda em desenvolvimento. Se o checklist de compras da sua empresa tem esses itens, hoje o Bitly marca todos e nós não.
 
@@ -53,8 +53,7 @@ Vamos começar pela parte desconfortável.
 Sério, se você se encaixa em algum destes, não troque só por trocar:
 
 - **Seu fluxo vive em integrações.** Se os links são criados de dentro do seu CRM, da ferramenta de design ou do agendador de redes com um clique, perder isso custa mais que qualquer assinatura.
-- **Você precisa de QR codes com a sua marca em escala.** Embalagens, varejo, eventos em que o QR faz parte do design.
-- **Você manda pessoas para apps nativos.** Deep linking não é algo que o Link faça.
+- **Você precisa de QR codes com molduras e modelos de design.** Embalagens, varejo, eventos em que o QR faz parte do design.
 - **Compras exige SSO, logs de auditoria e um contrato.** Os nossos ainda não estão prontos.
 - **Seu time vive no celular.** Aqui não há app nativo.
 - **Você está satisfeito e acha barato.** Trocar tem um custo, mesmo que pequeno. Se o Bitly não está doendo, não há prêmio por migrar.

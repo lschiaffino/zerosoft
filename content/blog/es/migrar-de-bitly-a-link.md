@@ -37,7 +37,7 @@ Mejor saberlo antes de arrancar:
 - **Los dominios propios.** El dominio en sí se agrega y se verifica en Link por separado (ver abajo).
 - **El estado de archivado.** Los bitlinks archivados entran como links activos. Archivalos de nuevo en Link si tienen que seguir muertos.
 - **Otros grupos.** La vía de API solo lee el grupo por defecto. Si usás varios grupos en Bitly, exportá cada uno a CSV.
-- **Diseños de QR, campañas y todo lo específico de las apps de Bitly.** Link genera su propio QR plano (SVG y PNG) para cada link, apuntando a la misma URL corta.
+- **Diseños de QR, campañas y todo lo específico de las apps de Bitly.** Link genera su propio QR (SVG y PNG) para cada link, apuntando a la misma URL corta. Los colores y el logo los volvés a elegir en Link.
 
 ## Cómo se conservan los back-halves
 

@@ -105,7 +105,7 @@ O Cal envia ao convidado um lembrete **24 horas antes** da reunião, no idioma d
 
 Em produção o endpoint se recusa a rodar sem `CRON_SECRET`, e exige o segredo como Bearer token. Como o job roda de hora em hora, o lembrete sai entre 24 e 23 horas antes da reunião. Se o envio falhar, ele não é marcado como enviado, então a próxima execução tenta de novo. Reservas canceladas descartam o lembrete pendente; as remarcadas ganham um novo. Reuniões marcadas com menos de 24 horas de antecedência não têm lembrete, porque a confirmação acabou de chegar.
 
-Hoje esse é o único lembrete. Ainda não há lembretes por SMS nem horários de lembrete personalizados (por exemplo, uma hora antes).
+Se você quer outros horários (por exemplo, três horas antes), adicione passos de workflow no tipo de evento: eles substituem este lembrete e saem pelo mesmo cron. Ainda não há lembretes por SMS.
 
 ## Checklist de cinco minutos
 

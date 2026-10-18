@@ -1,6 +1,6 @@
 ---
 title: "zerosoft Chat vs Intercom: uma comparação honesta"
-description: "O Intercom está muito à frente em IA, canais, integrações e central de ajuda. O Chat é um inbox de webchat auto-hospedável com SLAs e CSAT. O que cada um faz, e quem não deveria trocar."
+description: "O Intercom está muito à frente em IA, canais e integrações. O Chat é um inbox de webchat auto-hospedável com SLAs e CSAT. O que cada um faz, e quem não deveria trocar."
 date: "2026-09-23"
 author: "zerosoft"
 tags: ["chat", "intercom", "comparação"]
@@ -11,7 +11,7 @@ Vamos tirar a parte desconfortável do caminho: o Intercom e o zerosoft Chat nã
 ## A versão curta
 
 - O **Intercom** é uma suíte de atendimento madura: um agente de IA que responde sozinho, vários canais, central de ajuda, mensagens ativas, SDKs móveis e um marketplace de integrações enorme. Se o suporte é uma função central com volume de verdade, ele foi feito para você.
-- O **Chat** é open source (AGPLv3), auto-hospedável, e cobre o essencial: um widget de webchat incorporável, um inbox compartilhado, regras de atribuição, políticas de SLA, respostas prontas, horário de atendimento e CSAT. Serve para times pequenos que querem um inbox organizado e próprio, sem preço por assento.
+- O **Chat** é open source (AGPLv3), auto-hospedável, e cobre o essencial: um widget de webchat incorporável, um inbox compartilhado, regras de atribuição, políticas de SLA, respostas prontas e macros, notas internas, tags, horário de atendimento, CSAT e uma central de ajuda montada com as suas páginas do Docs. Serve para times pequenos que querem um inbox organizado e próprio, sem preço por assento.
 
 ## Onde o Intercom está claramente à frente
 
@@ -19,7 +19,7 @@ Vamos tirar a parte desconfortável do caminho: o Intercom e o zerosoft Chat nã
 
 **Canais.** O Intercom reúne conversas de vários canais (email, apps de mensagem, redes sociais e mais) num inbox só. O Chat é um widget para o seu site. Só isso, por enquanto.
 
-**Central de ajuda.** O Intercom vem com uma central de ajuda pública, com artigos, coleções e busca. O Chat não. Dá para apontar o bot do Chat para as suas páginas do Docs, mas o Docs é uma ferramenta de conhecimento interno, não um site de ajuda público e pronto para SEO.
+**Central de ajuda.** O Intercom vem com uma central de ajuda pública, com artigos, coleções, busca e domínio próprio. Na zerosoft, as páginas do Docs que você publica formam uma [central de ajuda](/blog/centro-de-ayuda-con-docs) em `/h/<seu-handle>`, com coleções, busca e um "Isso ajudou?" por artigo, e o widget do Chat mostra essas páginas numa aba Ajuda. É mais simples que a do Intercom: no zerosoft Cloud ela fica em `zerosoft.ai/h/`, sem domínio próprio, e os artigos não levam imagens nem vídeos.
 
 **Mensagens ativas e dentro do produto.** Tours de produto, banners, mensagens segmentadas, campanhas de email. O Chat só responde; ele não vai atrás de ninguém.
 
@@ -27,7 +27,7 @@ Vamos tirar a parte desconfortável do caminho: o Intercom e o zerosoft Chat nã
 
 **Integrações e API.** O Intercom tem um marketplace de apps e uma API pública. O Chat ainda não tem API pública, nem webhooks de eventos de chat, nem exportação de conversas.
 
-**Tickets, workflows e profundidade de relatórios.** O Intercom tem tickets, construtores visuais de fluxo e relatórios detalhados. Os relatórios do Chat são um único painel focado: primeira resposta média, porcentagem dentro do SLA de primeira resposta, tempo médio de resolução, número de resolvidas e CSAT.
+**Tickets, workflows e profundidade de relatórios.** O Intercom tem tickets, construtores visuais de fluxo e relatórios detalhados. Os relatórios do Chat cobrem um intervalo de datas, no total e por agente: conversas, primeira resposta média, tempo médio de resolução, resolvidas e CSAT, com exportação em CSV. O Chat não tem tickets nem construtor de fluxos.
 
 **Maturidade.** Anos em produção em empresas muito grandes, certificações de segurança, recursos enterprise. Nossas peças enterprise (SSO/SAML, logs de auditoria, papéis personalizados e white-label para o widget) estão em desenvolvimento em `/ee`, não lançadas.
 
@@ -39,7 +39,8 @@ Vamos tirar a parte desconfortável do caminho: o Intercom e o zerosoft Chat nã
 - **Inbox:** estados aberta, pendente, adiada e resolvida; filtros de sem responsável e minhas; prioridades (low, medium, high, urgent); snooze que reabre sozinho.
 - **Regras de atribuição:** palavra-chave, faixa de horário, round-robin e catch-all, avaliadas em ordem, sem nunca sobrescrever uma atribuição manual.
 - **Políticas de SLA:** meta de primeira resposta e, opcional, de resolução por widget e por prioridade, com um selo ao vivo "Reply in Xm" ou "Breached" em cada conversa. Escrevemos um [playbook de SLAs de suporte com o Chat](/blog/slas-de-soporte-con-chat), incluindo onde o relógio é mais simples do que você talvez queira (ele corre em tempo de relógio, não em horário comercial).
-- **Respostas prontas:** digite `/` na caixa de resposta para buscar e inserir.
+- **Respostas prontas e macros:** digite `/` na caixa de resposta para buscar e inserir. Uma resposta pronta também pode mudar o status, atribuir, adiar ou adicionar tags à conversa.
+- **Notas internas e tags:** notas no fio que o visitante nunca vê, com `@` para avisar um colega, e tags por conversa.
 - **Horário de atendimento:** horário por dia e fuso; fora do horário, o widget mostra um aviso de ausência com quando vocês voltam.
 - **CSAT:** nota de 1 a 5 com comentário opcional, pedida quando a conversa é resolvida.
 - **Pessoas:** uma lista de visitantes com suas conversas e notas. Se o email de um visitante bate com um contato do zerosoft CRM, a conversa mostra esse contato.
@@ -56,7 +57,7 @@ Sinceramente, muitos times. Fique se:
 
 - Você depende de um agente de IA para resolver uma parte relevante das conversas. O bot do Chat e o Agents ainda não chegam nesse nível.
 - Você atende clientes em mais de um canal (email, WhatsApp, redes) e quer tudo num lugar só.
-- Você precisa de central de ajuda pública, tours de produto ou mensagens ativas.
+- Você precisa de uma central de ajuda com domínio próprio, tours de produto ou mensagens ativas.
 - Você dá suporte dentro de um app móvel nativo.
 - Seu stack de suporte depende de integrações (sincronização com CRM, ticketing, data warehouse) ou da API do Intercom.
 - Você precisa de requisitos enterprise hoje: SSO, logs de auditoria, papéis personalizados, compliance formal.

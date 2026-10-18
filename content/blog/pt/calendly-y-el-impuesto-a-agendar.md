@@ -33,6 +33,6 @@ Cal é a ferramenta de agendamento da zerosoft e já está disponível:
 - **Emails com .ics, lembrete 24 horas antes** e link para o convidado remarcar ou cancelar.
 - **Embed** inline ou popup, API REST e webhooks assinados.
 
-Ainda não tem: Outlook e iCloud, pagamentos, eventos em grupo e horários de disponibilidade reutilizáveis entre eventos. Os detalhes estão em [Cal vs Calendly](/blog/zerosoft-cal-vs-calendly).
+Ainda não tem Outlook, iCloud nem eventos em grupo. Cobrança com Stripe e horários reutilizáveis entre eventos já existem. Os detalhes estão em [Cal vs Calendly](/blog/zerosoft-cal-vs-calendly).
 
 O código é aberto e hospedar custa $0. No zerosoft Cloud você começa num plano grátis e depois paga pelas reservas que usar, sem cobrança por assento.
