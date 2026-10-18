@@ -47,3 +47,40 @@ test('board: proponer, votar, comentar y servir por feedback.<host>', async ({ p
 
   expect(errors).toEqual([]);
 });
+
+/**
+ * Feedback desde la burbuja: queda en revisión (privado) y su autora lo ve
+ * arriba del board, sin voto ni link.
+ */
+test('board: el feedback de la burbuja aparece en "tus pedidos en revisión"', async ({ page }) => {
+  const message = `Quiero etiquetas de colores en Notes ${uid()}`;
+  await page.goto('/es');
+  await page.locator('.fl-button').click();
+  await page.getByRole('tab', { name: 'Enviar' }).click();
+  await page.locator('.fl-panel textarea').fill(message);
+  await page.locator('.fl-panel').getByRole('button', { name: 'Enviar', exact: true }).click();
+  await expect(page.locator('.fb-success-body')).toContainText('Lo revisamos y, si suma, aparece en el board');
+  await page.locator('.fb-success').getByRole('link', { name: 'Ver en el board' }).click();
+  await page.waitForURL(/\/es\/feedback-board$/);
+
+  const group = page.locator('.bp-pending');
+  // La clasificación corre después de responder: reintentar hasta que aparezca.
+  await expect(async () => {
+    await page.reload();
+    await expect(group.locator('.bp-row-title', { hasText: message })).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(group.getByRole('heading', { level: 2 })).toHaveText('Tus pedidos en revisión');
+  const row = group.locator('.bp-row', { hasText: message });
+  await expect(row.locator('.bp-status')).toHaveText('En revisión');
+  await expect(row.locator('a, button')).toHaveCount(0);
+  // No está en la lista pública.
+  await expect(page.locator('main > .bp-list .bp-row-title', { hasText: message })).toHaveCount(0);
+
+  const shots = process.env.BOARD_SHOTS_DIR;
+  if (shots) {
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.screenshot({ path: `${shots}/board-pending-${scheme}.png` });
+    }
+  }
+});

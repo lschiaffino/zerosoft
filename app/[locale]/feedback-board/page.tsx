@@ -2,7 +2,8 @@ import { setRequestLocale } from 'next-intl/server';
 import BoardChrome from '@/components/board/BoardChrome';
 import BoardFilters from '@/components/board/BoardFilters';
 import { BoardItemCard, BoardItemRow } from '@/components/board/BoardItemRow';
-import { listBoardItems, parseBoardSort, type BoardItem } from '@/lib/board';
+import BoardPendingGroup from '@/components/board/BoardPendingGroup';
+import { listBoardItems, listMyPendingItems, parseBoardSort, type BoardItem } from '@/lib/board';
 import { boardLoginHref, getBoardContext } from '@/lib/board-context';
 import { boardItemPath, boardPath } from '@/lib/board-paths';
 import { getBoardPerson } from '@/lib/board-session';
@@ -37,13 +38,17 @@ export default async function FeedbackBoardPage(props: {
   const [ctx, person, labels] = await Promise.all([getBoardContext(locale), getBoardPerson(), boardLabels(locale)]);
   const { t } = labels;
   const view = sp.view === 'columns' ? 'columns' : 'list';
-  const items = await listBoardItems({
-    q: sp.q,
-    product: sp.product,
-    status: view === 'list' ? sp.status : null,
-    sort: view === 'list' ? parseBoardSort(sp.sort) : 'top',
-    userId: person?.id ?? null,
-  });
+  const [items, pending] = await Promise.all([
+    listBoardItems({
+      q: sp.q,
+      product: sp.product,
+      status: view === 'list' ? sp.status : null,
+      sort: view === 'list' ? parseBoardSort(sp.sort) : 'top',
+      userId: person?.id ?? null,
+    }),
+    // Lo que la persona mandó desde la burbuja y sigue en triage privado.
+    sp.q || (view === 'list' && sp.status) ? Promise.resolve([]) : listMyPendingItems(person, { product: sp.product }),
+  ]);
   const qs = new URLSearchParams(
     Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === 'string' && e[1] !== ''),
   ).toString();
@@ -84,6 +89,11 @@ export default async function FeedbackBoardPage(props: {
             status: labels.status,
             product: labels.product,
           }}
+        />
+
+        <BoardPendingGroup
+          items={pending}
+          labels={{ title: t('pending.title'), status: t('pending.status'), hint: t('pending.hint'), product: labels.product }}
         />
 
         {view === 'list' ? (

@@ -24,6 +24,7 @@
   --bp-status-in_progress: var(--c-track);
   --bp-status-done: var(--ok);
   --bp-status-declined: var(--ink-3);
+  --bp-status-proposed: var(--dim);
   --bp-launcher-size: 44px;
 }
 
@@ -130,6 +131,11 @@ body:has(.bp-root) .fl-root {
 .bp-status[data-status='in_progress'] { --st: var(--bp-status-in_progress); }
 .bp-status[data-status='done'] { --st: var(--bp-status-done); }
 .bp-status[data-status='declined'] { --st: var(--bp-status-declined); }
+.bp-status[data-status='proposed'] { --st: var(--bp-status-proposed); }
+
+/* Pedidos propios en revisión: arriba de la lista, solo para su autora. */
+.bp-pending { padding: 0; margin: 8px 0 32px; }
+.bp-pending-hint { padding: 10px 0 2px; max-width: 70ch; }
 .bp-empty { padding: 40px 0; color: var(--bp-ink-3); }
 .bp-columns .bp-empty { padding: 16px 0; font-size: 14px; }
 

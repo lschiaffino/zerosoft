@@ -251,6 +251,8 @@ async function applyClassification(
   if (inserted.changes > 0) {
     await recountVotes(itemId);
     await db.prepare('UPDATE roadmap_items SET updated_at = ? WHERE id = ?').run(now, itemId);
+    // Duplicado de un ítem ya público: el autor del feedback lo sigue.
+    if (source === 'feedback') await subscribeFeedbackAuthors(itemId);
   }
   return { action, itemId, classification: c };
 }
@@ -487,6 +489,10 @@ export async function updateRoadmapItem(
       .run(...args, id);
   }
   const after = await getRoadmapItem(id);
+  // Al hacerse público (o seguir siéndolo), los autores del feedback lo siguen.
+  if (after && after.is_public === 1 && (statusChanged || patch.isPublic !== undefined)) {
+    await subscribeFeedbackAuthors(id);
+  }
   if (after && statusChanged) {
     const note =
       opts.note ?? (after.status === 'declined' ? after.declined_reason : null) ?? null;
@@ -502,6 +508,44 @@ export async function updateRoadmapItem(
     }
   }
   return after;
+}
+
+function localeFromPageUrl(url: string | null): string {
+  const m = url ? /^https?:\/\/[^/]+\/(en|es|pt)(?:[/?#]|$)/.exec(url) : null;
+  return m ? m[1] : 'en';
+}
+
+/**
+ * Quien mandó un feedback vinculado a un ítem público queda suscripto como
+ * autor, para enterarse cuando avanza. Solo feedback con sesión (user_id).
+ * INSERT OR IGNORE: no reactiva a quien se desuscribió.
+ */
+export async function subscribeFeedbackAuthors(itemId: string): Promise<number> {
+  const db = getDb();
+  const item = (await db.prepare('SELECT is_public, status FROM roadmap_items WHERE id = ?').get(itemId)) as
+    | { is_public: number; status: string }
+    | undefined;
+  if (!item || Number(item.is_public) !== 1 || item.status === 'proposed') return 0;
+  const authors = (await db
+    .prepare(
+      `SELECT f.user_id, MIN(f.page_url) AS page_url FROM roadmap_signals s
+       JOIN feedback f ON f.id = s.source_id
+       JOIN users u ON u.id = f.user_id
+       WHERE s.item_id = ? AND s.source = 'feedback' AND f.user_id IS NOT NULL
+       GROUP BY f.user_id`,
+    )
+    .all(itemId)) as Array<{ user_id: string; page_url: string | null }>;
+  let added = 0;
+  for (const a of authors) {
+    const res = await db
+      .prepare(
+        `INSERT OR IGNORE INTO roadmap_subscriptions (item_id, user_id, reason, active, locale, created_at)
+         VALUES (?, ?, 'author', 1, ?, ?)`,
+      )
+      .run(itemId, a.user_id, localeFromPageUrl(a.page_url), nowIso());
+    added += res.changes;
+  }
+  return added;
 }
 
 export async function recordStatusEvent(
@@ -565,6 +609,7 @@ export async function mergeRoadmapItems(sourceId: string, targetId: string): Pro
     )
     .run(targetId, sourceId);
   await db.prepare('DELETE FROM roadmap_items WHERE id = ?').run(sourceId);
+  await subscribeFeedbackAuthors(targetId);
   await recountVotes(targetId);
   await recountComments(targetId);
   await db.prepare('UPDATE roadmap_items SET updated_at = ? WHERE id = ?').run(nowIso(), targetId);
@@ -642,6 +687,7 @@ export async function attachFeedbackToItem(
       .run(crypto.randomUUID(), itemId, feedback.id, clip(feedback.message, EXCERPT_MAX), nowIso());
   }
   await recountVotes(itemId);
+  await subscribeFeedbackAuthors(itemId);
   return getRoadmapItem(itemId);
 }
 

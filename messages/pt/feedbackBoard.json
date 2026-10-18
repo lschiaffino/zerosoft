@@ -148,5 +148,10 @@
     "newsEmpty": "Sem novidades por enquanto.",
     "seeBoard": "Ver todas as ideias",
     "seeChangelog": "Changelog completo"
+  },
+  "pending": {
+    "title": "Seus pedidos em revisão",
+    "status": "Em revisão",
+    "hint": "Só você vê estes. A gente lê cada um e, se fizer sentido, ele vai para o board para outras pessoas votarem. Avisamos quando isso acontecer."
   }
 }

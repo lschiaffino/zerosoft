@@ -13,11 +13,17 @@ import '@/styles/feedback.css';
 export default function FeedbackForm({
   defaultProduct = 'site',
   signedInEmail = null,
+  boardHref = null,
+  signedIn = false,
   onDone,
   onCancel,
 }: {
   defaultProduct?: FeedbackProduct;
   signedInEmail?: string | null;
+  /** Link al board: con sesión, ahí se ven los pedidos propios en revisión. */
+  boardHref?: string | null;
+  /** Sesión conocida aunque no haya email (p. ej. la respuesta del board). */
+  signedIn?: boolean;
   onDone?: () => void;
   onCancel?: () => void;
 }) {
@@ -71,12 +77,19 @@ export default function FeedbackForm({
   }
 
   if (state === 'sent') {
+    // Ideas y bugs con sesión quedan en revisión y se ven en el board (solo para quien los mandó).
+    const followOnBoard = Boolean((signedInEmail || signedIn) && boardHref && kind !== 'other');
     return (
       <div className="fb-success" role="status">
         <span className="fb-success-mark" aria-hidden="true">0</span>
         <p className="fb-success-title">{t('successTitle')}</p>
-        <p className="fb-success-body">{t('successBody')}</p>
+        <p className="fb-success-body">{followOnBoard ? t('successBodySignedIn') : t('successBody')}</p>
         <div className="fb-actions">
+          {followOnBoard && boardHref && (
+            <a className="btn btn-ghost btn-small" href={boardHref}>
+              {t('successBoard')}
+            </a>
+          )}
           <button type="button" className="btn btn-ghost btn-small" onClick={reset}>
             {t('another')}
           </button>
