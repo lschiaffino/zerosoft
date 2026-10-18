@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/session';
-import ZeroField from '@/components/ZeroField';
+import ZeroTorus from '@/components/zero/ZeroTorus';
 import GoogleButton from '@/components/auth/GoogleButton';
 import { safeCallbackUrl } from '@/lib/hosts';
 
@@ -30,7 +30,7 @@ export default async function SignInPage(props: {
 
   return (
     <main className="auth-page">
-      <ZeroField align="center" sizeFactor={1.4} interactive={false} alpha={0.1} />
+      <ZeroTorus interactive={false} className="zero-torus-bg" />
       <div className="auth-card">
         <span className="brand-zero" style={{ width: 44, height: 44, fontSize: 20 }}>0</span>
         <h1>{t('title')}</h1>

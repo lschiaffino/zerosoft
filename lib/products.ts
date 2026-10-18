@@ -33,7 +33,7 @@ export function isProductKey(value: string): value is SiteProductKey {
   return (PRODUCT_KEYS as string[]).includes(value);
 }
 
-/** "#7b4dff" → "123,77,255" (formato que usa ZeroField). */
+/** "#7b4dff" → "123,77,255" (formato "r,g,b"). */
 export function productRgb(key: ProductKey): string {
   const hex = PRODUCT_CONFIG[key].color.slice(1);
   return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');

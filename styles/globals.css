@@ -142,35 +142,37 @@ a { color: inherit; text-decoration: none; }
 /* El sistema de controles (.btn, .input, .select, .textarea, .label, .badge,
    .table, .panel y los .ui-*) vive en styles/ui.css, que se carga después. */
 
-/* ---------- ZeroField ---------- */
+/* ---------- ZeroTorus: el cero en 3D hecho de ceros ---------- */
 
-.zero-field {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.zero-field canvas { display: block; }
-
-.zero-field-fallback {
-  position: absolute;
-  inset: 0;
+.zero-torus {
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
-  z-index: 1;
+  overflow: hidden;
+  color: var(--ink);
 }
-
-.zero-field-fallback span {
+.zero-torus pre {
+  margin: 0;
   font-family: var(--mono);
-  font-weight: 500;
-  font-size: min(72vw, 980px);
-  line-height: 1;
-  color: rgba(13, 13, 13, 0.08);
+  font-size: 8px;
+  line-height: 1.12;
+  white-space: pre;
   user-select: none;
+  -webkit-user-select: none;
+  color: inherit;
+}
+.zero-torus.is-interactive pre { cursor: grab; touch-action: none; }
+.zero-torus.is-interactive pre[data-dragging] { cursor: grabbing; }
+/* De fondo (login, links vencidos): grande, quieto al tacto y muy tenue. */
+.zero-torus-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.09;
 }
 
 /* ---------- Secciones ---------- */

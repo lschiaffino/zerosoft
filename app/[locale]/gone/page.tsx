@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import ZeroField from '@/components/ZeroField';
+import ZeroTorus from '@/components/zero/ZeroTorus';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +26,7 @@ export default async function GonePage(props: GonePageProps) {
 
   return (
     <main className="notfound-page">
-      <ZeroField align="center" sizeFactor={1.2} interactive={false} alpha={0.08} />
+      <ZeroTorus interactive={false} className="zero-torus-bg" />
       <p className="notfound-code">0</p>
       <h1 className="gone-title">{t(`gone.${reason}Title`)}</h1>
       <p className="notfound-msg">{t(`gone.${reason}Sub`)}</p>

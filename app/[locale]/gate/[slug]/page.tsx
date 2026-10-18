@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
-import ZeroField from '@/components/ZeroField';
+import ZeroTorus from '@/components/zero/ZeroTorus';
 import GateForm from '@/components/link/GateForm';
 import { headers } from 'next/headers';
 import { getLinkForHost, linkShortUrl } from '@/lib/links';
@@ -34,7 +34,7 @@ export default async function GatePage(props: GatePageProps) {
 
   return (
     <main className="auth-page">
-      <ZeroField align="center" sizeFactor={1.4} interactive={false} alpha={0.1} />
+      <ZeroTorus interactive={false} className="zero-torus-bg" />
       <div className="auth-card">
         <span className="brand-zero" style={{ width: 44, height: 44, fontSize: 20 }}>
           0

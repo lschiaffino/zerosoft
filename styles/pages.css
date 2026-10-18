@@ -53,10 +53,10 @@
 /* El plano llena su columna; el pie con lo que conecta cada línea va debajo. */
 .lp-hero-map,
 .pd-hero-map { min-width: 0; }
-/* Marca default: un cero hecho de ceros (ZeroField) en lugar del plano. */
+/* Marca default: el cero en 3D (ZeroTorus) en lugar del plano. En la página
+   de un producto toma su color. */
 .hero-field { position: relative; min-width: 0; height: clamp(340px, 42vw, 600px); }
-.hero-field .zero-field-fallback span { font-size: clamp(260px, 34vw, 520px); }
-.pd-hero-map.hero-field .zero-field-fallback span { color: color-mix(in srgb, var(--accent) 22%, transparent); }
+.hero-field[class*="card-"] .zero-torus { color: var(--accent); }
 @media (max-width: 860px) {
   .hero-field { height: 260px; }
 }

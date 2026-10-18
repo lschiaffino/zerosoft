@@ -1,16 +1,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import ZeroField from '@/components/ZeroField';
+import ZeroTorus from '@/components/zero/ZeroTorus';
 import { useBrand } from '@/components/brand/BrandProvider';
-import { PRODUCT_KEYS, productRgb, type ProductKey } from '@/lib/products';
-
-const ACCENTS = PRODUCT_KEYS.map(productRgb);
+import type { ProductKey } from '@/lib/products';
 
 /**
- * La pieza visual del primer viewport según el tema: en default, un cero
- * hecho de ceros (ZeroField, teñido con el producto en su página); en subte,
- * el plano de la red que llega como `map`.
+ * La pieza visual del primer viewport según el tema: en default, el cero en
+ * 3D hecho de ceros (ZeroTorus, en el color del producto en su página); en
+ * subte, el plano de la red que llega como `map`.
  */
 export default function HeroVisual({
   map,
@@ -25,12 +23,8 @@ export default function HeroVisual({
   const brand = useBrand();
   if (brand === 'subte') return <>{map}</>;
   return (
-    <div className={`hero-field ${className}`.trim()} aria-hidden="true">
-      {focus ? (
-        <ZeroField align="center" sizeFactor={0.92} color={productRgb(focus)} alpha={0.95} />
-      ) : (
-        <ZeroField align="center" sizeFactor={0.86} accents={ACCENTS} />
-      )}
+    <div className={`hero-field ${focus ? `card-${focus}` : ''} ${className}`.trim()}>
+      <ZeroTorus />
     </div>
   );
 }
