@@ -6,6 +6,8 @@ import { runDueRobots } from '@/lib/robots';
 import { syncDueMailboxes } from '@/lib/crm-email-sync';
 import { processSequences } from '@/lib/crm-sequences';
 import { runNightlyScoring } from '@/lib/crm-scoring';
+import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
+import researchIdeas from '@/research/ideas.json';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
@@ -22,7 +24,8 @@ const FLOW_BUDGET_MS = 150_000;
  * por fila; corre cada hora, esa es la granularidad de las secuencias), la
  * cola de Flow con presupuesto de tiempo (schedules vencidos, corridas en
  * cola, delays y reintentos) y al final los robots programados
- * (lib/robots.ts → runDueRobots). Misma autorización que el cron de
+ * (lib/robots.ts → runDueRobots). También carga al backlog las ideas nuevas
+ * de research/ideas.json (una vez por título). Misma autorización que el cron de
  * recordatorios (CRON_SECRET).
  */
 export async function GET(req: NextRequest) {
@@ -44,5 +47,13 @@ export async function GET(req: NextRequest) {
   // En Vercel también los corre /api/cron/robots cada 5 min; self-host puede
   // llamar solo al tick. El compare-and-set de next_run_at evita dobles corridas.
   const robots = await runDueRobots(new Date(), 100, Math.max(0, 270_000 - (Date.now() - tickStart)));
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow, emailSync, sequences, scoring, robots });
+  const ideas = await importResearchIdeas(
+    (researchIdeas as unknown[]).flatMap((i) => {
+      const p = researchIdeaSchema.safeParse(i);
+      return p.success ? [p.data] : [];
+    }),
+  )
+    .then((r) => ({ created: r.created.length }))
+    .catch(() => null);
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, flow, emailSync, sequences, scoring, robots, ideas });
 }

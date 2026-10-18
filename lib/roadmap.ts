@@ -337,14 +337,58 @@ export async function getRoadmapItem(id: string): Promise<RoadmapItemRow | undef
   return (await getDb().prepare('SELECT * FROM roadmap_items WHERE id = ?').get(id)) as RoadmapItemRow | undefined;
 }
 
-/** Ítem con el mismo título, sin importar mayúsculas, acentos ni espacios. */
-export async function findRoadmapItemByTitle(title: string): Promise<RoadmapItemRow | undefined> {
-  const fold = (s: string) =>
-    s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
-  const target = fold(title);
-  if (!target) return undefined;
-  const rows = (await getDb().prepare('SELECT * FROM roadmap_items').all()) as RoadmapItemRow[];
-  return rows.find((r) => fold(r.title) === target);
+/** Clave de un título: sin mayúsculas, acentos ni espacios repetidos. */
+export function roadmapTitleKey(title: string): string {
+  return title.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Carga ideas de la investigación de gaps como ideas públicas del backlog.
+ * Cada título se importa una sola vez (tabla roadmap_imports): si ya hay un
+ * ítem con ese título se registra y se saltea, y si alguien borra o rechaza
+ * la idea después, no vuelve. Lo usan POST /api/roadmap/ingest y el tick
+ * horario con research/ideas.json.
+ */
+export async function importResearchIdeas(
+  ideas: ResearchIdea[],
+): Promise<{ created: Array<{ id: string; title: string }>; skipped: Array<{ id: string | null; title: string }> }> {
+  const db = getDb();
+  const imported = new Map(
+    ((await db.prepare('SELECT title_key, item_id FROM roadmap_imports').all()) as Array<{ title_key: string; item_id: string | null }>).map(
+      (r) => [r.title_key, r.item_id],
+    ),
+  );
+  const pending = ideas.filter((i) => !imported.has(roadmapTitleKey(i.title)));
+  const byTitle = new Map<string, string>();
+  if (pending.length) {
+    for (const r of (await db.prepare('SELECT id, title FROM roadmap_items').all()) as Array<{ id: string; title: string }>) {
+      byTitle.set(roadmapTitleKey(r.title), r.id);
+    }
+  }
+  const created: Array<{ id: string; title: string }> = [];
+  const skipped: Array<{ id: string | null; title: string }> = [];
+  const record = (key: string, id: string | null) =>
+    db.prepare('INSERT OR IGNORE INTO roadmap_imports (title_key, item_id) VALUES (?, ?)').run(key, id);
+  for (const idea of ideas) {
+    const key = roadmapTitleKey(idea.title);
+    if (!key) continue;
+    if (imported.has(key)) {
+      skipped.push({ id: imported.get(key) ?? null, title: idea.title });
+      continue;
+    }
+    const existing = byTitle.get(key);
+    if (existing) {
+      await record(key, existing);
+      imported.set(key, existing);
+      skipped.push({ id: existing, title: idea.title });
+      continue;
+    }
+    const row = await createRoadmapItem({ ...idea, status: 'idea', isPublic: true });
+    await record(key, row.id);
+    imported.set(key, row.id);
+    created.push({ id: row.id, title: row.title });
+  }
+  return { created, skipped };
 }
 
 export async function listRoadmapItemsAdmin(status?: RoadmapItemStatus): Promise<RoadmapItemWithSignals[]> {
@@ -547,6 +591,10 @@ export const roadmapCreateSchema = z.object({
 });
 
 export type RoadmapCreate = z.infer<typeof roadmapCreateSchema>;
+
+/** Una idea de la investigación de gaps (ver importResearchIdeas). */
+export const researchIdeaSchema = roadmapCreateSchema.pick({ title: true, description: true, product: true, kind: true });
+export type ResearchIdea = z.infer<typeof researchIdeaSchema>;
 
 export async function createRoadmapItem(input: RoadmapCreate, actorId: string | null = null): Promise<RoadmapItemRow> {
   const id = crypto.randomUUID();

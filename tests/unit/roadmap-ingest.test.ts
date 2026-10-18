@@ -55,3 +55,33 @@ describe('POST /api/roadmap/ingest', () => {
     expect((await post({ items: [{ title: 'x', product: 'nada' }] })).status).toBe(400);
   });
 });
+
+describe('importResearchIdeas', () => {
+  it('una idea borrada desde el admin no vuelve a crearse', async () => {
+    const { importResearchIdeas } = await import('@/lib/roadmap');
+    const { getDb } = await import('@/lib/db');
+    const title = `Track: Triage inbox ${Date.now()}`;
+    const first = await importResearchIdeas([{ title, description: '', product: 'track', kind: 'idea' }]);
+    expect(first.created).toHaveLength(1);
+    await getDb().prepare('DELETE FROM roadmap_items WHERE id = ?').run(first.created[0].id);
+    const again = await importResearchIdeas([{ title, description: '', product: 'track', kind: 'idea' }]);
+    expect(again.created).toHaveLength(0);
+    expect(await getRoadmapItem(first.created[0].id)).toBeUndefined();
+  });
+});
+
+describe('research/ideas.json', () => {
+  it('cada idea es válida y los títulos no se repiten', async () => {
+    const { researchIdeaSchema, roadmapTitleKey } = await import('@/lib/roadmap');
+    const ideas = (await import('@/research/ideas.json')).default as unknown[];
+    const keys = new Set<string>();
+    for (const idea of ideas) {
+      const parsed = researchIdeaSchema.safeParse(idea);
+      expect(parsed.success, JSON.stringify(idea)).toBe(true);
+      if (!parsed.success) continue;
+      const key = roadmapTitleKey(parsed.data.title);
+      expect(keys.has(key), `título repetido: ${parsed.data.title}`).toBe(false);
+      keys.add(key);
+    }
+  });
+});

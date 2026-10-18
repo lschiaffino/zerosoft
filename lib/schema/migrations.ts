@@ -2258,6 +2258,20 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Ideas que vienen de la investigación de gaps (research/ideas.json y
+    // POST /api/roadmap/ingest): registro de cada título ya importado, así
+    // una idea borrada o rechazada desde el admin no vuelve a aparecer.
+    id: '037_roadmap_imports',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS roadmap_imports (
+          title_key TEXT PRIMARY KEY,
+          item_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
