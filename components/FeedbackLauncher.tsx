@@ -256,6 +256,7 @@ export default function FeedbackLauncher({ locale, hasSupport = false }: { local
               <FeedbackForm
                 defaultProduct={productFromPath(`/${locale}${pathname}`)}
                 signedInEmail={email}
+                boardHref={boardHref}
                 onDone={() => setOpen(false)}
               />
             </div>

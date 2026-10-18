@@ -161,6 +161,59 @@ export async function findSimilarItems(text: string, userId: string | null = nul
   return scored.map((r) => ({ ...r, votes: Number(r.votes), comment_count: Number(r.comment_count), voted: voted.has(r.id) }));
 }
 
+/**
+ * Pedidos propios en revisión: ítems en 'proposed' (triage privado) que tienen
+ * como señal un feedback de esta persona (por user_id, o por email si lo mandó
+ * sin sesión). Solo los ve su autora. El título es su propio mensaje, nunca el
+ * del ítem: otro feedback pudo haber creado el ítem y no se expone.
+ */
+export interface PendingItem {
+  id: string;
+  title: string;
+  product: ProductKey;
+  created_at: string;
+}
+
+const PENDING_TITLE_MAX = 140;
+
+export async function listMyPendingItems(
+  person: { id: string; email?: string | null } | null,
+  opts: { product?: string | null; limit?: number } = {},
+): Promise<PendingItem[]> {
+  if (!person?.id) return [];
+  const email = (person.email ?? '').trim().toLowerCase();
+  const args: Array<string | number> = [person.id, email, email];
+  let productSql = '';
+  if (opts.product && (PRODUCT_KEYS as readonly string[]).includes(opts.product)) {
+    productSql = 'AND i.product = ?';
+    args.push(opts.product);
+  }
+  const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50);
+  const rows = (await getDb()
+    .prepare(
+      `SELECT i.id, i.product, f.message, f.created_at
+       FROM roadmap_items i
+       JOIN roadmap_signals s ON s.item_id = i.id AND s.source = 'feedback'
+       JOIN feedback f ON f.id = s.source_id
+       WHERE i.status = 'proposed' AND i.is_public = 0
+         AND (f.user_id = ? OR (f.user_id IS NULL AND ? != '' AND lower(f.email) = ?))
+         ${productSql}
+       ORDER BY f.created_at DESC`,
+    )
+    .all(...args)) as Array<{ id: string; product: ProductKey; message: string; created_at: string }>;
+  const seen = new Set<string>();
+  const out: PendingItem[] = [];
+  for (const r of rows) {
+    if (seen.has(r.id)) continue;
+    seen.add(r.id);
+    const clean = r.message.replace(/\s+/g, ' ').trim();
+    const title = clean.length > PENDING_TITLE_MAX ? `${clean.slice(0, PENDING_TITLE_MAX - 1).trimEnd()}…` : clean;
+    out.push({ id: r.id, title, product: r.product, created_at: r.created_at });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /** Ítem visible en el board (público y en un estado público), o undefined. */
 export async function getPublicItem(id: string): Promise<RoadmapItemRow | undefined> {
   const item = await getRoadmapItem(id);

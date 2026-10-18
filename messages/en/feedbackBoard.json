@@ -148,5 +148,10 @@
     "newsEmpty": "Nothing new yet.",
     "seeBoard": "See all ideas",
     "seeChangelog": "Full changelog"
+  },
+  "pending": {
+    "title": "Your requests under review",
+    "status": "Under review",
+    "hint": "Only you can see these. We read each one and, if it fits, it moves to the board for others to vote on. We'll let you know when that happens."
   }
 }
