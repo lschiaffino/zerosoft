@@ -1,1 +1,992 @@
-[]
+[
+  {
+    "title": "Agents: Stop replying after handoff on public/API and let teammates answer there",
+    "description": "On the Chat channel the agent goes silent after handoff (lib/agents-chat.ts checks wasHandedOff), but sendAgentMessage in lib/agents.ts never checks agent_conversations.handed_off, so on /a/<handle> and the API the bot keeps answering after it promised a teammate. Worse, components/agents/AgentConversations.tsx is read-only: the notification links to a transcript where nobody can reply, so the handoff is a dead end. Fin keeps the conversation owned and routes it to the right team with a reply path (https://fin.ai/capabilities). First scope: after handoff, store visitor messages without running the model, add a teammate reply box in the Conversations tab that streams into the public page via polling, and ask for an email at handoff time so the team can follow up offline.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "bug"
+  },
+  {
+    "title": "Agents: Fetch knowledge URLs on save and re-sync them daily from the cron tick",
+    "description": "Saving a new URL only inserts a 'pending' row (syncKnowledgeUrls in lib/agents.ts) and searchAgentKnowledge only reads status='ok', so a newly added page is invisible to the agent until someone clicks refresh in the Knowledge tab. There is no scheduled re-crawl (vercel.json only runs /api/cron/tick and robots, neither touches agents), so prices or policies on those pages silently go stale. Lindy auto-refreshes its knowledge base every 24 hours (https://community.lindy.ai/x/support/htoqrkuf750a/understanding-resync-knowledge-base-action-with-dy), Fin syncs website and Zendesk content (https://fin.ai/train), and Zapier schedules daily/weekly syncs (https://help.zapier.com/hc/en-us/articles/29457465505805). First scope: kick refreshKnowledgeUrls for new URLs after PATCH, re-fetch URLs older than 24h from the hourly cron in small batches, and show 'last synced' plus an error badge in the Knowledge tab.\n\nPriority: high. Effort: S. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "bug"
+  },
+  {
+    "title": "Agents: Add saved test cases with an LLM judge and rerun them before publishing",
+    "description": "Fin offers Simulations where one LLM plays the customer and another judges handoff timing, content used and standards, with a saved regression library rerun after every change (https://fin.ai/testing); Lindy has offline evals with LLM-as-judge scorers over reference tasks (https://docs.lindy.ai/fundamentals/lindy-101/evals); OpenAI AgentKit ships datasets and trace grading (https://openai.com/index/introducing-agentkit/). We only have a manual playground (components/agents/AgentChat.tsx) and per-message thumbs; there is no test table or runner anywhere under lib/agents*. A small team will not trust an agent after editing instructions without a one-click 'did I break anything' check. First scope: an agent_tests table (user message or short script, expected behavior in plain language, expected tool or handoff), a 'Tests' tab that runs all cases through runAgent in dry-run mode, judges with a cheap model and shows pass/fail with the transcript, and 'save as test' from any conversation.\n\nPriority: high. Effort: L. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Make the playground a dry run that simulates write tools instead of executing them",
+    "description": "The playground channel runs the same tools as production (lib/agent-tools.ts only relaxes the email check for playground), so testing an SDR agent books real meetings and sends confirmation emails, creates CRM contacts, opens Track issues and enqueues Flow runs. Fin previews and Releases let you try changes in a space separate from what customers see (https://fin.ai/testing), and AgentKit has preview runs (https://openai.com/index/introducing-agentkit/). This makes people afraid to test, which is the opposite of what builds trust. First scope: a 'simulate actions' toggle on by default in the playground that returns realistic fake outputs for crm_upsert_contact, crm_log_note, cal_book_meeting, track_create_issue, run_flow and POST http_request, marked as simulated in the tool call log.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Let owners require teammate approval before specific write actions run",
+    "description": "Zapier Agents pauses at approval steps and waits for you to approve or stop, and Human in the Loop lets reviewers approve, decline or edit data before the action proceeds (https://help.zapier.com/hc/en-us/articles/41776074420493); AgentKit has a User approval node (https://openai.com/index/introducing-agentkit/). Our tools are either fully on or off (toolsConfigSchema in lib/agents-config.ts) and execute immediately. Small teams want the agent to draft a Track issue, a CRM update or a Flow run and let a person confirm, especially at the start. First scope: per-tool 'needs approval' flag, a pending_actions table, an in-app notification with approve/edit/reject, and the agent tells the visitor the request is being reviewed; executed result is posted back to the conversation.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Add draft vs published versions with history and one-click rollback",
+    "description": "updateAgent in lib/agents.ts writes instructions, tools and guardrails straight to the live row, so every save in the editor goes to production channels instantly and there is no record of what changed. Fin Releases keep changes in a space separate from the customer-facing version until you publish (https://fin.ai/testing), and AgentKit offers full versioning (https://openai.com/index/introducing-agentkit/). Without versions you cannot tie a drop in thumbs-up to an edit or undo a bad prompt quickly. First scope: an agent_versions snapshot on publish, playground and tests run on the draft, a Publish button with a short diff, and a version list with restore; store version id on agent_conversations for later analytics.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Add an analytics tab with resolution, handoff, tool error and topic metrics",
+    "description": "Fin reports resolution rate, involvement rate and CX Score per conversation, groups conversations with Topics Explorer and offers Monitors and scorecards (https://fin.ai/pricing, https://fin.ai/capabilities). We only compute conversations in the last 7 days and all-time thumbs totals in listAgents (lib/agents.ts); the editor has no analytics tab (TABS in components/agents/AgentEditor.tsx). A team cannot decide whether to widen the agent's scope without knowing how often it resolves vs hands off and which questions it fails. First scope: a 'Performance' tab with 30-day series of conversations, handoff rate, step_limit rate, tool error rate by tool, thumbs ratio, and top unanswered queries (search_knowledge calls that returned 'no relevant knowledge found'), all from existing tables.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add real-time multiplayer with live cursors and element-level merge",
+    "description": "Miro, FigJam and tldraw all treat simultaneous editing with live cursors as the baseline; tldraw ships an open sync layer (https://tldraw.dev/docs/sync) and Excalidraw exposes isCollaborating, collaborators and reconcileElements so hosts can wire it. Today lib/boards.ts states 'Sin multiplayer en tiempo real' and saves replace the whole scene: a second editor gets a 409 and must choose 'keep mine' (overwrites the teammate) or 'reload' (discards own work) in components/board/BoardEditor.tsx. For a small team running a retro or planning session this is the single biggest blocker to using Board instead of Miro. First scope: per-board presence channel (SSE or websocket) broadcasting element deltas and pointer positions, merged client-side with Excalidraw's reconcileElements, keeping the versioned PUT as the persistence path.\n\nPriority: high. Effort: L. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Merge concurrent edits per element instead of whole-scene 'keep mine' overwrite",
+    "description": "Until full multiplayer lands, the conflict path is destructive: keepMine() in components/board/BoardEditor.tsx re-PUTs the entire local scene over the server version, silently deleting anything a teammate added, and 'reload' throws away local work. Miro never asks users to pick a winner, and Excalidraw already exports reconcileElements (present in node_modules/@excalidraw/excalidraw types) to merge two element arrays by id and version. This is a data-loss defect for any team of 2+ editing the same board. First scope: on 409, GET the server scene, reconcile with local elements, updateScene with the merged result and retry the save against the new version, only showing a banner when the merge is ambiguous.\n\nPriority: high. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "bug"
+  },
+  {
+    "title": "Board: Fix pending changes lost when leaving the editor during an in-flight save",
+    "description": "The unmount effect in components/board/BoardEditor.tsx fires a final PUT with versionRef.current but does not check inFlightRef, so if an autosave is still running it sends the same base version, the first request bumps the version and the final one gets a 409 that nobody sees; the last edits are lost. It also only uses keepalive for bodies under 60 KB and never shows an error. Miro saves continuously with no such window (board history in https://help.miro.com/hc/articles/360021668819 is a safety net, which we also lack). First scope: on unmount, wait for or chain after the in-flight request and use the returned version, and persist unsaved scenes to localStorage so the next open can offer to restore them.\n\nPriority: high. Effort: S. Compared with Miro.",
+    "product": "board",
+    "kind": "bug"
+  },
+  {
+    "title": "Board: Add pinned comment threads with @mentions and resolve",
+    "description": "Miro lets anyone pin a comment to a spot or object, @mention teammates, reply in threads and resolve them, with notifications (https://help.miro.com/hc/articles/360017572054); FigJam does the same. Our whiteboard has no comments at all: components/board/BoardEditor.tsx only renders the canvas, name and share popover, and the boards table in lib/schema/migrations.ts has no comment storage (components/board/BoardComments.tsx belongs to the public feedback board). Async review is how small remote teams actually use whiteboards between meetings. First scope: board_comments table with x/y or element id anchor, a comment tool and side panel reusing the Docs mention popover and lib/notifications.ts for @mentions.\n\nPriority: high. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Ship a starter template gallery (retro, brainstorm, user flow, kanban, roadmap)",
+    "description": "Miro's free plan includes 7,000+ templates (https://miro.com/pricing/, https://miro.com/templates/) and FigJam includes templates on every plan; a blank canvas is the main reason new teams bounce. Today create() in components/board/BoardList.tsx always POSTs an empty board and lib/boards.ts createBoard inserts scene ''; there is no template concept, although Docs already has lib/docs-templates.ts as a pattern. First scope: 8 to 10 built-in scenes (retro, crazy 8s, impact/effort matrix, user story map, weekly planning, flowchart, org chart, SWOT) stored as JSON in the repo, a 'New from template' picker, and 'Save board as template' for the workspace.\n\nPriority: high. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add sticky notes as a first-class tool with colors, bulk paste and tags",
+    "description": "Miro's core object is the sticky note: one-click colored stickies, bulk mode where each line becomes a sticky, pasting a spreadsheet column as stickies, and tags for grouping (https://help.miro.com/hc/articles/360017572054, https://www.offerzen.com/blog/10-tips-for-getting-started-with-miro); the REST API models sticky notes and tags as distinct item types. We only expose stock Excalidraw shapes in components/board/ExcalidrawCanvas.tsx, so a sticky is a manually styled rectangle plus a bound text with no fixed size, palette or tagging. Workshop workflows (brainstorm, affinity mapping, retros) depend on fast stickies. First scope: a custom toolbar button that inserts a square auto-sizing text container with a 6-color palette, 'paste lines as stickies' laid out in a grid, and tag chips stored in element customData.\n\nPriority: high. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Turn selected stickies into Track issues and show them as live cards",
+    "description": "Miro converts up to 50 selected stickies into Jira issues in one action and renders them as synced Jira cards on the board (https://miro.com/marketplace/jira); this is a paid-plan feature that depends on a third-party tracker. We own both sides: lib/track-data.ts exposes createIssue, but Board has no link to Track anywhere (no references to track in components/board or lib/boards.ts). Going from workshop output to tracked work in one click is the clearest suite differentiator for a small team. First scope: context menu 'Create Track issues' on selected text/stickies, choosing project and labels, writing the issue id into element customData and a link back to the board, then rendering a status badge on those elements.\n\nPriority: high. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Run reminder and workflow cron often enough that 'X minutes before' steps arrive",
+    "description": "Calendly Workflows send emails and texts at exact offsets such as 30 minutes before the meeting (https://calendly.com/blog/workflows). Our workflow editor lets hosts pick offsets in minutes (components/calendar/EventTypeEditor.tsx), but the only scheduler is /api/cron/tick at '17 * * * *' in vercel.json, and processDueWorkflowRuns in lib/calendar-workflows.ts silently marks a 'before' step as sent and skips it when the hourly tick lands after the meeting start. In practice a '15 minutes before' reminder is dropped roughly three times out of four, which defeats the main no-show reducer. First scope: move calendar reminders and workflow runs to the existing 5 minute cron (or schedule each email at booking time with the provider's scheduled send), and block offsets shorter than the cron interval in the UI with a clear hint.\n\nPriority: high. Effort: S. Compared with Calendly.",
+    "product": "cal",
+    "kind": "bug"
+  },
+  {
+    "title": "Cal: Apply buffers of existing bookings too, so buffer protection is not order dependent",
+    "description": "Calendly blocks the buffer around every Calendly meeting, so a 30 minute meeting with 15 minute buffers reserves 60 minutes (https://calendly.com/help/how-to-use-buffers). In lib/calendar.ts the buffer is only added to the candidate slot (applyBuffer in slotsForDay, pickFreeHost and HOST_FREE_SQL), while existing bookings are compared with their raw starts_at/ends_at. With bufferAfter=15, booking 8:30 to 9:00 first and then 9:00 to 9:30 is allowed with zero gap, but the reverse order is blocked. Hosts who rely on buffers for travel or prep get back-to-back meetings depending on who booked first. First scope: store the buffered range (or the buffer minutes) on each booking and expand existing bookings by their own buffers in listBusyRanges and HOST_FREE_SQL, plus a unit test for both orders.\n\nPriority: high. Effort: S. Compared with Calendly.",
+    "product": "cal",
+    "kind": "bug"
+  },
+  {
+    "title": "Cal: Add start time increments independent of meeting duration",
+    "description": "Calendly lets each event type set how often slots start, for example every 15 or 30 minutes regardless of length (https://calendly.com/help/how-to-fine-tune-your-availability-settings). Our engine in computeDaySlots (lib/calendar.ts) steps by durationMin, so a 45 minute event only offers 9:00, 9:45, 10:30 and a 60 minute event cannot start at 9:30. This produces odd times guests do not expect and wastes availability around existing meetings. First scope: add slotIntervalMin to bookingRules (default = duration, options 5/10/15/20/30/60), use it as the loop step in computeDaySlots, and expose it in the editor Limits section.\n\nPriority: high. Effort: S. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Check conflicts across several calendars and add Microsoft 365 / Outlook",
+    "description": "Calendly paid plans connect up to six calendars (Google, Office 365, Outlook, Exchange), let the user toggle which ones to check for conflicts and pick one destination calendar (https://blog.calendly.com/connect-multiple-calendars/). Our lib/google-calendar.ts queries freeBusy only for items [{id: 'primary'}], and there is no Microsoft provider at all. Small teams commonly keep a personal or shared team calendar next to the work one, and many SMB customers live in Microsoft 365, so today they get double booked or cannot use Cal. First scope: list the user's Google calendars and let them select which to check (freeBusy accepts many ids), then add a Microsoft Graph provider through registerBusyProvider plus event creation with the same best-effort pattern.\n\nPriority: high. Effort: M. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Offer structured locations (Zoom, Teams, phone, in person) with invitee choice",
+    "description": "Calendly has native Zoom and Microsoft Teams location types that generate a unique link per booking, plus phone call and in-person locations, and an event can offer several for the invitee to choose (https://help.calendly.com/hc/en-us/articles/223195508). Our location is a single free-text field (components/calendar/EventTypeEditor.tsx) and the only automation is wantsGoogleMeet() sniffing that text in lib/google-calendar.ts. Teams that sell on Zoom or Teams paste a static room link, and phone-call meetings cannot ask the guest for their number. First scope: replace location with a typed list (google_meet, zoom, teams, phone_host, phone_guest, in_person, custom link), let the guest pick when there are several, and add Zoom OAuth meeting creation first.\n\nPriority: high. Effort: M. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Add dropdown, radio, checkbox, multi-line and phone questions, plus invitee guests",
+    "description": "Calendly invitee questions support one line, multiple lines, radio buttons, checkboxes, dropdown and phone number, and invitees can add guests to the meeting (https://help.calendly.com/hc/en-us/articles/226893168, https://help.calendly.com/hc/en-us/articles/226766767). Our customField in lib/calendar-schema.ts only allows text, number and boolean, and bookingRules.allowGuests exists in the schema but nothing in the editor, booking page or emails uses it. Qualification questions like company size or budget become free text that cannot be filtered or routed, and the guest's colleague never gets the invite. First scope: add select/radio/checkbox/textarea/phone types with options, add a guests field (up to 10 emails) gated by allowGuests, and send them the .ics and Google attendee entry.\n\nPriority: high. Effort: M. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Email unread agent replies to offline visitors and thread email replies back",
+    "description": "Intercom delivers an inbox reply by email when the customer has not seen it in the Messenger within a few minutes, and Chatwoot's conversation continuity threads the customer's email reply back into the same chat (https://community.intercom.com/questions/6536, https://chatwoot.com/docs/product/channels/live-chat/conversation-continuity). Today an agent reply is only stored and shown on the next widget poll: app/api/chat/conversations/[id]/messages/route.ts sends no email, and lib/chat-visitor-message.ts only notifies agents. For a small team that answers hours later, the visitor has usually left the page, so the reply is never read. First scope: if a visitor with an email has not read an agent message (read_at null) after 5 minutes, send one email with the reply and a link that reopens the widget; then add inbound reply-by-email via a per-conversation reply-to address.\n\nPriority: high. Effort: M. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Localize the embedded widget UI (en/es/pt) instead of hardcoded English",
+    "description": "Intercom localizes all Messenger UI to the visitor's browser language for every supported language, with a language_override attribute (https://www.intercom.com/help/en/articles/180-localize-the-messenger-to-work-with-multiple-languages). Our widget script hardcodes English strings such as 'Type a message…', 'Start chat', 'We're away right now.', 'How would you rate your experience?', 'Search articles…' and the default welcome 'Hi there. How can we help?' in app/api/chat/widget.js/route.ts. This breaks PRODUCT.md's rule of no hardcoded UI strings across en/es/pt, and Latin America is the home market, so most end customers see an English widget on a Spanish site. First scope: move widget strings to the chat messages namespace, pick the locale from navigator.language or a data-locale attribute, and add a widget-level default language setting.\n\nPriority: high. Effort: S. Compared with Intercom.",
+    "product": "chat",
+    "kind": "bug"
+  },
+  {
+    "title": "Chat: Search inbox by message content, not only subject, name and email",
+    "description": "Intercom Inbox search matches conversations containing the query words and combines with tag, user, assignee and date filters, sorted by relevancy or date (https://www.intercom.com/changes/en/2285-find-the-exact-conversations-you-re-looking-for-with-flexible-search-and-filters-for-inbox). Our listChatConversations in lib/chat-data.ts only applies LIKE to c.subject, v.name and v.email, so searching for an order number, error text or a phrase the customer wrote returns nothing. Finding 'the person who asked about X last week' is a daily support task. First scope: add an EXISTS match on chat_messages.body (including notes for agents) with a snippet of the matching message in the list row, then an FTS index if volume needs it.\n\nPriority: high. Effort: S. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Add agent away status that skips round-robin and optionally reassigns",
+    "description": "Intercom teammates set an Away status; round robin excludes away teammates and 'away and reassign' sends their open conversations back to the team inbox, and the June 2026 changelog added availability filters (https://www.intercom.com/help/en/articles/6512504-round-robin-deep-dive, https://www.intercom.com/help/en/articles/6522874-manage-teammate-status-in-the-next-gen-inbox). Chatwoot has Online/Busy/Offline plus auto-offline. Our applyAssignmentRules in lib/chat-data.ts sorts all workspace agents by active load with no notion of availability, so a teammate on vacation keeps receiving new chats that breach SLA. First scope: an Away toggle in the inbox header (stored per user), round-robin skips away agents, and an option to unassign their open conversations when going away; reuse the CRM lead-assignment out-of-office flag if possible.\n\nPriority: high. Effort: M. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Keep synced emails, enrollments and form history when merging contacts",
+    "description": "HubSpot merges keep activities, associations and most property values from both records (https://knowledge.hubspot.com/records/merge-records). Our mergeContacts in lib/crm.ts moves contact_id on crm_emails but never repoints crm_email_contacts, and then deletes the dropped contact, so its rows cascade away (lib/schema/migrations.ts:995) and those emails disappear from the kept contact's timeline, which reads through crm_email_contacts (lib/crm-email.ts:777) and also feeds lead scoring. Sequence enrollments cascade-delete, form submissions lose their contact (ON DELETE SET NULL), property history stays orphaned, and empty fields on the kept contact are not filled from the dropped one. A small team merging a duplicate silently loses its email history. Fix: repoint crm_email_contacts, crm_sequence_enrollments, crm_form_submissions and crm_property_events inside the same transaction, fill blank fields from the dropped record, and add a regression test next to tests/unit/crm.test.ts 'merge de contactos'.\n\nPriority: high. Effort: S. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "bug"
+  },
+  {
+    "title": "CRM: Add a recycle bin that restores deleted records and activities for 90 days",
+    "description": "HubSpot keeps deleted contacts, companies, deals and activities in a restore tool for 90 days, filterable by date, user or workflow (https://knowledge.hubspot.com/records/restore-deleted-records). We hard-delete: deleteContact and bulkDeleteContacts run DELETE FROM crm_contacts directly (lib/crm.ts:767, :886), there is no deleted_at column on any CRM table (lib/schema/baseline.ts), and cascades wipe associations, emails links and enrollments. One mis-click on bulk delete (up to 500 rows) is unrecoverable for a team without a DBA. First scope: deleted_at on contacts, companies, deals and activities, exclude soft-deleted rows in list/search/report queries, a Settings > Deleted records page with restore, and a daily cron purge after 90 days.\n\nPriority: high. Effort: M. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Bulk edit any property and reassign owner on contacts, companies and deals",
+    "description": "HubSpot's index pages let you select records and edit any property value, assign owners or add to segments in one action (https://knowledge.hubspot.com/records/bulk-edit-records). Our contacts and companies bulk endpoints only accept set_lifecycle and delete (app/api/crm/contacts/bulk/route.ts, app/api/crm/companies/bulk/route.ts), and the deals table bulk bar only offers tags (components/crm/DealsTable.tsx:245). When a rep leaves or territories change, a small team has to reassign owners one by one. First scope: a 'Set property' bulk action (owner, lead status, source, stage, close date and custom fields) on all three tables, recorded in crm_property_events and firing the same workflow triggers as single edits.\n\nPriority: high. Effort: M. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Track last contacted, last activity and next activity date on every record",
+    "description": "HubSpot maintains Last activity date, Last contacted, Next activity date and Number of times contacted automatically on each contact (https://knowledge.hubspot.com/properties/hubspots-default-contact-properties), and Pipedrive builds its workflow around a Next activity date with a warning on deals that have nothing scheduled (https://support.pipedrive.com/en/article/activities). We only compute last_activity_at for deals on the board query (lib/crm.ts:1531); contacts and companies have no such fields, the contacts table columns stop at created (components/crm/ContactsTable.tsx:50-59), and the board card shows no next step. For a small team the daily question is 'who have I not talked to and what is my next step', which we cannot answer from a list. First scope: derived last_contacted_at, last_activity_at, next_activity_at on contacts, companies and deals (updated on activity/email write), sortable and filterable columns, and a 'no next activity' marker on board cards.\n\nPriority: high. Effort: M. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Show owner and custom fields as sortable columns in record tables",
+    "description": "HubSpot index views let you add any property, default or custom, as a column and sort or filter by it, and the 2026 index redesign adds conditional highlighting on top (https://offers.hubspot.com/streamlined-index-views-resource-center). Our column toggle only exposes a fixed set: contacts get name, email, phone, company, lifecycle, lead status, source, score, tags, created (components/crm/ContactsTable.tsx:50-59), with no owner column and no custom fields in ContactsTable or DealsTable, even though the filter builder already supports custom fields (lib/crm.ts:187). Teams that add a 'Plan' or 'Region' field cannot see it in the list without opening each record. First scope: owner column on all three tables plus one column per custom field in ColumnToggle, persisted in saved views, sortable via the existing custom-field SQL expression.\n\nPriority: high. Effort: S. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Make [[ page links real links instead of inserting the title as plain text",
+    "description": "Notion inserts a live page mention when you type [[ or @page, which navigates on click, follows renames and creates a backlink (https://www.notion.com/en-gb/help/create-links-and-backlinks). Our onSelectMention in components/docs/DocsEditor.tsx (around line 1362) deletes the [[query and inserts the escaped text \"[Page title] \", so nothing is clickable and the feature map's claim that [[ links another page is not true. For a small team wiki, cross-linking pages is the core navigation pattern, and today every link silently becomes dead text. First scope: insert an anchor via wrapLink with href /app/docs/<id> (or a data-page-id mention element allowed by the sanitizer), render it as a page chip with icon, and resolve the current title on render so renames do not break it.\n\nPriority: high. Effort: S. Compared with Notion.",
+    "product": "docs",
+    "kind": "bug"
+  },
+  {
+    "title": "Docs: Move the caret between blocks with Arrow Up/Down",
+    "description": "In Notion the arrow keys move freely through the page, crossing block boundaries (https://www.notion.com/help/keyboard-shortcuts). Each of our blocks is its own contentEditable (components/docs/DocsBlockEditor.tsx), and handleKeyDown in components/docs/DocsEditor.tsx only handles ArrowUp/Down inside the slash menu, so the caret gets stuck at the first or last line of a block and the user must reach for the mouse. This hurts every editing session, especially on long notes. First scope: when the caret is on the first visual line (ArrowUp) or last visual line (ArrowDown), or at offset 0 / end for ArrowLeft/Right, focus the neighbouring block and place the caret at the matching x position (lib/docs-caret.ts already has offset helpers); also make Delete at the end of a block merge the next one.\n\nPriority: high. Effort: S. Compared with Notion.",
+    "product": "docs",
+    "kind": "bug"
+  },
+  {
+    "title": "Docs: Add image and file blocks with upload, paste and drag and drop",
+    "description": "Notion supports /image, /file, /video and /pdf blocks, drag and drop from the desktop, paste of screenshots, resize, captions and alt text, even on the Free plan with a 5 MB per file limit (https://www.notion.com/help/images-files-and-media, https://www.notion.com/pricing). Our block enum in lib/docs-schema.ts has no media type, lib/docs-richtext.ts lists IMG/VIDEO in DROP_TAGS so pasted images vanish, and covers only accept a URL. A team writing specs, how-tos or meeting notes constantly pastes screenshots, so this is the most visible missing primitive. First scope: an image block and a file block (name, size, download) backed by the existing lib/uploads.ts (Vercel Blob or local disk), created from /image, clipboard paste and drop, with caption and width; reuse the same upload for covers.\n\nPriority: high. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Split pasted Markdown or HTML into real blocks and import .md/.docx files",
+    "description": "Notion turns pasted rich content into headings, lists and code blocks, and imports Markdown, CSV, Word, Google Docs, HTML and Confluence exports (https://www.notion.com/help/import-data-into-notion). Our onPaste in components/docs/DocsBlockEditor.tsx sanitizes the clipboard and inserts everything into the current block, with block elements collapsed to newlines, so pasting a README or a Google Doc yields one giant paragraph. Teams migrating from Notion, Google Docs or a repo README hit this on day one, and it blocks adoption. First scope: when the clipboard holds multiple block-level elements or Markdown syntax, parse it (marked is already a dependency) into DocsBlock[] and splice them after the caret; then an Import button that accepts .md/.txt/.html files and a zipped Notion Markdown export, preserving the folder tree as subpages.\n\nPriority: high. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Search page content, not only titles, and add a Cmd+P page switcher",
+    "description": "Notion search covers page bodies and comments, and Cmd+P opens search or jumps to recently viewed pages (https://www.notion.com/help/keyboard-shortcuts); Outline advertises instant full-text search as a headline feature (https://www.getoutline.com/). Our searchDocPages in lib/docs.ts runs title LIKE ? only, and app/api/search/route.ts uses it for Cmd+K, so a phrase written inside a page can never be found. Once a team has more than a few dozen pages, finding 'where did we write the refund policy' is the main daily use of a wiki. First scope: search title plus plain text of content (pagePlainText already exists in lib/docs-help.ts) with a snippet around the match and title hits ranked first; add an FTS index later; add a Docs-local Cmd+P palette that lists recent pages when empty.\n\nPriority: high. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Inherit sharing from parent pages to their subpages",
+    "description": "In Notion subpages take on their parent's permissions unless overridden on a specific subpage (https://www.notion.com/help/sharing-and-permissions). Our getDocAccess in lib/docs.ts reads docs_shares WHERE page_id = ? for the page itself only, so sharing a 'Client onboarding' page with a guest or another team gives them the top page while every subpage returns 404, and the owner has to share each child by hand. This makes sharing a section with a contractor or client practically unusable. First scope: walk ancestors in getDocAccess (bounded, cached per request) and take the highest role found, show 'Inherited from <page>' in ShareDialog.tsx, and let the shared-with-me tree show the child pages under the shared root.\n\nPriority: high. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add comment replies, @mentions in comments and notifications",
+    "description": "Notion comments support threaded replies, comments on a selected text range, @mentions of people inside comments, and Inbox plus email notifications for mentions and replies (https://www.notion.com/help/comments-mentions-and-reminders). Our docs_comments table (lib/schema/baseline.ts) has no parent or text anchor, CommentsPanel.tsx has no reply or mention support, and app/api/docs/pages/[id]/comments/route.ts creates the comment without notifying anyone, so feedback left on a doc is invisible unless the owner happens to open it. Async review of specs and proposals is the main collaboration loop for a small team. First scope: thread replies under a root comment, @mention picker reusing UserMentionPopover, and notifications (lib/notifications.ts) to the page owner, thread participants and mentioned users; anchor-to-selection can follow.\n\nPriority: high. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Support nested blocks with Tab indent, toggle lists, toggle headings and callouts",
+    "description": "Notion lets you nest any block with Tab / Shift+Tab and offers toggle lists, toggle headings and callouts as basic building blocks (https://www.notion.com/help/keyboard-shortcuts, https://www.notion.com/help/columns-headings-and-dividers, https://developers.notion.com/reference/block). Our DocsBlock model is a flat array with no children or indent level (lib/docs-types.ts, lib/docs-schema.ts) and Tab is not handled in components/docs/DocsEditor.tsx, so sub-bullets and collapsible FAQ sections are impossible. Nested lists are the default way people write meeting notes and outlines. First scope: an indent field (0-4) on list/to-do/paragraph blocks driven by Tab/Shift+Tab, a toggle block with collapsible children rendered from following indented blocks, and a callout block with emoji; carry them through docs-markdown export and the help center renderer.\n\nPriority: high. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Run the scheduler every minute so minute schedules, delays and retries fire on time",
+    "description": "Zapier polls every 15 minutes on Free and every 2 minutes on paid plans, and n8n schedules run to the minute (https://zapier.com/pricing). Our editor offers interval schedules in minutes (minimum 5) and Delay in seconds or minutes, but on cloud the Flow queue only drains in the hourly /api/cron/tick ('17 * * * *' in vercel.json); the copy itself admits runs can start up to an hour late (messages/en/flow.json scheduleGranularity and delayGranularity). Node retries schedule jobs 15 s to 1 h out and also wait for the next tick. This silently breaks the most common small-team automation, 'every 15 minutes check X', and any follow-up delay. First scope: call processFlowQueue from the existing 5-minute /api/cron/robots route (or add a 1-minute cron for Flow only), then remove the granularity warnings.\n\nPriority: high. Effort: S. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "bug"
+  },
+  {
+    "title": "Flow: Add actions to update CRM records, create tasks and update Track issues",
+    "description": "Zapier and n8n app nodes cover create, update, get and search for every object (for example the n8n HubSpot node: contacts, deals, tasks, engagements, https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.hubspot/). Flow can only create a contact (an existing email returns created:false without updating fields), enroll in a sequence, list deals created in the last N hours, and create a Track issue (lib/flow-engine.ts crmContactNode, crmDealsNode, trackIssueNode). There is no update contact, find contact, create or update deal, move deal stage, create CRM task or note, update issue status or assignee, or create a Cal booking link, even though CRM workflows already implement update_field and create_task (lib/crm-workflow-catalog.ts). Cross-app automation is the reason to use Flow instead of Zapier, so these are table stakes. First scope: app.crm_contact upsert plus app.crm_deal (create/update/move stage), app.crm_task and app.track_issue update, with pickers instead of raw IDs for projectId, sequenceId and robotId.\n\nPriority: high. Effort: M. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add date and text formatter filters (format, add time, timezone, replace, split)",
+    "description": "Zapier Formatter is used in a large share of Zaps: date format, add or subtract time (+1 day -2 hours), timezone conversion, text replace, split, truncate, number formatting (https://help.zapier.com/hc/en-us/articles/31162113958925). n8n exposes Luxon date helpers and string helpers in every expression. Our template engine has 13 filters and {{now}} only as an ISO string, with no date formatting, date math, replace, split, slice or round (lib/flow-template.ts applyFilter), and unknown filters are silently ignored. Without this, users fall back to the Code step, which needs Vercel Sandbox and is unavailable on many self-hosts. First scope: add date:'format':tz, add:'+1d', replace, split, slice, round and fail validation on unknown filter names.\n\nPriority: high. Effort: S. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Let webhooks reply with custom data and accept GET and header or basic auth",
+    "description": "n8n's Webhook node accepts GET, POST, PUT, PATCH, DELETE and HEAD, supports basic, header and JWT auth, and can respond when the last node finishes or through a Respond to Webhook node with custom status, headers and body (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/, https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.respondtowebhook/). Our hook route only exports POST and always answers 202 {runId} before the flow runs (app/api/flow/hooks/[token]/route.ts). That blocks verification handshakes (Meta/WhatsApp hub.challenge, Slack url_verification), form handlers that need a redirect, and small APIs built on Flow. First scope: GET support, an optional shared-secret header check, and a 'Respond to webhook' node that waits up to about 10 s for a synchronous answer.\n\nPriority: high. Effort: M. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add an approval step that pauses a run until someone approves in Slack or email",
+    "description": "Zapier Human in the Loop pauses a Zap until reviewers approve, decline or edit data, notified by email or Slack, with a Decision field for branching (https://help.zapier.com/hc/en-us/articles/38733184458765/). n8n ships 'Send and wait for response' on Slack, Gmail, Telegram, WhatsApp and more, and human review for AI agent tools (https://docs.n8n.io/advanced-ai/human-in-the-loop-tools/). Flow already has a waiting state and resumable jobs (lib/flow-engine.ts result.kind 'wait', resumeRun) but only Delay uses it. For small teams this is the safe way to let AI draft a reply or a quote and have a human click approve before it goes out. First scope: a logic.approval node with approved/rejected/timeout outputs, notifying by email and Slack with signed links, plus an approvals inbox in the Flow app.\n\nPriority: high. Effort: M. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add workspace data tables for lookups, dedupe and state between runs",
+    "description": "Zapier Tables is included on Free (2,500 records, table steps do not count as tasks) and n8n added Data tables with a Data Table node, CSV import and an API, used to store markers that prevent duplicate runs and lookup lists (https://zapier.com/pricing, https://docs.n8n.io/data/data-tables/). Flow has no persistent storage: every run only sees its trigger and node outputs (lib/flow-engine.ts templateCtx), so 'only notify once per contact', counters, or a mapping table need an external Google Sheet. First scope: a flow_tables store per workspace (simple typed columns, 10k rows), a data.table node with insert, upsert by key, find and delete, and a small table view in the Flow app.\n\nPriority: high. Effort: L. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add triggers for Notes, Board, Agents and task, chat and booking lifecycles",
+    "description": "Zapier and n8n triggers exist for nearly every record change in an app (new or updated item, status change). Our event bus (lib/events.ts) is called from Cal, Link, CRM, Track, Chat, Docs and Robots, but Notes, Board and Agents emit nothing, so 3 of our 11 apps cannot start a flow (no emitEvent in lib/agents.ts, notes or board code). Useful events also missing: crm task due or completed (CRM workflows have task_due), chat conversation closed or assigned, agent handoff to a human, booking no-show, docs page updated, issue assigned. Triggering across our own apps is the core promise of Flow. First scope: board.card_created/moved, agent.handoff, conversation.closed, task.due and page.updated, each with an EVENT_SAMPLES entry.\n\nPriority: high. Effort: M. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Forward query parameters from the short link to the destination URL",
+    "description": "Dub appends any query string on the short link (for example ?utm_source=newsletter) to the destination, with the short link value winning on conflicts, so one link can be reused across channels (https://dub.co/help/article/parameter-passing). Our middleware already forwards req.nextUrl.search into /r/<slug>, but app/r/[slug]/route.ts redirects to link.url or the targeting destination and drops every incoming param except reading ?qr=1. Marketers who tag a short link per channel silently lose that attribution today. First scope: merge incoming params into the resolved destination (strip our internal qr param), apply to deep link fallbacks too, and add a per-link toggle defaulting to on.\n\nPriority: high. Effort: S. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Track leads and sales per link and attribute them to CRM contacts and deals",
+    "description": "Dub Conversions records lead and sale events against the click that produced them (client SDK plus /track/lead and /track/sale, Stripe integration) and shows clicks to leads to sales funnels per link (https://dub.co/help/article/dub-conversions, https://dub.co/docs/integrations/stripe). We only record clicks (lib/track.ts recordClick); there is no click id, no conversion table and no lead/sale event. We already own a CRM, so this is a strong differentiator: a click id cookie on redirect, a lightweight track endpoint, and CRM form submissions or deal won events attributed back to the originating link. First scope: set a zs_click id on redirect, accept POST /api/v1/track/lead with that id, and show leads per link in analytics and on the CRM contact timeline.\n\nPriority: high. Effort: L. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Add filters (tag, domain, link, country, device) and timezone to analytics",
+    "description": "Dub analytics can filter and group by tag, folder, domain, link, country, region, city, device, browser, OS, referrer URL and UTM values, with an IANA timezone for day buckets (https://dub.co/docs/api-reference/endpoint/retrieve-analytics). Our workspace dashboard in lib/link-analytics.ts takes only a date range and the per-link view in lib/track.ts getAnalytics only a preset range; both bucket days in UTC and the workspace view omits OS. A small team running a campaign cannot answer 'how did links tagged launch perform in Brazil on mobile'. First scope: tag, domain, country and device filters on the workspace dashboard and API, OS breakdown, and day buckets in the workspace timezone.\n\nPriority: high. Effort: M. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Let expired and missing links redirect to a custom URL per link and domain",
+    "description": "Dub supports expiredUrl per link and expiredUrl/notFoundUrl defaults per domain, so a dead campaign link lands on a useful page instead of an error (https://dub.co/help/article/link-expiration, https://dub.co/help/article/setting-not-found-url). In app/r/[slug]/route.ts every expired, limit-reached, archived or unknown slug goes to the zerosoft /gone page, even on a customer's own branded domain; link_domains only has root_url. Printed QR codes and old campaign emails keep getting traffic long after expiry, and a zerosoft error page on a customer domain looks broken. First scope: expired_url column on links, expired_url and not_found_url on link_domains, used by the gone() branches.\n\nPriority: high. Effort: S. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Preserve the clip and deep link through sign-in instead of dropping them",
+    "description": "Evernote's Web Clipper prompts sign-in and then completes the clip (https://help.evernote.com/hc/en-us/articles/209125827). Our clip page and the main Notes page call requireUser, which redirects to /auth/signin without a callbackUrl (lib/session.ts requireUser), even though the sign-in page already supports ?callbackUrl= (app/[locale]/auth/signin/page.tsx). A logged-out user who clicks the bookmarklet loses the URL, title and selection, and anyone opening a shared ?note=<id> link lands on the generic app home. This silently breaks the main capture path on any new device or expired session. First scope: let requireUser accept the current path plus query and pass it as callbackUrl, starting with /app/notes/clip and /app/notes.\n\nPriority: high. Effort: S. Compared with Evernote.",
+    "product": "notes",
+    "kind": "bug"
+  },
+  {
+    "title": "Notes: Add image and file attachments with drag, drop and paste into a note",
+    "description": "Evernote treats attachments (images, PDFs, audio, any file) as first-class note content, and its 2026 releases added image annotation, a PDF editor, image resizing in tables and attachment printing (https://releasebot.io/updates/evernote). Our notes can only hold text blocks: DocsBlockType has no image or file type (lib/docs-types.ts) and there is no upload route under app/api/notes, although lib/uploads.ts already powers attachments in Track, Chat and CRM tasks. Without attachments users cannot save receipts, whiteboard photos, screenshots or contracts, which is the core everyday use of a notes app. First scope: an image block and a file block in the Notes editor, upload via paste, drop and a button using lib/uploads.ts, rendered in the editor, the trash view and the public share page.\n\nPriority: high. Effort: M. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Add reminders with date and time that notify in-app and by email",
+    "description": "Evernote lets you set a reminder on any note with a date and time, lists reminders at the top of the note list and can send email alerts (https://help.evernote.com/hc/articles/208314338); Google Keep adds time and location reminders synced to every device (https://9to5google.com/2023/01/31/what-you-can-do-google-keep/). Our note schema has no reminder or due field (lib/notes-schema.ts, lib/notes-types.ts NoteSummary) and Notes never touches lib/notifications.ts or the cron jobs. Reminders turn a passive note into a follow-up and are table stakes in every competitor's free tier. First scope: one reminder_at per note, a bell button in the note bar, a Reminders section in the nav, and a cron that sends an in-app notification plus an email when due.\n\nPriority: high. Effort: M. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Include notes in the global Cmd+K search results",
+    "description": "Evernote search is the front door to the app and spans titles, text and even attachments (https://help.evernote.com/hc/articles/208313828). Our suite-wide search route only queries CRM, Links, Docs and tasks (app/api/search/route.ts) even though lib/notes.ts already has a fast FTS5 search per person. Users who live in other zerosoft apps cannot find a note without first opening Notes, which undercuts the 'one suite' value. First scope: add a notes group to /api/search using listNotes with q and a small limit, scoped to the current person, linking to /app/notes?note=<id>.\n\nPriority: high. Effort: S. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Detect edit conflicts between tabs or devices instead of last write wins",
+    "description": "Evernote keeps note history and creates conflicting-change copies so that edits from two devices are never silently lost (https://help.evernote.com/hc/articles/208313858). Our autosave PATCH sends the whole title and block array with no version or updated_at precondition (components/notes/NotesApp.tsx saveContent, lib/notes.ts updateNote), so a stale tab or a laptop left open overwrites newer content written on a phone. PATCH also accepts content edits on trashed notes. This is silent data loss in the most common multi-device scenario. First scope: send the last known updated_at with each save, return 409 when the server row is newer, and show a 'This note changed elsewhere, reload or keep mine' banner; reject content edits on trashed notes.\n\nPriority: high. Effort: S. Compared with Evernote.",
+    "product": "notes",
+    "kind": "bug"
+  },
+  {
+    "title": "Robots: Queue runs instead of failing as busy when another workspace run is active",
+    "description": "UiPath Orchestrator queues pending jobs per robot and only raises an alert when a trigger cannot create jobs (https://docs.uipath.com/orchestrator/standalone/2023.4/user-guide/alerts), and Browse AI queues tasks for bulk runs (https://www.browse.ai/monitoring). Our startRobotRun inserts a run only when no other run in the workspace is running, otherwise returns busy (lib/robots.ts). For schedules, runDueRobots advances next_run_at before starting, so a collision with a manual or Flow run records a failed busy run and that scheduled execution is lost; from Flow, app.robot_run fails unless the node has retries (default 0, lib/flow-engine.ts robotNode). Teams with two or three robots will see random failures they did not cause, which destroys trust. First scope: add a queued status, insert as queued when busy, and drain the queue in /api/cron/robots and after each run finishes, with a max queue age.\n\nPriority: high. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "bug"
+  },
+  {
+    "title": "Robots: Send failure alerts and auto-pause schedules after N consecutive failures",
+    "description": "Axiom.ai notifies by email or webhook when a run fails, succeeds, or succeeds with warnings (https://axiom.ai/docs/troubleshooting/error-handling), and UiPath Orchestrator sends Error alerts for failed jobs and disables a trigger after its job fails five times in a row (https://docs.uipath.com/orchestrator/standalone/2023.4/user-guide/alerts). We only emit robot.run.failed (lib/robots.ts); there is no in-app or email notification unless the user builds a Flow, and lib/notifications.ts has no robot hook. A scheduled robot that silently fails for a week is the top reason people stop trusting RPA. First scope: per-robot setting 'notify on failure' (creator and admins, in-app plus email, digest at most once per hour) and an auto-pause after 5 consecutive scheduled failures with a banner in RobotsHome.\n\nPriority: high. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Capture a screenshot, URL and DOM snippet automatically when a step fails",
+    "description": "Browserbase records every session as video with a Session Inspector and live debug URL so failures can be replayed (https://docs.browserbase.com/features/session-recording, https://docs.browserbase.com/features/session-debugger). Our interpreter only takes screenshots when the robot has an explicit screenshot step; on a failed step it logs a code like s3: action_timeout plus the first line of the Playwright message (lib/robots-interpreter.ts runList). Without seeing the page at the moment of failure (cookie banner, login wall, changed layout) users cannot fix a robot. First scope: in the catch of runList, take one failure screenshot (outside the 5-shot cap), record page.url() and the outerHTML of the nearest match or body excerpt, and show them next to the failed log row in RunsPanel.\n\nPriority: high. Effort: S. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Record fallback selectors per step and self-heal when the primary one breaks",
+    "description": "UiPath Unified Target keeps several targeting strategies and the Healing Agent votes on a candidate selector when one is not found, recommending or applying fixes (https://docs.uipath.com/agents/automation-cloud/latest/user-guide-ha/what-is-healing-agent); Browse AI says it detects layout changes and adapts the robot, notifying the user (https://help.browse.ai/en/articles/10486935-how-browse-ai-uses-ai); Stagehand re-infers a selector when a cached one stops resolving (https://docs.stagehand.dev/v4/best-practices/caching). Our recorder computes candidates but keeps only the first unique one (generateSelector in lib/robots-recorder.ts), and resolveTarget tries one selector and then visible text (lib/robots-interpreter.ts). Selector rot is the main maintenance cost of browser robots. First scope: store a fallbacks array (testid, aria-label, name, text, CSS path) per step from the recorder, try them in order at runtime, log 'healed via fallback N', and offer a one-click 'promote fallback' in the run view.\n\nPriority: high. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add an extract_list step that turns repeating cards into rows with named fields",
+    "description": "Browse AI 'capture list' and Bardeen scrapers extract repeating items (product cards, search results, directory entries) into rows with columns the user names (https://help.browse.ai/en/articles/10486935-how-browse-ai-uses-ai, https://www.bardeen.ai/pricing), and Stagehand extract() returns typed data validated against a schema (https://docs.stagehand.dev/). We have extract_table, which only works on HTML <table>, and extract mode all, which returns a flat array of texts for one selector (lib/robots-interpreter.ts). Most real scraping targets (listings, leads, prices) are div-based lists, so today users must write an evaluate step in JS. First scope: extract_list with an item selector plus up to 20 fields (name, relative selector, text or attribute), capped at 500 rows, rendered by the existing table view in RunsPanel.\n\nPriority: high. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add pagination that clicks Next until missing and appends rows across pages",
+    "description": "Axiom.ai has a Find pager setting and a scrape API that keeps paginating until max results or the pager selector stops matching (https://axiom.ai/scrape/multiple-pages/, https://axiom.ai/docs/developer-hub/api/step-functions/scrape/). Our only loop is loop_over over a known list, nested loops are rejected, and if_exists can only jump forward (lib/robots-schema.ts validateSteps), so a 'repeat until there is no Next button' pattern is impossible. Multi-page results are the default for directories, marketplaces and admin panels. First scope: a paginate option on extract_table and extract_list (next selector, max pages up to 20, wait after click) that concatenates rows into the same variable, counted against MAX_PAGES and MAX_EXECUTED_STEPS.\n\nPriority: high. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Let authors edit and delete their own issue comments",
+    "description": "Linear lets you edit or delete your own comment from its overflow menu and resolve threads (https://linear.app/docs/comment-on-issues). In Track, app/api/track/issues/[id]/comments/route.ts only exposes GET and POST; deleteIssueComment in lib/track-data.ts is never called, and the comment body is also copied into the activity meta, so a typo or a leaked secret stays forever. commentCreateSchema (lib/track-schema.ts) also has no min length, so the API accepts empty comments even though the UI disables the button. First scope: PATCH and DELETE on /api/track/issues/[id]/comments/[commentId] restricted to the author, render the comment from track_issue_comments instead of activity meta, show an edited marker, and require body min(1).\n\nPriority: high. Effort: S. Compared with Linear.",
+    "product": "track",
+    "kind": "bug"
+  },
+  {
+    "title": "Track: Add a Markdown rich text editor for issue descriptions and comments",
+    "description": "Linear's editor converts typed or pasted Markdown into rich text, supports code blocks, attachments via /file and links @ENG-123 mentions as related issues (https://linear.app/docs/editor). Track stores descriptions as a single text block edited in a plain textarea (components/track/IssueDetailClient.tsx parseDescription, track-description-input), and comments are plain text. Bug reports and specs need headings, lists, code and inline images to be readable. First scope: reuse the Docs editor or a lightweight Markdown renderer for descriptions and comments, with code blocks, lists, links and pasted images uploaded as attachments; auto-link SLUG-N references.\n\nPriority: high. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Let users subscribe to issues and notify all subscribers on changes",
+    "description": "Linear auto-subscribes creators, assignees and mentioned users, allows manual subscribe/unsubscribe (Shift+S) and notifies every subscriber (https://linear.app/docs/notifications). Track hardcodes recipients: status changes go to assignee and creator, comments to mentions, assignee and creator (lib/notifications.ts, lib/track-data.ts createIssueComment), with no subscriber table. A reviewer or stakeholder who wants to follow an issue has no way to do it, and the creator cannot opt out. First scope: track_issue_subscribers table, auto-subscribe on create, assign, mention and comment, a Subscribe toggle on the issue page, and route all Track notifications through it.\n\nPriority: high. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Send email notifications and a daily digest for Track activity",
+    "description": "Linear delivers notifications by desktop, mobile, Slack and urgency-timed email digests, configurable per type (https://linear.app/docs/notifications). Track notifications only exist in the in-app inbox (components/track/InboxClient.tsx, lib/notifications.ts has no email path for track types), so anyone not looking at the app misses assignments and mentions. For small teams that live in email, this is the main reason issues go stale. First scope: per-user setting for immediate email on assigned and mention, plus an optional daily digest of unread Track notifications, sent with the existing system sender.\n\nPriority: high. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Expose issues, projects and comments in the public /api/v1 with webhooks",
+    "description": "Linear's public GraphQL API covers issues, projects, cycles, labels, comments and relations, plus webhooks for every entity (https://linear.app/developers, https://linear.app/developers/webhooks). Our public API (app/api/v1) covers agents, calendar, crm and links but has no track resource; app/api/track/* only accepts session auth. Teams cannot script imports, sync with other tools, or let CI open issues. First scope: /api/v1/track/issues (list, get, create, update), projects and comments, with API key scopes from lib/api-auth.ts and entries in openapi.json; reuse the generic webhooks table for issue.created and issue.updated.\n\nPriority: high. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Create cycles automatically on a cadence and roll over unfinished issues",
+    "description": "Linear creates upcoming cycles automatically with a 1 to 8 week length and start day, auto-adds started issues to the current cycle, rolls unfinished issues forward and keeps a scope/progress graph per cycle (https://linear.app/docs/use-cycles). Track cycles are created one by one by hand (cycleCreateSchema in lib/track-schema.ts, components/track/CyclesPanel.tsx) and rollover only happens when someone clicks Complete. Teams forget to create the next sprint and the overview shows No cycle. First scope: per-project cycle settings (length, start weekday, how many upcoming), a daily cron that creates future cycles and completes ended ones with rollover, and estimate-based progress in CyclesPanel.\n\nPriority: high. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Turn unanswered questions into suggested Docs pages the team can approve",
+    "description": "Fin reviews real conversations to recommend content updates and surface missing topics, approvable in one click from its Optimize dashboard (https://fin.ai/train, https://fin.ai/capabilities). We already log every search_knowledge call with its query and empty results in agent_tool_calls and have Docs in the same suite, but nothing connects them (lib/agent-tools.ts, lib/agents.ts). This is a suite advantage: the fix lands directly in the knowledge source the agent reads live. First scope: weekly job that clusters empty-result queries plus handoff reasons, drafts an answer from the teammate replies in handed-off Chat conversations, and creates an unpublished Docs page linked to the agent for review.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Give the agent the identified visitor's CRM, Cal and Track context",
+    "description": "Fin personalizes answers using customer data and connectors (Stripe, Shopify, Salesforce) and can route by customer attributes (https://fin.ai/capabilities, https://fin.ai/train). Our prompt (buildAgentInstructions in lib/agents.ts) contains no visitor identity even when the Chat widget already knows the visitor's email, and the agent can only learn a contact's first name and lifecycle stage via crm_find_contact (lib/agent-tools.ts). Owning CRM, Cal and Track lets us do this without integrations: upcoming bookings, open issues the visitor reported, deal stage. First scope: when the Chat visitor has a verified email, inject a short read-only context block (name, company, lifecycle stage, next booking, open Track issues by that email) and add tools to list or cancel that visitor's own bookings.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Add semantic retrieval and show source links in answers",
+    "description": "Our search is in-memory BM25 over keyword tokens with a small ES/EN/PT stopword list (lib/knowledge-search.ts), so a question phrased differently from the doc, or in another language than the doc, often returns nothing and triggers a handoff. Fin answers in 45+ languages from the same content (https://fin.ai/capabilities). search_knowledge already returns a source for URLs but the visitor never sees which page an answer came from, which hurts trust and makes wrong answers hard to debug. First scope: hybrid ranking (BM25 plus embeddings via the AI Gateway, cached per chunk with a content hash), and an instruction plus UI to append one source link (Docs public URL or web URL) to answers that used knowledge.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Alert the owner when thumbs-down, tool errors or step limits spike",
+    "description": "Fin Monitors evaluate live conversations against standards you define and alert when a threshold is crossed (https://fin.ai/testing, https://fin.ai/pricing). We record ratings in agent_feedback, tool errors in agent_tool_calls and the step_limit status in runAgent (lib/agents.ts), but only handoffs produce a notification (lib/agent-tools.ts). A small team will not watch a dashboard daily; a push when something breaks (for example a Cal event type deactivated making every booking fail) is what keeps an agent safe to leave running. First scope: hourly cron check per agent for tool error rate, thumbs-down count and step_limit count over the last 24h vs threshold, sending one in-app and email notification with a link to the failing conversations.\n\nPriority: medium. Effort: S. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Answer email threads from CRM inboxes as a channel, draft-first",
+    "description": "Fin deploys to email, WhatsApp, SMS, Slack and voice (https://fin.ai/pricing), and Lindy drafts and triages email (https://docs.lindy.ai/features/inbox-management/email-drafting.md). Our channels are the Chat widget, the public page, the API and the Flow node (AgentChannel in lib/agents-config.ts, lib/agents-chat.ts); there is no email channel even though the suite already handles email in lib/crm-email.ts. Email is where most small-team support and sales actually happens. First scope: assign an agent to a CRM email inbox in 'draft' mode, where it writes a reply draft on each inbound thread for a teammate to send, with the same tools and logging as other channels.\n\nPriority: medium. Effort: L. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add voting sessions and a shared timer for workshops",
+    "description": "Miro puts voting (set a voting area, N votes per person, reveal results) and a timer visible to everyone in its facilitation toolbar, included from the Starter plan (https://miro.com/pricing/, https://help.miro.com/hc/articles/360017572274); FigJam lists timer and voting too. Our board has neither: components/board/BoardEditor.tsx has no facilitation controls and there is no realtime channel to broadcast a timer. Dot voting and timeboxing are what make a retro or prioritization session work for a 5-person team. First scope: a facilitator panel to start a vote over selected elements with a per-person vote budget, tallies shown as badges, and a countdown timer stored on the board row and polled by participants until multiplayer exists.\n\nPriority: medium. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Store pasted images in blob storage instead of inline base64 in the scene",
+    "description": "Miro and FigJam handle boards full of screenshots without size errors. We keep every image as a dataURL inside the scene JSON (buildScene in components/board/BoardEditor.tsx keeps files inline) under a 4 MB cap (lib/boards-types.ts BOARD_MAX_SCENE_BYTES), so a handful of screenshots triggers the 'too large' block and stops saving, and every autosave re-uploads all images. lib/uploads.ts already provides Vercel Blob or local disk storage for Chat and Track attachments. First scope: on new file, upload it via lib/uploads.ts, replace dataURL with the blob URL in the files map, and lazy-load files on open, keeping the inline path as fallback for self-host without a token.\n\nPriority: medium. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "bug"
+  },
+  {
+    "title": "Board: Embed live boards in Docs pages with a /board block",
+    "description": "Miro boards embed live in Notion and Confluence with pan and zoom, synced as the board changes (https://www.miro.com/marketplace/notion-embed). Our Docs block types in lib/docs-types.ts stop at paragraph through database with no embed, and the only way to show a board elsewhere is the public /b/<token> page (app/[locale]/b/[token]/page.tsx), which would expose it to everyone. Specs, PRDs and meeting notes in Docs routinely need the diagram next to the text. First scope: a 'board' Docs block that picks a workspace board and renders BoardViewer read-only with an 'Open in Board' link, authorized by workspace session rather than a public token.\n\nPriority: medium. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add board version history with hourly snapshots and restore as copy",
+    "description": "Miro backs up boards hourly and at the end of each session, keeps versions for 90 days and restores a version as a separate board (https://help.miro.com/hc/articles/360021668819). We store only the latest scene in the boards row (lib/schema/migrations.ts) and saveBoardScene in lib/boards.ts overwrites it, so an accidental delete-all or a 'keep mine' overwrite is unrecoverable; Docs already has lib/docs-versions.ts. First scope: write a board_versions snapshot at most once per hour per board on save, list them in a side panel with editor and time, and restore into a new board via the existing duplicate path.\n\nPriority: medium. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add guest edit links and per-board access instead of workspace-wide only",
+    "description": "Miro Starter lets public boards be edited without sign-in and supports private boards with explicit access control (https://miro.com/pricing/). We have two states only: every workspace member can edit every board (lib/boards.ts header comment and listBoards by workspace_id), and the public token is strictly view-only (BoardViewer viewMode in app/[locale]/b/[token]/page.tsx). Small teams often run workshops with clients or freelancers who are not workspace members, and sometimes need a private draft board. First scope: share popover options 'Anyone with link can view / can edit' with an edit token routed to the editor, plus a 'Private to me' flag filtered in listBoards.\n\nPriority: medium. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Persist the shape library and enable installing libraries from Excalidraw's catalog",
+    "description": "Miro and FigJam keep team asset libraries (FigJam Professional 'Team libraries', https://www.figma.com/figjam/jamboard-alternative/), and Excalidraw+ sells persistent team libraries. Our ExcalidrawCanvas in components/board/ExcalidrawCanvas.tsx passes no onLibraryChange, libraryReturnUrl or useHandleLibrary adapter (all exported by @excalidraw/excalidraw 0.18), so items a user adds to the library vanish on reload and 'Browse libraries' cannot import back into the app. This is a visible defect in a feature the UI already advertises. First scope: useHandleLibrary with a workspace-scoped adapter stored in a board_libraries row, and libraryReturnUrl pointing to the current board so #addLibrary imports work.\n\nPriority: medium. Effort: S. Compared with Miro.",
+    "product": "board",
+    "kind": "bug"
+  },
+  {
+    "title": "Cal: Add daily, weekly and monthly meeting limits per event type and per host",
+    "description": "Calendly lets an event type cap bookings per day, week or month, and also caps total meetings across all event types; whichever limit hits first removes availability (https://calendly.com/help/how-to-set-meeting-limits). Our bookingRules in lib/calendar-schema.ts only have buffers, notice and horizon, and loadSlotContext in lib/calendar.ts has no count check. Founders and solo sellers use limits to protect focus time, for example at most 3 demos a day. First scope: add maxPerDay and maxPerWeek to bookingRules, count confirmed and pending bookings per host in the slot engine, and enforce it again inside the booking INSERT.\n\nPriority: medium. Effort: M. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Create collective event types where every selected host must be free",
+    "description": "Calendly Collective events let several teammates meet one invitee and only show times when all hosts are available, and shared collective events are on Standard (https://calendly.com/help/how-to-set-up-a-shared-collective-event-type). We only have round-robin: candidateHosts and busyForHosts in lib/calendar.ts accept a slot if at least one host is free. Small teams constantly need 'founder plus engineer' demos or 'two partners' consults. First scope: add a hostMode (round_robin | collective) on the event type, intersect free time across hosts in slotsForDay, book all hosts in one transaction, and add every host as an attendee on the Google event.\n\nPriority: medium. Effort: M. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Redirect invitees after booking and capture UTM parameters on the booking",
+    "description": "Calendly can redirect to an external URL after booking and optionally append event name, invitee name, email and UTM tags, available from Standard (https://calendly.com/help/how-to-redirect-invitees-to-another-site-after-booking). Our booking page only redirects to Stripe Checkout (components/calendar/PublicBookingPage.tsx) and the page route reads just name and email from the query (app/[locale]/book/[handle]/[slug]/page.tsx); bookings store no source or UTM. Marketers cannot fire a thank-you page conversion pixel or attribute demos to campaigns, which also weakens the CRM sync. First scope: per-event redirectUrl with a 'pass details' toggle, persist utm_* and referrer on calendar_bookings, and include them in webhooks and the CRM activity.\n\nPriority: medium. Effort: S. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Add one-off meetings that offer hand-picked times outside normal availability",
+    "description": "Calendly one-off meetings let the host pick specific slots on a calendar, including over non-Calendly events or outside working hours, then share a link or paste the times into an email; Meeting Polls extend this with voting (https://help.calendly.com/hc/en-us/articles/4406031977623, https://help.calendly.com/hc/en-us/articles/4411543910551). We have single-use links (singleUse in lib/calendar.ts) but they still use the event's regular schedule, so a host cannot offer 'Tuesday 18:00 or Thursday 8:00' to one VIP. This is one of the most common daily actions for sellers and founders. First scope: a 'Share specific times' dialog that creates a hidden single-use event type with explicit slot overrides and a copy-as-text option; polls can follow later.\n\nPriority: medium. Effort: M. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Ship a booking analytics view with created, cancelled, no-show and popular times",
+    "description": "Calendly Analytics shows created, completed, rescheduled and canceled events, popular event types and popular times for up to a year, filterable by user and event type, on Standard and up (https://calendly.com/help/calendly-analytics). Our Cal overview (app/[locale]/app/calendar/page.tsx) only shows an upcoming-7-days count and the next five bookings. Without trends a small team cannot see no-show rate, which rep gets demos, or which hours to open. First scope: a stats tab over calendar_bookings for a date range with counts by status, by event type and host, cancellation and no-show rates, and a weekday by hour heatmap.\n\nPriority: medium. Effort: M. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Let routing forms end in a URL or message, log submissions and pass answers on",
+    "description": "Calendly routing forms can send respondents to an event type, a custom message or an external URL, and emit routing_form_submission.created webhooks (https://community.calendly.com/featured-tips-tricks-32/12-days-of-calendly-day-10-routing-for-teams-527, https://learn.microsoft.com/en-us/connectors/calendlyv2). Our evaluateRouting in lib/calendar-routing.ts can only return an event type slug, rules have a single condition, submissions are not stored, and only name and email reach the booking (components/calendar/PublicRoutingForm.tsx). Disqualified leads hit a dead end and the host never sees the qualification answers. First scope: destination types (event, url, message), a submissions table visible in the form editor, carry all answers into booking answers, and a routing.submitted event for webhooks and Flow.\n\nPriority: medium. Effort: M. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Add an optional host approval step (requires confirmation) for bookings",
+    "description": "Cal.com event types can require the host to accept each booking, always or only when booked within a notice window (https://cal.com/help/event-types/how-to-requires). Our bookings are confirmed instantly; the only pending state is the Stripe hold in lib/calendar.ts createBooking. Consultants, agencies and clinics want to screen requests before committing the slot. First scope: a requiresConfirmation flag that creates a pending booking holding the slot, host emails with Accept/Decline links and an admin action in BookingsList, guest notified either way, and a booking.requested webhook.\n\nPriority: medium. Effort: M. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Bulk select conversations in the inbox to assign, tag, snooze or resolve",
+    "description": "Intercom's Inbox has checkboxes and an action bar to bulk assign, close, snooze, tag and set priority, including from search results (https://www.intercom.com/help/en/articles/6274899-get-started-with-intercom-inbox). Our inbox list in components/chat/ConversationList.tsx and components/chat/InboxShell.tsx has no selection, and PATCH /api/chat/conversations/[id] works on one conversation at a time. After a spam wave, an outage or a Monday backlog, closing or reassigning 30 chats one by one is the most tedious part of the job. First scope: shift-click/checkbox selection, x/Shift+x shortcuts, and a bar with resolve, assign, tag and snooze backed by one bulk endpoint.\n\nPriority: medium. Effort: M. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Show page URL, referrer, browser, language and form answers in visitor panel",
+    "description": "Intercom shows the last page a visitor viewed when replying and offers a Recent page views sidebar app with up to 20 visits (https://www.intercom.com/help/en/articles/9277565-recent-page-views-app). Our widget sends no page context: app/api/chat/widget.js/route.ts never reads location.href, document.referrer, navigator.language or timezone, and components/chat/VisitorPanel.tsx only shows name, email, first seen, started, subject and CSAT, even though pre-chat answers are stored in visitor metadata.form. Knowing the visitor is on the pricing page or checkout changes the answer and saves a round of questions. First scope: send url, title, referrer, language, timezone and user agent with each visitor message, store them on the message or visitor metadata, and render them plus the form answers in the visitor panel. Also avoid using the raw external_id as the sender name in the agent notification for anonymous visitors (lib/chat-visitor-message.ts).\n\nPriority: medium. Effort: S. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Let visitors see past conversations and unify visitors across devices",
+    "description": "Intercom's Messenger home and, since June 2026, the Customer Portal list a customer's past conversations with status and search (https://www.intercom.com/changes/en/page/1). Our widget only loads the latest open/pending/snoozed conversation via getOpenConversationByVisitor in lib/chat-data.ts; once resolved, the thread disappears for the visitor and the next message starts a blank conversation. Visitors are keyed by a random localStorage id, so the same person on a phone and a laptop becomes two People with split history. First scope: a 'Previous conversations' list in the widget (read only, last 10), and for verified identities (see identity gap) attach new devices to the existing visitor record by email.\n\nPriority: medium. Effort: M. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Expose a public REST API and webhooks for replies, assignment and resolve",
+    "description": "Intercom's REST API covers conversations (list, search, reply, assign, close, snooze, tag, notes), contacts and tags (https://developers.intercom.com/docs/references/rest-api/api.intercom.io/conversations), and Chatwoot exposes an equivalent open API. Our public API in app/api/v1 has agents, calendar, crm and links but no chat, and emitEvent is only called in lib/chat-visitor-message.ts for conversation.created and message.received; agent replies, assignment changes and resolve emit nothing. Developers self-hosting the suite (persona 2 in PRODUCT.md) expect to pipe chats into Slack, Flow or their own tools. First scope: GET/POST /api/v1/chat/conversations and messages with API keys, plus message.sent, conversation.assigned and conversation.resolved events, documented in openapi.json.\n\nPriority: medium. Effort: M. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Add custom conversation attributes and require them before resolving",
+    "description": "Intercom lets admins define conversation data attributes (e.g. topic, product area) and mark some as required before a teammate can close, which keeps reporting consistent (https://www.intercom.com/changes/en/2156-categorize-conversations-consistently-with-required-conversation-data-attributes-and-more). We only have free-form tags (lib/chat-inbox.ts) and the fixed columns of chat_conversations; reports in lib/chat-inbox.ts cannot answer 'how many billing questions this month' reliably because tags are optional and unstructured. First scope: per-widget list or text attributes edited in the conversation details panel, an optional 'required to resolve' flag enforced in PATCH, and a breakdown by attribute in reports.\n\nPriority: medium. Effort: M. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Merge duplicate conversations from the same visitor into one thread",
+    "description": "Intercom offers 'Merge into' inside a conversation to combine duplicates, and users are now asking for bulk merge (https://community.intercom.com/ideas/bulk-merge-conversations-from-inbox-multi-select-14762). We have no merge: a visitor who writes again after resolve, or from the pre-chat form and a later upload, ends up with separate conversations, each with its own SLA timer and assignee (lib/chat-data.ts createChatConversation). Duplicates inflate SLA breaches and split context across teammates. First scope: a 'Merge into…' action in the conversation header limited to conversations of the same visitor, moving messages, notes and tags into the target and resolving the source with a system message.\n\nPriority: medium. Effort: S. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Push new messages in real time and add browser notifications with sound",
+    "description": "Intercom's inbox and Messenger update instantly and teammates get desktop notifications for new conversations and replies. Our inbox refreshes on a 10 s setInterval only while the tab is visible (components/chat/InboxShell.tsx) and the widget polls every 5 s (app/api/chat/widget.js/route.ts); there is no browser Notification or sound anywhere in components/chat, so an agent working in another tab only sees the in-app notification bell. Live chat lives or dies on reply speed in the first minute, and hidden-tab polling makes the team miss it. First scope: browser notifications plus an optional sound for new conversations and replies to assigned chats, and keep polling in hidden tabs at a slower rate; move to SSE later.\n\nPriority: medium. Effort: M. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Find and merge duplicate companies by domain and name",
+    "description": "HubSpot merges any two records of the same object, companies and deals included, keeping activities and associations (https://knowledge.hubspot.com/records/merge-records). We only detect and merge contacts (app/api/crm/contacts/duplicates, app/api/crm/contacts/merge); app/api/crm/companies has no duplicates or merge route. Companies get duplicated easily through CSV imports, forms and Chat (company by name), and duplicate companies split deal roll-ups and the hierarchy. First scope: duplicate groups by normalized domain or exact name, a merge that moves contact/deal associations, child companies, activities, tags and custom values, reusing the contact merge pattern.\n\nPriority: medium. Effort: S. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Let tasks repeat on a daily, weekly or monthly schedule",
+    "description": "HubSpot tasks have a 'Set to repeat' option that creates the next task in the series, also exposed through a Task series API (https://knowledge.hubspot.com/tasks/create-tasks, https://developers.hubspot.com/docs/api-reference/latest/crm/activities/task-series/guide.md). Our tasks are single crm_activities rows with due_at and done only (lib/schema/baseline.ts:159), and grepping lib/crm*.ts and components/crm finds no recurrence. Small teams use recurring tasks for account check-ins, monthly invoicing calls and renewals. First scope: a repeat rule (every N days/weeks/months) on the task form; when a task is completed, create the next one with the same owner, record links and project.\n\nPriority: medium. Effort: S. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Support @mentions in notes and tasks with in-app and email notifications",
+    "description": "HubSpot lets users @mention teammates in activities and comments on contacts, companies and deals, and the mentioned user gets a notification if they can see the record (https://knowledge.hubspot.com/records/mention-a-user-on-a-record). Our note and task composer is a plain textarea (components/crm/Timeline.tsx:380) with no mention parsing, although lib/notifications.ts already exists and is used by lead assignment (lib/crm-assignment.ts:152). Handing a deal to a teammate today means pinging them in another tool. First scope: @ autocomplete of workspace members in the timeline composer, store mentions on the activity, notify via createNotification respecting record visibility (lib/crm-visibility.ts).\n\nPriority: medium. Effort: M. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Add multi-select, URL, phone, currency and user field types to custom fields",
+    "description": "HubSpot properties support single and multiple checkboxes, dropdowns, radio, number with currency formatting, date, file, HubSpot user and more (https://knowledge.hubspot.com/properties/property-field-types-in-hubspot). Our custom fields accept only text, number, date, select and boolean (lib/crm-schema.ts:276, components/crm/customPropFields.ts). Common small-team fields like 'Products of interest' (multi), 'LinkedIn URL', 'Secondary phone' or 'Account manager' (a user) end up as free text that cannot be filtered or clicked. First scope: multiselect (JSON array, 'contains any' filter), url and phone (clickable), currency-formatted number, and user (member picker, filterable like owner).\n\nPriority: medium. Effort: M. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Count synced emails toward deal rotting and make the threshold per stage",
+    "description": "Pipedrive lets each stage define its own 'Rotting in (days)', and sending or receiving linked emails, notes, files and done activities all reset the clock (https://support.pipedrive.com/en/article/the-rotting-feature). Our board flags a deal as rotting after a hard-coded 14 days (components/crm/DealsBoard.tsx:373), and idle time comes only from crm_activities with that deal_id or the deal's updated_at (lib/crm.ts:1531, app/[locale]/app/crm/deals/page.tsx:86). Inbound replies stored by Gmail sync never create activities (lib/crm-email-sync.ts), so a deal with an active email thread is still marked rotting, which teaches reps to ignore the badge. Fix: include the latest crm_emails sent_at for contacts associated to the deal in last activity, and add an optional rotting_days column on crm_stages editable in PipelinesEditor.\n\nPriority: medium. Effort: S. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "bug"
+  },
+  {
+    "title": "CRM: Require chosen properties before a deal can enter a stage",
+    "description": "HubSpot pipelines let admins mark properties as required per stage (conditional stage properties), so a deal cannot move to 'Proposal' without amount and close date; this sits in Sales Hub Professional (https://knowledge.hubspot.com/object-settings/set-up-and-customize-pipelines). Our crm_stages only store name, probability, position and won/lost flags (lib/schema/baseline.ts:119), and the move endpoint accepts any drag (app/api/crm/deals/[id]/move). Forecasts and reports are only as good as amounts and close dates, and small teams have no ops person cleaning data. Offering this for free is a cheap differentiator. First scope: required_fields JSON on crm_stages edited in PipelinesEditor, a modal on board drag or stage change that asks for missing values, enforced server-side in the move route and the v1 API.\n\nPriority: medium. Effort: M. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Log calls and WhatsApp touches from phone links with configurable outcomes",
+    "description": "HubSpot lets admins define up to 30 custom call and meeting outcomes used when logging, in reports and in workflows, and calls can be started from a record's phone number (https://knowledge.hubspot.com/calling/create-custom-call-and-meeting-outcomes). We render phone numbers as plain tel: links (components/crm/ContactsTable.tsx:247, components/crm/RecordPreview.tsx:237) that leave no trace, and call outcome is free text (lib/crm-schema.ts:195), so it cannot be filtered or reported. HubSpot has no native WhatsApp logging (only third-party apps), and our LatAm-heavy users sell over WhatsApp daily. First scope: a workspace list of call outcomes, a 'Log this call?' prompt after clicking tel:, a WhatsApp (wa.me) action next to phones that opens the chat and logs a 'WhatsApp' touch, and outcome as a report dimension.\n\nPriority: medium. Effort: S. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Show live presence and merge concurrent edits instead of a 409 conflict",
+    "description": "Notion lets any number of people edit the same page at once with edits appearing instantly and collaborator avatars showing where they are (https://www.notion.com/help/collaborate-with-people); Outline offers the same real-time co-editing in open source (https://www.getoutline.com/). We use optimistic concurrency: when two people save the same page, DocsEditorClient.tsx shows a conflict banner and one person must reload (losing work) or overwrite the other. In a team of 5-20 editing meeting notes together during a call, this happens every week. First scope: presence avatars and a 'someone else is editing' hint via polling or SSE, plus block-level merge on 409 (apply the other person's changed blocks when the local user did not touch them); full CRDT (Yjs) can come later.\n\nPriority: medium. Effort: L. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add filter, sort, group and board view to database blocks",
+    "description": "Notion databases offer table, board, list, calendar, timeline, gallery and chart views, with filters (AND/OR groups), multi-level sorts and group-by (https://www.notion.com/help/views-filters-and-sorts). Our DocsDatabaseBlock.tsx stores rows as string arrays with text/number/select/date columns and only toggles table or gallery, with no filter, sort, grouping, checkbox, person or URL properties. Small teams use these inline databases as lightweight trackers (content calendar, hiring list, vendor list) and without sorting or a board view they fall back to a spreadsheet. First scope: column sort and a simple per-view filter stored on the block, checkbox/person/URL column types, and a board view grouped by a select column with drag between groups.\n\nPriority: medium. Effort: L. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Let teams save any page as a reusable workspace template",
+    "description": "Notion has a large template gallery plus team-made templates and database templates that prefill new pages (https://www.notion.com/templates). Our templates are four hardcoded entries in lib/docs-templates.ts (blank, meeting notes, project spec, weekly retro), and a team cannot turn its own 1:1 or incident template into a reusable starting point. Recurring documents are what small teams write most, and a shared template keeps them consistent. First scope: a 'Save as template' action in the page menu that stores title, icon and blocks in a docs_templates table per workspace, shown next to the built-ins in 'Start from a template' and in the slash menu as /template.\n\nPriority: medium. Effort: S. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Select multiple blocks and move, duplicate or delete them from the keyboard",
+    "description": "Notion lets you press Esc to select the current block, extend with Shift+Arrow, then Cmd+D to duplicate, Cmd+Shift+Arrow to move and Cmd+/ to turn into another type (https://www.notion.com/help/keyboard-shortcuts). Because each block is a separate contentEditable (components/docs/DocsBlockEditor.tsx), we cannot select text across blocks, and block actions in DocsEditor.tsx (duplicate, move, turn into) are only reachable one block at a time through the grip menu. Reorganizing notes after a meeting means many mouse round trips. First scope: a block-selection mode (Esc, Shift+Up/Down, click-drag on the gutter) with Delete, Cmd+C/X/V of whole blocks, Cmd+D and Cmd+Shift+Up/Down, plus Cmd+/ opening the existing turn-into menu.\n\nPriority: medium. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Keep version history by time window and highlight what changed",
+    "description": "Notion keeps page history for 7 days on Free and 30 days on Plus, and highlights added content in blue and removed content in strikethrough (https://www.notion.com/pricing, https://www.notion.com/help/collaborate-with-people). Our lib/docs-versions.ts prunes to the last 50 snapshots per page regardless of age, with auto snapshots every 5 minutes, so one busy afternoon of edits can erase last week's versions, and VersionsPanel.tsx only previews a snapshot without a diff. When someone accidentally deletes a section, the team needs to find which version still had it. First scope: prune by age (keep all for 7 days, then one per day up to 30 days) instead of a flat count, and a block-level diff view against the current page with added/removed styling.\n\nPriority: medium. Effort: S. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add AI actions in the editor: summarize, improve, translate and draft",
+    "description": "Notion AI offers summarize, fix spelling and grammar, translate and brainstorm/draft directly on selected text or a whole page (https://www.notion.com/help/guides/using-notion-ai), and Outline answers questions about your docs (https://www.getoutline.com/). Docs has no AI at all today, while the suite already has lib/ai.ts with a per-workspace free token quota used by CRM email drafts and Notes ask. For a bilingual LATAM team, 'translate this page to English' and 'summarize these meeting notes into action items' are high-frequency and a strong differentiator for an open source suite. First scope: an AI option in the selection toolbar and slash menu (/ai) with summarize, improve writing, translate (es/en/pt) and continue writing, inserting the result as new blocks the user can accept or discard.\n\nPriority: medium. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Show backlinks ('Linked from') under the page title",
+    "description": "Notion automatically lists every page that links to the current one, visible under the title and filtered by what the viewer can access (https://www.notion.com/en-gb/help/create-links-and-backlinks). We have no backlinks anywhere in components/docs or lib/docs*.ts, and the [[ picker does not even store a link (see the related bug). Backlinks turn a pile of pages into a navigable wiki and show which docs reference an outdated policy. First scope: after fixing [[ to store page ids, compute 'Linked from' on page load by scanning workspace pages for that id (or maintain a docs_links table on save) and render it as a collapsible line under the title.\n\nPriority: medium. Effort: S. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Expose a public Docs API with docs:read and docs:write scopes",
+    "description": "Notion's public API exposes pages, blocks, databases, comments and search (https://developers.notion.com/reference/block), and Notion 3.8 adds MCP access so agents can read and update the workspace (https://www.notion.com/releases); Outline also ships an open API and MCP server (https://www.getoutline.com/). Our lib/api-scopes.ts defines scopes for crm, links, cal and agents but none for docs, and there is no app/api/v1/docs, so API keys cannot create or read pages. Small teams want to push release notes or meeting summaries into Docs from scripts, Flow or Agents. First scope: /api/v1/docs/pages list/get/create/update (content as Markdown in and out using lib/docs-markdown.ts) and search, behind docs:read and docs:write, documented in the existing openapi.json.\n\nPriority: medium. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Prune old runs and steps with a retention window per workspace",
+    "description": "n8n prunes finished executions by default after 14 days or 10,000 executions, never touching waiting runs (https://docs.n8n.io/hosting/scaling/execution-data/); Zapier keeps run history for a plan-based window. Flow never deletes flow_runs, flow_steps or their stored inputs and contexts, which can reach 2 MB input and 8 MB context per run (lib/flow.ts MAX_RUN_INPUT, lib/flow-engine.ts CONTEXT_TOTAL_LIMIT), and rows are only removed when the flow itself is deleted (ON DELETE CASCADE). The UI can only show the last 100 runs anyway (listRuns clamps to 100), so older history is dead weight on Turso and a privacy liability for trigger payloads with personal data. First scope: a pruning pass in the cron tick deleting finished runs older than 30 days (env configurable for self-host), keeping waiting runs.\n\nPriority: medium. Effort: S. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "bug"
+  },
+  {
+    "title": "Flow: Connect Google, Slack and Notion with one-click OAuth that refreshes tokens",
+    "description": "Zapier and n8n connect apps with an OAuth button and refresh tokens automatically (https://docs.n8n.io/integrations/builtin/credentials/google/oauth-single-service/). Flow credentials are pasted secrets: Google needs a service account JSON or a raw ya29 access token, and the generic oauth_token type stores only an access token with no refresh, so a pasted Google token stops working after about an hour (lib/flow-credentials-schema.ts). The repo already runs Google OAuth for Gmail and Calendar (app/api/integrations/gmail, app/api/integrations/google-calendar), so the plumbing exists. Pasting a service account is a non-starter for a founder setting up a sheet sync. First scope: OAuth connect with refresh for Google Sheets, then Slack and Notion, shown as credentials of the same types.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add Google Sheets lookup, update and upsert rows plus a new row trigger",
+    "description": "n8n's Google Sheets node supports append or update row, update row, get rows with filters, clear and delete (https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.googlesheets/sheet-operations/), and Zapier's most used Sheets trigger is 'New or Updated Spreadsheet Row'. Our Sheets node only appends a row or reads a whole range (lib/flow-integrations.ts sheetsConfigSchema operation append|read) and there is no Sheets trigger. Sheets is the default database of small teams, so 'update the row for this deal when it is won' and 'when a row is added, create a contact' are everyday cases. First scope: lookup by column, update and upsert by key column, and a polling trigger for new rows using the schedule infrastructure.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add AI extract and classify steps that return structured fields",
+    "description": "n8n has an Information Extractor node that returns fields from a JSON schema, a JSON example or attribute descriptions, and a Text Classifier that routes to one output per category (https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.information-extractor/); Zapier's AI by Zapier returns named output fields. Our ai.text node returns free text only (lib/flow-engine.ts aiNode), so using the answer in an If or a CRM field needs a JSON parse step and luck. Typical small-team flows are 'classify this inbound email or chat as sales, support or spam' and 'extract name, company and budget from this form'. First scope: an output mode on ai.text with a field list (name, type, description) using structured output, and an ai.classify node with one output handle per category.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Email the flow owner when runs fail and offer automatic replay",
+    "description": "Zapier emails owners about errors and offers autoreplay, which retries a failed step up to 5 times and holds the error email until the last attempt fails, set per account or per Zap (https://help.zapier.com/hc/en-us/articles/8496241726989). n8n uses an Error Trigger workflow. Flow has per-node retries, an optional error flow and manual rerun from a step, but nothing tells anyone a run failed unless they built an error flow themselves (no notification code in lib/flow-engine.ts finalize). Broken automations that fail silently are the main reason small teams stop trusting them. First scope: a per-flow 'notify on failure' toggle (on by default) sending one email digest per flow per hour, using the existing notifications and email modules.\n\nPriority: medium. Effort: S. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add Wait until a date and wait for a resume call to the Delay step",
+    "description": "n8n's Wait node resumes after an interval, at a specified date and time, on a unique per-run resume webhook, or on a form submission (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.wait/); Zapier Delay offers Delay For and Delay Until. Our Delay only waits a relative amount capped at 30 days (lib/flow-engine.ts logic.delay), so 'one day before the booking starts' or 'on the deal close date' cannot be expressed. Our apps are full of dates (bookings, deal close dates, issue due dates), which makes this especially valuable. First scope: a mode select on logic.delay with 'until' taking a templated date plus offset, and a 'resume URL' mode that reuses the hook route.\n\nPriority: medium. Effort: S. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Test a single step with pinned sample data instead of running the whole flow",
+    "description": "n8n lets you execute one node and pin its output so later test runs reuse it without calling external systems again, and edit the pinned data to test edge cases (https://docs.n8n.io/data/data-pinning/); Zapier tests each step on its own while building. Flow can test the whole flow with a manual input and rerun from a step of a past run (components/flow/FlowEditor.tsx testRun, lib/flow-engine.ts rerunFromStep), but every test fires all real side effects (Slack posts, emails, Stripe customers). First scope: a 'Test this step' button that runs one node against the last outputs (lib/flow.ts lastOutputs) or editable pinned JSON, without running downstream nodes.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add a WhatsApp Business Cloud node to send messages and receive replies",
+    "description": "n8n ships a WhatsApp Business Cloud node and trigger, also used as an approval channel (https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.whatsapp/), and WhatsApp is among Zapier's top messaging apps. Flow has Slack, Discord and Telegram but no WhatsApp (lib/flow-integrations.ts, lib/flow-credentials-schema.ts), and the generic webhook cannot pass Meta's GET verification (see the webhook gap). Latin America is our home market (PRODUCT.md), where WhatsApp is the default channel for booking reminders, lead follow-up and support. First scope: credential (phone number id plus token), send text and template message, and a trigger for incoming messages with signature check.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Make UTM fields editable and keep them in sync with the destination URL",
+    "description": "UTM params are baked into links.url at creation (applyUtm in lib/links.ts) and also stored in utm_source/medium/campaign, but linkPatchSchema has no UTM fields and EditLinkForm has no UTM inputs. If a user edits the destination and removes or changes the utm params, the stored utm_* columns and the API DTO keep reporting the old values, so the data is inconsistent. Dub treats UTM as editable link fields that set or override params in the destination (https://dub.co/docs/api-reference/endpoint/create-a-link). First scope: add utm fields to linkPatchSchema and the edit form, and re-derive the utm_* columns from the final URL on every URL change.\n\nPriority: medium. Effort: S. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "bug"
+  },
+  {
+    "title": "Link: Add utm_term/utm_content and saved workspace UTM templates",
+    "description": "Dub's UTM builder covers all five UTM params plus ref and lets teams save workspace-level UTM templates applied from the link builder; templates are on the free plan (https://dub.co/help/article/how-to-create-utm-templates, https://dub.co/pricing/links). Our applyUtm in lib/links.ts only handles source, medium and campaign, and every link or bulk run retypes them by hand. Consistent UTM naming is the main reason small marketing teams adopt a shortener. First scope: utm_term and utm_content fields, a link_utm_templates table, and a template picker in NewLinkForm, QuickLinkModal and BulkCreateForm.\n\nPriority: medium. Effort: M. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Emit link.updated and link.deleted webhooks and scope click webhooks",
+    "description": "Dub emits link.created, link.updated, link.deleted and link.clicked, and since July 2026 click webhooks can target all links, selected folders or selected links (https://dub.co/docs/concepts/webhooks/event-types, https://dub.co/changelog/improve-link-clicked-webhook). Our WEBHOOK_EVENTS in lib/webhooks-events.ts has only link.created and link.clicked; applyLinkPatch, the DELETE routes and bulkLinkAction emit nothing. Anyone syncing links to a sheet, CRM or Flow cannot see edits or deletions, and click webhooks fire for every link in the workspace. First scope: emit link.updated and link.deleted (single and bulk) and add an optional tag filter on link.clicked subscriptions.\n\nPriority: medium. Effort: S. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Extend v1 API create with UTM, expiry, password, OG, targeting and externalId",
+    "description": "Dub's create link endpoint accepts utm_*, expiresAt, expiredUrl, password, preview fields, geo/ios/android, A/B variants, tagNames, folderId and an externalId for upserts (https://dub.co/docs/api-reference/endpoint/create-a-link). Our POST /api/v1/links createSchema only takes url, domain, slug, title and tags, even though createLink supports UTM, expiry, password, max clicks and OG; it even maps an invalid_date error it can never produce. There are also no v1 endpoints for tags, domains or bulk create. First scope: pass every CreateLinkInput field through v1, add externalId with lookup and upsert, and expose GET /api/v1/links/domains and bulk create.\n\nPriority: medium. Effort: S. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Publish a shareable read-only analytics page for a link or tag",
+    "description": "Dub lets you publish a public analytics dashboard for a link or folder, optionally password protected, so clients and stakeholders see results without an invite (https://dub.co/help/article/share-analytics). Our analytics live only behind the session in app/[locale]/app/links/[id] and app/api/links/[id]/analytics; there is no public token. Agencies and small teams reporting to a client today export CSVs or screenshots. First scope: a share toggle that mints a token URL rendering the existing per-link chart and breakdowns read-only, with optional password reuse from the gate.\n\nPriority: medium. Effort: M. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Record who created each link and filter the list by creator",
+    "description": "Dub workspaces show the creator on each link card and support role-based access across team members (https://dub.co/data-model, https://dub.co/help/article/folders-rbac). Our links table only stores user_id, which is the workspace owner (lib/session.ts resolves the effective user to the owner), so in a shared workspace nobody can tell who made a link or find their own. This is the first thing a 5 to 20 person team asks for after inviting colleagues. First scope: created_by column filled from the acting user, avatar in LinksTable, and a 'created by' filter in FilterBar and the API.\n\nPriority: medium. Effort: S. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Keep version history so a note can be previewed and restored",
+    "description": "Evernote's Note history lets you preview past versions by date, restore one, or export it (https://help.evernote.com/hc/articles/208313858). Our notes table stores only the current content and there is no history table or UI (lib/notes.ts, lib/schema/migrations.ts 018_notes_core), while Docs already has a versions module (lib/docs-versions.ts) that could be reused. With autosave on every keystroke pause, an accidental select-all delete is unrecoverable. First scope: snapshot content at most every 10 minutes of editing and before restore, keep the last 30 per note, and add a History panel with preview and restore.\n\nPriority: medium. Effort: M. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Turn a note or selected checklist items into Track issues with a backlink",
+    "description": "Evernote's 2026 releases push notes toward action: tasks inside notes, AI Assistant that creates events, and calendar suggestions after meeting recordings (https://releasebot.io/updates/evernote, https://help.evernote.com/hc/articles/1500003792141). Our todos inside a note are inert checkboxes and Notes has no link to Track even though lib/track-data.ts exposes createIssue. For small teams, meeting notes are where work gets discovered, and moving it to Track by hand is where it gets lost. First scope: a 'Create issue in Track' action on a note and on selected todo blocks, choosing the team, prefilling title and description, and inserting a link to the new issue back into the note.\n\nPriority: medium. Effort: M. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Share a note or notebook with workspace teammates with view or edit access",
+    "description": "Evernote lets you share a notebook by email with a permission level and groups shared content in Spaces with view or edit access (https://help.evernote.com/hc/en-us/articles/209005657). Our only sharing mode is a public read-only link, and the privacy model explicitly prevents teammates in the same workspace from seeing each other's notes (lib/notes.ts header comment, setNoteShared). For a suite sold to teams of 2 to 50, a private note that cannot be handed to a colleague for editing forces people to copy it into Docs. First scope: share a single note with specific workspace members as viewer or editor, a 'Shared with me' view, and a 'Promote to Docs page' action for notes that become team knowledge.\n\nPriority: medium. Effort: L. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Clip full articles and bookmarks, not only the selected text",
+    "description": "Evernote's Web Clipper offers Article, Simplified article, Full page, Bookmark and Screenshot modes (https://help.evernote.com/hc/en-us/articles/209125827). Our bookmarklet only sends URL, title and the current selection, truncated to 4000 characters in a query string, and the server stores the selection as quote blocks (lib/notes-types.ts clipBookmarklet and clipBlocks). With nothing selected the note is just a link, so 'save this article to read later' does not work. First scope: when no selection is made, fetch the URL server-side, extract the main article with a readability-style pass into sanitized blocks, and store the page description and favicon for bookmark clips; send the selection via POST message instead of the URL to lift the 4000 character cap.\n\nPriority: medium. Effort: M. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Add a personal inbound email address that turns forwarded email into notes",
+    "description": "Evernote gives every user a private address; forwarded emails become notes, and the subject line accepts @notebook and #tag shortcuts, up to 200 emails per day (https://help.evernote.com/hc/articles/209005347). We have no inbound capture besides the bookmarklet (app/api/notes has no email route), although the suite already sends and receives email through Resend and CRM email sync. Forwarding receipts, confirmations and threads is one of the fastest capture habits and works from any phone mail client. First scope: a per-person secret address shown in Notes settings, an inbound webhook that creates a note with subject as title and body as blocks, and @notebook and #tag parsing in the subject.\n\nPriority: medium. Effort: M. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Support search operators like tag:, notebook:, intitle:, created: and todo:",
+    "description": "Evernote supports advanced search syntax such as intitle:coffee, tag:travel, created:20240101 and relative dates like created:day-7, combinable in one query (https://help.evernote.com/hc/articles/208313828). Our searchTerms strips everything except letters and digits (lib/notes-types.ts), so 'tag:clip' becomes two plain words, and tags are not indexed in notes_fts at all. Power users with hundreds of notes rely on these filters to find things fast. First scope: parse tag:, notebook:, intitle:, created:/updated: with day-N and week-N, and todo:true/false into SQL filters before running the FTS match, and index tags in FTS.\n\nPriority: medium. Effort: S. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Link notes to each other with [[ ]] and show backlinks",
+    "description": "Evernote supports note links that jump between notes and a backlinks panel listing every note that links to the current one (https://help.evernote.com/hc/articles/208313588, https://evernote.com/blog/introducing-backlinks/); Obsidian and Bear make this the core of their model. The Docs editor has a [[ page mention menu but it is explicitly disabled when embedded in Notes (components/docs/DocsEditor.tsx, mentionMatch is null when embedded). Linking turns isolated notes into a personal knowledge base and is expected by anyone migrating from Obsidian or Bear. First scope: enable [[ in Notes against the person's own notes, store links in a note_links table on save, and show a Backlinks section under the note.\n\nPriority: medium. Effort: M. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Import Evernote ENEX and Markdown files, and export notes as Markdown",
+    "description": "Evernote exports notebooks as ENEX and Obsidian's official Importer converts ENEX to Markdown, including tags and stacks (https://obsidian.md/help/import/evernote); Evernote's free plan is capped at 50 notes and 1 notebook (https://help.evernote.com/hc/en-us/articles/23565231682323), which pushes users to switch. We have no import or export path for Notes (no route under app/api/notes), while the suite already has importers for CRM and Bitly and a Docs Markdown converter (lib/docs-markdown.ts). A one-click Evernote import is the single strongest acquisition hook against a paywalled incumbent, and Markdown export fits our open source promise of no lock-in. First scope: upload an .enex file, map notebooks, tags, created/updated dates and basic formatting to blocks; plus a 'Download as Markdown' action per note and a zip for all notes.\n\nPriority: medium. Effort: M. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add continue-on-error per step and per loop item with a warnings status",
+    "description": "Axiom.ai offers Continue on error, a Try/Catch step, and loops that log a warning for a failing row instead of stopping, plus 'succeeded with warnings' notifications (https://axiom.ai/docs/no-code-tool/reference/settings/error-handling/continue-on-error/, https://axiom.ai/blog/getting-to-know-the-trycatch-step/). In our runList any failed step throws and aborts the whole run, including one bad item inside a loop_over of 50 URLs (lib/robots-interpreter.ts), and RobotRunStatus only has success and failed. Losing 49 good results because of one broken page makes loop robots unusable. First scope: onError: 'fail' | 'continue' on leaf steps and loop_over, collect per-item errors into vars.errors, and a new 'partial' run status shown in RunsPanel and emitted in robot.run.finished.\n\nPriority: medium. Effort: S. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Detect changes between runs and emit a robot.output.changed event with a diff",
+    "description": "Browse AI monitors re-run a robot on a schedule and alert by email or webhook when captured text, lists or a screenshot change beyond a 1/5/10% threshold (https://www.browse.ai/monitoring, https://intercom.help/browse-ai-089fe61c5dc3/en/articles/10535487-how-can-i-setup-monitoring-for-changes). Our price-check template runs daily but nothing compares the output to the previous run; the only events are finished and failed (lib/robots.ts, lib/flow-schema.ts). Competitor price, job board and stock monitoring is the most common small team use case and it needs 'tell me only when it changed'. First scope: per-robot 'watch variables' list, compare against the last successful run output, store a diff (added/removed rows, changed values) on the run, and emit robot.output.changed for Flow and webhooks.\n\nPriority: medium. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Upsert extracted rows into CRM contacts and companies with mapping and dedupe",
+    "description": "Bardeen positions scraping straight into GTM tools (scrape, enrich, export to CRM) with credits per scraped row (https://www.bardeen.ai/pricing), and Axiom.ai writes scrape results directly to Google Sheets (https://axiom.ai/guides/scrape-links-from-a-website/). Today a robot table reaches our CRM only by building a Flow with app.crm_contact per row, and the only robot template in Flow is robotToSheets (lib/flow-schema.ts). Robot output landing as deduplicated CRM records is something no standalone scraper can do natively and exploits our suite. First scope: a robot 'Destinations' panel that maps one table variable to CRM contacts or companies (column to field, dedupe by email or domain, source tag = robot name), applied after each successful run, with counts created/updated in the run view.\n\nPriority: medium. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add a TOTP secret to credentials so robots can log in behind 2FA",
+    "description": "Skyvern stores an authenticator key on a password credential and generates a fresh TOTP code at login, using the next code if fewer than 20 seconds remain (https://www.skyvern.com/docs/credentials/totp/, https://skyvern.com/docs/developers/features/authentication-and-2fa). Our credential types are api_key, basic, oauth_token and app tokens with no TOTP field (lib/flow-credentials-schema.ts), and the recorder deliberately masks one-time-code fields (lib/robots-recorder.ts), so a 2FA login can only work while a persisted session survives. Most admin portals small teams automate (banks, tax sites, supplier portals) require 2FA. First scope: optional totpSecret (secret) on the basic type and a {{credentials.NAME.totp}} template value computed at use time inside the interpreter, redacted like other secrets.\n\nPriority: medium. Effort: S. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Replace the robot id text box in the Flow node with a picker that loads inputs",
+    "description": "UiPath Orchestrator and Axiom.ai let you pick the automation to trigger and show its parameters (https://docs.uipath.com/orchestrator/docs/alerts, https://www.axiom.ai/docs/no-code-tool/how-it-works/loop). Our app.robot_run node defines robotId as a plain text field with placeholder 'robot id' and inputs as free key/value pairs (lib/flow-schema.ts), and nothing in components/flow resolves robots, while sub-flows get a flowRef picker. Users must copy a UUID from the URL and guess input names, so 'trigger a robot from Flow' is technically present but hard to use. First scope: a robotRef field kind that lists workspace robots and prefills the inputs kv with the robot's declared input names and required flags, plus outputs autocompletion for {{steps.x.output.var}}.\n\nPriority: medium. Effort: S. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add natural-language act and extract steps backed by the AI gateway with caching",
+    "description": "Stagehand exposes act(), extract() with a schema and observe(), caches resolved actions keyed by instruction and page content, and self-heals when a cached selector stops resolving (https://docs.stagehand.dev/v4/basics/act, https://docs.stagehand.dev/v4/best-practices/caching); UiPath Autopilot generates StudioX workflows from a plain-language description (https://docs.uipath.com/studiox/standalone/2024.10/release-notes/2024-10-1). Our steps all require CSS selectors or exact visible text and there is no AI step type (lib/robots-schema.ts STEP_TYPES). AI steps lower the skill bar for non-technical members and fix brittle selectors. First scope: an 'ai_extract' step (instruction plus field list, returns rows) and an 'ai_click' step that resolves an element from an accessibility snapshot once, caches the chosen selector on the robot, and re-resolves only on failure.\n\nPriority: medium. Effort: L. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Expose a public API to run robots and bulk-run one robot over many inputs",
+    "description": "Browse AI has a REST API with tasks history and POST /v2/robots/{robotId}/bulk-runs that queues up to 1,000 input sets per call (https://www.browse.ai/monitoring), and Axiom.ai has a developer API to trigger bots (https://axiom.ai/docs/developer-hub/api/reference/errorcodes/). Our run endpoint requires an admin session cookie (app/api/robots/[id]/run/route.ts, canEditRobots in lib/robots-http.ts) and app/api/v1 has agents, calendar, crm and links but no robots. Teams want to run a robot from their own scripts, Zapier or a spreadsheet of 200 URLs. First scope: /api/v1/robots/{id}/runs (POST with inputs, GET list) and /api/v1/runs/{id} using existing API keys, plus a bulk endpoint that enqueues runs once the queue from the busy fix exists; document in openapi.json.\n\nPriority: medium. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Add Cmd+K command menu and single-key shortcuts for issue properties",
+    "description": "Linear is driven by a command menu and single-key actions: S status, A assign, P priority, L labels, G then I for inbox, H snooze, and ? opens a searchable shortcut help (https://linear.app/docs/inbox, https://linear.app/changelog/2021-03-25-keyboard-shortcuts-help). Track only handles C, J/K and Enter (components/track/TrackShortcuts.tsx). Without property shortcuts, triaging a list means opening every popover with the mouse. First scope: on the focused row or open issue, S/A/P/L open the existing inline editors from components/track/InlineEditors.tsx, plus Cmd+K with go-to and change-property commands and a ? help dialog.\n\nPriority: medium. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Add issue templates per project with preset properties and description",
+    "description": "Linear templates preset properties and description, can be form templates with required fields, and a team can set a default template for new issues and for integrations (https://linear.app/docs/issue-templates). Track has no template concept: QuickIssueModal (components/track/QuickIssueModal.tsx) always starts blank and createIssue in lib/track-data.ts takes no template. Bug reports from teammates arrive without repro steps or environment. First scope: per-project templates (title prefix, description, labels, priority, status), a picker in the new-issue modal, and an optional default template, also applied to chat and flow sources.\n\nPriority: medium. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Support recurring issues on a daily, weekly, monthly or yearly schedule",
+    "description": "Linear lets you make an issue recurring (daily, weekly, monthly, yearly); the next instance is created when the previous one hits its due date, and recurring issues are managed in team settings (https://linear.app/changelog/2024-12-05-recurring-issues, https://linear.app/docs/ops-and-marketing). In Track the only route is building a Flow with a schedule trigger and the app.track_issue action (lib/flow-schema.ts), which is far from the issue itself. Ops chores like invoicing, backups or monthly reports are a core small-team use. First scope: a Make recurring option on an issue with a frequency, stored rule, and a cron that clones title, description, labels and assignee with the next due date.\n\nPriority: medium. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Add snooze and remind-me to the inbox and issues",
+    "description": "In Linear, H snoozes an inbox item until a preset or typed time and new activity cancels the snooze; Remind me sends an inbox notification at a chosen time without hiding the issue (https://linear.app/docs/snooze). Track's inbox (components/track/InboxClient.tsx) only supports read and mark-all-read, with no snooze or reminder fields. Small teams use reminders to follow up on blocked work instead of keeping a separate to-do list. First scope: snoozed_until on notifications with presets (later today, tomorrow, next week), and a Remind me action on the issue that schedules a notification via the existing cron.\n\nPriority: medium. Effort: S. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Search issue descriptions and comments, and escape LIKE wildcards",
+    "description": "Linear search covers issue content and comments across the workspace (Cmd/Ctrl+F quick search, https://linear.app/docs/inbox). Track search only matches title or identifier (lib/track-data.ts listIssues and listAllIssues use title LIKE ? OR identifier LIKE ?), so you cannot find an issue by an error message pasted in its description. The query is also interpolated as %q% without escaping, so a search for 100% or snake_case matches unexpected rows. First scope: include description text and comment bodies in the search (SQLite FTS5 table or LIKE with ESCAPE), and escape % and _ in user input.\n\nPriority: medium. Effort: S. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Add group by and more sort options to list and board views",
+    "description": "Linear display options let you group lists and boards by status, assignee, priority, cycle, label or project and order by priority, due date, updated or manual (https://linear.app/docs/display-options). Track's board only groups by status (components/track/IssuesBoard.tsx), the project list has no grouping, and the saved view sort enum is limited to newest, oldest, priority and identifier (lib/track-schema.ts issueViewCreateSchema). A lead reviewing workload per person or sorting by deadline cannot do it in the project view. First scope: groupBy (status, assignee, priority, cycle, label) for list and board, sort by due date and last updated, both persisted in saved views.\n\nPriority: medium. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Share saved views with the team and allow workspace-level views",
+    "description": "Linear views can be personal or shared with a team or the workspace, and filtered views can be shared by URL or shortcut (https://linear.app/changelog, Jul 2, 2026 entry). Track saved views are filtered by user_id in listIssueViews (lib/track-data.ts), so each teammate has to rebuild the same Bugs this week view, and views only exist inside one project. First scope: a visibility flag (personal or team) on track_issue_views, shared views listed for all project members, and saved views on the cross-project Issues page.\n\nPriority: medium. Effort: S. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Add milestones with target dates and progress inside a project",
+    "description": "Linear projects can be split into milestones with optional target dates, each showing completion percentage from its issues in the overview and timeline (https://linear.app/docs/project-milestones), and projects carry health updates (on track, at risk, off track) (https://linear.app/docs/initiative-and-project-updates). Track has no layer between a project and its issues: track_projects has no target date or lead and there is no milestone table (lib/schema/baseline.ts). Small teams shipping a launch need to see whether phase 1 is done before the deadline. First scope: track_milestones (name, target date, position), a milestone property on issues, progress per milestone on the project page and in the Gantt view.\n\nPriority: medium. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Support secret headers on http_request so agents can call authenticated APIs",
+    "description": "http_request only sends a fixed user-agent and content-type to allowlisted domains (lib/agent-tools.ts) and toolsConfigSchema has no place for credentials (lib/agents-config.ts), so it can only reach public endpoints. Fin connects to internal systems via Data Connectors or MCP with control over what data is exposed (https://production.fin.ai/procedures), and Zapier Agents act across thousands of authenticated apps. First scope: per-domain encrypted headers (for example Authorization) stored server-side and never shown to the model, optional named endpoints with a description and JSON schema so the model picks an endpoint rather than composing raw URLs.\n\nPriority: low. Effort: S. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Show API and Flow usage in the agent list channels and 7-day counts",
+    "description": "listAgents in lib/agents.ts only pushes 'chat' and 'public' into channels even though AgentListItem allows 'api', so agents used through /api/v1/agents or the Flow agent node (lib/flow-engine.ts agentNode, which also runs as channel 'api') look unused in the list. Fin's reporting breaks volume down by channel (https://fin.ai/pricing). Owners cleaning up agents could delete one that a Flow depends on. First scope: add 'api' when the agent has any api-channel conversation in the last 30 days and list referencing flows on the agent page, warning before delete.\n\nPriority: low. Effort: S. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
+    "product": "agents",
+    "kind": "bug"
+  },
+  {
+    "title": "Board: Present frames as slides and export frames to PDF",
+    "description": "Miro reads frame order from the board, shows them in a sidebar outline and presents them as slides, and exports high-resolution PDF/JPG on Starter (https://miro.com/pricing/, https://miro.com/blog/what-we-launched-october-2022/). Excalidraw gives us frames, but components/board/ExcalidrawCanvas.tsx only enables the stock export dialog (single PNG/SVG of the canvas or selection) and there is no presentation mode or frame list. Teams reuse board content in reviews and client calls, which today means screenshots. First scope: a frames panel listing frames in order with click-to-zoom, a fullscreen 'Present' mode stepping through frames with arrow keys, and 'Export frames as PDF' using exportToBlob per frame.\n\nPriority: low. Effort: M. Compared with Miro.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Fix editor rename that skips saves, shows no errors and keeps stale updated_at",
+    "description": "saveName in components/board/BoardEditor.tsx compares against the initial board.name prop, so renaming A to B and back to A in the same session never saves the second change, and the PATCH result is ignored so failures leave the UI showing a name the server does not have. renameBoard in lib/boards.ts also does not touch updated_at, so the list ordering and 'updated' meta in components/board/BoardList.tsx ignore renames. Miro renames are immediate and reflected in board lists. First scope: track the last saved name in a ref, surface errors with the existing status text, and bump updated_at on rename.\n\nPriority: low. Effort: S. Compared with Miro.",
+    "product": "board",
+    "kind": "bug"
+  },
+  {
+    "title": "Cal: Support group events with seats so several invitees can book one slot",
+    "description": "Calendly Group event types let one host meet multiple invitees per slot (webinars, classes, tours), and Cal.com offers seats with capacity (https://calendly.com/help/event-types-overview, https://cal.com/blog/discover-cal-com-s-advanced-settings). Our booking INSERT in lib/calendar.ts rejects any overlap for the host and there is a unique index on host and start, so a slot holds exactly one booking. Trainers, onboarding sessions and office hours need this weekly. First scope: seats per event type, count bookings per slot instead of rejecting overlap, show remaining seats on the booking page, and one shared Google event with attendees added.\n\nPriority: low. Effort: L. Compared with Calendly.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Distribute round-robin bookings fairly and expose a no-show webhook event",
+    "description": "Calendly round robin can optimize for availability or for equal distribution, and its API emits invitee_no_show.created webhooks (https://calendly.com/help/how-to-use-buffers mentions distribution effects; https://learn.microsoft.com/en-us/connectors/calendlyv2). In lib/calendar.ts createBooking increments rr_cursor by one whatever host pickFreeHost chose, so when the cursor host is busy the next host gets two bookings in a row and the skipped one loses its turn. Separately, the v1 no-show endpoint (app/api/v1/calendar/bookings/[id]/no-show/route.ts) never calls emitEvent, so webhooks and Flow cannot react to no-shows. First scope: set the cursor to the index after the host actually picked (or pick the least recently booked free host), and emit booking.no_show from both the admin and v1 paths.\n\nPriority: low. Effort: S. Compared with Calendly.",
+    "product": "cal",
+    "kind": "bug"
+  },
+  {
+    "title": "Chat: Add AI compose tools for agents: summarize to note, rephrase, translate",
+    "description": "Intercom's inbox AI lets teammates expand shorthand, change tone, fix grammar and translate a reply (Cmd+J), and summarize a conversation into an editable internal note (https://www.intercom.com/help/en/articles/6955446-fin-ai-for-help-desk). We already call the AI Gateway for the visitor-facing bot in lib/chat-bot-ai.ts, but the agent composer in components/chat/ConversationClient.tsx has no AI actions. This is agent assist, separate from the backlog items for a docs-answering bot and action-taking agents. First scope: a composer menu with 'Rephrase', 'Translate to visitor language' and 'Summarize to note', billed through the existing usage metering and hidden when AI_GATEWAY_API_KEY is absent.\n\nPriority: low. Effort: M. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Allow editing and deleting internal notes and agent messages",
+    "description": "Intercom made internal notes editable by their author in March 2026, behind a 'Can edit notes' permission (https://www.intercom.com/changes/en/page/1). Our messages route app/api/chat/conversations/[id]/messages/route.ts only implements GET and POST, so a note with a wrong @mention, a typo in a reply or a pasted secret stays forever. First scope: PATCH and DELETE for the author's own notes (and agent replies not yet read by the visitor), with an 'edited' marker, and re-evaluate mentions on edit.\n\nPriority: low. Effort: S. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Export conversation transcripts and email a transcript to the visitor",
+    "description": "Intercom added bulk export of conversations as PDF or plain text from the actions menu in June 2026 (https://www.intercom.com/changes/en/page/1), and Crisp and Chatwoot let agents send the transcript to the customer by email. We export only aggregate report rows as CSV (chatReportToCsv in lib/chat-inbox.ts); a single thread can only be copied by hand or logged to the CRM. Teams need transcripts for refunds, disputes and handing context to someone outside the tool. First scope: 'Download transcript' (text) in the conversation menu, an 'Email transcript' action to the visitor's email, and a CSV of messages in the reports export.\n\nPriority: low. Effort: S. Compared with Intercom.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Add an AI summary card on contact, company and deal pages",
+    "description": "HubSpot's Breeze record summary card generates on record load from activities, notes and ownership, can be refreshed, and is also a workflow action (https://knowledge.hubspot.com/records/summarize-records). Our only AI touch in the CRM is 'Draft with AI' for emails (components/crm/Timeline.tsx:432, app/api/crm/emails/draft); there is no record summary. Before a call, a founder wants 'where is this deal and what was promised' without scrolling a long timeline. First scope: when AI is enabled, a cached summary card above the timeline built from the last N activities, emails and stage changes, with a refresh button and a 'next step' suggestion; no automatic writes.\n\nPriority: low. Effort: M. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Attach files to notes and records, not only to tasks",
+    "description": "HubSpot has an Attachments card on every record and an attach button in the note and activity editor (https://knowledge.hubspot.com/records/add-and-remove-attachments-from-records). We only store files for tasks (crm_task_files, components/crm/TaskFiles.tsx); notes are a plain textarea with no attachments (components/crm/Timeline.tsx:380), and contacts, companies and deals have no files panel. Signed contracts, briefs and screenshots end up in Drive with no link to the deal. First scope: generalize crm_task_files into activity and record attachments, an attach icon in the note composer, and an Attachments side panel on record pages that respects record visibility.\n\nPriority: low. Effort: M. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Show company logos and prefill basic company data from the domain",
+    "description": "Attio enriches company records from the domain on its Free plan, logo included, as soon as a record is created (https://attio.com/help/reference/managing-your-data/enriched-data), while HubSpot moved enrichment to paid Breeze Intelligence and turned it off by default (https://knowledge.hubspot.com/records/get-started-with-data-enrichment). We store name, domain, industry and employees typed by hand (lib/schema/baseline.ts:92) and show no logo anywhere. Logos make lists and the board scannable, and free enrichment is a visible differentiator against HubSpot. First scope: logo from the domain favicon (cached, no third-party tracking) on company rows, cards and headers, plus an optional fetch of the site's title and meta description into empty fields.\n\nPriority: low. Effort: S. Compared with HubSpot.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add web bookmarks, video embeds and two-column layout",
+    "description": "Notion embeds YouTube, Loom, Figma and other links, renders web bookmarks as preview cards, and lets you drag blocks side by side into resizable columns (https://www.notion.com/help/images-files-and-media, https://www.notion.com/help/columns-headings-and-dividers). Our block schema (lib/docs-schema.ts) has no embed, bookmark or column type, and the sanitizer drops IFRAME/EMBED (lib/docs-richtext.ts), so a pasted Loom link stays a plain link. Async teams share Loom walkthroughs and Figma files inside specs constantly. First scope: when a lone URL is pasted, offer 'Embed' for an allowlist of providers (YouTube, Vimeo, Loom, Figma, Google Docs) and 'Bookmark' for anything else (fetch title, description and favicon server side); columns can follow as a second step.\n\nPriority: low. Effort: M. Compared with Notion.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Group links into folders with view or edit access per folder",
+    "description": "Dub Pro includes folders, and Business adds per-folder access (can edit, can view, no access) with members added to private folders (https://dub.co/help/article/link-folders, https://dub.co/help/article/folders-rbac). Bitly Campaigns groups links by channel for side by side comparison (https://support.bitly.com/hc/en-us/articles/115001195167). We only have up to 5 free-text tags per link (lib/links.ts), no folder entity and no permission below workspace level. First scope: a link_folders table, folder picker in create/edit, folder filter in the list and analytics; access levels can follow later.\n\nPriority: low. Effort: M. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Capture city, region and full referrer URL on each click",
+    "description": "Dub exposes regions, cities and referer_urls as analytics dimensions, and Bitly keeps city-level data as a premium upsell (https://dub.co/docs/api-reference/endpoint/retrieve-analytics, https://bitly.com/pages/pricing). contextFromHeaders in lib/track.ts stores only the referrer hostname and country, although Vercel already sends x-vercel-ip-city and x-vercel-ip-country-region headers on the same request. Local businesses and event promoters care more about the city than the country. First scope: add city, region and referrer_url columns to clicks, fill them from the platform headers, and show them in breakdowns and CSV exports.\n\nPriority: low. Effort: S. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Allow domain choice and per-row slug and title in bulk create",
+    "description": "Bitly Growth offers bulk link and QR creation from an upload, and Dub's bulk endpoints accept the full link payload per row, including domain and key (https://bitly.com/pages/pricing, https://dub.co/docs/api-reference/endpoint/create-a-link). Our createLinksBulk in lib/links.ts only takes a list of URLs plus one tag and UTM set, always on the default domain, with random slugs; BulkCreateForm has no domain selector. Teams with a branded domain have to create campaign links one by one to keep them on brand. First scope: a domain select in BulkCreateForm and CSV paste with url,slug,title columns reusing the bitly-import parser.\n\nPriority: low. Effort: S. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Add internal comments and a duplicate action to links",
+    "description": "Dub lets teams add comments to a link, shown as a bubble on the link card, and stores them as a comments field in the API (https://dub.co/help/article/link-comments); Short.io exposes duplicate link actions in its API (https://help.short.io/en/articles/9790533-how-to-delete-links). Our links have only a title (lib/links.ts schema) and LinksTable row actions are copy, QR, edit, archive and delete with no duplicate. Notes like 'used in the October print flyer' and cloning a link to vary the UTM are routine for marketers. First scope: a comments text column editable in EditLinkForm with an icon in the row, and a Duplicate row action that opens the create form prefilled.\n\nPriority: low. Effort: S. Compared with Bitly / Dub.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Make Notes an installable PWA with offline reading and queued edits",
+    "description": "Evernote, Apple Notes, Keep, Bear and Obsidian all work offline on mobile, and Evernote documents which search operators still work offline (https://help.evernote.com/hc/articles/208313828). Our app has no web manifest or service worker (no app/manifest, nothing in public/), every list and note load is a network fetch (components/notes/NotesApp.tsx refreshList, openNote), and a failed save only shows an error status. On a phone with weak signal, capture fails exactly when it is needed. First scope: a web manifest so Notes can be added to the home screen, caching of recently opened notes in IndexedDB, and an offline save queue that replays PATCHes when back online.\n\nPriority: low. Effort: L. Compared with Evernote.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Show column headers for database blocks on shared and trashed notes",
+    "description": "Evernote's shared and published notes render tables faithfully, and its September 2026 release added header row toggles for tables (https://releasebot.io/updates/evernote). Our read-only renderer treats database blocks like plain tables and prints only rows, ignoring the columns array that holds the column names (components/notes/NoteBlocksView.tsx, DocsBlock.columns in lib/docs-types.ts). Anyone opening a shared link to a note with a database block sees an unlabeled grid. First scope: render a thead from block.columns for database blocks in NoteBlocksView.\n\nPriority: low. Effort: S. Compared with Evernote.",
+    "product": "notes",
+    "kind": "bug"
+  },
+  {
+    "title": "Robots: Let Agents use robots as tools to browse and act on websites",
+    "description": "Browserbase and Stagehand are built so AI agents can drive a real browser (https://docs.stagehand.dev/), and Skyvern runs LLM-driven workflows with login blocks (https://skyvern.com/docs/developers/features/authentication-and-2fa). Our Agents product has no browser or robot tool: nothing under lib/agent* or app/api/agents references robots, and startRobotRun is called only from the run route and the Flow engine. Exposing existing robots (with their typed inputs) as agent tools turns Robots into the 'hands' of the suite without building a general browser agent. First scope: agent setting to attach up to 5 robots; each becomes a tool whose JSON schema is generated from robotInputSchema, runs with trigger 'agent', and returns output vars plus screenshot URLs.\n\nPriority: low. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Export run tables to CSV and prune old runs with a retention policy",
+    "description": "Browse AI lets users download captured lists and keeps task data for a plan-based retention window (https://www.saaspricepulse.com/tools/browse-ai), and Browserbase states 7-day data retention on its free plan (https://docs.browserbase.com/guides/plans-and-pricing). Our RunsPanel can show output as a table but only offers copying the JSON (components/robots/RunsPanel.tsx), and nothing ever deletes robot_runs rows, which store up to 200 KB of output and 600 log entries each, so a 15-minute schedule grows the table without bound (lib/robots.ts, lib/schema/migrations.ts). First scope: a 'Download CSV' button per table variable, and a cron cleanup that keeps the last 200 runs or 90 days per robot (configurable via env) while keeping the latest success.\n\nPriority: low. Effort: S. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
+    "product": "robots",
+    "kind": "bug"
+  },
+  {
+    "title": "Track: Create issues from email with a per-project intake address",
+    "description": "Linear gives each team a unique intake email; new emails become issues in triage with sender and attachments, and replies do not create new issues (https://linear.app/integrations/create-issues-via-email, https://linear.app/docs/customer-requests). Track already has a triage queue for non-app sources (lib/track-bulk.ts, source column) but no email entry point. Customers and non-users report bugs by email, so this turns Track into a lightweight help desk for small teams. First scope: a per-project address using the existing inbound email handling, issues created with source email and triage on, sender stored on the issue, attachments copied.\n\nPriority: low. Effort: M. Compared with Linear.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Log activity and emit events when completing a cycle moves issues",
+    "description": "completeCycle in lib/track-data.ts moves unfinished issues with a raw UPDATE on track_issues, so no cycle_change activity is written, no issue.updated Flow event fires, and assignees get no notice, unlike updateIssue and bulk edit, which keep activity and notifications (lib/track-bulk.ts). Linear keeps the issue history and the cycle snapshot when rolling over (https://linear.app/docs/use-cycles). The issue timeline then shows a cycle that silently changed. First scope: collect moved issue ids in the transaction, then write cycle_change activities and emit issue.updated for each after commit.\n\nPriority: low. Effort: S. Compared with Linear.",
+    "product": "track",
+    "kind": "bug"
+  }
+]
