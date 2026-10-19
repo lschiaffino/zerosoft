@@ -841,6 +841,8 @@
     "stageName": "Nombre de la etapa",
     "addStage": "Agregar etapa",
     "probability": "Probabilidad %",
+    "rottingDays": "Sin actividad (días)",
+    "rottingDaysHint": "Días sin actividad ni emails antes de marcar el deal. Vacío usa 14.",
     "isWon": "Cerrado ganado",
     "isLost": "Cerrado perdido",
     "deleteStage": "Eliminar etapa",
@@ -1241,7 +1243,8 @@
       "unsubscribed": "Se dio de baja",
       "manual": "Quitado",
       "gmail_not_connected": "Gmail desconectado",
-      "sequence_deleted": "Secuencia borrada"
+      "sequence_deleted": "Secuencia borrada",
+      "merged": "Fusionado con otro contacto"
     },
     "pause": "Pausar",
     "resume": "Reanudar",

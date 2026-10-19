@@ -3,6 +3,7 @@
  * Las rutas validan con <schema>.safeParse(body) y mapean issues a crm.errors.*.
  */
 import { z } from 'zod';
+import { MAX_ROTTING_DAYS } from './crm-rotting';
 import {
   ACTIVITY_TYPES,
   CONTACT_COMPANY_LABELS,
@@ -139,6 +140,8 @@ export const stageUpdateSchema = z.object({
   probability: probability.optional(),
   isWon: z.boolean().optional(),
   isLost: z.boolean().optional(),
+  /** null vuelve al default (14 días). */
+  rottingDays: z.number().int().min(1).max(MAX_ROTTING_DAYS).nullable().optional(),
 });
 
 export const stagesReorderSchema = z.object({

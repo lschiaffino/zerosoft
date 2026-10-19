@@ -745,7 +745,7 @@ tr:hover .cell-quick { opacity: 0.8; }
 
 .stage-row {
   display: grid;
-  grid-template-columns: 1fr 110px auto auto;
+  grid-template-columns: 1fr 110px 110px auto auto;
   align-items: center;
   gap: 10px;
   padding: 10px 0;
@@ -1252,7 +1252,7 @@ tr:hover .cell-quick { opacity: 0.8; }
 .pl-name { max-width: 320px; font-weight: 500; }
 
 .pl-stages { overflow-x: auto; }
-.pl-stages .stage-row { min-width: 620px; }
+.pl-stages .stage-row { min-width: 740px; }
 .stage-flags label { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 
 .stage-add { display: flex; gap: 10px; margin-top: 14px; }

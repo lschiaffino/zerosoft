@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { BoardDeal, BoardStage } from '@/lib/crm';
+import { isDealRotting } from '@/lib/crm-rotting';
 import DealForm from './DealForm';
 import RecordPreview from './RecordPreview';
 import { AddStageColumn } from './AddPipelineStage';
@@ -370,7 +371,7 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                           {fmtClose(deal.close_date)}
                         </span>
                       )}
-                      {!closed && (deal.idle_days ?? 0) > 14 && (
+                      {isDealRotting(deal.idle_days, col.stage) && (
                         <span className="kb-card-rotting" title={t('deals.rotting', { days: deal.idle_days ?? 0 })}>
                           {t('deals.rotting', { days: deal.idle_days ?? 0 })}
                         </span>

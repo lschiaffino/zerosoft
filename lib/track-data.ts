@@ -27,6 +27,7 @@ import {
 } from './notifications';
 import type {
   CommentCreatePayload,
+  CommentUpdatePayload,
   CycleCreatePayload,
   CycleUpdatePayload,
   IssueCreatePayload,
@@ -674,11 +675,14 @@ export type CompleteCycleResult =
  * Completa un cycle: los issues sin terminar (status no done/cancelled o sin
  * status) pasan al cycle indicado; si no se indica (undefined), al siguiente
  * del proyecto; `null` los saca de todo cycle. Si el cycle seguía abierto, su
- * fin pasa a hoy.
+ * fin pasa a hoy. Cada issue movido deja su cycle_change en la actividad
+ * (firmado por `actorId`, o el dueño del proyecto) y emite issue.updated,
+ * igual que updateIssue.
  */
 export async function completeCycle(
   cycleId: string,
   targetCycleId?: string | null,
+  actorId?: string,
 ): Promise<CompleteCycleResult> {
   const cycle = await getCycle(cycleId);
   if (!cycle) return { ok: false, reason: 'not_found' };
@@ -693,26 +697,49 @@ export async function completeCycle(
     target = t.id;
   }
   const today = new Date().toISOString().slice(0, 10);
+  const unfinished = `cycle_id = ? AND project_id = ?
+           AND (status_id IS NULL OR status_id NOT IN (
+             SELECT id FROM track_statuses WHERE project_id = ? AND category IN ('done', 'cancelled')))`;
   const tx = await getClient().transaction();
   const tdb = txDb(tx);
+  let before: TrackIssueWithStatus[];
+  let moved: number;
   try {
-    const res = await tdb
+    // Los ids se toman dentro de la transacción para loguear exactamente los que se movieron.
+    before = (await tdb
       .prepare(
-        `UPDATE track_issues SET cycle_id = ?, updated_at = datetime('now')
-         WHERE cycle_id = ? AND project_id = ?
-           AND (status_id IS NULL OR status_id NOT IN (
-             SELECT id FROM track_statuses WHERE project_id = ? AND category IN ('done', 'cancelled')))`,
+        issueSelect(`WHERE i.id IN (SELECT id FROM track_issues WHERE ${unfinished})`),
       )
+      .all(cycle.id, cycle.project_id, cycle.project_id)) as TrackIssueWithStatus[];
+    const res = await tdb
+      .prepare(`UPDATE track_issues SET cycle_id = ?, updated_at = datetime('now') WHERE ${unfinished}`)
       .run(target, cycle.id, cycle.project_id, cycle.project_id);
+    moved = res.changes;
     if (cycle.end_at.slice(0, 10) > today) {
       await tdb.prepare('UPDATE track_cycles SET end_at = ? WHERE id = ?').run(today, cycle.id);
     }
     await tx.commit();
-    return { ok: true, moved: res.changes, targetCycleId: target };
   } catch (e) {
     await tx.rollback();
     throw e;
   }
+
+  if (before.length) {
+    const actor = actorId ?? (await getProject(cycle.project_id))?.owner_id ?? null;
+    const targetName = target ? ((await getCycle(target))?.name ?? '') : '';
+    for (const prev of before) {
+      if (actor) {
+        await createIssueActivity(prev.id, actor, 'cycle_change', {
+          from: prev.cycle_name ?? cycle.name,
+          to: targetName,
+          via: 'cycle_complete',
+        });
+      }
+      const updated = await getIssue(prev.id);
+      if (updated) scheduleIssueEvents(prev, updated, ['cycleId']);
+    }
+  }
+  return { ok: true, moved, targetCycleId: target };
 }
 
 export async function deleteCycle(id: string): Promise<boolean> {
@@ -1600,7 +1627,9 @@ export async function createIssueComment(
     )
     .run(id, issueId, userId, payload.body.trim(), nowIso());
 
-  await createIssueActivity(issueId, userId, 'comment', { commentId: id, body: payload.body.trim() });
+  // El cuerpo vive solo en track_issue_comments: el timeline lo lee de ahí,
+  // así una edición o un borrado del autor no deja copias viejas en el log.
+  await createIssueActivity(issueId, userId, 'comment', { commentId: id });
 
   const comment = (await db
     .prepare(
@@ -1631,9 +1660,70 @@ export async function createIssueComment(
   return comment;
 }
 
-export async function deleteIssueComment(id: string): Promise<boolean> {
-  const res = await getDb().prepare('DELETE FROM track_issue_comments WHERE id = ?').run(id);
-  return res.changes > 0;
+export type CommentMutationResult<T> = { ok: true; value: T } | { ok: false; reason: 'not_found' | 'forbidden' };
+
+async function ownComment(
+  issueId: string,
+  commentId: string,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; reason: 'not_found' | 'forbidden' }> {
+  const row = (await getDb()
+    .prepare('SELECT user_id FROM track_issue_comments WHERE id = ? AND issue_id = ?')
+    .get(commentId, issueId)) as { user_id: string } | undefined;
+  if (!row) return { ok: false, reason: 'not_found' };
+  if (row.user_id !== userId) return { ok: false, reason: 'forbidden' };
+  return { ok: true };
+}
+
+/** Solo el autor edita su comentario; queda marcado con updated_at. */
+export async function updateIssueComment(
+  issueId: string,
+  commentId: string,
+  userId: string,
+  payload: CommentUpdatePayload,
+): Promise<CommentMutationResult<TrackCommentWithAuthor>> {
+  const own = await ownComment(issueId, commentId, userId);
+  if (!own.ok) return own;
+  const db = getDb();
+  const body = payload.body.trim();
+  await db
+    .prepare('UPDATE track_issue_comments SET body = ?, updated_at = ? WHERE id = ? AND body != ?')
+    .run(body, nowIso(), commentId, body);
+  // Filas viejas guardaban el cuerpo en meta: se limpian para no conservar la versión anterior.
+  await db
+    .prepare(
+      `UPDATE track_issue_activities SET meta = json_object('commentId', ?)
+       WHERE issue_id = ? AND type = 'comment' AND json_extract(meta, '$.commentId') = ?`,
+    )
+    .run(commentId, issueId, commentId);
+  const comment = (await db
+    .prepare(
+      `SELECT c.*, u.name AS user_name, u.email AS user_email
+       FROM track_issue_comments c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.id = ?`,
+    )
+    .get(commentId)) as TrackCommentWithAuthor;
+  return { ok: true, value: comment };
+}
+
+/** Solo el autor borra su comentario; se va también su entrada del timeline. */
+export async function deleteIssueComment(
+  issueId: string,
+  commentId: string,
+  userId: string,
+): Promise<CommentMutationResult<null>> {
+  const own = await ownComment(issueId, commentId, userId);
+  if (!own.ok) return own;
+  const db = getDb();
+  await db
+    .prepare(
+      `DELETE FROM track_issue_activities
+       WHERE issue_id = ? AND type = 'comment' AND json_extract(meta, '$.commentId') = ?`,
+    )
+    .run(issueId, commentId);
+  await db.prepare('DELETE FROM track_issue_comments WHERE id = ? AND issue_id = ?').run(commentId, issueId);
+  return { ok: true, value: null };
 }
 
 // ---------- Relations ----------
@@ -1783,22 +1873,18 @@ export async function listIssueActivities(issueId: string): Promise<TrackIssueAc
       `SELECT a.*, u.name AS user_name, u.email AS user_email
        FROM track_issue_activities a
        JOIN users u ON u.id = a.user_id
-       WHERE a.issue_id = ?
+       WHERE a.issue_id = ? AND a.type != 'comment'
        UNION ALL
+       -- Los comentarios se leen siempre de su tabla (texto vigente, editado o no).
        SELECT c.id, c.issue_id, c.user_id, 'comment' AS type,
-         json_object('commentId', c.id, 'body', c.body) AS meta,
+         json_object('commentId', c.id, 'body', c.body, 'editedAt', c.updated_at) AS meta,
          c.created_at, u.name AS user_name, u.email AS user_email
        FROM track_issue_comments c
        JOIN users u ON u.id = c.user_id
        WHERE c.issue_id = ?
-         AND c.id NOT IN (
-           SELECT json_extract(meta, '$.commentId')
-           FROM track_issue_activities
-           WHERE issue_id = ? AND type = 'comment'
-         )
        ORDER BY created_at ASC`,
     )
-    .all(issueId, issueId, issueId)) as TrackIssueActivityWithAuthor[];
+    .all(issueId, issueId)) as TrackIssueActivityWithAuthor[];
 }
 
 export async function createIssueActivity(

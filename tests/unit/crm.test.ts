@@ -141,6 +141,83 @@ describe('CRM: merge de contactos', () => {
     expect(emails.n).toBe(1);
     expect(await getContact(a.id, drop.id)).toBeNull();
   });
+
+  it('conserva emails sincronizados, secuencias, formularios e historial, y completa campos vacíos', async () => {
+    const a = await makeUser('a');
+    const db = getDb();
+    const keep = await createContact(a.id, { email: 'dup@a.test', firstName: 'Keep' });
+    const drop = await createContact(a.id, {
+      email: 'otro@a.test',
+      firstName: 'Drop',
+      phone: '+54 11 5555',
+      city: 'Rosario',
+      custom: { plan: 'pro' },
+    });
+
+    // Email compartido por ambos (dedupe en la PK) y uno solo del descartado.
+    const shared = crypto.randomUUID();
+    const onlyDrop = crypto.randomUUID();
+    for (const [id, owner] of [
+      [shared, keep.id],
+      [onlyDrop, drop.id],
+    ]) {
+      await db
+        .prepare(
+          `INSERT INTO crm_emails (id, user_id, contact_id, gmail_id, thread_id, direction, from_email, to_emails, subject, snippet, sent_at)
+           VALUES (?, ?, ?, ?, '', 'in', 'x@a.test', 'me@a.test', 'hola', '', datetime('now'))`,
+        )
+        .run(id, a.id, owner, crypto.randomUUID());
+    }
+    await db
+      .prepare('INSERT OR IGNORE INTO crm_email_contacts (email_id, contact_id, user_id) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)')
+      .run(shared, keep.id, a.id, shared, drop.id, a.id, onlyDrop, drop.id, a.id);
+
+    // Dos secuencias: en una están los dos activos (choca el índice único), en otra solo el descartado.
+    const seqBoth = crypto.randomUUID();
+    const seqDrop = crypto.randomUUID();
+    await db.prepare("INSERT INTO crm_sequences (id, user_id, name) VALUES (?, ?, 'A'), (?, ?, 'B')").run(seqBoth, a.id, seqDrop, a.id);
+    const enroll = db.prepare(
+      "INSERT INTO crm_sequence_enrollments (id, user_id, sequence_id, contact_id, sender_id, status) VALUES (?, ?, ?, ?, ?, 'active')",
+    );
+    await enroll.run(crypto.randomUUID(), a.id, seqBoth, keep.id, a.id);
+    const dropBoth = crypto.randomUUID();
+    await enroll.run(dropBoth, a.id, seqBoth, drop.id, a.id);
+    await enroll.run(crypto.randomUUID(), a.id, seqDrop, drop.id, a.id);
+
+    const formId = crypto.randomUUID();
+    await db.prepare("INSERT INTO crm_forms (id, user_id, name, token) VALUES (?, ?, 'F', ?)").run(formId, a.id, crypto.randomUUID());
+    await db
+      .prepare('INSERT INTO crm_form_submissions (id, form_id, user_id, contact_id) VALUES (?, ?, ?, ?)')
+      .run(crypto.randomUUID(), formId, a.id, drop.id);
+    await db
+      .prepare("INSERT INTO crm_property_events (id, user_id, entity, entity_id, field, new_value) VALUES (?, ?, 'contact', ?, 'city', 'Rosario')")
+      .run(crypto.randomUUID(), a.id, drop.id);
+
+    const merged = await mergeContacts(a.id, keep.id, drop.id);
+    expect(merged?.first_name).toBe('Keep');
+    expect(merged?.email).toBe('dup@a.test');
+    expect(merged?.phone).toBe('+54 11 5555');
+    expect(merged?.city).toBe('Rosario');
+    expect(JSON.parse(merged?.custom ?? '{}')).toEqual({ plan: 'pro' });
+
+    const count = async (sql: string, ...args: string[]) =>
+      ((await db.prepare(sql).get(...args)) as { n: number }).n;
+    expect(await count('SELECT COUNT(*) AS n FROM crm_email_contacts WHERE contact_id = ?', keep.id)).toBe(2);
+    expect(await count('SELECT COUNT(*) AS n FROM crm_sequence_enrollments WHERE contact_id = ?', keep.id)).toBe(3);
+    expect(
+      await count("SELECT COUNT(*) AS n FROM crm_sequence_enrollments WHERE contact_id = ? AND status = 'active'", keep.id),
+    ).toBe(2);
+    const exited = (await db.prepare('SELECT status, exit_reason FROM crm_sequence_enrollments WHERE id = ?').get(dropBoth)) as {
+      status: string;
+      exit_reason: string;
+    };
+    expect(exited).toEqual({ status: 'exited', exit_reason: 'merged' });
+    expect(await count('SELECT COUNT(*) AS n FROM crm_form_submissions WHERE contact_id = ?', keep.id)).toBe(1);
+    expect(
+      await count("SELECT COUNT(*) AS n FROM crm_property_events WHERE entity = 'contact' AND entity_id = ?", keep.id),
+    ).toBeGreaterThanOrEqual(1);
+    expect(await count('SELECT COUNT(*) AS n FROM crm_email_contacts WHERE contact_id = ?', drop.id)).toBe(0);
+  });
 });
 
 describe('CRM: workflows', () => {

@@ -805,6 +805,50 @@ export async function findDuplicateContacts(userId: string): Promise<DuplicateGr
  * Merge: mueve todo lo del contacto `dropId` a `keepId` y borra `dropId`.
  * Transacción única. Devuelve el contacto conservado, o null si falta alguno.
  */
+/** Columnas de texto que un merge completa si están vacías en el que queda. */
+const MERGE_FILL_COLUMNS = [
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'job_title',
+  'website',
+  'city',
+  'country',
+  'source',
+] as const;
+
+/**
+ * Pares [columna, valor] para completar en `keep` los campos vacíos con los
+ * de `drop` (estilo HubSpot: el que queda gana, salvo que no tenga valor).
+ * Incluye owner_id y los custom fields ausentes en `keep`; la empresa la
+ * resuelve syncContactPrimary con las asociaciones migradas.
+ */
+export function mergeFillPatch(keep: CrmContactRow, drop: CrmContactRow): [string, string][] {
+  const out: [string, string][] = [];
+  const k = keep as unknown as Record<string, unknown>;
+  const d = drop as unknown as Record<string, unknown>;
+  for (const col of MERGE_FILL_COLUMNS) {
+    const kv = String(k[col] ?? '').trim();
+    const dv = String(d[col] ?? '').trim();
+    if (!kv && dv) out.push([col, String(d[col])]);
+  }
+  if (!keep.owner_id && drop.owner_id) out.push(['owner_id', drop.owner_id]);
+  const kc = parseCustom(keep.custom);
+  const dc = parseCustom(drop.custom);
+  let changed = false;
+  for (const [key, v] of Object.entries(dc)) {
+    const cur = kc[key];
+    const empty = cur === undefined || cur === null || cur === '' || (Array.isArray(cur) && cur.length === 0);
+    if (empty && v !== undefined && v !== null && v !== '') {
+      kc[key] = v;
+      changed = true;
+    }
+  }
+  if (changed) out.push(['custom', JSON.stringify(kc)]);
+  return out;
+}
+
 export async function mergeContacts(
   userId: string,
   keepId: string,
@@ -831,7 +875,12 @@ export async function mergeContacts(
       .run(keepId, dropId);
     await tdb.prepare('DELETE FROM crm_contact_companies WHERE contact_id = ?').run(dropId);
     await syncContactPrimary(keepId, tdb);
-    await tdb.prepare('UPDATE crm_contacts SET updated_at = ? WHERE id = ?').run(now(), keepId);
+    // Campos vacíos del que queda se completan con los del descartado.
+    const fill = mergeFillPatch(keep, drop);
+    const sets = ['updated_at = ?', ...fill.map(([col]) => `${col} = ?`)];
+    await tdb
+      .prepare(`UPDATE crm_contacts SET ${sets.join(', ')} WHERE id = ?`)
+      .run(now(), ...fill.map(([, v]) => v), keepId);
     // Tags del descartado.
     await tdb
       .prepare("UPDATE OR IGNORE crm_record_tags SET record_id = ? WHERE entity = 'contact' AND record_id = ?")
@@ -845,8 +894,32 @@ export async function mergeContacts(
     await tdb
       .prepare('UPDATE crm_activities SET contact_id = ?, updated_at = ? WHERE contact_id = ?')
       .run(keepId, now(), dropId);
-    // Emails (Gmail y enviados desde el CRM).
+    // Emails (Gmail y enviados desde el CRM). El timeline lee por
+    // crm_email_contacts: si no se re-apunta, el CASCADE del DELETE final se
+    // lleva los emails del descartado.
     await tdb.prepare('UPDATE crm_emails SET contact_id = ? WHERE contact_id = ?').run(keepId, dropId);
+    await tdb
+      .prepare('UPDATE OR IGNORE crm_email_contacts SET contact_id = ? WHERE contact_id = ?')
+      .run(keepId, dropId);
+    await tdb.prepare('DELETE FROM crm_email_contacts WHERE contact_id = ?').run(dropId);
+    // Secuencias: si ambos están vivos en la misma secuencia, la del
+    // descartado sale con motivo 'merged' (el índice único es parcial sobre
+    // active/paused); el historial completo pasa al que queda.
+    await tdb
+      .prepare(
+        `UPDATE crm_sequence_enrollments SET status = 'exited', exit_reason = 'merged', finished_at = ?, updated_at = ?
+         WHERE contact_id = ? AND status IN ('active', 'paused')
+           AND sequence_id IN (SELECT sequence_id FROM crm_sequence_enrollments
+                               WHERE contact_id = ? AND status IN ('active', 'paused'))`,
+      )
+      .run(now(), now(), dropId, keepId);
+    await tdb.prepare('UPDATE crm_sequence_enrollments SET contact_id = ? WHERE contact_id = ?').run(keepId, dropId);
+    // Formularios, historial de asignación y de propiedades.
+    await tdb.prepare('UPDATE crm_form_submissions SET contact_id = ? WHERE contact_id = ?').run(keepId, dropId);
+    await tdb.prepare('UPDATE crm_assignment_history SET contact_id = ? WHERE contact_id = ?').run(keepId, dropId);
+    await tdb
+      .prepare("UPDATE crm_property_events SET entity_id = ? WHERE user_id = ? AND entity = 'contact' AND entity_id = ?")
+      .run(keepId, userId, dropId);
     // Listas estáticas.
     await tdb
       .prepare('UPDATE OR IGNORE crm_list_members SET contact_id = ? WHERE contact_id = ?')
@@ -1311,11 +1384,12 @@ export async function createStage(
 export async function updateStage(
   userId: string,
   id: string,
-  data: { name?: string; probability?: number; isWon?: boolean; isLost?: boolean },
+  data: { name?: string; probability?: number; isWon?: boolean; isLost?: boolean; rottingDays?: number | null },
 ): Promise<CrmStageRow | null> {
   const db = getDb();
   if (!(await getOwnedStage(userId, id))) return null;
-  const sets: Array<[string, string | number]> = [];
+  const sets: Array<[string, string | number | null]> = [];
+  if (data.rottingDays !== undefined) sets.push(['rotting_days', data.rottingDays]);
   if (data.name !== undefined) sets.push(['name', data.name]);
   if (data.probability !== undefined) sets.push(['probability', data.probability]);
   if (data.isWon !== undefined) sets.push(['is_won', data.isWon ? 1 : 0]);
@@ -1497,6 +1571,8 @@ export interface BoardDeal extends CrmDealRow {
   contact_name: string | null;
   company_name: string | null;
   last_activity_at: string | null;
+  /** Último email sincronizado o enviado con alguno de los contactos del deal. */
+  last_email_at: string | null;
   /** amount convertido a la moneda base del workspace (totales del board). */
   amount_base: number;
   /** Calculados en la page (días desde created_at / última actividad). */
@@ -1529,6 +1605,10 @@ export async function listDealsForBoard(
          NULLIF(trim(c.first_name || ' ' || c.last_name), '') AS contact_name,
          co.name AS company_name,
          (SELECT MAX(a.created_at) FROM crm_activities a WHERE a.deal_id = d.id) AS last_activity_at,
+         (SELECT MAX(e.sent_at) FROM crm_deal_contacts edc
+            JOIN crm_email_contacts ec ON ec.contact_id = edc.contact_id
+            JOIN crm_emails e ON e.id = ec.email_id
+          WHERE edc.deal_id = d.id AND e.sent_at != '') AS last_email_at,
          ${baseAmountSql('d')} AS amount_base
        FROM crm_deals d
        LEFT JOIN crm_contacts c ON c.id = (

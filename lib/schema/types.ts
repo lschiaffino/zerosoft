@@ -135,6 +135,8 @@ export interface CrmStageRow {
   position: number;
   is_won: 0 | 1;
   is_lost: 0 | 1;
+  /** Días sin actividad para marcar un deal como rotting (null = default 14). */
+  rotting_days: number | null;
 }
 
 export interface CrmDealRow {
@@ -925,6 +927,8 @@ export interface TrackIssueCommentRow {
   user_id: string;
   body: string;
   created_at: string;
+  /** Última edición del autor (null si nunca se editó). */
+  updated_at: string | null;
 }
 
 export interface TrackIssueRelationRow {

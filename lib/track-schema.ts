@@ -192,8 +192,10 @@ export const githubConfigSchema = z.object({
 // ---------- Comments ----------
 
 export const commentCreateSchema = z.object({
-  body: longText,
+  body: longText.min(1),
 });
+
+export const commentUpdateSchema = commentCreateSchema;
 
 // ---------- Relations ----------
 
@@ -236,6 +238,7 @@ export type CycleCompletePayload = z.infer<typeof cycleCompleteSchema>;
 export type IssueCreatePayload = z.infer<typeof issueCreateSchema>;
 export type IssueUpdatePayload = z.infer<typeof issueUpdateSchema>;
 export type CommentCreatePayload = z.infer<typeof commentCreateSchema>;
+export type CommentUpdatePayload = z.infer<typeof commentUpdateSchema>;
 export type RelationCreatePayload = z.infer<typeof relationCreateSchema>;
 export type IssueViewCreatePayload = z.infer<typeof issueViewCreateSchema>;
 export type IssueViewUpdatePayload = z.infer<typeof issueViewUpdateSchema>;

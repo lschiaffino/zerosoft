@@ -168,7 +168,11 @@
     "assignedYou": "{actor} atribuiu {identifier} a você",
     "commentedOn": "{actor} comentou em {identifier}",
     "changedStatus": "{actor} alterou o status de {identifier}",
-    "submitComment": "Comentar"
+    "submitComment": "Comentar",
+    "editComment": "Editar",
+    "deleteComment": "Excluir",
+    "deleteCommentConfirm": "Excluir este comentário? Não é possível desfazer.",
+    "edited": "editado"
   },
   "relations": {
     "title": "Relações",

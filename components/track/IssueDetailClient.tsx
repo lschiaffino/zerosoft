@@ -82,6 +82,12 @@ interface DetailLabels {
     addComment: string;
     submitComment: string;
     empty: string;
+    editComment: string;
+    deleteComment: string;
+    deleteCommentConfirm: string;
+    saveComment: string;
+    cancelEdit: string;
+    edited: string;
   };
   relations: {
     title: string;
@@ -745,6 +751,7 @@ export default function IssueDetailClient({
             <IssueActivityTimeline
               issueId={issue.id}
               locale={locale}
+              userId={userId}
               activities={activities}
               members={initialMembers}
               labels={labels.activity}

@@ -141,6 +141,12 @@ export default async function IssueDetailPage(
           addComment: t('issues.detail.addComment'),
           submitComment: t('activity.submitComment'),
           empty: t('issues.detail.noComments'),
+          editComment: t('activity.editComment'),
+          deleteComment: t('activity.deleteComment'),
+          deleteCommentConfirm: t('activity.deleteCommentConfirm'),
+          saveComment: t('common.save'),
+          cancelEdit: t('common.cancel'),
+          edited: t('activity.edited'),
         },
         relations: {
           title: t('relations.title'),
