@@ -344,6 +344,25 @@ export function roadmapTitleKey(title: string): string {
   return title.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+const RESEARCH_ORDER = ['idea', 'considering', 'planned', 'in_progress', 'done'];
+
+/**
+ * Mueve una idea de la investigación al estado que marca research/ideas.json
+ * cuando se planifica o se publica. Nunca retrocede ni toca una idea
+ * rechazada o fusionada desde el admin; avisa a quienes la siguen.
+ */
+async function advanceResearchIdea(id: string, status: 'planned' | 'in_progress' | 'done', changelog?: string): Promise<void> {
+  const item = await getRoadmapItem(id);
+  if (!item) return;
+  const from = RESEARCH_ORDER.indexOf(item.status);
+  const to = RESEARCH_ORDER.indexOf(status);
+  if (from < 0 || to <= from) return;
+  await updateRoadmapItem(id, {
+    status,
+    ...(status === 'done' && changelog ? { shippedChangelogId: changelog } : {}),
+  });
+}
+
 /**
  * Carga ideas de la investigación de gaps como ideas públicas del backlog.
  * Cada título se importa una sola vez (tabla roadmap_imports): si ya hay un
@@ -375,7 +394,9 @@ export async function importResearchIdeas(
     const key = roadmapTitleKey(idea.title);
     if (!key) continue;
     if (imported.has(key)) {
-      skipped.push({ id: imported.get(key) ?? null, title: idea.title });
+      const id = imported.get(key) ?? null;
+      if (id && idea.status) await advanceResearchIdea(id, idea.status, idea.changelog);
+      skipped.push({ id, title: idea.title });
       continue;
     }
     const existing = byTitle.get(key);
@@ -385,7 +406,9 @@ export async function importResearchIdeas(
       skipped.push({ id: existing, title: idea.title });
       continue;
     }
-    const row = await createRoadmapItem({ ...idea, status: 'idea', isPublic: true });
+    const { status, changelog, ...fields } = idea;
+    const row = await createRoadmapItem({ ...fields, status: 'idea', isPublic: true });
+    if (status) await advanceResearchIdea(row.id, status, changelog);
     await record(key, row.id);
     imported.set(key, row.id);
     created.push({ id: row.id, title: row.title });
@@ -638,7 +661,14 @@ export const roadmapCreateSchema = z.object({
 export type RoadmapCreate = z.infer<typeof roadmapCreateSchema>;
 
 /** Una idea de la investigación de gaps (ver importResearchIdeas). */
-export const researchIdeaSchema = roadmapCreateSchema.pick({ title: true, description: true, product: true, kind: true });
+export const researchIdeaSchema = roadmapCreateSchema
+  .pick({ title: true, description: true, product: true, kind: true })
+  .extend({
+    // Avance de una idea ya importada: solo hacia adelante (ver importResearchIdeas).
+    status: z.enum(['planned', 'in_progress', 'done']).optional(),
+    // Entrada de content/changelog.ts que la cerró (con status 'done').
+    changelog: z.string().trim().max(120).optional(),
+  });
 export type ResearchIdea = z.infer<typeof researchIdeaSchema>;
 
 export async function createRoadmapItem(input: RoadmapCreate, actorId: string | null = null): Promise<RoadmapItemRow> {

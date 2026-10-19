@@ -85,3 +85,30 @@ describe('research/ideas.json', () => {
     }
   });
 });
+
+describe('importResearchIdeas: avance de estado', () => {
+  it('pasa una idea a done con su changelog y nunca la hace retroceder', async () => {
+    const { importResearchIdeas, updateRoadmapItem } = await import('@/lib/roadmap');
+    const title = `Link: Forward query params ${Date.now()}`;
+    const base = { title, description: '', product: 'link' as const, kind: 'idea' as const };
+    const first = await importResearchIdeas([base]);
+    const id = first.created[0].id;
+    expect((await getRoadmapItem(id))?.status).toBe('idea');
+
+    await importResearchIdeas([{ ...base, status: 'done', changelog: '2026-10-19-link' }]);
+    expect(await getRoadmapItem(id)).toMatchObject({ status: 'done', shipped_changelog_id: '2026-10-19-link' });
+
+    await importResearchIdeas([{ ...base, status: 'planned' }]);
+    expect((await getRoadmapItem(id))?.status).toBe('done');
+  });
+
+  it('no toca una idea rechazada desde el admin', async () => {
+    const { importResearchIdeas, updateRoadmapItem } = await import('@/lib/roadmap');
+    const title = `Cal: Seats ${Date.now()}`;
+    const base = { title, description: '', product: 'cal' as const, kind: 'idea' as const };
+    const id = (await importResearchIdeas([base])).created[0].id;
+    await updateRoadmapItem(id, { status: 'declined' });
+    await importResearchIdeas([{ ...base, status: 'done' }]);
+    expect((await getRoadmapItem(id))?.status).toBe('declined');
+  });
+});
