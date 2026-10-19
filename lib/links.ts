@@ -18,6 +18,7 @@ import {
   targetingDestinations,
   type LinkTargeting,
 } from './link-targeting';
+import { syncUtm } from './link-url';
 
 /** LinkRow + el hostname de su dominio propio (null = dominio por defecto). */
 export type LinkWithDomain = LinkRow & { domain_hostname?: string | null };
@@ -205,6 +206,10 @@ export interface LinkDto {
   qr_scans: number;
   /** Segmentación por país/dispositivo, A/B y deep links (null = sin reglas). */
   targeting: LinkTargeting | null;
+  /** Los query params del link corto se suman al destino (?utm_source=… gana sobre el del destino). */
+  forward_params: boolean;
+  /** A dónde redirige el link vencido o sin clicks disponibles (null = página de zerosoft o el default del dominio). */
+  expired_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -228,6 +233,8 @@ export function toLinkDto(link: LinkWithDomain): LinkDto {
     clicks: link.clicks,
     qr_scans: link.qr_scans ?? 0,
     targeting: parseTargeting(link.targeting),
+    forward_params: link.forward_params !== 0,
+    expired_url: link.expired_url ?? null,
     created_at: link.created_at,
     updated_at: link.updated_at,
   };
@@ -300,6 +307,21 @@ export function applyUtm(
   if (medium) u.searchParams.set('utm_medium', medium);
   if (campaign) u.searchParams.set('utm_campaign', campaign);
   return { url: u.toString(), source, medium, campaign };
+}
+
+/**
+ * URL de fallback (link vencido, slug inexistente): http(s) válida y que no
+ * sea otro link corto nuestro (armaría un loop). '' o null la borran.
+ */
+export async function cleanFallbackUrl(
+  raw: string | null | undefined,
+): Promise<{ ok: true; value: string | null } | { ok: false; code: 'invalid_url' | 'self_link' }> {
+  const trimmed = raw?.trim();
+  if (!trimmed) return { ok: true, value: null };
+  const normalized = normalizeUrl(trimmed);
+  if (normalized.length > 2000 || !isValidUrl(normalized)) return { ok: false, code: 'invalid_url' };
+  if (await isShortLinkUrl(normalized)) return { ok: false, code: 'self_link' };
+  return { ok: true, value: normalized };
 }
 
 // ---------- Abuso ----------
@@ -379,6 +401,10 @@ export interface CreateLinkInput {
   ogTitle?: string;
   ogDescription?: string;
   ogImage?: string;
+  /** Pasar los query params del link corto al destino (default true). */
+  forwardParams?: boolean;
+  /** A dónde va el link cuando vence o llega a max_clicks. */
+  expiredUrl?: string | null;
 }
 
 export type CreateLinkError =
@@ -388,6 +414,7 @@ export type CreateLinkError =
   | 'invalid_date'
   | 'invalid_domain'
   | 'self_link'
+  | 'invalid_expired_url'
   | 'quota_exceeded';
 
 export type CreateLinkResult =
@@ -424,11 +451,17 @@ export async function createLink(
     slug = await generateSlug(domainId);
   }
 
-  const utm = applyUtm(normalized, {
+  // Los utm_* se derivan de la URL final: si el destino ya traía utm_source,
+  // la columna lo refleja aunque no se haya cargado en el campo.
+  const applied = applyUtm(normalized, {
     source: input.utmSource,
     medium: input.utmMedium,
     campaign: input.utmCampaign,
   });
+  const utm = { url: applied.url, ...syncUtm(applied.url).utm };
+
+  const expired = await cleanFallbackUrl(input.expiredUrl);
+  if (!expired.ok) return { ok: false, code: expired.code === 'self_link' ? 'self_link' : 'invalid_expired_url' };
 
   let expiresAt: string | null = null;
   if (input.expiresAt) {
@@ -449,8 +482,8 @@ export async function createLink(
     try {
       await db
         .prepare(
-          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, og_title, og_description, og_image, forward_params, expired_url)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -470,6 +503,8 @@ export async function createLink(
           input.ogTitle?.trim() || null,
           input.ogDescription?.trim() || null,
           input.ogImage?.trim() || null,
+          input.forwardParams === false ? 0 : 1,
+          expired.value,
         );
       break;
     } catch (e) {
@@ -545,6 +580,12 @@ export const linkPatchSchema = z.object({
   ogDescription: z.string().max(500).nullable().optional(),
   ogImage: z.string().max(500).nullable().optional(),
   targeting: linkTargetingSchema.nullable().optional(),
+  // UTM: undefined no toca, '' o null saca el param del destino, texto lo pone.
+  utmSource: z.string().max(100).nullable().optional(),
+  utmMedium: z.string().max(100).nullable().optional(),
+  utmCampaign: z.string().max(100).nullable().optional(),
+  forwardParams: z.boolean().optional(),
+  expiredUrl: z.string().max(2000).nullable().optional(),
 });
 
 export type LinkPatch = z.infer<typeof linkPatchSchema>;
@@ -557,12 +598,17 @@ export async function applyLinkPatch(
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
 
-  if (p.url !== undefined) {
-    const normalized = normalizeUrl(p.url);
-    if (!isValidUrl(normalized)) return { error: 'invalid_url', status: 400 };
+  const utmTouched = p.utmSource !== undefined || p.utmMedium !== undefined || p.utmCampaign !== undefined;
+  if (p.url !== undefined || utmTouched) {
+    const base = p.url !== undefined ? normalizeUrl(p.url) : link.url;
+    if (!isValidUrl(base)) return { error: 'invalid_url', status: 400 };
+    // Los UTM viven en la URL: se aplican sobre el destino final y las
+    // columnas utm_* se derivan de ella, así nunca quedan desfasadas.
+    const synced = syncUtm(base, { source: p.utmSource, medium: p.utmMedium, campaign: p.utmCampaign });
+    const normalized = synced.url;
     if (await isShortLinkUrl(normalized)) return { error: 'self_link', status: 400 };
-    sets.push('url = ?');
-    args.push(normalized);
+    sets.push('url = ?', 'utm_source = ?', 'utm_medium = ?', 'utm_campaign = ?');
+    args.push(normalized, synced.utm.source, synced.utm.medium, synced.utm.campaign);
     // La variante A del A/B nace como copia del destino del link: si sigue
     // apuntando al destino viejo, se mueve con él (si no, la mitad del
     // tráfico quedaría yendo a la URL anterior para siempre).
@@ -633,6 +679,16 @@ export async function applyLinkPatch(
   if (p.ogImage !== undefined) {
     sets.push('og_image = ?');
     args.push(p.ogImage?.trim() || null);
+  }
+  if (p.forwardParams !== undefined) {
+    sets.push('forward_params = ?');
+    args.push(p.forwardParams ? 1 : 0);
+  }
+  if (p.expiredUrl !== undefined) {
+    const expired = await cleanFallbackUrl(p.expiredUrl);
+    if (!expired.ok) return { error: expired.code === 'self_link' ? 'self_link' : 'invalid_expired_url', status: 400 };
+    sets.push('expired_url = ?');
+    args.push(expired.value);
   }
   if (p.targeting !== undefined) {
     if (p.targeting === null) {

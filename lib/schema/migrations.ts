@@ -2288,6 +2288,18 @@ export const MIGRATIONS: Migration[] = [
         )`);
     },
   },
+  {
+    // Link: pasar los query params del link corto al destino (prendido por
+    // defecto, como Dub) y a dónde mandar un link vencido o inexistente en
+    // vez de la página de error de zerosoft (por link y por dominio propio).
+    id: '039_link_params_fallbacks',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN forward_params INTEGER NOT NULL DEFAULT 1');
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN expired_url TEXT');
+      await addColumn(client, 'ALTER TABLE link_domains ADD COLUMN not_found_url TEXT');
+      await addColumn(client, 'ALTER TABLE link_domains ADD COLUMN expired_url TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

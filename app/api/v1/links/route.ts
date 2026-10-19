@@ -15,6 +15,10 @@ const createSchema = z.object({
   slug: z.string().max(32).optional(),
   title: z.string().max(200).optional(),
   tags: z.array(z.string().max(40)).max(5).optional(),
+  /** Pasar los query params del link corto al destino (default true). */
+  forwardParams: z.boolean().optional(),
+  /** A dónde redirige cuando vence o llega a max_clicks. */
+  expiredUrl: z.string().max(2000).nullish(),
 });
 
 export async function POST(req: NextRequest) {
@@ -49,6 +53,7 @@ export async function POST(req: NextRequest) {
       invalid_date: 'The expiration date is not valid.',
       invalid_domain: 'That domain is not a verified domain of yours.',
       self_link: 'The destination cannot be another short link of ours.',
+      invalid_expired_url: 'The expired URL is not a valid http(s) URL.',
       quota_exceeded: 'Daily link creation quota reached. Try again later.',
     };
     return apiError(result.code === 'quota_exceeded' ? 429 : 400, result.code, messages[result.code]);
@@ -64,6 +69,8 @@ export async function POST(req: NextRequest) {
       url: dto.url,
       title: dto.title,
       tags: dto.tags,
+      forward_params: dto.forward_params,
+      expired_url: dto.expired_url,
       created_at: dto.created_at,
     },
     { status: 201 },

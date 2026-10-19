@@ -138,7 +138,13 @@
     "utmMediumPlaceholder": "email",
     "utmCampaignPlaceholder": "q4-launch",
     "maxClicksPlaceholder": "No limit",
-    "ogHelp": "How the link looks on WhatsApp, X or Slack. Empty uses the destination page preview."
+    "ogHelp": "How the link looks on WhatsApp, X or Slack. Empty uses the destination page preview.",
+    "forwardParamsLabel": "Pass query parameters to the destination",
+    "forwardParamsHelp": "Opening the short link with ?utm_source=newsletter adds it to the destination. If the destination already has that parameter, the one on the short link wins.",
+    "expiredUrlLabel": "Redirect after expiry",
+    "expiredUrlPlaceholder": "https://example.com/offer-ended (optional)",
+    "expiredUrlHelp": "Where visitors go once the link expires or reaches its click limit. Leave it empty to show the default page.",
+    "utmSyncHelp": "Changing a field updates the destination URL, and editing the URL updates these fields."
   },
   "detail": {
     "back": "Links",
@@ -229,7 +235,7 @@
     "settingsDesc": "Destination, slug, title and tags.",
     "saveChanges": "Save changes",
     "slugHelp": "Changing it breaks the old short link.",
-    "advancedHint": "Redirect, expiry, limit, password, preview",
+    "advancedHint": "UTM, redirect, expiry, limit, password, preview",
     "archiveTitle": "Archive",
     "unarchiveTitle": "Unarchive",
     "unarchiveDesc": "Starts redirecting to the destination again.",
@@ -343,7 +349,8 @@
     "self_link": "A short link can't point to another short link of ours.",
     "quota_exceeded": "You reached today's limit of new links. Try again tomorrow.",
     "forbidden": "Only workspace admins can do this.",
-    "already_imported": "Already imported."
+    "already_imported": "Already imported.",
+    "invalid_expired_url": "The redirect after expiry doesn't look like a valid URL."
   },
   "webhooks": {
     "desc": "We POST a signed JSON payload to your URL when these events happen. Verify the Zerosoft-Signature header (t=…,v1=HMAC-SHA256 of \"t.body\") with your secret. Failed deliveries are retried with backoff.",
@@ -401,7 +408,13 @@
     "listTitle": "Your domains",
     "emptyBody": "Until then, your links use the zerosoft domain.",
     "removeConfirm": "Remove {hostname}?",
-    "dnsCaption": "DNS records for {hostname}"
+    "dnsCaption": "DNS records for {hostname}",
+    "redirectsTitle": "Redirects for {hostname}",
+    "notFound": "Missing links redirect",
+    "notFoundPlaceholder": "Where an unknown go.yourcompany.com/slug should go (optional)",
+    "expired": "Expired links redirect",
+    "expiredPlaceholder": "Default for expired links without their own redirect (optional)",
+    "redirectsHelp": "Leave a field empty to use the default page."
   },
   "export": {
     "title": "Your data",

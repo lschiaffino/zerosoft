@@ -11,6 +11,8 @@ export interface DomainView {
   hostname: string;
   verified: number;
   root_url: string | null;
+  not_found_url: string | null;
+  expired_url: string | null;
   dns: Array<{ type: string; name: string; value: string }>;
 }
 
@@ -70,16 +72,22 @@ export default function DomainsPanel({ initial, canManage }: { initial: DomainVi
     setNotice((n) => ({ ...n, [id]: { text: errorText(code), tone: 'error' } }));
   }
 
-  async function saveRoot(id: string, value: string) {
+  async function saveRedirects(id: string, form: HTMLFormElement) {
     setBusy(`root-${id}`);
-    const rootUrl = value.trim() || null;
+    const read = (name: string) => (form.elements.namedItem(name) as HTMLInputElement).value.trim() || null;
+    const urls = { rootUrl: read('root'), notFoundUrl: read('notFound'), expiredUrl: read('expired') };
     const res = await fetch(`/api/links/domains/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ rootUrl }),
+      body: JSON.stringify(urls),
     }).catch(() => null);
     setBusy(null);
     if (res?.ok) {
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, root_url: urls.rootUrl, not_found_url: urls.notFoundUrl, expired_url: urls.expiredUrl } : r,
+        ),
+      );
       setNotice((n) => ({ ...n, [id]: { text: t('domains.rootSaved'), tone: 'ok' } }));
       return;
     }
@@ -198,24 +206,35 @@ export default function DomainsPanel({ initial, canManage }: { initial: DomainVi
                 {d.verified === 1 && canManage && (
                   <form
                     className="lk-domain-root"
+                    aria-label={t('domains.redirectsTitle', { hostname: d.hostname })}
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const input = e.currentTarget.elements.namedItem('root') as HTMLInputElement;
-                      void saveRoot(d.id, input.value);
+                      void saveRedirects(d.id, e.currentTarget);
                     }}
                   >
-                    <label className="label" htmlFor={`root-${d.id}`}>
-                      {t('domains.root')}
-                    </label>
-                    <div className="lk-inline-form">
-                      <input
-                        id={`root-${d.id}`}
-                        name="root"
-                        className="input"
-                        type="url"
-                        defaultValue={d.root_url ?? ''}
-                        placeholder={t('domains.rootPlaceholder')}
-                      />
+                    {(
+                      [
+                        ['root', 'root', d.root_url, t('domains.root'), t('domains.rootPlaceholder')],
+                        ['notFound', 'nf', d.not_found_url, t('domains.notFound'), t('domains.notFoundPlaceholder')],
+                        ['expired', 'exp', d.expired_url, t('domains.expired'), t('domains.expiredPlaceholder')],
+                      ] as const
+                    ).map(([name, prefix, value, label, placeholder]) => (
+                      <div className="ui-field" key={name}>
+                        <label className="label" htmlFor={`${prefix}-${d.id}`}>
+                          {label}
+                        </label>
+                        <input
+                          id={`${prefix}-${d.id}`}
+                          name={name}
+                          className="input"
+                          type="url"
+                          defaultValue={value ?? ''}
+                          placeholder={placeholder}
+                        />
+                      </div>
+                    ))}
+                    <p className="ui-help">{t('domains.redirectsHelp')}</p>
+                    <div>
                       <button type="submit" className="btn" aria-busy={busy === `root-${d.id}` || undefined}>
                         {t('domains.saveRoot')}
                       </button>

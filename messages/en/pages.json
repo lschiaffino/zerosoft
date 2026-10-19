@@ -1665,6 +1665,9 @@
     "formsListTitle": "List forms",
     "formsListDesc": "All forms in the workspace with their fields, status and submission count. `key` is the public slug (or token) used in /f/'<key>' and the embed script.",
     "formsSubmissionsTitle": "List form submissions",
-    "formsSubmissionsDesc": "Submissions of a form, newest first, with the submitted values, UTM parameters and the linked contact."
+    "formsSubmissionsDesc": "Submissions of a form, newest first, with the submitted values, UTM parameters and the linked contact.",
+    "paramLinkForwardParams": "Pass the query string of the short link to the destination (default true). On a conflict the short link value wins; qr is never passed.",
+    "paramLinkExpiredUrl": "Where the link redirects once it expires or reaches max_clicks. null clears it and the domain default or the zerosoft page is used.",
+    "paramLinkUtm": "Sets that utm_* parameter in the destination URL. An empty string or null removes it. The utm object of the link always mirrors the final URL."
   }
 }

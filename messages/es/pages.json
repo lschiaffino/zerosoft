@@ -1665,6 +1665,9 @@
     "formsListTitle": "Listar formularios",
     "formsListDesc": "Todos los formularios del workspace con sus campos, estado y cantidad de envíos. `key` es el slug público (o el token) que usan /f/'<key>' y el script de embed.",
     "formsSubmissionsTitle": "Listar envíos de un formulario",
-    "formsSubmissionsDesc": "Envíos de un formulario, los más recientes primero, con los valores, los parámetros UTM y el contacto vinculado."
+    "formsSubmissionsDesc": "Envíos de un formulario, los más recientes primero, con los valores, los parámetros UTM y el contacto vinculado.",
+    "paramLinkForwardParams": "Pasa los query params del link corto al destino (default true). En conflicto gana el del link corto; qr nunca se pasa.",
+    "paramLinkExpiredUrl": "A dónde redirige el link cuando vence o llega a max_clicks. null lo borra y se usa el default del dominio o la página de zerosoft.",
+    "paramLinkUtm": "Pone ese parámetro utm_* en la URL de destino. Un string vacío o null lo saca. El objeto utm del link siempre refleja la URL final."
   }
 }
