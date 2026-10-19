@@ -19,7 +19,7 @@ interface SearchResponse {
 }
 
 function useGroupOrder() {
-  return useMemo(() => ['track', 'actions', 'contacts', 'companies', 'deals', 'links', 'docs', 'tasks'], []);
+  return useMemo(() => ['track', 'actions', 'contacts', 'companies', 'deals', 'links', 'docs', 'notes', 'tasks'], []);
 }
 
 function useGroupLabel(t: (key: string) => string) {

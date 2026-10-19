@@ -226,6 +226,19 @@ export async function listNotes(owner: NoteOwner, opts: ListNotesOptions = {}): 
   return rows.map((r) => toSummary(r, terms.length ? snippetAround(r.body_text, terms) : undefined));
 }
 
+/**
+ * Notas para la búsqueda global (Cmd+K): las de la persona logueada en el
+ * workspace activo, sin papelera. Nunca las de otro miembro del team.
+ */
+export async function searchNotesForPalette(
+  user: { id: string; actingUser?: { id: string } | null },
+  q: string,
+  limit = 6,
+): Promise<NoteSummary[]> {
+  if (!q.trim()) return [];
+  return listNotes(noteOwner(user), { view: 'all', q, limit }).catch(() => []);
+}
+
 async function getNoteRow(owner: NoteOwner, id: string): Promise<NoteRow | undefined> {
   return (await getDb()
     .prepare(`SELECT * FROM notes WHERE id = ? AND ${OWNER_WHERE}`)
@@ -245,12 +258,36 @@ export interface NoteInput {
   tags?: string[];
   pinned?: boolean;
   source_url?: string | null;
+  /**
+   * Concurrencia optimista (como Docs): `updated_at` sobre el que el cliente
+   * hizo sus cambios. Si la nota cambió desde entonces (otra pestaña u otro
+   * dispositivo), se rechaza con NotesConflictError en vez de pisarla.
+   */
+  base_updated_at?: string;
 }
 
 export class NotesError extends Error {
-  constructor(public code: 'notebook_not_found') {
+  constructor(public code: 'notebook_not_found' | 'note_trashed') {
     super(code);
   }
+}
+
+/** La nota cambió desde el `base_updated_at` que mandó el cliente. */
+export class NotesConflictError extends Error {
+  constructor(public current: NoteDetail | null) {
+    super('notes_conflict');
+    this.name = 'NotesConflictError';
+  }
+}
+
+/**
+ * `updated_at` nuevo, siempre posterior al anterior: dos guardados en el mismo
+ * milisegundo dejarían la misma marca y el chequeo de conflicto no los vería.
+ */
+function nextUpdatedAt(prev: string): string {
+  const now = Date.now();
+  const before = Date.parse(prev);
+  return new Date(Number.isFinite(before) && before >= now ? before + 1 : now).toISOString();
 }
 
 async function assertNotebook(owner: NoteOwner, notebookId: string | null | undefined): Promise<void> {
@@ -289,6 +326,13 @@ export async function createNote(owner: NoteOwner, input: NoteInput = {}): Promi
 export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput): Promise<NoteDetail | null> {
   const row = await getNoteRow(owner, id);
   if (!row) return null;
+  // Una nota en la papelera es de solo lectura: primero hay que restaurarla.
+  const editsSomething = (['title', 'content', 'notebook_id', 'tags', 'pinned', 'source_url'] as const).some(
+    (k) => patch[k] !== undefined,
+  );
+  if (row.trashed_at && editsSomething) throw new NotesError('note_trashed');
+  const base = patch.base_updated_at;
+  if (base !== undefined && editsSomething && row.updated_at !== base) throw new NotesConflictError(toDetail(row));
   if (patch.notebook_id !== undefined) await assertNotebook(owner, patch.notebook_id);
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
@@ -322,11 +366,19 @@ export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput)
     const touches = patch.title !== undefined || patch.content !== undefined || patch.tags !== undefined;
     if (touches) {
       sets.push('updated_at = ?');
-      args.push(nowIso());
+      args.push(nextUpdatedAt(row.updated_at));
     }
-    await getDb()
-      .prepare(`UPDATE notes SET ${sets.join(', ')} WHERE id = ? AND ${OWNER_WHERE}`)
-      .run(...args, id, ...ownerArgs(owner));
+    // La misma condición en el UPDATE: otro guardado puede colarse entre el SELECT y acá.
+    const guard = `${base !== undefined ? ' AND updated_at = ?' : ''} AND trashed_at IS NULL`;
+    const res = await getDb()
+      .prepare(`UPDATE notes SET ${sets.join(', ')} WHERE id = ? AND ${OWNER_WHERE}${guard}`)
+      .run(...args, id, ...ownerArgs(owner), ...(base !== undefined ? [base] : []));
+    if (res.changes === 0) {
+      const now = await getNoteRow(owner, id);
+      if (!now) return null;
+      if (now.trashed_at) throw new NotesError('note_trashed');
+      throw new NotesConflictError(toDetail(now));
+    }
   }
   return getNote(owner, id);
 }

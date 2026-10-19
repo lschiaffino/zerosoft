@@ -5,7 +5,7 @@
  * ssr:false desde BoardEditor / BoardViewer): Excalidraw toca window al
  * importarse. Su CSS se importa acá, así viaja en el mismo chunk.
  */
-import { Excalidraw, exportToSvg } from '@excalidraw/excalidraw';
+import { Excalidraw, exportToSvg, reconcileElements } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import type { BoardScene } from '@/lib/boards-types';
 import { useResolvedTheme } from '@/components/theme/ThemeProvider';
@@ -15,6 +15,7 @@ export interface CanvasApi {
   updateScene: (scene: { elements?: readonly unknown[]; appState?: Record<string, unknown> }) => void;
   addFiles: (files: unknown[]) => void;
   getSceneElements: () => readonly unknown[];
+  getSceneElementsIncludingDeleted: () => readonly unknown[];
   getAppState: () => Record<string, unknown>;
   getFiles: () => Record<string, unknown>;
 }
@@ -61,6 +62,11 @@ export default function ExcalidrawCanvas({
       }}
     />
   );
+}
+
+/** Merge por elemento de Excalidraw (versión mayor gana; empate por versionNonce). */
+export function reconcile(local: readonly unknown[], remote: readonly unknown[], appState: Record<string, unknown>): unknown[] {
+  return reconcileElements(local as never, remote as never, appState as never) as unknown[];
 }
 
 /** Miniatura SVG de la escena (sin imágenes, para que sea chica). */

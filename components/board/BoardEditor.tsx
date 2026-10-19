@@ -6,6 +6,18 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { BOARD_MAX_SCENE_BYTES, type BoardDetail, type BoardScene } from '@/lib/boards-types';
 import type { CanvasApi } from './ExcalidrawCanvas';
+import {
+  baseFrom,
+  clearDraft,
+  draftDiffers,
+  flushOnLeave,
+  mergeBoardScenes,
+  readDraft,
+  writeDraft,
+  type BaseVersions,
+  type BoardDraft,
+  type MergeResult,
+} from '@/lib/board-sync';
 import NotesIcon from '@/components/notes/NotesIcon';
 import { usePopover } from '@/components/notes/usePopover';
 
@@ -28,6 +40,8 @@ type SaveState = 'saved' | 'dirty' | 'saving' | 'conflict' | 'too_large' | 'erro
 
 const SAVE_DEBOUNCE_MS = 1200;
 const THUMB_EVERY_MS = 10_000;
+/** Merges seguidos antes de rendirse y mostrar el aviso (alguien guardando sin parar). */
+const MAX_MERGES = 3;
 
 type El = { id: string; version?: number; isDeleted?: boolean; type?: string; fileId?: string | null };
 
@@ -56,11 +70,23 @@ function buildScene(elements: readonly unknown[], appState: Record<string, unkno
   };
 }
 
+/** localStorage si existe y se puede usar (modo privado, iframes, SSR). */
+function storage(): Storage | null {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function BoardEditor({ board, locale }: { board: BoardDetail; locale: string }) {
   const t = useTranslations('board');
   const [name, setName] = useState(board.name);
   const [state, setState] = useState<SaveState>('saved');
   const [conflictBy, setConflictBy] = useState<string | null>(null);
+  /** El aviso es por borrado contra edición (lo único que no se combina solo). */
+  const [conflictDeleted, setConflictDeleted] = useState(false);
+  const [draft, setDraft] = useState<BoardDraft | null>(null);
   const [shareToken, setShareToken] = useState<string | null>(board.share_token);
   const share = usePopover();
   const [shareBusy, setShareBusy] = useState(false);
@@ -68,24 +94,42 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
   const [copied, setCopied] = useState(false);
   const apiRef = useRef<CanvasApi | null>(null);
   const versionRef = useRef(board.version);
-  /** Versión del servidor informada por un 409 (para "conservar la mía"). */
+  /** Versión del servidor informada por un 409 (para "conservar la mía" sin merge). */
   const serverVersionRef = useRef(board.version);
+  /** Versiones de la última escena que sabemos que tiene el servidor (base del merge). */
+  const baseRef = useRef<BaseVersions>(baseFrom(board.scene.elements));
+  const baseBgRef = useRef<unknown>(board.scene.appState.viewBackgroundColor);
+  /** Merge con algo ambiguo esperando que la persona elija. */
+  const mergeRef = useRef<{ merged: MergeResult; fresh: BoardDetail } | null>(null);
+  const mergesRef = useRef(0);
   const sigRef = useRef(signature(board.scene.elements, board.scene.appState.viewBackgroundColor, Object.keys(board.scene.files).length));
   const pendingRef = useRef<BoardScene | null>(null);
   const lastSceneRef = useRef<BoardScene | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
+  /** Promesa del guardado en vuelo: el guardado al salir la espera. */
+  const inFlightPromiseRef = useRef<Promise<void> | null>(null);
+  const unmountedRef = useRef(false);
+  /** Se llama al terminar un guardado con 409 (definido más abajo). */
+  const onConflictRef = useRef<(by: string | null) => void>(() => {});
   const blockedRef = useRef<SaveState | null>(null);
   const lastThumbRef = useRef(0);
   /** El primer onChange es el estado inicial normalizado por Excalidraw: solo fija la firma. */
   const baselineRef = useRef(true);
+
+  /** Lo que hay en el lienzo ahora, listo para guardar. */
+  const canvasScene = useCallback((): BoardScene | null => {
+    const api = apiRef.current;
+    if (!api) return null;
+    return buildScene(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles());
+  }, []);
 
   const save = useCallback(async () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    if (blockedRef.current === 'conflict') return;
+    if (blockedRef.current === 'conflict' || unmountedRef.current) return;
     if (inFlightRef.current) {
       timerRef.current = setTimeout(() => void save(), 400);
       return;
@@ -95,14 +139,19 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
     pendingRef.current = null;
     lastSceneRef.current = scene;
     inFlightRef.current = true;
+    let settle: () => void = () => {};
+    inFlightPromiseRef.current = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
     setState('saving');
-    let thumbnail: string | null | undefined;
-    if (Date.now() - lastThumbRef.current > THUMB_EVERY_MS) {
-      const { sceneThumbnail } = await import('./ExcalidrawCanvas');
-      thumbnail = await sceneThumbnail(scene.elements, String(scene.appState.viewBackgroundColor ?? '#ffffff'));
-      if (thumbnail) lastThumbRef.current = Date.now();
-    }
+    let conflictBy: string | null | undefined;
     try {
+      let thumbnail: string | null | undefined;
+      if (Date.now() - lastThumbRef.current > THUMB_EVERY_MS) {
+        const { sceneThumbnail } = await import('./ExcalidrawCanvas');
+        thumbnail = await sceneThumbnail(scene.elements, String(scene.appState.viewBackgroundColor ?? '#ffffff'));
+        if (thumbnail) lastThumbRef.current = Date.now();
+      }
       const body = JSON.stringify({ version: versionRef.current, scene, thumbnail });
       if (body.length > BOARD_MAX_SCENE_BYTES * 1.2) {
         blockedRef.current = 'too_large';
@@ -117,14 +166,19 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
       if (res.ok) {
         const data = (await res.json()) as { version: number };
         versionRef.current = data.version;
+        baseRef.current = baseFrom(scene.elements);
+        baseBgRef.current = scene.appState.viewBackgroundColor;
+        mergesRef.current = 0;
         blockedRef.current = null;
+        if (!pendingRef.current) clearDraft(storage(), board.id);
         setState(pendingRef.current ? 'dirty' : 'saved');
       } else if (res.status === 409) {
         const data = (await res.json()) as { version: number; updated_by: string | null };
+        conflictBy = data.updated_by;
         blockedRef.current = 'conflict';
-        setConflictBy(data.updated_by);
         serverVersionRef.current = data.version;
-        setState('conflict');
+        // Lo que no entró sigue pendiente (o lo más nuevo del lienzo si hubo cambios después).
+        pendingRef.current = pendingRef.current ?? scene;
       } else if (res.status === 413) {
         blockedRef.current = 'too_large';
         setState('too_large');
@@ -137,9 +191,80 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
       setState('error');
     } finally {
       inFlightRef.current = false;
-      if (pendingRef.current && !blockedRef.current) timerRef.current = setTimeout(() => void save(), SAVE_DEBOUNCE_MS);
+      inFlightPromiseRef.current = null;
+      settle();
+      if (pendingRef.current && !blockedRef.current && !unmountedRef.current) {
+        timerRef.current = setTimeout(() => void save(), SAVE_DEBOUNCE_MS);
+      }
     }
+    if (conflictBy !== undefined && !unmountedRef.current) onConflictRef.current(conflictBy);
   }, [board.id]);
+
+  /** Muestra el aviso de conflicto (merge ambiguo, o sin poder combinar). */
+  function showConflict(by: string | null, deleted: boolean) {
+    blockedRef.current = 'conflict';
+    setConflictBy(by);
+    setConflictDeleted(deleted);
+    setState('conflict');
+  }
+
+  /** Aplica el merge al lienzo y lo guarda sobre la versión del servidor. */
+  function applyMerged(merged: MergeResult, fresh: BoardDetail) {
+    const api = apiRef.current;
+    if (!api) return;
+    api.updateScene({ elements: merged.elements, appState: { viewBackgroundColor: merged.appState.viewBackgroundColor } });
+    sigRef.current = signature(api.getSceneElements(), api.getAppState().viewBackgroundColor, Object.keys(api.getFiles()).length);
+    versionRef.current = fresh.version;
+    baseRef.current = baseFrom(fresh.scene.elements);
+    baseBgRef.current = fresh.scene.appState.viewBackgroundColor;
+    pendingRef.current = canvasScene();
+    mergeRef.current = null;
+    blockedRef.current = null;
+    setConflictBy(null);
+    setConflictDeleted(false);
+    setState('dirty');
+    void save();
+  }
+
+  /**
+   * 409: otra persona (u otra pestaña) guardó antes. Se trae su escena y se
+   * combina elemento por elemento con la local; solo se pregunta si alguien
+   * editó algo que el otro borró.
+   */
+  async function resolveConflict(by: string | null) {
+    mergesRef.current += 1;
+    if (mergesRef.current > MAX_MERGES) return showConflict(by, false);
+    setState('saving');
+    try {
+      const res = await fetch(`/api/boards/${board.id}`);
+      if (!res.ok) throw new Error(String(res.status));
+      const fresh = (await res.json()) as BoardDetail;
+      const { reconcile } = await import('./ExcalidrawCanvas');
+      const api = apiRef.current;
+      if (!api || unmountedRef.current) return;
+      const files = Object.values(fresh.scene.files);
+      if (files.length) api.addFiles(files);
+      // Lectura síncrona del lienzo justo antes de aplicar: entra todo lo que se dibujó mientras.
+      const merged = mergeBoardScenes({
+        local: api.getSceneElementsIncludingDeleted(),
+        localAppState: api.getAppState(),
+        localFiles: api.getFiles(),
+        server: fresh.scene,
+        base: baseRef.current,
+        baseBackground: baseBgRef.current,
+        reconcile,
+      });
+      if (merged.ambiguous.length) {
+        mergeRef.current = { merged, fresh };
+        serverVersionRef.current = fresh.version;
+        return showConflict(fresh.updated_by ?? by, true);
+      }
+      applyMerged(merged, fresh);
+    } catch {
+      showConflict(by, false);
+    }
+  }
+  onConflictRef.current = (by) => void resolveConflict(by);
 
   const onChange = useCallback(
     (elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>) => {
@@ -162,34 +287,87 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
     [save],
   );
 
-  // Aviso al salir con cambios sin guardar.
+  // Borrador de una visita anterior que no llegó al servidor: se ofrece recuperarlo.
+  useEffect(() => {
+    const d = readDraft(storage(), board.id);
+    if (d && draftDiffers(d, board.scene)) setDraft(d);
+    else if (d) clearDraft(storage(), board.id);
+  }, [board.id, board.scene]);
+
+  // Aviso al salir con cambios sin guardar; queda un borrador local por si el último PUT no llega.
   useEffect(() => {
     function onBeforeUnload(e: BeforeUnloadEvent) {
       if (pendingRef.current || inFlightRef.current) {
+        const scene = canvasScene() ?? pendingRef.current;
+        if (scene) writeDraft(storage(), board.id, { baseVersion: versionRef.current, scene, savedAt: Date.now() });
         e.preventDefault();
         e.returnValue = '';
       }
     }
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, []);
+  }, [board.id, canvasScene]);
 
-  // Navegación interna con cambios pendientes: último guardado sin esperar.
+  // Navegación interna con cambios pendientes: último guardado, después del que esté en vuelo.
   useEffect(() => {
     const id = board.id;
+    unmountedRef.current = false;
     return () => {
+      unmountedRef.current = true;
       if (timerRef.current) clearTimeout(timerRef.current);
-      const scene = pendingRef.current;
-      if (!scene || blockedRef.current) return;
-      const body = JSON.stringify({ version: versionRef.current, scene });
-      void fetch(`/api/boards/${id}/scene`, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body,
-        keepalive: body.length < 60_000,
-      }).catch(() => {});
+      void flushOnLeave({
+        inFlight: inFlightPromiseRef.current,
+        getPending: () => pendingRef.current,
+        isBlocked: () => blockedRef.current !== null,
+        getVersion: () => versionRef.current,
+        put: async (scene, version) => {
+          const body = JSON.stringify({ version, scene });
+          const res = await fetch(`/api/boards/${id}/scene`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body,
+            keepalive: body.length < 60_000,
+          });
+          if (!res.ok) return { ok: false, status: res.status };
+          return { ok: true, version: ((await res.json()) as { version: number }).version };
+        },
+        saveDraft: (scene, baseVersion) => writeDraft(storage(), id, { baseVersion, scene, savedAt: Date.now() }),
+        dropDraft: () => clearDraft(storage(), id),
+      });
     };
   }, [board.id]);
+
+  /** "Recuperar": suma el borrador al lienzo (combinado si algo cambió desde entonces). */
+  async function restoreDraft() {
+    const d = draft;
+    const api = apiRef.current;
+    if (!d || !api) return;
+    const { reconcile } = await import('./ExcalidrawCanvas');
+    const files = Object.values(d.scene.files);
+    if (files.length) api.addFiles(files);
+    const untouched = d.baseVersion === versionRef.current && !pendingRef.current;
+    const merged = untouched
+      ? { elements: d.scene.elements, appState: d.scene.appState }
+      : mergeBoardScenes({
+          local: d.scene.elements,
+          localAppState: { ...api.getAppState(), viewBackgroundColor: d.scene.appState.viewBackgroundColor },
+          localFiles: d.scene.files,
+          server: canvasScene() ?? board.scene,
+          base: null,
+          reconcile,
+        });
+    api.updateScene({ elements: merged.elements, appState: { viewBackgroundColor: merged.appState.viewBackgroundColor } });
+    sigRef.current = signature(api.getSceneElements(), api.getAppState().viewBackgroundColor, Object.keys(api.getFiles()).length);
+    pendingRef.current = canvasScene();
+    setDraft(null);
+    setState('dirty');
+    void save();
+  }
+
+  function discardDraft() {
+    clearDraft(storage(), board.id);
+    setDraft(null);
+  }
 
   /** "Recargar": trae la versión del servidor y descarta lo local. */
   async function reload() {
@@ -209,19 +387,33 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
       );
     }
     versionRef.current = fresh.version;
+    baseRef.current = baseFrom(fresh.scene.elements);
+    baseBgRef.current = fresh.scene.appState.viewBackgroundColor;
+    mergeRef.current = null;
+    mergesRef.current = 0;
     pendingRef.current = null;
     blockedRef.current = null;
+    clearDraft(storage(), board.id);
     setName(fresh.name);
     setConflictBy(null);
+    setConflictDeleted(false);
     setState('saved');
   }
 
-  /** "Conservar la mía": guarda lo local encima de la versión del servidor. */
+  /**
+   * "Conservar la mía": si hubo merge, aplica el combinado con lo local en lo
+   * ambiguo (lo nuevo del otro lado se mantiene). Si no se pudo combinar,
+   * guarda lo local encima de la versión del servidor.
+   */
   function keepMine() {
+    const pendingMerge = mergeRef.current;
+    mergesRef.current = 0;
+    if (pendingMerge) return applyMerged(pendingMerge.merged, pendingMerge.fresh);
     versionRef.current = serverVersionRef.current;
     pendingRef.current = pendingRef.current ?? lastSceneRef.current;
     blockedRef.current = null;
     setConflictBy(null);
+    setConflictDeleted(false);
     void save();
   }
 
@@ -344,13 +536,34 @@ export default function BoardEditor({ board, locale }: { board: BoardDetail; loc
 
       {state === 'conflict' && (
         <div className="board-notice" role="alert">
-          <span>{conflictBy ? t('editor.conflictBy', { name: conflictBy }) : t('editor.conflict')}</span>
+          <span>
+            {conflictDeleted
+              ? conflictBy
+                ? t('editor.conflictDeletedBy', { name: conflictBy })
+                : t('editor.conflictDeleted')
+              : conflictBy
+                ? t('editor.conflictBy', { name: conflictBy })
+                : t('editor.conflict')}
+          </span>
           <div className="board-notice-actions">
             <button type="button" className="btn btn-sm" onClick={keepMine}>
               {t('editor.keepMine')}
             </button>
             <button type="button" className="btn btn-sm btn-primary" onClick={() => void reload()}>
               {t('editor.reload')}
+            </button>
+          </div>
+        </div>
+      )}
+      {draft && state !== 'conflict' && (
+        <div className="board-notice" role="status">
+          <span>{t('editor.draftFound')}</span>
+          <div className="board-notice-actions">
+            <button type="button" className="btn btn-sm" onClick={discardDraft}>
+              {t('editor.draftDiscard')}
+            </button>
+            <button type="button" className="btn btn-sm btn-primary" onClick={() => void restoreDraft()}>
+              {t('editor.draftRestore')}
             </button>
           </div>
         </div>

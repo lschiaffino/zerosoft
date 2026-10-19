@@ -1,5 +1,7 @@
 import { getServerSession } from 'next-auth';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { RETURN_PATH_HEADER, signInPath } from './return-path';
 import { authOptions } from './auth';
 import { getUserByEmail, upsertUser, type TeamRow, type UserRow } from './db';
 import { resolveWorkspace, roleAtLeast, type TeamRole } from './teams';
@@ -69,9 +71,21 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 /**
  * Igual que getCurrentUser pero redirige a /auth/signin si no hay sesión.
  * Pensado para proteger las páginas del dashboard.
+ *
+ * `returnTo` (path + query de la página) viaja como ?callbackUrl= para volver
+ * ahí después del login: un clip o un link ?note=<id> no se pierden. Sin él se
+ * usa el path que deja el middleware en un header interno (layouts).
  */
-export async function requireUser(locale: string): Promise<SessionUser> {
+export async function requireUser(locale: string, returnTo?: string): Promise<SessionUser> {
   const user = await getCurrentUser();
-  if (!user) redirect(`/${locale}/auth/signin`);
+  if (!user) redirect(signInPath(locale, returnTo ?? (await requestReturnPath())));
   return user;
+}
+
+async function requestReturnPath(): Promise<string | null> {
+  try {
+    return (await headers()).get(RETURN_PATH_HEADER);
+  } catch {
+    return null; // fuera de una request (tests, scripts)
+  }
 }

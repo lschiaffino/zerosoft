@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import {
+  NotesConflictError,
   NotesError,
   deleteNoteForever,
   getNote,
@@ -37,18 +38,30 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (!parsed.success) return invalidInput(parsed.error);
   const { trashed, ...patch } = parsed.data;
   try {
-    if (trashed === true) {
-      if (!(await getNote(owner, id))) return jsonError(404, 'not_found');
-      await trashNote(owner, id);
-    } else if (trashed === false) {
+    // Orden: restaurar, editar, mandar a la papelera (una nota en la papelera no se edita).
+    if (trashed === false) {
       if (!(await getNote(owner, id))) return jsonError(404, 'not_found');
       await restoreNote(owner, id);
     }
-    const note = await updateNote(owner, id, patch);
+    let note = await updateNote(owner, id, patch);
     if (!note) return jsonError(404, 'not_found');
+    if (trashed === true) {
+      await trashNote(owner, id);
+      note = await getNote(owner, id);
+      if (!note) return jsonError(404, 'not_found');
+    }
     return NextResponse.json(note);
   } catch (err) {
-    if (err instanceof NotesError) return jsonError(400, err.code);
+    // Otra pestaña o dispositivo guardó desde que se abrió la nota: no se pisa en silencio.
+    if (err instanceof NotesConflictError) {
+      return NextResponse.json({ error: 'conflict', note: err.current }, { status: 409 });
+    }
+    if (err instanceof NotesError) {
+      if (err.code === 'note_trashed') {
+        return NextResponse.json({ error: 'note_trashed', note: await getNote(owner, id) }, { status: 409 });
+      }
+      return jsonError(400, err.code);
+    }
     throw err;
   }
 }
