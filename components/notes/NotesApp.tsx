@@ -81,6 +81,56 @@ export default function NotesApp({
   /** POSTs de notas recién creadas aún en vuelo (id → ok). */
   const pendingCreates = useRef(new Map<string, Promise<boolean>>());
   const [now, setNow] = useState(serverNow);
+  /** `updated_at` que conoce este cliente por nota: va en cada PATCH (409 si cambió en otro lado). */
+  const bases = useRef(new Map<string, string>(initialNote ? [[initialNote.id, initialNote.updated_at]] : []));
+  /** Guardados de una nota en fila: dos en paralelo con la misma base chocarían entre sí. */
+  const saveChains = useRef(new Map<string, Promise<unknown>>());
+  /**
+   * Conflicto: la nota cambió en otra pestaña o dispositivo (o fue a la
+   * papelera). `retry` vuelve a mandar lo último propio sin chequear la base.
+   */
+  const [conflict, setConflict] = useState<{ id: string; trashed: boolean; retry: (() => Promise<unknown>) | null } | null>(null);
+  /** Sube al recargar la nota tras un conflicto: el editor se monta de nuevo con el contenido del servidor. */
+  const [editorKey, setEditorKey] = useState(0);
+
+  /** Encola un PATCH de la nota detrás de los anteriores. */
+  const enqueue = useCallback(<T,>(id: string, run: () => Promise<T>): Promise<T> => {
+    const prev = saveChains.current.get(id) ?? Promise.resolve();
+    const next = prev.catch(() => {}).then(run);
+    saveChains.current.set(id, next);
+    void next
+      .catch(() => {})
+      .finally(() => {
+        if (saveChains.current.get(id) === next) saveChains.current.delete(id);
+      });
+    return next;
+  }, []);
+
+  /** Manda un PATCH con la base conocida (o sin ella, para "conservar la mía"). */
+  const sendPatch = useCallback(
+    async (
+      id: string,
+      patch: Record<string, unknown>,
+      force = false,
+    ): Promise<{ conflict: 'trashed' | 'changed'; updated?: undefined } | { conflict?: undefined; updated: NoteDetail }> => {
+      const base = bases.current.get(id);
+      const body = force || !base ? patch : { ...patch, base_updated_at: base };
+      const res = await fetch(`/api/notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.status === 409) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        return { conflict: data?.error === 'note_trashed' ? 'trashed' : 'changed' };
+      }
+      if (!res.ok) throw new Error(String(res.status));
+      const updated = (await res.json()) as NoteDetail;
+      bases.current.set(id, updated.updated_at);
+      return { updated };
+    },
+    [],
+  );
 
   useEffect(() => {
     setNow(Date.now());
@@ -153,7 +203,10 @@ export default function NotesApp({
       try {
         const res = await fetch(`/api/notes/${id}`);
         if (!res.ok) throw new Error(String(res.status));
-        setNote((await res.json()) as NoteDetail);
+        const opened = (await res.json()) as NoteDetail;
+        bases.current.set(opened.id, opened.updated_at);
+        setNote(opened);
+        setConflict((c) => (c && c.id !== opened.id ? null : c));
         setPane('editor');
         setStatus('idle');
       } catch {
@@ -197,7 +250,12 @@ export default function NotesApp({
         pinned: created.pinned,
       }),
     })
-      .then((res) => res.ok)
+      .then(async (res) => {
+        if (!res.ok) return false;
+        const saved = (await res.json().catch(() => null)) as NoteDetail | null;
+        if (saved?.updated_at) bases.current.set(id, saved.updated_at);
+        return true;
+      })
       .catch(() => false)
       .finally(() => {
         pendingCreates.current.delete(id);
@@ -261,18 +319,23 @@ export default function NotesApp({
         const rest = prev.filter((n) => n.id !== id);
         return sort === 'updated' ? [updated, ...rest] : prev.map((n) => (n.id === id ? updated : n));
       });
-      try {
-        const res = await fetch(`/api/notes/${id}`, {
-          method: 'PATCH',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(patch),
-        });
-        setStatus(res.ok ? 'saved' : 'error');
-      } catch {
-        setStatus('error');
-      }
+      const run = async (force: boolean): Promise<void> => {
+        try {
+          const res = await sendPatch(id, patch, force);
+          if (res.conflict) {
+            setStatus('idle');
+            setConflict({ id, trashed: res.conflict === 'trashed', retry: () => enqueue(id, () => run(true)) });
+            return;
+          }
+          setConflict((c) => (c?.id === id ? null : c));
+          setStatus('saved');
+        } catch {
+          setStatus('error');
+        }
+      };
+      await enqueue(id, () => run(false));
     },
-    [sort],
+    [sort, sendPatch, enqueue],
   );
 
   /** Cambios de metadatos (tags, libreta, fijada, papelera). null = falló (con aviso). */
@@ -280,13 +343,14 @@ export default function NotesApp({
     async (id: string, patch: Record<string, unknown>) => {
       await pendingCreates.current.get(id);
       try {
-        const res = await fetch(`/api/notes/${id}`, {
-          method: 'PATCH',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(patch),
-        });
-        if (!res.ok) throw new Error(String(res.status));
-        const updated = (await res.json()) as NoteDetail;
+        // Solo los cambios que tocan la nota llevan la base (mandar a la papelera o restaurar no).
+        const guarded = !('trashed' in patch);
+        const res = await enqueue(id, () => sendPatch(id, patch, !guarded));
+        if (res.conflict) {
+          setConflict({ id, trashed: res.conflict === 'trashed', retry: null });
+          return null;
+        }
+        const updated = res.updated;
         setNote((cur) => (cur && cur.id === id ? { ...updated, content: cur.content, title: cur.title } : cur));
         void refreshList();
         void refreshSide();
@@ -296,8 +360,35 @@ export default function NotesApp({
         return null;
       }
     },
-    [refreshList, refreshSide, t],
+    [refreshList, refreshSide, t, enqueue, sendPatch],
   );
+
+  /** Conflicto: "Cargar la última versión" descarta lo propio sin guardar. */
+  const reloadAfterConflict = useCallback(async () => {
+    const c = conflict;
+    if (!c) return;
+    try {
+      const res = await fetch(`/api/notes/${c.id}`);
+      if (!res.ok) throw new Error(String(res.status));
+      const fresh = (await res.json()) as NoteDetail;
+      bases.current.set(fresh.id, fresh.updated_at);
+      setConflict(null);
+      setNote((cur) => (cur && cur.id === fresh.id ? fresh : cur));
+      setEditorKey((k) => k + 1);
+      setStatus('idle');
+      void refreshList();
+    } catch {
+      setToast(t('editor.openError'));
+    }
+  }, [conflict, refreshList, t]);
+
+  /** Conflicto: "Conservar la mía" guarda lo de esta pestaña encima, a sabiendas. */
+  const overwriteAfterConflict = useCallback(async () => {
+    const retry = conflict?.retry;
+    if (!retry) return;
+    setStatus('saving');
+    await retry();
+  }, [conflict]);
 
   const trash = useCallback(
     async (id: string) => {
@@ -748,9 +839,22 @@ export default function NotesApp({
 
       {/* ---------- Editor ---------- */}
       <div className="notes-editor">
+        {note && conflict?.id === note.id && (
+          <div className="docs-banner docs-banner-bad" role="alert">
+            <span>{conflict.trashed ? t('editor.conflictTrashed') : t('editor.conflict')}</span>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void reloadAfterConflict()}>
+              {t('editor.conflictReload')}
+            </button>
+            {!conflict.trashed && conflict.retry && (
+              <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => void overwriteAfterConflict()}>
+                {t('editor.conflictOverwrite')}
+              </button>
+            )}
+          </div>
+        )}
         {note ? (
           <NoteEditorPane
-            key={note.id}
+            key={`${note.id}:${editorKey}`}
             note={note}
             notebooks={notebooks}
             focusTitle={focusTitle}

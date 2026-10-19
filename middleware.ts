@@ -4,6 +4,7 @@ import { routing } from './i18n/routing';
 import { isAppHost } from './lib/hosts';
 import { surfaceForHost, surfaceRewritePath } from './lib/host-rewrite';
 import { requestLocale } from './lib/request-locale';
+import { RETURN_PATH_HEADER } from './lib/return-path';
 import { BRAND_COOKIE, BRAND_HEADER, BRAND_PARAM, DEFAULT_BRAND, forcedBrandForPath, isBrandTheme } from './lib/brand-theme';
 
 const intlMiddleware = createMiddleware(routing);
@@ -117,7 +118,23 @@ export default function middleware(incoming: NextRequest) {
     }
   }
 
-  return intlMiddleware(req);
+  return intlMiddleware(withReturnPath(req));
+}
+
+/**
+ * Path + query de la request en un header interno: si la página pide login,
+ * requireUser lo usa como ?callbackUrl= (también desde los layouts, que no
+ * reciben el path). Siempre se pisa: nadie de afuera puede fijarlo.
+ */
+function withReturnPath(req: NextRequest): NextRequest {
+  const headers = new Headers(req.headers);
+  headers.delete(RETURN_PATH_HEADER);
+  if (/^\/(en|es|pt)\/app(\/|$)/.test(req.nextUrl.pathname)) {
+    headers.set(RETURN_PATH_HEADER, `${req.nextUrl.pathname}${req.nextUrl.search}`);
+  } else if (!req.headers.has(RETURN_PATH_HEADER)) {
+    return req;
+  }
+  return new NextRequest(req, { headers });
 }
 
 export const config = {

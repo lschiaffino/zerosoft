@@ -93,7 +93,7 @@ export function isTrustedReturnUrl(url: string, baseUrl: string): boolean {
  * absoluta de confianza (isTrustedReturnUrl). Si no, null.
  */
 export function safeCallbackUrl(raw: string | null | undefined, baseUrl: string): string | null {
-  if (!raw || raw.length > 1000) return null;
+  if (!raw || raw.length > 2000) return null;
   if (raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\')) return raw;
   return isTrustedReturnUrl(raw, baseUrl) ? raw : null;
 }

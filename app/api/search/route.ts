@@ -4,6 +4,7 @@ import { sessionScope } from '@/lib/crm-visibility';
 import { searchAll, searchTasks } from '@/lib/crm';
 import { searchDocPages } from '@/lib/docs';
 import { listLinks, toLinkDto } from '@/lib/links';
+import { searchNotesForPalette } from '@/lib/notes';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,11 +30,13 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks] = await Promise.all([
+  const [crm, links, docs, tasks, notes] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     searchDocPages(user.id, q),
     searchTasks(user.id, q, scope),
+    // Notas: solo las de la persona logueada (son privadas aunque el workspace sea compartido).
+    searchNotesForPalette(user, q),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -86,6 +89,16 @@ export async function GET(req: NextRequest) {
       label: p.title,
       meta: '',
       href: `/app/docs/${p.id}`,
+    });
+  }
+
+  for (const n of notes) {
+    items.push({
+      id: n.id,
+      group: 'notes',
+      label: n.title || n.snippet || 'Untitled note',
+      meta: n.title ? n.snippet : '',
+      href: `/app/notes?note=${encodeURIComponent(n.id)}`,
     });
   }
 

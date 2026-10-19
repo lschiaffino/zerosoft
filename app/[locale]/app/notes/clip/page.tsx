@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
+import { pathWithQuery } from '@/lib/return-path';
 import NotesClipForm from '@/components/notes/NotesClipForm';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,8 @@ export default async function NotesClipPage(props: {
   const { locale } = await props.params;
   const sp = await props.searchParams;
   setRequestLocale(locale);
-  await requireUser(locale);
+  // Sin sesión, el clip (URL, título y selección) sobrevive al login.
+  await requireUser(locale, pathWithQuery(`/${locale}/app/notes/clip`, sp));
   const url = typeof sp.url === 'string' && /^https?:\/\//i.test(sp.url) ? sp.url.slice(0, 2000) : '';
   return (
     <NotesClipForm

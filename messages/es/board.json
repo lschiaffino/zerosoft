@@ -46,7 +46,12 @@
     "keepMine": "Conservar mi versión",
     "tooLarge": "Esta pizarra pesa más de {mb} MB, casi siempre por las imágenes. Sacá o achicá algunas para seguir guardando.",
     "loading": "Cargando pizarra",
-    "dismiss": "Cerrar aviso"
+    "dismiss": "Cerrar aviso",
+    "conflictDeleted": "Esta pizarra cambió en otro lado: algo que editaste se borró allá, o borraste algo que se editó allá. Todo lo demás ya quedó combinado.",
+    "conflictDeletedBy": "{name} cambió esta pizarra: algo que editaste se borró de su lado, o borraste algo que editó. Todo lo demás ya quedó combinado.",
+    "draftFound": "Hay cambios de tu última visita que no se llegaron a guardar.",
+    "draftRestore": "Recuperarlos",
+    "draftDiscard": "Descartar"
   },
   "public": {
     "notFound": "Pizarra no encontrada",

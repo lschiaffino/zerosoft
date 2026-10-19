@@ -46,7 +46,12 @@
     "keepMine": "Keep my version",
     "tooLarge": "This board is over {mb} MB, usually because of images. Remove or shrink some images to keep saving.",
     "loading": "Loading board",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "conflictDeleted": "This board changed somewhere else: something you edited was deleted there, or you deleted something that was edited there. Everything else is already combined.",
+    "conflictDeletedBy": "{name} changed this board: something you edited was deleted on their side, or you deleted something they edited. Everything else is already combined.",
+    "draftFound": "There are changes from your last visit that didn't get saved.",
+    "draftRestore": "Restore them",
+    "draftDiscard": "Discard"
   },
   "public": {
     "notFound": "Board not found",

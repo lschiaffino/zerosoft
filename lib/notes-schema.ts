@@ -30,6 +30,8 @@ export const noteUpdateSchema = z.object({
   tags: z.array(tag).max(20).optional(),
   pinned: z.boolean().optional(),
   trashed: z.boolean().optional(),
+  /** `updated_at` que conoce el cliente: si la nota cambió desde entonces, 409. */
+  base_updated_at: z.string().max(40).optional(),
 });
 
 export const notebookSchema = z.object({

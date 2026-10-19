@@ -82,7 +82,11 @@
     "more": "Más acciones",
     "dismiss": "Cerrar aviso",
     "hintNew": "nueva nota",
-    "hintSearch": "buscar"
+    "hintSearch": "buscar",
+    "conflict": "Esta nota cambió en otra pestaña o dispositivo. Tus últimos cambios no se guardaron.",
+    "conflictTrashed": "Esta nota se mandó a la papelera en otro lado. Tus últimos cambios no se guardaron.",
+    "conflictReload": "Cargar la última versión",
+    "conflictOverwrite": "Conservar la mía"
   },
   "share": {
     "button": "Compartir",

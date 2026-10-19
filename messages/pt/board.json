@@ -46,7 +46,12 @@
     "keepMine": "Manter minha versão",
     "tooLarge": "Este quadro passa de {mb} MB, quase sempre por causa das imagens. Remova ou reduza algumas para continuar salvando.",
     "loading": "Carregando quadro",
-    "dismiss": "Fechar aviso"
+    "dismiss": "Fechar aviso",
+    "conflictDeleted": "Este quadro mudou em outro lugar: algo que você editou foi apagado lá, ou você apagou algo que foi editado lá. Todo o resto já foi combinado.",
+    "conflictDeletedBy": "{name} mudou este quadro: algo que você editou foi apagado do lado dele, ou você apagou algo que ele editou. Todo o resto já foi combinado.",
+    "draftFound": "Há alterações da sua última visita que não chegaram a ser salvas.",
+    "draftRestore": "Recuperar",
+    "draftDiscard": "Descartar"
   },
   "public": {
     "notFound": "Quadro não encontrado",

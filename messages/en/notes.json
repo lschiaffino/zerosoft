@@ -82,7 +82,11 @@
     "more": "More actions",
     "dismiss": "Dismiss",
     "hintNew": "new note",
-    "hintSearch": "search"
+    "hintSearch": "search",
+    "conflict": "This note changed in another tab or device. Your latest changes weren't saved.",
+    "conflictTrashed": "This note was moved to the trash somewhere else. Your latest changes weren't saved.",
+    "conflictReload": "Load the latest version",
+    "conflictOverwrite": "Keep mine"
   },
   "share": {
     "button": "Share",

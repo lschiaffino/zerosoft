@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
+import { pathWithQuery } from '@/lib/return-path';
 import { aiEnabled } from '@/lib/ai';
 import { getNote, listNotebooks, listNotes, listTags, noteOwner } from '@/lib/notes';
 import NotesApp from '@/components/notes/NotesApp';
@@ -19,7 +20,8 @@ export default async function NotesPage(props: {
   const { locale } = await props.params;
   const sp = await props.searchParams;
   setRequestLocale(locale);
-  const user = await requireUser(locale);
+  // Un link ?note=<id> abierto sin sesión vuelve a esa nota después del login.
+  const user = await requireUser(locale, pathWithQuery(`/${locale}/app/notes`, sp));
   const owner = noteOwner(user);
   const [notes, notebooks, tags, note] = await Promise.all([
     listNotes(owner, { view: 'all', sort: 'updated' }),
