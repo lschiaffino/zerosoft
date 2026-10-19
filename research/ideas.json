@@ -3,13 +3,17 @@
     "title": "Agents: Stop replying after handoff on public/API and let teammates answer there",
     "description": "On the Chat channel the agent goes silent after handoff (lib/agents-chat.ts checks wasHandedOff), but sendAgentMessage in lib/agents.ts never checks agent_conversations.handed_off, so on /a/<handle> and the API the bot keeps answering after it promised a teammate. Worse, components/agents/AgentConversations.tsx is read-only: the notification links to a transcript where nobody can reply, so the handoff is a dead end. Fin keeps the conversation owned and routes it to the right team with a reply path (https://fin.ai/capabilities). First scope: after handoff, store visitor messages without running the model, add a teammate reply box in the Conversations tab that streams into the public page via polling, and ask for an email at handoff time so the team can follow up offline.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Agents: Fetch knowledge URLs on save and re-sync them daily from the cron tick",
     "description": "Saving a new URL only inserts a 'pending' row (syncKnowledgeUrls in lib/agents.ts) and searchAgentKnowledge only reads status='ok', so a newly added page is invisible to the agent until someone clicks refresh in the Knowledge tab. There is no scheduled re-crawl (vercel.json only runs /api/cron/tick and robots, neither touches agents), so prices or policies on those pages silently go stale. Lindy auto-refreshes its knowledge base every 24 hours (https://community.lindy.ai/x/support/htoqrkuf750a/understanding-resync-knowledge-base-action-with-dy), Fin syncs website and Zendesk content (https://fin.ai/train), and Zapier schedules daily/weekly syncs (https://help.zapier.com/hc/en-us/articles/29457465505805). First scope: kick refreshKnowledgeUrls for new URLs after PATCH, re-fetch URLs older than 24h from the hourly cron in small batches, and show 'last synced' plus an error badge in the Knowledge tab.\n\nPriority: high. Effort: S. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Agents: Add saved test cases with an LLM judge and rerun them before publishing",
@@ -51,13 +55,17 @@
     "title": "Board: Merge concurrent edits per element instead of whole-scene 'keep mine' overwrite",
     "description": "Until full multiplayer lands, the conflict path is destructive: keepMine() in components/board/BoardEditor.tsx re-PUTs the entire local scene over the server version, silently deleting anything a teammate added, and 'reload' throws away local work. Miro never asks users to pick a winner, and Excalidraw already exports reconcileElements (present in node_modules/@excalidraw/excalidraw types) to merge two element arrays by id and version. This is a data-loss defect for any team of 2+ editing the same board. First scope: on 409, GET the server scene, reconcile with local elements, updateScene with the merged result and retry the save against the new version, only showing a banner when the merge is ambiguous.\n\nPriority: high. Effort: M. Compared with Miro.",
     "product": "board",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Board: Fix pending changes lost when leaving the editor during an in-flight save",
     "description": "The unmount effect in components/board/BoardEditor.tsx fires a final PUT with versionRef.current but does not check inFlightRef, so if an autosave is still running it sends the same base version, the first request bumps the version and the final one gets a 409 that nobody sees; the last edits are lost. It also only uses keepalive for bodies under 60 KB and never shows an error. Miro saves continuously with no such window (board history in https://help.miro.com/hc/articles/360021668819 is a safety net, which we also lack). First scope: on unmount, wait for or chain after the in-flight request and use the returned version, and persist unsaved scenes to localStorage so the next open can offer to restore them.\n\nPriority: high. Effort: S. Compared with Miro.",
     "product": "board",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Board: Add pinned comment threads with @mentions and resolve",
@@ -87,13 +95,17 @@
     "title": "Cal: Run reminder and workflow cron often enough that 'X minutes before' steps arrive",
     "description": "Calendly Workflows send emails and texts at exact offsets such as 30 minutes before the meeting (https://calendly.com/blog/workflows). Our workflow editor lets hosts pick offsets in minutes (components/calendar/EventTypeEditor.tsx), but the only scheduler is /api/cron/tick at '17 * * * *' in vercel.json, and processDueWorkflowRuns in lib/calendar-workflows.ts silently marks a 'before' step as sent and skips it when the hourly tick lands after the meeting start. In practice a '15 minutes before' reminder is dropped roughly three times out of four, which defeats the main no-show reducer. First scope: move calendar reminders and workflow runs to the existing 5 minute cron (or schedule each email at booking time with the provider's scheduled send), and block offsets shorter than the cron interval in the UI with a clear hint.\n\nPriority: high. Effort: S. Compared with Calendly.",
     "product": "cal",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Cal: Apply buffers of existing bookings too, so buffer protection is not order dependent",
     "description": "Calendly blocks the buffer around every Calendly meeting, so a 30 minute meeting with 15 minute buffers reserves 60 minutes (https://calendly.com/help/how-to-use-buffers). In lib/calendar.ts the buffer is only added to the candidate slot (applyBuffer in slotsForDay, pickFreeHost and HOST_FREE_SQL), while existing bookings are compared with their raw starts_at/ends_at. With bufferAfter=15, booking 8:30 to 9:00 first and then 9:00 to 9:30 is allowed with zero gap, but the reverse order is blocked. Hosts who rely on buffers for travel or prep get back-to-back meetings depending on who booked first. First scope: store the buffered range (or the buffer minutes) on each booking and expand existing bookings by their own buffers in listBusyRanges and HOST_FREE_SQL, plus a unit test for both orders.\n\nPriority: high. Effort: S. Compared with Calendly.",
     "product": "cal",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Cal: Add start time increments independent of meeting duration",
@@ -129,13 +141,17 @@
     "title": "Chat: Localize the embedded widget UI (en/es/pt) instead of hardcoded English",
     "description": "Intercom localizes all Messenger UI to the visitor's browser language for every supported language, with a language_override attribute (https://www.intercom.com/help/en/articles/180-localize-the-messenger-to-work-with-multiple-languages). Our widget script hardcodes English strings such as 'Type a message…', 'Start chat', 'We're away right now.', 'How would you rate your experience?', 'Search articles…' and the default welcome 'Hi there. How can we help?' in app/api/chat/widget.js/route.ts. This breaks PRODUCT.md's rule of no hardcoded UI strings across en/es/pt, and Latin America is the home market, so most end customers see an English widget on a Spanish site. First scope: move widget strings to the chat messages namespace, pick the locale from navigator.language or a data-locale attribute, and add a widget-level default language setting.\n\nPriority: high. Effort: S. Compared with Intercom.",
     "product": "chat",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Chat: Search inbox by message content, not only subject, name and email",
     "description": "Intercom Inbox search matches conversations containing the query words and combines with tag, user, assignee and date filters, sorted by relevancy or date (https://www.intercom.com/changes/en/2285-find-the-exact-conversations-you-re-looking-for-with-flexible-search-and-filters-for-inbox). Our listChatConversations in lib/chat-data.ts only applies LIKE to c.subject, v.name and v.email, so searching for an order number, error text or a phrase the customer wrote returns nothing. Finding 'the person who asked about X last week' is a daily support task. First scope: add an EXISTS match on chat_messages.body (including notes for agents) with a snippet of the matching message in the list row, then an FTS index if volume needs it.\n\nPriority: high. Effort: S. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Chat: Add agent away status that skips round-robin and optionally reassigns",
@@ -147,7 +163,9 @@
     "title": "CRM: Keep synced emails, enrollments and form history when merging contacts",
     "description": "HubSpot merges keep activities, associations and most property values from both records (https://knowledge.hubspot.com/records/merge-records). Our mergeContacts in lib/crm.ts moves contact_id on crm_emails but never repoints crm_email_contacts, and then deletes the dropped contact, so its rows cascade away (lib/schema/migrations.ts:995) and those emails disappear from the kept contact's timeline, which reads through crm_email_contacts (lib/crm-email.ts:777) and also feeds lead scoring. Sequence enrollments cascade-delete, form submissions lose their contact (ON DELETE SET NULL), property history stays orphaned, and empty fields on the kept contact are not filled from the dropped one. A small team merging a duplicate silently loses its email history. Fix: repoint crm_email_contacts, crm_sequence_enrollments, crm_form_submissions and crm_property_events inside the same transaction, fill blank fields from the dropped record, and add a regression test next to tests/unit/crm.test.ts 'merge de contactos'.\n\nPriority: high. Effort: S. Compared with HubSpot.",
     "product": "crm",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "CRM: Add a recycle bin that restores deleted records and activities for 90 days",
@@ -227,7 +245,9 @@
     "title": "Flow: Run the scheduler every minute so minute schedules, delays and retries fire on time",
     "description": "Zapier polls every 15 minutes on Free and every 2 minutes on paid plans, and n8n schedules run to the minute (https://zapier.com/pricing). Our editor offers interval schedules in minutes (minimum 5) and Delay in seconds or minutes, but on cloud the Flow queue only drains in the hourly /api/cron/tick ('17 * * * *' in vercel.json); the copy itself admits runs can start up to an hour late (messages/en/flow.json scheduleGranularity and delayGranularity). Node retries schedule jobs 15 s to 1 h out and also wait for the next tick. This silently breaks the most common small-team automation, 'every 15 minutes check X', and any follow-up delay. First scope: call processFlowQueue from the existing 5-minute /api/cron/robots route (or add a 1-minute cron for Flow only), then remove the granularity warnings.\n\nPriority: high. Effort: S. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Flow: Add actions to update CRM records, create tasks and update Track issues",
@@ -269,7 +289,9 @@
     "title": "Link: Forward query parameters from the short link to the destination URL",
     "description": "Dub appends any query string on the short link (for example ?utm_source=newsletter) to the destination, with the short link value winning on conflicts, so one link can be reused across channels (https://dub.co/help/article/parameter-passing). Our middleware already forwards req.nextUrl.search into /r/<slug>, but app/r/[slug]/route.ts redirects to link.url or the targeting destination and drops every incoming param except reading ?qr=1. Marketers who tag a short link per channel silently lose that attribution today. First scope: merge incoming params into the resolved destination (strip our internal qr param), apply to deep link fallbacks too, and add a per-link toggle defaulting to on.\n\nPriority: high. Effort: S. Compared with Bitly / Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Link: Track leads and sales per link and attribute them to CRM contacts and deals",
@@ -287,13 +309,17 @@
     "title": "Link: Let expired and missing links redirect to a custom URL per link and domain",
     "description": "Dub supports expiredUrl per link and expiredUrl/notFoundUrl defaults per domain, so a dead campaign link lands on a useful page instead of an error (https://dub.co/help/article/link-expiration, https://dub.co/help/article/setting-not-found-url). In app/r/[slug]/route.ts every expired, limit-reached, archived or unknown slug goes to the zerosoft /gone page, even on a customer's own branded domain; link_domains only has root_url. Printed QR codes and old campaign emails keep getting traffic long after expiry, and a zerosoft error page on a customer domain looks broken. First scope: expired_url column on links, expired_url and not_found_url on link_domains, used by the gone() branches.\n\nPriority: high. Effort: S. Compared with Bitly / Dub.",
     "product": "link",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Notes: Preserve the clip and deep link through sign-in instead of dropping them",
     "description": "Evernote's Web Clipper prompts sign-in and then completes the clip (https://help.evernote.com/hc/en-us/articles/209125827). Our clip page and the main Notes page call requireUser, which redirects to /auth/signin without a callbackUrl (lib/session.ts requireUser), even though the sign-in page already supports ?callbackUrl= (app/[locale]/auth/signin/page.tsx). A logged-out user who clicks the bookmarklet loses the URL, title and selection, and anyone opening a shared ?note=<id> link lands on the generic app home. This silently breaks the main capture path on any new device or expired session. First scope: let requireUser accept the current path plus query and pass it as callbackUrl, starting with /app/notes/clip and /app/notes.\n\nPriority: high. Effort: S. Compared with Evernote.",
     "product": "notes",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Notes: Add image and file attachments with drag, drop and paste into a note",
@@ -311,19 +337,25 @@
     "title": "Notes: Include notes in the global Cmd+K search results",
     "description": "Evernote search is the front door to the app and spans titles, text and even attachments (https://help.evernote.com/hc/articles/208313828). Our suite-wide search route only queries CRM, Links, Docs and tasks (app/api/search/route.ts) even though lib/notes.ts already has a fast FTS5 search per person. Users who live in other zerosoft apps cannot find a note without first opening Notes, which undercuts the 'one suite' value. First scope: add a notes group to /api/search using listNotes with q and a small limit, scoped to the current person, linking to /app/notes?note=<id>.\n\nPriority: high. Effort: S. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Notes: Detect edit conflicts between tabs or devices instead of last write wins",
     "description": "Evernote keeps note history and creates conflicting-change copies so that edits from two devices are never silently lost (https://help.evernote.com/hc/articles/208313858). Our autosave PATCH sends the whole title and block array with no version or updated_at precondition (components/notes/NotesApp.tsx saveContent, lib/notes.ts updateNote), so a stale tab or a laptop left open overwrites newer content written on a phone. PATCH also accepts content edits on trashed notes. This is silent data loss in the most common multi-device scenario. First scope: send the last known updated_at with each save, return 409 when the server row is newer, and show a 'This note changed elsewhere, reload or keep mine' banner; reject content edits on trashed notes.\n\nPriority: high. Effort: S. Compared with Evernote.",
     "product": "notes",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Robots: Queue runs instead of failing as busy when another workspace run is active",
     "description": "UiPath Orchestrator queues pending jobs per robot and only raises an alert when a trigger cannot create jobs (https://docs.uipath.com/orchestrator/standalone/2023.4/user-guide/alerts), and Browse AI queues tasks for bulk runs (https://www.browse.ai/monitoring). Our startRobotRun inserts a run only when no other run in the workspace is running, otherwise returns busy (lib/robots.ts). For schedules, runDueRobots advances next_run_at before starting, so a collision with a manual or Flow run records a failed busy run and that scheduled execution is lost; from Flow, app.robot_run fails unless the node has retries (default 0, lib/flow-engine.ts robotNode). Teams with two or three robots will see random failures they did not cause, which destroys trust. First scope: add a queued status, insert as queued when busy, and drain the queue in /api/cron/robots and after each run finishes, with a max queue age.\n\nPriority: high. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Robots: Send failure alerts and auto-pause schedules after N consecutive failures",
@@ -359,7 +391,9 @@
     "title": "Track: Let authors edit and delete their own issue comments",
     "description": "Linear lets you edit or delete your own comment from its overflow menu and resolve threads (https://linear.app/docs/comment-on-issues). In Track, app/api/track/issues/[id]/comments/route.ts only exposes GET and POST; deleteIssueComment in lib/track-data.ts is never called, and the comment body is also copied into the activity meta, so a typo or a leaked secret stays forever. commentCreateSchema (lib/track-schema.ts) also has no min length, so the API accepts empty comments even though the UI disables the button. First scope: PATCH and DELETE on /api/track/issues/[id]/comments/[commentId] restricted to the author, render the comment from track_issue_comments instead of activity meta, show an edited marker, and require body min(1).\n\nPriority: high. Effort: S. Compared with Linear.",
     "product": "track",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Track: Add a Markdown rich text editor for issue descriptions and comments",
@@ -569,7 +603,9 @@
     "title": "CRM: Count synced emails toward deal rotting and make the threshold per stage",
     "description": "Pipedrive lets each stage define its own 'Rotting in (days)', and sending or receiving linked emails, notes, files and done activities all reset the clock (https://support.pipedrive.com/en/article/the-rotting-feature). Our board flags a deal as rotting after a hard-coded 14 days (components/crm/DealsBoard.tsx:373), and idle time comes only from crm_activities with that deal_id or the deal's updated_at (lib/crm.ts:1531, app/[locale]/app/crm/deals/page.tsx:86). Inbound replies stored by Gmail sync never create activities (lib/crm-email-sync.ts), so a deal with an active email thread is still marked rotting, which teaches reps to ignore the badge. Fix: include the latest crm_emails sent_at for contacts associated to the deal in last activity, and add an optional rotting_days column on crm_stages editable in PipelinesEditor.\n\nPriority: medium. Effort: S. Compared with HubSpot.",
     "product": "crm",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "CRM: Require chosen properties before a deal can enter a stage",
@@ -685,7 +721,9 @@
     "title": "Link: Make UTM fields editable and keep them in sync with the destination URL",
     "description": "UTM params are baked into links.url at creation (applyUtm in lib/links.ts) and also stored in utm_source/medium/campaign, but linkPatchSchema has no UTM fields and EditLinkForm has no UTM inputs. If a user edits the destination and removes or changes the utm params, the stored utm_* columns and the API DTO keep reporting the old values, so the data is inconsistent. Dub treats UTM as editable link fields that set or override params in the destination (https://dub.co/docs/api-reference/endpoint/create-a-link). First scope: add utm fields to linkPatchSchema and the edit form, and re-derive the utm_* columns from the final URL on every URL change.\n\nPriority: medium. Effort: S. Compared with Bitly / Dub.",
     "product": "link",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Link: Add utm_term/utm_content and saved workspace UTM templates",
@@ -889,7 +927,9 @@
     "title": "Cal: Distribute round-robin bookings fairly and expose a no-show webhook event",
     "description": "Calendly round robin can optimize for availability or for equal distribution, and its API emits invitee_no_show.created webhooks (https://calendly.com/help/how-to-use-buffers mentions distribution effects; https://learn.microsoft.com/en-us/connectors/calendlyv2). In lib/calendar.ts createBooking increments rr_cursor by one whatever host pickFreeHost chose, so when the cursor host is busy the next host gets two bookings in a row and the skipped one loses its turn. Separately, the v1 no-show endpoint (app/api/v1/calendar/bookings/[id]/no-show/route.ts) never calls emitEvent, so webhooks and Flow cannot react to no-shows. First scope: set the cursor to the index after the host actually picked (or pick the least recently booked free host), and emit booking.no_show from both the admin and v1 paths.\n\nPriority: low. Effort: S. Compared with Calendly.",
     "product": "cal",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   },
   {
     "title": "Chat: Add AI compose tools for agents: summarize to note, rephrase, translate",
@@ -991,6 +1031,8 @@
     "title": "Track: Log activity and emit events when completing a cycle moves issues",
     "description": "completeCycle in lib/track-data.ts moves unfinished issues with a raw UPDATE on track_issues, so no cycle_change activity is written, no issue.updated Flow event fires, and assignees get no notice, unlike updateIssue and bulk edit, which keep activity and notifications (lib/track-bulk.ts). Linear keeps the issue history and the cycle snapshot when rolling over (https://linear.app/docs/use-cycles). The issue timeline then shows a cycle that silently changed. First scope: collect moved issue ids in the transaction, then write cycle_change activities and emit issue.updated for each after commit.\n\nPriority: low. Effort: S. Compared with Linear.",
     "product": "track",
-    "kind": "bug"
+    "kind": "bug",
+    "status": "done",
+    "changelog": "2026-10-19-backlog"
   }
 ]

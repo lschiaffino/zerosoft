@@ -29,6 +29,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-19-backlog',
+    date: '2026-10-19',
+    title: {
+      en: 'Twenty-one fixes from the backlog across ten apps',
+      es: 'Veintiún arreglos del backlog en diez apps',
+      pt: 'Vinte e uma correções do backlog em dez apps',
+    },
+    items: [
+      { product: 'flow', en: 'Schedules, delays and retries run every minute instead of every hour.', es: 'Los schedules, las esperas y los reintentos corren cada minuto en vez de cada hora.', pt: 'Os agendamentos, as esperas e as novas tentativas rodam a cada minuto em vez de a cada hora.' },
+      { product: 'cal', en: 'Reminders and workflow emails go out on time, buffers protect existing bookings too, round-robin spreads bookings fairly and there is a booking.no_show event.', es: 'Los recordatorios y los emails de workflows salen a tiempo, los buffers protegen también a las reservas existentes, el round-robin reparte parejo y hay un evento booking.no_show.', pt: 'Os lembretes e os emails de workflows saem na hora, os buffers protegem também as reservas existentes, o round-robin distribui de forma justa e há um evento booking.no_show.' },
+      { product: 'link', en: 'Query parameters on a short link pass to the destination, UTM fields can be edited, and expired or missing links can redirect to your own URL per link or domain.', es: 'Los parámetros de un link corto pasan al destino, los UTM se pueden editar y un link vencido o inexistente puede redirigir a tu propia URL, por link o por dominio.', pt: 'Os parâmetros de um link curto passam para o destino, os UTM podem ser editados e um link expirado ou inexistente pode redirecionar para a sua própria URL, por link ou por domínio.' },
+      { product: 'board', en: 'Edits are no longer lost when you leave during a save, and when two people save at once the changes merge element by element.', es: 'Ya no se pierden cambios al salir durante un guardado, y si dos personas guardan a la vez los cambios se combinan elemento por elemento.', pt: 'As alterações não se perdem mais ao sair durante um salvamento, e se duas pessoas salvam ao mesmo tempo as mudanças se combinam elemento por elemento.' },
+      { product: 'notes', en: 'Notes warn about edit conflicts between tabs or devices, keep a clip through sign-in and show up in Cmd+K search.', es: 'Notes avisa los conflictos de edición entre pestañas o dispositivos, conserva lo recortado al iniciar sesión y aparece en la búsqueda Cmd+K.', pt: 'O Notes avisa conflitos de edição entre abas ou dispositivos, mantém o recorte ao entrar e aparece na busca Cmd+K.' },
+      { product: 'crm', en: 'Merging contacts keeps synced emails, sequences and form history. Deal rotting counts emails and its days are set per stage.', es: 'Fusionar contactos conserva emails sincronizados, secuencias e historial de formularios. El aviso de deal estancado cuenta los emails y sus días se configuran por etapa.', pt: 'Mesclar contatos mantém emails sincronizados, sequências e histórico de formulários. O aviso de negócio parado conta os emails e os dias são definidos por etapa.' },
+      { product: 'track', en: 'Authors can edit and delete their comments, and completing a cycle logs which issues it moved.', es: 'Cada autor puede editar y borrar sus comentarios, y completar un ciclo registra qué issues movió.', pt: 'Cada autor pode editar e apagar seus comentários, e concluir um ciclo registra quais issues moveu.' },
+      { product: 'agents', en: 'After a handoff the agent stops answering and a teammate can reply from the Conversations tab. Knowledge URLs download on save and refresh daily.', es: 'Después de derivar, el agente deja de responder y una persona del equipo puede contestar desde la pestaña Conversaciones. Las URLs de conocimiento se descargan al guardar y se actualizan cada día.', pt: 'Depois de transferir, o agente para de responder e alguém da equipe pode responder pela aba Conversas. As URLs de conhecimento são baixadas ao salvar e atualizadas todo dia.' },
+      { product: 'robots', en: 'Runs wait in line instead of failing when another run is active, so scheduled runs are no longer lost.', es: 'Las corridas esperan en cola en vez de fallar cuando hay otra activa, así no se pierden las programadas.', pt: 'As execuções esperam na fila em vez de falhar quando há outra ativa, assim as agendadas não se perdem.' },
+      { product: 'chat', en: 'The widget speaks English, Spanish and Portuguese, and inbox search matches message text.', es: 'El widget habla inglés, español y portugués, y la búsqueda del inbox encuentra el texto de los mensajes.', pt: 'O widget fala inglês, espanhol e português, e a busca do inbox encontra o texto das mensagens.' },
+    ],
+  },
+  {
     id: '2026-10-19-mejoras',
     date: '2026-10-19',
     title: {
