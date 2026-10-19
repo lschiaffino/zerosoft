@@ -781,7 +781,7 @@ export interface CalendarBookingRow {
   stripe_session_id: string | null;
   amount_cents: number;
   currency: string;
-  /** Buffers propios al reservar (039_cal_booking_buffers): protegen también a la reserva existente. */
+  /** Buffers propios al reservar (040_cal_booking_buffers): protegen también a la reserva existente. */
   buffer_before_min: number;
   buffer_after_min: number;
 }
