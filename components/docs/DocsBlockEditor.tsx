@@ -1,7 +1,8 @@
 'use client';
 
 import { forwardRef, useLayoutEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/navigation';
 import type { DocsBlock, DocsBlockType } from '@/lib/docs-types';
 import {
   escapeHtml,
@@ -10,6 +11,7 @@ import {
   sanitizeHtml,
   serializeEditable,
 } from '@/lib/docs-richtext';
+import { isPageLinkId, pageLinkHref } from '@/lib/docs-page-links';
 import DocsDatabaseBlock from './DocsDatabaseBlock';
 
 interface DocsBlockEditorProps {
@@ -25,6 +27,8 @@ interface DocsBlockEditorProps {
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
   ({ block, index, listIndex, onChange, onKeyDown, onFocus, focused }, ref) => {
     const t = useTranslations('docs');
+    const locale = useLocale();
+    const router = useRouter();
     const innerRef = useRef<HTMLDivElement | null>(null);
 
     const renderPlaceholder = (type: DocsBlockType): string => {
@@ -66,7 +70,39 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
       } else if (!needBr && hasBr) {
         lastEl.remove();
       }
-    }, [block.id, block.content]);
+      // Links a página: atómicos como en Notion (el caret no entra, Backspace
+      // los borra enteros) y con el href del locale actual. El serializador
+      // ignora estos atributos (rehace el href desde data-page).
+      el.querySelectorAll<HTMLAnchorElement>('a[data-page]').forEach((a) => {
+        const id = a.getAttribute('data-page') ?? '';
+        if (!isPageLinkId(id)) return;
+        a.contentEditable = 'false';
+        a.href = `/${locale}${pageLinkHref(id)}`;
+      });
+    }, [block.id, block.content, locale]);
+
+    /**
+     * Click en un link: el de página navega (Cmd/Ctrl+click: pestaña nueva);
+     * un link externo se abre solo con Cmd/Ctrl+click (el click simple edita).
+     */
+    const onLinkClick = (e: React.MouseEvent<HTMLDivElement>) => {
+      const a = (e.target as Element).closest?.('a');
+      if (!a || !e.currentTarget.contains(a)) return;
+      const page = a.getAttribute('data-page');
+      const modifier = e.metaKey || e.ctrlKey;
+      if (page !== null && isPageLinkId(page)) {
+        e.preventDefault();
+        if (modifier) window.open(`/${locale}${pageLinkHref(page)}`, '_blank', 'noopener');
+        else router.push(pageLinkHref(page));
+        return;
+      }
+      if (modifier) {
+        const href = a.getAttribute('href');
+        if (!href) return;
+        e.preventDefault();
+        window.open(href, '_blank', 'noopener,noreferrer');
+      }
+    };
 
     if (block.type === 'divider') {
       return <hr className="docs-divider" data-index={index} />;
@@ -184,6 +220,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           }}
           onKeyDown={(e) => onKeyDown(index, e)}
           onFocus={() => onFocus(index)}
+          onClick={onLinkClick}
         />
       </div>
     );

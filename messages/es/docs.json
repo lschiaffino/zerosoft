@@ -118,7 +118,8 @@
   },
   "mentions": {
     "noPages": "Sin páginas",
-    "noMembers": "Sin miembros"
+    "noMembers": "Sin miembros",
+    "linkedFrom": "Enlazada desde"
   },
   "emoji": {
     "pick": "Elegir ícono",

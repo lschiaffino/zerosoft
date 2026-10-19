@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import {
   type DocsAccess,
   type DocsComment,
@@ -16,6 +16,7 @@ import ShareDialog, { type ShareRequest } from './ShareDialog';
 import CommentsPanel from './CommentsPanel';
 import VersionsPanel from './VersionsPanel';
 import Icon from '@/components/app/icons';
+import DocsGlyph from './DocsGlyphs';
 
 interface CommentsLabels {
   title: string;
@@ -41,6 +42,7 @@ export default function DocsEditorClient({
   access = 'owner',
   helpBase = null,
   feedback = null,
+  backlinks = [],
 }: {
   page: DocsPage;
   ancestors: DocsPage[];
@@ -52,6 +54,8 @@ export default function DocsEditorClient({
   access?: Exclude<DocsAccess, 'view'>;
   helpBase?: string | null;
   feedback?: { yes: number; no: number } | null;
+  /** Páginas con un link `[[` a esta (solo el dueño). */
+  backlinks?: Array<{ id: string; title: string; icon: string | null }>;
 }) {
   const router = useRouter();
   const t = useTranslations('docs');
@@ -389,6 +393,23 @@ export default function DocsEditorClient({
         onAddComment={handlePageComment}
         commentCounts={commentCounts}
         onBlockComment={handleBlockComment}
+        belowTitle={
+          backlinks.length > 0 ? (
+            <nav className="docs-backlinks" aria-label={t('mentions.linkedFrom')}>
+              <span className="docs-backlinks-label">{t('mentions.linkedFrom')}</span>
+              <ul>
+                {backlinks.map((b) => (
+                  <li key={b.id}>
+                    <Link href={`/app/docs/${b.id}`} className="docs-backlink">
+                      {b.icon ? <span aria-hidden="true">{b.icon}</span> : <DocsGlyph name="page" size={14} />}
+                      <span>{b.title || t('untitled')}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ) : null
+        }
       />
       <aside
         className="docs-side"

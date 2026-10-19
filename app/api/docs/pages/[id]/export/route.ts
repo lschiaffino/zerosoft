@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { parseBlocks, resolveDocAccess, slugifyTitle } from '@/lib/docs';
+import { listDocPageSummaries, parseBlocks, resolveDocAccess, slugifyTitle } from '@/lib/docs';
+import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
 import { blocksToMarkdown } from '@/lib/docs-markdown';
 import { docsError, notFound, unauthorized } from '@/lib/docs-http';
 
@@ -16,7 +17,18 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if (format !== 'md') return docsError(400, 'invalid_format');
   const res = await resolveDocAccess(user, id);
   if (!res) return notFound();
-  const md = blocksToMarkdown(parseBlocks(res.row.content), res.row.title);
+  // Links `[[` → links Markdown absolutos; con el título actual solo para el
+  // dueño (a un invitado no se le revelan títulos de otras páginas).
+  const titles =
+    res.access === 'owner'
+      ? new Map((await listDocPageSummaries(res.row.user_id)).map((p) => [p.id, p.title]))
+      : new Map<string, string>();
+  const origin = req.nextUrl.origin;
+  const blocks = resolveBlocksPageLinks(parseBlocks(res.row.content), (pageId) => ({
+    href: `${origin}${pageLinkHref(pageId)}`,
+    title: titles.get(pageId) ?? null,
+  }));
+  const md = blocksToMarkdown(blocks, res.row.title);
   const filename = `${slugifyTitle(res.row.title) || 'page'}.md`;
   return new NextResponse(md, {
     headers: {
