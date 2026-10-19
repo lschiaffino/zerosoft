@@ -841,6 +841,8 @@
     "stageName": "Nome do estágio",
     "addStage": "Adicionar estágio",
     "probability": "Probabilidade %",
+    "rottingDays": "Sem atividade (dias)",
+    "rottingDaysHint": "Dias sem atividade nem emails antes de marcar o negócio. Vazio usa 14.",
     "isWon": "Fechado ganho",
     "isLost": "Fechado perdido",
     "deleteStage": "Excluir estágio",
@@ -1241,7 +1243,8 @@
       "unsubscribed": "Cancelou a inscrição",
       "manual": "Removido",
       "gmail_not_connected": "Gmail desconectado",
-      "sequence_deleted": "Sequência excluída"
+      "sequence_deleted": "Sequência excluída",
+      "merged": "Mesclado com outro contato"
     },
     "pause": "Pausar",
     "resume": "Retomar",

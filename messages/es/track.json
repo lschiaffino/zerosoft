@@ -168,7 +168,11 @@
     "assignedYou": "{actor} te asignó {identifier}",
     "commentedOn": "{actor} comentó en {identifier}",
     "changedStatus": "{actor} cambió el estado de {identifier}",
-    "submitComment": "Comentar"
+    "submitComment": "Comentar",
+    "editComment": "Editar",
+    "deleteComment": "Borrar",
+    "deleteCommentConfirm": "¿Borrar este comentario? No se puede deshacer.",
+    "edited": "editado"
   },
   "relations": {
     "title": "Relaciones",

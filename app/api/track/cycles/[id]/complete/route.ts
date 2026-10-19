@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { canAccessTrackProject, completeCycle, getCycle, getProject } from '@/lib/track-data';
 import { cycleCompleteSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = cycleCompleteSchema.safeParse(body ?? {});
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const result = await completeCycle(cycle.id, parsed.data.targetCycleId);
+  const result = await completeCycle(cycle.id, parsed.data.targetCycleId, realUserId(user));
   if (!result.ok) return result.reason === 'not_found' ? notFound() : trackError(400, result.reason);
   return NextResponse.json(result);
 }

@@ -5,12 +5,13 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { PipelineWithStages } from '@/lib/crm';
 import { RemoveIcon } from './RowTools';
+import { DEFAULT_ROTTING_DAYS, MAX_ROTTING_DAYS } from '@/lib/crm-rotting';
 
 interface PipelinesEditorProps {
   initialPipelines: PipelineWithStages[];
 }
 
-type Patch = { name?: string; probability?: number; isWon?: boolean; isLost?: boolean };
+type Patch = { name?: string; probability?: number; isWon?: boolean; isLost?: boolean; rottingDays?: number | null };
 
 /** Editor de pipelines y stages: rename inline, probabilidad, flags, reorder ↑↓. */
 export default function PipelinesEditor({ initialPipelines }: PipelinesEditorProps) {
@@ -305,6 +306,24 @@ export default function PipelinesEditor({ initialPipelines }: PipelinesEditorPro
                     const n = Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0)));
                     e.target.value = String(n);
                     if (n !== s.probability) onPatchStage(p.id, s.id, { probability: n });
+                  }}
+                />
+                <input
+                  className="input stage-rot"
+                  type="number"
+                  min={1}
+                  max={MAX_ROTTING_DAYS}
+                  step={1}
+                  defaultValue={s.rotting_days ?? ''}
+                  placeholder={String(DEFAULT_ROTTING_DAYS)}
+                  disabled={s.is_won === 1 || s.is_lost === 1}
+                  aria-label={t('settings.rottingDays')}
+                  title={`${t('settings.rottingDays')}. ${t('settings.rottingDaysHint')}`}
+                  onBlur={(e) => {
+                    const raw = e.target.value.trim();
+                    const n = raw ? Math.min(MAX_ROTTING_DAYS, Math.max(1, Math.round(Number(raw) || 0))) : null;
+                    e.target.value = n === null ? '' : String(n);
+                    if (n !== (s.rotting_days ?? null)) onPatchStage(p.id, s.id, { rottingDays: n });
                   }}
                 />
                 <span className="stage-flags">

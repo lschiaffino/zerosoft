@@ -30,11 +30,19 @@ interface ActivityLabels {
   addComment: string;
   submitComment: string;
   empty: string;
+  editComment: string;
+  deleteComment: string;
+  deleteCommentConfirm: string;
+  saveComment: string;
+  cancelEdit: string;
+  edited: string;
 }
 
 interface IssueActivityTimelineProps {
   issueId: string;
   locale: string;
+  /** Usuario actual: solo el autor ve editar/borrar en sus comentarios. */
+  userId?: string;
   activities: TrackIssueActivityWithAuthor[];
   members: ProjectMember[];
   labels: ActivityLabels;
@@ -98,6 +106,7 @@ function getMentionState(text: string, cursor: number): { active: boolean; query
 export default function IssueActivityTimeline({
   issueId,
   locale,
+  userId,
   activities,
   members,
   labels,
@@ -111,6 +120,9 @@ export default function IssueActivityTimeline({
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionIndex, setMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editBody, setEditBody] = useState('');
+  const [editBusy, setEditBusy] = useState(false);
 
   const sorted = useMemo(
     () => [...activities].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
@@ -148,6 +160,31 @@ export default function IssueActivityTimeline({
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function saveEdit(commentId: string) {
+    const body = editBody.trim();
+    if (!body) return;
+    setEditBusy(true);
+    try {
+      const res = await fetch(`/api/track/issues/${issueId}/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+      });
+      if (res.ok) {
+        setEditingId(null);
+        onChange?.();
+      }
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
+  async function removeComment(commentId: string) {
+    if (!window.confirm(labels.deleteCommentConfirm)) return;
+    const res = await fetch(`/api/track/issues/${issueId}/comments/${commentId}`, { method: 'DELETE' });
+    if (res.ok) onChange?.();
   }
 
   function insertMention(member: ProjectMember) {
@@ -320,6 +357,43 @@ export default function IssueActivityTimeline({
         return <span>{labels.reopened.replace('{user}', name)}</span>;
       case 'comment': {
         const body = String(meta.body ?? '');
+        const commentId = String(meta.commentId ?? activity.id);
+        if (editingId === commentId) {
+          return (
+            <span>
+              {labels.commented.replace('{user}', name)}
+              <span className="track-comment-edit">
+                <textarea
+                  className="textarea"
+                  aria-label={labels.editComment}
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setEditingId(null);
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void saveEdit(commentId);
+                  }}
+                  rows={3}
+                  maxLength={5000}
+                  autoFocus
+                />
+                <span className="track-comment-edit-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>
+                    {labels.cancelEdit}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={!editBody.trim() || editBusy}
+                    aria-busy={editBusy || undefined}
+                    onClick={() => void saveEdit(commentId)}
+                  >
+                    {labels.saveComment}
+                  </button>
+                </span>
+              </span>
+            </span>
+          );
+        }
         return (
           <span>
             {labels.commented.replace('{user}', name)}
@@ -375,17 +449,51 @@ export default function IssueActivityTimeline({
         <p className="ui-help">{labels.empty}</p>
       ) : (
         <div className="track-activity-list">
-          {sorted.map((activity) => (
-            <div key={activity.id} className="track-activity-item">
-              <Avatar name={userName(activity)} />
-              <div className="track-activity-body">
-                <div className="track-activity-text">{renderActivity(activity)}</div>
-                <time className="track-activity-time" dateTime={activity.created_at}>
-                  {relDate(activity.created_at, locale)}
-                </time>
+          {sorted.map((activity) => {
+            const isComment = activity.type === 'comment';
+            const meta = isComment ? parseMeta(activity.meta) : {};
+            const commentId = String(meta.commentId ?? activity.id);
+            const mine = isComment && !!userId && activity.user_id === userId && editingId !== commentId;
+            return (
+              <div key={activity.id} className="track-activity-item">
+                <Avatar name={userName(activity)} />
+                <div className="track-activity-body">
+                  <div className="track-activity-text">{renderActivity(activity)}</div>
+                  <span className="track-activity-meta">
+                    <time className="track-activity-time" dateTime={activity.created_at}>
+                      {relDate(activity.created_at, locale)}
+                    </time>
+                    {isComment && typeof meta.editedAt === 'string' && meta.editedAt && (
+                      <span className="track-activity-time" title={relDate(meta.editedAt, locale)}>
+                        {labels.edited}
+                      </span>
+                    )}
+                    {mine && (
+                      <>
+                        <button
+                          type="button"
+                          className="track-comment-action"
+                          onClick={() => {
+                            setEditingId(commentId);
+                            setEditBody(String(meta.body ?? ''));
+                          }}
+                        >
+                          {labels.editComment}
+                        </button>
+                        <button
+                          type="button"
+                          className="track-comment-action"
+                          onClick={() => void removeComment(commentId)}
+                        >
+                          {labels.deleteComment}
+                        </button>
+                      </>
+                    )}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -2288,6 +2288,20 @@ export const MIGRATIONS: Migration[] = [
         )`);
     },
   },
+  {
+    // Umbral de deal rotting por etapa (estilo Pipedrive). NULL = default 14.
+    id: '039_crm_stage_rotting_days',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE crm_stages ADD COLUMN rotting_days INTEGER');
+    },
+  },
+  {
+    // Track: el autor puede editar sus comentarios (marca "editado").
+    id: '040_track_comment_edits',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE track_issue_comments ADD COLUMN updated_at TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

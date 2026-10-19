@@ -841,6 +841,8 @@
     "stageName": "Stage name",
     "addStage": "Add stage",
     "probability": "Probability %",
+    "rottingDays": "Rotting after (days)",
+    "rottingDaysHint": "Days without activity or emails before a deal is flagged. Leave empty for 14.",
     "isWon": "Closed won",
     "isLost": "Closed lost",
     "deleteStage": "Delete stage",
@@ -1241,7 +1243,8 @@
       "unsubscribed": "Unsubscribed",
       "manual": "Removed",
       "gmail_not_connected": "Gmail disconnected",
-      "sequence_deleted": "Sequence deleted"
+      "sequence_deleted": "Sequence deleted",
+      "merged": "Merged into another contact"
     },
     "pause": "Pause",
     "resume": "Resume",

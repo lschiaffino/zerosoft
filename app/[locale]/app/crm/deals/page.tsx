@@ -29,6 +29,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import { getCurrencyContext } from '@/lib/crm-currency';
 import { convertAmount, formatMoney } from '@/lib/crm-money';
+import { dbTimestamp, dealIdleDays } from '@/lib/crm-rotting';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,21 +73,18 @@ function formatCloseDate(cd: string | null, locale: string): string {
   );
 }
 
-/** Anota cada deal del board con age_days (desde created_at) e idle_days (desde última actividad o update). */
+/**
+ * Anota cada deal del board con age_days (desde created_at) e idle_days
+ * (desde la última actividad o email con sus contactos, o el último update).
+ */
 function withAges(stages: BoardStage[]): BoardStage[] {
   const nowMs = Date.now();
-  const dayMs = 86_400_000;
-  const ts = (s: string | null | undefined): number =>
-    s ? new Date(s.replace(' ', 'T') + 'Z').getTime() : 0;
   return stages.map((col) => ({
     ...col,
     deals: col.deals.map((d) => ({
       ...d,
-      age_days: Math.max(0, Math.floor((nowMs - ts(d.created_at)) / dayMs)),
-      idle_days: Math.max(
-        0,
-        Math.floor((nowMs - (ts(d.last_activity_at) || ts(d.updated_at))) / dayMs),
-      ),
+      age_days: Math.max(0, Math.floor((nowMs - dbTimestamp(d.created_at)) / 86_400_000)),
+      idle_days: dealIdleDays(d, nowMs),
     })),
   }));
 }
